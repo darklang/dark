@@ -1999,6 +1999,65 @@ The thin-wrapper elision is doing the bulk of the work already, and only ~511 ca
 the 2.7 us package path -- about 1.4 ms. The volume long since moved to builtin calls, which is why
 the operator table is where the wins have been coming from.
 
+### `Dict.get` and `Dict.setOverridingDuplicates` on the fast path -- the biggest addition yet
+
+The two busiest `Dict` builtins in a view build, and the first entries whose operands are of
+different types (a `Dict` and a `String` key) and the first with three arguments.
+
+Neither restates its builtin. `dictGet` calls the same `DvalCreator.option` the builtin calls and
+`dictSet` the same `dictAddEntry`; both live in `LibExecution`, so this short-circuits the call
+machinery around a builtin rather than duplicating one -- the line every entry in this table has to
+stay on the right side of. Both entry points learned a three-argument arm, and `tryFastOp`/
+`tryFastOpDirect` now take a `threadID` for those helpers.
+
+A/B on `optime`, three passes per arm, differenced against a `build a 2-entry dict` row so the dict
+construction both rows carry cancels:
+
+    dictGet    off 3.90 us    on 2.50 us    (1.40 saved)
+    dictSet    off 3.23 us    on 1.53 us    (1.70 saved)
+
+At 292 and 252 calls a view that is **~0.84 ms of a 20 ms view, 4.2%** -- the largest single addition
+to this table so far. Together with the one-argument operators it moved `viewAtSize` from 20 to
+**18-19 ms**.
+
+`dictSet` **declines when the value would not merge** rather than letting `dictAddEntry` raise. The
+slow path's *parameter* check catches a mismatched value first and reports it differently, and an
+error message that varies with whether tracing is on would be worse than this path is worth. Same
+reason `evalList` declines. `dictGet` needs no such guard: it merges against `unknown`, which cannot
+fail.
+
+**New: `scripts/perf/workloads/fastopcheck.dark`.** The table answers operators without the builtin's
+record, its capability check or either type check, so *nothing in the normal builtin machinery
+verifies it* -- and the backend suite exercises the builtins, not this path. Thirteen checks, one per
+entry, and every future entry wants a line.
+
+Two corrections it produced immediately, both mine:
+
+- `Stdlib.Dict.set` and `Stdlib.Dict.setOverridingDuplicates` are **different builtins**. `Dict.set`
+  wraps `dictSet`, which raises on a key already present; only `setOverridingDuplicates` is on this
+  path. My first check and my first `optime` row both used the wrong one -- the row would have
+  measured the slow path in both arms and reported the change as free.
+- I briefly concluded from that failure that `run-cli eval` runs with tracing on and so could not
+  exercise the fast path, and wrote it into the file's header. It is wrong:
+  `DARK_CONFIG_TRACE_DETAIL` is `off` in the container, so both `eval` and `run` take the path. The
+  real cause was the wrong builtin, and the header now says something true instead.
+
+### Two more probes that found nothing, both in the lambda path
+
+A lambda application is ~1.8 us and a view makes ~2,435 of them -- 4.4 ms, the largest single line
+left. Two plausible causes, both measured with `lambdapath.dark` and both flat:
+
+- **`Array.Clear` on every frame return** (`returnFrame` clears the registers so a pooled frame does
+  not hold a call's worth of Dvals alive). Skipped entirely: no change, 1.99 us either way.
+- **The dictionary lookups.** A lambda application does three separate lookups keyed by the same
+  `exprId`, plus the frame pool and `callFrames` -- about nine dictionary operations in all, which
+  looked like an obvious consolidation. Priced in situ by adding three *extra* lookups on the hot
+  path and measuring the slope: 1.82 us against 1.81. A lookup here is well under 30 ns, and merging
+  the caches would win nothing.
+
+Which leaves the ~1.5 us of lambda machinery with no single dominant component -- the playbook's
+"profile has gone flat" state. Recorded so neither is attempted again on the strength of how it reads.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

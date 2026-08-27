@@ -1096,6 +1096,10 @@ module private FastOps =
   let intToString = 12
   let boolNot = 13
   let listLength = 14
+  /// `Dict` tags. Two of the busiest builtins in a view build, and the only entries here whose
+  /// operands are of different types.
+  let dictGet = 15
+  let dictSet = 16
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1190,6 +1194,55 @@ module private FastOps =
       ValueNone
 
 
+  /// `Dict.get`: a `Dict` and a `String` key, 292 calls in a view build.
+  ///
+  /// Calls the same `DvalCreator.option` the builtin does rather than restating enum construction.
+  /// That helper is in `LibExecution`, so this is short-circuiting the call machinery around a
+  /// builtin, not duplicating the builtin -- which is the line every entry in this table has to stay
+  /// on the right side of.
+  let evalDictGet
+    (threadID : ThreadID)
+    (tag : int)
+    (o : Map<string, Dval>)
+    (k : string)
+    : Dval voption =
+    if tag = dictGet then
+      ValueSome(Map.find k o |> TypeChecker.DvalCreator.option threadID VT.unknownTODO)
+    else
+      ValueNone
+
+
+  /// `Dict.setOverridingDuplicates`: a `Dict`, a `String` key and a value. The only three-argument
+  /// operator here, and 252 calls in a view build.
+  let evalDictSet
+    (threadID : ThreadID)
+    (tag : int)
+    (vt : ValueType)
+    (o : Map<string, Dval>)
+    (k : string)
+    (v : Dval)
+    : Dval voption =
+    if tag = dictSet then
+      // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
+      // path's *parameter* check catches a mismatched value first and reports it differently, and an
+      // error message that depends on whether tracing happens to be on is worse than anything this
+      // path is worth. Same reason `evalList` declines on a failed merge.
+      match VT.merge vt (Dval.toValueType v) with
+      | Ok _ ->
+        let struct (typ, map) =
+          TypeChecker.DvalCreator.dictAddEntry
+            threadID
+            vt
+            o
+            k
+            v
+            TypeChecker.ReplaceValue
+        ValueSome(DDict(typ, map))
+      | Error() -> ValueNone
+    else
+      ValueNone
+
+
   /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
   /// record and this is a single probe of a table with ten entries in it.
   ///
@@ -1215,6 +1268,8 @@ module private FastOps =
     put "intToString" intToString
     put "boolNot" boolNot
     put "listLength" listLength
+    put "dictGet" dictGet
+    put "dictSetOverridingDuplicates" dictSet
     d
 
 
@@ -1225,6 +1280,7 @@ module private FastOps =
 /// trace. Tracing is off in the CLI, which is what this is for.
 let private tryFastOp
   (exeState : ExecutionState)
+  (threadID : ThreadID)
   (fn : BuiltInFn)
   (ctx : ApplyContext)
   : Dval voption =
@@ -1256,6 +1312,17 @@ let private tryFastOp
         | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalList tag vt1 l1 vt2 l2
         | _ -> ValueNone
+      | ValueSome(struct (DDict(vt, o), rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DString k, tail)) ->
+          if ArgSeq.isEmpty tail then
+            FastOps.evalDictGet threadID tag o k
+          else
+            match ArgSeq.uncons tail with
+            | ValueSome(struct (v, rest3)) when ArgSeq.isEmpty rest3 ->
+              FastOps.evalDictSet threadID tag vt o k v
+            | _ -> ValueNone
+        | _ -> ValueNone
       | _ -> ValueNone
 
 
@@ -1265,6 +1332,7 @@ let private tryFastOp
 /// compiled as a direct builtin call, which is what `a + b` is.
 let private tryFastOpDirect
   (exeState : ExecutionState)
+  (threadID : ThreadID)
   (registers : Dval array)
   (applicable : ApplicableNamedFn)
   (typeArgs : List<TypeReference>)
@@ -1284,6 +1352,25 @@ let private tryFastOpDirect
       else
         ValueNone
     | _ -> ValueNone
+  | [ secondReg; thirdReg ] when
+    exeState.tracing.skipTracing
+    && List.isEmpty typeArgs
+    && List.isEmpty applicable.argsSoFar
+    ->
+    match applicable.name with
+    | FQFnName.Builtin b ->
+      let mutable tag = 0
+      if FastOps.byName.TryGetValue(b, &tag) then
+        match registers[argRegs.head] with
+        | DDict(vt, o) ->
+          match registers[secondReg] with
+          | DString k -> FastOps.evalDictSet threadID tag vt o k registers[thirdReg]
+          | _ -> ValueNone
+        | _ -> ValueNone
+      else
+        ValueNone
+    | _ -> ValueNone
+
   | [ secondReg ] when
     exeState.tracing.skipTracing
     && List.isEmpty typeArgs
@@ -1308,6 +1395,10 @@ let private tryFastOpDirect
           match registers[secondReg] with
           | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
           | _ -> ValueNone
+        | DDict(_, o) ->
+          match registers[secondReg] with
+          | DString k -> FastOps.evalDictGet threadID tag o k
+          | _ -> ValueNone
         | _ -> ValueNone
       else
         ValueNone
@@ -1323,7 +1414,7 @@ let rec private callBuiltinResolved
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Ply<Dval> =
-  match tryFastOp exeState fn ctx with
+  match tryFastOp exeState vm.threadID fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
     if vm.stats.enabled then
@@ -2156,7 +2247,7 @@ let private applyInstruction
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the reference workload 4% and a view build 10%.
-    match tryFastOpDirect exeState registers applicable typeArgs newArgRegs with
+    match tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs with
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L

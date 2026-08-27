@@ -146,6 +146,15 @@ measure "build a tuple                        " (fun i ->
 Stdlib.printLine "--- lists"
 measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.push [ 1; 2; 3 ] i))
 measure "append two 3-lists                   " (fun i -> Stdlib.List.length (Stdlib.List.append [ 1; 2; 3 ] [ 4; 5; 6 ]))
+// Dict rows build their dict inline, so both carry a `fromListOverwritingDuplicates` as well as the
+// operation they name. Compare them to each other, not to an absolute.
+// Both dict rows build their dict inline, so each carries a `fromListOverwritingDuplicates` as well
+// as the operation it names -- compare them to each other and to `build a 2-entry dict`, never as an
+// absolute. `setOverridingDuplicates`, not `set`: they are different builtins, and `set` raises on a
+// key already present.
+measure "build a 2-entry dict                 " (fun i -> Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ])))
+measure "dict get, 2 entries                  " (fun i -> Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]) "a") 0)
+measure "dict setOverriding, onto 2 entries   " (fun i -> Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.setOverridingDuplicates (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]) "c" 3)))
 measure "range 1..5                           " (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
 measure "map over 5                           " (fun i -> Stdlib.List.length (Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + i)))
 measure "fold over 5                          " (fun i -> Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))
