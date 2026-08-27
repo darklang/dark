@@ -158,6 +158,27 @@ Cheap to state, expensive to learn.
   Any experiment that adds a type must use it.
 - CRLF is a single extended grapheme cluster, so `"a\r\nb"` split on `"\n"` is one part cluster-wise
   and two char-wise. Any ASCII fast path over strings must exclude CR.
+- What a call costs, from `optime.dark` net of its harness baseline. Debug is ~2.5x pessimistic but
+  preserves the ordering, so either column ranks the same way:
+
+  | | Debug | published |
+  |---|---|---|
+  | package fn call, 1 arg | 2.7 us | 1.2 us |
+  | builtin call | 1.7 us | 0.5 us |
+  | lambda application | 1.6 us | 0.6 us |
+  | `++` (after the operator fast path) | 2.2 us | 0.9 us |
+  | add two Ints | 0.6 us | -- |
+
+  A lambda application does no argument type-check, no return type check and no TST work, so the
+  difference between it and a package call is roughly the package-specific half; the rest is frame
+  machinery the two share. A view build makes ~3,292 package calls and ~2,435 lambda applications,
+  which is most of its 22 ms.
+- **`builtinCalls` over-reports for any per-call arithmetic.** ~4,800 of a view's 8,145 are `Int` and
+  `String` operators taken by `tryIntOpDirect`/`tryIntOp`. They are counted but never enter the timed
+  path, correctly, since they never reach the builtin machinery. Real builtin calls: ~3,332. The gap
+  between the two is a rough measure of what the fast path earns.
+- `String.Normalize` already fast-paths ASCII. An `Ascii.IsValid` pre-check in `String.normalize`
+  measured as nothing. (And per the CRLF note above, such a check would have to exclude CR anyway.)
 - A published binary resolves its data and log directories relative to **its own location**, not
   `DARK_CONFIG_RUNDIR`.
 - The first run against an empty store seeds it, which is hundreds of megabytes. Any measurement

@@ -1645,6 +1645,75 @@ Reverted. A single 22 ms in the first run of the probe looked like a 4% win and 
 with a rebuild between arms is what settled it. Worth knowing before anyone else reads
 `ConcurrentDictionary<Hash, _>` and assumes the string is the problem.
 
+### `++` now takes the same fast path the `Int` operators do
+
+The interpreter already answers `a + b` on two `Int`s directly, without the builtin's record, the
+capability check or the two type checks. `++` is the same shape -- a pure two-argument operator whose
+operand types the match has just established -- and was paying the full builtin path.
+
+    concat two strings, Debug        3.2 -> 2.2 us   (net of the harness baseline)
+    concat two strings, published    1.2 -> 0.9 us
+    viewAtSize (Debug)               23 -> 22 ms
+
+`equals` and `notEquals` were already in the operator table for `Int`s and now answer for `String`s
+too, using the same ordinal comparison `equals` reaches for a `DString` pair. `stringAppend` keeps
+its `normalize`: two normalized strings can join into one that is not.
+
+The tag table now spans two operand types. `eval` handles the `Int` tags and declines the string
+ones, `evalStr` does the reverse, so the tag alone says which operands an operator wants and neither
+needs a range check -- `equals` and `notEquals` are simply handled by both.
+
+**A constraint worth stating, since this table will tempt additions:** only pure `noCaps` builtins
+belong in it. The path skips the capability check and both type checks. That is right for an operator
+whose operand types were just matched, and wrong for anything guarding a side effect. This campaign
+has already produced one security-relevant bug from a cache that held more than it should have.
+
+**Negative result: `String.normalize` is not the cost of `++`.** `stringAppend` normalizes its
+result, and `String.Normalize` goes through ICU, so an ASCII pre-check with `Ascii.IsValid` looked
+free money -- every ASCII string is already NFC, and the CLI's strings are nearly all ASCII. Measured
+as nothing: concat stayed at 6.2 us and the view at 23 ms. .NET already fast-paths this. The 1 us the
+fast path above *does* save is dispatch, not normalization -- which is why the probe that assumed
+otherwise found nothing.
+
+**Corrected: `builtinCalls` counts about 4,800 calls a view that the timing table never shows.**
+Those are the `Int` operators taken by `tryIntOpDirect`/`tryIntOp`, which are counted but never enter
+the timed path -- correctly, since they never reach the builtin machinery. So a view makes ~3,332
+real builtin calls, not 8,145, and any arithmetic multiplying the counter by a per-call cost is
+wrong by more than a factor of two. The gap between the two numbers is a rough measure of how much
+the fast path is earning.
+
+### `Canvas.compose`'s bucketing, measured properly and mostly left alone
+
+`compose` buckets spans by row into a `Dict` keyed by `Int.toString row`, which costs four builtin
+calls per span: the stringify, a `Dict.get`, a `List.append` and a `Dict.set`. With 252 spans in a
+full-screen frame that looked like the biggest remaining item in the render path. Measured, it is
+1.76 ms of a 22 ms view:
+
+    intToString                    303 calls    0.58 ms
+    dictGet                        292 calls    0.64 ms
+    dictSetOverridingDuplicates    252 calls    0.54 ms
+
+Replacing it wants one native sort by row and a single lockstep pass against rows 0..h-1, which in
+Dark means a new top-level recursive function and gap-padding for empty rows -- perhaps 25 fiddly
+lines in the hottest render function there is, to win 8%. Ranked here with an honest estimate rather
+than taken. The earlier guess of ~2.7 ms was too high because it double-counted the fold's lambda
+applications.
+
+**Negative result: the per-span `List.append` is not quadratic in practice.** `List.append existing
+[ span ]` copies a row's spans every time one is added, so it should cost n^2/2 copies for a row of
+n. Consing instead and reversing once per row at the read changed the counters exactly as predicted
+and the time not at all -- it came out marginally worse:
+
+    listAppend   520 -> 268 calls    0.91 -> 0.49 ms
+    listPush      37 -> 289 calls    0.07 -> 0.51 ms
+    listReverse    0 ->  40 calls       0 -> 0.08 ms
+
+    total        0.98 -> 1.08 ms
+
+Rows have few enough spans that the quadratic never bites, so a cons costs what an append costs and
+the 40 reverses are pure loss. Reverted. This is the second time this week a shape that is obviously
+quadratic on paper turned out to be running on n=6.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

@@ -1084,6 +1084,10 @@ module private IntOps =
   let notEquals = 7
   let max = 8
   let min = 9
+  /// String tags start here. `eval` handles the `Int` ones and declines these; `evalStr` does the
+  /// reverse. So the tag alone says which operand types an operator wants, and neither function
+  /// needs a range check -- `equals` and `notEquals` are simply handled by both.
+  let strAppend = 10
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1112,8 +1116,29 @@ module private IntOps =
     else
       ValueNone
 
+  /// The operator itself, for two `String`s. `stringAppend` reaches this because `++` is a thin
+  /// wrapper the elision already resolves to its builtin, so it arrives here with the same shape an
+  /// `Int` operator does -- and paid the full builtin path to concatenate two strings.
+  let evalStr (tag : int) (a : string) (b : string) : Dval voption =
+    if tag = strAppend then
+      // Exactly what the builtin computes, `normalize` included: two normalized strings can join
+      // into one that is not, so this is not safe to drop.
+      ValueSome(DString(String.normalize (a + b)))
+    elif tag = equals then
+      ValueSome(Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal)))
+    elif tag = notEquals then
+      ValueSome(Dval.bool (not (System.String.Equals(a, b, System.StringComparison.Ordinal))))
+    else
+      ValueNone
+
+
   /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
   /// record and this is a single probe of a table with ten entries in it.
+  ///
+  /// Only pure `noCaps` builtins belong here. This path runs the operator without the builtin's
+  /// record, so the capability check, the argument type check and the result type check are all
+  /// skipped -- fine for operators whose operand types the match above has just established, and
+  /// wrong for anything that guards a side effect.
   let byName : Dictionary<FQFnName.Builtin, int> =
     let d = Dictionary<FQFnName.Builtin, int>()
     let put (name : string) (tag : int) = d[{ name = name; version = 0 }] <- tag
@@ -1127,6 +1152,7 @@ module private IntOps =
     put "notEquals" notEquals
     put "intMax" max
     put "intMin" min
+    put "stringAppend" strAppend
     d
 
 
@@ -1149,11 +1175,18 @@ let private tryIntOp
     if not (IntOps.byName.TryGetValue(fn.name, &tag)) then
       ValueNone
     else
+      // Nested rather than `match a, b with`, which allocates the pair. That shape cost the
+      // reference workload 4.4% when it was written the obvious way in `tryIntOpDirect`.
       match ArgSeq.uncons ctx.args with
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
           IntOps.eval tag a b
+        | _ -> ValueNone
+      | ValueSome(struct (DString a, rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
+          IntOps.evalStr tag a b
         | _ -> ValueNone
       | _ -> ValueNone
 
@@ -1185,6 +1218,10 @@ let private tryIntOpDirect
         | DInt x ->
           match registers[secondReg] with
           | DInt y -> IntOps.eval tag x y
+          | _ -> ValueNone
+        | DString x ->
+          match registers[secondReg] with
+          | DString y -> IntOps.evalStr tag x y
           | _ -> ValueNone
         | _ -> ValueNone
       else
