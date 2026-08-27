@@ -335,6 +335,32 @@ runtime call stack, since there is no frame to name it. Nothing depends on that 
 suite is green, but an error raised inside an elided builtin names the builtin rather than the
 wrapper the user called.
 
+**Round 6's second win: let-pattern binding.** Found by re-profiling the view build after the
+elision landed, which is the argument for re-profiling after every win.
+`CheckLetPatternAndExtractVars` was allocating **131 bytes per `let`**, 700 KB per view, second only
+to `Apply`. The plain `let x = v` case was already free, so all of it was destructuring going through
+`checkAndExtractLetPattern`, which returns `bool * List<Register * Dval>` -- a tuple and a cons per
+bound variable, plus a closure for the `List.iter` that assigns them.
+
+`assignLetPattern` writes registers as it walks. A match pattern has to collect first, because a
+failed alternative must leave the frame untouched for the next case; a *let* pattern that fails is
+fatal and the frame raises, so nothing reads the partial writes. That asymmetry is the win. Both
+callers moved, the opcode and lambda parameter binding.
+
+`CheckLetPatternAndExtractVars` **700 -> 50 KB/view**, all opcodes **3,967 -> 3,288 KB/view**, the
+view build 66 -> 65 ms, gate 7.9 -> 7.8 MB.
+
+**Allocation and time have come apart in this round.** A 17% cut in a view build's garbage bought
+about 1.5% of its wall clock. Frames are pooled and gen0 is cheap, so this is expected rather than
+disappointing -- but the campaign's framing (decide with allocation, since it repeats) needs the
+qualification that a latency target now wants both numbers, and a win should be claimed on whichever
+it actually moves. `gate` is still right to assert allocation only; it is a regression alarm, not a
+latency instrument.
+
+**`scripts/perf/workloads/viewprofile.dark`** is the instrument for this: one view build with
+detailed timing on, dumping per-opcode and per-stage allocation. It is what both of this round's wins
+were found with.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

@@ -382,37 +382,44 @@ let private inferTVarsFromDval
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
 
-let rec checkAndExtractLetPattern
+/// Bind a let pattern's variables into `registers`, returning whether it matched.
+///
+/// Assigns as it walks rather than collecting `(Register * Dval)` pairs to assign afterwards, which
+/// cost a tuple and a cons per bound variable plus the returned pair. A let is not a match: a pattern
+/// that fails is fatal, and the frame raises rather than carrying on, so the partial writes a failed
+/// walk leaves behind are never read.
+let rec private assignLetPattern
+  (registers : Registers)
   (pat : LetPattern)
   (dv : Dval)
-  : bool * List<Register * Dval> =
-  let r = checkAndExtractLetPattern
+  : bool =
+  match pat with
+  | LPVariable extractTo ->
+    registers[extractTo] <- dv
+    true
+  | LPWildcard -> true
+  | LPUnit ->
+    match dv with
+    | DUnit -> true
+    | _ -> false
+  | LPTuple(first, second, theRest) ->
+    match dv with
+    | DTuple(firstVal, secondVal, theRestVal) ->
+      assignLetPattern registers first firstVal
+      && assignLetPattern registers second secondVal
+      && assignLetPatterns registers theRest theRestVal
+    | _ -> false
 
-  let rec rList pats items =
-    match pats, items with
-    | [], [] -> true, []
-    | [], _ -> false, []
-    | _, [] -> false, []
-    | pat :: otherPats, item :: items ->
-      let matches, vars = r pat item
-      if matches then
-        let matchesOtherPats, varsFromOtherParts = rList otherPats items
-        if matchesOtherPats then true, vars @ varsFromOtherParts else false, []
-      else
-        false, []
-
-  match pat, dv with
-  | LPVariable extractTo, dv -> true, [ (extractTo, dv) ]
-  | LPWildcard, _ -> true, []
-  | LPUnit, DUnit -> true, []
-  | LPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
-    match r first firstVal, r second secondVal with
-    | (true, varsFirst), (true, varsSecond) ->
-      match rList theRest theRestVal with
-      | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
-      | false, _ -> false, []
-    | _ -> false, []
-  | _ -> false, []
+and private assignLetPatterns
+  (registers : Registers)
+  (pats : List<LetPattern>)
+  (dvs : List<Dval>)
+  : bool =
+  match pats, dvs with
+  | [], [] -> true
+  | pat :: patRest, dv :: dvRest ->
+    assignLetPattern registers pat dv && assignLetPatterns registers patRest dvRest
+  | _ -> false
 
 
 /// Try a match pattern against a value, appending any bindings it makes to `buf`.
@@ -768,17 +775,11 @@ let rec private bindLambdaParams
     match ArgSeq.uncons args with
     | ValueNone -> ()
     | ValueSome(struct (arg, argRest)) ->
-      // One name bound to one register is the overwhelmingly common shape, and
-      // `checkAndExtractLetPattern` costs four allocations to express it: the returned tuple, the cons,
-      // the pair inside it, and the pair its own `match pat, dv with` builds. Per parameter, per call.
-      // `CheckLetPattern` already short-circuits the same way.
+      // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
       match pat with
       | LPVariable extractTo -> r[extractTo] <- arg
       | _ ->
-        let doesMatch, registersToAssign = checkAndExtractLetPattern pat arg
-        if doesMatch then
-          assignRegisters r registersToAssign
-        else
+        if not (assignLetPattern r pat arg) then
           RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
       bindLambdaParams vm r patRest argRest
 
@@ -2143,11 +2144,7 @@ let private runSyncInstructions
           | _ ->
             raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
         | _ ->
-          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
+          if not (assignLetPattern registers pat dv) then
             raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
