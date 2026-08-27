@@ -188,10 +188,8 @@ type Context =
   /// CLEANUP: the witness is still rendered here, by `Patterns.missingPatternToString`.
   /// It is the one piece of prose left in F#, and it wants a `MissingPattern` mirror.
   | UncoveredPattern of witness : Option<string>
-  /// An infix operator applied to an operand type it does not accept. The operation is
-  /// the `InfixFnName` case name, which is what the message used before this was
-  /// structured; it wants a proper mirror too.
-  | InfixOperandUnsupported of operation : string
+  /// An infix operator applied to an operand type it does not accept.
+  | InfixOperandUnsupported of operation : InfixFnName
   // Situations the code alone does not distinguish.
   | RecordRequiredForConstruction
   | RecordRequiredForFieldAccess

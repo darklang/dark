@@ -516,7 +516,7 @@ and internal inferInfix
           Some nodeId,
           None,
           Some concrete,
-          InfixOperandUnsupported(string operation)
+          InfixOperandUnsupported operation
         )
     match operation with
     | ComparisonGreaterThan
@@ -583,7 +583,7 @@ and internal inferPipePart
             Some nodeId,
             None,
             Some concrete,
-            InfixOperandUnsupported(string operation)
+            InfixOperandUnsupported operation
           )
       match operation with
       | ComparisonGreaterThan

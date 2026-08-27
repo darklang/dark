@@ -511,7 +511,7 @@ module private DarkTypes =
         "UncoveredPattern"
         [ witness |> Option.map DString |> Dval.option KTString ]
     | Checker.InfixOperandUnsupported operation ->
-      make "InfixOperandUnsupported" [ DString operation ]
+      make "InfixOperandUnsupported" [ PT2DT.InfixFnName.toDT operation ]
     | Checker.RecordRequiredForConstruction ->
       make "RecordRequiredForConstruction" []
     | Checker.RecordRequiredForFieldAccess -> make "RecordRequiredForFieldAccess" []

@@ -144,7 +144,7 @@ type Context =
   | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
   | ArgumentIndex of Int64
   | UncoveredPattern of Stdlib.Option.Option<String>
-  | InfixOperandUnsupported of String
+  | InfixOperandUnsupported of LanguageTools.ProgramTypes.InfixFnName
   | RecordRequiredForConstruction
   | RecordRequiredForFieldAccess
   | RecordRequiredForUpdate
@@ -420,7 +420,8 @@ let contextToStringWith
     | None ->
       "Match is not exhaustive; values outside the listed patterns are not covered"
   | InfixOperandUnsupported operation ->
-    $"Operator {operation} does not accept this operand type"
+    let symbol = PrettyPrinter.ProgramTypes.infixFnName operation
+    $"Operator {symbol} does not accept this operand type"
   | RecordRequiredForConstruction -> "Record construction requires a record type"
   | RecordRequiredForFieldAccess -> "Field access requires a record"
   | RecordRequiredForUpdate -> "Record update requires a record"
