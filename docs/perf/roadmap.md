@@ -310,7 +310,7 @@ so `Stdlib.String.length 5` reports what it always did. Calls with explicit type
 applications keep their frame. Cached by hash.
 
 Same binary either side, toggled by an env var: `viewAtSize` **76 -> 66 ms**, ten workbench views
-mean **70 -> 61**, `steady.dark` **353 -> 286 ms** with package calls **41,404 -> 21,004**, and the
+mean **70 -> 61**, `steady.dark` **353 -> 286 ms** with frame pushes **61,405 -> 41,004**, and the
 wrapper's overhead over its builtin **2.5 -> 0.5 us**. On `optime.dark`, each figure minus its own
 run's baseline: `cons` -53%, `range` -25%, `map` -22%, `filter` -16%. `fold` and `member` did not
 move, being Dark-side loops rather than forwarders. Allocation unchanged -- frames were already
@@ -324,6 +324,11 @@ buffer was thrashing, made it one per arity, and measured no difference -- while
 was still blocking every wrapper, so nothing was being elided. Re-measured with elision actually on,
 it is within the gate's rounding either way. Kept, because the reasoning survives the null result,
 but this workload does not show it.
+
+**The commit message for this says "package calls 41,404 -> 21,004"; read it as frame pushes.**
+`packageCallCount` was incremented at frame push, so eliding a call stopped counting it. The counter
+now counts elided calls too and `framePushCount` does not, which makes the gap between the two the
+thing elision actually buys.
 
 **Left open here.** The elided wrapper no longer appears in the detailed-timing profile or in a
 runtime call stack, since there is no frame to name it. Nothing depends on that today and the whole

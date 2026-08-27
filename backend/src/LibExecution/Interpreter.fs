@@ -1512,6 +1512,10 @@ let private callPackageResolved
     && List.isEmpty resolvedExplicitTypeArgsVT
     && ArgSeq.count ctx.args = NEList.length fn.parameters
     ->
+    // Counted as a package call, since one happened. `framePushCount` is deliberately not bumped:
+    // the gap between the two counters is what elision saves.
+    if vm.stats.enabled then
+      vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
     let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
     // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
     match Ply.trySync call with
