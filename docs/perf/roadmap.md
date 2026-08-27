@@ -2729,7 +2729,7 @@ list via `zipShortest` purely to fold over it -- now much cheaper, and fusing th
 
 ### Counting the builtins this round adds, and removing the ones nothing earned
 
-754 builtins exist today. Each is a permanent cost to the solution, so the marginal additions were
+752 builtins exist after this branch (754 before the two removals below). Each is a permanent cost to the solution, so the marginal additions were
 measured rather than assumed at the end of the round.
 
 This branch adds 24: 22 for performance, plus `pmOwnerHasItems` and `scmGetCommitNamedOps`, which
