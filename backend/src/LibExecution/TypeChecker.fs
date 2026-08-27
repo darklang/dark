@@ -634,6 +634,86 @@ let tryUnifySync
       unifyTypeArgsSync tst declaredArgs actualArgs
     | _ -> ValueNone
 
+  // A primitive expected type, answered here rather than through `unwrapAliasSync` and
+  // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
+  // never an alias, and there is nothing to bind, so the symbol table comes back untouched. This is
+  // the check every builtin call makes on every argument and on its result -- ~0.53 us of a 1.73 us
+  // call between the two, measured by ablation.
+  //
+  // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
+  | TUnit ->
+    (match actual with
+     | DUnit -> ValueSome tst
+     | _ -> ValueNone)
+  | TBool ->
+    (match actual with
+     | DBool _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt ->
+    (match actual with
+     | DInt _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt8 ->
+    (match actual with
+     | DInt8 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUInt8 ->
+    (match actual with
+     | DUInt8 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt16 ->
+    (match actual with
+     | DInt16 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUInt16 ->
+    (match actual with
+     | DUInt16 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt32 ->
+    (match actual with
+     | DInt32 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUInt32 ->
+    (match actual with
+     | DUInt32 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt64 ->
+    (match actual with
+     | DInt64 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUInt64 ->
+    (match actual with
+     | DUInt64 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TInt128 ->
+    (match actual with
+     | DInt128 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUInt128 ->
+    (match actual with
+     | DUInt128 _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TFloat ->
+    (match actual with
+     | DFloat _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TChar ->
+    (match actual with
+     | DChar _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TString ->
+    (match actual with
+     | DString _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TUuid ->
+    (match actual with
+     | DUuid _ -> ValueSome tst
+     | _ -> ValueNone)
+  | TDateTime ->
+    (match actual with
+     | DDateTime _ -> ValueSome tst
+     | _ -> ValueNone)
+
   | _ ->
 
     match unwrapAliasSync expected with

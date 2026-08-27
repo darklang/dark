@@ -880,17 +880,29 @@ elision overhead, the argument type check, the frame dictionary -- is a single s
 distinguishable from noise. `iterations` is 10,000 now, so 100 ns, and the table still runs in 13
 seconds.
 
-**With both fixed, the type machinery is the largest item left.** A trivial builtin call -- `boolNot`,
-which has no body to speak of -- splits as:
+**With both fixed, the type machinery was the largest item left, and it is now done.** Re-measured
+with three repeats each, which changed the answer:
 
-    total                     1.70 us
-    argument type check       0.30
-    result type check         0.20-0.30
-    type-symbol-table work    0.20
+    a trivial builtin call     1.73 us
+    argument type check        0.30
+    result type check          0.23
+    type-symbol-table work     0.06   (noise; a single earlier reading of 0.20 did not hold up)
 
-~45% of a builtin call, across ~7,200 calls in a view build: **about 5 ms of 31**. That is a real
-target, not the "nothing here" the quantised readings suggested, and it is where a round 7 should
-start rather than at the compile-time opcode (1.4 ms at the corrected resolution).
+So the two checks are ~31% of a builtin call, not the 45% recorded off unrepeated readings, and the
+type-symbol-table work is nothing -- consistent with a record-keyed dictionary probe measuring 30 ns.
+
+`tryUnifySync` now answers a primitive expected type directly instead of falling through to
+`unwrapAliasSync` and `unifyDvalSync`. Neither can do anything there: a primitive is never an alias,
+and with no type variables there is nothing to bind. A trivial builtin call **1.73 -> 1.40 us**,
+`viewAtSize` **32-33 -> 31 ms**.
+
+The roadmap's own condition for attempting this was "a fast path *inside* the existing checker, not a
+second one". It is inside it, and the fallback is the code that was already there.
+
+**Two dead ends on the way, both cheap because they were probed.** `allocNow` is guarded by
+`vm.stats.enabled`, so the 24 stage-instrumentation sites cost a predictable branch, not a
+`GetAllocatedBytesForCurrentThread` per call. And a record-keyed dictionary lookup is 30 ns against a
+string-keyed 16 -- so `FQFnName.Builtin` keys are not worth restructuring away.
 
 The safe corner of it is done: the builtin path merged `explicitlyBound` into the TST unconditionally
 where the package path already guards on it being empty, which it is on every call without explicit
@@ -901,6 +913,113 @@ The rest needs care: a builtin whose signature has no type variables at all coul
 entirely and check arguments by `Dval` case rather than by unification. That is a second type checker
 unless it is written as a fast path *inside* the existing one, and getting it wrong accepts bad values
 rather than merely running slowly.
+
+**The lambda path has nothing named left in it either.** Ablated with two repeats each: the lambda's
+TST merge **0**, the execution-point memo **0** (it is already doing its job), the frame return type
+check ~0.2 us and only on *package* calls, not lambdas. So a lambda application's 1.7 us is the
+dispatch, the `ApplyContext`, the register fill, the frame push and pop, and the body -- no single
+piece worth naming.
+
+**And the argument check does not walk list contents.** `DList` carries its own ValueType, so
+`unifyDvalSync` compares that rather than the elements: a list builtin's argument check is O(1), not
+O(n). Worth knowing before someone assumes otherwise about `List.map` over a long list.
+
+## Round 6, closed
+
+Every named component of the call paths has now been ablated. They are all <= 0.3 us and most are
+zero. What is left is the sum of many small irreducible steps, which is the definition of done for
+this kind of work.
+
+    viewAtSize                76 -> 31 ms
+    keystroke, end to end    141 -> 77 ms median
+    steady.dark              353 -> 35 ms,  7.8 -> 7.3 MB
+    bytes per view build            2,017,644
+    suite: lists 276 -> 34 ms, dicts 130 -> 52, strings 63 -> 21, records 25 -> 14,
+           json 24 -> 22, containers 15 -> 8, recursion 1181 -> 543
+    HTTP     76.31 -> 56.42 KB per request, 5,345 req/s
+    crosslang  Dark 11.84 -> ~9.9 KB/iter against node 1.72, python 0.47
+
+What did it: native `fold`/`map`/`filter`/`range`/`any`/`findFirst`, `Int` operators evaluated in the
+interpreter, thin-wrapper elision (and then taking it before the package fetch), pooled VMs, a
+synchronous interpreter loop, let-pattern binding without a list, and a primitive type check that
+stops looking for an alias that cannot exist.
+
+**What is left, sized.** A compile-time `Int` opcode from `PT2RT`, ~1.4 ms of 31, needing a new
+instruction with a non-Int fallback and touching instruction serialisation. Everything else measured
+this round came back smaller than it looked.
+
+**What this round should be remembered for, other than the numbers.** Four separate times a
+measurement was wrong in a way that would have sent someone at the wrong thing: an instrument that
+drifted 0.75 us by position, a resolution of 250 ns that made every small finding one quantum, probes
+that silently never fired because their names lacked a `DARK_` prefix, and a process-wide cache that
+handed one execution state's HTTP configuration to another's callers. Three of those were caught by
+checking the instrument rather than the code.
+
+**CORRECTION: `dark eval 1L + 2L` costing 611 ms is a Debug-build number, and ~98% of the part I
+called out is JIT.** I recorded that every CLI command and every build-loop iteration pays it. Every
+*development* one does. The shipped CLI is published with `PublishAot=true`, or
+`PublishReadyToRun=true` with trimming (`scripts/build/build-release-cli-exes.sh`), and neither JITs.
+
+The measurement that settles it: call `Builtins.Pure.Builtin.builtins ()` twice in one process.
+
+    first call    104.8 ms
+    second call     1.9 ms
+
+Constructing every Pure builtin is **1.9 ms**. The other ~103 is JIT of the `fns ()` methods, which
+are single functions holding thirty-odd record literals each. That also explains the shape of the
+per-module timings: ~4 ms for each of the ten near-identical integer modules regardless of which, and
+19 ms for whichever runs first, because it also JITs what they share. Per builtin it works out at a
+suspiciously flat ~130 us across every module -- which is the tell that it is per-*method* cost, not
+per-record work.
+
+A startup breakdown for the Debug CLI, for whoever wants the dev loop faster:
+
+    cli.total          ~570 ms
+      cli.builtinsInit  ~150   (~98% JIT, per above)
+      cli.execute       ~310   (of which sql.total 37, pkg.fn.deserialize 16)
+      cli.growIfNeeded   ~36
+      cli.preMain        ~30
+      cli.dbConnect      ~28
+
+**Negative result: builtin name validation is 4-5 ms of that, not the bulk.** `assertRe` runs
+`Regex.Match(input, pattern)` -- the static API, which looks the pattern up under a lock and allocates
+a `Match` to answer yes/no -- on ~1,200 names. Ablated: 151 -> 147 ms. Caching a `RegexOptions.Compiled`
+instance measured *neutral*, because compiling a regex costs milliseconds and cancels the gain. Both
+reverted.
+
+The dev-loop fix, if anyone wants it, is build configuration rather than code: ReadyToRun for the
+Debug build would trade build time for startup time. Splitting the `fns ()` methods would also work --
+JIT cost grows faster than linearly with method size -- but that is forty files edited for a number
+users never see.
+
+**Every number in this round is from a Debug build. Checked against a Release publish: the shape
+holds, the scale does not.** `scripts/dev/build --optimize` produces one
+(`backend/Build/out/Cli/Release/net10.0/publish/Cli`, ~50 s), and running the same workloads through
+it:
+
+    viewAtSize            Debug 31 ms          Release 24 ms
+
+    above baseline        Debug        Release
+      call a 1-arg fn     2.8-3.5 us   1.25 us
+      apply a lambda      1.75         0.75
+      call a builtin      1.65         0.75
+      trivial builtin     1.25         0.45
+      elided wrapper      1.85         0.85
+      add two Ints        0.5-0.65     0.15
+      match on an Int     0.25-0.45    0.05
+      map over 5         16.85         5.85
+
+Release is roughly **2.5x faster across the board**, and the baseline row moves with it (3,000 ->
+1,000 ns). What matters for this campaign is that the *ordering and the gaps* survive: a trivial
+builtin is still cheaper than a full one, an elided wrapper still costs about 0.1 us more than the
+builtin it wraps (0.2 in Debug -- same ratio), and an `Int` operator is still ~0.1 us above a real
+opcode.
+
+**So Debug is sound for deciding what to work on and pessimistic by ~2.5x for saying what it costs.**
+Quote Debug numbers as Debug numbers. The view build users get is ~24 ms, not 31.
+
+Note that `--optimize` also runs `reload-packages --published`, so restore the Debug build and reload
+afterwards or the store and the binary disagree.
 
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
