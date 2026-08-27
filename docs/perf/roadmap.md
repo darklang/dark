@@ -2181,6 +2181,65 @@ raw intercept suggests.
 `lambdapath.dark` times its rows inside a `List.fold`, which is fine until the thing being probed is
 the lambda machinery itself -- then the harness breaks before the measurement does.
 
+### The lambda frame, re-priced and mostly closed
+
+Two corrections, both from probing rather than reasoning.
+
+**The application count was stale.** I had been multiplying by ~2,435 applications a view, a figure
+from `lambda.frame` stage counts taken earlier in the round and before several changes. Counted
+directly: **1,594 a view.** So the frame is `1,594 x ~0.85 us = 1.35 ms of an 18-19 ms view`, about
+**7.3%**, not the 11% recorded above.
+
+**And only 16% of it is reachable.** The one safe way to skip a frame is to evaluate the body in the
+caller's frame, which can only work when the body makes no call of its own -- anything containing an
+`Apply` needs the machinery to push the next frame. Counted, per view:
+
+    lambda applications          1,594
+    body makes no call             258   (16%)
+    body is <= 3 instructions      321   (20%)
+
+So inline evaluation of call-free bodies is worth ~0.22 ms, **1.2% of a view**, for a change that
+needs register remapping in the interpreter. **Closed.** The remaining 6% needs a different idea than
+any of the three probed here, and there isn't an obvious one.
+
+### What `styledWidth` actually spends its time on
+
+The last non-HOF item of any size: 289 calls a view, 0.95 ms Debug, 0.70 ms published.
+
+Measured rather than guessed, twice:
+
+- **Inputs average 22.3 characters** (6,451 characters a view across 289 calls), recorded by
+  accumulating lengths through the timing field. At 3.3 us a call that is 157 ns per character, which
+  no three-branch loop costs -- so the cost is fixed per call, not per character.
+- **Stubbing the body to `text.Length` gives 2.04 us.** So of 3.3 us: **~2.0 us is builtin call
+  framing and ~1.3 us is the body.**
+
+The body change that followed: `skipEscape` decides whether a sequence is SGR worth keeping, which
+costs a `Char.IsDigit` for every parameter character. Only a caller that keeps the sequence needs
+that, and the two hottest -- `styledWidth` and `stripSgr` -- discard it. A `skipEscapeOnly` that
+returns the same index without the inspection:
+
+    styledWidth   3.33 -> 3.17 us per call   (0.95 -> 0.91 ms a view)
+
+Small, ~5%, but consistent across three runs each way. Verified on the case that distinguishes them:
+a non-SGR CSI (`ESC[2Ka`) must be skipped whole and contribute no width, and does.
+
+**Two more that measured nothing:**
+
+- Hoisting `isFinal` out of `skipEscape`. A local function closing over nothing looked like a closure
+  allocated twice per call; 3.26-3.39 us against 3.28-3.40. F# does not allocate it.
+- The `bigint |> Dval.int` round-trip every Int-returning builtin does. `BigInteger` is a struct and
+  does not heap-allocate for small values, so there is nothing there to reclaim.
+
+**New: `scripts/perf/workloads/sgrcheck.dark`,** covering escape handling end to end -- plain,
+colourized, a non-SGR CSI, strip, clip and wrap. The escape walkers had no test at this level and
+have now been changed three times this round.
+
+### Published, at the end of the round
+
+    viewAtSize             12 ms   (consistently; was 24 at the start of round 6)
+    preparePresentAtSize    1 ms
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

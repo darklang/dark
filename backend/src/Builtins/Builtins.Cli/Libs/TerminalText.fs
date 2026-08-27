@@ -8,6 +8,32 @@
 /// call per character. Layout above the level of one row stays in Dark, measuring whole spans.
 module Builtins.Cli.Libs.TerminalText
 
+/// The byte that terminates a CSI sequence.
+let inline private isCsiFinal (c : char) = c >= '@' && c <= '~'
+
+
+/// Skip one escape or control character at `i`, returning only the next index.
+///
+/// `skipEscape` below also decides whether the sequence is SGR worth keeping, which costs a
+/// `Char.IsDigit` for every parameter character. Only a caller that keeps the sequence needs that,
+/// and the two hottest callers -- `styledWidth` and `stripSgr` -- throw it away. `styledWidth` runs
+/// 289 times a frame on strings that are typically a colour prefix, a short word and a reset, so
+/// that is most of a parameter scan per call spent on a question nobody asks.
+///
+/// The index it returns is the same one `skipEscape` returns; only the inspection is skipped.
+let private skipEscapeOnly (text : string) (i : int) : int =
+  let len = text.Length
+
+  if i + 1 < len && text[i + 1] = '[' then
+    let mutable j = i + 2
+    let mutable ended = false
+    while j < len && not ended do
+      if isCsiFinal text[j] then ended <- true else j <- j + 1
+    if ended then j + 1 else len
+  else
+    i + 1
+
+
 /// Skip one escape or control character at `i`, returning the next index.
 ///
 /// `keep` receives the START and LENGTH of an SGR sequence worth preserving. Everything else is
@@ -21,7 +47,6 @@ module Builtins.Cli.Libs.TerminalText
 /// `StringBuilder` no longer needs an intermediate at all.
 let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : int =
   let len = text.Length
-  let isFinal (c : char) = c >= '@' && c <= '~'
 
   if i + 1 < len && text[i + 1] = '[' then
     let mutable j = i + 2
@@ -29,7 +54,7 @@ let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : i
     let mutable ended = false
     while j < len && not ended do
       let c = text[j]
-      if isFinal c then
+      if isCsiFinal c then
         ended <- true
       else
         if not (System.Char.IsDigit c || c = ';' || c = ':') then
@@ -41,11 +66,6 @@ let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : i
   else
     i + 1
 
-/// For callers that only want the escape skipped. A named function rather than a lambda, so no
-/// closure is built per call.
-let private ignoreSgr (_start : int) (_len : int) : unit = ()
-
-
 /// Terminal columns occupied by a row that may carry SGR styling.
 ///
 /// `TextWidth.ofString` only means anything on control-free text; this skips the escapes for you.
@@ -56,7 +76,7 @@ let styledWidth (text : string) : int =
   while i < text.Length do
     let c = text[i]
     if c = '\u001b' then
-      i <- skipEscape text i ignoreSgr
+      i <- skipEscapeOnly text i
     elif System.Char.IsControl c then
       i <- i + 1
     // A printable ASCII character followed by another ASCII character cannot be part of a longer
@@ -85,7 +105,7 @@ let stripSgr (text : string) : string =
 
   while i < text.Length do
     if text[i] = '\u001b' then
-      i <- skipEscape text i ignoreSgr
+      i <- skipEscapeOnly text i
     elif System.Char.IsControl text[i] then
       i <- i + 1
     else
