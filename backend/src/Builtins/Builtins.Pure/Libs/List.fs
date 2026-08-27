@@ -833,7 +833,7 @@ let fns () : List<BuiltInFn> =
               | Error _ ->
                 RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue)
                 |> raiseRTE vm.threadID
-              | Ok _ -> if NoModule.equals elem value then true else search tail
+              | Ok _ -> if Dval.equals elem value then true else search tail
 
           Ply(DBool(search items))
         | _ -> incorrectArgs ())

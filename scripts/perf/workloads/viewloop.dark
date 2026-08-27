@@ -1,0 +1,41 @@
+// Builds a workbench view several hundred times, so a sampling profiler has something to sample.
+//
+// `viewprofile.dark` runs five views with the interpreter's own counters on, which is the right tool
+// for call counts and the wrong one for a wall-clock profile: it enables stats, and the builtin path
+// then reads the allocation counter twice per call. This runs the same work with nothing enabled,
+// long enough that ~100 Hz sampling lands hundreds of samples inside it.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/viewloop.dark
+
+val iterations = 400
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+
+let viewN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let v = Darklang.Cli.Workbench.viewAtSize s size
+    viewN (i - 1) s (acc + (Stdlib.List.length v.rows))
+
+let t0 = Darklang.Cli.Telemetry.now ()
+let rows = viewN iterations base 0
+let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
+
+Stdlib.printLine
+  ((Stdlib.Int.toString iterations)
+   ++ " views, "
+   ++ (Stdlib.Int.toString elapsed)
+   ++ " ms, "
+   ++ (Stdlib.Int.toString (Stdlib.Int.divide elapsed iterations))
+   ++ " ms each ("
+   ++ (Stdlib.Int.toString rows)
+   ++ " rows)")

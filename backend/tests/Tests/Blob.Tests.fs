@@ -25,7 +25,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.RuntimeTypes.Blob
 module Tracing = LibDB.Tracing
 module QueryableJson = LibSerialization.DvalReprInternalQueryable
-module Equals = Builtins.Pure.Libs.NoModule
+module Equals = LibExecution.Dval
 
 open Fumble
 open LibDB.Sqlite
@@ -525,7 +525,7 @@ let sweepDeletesOrphansButKeepsReferenced =
 // ─────────────────────────────────────────────────────────────────────
 // Blob equality — identity-based across ephemeral / persistent
 // ─────────────────────────────────────────────────────────────────────
-// `NoModule.equals` is sync and identity-based for blobs: same-hash
+// `Dval.equals` is sync and identity-based for blobs: same-hash
 // (Persistent) or same-UUID (Ephemeral) compare equal; mixed cases —
 // distinct ephemerals with the same bytes, or ephemeral vs persistent
 // — return false. Callers that want byte-equality across ephemerals

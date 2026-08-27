@@ -2279,6 +2279,54 @@ This does not invalidate the A/B comparisons in this document -- both arms carri
 -- but it does mean a figure like "`styledWidth` is 3.17 us a call" is an upper bound, not the cost a
 user pays. Where a number matters absolutely rather than comparatively, take it from `optime`.
 
+### `Dval.equals` moved into `LibExecution`, and `List.member` joined the table
+
+Structural equality of two Dvals lived in `Builtins.Pure.Libs.NoModule`, which the interpreter cannot
+reference -- `Builtins` depends on `LibExecution`, not the other way round. It depends on nothing but
+`ValueType.merge` and the `Dval` cases, so it moved to `LibExecution.Dval`, beside the type it is
+about. Three call sites updated (`equalsBuiltinImpl`, `listMember`, one test alias).
+
+That let `List.member` (102 calls a view) onto the operator fast path, calling the same
+`Dval.equals` the builtin calls rather than restating it, and declining to the slow path when element
+types do not merge so `==`'s raise-on-mismatch behaviour is preserved.
+
+**The time win is below what any instrument here can resolve, and is not claimed.** The counter
+confirms the mechanism fires -- `listMember` goes from 102 timed calls a view to zero -- and the
+per-call saving on comparable entries is 1.0-1.4 us, so ~0.13 ms a view is the expectation. Measured
+on `viewloop.dark` (400 views, far finer than `keypress`'s integer milliseconds) the arms overlap:
+
+    without   5770  5809  5815  5806 ms
+    with      5783  5837  5800  5717 ms
+
+The move is worth making on structure alone; the fast-path entry comes free with it.
+
+### Tooling: the CPU profiler is still unavailable, and now precisely why
+
+Tried again with a workload built for it -- `viewloop.dark`, 400 view builds, ~6 seconds with
+nothing enabled, so a sampler has something to sample.
+
+- **`dotnet-trace collect-linux`** (kernel CPU sampling, the profile that sounds right) needs admin
+  privileges and perf_events. The container has `perf_event_paranoid=2`, runs as uid 1000, and has no
+  tracefs. Unavailable, not misconfigured.
+- **`dotnet-sampled-thread-time`** produces a trace and converts to speedscope, and it is unusable:
+  **99.98% of self time lands in a pseudo-frame called `UNMANAGED_CODE_TIME`**, and inclusive times
+  exceed 100% because recursion double-counts an open frame inside itself. It is a *sampled*
+  profiler exported in evented form, so "how many times was X on the stack" is a sample count, not a
+  call count -- 4,129 samples over 6.7 seconds, ~1.6 ms apart.
+
+I chased one lead out of it before working that out: `Buffer.BulkMoveWithWriteBarrier` appeared near
+the top by inclusive time. It is sampled 10.3 times a view. Not hot; the ranking was an artifact.
+
+So the position is unchanged from earlier in the round, but now with the reason written down. The
+instruments that work remain `optime` (per operation, stats off), `viewprofile` (call counts, stats
+on and therefore inflated per-call), `viewloop` (whole-view wall clock, ~1% resolution) and
+`viewalloc`/`gate` (allocation, deterministic).
+
+**`scripts/perf/suite` allocation is not byte-deterministic**, unlike the gate's `steady.dark`. The
+`json` workload reads 14.95, 15.05 and 15.32 KB/iteration across three consecutive runs. Swings of a
+couple of percent there are noise, not regressions -- worth knowing before treating the suite as a
+gate.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

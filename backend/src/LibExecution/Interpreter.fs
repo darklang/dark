@@ -1101,6 +1101,7 @@ module private FastOps =
   let dictGet = 15
   let dictSet = 16
   let strRepeat = 17
+  let listMember = 18
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1191,6 +1192,36 @@ module private FastOps =
       match arg with
       | DList(_, l) -> ValueSome(Dval.int (bigint l.Length))
       | _ -> ValueNone
+    else
+      ValueNone
+
+
+  /// `List.member`: a list and a value of its element type, 102 calls in a view build.
+  ///
+  /// Calls the same `Dval.equals` the builtin calls -- which is why that function moved into
+  /// `LibExecution` from `Builtins.Pure.Libs.NoModule`: structural equality of two Dvals belongs
+  /// beside `Dval`, and the interpreter could not reach it where it was.
+  ///
+  /// Keeps `==`'s behaviour on mismatched element types, which is to raise rather than answer false,
+  /// by declining to the slow path when a merge fails.
+  let evalListMember
+    (tag : int)
+    (items : List<Dval>)
+    (value : Dval)
+    : Dval voption =
+    if tag = listMember then
+      let vtValue = Dval.toValueType value
+
+      let rec search (rest : List<Dval>) : Dval voption =
+        match rest with
+        | [] -> ValueSome(Dval.bool false)
+        | elem :: tail ->
+          match ValueType.merge (Dval.toValueType elem) vtValue with
+          | Error() -> ValueNone
+          | Ok _ ->
+            if Dval.equals elem value then ValueSome(Dval.bool true) else search tail
+
+      search items
     else
       ValueNone
 
@@ -1289,6 +1320,7 @@ module private FastOps =
     put "dictGet" dictGet
     put "dictSetOverridingDuplicates" dictSet
     put "stringRepeat" strRepeat
+    put "listMember" listMember
     d
 
 
@@ -1386,7 +1418,9 @@ let private tryFastOpOn
       | DList(vt1, l1) ->
         match registers[secondReg] with
         | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-        | _ -> ValueNone
+        // `member` takes a list and a bare value, so it is the one entry whose second operand is
+        // not constrained by the first's shape.
+        | other -> FastOps.evalListMember tag l1 other
       | DDict(_, o) ->
         match registers[secondReg] with
         | DString k -> FastOps.evalDictGet threadID tag o k
