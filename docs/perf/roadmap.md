@@ -1942,6 +1942,63 @@ for one of the three types it dispatches on is how someone later concludes the m
 apply to their case. The constraint on it is unchanged and still stated at the table: only pure
 `noCaps` builtins, because the path skips the capability check and both type checks.
 
+### The fast path learns one-argument operators
+
+`intToString` (303 calls a view), `boolNot` (55) and `listLength` (29) are pure operators with one
+argument, and the table only knew how to dispatch on two. Same table, new `eval1`: the two-argument
+functions decline a one-argument tag and vice versa, so nothing needs to know an operator's arity
+before looking it up.
+
+A/B on `optime`, three passes each arm, repeatable to within 100 ns inside each arm:
+
+    boolNot          off 4500 4500 4500 ns    on 3600 3600 3600 ns    (net 1.53 -> 0.53 us)
+    Int to String    off 6400 6300 6400 ns    on 5700 5800 5700 ns    (net 3.40 -> 2.67 us)
+
+~1.0 us a call, consistent with `stringAppend` (1.0) and `listAppend` (1.37). At 387 calls that is
+~0.39 ms of a 20 ms view, about 2%. The mechanism is the point as much as the number: a further
+one-argument operator is now one line.
+
+**What does not qualify, and why it matters.** `cliTerminalStyledWidth` is 289 calls a view and is
+the obvious next name to add. It cannot go in: the path computes the result itself, so adding it
+would mean copying an escape-sequence walker into the interpreter. That is duplicating a builtin
+rather than short-circuiting one, and the table is only sound because every entry restates its
+builtin exactly. Written into the doc comment on `eval1` so the next person hits the reasoning rather
+than the temptation.
+
+**Also fixed the builtin itself:** `intToString` went through `Dval.asBigInt`, allocating a
+`BigInteger` to stringify a value that almost always fits an int64. That is on the slow path too, so
+it is worth fixing where it lives and not just in the fast path's restatement.
+
+### Builtin type checking is not the cost either -- probed and closed
+
+Having closed the same question for package calls, the matching probe for builtins: stub out both the
+argument check and the result check.
+
+    call a builtin directly     1.70 -> 1.53 us
+    call a trivial builtin      1.40 -> 1.30 us
+
+**~0.10-0.17 us of a 1.7 us builtin call**, so ~0.33-0.57 ms across a view's ~3,332 real builtin
+calls: about 2%, and that is for deleting it outright. The probe was verified live before being
+believed -- `Stdlib.String.length 5` stopped producing a type error and started throwing
+`IncorrectArgs`, which is how you know the stub is actually in the path.
+
+Which says something useful about the fast path: the ~1.0-1.4 us it saves per call is **not** type
+checking. It is the dispatch machinery around the call -- the builtin table lookup, the `ArgSeq`, the
+`ApplyContext`, the closure invocation and the `Ply`. That is why adding an operator to the table
+wins about ten times what deleting its type check would.
+
+### How much of a view is already elided
+
+Worth recording, because it reframes where the remaining time is:
+
+    package calls per view        2,971
+    taking the full package path    511
+    elided into a builtin call    2,460   (83%)
+
+The thin-wrapper elision is doing the bulk of the work already, and only ~511 calls a view still pay
+the 2.7 us package path -- about 1.4 ms. The volume long since moved to builtin calls, which is why
+the operator table is where the wins have been coming from.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

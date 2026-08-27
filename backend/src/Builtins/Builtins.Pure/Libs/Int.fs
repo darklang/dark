@@ -423,7 +423,16 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, _, [| (DInt _) as v |] -> Ply(DString(string (Dval.asBigInt v)))
+        // Not via `Dval.asBigInt`: that allocates a `BigInteger` to stringify a value that
+        // almost always fits an int64. Same output either way.
+        | _, _, _, [| DInt i |] ->
+          Ply(
+            DString(
+              match i with
+              | DarkInt.Finite n -> string n
+              | DarkInt.Infinite b -> string b
+            )
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

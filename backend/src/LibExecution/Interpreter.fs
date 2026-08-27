@@ -1091,6 +1091,11 @@ module private FastOps =
   /// needs a range check -- `equals` and `notEquals` are simply handled by both.
   let strAppend = 10
   let listAppend = 11
+  /// One-argument tags. Same table: `eval1` handles these and the two-argument functions decline
+  /// them, so nothing needs to know an operator's arity before looking it up.
+  let intToString = 12
+  let boolNot = 13
+  let listLength = 14
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1157,6 +1162,34 @@ module private FastOps =
       ValueNone
 
 
+  /// The operator itself, for one argument.
+  ///
+  /// Only operators whose implementation can be restated exactly belong here -- these three are a
+  /// `not`, a length and a stringify. `cliTerminalStyledWidth` is 289 calls a view and does not
+  /// qualify: restating it would mean copying an escape-sequence walker into the interpreter, which
+  /// is duplicating a builtin rather than short-circuiting one.
+  let eval1 (tag : int) (arg : Dval) : Dval voption =
+    if tag = intToString then
+      match arg with
+      | DInt i ->
+        // The builtin goes through `Dval.asBigInt`, which allocates a `BigInteger` to stringify a
+        // value that usually fits an int64. Same output either way.
+        match i with
+        | DarkInt.Finite n -> ValueSome(DString(string n))
+        | DarkInt.Infinite b -> ValueSome(DString(string b))
+      | _ -> ValueNone
+    elif tag = boolNot then
+      match arg with
+      | DBool b -> ValueSome(Dval.bool (not b))
+      | _ -> ValueNone
+    elif tag = listLength then
+      match arg with
+      | DList(_, l) -> ValueSome(Dval.int (bigint l.Length))
+      | _ -> ValueNone
+    else
+      ValueNone
+
+
   /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
   /// record and this is a single probe of a table with ten entries in it.
   ///
@@ -1179,6 +1212,9 @@ module private FastOps =
     put "intMin" min
     put "stringAppend" strAppend
     put "listAppend" listAppend
+    put "intToString" intToString
+    put "boolNot" boolNot
+    put "listLength" listLength
     d
 
 
@@ -1204,6 +1240,7 @@ let private tryFastOp
       // Nested rather than `match a, b with`, which allocates the pair. That shape cost the
       // reference workload 4.4% when it was written the obvious way in `tryFastOpDirect`.
       match ArgSeq.uncons ctx.args with
+      | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest -> FastOps.eval1 tag only
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
@@ -1234,6 +1271,19 @@ let private tryFastOpDirect
   (argRegs : NEList<Register>)
   : Dval voption =
   match argRegs.tail with
+  | [] when
+    exeState.tracing.skipTracing
+    && List.isEmpty typeArgs
+    && List.isEmpty applicable.argsSoFar
+    ->
+    match applicable.name with
+    | FQFnName.Builtin b ->
+      let mutable tag = 0
+      if FastOps.byName.TryGetValue(b, &tag) then
+        FastOps.eval1 tag registers[argRegs.head]
+      else
+        ValueNone
+    | _ -> ValueNone
   | [ secondReg ] when
     exeState.tracing.skipTracing
     && List.isEmpty typeArgs
