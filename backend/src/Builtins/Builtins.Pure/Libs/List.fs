@@ -286,6 +286,40 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 
+/// The result of a `map`: its element type comes from the values the lambda returned.
+///
+/// Same shape as `listFlatten`. Merge the element ValueTypes where they agree and build the list
+/// directly; where they do not, hand it to `DvalCreator.list`, which is the general path and reports
+/// the mismatch properly. Accumulating with `push`, which is what the Dark version did, merged the
+/// same types one element at a time.
+let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
+  let merged =
+    items
+    |> List.fold
+      (fun acc item ->
+        match acc with
+        | Ok accVt ->
+          match VT.merge accVt (Dval.toValueType item) with
+          | Ok m -> Ok m
+          | Error() -> Error()
+        | Error() -> Error())
+      (Ok VT.unknown)
+
+  match merged with
+  | Ok vt -> DList(vt, items)
+  | Error() -> TypeChecker.DvalCreator.list vm.threadID VT.unknown items
+
+
+/// A `filter` predicate returned something other than a bool.
+///
+/// The same error the Dark version raised, since its body was `if f elem then ... else ...` and this
+/// is what the interpreter says about an `if` on a non-bool.
+let private predicateNotBool (actual : Dval) =
+  RuntimeError.Bool(
+    RuntimeError.Bools.ConditionRequiresBool(Dval.toValueType actual, actual)
+  )
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "listFold" 0
       typeParams = []
@@ -344,6 +378,126 @@ let fns () : List<BuiltInFn> =
                     | Error(rte, _cs) -> return raiseRTE vm.threadID rte
                   | [] -> ()
                 return acc
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listMap" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "elem" ] ]
+      returnType = TList varB
+      description =
+        "Calls <param fn> on every value in <param list>, returning a list of the results"
+      fn =
+        (function
+        | state, vm, [], [| DList(_, items); DApplicable app |] ->
+          // Built back to front and reversed once at the end, rather than appending, which would
+          // re-copy the accumulator per element.
+          let mutable acc = []
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable1 state app elem
+              match Ply.trySync call with
+              | ValueSome(Ok mapped) ->
+                acc <- mapped :: acc
+                rest <- tail
+              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              | ValueNone -> pending <- ValueSome(struct (call, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(mappedList vm (List.rev acc))
+          | ValueSome(struct (call, tail)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Ok mapped ->
+                let mutable acc = mapped :: acc
+                let mutable rest = tail
+                while not (List.isEmpty rest) do
+                  match rest with
+                  | elem :: elemTail ->
+                    match! Exe.executeApplicable1 state app elem with
+                    | Ok stepped ->
+                      acc <- stepped :: acc
+                      rest <- elemTail
+                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                  | [] -> ()
+                return mappedList vm (List.rev acc)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listFilter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
+      returnType = TList varA
+      description =
+        "Calls <param fn> on every value in <param list>, returning a list of the values for which "
+        + "it returned true"
+      fn =
+        (function
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+          // The result holds a subset of the values that came in, so it keeps their ValueType
+          // exactly. Nothing to merge, and nothing that can fail to.
+          let mutable acc = []
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable1 state app elem
+              match Ply.trySync call with
+              | ValueSome(Ok(DBool keep)) ->
+                if keep then acc <- elem :: acc
+                rest <- tail
+              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
+              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(DList(vt, List.rev acc))
+          | ValueSome(struct (call, elem, tail)) ->
+            uply {
+              let! first = call
+              let mutable acc = acc
+              match first with
+              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Ok(DBool keep) ->
+                if keep then acc <- elem :: acc
+                let mutable rest = tail
+                while not (List.isEmpty rest) do
+                  match rest with
+                  | next :: elemTail ->
+                    match! Exe.executeApplicable1 state app next with
+                    | Ok(DBool keepNext) ->
+                      if keepNext then acc <- next :: acc
+                      rest <- elemTail
+                    | Ok other ->
+                      return raiseRTE vm.threadID (predicateNotBool other)
+                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                  | [] -> ()
+                return DList(vt, List.rev acc)
+              | Ok other -> return raiseRTE vm.threadID (predicateNotBool other)
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

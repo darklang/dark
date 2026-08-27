@@ -307,9 +307,7 @@ let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
 /// Preserves the order of values that were not dropped. Consider <fn
 /// filterMap> if you also want to transform the values.
 let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-  (fold list [] (fun acc elem ->
-    if (f elem) then push acc elem else acc))
-  |> reverse
+  Builtin.listFilter list f
 
 
 /// Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -384,8 +382,7 @@ let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
 /// results of those calls.
 /// Consider <fn filterMap> if you also want to drop some of the values.
 let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-  (fold list [] (fun acc elem -> push acc (fn elem)))
-  |> reverse
+  Builtin.listMap list fn
 
 
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,

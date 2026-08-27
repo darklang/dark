@@ -295,6 +295,19 @@ let executeApplicable
   runLoaded exeState vm
 
 
+/// One argument, without the `NEList` holding it. See `executeApplicable2`.
+let executeApplicable1
+  (exeState : RT.ExecutionState)
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : Ply<RT.ExecutionResult> =
+  let vm = vmForApply 1
+  let registers = vm.callFrames[vm.currentFrameID].registers
+  registers[1] <- RT.DApplicable applicable
+  registers[2] <- arg
+  runLoaded exeState vm
+
+
 /// Two arguments, without the `NEList` holding them.
 ///
 /// `executeApplicable` is the general form and the one to reach for. This exists because a builtin
