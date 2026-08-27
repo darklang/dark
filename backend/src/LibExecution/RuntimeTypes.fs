@@ -2407,8 +2407,6 @@ type InterpreterStats =
     packageFnTiming : Dictionary<string, int64>
     /// Call count per package fn hash
     packageFnCounts : Dictionary<string, int64>
-    /// Timestamp when each frame was pushed (for measuring total fn time)
-    framePushTimestamps : Dictionary<uuid, int64>
 
     /// Bytes allocated while executing each opcode, indexed by the `Instruction` DU tag, plus how many of
     /// each ran. Neither instruction count nor call count predicts wall time well, because the interpreter
@@ -2481,7 +2479,6 @@ type InterpreterStats =
       builtinCounts = Dictionary()
       packageFnTiming = Dictionary()
       packageFnCounts = Dictionary()
-      framePushTimestamps = Dictionary()
       allocByOpcode = Array.zeroCreate 32
       syncHitByOpcode = Array.zeroCreate 32
       syncMissByOpcode = Array.zeroCreate 32
@@ -2521,7 +2518,6 @@ type InterpreterStats =
     this.builtinCounts.Clear()
     this.packageFnTiming.Clear()
     this.packageFnCounts.Clear()
-    this.framePushTimestamps.Clear()
     this.registersAllocated <- 0L
     this.builtinBodyAlloc <- 0L
     this.builtinAlloc.Clear()
@@ -2620,6 +2616,16 @@ type VMState =
     /// outside the computation expression can reach it.
     pendingCallArgs : Dictionary<uuid, Dval list>
 
+    /// When each frame was pushed, so a package fn can be timed on the way out.
+    ///
+    /// Lives on the VM, not on `InterpreterStats`, and that is load-bearing. Frame ids come from
+    /// `nextFrameId`, which counts *per VM*, so two VMs both emit 1, 2, 3... With telemetry off --
+    /// the default -- every VM shares one `InterpreterStats`, so keying this off it meant a lambda
+    /// applied by a builtin (which runs on a pooled VM) collided with the calling VM's ids: one
+    /// overwrote the other, the return path's `Remove` dropped the survivor, and the profile
+    /// silently under-reported functions called from inside a `map`/`filter`/`fold` lambda.
+    framePushTimestamps : Dictionary<uuid, int64>
+
     /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
     /// evaluates. Returning a `List<Register * Dval>` instead costs a tuple and a cons per bound
     /// variable on every pattern *tried*, including every one that fails.
@@ -2674,6 +2680,7 @@ type VMState =
       finalResult = ValueNone
       matchBindings = ResizeArray()
       pendingCallArgs = Dictionary()
+      framePushTimestamps = Dictionary()
       framePool = Dictionary() }
 
   /// Re-point a finished VM at a new tiny program, instead of building another one.
@@ -2743,6 +2750,7 @@ type VMState =
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()
     vm.pendingCallArgs.Clear()
+    vm.framePushTimestamps.Clear()
     // `framePool` is deliberately *not* cleared. It holds frames that have already been returned,
     // keyed by register count, for the next push to reuse -- so clearing it here threw away the
     // pool on every application and made each one allocate its lambda's frame afresh.

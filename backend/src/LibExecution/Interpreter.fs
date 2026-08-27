@@ -592,6 +592,10 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 /// Frame identity is internal to a VM: `callFrames`, `pendingCallArgs` and `framePushTimestamps` key on it,
 /// and the tracer's `storeFrameEntry` ignores the argument entirely. It never reaches storage or the wire.
 ///
+/// "Internal to a VM" is the whole invariant: ids repeat across VMs, so anything keyed on one has to
+/// live on the VM. `framePushTimestamps` used to sit on `InterpreterStats`, which every VM shares
+/// when telemetry is off, and the collision cost the per-fn profile an unknown share of its calls.
+///
 /// So it doesn't need to be random. `Guid.NewGuid()` draws from the cryptographic RNG, and a frame push
 /// happens tens of thousands of times in a single command.
 ///
@@ -1823,7 +1827,7 @@ let private completePackage
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
       vm.stats.framePushCount <- vm.stats.framePushCount + 1L
       if vm.stats.detailedTiming then
-        vm.stats.framePushTimestamps[newFrameId] <-
+        vm.framePushTimestamps[newFrameId] <-
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if not exeState.tracing.skipTracing then
@@ -3192,13 +3196,13 @@ let private returnFromFrame
   | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
     // Record per-package-fn timing on frame return
     if vm.stats.enabled && vm.stats.detailedTiming then
-      match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+      match vm.framePushTimestamps.TryGetValue(vm.currentFrameID) with
       | true, pushTs ->
         let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
         match currentFrame.executionPoint with
         | Function(FQFnName.Package(Hash h)) -> vm.stats.recordPackageFn (h, elapsed)
         | _ -> ()
-        vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+        vm.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
       | false, _ -> ()
 
     let framePopAlloc = allocNow vm

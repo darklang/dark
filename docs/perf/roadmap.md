@@ -2392,13 +2392,38 @@ question rather than taken**, and it is the largest single item on the server pa
   from inside a `List.map` lambda: **both recorded, 3 and 20 calls.** The scare was unfounded. What
   actually failed was name resolution, since script-local functions are not in `locations` and so
   come back as bare hashes.
-- **Per-fn call counts are not always reliable, though.** `parseRouteSegments` and
-  `matchRouteSegments` are called on the same line of `findHandler`, and the profile reports 1/request
-  and 4/request. Moving the matching handler to last moved `matchRouteSegments` to 5 and left
-  `parseRouteSegments` at 1. Timing is recorded on frame return against
-  `framePushTimestamps[currentFrameID]`, so a frame whose id has already moved on at return time goes
-  unrecorded. Unexplained, and worth knowing before ranking by the `calls` column: the `ms` column and
-  the wall-clock loops are what the win above was measured with.
+- **Per-fn call counts were wrong, and it was a real bug.** See the entry below; it is fixed.
+
+### The per-fn profile was silently dropping calls, and the fix corrects this round's rankings
+
+`parseRouteSegments` and `matchRouteSegments` are called on the *same line* of `findHandler`, and the
+profile reported 1/request and 4/request. That is not a rounding artifact, so it was worth chasing.
+
+Frame ids come from `nextFrameId`, which counts **per VM**, so two VMs both emit 1, 2, 3... The file
+says so itself: "Frame identity is internal to a VM". But `framePushTimestamps` lived on
+`InterpreterStats`, and `InterpreterStats.create()` hands back **one shared object** when telemetry is
+off, which is the default. So a lambda applied by a builtin -- which runs on a pooled VM -- collided
+with the calling VM's frame ids: one push overwrote the other, and the return path's `Remove` dropped
+the survivor.
+
+Anything called from inside a `map`/`filter`/`fold`/`findFirst` lambda was therefore under-reported by
+an unknown amount, which in the CLI is most things.
+
+Moved to `VMState`, where the invariant says it belongs. The counts agree now:
+
+    parseRouteSegments    1.0 -> 4.0 per request   (matchRouteSegments: 4.0, same line)
+    Canvas.composeRow      27 -> 40 calls a view   (one per row of a 40-row view, as it should be)
+
+**`composeRow` is 9.47 ms of a view, not the ~6 the old ranking implied**, and is comfortably the
+biggest CLI item. No runtime cost: the dictionary is per-VM, cleared in `reuseFor` alongside
+`pendingCallArgs`, and only written when detailed timing is on. `viewloop` reads 5,711-5,767 ms
+either side.
+
+**The lesson for reading this document.** Every per-fn `calls` figure recorded above this entry was
+measured with the broken instrument and under-reports. The `ms` figures under-report with them. What
+is *not* affected: `optime` and the wall-clock loops (`viewloop`, `routeloop`, `lambdapath`), the
+allocation numbers, `gate`, and every A/B in this round, since both arms carried the same loss. The
+wins stand; the rankings that pointed at them were dimmer than they should have been.
 
 ### Open, ranked
 
