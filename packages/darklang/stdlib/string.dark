@@ -34,7 +34,7 @@ let articleFor (nextWord: String) : String =
 
 
 /// Returns {{true}} if <param s> is the empty string {{\"\"}
-let isEmpty (s: String) : Bool = s == ""
+let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 
 
 /// Iterate over each Char (EGC, not byte) in the string, performing the

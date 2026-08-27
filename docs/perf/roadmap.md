@@ -2651,6 +2651,42 @@ So the same shape spans 5.3x, 24%, 2%, 4% and negative. The size is a property o
 function, and the only way to know is a workload sized to the caller. `map2scale.dark` and
 `collectscale.dark` exist for the two that the CLI's own workloads cannot see.
 
+### The three `isEmpty`s were a package call to ask a one-word question
+
+`String.isEmpty` was `s == ""`, `List.isEmpty` was `list == []`, `Dict.isEmpty` was
+`dict == Dict.empty` -- each a package call plus an `equals`, and `Dict.isEmpty` additionally loaded a
+package value. Builtins now, with the Dark functions as forwarders, and all three on the
+one-argument fast path since each restates in a line.
+
+Both arms measured in the **same session**, which turned out to matter (below):
+
+    routing   min 1,237 -> 1,148 ms   (~417 -> ~383 us a route, -7.2%, arms do not overlap)
+    view      flat, marginally better (min 5,741 -> 5,736, median 5,782 -> 5,750)
+
+`Dict.isEmpty` was worth checking for a different reason: `dict == Dict.empty` is structural equality
+on a whole dict, which would be O(n). It is not -- `equals` compares `Map.count` first and
+short-circuits -- so this was a cost, not a bug.
+
+**A measurement trap, hit and nearly acted on.** The first view numbers after this change read
+5,998-6,094 against a 5,734-5,827 baseline taken earlier, which is a 4% regression and I was ready to
+revert. Re-measuring *both* arms back to back in one session gave 5,741 and 5,736. The baseline had
+drifted, not the code. The playbook already says to pin the store when comparing across time; this is
+the same hazard for wall clock, and the rule is the same: **an A/B is only an A/B if both arms are
+measured in the same session.** Every cross-session comparison in this document should be read with
+that caveat, and the A/Bs (which were all same-session) should not.
+
+`fastopcheck` is up to 26 checks.
+
+### `lists` is pure lambda application, like `recursion` is pure call
+
+Profiled for the first time. Per iteration it is one `listMap` at 146.94 us over 50 elements --
+**2.94 us an element** -- and one `listRange`. Nothing else. That is the builtin-applied lambda cost
+(1.98 us measured) plus an `Int` add and the list build.
+
+So `lists`, like `recursion`, sits on a floor this round measured and closed: lambda application has a
+9% gap to the interpreter's own Apply, and 1.32 us of it is the frame. Neither workload has anything
+left in it that is not that floor.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

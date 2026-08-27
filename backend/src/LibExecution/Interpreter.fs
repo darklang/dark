@@ -1107,6 +1107,9 @@ module private FastOps =
   let strRepeat = 17
   let listMember = 18
   let dictSetStrict = 19
+  let strIsEmpty = 20
+  let listIsEmpty = 21
+  let dictIsEmpty = 22
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1192,6 +1195,18 @@ module private FastOps =
     elif tag = boolNot then
       match arg with
       | DBool b -> ValueSome(Dval.bool (not b))
+      | _ -> ValueNone
+    elif tag = strIsEmpty then
+      match arg with
+      | DString s -> ValueSome(Dval.bool (s.Length = 0))
+      | _ -> ValueNone
+    elif tag = listIsEmpty then
+      match arg with
+      | DList(_, l) -> ValueSome(Dval.bool (List.isEmpty l))
+      | _ -> ValueNone
+    elif tag = dictIsEmpty then
+      match arg with
+      | DDict(_, o) -> ValueSome(Dval.bool (Map.isEmpty o))
       | _ -> ValueNone
     elif tag = listLength then
       match arg with
@@ -1327,6 +1342,9 @@ module private FastOps =
     put "intToString" intToString
     put "boolNot" boolNot
     put "listLength" listLength
+    put "stringIsEmpty" strIsEmpty
+    put "listIsEmpty" listIsEmpty
+    put "dictIsEmpty" dictIsEmpty
     put "dictGet" dictGet
     put "dictSetOverridingDuplicates" dictSet
     put "dictSet" dictSetStrict

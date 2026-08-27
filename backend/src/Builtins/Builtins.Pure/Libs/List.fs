@@ -1061,6 +1061,21 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listIsEmpty" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TBool
+      description = "Returns true if <param list> has no values"
+      fn =
+        (function
+        | _, _, _, [| DList(_, l) |] -> Ply(DBool(List.isEmpty l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]

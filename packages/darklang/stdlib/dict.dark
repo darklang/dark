@@ -5,8 +5,7 @@ module Darklang.Stdlib.Dict
 val empty = Dict { }
 
 /// Returns {{true}} if the <param dict> contains no entries
-let isEmpty (dict: Dict<'a>) : Bool =
-  dict == Dict.empty
+let isEmpty (dict: Dict<'a>) : Bool = Builtin.dictIsEmpty dict
 
 /// Returns a dictionary with a single entry {{<param key>: <param value>}}
 let singleton (key: String) (value: 'a) : Dict<'a> =

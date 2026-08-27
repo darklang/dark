@@ -173,7 +173,7 @@ let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 
 
 /// Returns true if <param list> has no values
-let isEmpty (list: List<'a>) : Bool = list == []
+let isEmpty (list: List<'a>) : Bool = Builtin.listIsEmpty list
 
 
 /// Returns a copy of <param list> with every value sorted in ascending order.

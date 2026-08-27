@@ -347,6 +347,21 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringIsEmpty" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TBool
+      description = "Returns true if <param s> is the empty string"
+      fn =
+        (function
+        | _, _, _, [| DString s |] -> Ply(DBool(s.Length = 0))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringStartsWith" 0
       typeParams = []
       parameters =
