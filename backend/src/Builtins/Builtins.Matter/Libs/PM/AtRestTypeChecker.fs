@@ -8,7 +8,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Checker = LibExecution.AtRestTypeChecker
+// The checker's vocabulary (types, verdicts, diagnostic codes, the type environment)
+// lives in AtRest.Types; the entry points that run it live in AtRestTypeChecker.
+module Checker = LibExecution.AtRest.Types
+module CheckerApi = LibExecution.AtRestTypeChecker
 module Dval = LibExecution.Dval
 module NR = LibExecution.RuntimeTypes.NameResolution
 module PackageRefs = LibExecution.PackageRefs
@@ -236,7 +239,7 @@ let checkPackageOps
           dependencies.values
           candidates.values
       let batch =
-        Checker.checkPackageBatch
+        CheckerApi.checkPackageBatch
           environment
           (candidates.types.Values |> Seq.toList)
           (values.Values |> Seq.toList)

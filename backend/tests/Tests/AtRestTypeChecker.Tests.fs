@@ -6,7 +6,10 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module Checker = LibExecution.AtRestTypeChecker
+// The checker's vocabulary (types, verdicts, diagnostic codes, the type environment)
+// lives in AtRest.Types; the entry points that run it live in AtRestTypeChecker.
+module Checker = LibExecution.AtRest.Types
+module CheckerApi = LibExecution.AtRestTypeChecker
 module AuthoringChecker = Builtins.Matter.Libs.PM.AtRestTypeChecker
 module HashStabilization = LibDB.HashStabilization
 
@@ -106,19 +109,19 @@ let private unitTests =
     "checker"
     [ test "checks a body against its declared return type" {
         oneArgFn PT.TInt PT.TInt (PT.EArg(1UL, 0))
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
       test "function parameters are available by their source names" {
         oneArgFn PT.TInt PT.TInt (PT.EVariable(45UL, "value"))
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
       test "reports a definite return type mismatch" {
         oneArgFn PT.TInt PT.TString (PT.EArg(2UL, 0))
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.TypeMismatch
       }
 
@@ -142,7 +145,7 @@ let private unitTests =
             [ PT.EInt(4UL, 1I); PT.EString(5UL, [ PT.StringText "url" ]) ]
           )
         oneArgFn PT.TUnit optionType invalid
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.EnumFieldCountMismatch
       }
 
@@ -170,7 +173,7 @@ let private unitTests =
               ) ]
           )
         oneArgFn PT.TUnit (customType optionName) value
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -200,7 +203,7 @@ let private unitTests =
             []
           )
         oneArgFn PT.TUnit (customType aliasName) value
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -220,7 +223,7 @@ let private unitTests =
                 rhs = PT.EInt(52UL, 1I) } ]
           )
         oneArgFn (PT.TTuple(PT.TInt, PT.TString, [])) PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -247,7 +250,7 @@ let private unitTests =
                 rhs = PT.EVariable(70UL, "x") } ]
           )
         oneArgFn (PT.TTuple(PT.TInt, PT.TInt, [])) PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.DuplicatePatternBinding
       }
 
@@ -261,7 +264,7 @@ let private unitTests =
             NEList.singleton (PT.EInt(12UL, 1I))
           )
         oneArgFn PT.TUnit PT.TInt call
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectBlocker Checker.MissingFunctionSignature
       }
 
@@ -278,7 +281,7 @@ let private unitTests =
                 rhs = PT.EString(18UL, [ PT.StringText "no" ]) } ]
           )
         oneArgFn PT.TBool PT.TString body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -303,7 +306,7 @@ let private unitTests =
               { pat = atLeastTwo; whenCondition = None; rhs = PT.EInt(145UL, 2I) } ]
           )
         oneArgFn (PT.TList PT.TString) PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -333,7 +336,7 @@ let private unitTests =
           (PT.TTuple(PT.TList PT.TString, PT.TList PT.TString, []))
           PT.TInt
           body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -358,7 +361,7 @@ let private unitTests =
           )
         match
           oneArgFn (customType enumName) PT.TInt body
-          |> Checker.checkPackageFunction environment
+          |> CheckerApi.checkPackageFunction environment
         with
         | Checker.Incomplete report ->
           let blocker =
@@ -388,7 +391,7 @@ let private unitTests =
           )
         match
           oneArgFn PT.TUnit PT.TInt body
-          |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         with
         | Checker.Incomplete report ->
           Expect.equal
@@ -402,7 +405,7 @@ let private unitTests =
         let body =
           PT.ELet(19UL, PT.LPWildcard 20UL, PT.EList(21UL, []), PT.EInt(22UL, 1I))
         oneArgFn PT.TUnit PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -415,7 +418,7 @@ let private unitTests =
             PT.EString(56UL, [ PT.StringText "wrong" ])
           )
         oneArgFn PT.TUnit PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.TypeMismatch
       }
 
@@ -423,7 +426,7 @@ let private unitTests =
         let body = PT.EList(64UL, [])
         match
           oneArgFn PT.TUnit PT.TBlob body
-          |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         with
         | Checker.Incomplete report ->
           Expect.isTrue
@@ -449,7 +452,7 @@ let private unitTests =
           )
         match
           oneArgFn PT.TBool PT.TString body
-          |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         with
         | Checker.Failed report ->
           Expect.isTrue
@@ -504,11 +507,11 @@ let private unitTests =
             PT.ERecordFieldAccess(62UL, PT.EVariable(63UL, "discovered"), "path")
           )
         oneArgFn PT.TUnit PT.TString body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
 
         sourceCall
-        |> Checker.checkExpression environment
+        |> CheckerApi.checkExpression environment
         |> expectBlocker Checker.AmbiguousType
       }
 
@@ -518,7 +521,7 @@ let private unitTests =
           NEList.singleton (PT.LPVariable(65UL, "record")),
           PT.ERecordFieldAccess(66UL, PT.EVariable(67UL, "record"), "path")
         )
-        |> Checker.checkExpression Checker.TypeEnvironment.empty
+        |> CheckerApi.checkExpression Checker.TypeEnvironment.empty
         |> expectBlocker Checker.AmbiguousType
       }
 
@@ -540,7 +543,7 @@ let private unitTests =
           |> Checker.TypeEnvironment.addType b (alias a)
         let typ = customType a
         oneArgFn typ typ (PT.EArg(23UL, 0))
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectBlocker Checker.AliasCycle
       }
 
@@ -553,7 +556,7 @@ let private unitTests =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addType aliasName declaration
         oneArgFn (customType aliasName) PT.TUnit (PT.EUnit 183UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectBlocker Checker.AliasCycle
       }
 
@@ -571,7 +574,7 @@ let private unitTests =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addType aliasName declaration
         oneArgFn (aliasOf (aliasOf PT.TInt)) PT.TUnit (PT.EUnit 184UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -579,7 +582,7 @@ let private unitTests =
         let missing = PT.FQTypeName.package "nested-missing-type"
         let nested = PT.TList(PT.TDict(customType missing))
         oneArgFn nested PT.TUnit (PT.EUnit 180UL)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectBlocker Checker.MissingTypeDeclaration
       }
 
@@ -598,7 +601,7 @@ let private unitTests =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addType nodeName declaration
         oneArgFn (customType nodeName) PT.TUnit (PT.EUnit 187UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -622,14 +625,14 @@ let private unitTests =
           (PT.TTuple(PT.TInt, PT.TList(pair [ PT.TString ]), []))
           PT.TUnit
           (PT.EUnit 181UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.TypeMismatch
 
         oneArgFn
           (PT.TTuple(PT.TInt, PT.TList(pair [ PT.TString; PT.TBool ]), []))
           PT.TUnit
           (PT.EUnit 182UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -662,7 +665,7 @@ let private unitTests =
           |> Checker.TypeEnvironment.addType pairName pairDeclaration
 
         malformedFn
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.TypeMismatch
 
         let report =
@@ -703,7 +706,7 @@ let private unitTests =
                     PT.TTuple(PT.TInt, PT.TList(customType missing), [])
                   ) } }
         let result =
-          Checker.checkPackageBatch Checker.TypeEnvironment.empty [ alias ] [] []
+          CheckerApi.checkPackageBatch Checker.TypeEnvironment.empty [ alias ] [] []
         match result.types with
         | [ item ] -> expectBlocker Checker.MissingTypeDeclaration item.verdict
         | items -> failtestf "Expected one type verdict, got %A" items
@@ -725,7 +728,7 @@ let private unitTests =
             description = ""
             body = PT.EString(25UL, [ PT.StringText "ready" ]) }
         let result =
-          Checker.checkPackageBatch
+          CheckerApi.checkPackageBatch
             Checker.TypeEnvironment.empty
             []
             [ first; second ]
@@ -745,7 +748,7 @@ let private unitTests =
             body =
               PT.EValue(nodeId, PT.NameResolution.ok (PT.FQValueName.Package target)) }
         let result =
-          Checker.checkPackageBatch
+          CheckerApi.checkPackageBatch
             Checker.TypeEnvironment.empty
             []
             [ value firstHash secondHash 26UL; value secondHash firstHash 27UL ]
@@ -772,7 +775,7 @@ let private unitTests =
                       [ { name = "field"; typ = PT.TString; description = "" } ]
                   ) } }
         let result =
-          Checker.checkPackageBatch Checker.TypeEnvironment.empty [ typ ] [] []
+          CheckerApi.checkPackageBatch Checker.TypeEnvironment.empty [ typ ] [] []
         match result.types with
         | [ item ] -> expectDiagnostic Checker.DuplicateTypeMember item.verdict
         | items -> failtestf "Expected one type verdict, got %A" items
@@ -797,7 +800,7 @@ let private unitTests =
             NEList.ofList (PT.EInt64(30UL, 1L)) [ PT.EInt64(31UL, 2L) ]
           )
         oneArgFn PT.TUnit PT.TInt64 body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -817,23 +820,23 @@ let private unitTests =
         let text = PT.EString(32UL, [ PT.StringText "x" ])
 
         oneArgFn PT.TUnit PT.TBool (call "lessThan" one text)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.TypeMismatch
 
         oneArgFn PT.TUnit PT.TInt (call "add" one two)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
 
         oneArgFn PT.TUnit PT.TString (call "add" one two)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.TypeMismatch
 
         oneArgFn PT.TUnit PT.TBool (call "greaterThan" text text)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.InvalidInfixOperand
 
         oneArgFn PT.TUnit PT.TBool (call "equals" text text)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
 
         // As a value or partially applied there is no signature to give it.
@@ -846,7 +849,7 @@ let private unitTests =
             [],
             NEList.singleton one
           ))
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectBlocker Checker.UnsupportedConstruct
 
         // In a pipe the input is the left operand.
@@ -863,7 +866,7 @@ let private unitTests =
                 [ one ]
               ) ]
           ))
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -877,19 +880,19 @@ let private unitTests =
           )
 
         oneArgFn PT.TInt128 PT.TInt128 (infix 187UL PT.ArithmeticPower)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.InvalidInfixOperand
 
         oneArgFn PT.TUInt128 PT.TUInt128 (infix 190UL PT.ArithmeticPower)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.InvalidInfixOperand
 
         oneArgFn PT.TInt128 PT.TInt128 (infix 193UL PT.ArithmeticPlus)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
 
         oneArgFn PT.TUInt128 PT.TUInt128 (infix 196UL PT.ArithmeticMultiply)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -902,11 +905,11 @@ let private unitTests =
           )
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPower)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.InvalidInfixOperand
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPlus)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
 
         let builtinPower =
@@ -917,7 +920,7 @@ let private unitTests =
             NEList.ofList (PT.EArg(205UL, 0)) [ PT.EArg(206UL, 0) ]
           )
         oneArgFn PT.TUInt128 PT.TUInt128 builtinPower
-        |> Checker.checkPackageFunction (builtinEnvironment ())
+        |> CheckerApi.checkPackageFunction (builtinEnvironment ())
         |> expectDiagnostic Checker.InvalidInfixOperand
       }
 
@@ -933,19 +936,19 @@ let private unitTests =
             NEList.singleton (PT.EArg(42UL, 0))
           )
         oneArgFn PT.TInt PT.TInt negate
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
         oneArgFn PT.TFloat PT.TFloat negate
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
         oneArgFn PT.TInt PT.TString negate
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.TypeMismatch
         oneArgFn PT.TUInt8 PT.TUInt8 negate
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.InvalidInfixOperand
         oneArgFn PT.TString PT.TString negate
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.InvalidInfixOperand
       }
 
@@ -975,7 +978,7 @@ let private unitTests =
         let declaredBuiltins =
           LibExecution.Builtin.make [] [ { addFn with name = declaredRTName } ]
         oneArgFn PT.TUnit PT.TInt (call (PT.FQFnName.fqBuiltIn "unwrap" 0))
-        |> Checker.checkPackageFunction (environmentFor declaredBuiltins)
+        |> CheckerApi.checkPackageFunction (environmentFor declaredBuiltins)
         |> expectChecked
 
         let unconstrainedRTName = RT.FQFnName.builtin "unconstrainedResult" 0
@@ -991,7 +994,7 @@ let private unitTests =
           PT.TUnit
           PT.TInt
           (call (PT.FQFnName.fqBuiltIn "unconstrainedResult" 0))
-        |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
+        |> CheckerApi.checkPackageFunction (environmentFor unconstrainedBuiltins)
         |> expectBlocker Checker.UnsupportedConstruct
 
         // Reified arguments make result-only types such as `jsonParse<'a>` sound.
@@ -1006,7 +1009,7 @@ let private unitTests =
             NEList.ofList (PT.EInt(142UL, 1I)) [ PT.EInt(143UL, 2I) ]
           )
         oneArgFn PT.TUnit PT.TInt explicitlyTypedCall
-        |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
+        |> CheckerApi.checkPackageFunction (environmentFor unconstrainedBuiltins)
         |> expectChecked
 
         // `unwrap` infers its result from the solved Option/Result argument.
@@ -1022,7 +1025,7 @@ let private unitTests =
             [],
             NEList.singleton (PT.EInt(139UL, 1I))
           ))
-        |> Checker.checkPackageFunction (environmentFor allBuiltins)
+        |> CheckerApi.checkPackageFunction (environmentFor allBuiltins)
         |> expectBlocker Checker.UnsupportedConstruct
       }
 
@@ -1043,7 +1046,7 @@ let private unitTests =
             NEList.singleton (PT.EInt(62UL, 1I))
           )
         oneArgFn PT.TUnit PT.TInt body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1065,7 +1068,7 @@ let private unitTests =
           )
         { oneArgFn (PT.TVariable "a") (PT.TVariable "a") body with
             typeParams = [ "a" ] }
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1094,7 +1097,7 @@ let private unitTests =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addType boxName declaration
         { oneArgFn (PT.TVariable "a") boxOfA body with typeParams = [ "a" ] }
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1111,7 +1114,7 @@ let private unitTests =
               PT.NameResolution.ok (PT.FQValueName.Package emptyHash)
             ))
         let result =
-          Checker.checkPackageBatch
+          CheckerApi.checkPackageBatch
             Checker.TypeEnvironment.empty
             []
             [ empty ]
@@ -1151,7 +1154,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TUnit (PT.TTuple(PT.TInt, PT.TString, [])) body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -1203,7 +1206,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TInt PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -1234,7 +1237,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TInt PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.TypeMismatch
       }
 
@@ -1270,7 +1273,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TInt PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
@@ -1290,7 +1293,7 @@ let private unitTests =
           )
         let verdict =
           oneArgFn (customType enumName) PT.TInt body
-          |> Checker.checkPackageFunction environment
+          |> CheckerApi.checkPackageFunction environment
         match verdict with
         | Checker.Incomplete report
         | Checker.Failed report ->
@@ -1337,7 +1340,7 @@ let private unitTests =
             )
           )
         oneArgFn (customType recordName) PT.TInt body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1389,7 +1392,7 @@ let private unitTests =
             [ parameter "stringRecord" (customType stringRecord) ])
           (PT.TTuple(PT.TInt, PT.TString, []))
           body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1425,7 +1428,7 @@ let private unitTests =
                 rhs = PT.EInt(99UL, 1I) } ]
           )
         oneArgFn (customType outerName) PT.TInt body
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }
 
@@ -1449,13 +1452,15 @@ let private unitTests =
                 rhs = PT.EInt(127UL, 0I) } ]
           )
         oneArgFn (PT.TTuple(PT.TBool, PT.TBool, [])) PT.TInt body
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
 
       test "ambiguous type blockers identify the source expression" {
         match
-          Checker.checkExpression Checker.TypeEnvironment.empty (PT.EList(100UL, []))
+          CheckerApi.checkExpression
+            Checker.TypeEnvironment.empty
+            (PT.EList(100UL, []))
         with
         | Checker.Incomplete report ->
           let blocker =
@@ -1652,7 +1657,7 @@ let private unitTests =
       test "a deeply nested type is reported as Incomplete, not a crash" {
         let deep = [ 1..1_000_000 ] |> List.fold (fun typ _ -> PT.TList typ) PT.TInt
         oneArgFn deep PT.TUnit (PT.EUnit 1UL)
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectBlocker Checker.UnsupportedConstruct
       }
 
@@ -1663,7 +1668,7 @@ let private unitTests =
             (fun expr index -> PT.EList(uint64 index + 1UL, [ expr ]))
             (PT.EInt(1UL, 0I))
         oneArgFn PT.TUnit PT.TUnit deep
-        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectBlocker Checker.UnsupportedConstruct
       }
 
@@ -1798,7 +1803,7 @@ let private unitTests =
               |> Checker.TypeEnvironment.addType (aliasName index) declaration)
             Checker.TypeEnvironment.empty
         oneArgFn (customType (aliasName 0)) PT.TUnit (PT.EUnit 1UL)
-        |> Checker.checkPackageFunction environment
+        |> CheckerApi.checkPackageFunction environment
         |> expectBlocker Checker.UnsupportedConstruct
       }
 

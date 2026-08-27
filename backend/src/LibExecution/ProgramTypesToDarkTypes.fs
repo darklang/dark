@@ -9,8 +9,20 @@ module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
-/// Guard recursive conversion of persisted input against process-ending stack
-/// overflow.
+/// Probe for remaining stack before recursing into persisted input.
+///
+/// The `fromDT` walks below read Dvals back out of the package store, so how deep they
+/// nest is a property of what was written, not something this code chose. Running out
+/// of stack there would be a real .NET stack overflow, which cannot be caught and takes
+/// the whole process down: no error to report, nothing to recover, the CLI or server
+/// just dies. `EnsureSufficientExecutionStack` throws an ordinary
+/// `InsufficientExecutionStackException` while there is still headroom, which turns an
+/// unrecoverable crash into an exception the surrounding error boundary can report
+/// against the item that caused it. Nothing catches it here specifically; that is the
+/// whole gain.
+///
+/// `AtRestTypeChecker.ensureStack` is the same technique for the same reason, and does
+/// catch it, converting the throw into an `Incomplete` verdict.
 let private ensureSufficientExecutionStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
