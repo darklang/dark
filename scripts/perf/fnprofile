@@ -14,6 +14,9 @@ share, and whether its own callees account for it.
   --divide N   counts are over N iterations; report per-iteration
   --by         total | percall | n        (default: total)
   --top N      how many rows (default 25)
+
+Feed it several runs and it reports the minimum per-call time across them; call counts come from the
+first run, which is deterministic for a fixed workload.
 """
 import json, sqlite3, sys, os
 
@@ -33,13 +36,20 @@ top = int(opt("--top", 25))
 root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 db = os.path.join(root, "rundir", "data.db")
 
-stats = None
+# Every JSON blob on stdin is one run. Feeding several and taking the MINIMUM per function is the
+# point: a single run of this misread `cliTerminalWrapAtColumn` by 20x, and a function called a
+# handful of times a view has its mean moved 20% by one slow call. A pass can be slowed by the
+# machine, never sped up by it, so the minimum is the least noisy estimator available.
+#
+#   for i in 1 2 3; do ./scripts/run-cli run <workload>; done | ./scripts/perf/fnprofile --divide 5
+runs = []
 for line in sys.stdin:
   line = line.strip()
   if line.startswith("{") and '"instructions"' in line:
-    stats = json.loads(line)
-if stats is None:
+    runs.append(json.loads(line))
+if not runs:
   sys.exit("no InterpreterStats JSON on stdin")
+stats = runs[0]
 
 fns = stats.get("packageFnTiming", {})
 if not fns:
@@ -53,10 +63,22 @@ if os.path.exists(db):
   ):
     names[h] = f"{owner}.{mods}.{name}" if mods else f"{owner}.{name}"
 
+def per_call(run, section, key):
+  v = run.get(section, {}).get(key)
+  return (v["ns"] / max(v["n"], 1)) if v else None
+
+
+def best_per_call(section, key):
+  """Lowest per-call time for this key across the runs that saw it."""
+  seen = [c for c in (per_call(r, section, key) for r in runs) if c is not None]
+  return min(seen) if seen else 0.0
+
+
 rows = []
 for h, v in fns.items():
-  ns, n = v["ns"], v["n"]
-  rows.append((names.get(h, h[:12] + " (unnamed)"), ns / divide, n / divide, ns / max(n, 1)))
+  n = v["n"]
+  per = best_per_call("packageFnTiming", h)
+  rows.append((names.get(h, h[:12] + " (unnamed)"), per * n / divide, n / divide, per))
 
 key = {"total": lambda r: r[1], "percall": lambda r: r[3], "n": lambda r: r[2]}[order]
 rows.sort(key=key, reverse=True)
@@ -71,7 +93,5 @@ if bi:
   bis = sorted(bi.items(), key=lambda kv: -kv[1]["ns"])
   print(f"\n{'ms':>9} {'calls':>8} {'us/call':>9}  builtin")
   for name, v in bis[:12]:
-    print(
-      f"{v['ns']/1e6/divide:9.2f} {v['n']/divide:8.0f} "
-      f"{v['ns']/max(v['n'],1)/1000:9.2f}  {name}"
-    )
+    per = best_per_call("builtinTiming", name)
+    print(f"{per*v['n']/1e6/divide:9.2f} {v['n']/divide:8.0f} {per/1000:9.2f}  {name}")
