@@ -382,6 +382,50 @@ the builtins, `Stream` and `HttpServer`. So target 2 is not a cost the CLI is pa
 ceiling on target 1, which is what makes the order in the campaign brief right. Land the native list
 operations first, and target 2 becomes the thing standing between 2x and 3-4x.
 
+**Targets 1 and 2 are done, and they only worked together.**
+
+Native `fold`, and nothing else. It is the one list operation with no typing question: the blocker in
+the brief -- that a native `map` must compute its result ValueType the way `listFlatten` does -- is
+about *building a list*. A fold returns its accumulator, which carries its own type, and `map` goes on
+building with `push` as before. `map`, `filter` and most of the module are written on `fold`, so they
+all move.
+
+Above each run's own baseline, on `optime.dark`:
+
+    fold over 5     53.0 -> 25.9 us    2.05x
+    filter over 5   74.8 -> 49.4 us    1.51x
+    map over 5      78.5 -> 53.6 us    1.46x
+
+    viewAtSize      65 -> 54 ms
+    steady.dark    283 -> 221 ms, 7.8 -> 7.7 MB
+    suite: lists 276 -> 221 ms, dicts 130 -> 110, nothing regressed
+
+**Target 2 was the bill for it, exactly as the brief said.** A native fold applies the lambda from F#,
+and on the old path that put the gate **58% over budget** -- the same trap as the last attempt at a
+native list operation. Five allocations per application, largest first: the interpreter loop is a
+`task` and a synchronously-completing `task` still allocates its `Task`; `execute` wrapped that in
+`uply { return! ... }`; `applyInstrsFor` built a `System.Func` per call for a factory that runs once
+per arity ever; `executeApplicable`'s three local functions all capture `vm` and so were all allocated
+on every application; `VMState.reuseFor` set `rootInstrData` to a reference tuple. 58.1% over, then
+37.2, 19.5, 8.4, then 7.7 MB against a 7.8 budget.
+
+`executeSync` is the shape worth remembering: the same loop with no builder, running until something
+actually awaits and handing over when it does, sharing `runFrame` and `returnFromFrame` with the task
+loop so the frame-pop bookkeeping has one copy. Same trick as `Ply.trySync`, one level up.
+
+**On its own, target 2 measures almost nothing** -- gate unchanged, `fold over 5` 53 -> 47.6 us. No
+list operation applied a lambda from F# before this, so its whole value was as the enabler. Worth
+remembering before someone benchmarks a prerequisite in isolation and concludes it was not worth it.
+
+**Fixing `alloc-profile` is what made this tractable.** Every step came off that profile, and it was
+sharp, not flat: one item at 50%, the next at 35%, and it stayed sharp for five rounds. Its header
+says a flat profile means stop profiling and build a comparison; the corollary is that a sharp one
+means keep going.
+
+**Still open here.** `range` is Dark and applies no lambda, so it is a different change with a
+different argument. And the `Task` is gone only from the synchronous path -- anything that genuinely
+awaits still allocates one per entry.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

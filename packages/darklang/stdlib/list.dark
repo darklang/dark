@@ -117,13 +117,14 @@ let range (lowest: Int) (highest: Int) : List<Int> =
     push (range (lowest + 1) highest) lowest
 
 
-/// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
+/// Folds <param list> into a single value, by calling <param fn> on each element with the value
+/// built so far.
+///
+/// Native, unlike most of this module, because it is the loop everything else here is written on:
+/// `map`, `filter` and the rest fold. Written in Dark it cost a package call and a match per element
+/// on top of the lambda; the builtin walks the list in F# and applies the lambda directly.
 let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
-  match list with
-  | [] -> init
-  | head :: tail ->
-    let init = fn init head
-    fold tail init fn
+  Builtin.listFold list init fn
 
 
 /// Returns a single list containing the values of every list directly in <paramlist>

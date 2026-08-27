@@ -6,6 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 
@@ -286,7 +287,72 @@ let varC = TVariable "c"
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "listLength" 0
+  [ { name = fn "listFold" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.make "init" varB ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.ofList varB [ varA ], varB))
+            ""
+            [ "acc"; "elem" ] ]
+      returnType = varB
+      description =
+        "Folds <param list> into a single value, by calling <param fn> on each element with the "
+        + "value built so far"
+      fn =
+        (function
+        | state, vm, [], [| DList(_, items); init; DApplicable app |] ->
+          // Walked without a computation expression while the lambda answers synchronously, which is
+          // nearly always: an arithmetic body, a comparison, a push. A `uply` around the whole fold
+          // costs a state machine per *call*, and awaiting inside it costs one per *element*.
+          let mutable acc = init
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable2 state app acc elem
+              match Ply.trySync call with
+              | ValueSome(Ok next) ->
+                acc <- next
+                rest <- tail
+              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              // Hand the unfinished call and what is left of the list to the awaiting path.
+              | ValueNone -> pending <- ValueSome(struct (call, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply acc
+          | ValueSome(struct (call, tail)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Ok next ->
+                let mutable acc = next
+                let mutable rest = tail
+                while not (List.isEmpty rest) do
+                  match rest with
+                  | elem :: elemTail ->
+                    match! Exe.executeApplicable2 state app acc elem with
+                    | Ok stepped ->
+                      acc <- stepped
+                      rest <- elemTail
+                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                  | [] -> ()
+                return acc
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt
