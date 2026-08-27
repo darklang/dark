@@ -111,10 +111,7 @@ let ``length`` (list: List<'a>) : Int =
 /// Returns a list of numbers where each element is {{1}} larger than the
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
 let range (lowest: Int) (highest: Int) : List<Int> =
-  if lowest > highest then
-    []
-  else
-    push (range (lowest + 1) highest) lowest
+  Builtin.listRange lowest highest
 
 
 /// Folds <param list> into a single value, by calling <param fn> on each element with the value

@@ -426,6 +426,53 @@ means keep going.
 different argument. And the `Task` is gone only from the synchronous path -- anything that genuinely
 awaits still allocates one per entry.
 
+**Target 1 is finished: `map`, `filter` and `range` are native too.** `map` and `filter` were written
+on `fold`, so each element cost *two* lambda applications -- the fold's own
+`fun acc elem -> push acc (fn elem)` and the caller's `fn` inside it -- plus a push and a final
+reverse. `range 1 50` was fifty recursive package calls and fifty pushes, and the reference workload
+builds one per iteration, so `range` was most of that workload without anyone having said so.
+
+Absolute, on `optime.dark`, across the round:
+
+    map over 5      97.5 -> 33.0 us
+    filter over 5   93.0 -> 31.8 us
+    fold over 5     71.3 -> 30.5 us
+    range 1..5     102.8 ->  9.25 us
+
+    viewAtSize     76 -> 50 ms
+    steady.dark   353 -> 54 ms, instructions 115,643 -> 4,443 after range alone
+    suite: lists 276 -> 55 ms, dicts 130 -> 55, strings 63 -> 25, records 25 -> 20
+
+**Read the absolute numbers, not "above baseline" ones.** `optime`'s baseline row is a fold over a
+range, so it fell from 18.3 to 5.1 us over this round. A subtracted figure taken now is not comparable
+with one taken at the start.
+
+**The typing was the work, exactly as the brief said.** `map`'s result element type comes from the
+values the lambda returned: it merges them the way `listFlatten` does and hands what will not merge to
+`DvalCreator.list`, which is what makes `map [1;2] (fun x -> if x == 1 then 1 else "two")` a type
+error rather than a badly-typed list. `filter` returns a subset of what it was given, so it keeps the
+input's ValueType and has nothing to merge. An empty `range` keeps an unknown element type, because
+the Dark version returned the literal `[]` and only `push` ever made it a `List<Int>`.
+
+**`filter`'s predicate error is `Bools.ConditionRequiresBool`, not `IfConditionNotBool`.** The Dark
+body was `if f elem then`, so that is the error it raised. The two read almost identically
+("Encountered a condition that must be a Bool" against "If condition must be a Bool") and are
+different cases. Three testfiles assert the exact text, one of them a Dict test, since `Dict.filter`
+routes through this.
+
+**`range` in `bigint` costs 30% of the workload in boxed `BigInteger`.** Which is the obvious way to
+write it, since `DInt` holds a `DarkInt`. It put the gate 22.5% over budget. On `int64` where both
+ends are `Finite` it is free, and the wide path is kept for the ranges that would not fit in memory
+anyway.
+
+**Budget: 7.8 -> 7.2 -> 7.3 MB.** The last move is upward, 1.4% more allocation for 3x less time on
+the same workload. Stated rather than absorbed.
+
+**`suite`'s `recursion` alloc/iter column is noise.** It read 0.04, 0.76, 0.28, 0.28 KB across four
+runs of unchanged code. That workload is self-recursion and Int arithmetic with no containers, so it
+allocates near nothing in total and the per-iteration figure is a small difference of large numbers.
+Its time, flat at ~1120 ms, is its signal.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
