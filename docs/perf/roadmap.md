@@ -302,6 +302,34 @@ return checks and skips only the frame push would still take most of the 2.25 us
 `Stdlib.String.length 5` would report exactly what it reports today. That is a much smaller thing to
 be sure of than "skip the checks and accept different errors".
 
+**Done, and it is round 6's first real win.** `thinWrapperOf` in `Interpreter.fs` recognises the
+two-instruction forwarder and runs the builtin in the caller's frame. It qualifies only when the
+wrapper's signature is *identical* to the builtin's, which is what makes the checks question moot:
+the builtin then checks the same arguments against the same types and produces the same return type,
+so `Stdlib.String.length 5` reports what it always did. Calls with explicit type args and partial
+applications keep their frame. Cached by hash.
+
+Same binary either side, toggled by an env var: `viewAtSize` **76 -> 66 ms**, ten workbench views
+mean **70 -> 61**, `steady.dark` **353 -> 286 ms** with package calls **41,404 -> 21,004**, and the
+wrapper's overhead over its builtin **2.5 -> 0.5 us**. On `optime.dark`, each figure minus its own
+run's baseline: `cons` -53%, `range` -25%, `map` -22%, `filter` -16%. `fold` and `member` did not
+move, being Dark-side loops rather than forwarders. Allocation unchanged -- frames were already
+pooled, so this is time, not bytes.
+
+**Two bad measurements on the way, both the playbook's lesson.** The first cut came in 24% over the
+allocation budget with the elision provably never firing: `match cache.TryGetValue k with | true, v`
+allocates the tuple, which F# only sometimes optimises into the out-param form. Explicit byref, and
+it is free. 45 bytes on a per-package-call path is 1.8 MB. Then I decided the frame's single argument
+buffer was thrashing, made it one per arity, and measured no difference -- while the type-param guard
+was still blocking every wrapper, so nothing was being elided. Re-measured with elision actually on,
+it is within the gate's rounding either way. Kept, because the reasoning survives the null result,
+but this workload does not show it.
+
+**Left open here.** The elided wrapper no longer appears in the detailed-timing profile or in a
+runtime call stack, since there is no frame to name it. Nothing depends on that today and the whole
+suite is green, but an error raised inside an elided builtin names the builtin rather than the
+wrapper the user called.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
@@ -1101,9 +1129,10 @@ self-merge, but the fix is now a four-site change.
   The remainder is spread thin.
 - **JSON.** `Json.parse` is a third of what the call costs; nothing inside dominates. A list element
   is ~900 B, a record field ~100.
-- **Making stdlib wrappers free.** A warm package call allocates *nothing*: 0, 1, 2, 4 and 8 extra
-  forwarding hops all allocate 231 bytes while package calls rise 4 to 12. Only the first call to a
-  given fn pays. There was nothing to win.
+- **Making stdlib wrappers free -- reopened and done in round 6.** The original close was right about
+  allocation and wrong to stop there: a warm package call allocates nothing, but a forwarder cost
+  2.5 us of frame in *time*. Eliding it took a view build 76 -> 66 ms. Allocation-only conclusions
+  should not close time questions.
 - **Calling a polymorphic builtin.** Claimed 7,470 B from a residual across two probe scripts;
   actually 192 B. Retracted.
 - **A 2x between two record types.** Was the hash collision described below: the two rows were not

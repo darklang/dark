@@ -189,19 +189,22 @@ module private ArgSeq =
     | [] -> fromRegs
     | prior -> prior @ fromRegs
 
-  /// The arguments as an array, which is what a builtin takes. One allocation rather than a cons
-  /// per argument; `count` is already known, so it's filled in place with no intermediate.
-  /// The arguments as an array, reusing the calling frame's scratch buffer when the arity matches.
-  /// See the note on `CallFrame.argBuf` for why a per-frame buffer needs no rent/return discipline.
+  /// The arguments as an array, which is what a builtin takes, filled into the calling frame's
+  /// scratch buffer for that arity. `count` is known up front, so there's no intermediate.
+  /// See the note on `CallFrame.argBufs` for why a per-frame buffer needs no rent/return discipline.
   let toArrayFor (frame : CallFrame) (a : ArgSeq) : Dval[] =
     let n = count a
+    if frame.argBufs.Length <= n then
+      let grown : Dval[][] = Array.zeroCreate (n + 1)
+      System.Array.Copy(frame.argBufs, grown, frame.argBufs.Length)
+      frame.argBufs <- grown
     let arr =
-      if frame.argBuf.Length = n then
-        frame.argBuf
-      else
+      match frame.argBufs[n] with
+      | null ->
         let fresh = Array.zeroCreate n
-        frame.argBuf <- fresh
+        frame.argBufs[n] <- fresh
         fresh
+      | existing -> existing
     let mutable i = 0
     let mutable rest = a
     while i < n do
@@ -613,7 +616,7 @@ let inline private takeFrame
       programCounter = 0
       typeSymbolTable = typeSymbolTable
       registers = Array.zeroCreate registerCount
-      argBuf = Array.empty }
+      argBufs = Array.empty }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -1186,6 +1189,73 @@ let private callBuiltin
 type private PackageOutcome =
   | PartiallyApplied of dval : Dval
   | PushFrame of frame : CallFrame
+  /// A thin wrapper ran its builtin directly, with no frame. See `thinWrapperOf`.
+  | Completed of result : Dval
+
+
+/// Answers by hash, which content-addressing makes permanent. The builtin table is fixed for the
+/// process, so the resolved fn can be cached rather than its name.
+let private thinWrapperCache =
+  System.Collections.Concurrent.ConcurrentDictionary<Hash, BuiltInFn voption>()
+
+let private detectThinWrapper
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  : BuiltInFn voption =
+  // The builtin's own type params are left to inference, which is what running the wrapper's body
+  // would have done: that body applies the builtin with no explicit type args, which the match below
+  // insists on.
+  let sameSignature (bi : BuiltInFn) =
+    fn.returnType = bi.returnType
+    && List.length bi.parameters = NEList.length fn.parameters
+    && List.forall2
+      (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> p.typ = bp.typ)
+      (NEList.toList fn.parameters)
+      bi.parameters
+
+  match fn.body.instructions with
+  | [ LoadVal(loadTo, DApplicable(AppNamedFn named))
+      Apply(createTo, thingToApply, [], args) ] when
+    loadTo = thingToApply
+    && createTo = fn.body.resultIn
+    && List.isEmpty named.argsSoFar
+    && List.isEmpty named.typeArgs
+    // The arguments must be the parameters, all of them, in order.
+    && NEList.toList args = [ 0 .. NEList.length fn.parameters - 1 ]
+    ->
+    match named.name with
+    | FQFnName.Builtin b ->
+      match exeState.fns.builtIn.TryGetValue b with
+      | true, bi when sameSignature bi -> ValueSome bi
+      | _ -> ValueNone
+    | _ -> ValueNone
+  | _ -> ValueNone
+
+/// The builtin a package fn is a bare forwarder for, if it is one.
+///
+/// Most of the stdlib is `let f a b = Builtin.g a b`, which compiles to exactly two instructions: load
+/// the builtin, apply it to the parameters in order. Calling such a fn the ordinary way pushes a frame
+/// to run those two instructions, and that frame is most of what the call costs -- a wrapper is +4.0us
+/// over baseline where the builtin it wraps is +1.5. Half the package calls in a view build are
+/// forwarders of this shape.
+///
+/// Only forwarders whose signature is *identical* to the builtin's qualify. A wrapper that narrows
+/// `List<'a>` to `List<TraceSummary>` is doing real work: its param types decide what is accepted, and
+/// its return type is what `checkFrameReturnType` applies to the result. With the signatures equal,
+/// running the builtin directly checks the same things against the same types.
+let private thinWrapperOf
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  : BuiltInFn voption =
+  // Explicit byref, not `match ... with | true, v`, which allocates the tuple: this runs on every
+  // package call.
+  let mutable cached = ValueNone
+  if thinWrapperCache.TryGetValue(fn.hash, &cached) then
+    cached
+  else
+    let found = detectThinWrapper exeState fn
+    thinWrapperCache[fn.hash] <- found
+    found
 
 
 /// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right
@@ -1280,7 +1350,7 @@ let private completePackage
 
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
-let private callPackageResolved
+let private callPackageViaFrame
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
@@ -1422,6 +1492,37 @@ let private callPackageResolved
           paramCount
           tstRest
     }
+
+
+/// Run a package-fn call whose explicit type args are resolved.
+let private callPackageResolved
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : PackageFn.PackageFn)
+  (resolvedExplicitTypeArgsVT : List<ValueType>)
+  : Ply<PackageOutcome> =
+  // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
+  // frame whose whole job is to run the two instructions that would. Partial applications go the
+  // ordinary way: the point is to skip the frame, and a partial application doesn't push one anyway.
+  match thinWrapperOf exeState fn with
+  | ValueSome biFn when
+    List.isEmpty ctx.applicable.argsSoFar
+    && List.isEmpty resolvedExplicitTypeArgsVT
+    && ArgSeq.count ctx.args = NEList.length fn.parameters
+    ->
+    let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+    // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
+    match Ply.trySync call with
+    | ValueSome dv -> Ply(Completed dv)
+    | ValueNone ->
+      uply {
+        let! dv = call
+        return Completed dv
+      }
+  | _ ->
+    callPackageViaFrame exeState vm currentFrame ctx fn resolvedExplicitTypeArgsVT
 
 
 /// Run a package-fn call, resolving its explicit type args first. Outside the computation expression for
@@ -1748,7 +1849,8 @@ let private applyInstruction
       // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
       // cheaper than the cell.
       match Ply.trySync call with
-      | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
+      | ValueSome(PartiallyApplied dv)
+      | ValueSome(Completed dv) -> registers[putResultIn] <- dv
       | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
       | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
@@ -2511,7 +2613,8 @@ let private handleFrameStep
       let! o = Ply.toTask call
       currentFrame.programCounter <- currentFrame.programCounter + 1
       match o with
-      | PartiallyApplied dv -> registers[reg] <- dv
+      | PartiallyApplied dv
+      | Completed dv -> registers[reg] <- dv
       // Pushed here rather than left in `vm.frameToPush`, which the next turn of this loop clears.
       | PushFrame frame -> pushFrame vm frame
 
