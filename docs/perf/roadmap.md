@@ -684,6 +684,32 @@ frame setup and two turns of the interpreter loop. A builtin call is 0.75 us, of
 type check is 0.25 and the result check and tracing are nothing. Every one of those was measured by
 ablation, and every single suspect came back smaller than it looked.
 
+**65% of the builtin calls in a view build are arithmetic and comparison.** 7,049 of 10,881, with
+`add` alone at 1,562 and the four comparisons at 3,774. Each goes Apply -> elided wrapper -> builtin
+dispatch -> argument type check -> `Dval` boxing, at 1.0-1.25 us, so roughly **8 ms of a 42 ms view
+build is spent adding integers through the generic call machinery**. The interpreter has no opcode
+for `+`.
+
+That is the largest single identified bucket left in the CLI path, and it is a different kind of
+change from anything in this round: dedicated `Int` opcodes for the arithmetic and comparison
+operators, falling back to the builtin for every other type. Not attempted here.
+
+**Conversions are not in the keypress path.** A view build calls 45 distinct builtins, and none of
+them is a PT/RT/DT conversion or reflection builtin -- the only one that appears at all is
+`pmOwnerHasItems`, twice. Whatever the mapping layers cost, a keypress does not pay it.
+
+**They are, however, most of what a CLI invocation costs.** `dark eval 1L + 2L`: **611 ms total, 354
+of it in `cli.execute`**, for 2,473 instructions and 270 package calls. The interpreter work in that
+is microseconds; the rest is getting the code ready to run -- package blobs read from SQLite and
+deserialised, names resolved. `alloc-profile` on a trivial eval is flat at 37 ticks, so it is not
+allocation-bound; it is I/O and deserialisation CPU. This is the "package deserialization: real, but
+unmeasurable" item further down, and `bench`'s phase split now measures the outside of it even if not
+the inside. Every `dark` command pays this, and so does every build-loop iteration.
+
+**`scripts/perf/workloads/viewalloc.dark`** is new: bytes allocated to build one workbench view, the
+allocation counterpart to `keypress.dark`. It is what caught the VM-pool regression, and neither
+`gate` nor `suite` would have.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

@@ -138,24 +138,55 @@ let executeToplevel
 /// It is the same stream every time: `Apply` reading the callable from register 1 and the arguments
 /// from 2 onwards. Building it per call meant a `LoadVal` instruction per argument, assembled with
 /// list appends, purely to move values into registers that the caller can write to directly.
-/// One spare VM per thread, for `executeApplicable` to borrow.
+/// Spare VMs per thread, for `executeApplicable` to borrow.
 ///
 /// A `ConcurrentBag` allocates a node per add, and this runs once per lambda application. A VM's
-/// interpreter loop is single-threaded, so a thread-static slot needs no synchronisation and no
-/// node; and one slot is enough, because a nested application finds it empty and builds its own.
+/// interpreter loop is single-threaded, so a thread-static store needs no synchronisation and no node.
+///
+/// A *stack*, not the single slot this used to be. The comment then said one was enough "because a
+/// nested application finds it empty and builds its own", which is true and is the whole problem:
+/// nesting is the common case, not the exception. `map` over a list whose lambda calls `findFirst`
+/// has the outer application holding the slot for the whole traversal, so every inner one built a
+/// fresh `VMState` -- thirteen dictionaries and seven arrays, ~2,900 bytes, per element. It is why a
+/// native list operation allocated 2-3x its Dark equivalent on a five-element list while winning
+/// easily on fifty: the per-call cost was fixed and large, and only long lists amortised it.
+///
+/// Eight deep covers the nesting real code reaches; past that it falls back to building one, which is
+/// correct, just not free.
 type private VMSlot() =
+  static let capacity = 8
+
   [<System.ThreadStatic; DefaultValue>]
-  static val mutable private spare : RT.VMState
+  static val mutable private spares : RT.VMState[]
+
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private count : int
 
   static member Take() : RT.VMState voption =
-    let vm = VMSlot.spare
-    if obj.ReferenceEquals(vm, null) then
+    let n = VMSlot.count
+    if n = 0 then
       ValueNone
     else
-      VMSlot.spare <- Unchecked.defaultof<RT.VMState>
+      let spares = VMSlot.spares
+      let vm = spares[n - 1]
+      // Cleared so a VM that is never borrowed again isn't held alive by the pool.
+      spares[n - 1] <- Unchecked.defaultof<RT.VMState>
+      VMSlot.count <- n - 1
       ValueSome vm
 
-  static member Return(vm : RT.VMState) : unit = VMSlot.spare <- vm
+  static member Return(vm : RT.VMState) : unit =
+    let spares =
+      if obj.ReferenceEquals(VMSlot.spares, null) then
+        let fresh = Array.zeroCreate capacity
+        VMSlot.spares <- fresh
+        fresh
+      else
+        VMSlot.spares
+
+    let n = VMSlot.count
+    if n < spares.Length then
+      spares[n] <- vm
+      VMSlot.count <- n + 1
 
 
 let private applyInstrsByArity =
