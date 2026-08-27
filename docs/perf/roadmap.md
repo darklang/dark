@@ -1060,6 +1060,37 @@ against Debug's 29, `FSharpList<Dval>` 9 against 9, the record and dict machiner
 build that Debug does not show, and the `json` workload's allocation difference (9.93 KB/iteration
 published against 15.19) is specific to that workload rather than general.
 
+**Where a view build actually goes, measured by stage.** `scripts/perf/workloads/regionprobe.dark`:
+
+    whole view (viewAtSize)        29 ms
+    renderFull (produce 252 spans) 10 ms      sidebar 4, body 4, the rest header and hints
+    Canvas.compose (spans -> rows) 17 ms
+    Canvas.compose with no spans    0 ms
+    spans in a frame                252
+
+**`Canvas.compose` is 59% of a view build, and all of it is per-span**: composing forty *empty* rows
+costs nothing, so there is no per-row overhead to shave. 17 ms over 252 spans is **67 us to place one
+span into a row**.
+
+Per span that is: `Int.toString span.row` and a `Dict` set to bucket it (the `Dict` is string-keyed,
+which is why `intToString` runs 303 times a frame), `Tui.Text.styledWidth`, and `Canvas.overlay`
+against what is already placed; then `renderSegments` once per row. Round 5 already took the biggest
+Dark-side win here, the no-overlap fast path in `overlay`, and this is what is left after it.
+
+**The obvious move is to make `compose` native**, and the precedent is already in the tree: the row
+fitters in `Builtins.Cli/Libs/TerminalText.fs` are native for exactly this reason -- "a Dark loop pays
+a builtin call per character". `compose` is pure and has a small signature: `(width, height, spans) ->
+rows`. In F# with an array of builders it is arithmetic. It does not breach "F# owns measurement,
+Dark owns layout" any more than the fitters already do, but that is a call for a human, and it is 17
+of the 29 ms.
+
+**Region-level memoisation is the other half, and is harder than it looks.** `renderFull` composes
+`vstack [context; body; hints]` with `body = hstack [renderSidebar; renderBody]`, so the regions are
+separable. But a RightArrow changes the spans of *both* the sidebar and the body -- focus moves
+between them -- so caching per region does not help the commonest keypress without splitting focus
+out of the state each region reads. Worth measuring per key before designing for it; only RightArrow
+was checked.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
