@@ -2407,9 +2407,13 @@ let private runSyncInstructions
             |> RTE.Record
             |> raiseRTE vm.threadID
           else
-            match Map.find fieldName fields with
-            | Some value -> registers[targetReg] <- value
-            | None ->
+            // `TryGetValue`, not `Map.find`, which allocates a `Some` on every hit. This is the
+            // most-executed opcode in a workbench view after `Apply` -- 7,713 reads to draw one
+            // screen -- so that `Some` was 185 KB per view.
+            let mutable value = Unchecked.defaultof<Dval>
+            if fields.TryGetValue(fieldName, &value) then
+              registers[targetReg] <- value
+            else
               RTE.Records.FieldAccessFieldNotFound fieldName
               |> RTE.Record
               |> raiseRTE vm.threadID

@@ -726,6 +726,32 @@ the inside. Every `dark` command pays this, and so does every build-loop iterati
 allocation counterpart to `keypress.dark`. It is what caught the VM-pool regression, and neither
 `gate` nor `suite` would have.
 
+**Target 3 is retired properly, with the measurement it always needed.** The brief has "record field
+access at 4.6 us, which is on every path in the language". Two things are wrong with that.
+
+The 4.6 us was an artifact, retracted earlier in this round. And `optime`'s `read a record field` row
+is `preBuilt.a`, where `preBuilt` is a **`val`** -- so it measures loading a package value and *then*
+reading a field, and the ~0.6 us it reports is mostly the load. The field read itself is 25 ns.
+
+That number comes from a throwaway builtin doing 100 lookups against each representation, with a
+zero-lookup row subtracting the builtin's own cost:
+
+    F# Map.TryGetValue        25 ns
+    Dictionary.TryGetValue    10 ns
+    Map.find (allocates)      45 ns
+
+**So the record-representation change is not worth doing for speed.** Moving `DRecord`'s
+`Map<string, Dval>` to a `Dictionary` -- a wide change, touching every construction, read and update
+-- would save 15 ns per read, which at 7,713 reads per view is **0.12 ms of 33**. The item further
+down about records and dicts sharing `Map<string, Dval>` should be read with this attached.
+
+What the same measurement *did* pay for: `Map.find` allocates a `Some` and `TryGetValue` does not,
+which is 185 KB per view build and is now fixed.
+
+**A field read does not get slower as the record gets bigger.** A 5-field record's last field reads in
+the same time as a 2-field record's, three runs each. Anyone reaching for "flatten records into arrays
+indexed per type" should know the tree walk was never the cost.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
