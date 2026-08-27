@@ -1448,6 +1448,29 @@ let private detectThinWrapper
 /// `List<'a>` to `List<TraceSummary>` is doing real work: its param types decide what is accepted, and
 /// its return type is what `checkFrameReturnType` applies to the result. With the signatures equal,
 /// running the builtin directly checks the same things against the same types.
+/// The builtin a package hash is a known forwarder for, from the cache only.
+///
+/// `thinWrapperOf` needs the `PackageFn` because it may have to *detect*. This one answers from what
+/// has already been detected, so `Apply` can ask before fetching the fn at all -- and a forwarder is
+/// the one case where fetching it was pointless, since nothing but its hash gets used.
+///
+/// Resolved against this execution state's table, never a remembered `BuiltInFn`; see the note on
+/// `thinWrapperCache` for what that mistake cost.
+let private thinWrapperCachedFor
+  (exeState : ExecutionState)
+  (hash : Hash)
+  : BuiltInFn voption =
+  let mutable cached = ValueNone
+  if not (thinWrapperCache.TryGetValue(hash, &cached)) then
+    ValueNone
+  else
+    match cached with
+    | ValueNone -> ValueNone
+    | ValueSome b ->
+      let mutable bi = Unchecked.defaultof<BuiltInFn>
+      if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
+
+
 let private thinWrapperOf
   (exeState : ExecutionState)
   (fn : PackageFn.PackageFn)
@@ -2052,38 +2075,70 @@ let private applyInstruction
         let isHarmful = exeState.fns.isHarmful pkg
         if isHarmful && not exeState.allowHarmful then
           RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
-        let pkgFetchAlloc = allocNow vm
-        // Warm cache after the first call, which for a script means all but a handful of these.
+        // A forwarder whose builtin is already known needs neither the fn nor the package call
+        // path: the fetch, `resolveTypeArgs`, `callPackage` and `callPackageResolved` all exist to
+        // reach the same `callBuiltinResolved` this reaches directly. The first call to any given fn
+        // still goes the long way -- that is what detects it and fills the cache.
         //
-        // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
-        // would sit in the loop's computation expression and cost a continuation closure on every
-        // call, reached or not.
-        let fetchOnlyAlloc = allocNow vm
-        let fetch = exeState.fns.package pkg
-        let fetched = Ply.trySync fetch
-        recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
-        let call =
-          match fetched with
-          | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-          | ValueSome None ->
-            RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-          | ValueNone ->
-            uply {
-              match! fetch with
-              | Some fn -> return! callPackage exeState vm currentFrame ctx fn
-              | None ->
-                return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-            }
-        recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-        // Overwritten on the next line either way; F# needs something to start from.
-        // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
-        // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
-        // cheaper than the cell.
-        match Ply.trySync call with
-        | ValueSome(PartiallyApplied dv)
-        | ValueSome(Completed dv) -> registers[putResultIn] <- dv
-        | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-        | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
+        // Same guards as the elision in `callPackageResolved`: no explicit type args, nothing
+        // applied already, every parameter supplied. Signature equality is what put the fn in the
+        // cache, so the builtin's parameter count is the package fn's.
+        let earlyWrapper =
+          if List.isEmpty typeArgs && List.isEmpty applicable.argsSoFar then
+            thinWrapperCachedFor exeState pkg
+          else
+            ValueNone
+
+        match earlyWrapper with
+        | ValueSome biFn when NEList.length newArgRegs = List.length biFn.parameters ->
+          let ctx : ApplyContext =
+            { applicable = applicable
+              typeArgs = typeArgs
+              args = ArgSeq.ofNE registers newArgRegs
+              tst = tst
+              putResultIn = putResultIn
+              returnPc = currentFrame.programCounter + 1 }
+
+          let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+
+          match Ply.trySync call with
+          | ValueSome dv -> registers[putResultIn] <- dv
+          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+
+        | _ ->
+
+          let pkgFetchAlloc = allocNow vm
+          // Warm cache after the first call, which for a script means all but a handful of these.
+          //
+          // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
+          // would sit in the loop's computation expression and cost a continuation closure on every
+          // call, reached or not.
+          let fetchOnlyAlloc = allocNow vm
+          let fetch = exeState.fns.package pkg
+          let fetched = Ply.trySync fetch
+          recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
+          let call =
+            match fetched with
+            | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
+            | ValueSome None ->
+              RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+            | ValueNone ->
+              uply {
+                match! fetch with
+                | Some fn -> return! callPackage exeState vm currentFrame ctx fn
+                | None ->
+                  return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+              }
+          recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
+          // Overwritten on the next line either way; F# needs something to start from.
+          // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
+          // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
+          // cheaper than the cell.
+          match Ply.trySync call with
+          | ValueSome(PartiallyApplied dv)
+          | ValueSome(Completed dv) -> registers[putResultIn] <- dv
+          | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
+          | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
   recordStage vm ApplyStage.ApplyTotal applyTotalAlloc
   outcome

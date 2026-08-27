@@ -836,6 +836,37 @@ construction through `Map<string, Dval>` ~17% between `MapTreeNode`, `FSharpMap`
 worth ~1 ms of time (549 constructions at ~1.75 us), which is consistent with field *reads* not being
 the cost either.
 
+**An elided forwarder now skips the package call path entirely, not just the frame.** It was still
+paying the fetch, `resolveTypeArgs`, `callPackage` and `callPackageResolved` to reach the same
+`callBuiltinResolved` -- and for a forwarder nothing but the hash is ever used, which `Apply` has
+before it fetches anything. `thinWrapperCachedFor` answers from the cache only; `thinWrapperOf` keeps
+the version that can detect, since detection needs the `PackageFn`. First call goes the long way and
+fills the cache; every later one skips it.
+
+    a wrapper's overhead over the builtin it wraps   0.5 -> 0.25 us
+    viewAtSize                                     32-33 -> 31-32 ms
+
+3,772 elided calls per view, so the ~1 ms observed is the 0.25 us. Prediction and measurement agreeing
+is the point of quoting both.
+
+**Round 6, where it stands.**
+
+    viewAtSize        76 -> 31 ms
+    keystroke        141 -> 80 ms end to end
+    steady.dark      353 -> 35 ms, 7.8 -> 7.3 MB
+    bytes per view          2,020,043
+    suite: lists 276 -> 39 ms, dicts 130 -> 57, strings 63 -> 25, records 25 -> 15,
+           recursion 1181 -> 676
+    HTTP     76.31 -> 57.32 KB per request, ~5,200 req/s
+    crosslang  Dark 11.84 -> 9.90 KB/iter against node 1.72
+
+**What is left is one sized item and a lot of nothing.** The compile-time `Int` opcode is worth ~1.8 ms
+of 31 and needs a new instruction with a non-Int fallback, touching `PT2RT`, the interpreter and
+instruction serialisation. Everything else measured this round came back smaller than it looked: the
+type checks, the TST, tracing, the frame dictionary, the record representation, `String.Normalize`.
+The profile is flat in both time and allocation, and the remaining buckets are all "what a call
+costs", spread over thousands of calls with no single hot spot.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
