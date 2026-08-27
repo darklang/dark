@@ -1,7 +1,7 @@
-// Bytes allocated per lambda application, by who applies it.
+// Bytes per element for a list operation, by how it is written.
 //
-// The time counterpart is `lambdacall.dark`. Same shape: the same lambda over the same list, applied
-// by the interpreter and applied by a builtin, so the difference is the calling path.
+// The allocation counterpart to `lambdacall.dark`, and it carries that file's correction: neither of
+// these applies a lambda from a builtin. `Stdlib.List.map` is `fold` + `reverse` in Dark.
 //
 //   ./scripts/run-cli run scripts/perf/workloads/lambdaalloc.dark
 
@@ -43,5 +43,5 @@ let b0 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
 let _n = repeatNative rounds 0
 let b1 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
 
-let _p1 = perApplication "interpreter applies (includes the Dark walk)" (a1 - a0)
-perApplication "builtin applies                             " (b1 - b0)
+let _p1 = perApplication "direct Dark recursion         " (a1 - a0)
+perApplication "Stdlib (fold + reverse)      " (b1 - b0)

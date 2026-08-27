@@ -361,38 +361,26 @@ latency instrument.
 detailed timing on, dumping per-opcode and per-stage allocation. It is what both of this round's wins
 were found with.
 
-**Target 1 is inverted: a lambda is cheaper applied by the interpreter than by a builtin.**
-`scripts/perf/workloads/lambdacall.dark` puts the two side by side over the same list with the same
-lambda, so the only difference is who applies it. Above its own baseline:
+**RETRACTED: "target 1 is inverted".** I claimed a Dark-side `map` beat the native builtin by 25%
+and closed target 1 on it. `Stdlib.List.map` is not a builtin. It is
+`fold list [] (fun acc elem -> push acc (fn elem)) |> reverse`, written in Dark, and so are `fold`,
+`filter` and `range`; only `push`, `reverse` and `length` are builtin wrappers. Both sides of that
+comparison were interpreted, and the one I labelled "native" simply does more work per element -- two
+lambda applications, a push and a reverse against one application and a push. Target 1 stands exactly
+as it was. The check I skipped was one `view` of the function I was calling native.
 
-    map 5 in Dark (interpreter applies)    +54 us     10.9 us/element
-    map 5 native (builtin applies)         +73 us     14.6 us/element
-    map 50 in Dark                        +466 us      9.3 us/element
-    map 50 native                         +631 us     12.6 us/element
+What the amplifier does measure, correctly, is the cost of that extra work:
 
-A Dark-side recursive `map` beats `Stdlib.List.map` by 25%, and the gap does not close with size. The
-Dark figure *includes* the interpreted walk of the list, which the builtin gets for free in F# -- so
-the per-application overhead of a builtin calling back into the interpreter is larger than the whole
-cost of the interpreter doing the walk itself.
+    map 50 by direct Dark recursion            9.3 us/element
+    Stdlib.List.map (fold + lambda + reverse) 12.6 us/element
 
-So target 1 ("make fold/map/filter/range native") is not merely blocked on target 2, it is pointed the
-wrong way: it was already measured as a 9.4x allocation regression, and it is a time regression too.
-Closing it. The lever is target 2 -- make the builtin-to-lambda path cheap -- which fixes every
-lambda-taking builtin at once and changes no Dark code.
+**And the allocation figure with it.** "26 bytes per application difference" was the same two
+interpreted paths, so it says nothing about a builtin applying a lambda either.
 
-**Where the ~7.5 us per application goes, not yet split.** `executeApplicable` is already pooled
-(`VMSlot`, `VMState.reuseFor`), already returns `Ply`, and already has a `trySync` fast path. What
-remains around it: the VM reuse, and the fact that every application enters `executeInnerTask`, which
-is a `task` builder -- so a lambda that never awaits still pays for a state machine and the `Task` it
-returns. The interpreter loop is deliberately `task` and not `uply` (the comments in it record that
-Ply's dynamic path allocates a continuation closure per awaiting instruction), so the fix is not to
-convert the loop but to add a synchronous fast loop beside it that bails to the task one the moment
-anything actually awaits. The frame-pop logic would have to be extracted to be shared rather than
-copied.
-
-**Negative result: the `List.iteri` in `loadApplyRegisters` is not an allocation.** It captures
-`registers`, so it looks like a closure per application. Hand-rolling the loop measured neutral on
-both the gate and the lambda amplifier; the optimiser is already eliding it. Reverted.
+**No List operation applies a lambda from F# today.** `executeApplicable` has exactly two callers in
+the builtins, `Stream` and `HttpServer`. So target 2 is not a cost the CLI is paying now: it is the
+ceiling on target 1, which is what makes the order in the campaign brief right. Land the native list
+operations first, and target 2 becomes the thing standing between 2x and 3-4x.
 
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what

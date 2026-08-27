@@ -1,9 +1,13 @@
-// What it costs to apply a lambda, depending on who applies it.
+// What a list operation costs per element, by how it is written.
 //
-// A builtin that takes a lambda (`List.map`, `List.filter`) applies it from F# through
-// `executeApplicable`. Dark code applies one through the interpreter's own `Apply`. This puts the
-// two side by side over the same list with the same lambda, so the difference is the calling path
-// and nothing else.
+// This started out claiming to compare a lambda applied by the interpreter against one applied by a
+// builtin. It does not: `Stdlib.List.map` is not a builtin, it is `fold` + `reverse` written in
+// Dark, and so are `fold`, `filter` and `range`. Both sides here are interpreted. What it measures
+// is the cost of the extra work the fold-based version does -- two lambda applications, a push and a
+// reverse, against one application and a push.
+//
+// `executeApplicable` has two callers in the builtins, `Stream` and `HttpServer`, so nothing here
+// touches it. Check what a function actually is with `run-cli view` before calling it native.
 //
 //   ./scripts/run-cli run scripts/perf/workloads/lambdacall.dark
 //
@@ -35,7 +39,7 @@ let measure (label: String) (f: Int -> Int) : Unit =
   let ns = Stdlib.Int.divide (best * 1000000) iterations
   Stdlib.printLine (label ++ "  " ++ (Stdlib.Int.toString ns) ++ " ns")
 
-/// Map in Dark, so the interpreter applies the lambda.
+/// One lambda application and one push per element, to compare against what `Stdlib.List.map` does.
 let mapInDark (xs: List<Int>) (f: Int -> Int) : List<Int> =
   match xs with
   | [] -> []
@@ -49,16 +53,16 @@ let walkInDark (xs: List<Int>) (acc: Int) : Int =
 
 measure "baseline                             " (fun i -> i)
 measure "walk 5 in Dark, no lambda            " (fun i -> walkInDark five 0)
-measure "map 5 in Dark (interpreter applies)  " (fun i ->
+measure "map 5, direct Dark recursion         " (fun i ->
   Stdlib.List.length (mapInDark five (fun x -> x + i)))
-measure "map 5 native (builtin applies)       " (fun i ->
+measure "map 5, Stdlib (fold + reverse)       " (fun i ->
   Stdlib.List.length (Stdlib.List.map five (fun x -> x + i)))
-measure "filter 5 native (builtin applies)    " (fun i ->
+measure "filter 5, Stdlib (fold)             " (fun i ->
   Stdlib.List.length (Stdlib.List.filter five (fun x -> x > 2)))
-measure "fold 5 native (builtin applies)      " (fun i ->
+measure "fold 5, Stdlib                      " (fun i ->
   Stdlib.List.fold five 0 (fun acc x -> acc + x))
-measure "map 50 in Dark (interpreter applies) " (fun i ->
+measure "map 50, direct Dark recursion        " (fun i ->
   Stdlib.List.length (mapInDark fifty (fun x -> x + i)))
-measure "map 50 native (builtin applies)      " (fun i ->
+measure "map 50, Stdlib (fold + reverse)      " (fun i ->
   Stdlib.List.length (Stdlib.List.map fifty (fun x -> x + i)))
 measure "baseline again                       " (fun i -> i)
