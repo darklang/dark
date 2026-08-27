@@ -1,18 +1,21 @@
 module Darklang.Cli.Deps
 
+/// A package item as the dependency queries name it: where it's bound, and what kind of
+/// thing is bound there. Spelled out, this pair is wider than a line, and every
+/// signature in here is made of it.
+type Item =
+  LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind
+
+/// An `Item` plus the content hash the query resolved it to.
+type HashedItem =
+  LanguageTools.ProgramTypes.Hash *
+  LanguageTools.ProgramTypes.PackageLocation *
+  LanguageTools.ProgramTypes.ItemKind
+
 
 /// What depends on each of <param targets>: (hash, location, kind) per
 /// dependent. Approved items plus the caller's own pending ones.
-let getDependents
-  (branchId: Uuid)
-  (targets:
-    List<
-      (LanguageTools.ProgramTypes.PackageLocation *
-      LanguageTools.ProgramTypes.ItemKind)>)
-  : List<
-      (LanguageTools.ProgramTypes.Hash *
-      LanguageTools.ProgramTypes.PackageLocation *
-      LanguageTools.ProgramTypes.ItemKind)> =
+let getDependents (branchId: Uuid) (targets: List<Item>) : List<HashedItem> =
   Builtin.depsGetDependents branchId targets
 
 
@@ -89,11 +92,9 @@ let showDependents
 let collectTransitiveDependents
   (branchId: Uuid)
   (processed: List<String>)
-  (pending: List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind>)
-  (accumulated: List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind>)
-  : List<
-      LanguageTools.ProgramTypes.PackageLocation
-      * LanguageTools.ProgramTypes.ItemKind> =
+  (pending: List<Item>)
+  (accumulated: List<Item>)
+  : List<Item> =
   let fqn = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
   match pending with
   | [] -> accumulated
@@ -109,17 +110,13 @@ let collectTransitiveDependents
     | targets ->
       let batchResults = getDependents branchId targets
 
+      // Each result already carries its own location, so this level's dependents are
+      // next level's targets with no hash -> location round-trip in between.
       let newDeps =
         batchResults
         |> Stdlib.List.map (fun result ->
-          let (_sourceHash, sourceLoc, refType) = result
-          (sourceLoc, refType))
-
-      let newTargets =
-        batchResults
-        |> Stdlib.List.map (fun result ->
-          let (_sourceHash, sourceLoc, _refType) = result
-          (sourceLoc, _refType))
+          let (_sourceHash, sourceLoc, refKind) = result
+          (sourceLoc, refKind))
 
       let newProcessed =
         Stdlib.List.append
@@ -129,19 +126,11 @@ let collectTransitiveDependents
              $"{fqn loc}:{Darklang.Cli.Packages.Propagate.itemKindToString kind}"))
       let newAccumulated = Stdlib.List.append accumulated newDeps
 
-      collectTransitiveDependents branchId newProcessed newTargets newAccumulated
+      collectTransitiveDependents branchId newProcessed newDeps newAccumulated
 
 
 /// Get all transitive dependents of one or more targets.
-let getTransitiveDependentsFor
-  (branchId: Uuid)
-  (targets:
-    List<
-      (LanguageTools.ProgramTypes.PackageLocation
-       * LanguageTools.ProgramTypes.ItemKind)>)
-  : List<
-      LanguageTools.ProgramTypes.PackageLocation
-      * LanguageTools.ProgramTypes.ItemKind> =
+let getTransitiveDependentsFor (branchId: Uuid) (targets: List<Item>) : List<Item> =
   collectTransitiveDependents branchId [] targets []
   |> Stdlib.List.unique
 
@@ -151,7 +140,7 @@ let getTransitiveDependents
   (branchId: Uuid)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind> =
+  : List<Item> =
   getTransitiveDependentsFor branchId [ (targetLoc, targetKind) ]
 
 
