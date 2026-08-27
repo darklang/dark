@@ -302,13 +302,7 @@ let filterMap
   (list: List<'a>)
   (fn: 'a -> Option.Option<'b>)
   : List<'b> =
-  match list with
-  | [] -> []
-  | head :: tail ->
-    match (fn head) with
-    | Some newValue ->
-      push (filterMap tail fn) newValue
-    | None -> filterMap tail fn
+  Builtin.listFilterMap list fn
 
 
 /// Drops the first <param count> values from <param list>

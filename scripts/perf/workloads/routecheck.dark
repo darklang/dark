@@ -1,0 +1,32 @@
+let hello (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "hello" 200
+
+let handlers =
+  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items/:id"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/health"; method = "GET"; handler = hello } ]
+
+let req =
+  Stdlib.Http.Request
+    { url = "GET /items/42?q=1 HTTP/1.1"
+      headers = [ ("host", "localhost") ]
+      body = Stdlib.Blob.empty }
+
+let _1 = Stdlib.printLine ("method: " ++ (Stdlib.HttpServer.getMethod req))
+let _2 = Stdlib.printLine ("path:   " ++ (Stdlib.HttpServer.getPath req))
+let _3 =
+  Stdlib.printLine
+    ("segs of /items/:id: "
+     ++ (Stdlib.Int.toString
+           (Stdlib.List.length (Stdlib.HttpServer.parseRouteSegments "/items/:id"))))
+let _4 =
+  Stdlib.printLine
+    ("segs of /hello: "
+     ++ (Stdlib.Int.toString
+           (Stdlib.List.length (Stdlib.HttpServer.parseRouteSegments "/hello"))))
+let m = Stdlib.HttpServer.matchRoute "/items/:id" (Stdlib.HttpServer.getPath req)
+let _5 = Stdlib.printLine ("matchRoute /items/:id -> " ++ (if m.matched then "true" else "false"))
+let m2 = Stdlib.HttpServer.matchRoute "/hello" (Stdlib.HttpServer.getPath req)
+let _6 = Stdlib.printLine ("matchRoute /hello    -> " ++ (if m2.matched then "true" else "false"))
+Stdlib.printLine "done"

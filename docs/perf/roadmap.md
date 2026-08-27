@@ -2352,6 +2352,54 @@ freshly built release exe read 5,576 / 6,421 / 6,458 req/s. The HTTP harness run
 about a third of a second, so a single run of it is not a measurement -- and unlike the allocation
 column, which repeated to within 0.1 KB across all four runs, its throughput needs several.
 
+### `List.filterMap` native, found by profiling the server path
+
+Routing was profiled the way the view was (`routeprofile.dark` + `fnprofile`), which had never been
+done. `Stdlib.List.filterMap` came out at **27% of routing one request** -- a Dark recursion costing a
+package call, an `Option` match and a `push` per element on top of the lambda application, and used
+in 167 places across `packages/`.
+
+Native, mirroring `listMap`: built back to front, reversed once, ValueType from `mappedList`. A
+function returning something other than an `Option` used to fail with "No matching case found"; it
+now reports the type.
+
+A/B on `routeloop.dark` (3,000 routes, ~1% resolution, identical checksum both ways):
+
+    filterMap in Dark   2026  2016  2047 ms     ~672 us a route
+    native              1801  1842  1866 ms     ~600 us a route
+
+**~72 us a route, 10.7%.** Routing is ~600 us Debug, so roughly 240 us published against a ~1.87 ms
+request: this is ~1.4% of a request, and more wherever `filterMap` is used on a bigger list.
+
+### The biggest HTTP item is `findHandler` re-parsing constants
+
+`findHandler` calls `parseRouteSegments h.route` inside its `List.findFirst` lambda, so every request
+re-parses route patterns that never change. The routes are fixed at handler-construction time and
+`handlers` is a value.
+
+The clean fix is for a handler to carry its parsed segments, which changes a public stdlib type and
+every caller's handler construction. Making `parseRouteSegments` native is the contained alternative
+and is awkward for the reason target 1 kept running into: it returns a *package* enum
+(`RouteSegment`), so a builtin would have to construct a package type by hash. **Left as a design
+question rather than taken**, and it is the largest single item on the server path.
+
+### Two instrument notes from doing this
+
+- **The per-fn profile does see inside builtin-applied lambdas.** `map`/`filter`/`findFirst` apply
+  their lambda on a VM taken from a pool, and each VM gets its own `InterpreterStats` when telemetry
+  is on, so it looked like work inside a lambda might be invisible -- which would have invalidated
+  every ranking this round produced. Tested with two marker functions, one called directly and one
+  from inside a `List.map` lambda: **both recorded, 3 and 20 calls.** The scare was unfounded. What
+  actually failed was name resolution, since script-local functions are not in `locations` and so
+  come back as bare hashes.
+- **Per-fn call counts are not always reliable, though.** `parseRouteSegments` and
+  `matchRouteSegments` are called on the same line of `findHandler`, and the profile reports 1/request
+  and 4/request. Moving the matching handler to last moved `matchRouteSegments` to 5 and left
+  `parseRouteSegments` at 1. Timing is recorded on frame return against
+  `framePushTimestamps[currentFrameID]`, so a frame whose id has already moved on at return time goes
+  unrecorded. Unexplained, and worth knowing before ranking by the `calls` column: the `ms` column and
+  the wall-clock loops are what the win above was measured with.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

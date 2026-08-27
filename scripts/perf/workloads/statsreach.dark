@@ -1,0 +1,30 @@
+// Does the per-fn profile see work done inside a builtin-applied lambda?
+//
+// `List.map` and friends apply their lambda through `Execution.executeApplicable`, which runs it on
+// a VM taken from a pool -- a different VMState from the one the script runs on. Each VM gets its
+// own InterpreterStats when telemetry is on. If `InterpreterStats.get` reads only the script's VM,
+// then every package fn called from inside a map/filter/fold lambda is missing from the profile,
+// and most of the CLI's work happens exactly there.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/statsreach.dark
+
+let markerDirect (x: Int) : Int = x + 1
+
+let markerInLambda (x: Int) : Int = x + 2
+
+let xs = Stdlib.List.range 1 20
+
+let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+
+// 20 calls straight from the script's own frame.
+let directTotal =
+  Stdlib.List.fold xs 0 (fun acc x -> acc)
+let a = markerDirect 1
+let b = markerDirect 2
+let c = markerDirect 3
+
+// 20 calls from inside a lambda that a builtin applies.
+let mapped = Stdlib.List.map xs (fun x -> markerInLambda x)
+
+Stdlib.printLine (Darklang.LanguageTools.InterpreterStats.get ())

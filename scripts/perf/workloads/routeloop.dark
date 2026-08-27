@@ -1,0 +1,46 @@
+// Routes a request several thousand times, for an honest wall-clock number on the server path.
+//
+// The counterpart to viewloop.dark. `scripts/perf/http` measures a whole request including the
+// socket and is too noisy over a third of a second to resolve a single change; this isolates
+// routing and repeats to ~1%.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/routeloop.dark
+
+val iterations = 3000
+
+let hello (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "hello" 200
+
+let handlers =
+  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items/:id"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/health"; method = "GET"; handler = hello } ]
+
+let req =
+  Stdlib.Http.Request
+    { url = "GET /items/42?q=1 HTTP/1.1"
+      headers = [ ("host", "localhost"); ("accept", "*/*") ]
+      body = Stdlib.Blob.empty }
+
+let routeN (i: Int) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let resp = Stdlib.HttpServer.routeRequest handlers req
+    routeN (i - 1) (acc + resp.statusCode)
+
+let _warm = routeN 200 0
+let t0 = Darklang.Cli.Telemetry.now ()
+let total = routeN iterations 0
+let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
+
+Stdlib.printLine
+  ((Stdlib.Int.toString iterations)
+   ++ " routes, "
+   ++ (Stdlib.Int.toString elapsed)
+   ++ " ms, "
+   ++ (Stdlib.Int.toString (Stdlib.Int.divide (elapsed * 1000) iterations))
+   ++ " us each (checksum "
+   ++ (Stdlib.Int.toString total)
+   ++ ")")
