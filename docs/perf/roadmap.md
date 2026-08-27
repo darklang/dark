@@ -807,8 +807,16 @@ frame. Whether the diff already exploits that, and what it costs when it does, i
 
 ### Tooling gaps found while doing this
 
-- `alloc-profile` cannot run: `dotnet-trace` is not installed in the container, and the script fails
-  with `command not found` rather than saying so.
+- ~~`alloc-profile` cannot run: `dotnet-trace` is not installed in the container.~~ Fixed: the
+  Dockerfile installs it next to `fantomas`. It runs, and says what the header predicts -- the type
+  profile of `steady.dark` is entirely flat, every entry one tick.
+- **There is still no CPU profiler, and `dotnet-sampled-thread-time` is not it.** Tried:
+  `dotnet-trace collect --profile dotnet-sampled-thread-time --format speedscope` over the lambda
+  amplifier attributes 100% of the time to `UNMANAGED_CODE_TIME` with every managed frame at 0.00%,
+  so there is no signal to rank. `cpu-sampling` and `thread-time` are `collect-linux` profiles and
+  need kernel perf events, which the container does not have. This matters more each round: the
+  campaign is now chasing cycles rather than bytes (see the let-pattern note), and every remaining
+  finding is inferred from A/B timings rather than read off a profile.
 - **`gate` does not restore a fixture, and the debug store drifts.** The same commit measured
   7,780,170 bytes and then 8,530,000 an hour later with no code change, because the store grows with
   every package reload. `bench` restores a byte-identical store for exactly this reason. A debug
