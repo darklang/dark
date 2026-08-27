@@ -21,6 +21,15 @@ module VT = ValueType
 /// Keyed by name/hash rather than held on the fn record because `BuiltInFn` and `PackageFn` are defined
 /// well below here and shared with code that has no interest in this.
 module private FreeTVars =
+  /// Keyed by name, and so relying on a builtin's *signature* being determined by its name whatever
+  /// execution state built it. That holds: `Builtins.Http.Client.builtins` is the only builtin set
+  /// taking a construction parameter, and its `Configuration` reaches only the bodies, never
+  /// `parameters`, `returnType` or `typeParams`.
+  ///
+  /// Worth stating because the same shape, keyed the same way, was a real bug once: the wrapper cache
+  /// held a resolved `BuiltInFn` and handed one execution state's HTTP configuration to another's
+  /// callers. A name-keyed cache of anything the *body* decides is wrong; of what the signature
+  /// decides, right.
   let private builtins =
     System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Builtin, Set<string>>()
 
