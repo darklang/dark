@@ -93,11 +93,11 @@ let sum (lst: List<Int>) : Int =
 
 
 /// Returns the higher of <param a> and <param b>
-let max (a: Int) (b: Int) : Int = if greaterThan a b then a else b
+let max (a: Int) (b: Int) : Int = Builtin.intMax a b
 
 
 /// Returns the lower of <param a> and <param b>
-let min (a: Int) (b: Int) : Int = if lessThan a b then a else b
+let min (a: Int) (b: Int) : Int = Builtin.intMin a b
 
 
 /// If <param value> is within the range given by <param limitA> and <param

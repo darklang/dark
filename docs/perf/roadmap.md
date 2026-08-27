@@ -504,6 +504,76 @@ budget moving under it. The store grows with every package reload and this round
 roadmap already says a debug gate comparison taken across a work session is not a comparison. Read it
 against a freshly restored store, or read `suite`.
 
+**Rank package functions by call count, not by the profiler's timing.** The per-function timing in
+`InterpreterStats` is *inclusive*, so under recursion it reports whichever function is outermost and
+tells you nothing. Call count works, because a Dark recursion counts once per element. One workbench
+view, before this pass:
+
+    List.any            1,007
+    List.findFirst        668
+    Int.max               590
+    Dict.get              292
+    Option.withDefault    275
+    Canvas.overlay        252
+
+The hashes come back unnamed -- `run-cli view` will not take a bare hash -- so resolving them is a
+query against `locations` in `rundir/data.db`. `scripts/perf/workloads/viewprofile.dark` produces the
+data.
+
+**`List.any` and `List.findFirst` are native**, both per-element recursions with a lambda, the same
+shape `fold`/`map`/`filter` had, both short-circuiting. `member` and `findFirstIndex` are written on
+`findFirst` and got it for free. **`Int.max` and `Int.min` are builtins**, having been a package frame
+wrapping a builtin call wrapping an if.
+
+    viewAtSize              50 -> 46 ms
+    member of a 5-list      46.0 -> 34.3 us
+    package calls per view  6,953 -> 5,657
+    instructions per view   67,053 -> 54,997
+
+**`Int.max` was worth about 1 ms, which is what 590 calls at ~2 us of frame predicts.** The prediction
+matching is the useful part: the ranking now sizes one of these before it is done.
+
+**The profile is flat now, and that is the finding.** The top remaining item is 590 calls out of
+5,657, and what is left is a long tail of small functions each paying a full frame -- `Dict.get`,
+`Option.withDefault`, `Option.isSome`, `Tuple2.second`. Picking them off is worth roughly a
+millisecond each, and there is no longer one that dominates.
+
+**Correction to the line that was here: 5,657 package calls is not 5,657 frames.** `packageFnTiming`
+records 1,762 of them per view; the other ~3,895 are thin forwarders, elided, with no frame at all.
+And a frame-pushing call is ~5 us, not the ~2 I wrote. The corrected budget for a 46 ms view:
+
+    lambda applications      ~3,660 x 3.7 us   13.5 ms
+    package calls with frames 1,762 x 5.1 us    9.0 ms
+    elided forwarders        ~3,895 x 1.25 us   4.9 ms
+    builtin calls, direct    ~7,000 x 1.0 us    7.0 ms
+
+**Target 2 is finished, and this is the measurement that says so.** The brief has it capping target 1
+at 2x, because `executeApplicable` booted a VM per application. After the `Task`, closure, struct-tuple
+and one/two-argument work, it no longer does anything the interpreter's own Apply does not:
+
+    20 applications of one lambda, by a builtin       3.7-3.9 us each
+    20 applications of the same lambda, by Dark       3.3-3.6 us each
+
+Measured with a throwaway `listApplyN` builtin applying a lambda in an F# loop, so no Dark loop sits
+in the way, minus a zero-application row for the builtin's own call cost; three runs, stable. The
+Dark figure subtracts the recursion machinery a Dark loop needs (a 3-argument package call, a compare
+and a subtract, ~7.0 us).
+
+**So the reentrant-VM idea is dead, and it is worth saying why it looked alive.** Running a
+builtin-applied lambda on the caller's VM instead of a borrowed one would save the VM setup -- which
+is now most of nothing. Upper bound on the whole change: 0.5 us x 3,660 applications, under 2 ms of
+46, against real risk (the outer `runFrame` is mid-instruction, so `currentFrameID`, `frameToPush` and
+`finalResult` all need saving and restoring). Not worth it.
+
+**A stub probe cannot be used on this path.** Stubbing `runLoaded` to skip the lambda breaks CLI
+startup, since the CLI's own registry is built with `map` and `fold`; a stub returning a constant
+fails the fold's type check, and one returning its argument fails elsewhere. The throwaway *builtin*
+worked because it adds a path rather than breaking one.
+
+**What is actually left is the cost of a frame**, for lambdas and package functions alike: 5,422 frame
+pushes per view, and the two largest buckets above are both "what a call costs". That is one target,
+not two, and it is where a round 7 would start.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
