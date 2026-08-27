@@ -145,6 +145,7 @@ measure "build a tuple                        " (fun i ->
 
 Stdlib.printLine "--- lists"
 measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.push [ 1; 2; 3 ] i))
+measure "append two 3-lists                   " (fun i -> Stdlib.List.length (Stdlib.List.append [ 1; 2; 3 ] [ 4; 5; 6 ]))
 measure "range 1..5                           " (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
 measure "map over 5                           " (fun i -> Stdlib.List.length (Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + i)))
 measure "fold over 5                          " (fun i -> Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))

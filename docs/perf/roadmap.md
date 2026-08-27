@@ -1911,6 +1911,37 @@ Target 3 was retired earlier with measurement -- a record field read is 25 ns, a
 original brief was a harness artifact, which is why `optime`'s header now warns against reading any
 single row as an absolute.
 
+### `List.append` joins the operator fast path, and the table gets an honest name
+
+`listAppend` is the busiest builtin in a view build at 520 calls -- more than `dictGet`, `intToString`
+and `dictSet` put together -- because it is what every `List.append acc [x]` inside a fold reaches.
+It is a two-argument operator whose operand types the match has just established, so it belongs on
+the same path `+` and `++` take.
+
+A/B on `optime`, three passes each way, identical to the hundred nanoseconds within each arm:
+
+    without the fast path    8500  8500  8500 ns
+    with it                  7000  7100  7200 ns
+
+~1.37 us saved per call. At 520 calls that is **~0.71 ms of a 20 ms view, 3.5%** -- and the deterministic
+check agrees: `listAppend` goes from 520 timed calls a view to zero, since the fast path never enters
+the timed builtin machinery at all.
+
+Worth noting the instrument's limit here. `keypress` reports whole milliseconds, so it read 20 ms
+before and after and could not see this at all. The A/B on a single operation could, and the call
+counter confirmed the mechanism fired. A change this size needs both; neither alone would have been
+enough.
+
+The merge-failure case declines to the slow path rather than reporting the error itself, so
+`List.append [1] ["a"]` still produces its precise element-level message. Verified, along with a
+byte-identical `goldenview` diff.
+
+**Renamed `IntOps` to `FastOps`** (`tryIntOp`/`tryIntOpDirect` to `tryFastOp`/`tryFastOpDirect`). It
+handled `Int`s when it was written, gained `String`s earlier today and `List`s here; a module named
+for one of the three types it dispatches on is how someone later concludes the mechanism does not
+apply to their case. The constraint on it is unchanged and still stated at the table: only pure
+`noCaps` builtins, because the path skips the capability check and both type checks.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

@@ -1067,13 +1067,15 @@ let private completeBuiltin
 /// array, unification of two type variables, the result check, a `Ply`. About 1.3 us to add two
 /// integers.
 ///
-/// Only two `Int`s. Every other numeric type, and every mixed or non-numeric pair, goes the ordinary
-/// way and gets the ordinary error. The results here are the same expressions the builtins compute
-/// for that case, and nothing else about them is reimplemented.
+/// Operators the interpreter answers itself, without the builtin's record or the call machinery
+/// around it. Two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
+/// numeric type and every mixed one, goes the ordinary way and gets the ordinary error. The results
+/// here are the same expressions the builtins compute for that case, and nothing else about them is
+/// reimplemented.
 ///
 /// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
 /// more again. This is the part that needed no new instruction.
-module private IntOps =
+module private FastOps =
   let add = 0
   let subtract = 1
   let lessThan = 2
@@ -1088,6 +1090,7 @@ module private IntOps =
   /// reverse. So the tag alone says which operand types an operator wants, and neither function
   /// needs a range check -- `equals` and `notEquals` are simply handled by both.
   let strAppend = 10
+  let listAppend = 11
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1132,6 +1135,28 @@ module private IntOps =
       ValueNone
 
 
+  /// The operator itself, for two `List`s. `List.append` is the busiest builtin in a view build at
+  /// 520 calls, and `push`/`pushBack` are defined in terms of it, so it carries far more traffic than
+  /// its name suggests.
+  ///
+  /// Declines when the element types don't merge, rather than reporting the error itself: the slow
+  /// path falls back to `DvalCreator.list` for a precise element-level message, and duplicating that
+  /// here would be reimplementing the builtin rather than short-circuiting it.
+  let evalList
+    (tag : int)
+    (vt1 : ValueType)
+    (l1 : List<Dval>)
+    (vt2 : ValueType)
+    (l2 : List<Dval>)
+    : Dval voption =
+    if tag = listAppend then
+      match ValueType.merge vt1 vt2 with
+      | Ok merged -> ValueSome(DList(merged, List.append l1 l2))
+      | Error() -> ValueNone
+    else
+      ValueNone
+
+
   /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
   /// record and this is a single probe of a table with ten entries in it.
   ///
@@ -1153,6 +1178,7 @@ module private IntOps =
     put "intMax" max
     put "intMin" min
     put "stringAppend" strAppend
+    put "listAppend" listAppend
     d
 
 
@@ -1161,7 +1187,7 @@ module private IntOps =
 /// Declines while tracing is on: a builtin call is recorded with its arguments and result when it
 /// returns, and a fast path that skipped that would quietly drop every arithmetic operation from the
 /// trace. Tracing is off in the CLI, which is what this is for.
-let private tryIntOp
+let private tryFastOp
   (exeState : ExecutionState)
   (fn : BuiltInFn)
   (ctx : ApplyContext)
@@ -1172,30 +1198,35 @@ let private tryIntOp
     ValueNone
   else
     let mutable tag = 0
-    if not (IntOps.byName.TryGetValue(fn.name, &tag)) then
+    if not (FastOps.byName.TryGetValue(fn.name, &tag)) then
       ValueNone
     else
       // Nested rather than `match a, b with`, which allocates the pair. That shape cost the
-      // reference workload 4.4% when it was written the obvious way in `tryIntOpDirect`.
+      // reference workload 4.4% when it was written the obvious way in `tryFastOpDirect`.
       match ArgSeq.uncons ctx.args with
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
-          IntOps.eval tag a b
+          FastOps.eval tag a b
         | _ -> ValueNone
       | ValueSome(struct (DString a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
-          IntOps.evalStr tag a b
+          FastOps.evalStr tag a b
+        | _ -> ValueNone
+      | ValueSome(struct (DList(vt1, l1), rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
+          FastOps.evalList tag vt1 l1 vt2 l2
         | _ -> ValueNone
       | _ -> ValueNone
 
 
-/// The same operators as `tryIntOp`, reached straight from `Apply` before an `ApplyContext` exists.
+/// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
 ///
-/// `tryIntOp` covers the ones that arrive through an elided package wrapper; this covers the ones
+/// `tryFastOp` covers the ones that arrive through an elided package wrapper; this covers the ones
 /// compiled as a direct builtin call, which is what `a + b` is.
-let private tryIntOpDirect
+let private tryFastOpDirect
   (exeState : ExecutionState)
   (registers : Dval array)
   (applicable : ApplicableNamedFn)
@@ -1211,17 +1242,21 @@ let private tryIntOpDirect
     match applicable.name with
     | FQFnName.Builtin b ->
       let mutable tag = 0
-      if IntOps.byName.TryGetValue(b, &tag) then
+      if FastOps.byName.TryGetValue(b, &tag) then
         // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
         // Int operator or not. It measured 4.4% on the gate and 10% on a view build.
         match registers[argRegs.head] with
         | DInt x ->
           match registers[secondReg] with
-          | DInt y -> IntOps.eval tag x y
+          | DInt y -> FastOps.eval tag x y
           | _ -> ValueNone
         | DString x ->
           match registers[secondReg] with
-          | DString y -> IntOps.evalStr tag x y
+          | DString y -> FastOps.evalStr tag x y
+          | _ -> ValueNone
+        | DList(vt1, l1) ->
+          match registers[secondReg] with
+          | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
           | _ -> ValueNone
         | _ -> ValueNone
       else
@@ -1238,7 +1273,7 @@ let rec private callBuiltinResolved
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Ply<Dval> =
-  match tryIntOp exeState fn ctx with
+  match tryFastOp exeState fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
     if vm.stats.enabled then
@@ -2065,13 +2100,13 @@ let private applyInstruction
           |> raiseRTE vm.threadID
 
     // An `Int` operator called directly, taken before any of the call machinery: no `ApplyContext`,
-    // no builtin-table lookup, no `ArgSeq`. `tryIntOp` further down catches the same operators
+    // no builtin-table lookup, no `ArgSeq`. `tryFastOp` further down catches the same operators
     // arriving through an elided package wrapper -- `Stdlib.Int.max` never reaches here.
     //
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the reference workload 4% and a view build 10%.
-    match tryIntOpDirect exeState registers applicable typeArgs newArgRegs with
+    match tryFastOpDirect exeState registers applicable typeArgs newArgRegs with
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
