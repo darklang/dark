@@ -77,8 +77,11 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
       if seg.col >= width then
         acc
       else
-        let start = Stdlib.Int.max col seg.col
-        let gap = Stdlib.String.repeat " " (Stdlib.Int.max 0 (start - col))
+        // Inlined rather than `Int.max`, for the reason given in `composeRow` below: it is a call,
+        // and this runs once per segment. Same for the gap -- segments usually butt up against the
+        // one before, so the ordinary case is a `repeat` that returns "" and an append that adds
+        // nothing. Both are skipped when there is no gap to fill.
+        let start = if seg.col > col then seg.col else col
         let room = width - start
         // The common case is a segment that already fits, so don't pay for a clip to find that out.
         let (clipped, used) =
@@ -87,7 +90,14 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
           else
             let c = Tui.Text.clipToWidth seg.text room
             (c, Tui.Text.styledWidth c)
-        (out ++ gap ++ clipped, start + used))
+
+        let next =
+          if start > col then
+            out ++ (Stdlib.String.repeat " " (start - col)) ++ clipped
+          else
+            out ++ clipped
+
+        (next, start + used))
 
   // A reset at the end so a colour left open by the last segment can't bleed into whatever follows.
   text ++ "\u001b[0m"

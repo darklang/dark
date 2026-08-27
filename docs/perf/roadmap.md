@@ -1594,6 +1594,57 @@ read for a leaf is us/call. Finding `List.member` took one run of this after sev
 guessing from call counts, which had ranked it fourth by frames and given no hint it was 36 us a
 call.
 
+### `renderSegments`: the gap between segments is usually not there
+
+Each segment paid `Int.max` twice and a `String.repeat` to build the padding between it and the one
+before. Segments usually butt up against their predecessor, so that `repeat` returned `""` and the
+append that followed added nothing. Both maxes are inlined (the precedent is two functions down in
+the same file: "`Int.max` is a package call, which at one per span is not free") and the gap is
+skipped when there is no gap.
+
+    renderSegments      175.03 -> 134.90 us per call, 7.00 -> 5.40 ms per view
+    stringRepeat        269 -> 138 calls
+    stringAppend        728 -> 597 calls
+
+Both call counts fell by exactly 131, which is the number of segments per view that had no gap --
+the counters agreeing to the call is what makes this a measurement rather than a guess.
+
+### What a call actually costs, and where a view build goes
+
+`optime.dark`, minus its 3.0 us harness baseline:
+
+    package fn call, 1 arg     2.7 us
+    package fn call, 2 args    3.0 us
+    builtin call               1.7 us
+    lambda application         1.6 us
+    List.member over 5         3.7 us   (was ~36 before it went native)
+    add two Ints               0.6 us
+    match on an Int            0.3 us
+
+A view build makes ~4,137 package calls and ~2,435 lambda applications. At those prices that is
+~11 ms of package calls and ~3.9 ms of lambda applications in a 23 ms view: **call overhead is most
+of a view build, and always was.** Everything else measured -- record construction, field reads,
+string work, the Canvas loops -- is small beside it.
+
+The useful decomposition: a lambda application is 1.6 us and a package call is 2.7 us, and a lambda
+does no argument type-checking, no return type check and no TST work. So roughly 1.6 us of a package
+call is the frame machinery both share, and ~1.1 us is package-specific. The frame machinery is the
+larger half and it is shared, so it is the next thing to attack -- either its per-frame cost, or the
+~6,572 frames a view pushes.
+
+**Negative result: the 64-char content hashes are not the cost.** Every package call does several
+dictionary lookups keyed by `Hash`, which wraps a 64-character hex string, so each hashes and
+compares 64 characters. Converting the two post-fetch caches (`FreeTVars.ofPackage`,
+`FreeTVars.paramsOfPackage`) to reference identity is safe -- `Caching.withCache` hands back the same
+`Some` object, so the `PackageFn` instance is stable -- and measured as nothing:
+
+    hash-keyed        24 23 23 23 23 24 ms
+    reference-keyed   23 23 23 24 23 23 ms
+
+Reverted. A single 22 ms in the first run of the probe looked like a 4% win and was noise; the A/B
+with a rebuild between arms is what settled it. Worth knowing before anyone else reads
+`ConcurrentDictionary<Hash, _>` and assumes the string is the problem.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
