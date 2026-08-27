@@ -2340,17 +2340,24 @@ Round 2's PR describes the trap of steering by one script. This round measured a
 against the CLI view, so the claim "the interpreter is faster" needed a workload that had nothing to
 do with it. `scripts/perf/http --release`, against the numbers in `history.md`:
 
-    allocation   76.31 KB -> 52.9 KB per request   (-30.6%)
-    throughput   5,269 -> ~6,450 req/s             (+22%)
-    p50          2.21 -> ~1.87 ms                  (-15%)
+    allocation   76.31 KB -> 47.2 KB per request   (-38%, deterministic to 0.1 KB)
+    throughput   see the correction below -- not comparable across sessions
 
 `lists` is 9.9 KB/iteration against node's 1.72, so **5.8x node**, from 7.0x.
 
-**A trap worth recording:** the first `--release` run read 3,139 req/s and p50 5.03 ms, which looks
-like a serious regression. It was a cold binary on a box still busy from a build. Three runs on a
-freshly built release exe read 5,576 / 6,421 / 6,458 req/s. The HTTP harness runs 2,000 requests in
-about a third of a second, so a single run of it is not a measurement -- and unlike the allocation
-column, which repeated to within 0.1 KB across all four runs, its throughput needs several.
+**Correction, and a trap worth recording twice.** The first `--release` run read 3,139 req/s, which
+looks like a serious regression; it was a cold binary on a busy box, and three more runs read
+5,576 / 6,421 / 6,458, so +22% went into this document.
+
+**That number did not reproduce.** Measured again at the end of the round, on code that allocates
+*less* per request (47.2 KB against 52.9) and routes 45% faster, eight runs gave 4,021-5,170 req/s.
+Nothing regressed; the harness fires 2,000 requests in under half a second and its throughput depends
+on what else the box is doing, across a session as much as within one.
+
+So **`scripts/perf/http`'s throughput and latency columns are not comparable across sessions** and no
+claim in this document should rest on them. Its allocation column is deterministic to 0.1 KB and is
+the one to quote. For server-path *time*, `routeloop.dark` is the instrument -- 3,000 routes, ~1%
+resolution, and every figure taken from it in this round was a same-session A/B.
 
 ### `List.filterMap` native, found by profiling the server path
 
