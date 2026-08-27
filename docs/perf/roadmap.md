@@ -574,6 +574,33 @@ worked because it adds a path rather than breaking one.
 pushes per view, and the two largest buckets above are both "what a call costs". That is one target,
 not two, and it is where a round 7 would start.
 
+**Ablation says a package call is not paying for what it looks like it is paying for.** Env-gated
+stubs for the four obvious costs, each measured on `optime`'s `call a 1-arg fn`:
+
+    none ablated                        5.25 us
+    no argument type check              5.00
+    no return type check                5.00
+    no type-symbol-table work           5.25
+    no tracing                          5.00
+    all four                            4.50
+
+Together they are **0.75 us of 5.25, 14%**. The type checks are not the cost, and neither is the TST,
+which measured as nothing at all. The other 4.5 us is the frame machinery: the `Apply` dispatch, the
+`ApplyContext`, the registers, the dictionary the frames live in, and the round trip through the loop.
+Anyone who opens this expecting to find a type-checking hot spot should read this first.
+
+**One piece of that was cheap and is done.** Both interpreter loops asked
+`callFrames.ContainsKey vm.currentFrameID` and then indexed it -- two hashes and two probes of a
+`uuid`-keyed dictionary per turn, for one frame. One `TryGetValue`: `call a 1-arg fn` 5.25 -> 4.9 us,
+`apply a lambda` 2.50 -> 2.25, `viewAtSize` 46 -> 44 ms.
+
+**The rest of it is `Dictionary<uuid, CallFrame>` itself.** Frames are pushed and popped in strict
+stack order, and a dictionary keyed by a 16-byte uuid is being asked to model a stack: an insert per
+push, a remove per pop, a hash per lookup. A frame stack indexed by depth would make a push an array
+write. That is the round 7 target with the best evidence behind it, and it is a wide change --
+`callFrames`, `pendingCallArgs`, `framePushTimestamps` and the tracer's per-frame maps are all keyed
+the same way.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

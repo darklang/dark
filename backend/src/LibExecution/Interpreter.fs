@@ -2772,8 +2772,12 @@ type private SyncOutcome =
 let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome =
   let mutable bail = ValueNone
 
-  while ValueOption.isNone bail && vm.callFrames.ContainsKey vm.currentFrameID do
-    let currentFrame = vm.callFrames[vm.currentFrameID]
+  // `TryGetValue`, not `ContainsKey` and then the indexer: the key is a `uuid`, so that was two
+  // hashes and two probes per turn of the loop for one frame.
+  let mutable currentFrame = Unchecked.defaultof<CallFrame>
+
+  while ValueOption.isNone bail
+        && vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
     let registers = currentFrame.registers
     let instrData = currentFrame.instrData
 
@@ -2849,8 +2853,10 @@ let private executeInnerTask
       do! check
       returnFromFrame exeState vm frame checkedResult
 
-    while vm.callFrames.ContainsKey vm.currentFrameID do
-      let currentFrame = vm.callFrames[vm.currentFrameID]
+    // See `executeSync`: one lookup per turn, not two.
+    let mutable currentFrame = Unchecked.defaultof<CallFrame>
+
+    while vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
 
       let registers = currentFrame.registers
 
