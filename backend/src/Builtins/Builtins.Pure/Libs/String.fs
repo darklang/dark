@@ -150,11 +150,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString s; DInt count |] ->
-          let n = intToInt32 vm count
-          if n <= 0 || s = "" then
-            DString "" |> Ply
-          else
-            DString(System.String.Concat(Seq.replicate n s)) |> Ply
+          DString(String.repeat s (intToInt32 vm count)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

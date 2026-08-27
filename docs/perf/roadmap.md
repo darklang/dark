@@ -2090,6 +2090,54 @@ a span and enters a vectorized call whose setup costs more than the dozen branch
 character-at-a-time version, with the ASCII peek-ahead added earlier this round, is already the right
 shape for this data. Reverted, and worth recording because the change reads as obviously correct.
 
+### What a lambda costs before it does anything: 1.32 us, and it is the biggest item left
+
+`lambdapath.dark` now varies the body size, so the frame cost separates from the work. Subtracting
+the bare-recursion row, per application:
+
+    body `x`            (0 operations)   1.32 us
+    body `x + 1`        (1 operation)    1.82 us
+    body `x + 1 + 1`    (2 operations)   2.19 us
+
+**~0.44 us per operation in a body, and a 1.32 us intercept** -- what a lambda costs for existing,
+before any of its body runs. That is 73% of a typical application, and at ~2,435 applications a view
+it is **~3.2 ms of an 18-19 ms view, about 17%.** The single largest addressable item left anywhere
+in the interpreter.
+
+Every attempt to find a *component* of that 1.32 us has come back flat:
+
+- `Array.Clear` of the registers on every frame return: no change, 1.99 us either way.
+- The ~9 dictionary operations per application: priced in situ by adding three *extra* lookups to the
+  hot path, 1.82 us against 1.81. Merging the three `exprId`-keyed caches would win nothing.
+- Copying the closed-over registers (`assignRegisters` walks a list of tuples per application): a
+  lambda closing over four variables measured the same as one closing over none, 6.02 against 6.08 us
+  for the same four-operation body. (Caveat: the four were constants, so this does not fully exercise
+  the general case.)
+
+So the 1.32 us is not one thing to fix. It is the frame itself -- push, register file, the loop turn
+to reach it, and the return -- and the only way to remove it is **not to push a frame**: evaluate a
+single-expression lambda body in the caller's frame. That needs register remapping, so it is a
+compiler-and-interpreter change rather than a tweak, and it is the right size for its own round.
+Sized here so it can be decided on rather than rediscovered.
+
+### `String.repeat` on the fast path, and one implementation instead of two
+
+138 calls a view, almost all of them padding a row out to a column.
+
+A/B on `optime`, three passes each arm: 3.77 us net without, 3.03 with -- **0.74 us a call**, ~0.10 ms
+a view. Smaller than the other entries because the row carries a `String.length` as well.
+
+The more useful half is that the builtin was building a *sequence of n strings* and concatenating it.
+For a single character -- which padding always is -- `System.String(char, count)` is one allocation
+and a fill. That implementation now lives in `Prelude.String.repeat` and both the builtin and the
+fast path call it, so the two cannot drift; the fast path declines a count too large for an `int32`,
+where the builtin raises through `intToInt32`, because reproducing a builtin's *failure* behaviour is
+as much a restatement as reproducing its success.
+
+    view allocation   1,587,288 -> 1,579,008 bytes   (8,280 saved, on top of the 27,760 earlier)
+
+`fastopcheck.dark` is up to 18 checks.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

@@ -1100,6 +1100,7 @@ module private FastOps =
   /// operands are of different types.
   let dictGet = 15
   let dictSet = 16
+  let strRepeat = 17
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1194,6 +1195,23 @@ module private FastOps =
       ValueNone
 
 
+  /// `String.repeat`: a `String` and an `Int` count, 138 calls in a view build -- almost all of them
+  /// padding a row out to a column.
+  ///
+  /// Calls the same `String.repeat` the builtin now calls, so the two cannot drift. Declines a count
+  /// that does not fit an `int32`, where the builtin raises `OutOfRange` through `intToInt32`:
+  /// reproducing that error here would be restating the builtin's failure behaviour as well as its
+  /// success, and the slow path already gets it right.
+  let evalStrInt (tag : int) (s : string) (n : DarkInt) : Dval voption =
+    if tag = strRepeat then
+      match n with
+      | DarkInt.Finite i when i >= -1L && i <= 2147483647L ->
+        ValueSome(DString(String.repeat s (int i)))
+      | _ -> ValueNone
+    else
+      ValueNone
+
+
   /// `Dict.get`: a `Dict` and a `String` key, 292 calls in a view build.
   ///
   /// Calls the same `DvalCreator.option` the builtin does rather than restating enum construction.
@@ -1270,6 +1288,7 @@ module private FastOps =
     put "listLength" listLength
     put "dictGet" dictGet
     put "dictSetOverridingDuplicates" dictSet
+    put "stringRepeat" strRepeat
     d
 
 
@@ -1306,6 +1325,8 @@ let private tryFastOp
         match ArgSeq.uncons rest with
         | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalStr tag a b
+        | ValueSome(struct (DInt n, tail)) when ArgSeq.isEmpty tail ->
+          FastOps.evalStrInt tag a n
         | _ -> ValueNone
       | ValueSome(struct (DList(vt1, l1), rest)) ->
         match ArgSeq.uncons rest with
@@ -1390,6 +1411,7 @@ let private tryFastOpDirect
         | DString x ->
           match registers[secondReg] with
           | DString y -> FastOps.evalStr tag x y
+          | DInt n -> FastOps.evalStrInt tag x n
           | _ -> ValueNone
         | DList(vt1, l1) ->
           match registers[secondReg] with

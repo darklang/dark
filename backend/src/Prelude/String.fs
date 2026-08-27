@@ -52,6 +52,18 @@ let lengthInEgcs (s : string) : int =
 
 let normalize (s : string) : string = s.Normalize()
 
+
+/// `s` repeated `n` times; "" when `n` is not positive or `s` is empty.
+///
+/// Shared so the `stringRepeat` builtin and the interpreter's operator fast path cannot drift apart.
+/// A single character is the common case in a TUI -- padding a row out to a column -- and
+/// `System.String(char, count)` is one allocation and a fill, where concatenating a sequence of `n`
+/// strings builds the sequence and then the result.
+let repeat (s : string) (n : int) : string =
+  if n <= 0 || s = "" then ""
+  elif s.Length = 1 then System.String(s[0], n)
+  else System.String.Concat(Seq.replicate n s)
+
 // Ordinal (not culture-aware): with InvariantGlobalization=true on AOT
 // builds, `InvariantCultureIgnoreCase` is restricted to invariant rules
 // anyway, but `Ordinal` is unambiguous and matches what the callers

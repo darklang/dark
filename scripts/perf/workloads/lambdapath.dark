@@ -77,6 +77,32 @@ let anyLarge = best (fun i -> if Stdlib.List.any large (fun x -> x > 99999) then
 let applySmall = best (fun i -> walkApply small (fun x -> x + 1) 0)
 let applyLarge = best (fun i -> walkApply large (fun x -> x + 1) 0)
 
+// Three lambda bodies of increasing size, all applied by the interpreter. The slope across them is
+// what an extra operation in a body costs; what is left over at zero operations is the frame push,
+// the register bind and the return -- the part a lambda pays for existing at all.
+let body0Small = best (fun i -> walkApply small (fun x -> x) 0)
+let body0Large = best (fun i -> walkApply large (fun x -> x) 0)
+let body2Small = best (fun i -> walkApply small (fun x -> x + 1 + 1) 0)
+let body2Large = best (fun i -> walkApply large (fun x -> x + 1 + 1) 0)
+
+// Four body operations, with and without closing over anything. `assignRegisters` copies a lambda's
+// closed-over registers into the new frame on every application, walking a list of tuples, so the
+// difference between these two rows is what four closed variables cost per application.
+let closed0Small = best (fun i -> walkApply small (fun x -> x + 1 + 1 + 1 + 1) 0)
+let closed0Large = best (fun i -> walkApply large (fun x -> x + 1 + 1 + 1 + 1) 0)
+let closed4Small =
+  let a = 1
+  let b = 2
+  let c = 3
+  let d = 4
+  best (fun i -> walkApply small (fun x -> x + a + b + c + d) 0)
+let closed4Large =
+  let a = 1
+  let b = 2
+  let c = 3
+  let d = 4
+  best (fun i -> walkApply large (fun x -> x + a + b + c + d) 0)
+
 // The recursion on its own, to subtract from the two rows above.
 let onlySmall = best (fun i -> walkOnly small 0)
 let onlyLarge = best (fun i -> walkOnly large 0)
@@ -85,5 +111,9 @@ let _ = perElement "fold, builtin-applied lambda + body   " foldSmall foldLarge 
 let _1b = perElement "any, builtin-applied 1-arg + body     " anySmall anyLarge 200
 let _2 = perElement "Dark recursion + applied lambda       " applySmall applyLarge 200
 let _3 = perElement "Dark recursion alone                  " onlySmall onlyLarge 200
+let _4 = perElement "  + lambda, body `x`                  " body0Small body0Large 200
+let _5 = perElement "  + lambda, body `x + 1 + 1`          " body2Small body2Large 200
+let _6 = perElement "  + lambda, 4 ops, closes over nothing " closed0Small closed0Large 200
+let _7 = perElement "  + lambda, 4 ops, closes over 4       " closed4Small closed4Large 200
 
 Stdlib.printLine "(interpreter-applied lambda = row 2 minus row 3)"

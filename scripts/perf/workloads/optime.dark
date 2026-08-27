@@ -170,6 +170,7 @@ measure "build a 5-element literal            " (fun i -> Stdlib.List.length [ i
 
 Stdlib.printLine "--- strings"
 measure "concat two strings                   " (fun i -> Stdlib.String.length ("ab" ++ "cd"))
+measure "repeat one char 8 times             " (fun i -> Stdlib.String.length (Stdlib.String.repeat " " 8))
 measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
 
 Stdlib.printLine "--- control flow"

@@ -34,5 +34,10 @@ let _9 = show "list length" (Stdlib.Int.toString (Stdlib.List.length [ 1; 2; 3 ]
 let _10 = show "list append" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.List.append [ 1; 2 ] [ 3 ]))) "3"
 let _11 = show "string append" ("a" ++ "b") "ab"
 let _12 = show "string equals" (if "x" == "x" then "y" else "n") "y"
+let _13 = show "repeat one char" (Stdlib.String.repeat "-" 3) "---"
+let _14 = show "repeat multi char" (Stdlib.String.repeat "ab" 2) "abab"
+let _15 = show "repeat zero" (Stdlib.String.repeat "x" 0) ""
+let _16 = show "repeat negative" (Stdlib.String.repeat "x" (-2)) ""
+let _17 = show "repeat empty" (Stdlib.String.repeat "" 5) ""
 
 Stdlib.printLine "-- fast op check done --"
