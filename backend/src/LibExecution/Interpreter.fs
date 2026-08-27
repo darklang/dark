@@ -2594,6 +2594,70 @@ let private runRareOpcode
 /// resumable code could not reduce a state machine with these binds sitting in match arms inside a
 /// `while` (FS3511), and an unreduced machine falls back to the dynamic, allocating implementation --
 /// exactly what moving off Ply was meant to escape.
+/// Hand a finished frame's result to its parent, or record it as the whole run's result.
+///
+/// The trickiest bookkeeping in the interpreter -- the pop, the trace records, the parent's register
+/// and program counter -- and it is synchronous. Extracted so the task loop and the synchronous loop
+/// beside it share one copy rather than drifting apart.
+///
+/// The caller runs `checkFrameReturnType` first where there is a parent; it is separate because it is
+/// the one part of this that can await.
+let private returnFromFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (resultOfFrame : Dval)
+  : unit =
+  match currentFrame.parent with
+  | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
+    // Record per-package-fn timing on frame return
+    if vm.stats.enabled && vm.stats.detailedTiming then
+      match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+      | true, pushTs ->
+        let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
+        match currentFrame.executionPoint with
+        | Function(FQFnName.Package(Hash h)) -> vm.stats.recordPackageFn (h, elapsed)
+        | _ -> ()
+        vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+      | false, _ -> ()
+
+    let framePopAlloc = allocNow vm
+    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+
+    vm.currentFrameID <- parentID
+
+    let parentFrame = vm.callFrames[parentID]
+
+    // Trace package function call at frame return.
+    // Lambda frames fire storeLambdaResult instead.
+    if not exeState.tracing.skipTracing then
+      match currentFrame.executionPoint with
+      | Function fnName ->
+        match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
+        | true, args ->
+          vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+          let source : Tracing.Source = (parentFrame.executionPoint, None)
+          let fnRecord : Tracing.FunctionRecord = (source, fnName)
+          exeState.tracing.storeFnResult
+            fnRecord
+            (NEList.ofListUnsafe "" [] args)
+            resultOfFrame
+        | _ -> ()
+      | Lambda _ ->
+        vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+        exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
+      | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+    parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+    parentFrame.programCounter <- pcOfParent
+    // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
+    // of its registers before the pop and is now in the parent's.
+    returnFrame vm currentFrame
+    recordStage vm ApplyStage.FramePop framePopAlloc
+  | ValueNone ->
+    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+    vm.finalResult <- ValueSome resultOfFrame
+
+
 let private handleFrameStep
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2665,63 +2729,12 @@ let private handleFrameStep
         let resultOfFrame = registers[instrData.resultReg]
 
         match currentFrame.parent with
-        | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
-          // We just finished processing a frame, and we need to return a value to the parent frame
-
-          // TODO this might be where the type-checking of a fn result needs to happen.
-          // But when here, it's not always a fn call - could also be for a lambda.
-
+        | ValueSome _ ->
           // A single `do!` at statement position, so the loop's state machine stays statically
           // compilable. `checkFrameReturnType` answers synchronously in the ordinary case.
           do! checkFrameReturnType exeState vm currentFrame resultOfFrame
-          // Record per-package-fn timing on frame return
-          if vm.stats.enabled && vm.stats.detailedTiming then
-            match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
-            | true, pushTs ->
-              let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
-              match currentFrame.executionPoint with
-              | Function(FQFnName.Package(Hash h)) ->
-                vm.stats.recordPackageFn (h, elapsed)
-              | _ -> ()
-              vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
-            | false, _ -> ()
-
-          let framePopAlloc = allocNow vm
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-
-          vm.currentFrameID <- parentID
-
-          let parentFrame = vm.callFrames[parentID]
-
-          // Trace package function call at frame return.
-          // Lambda frames fire storeLambdaResult instead.
-          if not exeState.tracing.skipTracing then
-            match currentFrame.executionPoint with
-            | Function fnName ->
-              match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
-              | true, args ->
-                vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-                let source : Tracing.Source = (parentFrame.executionPoint, None)
-                let fnRecord : Tracing.FunctionRecord = (source, fnName)
-                exeState.tracing.storeFnResult
-                  fnRecord
-                  (NEList.ofListUnsafe "" [] args)
-                  resultOfFrame
-              | _ -> ()
-            | Lambda _ ->
-              vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-              exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
-            | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-          parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
-          parentFrame.programCounter <- pcOfParent
-          // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
-          // of its registers before the pop and is now in the parent's.
-          returnFrame vm currentFrame
-          recordStage vm ApplyStage.FramePop framePopAlloc
-
-        | ValueNone ->
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-          vm.finalResult <- ValueSome resultOfFrame
+          returnFromFrame exeState vm currentFrame resultOfFrame
+        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
   }
 
 
@@ -2732,13 +2745,109 @@ let private handleFrameStep
 /// `uply` loop allocates on every iteration in proportion to the size of its body, bind or no bind;
 /// the same loop under `task` allocates nothing. This body is large and runs once per frame
 /// activation, so that difference dominated the interpreter's allocation.
+/// What the synchronous loop could not finish, and how the task loop should pick it up.
+[<Struct>]
+type private SyncOutcome =
+  /// The whole run finished without ever awaiting.
+  | SyncDone of result : Dval
+  /// A step whose await has not been started. `handleFrameStep` takes it from here.
+  | SyncBailStep of step : FrameStep
+  /// A return-type check already in flight; the frame returns once it completes.
+  | SyncBailReturnCheck of
+    check : System.Threading.Tasks.Task<unit> *
+    checkedResult : Dval
+
+
+/// The interpreter loop, for as long as nothing actually awaits.
+///
+/// The loop below is a `task`, and a `task` that completes synchronously still allocates the `Task`
+/// it returns. That is one allocation per *entry*, which is nothing for a script and a great deal
+/// for a builtin folding a list: `executeApplicable` enters once per element, and the `Task` was
+/// half of everything that path allocated.
+///
+/// Nearly every lambda a builtin applies is arithmetic, a comparison or a push, and never awaits at
+/// all. So run the same loop with no builder for as long as that holds, and hand over the moment it
+/// stops. The two share `runFrame` and `returnFromFrame`, which is where the real work is; what is
+/// duplicated here is the dispatch around them.
+let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome =
+  let mutable bail = ValueNone
+
+  while ValueOption.isNone bail && vm.callFrames.ContainsKey vm.currentFrameID do
+    let currentFrame = vm.callFrames[vm.currentFrameID]
+    let registers = currentFrame.registers
+    let instrData = currentFrame.instrData
+
+    vm.frameToPush <- ValueNone
+
+    let step = runFrame exeState vm currentFrame registers instrData
+
+    match step with
+    | FrameBlockEnded -> ()
+    // Rare by construction, and running one can await, so it is handed over rather than tried. The
+    // step is untouched, so `handleFrameStep` does the whole of it.
+    | FrameRareOpcode -> bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitBuiltin(call, reg) ->
+      match Ply.trySync call with
+      | ValueSome dv ->
+        registers[reg] <- dv
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitPackage(call, reg) ->
+      match Ply.trySync call with
+      | ValueSome outcome ->
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+        match outcome with
+        | PartiallyApplied dv
+        | Completed dv -> registers[reg] <- dv
+        | PushFrame frame -> pushFrame vm frame
+      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+
+    if ValueOption.isNone bail && step.IsBlockEnded then
+      match vm.frameToPush with
+      | ValueSome newFrame ->
+        vm.callFrames[newFrame.id] <- newFrame
+        vm.currentFrameID <- newFrame.id
+      | ValueNone ->
+        let resultOfFrame = registers[instrData.resultReg]
+
+        match currentFrame.parent with
+        | ValueSome _ ->
+          // A `Task`, so asked with `IsCompletedSuccessfully` rather than `Ply.trySync`. It answers
+          // synchronously in the ordinary case: the awaiting one is a type that needs the store.
+          let check = checkFrameReturnType exeState vm currentFrame resultOfFrame
+          if check.IsCompletedSuccessfully then
+            returnFromFrame exeState vm currentFrame resultOfFrame
+          else
+            bail <- ValueSome(SyncBailReturnCheck(check, resultOfFrame))
+        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
+
+  match bail with
+  | ValueSome outcome -> outcome
+  | ValueNone ->
+    match vm.finalResult with
+    | ValueSome dv -> SyncDone dv
+    | ValueNone -> Exception.raiseInternal "No finalResult found" []
+
+
 let private executeInnerTask
   (exeState : ExecutionState)
   (vm : VMState)
+  (resumeFrom : SyncOutcome)
   : System.Threading.Tasks.Task<Dval> =
   task {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
     // capture it, so it's a field in each of them.
+
+    // Whatever `executeSync` could not finish, before the loop proper.
+    match resumeFrom with
+    | SyncDone _ -> ()
+    | SyncBailStep step ->
+      let frame = vm.callFrames[vm.currentFrameID]
+      do! handleFrameStep exeState vm frame frame.registers frame.instrData step
+    | SyncBailReturnCheck(check, checkedResult) ->
+      let frame = vm.callFrames[vm.currentFrameID]
+      do! check
+      returnFromFrame exeState vm frame checkedResult
 
     while vm.callFrames.ContainsKey vm.currentFrameID do
       let currentFrame = vm.callFrames[vm.currentFrameID]
@@ -2768,8 +2877,16 @@ let private executeInnerTask
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
 
-let private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  uply { return! executeInnerTask exeState vm }
-
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  executeInner exeState vm
+  match executeSync exeState vm with
+  | SyncDone dv -> Ply dv
+  | bailed ->
+
+    // Unwrapped by hand rather than `uply { return! ... }`, which builds a state machine per call.
+    let running = executeInnerTask exeState vm bailed
+    if running.IsCompletedSuccessfully then
+      Ply running.Result
+    else
+      // The task already started; awaiting `running` continues it. Calling `executeInner` here would
+      // start a second run of the same VM.
+      uply { return! running }

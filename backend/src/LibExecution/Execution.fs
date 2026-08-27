@@ -164,16 +164,24 @@ let private applyInstrsByArity =
 /// Cached as `InstrData` rather than `Instructions` so the array is built once ever, not converted
 /// from a list on every application.
 let private applyInstrsFor (argCount : int) : struct (RT.InstrData * int) =
-  applyInstrsByArity.GetOrAdd(
-    argCount,
-    fun n ->
-      let argRegs = [ 2 .. n + 1 ]
-      let instrData : RT.InstrData =
-        { instructions =
-            [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
-          resultReg = 0 }
-      struct (instrData, n + 2)
-  )
+  // `TryGetValue` first, and only then `GetOrAdd`. Passing the factory means converting an F#
+  // function to a `System.Func`, and that delegate is built on every call even though the factory
+  // runs only on a miss -- which is once per arity, ever, against once per lambda application.
+  let mutable found = Unchecked.defaultof<struct (RT.InstrData * int)>
+  if applyInstrsByArity.TryGetValue(argCount, &found) then
+    found
+  else
+
+    applyInstrsByArity.GetOrAdd(
+      argCount,
+      fun n ->
+        let argRegs = [ 2 .. n + 1 ]
+        let instrData : RT.InstrData =
+          { instructions =
+              [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
+            resultReg = 0 }
+        struct (instrData, n + 2)
+    )
 
 /// Put the callable and its arguments straight into the root frame's registers.
 let private loadApplyRegisters
@@ -190,80 +198,121 @@ let private loadApplyRegisters
   args.tail |> List.iteri (fun i arg -> registers[i + 3] <- arg)
 
 
-/// Use this when calling a Darklang callback from within a builtin.
-let executeApplicable
+/// The cold path out of `executeApplicable`: something threw that was not a runtime error.
+///
+/// A top-level function rather than a local one, so it captures nothing and costs nothing on the
+/// applications that never throw, which is all but a vanishing few.
+let private uncaught
   (exeState : RT.ExecutionState)
-  (applicable : RT.Applicable)
-  (args : NEList<RT.Dval>)
+  (vm : RT.VMState)
+  (ex : exn)
   : Ply<RT.ExecutionResult> =
-  let struct (instrData, registerCount) = applyInstrsFor (NEList.length args)
+  uply {
+    let metadata : Metadata =
+      Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+    do! exeState.reportException exeState vm metadata ex
+    let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+    return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
+  }
 
-  // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
-  // element of a list would otherwise build one VM per element.
-  let vm =
-    match VMSlot.Take() with
-    | ValueNone ->
-      let instrs : RT.Instructions =
-        { registerCount = registerCount
-          instructions = List.ofArray instrData.instructions
-          resultIn = 0 }
-      RT.VMState.create (None, instrs)
-    | ValueSome spare -> RT.VMState.reuseFor (spare, None, instrData, registerCount)
 
-  loadApplyRegisters vm applicable args
+/// A VM to apply `argCount` arguments in, borrowed from the thread's slot where one is going spare.
+///
+/// See `VMState.reuseFor`: a lambda applied per element of a list would otherwise build one VM per
+/// element.
+let private vmForApply (argCount : int) : RT.VMState =
+  let struct (instrData, registerCount) = applyInstrsFor argCount
 
-  // Only a VM that ran to completion is safe to hand back; one that raised may still hold frames,
-  // and `reuseFor` assumes they have all popped.
-  let succeeded (result : RT.Dval) : RT.ExecutionResult =
-    VMSlot.Return vm
-    Ok result
+  match VMSlot.Take() with
+  | ValueNone ->
+    let instrs : RT.Instructions =
+      { registerCount = registerCount
+        instructions = List.ofArray instrData.instructions
+        resultIn = 0 }
+    RT.VMState.create (None, instrs)
+  | ValueSome spare -> RT.VMState.reuseFor (spare, None, instrData, registerCount)
 
-  let runtimeError (rte : RTE.Error) : RT.ExecutionResult =
-    Error(rte, callStackFromVM vm)
 
-  let uncaught (ex : exn) : Ply<RT.ExecutionResult> =
-    uply {
-      let metadata : Metadata =
-        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-      do! exeState.reportException exeState vm metadata ex
-      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-      return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
-    }
-
+/// Apply the callable already loaded into `vm`'s registers.
+let private runLoaded
+  (exeState : RT.ExecutionState)
+  (vm : RT.VMState)
+  : Ply<RT.ExecutionResult> =
   // `Ply`, and asked synchronously first. A lambda that does not await -- which is nearly all of
   // them: an arithmetic body, a field read, a comparison -- then costs no builder at all, where
   // before it paid for a `task` state machine and the `Task` it returned. Same shape as the
   // `Ply.trySync` fast paths in the type checker.
+  //
+  // The success, error and exception paths used to be three local functions declared here. Each
+  // captures `vm`, so all three were allocated on every application, including the overwhelmingly
+  // common one that takes the synchronous success path and calls none of them. They are spelled out
+  // where they are used instead: `succeeded` is three lines, and the other two are cold.
   try
     let running = Interpreter.execute exeState vm
 
     match Ply.trySync running with
     | ValueSome result ->
+      // Only a VM that ran to completion is safe to hand back; one that raised may still hold
+      // frames, and `reuseFor` assumes they have all popped.
+      VMSlot.Return vm
       exeState.test.postTestExecutionHook exeState.test
-      Ply(succeeded result)
+      Ply(Ok result)
     | ValueNone ->
       uply {
         try
           try
             let! result = running
-            return succeeded result
+            VMSlot.Return vm
+            return Ok result
           with
-          | RT.RuntimeErrorException(_threadID, rte) -> return runtimeError rte
-          | ex -> return! uncaught ex
+          | RT.RuntimeErrorException(_threadID, rte) ->
+            return Error(rte, callStackFromVM vm)
+          | ex -> return! uncaught exeState vm ex
         finally
           exeState.test.postTestExecutionHook exeState.test
       }
   with
   | RT.RuntimeErrorException(_threadID, rte) ->
     exeState.test.postTestExecutionHook exeState.test
-    Ply(runtimeError rte)
+    Ply(Error(rte, callStackFromVM vm))
   | ex ->
     uply {
       try
-        return! uncaught ex
+        return! uncaught exeState vm ex
       finally
         exeState.test.postTestExecutionHook exeState.test
     }
+
+
+/// Use this when calling a Darklang callback from within a builtin.
+let executeApplicable
+  (exeState : RT.ExecutionState)
+  (applicable : RT.Applicable)
+  (args : NEList<RT.Dval>)
+  : Ply<RT.ExecutionResult> =
+  let vm = vmForApply (NEList.length args)
+  loadApplyRegisters vm applicable args
+  runLoaded exeState vm
+
+
+/// Two arguments, without the `NEList` holding them.
+///
+/// `executeApplicable` is the general form and the one to reach for. This exists because a builtin
+/// folding a list applies a two-argument lambda once per element, and building an `NEList` for each
+/// costs a cons and a record per element -- together the largest allocation on that path after the
+/// interpreter's own.
+let executeApplicable2
+  (exeState : RT.ExecutionState)
+  (applicable : RT.Applicable)
+  (arg1 : RT.Dval)
+  (arg2 : RT.Dval)
+  : Ply<RT.ExecutionResult> =
+  let vm = vmForApply 2
+  let registers = vm.callFrames[vm.currentFrameID].registers
+  registers[1] <- RT.DApplicable applicable
+  registers[2] <- arg1
+  registers[3] <- arg2
+  runLoaded exeState vm
 
 
 let executeFunction

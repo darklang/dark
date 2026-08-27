@@ -2572,7 +2572,9 @@ type VMState =
 
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
-    mutable rootInstrData : Option<tlid> * InstrData
+    // A struct tuple: reference-tupled, this was allocated on every lambda application, which
+    // is where `reuseFor` sets it.
+    mutable rootInstrData : struct (Option<tlid> * InstrData)
 
     /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
     mutable pooledRootFrame : CallFrame voption
@@ -2653,7 +2655,7 @@ type VMState =
         let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
         d
-      rootInstrData = (tlid, rootInstrData)
+      rootInstrData = struct (tlid, rootInstrData)
       pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
       lambdaEpCache = Dictionary()
@@ -2725,7 +2727,7 @@ type VMState =
     vm.callFrames.Clear()
     vm.callFrames[rootCallFrameID] <- rootCallFrame
     vm.currentFrameID <- rootCallFrameID
-    vm.rootInstrData <- (tlid, instrData)
+    vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
     vm.finalResult <- ValueNone
