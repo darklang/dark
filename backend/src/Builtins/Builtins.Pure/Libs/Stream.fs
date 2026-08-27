@@ -141,7 +141,7 @@ let fns () : List<BuiltInFn> =
                     Exception.raiseInternal
                       "streamUnfold step must return Option<(a, s)>"
                       [ "got", other ]
-                | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               }
             return Stream.newFromIO elemType next None
           }
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
                 let! result = Exe.executeApplicable state app (NEList.singleton dv)
                 match result with
                 | Ok v -> return v
-                | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               }
             return Stream.wrapImpl (Mapped(src, apply, elemType))
           }
@@ -337,7 +337,7 @@ let fns () : List<BuiltInFn> =
                   Exception.raiseInternal
                     "stream filter predicate returned non-Bool"
                     [ "got", other ]
-              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
             }
           Stream.wrapImpl (Filtered(src, pred)) |> Ply
         | _ -> incorrectArgs ())

@@ -473,6 +473,37 @@ runs of unchanged code. That workload is self-recursion and Int arithmetic with 
 allocates near nothing in total and the per-iteration figure is a small difference of large numbers.
 Its time, flat at ~1120 ms, is its signal.
 
+**A full instrument sweep, because most of round 6 was measured on four of them.** Everything below
+was unreported until this pass.
+
+    keystroke, end to end        141 -> 103 ms median (n=12, 96-126)
+    workbench.dark, per view      61 -> 45 ms mean over ten views
+    suite: dicts                 130 -> 55 ms
+    suite: strings                63 -> 24 ms
+    suite: lists                 276 -> 57 ms
+    suite: records                25 -> 21 ms
+    HTTP, alloc per request    76.31 -> 62.90 KB, -17.6%, throughput unchanged at ~5,000 req/s
+    crosslang, allocation      11.84 -> 9.90 KB/iter, 7.0x -> 5.8x node
+    crosslang, time             ~43x -> ~9x node (node 6.35 ms, python 8.58, Dark 57)
+
+The HTTP number is the one nobody would have looked for: an interpreter round aimed at CLI latency
+took 17.6% off what a request allocates, without touching the server. Throughput did not move, which
+the roadmap already predicted -- allocation is not what limits it here.
+
+**`scripts/perf/bench` had never been run in this clone** -- no fixture, so every scenario exited
+without measuring. There is one now, and a baseline in `rundir/perf/timeseries.jsonl`. It cannot say
+anything about this round, only about the next one.
+
+**`checks` caught a real regression that the 10,342 tests did not.** Making the list operations native
+dropped the lambda's frames from the call stack of any error raised inside one. Fixed; see the commit.
+Worth knowing that this is what `checks` is for, and that it is by-hand, so a round that never runs it
+can ship this.
+
+**The gate drifts within a session.** It read 7.2, then 7.3, then 7.4 MB across this pass with the
+budget moving under it. The store grows with every package reload and this round did many; the
+roadmap already says a debug gate comparison taken across a work session is not a comparison. Read it
+against a freshly restored store, or read `suite`.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

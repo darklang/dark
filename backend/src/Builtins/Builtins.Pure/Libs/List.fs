@@ -353,7 +353,7 @@ let fns () : List<BuiltInFn> =
               | ValueSome(Ok next) ->
                 acc <- next
                 rest <- tail
-              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
               // Hand the unfinished call and what is left of the list to the awaiting path.
               | ValueNone -> pending <- ValueSome(struct (call, tail))
             | [] -> ()
@@ -364,7 +364,7 @@ let fns () : List<BuiltInFn> =
             uply {
               let! first = call
               match first with
-              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               | Ok next ->
                 let mutable acc = next
                 let mutable rest = tail
@@ -375,7 +375,7 @@ let fns () : List<BuiltInFn> =
                     | Ok stepped ->
                       acc <- stepped
                       rest <- elemTail
-                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
                   | [] -> ()
                 return acc
             }
@@ -411,7 +411,7 @@ let fns () : List<BuiltInFn> =
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
                 rest <- tail
-              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
               | ValueNone -> pending <- ValueSome(struct (call, tail))
             | [] -> ()
 
@@ -421,7 +421,7 @@ let fns () : List<BuiltInFn> =
             uply {
               let! first = call
               match first with
-              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               | Ok mapped ->
                 let mutable acc = mapped :: acc
                 let mutable rest = tail
@@ -432,7 +432,7 @@ let fns () : List<BuiltInFn> =
                     | Ok stepped ->
                       acc <- stepped :: acc
                       rest <- elemTail
-                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
                   | [] -> ()
                 return mappedList vm (List.rev acc)
             }
@@ -470,7 +470,7 @@ let fns () : List<BuiltInFn> =
                 if keep then acc <- elem :: acc
                 rest <- tail
               | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
-              | ValueSome(Error(rte, _cs)) -> raiseRTE vm.threadID rte
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
               | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
             | [] -> ()
 
@@ -481,7 +481,7 @@ let fns () : List<BuiltInFn> =
               let! first = call
               let mutable acc = acc
               match first with
-              | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               | Ok(DBool keep) ->
                 if keep then acc <- elem :: acc
                 let mutable rest = tail
@@ -494,7 +494,7 @@ let fns () : List<BuiltInFn> =
                       rest <- elemTail
                     | Ok other ->
                       return raiseRTE vm.threadID (predicateNotBool other)
-                    | Error(rte, _cs) -> return raiseRTE vm.threadID rte
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
                   | [] -> ()
                 return DList(vt, List.rev acc)
               | Ok other -> return raiseRTE vm.threadID (predicateNotBool other)

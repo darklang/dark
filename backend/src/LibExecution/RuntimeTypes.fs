@@ -2603,6 +2603,14 @@ type VMState =
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
+    /// Frames from a lambda this VM's builtins applied in a borrowed VM, for the error path only.
+    ///
+    /// `executeApplicable` runs the lambda in its own VM, so those frames are not reachable from
+    /// this one's parent chain, and an error inside `List.map`'s lambda would otherwise report a
+    /// call stack that stops at the caller. Set immediately before raising and read by
+    /// `callStackFromVM`; empty every other moment.
+    mutable nestedCallStack : CallStack
+
     mutable finalResult : Dval voption
 
     /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
@@ -2662,6 +2670,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
       pendingCallArgs = Dictionary()
@@ -2730,6 +2739,7 @@ type VMState =
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
+    vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()
     vm.pendingCallArgs.Clear()

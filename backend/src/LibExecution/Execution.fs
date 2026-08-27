@@ -80,7 +80,9 @@ let rec callStackForFrame
 
 
 let callStackFromVM (vm : RT.VMState) : RT.CallStack =
-  callStackForFrame vm vm.currentFrameID []
+  // The nested frames go last: the stack reads outermost first, and a lambda a builtin applied ran
+  // below the builtin that applied it.
+  callStackForFrame vm vm.currentFrameID [] @ vm.nestedCallStack
 
 
 let execute
@@ -293,6 +295,21 @@ let executeApplicable
   let vm = vmForApply (NEList.length args)
   loadApplyRegisters vm applicable args
   runLoaded exeState vm
+
+
+/// Re-raise an error a lambda raised, keeping the frames it raised it in.
+///
+/// A builtin applying a lambda gets back `Error(rte, stack)` where `stack` covers the borrowed VM the
+/// lambda ran in. Raising the error on its own -- which every caller here used to do -- threw those
+/// frames away, so `List.map [1;2] (fun x -> Stdlib.Int.divide x 0)` reported a call stack that
+/// stopped at the caller and never mentioned the lambda. Written in Dark it named both.
+let raiseFromApplied
+  (callerVm : RT.VMState)
+  (rte : RTE.Error)
+  (nested : RT.CallStack)
+  : 'a =
+  callerVm.nestedCallStack <- nested
+  RT.raiseRTE callerVm.threadID rte
 
 
 /// One argument, without the `NEList` holding it. See `executeApplicable2`.
