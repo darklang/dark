@@ -668,6 +668,76 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listMap2shortest" 0
+      typeParams = []
+      parameters =
+        [ Param.make "as" (TList varA) ""
+          Param.make "bs" (TList varB) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton varA varB, TVariable "c"))
+            ""
+            [ "a"; "b" ] ]
+      returnType = TList(TVariable "c")
+      description =
+        "Maps <param fn> over <param as> and <param bs> in parallel, stopping when either runs "
+        + "out"
+      fn =
+        (function
+        | state, vm, [], [| DList(_, listA); DList(_, listB); DApplicable app |] ->
+          // The Dark version recursed with `pushBack`, which copies the accumulator every element,
+          // so it was quadratic on top of the package call and the two-argument lambda application.
+          // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
+          let mutable acc = []
+          let mutable restA = listA
+          let mutable restB = listB
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending
+                && not (List.isEmpty restA)
+                && not (List.isEmpty restB) do
+            match restA, restB with
+            | a :: tailA, b :: tailB ->
+              let call = Exe.executeApplicable2 state app a b
+              match Ply.trySync call with
+              | ValueSome(Ok mapped) ->
+                acc <- mapped :: acc
+                restA <- tailA
+                restB <- tailB
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
+              | ValueNone -> pending <- ValueSome(struct (call, tailA, tailB))
+            | _ -> ()
+
+          match pending with
+          | ValueNone -> Ply(mappedList vm (List.rev acc))
+          | ValueSome(struct (call, tailA, tailB)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+              | Ok mapped ->
+                let mutable acc = mapped :: acc
+                let mutable restA = tailA
+                let mutable restB = tailB
+                while not (List.isEmpty restA) && not (List.isEmpty restB) do
+                  match restA, restB with
+                  | a :: tA, b :: tB ->
+                    match! Exe.executeApplicable2 state app a b with
+                    | Ok stepped ->
+                      acc <- stepped :: acc
+                      restA <- tA
+                      restB <- tB
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+                  | _ -> ()
+                return mappedList vm (List.rev acc)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "listMap" 0
       typeParams = []
       parameters =

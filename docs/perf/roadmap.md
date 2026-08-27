@@ -2594,6 +2594,31 @@ still a design question (it wants a handler to carry its parsed segments, which 
 type, or a builtin that constructs a package enum by hash). Everything else on that path is now
 either native or elided.
 
+### `map2shortest` was quadratic, and the view could not tell
+
+`List.map2shortestHelper` accumulated with `pushBack`, which copies, so it was quadratic in the list
+length on top of a package call and a two-argument lambda application per element. Native now,
+mirroring `listIndexedMap`; `map2shortest` is a forwarder and `map2` keeps its length check in Dark.
+The helper is gone, and nothing else referenced it.
+
+**Two measurements, because one of them is nearly nothing.**
+
+    view build, A/B five runs each   min 5,765 -> 5,717 ms, median 5,824 -> 5,732
+                                     ~0.12-0.23 ms a view, about 1%
+
+    map2shortest over 300 elements   898 923 917 ms  ->  169 170 172 ms   (5.3x)
+
+The view stacks 3-9 components, so the quadratic never bites there and the win is at the edge of what
+`viewloop` resolves -- the arms overlap, though both the minimum and the median favour native
+consistently. `map2scale.dark` is the workload that can see it, and 5.3x is what the accumulator was
+costing at a size the CLI does not reach.
+
+Worth stating as a pattern: **a quadratic accumulator in a stdlib function is invisible in the
+workload that made you look at it and enormous in the one that eventually hits it.** The same shape
+was in `indexedMap` (fixed earlier) and was *not* in `Canvas.compose`'s per-span `List.append`, where
+rows hold about six spans and consing measured slightly worse. Which of the three it is, is a
+question about the caller, not the function.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
