@@ -1871,6 +1871,46 @@ sites including binary serialisation), or **issue fewer calls**, which is the CL
 5's territory. The redraw item below is the latter at its largest: 95% of a frame is identical to the
 one before it, and not rebuilding it is worth more than everything left in the interpreter combined.
 
+### Target 2 closed with a purpose-built instrument: the two lambda paths are 9% apart
+
+The brief expected `Execution.executeApplicable` to cap target 1 at 2x, because it built an
+instruction sequence and booted a fresh `VMState` per call -- two GUIDs, ~13 dictionaries, seven
+arrays and an `InterpreterStats.create()`. VM pooling and the per-arity entry points landed earlier
+in this round; what was missing was a measurement saying whether that finished the job.
+
+Existing rows could not answer it. `optime`'s "apply a lambda" both *creates* a lambda and applies
+it, and `lambdacall`'s rows carry a recursion or a list build. So
+`scripts/perf/workloads/lambdapath.dark` differences two list sizes to cancel the fixed cost, and for
+the interpreter path differences again against the same recursion with no application in it, leaving
+the application alone. Three runs:
+
+    fold, builtin-applied 2-arg lambda + body    2015  1965  2000 ns
+    any,  builtin-applied 1-arg lambda + body    1980  1975  2000 ns
+    Dark recursion + applied lambda              5050  4922  5005 ns
+    Dark recursion alone                         3162  3152  3227 ns
+
+    interpreter-applied lambda (row 3 - row 4)   ~1.81 us
+    builtin-applied lambda (like for like)       ~1.98 us
+
+**A 9% gap, not 2x.** And the two-argument fold costs the same as the one-argument `any`, so the
+per-arity entry points are doing what they were for -- arity no longer shows up at all. What is left
+is ~0.17 us across ~2,435 applications a view, about 0.41 ms of 20, or 2%. Not worth chasing.
+
+Two other things this instrument pins down, both worth keeping:
+
+- **A Dark self-recursive package call is ~3.2 us per element** (the recursion row, with no lambda in
+  it), against ~2.7 us for a plain one-argument package call. That is the number that makes target 1
+  pay, and the number that killed the `compose` rewrite above.
+- Applying a lambda from a builtin is *cheaper* than a Dark recursion step by a wide margin -- 2.0 us
+  against 3.2 -- which is the whole reason `fold`/`map`/`filter`/`take`/`indexedMap`/`sortBy` going
+  native was worth doing.
+
+**With this, all three of round 6's targets are closed.** Target 1 landed (and then some: `take`,
+`indexedMap` and `sortBy` followed `fold`/`map`/`filter`/`range`). Target 2 is measured at a 9% gap.
+Target 3 was retired earlier with measurement -- a record field read is 25 ns, and the 4.6 us in the
+original brief was a harness artifact, which is why `optime`'s header now warns against reading any
+single row as an absolute.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

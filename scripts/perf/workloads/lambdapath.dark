@@ -1,0 +1,89 @@
+// What a lambda application costs, by who applies it.
+//
+// Two paths reach the same lambda body:
+//
+//   - the interpreter's own `Apply` opcode, which pushes a frame on the VM it is already running
+//   - `Execution.executeApplicable*`, which a builtin calls per element -- every `fold`, `map`,
+//     `filter`, `any`, `indexedMap` and `sortBy` pays this once per element
+//
+// Target 2 of round 6 is the gap between them. This measures it directly rather than inferring it
+// from rows that also carry a recursion or a `CreateLambda`.
+//
+// Method: take the marginal cost per element by differencing two sizes, so the fixed cost of the
+// call itself cancels. For the interpreter path, difference again against the same recursion with
+// no application in it, so what is left is the application alone.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/lambdapath.dark
+
+val iterations = 2000
+
+let now () : Int =
+  Darklang.Cli.Telemetry.now ()
+
+/// Warm the process before the first row, so the table does not measure its own warm-up.
+/// See the same trick in optime.dark, which needed 40,000 iterations before it stopped drifting.
+let saturate (n: Int) (acc: Int) : Int =
+  if n <= 0 then acc else saturate (n - 1) (acc + n)
+
+/// Recurse over a list applying `f` to each element.
+let walkApply (xs: List<Int>) (f: Int -> Int) (acc: Int) : Int =
+  match xs with
+  | [] -> acc
+  | head :: rest -> walkApply rest f (acc + (f head))
+
+/// The same recursion with no application in it, to price the recursion itself.
+let walkOnly (xs: List<Int>) (acc: Int) : Int =
+  match xs with
+  | [] -> acc
+  | head :: rest -> walkOnly rest (acc + head)
+
+let timeOf (body: Int -> Int) : Int =
+  let t0 = now ()
+  let _r =
+    Stdlib.List.fold (Stdlib.List.range 1 iterations) 0 (fun acc i ->
+      acc + (body i))
+  (now ()) - t0
+
+/// Fastest of three passes: a pass can be slowed by the machine, never sped up by it.
+let best (body: Int -> Int) : Int =
+  let _warm = timeOf body
+  let a = timeOf body
+  let b = timeOf body
+  let c = timeOf body
+  Stdlib.Int.min a (Stdlib.Int.min b c)
+
+/// ns per element, from the difference between two sizes.
+let perElement (label: String) (small: Int) (large: Int) (n: Int) : Unit =
+  let ns = Stdlib.Int.divide ((large - small) * 1000000) (iterations * n)
+  Stdlib.printLine (label ++ "  " ++ (Stdlib.Int.toString ns) ++ " ns")
+
+// `let`, not `val`: a `val` whose body is not a literal silently evaluates to unit.
+// See the CLEANUP in ProgramTypesToRuntimeTypes.fs, `PackageValue.evalConstantExpr`.
+let small = Stdlib.List.range 1 50
+let large = Stdlib.List.range 1 250
+
+let _warm = saturate 40000 0
+
+// Builtin-applied: `fold` calls `executeApplicable2` once per element.
+let foldSmall = best (fun i -> Stdlib.List.fold small 0 (fun acc x -> acc + x))
+let foldLarge = best (fun i -> Stdlib.List.fold large 0 (fun acc x -> acc + x))
+
+// The same, with a ONE-argument lambda, so it compares like with like against the recursion below.
+// `any` with a predicate that never fires scans the whole list and builds nothing.
+let anySmall = best (fun i -> if Stdlib.List.any small (fun x -> x > 99999) then 1 else 0)
+let anyLarge = best (fun i -> if Stdlib.List.any large (fun x -> x > 99999) then 1 else 0)
+
+// Interpreter-applied: `walkApply` reaches the lambda through the `Apply` opcode.
+let applySmall = best (fun i -> walkApply small (fun x -> x + 1) 0)
+let applyLarge = best (fun i -> walkApply large (fun x -> x + 1) 0)
+
+// The recursion on its own, to subtract from the two rows above.
+let onlySmall = best (fun i -> walkOnly small 0)
+let onlyLarge = best (fun i -> walkOnly large 0)
+
+let _ = perElement "fold, builtin-applied lambda + body   " foldSmall foldLarge 200
+let _1b = perElement "any, builtin-applied 1-arg + body     " anySmall anyLarge 200
+let _2 = perElement "Dark recursion + applied lambda       " applySmall applyLarge 200
+let _3 = perElement "Dark recursion alone                  " onlySmall onlyLarge 200
+
+Stdlib.printLine "(interpreter-applied lambda = row 2 minus row 3)"
