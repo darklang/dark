@@ -1,0 +1,66 @@
+// A workbench view after each key of a navigation sequence, for diffing a change against.
+//
+// `goldenview.dark` renders the initial state only, so it says nothing about the key handlers. This
+// walks a sequence -- into the sidebar, down it, into a pane, back out, and through the overlays --
+// rendering after every key, which is where a change to *when* a handler computes something shows
+// up. Ten frames rather than one.
+//
+// `scripts/perf/checks` diffs this against `goldenkeys.expected` beside it. When the keymap or the
+// views change, regenerate that file deliberately -- never to make the check pass:
+//
+//   ./scripts/run-cli run scripts/perf/workloads/checks/goldenkeys.dark \
+//     > scripts/perf/workloads/checks/goldenkeys.expected
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+
+// Rendered as one line per row, prefixed by the step, so a diff names the key that broke it.
+let render (label: String) (s: Darklang.Cli.Workbench.State) : Unit =
+  let v = Darklang.Cli.Workbench.viewAtSize s size
+
+  v.rows
+  |> Stdlib.List.indexedMap (fun i row ->
+    Stdlib.printLine (label ++ " " ++ (Stdlib.Int.toString i) ++ "|" ++ row))
+  |> Stdlib.List.length
+  |> Stdlib.Int.toString
+  |> (fun _ -> ())
+
+// Applies one key and renders the result, carrying the state forward. `Exit` and `Launch` end the
+// walk on the state they carry, so the sequence stays honest about where it actually got to.
+let press
+  (s: Darklang.Cli.Workbench.State)
+  (label: String)
+  (k: Stdlib.Cli.Stdin.Key.Key)
+  : Darklang.Cli.Workbench.State =
+  let next =
+    match Darklang.Cli.Workbench.handleKey s k mods Stdlib.Option.Option.None with
+    | Continue s2 -> s2
+    | Exit s2 -> s2
+    | Launch(s2, _cmd) -> s2
+    | ToPrompt s2 -> s2
+
+  let _ = render label next
+  next
+
+let _ = render "start" base
+
+let s1 = press base "tab" Stdlib.Cli.Stdin.Key.Key.Tab
+let s2 = press s1 "down1" Stdlib.Cli.Stdin.Key.Key.DownArrow
+let s3 = press s2 "down2" Stdlib.Cli.Stdin.Key.Key.DownArrow
+let s4 = press s3 "right" Stdlib.Cli.Stdin.Key.Key.RightArrow
+let s5 = press s4 "up" Stdlib.Cli.Stdin.Key.Key.UpArrow
+let s6 = press s5 "left" Stdlib.Cli.Stdin.Key.Key.LeftArrow
+let s7 = press s6 "enter" Stdlib.Cli.Stdin.Key.Key.Enter
+let s8 = press s7 "esc" Stdlib.Cli.Stdin.Key.Key.Escape
+let s9 = press s8 "tab2" Stdlib.Cli.Stdin.Key.Key.Tab
+let _s10 = press s9 "end" Stdlib.Cli.Stdin.Key.Key.End
+
+Stdlib.printLine "-- golden keys done --"
