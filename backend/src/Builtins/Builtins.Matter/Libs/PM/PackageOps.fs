@@ -53,9 +53,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
       returnType = TList TString
       description =
-        "The names that more than one declaration in this batch would bind, as
-        \"fn Owner.Module.name\" strings. Stabilizing such a batch would store one
-        body under the other's hash, so authoring surfaces refuse it."
+        "The names that more than one declaration in this batch would bind, as "
+        + "\"fn Owner.Module.name\" strings. Stabilizing such a batch would store one "
+        + "body under the other's hash, so authoring surfaces refuse it."
       fn =
         (function
         | _, _, _, [| DList(_vt, ops) |] ->
