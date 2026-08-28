@@ -25,17 +25,6 @@ open LibExecution.AtRest.Patterns
 open LibExecution.AtRest.Inference
 
 
-/// Bump when a change to the checker could change an item's verdict.
-///
-/// A `Checked` proof is only usable while it was produced by the same checker that is
-/// asking. `docs/at-rest-type-checker.md` commits to storing verdicts keyed by item
-/// hash and checker version, and to runtime check elision requiring a `Checked` proof
-/// for the whole dependency closure under one version; neither can be built without
-/// something to key on. Nothing persists verdicts yet, so today this is only a promise
-/// kept where it can be seen.
-let checkerVersion : int = 1
-
-
 // --------------------
 // Public checking API
 // --------------------
