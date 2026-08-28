@@ -5,7 +5,7 @@
 unreadable by hand. This reads that JSON on stdin and prints a ranked table,
 looking the names up in the package store.
 
-    ./scripts/run-cli run scripts/perf/workloads/viewprofile.dark | ./scripts/perf/fnprofile
+    ./scripts/run-cli run scripts/perf/workloads/view.dark | ./scripts/perf/fnprofile
 
 Time is INCLUSIVE of callees, so an outer fn sits at the top by construction.
 The column to read for a leaf is us/call; the one to read for a caller is the

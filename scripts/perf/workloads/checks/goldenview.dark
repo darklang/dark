@@ -1,12 +1,13 @@
 // Every row of a workbench view at three sizes, for diffing a render change against.
 //
 // Not a benchmark. `compose`, `composeRow`, `overlay` and `renderSegments` decide what a frame
-// actually looks like, and a performance change to any of them has to produce the same bytes. Run
-// it before and after and compare:
+// actually looks like, and a performance change to any of them has to produce the same bytes.
 //
-//   ./scripts/run-cli run scripts/perf/workloads/goldenview.dark > /tmp/before.txt
-//   ...change...
-//   ./scripts/run-cli run scripts/perf/workloads/goldenview.dark | diff /tmp/before.txt -
+// `scripts/perf/checks` diffs this against `goldenview.expected` beside it. When the view itself
+// changes, regenerate that file deliberately -- never to make the check pass:
+//
+//   ./scripts/run-cli run scripts/perf/workloads/checks/goldenview.dark \
+//     > scripts/perf/workloads/checks/goldenview.expected
 //
 // Three sizes because the interesting bugs are in clipping and in rows that run out of room.
 

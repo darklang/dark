@@ -228,6 +228,21 @@ perf job in the main pipeline gets ignored and then disabled.
 Same for documents: one roadmap, one history, one playbook, updated in place. The alternative is
 dozens of working notes and no way to tell which is current.
 
+Same for workloads. Anything under `scripts/perf/workloads/` that builds a CLI view is written
+against the views as they are today, so it falls behind the moment they change, and a file nothing
+runs falls behind silently. Two rules keep that in check:
+
+- **One workload per subject, not one per question.** `view.dark` reports time, allocation and the
+  per-fn profile from a single setup, because three files sharing a copy of that setup is three
+  things to fix when `viewAtSize` changes. Same for `route.dark`.
+- **Anything that asserts goes in `workloads/checks/`, wired into `scripts/perf/checks`.** An
+  assertion nobody runs is worse than no assertion: it reads like coverage and isn't. Everything at
+  the top level is a hand instrument, and is expected to be re-pointed at whatever the code looks
+  like when someone next needs it.
+
+A probe written for one investigation is not an asset. Read what it told you into `history.md` or
+the roadmap, and delete it; the next person's probe should be written against the code they have.
+
 ## An A/B is only an A/B if both arms run in the same session
 
 The store drifts, the box gets busy, and a baseline taken an hour ago is not a baseline. A change once
@@ -240,12 +255,12 @@ though its allocation column repeats to 0.1 KB.
 
 ## Instruments lie in specific ways
 
-- `viewprofile` enables stats, and the builtin path then reads the allocation counter twice per call.
-  Per-call figures from it are upper bounds; take absolute numbers from `optime`, which runs with
-  stats off.
+- `view.dark`'s profile section enables stats, and the builtin path then reads the allocation
+  counter twice per call. Per-call figures from it are upper bounds; take absolute numbers from
+  `optime`, which runs with stats off.
 - `fnprofile` reports the minimum per call across however many runs you feed it. Feed it three.
   One run of it once misread a builtin by 20x.
 - `scripts/perf/suite`'s allocation is **not** byte-deterministic, unlike the gate's. A couple of
   percent there is noise.
-- Wall-clock loops (`viewloop`, `routeloop`) resolve about 1%; `keypress` reports whole milliseconds
-  and cannot see a sub-millisecond win at all.
+- The wall-clock sections of `view.dark` and `route.dark` resolve about 1%; `keypress` reports whole
+  milliseconds and cannot see a sub-millisecond win at all.

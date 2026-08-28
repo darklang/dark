@@ -142,3 +142,24 @@ printf '\n=== string grapheme-cluster fast path\n    expect: no diff\n'
 if "$EXE" run "$CHECKS/string-egc.dark" 2>&1 | grep '^DEBUG' | diff - "$CHECKS/string-egc.expected"; then
   echo "    ok, 18 cases byte-identical"
 fi
+
+# The operator fast path answers these without the builtin's record, its capability check or either
+# type check, so nothing in the ordinary builtin machinery verifies it. This one asserts for itself;
+# every entry in the `FastOps` table wants a line in it.
+printf '\n=== operator fast path matches the builtins it stands in for\n    expect: no FAIL lines\n'
+if "$EXE" run "$CHECKS/fastopcheck.dark" 2>&1 | grep '^FAIL'; then
+  echo "    FAILED -- a fast-path entry disagrees with its builtin"
+else
+  echo "    ok"
+fi
+
+run "SGR width, stripping, clipping and wrapping" \
+    "5, 3, 1, then abc, abc, and 2 wrapped lines" \
+    "$CHECKS/sgrcheck.dark"
+
+# A render change has to produce the same bytes. Regenerate deliberately when the view itself
+# changes, with the command in the header of goldenview.dark -- never to make this pass.
+printf '\n=== workbench view renders byte-identically\n    expect: no diff\n'
+if "$EXE" run "$CHECKS/goldenview.dark" 2>&1 | diff - "$CHECKS/goldenview.expected"; then
+  echo "    ok, three sizes byte-identical"
+fi

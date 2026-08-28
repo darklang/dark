@@ -1,0 +1,61 @@
+// What routing one HTTP request costs: time, and where it goes by package fn.
+//
+// One file rather than two, because the handler table and request below are the whole setup and two
+// copies of them drifted apart. Routing only: no socket, no parse, no serialize. The handlers are
+// deliberately trivial, so the number is the framing around them, which is the part
+// `scripts/perf/suite` never touches.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/route.dark
+//   for i in 1 2 3; do ./scripts/run-cli run scripts/perf/workloads/route.dark; done \
+//     | ./scripts/perf/fnprofile --divide 50
+//
+// `scripts/perf/http` measures a whole request including the socket, and is too noisy over a third
+// of a second to resolve a single change; this isolates routing and repeats to ~1%.
+
+val iterations = 3000
+
+let hello (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "hello" 200
+
+let handlers =
+  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/items/:id"; method = "GET"; handler = hello }
+    Stdlib.HttpServer.Handler { route = "/health"; method = "GET"; handler = hello } ]
+
+let req =
+  Stdlib.Http.Request
+    { url = "GET /items/42?q=1 HTTP/1.1"
+      headers = [ ("host", "localhost"); ("accept", "*/*") ]
+      body = Stdlib.Blob.empty }
+
+let routeN (i: Int) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let resp = Stdlib.HttpServer.routeRequest handlers req
+    routeN (i - 1) (acc + resp.statusCode)
+
+// Time, with nothing enabled: the interpreter's counters read the allocation counter twice per
+// builtin call, which inflates exactly the per-call figures this is for.
+let _warm = routeN 200 0
+let t0 = Darklang.Cli.Telemetry.now ()
+let total = routeN iterations 0
+let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
+
+let _ =
+  Stdlib.printLine
+    ((Stdlib.Int.toString iterations)
+     ++ " routes, "
+     ++ (Stdlib.Int.toString elapsed)
+     ++ " ms, "
+     ++ (Stdlib.Int.toString (Stdlib.Int.divide (elapsed * 1000) iterations))
+     ++ " us each (checksum "
+     ++ (Stdlib.Int.toString total)
+     ++ ")")
+
+// Per-fn profile, over fifty routes. Last, because enabling detailed timing perturbs what follows.
+let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+let _profile = routeN 50 0
+Stdlib.printLine (Darklang.LanguageTools.InterpreterStats.get ())

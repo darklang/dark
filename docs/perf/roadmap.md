@@ -106,11 +106,12 @@ call rather than a perf question.
 
 ### Redraw the whole frame on every keypress -- the largest item anywhere
 
-`redrawprobe.dark`: an arrow key changes **2 rows of 40**. The CLI rebuilds all forty to produce two,
-which is worth most of the 12 ms a view costs -- an order of magnitude more than anything left in the
+An arrow key changes **2 rows of 40**, measured. The CLI rebuilds all forty to produce two, which is
+worth most of the 12 ms a view costs -- an order of magnitude more than anything left in the
 interpreter. Presenting is already cheap, so a diff at the output end is not the answer; it wants the
-view built from regions that know when they are stale. `regionprobe.dark` measures what each region
-costs and which ones a keypress touches, which is the map such a change would need.
+view built from regions that know when they are stale. The map such a change needs is what each
+region costs and which ones a keypress touches; probe for that against the view as it stands then,
+rather than trusting one written against this round's.
 
 An architecture question for the CLI, not an optimisation.
 
