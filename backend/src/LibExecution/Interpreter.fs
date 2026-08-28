@@ -1014,16 +1014,6 @@ let private invokeBuiltin
     }
 
 
-/// Run a builtin call without entering the interpreter's computation expression.
-///
-/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
-/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
-/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
-/// per call.
-///
-/// Two things can still need the package store, and each has an escape hatch that keeps a single
-/// implementation rather than a fast copy and a slow copy that drift:
-///
 /// The three ways a builtin call ends, once the symbol table is settled: too many arguments, not enough
 /// (so it stays a partial application), or exactly right.
 ///
@@ -1059,26 +1049,11 @@ let private completeBuiltin
     invokeBuiltin exeState vm currentFrame fn tst ctx.typeArgs allArgs
 
 
-/// - Resolving explicit type args, which happens before anything else, is done by `callBuiltin` and
-///   handed in here already resolved.
-/// - Argument checking can need `Types.find` partway through, so it hands the *remainder* to a `uply`
-///   and returns a `Called` that isn't finished yet.
-/// The arithmetic and comparison operators, evaluated in the interpreter when both operands are
-/// `Int`.
+/// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
 ///
-/// 65% of the builtin calls in a workbench view are these -- 7,049 of 10,881, `add` alone 1,562 --
-/// and each was going through the whole call path: an `Apply`, the elided wrapper, the argument
-/// array, unification of two type variables, the result check, a `Ply`. About 1.3 us to add two
-/// integers.
-///
-/// Operators the interpreter answers itself, without the builtin's record or the call machinery
-/// around it. Two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
-/// numeric type and every mixed one, goes the ordinary way and gets the ordinary error. The results
-/// here are the same expressions the builtins compute for that case, and nothing else about them is
-/// reimplemented.
-///
-/// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
-/// more again. This is the part that needed no new instruction.
+/// Declines while tracing is on: a builtin call is recorded with its arguments and result when it
+/// returns, and a fast path that skipped that would quietly drop every arithmetic operation from the
+/// trace. Tracing is off in the CLI, which is what this is for.
 let private tryFastOp
   (exeState : ExecutionState)
   (threadID : ThreadID)
@@ -1097,7 +1072,8 @@ let private tryFastOp
       // Nested rather than `match a, b with`, which allocates the pair. That shape cost the
       // reference workload 4.4% when it was written the obvious way in `tryFastOpDirect`.
       match ArgSeq.uncons ctx.args with
-      | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest -> FastOps.eval1 tag only
+      | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest ->
+        FastOps.eval1 tag only
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
@@ -1208,6 +1184,20 @@ let private tryFastOpDirect
     | _ -> ValueNone
 
 
+/// Run a builtin call without entering the interpreter's computation expression.
+///
+/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
+/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
+/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
+/// per call.
+///
+/// Two things can still need the package store, and each has an escape hatch that keeps a single
+/// implementation rather than a fast copy and a slow copy that drift:
+///
+/// - Resolving explicit type args, which happens before anything else, is done by `callBuiltin` and
+///   handed in here already resolved.
+/// - Argument checking can need `Types.find` partway through, so it hands the *remainder* to a `uply`
+///   and returns a `Called` that isn't finished yet.
 let rec private callBuiltinResolved
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2049,7 +2039,9 @@ let private applyInstruction
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the reference workload 4% and a view build 10%.
-    match tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs with
+    match
+      tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs
+    with
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
@@ -2132,19 +2124,19 @@ let private applyInstruction
 
           | ValueNone ->
 
-          let ctx : ApplyContext =
-            { applicable = applicable
-              typeArgs = typeArgs
-              args = ArgSeq.ofNE registers newArgRegs
-              tst = tst
-              putResultIn = putResultIn
-              returnPc = currentFrame.programCounter + 1 }
+            let ctx : ApplyContext =
+              { applicable = applicable
+                typeArgs = typeArgs
+                args = ArgSeq.ofNE registers newArgRegs
+                tst = tst
+                putResultIn = putResultIn
+                returnPc = currentFrame.programCounter + 1 }
 
-          let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+            let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
 
-          match Ply.trySync call with
-          | ValueSome dv -> registers[putResultIn] <- dv
-          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+            match Ply.trySync call with
+            | ValueSome dv -> registers[putResultIn] <- dv
+            | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
 
         | _ ->
 

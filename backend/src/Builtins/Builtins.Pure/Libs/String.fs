@@ -349,8 +349,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stringDropFirst" 0
       typeParams = []
-      parameters =
-        [ Param.make "string" TString ""; Param.make "count" TInt "" ]
+      parameters = [ Param.make "string" TString ""; Param.make "count" TInt "" ]
       returnType = TString
       description =
         "Returns <param string> with the first <param count> characters removed. The whole string "

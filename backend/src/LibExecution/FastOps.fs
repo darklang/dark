@@ -1,5 +1,9 @@
 /// Operators the interpreter answers itself, without the builtin's record or the call machinery
-/// around it.
+/// around it. Two `Int`s, two `String`s, or two `List`s -- every other pair, including every other
+/// numeric type and every mixed one, goes the ordinary way and gets the ordinary error.
+///
+/// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
+/// more again. This is the part that needed no new instruction.
 ///
 /// Only pure `noCaps` builtins belong here: this path skips the capability check and both type
 /// checks, which is right for an operator whose operand types the caller has just matched, and wrong
@@ -73,9 +77,13 @@ let evalStr (tag : int) (a : string) (b : string) : Dval voption =
     // into one that is not, so this is not safe to drop.
     ValueSome(DString(String.normalize (a + b)))
   elif tag = equals then
-    ValueSome(Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal)))
+    ValueSome(
+      Dval.bool (System.String.Equals(a, b, System.StringComparison.Ordinal))
+    )
   elif tag = notEquals then
-    ValueSome(Dval.bool (not (System.String.Equals(a, b, System.StringComparison.Ordinal))))
+    ValueSome(
+      Dval.bool (not (System.String.Equals(a, b, System.StringComparison.Ordinal)))
+    )
   else
     ValueNone
 
@@ -146,11 +154,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
 ///
 /// Keeps `==`'s behaviour on mismatched element types, which is to raise rather than answer false,
 /// by declining to the slow path when a merge fails.
-let evalListMember
-  (tag : int)
-  (items : List<Dval>)
-  (value : Dval)
-  : Dval voption =
+let evalListMember (tag : int) (items : List<Dval>) (value : Dval) : Dval voption =
   if tag = listMember then
     let vtValue = Dval.toValueType value
 
@@ -219,22 +223,22 @@ let evalDictSet
     if tag = dictSetStrict && Map.containsKey k o then
       ValueNone
     else
-    // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
-    // path's *parameter* check catches a mismatched value first and reports it differently, and an
-    // error message that depends on whether tracing happens to be on is worse than anything this
-    // path is worth. Same reason `evalList` declines on a failed merge.
-    match VT.merge vt (Dval.toValueType v) with
-    | Ok _ ->
-      let struct (typ, map) =
-        TypeChecker.DvalCreator.dictAddEntry
-          threadID
-          vt
-          o
-          k
-          v
-          TypeChecker.ReplaceValue
-      ValueSome(DDict(typ, map))
-    | Error() -> ValueNone
+      // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
+      // path's *parameter* check catches a mismatched value first and reports it differently, and an
+      // error message that depends on whether tracing happens to be on is worse than anything this
+      // path is worth. Same reason `evalList` declines on a failed merge.
+      match VT.merge vt (Dval.toValueType v) with
+      | Ok _ ->
+        let struct (typ, map) =
+          TypeChecker.DvalCreator.dictAddEntry
+            threadID
+            vt
+            o
+            k
+            v
+            TypeChecker.ReplaceValue
+        ValueSome(DDict(typ, map))
+      | Error() -> ValueNone
   else
     ValueNone
 
@@ -270,10 +274,3 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
   d
-
-
-/// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
-///
-/// Declines while tracing is on: a builtin call is recorded with its arguments and result when it
-/// returns, and a fast path that skipped that would quietly drop every arithmetic operation from the
-/// trace. Tracing is off in the CLI, which is what this is for.

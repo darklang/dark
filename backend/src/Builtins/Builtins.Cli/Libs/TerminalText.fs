@@ -60,8 +60,7 @@ let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : i
         if not (System.Char.IsDigit c || c = ';' || c = ':') then
           validParams <- false
         j <- j + 1
-    if ended && text[j] = 'm' && validParams then
-      keep i (j - i + 1)
+    if ended && text[j] = 'm' && validParams then keep i (j - i + 1)
     if ended then j + 1 else len
   else
     i + 1
@@ -85,9 +84,7 @@ let styledWidth (text : string) : int =
     // above. `TextWidth.ofCluster` already fast-paths the *width* of an ASCII cluster; this skips
     // building the cluster at all, which `GetNextTextElement` does one allocation per character.
     elif
-      c >= ' '
-      && c <= '~'
-      && (i + 1 >= text.Length || text[i + 1] < '\u0080')
+      c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
     then
       total <- total + 1
       i <- i + 1
@@ -162,7 +159,8 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
   while i < text.Length do
     if text[i] = '\u001b' then
       let mutable kept = ""
-      let next = skipEscape text i (fun start len -> kept <- text.Substring(start, len))
+      let next =
+        skipEscape text i (fun start len -> kept <- text.Substring(start, len))
       // A full reset clears the accumulated styling; anything else retained appends to it.
       if kept = "\u001b[0m" then activeStyle <- ""
       elif kept <> "" then activeStyle <- activeStyle + kept
@@ -180,7 +178,10 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
       let plain =
         c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
       let cluster =
-        if plain then "" else System.Globalization.StringInfo.GetNextTextElement(text, i)
+        if plain then
+          ""
+        else
+          System.Globalization.StringInfo.GetNextTextElement(text, i)
       let charWidth = if plain then 1 else TextWidth.ofCluster cluster
       let shouldWrap =
         wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)

@@ -299,7 +299,10 @@ let varC = TVariable "c"
 /// It was `map (fun x -> (fn x, x)) |> sort |> map Tuple2.second`, so it sorted the *tuple*, and
 /// comparing a tuple compares its fields in order. The tie-break on the value is therefore not
 /// incidental -- dropping it would silently reorder elements with equal keys.
-let private sortedByKey (vt : ValueType) (keyed : List<struct (Dval * Dval)>) : Dval =
+let private sortedByKey
+  (vt : ValueType)
+  (keyed : List<struct (Dval * Dval)>)
+  : Dval =
   keyed
   |> List.sortWith (fun (struct (k1, v1)) (struct (k2, v2)) ->
     let c = DvalComparator.compareDvalInt k1 k2
@@ -337,7 +340,8 @@ let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
 /// wrong-return-type helpers here do.
 let private notAnOption (actual : Dval) =
   RuntimeError.UncaughtException(
-    "filterMap's function must return an Option", [ "actual", actual ]
+    "filterMap's function must return an Option",
+    [ "actual", actual ]
   )
 
 
@@ -415,8 +419,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listTake" 0
       typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description =
         "Returns the first <param count> values of <param list>, or all of them if there are fewer"
@@ -486,8 +489,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call =
-                Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
+              let call = Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
               match Ply.trySync call with
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
@@ -1002,8 +1004,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "listMember" 0
       typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
       returnType = TBool
       description = "Returns true if <param value> is in <param list>"
       fn =
