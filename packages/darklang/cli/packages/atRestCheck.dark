@@ -1,0 +1,377 @@
+/// At-rest checker reporting for package commands.
+module Darklang.Cli.Packages.AtRestCheck
+
+let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
+  Builtin.atRestCheckBranch branchId
+
+let customTypeName
+  (branchId: Uuid)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<String> =
+  LanguageTools.PackageManager.pickLocation
+    LanguageTools.PackageManager.PickContext.empty
+    (LanguageTools.PackageManager.Type.locations branchId hash)
+  |> Stdlib.Option.map
+       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
+
+let staticType
+  (branchId: Uuid)
+  (typ: LanguageTools.AtRestTypeChecker.StaticType)
+  : String =
+  LanguageTools.AtRestTypeChecker.staticTypeToStringWith
+    (customTypeName branchId)
+    typ
+
+let issueLine
+  (branchId: Uuid)
+  (issue: LanguageTools.AtRestTypeChecker.Issue)
+  : String =
+  let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
+  let message =
+    LanguageTools.AtRestTypeChecker.issueToStringWith
+      (customTypeName branchId)
+      issue
+  "  - [" ++ code ++ "] " ++ message
+
+let sameOrMirrored
+  (first: LanguageTools.AtRestTypeChecker.Issue)
+  (second: LanguageTools.AtRestTypeChecker.Issue)
+  : Bool =
+  let sameSite =
+    first.code == second.code
+    && first.nodeId == second.nodeId
+    && first.context == second.context
+  let same =
+    sameSite
+    && first.expected == second.expected
+    && first.actual == second.actual
+  let mirrored =
+    sameSite
+    && first.code == LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch
+    && first.expected == second.actual
+    && first.actual == second.expected
+  same || mirrored
+
+let deduplicate
+  (issues: List<LanguageTools.AtRestTypeChecker.Issue>)
+  : List<LanguageTools.AtRestTypeChecker.Issue> =
+  match issues with
+  | [] -> []
+  | issue :: rest ->
+    let remaining =
+      rest
+      |> Stdlib.List.filter (fun other ->
+        Stdlib.Bool.not(sameOrMirrored issue other))
+    Stdlib.List.push (deduplicate remaining) issue
+
+let issueLines
+  (branchId: Uuid)
+  (issues: List<LanguageTools.AtRestTypeChecker.Issue>)
+  : List<String> =
+  issues
+  |> deduplicate
+  |> Stdlib.List.map (issueLine branchId)
+  |> Stdlib.List.groupByWithKey (fun line -> line)
+  |> Stdlib.List.map (fun (line, occurrences) ->
+    let count = Stdlib.List.length occurrences
+    if count == 1 then line
+    else line ++ " (" ++ Stdlib.Int.toString count ++ " occurrences)")
+
+let summary
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  : Stdlib.Option.Option<String> =
+  match report.verdict with
+  | Checked -> Stdlib.Option.Option.None
+  | Failed -> Stdlib.Option.Option.Some "static type errors detected"
+  | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+
+/// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
+/// definite errors.
+let printSaveReport
+  (branchId: Uuid)
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  : Unit =
+  match report.verdict with
+  | Checked -> ()
+  | Failed ->
+    let details =
+      Stdlib.List.append
+        (issueLines branchId report.diagnostics)
+        (issueLines branchId report.blockers)
+    Stdlib.List.append
+      [ ""
+        (Stdlib.Cli.UI.Colors.error
+          ("At-rest type check failed "
+           ++ "(saved as WIP; `commit` will refuse it until fixed):")) ]
+      details
+    |> Stdlib.printLines
+  | Incomplete ->
+    let details =
+      Stdlib.List.append
+        (issueLines branchId report.diagnostics)
+        (issueLines branchId report.blockers)
+    Stdlib.List.append
+      [ ""
+        (Stdlib.Cli.UI.Colors.warning
+          "At-rest type check was incomplete (save continued):") ]
+      details
+    |> Stdlib.printLines
+
+
+/// Load the stored declaration for a package reference as an `Add` op.
+let addOpForReference
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
+  match reference with
+  | PackageType hash ->
+    LanguageTools.PackageManager.Type.get hash
+    |> Stdlib.Option.map (fun typ ->
+      LanguageTools.ProgramTypes.PackageOp.AddType typ)
+  | PackageValue hash ->
+    LanguageTools.PackageManager.Value.get hash
+    |> Stdlib.Option.map (fun value ->
+      LanguageTools.ProgramTypes.PackageOp.AddValue value)
+  | PackageFn hash ->
+    LanguageTools.PackageManager.Function.get hash
+    |> Stdlib.Option.map (fun fn ->
+      LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+
+
+type DependentCandidate =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    reference: LanguageTools.ProgramTypes.Reference
+    op: LanguageTools.ProgramTypes.PackageOp }
+
+
+let currentReferenceAt
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference> =
+  match itemKind with
+  | Type ->
+    LanguageTools.PackageManager.Type.find branchId location
+    |> Stdlib.Option.map (fun hash ->
+      LanguageTools.ProgramTypes.Reference.PackageType hash)
+  | Fn ->
+    LanguageTools.PackageManager.Function.find branchId location
+    |> Stdlib.Option.map (fun hash ->
+      LanguageTools.ProgramTypes.Reference.PackageFn hash)
+  | Value ->
+    LanguageTools.PackageManager.Value.find branchId location
+    |> Stdlib.Option.map (fun hash ->
+      LanguageTools.ProgramTypes.Reference.PackageValue hash)
+
+
+let dependentCandidate
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<DependentCandidate> =
+  match currentReferenceAt branchId location kind with
+  | None -> Stdlib.Option.Option.None
+  | Some reference ->
+    match addOpForReference reference with
+    | None -> Stdlib.Option.Option.None
+    | Some op ->
+      Stdlib.Option.Option.Some(
+        DependentCandidate
+          { location = location
+            reference = reference
+            op = op })
+
+
+let candidatesFor
+  (candidates: List<DependentCandidate>)
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : List<DependentCandidate> =
+  candidates
+  |> Stdlib.List.filter (fun candidate -> candidate.reference == reference)
+
+
+let candidateLabel (candidates: List<DependentCandidate>) : String =
+  candidates
+  |> Stdlib.List.map (fun candidate -> Typecheck.fullPath candidate.location)
+  |> Stdlib.List.unique
+  |> Stdlib.List.sort
+  |> Stdlib.String.join ", "
+
+
+/// Report all currently visible transitive dependents after propagation and WIP
+/// refresh. This is advisory; `commit` remains the enforcement gate.
+let printDependentsReport
+  (branchId: Uuid)
+  (targets:
+    List<
+      (LanguageTools.ProgramTypes.PackageLocation
+       * LanguageTools.ProgramTypes.ItemKind)>)
+  : Unit =
+  let targets = Stdlib.List.unique targets
+  let dependentLocations =
+    Cli.Deps.getTransitiveDependentsFor branchId targets
+    |> Stdlib.List.filter (fun dependent ->
+      Stdlib.Bool.not (Stdlib.List.member targets dependent))
+    |> Stdlib.List.unique
+  let candidates =
+    dependentLocations
+    |> Stdlib.List.filterMap (fun (location, kind) ->
+      dependentCandidate branchId location kind)
+  let unavailableCount =
+    Stdlib.List.length dependentLocations - Stdlib.List.length candidates
+  let checkOps =
+    candidates
+    |> Stdlib.List.uniqueBy (fun candidate -> candidate.reference)
+    |> Stdlib.List.map (fun candidate -> candidate.op)
+
+  let _ =
+    if Stdlib.List.isEmpty checkOps then
+      ()
+    else
+      let report = LanguageTools.AtRestTypeChecker.checkPackageOps checkOps
+
+      let failed =
+        report.items
+        |> Stdlib.List.filter (fun item ->
+          match item.verdict with
+          | Failed -> true
+          | _ -> false)
+      let failedDependents =
+        failed
+        |> Stdlib.List.map (fun item -> candidatesFor candidates item.item)
+        |> Stdlib.List.flatten
+
+      if Stdlib.Bool.not (Stdlib.List.isEmpty failedDependents) then
+        let count = Stdlib.List.length failedDependents
+        let noun = if count == 1 then "dependent" else "dependents"
+        let verb = if count == 1 then "has" else "have"
+        let update =
+          if Stdlib.List.length targets == 1 then
+            "this update"
+          else
+            "these updates"
+        Stdlib.printLine ""
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error
+            ($"  After {update}, {Stdlib.Int.toString count} {noun} {verb} "
+             ++ "definite type errors "
+             ++ "(still WIP; `commit` will refuse them until fixed):"))
+        // Capped by whole dependents, so nobody sees half of one's errors. Breaking a
+        // widely-used signature can fail hundreds, and this is a status report from an
+        // authoring action, not a listing someone greps -- `typecheck --failed` is the
+        // surface that prints them all, and the footer says so.
+        //
+        // Capped unconditionally rather than via `Listing.shouldCap`, which asks
+        // whether stdout is a terminal. Authoring reads the declaration from stdin, so
+        // `run-in-docker` allocates no TTY (it decides on stdin, not stdout) and
+        // `shouldCap` is always false here. Deciding by terminal would mean never
+        // capping on the one path that floods.
+        let failedGroups =
+          failed
+          |> Stdlib.List.filterMap (fun item ->
+            let affected = candidatesFor candidates item.item
+
+            if Stdlib.List.isEmpty affected then
+              Stdlib.Option.Option.None
+            else
+              let header =
+                Stdlib.Cli.UI.Colors.error $"    {candidateLabel affected}"
+
+              let issues =
+                Stdlib.List.append
+                  (issueLines branchId item.diagnostics)
+                  (issueLines branchId item.blockers)
+                |> Stdlib.List.map (fun line -> "    " ++ line)
+
+              Stdlib.Option.Option.Some(Stdlib.List.append [ header ] issues))
+
+        let (shownGroups, leftOut) =
+          Listing.cut
+            failedGroups
+            Listing.defaultLimit
+            true
+            (fun group -> Stdlib.List.length group)
+            (fun _ -> 1)
+
+        shownGroups |> Stdlib.List.flatten |> Stdlib.printLines
+
+        if leftOut > 0 then
+          Stdlib.printLine
+            (Listing.footerSeeAlso
+              leftOut
+              "dependents"
+              "see `typecheck --failed`")
+
+      // Incomplete results may predate the update; summarize them and leave
+      // details to `typecheck --incomplete`.
+      let incompleteItems =
+        report.items
+        |> Stdlib.List.filter (fun item ->
+          match item.verdict with
+          | Incomplete -> true
+          | _ -> false)
+      let incompleteDependents =
+        incompleteItems
+        |> Stdlib.List.map (fun item -> candidatesFor candidates item.item)
+        |> Stdlib.List.flatten
+      let incompleteCount = Stdlib.List.length incompleteDependents
+      if incompleteCount > 0 then
+        let noun = if incompleteCount == 1 then "dependent" else "dependents"
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.warning
+            ($"  {Stdlib.Int.toString incompleteCount} affected {noun} could "
+             ++ "not be fully proven (not blocking; see "
+             ++ "`typecheck --incomplete`)."))
+
+      let unavailable =
+        match report.verdict with
+        | Incomplete -> incompleteCount == 0
+        | _ -> false
+      if unavailable then
+        Stdlib.printLine ""
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.warning
+            "  The dependent type check could not complete (not blocking):")
+        Stdlib.List.append
+          (issueLines branchId report.diagnostics)
+          (issueLines branchId report.blockers)
+        |> Stdlib.List.map (fun line -> "  " ++ line)
+        |> Stdlib.printLines
+
+  if unavailableCount > 0 then
+    let noun = if unavailableCount == 1 then "dependent" else "dependents"
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.warning
+        ($"  {Stdlib.Int.toString unavailableCount} affected {noun} could not "
+         ++ "be loaded for type checking (not blocking)."))
+
+
+/// Explain a commit refusal caused by definite type errors.
+let printCommitRefusal
+  (branchId: Uuid)
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  : Unit =
+  let failed =
+    report.items
+    |> Stdlib.List.filter (fun item ->
+      match item.verdict with
+      | Failed -> true
+      | _ -> false)
+  let count = Stdlib.List.length failed
+  let noun = if count == 1 then "declaration has" else "declarations have"
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.error
+      $"Cannot commit: {Stdlib.Int.toString count} {noun} definite type errors:")
+  failed
+  |> Stdlib.List.iter (fun item ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"  {Typecheck.itemLabel branchId item.item}")
+    Stdlib.List.append
+      (issueLines branchId item.diagnostics)
+      (issueLines branchId item.blockers)
+    |> Stdlib.List.map (fun line -> "  " ++ line)
+    |> Stdlib.printLines)
+  Stdlib.printLine ""
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.hint
+      ("Fix them (or `undo` them), then commit again; "
+       ++ "`commit --allow-type-errors` commits anyway."))

@@ -53,6 +53,9 @@ let printUnresolved (items: List<SCM.UnresolvedCheck.UnresolvedItem>) : Unit =
     |> Stdlib.List.iter (fun name ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    - {name}")))
 
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.hint
+      "Fix them, then commit again; `commit --force` commits anyway.")
   Stdlib.printLine ""
 
 
@@ -69,6 +72,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   let autoConfirm =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
+
+  // Keep type-error and unresolved-reference overrides independent;
+  // `--yes` controls only the prompt.
+  let allowTypeErrors = Stdlib.List.member args "--allow-type-errors"
+  let force = Stdlib.List.member args "--force"
 
   let includeNames = parseInclude args
 
@@ -169,12 +177,20 @@ let execute (state: AppState) (args: List<String>) : AppState =
               |> Stdlib.List.map (fun e -> e.op)
             let unresolved = SCM.UnresolvedCheck.findUnresolvedInOps selectedOps
 
-            if (Stdlib.List.isEmpty unresolved) |> Stdlib.Bool.not then
+            if
+              ((Stdlib.List.isEmpty unresolved) |> Stdlib.Bool.not)
+              && (Stdlib.Bool.not force)
+            then
               printUnresolved unresolved
               state
             else
               match
-                SCM.PackageOps.commitOpIds accountId branchId message opIds
+                SCM.PackageOps.commitOpIds
+                  accountId
+                  branchId
+                  message
+                  opIds
+                  allowTypeErrors
                 with
               | Ok commitHash ->
                 let shortId = Stdlib.String.first commitHash 8
@@ -188,7 +204,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
                   ()
 
                 state
-              | Error e ->
+              | Error (TypeCheckFailed report) ->
+                Packages.AtRestCheck.printCommitRefusal branchId report
+                state
+              | Error (CommitFailed e) ->
                 Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Commit failed: {e}")
                 state
           else
@@ -202,7 +221,12 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : String =
   [ "Usage: commit \"message\" [--include=name1,name2] [--yes|-y]"
+    "              [--allow-type-errors] [--force]"
     "Commit uncommitted (WIP) changes on the current branch."
+    ""
+    "Two things stop a commit, each with its own override: declarations with"
+    "definite type errors (see `typecheck`), and unresolved references. Fix or"
+    "`undo` them, or override deliberately."
     ""
     "Arguments:"
     "  message   Commit message describing the changes"
@@ -215,5 +239,7 @@ let help (_state: AppState) : String =
     "                      references other uncommitted items, you'll be asked"
     "                      whether to pull them into the commit."
     "  --yes, -y           Skip confirmation prompts (includes referenced"
-    "                      uncommitted items)" ]
+    "                      uncommitted items)"
+    "  --allow-type-errors Commit even if the at-rest type check failed"
+    "  --force             Commit even if references are unresolved" ]
   |> Stdlib.String.join "\n"

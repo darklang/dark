@@ -399,6 +399,46 @@ type PipeExpr =
   | EPipeVariableOrFnCall of Range * String
 
 
+module Expr =
+  /// Source range covering a whole expression node.
+  let range (expr: Expr) : Range =
+    match expr with
+    | EUnit range -> range
+    | EBool(range, _) -> range
+    | EInt8(range, _, _) -> range
+    | EUInt8(range, _, _) -> range
+    | EInt16(range, _, _) -> range
+    | EUInt16(range, _, _) -> range
+    | EInt32(range, _, _) -> range
+    | EUInt32(range, _, _) -> range
+    | EInt64(range, _, _) -> range
+    | EUInt64(range, _, _) -> range
+    | EInt128(range, _, _) -> range
+    | EUInt128(range, _, _) -> range
+    | EInt(range, _) -> range
+    | EFloat(range, _, _, _) -> range
+    | EString(range, _, _, _, _) -> range
+    | EChar(range, _, _, _) -> range
+    | EList(range, _, _, _) -> range
+    | EDict(range, _, _, _, _) -> range
+    | ETuple(range, _, _, _, _, _, _) -> range
+    | ERecord(range, _, _, _, _) -> range
+    | ERecordUpdate(range, _, _, _, _, _) -> range
+    | EEnum(range, _, _, _, _) -> range
+    | ELet(range, _, _, _, _, _) -> range
+    | EVariable(range, _) -> range
+    | ERecordFieldAccess(range, _, _, _) -> range
+    | EIf(range, _, _, _, _, _, _) -> range
+    | EMatch(range, _, _, _, _) -> range
+    | EPipe(range, _, _) -> range
+    | EInfix(range, _, _, _) -> range
+    | ELambda(range, _, _, _, _) -> range
+    | EApply(range, _, _, _) -> range
+    | EFnName(range, _) -> range
+    | EStatement(range, _, _) -> range
+    | EError range -> range
+
+
 // Module declarations
 module ModuleDeclaration =
   type Declaration =

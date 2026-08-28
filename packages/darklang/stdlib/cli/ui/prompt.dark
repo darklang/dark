@@ -21,7 +21,7 @@ let select (question: String) (choices: List<String>) : String =
   let _ =
     choices
     |> Stdlib.List.indexedMap (fun i choice ->
-      Stdlib.printLine ($"  {Color.bold (Stdlib.Int.toString (i + 1))}. {choice}"))
+      Stdlib.printLine ($"  {Stdlib.Cli.UI.Colors.boldText (Stdlib.Int.toString (i + 1))}. {choice}"))
 
   Stdlib.print "Enter number: "
   let input = Stdlib.Cli.Stdin.readLine ()
@@ -31,8 +31,8 @@ let select (question: String) (choices: List<String>) : String =
     match Stdlib.List.getAt choices (n - 1) with
     | Some choice -> choice
     | None ->
-      Stdlib.printLine (Color.red "Invalid selection")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.redText "Invalid selection")
       select question choices
   | Error _e ->
-    Stdlib.printLine (Color.red "Please enter a number")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.redText "Please enter a number")
     select question choices

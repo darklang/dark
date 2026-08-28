@@ -98,7 +98,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   | DUnit -> "unit"
   | DBool b -> Stdlib.Bool.toString b
   | DString s -> "\"" ++ (clip (Stdlib.String.replaceAll s "\n" "\\n")) ++ "\""
-  | DChar c -> $"'{c}'"
+  | DChar c -> $"'{Stdlib.Char.toString c}'"
   | DInt64 i -> Stdlib.Int64.toString i
   | DInt i -> Stdlib.Int.toString i
   | DFloat f -> Stdlib.Float.toString f

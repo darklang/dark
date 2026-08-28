@@ -1,0 +1,498 @@
+/// Structured results from checking serialized ProgramTypes before persistence.
+module Darklang.LanguageTools.AtRestTypeChecker
+
+type StaticType =
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime
+  | TBlob
+  | TStream of StaticType
+  | TList of StaticType
+  | TTuple of StaticType * StaticType * List<StaticType>
+  | TDict of StaticType
+  | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
+  | TFn of List<StaticType> * StaticType
+  | TDB of StaticType
+  | TRigidVariable of String
+  | TInferenceVariable of Int
+
+type Verdict =
+  | Checked
+  | Failed
+  | Incomplete
+
+type IssueCode =
+  | TypeMismatch
+  | OccursCheckFailed
+  | UnknownVariable
+  | InvalidArgumentIndex
+  | NotCallable
+  | ExplicitTypeArgumentCountMismatch
+  | InvalidPattern
+  | DuplicatePatternBinding
+  | UnknownRecordField
+  | MissingRecordField
+  | DuplicateRecordField
+  | UnknownEnumCase
+  | EnumFieldCountMismatch
+  | InvalidInfixOperand
+  | DuplicateTypeParameter
+  | DuplicateTypeMember
+  | UnresolvedTypeName
+  | UnresolvedFunctionName
+  | UnresolvedValueName
+  | MissingTypeDeclaration
+  | MissingFunctionSignature
+  | MissingValueSignature
+  | AliasCycle
+  | UnknownDeclaredTypeVariable
+  | AmbiguousType
+  | NonExhaustiveMatch
+  | UnsupportedConstruct
+
+/// A function or value the checker names in an issue.
+type NameRef =
+  | Builtin of String * Int64
+  | Package of LanguageTools.ProgramTypes.Hash
+
+/// Where in the item the checker was working when it found something.
+type Site =
+  | LambdaReturnValue
+  | FunctionReturnValue
+  | ValueBody
+  | Expression
+  | StatementBeforeFinalExpression
+  | FunctionApplication
+  | FunctionArgument of Int64
+  | IfWithoutElse
+  | RecordFieldAccess
+  | UnitLetPattern
+  | TupleLetPattern
+  | MatchPattern
+  | ListPattern
+  | ListConsPattern
+  | TupleMatchPattern
+  | OrPatternBinding
+  | PipelineInput
+  | PipelineFunction
+  | PipelineVariable
+  | PipelineEnumInput
+  | PipelineBooleanOperator
+  | PipelineStringConcatenation
+  | PipelineComparison
+  | PipelineNumericOperator
+
+/// Which of several same-coded places a name was declared twice.
+type DuplicateSite =
+  | InTypeDeclaration
+  | InFunctionSignature
+  | InRecordConstruction
+  | InRecordUpdate
+  | InPattern
+
+/// What the checker could not pin down when it reports an ambiguous type.
+type AmbiguousSubject =
+  | NumericOperand
+  | PipelineNumericOperand
+  | UnaryMinusOperand
+  | RecordType
+  | EnumPatternType
+  | ItemType
+
+/// Why a builtin's declared signature is not something the checker can check against.
+type UntrustedBuiltin =
+  | ResultTypeUnconstrained
+  | UnwrapArgumentUnknown
+  | OperatorNotFullyApplied
+  | ExplicitTypeArgumentsRequired
+
+/// What an issue is about, beyond its code.
+///
+/// The checker states the facts and this module turns them into a sentence, which is
+/// why a name here is a hash rather than a rendered string: the checker has no name
+/// resolver and could only ever say `Type #a1b2c3d4`, while `contextToStringWith` can
+/// look the hash up and say what the author called it.
+type Context =
+  | NoDetail
+  | At of Site
+  | Unresolved of List<String>
+  | TypeUnavailable of LanguageTools.ProgramTypes.Hash
+  | FunctionUnavailable of NameRef
+  | ValueUnavailable of NameRef
+  | Identifier of String
+  | Identifiers of List<String>
+  | Duplicate of String * DuplicateSite
+  | Ambiguous of AmbiguousSubject
+  | Untrusted of NameRef * UntrustedBuiltin
+  | Arity of Int64 * Int64
+  | NamedArity of String * Int64 * Int64
+  | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
+  | ArgumentIndex of Int64
+  | UncoveredPattern of Stdlib.Option.Option<String>
+  | InfixOperandUnsupported of LanguageTools.ProgramTypes.InfixFnName
+  | RecordRequiredForConstruction
+  | RecordRequiredForFieldAccess
+  | RecordRequiredForUpdate
+  | EnumRequiredForConstruction
+  | EnumRequiredForPattern
+  | SelfOutsideFunction
+  | OrPatternBindingsDiffer
+  | ExplicitTypeArgumentsOnNonNamedFunction
+  | AliasCycleReferenced
+  | DeclarationTooDeep
+  | UnaryMinusOperandNotSignedNumeric
+  | CheckerUnavailable of String
+
+type Issue =
+  { code: IssueCode
+    nodeId: Stdlib.Option.Option<UInt64>
+    expected: Stdlib.Option.Option<StaticType>
+    actual: Stdlib.Option.Option<StaticType>
+    context: Context }
+
+type ItemReport =
+  { item: LanguageTools.ProgramTypes.Reference
+    verdict: Verdict
+    diagnostics: List<Issue>
+    blockers: List<Issue> }
+
+type Report =
+  { verdict: Verdict
+    items: List<ItemReport>
+    diagnostics: List<Issue>
+    blockers: List<Issue> }
+
+/// The report for nothing: no items, so trivially Checked.
+let emptyReport () : Report =
+  Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
+
+/// Check package operations before they are persisted or presented as diagnostics.
+///
+/// This is the single Dark-facing boundary for the runtime checker builtin.
+let checkPackageOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
+  Builtin.atRestCheckPackageOps ops
+
+let staticTypeToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (typ: StaticType)
+  : String =
+  let recurse = staticTypeToStringWith customTypeName
+  let wrapped (name: String) (inner: StaticType) : String =
+    name ++ "<" ++ recurse inner ++ ">"
+  match typ with
+  | TUnit -> "Unit"
+  | TBool -> "Bool"
+  | TInt8 -> "Int8"
+  | TUInt8 -> "UInt8"
+  | TInt16 -> "Int16"
+  | TUInt16 -> "UInt16"
+  | TInt32 -> "Int32"
+  | TUInt32 -> "UInt32"
+  | TInt64 -> "Int64"
+  | TUInt64 -> "UInt64"
+  | TInt128 -> "Int128"
+  | TUInt128 -> "UInt128"
+  | TInt -> "Int"
+  | TFloat -> "Float"
+  | TChar -> "Char"
+  | TString -> "String"
+  | TUuid -> "Uuid"
+  | TDateTime -> "DateTime"
+  | TBlob -> "Blob"
+  | TStream inner -> wrapped "Stream" inner
+  | TList inner -> wrapped "List" inner
+  | TTuple(first, second, rest) ->
+    let parts =
+      Stdlib.List.append
+        [ recurse first; recurse second ]
+        (Stdlib.List.map rest recurse)
+    "(" ++ Stdlib.String.join parts " * " ++ ")"
+  | TDict inner -> wrapped "Dict" inner
+  | TCustom(hash, args) ->
+    let name =
+      match customTypeName hash with
+      | Some name -> name
+      | None -> "type #" ++ LanguageTools.ProgramTypes.hashToShort hash
+    if Stdlib.List.isEmpty args then name
+    else
+      name
+      ++ "<"
+      ++ Stdlib.String.join (Stdlib.List.map args recurse) ", "
+      ++ ">"
+  | TFn(parameters, returnType) ->
+    "("
+    ++ Stdlib.String.join (Stdlib.List.map parameters recurse) ", "
+    ++ ") -> "
+    ++ recurse returnType
+  | TDB inner -> wrapped "DB" inner
+  | TRigidVariable name -> "'" ++ name
+  | TInferenceVariable _ -> "_"
+
+let staticTypeToString (typ: StaticType) : String =
+  staticTypeToStringWith (fun _ -> Stdlib.Option.Option.None) typ
+
+let issueCodeToString (code: IssueCode) : String =
+  match code with
+  | TypeMismatch -> "TypeMismatch"
+  | OccursCheckFailed -> "OccursCheckFailed"
+  | UnknownVariable -> "UnknownVariable"
+  | InvalidArgumentIndex -> "InvalidArgumentIndex"
+  | NotCallable -> "NotCallable"
+  | ExplicitTypeArgumentCountMismatch -> "ExplicitTypeArgumentCountMismatch"
+  | InvalidPattern -> "InvalidPattern"
+  | DuplicatePatternBinding -> "DuplicatePatternBinding"
+  | UnknownRecordField -> "UnknownRecordField"
+  | MissingRecordField -> "MissingRecordField"
+  | DuplicateRecordField -> "DuplicateRecordField"
+  | UnknownEnumCase -> "UnknownEnumCase"
+  | EnumFieldCountMismatch -> "EnumFieldCountMismatch"
+  | InvalidInfixOperand -> "InvalidInfixOperand"
+  | DuplicateTypeParameter -> "DuplicateTypeParameter"
+  | DuplicateTypeMember -> "DuplicateTypeMember"
+  | UnresolvedTypeName -> "UnresolvedTypeName"
+  | UnresolvedFunctionName -> "UnresolvedFunctionName"
+  | UnresolvedValueName -> "UnresolvedValueName"
+  | MissingTypeDeclaration -> "MissingTypeDeclaration"
+  | MissingFunctionSignature -> "MissingFunctionSignature"
+  | MissingValueSignature -> "MissingValueSignature"
+  | AliasCycle -> "AliasCycle"
+  | UnknownDeclaredTypeVariable -> "UnknownDeclaredTypeVariable"
+  | AmbiguousType -> "AmbiguousType"
+  | NonExhaustiveMatch -> "NonExhaustiveMatch"
+  | UnsupportedConstruct -> "UnsupportedConstruct"
+
+let nameRefToStringWith
+  (resolve: LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (name: NameRef)
+  : String =
+  match name with
+  | Builtin(name, version) ->
+    if version == 0L then
+      $"Builtin.{name}"
+    else
+      $"Builtin.{name}_v{Stdlib.Int64.toString version}"
+  | Package hash ->
+    match resolve hash with
+    | Some name -> name
+    | None ->
+      let hex = LanguageTools.ProgramTypes.hashToString hash
+      let short = Stdlib.String.slice hex 0 12
+      $"#{short}"
+
+
+let siteToString (site: Site) : String =
+  match site with
+  | LambdaReturnValue -> "the lambda's return value"
+  | FunctionReturnValue -> "the function's return value"
+  | ValueBody -> "the value's body"
+  | Expression -> "this expression"
+  | StatementBeforeFinalExpression -> "the statement before the final expression"
+  | FunctionApplication -> "this function application"
+  | FunctionArgument position ->
+    $"argument {Stdlib.Int64.toString (position + 1L)}"
+  | IfWithoutElse -> "an if without an else"
+  | RecordFieldAccess -> "this field access"
+  | UnitLetPattern -> "a unit let-pattern"
+  | TupleLetPattern -> "a tuple let-pattern"
+  | MatchPattern -> "a match pattern"
+  | ListPattern -> "a list pattern"
+  | ListConsPattern -> "a list-cons pattern"
+  | TupleMatchPattern -> "a tuple match pattern"
+  | OrPatternBinding -> "an or-pattern binding"
+  | PipelineInput -> "the pipeline input"
+  | PipelineFunction -> "the pipeline function"
+  | PipelineVariable -> "the pipeline variable"
+  | PipelineEnumInput -> "the pipeline enum input"
+  | PipelineBooleanOperator -> "a pipeline boolean operator"
+  | PipelineStringConcatenation -> "a pipeline string concatenation"
+  | PipelineComparison -> "a pipeline comparison"
+  | PipelineNumericOperator -> "a pipeline numeric operator"
+
+
+let duplicateSiteToString (site: DuplicateSite) : String =
+  match site with
+  | InTypeDeclaration -> "declared"
+  | InFunctionSignature -> "declared"
+  | InRecordConstruction -> "specified"
+  | InRecordUpdate -> "updated"
+  | InPattern -> "bound"
+
+
+let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
+  match subject with
+  | NumericOperand -> "the numeric operand type"
+  | PipelineNumericOperand -> "the numeric pipeline operand type"
+  | UnaryMinusOperand -> "the operand type of unary minus"
+  | RecordType -> "the record type"
+  | EnumPatternType -> "which enum type contains this case"
+  | ItemType -> "a complete type here"
+
+
+let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
+  match reason with
+  | ResultTypeUnconstrained ->
+    "its declared result contains type variables no parameter constrains, "
+    ++ "so its real result type is only known at runtime"
+  | UnwrapArgumentUnknown ->
+    "the argument's type is not statically known to be an Option or a Result"
+  | OperatorNotFullyApplied ->
+    "it is an operator: apply it to all its arguments, use the operator syntax, "
+    ++ "or wrap it in a lambda"
+  | ExplicitTypeArgumentsRequired ->
+    "its result type cannot be inferred from its value parameters, "
+    ++ "so the call has to give explicit type arguments"
+
+
+/// Turn an issue's structured context into a sentence.
+///
+/// <param customTypeName> resolves a content hash to whatever the reader calls it;
+/// pass one that knows the current branch and the messages name types and functions
+/// the way the author wrote them.
+let contextToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (code: IssueCode)
+  (context: Context)
+  : String =
+  let typeName = (fun hash ->
+    match customTypeName hash with
+    | Some name -> name
+    | None ->
+      let hex = LanguageTools.ProgramTypes.hashToString hash
+      let short = Stdlib.String.slice hex 0 12
+      $"the type #{short}")
+
+  let name = nameRefToStringWith customTypeName
+
+  match context with
+  | NoDetail -> ""
+  | At site -> $"In {siteToString site}"
+  | Unresolved parts ->
+    match parts with
+    | [] -> "The name is unresolved"
+    | parts -> $"'{Stdlib.String.join parts "."}' is unresolved"
+  | TypeUnavailable hash -> $"{typeName hash} is not available to the checker"
+  | FunctionUnavailable fn ->
+    $"The signature for {name fn} is not available to the checker"
+  | ValueUnavailable value ->
+    $"The type of {name value} is not available to the checker"
+  | Identifier ident ->
+    match code with
+    | UnknownVariable -> $"Local variable '{ident}' is not in scope"
+    | UnknownRecordField -> $"Record has no field named '{ident}'"
+    | UnknownEnumCase -> $"Enum has no case named '{ident}'"
+    | UnknownDeclaredTypeVariable ->
+      $"Type variable '{ident}' is not declared in this scope"
+    | _ -> $"'{ident}'"
+  | Identifiers idents ->
+    let quoted =
+      idents |> Stdlib.List.map (fun ident -> $"'{ident}'") |> Stdlib.String.join ", "
+    let noun = if (Stdlib.List.length idents) == 1 then "field" else "fields"
+
+    match code with
+    | MissingRecordField -> $"Record is missing {noun}: {quoted}"
+    | _ -> quoted
+  | Duplicate(ident, site) ->
+    $"'{ident}' is {duplicateSiteToString site} more than once"
+  | Ambiguous subject ->
+    $"Cannot determine {ambiguousSubjectToString subject}; add a type annotation"
+  | Untrusted(fn, reason) ->
+    $"{name fn} cannot be checked statically: {untrustedBuiltinToString reason}"
+  | Arity(expected, actual) ->
+    let noun =
+      if expected == 1L then "1 type argument"
+      else $"{Stdlib.Int64.toString expected} type arguments"
+    let verb = if actual == 1L then "was" else "were"
+
+    match code with
+    | ExplicitTypeArgumentCountMismatch ->
+      $"Expected {noun}, but {Stdlib.Int64.toString actual} {verb} given explicitly"
+    | _ ->
+      $"This type declaration expects {noun}, "
+      ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
+  | NamedArity(ident, expected, actual) ->
+    let noun =
+      if expected == 1L then "1 field" else $"{Stdlib.Int64.toString expected} fields"
+    let verb = if actual == 1L then "was" else "were"
+
+    $"Case '{ident}' expects {noun}, "
+    ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
+  | TypeArity(hash, expected, actual) ->
+    let noun =
+      if expected == 1L then "1 type argument"
+      else $"{Stdlib.Int64.toString expected} type arguments"
+    let verb = if actual == 1L then "was" else "were"
+
+    $"{typeName hash} expects {noun}, "
+    ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
+  | ArgumentIndex index ->
+    $"There is no argument at index {Stdlib.Int64.toString index}"
+  | UncoveredPattern witness ->
+    match witness with
+    | Some witness -> $"Match is not exhaustive; an uncovered pattern is {witness}"
+    | None ->
+      "Match is not exhaustive; values outside the listed patterns are not covered"
+  | InfixOperandUnsupported operation ->
+    let symbol = PrettyPrinter.ProgramTypes.infixFnName operation
+    $"Operator {symbol} does not accept this operand type"
+  | RecordRequiredForConstruction -> "Record construction requires a record type"
+  | RecordRequiredForFieldAccess -> "Field access requires a record"
+  | RecordRequiredForUpdate -> "Record update requires a record"
+  | EnumRequiredForConstruction -> "Enum construction requires an enum type"
+  | EnumRequiredForPattern -> "An enum pattern requires an enum type"
+  | SelfOutsideFunction -> "Self is only available while checking a function"
+  | OrPatternBindingsDiffer ->
+    "Every branch of an or-pattern must bind the same names"
+  | ExplicitTypeArgumentsOnNonNamedFunction ->
+    "Explicit type arguments on a non-named function are not supported"
+  | AliasCycleReferenced -> "A referenced type alias contains a cycle"
+  | DeclarationTooDeep ->
+    "This declaration is nested too deeply for the checker to walk; "
+    ++ "it was not checked"
+  | UnaryMinusOperandNotSignedNumeric ->
+    "Unary minus requires a signed integer or Float operand"
+  | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
+
+
+let contextToString (code: IssueCode) (context: Context) : String =
+  contextToStringWith (fun _ -> Stdlib.Option.Option.None) code context
+
+
+let issueToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (issue: Issue)
+  : String =
+  let detail =
+    match issue.expected with
+    | Some expected ->
+      match issue.actual with
+      | Some actual ->
+        ": expected "
+        ++ staticTypeToStringWith customTypeName expected
+        ++ ", got "
+        ++ staticTypeToStringWith customTypeName actual
+      | None -> ""
+    | None -> ""
+  (contextToStringWith customTypeName issue.code issue.context) ++ detail
+
+let issueToString (issue: Issue) : String =
+  issueToStringWith (fun _ -> Stdlib.Option.Option.None) issue

@@ -2873,6 +2873,10 @@ and ExecutionState =
     branchId : BranchId
     program : Program
 
+    /// The complete builtin set used to create this state; `fns.builtIn` and
+    /// `values.builtIn` are interpreter-facing views.
+    builtins : Builtins
+
     types : Types
     fns : Functions
     values : Values

@@ -32,6 +32,7 @@ module Registry =
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
+      ("typecheck", "Audit package declarations without changing them", [], Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
       ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
       ("val", "Create a new value", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
@@ -146,7 +147,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "module"; "hash"; "db"; "deprecate"; "delete" ])
+    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "typecheck"; "deps"; "val"; "let"; "fn"; "type"; "module"; "hash"; "db"; "deprecate"; "delete" ])
       ("SCM",
        [ "status"; "commits"; "commit"; "discard"; "show"; "ops"; "branch"; "rebase"; "merge"; "review" ])
       ("Execution", [ "run"; "eval"; "scripts" ])

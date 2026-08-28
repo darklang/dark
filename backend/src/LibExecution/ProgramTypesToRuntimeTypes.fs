@@ -169,25 +169,9 @@ module TypeReference =
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
-    let make = RT.FQFnName.builtin
-
-    // Numeric operators dispatch to polymorphic builtins that inspect the
-    // runtime value type (like `equals`), so `1.0 + 2.0`, `1y < 2y`, etc.
-    // all work without per-type operator routing.
-    match name with
-    | PT.ArithmeticPlus -> make "add" 0
-    | PT.ArithmeticMinus -> make "subtract" 0
-    | PT.ArithmeticMultiply -> make "multiply" 0
-    | PT.ArithmeticDivide -> make "divide" 0
-    | PT.ArithmeticModulo -> make "modulo" 0
-    | PT.ArithmeticPower -> make "power" 0
-    | PT.ComparisonGreaterThan -> make "greaterThan" 0
-    | PT.ComparisonGreaterThanOrEqual -> make "greaterThanOrEqualTo" 0
-    | PT.ComparisonLessThan -> make "lessThan" 0
-    | PT.ComparisonLessThanOrEqual -> make "lessThanOrEqualTo" 0
-    | PT.StringConcat -> make "stringAppend" 0
-    | PT.ComparisonEquals -> make "equals" 0
-    | PT.ComparisonNotEquals -> make "notEquals" 0
+    // Use the shared operator-to-builtin mapping so runtime lowering and static
+    // checking resolve operators consistently.
+    RT.FQFnName.builtin (PT.InfixFnName.toBuiltinName name) 0
 
 
 module LetPattern =

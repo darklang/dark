@@ -2141,6 +2141,55 @@ let testDependencyLocationIncludesTargetKind =
   }
 
 
+let testDependentLookupUsesVisibleBranchLocations =
+  testTask
+    "dep-edge lookup: child branches exclude shadowed and ancestor-WIP dependents" {
+    let! (parent : PT.Branch) =
+      Branches.create "test-deps-visible-parent" PT.mainBranchId
+
+    let target = makeFn (eVar "x")
+    do! addFnAt parent.id (loc "visibleTarget") target
+
+    let inherited = makeFn (callFn target.hash)
+    do! addFnAt parent.id (loc "visibleInherited") inherited
+
+    let shadowed = makeFn (callFn target.hash)
+    do! addFnAt parent.id (loc "visibleShadowed") shadowed
+    let! _ = commitAll parent.id "seed visible dependents"
+
+    let! (child : PT.Branch) = Branches.create "test-deps-visible-child" parent.id
+
+    // Parent WIP is not visible from the child.
+    let ancestorWip = makeFn (callFn target.hash)
+    do! addFnAt parent.id (loc "invisibleAncestorWip") ancestorWip
+
+    // This child body shadows the parent's dependent but does not reference the
+    // target, so neither version should be returned for this location.
+    let childOverride =
+      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 99L))
+    do! addFnAt child.id (loc "visibleShadowed") childOverride
+
+    let! branchChain = Branches.getBranchChain child.id
+    let! dependents =
+      Queries.getDependentsByKindedLocations
+        branchChain
+        [ (PT.ItemKind.Fn, loc "visibleTarget") ]
+
+    let locations =
+      dependents
+      |> List.map (fun (dependent : Queries.LocationDependent) ->
+        dependent.itemLocation)
+      |> Set.ofList
+    Expect.equal
+      locations
+      (Set.singleton (loc "visibleInherited"))
+      "only the inherited, unshadowed committed dependent is visible"
+
+    do! discardAndDeleteBranch child.id
+    do! discardAndDeleteBranch parent.id
+  }
+
+
 /// Pin the location-aware AT substitution: when a dependent body holds
 /// two references that happen to share a content hash but live at
 /// different FQNs, propagating one of the FQNs must rewrite ONLY the
@@ -2265,4 +2314,5 @@ let tests =
       testMultiSourcePropagation
       testCrossNamespaceCollisionRewrite
       testDependencyLocationIncludesTargetKind
+      testDependentLookupUsesVisibleBranchLocations
       testDependencyEdgeCollisionStorage ]

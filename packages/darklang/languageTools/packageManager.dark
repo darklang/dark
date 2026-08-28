@@ -164,6 +164,22 @@ module Function =
     | None -> Stdlib.Option.Option.None
 
 
+/// Replace provisional hashes with SCC-aware content hashes, including references
+/// between items in the batch.
+let stabilizeHashes
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<ProgramTypes.PackageOp> =
+  Builtin.pmStabilizeHashes ops
+
+
+/// Duplicate declaration names in <param ops>, formatted as
+/// `"fn Owner.Module.name"`. Reject before `stabilizeHashes`, which keys by name.
+let duplicateDeclarations
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<String> =
+  Builtin.pmDuplicateDeclarations ops
+
+
 /// Find any item (type, fn, or value) at a location.
 /// Returns the hash and what kind of item it is.
 let findAny

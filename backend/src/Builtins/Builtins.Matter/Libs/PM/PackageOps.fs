@@ -47,6 +47,32 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmDuplicateDeclarations" 0
+      typeParams = []
+      parameters =
+        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+      returnType = TList TString
+      description =
+        "The names that more than one declaration in this batch would bind, as "
+        + "\"fn Owner.Module.name\" strings. Stabilizing such a batch would store one "
+        + "body under the other's hash, so authoring surfaces refuse it."
+      fn =
+        (function
+        | _, _, _, [| DList(_vt, ops) |] ->
+          uply {
+            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+            return
+              LibDB.OpValidation.duplicateDeclarations ptOps
+              |> List.map Dval.string
+              |> Dval.list KTString
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "scmAddOps" 0
       typeParams = []
       parameters =
@@ -68,9 +94,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // One name holds one item. Authoring a fn over a name that holds a value would REPLACE it
-              // (that's what the fold does, and must do — see Inserts.kindClashes), so refuse here instead
+              // (that's what the fold does, and must do — see OpValidation.kindClashes), so refuse here instead
               // and make the author say what they meant. Sync's fold still replaces; it has no one to ask.
-              let! clashes = LibDB.Inserts.kindClashes branchId ops
+              let! kindClashes = LibDB.OpValidation.kindClashes branchId ops
+              let clashes = LibDB.OpValidation.hashClashes ops @ kindClashes
 
               if not (List.isEmpty clashes) then
                 return resultError (Dval.string (String.concat "\n" clashes))
@@ -90,10 +117,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 // step, a CLI-added value that references another value
                 // (qualified or bare) would fail at eval with a NULL
                 // rt_dval until the next cold restart.
-                let builtins : Builtins =
-                  { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
                 let! _ =
-                  LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
+                  LibDB.Seed.evaluateAllValues
+                    exeState.builtins
+                    LibDB.PackageManager.rt
 
                 return resultOk (Dval.int (bigint insertedCount))
             with ex ->

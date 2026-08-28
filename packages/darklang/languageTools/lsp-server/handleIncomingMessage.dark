@@ -51,6 +51,26 @@ let createDiagnostic
       relatedInformation = Stdlib.Option.Option.None
       data = Stdlib.Option.Option.None }
 
+let createDiagnosticWithCode
+  (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
+  (range: Parser.Range)
+  (code: String)
+  (source: String)
+  (message: String)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  LanguageServerProtocol.Diagnostic.Diagnostic
+    { range = convertParserRangeToLspRange range
+      severity = Stdlib.Option.Option.Some severity
+      code =
+        Stdlib.Option.Option.Some(
+          LanguageServerProtocol.DiagnosticCode.DiagnosticCode.String code)
+      codeDescription = Stdlib.Option.Option.None
+      source = Stdlib.Option.Option.Some source
+      message = message
+      tags = Stdlib.Option.Option.None
+      relatedInformation = Stdlib.Option.Option.None
+      data = Stdlib.Option.Option.None }
+
 let createWarningDiagnostic
   (range: Parser.Range)
   (message: String)
@@ -138,11 +158,11 @@ let handleIncomingMessage
       state
 
     // asks the server to shut down but not exit
-    | Shutdown -> // request
+    | Shutdown requestId -> // request
       log "shutting down"
 
       let response =
-        (JsonRPC.Response.Ok.make r.id Json.Null)
+        (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) Json.Null)
         |> Stdlib.AltJson.format
 
       logAndSendToClient response

@@ -104,7 +104,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
 
 
 /// CLI help text.
-let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: outliner"
     "Interactive tree outliner with multi-document support."
     ""
@@ -150,8 +150,7 @@ let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
     "  outliner add <doc> <text>                Append a line"
     "  outliner export <doc> [--format md|opml] [--out <path>]"
     "  outliner import <path> [--title <name>]  Read Markdown or OPML"
-  ] |> Stdlib.printLines
-  _state
+  ] |> Stdlib.String.join "\n"
 
 
 /// Complete subcommands, then document names for the ones that take one.

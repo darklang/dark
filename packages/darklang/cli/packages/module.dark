@@ -38,12 +38,14 @@ let collectDecls
 
 let declarationName
   (decl: LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)
-  : String =
+  : Stdlib.Option.Option<String> =
   match decl with
-  | Type typ -> typ.name.name
-  | Function fn -> fn.name.name
-  | Value value -> value.name.name
-  | SubModule modul -> Stdlib.Tuple2.second modul.name
+  | Type typ -> Stdlib.Option.Option.Some typ.name.name
+  | Function fn -> Stdlib.Option.Option.Some fn.name.name
+  | Value value -> Stdlib.Option.Option.Some value.name.name
+  | SubModule modul ->
+    Stdlib.Option.Option.Some (Stdlib.Tuple2.second modul.name)
+  | Expr _ -> Stdlib.Option.Option.None
 
 
 /// Return every declaration path that occurs more than once in the input.
@@ -57,14 +59,17 @@ let duplicateDeclarationNames
   let (_, duplicates) =
     declarations
     |> Stdlib.List.fold ([], []) (fun (seen, duplicates) (modules, decl) ->
-      let path =
-        Stdlib.List.append modules [declarationName decl]
-        |> Stdlib.String.join "."
+      match declarationName decl with
+      | None -> (seen, duplicates)
+      | Some name ->
+        let path =
+          Stdlib.List.append modules [name]
+          |> Stdlib.String.join "."
 
-      if Stdlib.List.member seen path then
-        (seen, Stdlib.List.push duplicates path)
-      else
-        (Stdlib.List.push seen path, duplicates))
+        if Stdlib.List.member seen path then
+          (seen, Stdlib.List.push duplicates path)
+        else
+          (Stdlib.List.push seen path, duplicates))
 
   Stdlib.List.unique duplicates
 
@@ -83,9 +88,8 @@ let updatedItem
       (UpdatedItem { location = location; hash = hash; kind = kind })
 
 
-/// Return the definitions that replaced an existing package location.
-/// Hash stabilization has already replaced the location placeholders in these
-/// SetName ops, so the hashes are safe to pass to propagation after insertion.
+/// Definitions that replace an existing location. Must run before storage, while
+/// history still distinguishes creates from updates. Hashes are placeholders.
 let updatedItems
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -193,29 +197,25 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               { ctx with pm = pm }
               rootModule
 
-          // Resolve the placeholders as one graph so mutually recursive
-          // declarations receive consistent content-addressed hashes.
-          let ops =
-            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
-              ops
           let updates = updatedItems branchId ops
 
           if Errors.reportUnresolvedNames branchId unresolvedNames then
             state
           else
-            match SCM.PackageOps.add branchId ops with
+            // Stabilize and store the module as one mutually recursive batch.
+            match SCM.PackageOps.addAuthored branchId ops with
             | Error message ->
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
-            | Ok _ ->
-              updates
-              |> Stdlib.List.iter (fun update ->
-                Propagate.autoPropagateAfterUpdate
-                  branchId
-                  update.location
-                  update.hash
-                  update.kind)
+            | Ok report ->
+              AtRestCheck.printSaveReport branchId report
+
+              let propagationUpdates =
+                updates
+                |> Stdlib.List.map (fun update ->
+                  (update.location, update.hash, update.kind))
+              Propagate.autoPropagateUpdates branchId propagationUpdates
               let count = Stdlib.List.length declarations
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success
@@ -223,13 +223,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Define a module from multiple package declarations atomically"
     ""
     "Usage: module <module> <source-file|->"
     ""
     "The source may contain functions, types, values, and nested modules."
-    "All declarations are validated before a single package operation is added."
+    "All declarations are validated, then saved as WIP in one batch; the at-rest"
+    "type check is reported and `commit` refuses definite type errors."
     ""
     "Example:"
     "  ./scripts/run-cli module /Darklang.Example - <<'EOF'"
@@ -237,8 +238,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  let double (n: Int) : Int = n * 2"
     "  let quadruple (n: Int) : Int = double (double n)"
     "  EOF"
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 let complete

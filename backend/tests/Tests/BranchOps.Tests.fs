@@ -13,7 +13,10 @@ module PT = LibExecution.ProgramTypes
 module Branches = LibDB.Branches
 module Inserts = LibDB.Inserts
 module BranchOpPlayback = LibDB.BranchOpPlayback
+module PackageOpPlayback = LibDB.PackageOpPlayback
 module Rebase = LibDB.Rebase
+module HS = LibDB.HashStabilization
+module OV = LibDB.OpValidation
 
 open Fumble
 open LibDB.Sqlite
@@ -398,6 +401,116 @@ let testPartialCommitDeprecationState =
 /// when the two versions actually DIFFER. Identical edits on both sides aren't a conflict — and the
 /// path-only check that predated this could never be cleared by editing (re-editing keeps the path
 /// "modified"), a permanent deadlock behind an impossible "fix it, then rebase" instruction.
+let testDuplicateDeclarations =
+  testTask
+    "duplicate declarations: detected before stabilization, refused at storage" {
+    let! (branch : PT.Branch) = Branches.create "test-bo-duplicates" PT.mainBranchId
+
+    // One name with two placeholder-identified bodies.
+    let first = { makeFn (eInt64 1L) with hash = PT.Hash "" }
+    let second = { makeFn (eInt64 2L) with hash = PT.Hash "" }
+    let ops =
+      [ PT.PackageOp.AddFn first
+        PT.PackageOp.SetName(loc "twice", PT.PackageFn(PT.Hash "placeholder-1"))
+        PT.PackageOp.AddFn second
+        PT.PackageOp.SetName(loc "twice", PT.PackageFn(PT.Hash "placeholder-2")) ]
+
+    Expect.equal
+      (OV.duplicateDeclarations ops)
+      [ "fn Test.BranchOps.twice" ]
+      "the doubly-declared name is reported once, with its kind"
+    Expect.isEmpty
+      (OV.duplicateDeclarations (List.take 2 ops))
+      "a single declaration is not a duplicate"
+
+    // Stabilization would collapse both bodies to one hash.
+    let stabilized = HS.computeRealHashes ops
+    let hashes = HS.extractAllHashes stabilized |> List.distinct
+    Expect.hasLength hashes 1 "stabilizing a duplicate collapses it to one hash"
+    let survivingHash = List.exactlyOne hashes
+
+    // Batch preflight catches the collision before any op is written.
+    Expect.hasLength
+      (OV.hashClashes stabilized)
+      1
+      "one hash with two bodies is a clash"
+    Expect.isEmpty
+      (OV.hashClashes (List.skip 2 stabilized))
+      "one body per hash is sound"
+
+    // The projection writer is the shared boundary for local authoring, sync,
+    // and replay. It must not replace an existing hash with another body.
+    let collisionHash = Hashing.computeFnHash Hashing.Normal first
+    let storedFirst = { first with hash = collisionHash }
+    let conflictingSecond = { second with hash = collisionHash }
+    do! PackageOpPlayback.applyOps branch.id None [ PT.PackageOp.AddFn storedFirst ]
+    let mutable collisionError : Option<string> = None
+    try
+      do!
+        PackageOpPlayback.applyOps
+          branch.id
+          None
+          [ PT.PackageOp.AddFn conflictingSecond ]
+    with ex ->
+      collisionError <- Some ex.Message
+    let (PT.Hash collisionHashStr) = collisionHash
+    Expect.equal
+      collisionError
+      (Some $"fn hash {collisionHashStr} is already stored with different content")
+      "the shared projection writer rejects a hash collision"
+
+    // Authoring metadata and alpha-renaming do not change content identity.
+    let alphaFirst =
+      { testPackageFn [] (NEList.singleton "x") PT.TInt64 (eArg 0) with
+          description = "first description" }
+    let alphaSecond =
+      let fn = testPackageFn [] (NEList.singleton "renamed") PT.TInt64 (eArg 0)
+      { fn with
+          description = "second description"
+          parameters =
+            fn.parameters
+            |> NEList.map (fun p ->
+              { p with description = "different parameter description" }) }
+    let sharedMeaningHash = Hashing.computeFnHash Hashing.Normal alphaFirst
+    let equivalentAdds =
+      [ PT.PackageOp.AddFn { alphaFirst with hash = sharedMeaningHash }
+        PT.PackageOp.AddFn { alphaSecond with hash = sharedMeaningHash } ]
+    Expect.isEmpty
+      (OV.hashClashes equivalentAdds)
+      "meaning-equivalent declarations with different metadata are sound"
+    do!
+      PackageOpPlayback.applyOps
+        branch.id
+        None
+        [ PT.PackageOp.AddFn { alphaFirst with hash = sharedMeaningHash } ]
+    do!
+      PackageOpPlayback.applyOps
+        branch.id
+        None
+        [ PT.PackageOp.AddFn { alphaSecond with hash = sharedMeaningHash } ]
+
+    // A single declaration stabilizes, stores, and partially commits normally.
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip branch.id (List.skip 2 stabilized)
+    let! wip = LibDB.Queries.getWipOpsWithIds branch.id
+    let ids = wip |> List.map (fun (id, _, _) -> id)
+    Expect.hasLength ids 2 "one Add+SetName pair is WIP"
+    let! (commitResult : Result<PT.Hash, string>) =
+      Inserts.commitWipOpsByIds
+        LibCloud.Account.IDs.darklang
+        branch.id
+        "commit the survivor"
+        ids
+    Expect.isOk commitResult "commit should succeed"
+
+    let! (stored : Option<PT.PackageFn.PackageFn>) =
+      LibDB.PackageManager.pt.getFn survivingHash |> Ply.toTask
+    match stored with
+    | Some fn -> Expect.equal fn.body second.body "stored body matches its hash"
+    | None -> failtest "the committed function should be readable by its hash"
+  }
+
+
 let testRebaseConflictsAreContentAware =
   testTask
     "rebase conflicts: only DIVERGENT both-sides edits are conflicts, not identical ones" {
@@ -541,5 +654,6 @@ let tests =
       testPartialCommit
       testPartialCommitSameFqn
       testPartialCommitDeprecationState
+      testDuplicateDeclarations
       testRebaseConflictsAreContentAware
       testRebaseConflictCrossKind ]

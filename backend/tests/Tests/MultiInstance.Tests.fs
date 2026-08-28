@@ -14,6 +14,7 @@ open LibDB.Sqlite
 
 module Seed = LibDB.Seed
 module Inserts = LibDB.Inserts
+module OV = LibDB.OpValidation
 module Releases = LibDB.Releases
 module Resolutions = LibDB.Resolutions
 module Account = LibCloud.Account
@@ -696,7 +697,7 @@ let authoringRefusesKindClash =
 
     // same kind at the same name is an ordinary update — no clash
     let! sameKind =
-      Inserts.kindClashes
+      OV.kindClashes
         PT.mainBranchId
         [ PT.PackageOp.SetName(
             loc,
@@ -706,7 +707,7 @@ let authoringRefusesKindClash =
 
     // a DIFFERENT kind at that name is the clash
     let! clash =
-      Inserts.kindClashes
+      OV.kindClashes
         PT.mainBranchId
         [ PT.PackageOp.SetName(
             loc,
@@ -733,7 +734,7 @@ let authoringRefusesKindClash =
       |> Task.map ignore<int64>
 
     let! afterRetire =
-      Inserts.kindClashes
+      OV.kindClashes
         PT.mainBranchId
         [ PT.PackageOp.SetName(
             loc,

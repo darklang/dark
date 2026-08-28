@@ -136,7 +136,7 @@ let private reResolveAllItems
 ///    item's NRs only to throw the older copies away).
 /// 3. Re-resolve unresolved NameResolutions using current PM
 /// 4. Run HashStabilization.computeRealHashes
-/// 5. If any hashes changed, discard old WIP and re-insert
+/// 5. If the ops changed at all, discard old WIP and re-insert
 /// 6. Return count of changed items
 let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
   task {
@@ -158,11 +158,12 @@ let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
       // 4. Stabilize hashes (SCC-aware)
       let stabilizedOps = HS.computeRealHashes reResolvedOps
 
-      // 5. Compare old and new hashes
+      // 5. Hashes plus op count detect compaction without comparing transient
+      // Add-item hashes, which stabilization may fill differently on each load.
       let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
       let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
 
-      if oldHashes = newHashes then
+      if oldHashes = newHashes && List.length stabilizedOps = List.length wipOps then
         return 0L
       else
         // Count changed items (items that got a new hash)

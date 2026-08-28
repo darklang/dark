@@ -204,14 +204,19 @@ let fns () : List<BuiltInFn> =
     // NATIVELY so a 1000-op batch never pays the per-row Dark interpreter cost. `EventLog.readSince` wraps this;
     // the events Stream is drained (native loop) for the wire, and is filterable for branch-scoped reads.
     { name = fn "packageOpsReadNative" 0
-      typeParams = [ "c"; "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "cursor"
             TInt64
             "read events after this cursor (0 = from the start)"
           Param.make "limit" TInt64 "at most this many events — one bounded batch" ]
-      returnType = TTuple(TList(TVariable "c"), TStream(TVariable "e"), [ TInt64 ])
+      returnType =
+        TTuple(
+          TList(TCustomType(NR.ok (eventLogCommitType ()), [])),
+          TStream(TCustomType(NR.ok (eventLogEventType ()), [])),
+          [ TInt64 ]
+        )
       description =
         "This instance's committed events after <param cursor> (at most <param "
         + "limit>) as a Stream of Event records, the Commit records they reference, "
@@ -256,15 +261,15 @@ let fns () : List<BuiltInFn> =
     // package op log. Field extraction is native — a 1000-op pull never pays the per-row Dark cost. Returns the
     // count newly applied (idempotent). `EventLog.append` wraps this.
     { name = fn "packageOpsAppendNative" 0
-      typeParams = [ "c"; "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "commits"
-            (TList(TVariable "c"))
+            (TList(TCustomType(NR.ok (eventLogCommitType ()), [])))
             "Commit records the events reference"
           Param.make
             "events"
-            (TList(TVariable "e"))
+            (TList(TCustomType(NR.ok (eventLogEventType ()), [])))
             "Event records received from a peer" ]
       returnType = TCustomType(NR.ok (eventLogAppendResultType ()), [])
       description =
@@ -335,14 +340,15 @@ let fns () : List<BuiltInFn> =
     // BranchOpEvent records + the resume cursor. Branch ops are self-contained (no side commits). Peers apply
     // these to LEARN branches — the structure that `packageOps` events reference by branch_id.
     { name = fn "branchOpsReadNative" 0
-      typeParams = [ "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "cursor"
             TInt64
             "read branch ops after this cursor (0 = from the start)"
           Param.make "limit" TInt64 "at most this many — one bounded batch" ]
-      returnType = TTuple(TStream(TVariable "e"), TInt64, [])
+      returnType =
+        TTuple(TStream(TCustomType(NR.ok (branchOpEventType ()), [])), TInt64, [])
       description =
         "This instance's branch ops after <param cursor> as a Stream of "
         + "BranchOpEvent records + the resume cursor. Built natively."
@@ -379,11 +385,11 @@ let fns () : List<BuiltInFn> =
 
     // Apply branch ops RECEIVED from a peer (BranchOpEvent records) — fold into branches/commits. Idempotent.
     { name = fn "branchOpsAppendNative" 0
-      typeParams = [ "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "events"
-            (TList(TVariable "e"))
+            (TList(TCustomType(NR.ok (branchOpEventType ()), [])))
             "BranchOpEvent records received from a peer" ]
       returnType = TInt
       description =
@@ -434,14 +440,15 @@ let fns () : List<BuiltInFn> =
     // The resolutions log — synced override overlays. Peers apply these AFTER package ops so a human's
     // "keep mine" decision converges everywhere. Read as a Stream of ResolutionEvent records + the cursor.
     { name = fn "resolutionsReadNative" 0
-      typeParams = [ "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "cursor"
             TInt64
             "read resolutions after this cursor (0 = from the start)"
           Param.make "limit" TInt64 "at most this many — one bounded batch" ]
-      returnType = TTuple(TStream(TVariable "e"), TInt64, [])
+      returnType =
+        TTuple(TStream(TCustomType(NR.ok (resolutionEventType ()), [])), TInt64, [])
       description =
         "This instance's resolutions after <param cursor> as a Stream of "
         + "ResolutionEvent records + the resume cursor. Built natively."
@@ -480,11 +487,11 @@ let fns () : List<BuiltInFn> =
     // Apply resolutions RECEIVED from a peer (ResolutionEvent records) — record + overlay onto locations.
     // Idempotent (id-keyed) + LWW-gated by each resolution's `at`.
     { name = fn "resolutionsAppendNative" 0
-      typeParams = [ "e" ]
+      typeParams = []
       parameters =
         [ Param.make
             "events"
-            (TList(TVariable "e"))
+            (TList(TCustomType(NR.ok (resolutionEventType ()), [])))
             "ResolutionEvent records received from a peer" ]
       returnType = TInt
       description =

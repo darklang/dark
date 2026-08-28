@@ -13,17 +13,34 @@ type Commit =
     committerName: String }
 
 
-/// Add a list of package ops to the database as WIP (uncommitted) on the given branch
-///
-/// Returns the number of inserted ops on success (duplicates are skipped),
-/// or an error message on failure.
-///
-/// Use `commit` to commit WIP ops.
+/// Store raw WIP ops without type checking. Authored declarations use
+/// `addAuthored`; sync, rename, and deprecation use this path. Returns the number
+/// inserted, excluding duplicates.
 let add
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int, String> =
   Builtin.scmAddOps branchId ops
+
+
+/// Stabilize and store authored declarations as one WIP graph, then return their
+/// type-check report. Type errors do not block saving; duplicate names and storage
+/// failures do. `commit` is the type-error gate.
+let addAuthored
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
+  if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
+    Stdlib.Result.Result.Error(
+      "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
+  else
+    let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+    match add branchId stabilizedOps with
+    | Ok _ ->
+      Stdlib.Result.Result.Ok(
+        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+    | Error message -> Stdlib.Result.Result.Error message
 
 
 /// Get recent package ops from the database
@@ -103,31 +120,107 @@ let getWipItems (branchId: Uuid) : List<Dict<String>> =
   Builtin.scmGetWipItems branchId
 
 
-/// Commit all WIP ops on a branch with the given message
-/// Returns the commit hash on success, or an error message on failure
+type CommitError =
+  /// Declarations in the commit have definite type errors. Nothing was committed.
+  /// Fix them (or `undo`/`discard`), or commit with `allowTypeErrors` to take
+  /// them anyway.
+  | TypeCheckFailed of LanguageTools.AtRestTypeChecker.Report
+  /// Storage refused the commit.
+  | CommitFailed of String
+
+/// One line for a `CommitError`, for callers with nowhere to show a full report.
+let commitErrorMessage (error: CommitError) : String =
+  match error with
+  | TypeCheckFailed report ->
+    let count = Stdlib.List.length report.diagnostics
+    $"at-rest type check failed ({Stdlib.Int.toString count} type errors); "
+    ++ "fix them or commit with --allow-type-errors"
+  | CommitFailed message -> message
+
+
+/// Commit all WIP ops, refusing definite type errors unless
+/// <param allowTypeErrors> is set.
 let commit
   (accountId: Uuid)
   (branchId: Uuid)
   (message: String)
-  : Stdlib.Result.Result<String, String> =
+  (allowTypeErrors: Bool)
+  : Stdlib.Result.Result<String, CommitError> =
   // Full commit means committing every WIP op id.
   let opIds =
     branchId |> getWipWithIds |> Stdlib.List.map (fun e -> e.id)
 
   if Stdlib.List.isEmpty opIds then
-    Stdlib.Result.Result.Error "Nothing to commit"
+    Stdlib.Result.Result.Error(CommitError.CommitFailed "Nothing to commit")
   else
-    commitOpIds accountId branchId message opIds
+    commitOpIds accountId branchId message opIds allowTypeErrors
 
 
-/// Commit the selected WIP op IDs. Caller owns selection policy.
+/// Include declaration bodies published by selected `SetName` ops, preventing a
+/// partial commit from checking only location rows.
+let opsForCommitTypeCheck
+  (allWipOps: List<LanguageTools.ProgramTypes.PackageOp>)
+  (selectedOps: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  let selectedTargets =
+    selectedOps
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | SetName (_, target) -> Stdlib.Option.Option.Some target
+      | _ -> Stdlib.Option.Option.None)
+
+  let referencedAdds =
+    allWipOps
+    |> Stdlib.List.filter (fun op ->
+      let target =
+        match op with
+        | AddType typ ->
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.Reference.PackageType typ.hash)
+        | AddValue value ->
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.Reference.PackageValue value.hash)
+        | AddFn fn ->
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
+        | _ -> Stdlib.Option.Option.None
+
+      match target with
+      | Some target -> Stdlib.List.member selectedTargets target
+      | None -> false)
+
+  Stdlib.List.append selectedOps referencedAdds
+
+
+/// Commit selected WIP ops after rechecking them as one batch. Selected names pull
+/// in their WIP bodies so a location cannot publish unchecked content.
 let commitOpIds
   (accountId: Uuid)
   (branchId: Uuid)
   (message: String)
   (opIds: List<Uuid>)
-  : Stdlib.Result.Result<String, String> =
-  Builtin.scmCommitWipOpsByIds accountId branchId message opIds
+  (allowTypeErrors: Bool)
+  : Stdlib.Result.Result<String, CommitError> =
+  let store () : Stdlib.Result.Result<String, CommitError> =
+    match Builtin.scmCommitWipOpsByIds accountId branchId message opIds with
+    | Ok commitHash -> Stdlib.Result.Result.Ok commitHash
+    | Error message -> Stdlib.Result.Result.Error(CommitError.CommitFailed message)
+
+  if allowTypeErrors then
+    store ()
+  else
+    let allWip = getWipWithIds branchId
+    let selectedOps =
+      allWip
+      |> Stdlib.List.filter (fun e -> Stdlib.List.member opIds e.id)
+      |> Stdlib.List.map (fun e -> e.op)
+    let allWipOps = allWip |> Stdlib.List.map (fun e -> e.op)
+    let checkOps = opsForCommitTypeCheck allWipOps selectedOps
+    let report = LanguageTools.AtRestTypeChecker.checkPackageOps checkOps
+    match report.verdict with
+    | Failed -> Stdlib.Result.Result.Error(CommitError.TypeCheckFailed report)
+    | Checked
+    | Incomplete -> store ()
 
 
 /// Discard all WIP ops on a branch

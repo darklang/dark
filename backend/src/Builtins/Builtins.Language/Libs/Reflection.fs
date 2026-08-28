@@ -9,7 +9,7 @@ module Exe = LibExecution.Execution
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "toRepr" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters = [ Param.make "value" (TVariable "a") "The value to convert." ]
       returnType = TString
       description = "Returns a string representation of the given <param value>"
@@ -27,7 +27,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "reflect" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters = [ Param.make "dv" (TVariable "a") "The value to reflect on." ]
       returnType =
         TCustomType(

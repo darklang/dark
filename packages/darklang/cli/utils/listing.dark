@@ -22,9 +22,16 @@ let shouldCap (all: Bool) : Bool =
   && (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).outputIsTerminal
 
 
-/// The footer under a capped listing: how many were left out, and that `--all` shows them.
+/// The footer under a capped listing: how many were left out, and how to see them.
+/// <param seeAlso> is what the reader should do, since not every surface that caps a
+/// listing has an `--all` flag of its own to point at.
+let footerSeeAlso (left: Int) (what: String) (seeAlso: String) : String =
+  Stdlib.Cli.UI.Colors.hint $"  ... and {Stdlib.Int.toString left} more {what} ({seeAlso})"
+
+
+/// The footer under a capped listing on a command that takes `--all` itself.
 let footer (left: Int) (what: String) : String =
-  Stdlib.Cli.UI.Colors.hint $"  ... and {Stdlib.Int.toString left} more {what} (pass {Listing.allFlag} to see them)"
+  Listing.footerSeeAlso left what $"pass {Listing.allFlag} to see them"
 
 
 /// Where every capped listing decides what to drop: the items to show, and how many things were
@@ -58,8 +65,21 @@ let cut
 
 
 /// Render what `cut` kept and add the footer if anything was left out.
+let withFooterSeeAlso
+  (rows: List<String>)
+  (left: Int)
+  (what: String)
+  (seeAlso: String)
+  : List<String> =
+  if left <= 0 then
+    rows
+  else
+    Stdlib.List.append rows [ Listing.footerSeeAlso left what seeAlso ]
+
+
+/// Render what `cut` kept and add the footer if anything was left out.
 let withFooter (rows: List<String>) (left: Int) (what: String) : List<String> =
-  if left <= 0 then rows else Stdlib.List.append rows [ Listing.footer left what ]
+  Listing.withFooterSeeAlso rows left what $"pass {Listing.allFlag} to see them"
 
 
 /// A flat listing: the first `limit` rows, then a footer counting the rest as `what`.
@@ -113,11 +133,12 @@ let groupRows (group: (String * List<String>)) : List<String> =
 
 /// Grouped names, capped by whole modules: as many groups as fit in `limit` rows, then a footer
 /// counting the items left out -- not rows, so it adds up with a header that counted items.
-let cappedGroups
+let cappedGroupsSeeAlso
   (groups: List<(String * List<String>)>)
   (limit: Int)
   (cap: Bool)
   (what: String)
+  (seeAlso: String)
   : List<String> =
   let (shown, left) =
     Listing.cut
@@ -127,4 +148,23 @@ let cappedGroups
       (fun g -> Stdlib.List.length (Listing.groupRows g))
       (fun (_, leaves) -> Stdlib.List.length leaves)
 
-  Listing.withFooter (shown |> Stdlib.List.map Listing.groupRows |> Stdlib.List.flatten) left what
+  Listing.withFooterSeeAlso
+    (shown |> Stdlib.List.map Listing.groupRows |> Stdlib.List.flatten)
+    left
+    what
+    seeAlso
+
+
+/// Grouped names, capped by whole modules, on a command that takes `--all` itself.
+let cappedGroups
+  (groups: List<(String * List<String>)>)
+  (limit: Int)
+  (cap: Bool)
+  (what: String)
+  : List<String> =
+  Listing.cappedGroupsSeeAlso
+    groups
+    limit
+    cap
+    what
+    $"pass {Listing.allFlag} to see them"

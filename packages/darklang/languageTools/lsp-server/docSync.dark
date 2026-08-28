@@ -86,24 +86,41 @@ let parseAndReportDiagnostics
           owner = owner
           currentModule = if scriptName == "" then [] else [ scriptName ] }
 
-    // name-resolve off the already-parsed file (no re-parse)
-    let unresolvedNames =
+    let parsedFile = WrittenTypes.ParsedFile.SourceFile sf
+
+    // Check only syntax-clean trees; keep parser diagnostics during partial edits.
+    let (unresolvedNames, checkerDiagnostics) =
       match
         Parser.CliScript.parseFromWT
           nrCtx
           scriptName
           parseDiagnostics
-          (WrittenTypes.ParsedFile.SourceFile sf)
+          parsedFile
       with
-      | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
+      | Ok ((ptCliScriptModule, unresolvedNames)) ->
+        match
+          Parser.CliScript.parseDecls
+            owner
+            scriptName
+            parseDiagnostics
+            parsedFile
+        with
+        | Ok wtCliScriptModule ->
+          (unresolvedNames,
+            Diagnostics.atRestDiagnostics
+              sf.range
+              wtCliScriptModule
+              ptCliScriptModule)
+        | Error _ -> (unresolvedNames, [])
       | Error err ->
         log $"Name resolution error: {Parser.CliScript.ParseError.toString err}"
-        []
+        ([], [])
 
     Diagnostics.gatherAndReportDiagnostics
       requestUri
       unresolvedNames
       parseDiagnostics
+      checkerDiagnostics
 
     parsed
   | Error err ->
@@ -118,14 +135,16 @@ let handleTextDocumentDidOpen
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
 
-  let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri request.textDocument.text
+  let parsed =
+    parseAndReportDiagnostics
+      state.currentBranchId
+      request.textDocument.uri
+      request.textDocument.text
 
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      // A recovered tree can contain EError holes, and lowering is only
-      // defined for clean trees (Expr.toPT has no EError arm, by contract) —
-      // so skip lowering unless the parse produced no diagnostics.
+      // Do not publish a recovered tree with `EError` holes as clean.
       if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
         (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
         |> Stdlib.Tuple3.first
@@ -161,7 +180,24 @@ let handleTextDocumentDidChange
     | None ->
       log $"document not found in scope: {request.textDocument.uri}"
       state
-    | Some existingDoc ->
+    | Some _existingDoc ->
+      let parsed =
+        parseAndReportDiagnostics
+          state.currentBranchId
+          request.textDocument.uri
+          text.text
+
+      let parsedToPT =
+        match parsed with
+        | Ok parsedFile ->
+          if Stdlib.List.isEmpty (Parser.Parse.diagnostics text.text) then
+            (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+            |> Stdlib.Tuple3.first
+            |> Stdlib.Option.Option.Some
+          else
+            Stdlib.Option.Option.None
+        | Error _ -> Stdlib.Option.Option.None
+
       { state with
           documentsInScope =
             state.documentsInScope
@@ -170,10 +206,8 @@ let handleTextDocumentDidChange
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
                       text = text.text
-                      // don't re-parse the text, just use the existing parsed value
-                      // TODO maybe we should re-parse, currently it breaks the LSP server
-                      parsed = existingDoc.parsed
-                      parsedToPT = existingDoc.parsedToPT }) }
+                      parsed = parsed
+                      parsedToPT = parsedToPT }) }
 
 
 let handleTextDocumentDidSave
@@ -190,7 +224,8 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
+    let parsed =
+      parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
 
     let parsedToPT =
       match parsed with
@@ -222,6 +257,8 @@ let handleTextDocumentDidClose
   (requestParams:
     LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
   : LspState =
+  // An empty diagnostic list clears the closed document's squiggles.
+  sendDiagnostic requestParams.textDocument.uri []
   { state with
       documentsInScope =
         Stdlib.Dict.remove

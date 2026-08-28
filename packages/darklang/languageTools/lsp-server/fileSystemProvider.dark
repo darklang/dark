@@ -171,6 +171,114 @@ module WriteFile =
     |> Stdlib.List.flatten
 
 
+  /// One lowered declaration and the ops that publish it.
+  type LoweredDecl =
+    { location: LanguageTools.ProgramTypes.PackageLocation
+      kind: LanguageTools.ProgramTypes.ItemKind
+      ops: List<LanguageTools.ProgramTypes.PackageOp>
+      unresolvedNames: List<LanguageTools.WrittenTypes.UnresolvedName> }
+
+
+  /// Lower against `pm` with a stable placeholder identity; batch stabilization
+  /// replaces it before checking or storage.
+  let lowerDecl
+    (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager)
+    (branchId: Uuid)
+    (owner: String)
+    (decl:
+      (List<String> * LanguageTools.WrittenTypes.ModuleDeclaration.Declaration))
+    : LoweredDecl =
+    let (extraModules, decl) = decl
+
+    // `extraModules` includes the owner; package modules do not.
+    let modules =
+      match extraModules with
+      | _owner :: rest -> rest
+      | _ -> []
+
+    let ctx =
+      LanguageTools.NameResolver.NRContext
+        { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+          pm = pm
+          branchId = branchId
+          owner = owner
+          currentModule = modules }
+
+    let locationOf (name: String) : LanguageTools.ProgramTypes.PackageLocation =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner; modules = modules; name = name }
+
+    let placeholder (name: String) : LanguageTools.ProgramTypes.Hash =
+      LanguageTools.WrittenTypesToProgramTypes.locationPlaceholderHash owner modules name
+
+    match decl with
+    | Type typeDecl ->
+      let location = locationOf typeDecl.name.name
+      let (packageType, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+          ctx
+          typeDecl
+      let packageType = { packageType with hash = placeholder typeDecl.name.name }
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.Type
+          ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageType packageType.hash) ]
+          unresolvedNames = unresolvedNames }
+    | Function fnDecl ->
+      let location = locationOf fnDecl.name.name
+      let (packageFn, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+          ctx
+          fnDecl
+      let packageFn = { packageFn with hash = placeholder fnDecl.name.name }
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.Fn
+          ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageFn packageFn.hash) ]
+          unresolvedNames = unresolvedNames }
+    | Value valDecl ->
+      let location = locationOf valDecl.name.name
+      let (packageValue, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+          ctx
+          valDecl
+      let packageValue = { packageValue with hash = placeholder valDecl.name.name }
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.Value
+          ops =
+            [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash) ]
+          unresolvedNames = unresolvedNames }
+    // `collectDecls` flattens submodules and never saves expressions.
+    | SubModule _
+    | Expr _ ->
+      LoweredDecl
+        { location = locationOf ""
+          kind = LanguageTools.ProgramTypes.ItemKind.Value
+          ops = []
+          unresolvedNames = [] }
+
+
+  /// Whether nothing of `kind` is already bound at `location`.
+  let isNewLocation
+    (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager)
+    (branchId: Uuid)
+    (location: LanguageTools.ProgramTypes.PackageLocation)
+    (kind: LanguageTools.ProgramTypes.ItemKind)
+    : Bool =
+    let existing =
+      match kind with
+      | Type -> pm.findType (branchId, location) |> Stdlib.Option.isSome
+      | Fn -> pm.findFn (branchId, location) |> Stdlib.Option.isSome
+      | Value -> pm.findValue (branchId, location) |> Stdlib.Option.isSome
+    Stdlib.Bool.not existing
+
+
   let sendSuccessResponse
     (state: LspState)
     (requestId: JsonRPC.RequestID)
@@ -252,74 +360,22 @@ module WriteFile =
       let allDecls =
         match Parser.Parse.toWrittenTypes content with
         | Some(SourceFile sourceFile) ->
-          sourceFile.declarations
-          |> Stdlib.List.map WriteFile.sfDeclToModuleDecl
-          |> WriteFile.collectDecls []
+          WriteFile.collectDecls
+            []
+            (sourceFile.declarations |> Stdlib.List.map WriteFile.sfDeclToModuleDecl)
         | None -> []
 
-      // Split by kind, wrapping in Ok (ranged already parsed; per-decl parse errors no
-      // longer apply — syntax diagnostics are reported separately).
-      let parsedTypes =
-        allDecls
-        |> Stdlib.List.filterMap (fun (extraModules, d) ->
-          match d with
-          | Type t -> Stdlib.Option.Option.Some((extraModules, Stdlib.Result.Result.Ok t))
-          | _ -> Stdlib.Option.Option.None)
+      // Reject duplicate names before stabilization collapses their identities.
+      let duplicateNames =
+        Cli.Packages.ModuleCommand.duplicateDeclarationNames allDecls
 
-      let parsedFns =
-        allDecls
-        |> Stdlib.List.filterMap (fun (extraModules, d) ->
-          match d with
-          | Function f -> Stdlib.Option.Option.Some((extraModules, Stdlib.Result.Result.Ok f))
-          | _ -> Stdlib.Option.Option.None)
-
-      let parsedVals =
-        allDecls
-        |> Stdlib.List.filterMap (fun (extraModules, d) ->
-          match d with
-          | Value v -> Stdlib.Option.Option.Some((extraModules, Stdlib.Result.Result.Ok v))
-          | _ -> Stdlib.Option.Option.None)
-
-      // Extract error messages from each declaration type
-      let typeErrors =
-        parsedTypes
-        |> Stdlib.List.filterMap (fun (_extraModules, result) ->
-          match result with
-          | Error unparseable ->
-            Stdlib.Option.Option.Some(
-              $"Type parse error at {unparseable.source.range.start.row}:{unparseable.source.range.start.column}"
-            )
-          | Ok _ -> Stdlib.Option.Option.None)
-
-      let fnErrors =
-        parsedFns
-        |> Stdlib.List.filterMap (fun (_extraModules, result) ->
-          match result with
-          | Error unparseable ->
-            Stdlib.Option.Option.Some(
-              $"Function parse error at {unparseable.source.range.start.row}:{unparseable.source.range.start.column}"
-            )
-          | Ok _ -> Stdlib.Option.Option.None)
-
-      let valErrors =
-        parsedVals
-        |> Stdlib.List.filterMap (fun (_extraModules, result) ->
-          match result with
-          | Error unparseable ->
-            Stdlib.Option.Option.Some(
-              $"Value parse error at {unparseable.source.range.start.row}:{unparseable.source.range.start.column}"
-            )
-          | Ok _ -> Stdlib.Option.Option.None)
-
-      let allErrors =
-        Stdlib.List.append
-          typeErrors
-          (Stdlib.List.append fnErrors valErrors)
-
-      if (Stdlib.List.isEmpty allErrors) |> Stdlib.Bool.not then
-        sendErrorResponse state requestId allErrors
+      if Stdlib.Bool.not (Stdlib.List.isEmpty duplicateNames) then
+        sendErrorResponse
+          state
+          requestId
+          (duplicateNames
+           |> Stdlib.List.map (fun name -> $"Declared more than once: {name}"))
       else
-        // Convert parsed declarations to PackageOps, but only for NEW items
         let parts = Stdlib.String.split nameForLookup "."
 
         let owner =
@@ -330,146 +386,34 @@ module WriteFile =
         let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
 
-        // Process types
-        let typeOps =
-          parsedTypes
-          |> Stdlib.List.map (fun (extraModules, result) ->
-            match result with
-            | Ok typeDecl ->
-              let modules =
-                match extraModules with
-                | _owner :: rest -> rest
-                | _ -> []
-
-              let typeLocation =
-                (LanguageTools.ProgramTypes.PackageLocation
-                  { owner = owner
-                    modules = modules
-                    name = typeDecl.name.name })
-
-              let existingTypeId = pm.findType (branchId, typeLocation)
-
-              match existingTypeId with
-              | Some _id -> []
-              | None ->
-                let ctx =
-                  LanguageTools.NameResolver.NRContext
-                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-                      pm = pm
-                      branchId = branchId
-                      owner = owner
-                      currentModule = modules }
-
-                let (packageType, _unresolvedNames) =
-                  LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-                    ctx
-                    typeDecl
-
-                [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-                  LanguageTools.ProgramTypes.PackageOp.SetName (typeLocation, ProgramTypes.Reference.PackageType packageType.id) ]
-            | Error _ -> [])
+        // First assign batch identities, then lower against them so declarations
+        // in the same file resolve one another.
+        let firstPassOps =
+          allDecls
+          |> Stdlib.List.map (WriteFile.lowerDecl pm branchId owner)
+          |> Stdlib.List.map (fun lowered -> lowered.ops)
           |> Stdlib.List.flatten
+          |> LanguageTools.PackageManager.stabilizeHashes
 
-        // Process functions
-        let fnOps =
-          parsedFns
-          |> Stdlib.List.map (fun (extraModules, result) ->
-            match result with
-            | Ok fnDecl ->
-              // extraModules contains the full path, strip the owner to get modules
-              let modules =
-                match extraModules with
-                | _owner :: rest -> rest
-                | _ -> []
+        let batchPm = ProgramTypes.PackageManager.withExtraOps pm firstPassOps
 
-              let fnLocation =
-                (LanguageTools.ProgramTypes.PackageLocation
-                  { owner = owner
-                    modules = modules
-                    name = fnDecl.name.name })
-
-              let existingFnId = pm.findFn (branchId, fnLocation)
-
-              match existingFnId with
-              | Some _id -> []
-              | None ->
-                let ctx =
-                  LanguageTools.NameResolver.NRContext
-                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-                      pm = pm
-                      branchId = branchId
-                      owner = owner
-                      currentModule = modules }
-
-                let (packageFn, _unresolvedNames) =
-                  LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-                    ctx
-                    fnDecl
-
-                [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                  LanguageTools.ProgramTypes.PackageOp.SetName (fnLocation, ProgramTypes.Reference.PackageFn packageFn.id) ]
-            | Error _ -> [])
-          |> Stdlib.List.flatten
-
-        // Process values
-        let valueOps =
-          parsedVals
-          |> Stdlib.List.map (fun (extraModules, result) ->
-            match result with
-            | Ok valDecl ->
-              // extraModules contains the full path, strip the owner to get modules
-              let modules =
-                match extraModules with
-                | _owner :: rest -> rest
-                | _ -> []
-
-              let valLocation =
-                (LanguageTools.ProgramTypes.PackageLocation
-                  { owner = owner
-                    modules = modules
-                    name = valDecl.name.name })
-
-              let existingValId = pm.findValue (branchId, valLocation)
-
-              match existingValId with
-              | Some _id -> []
-              | None ->
-                let ctx =
-                  LanguageTools.NameResolver.NRContext
-                    { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-                      pm = pm
-                      branchId = branchId
-                      owner = owner
-                      currentModule = modules }
-
-                let (packageValue, _unresolvedNames) =
-                  LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-                    ctx
-                    valDecl
-
-                [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-                  LanguageTools.ProgramTypes.PackageOp.SetName (valLocation, ProgramTypes.Reference.PackageValue packageValue.id) ]
-            | Error _ -> [])
-          |> Stdlib.List.flatten
-
-        // Combine all ops
+        // Save only locations absent from the persistent package manager.
         let allOps =
-          Stdlib.List.append
-            typeOps
-            (Stdlib.List.append fnOps valueOps)
+          allDecls
+          |> Stdlib.List.map (WriteFile.lowerDecl batchPm branchId owner)
+          |> Stdlib.List.filter (fun lowered ->
+            WriteFile.isNewLocation pm branchId lowered.location lowered.kind)
+          |> Stdlib.List.map (fun lowered -> lowered.ops)
+          |> Stdlib.List.flatten
 
-        // Only add ops if there are new items (added as WIP)
-        let branchId = state.currentBranchId
-        let addResult =
-          if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-            SCM.PackageOps.add branchId allOps
-          else
-            Stdlib.Result.Result.Ok 0
+        // Save as WIP; editor diagnostics report findings and `commit`
+        // enforces them.
+        let addResult = SCM.PackageOps.addAuthored branchId allOps
 
         match addResult with
         | Error err ->
           sendErrorResponse state requestId [ $"Failed to add package ops: {err}" ]
-        | Ok _ ->
+        | Ok _report ->
           // If ops were added, re-read the content from database to get the version with IDs
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then

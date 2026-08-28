@@ -10,6 +10,9 @@ module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
 
 
+// Builtin types cannot express “both operands have the same numeric type,” so
+// these operator signatures are intentionally loose. Runtime dispatch and the
+// at-rest checker enforce the constraint.
 let varA = TVariable "a"
 let varB = TVariable "b"
 

@@ -10,7 +10,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Some b -> b.name
     | None -> "unknown"
 
-  Stdlib.printLine $"On branch {Stdlib.Cli.UI.Colors.cyan}{branchName}{Stdlib.Cli.UI.Colors.reset}"
+  Stdlib.printLine
+    $"On branch {Stdlib.Cli.UI.Colors.cyan}{branchName}{Stdlib.Cli.UI.Colors.reset}"
 
   let summary = SCM.PackageOps.getWipSummary branchId
 

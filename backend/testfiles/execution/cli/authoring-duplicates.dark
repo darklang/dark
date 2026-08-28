@@ -1,0 +1,73 @@
+// `addAuthored` rejects duplicate names before stabilization can collapse their
+// bodies to one content hash.
+
+module AuthoringDuplicates =
+  let fnOps
+    (name: String)
+    (body: Int64)
+    (placeholder: String)
+    : List<Darklang.LanguageTools.ProgramTypes.PackageOp> =
+    let fn =
+      Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+        { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash ""
+          body = Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1L, body)
+          typeParams = []
+          parameters =
+            [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+                { name = "x"
+                  typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+                  description = "" } ]
+          returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+          description = "" }
+    [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn
+      Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+        Darklang.LanguageTools.ProgramTypes.PackageLocation
+          { owner = "Test"; modules = [ "Dup" ]; name = name },
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(
+          Darklang.LanguageTools.ProgramTypes.Hash.Hash placeholder
+        )
+      ) ]
+
+  // Two bodies, one name: named once, with its kind.
+  (Darklang.LanguageTools.PackageManager.duplicateDeclarations
+    (Stdlib.List.append (fnOps "twice" 1L "p1") (fnOps "twice" 2L "p2"))) =
+    [ "fn Test.Dup.twice" ]
+
+  // Two names: no duplicate.
+  (Darklang.LanguageTools.PackageManager.duplicateDeclarations
+    (Stdlib.List.append (fnOps "one" 1L "p1") (fnOps "two" 2L "p2"))) = []
+
+  // The common boundary names the duplicate and stores nothing.
+  (match
+    Darklang.SCM.PackageOps.addAuthored
+      Darklang.SCM.Branch.mainBranchId
+      (Stdlib.List.append (fnOps "twice" 1L "p1") (fnOps "twice" 2L "p2"))
+   with
+   | Error message -> message
+   | Ok _ -> "stored") = "Declared more than once: fn Test.Dup.twice"
+
+  // Partial commits must check the WIP body published by a selected SetName.
+  (match
+    fnOps "invalid" 1L "invalid-hash"
+    |> Stdlib.List.map (fun op ->
+      match op with
+      | AddFn fn ->
+        Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn
+          { fn with
+              hash =
+                Darklang.LanguageTools.ProgramTypes.Hash.Hash "invalid-hash"
+              returnType =
+                Darklang.LanguageTools.ProgramTypes.TypeReference.TString }
+      | _ -> op)
+   with
+   | invalidOps ->
+     let selectedSetName =
+       invalidOps
+       |> Stdlib.List.filter (fun op ->
+         match op with
+         | SetName (_, _) -> true
+         | _ -> false)
+     let checkOps =
+       Darklang.SCM.PackageOps.opsForCommitTypeCheck invalidOps selectedSetName
+     (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps checkOps).verdict) =
+    Darklang.LanguageTools.AtRestTypeChecker.Verdict.Failed

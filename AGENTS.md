@@ -249,6 +249,13 @@ It desugars to a local lambda, can close over outer bindings and can call itself
 recursion between nested functions isn't supported. There's no `rec` keyword; top-level
 functions are self-recursive already.
 
+**A capped listing decides on stdout, but the TTY depends on stdin.** `Listing.shouldCap`
+asks whether stdout is a terminal, and `run-in-docker` allocates a TTY only when *stdin*
+is one. Authoring reads the declaration from stdin (`fn X - <<'EOF'`), so there's no TTY,
+so `shouldCap` is false and nothing caps -- on exactly the path that produces the most
+output. For a status report from an authoring command, cap unconditionally and point the
+footer at the command that prints everything.
+
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 

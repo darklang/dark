@@ -9,6 +9,23 @@ module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
+/// Probe for remaining stack before recursing into persisted input.
+///
+/// The `fromDT` walks below read Dvals back out of the package store, so how deep they
+/// nest is a property of what was written, not something this code chose. Running out
+/// of stack there would be a real .NET stack overflow, which cannot be caught and takes
+/// the whole process down: no error to report, nothing to recover, the CLI or server
+/// just dies. `EnsureSufficientExecutionStack` throws an ordinary
+/// `InsufficientExecutionStackException` while there is still headroom, which turns an
+/// unrecoverable crash into an exception the surrounding error boundary can report
+/// against the item that caused it. Nothing catches it here specifically; that is the
+/// whole gain.
+///
+/// `AtRestTypeChecker.ensureStack` is the same technique for the same reason, and does
+/// catch it, converting the throw into an `Incomplete` verdict.
+let private ensureSufficientExecutionStack () : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
@@ -337,6 +354,7 @@ module TypeReference =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.TypeReference =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "TVariable", [ DString name ]) -> PT.TVariable(name)
 
@@ -402,6 +420,7 @@ module LetPattern =
 
 
   let rec fromDT (d : Dval) : PT.LetPattern =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
@@ -472,6 +491,7 @@ module MatchPattern =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "MPVariable", [ DInt64 id; DString name ]) ->
       PT.MPVariable(uint64 id, name)
@@ -931,6 +951,7 @@ module Expr =
 
 
   let rec fromDT (d : Dval) : PT.Expr =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "EUnit", [ DInt64 id ]) -> PT.EUnit(uint64 id)
 
