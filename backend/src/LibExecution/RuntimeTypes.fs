@@ -2951,21 +2951,29 @@ module Types =
   /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
   /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
   /// names across different declarations. Caching the whole `Option` means a hit allocates nothing.
+  ///
+  /// Concurrent on both levels, and it has to be. `find` had no mutable state before this cache, so
+  /// nothing stopped two threads calling it at once, and plenty do: the test suite runs its cases in
+  /// parallel against one `Types`. A plain `Dictionary` here corrupted itself within seconds under
+  /// that, and a get-then-add on the outer table let two threads build two caches, one of which then
+  /// took writes nobody would ever read.
+  type private DeclCache =
+    System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>
+
   let private declCache =
-    System.Runtime.CompilerServices.ConditionalWeakTable<Types, Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>>()
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, DeclCache>()
+
+  let private newDeclCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, DeclCache>
+      .CreateValueCallback(fun _ -> DeclCache())
 
   let find
     (types : Types)
     (name : FQTypeName.FQTypeName)
     : Ply<Option<TypeDeclaration.T>> =
-    let cache =
-      let mutable d = Unchecked.defaultof<_>
-      if declCache.TryGetValue(types, &d) then
-        d
-      else
-        let fresh = Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>()
-        declCache.AddOrUpdate(types, fresh)
-        fresh
+    // `GetValue`, not a `TryGetValue`/`AddOrUpdate` pair: the pair is not atomic, and this is the
+    // one place the cache for a `Types` is created.
+    let cache = declCache.GetValue(types, newDeclCache)
 
     let mutable hit = Unchecked.defaultof<Option<TypeDeclaration.T>>
     if cache.TryGetValue(name, &hit) then
