@@ -104,7 +104,7 @@ let internal declarationFieldType
     state.Error(TypeMismatch, nodeId, None, None, Arity(expected, actual))
     state.FreshTainted nodeId
 
-let rec internal patternBindingNames (pattern : MatchPattern) : List<string> =
+let rec private patternBindingNames (pattern : MatchPattern) : List<string> =
   ensureStack ()
   match pattern with
   | MPVariable(_, name) when name <> "_" -> [ name ]
@@ -132,7 +132,7 @@ let rec internal patternBindingNames (pattern : MatchPattern) : List<string> =
   | MPString _
   | MPVariable _ -> []
 
-let internal recoverPatternBindings
+let private recoverPatternBindings
   (state : State)
   (nodeId : id)
   (patterns : List<MatchPattern>)
@@ -290,7 +290,7 @@ let rec internal checkMatchPattern
           | None -> ()
       Map.toList first
 
-let rec internal unguardedPatternAlternatives
+let rec private unguardedPatternAlternatives
   (pattern : MatchPattern)
   : List<MatchPattern> =
   ensureStack ()
@@ -299,7 +299,7 @@ let rec internal unguardedPatternAlternatives
     alternatives |> NEList.toList |> List.collect unguardedPatternAlternatives
   | pattern -> [ pattern ]
 
-let rec internal patternIsIrrefutable (pattern : MatchPattern) : bool =
+let rec private patternIsIrrefutable (pattern : MatchPattern) : bool =
   ensureStack ()
   match pattern with
   | MPVariable _ -> true
@@ -362,7 +362,7 @@ let rec internal missingPatternToString (pattern : MissingPattern) : string =
     $"{caseName}({fields})"
   | MissingConstructor(_, fields) -> fields |> List.map recurse |> String.concat ", "
 
-let internal finiteConstructors
+let private finiteConstructors
   (state : State)
   (nodeId : id)
   (typ : StaticType)
@@ -400,7 +400,7 @@ let internal finiteConstructors
     | None -> None
   | _ -> None
 
-let rec internal specializePattern
+let rec private specializePattern
   (constructor : PatternConstructor)
   (fieldCount : int)
   (pattern : MatchPattern)
@@ -430,7 +430,7 @@ let rec internal specializePattern
     [ fields ]
   | _ -> []
 
-let rec internal findUncoveredPattern
+let rec private findUncoveredPattern
   (state : State)
   (nodeId : id)
   (remainingDepth : int)
@@ -489,7 +489,7 @@ let rec internal findUncoveredPattern
         rowsWithCatchAll
       |> Option.map (fun missing -> MissingWildcard :: missing)
 
-let rec internal patternMatrixIsExhaustive
+let rec private patternMatrixIsExhaustive
   (state : State)
   (nodeId : id)
   (types : List<StaticType>)

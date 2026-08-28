@@ -369,6 +369,7 @@ let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
 let contextToStringWith
   (customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (code: IssueCode)
   (context: Context)
   : String =
   let typeName = (fun hash ->
@@ -393,10 +394,22 @@ let contextToStringWith
     $"The signature for {name fn} is not available to the checker"
   | ValueUnavailable value ->
     $"The type of {name value} is not available to the checker"
-  | Identifier ident -> $"'{ident}'"
+  | Identifier ident ->
+    match code with
+    | UnknownVariable -> $"Local variable '{ident}' is not in scope"
+    | UnknownRecordField -> $"Record has no field named '{ident}'"
+    | UnknownEnumCase -> $"Enum has no case named '{ident}'"
+    | UnknownDeclaredTypeVariable ->
+      $"Type variable '{ident}' is not declared in this scope"
+    | _ -> $"'{ident}'"
   | Identifiers idents ->
-    let quoted = idents |> Stdlib.List.map (fun ident -> $"'{ident}'")
-    $"{Stdlib.String.join quoted ", "}"
+    let quoted =
+      idents |> Stdlib.List.map (fun ident -> $"'{ident}'") |> Stdlib.String.join ", "
+    let noun = if (Stdlib.List.length idents) == 1 then "field" else "fields"
+
+    match code with
+    | MissingRecordField -> $"Record is missing {noun}: {quoted}"
+    | _ -> quoted
   | Duplicate(ident, site) ->
     $"'{ident}' is {duplicateSiteToString site} more than once"
   | Ambiguous subject ->
@@ -404,14 +417,32 @@ let contextToStringWith
   | Untrusted(fn, reason) ->
     $"{name fn} cannot be checked statically: {untrustedBuiltinToString reason}"
   | Arity(expected, actual) ->
-    $"Expected {Stdlib.Int64.toString expected}, but {Stdlib.Int64.toString actual} "
-    ++ "were provided"
+    let noun =
+      if expected == 1L then "1 type argument"
+      else $"{Stdlib.Int64.toString expected} type arguments"
+    let verb = if actual == 1L then "was" else "were"
+
+    match code with
+    | ExplicitTypeArgumentCountMismatch ->
+      $"Expected {noun}, but {Stdlib.Int64.toString actual} {verb} given explicitly"
+    | _ ->
+      $"This type declaration expects {noun}, "
+      ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
   | NamedArity(ident, expected, actual) ->
-    $"'{ident}' expects {Stdlib.Int64.toString expected}, "
-    ++ $"but {Stdlib.Int64.toString actual} were provided"
+    let noun =
+      if expected == 1L then "1 field" else $"{Stdlib.Int64.toString expected} fields"
+    let verb = if actual == 1L then "was" else "were"
+
+    $"Case '{ident}' expects {noun}, "
+    ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
   | TypeArity(hash, expected, actual) ->
-    $"{typeName hash} expects {Stdlib.Int64.toString expected} type arguments, "
-    ++ $"but {Stdlib.Int64.toString actual} were provided"
+    let noun =
+      if expected == 1L then "1 type argument"
+      else $"{Stdlib.Int64.toString expected} type arguments"
+    let verb = if actual == 1L then "was" else "were"
+
+    $"{typeName hash} expects {noun}, "
+    ++ $"but {Stdlib.Int64.toString actual} {verb} provided"
   | ArgumentIndex index ->
     $"There is no argument at index {Stdlib.Int64.toString index}"
   | UncoveredPattern witness ->
@@ -441,8 +472,8 @@ let contextToStringWith
   | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
 
 
-let contextToString (context: Context) : String =
-  contextToStringWith (fun _ -> Stdlib.Option.Option.None) context
+let contextToString (code: IssueCode) (context: Context) : String =
+  contextToStringWith (fun _ -> Stdlib.Option.Option.None) code context
 
 
 let issueToStringWith
@@ -461,7 +492,7 @@ let issueToStringWith
         ++ staticTypeToStringWith customTypeName actual
       | None -> ""
     | None -> ""
-  (contextToStringWith customTypeName issue.context) ++ detail
+  (contextToStringWith customTypeName issue.code issue.context) ++ detail
 
 let issueToString (issue: Issue) : String =
   issueToStringWith (fun _ -> Stdlib.Option.Option.None) issue

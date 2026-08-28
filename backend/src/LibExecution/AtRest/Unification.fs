@@ -112,7 +112,7 @@ type internal State(environment : TypeEnvironment) =
 let internal ensureStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
-let internal tooDeepBlocker (nodeId : Option<id>) : Blocker =
+let private tooDeepBlocker (nodeId : Option<id>) : Blocker =
   { code = UnsupportedConstruct; nodeId = nodeId; context = DeclarationTooDeep }
 
 let internal guardingStack
@@ -226,7 +226,7 @@ let rec internal containsTaintedInferenceVariable
     List.exists recurse (NEList.toList args) || recurse returnType
   | _ -> false
 
-let rec internal containsInferenceVar
+let rec private containsInferenceVar
   (state : State)
   (needle : int)
   (typ : StaticType)
@@ -246,7 +246,7 @@ let rec internal containsInferenceVar
   | TFn(args, ret) -> List.exists recurse (NEList.toList args) || recurse ret
   | _ -> false
 
-let internal expandAliasOnce
+let private expandAliasOnce
   (state : State)
   (nodeId : Option<id>)
   (seen : Set<FQTypeName.Package>)
@@ -412,7 +412,7 @@ let internal validateTypeClosure
   : unit =
   validateTypeClosureFrom state nodeId Set.empty Set.empty typ
 
-let internal samePrimitive (left : StaticType) (right : StaticType) : bool =
+let private samePrimitive (left : StaticType) (right : StaticType) : bool =
   match left, right with
   | TUnit, TUnit
   | TBool, TBool
@@ -541,12 +541,12 @@ let rec internal inferenceVariables (typ : StaticType) : Set<int> =
       (recurse ret)
   | _ -> Set.empty
 
-let internal freeVariablesInScheme (state : State) (scheme : TypeScheme) : Set<int> =
+let private freeVariablesInScheme (state : State) (scheme : TypeScheme) : Set<int> =
   Set.difference
     (applySubstitutions state scheme.typ |> inferenceVariables)
     scheme.quantified
 
-let internal freeVariablesInEnv (state : State) (env : Env) : Set<int> =
+let private freeVariablesInEnv (state : State) (env : Env) : Set<int> =
   env.locals
   |> Map.values
   |> Seq.map (freeVariablesInScheme state)

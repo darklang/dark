@@ -222,7 +222,7 @@ type FunctionSignature =
 
 type TypeEnvironmentBuildError = BuiltinFunctionHasNoParameters of FQFnName.Builtin
 
-let rec internal runtimeTypeToProgramType (typ : RT.TypeReference) : TypeReference =
+let rec private runtimeTypeToProgramType (typ : RT.TypeReference) : TypeReference =
   let recurse = runtimeTypeToProgramType
   match typ with
   | RT.TUnit -> TypeReference.TUnit
@@ -266,7 +266,7 @@ let rec internal runtimeTypeToProgramType (typ : RT.TypeReference) : TypeReferen
             Error NameResolutionError.InvalidName }
     TypeReference.TCustomType(name, List.map recurse args)
 
-let rec internal runtimeTypeVariables (typ : RT.TypeReference) : Set<string> =
+let rec private runtimeTypeVariables (typ : RT.TypeReference) : Set<string> =
   let recurse = runtimeTypeVariables
   match typ with
   | RT.TVariable name -> Set.singleton name

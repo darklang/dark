@@ -17,7 +17,7 @@ open LibExecution.AtRest.Unification
 open LibExecution.AtRest.Patterns
 
 
-let internal isNumeric (typ : StaticType) : bool =
+let private isNumeric (typ : StaticType) : bool =
   match typ with
   | TInt8
   | TUInt8
@@ -33,7 +33,7 @@ let internal isNumeric (typ : StaticType) : bool =
   | TFloat -> true
   | _ -> false
 
-let internal supportsNumericOperation
+let private supportsNumericOperation
   (operation : InfixFnName)
   (typ : StaticType)
   : bool =
@@ -87,7 +87,7 @@ let rec internal isNonExpansive (expr : Expr) : bool =
   | EStatement _ -> false
 
 /// `Result<T, _> -> T`. An unknown argument remains uncheckable.
-let internal asUnwrapBuiltin
+let private asUnwrapBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName> =
   match resolvedName name with
@@ -95,7 +95,7 @@ let internal asUnwrapBuiltin
     Some fqName
   | _ -> None
 
-let internal inferUnwrapResult
+let private inferUnwrapResult
   (state : State)
   (nodeId : id)
   (fqName : FQFnName.FQFnName)
@@ -116,7 +116,7 @@ let internal inferUnwrapResult
     state.FreshTainted(Some nodeId)
 
 /// Signed integers and Float: what unary minus accepts (`Builtin.negate`).
-let internal isSignedNumeric (typ : StaticType) : bool =
+let private isSignedNumeric (typ : StaticType) : bool =
   match typ with
   | TInt8
   | TInt16
@@ -128,7 +128,7 @@ let internal isSignedNumeric (typ : StaticType) : bool =
   | _ -> false
 
 /// Recognize operator builtins whose loose signatures require infix rules.
-let internal asOperatorBuiltin
+let private asOperatorBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName * Infix> =
   match resolvedName name with
@@ -138,7 +138,7 @@ let internal asOperatorBuiltin
   | _ -> None
 
 /// Recognize the builtin used for non-literal unary minus.
-let internal asNegateBuiltin
+let private asNegateBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName> =
   match resolvedName name with
@@ -148,13 +148,11 @@ let internal asNegateBuiltin
     Some fqName
   | _ -> None
 
-let internal isOperatorLikeBuiltin
-  (name : NameResolution<FQFnName.FQFnName>)
-  : bool =
+let private isOperatorLikeBuiltin (name : NameResolution<FQFnName.FQFnName>) : bool =
   Option.isSome (asOperatorBuiltin name) || Option.isSome (asNegateBuiltin name)
 
 /// Check unary minus and return its operand type.
-let internal inferNegateResult
+let private inferNegateResult
   (state : State)
   (nodeId : id)
   (fqName : FQFnName.FQFnName)
@@ -177,7 +175,7 @@ let internal inferNegateResult
       )
   argType
 
-let internal instantiateFunction
+let private instantiateFunction
   (state : State)
   (nodeId : Option<id>)
   (typeVariableScope : Map<string, StaticType>)
@@ -235,7 +233,7 @@ let internal instantiateFunction
         validateTypeClosure state nodeId typ
         typ
 
-let internal instantiateCustomType
+let private instantiateCustomType
   (state : State)
   (nodeId : Option<id>)
   (typeVariableScope : Map<string, StaticType>)
