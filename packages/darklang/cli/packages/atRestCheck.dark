@@ -255,20 +255,51 @@ let printDependentsReport
             ($"  After {update}, {Stdlib.Int.toString count} {noun} {verb} "
              ++ "definite type errors "
              ++ "(still WIP; `commit` will refuse them until fixed):"))
-        failed
-        |> Stdlib.List.iter (fun item ->
-          let affected = candidatesFor candidates item.item
-          if Stdlib.List.isEmpty affected then
-            ()
-          else
-            Stdlib.printLine
-              (Stdlib.Cli.UI.Colors.error
-                $"    {candidateLabel affected}")
-            Stdlib.List.append
-              (issueLines branchId item.diagnostics)
-              (issueLines branchId item.blockers)
-            |> Stdlib.List.map (fun line -> "    " ++ line)
-            |> Stdlib.printLines)
+        // Capped by whole dependents, so nobody sees half of one's errors. Breaking a
+        // widely-used signature can fail hundreds, and this is a status report from an
+        // authoring action, not a listing someone greps -- `typecheck --failed` is the
+        // surface that prints them all, and the footer says so.
+        //
+        // Capped unconditionally rather than via `Listing.shouldCap`, which asks
+        // whether stdout is a terminal. Authoring reads the declaration from stdin, so
+        // `run-in-docker` allocates no TTY (it decides on stdin, not stdout) and
+        // `shouldCap` is always false here. Deciding by terminal would mean never
+        // capping on the one path that floods.
+        let failedGroups =
+          failed
+          |> Stdlib.List.filterMap (fun item ->
+            let affected = candidatesFor candidates item.item
+
+            if Stdlib.List.isEmpty affected then
+              Stdlib.Option.Option.None
+            else
+              let header =
+                Stdlib.Cli.UI.Colors.error $"    {candidateLabel affected}"
+
+              let issues =
+                Stdlib.List.append
+                  (issueLines branchId item.diagnostics)
+                  (issueLines branchId item.blockers)
+                |> Stdlib.List.map (fun line -> "    " ++ line)
+
+              Stdlib.Option.Option.Some(Stdlib.List.append [ header ] issues))
+
+        let (shownGroups, leftOut) =
+          Listing.cut
+            failedGroups
+            Listing.defaultLimit
+            true
+            (fun group -> Stdlib.List.length group)
+            (fun _ -> 1)
+
+        shownGroups |> Stdlib.List.flatten |> Stdlib.printLines
+
+        if leftOut > 0 then
+          Stdlib.printLine
+            (Listing.footerSeeAlso
+              leftOut
+              "dependents"
+              "see `typecheck --failed`")
 
       // Incomplete results may predate the update; summarize them and leave
       // details to `typecheck --incomplete`.

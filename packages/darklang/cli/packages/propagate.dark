@@ -249,25 +249,41 @@ let propagateFromHashes
           let count = Stdlib.List.length repoints
           Stdlib.printLine $"  Propagated to {Stdlib.Int.toString count} dependents:"
 
-          let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
-          let namesDict = Deps.resolveNames branchId ids
+          let ids =
+            repoints
+            |> Stdlib.List.map (fun r ->
+              LanguageTools.ProgramTypes.Reference.hash r.toRef)
+            |> Stdlib.List.unique
 
+          let namesDict = Deps.resolveNames branchId ids
+          let updated =
+            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+          // Grouped and capped, like every other long listing. Updating a widely-used
+          // item repoints hundreds of callers, and a line each buries whatever else the
+          // save had to say -- including the type errors printed after this.
           repoints
-          |> Stdlib.List.iter (fun repoint ->
-            let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
-            let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-            Stdlib.printLine $"    [{kindStr}] {name}")
+          |> Stdlib.List.map (fun repoint ->
+            Deps.getName
+              namesDict
+              (LanguageTools.ProgramTypes.Reference.hash repoint.toRef))
+          |> Listing.groupedByModule
+          |> fun groups ->
+              Listing.cappedGroupsSeeAlso
+                groups
+                Listing.defaultLimit
+                true
+                "dependents"
+                $"see `deps usedby {updated} --all`"
+          |> Stdlib.printLines
 
           if signatureChanged then
             Stdlib.printLine ""
             Stdlib.printLine
-              (Stdlib.Cli.UI.Colors.warning "  These callers may need manual updates. To review:")
-
-            repoints
-            |> Stdlib.List.iter (fun repoint ->
-              let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
-              let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-              Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    view {kindStr} {name}"))
+              (Stdlib.Cli.UI.Colors.warning
+                "  These callers may need manual updates:")
+            Stdlib.printLine
+              (Stdlib.Cli.UI.Colors.hint $"    deps usedby {updated} --all")
 
       ()
 
