@@ -307,7 +307,7 @@ let gateEnabled (accountName: String) : Bool =
 
 /// Every view as `(absolute index, label, gate key)`, used for visibility and
 /// label lookup. `workspaces` separately defines sidebar placement.
-let viewSpecs () : List<(Int * String * String)> =
+val viewSpecs =
   let base =
     baseViewSpecs
     |> Stdlib.List.map (fun pair ->
@@ -335,7 +335,7 @@ let viewLabel (idx: Int) : String =
 ///
 /// Computed at launch (and again after a login change) rather than per frame.
 let gatedViewsFor (accountName: String) : List<Int> =
-  viewSpecs ()
+  viewSpecs
   |> Stdlib.List.filter (fun spec ->
     let (_i, _n, g) = spec
     (g != "") && (gateEnabled accountName))
@@ -353,7 +353,7 @@ let recomputeGatedViews (state: State) : List<Int> =
 /// if it isn't gated, or it's gated and enabled for this account (see
 /// `enabledGatedViews`, recomputed on launch and after a config change).
 let visibleViews (state: State) : List<Int> =
-  viewSpecs ()
+  viewSpecs
   |> Stdlib.List.filter (fun spec ->
     let (i, _n, g) = spec
     (g == "") || (Stdlib.List.member state.enabledGatedViews i))

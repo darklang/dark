@@ -48,7 +48,29 @@ let ofCluster (cluster : string) : int =
       widestScalar
 
 /// Cells occupied by plain, single-line text. Strip escapes first; controls measure zero.
-let ofString (text : string) : int = text |> String.toEgcSeq |> Seq.sumBy ofCluster
+///
+/// `String.toEgcSeq |> Seq.sumBy ofCluster` allocates a string for every grapheme cluster, which for
+/// ASCII text is one per character, to hand `ofCluster` something whose width it answers by
+/// comparison. A printable ASCII character followed by another ASCII character is one column and
+/// cannot be part of a longer cluster, so it needs no cluster built at all -- the same rule
+/// `TerminalText.styledWidth` uses, and for the same reason. The only multi-character ASCII cluster
+/// is CRLF, whose first half is not printable, so it still takes the cluster path and measures as it
+/// always did.
+let ofString (text : string) : int =
+  let mutable total = 0
+  let mutable i = 0
+
+  while i < text.Length do
+    let c = text[i]
+    if c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080') then
+      total <- total + 1
+      i <- i + 1
+    else
+      let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+      total <- total + ofCluster cluster
+      i <- i + cluster.Length
+
+  total
 
 /// Whether text contains an ASCII/Unicode control character.
 let containsControl (text : string) : bool = text |> Seq.exists System.Char.IsControl

@@ -60,13 +60,7 @@ let reverse (list: List<'a>) : List<'a> =
 /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
 /// value exists
 let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
-  match list with
-  | [] -> Option.Option.None
-  | head :: tail ->
-    if (fn head) then
-      Option.Option.Some head
-    else
-      findFirst tail fn
+  Builtin.listFindFirst list fn
 
 
 /// Returns the index of the first element in <param list> for which <param fn>
@@ -80,7 +74,7 @@ let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int> =
 
 /// Returns {{true}} if <param value> is in the list
 let ``member`` (list: List<'a>) (value: 'a) : Bool =
-  Option.isSome (findFirst list (fun elem -> elem == value))
+  Builtin.listMember list value
 
 
 // TODO: inline as a nested helper fn once Dark supports local function definitions
@@ -111,19 +105,17 @@ let ``length`` (list: List<'a>) : Int =
 /// Returns a list of numbers where each element is {{1}} larger than the
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
 let range (lowest: Int) (highest: Int) : List<Int> =
-  if lowest > highest then
-    []
-  else
-    push (range (lowest + 1) highest) lowest
+  Builtin.listRange lowest highest
 
 
-/// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
+/// Folds <param list> into a single value, by calling <param fn> on each element with the value
+/// built so far.
+///
+/// Native, unlike most of this module, because it is the loop everything else here is written on:
+/// `map`, `filter` and the rest fold. Written in Dark it cost a package call and a match per element
+/// on top of the lambda; the builtin walks the list in F# and applies the lambda directly.
 let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
-  match list with
-  | [] -> init
-  | head :: tail ->
-    let init = fn init head
-    fold tail init fn
+  Builtin.listFold list init fn
 
 
 /// Returns a single list containing the values of every list directly in <paramlist>
@@ -181,7 +173,7 @@ let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 
 
 /// Returns true if <param list> has no values
-let isEmpty (list: List<'a>) : Bool = list == []
+let isEmpty (list: List<'a>) : Bool = Builtin.listIsEmpty list
 
 
 /// Returns a copy of <param list> with every value sorted in ascending order.
@@ -198,10 +190,7 @@ let sort (list: List<'a>) : List<'a> = Builtin.listSort list
 /// Consider <fn sort> if the list values can be directly compared, or <fn
 /// sortByComparator> if you want more control over the sorting process.
 let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-  list
-  |> map (fun x -> (fn x, x))
-  |> sort
-  |> map (Tuple2.second)
+  Builtin.listSortBy list fn
 
 
 /// Helper functions for sortByComparator
@@ -292,13 +281,7 @@ let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
 
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
 let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
-  match list with
-  | [] -> false
-  | head :: tail ->
-    if fn head then
-      true
-    else
-      any tail fn
+  Builtin.listAny list fn
 
 
 /// Calls <param f> on every <var val> in <param list>, returning a list of only
@@ -306,9 +289,7 @@ let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
 /// Preserves the order of values that were not dropped. Consider <fn
 /// filterMap> if you also want to transform the values.
 let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-  (fold list [] (fun acc elem ->
-    if (f elem) then push acc elem else acc))
-  |> reverse
+  Builtin.listFilter list f
 
 
 /// Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -321,13 +302,7 @@ let filterMap
   (list: List<'a>)
   (fn: 'a -> Option.Option<'b>)
   : List<'b> =
-  match list with
-  | [] -> []
-  | head :: tail ->
-    match (fn head) with
-    | Some newValue ->
-      push (filterMap tail fn) newValue
-    | None -> filterMap tail fn
+  Builtin.listFilterMap list fn
 
 
 /// Drops the first <param count> values from <param list>
@@ -359,13 +334,7 @@ let dropLast (list: List<'a>) : List<'a> =
 
 /// Drops all but the first <param count> values from <param list>
 let take (list: List<'a>) (count: Int) : List<'a> =
-  if count <= 0 then
-    []
-  else
-    match list with
-    | [] -> []
-    | head :: tail ->
-      push (take tail (count - 1)) head
+  Builtin.listTake list count
 
 
 /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
@@ -383,36 +352,17 @@ let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
 /// results of those calls.
 /// Consider <fn filterMap> if you also want to drop some of the values.
 let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-  (fold list [] (fun acc elem -> push acc (fn elem)))
-  |> reverse
+  Builtin.listMap list fn
 
 
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
 let indexedMap (list: List<'a>) (fn: Int -> 'a -> 'b) : List<'b> =
-  list
-  |> fold ([], 0) (fun (acc, index) item ->
-    let mappedItem = fn index item
-    (pushBack acc mappedItem, index + 1))
-  |> Tuple2.first
+  Builtin.listIndexedMap list fn
 
 
 // Helper function for map2shortest
-let map2shortestHelper
-  (as_: List<'a>)
-  (bs: List<'b>)
-  (fn: 'a -> 'b -> 'c)
-  (result: List<'c>)
-  : List<'c> =
-  match (as_, bs) with
-  | ([], _)
-  | (_, []) -> result
-  | (a :: restA, b :: restB) ->
-    let mappedResult = fn a b
-    let result = pushBack result mappedResult
-    map2shortestHelper restA restB fn result
-
 /// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
 /// b}} on every pair of values from <param as> and <param bs>.
 /// If the lists differ in length, values from the longer list are dropped.
@@ -425,7 +375,7 @@ let map2shortest
   (bs: List<'b>)
   (fn: 'a -> 'b -> 'c)
   : List<'c> =
-  map2shortestHelper as_ bs fn []
+  Builtin.listMap2shortest as_ bs fn
 
 
 /// If the lists are the same length, returns {{Just list}} formed by mapping
@@ -457,13 +407,7 @@ let map2
 /// See <fn unzip> if you want to deconstruct the result into <param as>
 /// and <param bs> again.
 let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
-  match as_ with
-  | [] -> []
-  | aHead :: aTail ->
-    match bs with
-    | [] -> []
-    | bHead :: bTail ->
-      push (zipShortest aTail bTail) (aHead, bHead)
+  Builtin.listZipShortest as_ bs
 
 
 /// If the lists have the same length, returns {{Some list of tuples}} formed from

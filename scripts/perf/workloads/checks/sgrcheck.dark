@@ -1,0 +1,12 @@
+let pink = Stdlib.Cli.UI.Colors.pink
+let c = Stdlib.Cli.UI.Colors.colorize pink "abc"
+let c6 = Stdlib.Cli.UI.Colors.colorize pink "abcdef"
+// A non-SGR CSI (erase-line) must still be skipped whole, and contribute no width.
+let eraseLine = "\u001b[2Ka"
+let _1 = Stdlib.printLine ("plain      " ++ (Stdlib.Int.toString (Stdlib.Cli.Tui.Text.styledWidth "hello")))
+let _2 = Stdlib.printLine ("colorized  " ++ (Stdlib.Int.toString (Stdlib.Cli.Tui.Text.styledWidth c)))
+let _3 = Stdlib.printLine ("non-SGR    " ++ (Stdlib.Int.toString (Stdlib.Cli.Tui.Text.styledWidth eraseLine)))
+let _4 = Stdlib.printLine ("strip      " ++ (Stdlib.Cli.Tui.Text.stripSgr c))
+let _5 = Stdlib.printLine ("clip       " ++ (Stdlib.Cli.Tui.Text.stripSgr (Stdlib.Cli.Tui.Text.clipToWidth c6 3)))
+let _6 = Stdlib.printLine ("wrap       " ++ (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtColumn c6 3))))
+Stdlib.printLine "done"

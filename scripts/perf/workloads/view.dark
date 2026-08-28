@@ -1,0 +1,71 @@
+// What building a workbench view costs: time, allocation, and where both go by package fn.
+//
+// One file rather than three, because the expensive half is the state and size setup below, and
+// three copies of it fell out of step with the views they build every time those changed.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/view.dark
+//   for i in 1 2 3; do ./scripts/run-cli run scripts/perf/workloads/view.dark; done \
+//     | ./scripts/perf/fnprofile --divide 5
+//
+// `fnprofile` reads only the JSON line, so the two lines above it are ignored there. Feed it
+// several runs: it reports the minimum per call, and one run of it once misread a function by 20x.
+//
+// The three sections run in this order for a reason. Allocation goes first, on an otherwise fresh
+// process: run after the timing loop it drifts by a hundred-odd bytes, and being repeatable to the
+// byte is the whole reason to prefer it to the clock. Detailed timing goes last, because enabling
+// it perturbs everything after -- the interpreter's counters read the allocation counter twice per
+// builtin call, which inflates exactly the per-call figures the middle section is for.
+
+val iterations = 400
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+
+let viewN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let v = Darklang.Cli.Workbench.viewAtSize s size
+    viewN (i - 1) s (acc + (Stdlib.List.length v.rows))
+
+// Allocation. Byte-deterministic for a fixed workload, so this is the number to compare across
+// sessions; the one above drifts with how loaded the machine is.
+let _warmAlloc = viewN 2 base 0
+let a0 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+let _alloc = viewN 10 base 0
+let a1 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+
+let _ =
+  Stdlib.printLine
+    ("bytes per view build: "
+     ++ (Stdlib.Int.toString (Stdlib.Int.divide (Stdlib.Int.fromInt64 (a1 - a0)) 10)))
+
+// Time. Long enough that ~100 Hz sampling lands hundreds of samples inside it, so this is also the
+// section to run a sampling profiler against.
+let t0 = Darklang.Cli.Telemetry.now ()
+let rows = viewN iterations base 0
+let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
+
+let _ =
+  Stdlib.printLine
+    ((Stdlib.Int.toString iterations)
+     ++ " views, "
+     ++ (Stdlib.Int.toString elapsed)
+     ++ " ms, "
+     ++ (Stdlib.Int.toString (Stdlib.Int.divide elapsed iterations))
+     ++ " ms each ("
+     ++ (Stdlib.Int.toString rows)
+     ++ " rows)")
+
+// Per-fn profile, over five views. Pipe into fnprofile with `--divide 5`.
+let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+let _profile = viewN 5 base 0
+Stdlib.printLine (Darklang.LanguageTools.InterpreterStats.get ())

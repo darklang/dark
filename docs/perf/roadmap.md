@@ -10,7 +10,10 @@ Numbers are measured unless marked *(estimate)*.
     scripts/perf/bench              repeatable CLI timing, with an A/B mode
     scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python
-    ./scripts/run-cli run scripts/perf/workloads/costs.dark    per-operation cost table
+    scripts/perf/keystroke          what one keypress costs in the interactive CLI (needs a TTY)
+    ./scripts/run-cli run scripts/perf/workloads/optime.dark      time per operation (costs.dark's time twin)
+    ./scripts/run-cli run scripts/perf/workloads/costs.dark      per-operation cost table
+    ./scripts/run-cli run scripts/perf/workloads/workbench.dark  ms to build each workbench view
 
 Method and traps: `docs/perf/playbook.md`. Numbers round by round: `docs/perf/history.md`.
 
@@ -42,7 +45,75 @@ between them, but nothing measures the shipped artifact.
 
 ---
 
+## Round 5: CLI rendering and HTTP request handling
+
+A keypress went **283 -> 50 ms**, a view build 24 -> 12 (published), routing a request 600 -> 330 us,
+and a request's allocation 76 -> 47 KB. Both gate budgets came down, 7.6% Debug and 10.4% published.
+
+Two passes. Cutting work out of the CLI reached 141 ms and then hit a floor: 15-35 us per list
+element, 5.1 us per package call. The CLI was not slow because its renderers were badly written; it
+was slow because it ran many small list operations against a slow interpreter. The second pass went
+there, which is why HTTP improved without being touched.
+
+What landed: seven CLI fixes that delete work; thirteen list operations that were Dark recursions made
+native; an operator fast path where the interpreter answers 20 common operations itself; elision of
+package fns that bare-forward to a builtin (84% of a view's package calls); `String.slice` and the
+text-measurement functions rewritten to stop building a grapheme cluster per character; and one
+security fix, where a process-wide cache held a per-configuration builtin so one execution state's
+SSRF-disabled config could reach another's callers.
+
+### Closed with a size, so nobody re-attempts them
+
+| | worth | why not |
+|---|---|---|
+| lambda frame elision | 7.3% of a view | needs register remapping, and only 16% of applications have a body making no call of its own |
+| type checking on calls | ~0.1 of a call | ablated both argument and return checks; the cost is not there |
+| `Canvas.compose` bucketing | 0.8 ms | gap-padding forces a recursive walk, and a Dark self-recursive call is ~3.2 us an element |
+| opcodes for common ops at `PT2RT` | ~0.7 ms | a new `Instruction` case across six sites including binary serialisation |
+| vectorizing `styledWidth`'s ASCII runs | **-9%** | runs are short and interleaved with escapes, so span setup costs more than the branches saved |
+| reference-keying the `Hash` caches | nothing | a 64-char hex dictionary key looks expensive and is not |
+| ASCII pre-check in `String.Normalize` | nothing | .NET already fast-paths it |
+| avoiding the `bigint` round-trip | nothing | `BigInteger` is a struct and does not heap-allocate small values |
+
+### Which builtins the round kept, and why
+
+The line drawn, once a builtin had been measured to help: it stays if it replaces per-element work in
+Dark, or if it is a primitive predicate the interpreter can answer without allocating. The thirteen
+list operations are the first kind; `List.isEmpty` and `String.isEmpty` the second.
+
+Four were removed again for failing that test. `String.endsWith` and `Dict.isEmpty` measured as doing
+nothing. `Int.max` and `Int.min` did help, marginally, but they are a single comparison rather than a
+loop, so they are back to `if greaterThan a b then a else b` in Dark; the Dark version allocates
+slightly less, because it returns its operand rather than re-wrapping it, and routing does not move.
+The two remaining marginal ones, `List.zipShortest` and `String.dropFirst`, are worth 9.2% of routing
+between them and both walk their input, so they stay.
+
+A thin wrapper called with **explicit type arguments** is never elided, because the guard requires no
+type args. It costs ~3.4 us against 0.17 for an elided one. Extending it means resolving type args in
+the elision path, and the parameterised return check happens either way, so not all of it is
+recoverable. Narrow reach: no CLI call site passes explicit type args, and HTTP has one per request.
+
+### Where a view's time goes now
+
+~2,951 package calls, ~729 slow-path builtin calls, ~1,594 lambda applications and ~4,800 operators on
+the fast path. All four per-call costs are measured and worked; what is left inside them is a few
+percent behind a structural change. `composeRow` plus `renderSegments` is the largest single item,
+about 40% of a view, and making them native is the "F# owns measurement, Dark owns layout" judgement
+call rather than a perf question.
+
+
 ## Open, roughly ranked
+
+### Redraw the whole frame on every keypress -- the largest item anywhere
+
+An arrow key changes **2 rows of 40**, measured. The CLI rebuilds all forty to produce two, which is
+worth most of the 12 ms a view costs -- an order of magnitude more than anything left in the
+interpreter. Presenting is already cheap, so a diff at the output end is not the answer; it wants the
+view built from regions that know when they are stale. The map such a change needs is what each
+region costs and which ones a keypress touches; probe for that against the view as it stands then,
+rather than trusting one written against this round's.
+
+An architecture question for the CLI, not an optimisation.
 
 ### Startup: ~19 ms of the 21 is ours, and it is before `main`
 
@@ -300,6 +371,55 @@ means changing the representation.
 
 ## Larger, not yet scoped
 
+**An interpreter round aimed at latency, not allocation.** Stachu's suggestion, and this round has
+been quietly building the case for it. Rounds 1-4 optimised the interpreter for *allocation* and, by
+their own account, largely exhausted the easy classes. Round 5 has now found the same thing four
+times over in the CLI: there is no pathology, only volume. Measured here, per call: a 13-element
+tuple literal 465 us, `List.range 1 13` 175 us, `List.filter` over 13 Ints 215 us, `List.member` over
+13 Ints 70 us, a 29-field record update 11 us. That is roughly **15-35 us per list element**, and it
+is the multiplier on every structural win in this round.
+
+Which means the ceiling on interactive latency is not the CLI's code. Every fix so far has been
+"do fewer list operations", and each one is bounded by how few are actually needed. Halving the
+per-element cost would take a keypress from 163 ms to somewhere near 80 without touching a single
+renderer.
+
+Worth stating clearly because it is a *different* target from rounds 1-4: those measured bytes, and
+the roadmap says plainly that allocation campaigns move allocation while time follows far less. This
+would be a wall-clock campaign against the per-operation cost of the loop -- dispatch, list
+construction, record field access -- and it needs an instrument that measures time per operation
+rather than bytes per workload. `scripts/perf/workloads/costs.dark` is the closest thing we have and
+it reports allocation.
+
+**Prefetch package items while something else is running.** Stachu's idea, filed with a size on it.
+Items are cached per process, so only the first touch of anything pays; the thought is to start
+loading what will be needed shortly while current work runs, hiding the latency rather than reducing
+the cost. It pairs with the parked "Package deserialization" item below, which is about the cost
+itself and is parked for want of an instrument.
+
+Measured, first render of each view against its second (the gap is package loading):
+
+| view | cold | warm | penalty |
+|---|---|---|---|
+| Home | 162 ms | 112 ms | 50 ms |
+| 1 | 149 | 113 | 36 |
+| 5 | 87 | 62 | 25 |
+| 2, 3, 4, 6, 7, 8 | | | 0-4 |
+
+So the prize is real but bounded and front-loaded: the first view opened pays ~50 ms, the next
+distinct one ~36, and by the fourth it is noise, because earlier views have already warmed what they
+share. Views were rendered in order here, so this is the shape of a session that visits several
+views, not of one that sits in a single view.
+
+That makes it a **startup and first-visit** win of maybe 60-90 ms total across a session, against the
+120 ms per keypress this round has already removed. Worth doing, not worth doing first.
+
+Where it would live: the loader is F#, so warming a cache on a background task needs nothing from the
+language. That matters, because expressing parallel work *in Dark* does not exist yet -- see
+"Concurrency in the language" below. Prefetching from F# sidesteps that entirely. What to prefetch is
+the open question; sidebar navigation is predictable enough (the adjacent views) that a guess would
+often be right, and a wrong guess costs only work nobody waited for.
+
 **Value representation.** Struct `Dval` with tag and payload, cached singletons for small
 ints/bools/unit, array-backed records with a shared shape descriptor instead of a `Map` per record.
 Weeks, highest ceiling, highest risk, and the main remaining allocation play.
@@ -368,9 +488,10 @@ self-merge, but the fix is now a four-site change.
   The remainder is spread thin.
 - **JSON.** `Json.parse` is a third of what the call costs; nothing inside dominates. A list element
   is ~900 B, a record field ~100.
-- **Making stdlib wrappers free.** A warm package call allocates *nothing*: 0, 1, 2, 4 and 8 extra
-  forwarding hops all allocate 231 bytes while package calls rise 4 to 12. Only the first call to a
-  given fn pays. There was nothing to win.
+- **Making stdlib wrappers free -- reopened and done in round 6.** The original close was right about
+  allocation and wrong to stop there: a warm package call allocates nothing, but a forwarder cost
+  2.5 us of frame in *time*. Eliding it took a view build 76 -> 66 ms. Allocation-only conclusions
+  should not close time questions.
 - **Calling a polymorphic builtin.** Claimed 7,470 B from a residual across two probe scripts;
   actually 192 B. Retracted.
 - **A 2x between two record types.** Was the hash collision described below: the two rows were not

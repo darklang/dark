@@ -34,7 +34,7 @@ let articleFor (nextWord: String) : String =
 
 
 /// Returns {{true}} if <param s> is the empty string {{\"\"}
-let isEmpty (s: String) : Bool = s == ""
+let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 
 
 /// Iterate over each Char (EGC, not byte) in the string, performing the
@@ -253,19 +253,7 @@ let contains (lookingIn: String) (searchingFor: String) : Bool =
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
 let slice (string: String) (from: Int) (``to``: Int) : String =
-  let len = String.length string
-
-  let normalize =
-    (fun i ->
-      (if i < 0 then len + i else i)
-      |> Int.min len
-      |> Int.max 0)
-
-  let f = normalize from
-  let l = normalize ``to``
-  let l = if f > l then f else l
-
-  string |> Builtin.stringSlice f l
+  Builtin.stringSlice string from ``to``
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
@@ -314,12 +302,7 @@ let dropLast (string: String) (characterCount: Int) : String =
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
 let dropFirst (string: String) (characterCount: Int) : String =
-  if characterCount < 0 then
-    string
-  else if characterCount > String.length string then
-    ""
-  else
-    String.slice string characterCount (String.length string)
+  Builtin.stringDropFirst string characterCount
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -441,16 +424,12 @@ let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
 
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
-  String.slice subject 0 (String.length prefix) == prefix
+  Builtin.stringStartsWith subject prefix
 
 
 /// Checks if <param subject> ends with <param suffix>
 let endsWith (subject: String) (suffix: String) : Bool =
-  String.slice
-    subject
-    (String.length subject - String.length suffix)
-    (String.length subject)
-  == suffix
+  String.slice subject (String.length subject - String.length suffix) (String.length subject) == suffix
 
 
 /// Returns the plural form of <param word> by a simple English rule: words ending

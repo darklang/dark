@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# What one keypress costs in the interactive CLI: from sending the key to the last byte of the
+# redraw. Needs a real TTY, so it drives the CLI under `expect`.
+#
+#   scripts/perf/keystroke              120x40, the smallest size that lays out every pane
+#   scripts/perf/keystroke 200 50       a size closer to a real terminal
+#
+# The headless half of the same question -- what building the view costs, without a terminal -- is
+# `scripts/perf/workloads/workbench.dark`, which repeats to ~3% and can be profiled. Reach for this
+# one to see what the whole loop costs, and that one to find out why.
+#
+# Three traps, all of which produced confident wrong numbers before they were handled:
+#   - Time to the LAST byte, not the first. The redraw starts fast and finishes slowly, so
+#     first-byte latency reads ~95 ms where the screen takes ~300.
+#   - Terminal size changes the answer by 3x, because below ~120 columns the workbench drops panes.
+#     Never compare two runs at different sizes.
+#   - Sizes come from `stty_init` before `spawn`; an `stty` after it does nothing here.
+
+set -euo pipefail
+COLS=${1:-120}
+ROWS=${2:-40}
+exec expect -f scripts/perf/_keystroke.expect "$COLS" "$ROWS"

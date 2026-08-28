@@ -40,7 +40,7 @@ let mkDest (view: Int) (section: Int) : Dest = Dest { view = view; section = sec
 /// Every workspace, in sidebar order. Home first, so `1` is Home. The number
 /// key for a workspace is its position here, so hiding one (gating) doesn't
 /// renumber the rest.
-let workspaces () : List<Workspace> =
+val workspaces =
   [ Workspace { name = "Home"; dests = [ ("Home", mkDest vHome 0) ] }
     // Builtins are part of the tree - the bottom tier of it - not
     // documentation about it.
@@ -74,19 +74,28 @@ let workspaces () : List<Workspace> =
     // This machine: its config and the peers it syncs with.
     Workspace { name = "Instance"; dests = [ ("Devices", mkDest vDevices 0) ] } ]
 
+/// The destinations of `ws` this account can see, given the already-computed visible view list.
+///
+/// Takes `vis` rather than `state` because every caller is inside a loop over workspaces, and
+/// `visibleViews` is expensive enough that recomputing it per workspace dominated the sidebar.
+let visibleDestsIn (vis: List<Int>) (ws: Workspace) : List<(String * Dest)> =
+  ws.dests |> Stdlib.List.filter (fun pair -> let (_l, d) = pair in Stdlib.List.member vis d.view)
+
 /// The destinations of `ws` this account can see (gated views drop out).
 let visibleDests (state: State) (ws: Workspace) : List<(String * Dest)> =
-  let vis = visibleViews state
-  ws.dests |> Stdlib.List.filter (fun pair -> let (_l, d) = pair in Stdlib.List.member vis d.view)
+  visibleDestsIn (visibleViews state) ws
+
+let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
+  workspaces
+  |> Stdlib.List.indexedMap (fun i w -> (i, w))
+  |> Stdlib.List.filter (fun pair ->
+    let (_i, w) = pair
+    Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDestsIn vis w)))
 
 /// The workspaces with at least one visible destination, as (index into
 /// `workspaces`, workspace).
 let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
-  workspaces ()
-  |> Stdlib.List.indexedMap (fun i w -> (i, w))
-  |> Stdlib.List.filter (fun pair ->
-    let (_i, w) = pair
-    Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDests state w)))
+  visibleWorkspacesIn (visibleViews state)
 
 /// The section `view` is currently on, in `Dest` terms.
 let sectionOf (state: State) (view: Int) : Int =
@@ -101,18 +110,22 @@ let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state 
 let workspaceOf (d: Dest) : Int =
   let holds (w: Workspace) : Bool =
     w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)
-  match Stdlib.List.findFirstIndex (workspaces ()) holds with
+  match Stdlib.List.findFirstIndex (workspaces) holds with
   | Some i -> i
   | None -> 0
 
 /// Where ⏎ on a workspace header, or its number key, takes you: where you
 /// last were in it, else its first visible destination. None for a workspace
 /// with nothing visible.
-let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
-  match Stdlib.List.getAt (workspaces ()) wsIdx with
+let workspaceEntryIn
+  (vis: List<Int>)
+  (state: State)
+  (wsIdx: Int)
+  : Stdlib.Option.Option<Dest> =
+  match Stdlib.List.getAt (workspaces) wsIdx with
   | None -> Stdlib.Option.Option.None
   | Some w ->
-    let vis = visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
+    let vis = visibleDestsIn vis w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
     let remembered =
       state.wsLast
       |> Stdlib.List.findFirst (fun pair -> let (i, _d) = pair in i == wsIdx)
@@ -121,6 +134,10 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
     | Some d -> if Stdlib.List.member vis d then Stdlib.Option.Option.Some d else Stdlib.List.head vis
     | None -> Stdlib.List.head vis
 
+
+let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
+  workspaceEntryIn (visibleViews state) state wsIdx
+
 /// The rows the sidebar draws: every visible workspace, the active one
 /// expanded into its destinations. `wip` and `conflicts` are the frame's
 /// already-computed counts, for the badges; pass 0s when only the shape
@@ -128,11 +145,13 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
 let sidebarRows (state: State) (wip: Int) (conflicts: Int) : List<SideRow> =
   let activeWs = workspaceOf (activeDest state)
   let count (n: Int) : String = Stdlib.Int.toString n
-  visibleWorkspaces state
+  // Once, not once per workspace and again per row.
+  let vis = visibleViews state
+  visibleWorkspacesIn vis
   |> Stdlib.List.map (fun pair ->
     let (i, w) = pair
-    let dests = visibleDests state w
-    let entry = workspaceEntry state i |> Stdlib.Option.withDefault (mkDest vHome 0)
+    let dests = visibleDestsIn vis w
+    let entry = workspaceEntryIn vis state i |> Stdlib.Option.withDefault (mkDest vHome 0)
     if Stdlib.List.length dests == 1 then
       [ SideRow
           { kind = SideRowKind.Destination 0
@@ -280,7 +299,7 @@ let jumpToWorkspace (state: State) (n: Int) : State =
     if (d.view != here.view) || (d.section != here.section) then goTo state d false
     else
       let vis =
-        match Stdlib.List.getAt (workspaces ()) (n - 1) with
+        match Stdlib.List.getAt (workspaces) (n - 1) with
         | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
         | None -> []
       match Stdlib.List.findFirstIndex vis (fun dd -> (dd.view == here.view) && (dd.section == here.section)) with
@@ -291,11 +310,11 @@ let jumpToWorkspace (state: State) (n: Int) : State =
 
 /// The shortest repeated workspace-number sequence from `state` to `d`.
 let keysTo (state: State) (d: Dest) : String =
-  match Stdlib.List.findFirstIndex (workspaces ()) (fun w -> w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)) with
+  match Stdlib.List.findFirstIndex (workspaces) (fun w -> w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)) with
   | None -> ""
   | Some wsIdx ->
     let vis =
-      match Stdlib.List.getAt (workspaces ()) wsIdx with
+      match Stdlib.List.getAt (workspaces) wsIdx with
       | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
       | None -> []
     match Stdlib.List.findFirstIndex vis (fun dd -> dd == d) with
@@ -327,14 +346,34 @@ let handleSidebarKey
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
-  let rows = sidebarRows state 0 0
-  let n = Stdlib.List.length rows
-  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel (n - 1))
-  let moveTo (i: Int) : Step =
+  // Every one of these is a function, not a value. `let` is eager, so binding them computed the
+  // outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
+  // `goTo` and loads items from the DB, and `sidebarRows`, which is the most expensive thing the
+  // key handler touches. Stepping into the content pane now does none of it.
+  let rowsNow (_u: Unit) : List<SideRow> = sidebarRows state 0 0
+
+  let selIn (rows: List<SideRow>) : Int =
+    Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel ((Stdlib.List.length rows) - 1))
+
+  let moveToIn (rows: List<SideRow>) (i: Int) : Step =
+    let n = Stdlib.List.length rows
     Step.Continue { state with sideSel = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
-  let narrow = Stdlib.Bool.not (sidebarIsColumnNow ())
-  let openSel =
-    match Stdlib.List.getAt rows sel with
+
+  let moveBy (delta: Int) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((selIn rows) + delta)
+
+  let moveToEnd (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((Stdlib.List.length rows) - 1)
+
+  let moveToStart (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows 0
+
+  let openSel (_u: Unit) : Step =
+    let rows = rowsNow ()
+    match Stdlib.List.getAt rows (selIn rows) with
     | None -> Step.Continue state
     | Some row ->
       // A header: go where you last were in it and stay in the sidebar - that
@@ -343,8 +382,10 @@ let handleSidebarKey
       match row.kind with
       | WorkspaceHeader -> Step.Continue (goTo state row.dest true)
       | Destination _ -> Step.Continue (goTo state row.dest false)
-  let collapseSel =
-    match Stdlib.List.getAt rows sel with
+
+  let collapseSel (_u: Unit) : Step =
+    let rows = rowsNow ()
+    match Stdlib.List.getAt rows (selIn rows) with
     | None -> Step.Continue state
     | Some row ->
       match row.kind with
@@ -355,31 +396,32 @@ let handleSidebarKey
             | WorkspaceHeader -> r.ws == row.ws
             | Destination _ -> false)
         with
-        | Some i -> moveTo i
+        | Some i -> moveToIn rows i
         | None -> Step.Continue state
       | _ -> Step.Continue state
-  let back =
+
+  let back (_u: Unit) : Step =
+    let narrow = Stdlib.Bool.not (sidebarIsColumnNow ())
     if narrow then Step.Continue (focusContent state)
     else if state.activeView == vHome then Step.Continue state
     else Step.Continue (goTo state (mkDest vHome 0) true)
-  // → (and l) step into the content pane, like everywhere else; ← on a
-  // section row goes to its header.
+
   match key with
-  | UpArrow -> moveTo (sel - 1)
-  | DownArrow -> moveTo (sel + 1)
-  | Enter -> openSel
+  | UpArrow -> moveBy -1
+  | DownArrow -> moveBy 1
+  | Enter -> openSel ()
   | RightArrow -> Step.Continue (focusContent state)
-  | LeftArrow -> collapseSel
-  | Escape -> back
+  | LeftArrow -> collapseSel ()
+  | Escape -> back ()
   | Tab -> Step.Continue (focusContent state)
   | _ ->
     match keyChar with
-    | Some "k" -> moveTo (sel - 1)
-    | Some "j" -> moveTo (sel + 1)
+    | Some "k" -> moveBy -1
+    | Some "j" -> moveBy 1
     | Some "l" -> Step.Continue (focusContent state)
-    | Some "h" -> collapseSel
-    | Some "g" -> moveTo 0
-    | Some "G" -> moveTo (n - 1)
+    | Some "h" -> collapseSel ()
+    | Some "g" -> moveToStart ()
+    | Some "G" -> moveToEnd ()
     // ` toggles: it opened the sidebar, so it also hands the keyboard back.
     | Some "`" -> Step.Continue (focusContent state)
     | _ ->

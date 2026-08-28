@@ -8,6 +8,11 @@
 //   i        an empty separator, which means "explode into clusters"
 //
 // Expected output is in checks/string-egc.expected; diff against it.
+//
+// `k` renders as "[a\rb]" and not with a raw carriage return in it. That changed when terminal text
+// measurement moved out of LibExecution and control characters started being escaped rather than
+// written through -- a raw CR in debug output moves the cursor. The split itself is unchanged: one
+// part either way, which is the thing this file is checking.
 
 let show (label: String) (parts: List<String>) : Unit =
   Builtin.debug label (Stdlib.String.join (Stdlib.List.map parts (fun p -> "[" ++ p ++ "]")) "|")

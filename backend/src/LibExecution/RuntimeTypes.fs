@@ -2195,13 +2195,15 @@ type CallFrame =
     /// can never be handed the same array. And a frame runs one instruction at a time, so two
     /// builtin calls from the same frame are never live at once, including when the first suspends.
     ///
-    /// Reused only when the arity matches exactly, since a builtin's pattern match tests the array's
-    /// length. Frames overwhelmingly call builtins of one arity, so it nearly always hits.
+    /// One buffer per arity, indexed by it, since a builtin's pattern match tests the array's length.
+    /// A frame used to call builtins of one arity almost exclusively, so a single buffer nearly always
+    /// hit. Eliding thin wrappers moved their builtin calls into the calling frame, which calls every
+    /// arity, and one buffer then thrashes.
     ///
     /// The array must stay intact until after `traceBuiltinResult`, which reads the arguments once
     /// the body has returned. It does, for the same reason: nothing else in this frame runs in
     /// between.
-    mutable argBuf : Dval[]
+    mutable argBufs : Dval[][]
 
     /// The declared return type, for the check that runs when this frame returns.
     ///
@@ -2405,8 +2407,6 @@ type InterpreterStats =
     packageFnTiming : Dictionary<string, int64>
     /// Call count per package fn hash
     packageFnCounts : Dictionary<string, int64>
-    /// Timestamp when each frame was pushed (for measuring total fn time)
-    framePushTimestamps : Dictionary<uuid, int64>
 
     /// Bytes allocated while executing each opcode, indexed by the `Instruction` DU tag, plus how many of
     /// each ran. Neither instruction count nor call count predicts wall time well, because the interpreter
@@ -2465,37 +2465,49 @@ type InterpreterStats =
     mutable tstSizeMax : int64
   }
 
-  static member create() =
-    let s =
-      { enabled = Telemetry.isEnabled ()
-        instructionCount = 0L
-        builtinCallCount = 0L
-        packageCallCount = 0L
-        framePushCount = 0L
-        packageFnLoadCount = 0L
-        // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()`, which is ~1.27us
-        // on an HPET host. Turn it on deliberately, per run, via `Builtin.interpreterStatsEnableDetailedTiming`.
-        detailedTiming = false
-        builtinTiming = Dictionary()
-        builtinCounts = Dictionary()
-        packageFnTiming = Dictionary()
-        packageFnCounts = Dictionary()
-        framePushTimestamps = Dictionary()
-        allocByOpcode = Array.zeroCreate 32
-        syncHitByOpcode = Array.zeroCreate 32
-        syncMissByOpcode = Array.zeroCreate 32
-        countByOpcode = Array.zeroCreate 32
-        registersAllocated = 0L
-        builtinBodyAlloc = 0L
-        builtinAlloc = Dictionary()
-        builtinCallsByName = Dictionary()
-        allocByStage = Array.zeroCreate 32
-        countByStage = Array.zeroCreate 32
-        tstSizeSum = 0L
-        tstSizeMax = 0L }
+  static member private fresh(enabled : bool) =
+    { enabled = enabled
+      instructionCount = 0L
+      builtinCallCount = 0L
+      packageCallCount = 0L
+      framePushCount = 0L
+      packageFnLoadCount = 0L
+      // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()` each way, which
+      // on some hosts is dearer than the call it is timing. Turn it on deliberately, per run, via
+      // `Builtin.interpreterStatsEnableDetailedTiming`.
+      detailedTiming = false
+      builtinTiming = Dictionary()
+      builtinCounts = Dictionary()
+      packageFnTiming = Dictionary()
+      packageFnCounts = Dictionary()
+      allocByOpcode = Array.zeroCreate 32
+      syncHitByOpcode = Array.zeroCreate 32
+      syncMissByOpcode = Array.zeroCreate 32
+      countByOpcode = Array.zeroCreate 32
+      registersAllocated = 0L
+      builtinBodyAlloc = 0L
+      builtinAlloc = Dictionary()
+      builtinCallsByName = Dictionary()
+      allocByStage = Array.zeroCreate 32
+      countByStage = Array.zeroCreate 32
+      tstSizeSum = 0L
+      tstSizeMax = 0L }
 
-    if s.enabled then InterpreterStatsSink.add (box s)
-    s
+  /// The one instance every VM shares while counting is off.
+  ///
+  /// Every write to these counters is behind `if vm.stats.enabled`, so with telemetry off nothing
+  /// ever touches them -- and a fresh set is thirteen `Dictionary`s and seven arrays. That is
+  /// invisible while a process builds one VM, and it is not: `executeApplicable` builds one per
+  /// lambda application, so a `List.map` over a long list built one per element.
+  static member val private sharedDisabled = InterpreterStats.fresh false
+
+  static member create() =
+    if Telemetry.isEnabled () then
+      let s = InterpreterStats.fresh true
+      InterpreterStatsSink.add (box s)
+      s
+    else
+      InterpreterStats.sharedDisabled
 
   member this.reset() =
     this.instructionCount <- 0L
@@ -2507,7 +2519,6 @@ type InterpreterStats =
     this.builtinCounts.Clear()
     this.packageFnTiming.Clear()
     this.packageFnCounts.Clear()
-    this.framePushTimestamps.Clear()
     this.registersAllocated <- 0L
     this.builtinBodyAlloc <- 0L
     this.builtinAlloc.Clear()
@@ -2558,7 +2569,12 @@ type VMState =
 
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
-    rootInstrData : Option<tlid> * InstrData
+    // A struct tuple: reference-tupled, this was allocated on every lambda application, which
+    // is where `reuseFor` sets it.
+    mutable rootInstrData : struct (Option<tlid> * InstrData)
+
+    /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
+    mutable pooledRootFrame : CallFrame voption
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
@@ -2584,6 +2600,14 @@ type VMState =
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
+    /// Frames from a lambda this VM's builtins applied in a borrowed VM, for the error path only.
+    ///
+    /// `executeApplicable` runs the lambda in its own VM, so those frames are not reachable from
+    /// this one's parent chain, and an error inside `List.map`'s lambda would otherwise report a
+    /// call stack that stops at the caller. Set immediately before raising and read by
+    /// `callStackFromVM`; empty every other moment.
+    mutable nestedCallStack : CallStack
+
     mutable finalResult : Dval voption
 
     /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
@@ -2592,6 +2616,16 @@ type VMState =
     /// On the VM rather than a local of the interpreter loop so that the parts of the loop that run
     /// outside the computation expression can reach it.
     pendingCallArgs : Dictionary<uuid, Dval list>
+
+    /// When each frame was pushed, so a package fn can be timed on the way out.
+    ///
+    /// Lives on the VM, not on `InterpreterStats`, and that is load-bearing. Frame ids come from
+    /// `nextFrameId`, which counts *per VM*, so two VMs both emit 1, 2, 3... With telemetry off --
+    /// the default -- every VM shares one `InterpreterStats`, so keying this off it meant a lambda
+    /// applied by a builtin (which runs on a pooled VM) collided with the calling VM's ids: one
+    /// overwrote the other, the return path's `Remove` dropped the survivor, and the profile
+    /// silently under-reported functions called from inside a `map`/`filter`/`fold` lambda.
+    framePushTimestamps : Dictionary<uuid, int64>
 
     /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
     /// evaluates. Returning a `List<Register * Dval>` instead costs a tuple and a cons per bound
@@ -2626,7 +2660,7 @@ type VMState =
         expectedReturnType = ValueNone
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
-        argBuf = Array.empty
+        argBufs = Array.empty
         typeSymbolTable = TST.empty
         parent = ValueNone }
 
@@ -2636,16 +2670,93 @@ type VMState =
         let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
         d
-      rootInstrData = (tlid, rootInstrData)
+      rootInstrData = struct (tlid, rootInstrData)
+      pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
       lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
       pendingCallArgs = Dictionary()
+      framePushTimestamps = Dictionary()
       framePool = Dictionary() }
+
+  /// Re-point a finished VM at a new tiny program, instead of building another one.
+  ///
+  /// `executeApplicable` and `executeFunction` each build a two- or three-instruction program and run
+  /// it. Constructing a `VMState` for that is two GUIDs, five dictionaries, a `ResizeArray` and a
+  /// stats block: invisible once per call, and very much not invisible once per element of a
+  /// `List.map`, which is one per element.
+  ///
+  /// Only valid on a VM whose frames have all popped, which is what returning it to the pool means.
+  /// The per-VM lambda caches are deliberately kept: they are keyed by expression id, so reuse warms
+  /// them across applications instead of discarding them every time.
+  static member reuseFor
+    (
+      vm : VMState,
+      tlid : Option<tlid>,
+      instrData : InstrData,
+      registerCount : int
+    ) : VMState =
+    // Keep the id when the frame is kept. `Guid.NewGuid()` draws from the cryptographic RNG, which
+    // is why `nextFrameId` exists for pushes; this runs once per lambda application, so it is the
+    // same trap. Frame identity is internal to a VM -- `callFrames`, `pendingCallArgs` and the
+    // tracer's per-frame maps key on it and it never leaves -- and the previous application's
+    // frames are gone, so reusing the id collides with nothing.
+    let rootCallFrameID =
+      match vm.pooledRootFrame with
+      | ValueSome frame -> frame.id
+      | ValueNone -> System.Guid.NewGuid()
+
+    // The frame itself is reused where there is one to reuse, and so are its registers when they
+    // are big enough. Every field of a `CallFrame` is mutable, and the frame is only reachable from
+    // this VM, which is out of the pool for as long as this call runs.
+    let rootCallFrame =
+      match vm.pooledRootFrame with
+      | ValueSome(frame : CallFrame) ->
+        frame.id <- rootCallFrameID
+        frame.executionPoint <- Source
+        frame.instrData <- instrData
+        frame.expectedReturnType <- ValueNone
+        frame.programCounter <- 0
+        frame.typeSymbolTable <- TST.empty
+        frame.parent <- ValueNone
+        if frame.registers.Length < registerCount then
+          frame.registers <- Array.zeroCreate registerCount
+        else
+          System.Array.Clear(frame.registers, 0, registerCount)
+        frame
+      | ValueNone ->
+        { id = rootCallFrameID
+          executionPoint = Source
+          instrData = instrData
+          expectedReturnType = ValueNone
+          programCounter = 0
+          registers = Array.zeroCreate registerCount
+          argBufs = Array.empty
+          typeSymbolTable = TST.empty
+          parent = ValueNone }
+
+    vm.pooledRootFrame <- ValueSome rootCallFrame
+    vm.callFrames.Clear()
+    vm.callFrames[rootCallFrameID] <- rootCallFrame
+    vm.currentFrameID <- rootCallFrameID
+    vm.rootInstrData <- struct (tlid, instrData)
+    vm.frameToPush <- ValueNone
+    vm.frameIdCounter <- 0L
+    vm.nestedCallStack <- []
+    vm.finalResult <- ValueNone
+    vm.matchBindings.Clear()
+    vm.pendingCallArgs.Clear()
+    vm.framePushTimestamps.Clear()
+    // `framePool` is deliberately *not* cleared. It holds frames that have already been returned,
+    // keyed by register count, for the next push to reuse -- so clearing it here threw away the
+    // pool on every application and made each one allocate its lambda's frame afresh.
+    vm
+
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)
@@ -2689,7 +2800,7 @@ and BuiltInFnSig =
   //
   // Arguments arrive as an *array*. An `FSharpList` costs a cons per argument on every builtin call,
   // which in call-heavy code is the single largest source of allocation; an array is one allocation,
-  // and unlike a list it can be a reused buffer -- which is what `CallFrame.argBuf` hands over.
+  // and unlike a list it can be a reused buffer -- which is what `CallFrame.argBufs` hands over.
   //
   // A *struct* tuple, because a reference tuple is another heap object per call. The price is that
   // every implementation's pattern has to say `struct (...)`.

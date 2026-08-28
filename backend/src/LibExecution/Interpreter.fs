@@ -21,6 +21,15 @@ module VT = ValueType
 /// Keyed by name/hash rather than held on the fn record because `BuiltInFn` and `PackageFn` are defined
 /// well below here and shared with code that has no interest in this.
 module private FreeTVars =
+  /// Keyed by name, and so relying on a builtin's *signature* being determined by its name whatever
+  /// execution state built it. That holds: `Builtins.Http.Client.builtins` is the only builtin set
+  /// taking a construction parameter, and its `Configuration` reaches only the bodies, never
+  /// `parameters`, `returnType` or `typeParams`.
+  ///
+  /// Worth stating because the same shape, keyed the same way, was a real bug once: the wrapper cache
+  /// held a resolved `BuiltInFn` and handed one execution state's HTTP configuration to another's
+  /// callers. A name-keyed cache of anything the *body* decides is wrong; of what the signature
+  /// decides, right.
   let private builtins =
     System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Builtin, Set<string>>()
 
@@ -189,19 +198,22 @@ module private ArgSeq =
     | [] -> fromRegs
     | prior -> prior @ fromRegs
 
-  /// The arguments as an array, which is what a builtin takes. One allocation rather than a cons
-  /// per argument; `count` is already known, so it's filled in place with no intermediate.
-  /// The arguments as an array, reusing the calling frame's scratch buffer when the arity matches.
-  /// See the note on `CallFrame.argBuf` for why a per-frame buffer needs no rent/return discipline.
+  /// The arguments as an array, which is what a builtin takes, filled into the calling frame's
+  /// scratch buffer for that arity. `count` is known up front, so there's no intermediate.
+  /// See the note on `CallFrame.argBufs` for why a per-frame buffer needs no rent/return discipline.
   let toArrayFor (frame : CallFrame) (a : ArgSeq) : Dval[] =
     let n = count a
+    if frame.argBufs.Length <= n then
+      let grown : Dval[][] = Array.zeroCreate (n + 1)
+      System.Array.Copy(frame.argBufs, grown, frame.argBufs.Length)
+      frame.argBufs <- grown
     let arr =
-      if frame.argBuf.Length = n then
-        frame.argBuf
-      else
+      match frame.argBufs[n] with
+      | null ->
         let fresh = Array.zeroCreate n
-        frame.argBuf <- fresh
+        frame.argBufs[n] <- fresh
         fresh
+      | existing -> existing
     let mutable i = 0
     let mutable rest = a
     while i < n do
@@ -379,37 +391,50 @@ let private inferTVarsFromDval
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
 
-let rec checkAndExtractLetPattern
+/// Bind a let pattern's variables into `registers`, returning whether it matched.
+///
+/// Assigns as it walks rather than collecting `(Register * Dval)` pairs to assign afterwards, which
+/// cost a tuple and a cons per bound variable plus the returned pair. A let is not a match: a pattern
+/// that fails is fatal, and the frame raises rather than carrying on, so the partial writes a failed
+/// walk leaves behind are never read.
+let rec private assignLetPattern
+  (registers : Registers)
   (pat : LetPattern)
   (dv : Dval)
-  : bool * List<Register * Dval> =
-  let r = checkAndExtractLetPattern
+  : bool =
+  match pat with
+  | LPVariable extractTo ->
+    registers[extractTo] <- dv
+    true
+  | LPWildcard -> true
+  | LPUnit ->
+    match dv with
+    | DUnit -> true
+    | _ -> false
+  | LPTuple(first, second, theRest) ->
+    match dv with
+    | DTuple(firstVal, secondVal, theRestVal) ->
+      assignLetPattern registers first firstVal
+      && assignLetPattern registers second secondVal
+      && assignLetPatterns registers theRest theRestVal
+    | _ -> false
 
-  let rec rList pats items =
-    match pats, items with
-    | [], [] -> true, []
-    | [], _ -> false, []
-    | _, [] -> false, []
-    | pat :: otherPats, item :: items ->
-      let matches, vars = r pat item
-      if matches then
-        let matchesOtherPats, varsFromOtherParts = rList otherPats items
-        if matchesOtherPats then true, vars @ varsFromOtherParts else false, []
-      else
-        false, []
-
-  match pat, dv with
-  | LPVariable extractTo, dv -> true, [ (extractTo, dv) ]
-  | LPWildcard, _ -> true, []
-  | LPUnit, DUnit -> true, []
-  | LPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
-    match r first firstVal, r second secondVal with
-    | (true, varsFirst), (true, varsSecond) ->
-      match rList theRest theRestVal with
-      | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
-      | false, _ -> false, []
-    | _ -> false, []
-  | _ -> false, []
+and private assignLetPatterns
+  (registers : Registers)
+  (pats : List<LetPattern>)
+  (dvs : List<Dval>)
+  : bool =
+  // Nested, not `match pats, dvs with`, which allocates the pair. Every tuple destructure reaches
+  // here, including the pairs that make up nearly all of them: `assignLetPattern` handles the first
+  // two elements itself and calls this with the rest, which for a pair is two empty lists -- so the
+  // allocation happened on the way to answering `true` about nothing.
+  match pats with
+  | [] -> List.isEmpty dvs
+  | pat :: patRest ->
+    match dvs with
+    | dv :: dvRest ->
+      assignLetPattern registers pat dv && assignLetPatterns registers patRest dvRest
+    | [] -> false
 
 
 /// Try a match pattern against a value, appending any bindings it makes to `buf`.
@@ -567,6 +592,11 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 /// Frame identity is internal to a VM: `callFrames`, `pendingCallArgs` and `framePushTimestamps` key on it,
 /// and the tracer's `storeFrameEntry` ignores the argument entirely. It never reaches storage or the wire.
 ///
+/// "Internal to a VM" is the whole invariant: ids repeat across VMs, so anything keyed on one has to
+/// live on the VM. `framePushTimestamps` used to sit on `InterpreterStats`, which every VM shares
+/// when telemetry is off, so a pooled lambda VM's ids collided with its caller's and the per-fn
+/// profile silently lost entries.
+///
 /// So it doesn't need to be random. `Guid.NewGuid()` draws from the cryptographic RNG, and a frame push
 /// happens tens of thousands of times in a single command.
 ///
@@ -613,7 +643,7 @@ let inline private takeFrame
       programCounter = 0
       typeSymbolTable = typeSymbolTable
       registers = Array.zeroCreate registerCount
-      argBuf = Array.empty }
+      argBufs = Array.empty }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -765,17 +795,11 @@ let rec private bindLambdaParams
     match ArgSeq.uncons args with
     | ValueNone -> ()
     | ValueSome(struct (arg, argRest)) ->
-      // One name bound to one register is the overwhelmingly common shape, and
-      // `checkAndExtractLetPattern` costs four allocations to express it: the returned tuple, the cons,
-      // the pair inside it, and the pair its own `match pat, dv with` builds. Per parameter, per call.
-      // `CheckLetPattern` already short-circuits the same way.
+      // One name bound to one register is the overwhelmingly common shape, so it skips the walk.
       match pat with
       | LPVariable extractTo -> r[extractTo] <- arg
       | _ ->
-        let doesMatch, registersToAssign = checkAndExtractLetPattern pat arg
-        if doesMatch then
-          assignRegisters r registersToAssign
-        else
+        if not (assignLetPattern r pat arg) then
           RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
       bindLambdaParams vm r patRest argRest
 
@@ -991,16 +1015,6 @@ let private invokeBuiltin
     }
 
 
-/// Run a builtin call without entering the interpreter's computation expression.
-///
-/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
-/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
-/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
-/// per call.
-///
-/// Two things can still need the package store, and each has an escape hatch that keeps a single
-/// implementation rather than a fast copy and a slow copy that drift:
-///
 /// The three ways a builtin call ends, once the symbol table is settled: too many arguments, not enough
 /// (so it stays a partial application), or exactly right.
 ///
@@ -1036,11 +1050,173 @@ let private completeBuiltin
     invokeBuiltin exeState vm currentFrame fn tst ctx.typeArgs allArgs
 
 
+/// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
+///
+/// Declines while tracing is on: a builtin call is recorded with its arguments and result when it
+/// returns, and a fast path that skipped that would quietly drop every arithmetic operation from the
+/// trace. Tracing is off in the CLI, which is what this is for.
+let private tryFastOp
+  (exeState : ExecutionState)
+  (threadID : ThreadID)
+  (fn : BuiltInFn)
+  (ctx : ApplyContext)
+  : Dval voption =
+  if
+    not exeState.tracing.skipTracing || not (List.isEmpty ctx.applicable.argsSoFar)
+  then
+    ValueNone
+  else
+    let mutable tag = 0
+    if not (FastOps.byName.TryGetValue(fn.name, &tag)) then
+      ValueNone
+    else
+      // Nested rather than `match a, b with`, which allocates the pair. Writing it the obvious way
+      // in `tryFastOpDirect` measurably regressed the gate.
+      match ArgSeq.uncons ctx.args with
+      | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest ->
+        FastOps.eval1 tag only
+      | ValueSome(struct (DInt a, rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
+          FastOps.eval tag a b
+        | _ -> ValueNone
+      | ValueSome(struct (DString a, rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DString b, tail)) when ArgSeq.isEmpty tail ->
+          FastOps.evalStr tag a b
+        | ValueSome(struct (DInt n, tail)) when ArgSeq.isEmpty tail ->
+          FastOps.evalStrInt tag a n
+        | _ -> ValueNone
+      | ValueSome(struct (DList(vt1, l1), rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
+          FastOps.evalList tag vt1 l1 vt2 l2
+        | _ -> ValueNone
+      | ValueSome(struct (DDict(vt, o), rest)) ->
+        match ArgSeq.uncons rest with
+        | ValueSome(struct (DString k, tail)) ->
+          if ArgSeq.isEmpty tail then
+            FastOps.evalDictGet threadID tag o k
+          else
+            match ArgSeq.uncons tail with
+            | ValueSome(struct (v, rest3)) when ArgSeq.isEmpty rest3 ->
+              FastOps.evalDictSet threadID tag vt o k v
+            | _ -> ValueNone
+        | _ -> ValueNone
+      | _ -> ValueNone
+
+
+/// The operator table, dispatched straight off the caller's registers for a known builtin name.
+///
+/// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
+/// build an `ApplyContext` and an `ArgSeq` first and then let `tryFastOp` unpick them again, and it
+/// is the path nearly every operator arrives on, because Dark code calls `Stdlib.x` rather than
+/// `Builtin.x`.
+let private tryFastOpOn
+  (threadID : ThreadID)
+  (registers : Dval array)
+  (b : FQFnName.Builtin)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  let mutable tag = 0
+  if not (FastOps.byName.TryGetValue(b, &tag)) then
+    ValueNone
+  else
+    match argRegs.tail with
+    | [] -> FastOps.eval1 tag registers[argRegs.head]
+
+    | [ secondReg ] ->
+      // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
+      // operator or not. The pair alone was worth several percent of both the gate and a view build.
+      match registers[argRegs.head] with
+      | DInt x ->
+        match registers[secondReg] with
+        | DInt y -> FastOps.eval tag x y
+        | _ -> ValueNone
+      | DString x ->
+        match registers[secondReg] with
+        | DString y -> FastOps.evalStr tag x y
+        | DInt n -> FastOps.evalStrInt tag x n
+        | _ -> ValueNone
+      | DList(vt1, l1) ->
+        match registers[secondReg] with
+        | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
+        // `member` takes a list and a bare value, so it is the one entry whose second operand is
+        // not constrained by the first's shape.
+        | other -> FastOps.evalListMember tag l1 other
+      | DDict(_, o) ->
+        match registers[secondReg] with
+        | DString k -> FastOps.evalDictGet threadID tag o k
+        | _ -> ValueNone
+      | _ -> ValueNone
+
+    | [ secondReg; thirdReg ] ->
+      match registers[argRegs.head] with
+      | DDict(vt, o) ->
+        match registers[secondReg] with
+        | DString k -> FastOps.evalDictSet threadID tag vt o k registers[thirdReg]
+        | _ -> ValueNone
+      | _ -> ValueNone
+
+    | _ -> ValueNone
+
+
+/// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
+///
+/// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
+/// context built; this covers the ones compiled as a direct builtin call, which is what `a + b` is.
+let private tryFastOpDirect
+  (exeState : ExecutionState)
+  (threadID : ThreadID)
+  (registers : Dval array)
+  (applicable : ApplicableNamedFn)
+  (typeArgs : List<TypeReference>)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  if
+    not exeState.tracing.skipTracing
+    || not (List.isEmpty typeArgs)
+    || not (List.isEmpty applicable.argsSoFar)
+  then
+    ValueNone
+  else
+    match applicable.name with
+    | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
+    | _ -> ValueNone
+
+
+/// Run a builtin call without entering the interpreter's computation expression.
+///
+/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
+/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
+/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
+/// per call.
+///
+/// Two things can still need the package store, and each has an escape hatch that keeps a single
+/// implementation rather than a fast copy and a slow copy that drift:
+///
 /// - Resolving explicit type args, which happens before anything else, is done by `callBuiltin` and
 ///   handed in here already resolved.
 /// - Argument checking can need `Types.find` partway through, so it hands the *remainder* to a `uply`
 ///   and returns a `Called` that isn't finished yet.
-let private callBuiltinResolved
+let rec private callBuiltinResolved
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : BuiltInFn)
+  (resolvedTypeArgsVT : List<ValueType>)
+  : Ply<Dval> =
+  match tryFastOp exeState vm.threadID fn ctx with
+  | ValueSome result ->
+    // Counted, so `builtinCalls` still says how many builtin calls the program made.
+    if vm.stats.enabled then
+      vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+    Ply result
+  | ValueNone ->
+    callBuiltinResolvedSlow exeState vm currentFrame ctx fn resolvedTypeArgsVT
+
+and private callBuiltinResolvedSlow
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
@@ -1076,7 +1252,10 @@ let private callBuiltinResolved
       TST.empty
     else
       List.zip fn.typeParams resolvedTypeArgsVT |> TST.ofList
-  tst <- TST.mergeFavoringRight tst explicitlyBound
+  // Guarded, as the package path already guards it: with no explicit type args there is nothing to
+  // merge, and that is nearly every call.
+  if not (TST.isEmpty explicitlyBound) then
+    tst <- TST.mergeFavoringRight tst explicitlyBound
   recordStage vm ApplyStage.BiTstShadow biShadowAlloc
 
   let biArgsAlloc = allocNow vm
@@ -1186,6 +1365,140 @@ let private callBuiltin
 type private PackageOutcome =
   | PartiallyApplied of dval : Dval
   | PushFrame of frame : CallFrame
+  /// A thin wrapper ran its builtin directly, with no frame. See `thinWrapperOf`.
+  | Completed of result : Dval
+
+
+/// Answers by hash, which content-addressing makes permanent.
+///
+/// The *name* is cached, not the resolved `BuiltInFn`. Caching the resolved one assumed the builtin
+/// table is fixed for the process, and it is not: `Builtins.Http.Client.builtins` takes a
+/// `Configuration`, so two execution states can hold two different `BuiltInFn` values under one name
+/// -- one of which blocks localhost, private ranges and non-http schemes, and one of which does not.
+/// A process-wide cache of the resolved fn hands whichever was seen first to everyone afterwards.
+/// Resolving per call is one dictionary lookup against the table the caller is actually using.
+let private thinWrapperCache =
+  System.Collections.Concurrent.ConcurrentDictionary<Hash, FQFnName.Builtin voption>()
+
+/// Structural type equality that ignores the name a type was written as.
+///
+/// `TCustomType` carries the source name beside the resolved hash, and the two sides of a forwarder
+/// spell the same type differently: a builtin's `TypeReference.option varA` has no original name,
+/// where the Dark signature wrapping it says `Option<'a>`. Comparing whole `TypeReference`s rejected
+/// every forwarder whose signature mentions a custom type, `Dict.get` among them.
+let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
+  match a, b with
+  | TCustomType(aName, aArgs), TCustomType(bName, bArgs) ->
+    aName.resolved = bName.resolved && sameTypes aArgs bArgs
+  | TStream x, TStream y
+  | TList x, TList y
+  | TDict x, TDict y
+  | TDB x, TDB y -> sameType x y
+  | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->
+    sameType a1 b1 && sameType a2 b2 && sameTypes aRest bRest
+  | TFn(aArgs, aRet), TFn(bArgs, bRet) ->
+    sameTypes (NEList.toList aArgs) (NEList.toList bArgs) && sameType aRet bRet
+  // Primitives and `TVariable`, where the case itself is the whole of the type.
+  | _ -> a = b
+
+and private sameTypes (a : List<TypeReference>) (b : List<TypeReference>) : bool =
+  List.length a = List.length b && List.forall2 sameType a b
+
+
+let private detectThinWrapper
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  : FQFnName.Builtin voption =
+  // The builtin's own type params are left to inference, which is what running the wrapper's body
+  // would have done: that body applies the builtin with no explicit type args, which the match below
+  // insists on.
+  // Never a builtin that needs capabilities. Eliding `Stdlib.HttpClient.request`, a bare forwarder
+  // like any other, changed what `request "put" "file:///etc/passwd"` does: the testfiles asserting
+  // an unsupported-protocol error instead saw a real request attempted. The effectful builtins reach
+  // for more of the calling context than a pure one does, and the wrapper's frame is part of that
+  // context. Pure builtins are the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` --
+  // so this costs nothing worth having.
+  let sameSignature (bi : BuiltInFn) =
+    sameType fn.returnType bi.returnType
+    && List.length bi.parameters = NEList.length fn.parameters
+    && List.forall2
+      (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> sameType p.typ bp.typ)
+      (NEList.toList fn.parameters)
+      bi.parameters
+
+  match fn.body.instructions with
+  | [ LoadVal(loadTo, DApplicable(AppNamedFn named))
+      Apply(createTo, thingToApply, [], args) ] when
+    loadTo = thingToApply
+    && createTo = fn.body.resultIn
+    && List.isEmpty named.argsSoFar
+    && List.isEmpty named.typeArgs
+    // The arguments must be the parameters, all of them, in order.
+    && NEList.toList args = [ 0 .. NEList.length fn.parameters - 1 ]
+    ->
+    match named.name with
+    | FQFnName.Builtin b ->
+      match exeState.fns.builtIn.TryGetValue b with
+      | true, bi when sameSignature bi -> ValueSome b
+      | _ -> ValueNone
+    | _ -> ValueNone
+  | _ -> ValueNone
+
+/// The builtin a package fn is a bare forwarder for, if it is one.
+///
+/// Most of the stdlib is `let f a b = Builtin.g a b`, which compiles to exactly two instructions: load
+/// the builtin, apply it to the parameters in order. Calling such a fn the ordinary way pushes a frame
+/// to run those two instructions, and that frame costs several times what the builtin inside it does.
+/// Much of the stdlib is this shape, so much of any Dark program's call traffic is too.
+///
+/// Only forwarders whose signature is *identical* to the builtin's qualify. A wrapper that narrows
+/// `List<'a>` to `List<TraceSummary>` is doing real work: its param types decide what is accepted, and
+/// its return type is what `checkFrameReturnType` applies to the result. With the signatures equal,
+/// running the builtin directly checks the same things against the same types.
+/// The builtin a package hash is a known forwarder for, from the cache only.
+///
+/// `thinWrapperOf` needs the `PackageFn` because it may have to *detect*. This one answers from what
+/// has already been detected, so `Apply` can ask before fetching the fn at all -- and a forwarder is
+/// the one case where fetching it was pointless, since nothing but its hash gets used.
+///
+/// Resolved against this execution state's table, never a remembered `BuiltInFn`; see the note on
+/// `thinWrapperCache` for what that mistake cost.
+let private thinWrapperCachedFor
+  (exeState : ExecutionState)
+  (hash : Hash)
+  : BuiltInFn voption =
+  let mutable cached = ValueNone
+  if not (thinWrapperCache.TryGetValue(hash, &cached)) then
+    ValueNone
+  else
+    match cached with
+    | ValueNone -> ValueNone
+    | ValueSome b ->
+      let mutable bi = Unchecked.defaultof<BuiltInFn>
+      if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
+
+
+let private thinWrapperOf
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  : BuiltInFn voption =
+  // Explicit byref, not `match ... with | true, v`, which allocates the tuple: this runs on every
+  // package call.
+  let mutable cached = ValueNone
+  let name =
+    if thinWrapperCache.TryGetValue(fn.hash, &cached) then
+      cached
+    else
+      let found = detectThinWrapper exeState fn
+      thinWrapperCache[fn.hash] <- found
+      found
+
+  match name with
+  | ValueNone -> ValueNone
+  | ValueSome b ->
+    // Against this execution state's table, never a remembered `BuiltInFn`.
+    let mutable bi = Unchecked.defaultof<BuiltInFn>
+    if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
 
 
 /// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right
@@ -1245,7 +1558,7 @@ let private completePackage
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
       vm.stats.framePushCount <- vm.stats.framePushCount + 1L
       if vm.stats.detailedTiming then
-        vm.stats.framePushTimestamps[newFrameId] <-
+        vm.framePushTimestamps[newFrameId] <-
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if not exeState.tracing.skipTracing then
@@ -1280,7 +1593,7 @@ let private completePackage
 
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
-let private callPackageResolved
+let private callPackageViaFrame
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
@@ -1422,6 +1735,41 @@ let private callPackageResolved
           paramCount
           tstRest
     }
+
+
+/// Run a package-fn call whose explicit type args are resolved.
+let private callPackageResolved
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (ctx : ApplyContext)
+  (fn : PackageFn.PackageFn)
+  (resolvedExplicitTypeArgsVT : List<ValueType>)
+  : Ply<PackageOutcome> =
+  // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
+  // frame whose whole job is to run the two instructions that would. Partial applications go the
+  // ordinary way: the point is to skip the frame, and a partial application doesn't push one anyway.
+  match thinWrapperOf exeState fn with
+  | ValueSome biFn when
+    List.isEmpty ctx.applicable.argsSoFar
+    && List.isEmpty resolvedExplicitTypeArgsVT
+    && ArgSeq.count ctx.args = NEList.length fn.parameters
+    ->
+    // Counted as a package call, since one happened. `framePushCount` is deliberately not bumped:
+    // the gap between the two counters is what elision saves.
+    if vm.stats.enabled then
+      vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+    let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+    // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
+    match Ply.trySync call with
+    | ValueSome dv -> Ply(Completed dv)
+    | ValueNone ->
+      uply {
+        let! dv = call
+        return Completed dv
+      }
+  | _ ->
+    callPackageViaFrame exeState vm currentFrame ctx fn resolvedExplicitTypeArgsVT
 
 
 /// Run a package-fn call, resolving its explicit type args first. Outside the computation expression for
@@ -1683,74 +2031,146 @@ let private applyInstruction
           |> RTE.Apply
           |> raiseRTE vm.threadID
 
-    let ctx : ApplyContext =
-      { applicable = applicable
-        typeArgs = typeArgs
-        args = ArgSeq.ofNE registers newArgRegs
-        tst = tst
-        putResultIn = putResultIn
-        returnPc = currentFrame.programCounter + 1 }
+    // An `Int` operator called directly, taken before any of the call machinery: no `ApplyContext`,
+    // no builtin-table lookup, no `ArgSeq`. `tryFastOp` further down catches the same operators
+    // arriving through an elided package wrapper -- `Stdlib.Int.max` never reaches here.
+    //
+    // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
+    // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
+    // branch or not. Written that way first, it cost the gate and a view build several percent each.
+    match
+      tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs
+    with
+    | ValueSome result ->
+      if vm.stats.enabled then
+        vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+      registers[putResultIn] <- result
+    | ValueNone ->
 
-    // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
-    // and `callPackage` behind them: same five steps, different parameter and outcome types.
-    // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
-    match applicable.name with
-    | FQFnName.Builtin builtin ->
-      let biTotalAlloc = allocNow vm
-      let biLookupAlloc = allocNow vm
-      // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
-      // implements IDictionary, so the byref overload is available here too.
-      let mutable found = Unchecked.defaultof<BuiltInFn>
-      if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
-      else
-        let fn = found
-        recordStage vm ApplyStage.BiFnLookup biLookupAlloc
-        let call = callBuiltin exeState vm currentFrame ctx fn
-        // Usually already finished, in which case there's no bind to pay for.
-        match Ply.trySync call with
-        | ValueSome dv -> registers[putResultIn] <- dv
-        | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
-        recordStage vm ApplyStage.BiTotal biTotalAlloc
+      let ctx : ApplyContext =
+        { applicable = applicable
+          typeArgs = typeArgs
+          args = ArgSeq.ofNE registers newArgRegs
+          tst = tst
+          putResultIn = putResultIn
+          returnPc = currentFrame.programCounter + 1 }
 
-    | FQFnName.Package pkg ->
-      // Harmful-deprecation runtime halt.
-      // Checked before even fetching the fn so the error is surfaced
-      // whether or not the fn definition is still available.
-      let isHarmful = exeState.fns.isHarmful pkg
-      if isHarmful && not exeState.allowHarmful then
-        RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
-      let pkgFetchAlloc = allocNow vm
-      // Warm cache after the first call, which for a script means all but a handful of these.
-      //
-      // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
-      // would sit in the loop's computation expression and cost a continuation closure on every
-      // call, reached or not.
-      let fetchOnlyAlloc = allocNow vm
-      let fetch = exeState.fns.package pkg
-      let fetched = Ply.trySync fetch
-      recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
-      let call =
-        match fetched with
-        | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-        | ValueSome None ->
-          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-        | ValueNone ->
-          uply {
-            match! fetch with
-            | Some fn -> return! callPackage exeState vm currentFrame ctx fn
-            | None ->
-              return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-          }
-      recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-      // Overwritten on the next line either way; F# needs something to start from.
-      // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
-      // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
-      // cheaper than the cell.
-      match Ply.trySync call with
-      | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
-      | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-      | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
+      // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
+      // and `callPackage` behind them: same five steps, different parameter and outcome types.
+      // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
+      match applicable.name with
+      | FQFnName.Builtin builtin ->
+        let biTotalAlloc = allocNow vm
+        let biLookupAlloc = allocNow vm
+        // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
+        // implements IDictionary, so the byref overload is available here too.
+        let mutable found = Unchecked.defaultof<BuiltInFn>
+        if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
+          RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+        else
+          let fn = found
+          recordStage vm ApplyStage.BiFnLookup biLookupAlloc
+          let call = callBuiltin exeState vm currentFrame ctx fn
+          // Usually already finished, in which case there's no bind to pay for.
+          match Ply.trySync call with
+          | ValueSome dv -> registers[putResultIn] <- dv
+          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+          recordStage vm ApplyStage.BiTotal biTotalAlloc
+
+      | FQFnName.Package pkg ->
+        // Harmful-deprecation runtime halt.
+        // Checked before even fetching the fn so the error is surfaced
+        // whether or not the fn definition is still available.
+        let isHarmful = exeState.fns.isHarmful pkg
+        if isHarmful && not exeState.allowHarmful then
+          RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
+        // A forwarder whose builtin is already known needs neither the fn nor the package call
+        // path: the fetch, `resolveTypeArgs`, `callPackage` and `callPackageResolved` all exist to
+        // reach the same `callBuiltinResolved` this reaches directly. The first call to any given fn
+        // still goes the long way -- that is what detects it and fills the cache.
+        //
+        // Same guards as the elision in `callPackageResolved`: no explicit type args, nothing
+        // applied already, every parameter supplied. Signature equality is what put the fn in the
+        // cache, so the builtin's parameter count is the package fn's.
+        let earlyWrapper =
+          if List.isEmpty typeArgs && List.isEmpty applicable.argsSoFar then
+            thinWrapperCachedFor exeState pkg
+          else
+            ValueNone
+
+        match earlyWrapper with
+        | ValueSome biFn when NEList.length newArgRegs = List.length biFn.parameters ->
+          // Counted, since a package call happened. The late elision in `callPackageResolved` does
+          // the same; this path was added afterwards and missed it, so `packageCalls` under-reported
+          // every forwarder that reached the cache.
+          if vm.stats.enabled then
+            vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+
+          // The operator table, before the context exists. `callBuiltinResolved` checks the same
+          // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
+          // and nearly every `Stdlib.x` call in Dark arrives down this path.
+          let early =
+            if exeState.tracing.skipTracing then
+              tryFastOpOn vm.threadID registers biFn.name newArgRegs
+            else
+              ValueNone
+
+          match early with
+          | ValueSome result ->
+            if vm.stats.enabled then
+              vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+            registers[putResultIn] <- result
+
+          | ValueNone ->
+
+            let ctx : ApplyContext =
+              { applicable = applicable
+                typeArgs = typeArgs
+                args = ArgSeq.ofNE registers newArgRegs
+                tst = tst
+                putResultIn = putResultIn
+                returnPc = currentFrame.programCounter + 1 }
+
+            let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+
+            match Ply.trySync call with
+            | ValueSome dv -> registers[putResultIn] <- dv
+            | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+
+        | _ ->
+
+          let pkgFetchAlloc = allocNow vm
+          // Warm cache after the first call, which for a script means all but a handful of these.
+          //
+          // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
+          // would sit in the loop's computation expression and cost a continuation closure on every
+          // call, reached or not.
+          let fetchOnlyAlloc = allocNow vm
+          let fetch = exeState.fns.package pkg
+          let fetched = Ply.trySync fetch
+          recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
+          let call =
+            match fetched with
+            | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
+            | ValueSome None ->
+              RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+            | ValueNone ->
+              uply {
+                match! fetch with
+                | Some fn -> return! callPackage exeState vm currentFrame ctx fn
+                | None ->
+                  return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+              }
+          recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
+          // Overwritten on the next line either way; F# needs something to start from.
+          // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
+          // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
+          // cheaper than the cell.
+          match Ply.trySync call with
+          | ValueSome(PartiallyApplied dv)
+          | ValueSome(Completed dv) -> registers[putResultIn] <- dv
+          | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
+          | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
   recordStage vm ApplyStage.ApplyTotal applyTotalAlloc
   outcome
@@ -2037,11 +2457,7 @@ let private runSyncInstructions
           | _ ->
             raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
         | _ ->
-          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
+          if not (assignLetPattern registers pat dv) then
             raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
@@ -2137,9 +2553,13 @@ let private runSyncInstructions
             |> RTE.Record
             |> raiseRTE vm.threadID
           else
-            match Map.find fieldName fields with
-            | Some value -> registers[targetReg] <- value
-            | None ->
+            // `TryGetValue`, not `Map.find`, which allocates a `Some` on every hit. After `Apply`
+            // this is the most-executed opcode a view build runs, so that `Some` was a substantial
+            // share of what drawing a screen allocated.
+            let mutable value = Unchecked.defaultof<Dval>
+            if fields.TryGetValue(fieldName, &value) then
+              registers[targetReg] <- value
+            else
               RTE.Records.FieldAccessFieldNotFound fieldName
               |> RTE.Record
               |> raiseRTE vm.threadID
@@ -2491,6 +2911,70 @@ let private runRareOpcode
 /// resumable code could not reduce a state machine with these binds sitting in match arms inside a
 /// `while` (FS3511), and an unreduced machine falls back to the dynamic, allocating implementation --
 /// exactly what moving off Ply was meant to escape.
+/// Hand a finished frame's result to its parent, or record it as the whole run's result.
+///
+/// The trickiest bookkeeping in the interpreter -- the pop, the trace records, the parent's register
+/// and program counter -- and it is synchronous. Extracted so the task loop and the synchronous loop
+/// beside it share one copy rather than drifting apart.
+///
+/// The caller runs `checkFrameReturnType` first where there is a parent; it is separate because it is
+/// the one part of this that can await.
+let private returnFromFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (resultOfFrame : Dval)
+  : unit =
+  match currentFrame.parent with
+  | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
+    // Record per-package-fn timing on frame return
+    if vm.stats.enabled && vm.stats.detailedTiming then
+      match vm.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+      | true, pushTs ->
+        let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
+        match currentFrame.executionPoint with
+        | Function(FQFnName.Package(Hash h)) -> vm.stats.recordPackageFn (h, elapsed)
+        | _ -> ()
+        vm.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+      | false, _ -> ()
+
+    let framePopAlloc = allocNow vm
+    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+
+    vm.currentFrameID <- parentID
+
+    let parentFrame = vm.callFrames[parentID]
+
+    // Trace package function call at frame return.
+    // Lambda frames fire storeLambdaResult instead.
+    if not exeState.tracing.skipTracing then
+      match currentFrame.executionPoint with
+      | Function fnName ->
+        match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
+        | true, args ->
+          vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+          let source : Tracing.Source = (parentFrame.executionPoint, None)
+          let fnRecord : Tracing.FunctionRecord = (source, fnName)
+          exeState.tracing.storeFnResult
+            fnRecord
+            (NEList.ofListUnsafe "" [] args)
+            resultOfFrame
+        | _ -> ()
+      | Lambda _ ->
+        vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+        exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
+      | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+    parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+    parentFrame.programCounter <- pcOfParent
+    // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
+    // of its registers before the pop and is now in the parent's.
+    returnFrame vm currentFrame
+    recordStage vm ApplyStage.FramePop framePopAlloc
+  | ValueNone ->
+    vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+    vm.finalResult <- ValueSome resultOfFrame
+
+
 let private handleFrameStep
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2511,7 +2995,8 @@ let private handleFrameStep
       let! o = Ply.toTask call
       currentFrame.programCounter <- currentFrame.programCounter + 1
       match o with
-      | PartiallyApplied dv -> registers[reg] <- dv
+      | PartiallyApplied dv
+      | Completed dv -> registers[reg] <- dv
       // Pushed here rather than left in `vm.frameToPush`, which the next turn of this loop clears.
       | PushFrame frame -> pushFrame vm frame
 
@@ -2561,63 +3046,12 @@ let private handleFrameStep
         let resultOfFrame = registers[instrData.resultReg]
 
         match currentFrame.parent with
-        | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
-          // We just finished processing a frame, and we need to return a value to the parent frame
-
-          // TODO this might be where the type-checking of a fn result needs to happen.
-          // But when here, it's not always a fn call - could also be for a lambda.
-
+        | ValueSome _ ->
           // A single `do!` at statement position, so the loop's state machine stays statically
           // compilable. `checkFrameReturnType` answers synchronously in the ordinary case.
           do! checkFrameReturnType exeState vm currentFrame resultOfFrame
-          // Record per-package-fn timing on frame return
-          if vm.stats.enabled && vm.stats.detailedTiming then
-            match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
-            | true, pushTs ->
-              let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
-              match currentFrame.executionPoint with
-              | Function(FQFnName.Package(Hash h)) ->
-                vm.stats.recordPackageFn (h, elapsed)
-              | _ -> ()
-              vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
-            | false, _ -> ()
-
-          let framePopAlloc = allocNow vm
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-
-          vm.currentFrameID <- parentID
-
-          let parentFrame = vm.callFrames[parentID]
-
-          // Trace package function call at frame return.
-          // Lambda frames fire storeLambdaResult instead.
-          if not exeState.tracing.skipTracing then
-            match currentFrame.executionPoint with
-            | Function fnName ->
-              match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
-              | true, args ->
-                vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-                let source : Tracing.Source = (parentFrame.executionPoint, None)
-                let fnRecord : Tracing.FunctionRecord = (source, fnName)
-                exeState.tracing.storeFnResult
-                  fnRecord
-                  (NEList.ofListUnsafe "" [] args)
-                  resultOfFrame
-              | _ -> ()
-            | Lambda _ ->
-              vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-              exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
-            | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-          parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
-          parentFrame.programCounter <- pcOfParent
-          // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
-          // of its registers before the pop and is now in the parent's.
-          returnFrame vm currentFrame
-          recordStage vm ApplyStage.FramePop framePopAlloc
-
-        | ValueNone ->
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-          vm.finalResult <- ValueSome resultOfFrame
+          returnFromFrame exeState vm currentFrame resultOfFrame
+        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
   }
 
 
@@ -2628,16 +3062,118 @@ let private handleFrameStep
 /// `uply` loop allocates on every iteration in proportion to the size of its body, bind or no bind;
 /// the same loop under `task` allocates nothing. This body is large and runs once per frame
 /// activation, so that difference dominated the interpreter's allocation.
+/// What the synchronous loop could not finish, and how the task loop should pick it up.
+[<Struct>]
+type private SyncOutcome =
+  /// The whole run finished without ever awaiting.
+  | SyncDone of result : Dval
+  /// A step whose await has not been started. `handleFrameStep` takes it from here.
+  | SyncBailStep of step : FrameStep
+  /// A return-type check already in flight; the frame returns once it completes.
+  | SyncBailReturnCheck of
+    check : System.Threading.Tasks.Task<unit> *
+    checkedResult : Dval
+
+
+/// The interpreter loop, for as long as nothing actually awaits.
+///
+/// The loop below is a `task`, and a `task` that completes synchronously still allocates the `Task`
+/// it returns. That is one allocation per *entry*, which is nothing for a script and a great deal
+/// for a builtin folding a list: `executeApplicable` enters once per element, and the `Task` was
+/// half of everything that path allocated.
+///
+/// Nearly every lambda a builtin applies is arithmetic, a comparison or a push, and never awaits at
+/// all. So run the same loop with no builder for as long as that holds, and hand over the moment it
+/// stops. The two share `runFrame` and `returnFromFrame`, which is where the real work is; what is
+/// duplicated here is the dispatch around them.
+let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome =
+  let mutable bail = ValueNone
+
+  // `TryGetValue`, not `ContainsKey` and then the indexer: the key is a `uuid`, so that was two
+  // hashes and two probes per turn of the loop for one frame.
+  let mutable currentFrame = Unchecked.defaultof<CallFrame>
+
+  while ValueOption.isNone bail
+        && vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
+    let registers = currentFrame.registers
+    let instrData = currentFrame.instrData
+
+    vm.frameToPush <- ValueNone
+
+    let step = runFrame exeState vm currentFrame registers instrData
+
+    match step with
+    | FrameBlockEnded -> ()
+    // Rare by construction, and running one can await, so it is handed over rather than tried. The
+    // step is untouched, so `handleFrameStep` does the whole of it.
+    | FrameRareOpcode -> bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitBuiltin(call, reg) ->
+      match Ply.trySync call with
+      | ValueSome dv ->
+        registers[reg] <- dv
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitPackage(call, reg) ->
+      match Ply.trySync call with
+      | ValueSome outcome ->
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+        match outcome with
+        | PartiallyApplied dv
+        | Completed dv -> registers[reg] <- dv
+        | PushFrame frame -> pushFrame vm frame
+      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+
+    if ValueOption.isNone bail && step.IsBlockEnded then
+      match vm.frameToPush with
+      | ValueSome newFrame ->
+        vm.callFrames[newFrame.id] <- newFrame
+        vm.currentFrameID <- newFrame.id
+      | ValueNone ->
+        let resultOfFrame = registers[instrData.resultReg]
+
+        match currentFrame.parent with
+        | ValueSome _ ->
+          // A `Task`, so asked with `IsCompletedSuccessfully` rather than `Ply.trySync`. It answers
+          // synchronously in the ordinary case: the awaiting one is a type that needs the store.
+          let check = checkFrameReturnType exeState vm currentFrame resultOfFrame
+          if check.IsCompletedSuccessfully then
+            returnFromFrame exeState vm currentFrame resultOfFrame
+          else
+            bail <- ValueSome(SyncBailReturnCheck(check, resultOfFrame))
+        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
+
+  match bail with
+  | ValueSome outcome -> outcome
+  | ValueNone ->
+    match vm.finalResult with
+    | ValueSome dv -> SyncDone dv
+    | ValueNone -> Exception.raiseInternal "No finalResult found" []
+
+
 let private executeInnerTask
   (exeState : ExecutionState)
   (vm : VMState)
+  (resumeFrom : SyncOutcome)
   : System.Threading.Tasks.Task<Dval> =
   task {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
     // capture it, so it's a field in each of them.
 
-    while vm.callFrames.ContainsKey vm.currentFrameID do
-      let currentFrame = vm.callFrames[vm.currentFrameID]
+    // Whatever `executeSync` could not finish, before the loop proper.
+    match resumeFrom with
+    | SyncDone _ -> ()
+    | SyncBailStep step ->
+      let frame = vm.callFrames[vm.currentFrameID]
+      do! handleFrameStep exeState vm frame frame.registers frame.instrData step
+    | SyncBailReturnCheck(check, checkedResult) ->
+      let frame = vm.callFrames[vm.currentFrameID]
+      do! check
+      returnFromFrame exeState vm frame checkedResult
+
+    // See `executeSync`: one lookup per turn, not two.
+    let mutable currentFrame = Unchecked.defaultof<CallFrame>
+
+    while vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
 
       let registers = currentFrame.registers
 
@@ -2664,8 +3200,16 @@ let private executeInnerTask
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
 
-let private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  uply { return! executeInnerTask exeState vm }
-
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  executeInner exeState vm
+  match executeSync exeState vm with
+  | SyncDone dv -> Ply dv
+  | bailed ->
+
+    // Unwrapped by hand rather than `uply { return! ... }`, which builds a state machine per call.
+    let running = executeInnerTask exeState vm bailed
+    if running.IsCompletedSuccessfully then
+      Ply running.Result
+    else
+      // The task already started; awaiting `running` continues it. Calling `executeInner` here would
+      // start a second run of the same VM.
+      uply { return! running }

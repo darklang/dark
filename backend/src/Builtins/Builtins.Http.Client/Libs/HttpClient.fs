@@ -1003,4 +1003,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
+/// These builtins are configurable: one instance can block localhost and private ranges where
+/// another allows them. Keep `config` affecting only the function bodies, never their signatures --
+/// the interpreter assumes a builtin's signature is the same everywhere its name is.
 let builtins config = Builtin.make [] (fns config)

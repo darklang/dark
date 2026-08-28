@@ -1,0 +1,68 @@
+// One keypress, split into its three phases, with no terminal involved.
+//
+// `scripts/perf/keystroke` says what a keypress costs end to end; this says where that went.
+// Run them together: the phases should account for the total bar stdin and the terminal write.
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    // Note the owner has no packages of its own, which is what an account usually looks like and
+    // what `scripts/perf/keystroke` measures against the real CLI. An owner *with* packages sends
+    // Home down a different and much dearer path -- see the `isFirstRun` note in the roadmap.
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+let key = Stdlib.Cli.Stdin.Key.Key.RightArrow
+
+let keyN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let step = Darklang.Cli.Workbench.handleKey s key mods Stdlib.Option.Option.None
+    keyN (i - 1) s (acc + 1)
+
+let viewN (i: Int) (s: Darklang.Cli.Workbench.State) (acc: Int) : Int =
+  if i == 0 then
+    acc
+  else
+    let v = Darklang.Cli.Workbench.viewAtSize s size
+    viewN (i - 1) s (acc + (Stdlib.List.length v.rows))
+
+let presentN
+  (i: Int)
+  (sess: Stdlib.Cli.Tui.TerminalSession.State)
+  (v: Stdlib.Cli.Tui.View)
+  (acc: Int)
+  : Int =
+  if i == 0 then
+    acc
+  else
+    let p = Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize sess size v
+    presentN (i - 1) sess v (acc + (Stdlib.String.length p.output))
+
+let n = 10
+
+let _w1 = keyN 2 base 0
+let a0 = Darklang.Cli.Telemetry.now ()
+let _k = keyN n base 0
+let a1 = Darklang.Cli.Telemetry.now ()
+
+let _w2 = viewN 2 base 0
+let b0 = Darklang.Cli.Telemetry.now ()
+let _v = viewN n base 0
+let b1 = Darklang.Cli.Telemetry.now ()
+
+let view = Darklang.Cli.Workbench.viewAtSize base size
+let sess = Stdlib.Cli.Tui.TerminalSession.init ()
+let _w3 = presentN 2 sess view 0
+let c0 = Darklang.Cli.Telemetry.now ()
+let _p = presentN n sess view 0
+let c1 = Darklang.Cli.Telemetry.now ()
+
+Stdlib.printLine ("handleKey:            " ++ (Stdlib.Int.toString (Stdlib.Int.divide (a1 - a0) n)) ++ " ms")
+Stdlib.printLine ("viewAtSize:           " ++ (Stdlib.Int.toString (Stdlib.Int.divide (b1 - b0) n)) ++ " ms")
+Stdlib.printLine ("preparePresentAtSize: " ++ (Stdlib.Int.toString (Stdlib.Int.divide (c1 - c0) n)) ++ " ms")

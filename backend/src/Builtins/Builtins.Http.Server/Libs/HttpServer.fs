@@ -159,7 +159,11 @@ let private executeHandler
   (arg : Dval)
   : Task<Dval> =
   task {
-    let! result = Execution.executeApplicable exeState handler (NEList.singleton arg)
+    // `executeApplicable` returns a `Ply` now, so that a lambda which does not await costs no
+    // builder; this caller is a `task`, so it needs the conversion.
+    let! result =
+      Execution.executeApplicable exeState handler (NEList.singleton arg)
+      |> Ply.toTask
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->

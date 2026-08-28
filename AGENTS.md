@@ -257,6 +257,9 @@ that needs an EOF, and an agent harness hands you a socket that never gives one,
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
 forces it through.
 
+**`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
+not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
+
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.
@@ -287,8 +290,14 @@ calls them. **F# owns measurement, Dark owns layout.** How wide a character is, 
 
 The trap: a Dark loop pays a builtin call per character. `Stdlib.Pretty` measures once per `Doc`
 node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs` walked characters
-and cost seconds per keystroke, which is why they're native. Dark layout code measures spans, not
-characters -- check that before moving anything else to F#.
+and cost seconds per keystroke, which is why they're native.
+
+"Characters bad, spans fine" is the wrong test, though. `Canvas.compose` only ever touches spans, a
+couple of hundred per frame, and is still the largest thing in a view build -- because it runs about a
+dozen interpreted operations on each one.
+
+So count **operations per frame**, not what they operate on. A Dark loop over 250 items doing a dozen
+calls each is 3,000 operations, and that is the number that decides whether something belongs in F#.
 
 Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
 medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.

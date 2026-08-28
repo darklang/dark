@@ -134,7 +134,10 @@ let isFirstRun (state: State) : Bool =
   // so only ask when the cheap test hasn't already answered.
   if Stdlib.Bool.not noWip then false
   else if owner == "" then true
-  else Stdlib.List.isEmpty (loadItems state.branchId (Packages.PackageLocation.Module [ owner ]))
+  else
+    // An existence check rather than a search: a search scans `locations` in full whatever it
+    // finds, and this runs per frame.
+    Stdlib.Bool.not (LanguageTools.PackageManager.ownerHasItems state.branchId owner)
 
 let welcomeLines (state: State) : List<String> =
   let name = if state.accountName == "" then "there" else state.accountName
@@ -158,7 +161,8 @@ let field (label: String) (value: String) : String =
 
 /// Summarize a commit's named changes and deprecations up to `cap` lines.
 let commitChangeLines (c: SCM.PackageOps.Commit) (cap: Int) : List<String> =
-  let ops = SCM.PackageOps.getCommitOps (LanguageTools.ProgramTypes.hashToString c.hash)
+  let (ops, namedCount) =
+    SCM.PackageOps.getCommitNamedOps (LanguageTools.ProgramTypes.hashToString c.hash) cap
   let named =
     ops
     |> Stdlib.List.filterMap (fun op ->
@@ -173,10 +177,9 @@ let commitChangeLines (c: SCM.PackageOps.Commit) (cap: Int) : List<String> =
       | Deprecate(_target, _kind, message) ->
         Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ ") ++ (Stdlib.Cli.UI.Colors.dimText ("deprecated: " ++ message)))
       | _ -> Stdlib.Option.Option.None)
-  let shown = Stdlib.List.take named cap
-  let more = (Stdlib.List.length named) - (Stdlib.List.length shown)
+  let more = namedCount - (Stdlib.List.length named)
   Stdlib.List.flatten
-    [ shown
+    [ named
       if more > 0 then [ Stdlib.Cli.UI.Colors.dimText ("  … and " ++ (Stdlib.Int.toString more) ++ " more") ] else [] ]
 
 /// The commit under Home's cursor, if the cursor is on one. The commit list

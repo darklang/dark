@@ -1,0 +1,44 @@
+// Every row of a workbench view at three sizes, for diffing a render change against.
+//
+// Not a benchmark. `compose`, `composeRow`, `overlay` and `renderSegments` decide what a frame
+// actually looks like, and a performance change to any of them has to produce the same bytes.
+//
+// `scripts/perf/checks` diffs this against `goldenview.expected` beside it. When the view itself
+// changes, regenerate that file deliberately -- never to make the check pass:
+//
+//   ./scripts/run-cli run scripts/perf/workloads/checks/goldenview.dark \
+//     > scripts/perf/workloads/checks/goldenview.expected
+//
+// Three sizes because the interesting bugs are in clipping and in rows that run out of room.
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let sizes =
+  [ Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+    Stdlib.Cli.Tui.Size { width = 80; height = 24 }
+    Stdlib.Cli.Tui.Size { width = 40; height = 10 } ]
+
+let dump (size: Stdlib.Cli.Tui.Size) : Unit =
+  let v = Darklang.Cli.Workbench.viewAtSize base size
+  let _ =
+    v.rows
+    |> Stdlib.List.indexedMap (fun i r ->
+      Stdlib.printLine
+        ((Stdlib.Int.toString size.width)
+         ++ "x"
+         ++ (Stdlib.Int.toString size.height)
+         ++ " "
+         ++ (Stdlib.Int.toString i)
+         ++ "|"
+         ++ r))
+  ()
+
+let _rendered = sizes |> Stdlib.List.map (fun s -> dump s)
+
+Stdlib.printLine "-- end of golden view --"

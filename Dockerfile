@@ -230,6 +230,10 @@ RUN sudo dotnet workload install wasm-tools --version 10.0.109.1
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
+
+# profiling: scripts/perf/alloc-profile and scripts/perf/cpu-profile both drive this
+RUN dotnet tool install dotnet-trace --version 9.0.661903 -g
+
 ENV PATH="$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 # without this, dotnet restore seems to fail, accessing the wrong path

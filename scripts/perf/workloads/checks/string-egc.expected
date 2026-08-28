@@ -8,7 +8,7 @@ DEBUG: g: "[a]|[b]|[c]"
 DEBUG: h: "[a]|[b]|[c]"
 DEBUG: i: "[h]|[e]|[l]|[l]|[o]"
 DEBUG: j: "[hé]|[]|[o]"
-DEBUG: k: "[a
+DEBUG: k: "[a\rb]"
 DEBUG: l: "[🎉]|[🎉]"
 DEBUG: m: "[é]|[]"
 DEBUG: len-ascii: 5

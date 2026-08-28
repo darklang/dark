@@ -44,13 +44,30 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
     (paint ("╭" ++ lead)) ++ pill ++ restStyled ++ (paint ((Stdlib.String.repeat "─" fillLen) ++ "╮"))
   let bottom = "╰" ++ (Stdlib.String.repeat "─" innerCols) ++ "╯"
 
+  // One colorized bar, not one per row per side. Every row's border is the same string, and a panel
+  // draws it once per row; the borders of a few panels are most of a frame's spans.
+  let bar = paint "│"
+
+  // Built directly rather than through `Layout.at`. That helper measures the text, clips it to the
+  // region and bounds-checks the position -- right for arbitrary content, all wasted on a
+  // one-character bar at a position this function just computed. Borders are most of a frame's
+  // spans, so it adds up.
+  let top1 = region.top - 1
+  let left1 = region.left - 1
+  let rightCol = left1 + region.cols - 1
+
+  // `Layout.at` would drop an out-of-bounds span; checked once here for the whole panel instead of
+  // once per row, since every row of a given panel is in bounds or none of them is.
   let sides =
-    (Stdlib.List.range 1 (region.rows - 2))
-    |> Stdlib.List.map (fun row ->
-      Stdlib.List.flatten
-        [ Layout.at region row 0 (paint "│")
-          Layout.at region row (region.cols - 1) (paint "│") ])
-    |> Stdlib.List.flatten
+    if region.cols < 2 then
+      []
+    else
+      (Stdlib.List.range 1 (region.rows - 2))
+      |> Stdlib.List.map (fun row ->
+        let r = top1 + row
+        [ Layout.Span { row = r; col = left1; text = bar }
+          Layout.Span { row = r; col = rightCol; text = bar } ])
+      |> Stdlib.List.flatten
 
   Stdlib.List.flatten
     [ Layout.at region 0 0 top

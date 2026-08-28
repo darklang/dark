@@ -24,7 +24,7 @@ dotnet-trace collect \
   --rundown false \
   --output "$OUT.nettrace" \
   --providers Microsoft-Windows-DotNETRuntime:0x1:5 \
-  -- backend/Build/out/Cli/Debug/net10.0/Cli run "$SCRIPT" \
+  -- ${PROFILE_EXE:-backend/Build/out/Cli/Debug/net10.0/Cli} run "$SCRIPT" \
   2>&1 | tail -4
 
 # There is no public parser for the nettrace container, so this scans the raw file for the UTF-16

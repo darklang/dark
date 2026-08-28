@@ -113,7 +113,11 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
     (Stdlib.List.map2 components rowAllocs (fun c rows ->
       (c, rows)))
     |> Stdlib.Option.withDefault []
-  let (_finalTop, spans) =
+  // Collected as a list of lists and flattened once, rather than appended into an accumulator per
+  // child. `List.append` copies its left side, so appending each child's spans in turn copies every
+  // span already placed -- and stacks nest, so a span three levels down was copied on the way out of
+  // each one.
+  let (_finalTop, chunks) =
     pairs
     |> Stdlib.List.fold (region.top, []) (fun acc pair ->
       let (currentTop, collected) = acc
@@ -124,8 +128,9 @@ let vstack (region: Region) (components: List<Component>) : List<Span> =
             left = region.left
             rows = rows
             cols = region.cols }
-      (currentTop + rows, Stdlib.List.append collected (c.render childRegion)))
-  spans
+      (currentTop + rows, Stdlib.List.push collected (c.render childRegion)))
+
+  chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
 /// A fixed-height component: always requests exactly N rows.
 let fixedSize (n: Int) (renderFn: Region -> List<Span>) : Component =
@@ -186,7 +191,8 @@ let hstack (region: Region) (components: List<Component>) : List<Span> =
   let pairs =
     (Stdlib.List.map2 components colAllocs (fun c cols -> (c, cols)))
     |> Stdlib.Option.withDefault []
-  let (_finalLeft, spans) =
+  // Same as `vstack`: collect and flatten once rather than copying the accumulator per child.
+  let (_finalLeft, chunks) =
     pairs
     |> Stdlib.List.fold (region.left, []) (fun acc pair ->
       let (currentLeft, collected) = acc
@@ -197,8 +203,9 @@ let hstack (region: Region) (components: List<Component>) : List<Span> =
             left = currentLeft
             rows = region.rows
             cols = cols }
-      (currentLeft + cols, Stdlib.List.append collected (c.render childRegion)))
-  spans
+      (currentLeft + cols, Stdlib.List.push collected (c.render childRegion)))
+
+  chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
 
 /// A fixed-width component: always requests exactly N cols; fills the region's height.
 let fixedWidth (n: Int) (renderFn: Region -> List<Span>) : Component =

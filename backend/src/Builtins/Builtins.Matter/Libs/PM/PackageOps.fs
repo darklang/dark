@@ -404,6 +404,48 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "scmGetCommitNamedOps" 0
+      typeParams = []
+      parameters =
+        [ Param.make "commitHash" TString "Commit hash"
+          Param.make "limit" TInt "How many ops to return" ]
+      returnType =
+        TTuple(TList(TCustomType(NR.ok (packageOpTypeName ()), [])), TInt, [])
+      description =
+        "The ops in a commit that name or deprecate something, capped at "
+        + "<param limit>, plus how many there are in total. A commit can hold "
+        + "tens of thousands of ops and a caller showing a summary wants a "
+        + "dozen, so the cap applies before they become Dark values."
+      fn =
+        function
+        | _, vm, _, [| DString commitHash; DInt limit |] ->
+          uply {
+            let! ops = LibDB.Queries.getCommitOps (PT.Hash commitHash)
+            let named =
+              ops
+              |> List.filter (fun op ->
+                match op with
+                | PT.PackageOp.SetName _
+                | PT.PackageOp.Deprecate _ -> true
+                | _ -> false)
+            let shown =
+              named
+              |> List.truncate (max 0 (intToInt32 vm limit))
+              |> List.map PT2DT.PackageOp.toDT
+            return
+              DTuple(
+                Dval.list (packageOpKT ()) shown,
+                Dval.int (bigint (List.length named)),
+                []
+              )
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "scmGetDependencies" 0
       typeParams = []
       parameters =

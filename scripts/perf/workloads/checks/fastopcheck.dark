@@ -1,0 +1,49 @@
+// Checks that the interpreter's operator fast path returns what the builtins it stands in for return.
+//
+// `FastOps` answers these without the builtin's record, its capability check or either type check,
+// so nothing in the normal builtin machinery is verifying it. Every entry in that table wants a line
+// here.
+//
+// The path declines while tracing is on, so this is only meaningful with trace detail off -- which
+// is the default in the container and what a user's run does. If a check here starts passing for the
+// wrong reason, that is the first thing to suspect.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/checks/fastopcheck.dark
+
+let d = Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]
+
+let show (label: String) (actual: String) (expected: String) : Unit =
+  if actual == expected then
+    Stdlib.printLine ("ok    " ++ label)
+  else
+    Stdlib.printLine ("FAIL  " ++ label ++ "  got " ++ actual ++ " want " ++ expected)
+
+let _1 = show "dict get hit" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get d "a") 0)) "1"
+let _2 = show "dict get miss" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get d "zz") (-1))) "-1"
+// `setOverridingDuplicates`, not `set`: they are different builtins. `Dict.set` wraps `dictSet`,
+// which raises on a key that is already present, and only `dictSetOverridingDuplicates` is on the
+// fast path.
+let _3 = show "dict setOD new key" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.setOverridingDuplicates d "c" 3)))) "3"
+let _4 = show "dict setOD overwrite" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.setOverridingDuplicates d "a" 9) "a") 0)) "9"
+let _5 = show "dict setOD does not mutate" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys d))) "2"
+let _5b = show "dict set new key" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set d "c" 3)))) "3"
+let _6 = show "int toString" (Stdlib.Int.toString 42) "42"
+let _7 = show "int toString negative" (Stdlib.Int.toString (-7)) "-7"
+let _8 = show "bool not" (if Stdlib.Bool.not true then "y" else "n") "n"
+let _9 = show "list length" (Stdlib.Int.toString (Stdlib.List.length [ 1; 2; 3 ])) "3"
+let _10 = show "list append" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.List.append [ 1; 2 ] [ 3 ]))) "3"
+let _11 = show "string append" ("a" ++ "b") "ab"
+let _12 = show "string equals" (if "x" == "x" then "y" else "n") "y"
+let _13 = show "repeat one char" (Stdlib.String.repeat "-" 3) "---"
+let _14 = show "repeat multi char" (Stdlib.String.repeat "ab" 2) "abab"
+let _15 = show "repeat zero" (Stdlib.String.repeat "x" 0) ""
+let _16 = show "repeat negative" (Stdlib.String.repeat "x" (-2)) ""
+let _17 = show "repeat empty" (Stdlib.String.repeat "" 5) ""
+let _18 = show "dict set strict new" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set d "c" 3)))) "3"
+let _18b = show "string isEmpty yes" (if Stdlib.String.isEmpty "" then "y" else "n") "y"
+let _18c = show "string isEmpty no" (if Stdlib.String.isEmpty "a" then "y" else "n") "n"
+let _18d = show "list isEmpty yes" (if Stdlib.List.isEmpty [] then "y" else "n") "y"
+let _18e = show "list isEmpty no" (if Stdlib.List.isEmpty [ 1 ] then "y" else "n") "n"
+let _19 = show "dict set strict value" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.set d "c" 3) "c") 0)) "3"
+
+Stdlib.printLine "-- fast op check done --"

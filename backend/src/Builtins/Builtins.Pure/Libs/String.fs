@@ -14,6 +14,48 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
+/// The substring of `s` between cluster indices `first` and `last`, both already clamped to
+/// [0, length] with `first <= last`.
+///
+/// Shared by `stringSlice` and `stringStartsWith` so the two cannot drift.
+/// Prefix and suffix tests are cluster tests in Dark, not byte tests: `String.startsWith` was
+/// `slice subject 0 (length prefix) == prefix`, and ordinal `StartsWith` is NOT equivalent -- "\U0001F471"
+/// is a byte-prefix of "\U0001F471\U0001F3FB" but not a cluster-prefix of it.
+let private egcSubstring (s : string) (first : int) (last : int) : string =
+  if first >= last then
+    ""
+  else
+    let e = System.Globalization.StringInfo.GetTextElementEnumerator(s)
+    let mutable startIndex = 0
+    let mutable endIndex = 0
+    let mutable index = 0
+
+    while e.MoveNext() do
+      if index = first then startIndex <- e.ElementIndex
+      if index = last then endIndex <- e.ElementIndex
+      index <- index + 1
+
+    if endIndex = 0 then endIndex <- s.Length
+    s.Substring(startIndex, endIndex - startIndex)
+
+
+/// Clamp a Dark `Int` index against a cluster length, the way `String.slice` always has: a negative
+/// index counts from the end, then the result is clamped to [0, len].
+///
+/// Clamps in the `Int` domain and only then narrows -- narrowing first raises `OutOfRange` on an
+/// index past int32, where this clamps. `String.slice "abc" 0 4503599627370498` is "abc", and there
+/// is a testfile line for it.
+let private normalizeEgcIndex (len : int) (d : DarkInt) : int =
+  match d with
+  | DarkInt.Finite i ->
+    let i = if i < 0L then int64 len + i else i
+    if i < 0L then 0
+    elif i > int64 len then len
+    else int i
+  // Past int64 either way: still just "before the start" or "past the end".
+  | DarkInt.Infinite b -> if b.Sign > 0 then len else 0
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "stringDisplayWidth" 0
       typeParams = []
@@ -150,11 +192,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString s; DInt count |] ->
-          let n = intToInt32 vm count
-          if n <= 0 || s = "" then
-            DString "" |> Ply
-          else
-            DString(System.String.Concat(Seq.replicate n s)) |> Ply
+          DString(String.repeat s (intToInt32 vm count)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -309,6 +347,79 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringDropFirst" 0
+      typeParams = []
+      parameters = [ Param.make "string" TString ""; Param.make "count" TInt "" ]
+      returnType = TString
+      description =
+        "Returns <param string> with the first <param count> characters removed. The whole string "
+        + "if <param count> is negative, the empty string if it is longer than <param string>."
+      fn =
+        (function
+        | _, _, _, [| DString s; DInt countD |] ->
+          // The Dark version was two `String.length` calls, two comparisons and a `slice`. The
+          // "count is longer than the string" case needs no branch here: `normalizeEgcIndex` clamps
+          // it to the length, and an empty range gives "". A NEGATIVE count does need one, because
+          // a negative index counts from the end rather than clamping to zero.
+          match countD with
+          | DarkInt.Finite i when i < 0L -> Ply(DString s)
+          | DarkInt.Infinite b when b.Sign < 0 -> Ply(DString s)
+          | _ ->
+            let len = String.lengthInEgcs s
+            let first = normalizeEgcIndex len countD
+            egcSubstring s first len |> DString |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringIsEmpty" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TBool
+      description = "Returns true if <param s> is the empty string"
+      fn =
+        (function
+        | _, _, _, [| DString s |] -> Ply(DBool(s.Length = 0))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringStartsWith" 0
+      typeParams = []
+      parameters =
+        [ Param.make "subject" TString ""; Param.make "prefix" TString "" ]
+      returnType = TBool
+      description = "Checks if <param subject> starts with <param prefix>"
+      fn =
+        (function
+        | _, _, _, [| DString subject; DString prefix |] ->
+          // Exactly what the Dark version computed -- `slice subject 0 (length prefix) == prefix` --
+          // but without the three package calls. Cluster-aware, so NOT `String.StartsWith`: see the
+          // note on `egcSubstring`.
+          //
+          // When both sides are charwise every cluster is one character, so a cluster-prefix and an
+          // ordinal prefix coincide and the walk can be skipped. That is nearly every call.
+          if prefix = "" then
+            Ply(DBool true)
+          elif String.isCharwise subject && String.isCharwise prefix then
+            Ply(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
+          else
+            let subjectLen = String.lengthInEgcs subject
+            let last = min (String.lengthInEgcs prefix) subjectLen
+            Ply(DBool(egcSubstring subject 0 last = prefix))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringSlice" 0
       typeParams = []
       parameters =
@@ -322,39 +433,19 @@ let fns () : List<BuiltInFn> =
         + "<param string>."
       fn =
         (function
-        | _, vm, _, [| DString s; DInt firstD; DInt lastD |] ->
-          let getLengthInTextElements s = StringInfo(s).LengthInTextElements
+        | _, _, _, [| DString s; DInt firstD; DInt lastD |] ->
+          // `String.lengthInEgcs`, not `StringInfo(_).LengthInTextElements`: the former checks
+          // `isCharwise` first and answers with `s.Length` for text that has no multi-char clusters,
+          // which is nearly all of it. Going straight to `StringInfo` measurably regressed the CLI.
+          let len = String.lengthInEgcs s
 
-          // slice positions are bounded by string length; narrow Int -> native int
-          let first = intToInt32 vm firstD
-          let last = intToInt32 vm lastD
+          // Normalizing here rather than in the Dark wrapper, which built a lambda and applied it
+          // twice to do exactly this. That wrapper is a bare forwarder now, so it elides.
+          let first = normalizeEgcIndex len firstD
+          let last = normalizeEgcIndex len lastD
+          let last = if first > last then first else last
 
-          // Handle negative indexes (which allow counting from the end)
-          let first =
-            if first < 0 then getLengthInTextElements (s) + first else first
-          let last = if last < 0 then getLengthInTextElements (s) + last else last
-
-          if first >= last then
-            Ply(DString "")
-          else
-            // Create a TextElementEnumerator to handle EGCs
-            let textElemEnumerator =
-              System.Globalization.StringInfo.GetTextElementEnumerator(s)
-            let mutable startIndex = 0
-            let mutable endIndex = 0
-            let mutable index = 0
-
-            // Iterate through EGCs and record the byte indexes of the start and end
-            while textElemEnumerator.MoveNext() do
-              if index = first then startIndex <- textElemEnumerator.ElementIndex
-              if index = last then endIndex <- textElemEnumerator.ElementIndex
-              index <- index + 1
-
-            // Check out of bounds
-            if endIndex = 0 then endIndex <- s.Length
-
-            let substringLength = endIndex - startIndex
-            s.Substring(startIndex, substringLength) |> DString |> Ply
+          egcSubstring s first last |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

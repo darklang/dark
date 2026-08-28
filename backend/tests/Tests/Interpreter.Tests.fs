@@ -569,6 +569,7 @@ module Lambdas =
           exeState
           applicable
           (NEList.singleton (RT.DInt64 42L))
+        |> Ply.toTask
 
       match result with
       | Ok dval -> Expect.equal dval (RT.DInt64 42L) "identity lambda across VMs"

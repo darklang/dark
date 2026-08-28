@@ -398,6 +398,31 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmOwnerHasItems" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch to look on"
+          Param.make "owner" TString "Owner to test" ]
+      returnType = TBool
+      description =
+        "Whether this owner has any listed item at all. A search would answer "
+        + "the same question by scanning `locations` four times; this is an "
+        + "equality seek on the owner index."
+      fn =
+        function
+        | _, _, _, [| DUuid branchId; DString owner |] ->
+          uply {
+            let! branchChain = Branches.getBranchChain branchId
+            let! found = PMPT.ownerHasItems branchChain owner
+            return DBool found
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmSearchNames" 0
       typeParams = []
       parameters =
