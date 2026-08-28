@@ -163,3 +163,11 @@ printf '\n=== workbench view renders byte-identically\n    expect: no diff\n'
 if "$EXE" run "$CHECKS/goldenview.dark" 2>&1 | diff - "$CHECKS/goldenview.expected"; then
   echo "    ok, three sizes byte-identical"
 fi
+
+# The one above renders the initial state, so it says nothing about the key handlers. This walks a
+# navigation sequence and renders after every key, which is where a change to *when* a handler
+# computes something shows up. Regenerate the same way, and only on purpose.
+printf '\n=== workbench navigates byte-identically\n    expect: no diff\n'
+if "$EXE" run "$CHECKS/goldenkeys.dark" 2>&1 | diff - "$CHECKS/goldenkeys.expected"; then
+  echo "    ok, eleven frames byte-identical"
+fi
