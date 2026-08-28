@@ -16,9 +16,9 @@ let inline private isCsiFinal (c : char) = c >= '@' && c <= '~'
 ///
 /// `skipEscape` below also decides whether the sequence is SGR worth keeping, which costs a
 /// `Char.IsDigit` for every parameter character. Only a caller that keeps the sequence needs that,
-/// and the two hottest callers -- `styledWidth` and `stripSgr` -- throw it away. `styledWidth` runs
-/// 289 times a frame on strings that are typically a colour prefix, a short word and a reset, so
-/// that is most of a parameter scan per call spent on a question nobody asks.
+/// and the two hottest callers -- `styledWidth` and `stripSgr` -- throw it away. Those run once per
+/// row of a frame, on strings that are typically a colour prefix, a short word and a reset, so that
+/// is most of a parameter scan per call spent on a question nobody asks.
 ///
 /// The index it returns is the same one `skipEscape` returns; only the inspection is skipped.
 let private skipEscapeOnly (text : string) (i : int) : int =
@@ -41,10 +41,9 @@ let private skipEscapeOnly (text : string) (i : int) : int =
 /// visible.
 ///
 /// Bounds rather than a string, because two of the four callers throw the sequence away and this
-/// runs once per escape: `styledWidth` measures ~289 rows to build one frame and each carries a
-/// couple of sequences, so handing it a `Substring` was hundreds of allocations a frame that nothing
-/// ever read. The caller that genuinely needs a string builds one; the one appending to a
-/// `StringBuilder` no longer needs an intermediate at all.
+/// runs once per escape, of which a painted frame has many. Handing those callers a `Substring` was
+/// an allocation each that nothing ever read. The caller that genuinely needs a string builds one;
+/// the one appending to a `StringBuilder` no longer needs an intermediate at all.
 let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : int =
   let len = text.Length
 

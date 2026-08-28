@@ -436,7 +436,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s; DInt firstD; DInt lastD |] ->
           // `String.lengthInEgcs`, not `StringInfo(_).LengthInTextElements`: the former checks
           // `isCharwise` first and answers with `s.Length` for text that has no multi-char clusters,
-          // which is nearly all of it. Going straight to `StringInfo` cost a view build 4%.
+          // which is nearly all of it. Going straight to `StringInfo` measurably regressed the CLI.
           let len = String.lengthInEgcs s
 
           // Normalizing here rather than in the Dark wrapper, which built a lambda and applied it

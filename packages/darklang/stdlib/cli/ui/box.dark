@@ -44,8 +44,8 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
     (paint ("╭" ++ lead)) ++ pill ++ restStyled ++ (paint ((Stdlib.String.repeat "─" fillLen) ++ "╮"))
   let bottom = "╰" ++ (Stdlib.String.repeat "─" innerCols) ++ "╯"
 
-  // One colorized bar, not one per row per side. Every row's border is the same string, and a
-  // full-height panel draws it 76 times; three panels are most of a frame's spans.
+  // One colorized bar, not one per row per side. Every row's border is the same string, and a panel
+  // draws it once per row; the borders of a few panels are most of a frame's spans.
   let bar = paint "│"
 
   // Built directly rather than through `Layout.at`. That helper measures the text, clips it to the

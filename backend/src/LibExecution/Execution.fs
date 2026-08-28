@@ -147,9 +147,9 @@ let executeToplevel
 /// nested application finds it empty and builds its own", which is true and is the whole problem:
 /// nesting is the common case, not the exception. `map` over a list whose lambda calls `findFirst`
 /// has the outer application holding the slot for the whole traversal, so every inner one built a
-/// fresh `VMState` -- thirteen dictionaries and seven arrays, ~2,900 bytes, per element. It is why a
-/// native list operation allocated 2-3x its Dark equivalent on a five-element list while winning
-/// easily on fifty: the per-call cost was fixed and large, and only long lists amortised it.
+/// fresh `VMState` -- thirteen dictionaries and seven arrays -- per element. It is why a native list
+/// operation lost to its Dark equivalent on a five-element list while winning easily on fifty: the
+/// per-call cost was fixed and large, and only long lists amortised it.
 ///
 /// Eight deep covers the nesting real code reaches; past that it falls back to building one, which is
 /// correct, just not free.
@@ -227,7 +227,7 @@ let private loadApplyRegisters
   registers[2] <- args.head
   // Head and tail directly: `NEList.toList` would allocate a list per application. The `iteri`
   // closure looks like a per-application allocation and is not one: hand-rolling the loop measured
-  // neutral on both the gate and the lambda amplifier, so the optimiser is already eliding it.
+  // neutral on a workload built to do nothing but apply lambdas, so the optimiser already elides it.
   args.tail |> List.iteri (fun i arg -> registers[i + 3] <- arg)
 
 

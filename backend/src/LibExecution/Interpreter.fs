@@ -594,7 +594,8 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 ///
 /// "Internal to a VM" is the whole invariant: ids repeat across VMs, so anything keyed on one has to
 /// live on the VM. `framePushTimestamps` used to sit on `InterpreterStats`, which every VM shares
-/// when telemetry is off, and the collision cost the per-fn profile an unknown share of its calls.
+/// when telemetry is off, so a pooled lambda VM's ids collided with its caller's and the per-fn
+/// profile silently lost entries.
 ///
 /// So it doesn't need to be random. `Guid.NewGuid()` draws from the cryptographic RNG, and a frame push
 /// happens tens of thousands of times in a single command.
@@ -1069,8 +1070,8 @@ let private tryFastOp
     if not (FastOps.byName.TryGetValue(fn.name, &tag)) then
       ValueNone
     else
-      // Nested rather than `match a, b with`, which allocates the pair. That shape cost the
-      // reference workload 4.4% when it was written the obvious way in `tryFastOpDirect`.
+      // Nested rather than `match a, b with`, which allocates the pair. Writing it the obvious way
+      // in `tryFastOpDirect` measurably regressed the gate.
       match ArgSeq.uncons ctx.args with
       | ValueSome(struct (only, rest)) when ArgSeq.isEmpty rest ->
         FastOps.eval1 tag only
@@ -1108,9 +1109,9 @@ let private tryFastOp
 /// The operator table, dispatched straight off the caller's registers for a known builtin name.
 ///
 /// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
-/// build an `ApplyContext` and an `ArgSeq` first and then let `tryFastOp` unpick them again, which
-/// measured 0.63 us a call against reaching the table directly -- on 1,678 calls in a view build,
-/// because nearly all Dark code calls `Stdlib.x` rather than `Builtin.x`.
+/// build an `ApplyContext` and an `ArgSeq` first and then let `tryFastOp` unpick them again, and it
+/// is the path nearly every operator arrives on, because Dark code calls `Stdlib.x` rather than
+/// `Builtin.x`.
 let private tryFastOpOn
   (threadID : ThreadID)
   (registers : Dval array)
@@ -1126,7 +1127,7 @@ let private tryFastOpOn
 
     | [ secondReg ] ->
       // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
-      // operator or not. It measured 4.4% on the gate and 10% on a view build.
+      // operator or not. The pair alone was worth several percent of both the gate and a view build.
       match registers[argRegs.head] with
       | DInt x ->
         match registers[secondReg] with
@@ -1384,8 +1385,7 @@ let private thinWrapperCache =
 /// `TCustomType` carries the source name beside the resolved hash, and the two sides of a forwarder
 /// spell the same type differently: a builtin's `TypeReference.option varA` has no original name,
 /// where the Dark signature wrapping it says `Option<'a>`. Comparing whole `TypeReference`s rejected
-/// every forwarder whose signature mentions a custom type -- `Dict.get` among them, at 292 calls in
-/// one workbench view.
+/// every forwarder whose signature mentions a custom type, `Dict.get` among them.
 let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
   match a, b with
   | TCustomType(aName, aArgs), TCustomType(bName, bArgs) ->
@@ -1413,7 +1413,7 @@ let private detectThinWrapper
   // would have done: that body applies the builtin with no explicit type args, which the match below
   // insists on.
   // Never a builtin that needs capabilities. Eliding `Stdlib.HttpClient.request`, a bare forwarder
-  // like any other, changed what `request "put" "file:///etc/passwd"` does: 36 testfiles that assert
+  // like any other, changed what `request "put" "file:///etc/passwd"` does: the testfiles asserting
   // an unsupported-protocol error instead saw a real request attempted. The effectful builtins reach
   // for more of the calling context than a pure one does, and the wrapper's frame is part of that
   // context. Pure builtins are the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` --
@@ -1448,9 +1448,8 @@ let private detectThinWrapper
 ///
 /// Most of the stdlib is `let f a b = Builtin.g a b`, which compiles to exactly two instructions: load
 /// the builtin, apply it to the parameters in order. Calling such a fn the ordinary way pushes a frame
-/// to run those two instructions, and that frame is most of what the call costs -- a wrapper is +4.0us
-/// over baseline where the builtin it wraps is +1.5. Half the package calls in a view build are
-/// forwarders of this shape.
+/// to run those two instructions, and that frame costs several times what the builtin inside it does.
+/// Much of the stdlib is this shape, so much of any Dark program's call traffic is too.
 ///
 /// Only forwarders whose signature is *identical* to the builtin's qualify. A wrapper that narrows
 /// `List<'a>` to `List<TraceSummary>` is doing real work: its param types decide what is accepted, and
@@ -2038,7 +2037,7 @@ let private applyInstruction
     //
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
-    // branch or not. Written that way first, it cost the reference workload 4% and a view build 10%.
+    // branch or not. Written that way first, it cost the gate and a view build several percent each.
     match
       tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs
     with
@@ -2108,8 +2107,8 @@ let private applyInstruction
             vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
 
           // The operator table, before the context exists. `callBuiltinResolved` checks the same
-          // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick
-          // -- 0.63 us a call, and nearly every `Stdlib.x` call in Dark arrives down this path.
+          // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
+          // and nearly every `Stdlib.x` call in Dark arrives down this path.
           let early =
             if exeState.tracing.skipTracing then
               tryFastOpOn vm.threadID registers biFn.name newArgRegs
@@ -2554,9 +2553,9 @@ let private runSyncInstructions
             |> RTE.Record
             |> raiseRTE vm.threadID
           else
-            // `TryGetValue`, not `Map.find`, which allocates a `Some` on every hit. This is the
-            // most-executed opcode in a workbench view after `Apply` -- 7,713 reads to draw one
-            // screen -- so that `Some` was 185 KB per view.
+            // `TryGetValue`, not `Map.find`, which allocates a `Some` on every hit. After `Apply`
+            // this is the most-executed opcode a view build runs, so that `Some` was a substantial
+            // share of what drawing a screen allocated.
             let mutable value = Unchecked.defaultof<Dval>
             if fields.TryGetValue(fieldName, &value) then
               registers[targetReg] <- value

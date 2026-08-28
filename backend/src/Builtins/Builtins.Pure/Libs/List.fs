@@ -543,9 +543,9 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Was two interpreted passes and a tuple per element around a native sort: one `map` to
-          // build `(key, value)`, the sort, then a second `map` of `Tuple2.second` -- which is where
-          // the 105 `Tuple2.second` calls in a view build came from. Only the key function needs
-          // interpreting.
+          // build `(key, value)`, the sort, then a second `map` of `Tuple2.second`, which is why
+          // `Tuple2.second` showed up in profiles of code that never mentions it. Only the key
+          // function needs interpreting.
           //
           // The result keeps the source list's ValueType: sorting is a permutation, so the elements
           // are exactly the ones already merged into it. `listSort` does the same.
@@ -610,8 +610,8 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, [], [| DList(_, items); DApplicable app |] ->
           // The Dark version recursed a package call, an Option match and a `push` per element on
-          // top of the lambda application. `List.filterMap` is used in 167 places, and it is 27% of
-          // routing one HTTP request.
+          // top of the lambda application, and it is used widely enough for that to show up in a
+          // profile of anything.
           //
           // Built back to front and reversed once, as `listMap` does.
           let mutable acc = []
@@ -908,9 +908,9 @@ let fns () : List<BuiltInFn> =
           // Counted down, so the list is built in order without a reverse.
           //
           // On `int64` where both ends are `Finite`, which is every range anyone writes. Doing it in
-          // `bigint` throughout costs a boxed `BigInteger` per element -- 30% of the allocation of
-          // the reference workload when this was first written that way. A range that needs the
-          // wide path would not fit in memory anyway, but it keeps its own arithmetic.
+          // `bigint` throughout boxes a `BigInteger` per element, which dominated the allocation when
+          // this was first written that way. A range that needs the wide path would not fit in memory
+          // anyway, but it keeps its own arithmetic.
           let mutable items = []
 
           match lowest, highest with

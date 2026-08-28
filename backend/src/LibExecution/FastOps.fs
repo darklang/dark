@@ -88,9 +88,8 @@ let evalStr (tag : int) (a : string) (b : string) : Dval voption =
     ValueNone
 
 
-/// The operator itself, for two `List`s. `List.append` is the busiest builtin in a view build at
-/// 520 calls, and `push`/`pushBack` are defined in terms of it, so it carries far more traffic than
-/// its name suggests.
+/// The operator itself, for two `List`s. `push` and `pushBack` are defined in terms of `List.append`,
+/// so it carries far more traffic than its name suggests.
 ///
 /// Declines when the element types don't merge, rather than reporting the error itself: the slow
 /// path falls back to `DvalCreator.list` for a precise element-level message, and duplicating that
@@ -113,9 +112,9 @@ let evalList
 /// The operator itself, for one argument.
 ///
 /// Only operators whose implementation can be restated exactly belong here -- these three are a
-/// `not`, a length and a stringify. `cliTerminalStyledWidth` is 289 calls a view and does not
-/// qualify: restating it would mean copying an escape-sequence walker into the interpreter, which
-/// is duplicating a builtin rather than short-circuiting one.
+/// `not`, a length and a stringify. `cliTerminalStyledWidth` is busier than any of them and still
+/// does not qualify: restating it would mean copying an escape-sequence walker into the interpreter,
+/// which is duplicating a builtin rather than short-circuiting one.
 let eval1 (tag : int) (arg : Dval) : Dval voption =
   if tag = intToString then
     match arg with
@@ -146,7 +145,7 @@ let eval1 (tag : int) (arg : Dval) : Dval voption =
     ValueNone
 
 
-/// `List.member`: a list and a value of its element type, 102 calls in a view build.
+/// `List.member`: a list and a value of its element type.
 ///
 /// Calls the same `Dval.equals` the builtin calls -- which is why that function moved into
 /// `LibExecution` from `Builtins.Pure.Libs.NoModule`: structural equality of two Dvals belongs
@@ -172,8 +171,7 @@ let evalListMember (tag : int) (items : List<Dval>) (value : Dval) : Dval voptio
     ValueNone
 
 
-/// `String.repeat`: a `String` and an `Int` count, 138 calls in a view build -- almost all of them
-/// padding a row out to a column.
+/// `String.repeat`: a `String` and an `Int` count, almost always padding a row out to a column.
 ///
 /// Calls the same `String.repeat` the builtin now calls, so the two cannot drift. Declines a count
 /// that does not fit an `int32`, where the builtin raises `OutOfRange` through `intToInt32`:
@@ -189,7 +187,8 @@ let evalStrInt (tag : int) (s : string) (n : DarkInt) : Dval voption =
     ValueNone
 
 
-/// `Dict.get`: a `Dict` and a `String` key, 292 calls in a view build.
+/// `Dict.get`: a `Dict` and a `String` key. With `set` below, one of the two busiest builtins a
+/// view build makes.
 ///
 /// Calls the same `DvalCreator.option` the builtin does rather than restating enum construction.
 /// That helper is in `LibExecution`, so this is short-circuiting the call machinery around a
@@ -208,7 +207,7 @@ let evalDictGet
 
 
 /// `Dict.setOverridingDuplicates`: a `Dict`, a `String` key and a value. The only three-argument
-/// operator here, and 252 calls in a view build.
+/// operator here.
 let evalDictSet
   (threadID : ThreadID)
   (tag : int)

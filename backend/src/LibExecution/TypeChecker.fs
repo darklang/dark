@@ -636,9 +636,9 @@ let tryUnifySync
 
   // A primitive expected type, answered here rather than through `unwrapAliasSync` and
   // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
-  // never an alias, and there is nothing to bind, so the symbol table comes back untouched. This is
-  // the check every builtin call makes on every argument and on its result -- ~0.53 us of a 1.73 us
-  // call between the two, measured by ablation.
+  // never an alias, and there is nothing to bind, so the symbol table comes back untouched. Every
+  // builtin call makes this check on every argument and on its result, which ablation puts at a
+  // sizable fraction of what the call costs.
   //
   // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
   | TUnit ->

@@ -2472,8 +2472,9 @@ type InterpreterStats =
       packageCallCount = 0L
       framePushCount = 0L
       packageFnLoadCount = 0L
-      // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()`, which is ~1.27us
-      // on an HPET host. Turn it on deliberately, per run, via `Builtin.interpreterStatsEnableDetailedTiming`.
+      // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()` each way, which
+      // on some hosts is dearer than the call it is timing. Turn it on deliberately, per run, via
+      // `Builtin.interpreterStatsEnableDetailedTiming`.
       detailedTiming = false
       builtinTiming = Dictionary()
       builtinCounts = Dictionary()

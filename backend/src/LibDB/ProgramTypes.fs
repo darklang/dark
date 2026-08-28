@@ -162,9 +162,8 @@ let private tokenizeQuery (s : string) : List<string> =
 /// Whether `owner` has any listed item at all, on this branch chain.
 ///
 /// The question "is this a fresh account" does not need a search. `search` runs four scans of
-/// `locations` and costs ~4.4 ms whatever it finds; this is an equality seek on the owner index,
-/// which `EXPLAIN QUERY PLAN` confirms (`SEARCH ... USING INDEX idx_locations_owner_modules
-/// (owner=?)`) and which measures in tens of microseconds.
+/// `locations` whatever it finds; this is an equality seek on the owner index, which
+/// `EXPLAIN QUERY PLAN` confirms (`SEARCH ... USING INDEX idx_locations_owner_modules (owner=?)`).
 let ownerHasItems (branchChain : List<PT.BranchId>) (owner : string) : Ply<bool> =
   uply {
     let (branchFilter, branchParams) = buildBranchFilter branchChain
