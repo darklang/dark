@@ -74,7 +74,7 @@ module ShadowingTest =
 
   let letBindingShadowing (x: Int) : List<Int> =
     let letBindingShadowing = (fun v -> v * 3)
-    let letBindingShadowing = [ 10; letBindingShadowing x ]
+    let letBindingShadowing = [ 10, letBindingShadowing x ]
     let letBindingShadowing = Stdlib.List.reverse letBindingShadowing
     letBindingShadowing
 
@@ -146,8 +146,8 @@ ShadowingTest.tupleMatchWithShadowing (1, 20) = 0
 ShadowingTest.tupleMatchWithShadowing (2, 3) = 30
 ShadowingTest.tupleMatchWithShadowing (4, 5) = 9
 
-ShadowingTest.letBindingShadowing 4 = [12; 10]
-ShadowingTest.letBindingShadowing 5 = [15; 10]
+ShadowingTest.letBindingShadowing 4 = [12, 10]
+ShadowingTest.letBindingShadowing 5 = [15, 10]
 
 ShadowingTest.conditionalShadowing 0 = 0
 ShadowingTest.conditionalShadowing 1 = 7

@@ -39,7 +39,7 @@ let newline (buf: Buf) : Buf =
   let after = Stdlib.String.slice line buf.col (Stdlib.String.length line)
   let newLines =
     buf.lines
-    |> Stdlib.List.indexedMap (fun i l -> if i == buf.row then [ before; after ] else [ l ])
+    |> Stdlib.List.indexedMap (fun i l -> if i == buf.row then [ before, after ] else [ l ])
     |> Stdlib.List.flatten
   Buf { lines = newLines; row = buf.row + 1; col = 0 }
 

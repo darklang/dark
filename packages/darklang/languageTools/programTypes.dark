@@ -548,7 +548,7 @@ module Search =
 
   /// Results from a package search
   type SearchResults =
-    { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
+    { submodules: List<List<String>> // [ [ "List"], ["String", "List"] ]
       types : List<LocatedItem<ProgramTypes.PackageType.PackageType>>
       values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
       fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>> }

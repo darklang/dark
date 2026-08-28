@@ -68,7 +68,7 @@ module Darklang =
 
     let letBindingShadowing (x: Int) : List<Int> =
       let letBindingShadowing = (fun v -> v * 3)
-      let letBindingShadowing = [ 10; letBindingShadowing x ]
+      let letBindingShadowing = [ 10, letBindingShadowing x ]
       let letBindingShadowing = Stdlib.List.reverse letBindingShadowing
       letBindingShadowing
 
@@ -137,8 +137,8 @@ let test20 = (Darklang.ShadowingTest.tupleMatchWithShadowing (1, 20)) == 0
 let test21 = (Darklang.ShadowingTest.tupleMatchWithShadowing (2, 3)) == 30
 let test22 = (Darklang.ShadowingTest.tupleMatchWithShadowing (4, 5)) == 9
 
-let test23 = (Darklang.ShadowingTest.letBindingShadowing 4) == [12; 10]
-let test24 = (Darklang.ShadowingTest.letBindingShadowing 5) == [15; 10]
+let test23 = (Darklang.ShadowingTest.letBindingShadowing 4) == [12, 10]
+let test24 = (Darklang.ShadowingTest.letBindingShadowing 5) == [15, 10]
 
 let test25 = (Darklang.ShadowingTest.conditionalShadowing 0) == 0
 let test26 = (Darklang.ShadowingTest.conditionalShadowing 1) == 7
@@ -157,7 +157,7 @@ let test36 = (Darklang.ShadowingTest.valueShadowing 0) == 10
 let test37 = (Darklang.ShadowingTest.valueShadowing 1) == 11
 let test38 = (Darklang.ShadowingTest.valueShadowing 5) == 495
 
-let testList = [ test1; test2; test3; test4; test5; test6; test7; test8; test9; test10; test11; test12; test13; test14; test15; test16; test17; test18; test19; test20; test21; test22; test23; test24; test25; test26; test27; test28; test29; test30; test31; test32; test33; test34; test35; test36; test37; test38]
+let testList = [ test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12, test13, test14, test15, test16, test17, test18, test19, test20, test21, test22, test23, test24, test25, test26, test27, test28, test29, test30, test31, test32, test33, test34, test35, test36, test37, test38]
 
 match Stdlib.List.all testList Stdlib.Fun.identity with
 | true -> 0

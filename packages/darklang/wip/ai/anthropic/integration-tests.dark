@@ -167,7 +167,7 @@ module JsonSchemaTests =
              Json.Object
                [ ("name", Json.Object [ ("type", Json.String "string") ])
                  ("age", Json.Object [ ("type", Json.String "integer") ]) ])
-            ("required", Json.Array [ Json.String "name"; Json.String "age" ])
+            ("required", Json.Array [ Json.String "name", Json.String "age" ])
             ("additionalProperties", Json.Bool false) ]
 
       let req =
@@ -437,7 +437,7 @@ module VisionTests =
       let textBlock = Content.textBlock "What color is this image? Reply with just the color name."
 
       let userMessage =
-        Content.userBlockMessage [ imageBlock; textBlock ]
+        Content.userBlockMessage [ imageBlock, textBlock ]
 
       let req =
         (Chat.Request.create ())
@@ -472,7 +472,7 @@ module VisionTests =
       let textBlock = Content.textBlock "What company logo is this? Reply with just the company name."
 
       let userMessage =
-        Content.userBlockMessage [ imageBlock; textBlock ]
+        Content.userBlockMessage [ imageBlock, textBlock ]
 
       let req =
         (Chat.Request.create ())
@@ -507,7 +507,7 @@ module VisionTests =
       let textBlock = Content.textBlock "What text is in this PDF document?"
 
       let userMessage =
-        Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock, textBlock ]
 
       let req =
         (Chat.Request.create ())
@@ -542,7 +542,7 @@ module VisionTests =
       let textBlock = Content.textBlock "Briefly describe what this PDF contains."
 
       let userMessage =
-        Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock, textBlock ]
 
       let req =
         (Chat.Request.create ())
@@ -581,7 +581,7 @@ module VisionTests =
       let textBlock = Content.textBlock "What is the title of this paper?"
 
       let userMessage =
-        Content.userBlockMessage [ pdfBlock; textBlock ]
+        Content.userBlockMessage [ pdfBlock, textBlock ]
 
       let req =
         (Chat.Request.create ())

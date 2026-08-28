@@ -19,7 +19,7 @@ let sendImageRequest
   | None -> "Error: ANTHROPIC_API_KEY not set"
   | Some apiKey ->
     let textBlock = Darklang.WIP.AI.Anthropic.Content.textBlock text
-    let userMessage = Darklang.WIP.AI.Anthropic.Content.userBlockMessage [ imageBlock; textBlock ]
+    let userMessage = Darklang.WIP.AI.Anthropic.Content.userBlockMessage [ imageBlock, textBlock ]
 
     let request =
       (Darklang.WIP.AI.Anthropic.Chat.Request.create ())

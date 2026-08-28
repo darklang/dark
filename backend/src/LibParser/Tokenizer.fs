@@ -45,7 +45,7 @@ type Token =
   | TCons // :: (list cons pattern)
   | TColon // : (type annotation)
   | TComma // , (parameter separator)
-  | TSemicolon // ; (interpreter-style list separator)
+  | TSemicolon // ; (statement separator; record/dict field separator)
   | TDot // . (tuple/record access)
   | TLBrace // { (record literal)
   | TRBrace // } (record literal)

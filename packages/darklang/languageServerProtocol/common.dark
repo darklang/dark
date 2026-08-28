@@ -57,7 +57,7 @@ type MarkupContent =
     value: String
   }
 
-val knownEOLs = [ "\n"; "\r\n"; "\r" ]
+val knownEOLs = [ "\n", "\r\n", "\r" ]
 
 
 module Position =
@@ -143,7 +143,7 @@ module Range =
 
   let toJson (r: Range) : Json =
     Json.Object
-      [ ("start", Position.toJson r.start); ("end", Position.toJson r.end_) ]
+      [ ("start", Position.toJson r.start), ("end", Position.toJson r.end_) ]
 
   let fromJson (json: Json) : Stdlib.Result.Result<Range, Unit> =
     match json with
@@ -173,7 +173,7 @@ module Location =
     { uri: DocumentUri; range: Range.Range }
 
   let toJson (l: Location) : Json =
-    Json.Object [ ("uri", Json.String l.uri); ("range", Range.toJson l.range) ]
+    Json.Object [ ("uri", Json.String l.uri), ("range", Range.toJson l.range) ]
 
 module TextDocumentItem =
   /// An item to transfer a text document from the client to the server.

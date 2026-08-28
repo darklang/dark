@@ -106,7 +106,7 @@ let daemonSlugs (mode: String) : List<String> =
   match mode with
   | "pull-only" -> [ "sync-pull" ]
   | "serve-only" -> [ "sync-serve" ]
-  | _ -> [ "sync-pull"; "sync-serve" ]
+  | _ -> [ "sync-pull", "sync-serve" ]
 
 // The default comes from the daemon itself, not a copy: this is what `dark sync status` REPORTS, and a
 // second hardcoded number here would eventually disagree with the one the daemon actually sleeps on.
@@ -175,7 +175,7 @@ let firstRunDialog () : Unit =
       let modeIn =
         Stdlib.Cli.UI.Prompt.select
           "  mode:"
-          [ "pull+serve"; "pull-only"; "serve-only" ]
+          [ "pull+serve", "pull-only", "serve-only" ]
 
       let _ = setConfig "sync.daemon.mode" modeIn
       let boot = Stdlib.Cli.UI.Prompt.confirm "  start on boot?"
@@ -217,7 +217,7 @@ let daemonStart (state: AppState) : AppState =
 
 let daemonStop (state: AppState) : AppState =
   let _ =
-    Stdlib.List.map [ "sync-pull"; "sync-serve" ] (fun slug ->
+    Stdlib.List.map [ "sync-pull", "sync-serve" ] (fun slug ->
       match Stdlib.Cli.Daemon.stop slug with
       | Ok _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Stopped {slug}.")
       | Error _ -> ())
@@ -258,7 +258,7 @@ let daemonConfigValue
   : Stdlib.Option.Option<(String * String)> =
   match key with
   | "mode" ->
-    if Stdlib.List.member_v0 [ "pull+serve"; "pull-only"; "serve-only" ] value then
+    if Stdlib.List.member_v0 [ "pull+serve", "pull-only", "serve-only" ] value then
       Stdlib.Option.Option.Some(("sync.daemon.mode", value))
     else
       Stdlib.Option.Option.None
@@ -271,7 +271,7 @@ let daemonConfigValue
         Stdlib.Option.Option.None
     | Error _ -> Stdlib.Option.Option.None
   | "on-boot" ->
-    if Stdlib.List.member_v0 [ "yes"; "no" ] value then
+    if Stdlib.List.member_v0 [ "yes", "no" ] value then
       Stdlib.Option.Option.Some(("sync.daemon.onBoot", value))
     else
       Stdlib.Option.Option.None
@@ -459,7 +459,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       state
 
-  | [ "connect"; peer ] ->
+  | [ "connect", peer ] ->
     match Darklang.Sync.connect peer with
     | Ok _ ->
       // Probe the peer now, so a wrong URL/port shows up here (when you can fix it) instead of on a later
@@ -479,8 +479,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     state
 
-  | [ "fetch"; peerRef ]
-  | [ "--from"; peerRef ] ->
+  | [ "fetch", peerRef ]
+  | [ "--from", peerRef ] ->
     // A name (feriel) or a full URL. A bare name you're not syncing with is the common typo, so say so
     // rather than trying to pull from a non-URL.
     match Darklang.Sync.resolvePeer peerRef with
@@ -506,7 +506,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let _ = conflictNudge ()
       state
 
-  | [ "disconnect"; peerRef ] ->
+  | [ "disconnect", peerRef ] ->
     // Disconnect by the name you see in `status`, or by URL. Resolve first so `disconnect feriel` works.
     let peer =
       match Darklang.Sync.resolvePeer peerRef with
@@ -521,14 +521,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | [ "daemon" ]
-  | [ "daemon"; "status" ] -> daemonStatusCmd state
-  | [ "daemon"; "start" ] -> daemonStart state
-  | [ "daemon"; "stop" ] -> daemonStop state
-  | [ "daemon"; "config" ] -> daemonConfigShow state
-  | [ "daemon"; "config"; key; value ] -> daemonConfigSet state key value
+  | [ "daemon", "status" ] -> daemonStatusCmd state
+  | [ "daemon", "start" ] -> daemonStart state
+  | [ "daemon", "stop" ] -> daemonStop state
+  | [ "daemon", "config" ] -> daemonConfigShow state
+  | [ "daemon", "config", key, value ] -> daemonConfigSet state key value
 
   | [ "serve" ] -> serveOn 9000 state
-  | [ "serve"; "--port"; portStr ] ->
+  | [ "serve", "--port", portStr ] ->
     match Stdlib.Int.parse portStr with
     | Ok p -> serveOn p state
     | Error _ ->
@@ -551,6 +551,6 @@ let complete
   : List<Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "status"; "connect"; "disconnect"; "serve"; "fetch"; "daemon" ]
+    [ "status", "connect", "disconnect", "serve", "fetch", "daemon" ]
     |> Stdlib.List.map Completion.simple
   | _ -> []

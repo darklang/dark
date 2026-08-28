@@ -94,7 +94,7 @@ module Blob =
 
 
 val handlers =
-  [ Health.handler; Events.handler; Blobs.handler; Blob.handler ]
+  [ Health.handler, Events.handler, Blobs.handler, Blob.handler ]
 
 /// The sync server router — pass to `dark serve Darklang.Sync.Server.router --port <N>`.
 let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =

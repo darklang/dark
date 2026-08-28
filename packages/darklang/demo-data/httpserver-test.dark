@@ -36,7 +36,7 @@ val rootHandler =
 // CLEANUP
 /// All handlers for the test server
 val handlers =
-  [ helloHandler; echoHandler; rootHandler ]
+  [ helloHandler, echoHandler, rootHandler ]
 
 
 /// Router function - routes requests through our handlers

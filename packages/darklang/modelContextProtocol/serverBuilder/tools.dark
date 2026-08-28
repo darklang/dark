@@ -67,13 +67,13 @@ let addTool (server: McpServerBuilder) (tool: Tool) : McpServerBuilder =
     name = tool.name
     description = Stdlib.Option.Option.Some tool.description
     inputSchema = Json.Object [
-      ("type", Json.String "object");
+      ("type", Json.String "object"),
       ("properties", Json.Object [
         ("input", Json.Object [
-          ("type", Json.String "string");
+          ("type", Json.String "string"),
           ("description", Json.String "Input parameter")
         ])
-      ]);
+      ]),
       ("required", Json.Array [ Json.String "input" ])
     ]
     outputSchema = Stdlib.Option.Option.None

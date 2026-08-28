@@ -81,7 +81,7 @@ let handleGetRootNodesRequest
     let typeOwners = searchResults.types |> Stdlib.List.map (fun item -> item.location.owner)
     let valueOwners = searchResults.values |> Stdlib.List.map (fun item -> item.location.owner)
 
-    (Stdlib.List.flatten [ fnOwners; typeOwners; valueOwners ])
+    (Stdlib.List.flatten [ fnOwners, typeOwners, valueOwners ])
     |> Stdlib.List.unique
     |> Stdlib.List.sort
 
@@ -147,7 +147,7 @@ let buildTreeItems
   let typeItems = makeEntityTreeItems results.types currentPath "type"
   let valueItems = makeEntityTreeItems results.values currentPath "value"
 
-  (Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems])
+  (Stdlib.List.flatten [submodules, fnItems, typeItems, valueItems])
   |> Stdlib.List.uniqueBy (fun item ->
     match item.id with
     | Some id -> id

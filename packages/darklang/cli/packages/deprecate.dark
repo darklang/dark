@@ -20,9 +20,9 @@ type ParsedArgs =
 
 val argSpec =
   FlagParser.Spec
-    { flags = [ ("--yes", [ "-y" ]); ("--dry-run", []) ]
+    { flags = [ ("--yes", [ "-y" ]), ("--dry-run", []) ]
       valueFlags =
-        [ ("--kind", []); ("--replacement", []); ("--message", [ "-m" ]) ] }
+        [ ("--kind", []), ("--replacement", []), ("--message", [ "-m" ]) ] }
 
 
 /// Parse `--key value` / `--flag` style args into a ParsedArgs.
@@ -111,7 +111,7 @@ let namesAtContent
   let sql =
     "SELECT owner, modules, name FROM locations "
     ++ "WHERE item_hash = @p0 AND item_type = @p1 AND branch_id = @p2 AND unlisted_at IS NULL"
-  match Stdlib.Sqlite.queryP db sql [ hashStr; itemType; Stdlib.Uuid.toString branchId ] with
+  match Stdlib.Sqlite.queryP db sql [ hashStr, itemType, Stdlib.Uuid.toString branchId ] with
   | Ok rows ->
     rows
     |> Stdlib.List.map (fun row ->
@@ -299,5 +299,5 @@ let complete
   (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | [] -> ["fn", "type", "value"] |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

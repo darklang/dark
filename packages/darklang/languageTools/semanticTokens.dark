@@ -261,7 +261,7 @@ module TypeDeclaration =
               | Some range -> [ makeToken range TokenType.Symbol ]
               | None -> []
 
-            [ label; colon ] |> Stdlib.List.flatten)
+            [ label, colon ] |> Stdlib.List.flatten)
           |> Stdlib.List.flatten
 
         let fields =
@@ -455,7 +455,7 @@ module MatchPattern =
       let rest =
         rest
         |> Stdlib.List.map (fun (r, pat) ->
-          [ [ makeToken r TokenType.Symbol ]; tokenize pat ]
+          [ [ makeToken r TokenType.Symbol ], tokenize pat ]
           |> Stdlib.List.flatten)
         |> Stdlib.List.flatten
 
@@ -520,7 +520,7 @@ module Expr =
         let rest =
           rest
           |> Stdlib.List.map (fun (r, pat) ->
-            [ [ makeToken r TokenType.Symbol ]; LetPattern.tokenize pat ]
+            [ [ makeToken r TokenType.Symbol ], LetPattern.tokenize pat ]
             |> Stdlib.List.flatten)
           |> Stdlib.List.flatten
 
@@ -746,7 +746,7 @@ module Expr =
       let rest =
         rest
         |> Stdlib.List.map (fun (r, expr) ->
-          [ [ makeToken r TokenType.Symbol ]; Expr.tokenize expr ]
+          [ [ makeToken r TokenType.Symbol ], Expr.tokenize expr ]
           |> Stdlib.List.flatten)
         |> Stdlib.List.flatten
 
@@ -1031,4 +1031,4 @@ module ParsedFile =
         |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
         |> Stdlib.List.flatten
 
-      Stdlib.List.flatten [ declarationsPart; exprsPart ]
+      Stdlib.List.flatten [ declarationsPart, exprsPart ]

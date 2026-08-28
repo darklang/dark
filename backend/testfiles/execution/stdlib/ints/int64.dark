@@ -82,13 +82,13 @@ Stdlib.Int64.mod 9999999999998L 3L = 2L
 Stdlib.Int64.mod 5L 0L = error="Cannot evaluate modulus against 0"
 Stdlib.Int64.mod 5L -5L = error="Cannot evaluate modulus against a negative number"
 Stdlib.List.map (Stdlib.List.range -5 5) (fun v ->
- Stdlib.Int64.mod (Builtin.unwrap (Stdlib.Int.toInt64 v)) 4L) = [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
+ Stdlib.Int64.mod (Builtin.unwrap (Stdlib.Int.toInt64 v)) 4L) = [ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ]
 
 15L % 5L = 0L
 5L % 0L = error="Cannot evaluate modulus against 0"
 5L % -5L = error="Cannot evaluate modulus against a negative number"
 Stdlib.List.map (Stdlib.List.range -5 5) (fun v -> (Builtin.unwrap (Stdlib.Int.toInt64 v)) % 4L) =
-  [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
+  [ 3L, 0L, 1L, 2L, 3L, 0L, 1L, 2L, 3L, 0L, 1L ]
 
 Stdlib.Int64.power 8L 5L = 32768L
 Stdlib.Int64.power 0L 1L = 0L
@@ -210,29 +210,29 @@ Stdlib.Int64.divide 1L 0L = error="Cannot divide by 0"
 Stdlib.Int64.divide (-9223372036854775808L) -1L = -9223372036854775808L
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int64.random 1L 2L)
-|> Stdlib.List.map (fun x -> (x >= 1L) && (x <= 2L)) = [ true; true; true; true; true ]
+|> Stdlib.List.map (fun x -> (x >= 1L) && (x <= 2L)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int64.random 10L 20L)
-|> Stdlib.List.map (fun x -> (x >= 10L) && (x <= 20L)) = [ true; true; true; true; true ]
+|> Stdlib.List.map (fun x -> (x >= 10L) && (x <= 20L)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int64.random 2L 1L)
-|> Stdlib.List.map (fun x -> (x >= 1L) && (x <= 2L)) = [ true; true; true; true; true ]
+|> Stdlib.List.map (fun x -> (x >= 1L) && (x <= 2L)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int64.random 20L 10L)
-|> Stdlib.List.map (fun x -> (x >= 10L) && (x <= 20L)) = [ true; true; true; true; true ]
+|> Stdlib.List.map (fun x -> (x >= 10L) && (x <= 20L)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.Int64.random 0L 1L)
- |> Stdlib.List.unique) = [ 0L; 1L ]
+ |> Stdlib.List.unique) = [ 0L, 1L ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.Int64.random 0L 2L)
- |> Stdlib.List.unique) = [ 0L; 1L; 2L ]
+ |> Stdlib.List.unique) = [ 0L, 1L, 2L ]
 
-Stdlib.Int64.sum [ 1L; 2L ] = 3L
+Stdlib.Int64.sum [ 1L, 2L ] = 3L
 
 
 // parses ok

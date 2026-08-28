@@ -23,7 +23,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     showStatus ()  // explicit + clean (pipeable)
     state
 
-  | [ "serve"; portStr ] ->
+  | [ "serve", portStr ] ->
     match Stdlib.Int.parse portStr with
     | Ok port ->
       match Darklang.Tailscale.serve port with
@@ -34,7 +34,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: devices serve <port>")
     state
 
-  | [ "ping"; peer ] ->
+  | [ "ping", peer ] ->
     match Darklang.Tailscale.ping peer with
     | Ok out -> Stdlib.printLine out
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"devices: ping failed: {e}")
@@ -61,5 +61,5 @@ let complete
   (args: List<String>)
   : List<Completion.CompletionItem> =
   match args with
-  | [] -> [ "status"; "serve"; "ping" ] |> Stdlib.List.map Completion.simple
+  | [] -> [ "status", "serve", "ping" ] |> Stdlib.List.map Completion.simple
   | _ -> []

@@ -42,7 +42,7 @@ module Simple =
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
 
-  Stdlib.List.unique [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A; AorB.B ]
+  Stdlib.List.unique [ AorB.A, AorB.B, AorB.A, AorB.A, AorB.B ] = [ AorB.A, AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -90,7 +90,7 @@ module MixedCases =
     | X s -> "X " ++ s
     | Z(s, _i) -> "Z " ++ s
     | Y y -> "Y " ++ (Stdlib.Int64.toString y)
-    | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
+    | W -> "a simple W")) = [ "a simple W", "X testX", "Y 5", "Z testZ" ]
 
 
 module TuplesVsNonTuples =
@@ -164,5 +164,5 @@ module Polymorphism =
       if x < y then -1L
       elif x > y then 1L
       else 0L
-  ([ 1L; -2L; 5L; 3L ] |> ofList intCmp |> toList)
-  == ([ 3L; 5L; -2L; 1L ] |> ofList intCmp |> toList)) = true
+  ([ 1L, -2L, 5L, 3L ] |> ofList intCmp |> toList)
+  == ([ 3L, 5L, -2L, 1L ] |> ofList intCmp |> toList)) = true

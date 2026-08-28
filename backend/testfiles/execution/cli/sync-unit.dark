@@ -107,7 +107,7 @@ module ChangeLinesNamesAFew =
 // many (>6) collapse to counts grouped by action + kind, pluralized ("7 new fns")
 module ChangeLinesCountsMany =
   (Darklang.Cli.Sync.changeLines
-    (Stdlib.List.map [ "a"; "b"; "c"; "d"; "e"; "f"; "g" ] (fun s ->
+    (Stdlib.List.map [ "a", "b", "c", "d", "e", "f", "g" ] (fun s ->
       Darklang.Sync.EventLog.Change { action = "new"; itemKind = "fn"; location = $"A.{s}" }))) = [ "7 new fns" ]
 
 // count + noun helper pluralizes the noun, so nothing prints "1 value(s)"

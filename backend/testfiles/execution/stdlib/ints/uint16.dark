@@ -95,37 +95,37 @@ Stdlib.UInt16.mod 5us 0us = error="Cannot evaluate modulus against 0"
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 1us 2us)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 10us 20us)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 2us 1us)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 20us 10us)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 0us 1us)
- |> Stdlib.List.unique) = [ 0us; 1us ]
+ |> Stdlib.List.unique) = [ 0us, 1us ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 0us 2us)
- |> Stdlib.List.unique) = [ 0us; 1us; 2us ]
+ |> Stdlib.List.unique) = [ 0us, 1us, 2us ]
 
-Stdlib.UInt16.sum [ 1us; 2us ] = 3us
+Stdlib.UInt16.sum [ 1us, 2us ] = 3us
 
-Stdlib.UInt16.sum [ 1us; 65535us ] = 0us // wraps on overflow
+Stdlib.UInt16.sum [ 1us, 65535us ] = 0us // wraps on overflow
 Stdlib.UInt16.parse "-129" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
 Stdlib.UInt16.parse "65536" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
 

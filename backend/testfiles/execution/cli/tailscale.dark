@@ -7,6 +7,6 @@ Darklang.Tailscale.peerUrl "major" "tail-scale" = "https://major.tail-scale.ts.n
 Darklang.Tailscale.peerUrl "laptop" "example" = "https://laptop.example.ts.net"
 
 // loginHeader extracts the injected `Tailscale-User-Login` identity (present, missing, empty cases)
-Darklang.Tailscale.loginHeader [("Tailscale-User-Login", "user@example.com"); ("X-Other", "y")] = Stdlib.Option.Option.Some "user@example.com"
+Darklang.Tailscale.loginHeader [("Tailscale-User-Login", "user@example.com"), ("X-Other", "y")] = Stdlib.Option.Option.Some "user@example.com"
 Darklang.Tailscale.loginHeader [("X-Other", "y")] = Stdlib.Option.Option.None
 Darklang.Tailscale.loginHeader [] = Stdlib.Option.Option.None

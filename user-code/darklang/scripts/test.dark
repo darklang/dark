@@ -1,4 +1,4 @@
-val myList = [1L; 2L; 3L]
+val myList = [1L, 2L, 3L]
 val recordVal =
   Stdlib.Cli.Host.Host {
     os = Stdlib.Cli.OS.OS.Linux;

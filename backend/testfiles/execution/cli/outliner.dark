@@ -14,9 +14,9 @@ module Outline =
     //   C
     // D
     Darklang.Cli.Outliner.buildOutline
-      [ (1, "A"); (2, "B"); (3, "C"); (4, "D") ]
-      [ (1, [ 2; 3 ]) ]
-      [ 1; 4 ]
+      [ (1, "A"), (2, "B"), (3, "C"), (4, "D") ]
+      [ (1, [ 2, 3 ]) ]
+      [ 1, 4 ]
       5
 
   let texts (o: Darklang.Cli.Outliner.Outline) : List<String> =
@@ -25,11 +25,11 @@ module Outline =
   let depths (o: Darklang.Cli.Outliner.Outline) : List<Int> =
     Darklang.Cli.Outliner.flattenVisible o |> Stdlib.List.map (fun vn -> vn.depth)
 
-  (texts (sample ())) = [ "A"; "B"; "C"; "D" ]
-  (depths (sample ())) = [ 0; 1; 1; 0 ]
+  (texts (sample ())) = [ "A", "B", "C", "D" ]
+  (depths (sample ())) = [ 0, 1, 1, 0 ]
 
   // Collapsing hides descendants but keeps the node itself.
-  (texts (Darklang.Cli.Outliner.setCollapsed (sample ()) 1 true)) = [ "A"; "D" ]
+  (texts (Darklang.Cli.Outliner.setCollapsed (sample ()) 1 true)) = [ "A", "D" ]
 
   // Parents are stored, not searched for.
   (Darklang.Cli.Outliner.findParentId (sample ()) 2) = Stdlib.Option.Option.Some 1
@@ -59,19 +59,19 @@ module Outline =
 
 module ListEdits =
   // Insert after a member, as normal.
-  (Darklang.Cli.Outliner.insertIdAfter [ 1; 2; 3 ] 2 9) = [ 1; 2; 9; 3 ]
+  (Darklang.Cli.Outliner.insertIdAfter [ 1, 2, 3 ] 2 9) = [ 1, 2, 9, 3 ]
 
   // Insert after something that isn't in the list. This used to return the list unchanged, which dropped
   // the new node: it stayed in the content dict with nothing pointing at it, invisible and unreachable,
   // and got written to disk on every save from then on.
-  (Darklang.Cli.Outliner.insertIdAfter [ 1; 2; 3 ] 7 9) = [ 1; 2; 3; 9 ]
+  (Darklang.Cli.Outliner.insertIdAfter [ 1, 2, 3 ] 7 9) = [ 1, 2, 3, 9 ]
 
-  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] 0 2) = [ 3; 2; 1 ]
+  (Darklang.Cli.Outliner.swapAt [ 1, 2, 3 ] 0 2) = [ 3, 2, 1 ]
 
   // Out-of-range swaps leave the list alone. They used to write a 0 into it (an id no node ever has),
   // via a `withDefault 0` on the lookup.
-  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] 0 9) = [ 1; 2; 3 ]
-  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] -1 1) = [ 1; 2; 3 ]
+  (Darklang.Cli.Outliner.swapAt [ 1, 2, 3 ] 0 9) = [ 1, 2, 3 ]
+  (Darklang.Cli.Outliner.swapAt [ 1, 2, 3 ] -1 1) = [ 1, 2, 3 ]
 
 
 module Editing =
@@ -87,62 +87,62 @@ module Editing =
   // Indenting hangs a line off the sibling above it: C, the second of A's children, goes under B.
   ((Darklang.Cli.Outliner.Editor.indent
      (Darklang.Cli.Outliner.Editor.cursorToIndex (editorOn (Outline.sample ())) 2))
-   |> depths) = [ 0; 1; 2; 0 ]
+   |> depths) = [ 0, 1, 2, 0 ]
 
   // Outdenting B puts it after A, which is where its remaining sibling C isn't.
   ((Darklang.Cli.Outliner.Editor.outdent
      (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
-   |> texts) = [ "A"; "C"; "B"; "D" ]
+   |> texts) = [ "A", "C", "B", "D" ]
 
   ((Darklang.Cli.Outliner.Editor.outdent
      (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
-   |> depths) = [ 0; 1; 0; 0 ]
+   |> depths) = [ 0, 1, 0, 0 ]
 
   // Indent then outdent is the identity, which is the property the two have to keep between them.
   ((Darklang.Cli.Outliner.Editor.outdent
      (Darklang.Cli.Outliner.Editor.indent
        (Darklang.Cli.Outliner.Editor.cursorToIndex (editorOn (Outline.sample ())) 2)))
-   |> depths) = [ 0; 1; 1; 0 ]
+   |> depths) = [ 0, 1, 1, 0 ]
 
   // The first of a parent's children has nothing to indent under, so nothing happens.
   ((Darklang.Cli.Outliner.Editor.indent
      (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
-   |> depths) = [ 0; 1; 1; 0 ]
+   |> depths) = [ 0, 1, 1, 0 ]
 
   // Nor does the first line of the document.
-  ((Darklang.Cli.Outliner.Editor.indent (editorOn (Outline.sample ()))) |> depths) = [ 0; 1; 1; 0 ]
+  ((Darklang.Cli.Outliner.Editor.indent (editorOn (Outline.sample ()))) |> depths) = [ 0, 1, 1, 0 ]
 
   // Moving among siblings, and back.
   ((Darklang.Cli.Outliner.Editor.moveWithin
      (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ())))
      1)
-   |> texts) = [ "A"; "C"; "B"; "D" ]
+   |> texts) = [ "A", "C", "B", "D" ]
 
   ((Darklang.Cli.Outliner.Editor.moveWithin
      (Darklang.Cli.Outliner.Editor.moveWithin
        (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ())))
        1)
      -1)
-   |> texts) = [ "A"; "B"; "C"; "D" ]
+   |> texts) = [ "A", "B", "C", "D" ]
 
   // Undo restores what a change replaced.
   (let editor = editorOn (Outline.sample ())
    let (undone, note) =
      Darklang.Cli.Outliner.Editor.undo (Darklang.Cli.Outliner.Editor.cycleTodo editor)
 
-   (texts undone, note)) = ([ "A"; "B"; "C"; "D" ], "undo")
+   (texts undone, note)) = ([ "A", "B", "C", "D" ], "undo")
 
   // With nothing to undo it says so rather than doing something.
   (let (_state, note) = Darklang.Cli.Outliner.Editor.undo (editorOn (Outline.sample ()))
    note) = "nothing to undo"
 
   // Search keeps the ancestors of a hit, so a match deep in the tree stays locatable.
-  ((Darklang.Cli.Outliner.Editor.applyFilter (editorOn (Outline.sample ())) "B") |> texts) = [ "A"; "B" ]
+  ((Darklang.Cli.Outliner.Editor.applyFilter (editorOn (Outline.sample ())) "B") |> texts) = [ "A", "B" ]
 
   // And clearing brings everything back.
   ((Darklang.Cli.Outliner.Editor.clearFilter
      (Darklang.Cli.Outliner.Editor.applyFilter (editorOn (Outline.sample ())) "B"))
-   |> texts) = [ "A"; "B"; "C"; "D" ]
+   |> texts) = [ "A", "B", "C", "D" ]
 
 
 module TextField =
@@ -204,7 +204,7 @@ module TextField =
 
 module Picker =
   let three () : Darklang.Stdlib.Cli.UI.Picker.State =
-    Darklang.Stdlib.Cli.UI.Picker.make [ "one"; "two"; "three" ]
+    Darklang.Stdlib.Cli.UI.Picker.make [ "one", "two", "three" ]
 
   (Darklang.Stdlib.Cli.UI.Picker.moveDown (three ())).selected = 1
   (Darklang.Stdlib.Cli.UI.Picker.moveUp (three ())).selected = 0
@@ -222,7 +222,7 @@ module Picker =
   // Rebuilding with new labels keeps the cursor if the row still exists.
   (Darklang.Stdlib.Cli.UI.Picker.withLabels
     (Darklang.Stdlib.Cli.UI.Picker.moveToEnd (three ()))
-    [ "a"; "b" ]).selected = 1
+    [ "a", "b" ]).selected = 1
 
   // A selected row is marked, not just coloured: colour alone is invisible on a monochrome terminal.
   (Stdlib.String.contains (Darklang.Stdlib.Cli.UI.Picker.rowFor "x" true) "> x") = true
@@ -395,15 +395,15 @@ module Chrome =
 module Wrapping =
   // Long lines used to run off the right edge of the pane and stop existing.
   (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "the quick brown fox jumps over the lazy dog" 12) =
-    [ "the quick"; "brown fox"; "jumps over"; "the lazy dog" ]
+    [ "the quick", "brown fox", "jumps over", "the lazy dog" ]
 
   // A word longer than the pane is split rather than dropped.
-  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "supercalifragilistic" 7) = [ "superca"; "lifragi"; "listic" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "supercalifragilistic" 7) = [ "superca", "lifragi", "listic" ]
 
   // Text that fits comes back as one line, and empty text as one empty line (a row is still a row).
   (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "short" 20) = [ "short" ]
   (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "" 20) = [ "" ]
 
   // Wrapping is measured in columns, so a wide glyph takes the two it occupies.
-  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "日本 語" 4) = [ "日本"; "語" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "日本 語" 4) = [ "日本", "語" ]
 

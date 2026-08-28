@@ -32,7 +32,7 @@ let listFullPaths (path: String) : Result.Result<List<String>, Posix.Error> =
 
   (Posix.listDir cleanPath)
   |> Stdlib.Result.map (fun entries ->
-    entries |> Stdlib.List.map (fun name -> Path.join [ cleanPath; name ]))
+    entries |> Stdlib.List.map (fun name -> Path.join [ cleanPath, name ]))
 
 
 /// Remove an empty directory.
@@ -55,7 +55,7 @@ let listRecursive (path: String) : Result.Result<List<String>, Posix.Error> =
       |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc name ->
         match acc with
         | Ok collected ->
-          let fullPath = Path.join [ path; name ]
+          let fullPath = Path.join [ path, name ]
 
           match Posix.isSymlink fullPath with
           | Error e -> Stdlib.Result.Result.Error e
@@ -96,7 +96,7 @@ let deleteRecursive (path: String) : Result.Result<Unit, Posix.Error> =
       |> Stdlib.List.fold (Stdlib.Result.Result.Ok()) (fun acc name ->
         match acc with
         | Ok _ ->
-          let fullPath = Path.join [ path; name ]
+          let fullPath = Path.join [ path, name ]
 
           match Posix.isSymlink fullPath with
           | Error e -> Stdlib.Result.Result.Error e
@@ -124,7 +124,7 @@ let walk (path: String) : Result.Result<List<String>, Posix.Error> =
       |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc name ->
         match acc with
         | Ok collected ->
-          let fullPath = Path.join [ path; name ]
+          let fullPath = Path.join [ path, name ]
 
           match Posix.isSymlink fullPath with
           | Error e -> Stdlib.Result.Result.Error e

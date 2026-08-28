@@ -2,67 +2,67 @@ Stdlib.List.empty = []
 
 Stdlib.List.singleton 1L = [ 1L ]
 
-Stdlib.List.length [ 1L; 2L; 3L ] = 3
+Stdlib.List.length [ 1L, 2L, 3L ] = 3
 Stdlib.List.length [] = 0
 
 Stdlib.List.isEmpty [ 1L ] = false
 Stdlib.List.isEmpty [] = true
 
 
-Stdlib.List.map [ 1L; 2L ] (fun x -> x + 1L) = [ 2L; 3L ]
+Stdlib.List.map [ 1L, 2L ] (fun x -> x + 1L) = [ 2L, 3L ]
 
 
-Stdlib.List.append [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 2L; 3L; 4L; 5L; 6L ]
-Stdlib.List.append [ 3L; 4L ] [ 5L; 6L ] = [ 3L; 4L; 5L; 6L ]
-Stdlib.List.append [ 1L ] [ 2L ] = [ 1L; 2L ]
+Stdlib.List.append [ 1L, 2L, 3L ] [ 4L, 5L, 6L ] = [ 1L, 2L, 3L, 4L, 5L, 6L ]
+Stdlib.List.append [ 3L, 4L ] [ 5L, 6L ] = [ 3L, 4L, 5L, 6L ]
+Stdlib.List.append [ 1L ] [ 2L ] = [ 1L, 2L ]
 Stdlib.List.append [] [] = []
 
 
 // CLEANUP the following tests should fail on having mixed types
-[1l; 2.3] = error="Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
-[(1l,10l); 10l; (3l,30l)] = error="Cannot add an Int32 (10) to a list of (Int32 * Int32). Failed at index 1."
-[(1l,10l); (2l,20l); (3l,30l,40l)] = error="Cannot add an (Int32 * Int32 * Int32) ((3, 30, 40)) to a list of (Int32 * Int32). Failed at index 2."
+[1l, 2.3] = error="Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
+[(1l,10l), 10l, (3l,30l)] = error="Cannot add an Int32 (10) to a list of (Int32 * Int32). Failed at index 1."
+[(1l,10l), (2l,20l), (3l,30l,40l)] = error="Cannot add an (Int32 * Int32 * Int32) ((3, 30, 40)) to a list of (Int32 * Int32). Failed at index 2."
 Stdlib.List.all [] (fun item -> item < 3L) = true
 Stdlib.List.all [ 2L ] (fun item -> item < 3L) = true
-Stdlib.List.all [ 1L; 2L ] (fun item -> item < 3L) = true
+Stdlib.List.all [ 1L, 2L ] (fun item -> item < 3L) = true
 Stdlib.List.all [ 4L ] (fun item -> item < 3L) = false
-Stdlib.List.all [ 1L; 4L ] (fun item -> item < 3L) = false
+Stdlib.List.all [ 1L, 4L ] (fun item -> item < 3L) = false
 
 Stdlib.List.any [] (fun item -> item < 3L) = false
 Stdlib.List.any [ 2L ] (fun item -> item < 3L) = true
 Stdlib.List.any [ 4L ] (fun item -> item < 3L) = false
-Stdlib.List.any [ 1L; 2L ] (fun item -> item < 3L) = true
-Stdlib.List.any [ 4L; 5L ] (fun item -> item < 3L) = false
-Stdlib.List.any [ 4L; 1L ] (fun item -> item < 3L) = true
+Stdlib.List.any [ 1L, 2L ] (fun item -> item < 3L) = true
+Stdlib.List.any [ 4L, 5L ] (fun item -> item < 3L) = false
+Stdlib.List.any [ 4L, 1L ] (fun item -> item < 3L) = true
 
 
-Stdlib.List.drop [ "a"; "b"; "c"; "d" ] -3 = [ "a"; "b"; "c"; "d" ]
-Stdlib.List.drop [ "a"; "b"; "c"; "d" ] 3 = [ "d" ]
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] -1 = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 0 = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 440737095 = []
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 1184467440737095 = []
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 2 = [ 3L; 4L ]
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 4 = []
-Stdlib.List.drop [ 1L; 2L; 3L; 4L ] 5 = []
-Stdlib.List.drop [ 3L; 3L; 3L ] 0 = [ 3L; 3L; 3L ]
-Stdlib.List.drop [ 5L; 4L; 3L; 2L; 1L ] 5 = []
+Stdlib.List.drop [ "a", "b", "c", "d" ] -3 = [ "a", "b", "c", "d" ]
+Stdlib.List.drop [ "a", "b", "c", "d" ] 3 = [ "d" ]
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] -1 = [ 1L, 2L, 3L, 4L ]
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 0 = [ 1L, 2L, 3L, 4L ]
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 440737095 = []
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 1184467440737095 = []
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 2 = [ 3L, 4L ]
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 4 = []
+Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 5 = []
+Stdlib.List.drop [ 3L, 3L, 3L ] 0 = [ 3L, 3L, 3L ]
+Stdlib.List.drop [ 5L, 4L, 3L, 2L, 1L ] 5 = []
 Stdlib.List.drop [ 5L ] 4 = []
 Stdlib.List.drop [] 4 = []
 
-Stdlib.List.dropWhile [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
-Stdlib.List.dropWhile [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L; 4L ]
-Stdlib.List.dropWhile [ 1L; 2L; 3L; 4L ] (fun item -> item >= 1L) = []
-Stdlib.List.dropWhile [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 5L; 2L; 2L ]
+Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
+Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 3L) = [ 3L, 4L ]
+Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun item -> item >= 1L) = []
+Stdlib.List.dropWhile [ 1L, 5L, 2L, 2L ] (fun item -> item < 3L) = [ 5L, 2L, 2L ]
 Stdlib.List.dropWhile [] (fun item -> item < 3L) = []
 
 
 
-(Stdlib.List.iter [ 1L; 2L; 3L ] (fun x -> Builtin.testIncrementSideEffectCounter ())
+(Stdlib.List.iter [ 1L, 2L, 3L ] (fun x -> Builtin.testIncrementSideEffectCounter ())
 
  Builtin.testSideEffectCount ()) = 3L
 
-(Stdlib.List.iter [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+(Stdlib.List.iter [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
   if x % 2L == 0L then
     Builtin.testIncrementSideEffectCounter ())
 
@@ -72,62 +72,62 @@ Stdlib.List.dropWhile [] (fun item -> item < 3L) = []
 
  Builtin.testSideEffectCount ()) = 0L
 
-(Stdlib.List.iter [ 10L; 20L; 30L ] (fun x ->
+(Stdlib.List.iter [ 10L, 20L, 30L ] (fun x ->
   Builtin.testIncrementSideEffectCounter ()
   Builtin.testIncrementSideEffectCounter ())
 
  Builtin.testSideEffectCount ()) = 6L
 
-(Stdlib.List.iter [ 1L; 2L; 3L ] (fun x ->
+(Stdlib.List.iter [ 1L, 2L, 3L ] (fun x ->
   if x > 2L then
     Builtin.testIncrementSideEffectCounter ())
  Builtin.testSideEffectCount ()) = 1L
 
 
-Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
+Stdlib.List.filter [ 1L, 2L, 3L ] (fun item ->
   match item with
   | 1L -> Stdlib.Option.Option.None
   | 2L -> false
   | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
-Stdlib.List.filter [ true; false; true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
-Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
+Stdlib.List.filter [ true, false, true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
+Stdlib.List.filter [ 1L, 2L, 3L ] (fun item ->
   match item with
   | 1L -> true
   | 2L -> false
-  | 3L -> true) = [ 1L; 3L ]
+  | 3L -> true) = [ 1L, 3L ]
 
 Stdlib.List.filter [] (fun item -> true) = []
-Stdlib.List.filter [ -20L; 5L; 9L ] (fun x -> x > 20L) = []
+Stdlib.List.filter [ -20L, 5L, 9L ] (fun x -> x > 20L) = []
 Stdlib.List.filter [] (fun item -> "a") = []
 
-Stdlib.List.filterMap [ 1L; 2L; 3L ] (fun item ->
+Stdlib.List.filterMap [ 1L, 2L, 3L ] (fun item ->
   if item == 2L then
     Stdlib.Option.Option.None
   else
-    (Stdlib.Option.Option.Some(item * 2L))) = [ 2L; 6L ]
+    (Stdlib.Option.Option.Some(item * 2L))) = [ 2L, 6L ]
 
 Stdlib.List.filterMap [] (fun item -> 0L) = []
 
-Stdlib.List.findFirst [ 1L; 2L; 3L ] (fun x -> x > 5L) = Stdlib.Option.Option.None
+Stdlib.List.findFirst [ 1L, 2L, 3L ] (fun x -> x > 5L) = Stdlib.Option.Option.None
 Stdlib.List.findFirst [] (fun x -> x) = Stdlib.Option.Option.None
 
-Stdlib.List.findFirst [ 1L; 2L; 3L; 1L; 4L ] (fun x -> x > 1L) = Stdlib.Option.Option.Some 2L
-Stdlib.List.findFirst [ 0L; 5L; -6L; -10L ] (fun x -> x < 0L) = Stdlib.Option.Option.Some -6L
-Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 0L)) = Stdlib.Option.Option.Some -2L
+Stdlib.List.findFirst [ 1L, 2L, 3L, 1L, 4L ] (fun x -> x > 1L) = Stdlib.Option.Option.Some 2L
+Stdlib.List.findFirst [ 0L, 5L, -6L, -10L ] (fun x -> x < 0L) = Stdlib.Option.Option.Some -6L
+Stdlib.List.findFirst [ 1L, -33L, 3L, -2L, 12L ] (fun x -> (x < 0L && x % 2L == 0L)) = Stdlib.Option.Option.Some -2L
 
 module FindFirstIndex =
-  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 2L) = Stdlib.Option.Option.Some 1
-  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x > 5L) = Stdlib.Option.Option.None
+  Stdlib.List.findFirstIndex [1L, 2L, 3L] (fun x -> x == 2L) = Stdlib.Option.Option.Some 1
+  Stdlib.List.findFirstIndex [1L, 2L, 3L] (fun x -> x > 5L) = Stdlib.Option.Option.None
   Stdlib.List.findFirstIndex [] (fun _x -> true) = Stdlib.Option.Option.None
-  Stdlib.List.findFirstIndex [10L; 20L; 30L; 20L] (fun x -> x == 20L) = Stdlib.Option.Option.Some 1
-  Stdlib.List.findFirstIndex ["a"; "b"; "c"] (fun x -> x == "c") = Stdlib.Option.Option.Some 2
-  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 1L) = Stdlib.Option.Option.Some 0
+  Stdlib.List.findFirstIndex [10L, 20L, 30L, 20L] (fun x -> x == 20L) = Stdlib.Option.Option.Some 1
+  Stdlib.List.findFirstIndex ["a", "b", "c"] (fun x -> x == "c") = Stdlib.Option.Option.Some 2
+  Stdlib.List.findFirstIndex [1L, 2L, 3L] (fun x -> x == 1L) = Stdlib.Option.Option.Some 0
 
 module Flatten =
-  Stdlib.List.flatten [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
+  Stdlib.List.flatten [ [ 1L ], [ 2L ], [ 3L ] ] = [ 1L, 2L, 3L ]
 
-  Stdlib.List.flatten [ 1l; 2l; 3l ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1, 2, 3])"
-  Stdlib.List.flatten [ [ 1L ]; [ [ 2L; 3L ] ] ] = error="Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
+  Stdlib.List.flatten [ 1l, 2l, 3l ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1, 2, 3])"
+  Stdlib.List.flatten [ [ 1L ], [ [ 2L, 3L ] ] ] = error="Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
   Stdlib.List.flatten [ [ [] ] ] = [ [] ]
   Stdlib.List.flatten [ [] ] = []
   Stdlib.List.flatten [] = []
@@ -135,253 +135,253 @@ module Flatten =
 module Fold =
   Stdlib.List.fold [] [] (fun accum curr -> 5L) = []
 
-  Stdlib.List.fold [ "a"; "b"; "c"; "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
+  Stdlib.List.fold [ "a", "b", "c", "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
 
-  Stdlib.List.fold [ 1L; 2L; 3L; 4L; 5L ] [] (fun accum curr ->
-    Stdlib.List.pushBack accum (curr + 1L)) = [ 2L; 3L; 4L; 5L; 6L ]
+  Stdlib.List.fold [ 1L, 2L, 3L, 4L, 5L ] [] (fun accum curr ->
+    Stdlib.List.pushBack accum (curr + 1L)) = [ 2L, 3L, 4L, 5L, 6L ]
 
 module GetAt =
-  Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1 = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ "a", "b", "c", "d" ] -1 = Stdlib.Option.Option.None
   Stdlib.List.getAt [ 0L ] 1 = Stdlib.Option.Option.None
   Stdlib.List.getAt [] 1 = Stdlib.Option.Option.None
-  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 6018427387902 = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 1L, 2L, 3L, 4L ] 6018427387902 = Stdlib.Option.Option.None
 
-  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 0 = Stdlib.Option.Option.Some 1L
+  Stdlib.List.getAt [ 1L, 2L, 3L, 4L ] 0 = Stdlib.Option.Option.Some 1L
 
-  Stdlib.List.getAt [ 3L; 3L; 3L ] -5 = Stdlib.Option.Option.None
-  Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648 = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 3L, 3L, 3L ] -5 = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 3L, 3L, 3L ] 2147483648 = Stdlib.Option.Option.None
 
 module Head =
-  Stdlib.List.head [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 1L
+  Stdlib.List.head [ 1L, 2L, 3L ] = Stdlib.Option.Option.Some 1L
 
   Stdlib.List.head [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
   Stdlib.List.head [] = Stdlib.Option.Option.None
 
 module IndexedMap =
-  Stdlib.List.indexedMap [ 3L; 2L; 1L ] (fun i v -> v - (Builtin.unwrap (Stdlib.Int.toInt64 i))) = [ 3L; 1L; -1L ]
+  Stdlib.List.indexedMap [ 3L, 2L, 1L ] (fun i v -> v - (Builtin.unwrap (Stdlib.Int.toInt64 i))) = [ 3L, 1L, -1L ]
   Stdlib.List.indexedMap [] (fun i v -> v - (Builtin.unwrap (Stdlib.Int.toInt64 i))) = []
-  Stdlib.List.indexedMap [ 3L; 2L; 1L ] (fun i v -> i) = [ 0; 1; 2 ]
+  Stdlib.List.indexedMap [ 3L, 2L, 1L ] (fun i v -> i) = [ 0, 1, 2 ]
 
 module Interleave =
-  Stdlib.List.interleave [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 2L; 5L; 3L; 6L ]
+  Stdlib.List.interleave [ 1L, 2L, 3L ] [ 4L, 5L, 6L ] = [ 1L, 4L, 2L, 5L, 3L, 6L ]
 
-  Stdlib.List.interleave [ 1L; 2L; 3L ] [ 4L ] = [ 1L; 4L; 2L; 3L ]
-  Stdlib.List.interleave [ 1L; 2L; 3L ] [] = [ 1L; 2L; 3L ]
-  Stdlib.List.interleave [ 1L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 5L; 6L ]
-  Stdlib.List.interleave [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
+  Stdlib.List.interleave [ 1L, 2L, 3L ] [ 4L ] = [ 1L, 4L, 2L, 3L ]
+  Stdlib.List.interleave [ 1L, 2L, 3L ] [] = [ 1L, 2L, 3L ]
+  Stdlib.List.interleave [ 1L ] [ 4L, 5L, 6L ] = [ 1L, 4L, 5L, 6L ]
+  Stdlib.List.interleave [] [ 4L, 5L, 6L ] = [ 4L, 5L, 6L ]
   Stdlib.List.interleave [] [] = []
 
-  Stdlib.List.interleave [ "a"; "b"; "c" ] [ 0L ] = error="Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([0])"
+  Stdlib.List.interleave [ "a", "b", "c" ] [ 0L ] = error="Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([0])"
 module Interpose =
-  Stdlib.List.interpose [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
+  Stdlib.List.interpose [ 1L, 2L, 3L ] 5L = [ 1L, 5L, 2L, 5L, 3L ]
   Stdlib.List.interpose [ 1L ] 5L = [ 1L ]
   Stdlib.List.interpose [] 5L = []
 
-  Stdlib.List.interpose [ "a"; "b"; "c" ] 0L = error="Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
+  Stdlib.List.interpose [ "a", "b", "c" ] 0L = error="Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
 module Last =
-  Stdlib.List.last [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 3L
+  Stdlib.List.last [ 1L, 2L, 3L ] = Stdlib.Option.Option.Some 3L
 
   Stdlib.List.last [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
   Stdlib.List.last [] = Stdlib.Option.Option.None
 
 module Map =
-  Stdlib.List.map (Stdlib.List.range 1 5) (fun x -> x + 1) = [ 2; 3; 4; 5; 6 ]
+  Stdlib.List.map (Stdlib.List.range 1 5) (fun x -> x + 1) = [ 2, 3, 4, 5, 6 ]
 
-  Stdlib.List.map [ 1L; 2L; 3L ] (fun x ->
+  Stdlib.List.map [ 1L, 2L, 3L ] (fun x ->
     Stdlib.Bool.and
       (Stdlib.Int64.greaterThanOrEqualTo x 0L)
-      (Stdlib.Int64.lessThanOrEqualTo x 4L)) = [ true; true; true ]
+      (Stdlib.Int64.lessThanOrEqualTo x 4L)) = [ true, true, true ]
 
-  Stdlib.List.map [ 1L; 2L ] (fun x -> x + 1L) = [ 2L; 3L ]
+  Stdlib.List.map [ 1L, 2L ] (fun x -> x + 1L) = [ 2L, 3L ]
   Stdlib.List.map [] (fun x -> x + 1L) = []
 
 
-Stdlib.List.map2 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = Stdlib.Option.Option.Some [ 9L; 18L; 27L ]
-Stdlib.List.map2 [ 10L; 20L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = Stdlib.Option.Option.None
+Stdlib.List.map2 [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] (fun a b -> a - b) = Stdlib.Option.Option.Some [ 9L, 18L, 27L ]
+Stdlib.List.map2 [ 10L, 20L ] [ 1L, 2L, 3L ] (fun a b -> a - b) = Stdlib.Option.Option.None
 Stdlib.List.map2 [] [] (fun a b -> a - b) = Stdlib.Option.Option.Some []
 
-Stdlib.List.map2shortest [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = [ 9L; 18L; 27L ]
-Stdlib.List.map2shortest [ 10L; 20L ] [ 1L; 2L; 3L ] (fun a b -> a - b) = [ 9L; 18L ]
-Stdlib.List.map2shortest [] [ 1L; 2L; 3L ] (fun a b -> a - b) = []
-Stdlib.List.map2shortest [ 1L; 2L; 3L ] [] (fun a b -> a - b) = []
+Stdlib.List.map2shortest [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] (fun a b -> a - b) = [ 9L, 18L, 27L ]
+Stdlib.List.map2shortest [ 10L, 20L ] [ 1L, 2L, 3L ] (fun a b -> a - b) = [ 9L, 18L ]
+Stdlib.List.map2shortest [] [ 1L, 2L, 3L ] (fun a b -> a - b) = []
+Stdlib.List.map2shortest [ 1L, 2L, 3L ] [] (fun a b -> a - b) = []
 
-Stdlib.List.member [ 1L; 2L; 3L ] 2L = true
-Stdlib.List.member [ 1L; 2L; 3L ] 4L = false
+Stdlib.List.member [ 1L, 2L, 3L ] 2L = true
+Stdlib.List.member [ 1L, 2L, 3L ] 4L = false
 Stdlib.List.member [] 1L = false
 
 module Partition =
-  Stdlib.List.partition [ -20L; 5L; 9L ] (fun x -> x > 0L) = ([ 5L; 9L ], [ -20L ])
+  Stdlib.List.partition [ -20L, 5L, 9L ] (fun x -> x > 0L) = ([ 5L, 9L ], [ -20L ])
 
   Stdlib.List.partition [] (fun item -> true) = ([], [])
   Stdlib.List.partition [] (fun item -> "a") = ([], [])
 
-  Stdlib.List.partition [ 1L; 2L; 3L ] (fun item ->
+  Stdlib.List.partition [ 1L, 2L, 3L ] (fun item ->
     match item with
     | 1L | 3L -> true
-    | 2L -> false) = ([ 1L; 3L ], [ 2L ])
+    | 2L -> false) = ([ 1L, 3L ], [ 2L ])
 
-  Stdlib.List.partition [ true; false; true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
-  Stdlib.List.partition [ 1L; 2L; 3L ] (fun item ->
+  Stdlib.List.partition [ true, false, true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
+  Stdlib.List.partition [ 1L, 2L, 3L ] (fun item ->
     match item with
     | 1L -> Stdlib.Option.Option.None
     | 2L -> false
     | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
-Stdlib.List.pushBack [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
+Stdlib.List.pushBack [ 2L, 3L ] 1L = [ 2L, 3L, 1L ]
 Stdlib.List.pushBack [] 1L = [ 1L ]
 
-Stdlib.List.push [ 2L; 3L ] 1L = [ 1L; 2L; 3L ]
+Stdlib.List.push [ 2L, 3L ] 1L = [ 1L, 2L, 3L ]
 Stdlib.List.push [] 1L = [ 1L ]
 
 Stdlib.List.randomElement [ 1L ] = Stdlib.Option.Option.Some 1L
 Stdlib.List.randomElement [] = Stdlib.Option.Option.None
 
 Stdlib.List.randomElement [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
-Stdlib.List.range -1 0 = [ -1; 0 ]
-Stdlib.List.range -5 5 = [ -5; -4; -3; -2; -1; 0; 1; 2; 3; 4; 5 ]
+Stdlib.List.range -1 0 = [ -1, 0 ]
+Stdlib.List.range -5 5 = [ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 ]
 Stdlib.List.range 5 0 = []
 Stdlib.List.repeat 0 1L = Stdlib.Result.Result.Ok []
 Stdlib.List.repeat 1 "a" = Stdlib.Result.Result.Ok [ "a" ]
 Stdlib.List.repeat 1 1L = Stdlib.Result.Result.Ok [ 1L ]
-Stdlib.List.repeat 3 1L = Stdlib.Result.Result.Ok [ 1L; 1L; 1L ]
-Stdlib.List.repeat 3 3L = Stdlib.Result.Result.Ok [ 3L; 3L; 3L ]
-Stdlib.List.repeat 5 "a" = Stdlib.Result.Result.Ok [ "a"; "a"; "a"; "a"; "a" ]
+Stdlib.List.repeat 3 1L = Stdlib.Result.Result.Ok [ 1L, 1L, 1L ]
+Stdlib.List.repeat 3 3L = Stdlib.Result.Result.Ok [ 3L, 3L, 3L ]
+Stdlib.List.repeat 5 "a" = Stdlib.Result.Result.Ok [ "a", "a", "a", "a", "a" ]
 Stdlib.List.repeat -4 "a" = Stdlib.Result.Result.Error "Expected `times` to be positive, but it was `-4`"
-Stdlib.List.repeat 3 [ 1L; 2L; 3L ] = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ] ]
-Stdlib.List.repeat 3 [] = Stdlib.Result.Result.Ok [ []; []; [] ]
+Stdlib.List.repeat 3 [ 1L, 2L, 3L ] = Stdlib.Result.Result.Ok [ [ 1L, 2L, 3L ], [ 1L, 2L, 3L ], [ 1L, 2L, 3L ] ]
+Stdlib.List.repeat 3 [] = Stdlib.Result.Result.Ok [ [], [], [] ]
 
-Stdlib.List.reverse [ "a"; "b"; "c"; "d" ] = [ "d"; "c"; "b"; "a" ]
-Stdlib.List.reverse [ 5L; 4L; 3L; 2L; 1L ] = [ 1L; 2L; 3L; 4L; 5L ]
+Stdlib.List.reverse [ "a", "b", "c", "d" ] = [ "d", "c", "b", "a" ]
+Stdlib.List.reverse [ 5L, 4L, 3L, 2L, 1L ] = [ 1L, 2L, 3L, 4L, 5L ]
 Stdlib.List.reverse [] = []
 
-Stdlib.List.sortBy [ 6L; 2L; 8L; 3L ] (fun x -> 0L - x) = [ 8L; 6L; 3L; 2L ]
+Stdlib.List.sortBy [ 6L, 2L, 8L, 3L ] (fun x -> 0L - x) = [ 8L, 6L, 3L, 2L ]
 Stdlib.List.sortBy [] (fun x -> 0L - x) = []
 
-Stdlib.List.sort [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
-Stdlib.List.sort [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
+Stdlib.List.sort [ "6", "2", "8", "3" ] = [ "2", "3", "6", "8" ]
+Stdlib.List.sort [ 6L, 2L, 8L, 3L ] = [ 2L, 3L, 6L, 8L ]
 Stdlib.List.sort [] = []
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator [ 3L; 1L; 2L ] (fun a b -> 0.1) = error="Cannot perform equality check on Float and Int"
-Stdlib.List.sortByComparator [ 3L; 1L; 2L ] (fun a b -> 3) =
+Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b -> 0.1) = error="Cannot perform equality check on Float and Int"
+Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b -> 3) =
   Stdlib.Result.Result.Error "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int"
-Stdlib.List.sortByComparator [ 3L; 1L; 2L ] (fun a b ->
+Stdlib.List.sortByComparator [ 1L, 2L, 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int"
+Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b ->
   if Stdlib.Int64.lessThan a b then -1 else 1) = Stdlib.Result.Result.Ok
-  [ 1L; 2L; 3L ]
+  [ 1L, 2L, 3L ]
 
 Stdlib.List.sortByComparator [] (fun a b ->
   if Stdlib.Int64.lessThan a b then -1 else 1) = Stdlib.Result.Result.Ok []
 
 Stdlib.List.sortByComparator
-  [ 3L; 1L; 2L; 67L; 3L; -1L; 6L; 3L; 5L; 6L; 2L; 5L; 63L; 2L; 3L; 5L; -1L; -1L; -1L ]
+  [ 3L, 1L, 2L, 67L, 3L, -1L, 6L, 3L, 5L, 6L, 2L, 5L, 63L, 2L, 3L, 5L, -1L, -1L, -1L ]
   (fun a b -> if Stdlib.Int64.lessThan a b then -1 else 1) =
-  Stdlib.Result.Result.Ok [ -1L; -1L; -1L; -1L; 1L; 2L; 2L; 2L; 3L; 3L; 3L; 3L; 5L; 5L; 5L; 6L; 6L; 63L; 67L ]
+  Stdlib.Result.Result.Ok [ -1L, -1L, -1L, -1L, 1L, 2L, 2L, 2L, 3L, 3L, 3L, 3L, 5L, 5L, 5L, 6L, 6L, 63L, 67L ]
 
 // CLEANUP this error message is not ideal in 2 ways:
 // - The error does not provide context that the issue is with the fn specifically
 // - it seems to be from the perspective of the lambda
 //   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
 //   rather than from the perspective of the function it's being used in
-// Stdlib.List.sortByComparator [ 6.0; 2.0 ] (fun x -> x) = error=
+// Stdlib.List.sortByComparator [ 6.0, 2.0 ] (fun x -> x) = error=
 //   "Expected 1 arguments, got 2"
 
-Stdlib.List.tail [ 10L; 20L; 30L; 40L ] = Stdlib.Option.Option.Some[ 20L; 30L; 40L ]
+Stdlib.List.tail [ 10L, 20L, 30L, 40L ] = Stdlib.Option.Option.Some[ 20L, 30L, 40L ]
 Stdlib.List.tail [] = Stdlib.Option.Option.None
 
-Stdlib.List.take [ "a"; "b"; "c"; "d" ] -1 = []
-Stdlib.List.take [ "a"; "b"; "c"; "d" ] 2147483648 = [ "a"; "b"; "c"; "d" ]
-Stdlib.List.take [ "a"; "b"; "c"; "d" ] 3 = [ "a"; "b"; "c" ]
-Stdlib.List.take [ 3L; 3L; 3L ] 0 = []
-Stdlib.List.take [ 5L; 4L; 3L; 2L; 1L ] 5 = [ 5L; 4L; 3L; 2L; 1L ]
+Stdlib.List.take [ "a", "b", "c", "d" ] -1 = []
+Stdlib.List.take [ "a", "b", "c", "d" ] 2147483648 = [ "a", "b", "c", "d" ]
+Stdlib.List.take [ "a", "b", "c", "d" ] 3 = [ "a", "b", "c" ]
+Stdlib.List.take [ 3L, 3L, 3L ] 0 = []
+Stdlib.List.take [ 5L, 4L, 3L, 2L, 1L ] 5 = [ 5L, 4L, 3L, 2L, 1L ]
 Stdlib.List.take [ 5L ] 4 = [ 5L ]
 Stdlib.List.take [] 4 = []
 
 //TODO: better error message
-Stdlib.List.takeWhile [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
-Stdlib.List.takeWhile [ 1L; 2L; 3L; 4L ] (fun item -> item < 1L) = []
-Stdlib.List.takeWhile [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 1L; 2L ]
-Stdlib.List.takeWhile [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 1L ]
+Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
+Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 1L) = []
+Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 3L) = [ 1L, 2L ]
+Stdlib.List.takeWhile [ 1L, 5L, 2L, 2L ] (fun item -> item < 3L) = [ 1L ]
 Stdlib.List.takeWhile [] (fun item -> item < 3L) = []
 
 // it isn't specified which is the right value to keep when there are duplicates
-Stdlib.List.uniqueBy [ 1L; 2L; 3L; 4L ] (fun x -> Stdlib.Int64.divide x 2L) = [ 1L; 2L; 4L ]
-Stdlib.List.uniqueBy [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.uniqueBy [ 1L; 1L; 1L; 1L ] (fun x -> x) = [ 1L ]
-Stdlib.List.uniqueBy [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) = [ 2L; 7L; 10L; 42L ]
+Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> Stdlib.Int64.divide x 2L) = [ 1L, 2L, 4L ]
+Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x) = [ 1L, 2L, 3L, 4L ]
+Stdlib.List.uniqueBy [ 1L, 1L, 1L, 1L ] (fun x -> x) = [ 1L ]
+Stdlib.List.uniqueBy [ 7L, 42L, 7L, 2L, 10L ] (fun x -> x) = [ 2L, 7L, 10L, 42L ]
 Stdlib.List.uniqueBy [] (fun x -> x) = []
-Stdlib.List.uniqueBy [ 6L; 2.0 ] (fun x -> x) = error="Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
-Stdlib.List.unique [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.unique [ 1L; 1L; 1L; 1L ] = [ 1L ]
-Stdlib.List.unique [ 7L; 42L; 7L; 2L; 10L ] = [ 2L; 7L; 10L; 42L ]
+Stdlib.List.uniqueBy [ 6L, 2.0 ] (fun x -> x) = error="Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
+Stdlib.List.unique [ 1L, 2L, 3L, 4L ] = [ 1L, 2L, 3L, 4L ]
+Stdlib.List.unique [ 1L, 1L, 1L, 1L ] = [ 1L ]
+Stdlib.List.unique [ 7L, 42L, 7L, 2L, 10L ] = [ 2L, 7L, 10L, 42L ]
 Stdlib.List.unique [] = []
 
 // `dedup` keeps the FIRST occurrence where it was. Compare the `unique` cases just above:
 // same input, sorted output. That difference is the whole reason it exists.
-Stdlib.List.dedup [ 7L; 42L; 7L; 2L; 10L ] = [ 7L; 42L; 2L; 10L ]
-Stdlib.List.dedup [ 1L; 1L; 1L; 1L ] = [ 1L ]
-Stdlib.List.dedup [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
+Stdlib.List.dedup [ 7L, 42L, 7L, 2L, 10L ] = [ 7L, 42L, 2L, 10L ]
+Stdlib.List.dedup [ 1L, 1L, 1L, 1L ] = [ 1L ]
+Stdlib.List.dedup [ 1L, 2L, 3L, 4L ] = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.dedup [] = []
-Stdlib.List.dedup [ "b"; "a"; "b"; "a" ] = [ "b"; "a" ]
+Stdlib.List.dedup [ "b", "a", "b", "a" ] = [ "b", "a" ]
 
 module Zipping =
   // TODO: more tests, with values of more complex types
-  Stdlib.List.unzip [ (1L, 10L); (2L, 20L); (3L, 30L) ] = ([ 1L; 2L; 3L ], [ 10L; 20L; 30L ])
+  Stdlib.List.unzip [ (1L, 10L), (2L, 20L), (3L, 30L) ] = ([ 1L, 2L, 3L ], [ 10L, 20L, 30L ])
   Stdlib.List.unzip [ (10L, 6L) ] = ([ 10L ], [ 6L ])
 
-  Stdlib.List.zipShortest [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = [ (10L, 1L); (20L, 2L); (30L, 3L) ]
-  Stdlib.List.zipShortest [ 10L; 20L; 30L ] [ "a"; "bc"; "d" ] = [ (10L, "a"); (20L, "bc"); (30L, "d") ]
-  Stdlib.List.zipShortest [ 10L; 20L ] [ 1L; 2L; 3L ] = [ (10L, 1L); (20L, 2L) ]
-  Stdlib.List.zipShortest [ 1L; 2L; 3L ] [ 10L; 20L ] = [ (1L, 10L); (2L, 20L) ]
-  Stdlib.List.zipShortest [ 10L; 20L ] [ "a"; "bc"; "d" ] = [ (10L, "a"); (20L, "bc") ]
-  Stdlib.List.zipShortest [ "a"; "bc"; "d" ] [ 10L; 20L ] = [ ("a", 10L); ("bc", 20L) ]
-  Stdlib.List.zipShortest [ "b"; "v"; "z" ] [] = []
-  Stdlib.List.zipShortest [] [ "b"; "v"; "z" ] = []
+  Stdlib.List.zipShortest [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] = [ (10L, 1L), (20L, 2L), (30L, 3L) ]
+  Stdlib.List.zipShortest [ 10L, 20L, 30L ] [ "a", "bc", "d" ] = [ (10L, "a"), (20L, "bc"), (30L, "d") ]
+  Stdlib.List.zipShortest [ 10L, 20L ] [ 1L, 2L, 3L ] = [ (10L, 1L), (20L, 2L) ]
+  Stdlib.List.zipShortest [ 1L, 2L, 3L ] [ 10L, 20L ] = [ (1L, 10L), (2L, 20L) ]
+  Stdlib.List.zipShortest [ 10L, 20L ] [ "a", "bc", "d" ] = [ (10L, "a"), (20L, "bc") ]
+  Stdlib.List.zipShortest [ "a", "bc", "d" ] [ 10L, 20L ] = [ ("a", 10L), ("bc", 20L) ]
+  Stdlib.List.zipShortest [ "b", "v", "z" ] [] = []
+  Stdlib.List.zipShortest [] [ "b", "v", "z" ] = []
 
 
-  Stdlib.List.zip [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some [ (10L, 1L); (20L, 2L); (30L, 3L) ]
-  Stdlib.List.zip [ 10L; 20L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.None
+  Stdlib.List.zip [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] = Stdlib.Option.Option.Some [ (10L, 1L), (20L, 2L), (30L, 3L) ]
+  Stdlib.List.zip [ 10L, 20L ] [ 1L, 2L, 3L ] = Stdlib.Option.Option.None
   Stdlib.List.zip [] [] = Stdlib.Option.Option.Some []
   Stdlib.List.zip [ Builtin.testRuntimeError "msg" ] [ Some "" ] = error="Uncaught exception: msg"
 module GroupByWithKey =
-  Stdlib.List.groupByWithKey [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
 
-  Stdlib.List.groupByWithKey [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
 
   Stdlib.List.groupByWithKey
-    [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
-    (fun s -> Stdlib.String.first s 1) = [ ("a", [ "apple"; "avocado"; "apricot" ])
+    [ "apple", "banana", "avocado", "grape", "apricot" ]
+    (fun s -> Stdlib.String.first s 1) = [ ("a", [ "apple", "avocado", "apricot" ])
                                                ("b", [ "banana" ])
                                                ("g", [ "grape" ]) ]
 
-  Stdlib.List.groupByWithKey [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) =
-    [ ('a', [ 'a'; 'a' ]); ('b', [ 'b'; 'b' ]); ('c', [ 'c' ]) ]
+  Stdlib.List.groupByWithKey [ 'a', 'b', 'c', 'a', 'b' ] (fun c -> c) =
+    [ ('a', [ 'a', 'a' ]), ('b', [ 'b', 'b' ]), ('c', [ 'c' ]) ]
 
-  Stdlib.List.groupByWithKey [ 1L; 2L; 3L; 4L; 5L ] (fun x -> Stdlib.Int64.mod x 2L == 0L) =
-    [ (false, [ 1L; 3L; 5L ]); (true, [ 2L; 4L ]) ]
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> Stdlib.Int64.mod x 2L == 0L) =
+    [ (false, [ 1L, 3L, 5L ]), (true, [ 2L, 4L ]) ]
 
-  Stdlib.List.groupByWithKey [ 1L; 2L; 3L; 4L; 5L ] (fun x -> ((Stdlib.Int64.mod x 2L), "test")) =
-    [ ((1L, "test"), [ 1L; 3L; 5L ]); ((0L, "test"), [ 2L; 4L ]) ]
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> ((Stdlib.Int64.mod x 2L), "test")) =
+    [ ((1L, "test"), [ 1L, 3L, 5L ]), ((0L, "test"), [ 2L, 4L ]) ]
 
   Stdlib.List.groupByWithKey [] (fun x -> x) = []
 
 
-Stdlib.List.dropLast [ 1L; 2L; 3L; 4L; 5L ] = [ 1L; 2L; 3L; 4L ]
+Stdlib.List.dropLast [ 1L, 2L, 3L, 4L, 5L ] = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.dropLast [ 1L ] = []
 Stdlib.List.dropLast [] = []
 
-Stdlib.List.chunkBySize [ 1L; 2L; 3L; 4L; 5L ] 2 = Stdlib.Result.Result.Ok [ [ 1L; 2L ]; [ 3L; 4L ]; [ 5L ] ]
-Stdlib.List.chunkBySize [ 1L; 2L; 3L; 4L; 5L; 6L ] 3 = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]
-Stdlib.List.chunkBySize [ 1L; 2L; 3L ] 1 = Stdlib.Result.Result.Ok [ [ 1L ]; [ 2L ]; [ 3L ] ]
-Stdlib.List.chunkBySize [ 1L; 2L ] 3 = Stdlib.Result.Result.Ok [ [ 1L; 2L ] ]
+Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L, 5L ] 2 = Stdlib.Result.Result.Ok [ [ 1L, 2L ], [ 3L, 4L ], [ 5L ] ]
+Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L, 5L, 6L ] 3 = Stdlib.Result.Result.Ok [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ]
+Stdlib.List.chunkBySize [ 1L, 2L, 3L ] 1 = Stdlib.Result.Result.Ok [ [ 1L ], [ 2L ], [ 3L ] ]
+Stdlib.List.chunkBySize [ 1L, 2L ] 3 = Stdlib.Result.Result.Ok [ [ 1L, 2L ] ]
 Stdlib.List.chunkBySize [] 4 = Stdlib.Result.Result.Ok []
-Stdlib.List.chunkBySize [ 1L; 2L; 3L; 4L ] 0 = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
-Stdlib.List.chunkBySize [ 1L; 2L; 3L; 4L ] -1 = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
+Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L ] 0 = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
+Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L ] -1 = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
 
 Stdlib.List.splitLast [] = Stdlib.Option.Option.None
 Stdlib.List.splitLast [ 1L ] = Stdlib.Option.Option.Some(([], 1L))
-Stdlib.List.splitLast [ 1L; 2L ] = Stdlib.Option.Option.Some(([ 1L ], 2L))
-Stdlib.List.splitLast [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some(([ 1L; 2L ], 3L))
+Stdlib.List.splitLast [ 1L, 2L ] = Stdlib.Option.Option.Some(([ 1L ], 2L))
+Stdlib.List.splitLast [ 1L, 2L, 3L ] = Stdlib.Option.Option.Some(([ 1L, 2L ], 3L))

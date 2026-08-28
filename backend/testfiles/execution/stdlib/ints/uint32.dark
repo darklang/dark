@@ -94,37 +94,37 @@ Stdlib.UInt32.mod 5ul 0ul = error="Cannot evaluate modulus against 0"
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 1ul 2ul)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 10ul 20ul)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 2ul 1ul)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 20ul 10ul)
 |> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 1ul)
- |> Stdlib.List.unique) = [ 0ul; 1ul ]
+ |> Stdlib.List.unique) = [ 0ul, 1ul ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 2ul)
- |> Stdlib.List.unique) = [ 0ul; 1ul; 2ul ]
+ |> Stdlib.List.unique) = [ 0ul, 1ul, 2ul ]
 
-Stdlib.UInt32.sum [ 1ul; 2ul ] = 3ul
+Stdlib.UInt32.sum [ 1ul, 2ul ] = 3ul
 
-Stdlib.UInt32.sum [ 1ul; 4294967295ul ] = 0ul // wraps on overflow
+Stdlib.UInt32.sum [ 1ul, 4294967295ul ] = 0ul // wraps on overflow
 Stdlib.UInt32.parse "-129" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.OutOfRange
 
 Stdlib.UInt32.parse "4294967296" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.OutOfRange

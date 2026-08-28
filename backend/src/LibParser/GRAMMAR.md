@@ -150,7 +150,7 @@ Expression forms include:
 
 - literals and unit `()`
 - tuples `(a, b, …)`
-- lists `[a; b]`, separated by `;`, `,`, or newlines
+- lists `[a, b]`, separated by `,` or newlines
 - dicts `Dict { k = v }`
 - named records `Type { f = v }`; anonymous records are rejected until they
   have a real inferred/represented type
@@ -164,10 +164,10 @@ Expression forms include:
 - pipes
 - statement sequences, separated by newlines or `;`
 
-Adjacent same-line items never imply a separator. Lists and list patterns,
-dicts, records, record updates, and record-type fields use `,` or `;`;
-constructor fields and constructor-pattern fields use `,`. A newline separates
-items in all of these forms.
+Adjacent same-line items never imply a separator. Lists and list patterns use
+`,`; a `;` there is an error. Dicts, records, record updates, and record-type
+fields use `,` or `;`; constructor fields and constructor-pattern fields use
+`,`. A newline separates items in all of these forms.
 
 For dotted names, lowercase steps are fields and uppercase steps are module path
 segments. A bare dotted name like `Stdlib.List.map` is itself a value/function
@@ -255,7 +255,7 @@ syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.
 
 Type variables are `'a` or bare lowercase names. Tuples use `A * B`. Function
-types use `A -> B -> C` as flat multi-arg functions: args `[A; B]`, return `C`,
+types use `A -> B -> C` as flat multi-arg functions: args `[A, B]`, return `C`,
 not curried functions. Enum case fields separate with `*` at atom level:
 `Case of A * B` has two fields; a tuple field needs parens, `Case of (A * B)`.
 

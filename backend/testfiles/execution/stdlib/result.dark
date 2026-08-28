@@ -14,7 +14,7 @@ Stdlib.Result.andThen (Stdlib.Result.Result.Ok 5L) (fun x ->
 Stdlib.Result.collect
   [ Stdlib.Result.Result.Ok 5L
     Stdlib.Result.Result.Ok 6L
-    Stdlib.Result.Result.Ok 7L ] = Stdlib.Result.Result.Ok [ 5L; 6L; 7L ]
+    Stdlib.Result.Result.Ok 7L ] = Stdlib.Result.Result.Ok [ 5L, 6L, 7L ]
 
 Stdlib.Result.collect
   [ Stdlib.Result.Result.Ok 5L
@@ -27,7 +27,7 @@ Stdlib.Result.collect
     Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error "test"
 
 Stdlib.Result.collect
-  [ Stdlib.Result.Result.Error "test"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
+  [ Stdlib.Result.Result.Error "test", Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
   "test"
 
 Stdlib.Result.collect [] = Stdlib.Result.Result.Ok []
@@ -272,7 +272,7 @@ Stdlib.Result.join (Stdlib.Result.Result.Error "test") = Stdlib.Result.Result.Er
 Stdlib.Result.combine
   [ Stdlib.Result.Result.Ok 1L
     Stdlib.Result.Result.Ok 2L
-    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L, 2L, 3L ]
 
 Stdlib.Result.combine
   [ Stdlib.Result.Result.Ok 1L
@@ -280,7 +280,7 @@ Stdlib.Result.combine
     Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Error "test"
 
 Stdlib.Result.combine
-  [ Stdlib.Result.Result.Error "test1"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
+  [ Stdlib.Result.Result.Error "test1", Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
   "test1"
 
 Stdlib.Result.combine [] = Stdlib.Result.Result.Ok []
@@ -289,15 +289,15 @@ Stdlib.Result.combine [] = Stdlib.Result.Result.Ok []
 Stdlib.Result.values
   [ Stdlib.Result.Result.Ok 1L
     Stdlib.Result.Result.Ok 2L
-    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L, 2L, 3L ]
 
 Stdlib.Result.values
   [ Stdlib.Result.Result.Ok 1L
     Stdlib.Result.Result.Error "test"
-    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 3L ]
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L, 3L ]
 
 Stdlib.Result.values
-  [ Stdlib.Result.Result.Error "test1"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Ok
+  [ Stdlib.Result.Result.Error "test1", Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Ok
   []
 
 Stdlib.Result.values [] = Stdlib.Result.Result.Ok []

@@ -38,7 +38,7 @@ let rowsAtSize (size: Stdlib.Cli.Tui.Size) : List<String> =
     Stdlib.Cli.UI.Picker.moveDown
       (Stdlib.Cli.UI.Picker.moveDown
         (Stdlib.Cli.UI.Picker.make
-          [ "documents"; "branches"; "traces"; "packages"; "devices"; "views"; "apps" ]))
+          [ "documents", "branches", "traces", "packages", "devices", "views", "apps" ]))
 
   let pickerRegion =
     Stdlib.Cli.UI.Layout.Region { top = 4; left = 1; rows = 7; cols = half }
@@ -69,7 +69,7 @@ let rowsAtSize (size: Stdlib.Cli.Tui.Size) : List<String> =
     Stdlib.Cli.UI.Box.panel listRegion "ListView" false (fun inner ->
       Stdlib.Cli.UI.ListView.render
         inner
-        [ "one"; "two"; "three"; "four" ]
+        [ "one", "two", "three", "four" ]
         1)
 
   // The chrome bars, drawn as they appear at the top and bottom of an app.

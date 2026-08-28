@@ -9,9 +9,9 @@ module CreateRead =
   (let db = "/tmp/dark-test-sqlite-a.db"
    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
    let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1"; "o'brien" ]
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2"; "bob" ]
-   Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name") = [ "o'brien"; "bob" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1", "o'brien" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2", "bob" ]
+   Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name") = [ "o'brien", "bob" ]
 
 // A BLOB column comes back as `Bytes`, and `asBytes` is how you get it out. The `Value`
 // type carries blobs through rather than stringifying them; without an accessor a caller
@@ -20,7 +20,7 @@ module Blobs =
   (let db = "/tmp/dark-test-sqlite-blob.db"
    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
    let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1"; "hi" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1", "hi" ]
 
    match Stdlib.Sqlite.query db "SELECT CAST(name AS BLOB) AS b FROM t" with
    | Ok [ row ] ->
@@ -40,9 +40,9 @@ module UpdateDelete =
   (let db = "/tmp/dark-test-sqlite-b.db"
    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
    let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1"; "o'brien" ]
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2"; "bob" ]
-   let _ = Stdlib.Sqlite.execP db "UPDATE t SET name = @p0 WHERE id = @p1" [ "updated"; "1" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1", "o'brien" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2", "bob" ]
+   let _ = Stdlib.Sqlite.execP db "UPDATE t SET name = @p0 WHERE id = @p1" [ "updated", "1" ]
    let _ = Stdlib.Sqlite.execP db "DELETE FROM t WHERE id = @p0" [ "2" ]
    Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name") = [ "updated" ]
 
@@ -51,8 +51,8 @@ module Scalars =
   (let db = "/tmp/dark-test-sqlite-c.db"
    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
    let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1"; "alice" ]
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2"; "bob" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1", "alice" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2", "bob" ]
    ((Stdlib.Sqlite.scalarInt db "SELECT count(*) AS n FROM t" "n") |> Stdlib.Option.withDefault 0L,
     (Stdlib.Sqlite.scalarIntP db "SELECT id FROM t WHERE name = @p0" [ "bob" ] "id") |> Stdlib.Option.withDefault 0L))
    = (2L, 2L)
@@ -62,7 +62,7 @@ module Row =
   (let db = "/tmp/dark-test-sqlite-d.db"
    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
    let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
-   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2"; "bob" ]
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2", "bob" ]
    match Stdlib.Sqlite.queryOneP db "SELECT id, name FROM t WHERE id = @p0" [ "2" ] with
    | Some r -> (Stdlib.Sqlite.textField r "name", Stdlib.Sqlite.intField r "id")
    | None -> (Stdlib.Option.Option.None, Stdlib.Option.Option.None))

@@ -155,7 +155,7 @@ let createCompletions
         currentPrefix
 
 
-  let completions = Stdlib.List.flatten [ keywords; functions; types; values ; submodules ]
+  let completions = Stdlib.List.flatten [ keywords, functions, types, values , submodules ]
 
   completions
 

@@ -62,7 +62,7 @@ module LogMessageNotification =
       | Debug -> 4
 
     Json.Object [
-      ("type", Json.Number (Stdlib.Int.toFloat typeNum));
+      ("type", Json.Number (Stdlib.Int.toFloat typeNum)),
       ("message", Json.String params.message)
     ]
 

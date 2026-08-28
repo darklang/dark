@@ -37,6 +37,6 @@ let pushoverTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
       let parts = Darklang.Stdlib.String.split input "|"
       match parts with
       | [ message ] -> sendNotification message ""
-      | [ message; title ] -> sendNotification message title
+      | [ message, title ] -> sendNotification message title
       | _ -> "Invalid input format. Use: message or message|title"
   }

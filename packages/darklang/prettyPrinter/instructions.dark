@@ -32,7 +32,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> letPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -59,12 +59,12 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
   | MPString s -> $"\"{s}\""
   | MPList items ->
     let parts =
-      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join "; "
+      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join ", "
     $"[{parts}]"
   | MPListCons(head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
   | MPTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> matchPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -177,7 +177,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     $"{register v} ~ {matchPattern p}  else -> {target}"
   | MatchUnmatched v -> register v
   | CreateTuple(t, first, second, theRest) ->
-    let all = registers (Stdlib.List.append [ first; second ] theRest)
+    let all = registers (Stdlib.List.append [ first, second ] theRest)
     $"{register t} <- ({all})"
   | CreateList(t, items) -> $"{register t} <- [{registers items}]"
   | CreateDict(t, entries) -> $"{register t} <- {{{namedRegisters entries}}}"

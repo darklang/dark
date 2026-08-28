@@ -136,13 +136,13 @@ let handleIncomingMessage
               ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Text text
             | Image img ->
               ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
-                Json.Object [ ("type", Json.String "image"); ("data", Json.String img.data); ("mimeType", Json.String img.mimeType) ])
+                Json.Object [ ("type", Json.String "image"), ("data", Json.String img.data), ("mimeType", Json.String img.mimeType) ])
             | Audio audio ->
               ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
-                Json.Object [ ("type", Json.String "audio"); ("data", Json.String audio.data); ("mimeType", Json.String audio.mimeType) ])
+                Json.Object [ ("type", Json.String "audio"), ("data", Json.String audio.data), ("mimeType", Json.String audio.mimeType) ])
             | Resource res ->
               ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
-                Json.Object [ ("uri", Json.String res.uri); ("mimeType", Json.String res.mimeType); ("text", Json.String res.text) ])
+                Json.Object [ ("uri", Json.String res.uri), ("mimeType", Json.String res.mimeType), ("text", Json.String res.text) ])
           ModelContextProtocol.Prompts.GetPromptResponse.PromptMessage { role = role; content = content })
       let response = ModelContextProtocol.Prompts.GetPromptResponse.GetPromptResult {
         description = Stdlib.Option.Option.Some $"Generated prompt: {name}"

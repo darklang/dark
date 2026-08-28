@@ -48,7 +48,7 @@ module RelativeSemanticToken =
     : List<UInt64> =
     tokens
     |> Stdlib.List.map (fun t ->
-      [ t.deltaLine; t.deltaStart; t.length; typeToValue t.tokenType; 0UL ])
+      [ t.deltaLine, t.deltaStart, t.length, typeToValue t.tokenType, 0UL ])
     |> Stdlib.List.flatten
 
 

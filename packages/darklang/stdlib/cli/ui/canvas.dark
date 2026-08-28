@@ -10,7 +10,7 @@
 ///
 /// The migration is then mechanical, one renderer at a time:
 ///   `Layout.printAt region r c text`      ->  `Layout.at region r c text`
-///   `a` then `b` (sequenced prints)        ->  `Stdlib.List.flatten [ a; b ]`
+///   `a` then `b` (sequenced prints)        ->  `Stdlib.List.flatten [ a, b ]`
 ///   `xs |> Stdlib.List.iter (...)`         ->  `xs |> Stdlib.List.map (...) |> Stdlib.List.flatten`
 ///   `Region -> Unit`                       ->  `Region -> List<Span>`
 ///

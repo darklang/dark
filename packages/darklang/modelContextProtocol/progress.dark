@@ -37,7 +37,7 @@ module ProgressNotification =
 
   let toJson (params: ProgressNotificationParams) : Json =
     let fields = [
-      ("progressToken", progressTokenToJson params.progressToken);
+      ("progressToken", progressTokenToJson params.progressToken),
       ("progress", Json.Number (Stdlib.Int.toFloat params.progress))
     ]
 

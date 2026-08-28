@@ -48,7 +48,7 @@ Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 
 Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1e30)) = true
 
 // --- collections ---
-(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DList(unknownType (), [ int 1; int 2 ])) with
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DList(unknownType (), [ int 1, int 2 ])) with
  | Ok (EList(_, xs)) -> Stdlib.List.length xs
  | _ -> -1) = 2
 
@@ -88,7 +88,7 @@ Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 
       fakeType (),
       [],
       Stdlib.Dict.fromListOverwritingDuplicates
-        [ ("a", int 1); ("b", Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) ]))
+        [ ("a", int 1), ("b", Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) ]))
  with
  | Ok (ERecord(_, _, _, fields)) -> Stdlib.List.length fields
  | _ -> -1) = 2

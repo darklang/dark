@@ -58,7 +58,7 @@ module ListAlias =
   let isEmpty (il: IntegerList) : Bool = Stdlib.List.isEmpty il
 
   isEmpty ([]) = true
-  isEmpty ([ 1L; 2L; 3L ]) = false
+  isEmpty ([ 1L, 2L, 3L ]) = false
 
 
 module ResultAlias =

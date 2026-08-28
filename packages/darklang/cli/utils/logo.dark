@@ -77,7 +77,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
       | Ok topEmpty ->
         match Stdlib.List.repeat paddingBottom emptyLogoLine with // Create 2 empty bottom logo lines
         | Ok bottomEmpty ->
-          Stdlib.List.flatten [topEmpty; paddedLogoLines; bottomEmpty]
+          Stdlib.List.flatten [topEmpty, paddedLogoLines, bottomEmpty]
         | Error _ -> paddedLogoLines
       | Error _ -> paddedLogoLines
     else
@@ -93,7 +93,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
       | Ok topEmpty ->
         match Stdlib.List.repeat paddingBottom "" with
         | Ok bottomEmpty ->
-          Stdlib.List.flatten [topEmpty; textLines; bottomEmpty]
+          Stdlib.List.flatten [topEmpty, textLines, bottomEmpty]
         | Error _ -> textLines
       | Error _ -> textLines
     else

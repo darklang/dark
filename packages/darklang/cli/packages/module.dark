@@ -109,9 +109,9 @@ let updatedItems
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let input =
     match args with
-    | [ modulePath; "-" ] ->
+    | [ modulePath, "-" ] ->
       Stdlib.Result.Result.Ok((modulePath, Stdlib.Cli.Stdin.readAll ()))
-    | [ modulePath; sourcePath ] ->
+    | [ modulePath, sourcePath ] ->
       match Stdlib.Cli.File.readText sourcePath with
       | Ok source -> Stdlib.Result.Result.Ok((modulePath, source))
       | Error err ->

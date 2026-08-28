@@ -26,8 +26,8 @@ return annotations:
 ## Pipe (parens for complex LHS)
   (Stdlib.List.range 0 10) |> Stdlib.List.map fn
 
-## Lists (semicolon separator)
-  [1; 2; 3]
+## Lists (comma separator)
+  [1, 2, 3]
 
 ## Strings
   "hello" ++ " world"    # concat

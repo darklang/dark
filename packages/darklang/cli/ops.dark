@@ -88,7 +88,7 @@ let executeList (state: AppState) (limit: Int64) : AppState =
           else textCell row "msg"
 
         let line =
-          [ short (textCell row "id"); commitStr; $"{textCell row "sz"}B"; msgCell ]
+          [ short (textCell row "id"), commitStr, $"{textCell row "sz"}B", msgCell ]
 
         (Stdlib.List.append out [ line ], Stdlib.Option.Option.Some commit))
 
@@ -97,7 +97,7 @@ let executeList (state: AppState) (limit: Int64) : AppState =
     // "message / when": the column holds a commit's message, or — for a WIP op, which has no commit and so no
     // message — the stamp saying when you authored it. Naming it just "message" would make the WIP rows read
     // as though a timestamp were somebody's commit message.
-    Stdlib.Cli.UI.Table.print [ "op"; "commit"; "size"; "message / when" ] rowsOut
+    Stdlib.Cli.UI.Table.print [ "op", "commit", "size", "message / when" ] rowsOut
 
     state
   | Error e ->
@@ -119,7 +119,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] -> executeList state 20L
   | [ "list" ] -> executeList state 20L
-  | [ "list"; n ] ->
+  | [ "list", n ] ->
     match Stdlib.Int64.parse n with
     | Ok l -> executeList state l
     | Error _ -> executeList state 20L

@@ -48,7 +48,7 @@ let getInt (key: String) (default_: Int) : Int =
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | ["get"; key] ->
+  | ["get", key] ->
     let config = readConfig ()
     match Stdlib.Dict.get config key with
     | Some value ->
@@ -59,7 +59,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Configuration key not found: {key}")
       state
 
-  | ["set"; key; value] ->
+  | ["set", key, value] ->
     let config = readConfig ()
     let updatedConfig = Stdlib.Dict.setOverridingDuplicates config key value
     writeConfig updatedConfig
@@ -67,7 +67,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     // Show the implied local URL for well-formed app port settings.
     match Stdlib.String.split key "." with
-    | [ "apps"; _; "port" ] ->
+    | [ "apps", _, "port" ] ->
       match Stdlib.Int.parse value with
       | Ok port ->
         if port >= 1 && port <= 65535 then
@@ -107,7 +107,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
 
   match args with
   | [] ->
-    ["get"; "set"; "list"] |> Stdlib.List.map Cli.Completion.simple
+    ["get", "set", "list"] |> Stdlib.List.map Cli.Completion.simple
   | ["get"] | ["set"] ->
     configKeys |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

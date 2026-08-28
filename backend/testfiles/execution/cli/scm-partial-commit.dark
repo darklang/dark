@@ -153,7 +153,7 @@ module PartialCommitPlanning =
     [ Darklang.SCM.PartialCommit.SelectedItem
         { location = loc "foo"
           kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
-          fqn = "Test.M.foo" } ]) = [ "  deprecations:"; "    deprecate fn Test.M.foo" ]
+          fqn = "Test.M.foo" } ]) = [ "  deprecations:", "    deprecate fn Test.M.foo" ]
 
   // A propagated SetName (propagation_id set) is NOT selectable by name — only
   // its source is, so `--include=fn:Dependent` can't split a propagation batch.
@@ -212,15 +212,15 @@ module PartialCommitDisplay =
   (Darklang.SCM.PartialCommit.groupLines "selected" []) = []
 
   // groupLines: a "label:" header + one indented "kind fqn" row per item.
-  (Darklang.SCM.PartialCommit.groupLines "selected" [ mkItem "a"; mkItem "b" ]) =
-    [ "  selected:"; "    fn Test.M.a"; "    fn Test.M.b" ]
+  (Darklang.SCM.PartialCommit.groupLines "selected" [ mkItem "a", mkItem "b" ]) =
+    [ "  selected:", "    fn Test.M.a", "    fn Test.M.b" ]
 
   // propagationLines: empty renders nothing.
   (Darklang.SCM.PartialCommit.propagationLines []) = []
 
   // propagationLines: <= 5 items are all listed, no "... more".
-  (Darklang.SCM.PartialCommit.propagationLines [ mkItem "a"; mkItem "b" ]) =
-    [ "  propagated repoints (2):"; "    fn Test.M.a"; "    fn Test.M.b" ]
+  (Darklang.SCM.PartialCommit.propagationLines [ mkItem "a", mkItem "b" ]) =
+    [ "  propagated repoints (2):", "    fn Test.M.a", "    fn Test.M.b" ]
 
   // propagationLines: > 5 collapses to the first 5 + an "... and N more" tail.
   (Darklang.SCM.PartialCommit.propagationLines
@@ -243,15 +243,15 @@ module PartialCommitDisplay =
 // `--include=` parsing: comma-lists and accumulation across repeated flags.
 module PartialCommitParseInclude =
   // A single flag splits on commas.
-  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a,b,c"; "msg" ]) =
-    Stdlib.Option.Option.Some [ "a"; "b"; "c" ]
+  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a,b,c", "msg" ]) =
+    Stdlib.Option.Option.Some [ "a", "b", "c" ]
 
   // Repeated flags accumulate (previously all but the first were dropped).
-  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a"; "--include=b,c" ]) =
-    Stdlib.Option.Option.Some [ "a"; "b"; "c" ]
+  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a", "--include=b,c" ]) =
+    Stdlib.Option.Option.Some [ "a", "b", "c" ]
 
   // No --include= flag at all → None (a full commit).
-  (Darklang.Cli.SCM.Commit.parseInclude [ "just"; "a"; "message" ]) =
+  (Darklang.Cli.SCM.Commit.parseInclude [ "just", "a", "message" ]) =
     Stdlib.Option.Option.None
 
   // A present-but-empty flag → Some [] (the caller turns this into an error).

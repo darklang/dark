@@ -129,23 +129,23 @@ module Array =
         [4, 5, 6],
         [7, 8, 9] ]""" = parsedOk (
     Json.Array
-      [ Json.Array [ Json.Number 1.0; Json.Number 2.0; Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0; Json.Number 5.0; Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0; Json.Number 8.0; Json.Number 9.0 ] ]
+      [ Json.Array [ Json.Number 1.0, Json.Number 2.0, Json.Number 3.0 ]
+        Json.Array [ Json.Number 4.0, Json.Number 5.0, Json.Number 6.0 ]
+        Json.Array [ Json.Number 7.0, Json.Number 8.0, Json.Number 9.0 ] ]
   )
 
   format (
     Json.Array
-      [ Json.Array [ Json.Number 1.0; Json.Number 2.0; Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0; Json.Number 5.0; Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0; Json.Number 8.0; Json.Number 9.0 ] ]
+      [ Json.Array [ Json.Number 1.0, Json.Number 2.0, Json.Number 3.0 ]
+        Json.Array [ Json.Number 4.0, Json.Number 5.0, Json.Number 6.0 ]
+        Json.Array [ Json.Number 7.0, Json.Number 8.0, Json.Number 9.0 ] ]
   ) = "[[1,2,3],[4,5,6],[7,8,9]]"
 
 
   // mixed types
-  format (Json.Array [ Json.Null; Json.Number 1.2 ]) = "[null,1.2]"
+  format (Json.Array [ Json.Null, Json.Number 1.2 ]) = "[null,1.2]"
 
-  parse "[ null, 1.2 ]" = parsedOk (Json.Array [ Json.Null; Json.Number 1.2 ])
+  parse "[ null, 1.2 ]" = parsedOk (Json.Array [ Json.Null, Json.Number 1.2 ])
 
 
 
@@ -163,10 +163,10 @@ module Object =
 
   // dupe name
   parse """{ "n": null, "n": 1 }""" = parsedOk (
-    Json.Object [ ("n", Json.Null); ("n", Json.Number 1.0) ]
+    Json.Object [ ("n", Json.Null), ("n", Json.Number 1.0) ]
   )
 
-  format (Json.Object [ ("n", Json.Null); ("n", Json.Number 1.0) ]) = """{"n":null,"n":1}"""
+  format (Json.Object [ ("n", Json.Null), ("n", Json.Number 1.0) ]) = """{"n":null,"n":1}"""
 
 
   // blank name

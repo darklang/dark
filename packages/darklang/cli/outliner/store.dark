@@ -102,8 +102,8 @@ let starterDocuments () : List<Document> =
         (6, "Space folds a branch, / searches, u undoes")
         (7, "o adds a line below, O adds one underneath this one")
         (8, "e exports to Markdown or OPML") ]
-      [ (1, [ 2; 3; 4 ]); (5, [ 6; 7; 8 ]) ]
-      [ 1; 5 ]
+      [ (1, [ 2, 3, 4 ]), (5, [ 6, 7, 8 ]) ]
+      [ 1, 5 ]
       9
 
   let tasks =
@@ -113,12 +113,12 @@ let starterDocuments () : List<Document> =
         (3, "Add your own items")
         (4, "Later")
         (5, "Organise your thoughts") ]
-      [ (1, [ 2; 3 ]); (4, [ 5 ]) ]
-      [ 1; 4 ]
+      [ (1, [ 2, 3 ]), (4, [ 5 ]) ]
+      [ 1, 4 ]
       6
 
   let taskMarks =
-    [ 2; 3; 5 ] |> Stdlib.List.fold tasks (fun acc id -> setMark acc id Mark.Todo)
+    [ 2, 3, 5 ] |> Stdlib.List.fold tasks (fun acc id -> setMark acc id Mark.Todo)
 
   [ Document { id = 1; title = "My Notes"; outline = notes }
     Document { id = 2; title = "Tasks"; outline = taskMarks } ]

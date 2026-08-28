@@ -87,7 +87,7 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
         Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length children) "item")
         "" ]
       contents
-      [ ""; Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
+      [ "", Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
@@ -245,8 +245,8 @@ let itemMeta (state: State) : String =
 /// `d deps` used to lead here. It opened the item's dependencies in the reader, which is the same text
 /// this page already prints under `── references ──`, so it was a keystroke to see what was on screen.
 let itemActions (item: BodyItem) : List<String> =
-  if item.kind == "fn" then [ ""; Stdlib.Cli.UI.Colors.dimText "x traces  ·  e edit  ·  r rename" ]
-  else [ ""; Stdlib.Cli.UI.Colors.dimText "e edit  ·  r rename" ]
+  if item.kind == "fn" then [ "", Stdlib.Cli.UI.Colors.dimText "x traces  ·  e edit  ·  r rename" ]
+  else [ "", Stdlib.Cli.UI.Colors.dimText "e edit  ·  r rename" ]
 
 /// The runs that called the selected fn, for the `x` reader: one row per
 /// trace, newest first, or a line saying nothing has called it yet and how to
@@ -264,14 +264,14 @@ let tracesText (state: State) : String =
     // would show whatever ran. Say the same thing it says.
     let body =
       if Stdlib.List.isEmpty rows then
-        [ Stdlib.Cli.UI.Colors.dimText "  no recorded calls"; Stdlib.Cli.UI.Colors.dimText ("  " ++ (Darklang.Cli.Tracing.emptyStateHint ())) ]
+        [ Stdlib.Cli.UI.Colors.dimText "  no recorded calls", Stdlib.Cli.UI.Colors.dimText ("  " ++ (Darklang.Cli.Tracing.emptyStateHint ())) ]
       else
         rows
     Stdlib.String.join
       (Stdlib.List.flatten
-        [ [ Stdlib.Cli.UI.Colors.boldText ("Traces calling " ++ fullName); "" ]
+        [ [ Stdlib.Cli.UI.Colors.boldText ("Traces calling " ++ fullName), "" ]
           body
-          [ ""; Stdlib.Cli.UI.Colors.dimText "  6 › Traces lists every run" ] ])
+          [ "", Stdlib.Cli.UI.Colors.dimText "  6 › Traces lists every run" ] ])
       "\n"
 
 let inspectPageLines (state: State) : List<String> =
@@ -302,9 +302,9 @@ let inspectPageLines (state: State) : List<String> =
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
         [ src
-          [ ""; Stdlib.Cli.UI.Colors.dimText (itemMeta state) ]
+          [ "", Stdlib.Cli.UI.Colors.dimText (itemMeta state) ]
           (itemActions item)
-          [ ""; Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "── references ──"; "" ]
+          [ "", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "── references ──", "" ]
           refs ]
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its

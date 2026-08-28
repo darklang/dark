@@ -128,7 +128,7 @@ let groupRows (group: (String * List<String>)) : List<String> =
   let (m, leaves) = group
   let count = Stdlib.Int.toString (Stdlib.List.length leaves)
 
-  [ Stdlib.Cli.UI.Colors.dimText $"  {m}  ({count})"; $"    {Stdlib.String.join leaves ", "}" ]
+  [ Stdlib.Cli.UI.Colors.dimText $"  {m}  ({count})", $"    {Stdlib.String.join leaves ", "}" ]
 
 
 /// Grouped names, capped by whole modules: as many groups as fit in `limit` rows, then a footer

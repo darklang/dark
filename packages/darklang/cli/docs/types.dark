@@ -19,7 +19,7 @@ let content () : String =
   Construct: Ok value, Error msg
 
 ## Collections
-  List<T>     [1; 2]
+  List<T>     [1, 2]
   Dict<T>     Dict { key = "value" }
   (a, b)      tuple
 

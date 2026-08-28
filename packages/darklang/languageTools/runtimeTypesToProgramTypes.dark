@@ -30,7 +30,7 @@ let floatParts (f: Float) : Stdlib.Option.Option<(String * String)> =
     Stdlib.Option.Option.None
   else
     match Stdlib.String.split str "." with
-    | [ w; fr ] -> Stdlib.Option.Option.Some((w, fr))
+    | [ w, fr ] -> Stdlib.Option.Option.Some((w, fr))
     | [ w ] -> Stdlib.Option.Option.Some((w, "0"))
     | _ -> Stdlib.Option.Option.None
 

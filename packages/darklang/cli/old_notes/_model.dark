@@ -148,10 +148,10 @@ type Page =
       /// Viewing mode state - None when not in viewing mode
       viewingState: Stdlib.Option.Option<ViewingState>
 
-      //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
+      //accounts: [("stachu", "uhcats"), ("ocean": "oak"), ("paul", "biggar")]
       //currentAccount: "stachu"
 
-      //cloudApps: ["darklang.com"; "stachu.net"; "dark-cli"]
+      //cloudApps: ["darklang.com", "stachu.net", "dark-cli"]
       //httpHandlers: List<HttpHandler>
       //cliApps = []
       //scripts: []

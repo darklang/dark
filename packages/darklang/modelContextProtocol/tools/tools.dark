@@ -57,10 +57,10 @@ module Darklang =
               Stdlib.Option.mapWithDefault annotations.openWorldHint Json.Null (fun b -> Json.Bool b)
 
             Json.Object [
-              ("title", titleJson);
-              ("readOnlyHint", readOnlyHintJson);
-              ("destructiveHint", destructiveHintJson);
-              ("idempotentHint", idempotentHintJson);
+              ("title", titleJson),
+              ("readOnlyHint", readOnlyHintJson),
+              ("destructiveHint", destructiveHintJson),
+              ("idempotentHint", idempotentHintJson),
               ("openWorldHint", openWorldHintJson)
             ]
 
@@ -69,7 +69,7 @@ module Darklang =
             response.tools
             |> Stdlib.List.map (fun tool ->
               let fields = [
-                ("name", Json.String tool.name);
+                ("name", Json.String tool.name),
                 ("inputSchema", tool.inputSchema)
               ]
               
@@ -103,7 +103,7 @@ module Darklang =
             | None -> Json.String ""
 
           Json.Object [
-            ("tools", Json.Array toolsJson);
+            ("tools", Json.Array toolsJson),
             ("nextCursor", nextCursorJson)
           ]
 
@@ -155,30 +155,30 @@ module Darklang =
             |> Stdlib.List.map ( fun item ->
               match item with
               | TextContent text -> 
-                  Json.Object [("type", Json.String "text"); ("text", Json.String text)]
+                  Json.Object [("type", Json.String "text"), ("text", Json.String text)]
               | ImageContent img ->
                   Json.Object [
-                    ("type", Json.String "image"); 
-                    ("data", Json.String img.data);
+                    ("type", Json.String "image"), 
+                    ("data", Json.String img.data),
                     ("mimeType", Json.String img.mimeType)
                   ]
               | AudioContent audio ->
                   Json.Object [
-                    ("type", Json.String "audio"); 
-                    ("data", Json.String audio.data);
+                    ("type", Json.String "audio"), 
+                    ("data", Json.String audio.data),
                     ("mimeType", Json.String audio.mimeType)
                   ]
               | ResourceContent resource ->
                   Json.Object [
-                    ("type", Json.String "resource");
-                    ("uri", Json.String resource.uri);
-                    ("mimeType", Json.String resource.mimeType);
+                    ("type", Json.String "resource"),
+                    ("uri", Json.String resource.uri),
+                    ("mimeType", Json.String resource.mimeType),
                     ("text", Json.String resource.text)
                   ]
             )
 
           Json.Object [
-            ("content", Json.Array contentJson);
+            ("content", Json.Array contentJson),
             ("isError", Json.Bool result.isError)
           ]
 

@@ -70,8 +70,8 @@
   = "cde"
 
 // toList/fromList escape hatches
-((Stdlib.Blob.fromString "abc") |> Stdlib.Blob.toList) = [ 97uy; 98uy; 99uy ]
-((Stdlib.Blob.fromList [ 97uy; 98uy; 99uy ]) |> Stdlib.Blob.length) = 3
+((Stdlib.Blob.fromString "abc") |> Stdlib.Blob.toList) = [ 97uy, 98uy, 99uy ]
+((Stdlib.Blob.fromList [ 97uy, 98uy, 99uy ]) |> Stdlib.Blob.length) = 3
 
 // Blob equality is identity-based: same hash (Persistent) or same
 // UUID (Ephemeral). Two freshly-built ephemerals with the same bytes

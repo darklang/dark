@@ -24,7 +24,7 @@ let toJson (hover: Hover) : Json =
 
   let contentsJson =
     Json.Object
-      [ ("kind", kindJson); ("value", hover.contents.value |> Json.String) ]
+      [ ("kind", kindJson), ("value", hover.contents.value |> Json.String) ]
 
   let fields =
     [ ("contents", contentsJson)

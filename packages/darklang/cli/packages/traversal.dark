@@ -202,7 +202,7 @@ let getAvailableItems
     valueNames
     |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Value name)
 
-  let flatItems = Stdlib.List.flatten [moduleItems; typeItems; fnItems; valueItems]
+  let flatItems = Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems]
   let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
 
   // Primary results: filter by prefix if we have search text

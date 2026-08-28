@@ -15,10 +15,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
   | [ "list" ] -> listDBs state
-  | [ "view"; dbName ] -> viewDB state dbName
-  | [ "get"; dbName; key ] -> getDBValue state dbName key
-  | [ "delete"; dbName; key ] -> deleteDBValue state dbName key
-  | [ "drop"; dbName ] -> dropDB state dbName
+  | [ "view", dbName ] -> viewDB state dbName
+  | [ "get", dbName, key ] -> getDBValue state dbName key
+  | [ "delete", dbName, key ] -> deleteDBValue state dbName key
+  | [ "drop", dbName ] -> dropDB state dbName
   | "set" :: dbName :: key :: valueParts
     when Stdlib.Bool.not (Stdlib.List.isEmpty valueParts) ->
     let valueExpr = Stdlib.String.join valueParts " "
@@ -36,7 +36,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine "Example: db UsersDB MyApp.User"
     state
 
-  | [ dbName; typeName ] ->
+  | [ dbName, typeName ] ->
     createDB state dbName typeName
 
   | _ ->
@@ -370,7 +370,7 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list"; "view"; "get"; "set"; "delete"; "drop"; "query"; "help" ]
+    [ "list", "view", "get", "set", "delete", "drop", "query", "help" ]
     |> Stdlib.List.map Cli.Completion.simple
   | [ "view" ] | [ "get" ] | [ "set" ] | [ "delete" ] | [ "drop" ] | [ "query" ] ->
     (getDBNamesForCompletion state) |> Stdlib.List.map Cli.Completion.simple

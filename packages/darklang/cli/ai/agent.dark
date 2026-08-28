@@ -36,7 +36,7 @@ let parseOptions (args: List<String>) (options: AgentOptions) : AgentOptions =
 
 
 // CONFIGURATION: PROVIDERS
-val validProviders = [ "anthropic"; "openai"; "local" ]
+val validProviders = [ "anthropic", "openai", "local" ]
 
 let resolveProvider (requested: Stdlib.Option.Option<String>) : String =
   match requested with
@@ -102,7 +102,7 @@ val systemPrompt =
 - Whitespace-sensitive (like Python)
 - Nested function definitions need typed params and a return type:
   `let helper (x: Int) : Int = ...`; no mutual recursion
-- Lists use semicolons: [1; 2; 3]
+- Lists use commas: [1, 2, 3]
 - String concat: ++ (not +)
 - Pipe needs parens for complex LHS: (expr) |> fn
 
@@ -129,11 +129,11 @@ val toolDescriptionWriteEnabled =
 
 // CLI TOOL (what the agent calls)
 val readOnlyCommands =
-  [ "run"; "eval"; "nav"; "ls"; "back"; "search"; "view"; "status"; "tree"
-    "deps"; "builtins"; "find-values"; "scripts"; "log"; "clear"; "help"; "docs" ]
+  [ "run", "eval", "nav", "ls", "back", "search", "view", "status", "tree"
+    "deps", "builtins", "find-values", "scripts", "log", "clear", "help", "docs" ]
 
 val writeCommands =
-  [ "fn"; "val"; "type"; "commit"; "discard"; "branch"; "rebase"; "merge" ]
+  [ "fn", "val", "type", "commit", "discard", "branch", "rebase", "merge" ]
 
 let hasUnsafeChars (input: String) : Bool =
   Stdlib.String.contains input ";" || Stdlib.String.contains input "|" ||

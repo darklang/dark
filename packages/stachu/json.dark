@@ -202,5 +202,5 @@ module Stachu =
 // module List =
 //   (Darklang.Stdlib.AltJson.Serialize.list<Bool>
 //     Darklang.Stdlib.AltJson.JsonTokenization.Bool.tokenize
-//     [ true; false; false; true ]) = "[true,false,false,true]"
+//     [ true, false, false, true ]) = "[true,false,false,true]"
 *)

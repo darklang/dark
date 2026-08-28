@@ -130,8 +130,8 @@ let caseNameStandsAlone
       with
       | Some l ->
         let path = Stdlib.List.push l.modules l.owner
-        (path == [ "Darklang"; "Stdlib"; "Option" ] && l.name == "Option")
-        || (path == [ "Darklang"; "Stdlib"; "Result" ] && l.name == "Result")
+        (path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option")
+        || (path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result")
       | None -> false
 
 
@@ -264,7 +264,7 @@ let typeReference
   | TStream inner -> $"Stream<{typeReference branchId inner}>"
 
   | TTuple(first, second, theRest) ->
-    (Stdlib.List.append [ first; second ] theRest)
+    (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
@@ -343,7 +343,7 @@ let knownType
   | KTStream inner -> $"Stream<{valueType branchId inner}>"
 
   | KTTuple(t1, t2, trest) ->
-    (Stdlib.List.append [ t1; t2 ] trest)
+    (Stdlib.List.append [ t1, t2 ] trest)
     |> Stdlib.List.map (fun item -> valueType branchId item)
     |> Stdlib.String.join " * "
     |> fun s -> $"({s})"
@@ -432,8 +432,8 @@ let declaredKnownType
     $"Dict<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
 
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
-    let items = Stdlib.List.append [ t1; t2 ] trest
-    let declaredItems = Stdlib.List.append [ d1; d2 ] drest
+    let items = Stdlib.List.append [ t1, t2 ] trest
+    let declaredItems = Stdlib.List.append [ d1, d2 ] drest
 
     if (Stdlib.List.length items) == (Stdlib.List.length declaredItems) then
       items
@@ -491,7 +491,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   | LPWildcard -> "_"
   | LPUnit -> "()"
   | LPTuple(first, second, theRest) ->
-    let parts = Stdlib.List.append [ first; second ] theRest
+    let parts = Stdlib.List.append [ first, second ] theRest
     let parts = Stdlib.List.map parts (fun p -> letPattern p)
     let parts = Stdlib.String.join parts ", "
     $"({parts})"
@@ -526,7 +526,7 @@ module Dval =
     | DDateTime _ -> "DateTime"
     | DUuid _ -> "Uuid"
     | DTuple(first, second, theRest) ->
-      let types = Stdlib.List.append [ first; second ] theRest
+      let types = Stdlib.List.append [ first, second ] theRest
       types
       |> Stdlib.List.map (fun item -> valueTypeName branchId item)
       |> Stdlib.String.join " * "
@@ -692,7 +692,7 @@ module Dval =
 
     | DTuple(first, second, theRest) ->
       let parts =
-        (Stdlib.List.append [ first; second ] theRest) |> Stdlib.List.map (fun i -> child i)
+        (Stdlib.List.append [ first, second ] theRest) |> Stdlib.List.map (fun i -> child i)
       bracketed "(" ")" parts
 
     | DList(_vt, l) ->

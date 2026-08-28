@@ -183,7 +183,7 @@ let catalogRows (state: State) (width: Int) : List<LogicalRow> =
             appIndex = Stdlib.Option.Option.None
             content = ""
           } ]
-    Stdlib.List.flatten [ daemonRows; separator; foregroundRows ]
+    Stdlib.List.flatten [ daemonRows, separator, foregroundRows ]
 
 let detailRows (state: State) : List<String> =
   if state.showDetail then
@@ -205,7 +205,7 @@ let detailRows (state: State) : List<String> =
             (presentation.recentLogs
              |> Stdlib.List.map (fun line ->
                "    " ++ Stdlib.Cli.UI.Colors.dimText line))
-      Stdlib.List.flatten [ [ ""; summary ]; logs ]
+      Stdlib.List.flatten [ [ "", summary ], logs ]
     | None -> []
   else
     []
@@ -214,7 +214,7 @@ let messageRows (state: State) : List<String> =
   if state.message == "" then
     []
   else
-    [ ""; "  " ++ state.message ]
+    [ "", "  " ++ state.message ]
 
 let legendRow () : String =
   let legend =
@@ -278,7 +278,7 @@ let viewAtSize
           "  ↑↓ move · enter run/start · a add · x remove · i detail · esc exit" ]
     Darklang.Stdlib.Cli.Tui.Layout.fitRows footerHeight desired
   let rows =
-    Stdlib.List.flatten [ titleRows; bodyRows; footerRows ]
+    Stdlib.List.flatten [ titleRows, bodyRows, footerRows ]
     |> Stdlib.List.take contentHeight
     |> Stdlib.List.map (fun row ->
       Darklang.Stdlib.Cli.Tui.Text.clipToWidth row width)

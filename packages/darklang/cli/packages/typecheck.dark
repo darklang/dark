@@ -21,7 +21,7 @@ val usage = "Usage: typecheck [--failed] [--incomplete] [--all]"
 
 val argSpec =
   FlagParser.Spec
-    { flags = [ ("--failed", []); ("--incomplete", []); ("--all", []) ]
+    { flags = [ ("--failed", []), ("--incomplete", []), ("--all", []) ]
       valueFlags = [] }
 
 let parseArgs (args: List<String>) : ParsedArgs =
@@ -42,7 +42,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
       conflictingFilters = showAll && hasSpecificFilter }
 
 let fullPath (location: LanguageTools.ProgramTypes.PackageLocation) : String =
-  [ [ location.owner ]; location.modules; [ location.name ] ]
+  [ [ location.owner ], location.modules, [ location.name ] ]
   |> Stdlib.List.flatten
   |> Stdlib.String.join "."
 

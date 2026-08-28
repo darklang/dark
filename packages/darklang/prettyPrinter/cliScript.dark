@@ -35,7 +35,7 @@ let sourceFileAtWidth
       acc |> Stdlib.List.push prettyPrinted))
     |> Stdlib.List.reverse
 
-  [ declsPart; exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"
+  [ declsPart, exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"
 
 
 /// Print a source file using the standard source width.

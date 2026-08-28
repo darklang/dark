@@ -15,7 +15,7 @@ let g (d: Darklang.Stdlib.Pretty.Doc) : Darklang.Stdlib.Pretty.Doc =
   Darklang.Stdlib.Pretty.group d
 
 let abc () : Darklang.Stdlib.Pretty.Doc =
-  Darklang.Stdlib.Pretty.vsep [ t "a"; t "b"; t "c" ]
+  Darklang.Stdlib.Pretty.vsep [ t "a", t "b", t "c" ]
 
 /// `[a, b, c, d, e]`: a bracketed list that breaks one element per line when it must.
 let bracketed (items: List<String>) : Darklang.Stdlib.Pretty.Doc =
@@ -64,7 +64,7 @@ module Nested =
       (Darklang.Stdlib.Pretty.nest 2
         (Darklang.Stdlib.Pretty.concat
           Darklang.Stdlib.Pretty.line
-          (Darklang.Stdlib.Pretty.vsep [ t "inner1"; t "inner2" ])))
+          (Darklang.Stdlib.Pretty.vsep [ t "inner1", t "inner2" ])))
 
   r 80 (g (doc ())) = "outer inner1 inner2"
   r 10 (g (doc ())) = "outer\n  inner1\n  inner2"
@@ -74,11 +74,11 @@ module Nested =
 // Lists and records: the shapes the value printer actually needs
 // ========================================
 module Structures =
-  r 80 (bracketed [ "a"; "b"; "c"; "d"; "e" ]) = "[a, b, c, d, e]"
-  r 10 (bracketed [ "aaa"; "bbb"; "ccc"; "ddd" ]) = "[aaa,\n  bbb,\n  ccc,\n  ddd]"
+  r 80 (bracketed [ "a", "b", "c", "d", "e" ]) = "[a, b, c, d, e]"
+  r 10 (bracketed [ "aaa", "bbb", "ccc", "ddd" ]) = "[aaa,\n  bbb,\n  ccc,\n  ddd]"
 
   let rec_ () : Darklang.Stdlib.Pretty.Doc =
-    bracketed [ "name: alice"; "age: 30"; "role: admin" ]
+    bracketed [ "name: alice", "age: 30", "role: admin" ]
 
   r 80 (rec_ ()) = "[name: alice, age: 30, role: admin]"
   r 20 (rec_ ()) = "[name: alice,\n  age: 30,\n  role: admin]"
@@ -93,8 +93,8 @@ module Structures =
 module Independence =
   let doc () : Darklang.Stdlib.Pretty.Doc =
     Darklang.Stdlib.Pretty.vsep
-      [ g (Darklang.Stdlib.Pretty.vsep [ t "aa"; t "bb" ])
-        g (Darklang.Stdlib.Pretty.vsep [ t "cc"; t "dd" ]) ]
+      [ g (Darklang.Stdlib.Pretty.vsep [ t "aa", t "bb" ])
+        g (Darklang.Stdlib.Pretty.vsep [ t "cc", t "dd" ]) ]
 
   // Everything fits: one line.
   r 80 (g (doc ())) = "aa bb cc dd"
@@ -122,10 +122,10 @@ module Hard =
 // Joining
 // ========================================
 module Joining =
-  r 80 (Darklang.Stdlib.Pretty.hsep [ t "a"; t "b"; t "c" ]) = "a b c"
+  r 80 (Darklang.Stdlib.Pretty.hsep [ t "a", t "b", t "c" ]) = "a b c"
   r 80 (Darklang.Stdlib.Pretty.hsep []) = ""
   r 80 (Darklang.Stdlib.Pretty.vsep []) = ""
-  r 80 (Darklang.Stdlib.Pretty.join [ t "a"; t "b" ] (t ", ")) = "a, b"
+  r 80 (Darklang.Stdlib.Pretty.join [ t "a", t "b" ] (t ", ")) = "a, b"
   r 80 (Darklang.Stdlib.Pretty.join [ t "only" ] (t ", ")) = "only"
 
 
@@ -143,7 +143,7 @@ module Soft =
           (Darklang.Stdlib.Pretty.concat
             Darklang.Stdlib.Pretty.softLine
             (Darklang.Stdlib.Pretty.join
-              [ t "1"; t "2" ]
+              [ t "1", t "2" ]
               (Darklang.Stdlib.Pretty.concat (t ",") Darklang.Stdlib.Pretty.line))))
         (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.softLine (t "]")))
 
@@ -165,7 +165,7 @@ module Width =
   Stdlib.String.displayWidth "👍" = 2
 
   // Four graphemes, eight columns: fits in 10 by the wrong measure, breaks by the right one.
-  r 10 (g (Darklang.Stdlib.Pretty.vsep [ t "日本"; t "語text" ])) = "日本\n語text"
+  r 10 (g (Darklang.Stdlib.Pretty.vsep [ t "日本", t "語text" ])) = "日本\n語text"
 
 
 // ========================================
@@ -177,7 +177,7 @@ module Width =
 module HardAfter =
   let doc () : Darklang.Stdlib.Pretty.Doc =
     Darklang.Stdlib.Pretty.concat
-      (g (Darklang.Stdlib.Pretty.vsep [ t "a"; t "b" ]))
+      (g (Darklang.Stdlib.Pretty.vsep [ t "a", t "b" ]))
       (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.hardLine (t "next"))
 
   r 80 (doc ()) = "a b\nnext"
@@ -202,7 +202,7 @@ module Styled =
   r 80 (red "ab") = "<<ab>>"
 
   // The same break decision as the undecorated form, at both widths.
-  r 5 (g (Darklang.Stdlib.Pretty.vsep [ red "ab"; red "cd" ])) = "<<ab>> <<cd>>"
-  r 5 (g (Darklang.Stdlib.Pretty.vsep [ t "ab"; t "cd" ])) = "ab cd"
-  r 3 (g (Darklang.Stdlib.Pretty.vsep [ red "ab"; red "cd" ])) = "<<ab>>\n<<cd>>"
-  r 3 (g (Darklang.Stdlib.Pretty.vsep [ t "ab"; t "cd" ])) = "ab\ncd"
+  r 5 (g (Darklang.Stdlib.Pretty.vsep [ red "ab", red "cd" ])) = "<<ab>> <<cd>>"
+  r 5 (g (Darklang.Stdlib.Pretty.vsep [ t "ab", t "cd" ])) = "ab cd"
+  r 3 (g (Darklang.Stdlib.Pretty.vsep [ red "ab", red "cd" ])) = "<<ab>>\n<<cd>>"
+  r 3 (g (Darklang.Stdlib.Pretty.vsep [ t "ab", t "cd" ])) = "ab\ncd"

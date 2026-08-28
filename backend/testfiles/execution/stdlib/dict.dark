@@ -40,10 +40,10 @@ module Filter =
 module FromListOverwritingDuplicates =
   Stdlib.Dict.fromListOverwritingDuplicates [] = (Dict { })
 
-  (Stdlib.Dict.fromListOverwritingDuplicates [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ]) =
+  (Stdlib.Dict.fromListOverwritingDuplicates [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]) =
     (Dict { b = 2L; duplicate_key = 3L })
 
-  Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1L); ("b", 2L); ("c", 3L) ] =
+  Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1L), ("b", 2L), ("c", 3L) ] =
     (Dict { c = 3L; b = 2L; a = 1L })
 
   Stdlib.Dict.fromListOverwritingDuplicates [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
@@ -54,13 +54,13 @@ module FromListOverwritingDuplicates =
 module FromList =
   Stdlib.Dict.fromList [] = Stdlib.Option.Option.Some(Dict { })
 
-  Stdlib.Dict.fromList [ ("a", 1L); ("b", 2L); ("c", 3L) ] =
+  Stdlib.Dict.fromList [ ("a", 1L), ("b", 2L), ("c", 3L) ] =
     Stdlib.Option.Option.Some(Dict { c = 3L; b = 2L; a = 1L })
 
   // CLEANUP this test feels surprising - should it error or something?
-  Stdlib.Dict.fromList [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ] = Stdlib.Option.Option.None
+  Stdlib.Dict.fromList [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ] = Stdlib.Option.Option.None
 
-  Stdlib.Dict.fromList [ ("Content-Length", "0"); ("Server", "dark") ] =
+  Stdlib.Dict.fromList [ ("Content-Length", "0"), ("Server", "dark") ] =
     Stdlib.Option.Option.Some(Dict { ``Content-Length`` = "0"; Server = "dark" })
 
   Stdlib.Dict.fromList [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
@@ -161,7 +161,7 @@ module ToList =
   Stdlib.Dict.toList (Dict { }) = []
 
   Stdlib.Dict.toList (Dict { a = 1L; b = 2L; c = 3L }) =
-    [ ("a", 1L); ("b", 2L); ("c", 3L) ]
+    [ ("a", 1L), ("b", 2L), ("c", 3L) ]
 
 
 

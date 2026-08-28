@@ -10,7 +10,7 @@
 //
 //   ./scripts/run-cli run scripts/perf/workloads/checks/fastopcheck.dark
 
-let d = Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]
+let d = Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ]
 
 let show (label: String) (actual: String) (expected: String) : Unit =
   if actual == expected then
@@ -30,8 +30,8 @@ let _5b = show "dict set new key" (Stdlib.Int.toString (Stdlib.List.length (Stdl
 let _6 = show "int toString" (Stdlib.Int.toString 42) "42"
 let _7 = show "int toString negative" (Stdlib.Int.toString (-7)) "-7"
 let _8 = show "bool not" (if Stdlib.Bool.not true then "y" else "n") "n"
-let _9 = show "list length" (Stdlib.Int.toString (Stdlib.List.length [ 1; 2; 3 ])) "3"
-let _10 = show "list append" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.List.append [ 1; 2 ] [ 3 ]))) "3"
+let _9 = show "list length" (Stdlib.Int.toString (Stdlib.List.length [ 1, 2, 3 ])) "3"
+let _10 = show "list append" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.List.append [ 1, 2 ] [ 3 ]))) "3"
 let _11 = show "string append" ("a" ++ "b") "ab"
 let _12 = show "string equals" (if "x" == "x" then "y" else "n") "y"
 let _13 = show "repeat one char" (Stdlib.String.repeat "-" 3) "---"

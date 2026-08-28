@@ -330,7 +330,7 @@ Stdlib.Option.combine
   [ Stdlib.Option.Option.Some 6L
     Stdlib.Option.Option.Some 5L
     Stdlib.Option.Option.Some 4L
-    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
+    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L, 5L, 4L, 3L ]
 
 Stdlib.Option.combine
   [ Stdlib.Option.Option.Some 6L
@@ -349,13 +349,13 @@ Stdlib.Option.values
   [ Stdlib.Option.Option.Some 6L
     Stdlib.Option.Option.Some 5L
     Stdlib.Option.Option.Some 4L
-    Stdlib.Option.Option.Some 3L ] = [ 6L; 5L; 4L; 3L ]
+    Stdlib.Option.Option.Some 3L ] = [ 6L, 5L, 4L, 3L ]
 
 Stdlib.Option.values
   [ Stdlib.Option.Option.Some 6L
     Stdlib.Option.Option.None
     Stdlib.Option.Option.Some 4L
-    Stdlib.Option.Option.Some 3L ] = [ 6L; 4L; 3L ]
+    Stdlib.Option.Option.Some 3L ] = [ 6L, 4L, 3L ]
 
 Stdlib.Option.values
   [ Stdlib.Option.Option.Some 6L

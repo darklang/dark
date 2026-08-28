@@ -16,7 +16,7 @@
 /// The value is an `Option<String>` - use `Some` for attributes with values,
 /// or `None` for boolean attributes:
 /// ```
-/// Html.input [("type", Some "text"); ("required", None)]
+/// Html.input [("type", Some "text"), ("required", None)]
 /// ```
 ///
 /// ## Whitespace
@@ -195,7 +195,7 @@ let comment (s: String) : Node = stringNode $"<!-- {s} -->"
 
 /// Creates a class attribute from a list of class names.
 ///
-/// Example: `classes ["btn"; "btn-primary"]` produces `("class", Some "btn btn-primary")`
+/// Example: `classes ["btn", "btn-primary"]` produces `("class", Some "btn btn-primary")`
 let classes (classList: List<String>) : (String * Option.Option<String>) =
   ("class", Stdlib.Option.Option.Some(Stdlib.String.join classList " "))
 

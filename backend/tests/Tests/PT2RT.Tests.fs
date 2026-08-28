@@ -97,7 +97,7 @@ module Expr =
 
     let nested =
       t
-        "[[true; false]; [false; true]]"
+        "[[true, false], [false, true]]"
         E.List.nested
         (7,
          [ // first inner list
@@ -116,7 +116,7 @@ module Expr =
 
     let mixed =
       t
-        "[1; true]"
+        "[1, true]"
         E.List.mixed
         (3,
          [ RT.LoadVal(1, RT.DInt64 1L)
@@ -1502,7 +1502,7 @@ module Expr =
       module MyFnThatTakesALambda =
         let myMap =
           t
-            "Test.myMap [1L; 2L] (fun x -> x + 1L)"
+            "Test.myMap [1L, 2L] (fun x -> x + 1L)"
             E.Fns.Package.MyFnThatTakesALambda.fullyApplied
             (6,
              [ RT.LoadVal(1, RT.DInt64 1L)

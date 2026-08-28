@@ -198,7 +198,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         | [] -> ("", [])
       // Commands that take over the terminal (full-screen TUIs). Capturing them just dumps their alt-screen
       // escape codes into the reader; instead hand off so they own the terminal, returning here on exit.
-      let interactiveCmds = [ "outliner"; "tree-exp"; "text-editor"; "review"; "views" ]
+      let interactiveCmds = [ "outliner", "tree-exp", "text-editor", "review", "views" ]
       if (cmd == "commands") || (cmd == "classic") || (cmd == "prompt") then
         // Drop to the old command-prompt mode (its own typeahead + live commands); `quit` there returns here.
         Step.ToPrompt { state with input = Stdlib.Option.Option.None }

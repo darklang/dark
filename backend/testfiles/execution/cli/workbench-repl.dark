@@ -5,7 +5,7 @@
 // --- what binds ---
 Darklang.Cli.Repl.parseLetBinding "let x = 1" = Stdlib.Option.Option.Some(("x", "1"))
 
-Darklang.Cli.Repl.parseLetBinding "  let  ys  =  [ 1; 2 ]  " = Stdlib.Option.Option.Some(("ys", "[ 1; 2 ]"))
+Darklang.Cli.Repl.parseLetBinding "  let  ys  =  [ 1, 2 ]  " = Stdlib.Option.Option.Some(("ys", "[ 1, 2 ]"))
 
 Darklang.Cli.Repl.parseLetBinding "let _priv = 3" = Stdlib.Option.Option.Some(("_priv", "3"))
 
@@ -30,7 +30,7 @@ Darklang.Cli.Repl.parseLetBinding "let 2x = 3" = Stdlib.Option.Option.None
 // --- when ⏎ moves down a line instead of running ---
 Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x" = 1
 Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x)" = 0
-Darklang.Cli.Repl.openBracketDepth "[ 1; [ 2 ]" = 1
+Darklang.Cli.Repl.openBracketDepth "[ 1, [ 2 ]" = 1
 Darklang.Cli.Repl.openBracketDepth "1 + 1" = 0
 
 // Brackets inside a string literal aren't brackets.
@@ -77,10 +77,10 @@ Darklang.Cli.Repl.withBindings [] "x + 1" = "x + 1"
   [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; value = "1"; captured = true }
     Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
   (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; value = "99"; captured = true })
- |> Stdlib.List.map (fun b -> b.name ++ "=" ++ b.source)) = [ "x=99"; "y=x + 1" ]
+ |> Stdlib.List.map (fun b -> b.name ++ "=" ++ b.source)) = [ "x=99", "y=x + 1" ]
 
 // --- reading `captureValue` back ---
-Darklang.Cli.Repl.readCaptured "ok:[1L; 2L]" = Stdlib.Option.Option.Some "[1L; 2L]"
+Darklang.Cli.Repl.readCaptured "ok:[1L, 2L]" = Stdlib.Option.Option.Some "[1L, 2L]"
 
 // anything that isn't `ok:` means "hold the expression instead"
 Darklang.Cli.Repl.readCaptured "err:no literal form" = Stdlib.Option.Option.None

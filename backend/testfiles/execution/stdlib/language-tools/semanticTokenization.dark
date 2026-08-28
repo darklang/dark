@@ -349,7 +349,7 @@ module TokenizeValueDeclaration =
       (TokenType.Symbol, (0, 15), (0, 16))
       (TokenType.Number, (0, 17), (0, 20)) ]
 
-  ("val listValue = [1L; 2L; 3L]" |> tokenize) =
+  ("val listValue = [1L, 2L, 3L]" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 3))
       (TokenType.VariableName, (0, 4), (0, 13))
       (TokenType.Symbol, (0, 14), (0, 15))
@@ -486,7 +486,7 @@ module TokenizeExpression =
       (TokenType.Symbol, (0, 26), (0, 27)) ]
 
 
-  ("[true; false; true]" |> tokenize) =
+  ("[true, false, true]" |> tokenize) =
     [ (TokenType.Symbol, (0, 0), (0, 1))
       (TokenType.Keyword, (0, 1), (0, 5))
       (TokenType.Keyword, (0, 7), (0, 12))
@@ -776,7 +776,7 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (1, 6), (1, 8))
       (TokenType.Keyword, (1, 9), (1, 13)) ]
 
-  ("match [true; false] with\n| [true; false] -> true" |> tokenize) =
+  ("match [true, false] with\n| [true, false] -> true" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 5))
       (TokenType.Symbol, (0, 6), (0, 7))
       (TokenType.Keyword, (0, 7), (0, 11))
@@ -791,7 +791,7 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (1, 16), (1, 18))
       (TokenType.Keyword, (1, 19), (1, 23)) ]
 
-  ("match [1L; 2L] with\n| head :: tail -> true" |> tokenize) =
+  ("match [1L, 2L] with\n| head :: tail -> true" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 5))
       (TokenType.Symbol, (0, 6), (0, 7))
       (TokenType.Number, (0, 7), (0, 8))

@@ -192,7 +192,7 @@ let insertIdAfter (ids: List<Int>) (afterId: Int) (newId: Int) : List<Int> =
     ids
     |> Stdlib.List.fold [] (fun acc id ->
       if id == afterId then
-        Stdlib.List.append acc [ id; newId ]
+        Stdlib.List.append acc [ id, newId ]
       else
         Stdlib.List.append acc [ id ])
   else

@@ -197,5 +197,5 @@ let rowsAtSize
       headerLine
       hr cols ]
     threadLines
-    [ hr cols; ""; summary; ""; hints; "" ]
+    [ hr cols, "", summary, "", hints, "" ]
   ]

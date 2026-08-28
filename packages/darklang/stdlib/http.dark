@@ -299,7 +299,7 @@ type Cookie =
 //   if
 //     not (
 //       Stdlib.List.contains
-//         [ "strict"; "lax"; "none" ]
+//         [ "strict", "lax", "none" ]
 //         (Stdlib.String.toLowercase cookie.sameSite)
 //     )
 //   then

@@ -46,7 +46,7 @@ let applyFile
   (loc: LanguageTools.ProgramTypes.PackageLocation)
   (path: String)
   : AppState =
-  Packages.ModuleCommand.execute state [ moduleArgFor loc; path ]
+  Packages.ModuleCommand.execute state [ moduleArgFor loc, path ]
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -55,7 +55,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let named =
     match args with
     | [ name ] -> Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.None))
-    | [ name; file ] ->
+    | [ name, file ] ->
       Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.Some file))
     | _ -> Stdlib.Result.Result.Error "usage: dark edit <name> [file]"
 

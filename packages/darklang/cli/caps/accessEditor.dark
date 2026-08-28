@@ -19,7 +19,7 @@ type EditResult =
   | Finished of String
   | Cancelled
 
-val accesses = [ "read"; "write"; "read+write" ]
+val accesses = [ "read", "write", "read+write" ]
 
 let forDomain (domain: String) : State =
   State

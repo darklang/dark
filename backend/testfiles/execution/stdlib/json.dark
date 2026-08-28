@@ -43,7 +43,7 @@ module Bool =
   Stdlib.Json.parse<Bool> " false " = Result.Ok false
 
   Stdlib.Json.parse<List<Bool>> "[true, true, false, true  ] " =
-    Result.Ok [ true; true; false; true ]
+    Result.Ok [ true, true, false, true ]
 
   module Errors =
     (Stdlib.Json.parse<Bool> "tru") |> err =
@@ -931,17 +931,17 @@ module List =
   Stdlib.Json.serialize<List<Int64>> [] = "[]"
   Stdlib.Json.parse<List<Int64>> "[]" = Result.Ok []
 
-  Stdlib.Json.serialize<List<Int64>> [ 1L; 2L; 3L ] = "[1,2,3]"
+  Stdlib.Json.serialize<List<Int64>> [ 1L, 2L, 3L ] = "[1,2,3]"
 
-  Stdlib.Json.parse<List<Int64>> "[1,2,3]" = Result.Ok [ 1L; 2L; 3L ]
+  Stdlib.Json.parse<List<Int64>> "[1,2,3]" = Result.Ok [ 1L, 2L, 3L ]
 
   (Stdlib.Json.parse<List<Int64>> "[1,2,3,]") |> err = Result.Error "Not JSON"
 
   Stdlib.Json.serialize<List<List<List<Int64>>>>
-    [ [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]; [ [ 7L; 8L ]; [ 9L; 0L ] ] ] = "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
+    [ [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ], [ [ 7L, 8L ], [ 9L, 0L ] ] ] = "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
 
   Stdlib.Json.parse<List<List<List<Int64>>>> "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]" = Result.Ok
-    [ [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]; [ [ 7L; 8L ]; [ 9L; 0L ] ] ]
+    [ [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ], [ [ 7L, 8L ], [ 9L, 0L ] ] ]
 
   Stdlib.Json.parse<List<Dict<String>>>
     """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Result.Ok
@@ -1000,13 +1000,13 @@ module Tuples =
 
 
   Stdlib.Json.serialize<List<Int64> * List<Person>> (
-    [ 1L; 2L; 3L ],
+    [ 1L, 2L, 3L ],
     [ Person { Name = "Alice"; Age = 42L } ]
   ) = "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]"
 
   Stdlib.Json.parse<List<Int64> * List<Person>>
     "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]" = Result.Ok(
-    ([ 1L; 2L; 3L ], [ Person { Name = "Alice"; Age = 42L } ])
+    ([ 1L, 2L, 3L ], [ Person { Name = "Alice"; Age = 42L } ])
   )
 
 
@@ -1024,14 +1024,14 @@ module Tuples =
 
   Stdlib.Json.serialize<(List<Int64 * String> * List<UInt8>) *
   (Person * Dict<String>)> (
-    ([ (1L, "two"); (3L, "four") ], []),
+    ([ (1L, "two"), (3L, "four") ], []),
     (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b")
   ) = "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
   Stdlib.Json.parse<(List<Int64 * String> * List<UInt8>) * (Person * Dict<String>)>
     "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
     .Ok(
-      (([ (1L, "two"); (3L, "four") ], []),
+      (([ (1L, "two"), (3L, "four") ], []),
        (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b"))
     )
 
@@ -1135,7 +1135,7 @@ module Result =
   ) = "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
   Stdlib.Json.parse<Result<List<Dict<String> * Option<Int64>>, String>>"{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" =
-    Result.Ok(Result.Ok [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L); (Stdlib.Dict.singleton "c" "d", Option.None) ])
+    Result.Ok(Result.Ok [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L), (Stdlib.Dict.singleton "c" "d", Option.None) ])
 
   Stdlib.Json.serialize<Result<Result<Int64, String>, String>> (
     Result.Ok(Result.Ok 1L)

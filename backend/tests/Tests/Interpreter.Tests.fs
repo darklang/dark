@@ -61,13 +61,13 @@ module Basic =
 module List =
   let simple =
     t
-      "[true; false; true]"
+      "[true, false, true]"
       E.List.simple
       (RT.DList(VT.bool, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
 
   let nested =
     t
-      "[[true; false]; [false; true]]"
+      "[[true, false], [false, true]]"
       E.List.nested
       (RT.DList(
         VT.list VT.bool,
@@ -77,7 +77,7 @@ module List =
 
   let mixed =
     tFail
-      "[1; true]"
+      "[1, true]"
       E.List.mixed
       (RTE.Lists.TriedToAddMismatchedData(1, VT.int64, VT.bool, RT.DBool true)
        |> RTE.List)

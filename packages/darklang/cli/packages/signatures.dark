@@ -157,7 +157,7 @@ type ParsedArgs =
 val argSpec =
   FlagParser.Spec
     { flags =
-        [ ("--types", []); ("--include-deprecated", []); ("--all", []) ]
+        [ ("--types", []), ("--include-deprecated", []), ("--all", []) ]
       valueFlags = [ ("--module", []) ] }
 
 
@@ -167,7 +167,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
   let root =
     match FlagParser.getOption p "--module" with
     | Some path -> Stdlib.String.split path "."
-    | None -> [ "Darklang"; "Stdlib" ]
+    | None -> [ "Darklang", "Stdlib" ]
 
   ParsedArgs
     { root = root
@@ -277,7 +277,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // than dumping every stdlib signature by default.
   let isDefaultRoot =
     match parsed.root with
-    | [ "Darklang"; "Stdlib" ] -> true
+    | [ "Darklang", "Stdlib" ] -> true
     | _ -> false
 
   let isUnscoped =
@@ -334,7 +334,7 @@ let complete
   match Stdlib.List.last args with
   | Some last ->
     if Stdlib.String.startsWith last "--" then
-      [ "--types"; "--module"; "--include-deprecated" ]
+      [ "--types", "--module", "--include-deprecated" ]
       |> Stdlib.List.filter (fun f -> Stdlib.String.startsWith f last)
       |> Stdlib.List.map Cli.Completion.simple
     else []

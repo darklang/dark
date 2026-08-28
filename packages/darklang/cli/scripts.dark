@@ -56,7 +56,7 @@ let add (name: String) (text: String) : Stdlib.Result.Result<Script, String> =
       Stdlib.Sqlite.execP
         (scriptsDb ())
         "INSERT INTO scripts_v0 (id, name, text) VALUES (@p0, @p1, @p2)"
-        [ id; name; text ]
+        [ id, name, text ]
     with
     | Ok _ -> Stdlib.Result.Result.Ok(Script { id = id; name = name; text = text })
     | Error e -> Stdlib.Result.Result.Error $"Failed to add script: {e}"
@@ -70,7 +70,7 @@ let update (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
     Stdlib.Sqlite.execP
       (scriptsDb ())
       "UPDATE scripts_v0 SET text = @p0 WHERE name = @p1"
-      [ text; name ]
+      [ text, name ]
   with
   | Ok 0 -> Stdlib.Result.Result.Error $"Script '{name}' not found"
   | Ok _ -> Stdlib.Result.Result.Ok()
@@ -117,7 +117,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine $"Scripts:\n{output}"
       state
 
-  | ["view"; name] ->
+  | ["view", name] ->
     match get name with
     | Some script ->
       let output = $"Script: {script.name}\n\n{script.text}"
@@ -136,7 +136,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     ] |> Stdlib.printLines
     state
 
-  | ["add"; _] ->
+  | ["add", _] ->
     [
       "Error: Missing script text"
       "Usage: scripts add <name> <text>"
@@ -155,7 +155,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine $"Error: {err}"
       state
 
-  | ["edit"; name] ->
+  | ["edit", name] ->
     match get name with
     | Some script ->
       [
@@ -180,7 +180,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine $"Error: {err}"
       state
 
-  | ["delete"; name] ->
+  | ["delete", name] ->
     match delete name with
     | Ok () ->
       let message = $"Script '{name}' deleted successfully"
@@ -190,7 +190,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine $"Error: {err}"
       state
 
-  | ["run"; name] ->
+  | ["run", name] ->
     match get name with
     | Some script ->
       let result =
@@ -225,7 +225,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   match args with
   // Recommend subcommands
   | [] ->
-    ["list"; "view"; "add"; "edit"; "delete"; "run"]
+    ["list", "view", "add", "edit", "delete", "run"]
     |> Stdlib.List.map Completion.simple
   // Referencing a specific script - recommend names
   | ["view"] | ["edit"] | ["delete"] | ["run"] ->

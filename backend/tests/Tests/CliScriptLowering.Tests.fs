@@ -193,7 +193,7 @@ let private testMiddleStatementErrorStopsTheScript =
       "let boom (xs: List<Int>) : Unit =\n"
       + "  match xs with\n"
       + "  | [] -> ()\n"
-      + "boom [ 1; 2 ]\n"
+      + "boom [ 1, 2 ]\n"
       + "0\n"
 
     let! mod' = parse code

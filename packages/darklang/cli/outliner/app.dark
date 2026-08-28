@@ -162,9 +162,9 @@ let complete
     Darklang.Cli.Completion.CompletionItem { value = value; display = value }
 
   match args with
-  | [] -> [ "ls"; "show"; "add"; "export"; "import" ] |> Stdlib.List.map item
+  | [] -> [ "ls", "show", "add", "export", "import" ] |> Stdlib.List.map item
   | [ word ] ->
-    [ "ls"; "show"; "add"; "export"; "import" ]
+    [ "ls", "show", "add", "export", "import" ]
     |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c word)
     |> Stdlib.List.map item
   | verb :: _ ->

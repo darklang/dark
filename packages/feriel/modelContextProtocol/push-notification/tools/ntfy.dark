@@ -26,7 +26,7 @@ let ntfyTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
     handler = fun input ->
       let parts = Darklang.Stdlib.String.split input "|"
       match parts with
-      | [ topic; message ] -> sendNotification topic message ""
-      | [ topic; message; title ] -> sendNotification topic message title
+      | [ topic, message ] -> sendNotification topic message ""
+      | [ topic, message, title ] -> sendNotification topic message title
       | _ -> "Invalid input format. Use: topic|message or topic|message|title"
   }

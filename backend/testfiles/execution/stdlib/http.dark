@@ -82,7 +82,7 @@ Stdlib.Http.responseWithJson "test" 200 =
 // parseQueryString: ports the old _middleware.dark fixture.
 module ParseQueryString =
   Stdlib.Http.parseQueryString "https://darklang.com?x=6&x=7&myString=todo" =
-    Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "7"); ("myString", "todo") ]
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "7"), ("myString", "todo") ]
 
   // No query string → empty dict.
   Stdlib.Http.parseQueryString "https://darklang.com" = Stdlib.Dict.empty
@@ -100,7 +100,7 @@ module ParseQueryString =
 
   // Keys and values are both decoded.
   Stdlib.Http.parseQueryString "https://x?q=List+map&n=A%2FB" =
-    Stdlib.Dict.fromListOverwritingDuplicates [ ("q", "List map"); ("n", "A/B") ]
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("q", "List map"), ("n", "A/B") ]
 
 
 module UrlDecode =
@@ -137,7 +137,7 @@ module QueryParams =
   (Stdlib.Http.Request.queryParams (
     Stdlib.Http.Request
       { url = "/s?q=List+map&n=A%2FB"; headers = []; body = Stdlib.Blob.empty })) =
-    [ ("q", "List map"); ("n", "A/B") ]
+    [ ("q", "List map"), ("n", "A/B") ]
 
   // A field splits at its FIRST `=` only, so a value may hold one: base64 padding and a nested
   // query string both do.
@@ -172,7 +172,7 @@ module RequestHeader =
   (Stdlib.Http.Request.header
     (Stdlib.Http.Request
       { url = "/"
-        headers = [ ("Accept", "one"); ("accept", "two") ]
+        headers = [ ("Accept", "one"), ("accept", "two") ]
         body = Stdlib.Blob.empty })
     "Accept") = Stdlib.Option.Option.Some "one"
 
@@ -183,7 +183,7 @@ module ParseHeaders =
   // Multi-line, CRLF-tolerant.
   Stdlib.Http.parseHeaders "Content-Type: text/plain\r\nContent-Length: 42" =
     Stdlib.Dict.fromListOverwritingDuplicates
-      [ ("Content-Type", "text/plain"); ("Content-Length", "42") ]
+      [ ("Content-Type", "text/plain"), ("Content-Length", "42") ]
 
   // `:` inside the value is preserved.
   Stdlib.Http.parseHeaders "X-Url: https://x?a=b" =

@@ -64,12 +64,12 @@ let namesToTry
     | ("Stdlib" :: _, _) ->
       [ { given with
             modules = Stdlib.List.append [ "Darklang" ] given.modules } ]
-    | ([], "Result") -> [ { given with modules = [ "Darklang"; "Stdlib"; "Result" ] } ]
+    | ([], "Result") -> [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
     | ([ "Result" ], "Result") ->
-      [ { given with modules = [ "Darklang"; "Stdlib"; "Result" ] } ]
-    | ([], "Option") -> [ { given with modules = [ "Darklang"; "Stdlib"; "Option" ] } ]
+      [ { given with modules = [ "Darklang", "Stdlib", "Result" ] } ]
+    | ([], "Option") -> [ { given with modules = [ "Darklang", "Stdlib", "Option" ] } ]
     | ([ "Option" ], "Option") ->
-      [ { given with modules = [ "Darklang"; "Stdlib"; "Option" ] } ]
+      [ { given with modules = [ "Darklang", "Stdlib", "Option" ] } ]
     | _ -> []
 
   let currentModule = Stdlib.List.append [ owner ] currentModule
@@ -125,7 +125,7 @@ let resolveGenericName
       // resolve on the tooling path
       let (name, version) =
         match Stdlib.String.split name "_v" with
-        | [ bare; v ] ->
+        | [ bare, v ] ->
           match Stdlib.Int32.parse v with
           | Ok n when n >= 0l -> (bare, n)
           | _ -> (name, 0l)

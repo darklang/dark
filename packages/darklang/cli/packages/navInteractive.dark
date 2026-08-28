@@ -163,7 +163,7 @@ let buildNavItemsFromResults
     |> Stdlib.List.map (fun fn ->
       NavItem { name = fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
 
-  Stdlib.List.flatten [ submodules; types; values; functions ]
+  Stdlib.List.flatten [ submodules, types, values, functions ]
 
 
 // Create interactive navigation state for a location
@@ -251,7 +251,7 @@ let loadFocusRows
       else
         []
 
-    Stdlib.List.flatten [ [ locationStr ]; submoduleRows; typeRows ]
+    Stdlib.List.flatten [ [ locationStr ], submoduleRows, typeRows ]
   | _ ->
     // Individual entities are typically small enough to show in full.
     View.entityRows branchId location
@@ -739,7 +739,7 @@ let navigateToParent
 
 // Helper for building full paths in search results
 let buildFullPath (owner: String) (modules: List<String>) (name: String) : String =
-  [ [ owner ]; modules; [ name ] ]
+  [ [ owner ], modules, [ name ] ]
   |> Stdlib.List.flatten
   |> Stdlib.String.join "."
 
@@ -787,7 +787,7 @@ let performSearch (navState: State) : State =
       |> Stdlib.List.map (fun fn ->
         NavItem { name = buildFullPath fn.location.owner fn.location.modules fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
 
-    let searchItems = Stdlib.List.flatten [ moduleItems; typeItems; valueItems; fnItems ]
+    let searchItems = Stdlib.List.flatten [ moduleItems, typeItems, valueItems, fnItems ]
 
     { navState with
         items = searchItems

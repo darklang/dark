@@ -82,10 +82,10 @@ Stdlib.Html.escapeHtml "\"quoted\"" = "&quot;quoted&quot;"
 |> nodeToString = "<div>User said: &lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;</div>"
 
 // -- testing attribute helpers
-Stdlib.Html.classes [ "btn"; "btn-primary" ] =
+Stdlib.Html.classes [ "btn", "btn-primary" ] =
   ("class", Stdlib.Option.Option.Some "btn btn-primary")
 
-Stdlib.Html.style [ ("color", "red"); ("font-size", "14px") ] =
+Stdlib.Html.style [ ("color", "red"), ("font-size", "14px") ] =
   ("style", Stdlib.Option.Option.Some "color: red; font-size: 14px")
 
 Stdlib.Html.dataAttr "user-id" "123" =
@@ -93,14 +93,14 @@ Stdlib.Html.dataAttr "user-id" "123" =
 
 // Using attribute helpers with tags
 (Stdlib.Html.div
-  [ Stdlib.Html.classes [ "container"; "mx-auto" ]
+  [ Stdlib.Html.classes [ "container", "mx-auto" ]
     Stdlib.Html.dataAttr "testid" "main-container" ]
   [ stringNode "content" ])
 |> nodeToString =
   "<div class=\"container mx-auto\" data-testid=\"main-container\">content</div>"
 
 (Stdlib.Html.span
-  [ Stdlib.Html.style [ ("color", "blue"); ("font-weight", "bold") ] ]
+  [ Stdlib.Html.style [ ("color", "blue"), ("font-weight", "bold") ] ]
   [ stringNode "styled text" ])
 |> nodeToString = "<span style=\"color: blue; font-weight: bold\">styled text</span>"
 

@@ -407,8 +407,8 @@ module RuntimeError =
     | Unwrap err ->
       match err with
       | GotNone -> [ ES.String "Cannot unwrap None" ]
-      | GotError err -> [ ES.String "Cannot unwrap Error: "; ES.FullValue err ]
-      | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got "; ES.FullValue actual ]
+      | GotError err -> [ ES.String "Cannot unwrap Error: ", ES.FullValue err ]
+      | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got ", ES.FullValue actual ]
       | MultipleArgs args ->
         [ ES.String "Unwrap expects a single argument, but got "
           ES.Int(Stdlib.List.length args) ]
@@ -518,7 +518,7 @@ module RuntimeError =
           Stdlib.List.append [ ES.String "\nMetadata:" ] metadataStrings
 
       Stdlib.List.append
-        [ ES.String "Uncaught exception: "; ES.String msg ]
+        [ ES.String "Uncaught exception: ", ES.String msg ]
         withMetadata
 
     // CLEANUP when we bring lambda->sql compilation back

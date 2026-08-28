@@ -48,9 +48,9 @@ let optionOrResultTypeName
   : Stdlib.Option.Option<List<String>> =
   match caseName with
   | "Some"
-  | "None" -> Stdlib.Option.Option.Some [ "Stdlib"; "Option"; "Option" ]
+  | "None" -> Stdlib.Option.Option.Some [ "Stdlib", "Option", "Option" ]
   | "Ok"
-  | "Error" -> Stdlib.Option.Option.Some [ "Stdlib"; "Result"; "Result" ]
+  | "Error" -> Stdlib.Option.Option.Some [ "Stdlib", "Result", "Result" ]
   | _ -> Stdlib.Option.Option.None
 
 
@@ -217,7 +217,7 @@ module TypeReference =
           |> Stdlib.List.unzip
 
         let unresolvedNames =
-          [ firstUnresolvedNames; secondUnresolvedNames; (restUresolvedNames |> Stdlib.List.flatten) ]
+          [ firstUnresolvedNames, secondUnresolvedNames, (restUresolvedNames |> Stdlib.List.flatten) ]
           |> Stdlib.List.flatten
 
         (ProgramTypes.TypeReference.TTuple(first, second, theRest),
@@ -235,7 +235,7 @@ module TypeReference =
 
         let unresolvedNames =
           Stdlib.List.flatten
-            [ argsUnresolvedNames |> Stdlib.List.flatten; retUnresolvedNames ]
+            [ argsUnresolvedNames |> Stdlib.List.flatten, retUnresolvedNames ]
 
         (ProgramTypes.TypeReference.TFn(args, returnType), unresolvedNames)
 
@@ -366,7 +366,7 @@ module Expr =
           rest
           |> Stdlib.List.map (fun (_, p) -> bindings p)
           |> Stdlib.List.flatten
-        Stdlib.List.flatten [ bindings first; bindings second; restBindings ]
+        Stdlib.List.flatten [ bindings first, bindings second, restBindings ]
       | MPEnum(_, _, fields) ->
         fields |> Stdlib.List.map bindings |> Stdlib.List.flatten
       | MPOr(_, patterns) ->
@@ -725,7 +725,7 @@ module Expr =
 
       let unresolvedNames =
         Stdlib.List.flatten
-          [ recUnresolvedNames; updUnresolvedNames |> Stdlib.List.flatten ]
+          [ recUnresolvedNames, updUnresolvedNames |> Stdlib.List.flatten ]
 
       (ProgramTypes.Expr.ERecordUpdate(gid (), record, updates),
         unresolvedNames)
@@ -796,7 +796,7 @@ module Expr =
         toPT ctx bodyContext body
 
       let unresolvedNames =
-        Stdlib.List.flatten [ rhsUnresolvedNames; bodyUnresolvedNames ]
+        Stdlib.List.flatten [ rhsUnresolvedNames, bodyUnresolvedNames ]
 
       (ProgramTypes.Expr.ELet(gid (), ptPattern, rhs, body),
         unresolvedNames)
@@ -856,7 +856,7 @@ module Expr =
 
       let unresolvedNames =
         Stdlib.List.flatten
-          [ condUnresolvedNames; thenUnresolvedNames; elseUnresolvedNames ]
+          [ condUnresolvedNames, thenUnresolvedNames, elseUnresolvedNames ]
 
       (ProgramTypes.Expr.EIf(gid (), cond, thenExpr, elseExpr), unresolvedNames)
 
@@ -906,7 +906,7 @@ module Expr =
             toPT ctx armContext case.rhs
 
           let matchCasesUnresolvedNames =
-            Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
+            Stdlib.List.flatten [ whenUnresolvedNames, rhsUnresolvedNames ]
 
           (ProgramTypes.MatchCase
             { pat = pat
@@ -920,7 +920,7 @@ module Expr =
 
       let unresolvedNames =
         Stdlib.List.flatten
-          [ casesUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
+          [ casesUnresolvedNames |> Stdlib.List.flatten, exprUnresolvedNames ]
 
       (ProgramTypes.Expr.EMatch(gid (), expr, cases), unresolvedNames)
 
@@ -936,7 +936,7 @@ module Expr =
 
       let unresolvedNames =
         Stdlib.List.flatten
-          [ pExprUnresolvedNames |> Stdlib.List.flatten; exprUnresolvedNames ]
+          [ pExprUnresolvedNames |> Stdlib.List.flatten, exprUnresolvedNames ]
 
       (ProgramTypes.Expr.EPipe(gid (), expr, pipeExpr), unresolvedNames)
 
@@ -951,7 +951,7 @@ module Expr =
         toPT ctx context right
 
       let unresolvedNames =
-        Stdlib.List.flatten [ lefstUnresolvedNames; rightUnresolvedNames ]
+        Stdlib.List.flatten [ lefstUnresolvedNames, rightUnresolvedNames ]
 
       (ProgramTypes.Expr.EInfix(gid (), infix, left, right), unresolvedNames)
 
@@ -1115,7 +1115,7 @@ module Expr =
       let (next, nextUnresolvedNames) = toPT ctx context next
 
       let unresolvedNames =
-        Stdlib.List.flatten [ firstUnresolvedNames; nextUnresolvedNames ]
+        Stdlib.List.flatten [ firstUnresolvedNames, nextUnresolvedNames ]
 
       (ProgramTypes.Expr.EStatement(gid (), first, next), unresolvedNames)
 

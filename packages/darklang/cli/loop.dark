@@ -118,7 +118,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // Handle tab completion
       let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
-      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int.toString (Stdlib.List.length completions)), ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -372,7 +372,7 @@ let runInteractiveLoop (state: AppState) : Int =
           prevPartial
           prevItems
     if state.telemetryEnabled then
-      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached); ("contextCached", Stdlib.Bool.toString contextCached)]
+      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)), ("cached", Stdlib.Bool.toString hintCached), ("contextCached", Stdlib.Bool.toString contextCached)]
 
     // Display current page
     let tRender = if state.telemetryEnabled then Telemetry.now () else 0
@@ -478,10 +478,10 @@ let runInteractiveLoop (state: AppState) : Int =
 
       if renderedState.telemetryEnabled then
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
-        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar); ("repeats", Stdlib.Int.toString times)]
+        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar), ("repeats", Stdlib.Int.toString times)]
         let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
         let interpStats = LanguageTools.InterpreterStats.get ()
-        Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
+        Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs), ("interp", interpStats)]
 
       runInteractiveLoop {
         newState with

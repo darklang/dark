@@ -70,7 +70,7 @@ $EDITOR instead, which is the shape for a human, not for you.
 
 - `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
 - Never write `PACKAGE.` in source or search; it is internal notation.
-- Lists use semicolons: `[1; 2]`; chars use single quotes: `'a'`.
+- Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
 - `|>` passes its left value as the first argument. Parenthesize a complex left side.
 - Strings concatenate with `++`. Interpolation does not coerce non-strings.
 - Bare integers are arbitrary-precision `Int`; numeric operands must have one type.

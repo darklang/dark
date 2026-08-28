@@ -25,7 +25,7 @@ let deviceConfigText () : String =
         let (k, v) = pair
         "  " ++ k ++ "  =  " ++ v)
   Stdlib.List.flatten
-    [ [ "Configuration  (rundir/cli-config.json)"; "" ]
+    [ [ "Configuration  (rundir/cli-config.json)", "" ]
       rows
       [ ""
         "Change a value with the command bar:"
@@ -117,10 +117,10 @@ let renderCrons (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdl
 // (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
 // view's detail pane, which is mock-labeled, until those handlers exist.
 let errorHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("f", "filter") ]
+  [ ("↑↓", "move"), ("f", "filter") ]
 
 let cronHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("f", "filter") ]
+  [ ("↑↓", "move"), ("f", "filter") ]
 
 let calendarHints (state: State) : List<(String * String)> =
   []
@@ -129,7 +129,7 @@ let renderBuiltins (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   splitListPreview state region "Builtins" "Signature" (Stdlib.Cli.UI.Colors.dimText "(no builtins)")
 
 let builtinHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("f", "filter") ]
+  [ ("↑↓", "move"), ("f", "filter") ]
 
 /// The internal-tier Builtins view - every F# builtin (real data, not mock), for the Darklang-internal
 /// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the

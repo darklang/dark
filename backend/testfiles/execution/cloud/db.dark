@@ -238,7 +238,7 @@ module AddToTestEnumDBs =
 
   (let test1 = Stdlib.DB.set MyEnum.A "test1" TestEnumDB2
    let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
-   (Stdlib.DB.getAll TestEnumDB2) |> Stdlib.List.sort) = [ MyEnum.A; MyEnum.B ]
+   (Stdlib.DB.getAll TestEnumDB2) |> Stdlib.List.sort) = [ MyEnum.A, MyEnum.B ]
 
   (let test1 = Stdlib.DB.set MyEnum.C "test1" TestEnumDB2
    let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
@@ -333,7 +333,7 @@ module Roundtrip =
         negInfinity = Builtin.testNegativeInfinity
         ``true`` = true
         ``false`` = false
-        list = [ 1L; 2L; 3L ]
+        list = [ 1L, 2L, 3L ]
         char = 'c'
         resultOk = Stdlib.Result.Result.Ok 5L
         resultError = Stdlib.Result.Result.Error "test"
@@ -368,7 +368,7 @@ module Roundtrip =
         negInfinity = -385.33
         ``true`` = false
         ``false`` = true
-        list = [ 1L; 3L; 45L ]
+        list = [ 1L, 3L, 45L ]
         char = 'd'
         resultOk = Stdlib.Result.Result.Ok 6L
         resultError = Stdlib.Result.Result.Error "other test"
@@ -477,7 +477,7 @@ module GetAll =
 module GetAllKeys =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   (Stdlib.DB.keys XDB) |> Stdlib.List.sort) = [ "one"; "two" ]
+   (Stdlib.DB.keys XDB) |> Stdlib.List.sort) = [ "one", "two" ]
 
 
 module GetAllWithKeys =
@@ -490,7 +490,7 @@ module GetAllWithKeys =
 module GetManyWithKeys =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getManyWithKeys [ "one"; "two" ] XDB) =
+   Stdlib.DB.getManyWithKeys [ "one", "two" ] XDB) =
     Dict
       { one = (X { x = "hello" })
         two = (X { x = "goodbye" }) }
@@ -499,18 +499,18 @@ module GetManyWithKeys =
 module GetExisting =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getExisting [ "three"; "two" ] XDB) = [ (X { x = "goodbye" }) ]
+   Stdlib.DB.getExisting [ "three", "two" ] XDB) = [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getMany [ "three"; "two" ] XDB) = Stdlib.Option.Option.None
+   Stdlib.DB.getMany [ "three", "two" ] XDB) = Stdlib.Option.Option.None
 
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
 
-   (Stdlib.DB.getMany [ "one"; "two" ] XDB)
+   (Stdlib.DB.getMany [ "one", "two" ] XDB)
    |> Builtin.unwrap
    |> Stdlib.List.sortBy (fun v -> v.x)) =
     [ (X { x = "goodbye" })
@@ -627,7 +627,7 @@ module FindAll =
   type T2 = { field2: Int64 }
   type T1 = { field1: T2 }
 
-  (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> true)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // equality
   (friends (fun p -> p.name == "Ross")) = [ "Ross" ]
@@ -638,28 +638,28 @@ module FindAll =
   (friends (fun p -> p.dob == (rossDOB ()))) = [ "Ross" ]
 
   // with condition
-  (friends (fun p -> p.height > 3L)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> p.height > 3L)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // boolean queries
-  (friends (fun p -> p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> p.human)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // string inequality works
-  (friends (fun p -> p.name != "")) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> p.name != "")) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // &&
-  (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler "; "Ross" ]
+  (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler ", "Ross" ]
 
   // ||
-  (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining
-  (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining field access
-  (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining package functions
-  (friends (fun p -> let x = p.height in true && Stdlib.Int64.greaterThan x 32L)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> let x = p.height in true && Stdlib.Int64.greaterThan x 32L)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining user functions
   let userAnd (a: Bool) (b: Bool) : Bool = Stdlib.Bool.``and`` a b
@@ -672,11 +672,11 @@ module FindAll =
 
   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
-  (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler "; "Ross" ]
+  (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler ", "Ross" ]
 
-  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler "; "Ross" ]
+  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler ", "Ross" ]
 
-  (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> userAnd p.human true)) = [ " Chandler ", "Rachel", "Ross" ]
 
   (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
 
@@ -733,11 +733,11 @@ module FindAll =
   // fieldaccess
   type IntField = { x: Int64 }
 
-  (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // nested fieldaccess
   (friends (fun p ->
-    let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2)) = [ " Chandler "; "Rachel"; "Ross" ]
+    let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // wrong type error
   // TODO: Re-enable once RTQueryCompiler supports type checking.
@@ -836,7 +836,7 @@ module CompiledFunctions =
   //                                                           "Rachel" ]
   (friends (fun p -> Stdlib.String.contains p.name "ROSS")) = []
 
-  (friends (fun p -> Stdlib.String.contains p.name "R")) = [ "Rachel"; "Ross" ]
+  (friends (fun p -> Stdlib.String.contains p.name "R")) = [ "Rachel", "Ross" ]
 
   (friends (fun p -> Stdlib.String.contains p.name "ZZZ")) = []
 
@@ -976,7 +976,7 @@ module PartialEvaluation =
 
    ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
     |> Stdlib.List.map (fun p -> p.name)
-    |> Stdlib.List.sort)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    |> Stdlib.List.sort)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // fieldAccesses inside query
   (friends (fun p -> let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)) = [ " Chandler "
@@ -985,13 +985,13 @@ module PartialEvaluation =
                                                                                           "Ross" ]
 
   (friends (fun p ->
-    let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
-    (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    let x = YL { y = ZL { z = AL { a = [ 1L, 2L, 3L, 4L, 5L ] } } }
+    (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
   // tuple destructuring inside query - requires tuple pattern support
   (friends (fun p ->
     let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
-    b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    b < p.height)) = [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
 
 module QueryOne =

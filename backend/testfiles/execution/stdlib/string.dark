@@ -29,15 +29,15 @@ module Append =
 
 
 module Join =
-  (Stdlib.String.join [ "a"; "b"; "c"; "d" ] "|") = "a|b|c|d"
-  (Stdlib.String.join [ "a"; "̂" ] "") |> Stdlib.String.base64UrlEncode = "w6I"
-  Stdlib.String.join [ "hello"; " world" ] "" = "hello world"
-  Stdlib.String.join [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
-  Stdlib.String.join [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
-  Stdlib.String.join [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
-  Stdlib.String.join [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-  Stdlib.String.join [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
-  Stdlib.String.join [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
+  (Stdlib.String.join [ "a", "b", "c", "d" ] "|") = "a|b|c|d"
+  (Stdlib.String.join [ "a", "̂" ] "") |> Stdlib.String.base64UrlEncode = "w6I"
+  Stdlib.String.join [ "hello", " world" ] "" = "hello world"
+  Stdlib.String.join [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
+  Stdlib.String.join [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👨‍❤️‍💋‍👨", "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
+  Stdlib.String.join [ "🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
+  Stdlib.String.join [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+  Stdlib.String.join [ "🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
+  Stdlib.String.join [ "🧑🏽‍🦰‍", "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
 module ToBytes =
   Stdlib.List.length (Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
@@ -412,28 +412,28 @@ module FromList =
   Stdlib.String.fromList [] = ""
   Stdlib.String.fromList [ c "a" ] = "a"
 
-  Stdlib.String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
+  Stdlib.String.fromList [ c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
   Stdlib.String.fromList [ "a" ] = error="Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\"a\"])"
 module ToList =
   Stdlib.String.toList "" = []
-  Stdlib.String.toList "ab" = [ 'a'; 'b' ]
+  Stdlib.String.toList "ab" = [ 'a', 'b' ]
   Stdlib.String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 
-  Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c "Z̤͔ͧ̑̓"); (c "ä͖̭̈̇"); (c "lͮ̒ͫ"); (c "ǧ̗͚̚"); (c "o̙̔ͮ̇͐̇") ]
+  Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c "Z̤͔ͧ̑̓"), (c "ä͖̭̈̇"), (c "lͮ̒ͫ"), (c "ǧ̗͚̚"), (c "o̙̔ͮ̇͐̇") ]
 
 
   Stdlib.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" =
-    [ (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽") ]
+    [ (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽"), (c "﷽") ]
 
   Stdlib.String.toList "🧟‍♀️🧟‍♂️" =
-    [ c "🧟‍♀️"; c "🧟‍♂️" ]
+    [ c "🧟‍♀️", c "🧟‍♂️" ]
 
   Stdlib.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" =
-    [ (c "👱"); (c "👱🏻"); (c "👱🏼"); (c "👱🏽"); (c "👱🏾"); (c "👱🏿") ]
+    [ (c "👱"), (c "👱🏻"), (c "👱🏼"), (c "👱🏽"), (c "👱🏾"), (c "👱🏿") ]
 
   Stdlib.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" =
-    [ (c "ż"); (c "ó"); (c "ł"); (c "w"); (c "🧑🏽‍🦰"); (c "🧑🏻‍🍼"); (c "✋"); (c "✋🏻"); (c "✋🏿") ]
+    [ (c "ż"), (c "ó"), (c "ł"), (c "w"), (c "🧑🏽‍🦰"), (c "🧑🏻‍🍼"), (c "✋"), (c "✋🏻"), (c "✋🏿") ]
 
   ("ab1" |> Stdlib.String.toList |> Stdlib.String.fromList) = "ab1"
 
@@ -446,48 +446,48 @@ module ToList =
 
 module Split =
   Stdlib.String.split "hello world" "notfound" = [ "hello world" ]
-  Stdlib.String.split "hello😄world" "😄" = [ "hello"; "world" ]
-  Stdlib.String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
+  Stdlib.String.split "hello😄world" "😄" = [ "hello", "world" ]
+  Stdlib.String.split "hello&&&&world" "&&&&" = [ "hello", "world" ]
   Stdlib.String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
-  Stdlib.String.split "hello34564world34564sun" "34564" = [ "hello"; "world"; "sun" ]
+  Stdlib.String.split "hello34564world34564sun" "34564" = [ "hello", "world", "sun" ]
   Stdlib.String.split "" "34564" = [ "" ]
-  Stdlib.String.split "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
-  Stdlib.String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻"; "✋✋🏻✋🏿" ]
-  Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ ""; "" ]
-  Stdlib.String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ ""; ""; ""; ""; "" ]
-  Stdlib.String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻"; "👱🏾👱🏿" ]
+  Stdlib.String.split "34564" "" = [ "3", "4", "5", "6", "4" ]
+  Stdlib.String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻", "✋✋🏻✋🏿" ]
+  Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ "", "" ]
+  Stdlib.String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ "", "", "", "", "" ]
+  Stdlib.String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻", "👱🏾👱🏿" ]
   Stdlib.String.split "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
-  Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = [ "👨‍❤️‍💋‍👨"; "🏳️‍⚧️‍️🇵🇷" ]
-  Stdlib.String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw"; "🧑🏻‍🍼✋✋🏻✋🏿" ]
-  Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ ""; "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
-  Stdlib.String.split "666666" "6" = [ ""; ""; ""; ""; ""; ""; "" ]
-  Stdlib.String.split "55555" "5" = [ ""; ""; ""; ""; ""; "" ]
-  Stdlib.String.split "4444" "4" = [ ""; ""; ""; ""; "" ]
-  Stdlib.String.split "333" "3" = [ ""; ""; ""; "" ]
-  Stdlib.String.split "22" "2" = [ ""; ""; "" ]
-  Stdlib.String.split "1" "1" = [ ""; "" ]
+  Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = [ "👨‍❤️‍💋‍👨", "🏳️‍⚧️‍️🇵🇷" ]
+  Stdlib.String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw", "🧑🏻‍🍼✋✋🏻✋🏿" ]
+  Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ "", "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
+  Stdlib.String.split "666666" "6" = [ "", "", "", "", "", "", "" ]
+  Stdlib.String.split "55555" "5" = [ "", "", "", "", "", "" ]
+  Stdlib.String.split "4444" "4" = [ "", "", "", "", "" ]
+  Stdlib.String.split "333" "3" = [ "", "", "", "" ]
+  Stdlib.String.split "22" "2" = [ "", "", "" ]
+  Stdlib.String.split "1" "1" = [ "", "" ]
   Stdlib.String.split "" "" = []
-  Stdlib.String.split "666666x" "6" = [ ""; ""; ""; ""; ""; ""; "x" ]
-  Stdlib.String.split "55555x" "5" = [ ""; ""; ""; ""; ""; "x" ]
-  Stdlib.String.split "4444x" "4" = [ ""; ""; ""; ""; "x" ]
-  Stdlib.String.split "333x" "3" = [ ""; ""; ""; "x" ]
-  Stdlib.String.split "22x" "2" = [ ""; ""; "x" ]
-  Stdlib.String.split "1x" "1" = [ ""; "x" ]
-  Stdlib.String.split "x666666" "6" = [ "x"; ""; ""; ""; ""; ""; "" ]
-  Stdlib.String.split "x55555" "5" = [ "x"; ""; ""; ""; ""; "" ]
-  Stdlib.String.split "x4444" "4" = [ "x"; ""; ""; ""; "" ]
-  Stdlib.String.split "x333" "3" = [ "x"; ""; ""; "" ]
-  Stdlib.String.split "x22" "2" = [ "x"; ""; "" ]
-  Stdlib.String.split "x1" "1" = [ "x"; "" ]
-  Stdlib.String.split "x666666y" "6" = [ "x"; ""; ""; ""; ""; ""; "y" ]
-  Stdlib.String.split "x55555y" "5" = [ "x"; ""; ""; ""; ""; "y" ]
-  Stdlib.String.split "x4444y" "4" = [ "x"; ""; ""; ""; "y" ]
-  Stdlib.String.split "x333y" "3" = [ "x"; ""; ""; "y" ]
-  Stdlib.String.split "x22y" "2" = [ "x"; ""; "y" ]
-  Stdlib.String.split "x1y" "1" = [ "x"; "y" ]
-  Stdlib.String.split "6a6aa6aaa6aaaa" "a" = [ "6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""; "" ]
+  Stdlib.String.split "666666x" "6" = [ "", "", "", "", "", "", "x" ]
+  Stdlib.String.split "55555x" "5" = [ "", "", "", "", "", "x" ]
+  Stdlib.String.split "4444x" "4" = [ "", "", "", "", "x" ]
+  Stdlib.String.split "333x" "3" = [ "", "", "", "x" ]
+  Stdlib.String.split "22x" "2" = [ "", "", "x" ]
+  Stdlib.String.split "1x" "1" = [ "", "x" ]
+  Stdlib.String.split "x666666" "6" = [ "x", "", "", "", "", "", "" ]
+  Stdlib.String.split "x55555" "5" = [ "x", "", "", "", "", "" ]
+  Stdlib.String.split "x4444" "4" = [ "x", "", "", "", "" ]
+  Stdlib.String.split "x333" "3" = [ "x", "", "", "" ]
+  Stdlib.String.split "x22" "2" = [ "x", "", "" ]
+  Stdlib.String.split "x1" "1" = [ "x", "" ]
+  Stdlib.String.split "x666666y" "6" = [ "x", "", "", "", "", "", "y" ]
+  Stdlib.String.split "x55555y" "5" = [ "x", "", "", "", "", "y" ]
+  Stdlib.String.split "x4444y" "4" = [ "x", "", "", "", "y" ]
+  Stdlib.String.split "x333y" "3" = [ "x", "", "", "y" ]
+  Stdlib.String.split "x22y" "2" = [ "x", "", "y" ]
+  Stdlib.String.split "x1y" "1" = [ "x", "y" ]
+  Stdlib.String.split "6a6aa6aaa6aaaa" "a" = [ "6", "6", "", "6", "", "", "6", "", "", "", "" ]
 
-  Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷" ]
+  Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨", "👩‍👩‍👧‍👦", "🏳️‍⚧️‍️", "🇵🇷" ]
 
   Stdlib.String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
 
@@ -527,10 +527,10 @@ module SplitFirst =
 
 
 module SplitN =
-  Stdlib.String.splitN "a|b|c|d" "|" 2 = [ "a"; "b|c|d" ]
-  Stdlib.String.splitN "a|b|c|d" "|" 3 = [ "a"; "b"; "c|d" ]
-  Stdlib.String.splitN "a|b|c|d" "|" 4 = [ "a"; "b"; "c"; "d" ]
-  Stdlib.String.splitN "a|b|c|d" "|" 99 = [ "a"; "b"; "c"; "d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 2 = [ "a", "b|c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 3 = [ "a", "b", "c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 4 = [ "a", "b", "c", "d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 99 = [ "a", "b", "c", "d" ]
 
   Stdlib.String.splitN "a|b|c|d" "|" 1 = [ "a|b|c|d" ]
   Stdlib.String.splitN "a|b|c|d" "|" 0 = [ "a|b|c|d" ]
@@ -542,20 +542,20 @@ module SplitN =
   Stdlib.String.splitN "abc" "" 3 = [ "abc" ]
   Stdlib.String.splitN "a|b" "" 2 = [ "a|b" ]
 
-  Stdlib.String.splitN "hello😄world😄sun" "😄" 2 = [ "hello"; "world😄sun" ]
-  Stdlib.String.splitN "a==b==c==d" "==" 3 = [ "a"; "b"; "c==d" ]
+  Stdlib.String.splitN "hello😄world😄sun" "😄" 2 = [ "hello", "world😄sun" ]
+  Stdlib.String.splitN "a==b==c==d" "==" 3 = [ "a", "b", "c==d" ]
 
   // ZWJ-bearing prefixes work because splitN routes through indexOfEgc.
-  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 2 = [ "🧑🏽‍🦰"; "🧑🏼‍💻|🧑🏻‍🍼" ]
-  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 3 = [ "🧑🏽‍🦰"; "🧑🏼‍💻"; "🧑🏻‍🍼" ]
+  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 2 = [ "🧑🏽‍🦰", "🧑🏼‍💻|🧑🏻‍🍼" ]
+  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 3 = [ "🧑🏽‍🦰", "🧑🏼‍💻", "🧑🏻‍🍼" ]
 
   // ZWJ separator with mixed-width content on both sides.
-  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 2 = [ "a"; "b🧑🏼‍💻c" ]
-  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 3 = [ "a"; "b"; "c" ]
-  Stdlib.String.splitN "żółw🧑🏼‍💻x🧑🏼‍💻y" "🧑🏼‍💻" 2 = [ "żółw"; "x🧑🏼‍💻y" ]
+  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 2 = [ "a", "b🧑🏼‍💻c" ]
+  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 3 = [ "a", "b", "c" ]
+  Stdlib.String.splitN "żółw🧑🏼‍💻x🧑🏼‍💻y" "🧑🏼‍💻" 2 = [ "żółw", "x🧑🏼‍💻y" ]
 
   // Adjacent separators yield empty pieces, with a ZWJ separator.
-  Stdlib.String.splitN "🧑🏼‍💻🧑🏼‍💻x" "🧑🏼‍💻" 3 = [ ""; ""; "x" ]
+  Stdlib.String.splitN "🧑🏼‍💻🧑🏼‍💻x" "🧑🏼‍💻" 3 = [ "", "", "x" ]
 
 
 module ToLowercase =

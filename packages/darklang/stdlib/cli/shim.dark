@@ -7,10 +7,10 @@ module Darklang.Stdlib.Cli.Shim
 /// `~/.darklang/bin` — where shims live (put it on PATH to run them as bare commands).
 let binDir () : String =
   let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
-  Path.join [ home; ".darklang"; "bin" ]
+  Path.join [ home, ".darklang", "bin" ]
 
 let path (name: String) : String =
-  Path.join [ binDir (); name ]
+  Path.join [ binDir (), name ]
 
 // `<exe> <command> "$@"` — forward to the running dark binary (resolved at install time, so the shim
 // keeps working wherever the binary lives) and pass the caller's args straight through.
