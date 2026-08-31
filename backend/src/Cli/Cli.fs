@@ -98,7 +98,14 @@ let state (packageManager : RT.PackageManager) =
     (metadata : Metadata)
     (exn : exn)
     =
-    uply { printException "Internal error" metadata exn }
+    uply {
+      // A store condition already carries a sentence written for whoever ran the command, and
+      // `printException` buries it under a stack trace. The exception still surfaces as a runtime
+      // error, which prints that sentence once.
+      match exn with
+      | :? Exception.StoreConditionException -> ()
+      | _ -> printException "Internal error" metadata exn
+    }
 
   Exe.createState
     (builtinsLazy.Force())
@@ -371,17 +378,36 @@ let main (args : string[]) =
 
 
   with e ->
-    let rec describe (depth : int) (ex : exn) : unit =
-      let indent = String.replicate depth "  "
-      System.Console.Error.WriteLine $"{indent}{ex.GetType().FullName}: {ex.Message}"
+    // A store that cannot be used is an ENVIRONMENT, not a bug: a read-only mount, a store owned by
+    // another user, a full disk. `LibDB.Sqlite` raises a `StoreConditionException` carrying a
+    // sentence written for whoever ran the command, so all that is left is to print it.
+    let rec storeCondition (ex : exn) : Exception.StoreConditionException option =
       match ex with
+      | :? Exception.StoreConditionException as s -> Some s
       | :? System.AggregateException as agg ->
-        for inner in agg.InnerExceptions do
-          describe (depth + 1) inner
+        agg.InnerExceptions |> Seq.tryPick storeCondition
       | _ ->
-        if not (isNull ex.InnerException) then describe (depth + 1) ex.InnerException
-      if depth = 0 && not (isNull ex.StackTrace) then
-        System.Console.Error.WriteLine $"Stack trace:\n{ex.StackTrace}"
-    System.Console.Error.WriteLine "Error starting Darklang CLI:"
-    describe 0 e
-    1
+        if isNull ex.InnerException then None else storeCondition ex.InnerException
+
+    match storeCondition e with
+    | Some s ->
+      System.Console.Error.WriteLine s.Message
+      1
+    | None ->
+
+      let rec describe (depth : int) (ex : exn) : unit =
+        let indent = String.replicate depth "  "
+        System.Console.Error.WriteLine
+          $"{indent}{ex.GetType().FullName}: {ex.Message}"
+        match ex with
+        | :? System.AggregateException as agg ->
+          for inner in agg.InnerExceptions do
+            describe (depth + 1) inner
+        | _ ->
+          if not (isNull ex.InnerException) then
+            describe (depth + 1) ex.InnerException
+        if depth = 0 && not (isNull ex.StackTrace) then
+          System.Console.Error.WriteLine $"Stack trace:\n{ex.StackTrace}"
+      System.Console.Error.WriteLine "Error starting Darklang CLI:"
+      describe 0 e
+      1
