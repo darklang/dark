@@ -101,11 +101,56 @@ module Sql =
 
   let query (sql : string) : Sql.SqlProps = connect |> Sql.query sql
 
+  /// A store that can't be read or written is an ENVIRONMENT, not a bug: a read-only mount, a store owned
+  /// by another user, a disk with nothing left on it. SQLite says exactly which, then .NET buries it under
+  /// an AggregateException and the callers below stringify it into a message, so the cause reached the
+  /// user as a stack trace that named neither the store nor the problem. Worse, writes went through
+  /// `Result.unwrap`, which prints the raw exception to stdout and raises "TODO: failed to unwrap".
+  ///
+  /// So: every query path funnels through here first. Only these three codes are translated, because only
+  /// these three are things the person running the command can act on. Anything else keeps its own
+  /// exception, stack and all, and is a bug worth seeing in full.
+  let private storeCondition (e : exn) : string option =
+    // The SqliteException arrives wrapped -- an AggregateException from the async boundary, sometimes an
+    // InnerException under that -- so this looks through the chain rather than testing the top of it.
+    let rec sqliteCause (ex : exn) : SqliteException option =
+      match ex with
+      | :? SqliteException as s -> Some s
+      | :? System.AggregateException as agg ->
+        agg.InnerExceptions |> Seq.tryPick sqliteCause
+      | _ -> if isNull ex.InnerException then None else sqliteCause ex.InnerException
+
+    match sqliteCause e with
+    // 8 = SQLITE_READONLY, 13 = SQLITE_FULL, 14 = SQLITE_CANTOPEN.
+    | Some s ->
+      match s.SqliteErrorCode with
+      | 8 -> Some "the package store is read-only, so nothing can be written to it"
+      | 13 -> Some "the disk holding the package store is full"
+      | 14 ->
+        Some
+          "the package store could not be opened -- it may be missing, or owned by another user"
+      | _ -> None
+    | None -> None
+
+  /// Raises the store condition if this is one, and does nothing at all if it isn't -- so callers keep
+  /// their own error handling for everything else.
+  let internal raiseIfStoreCondition (e : exn) : unit =
+    match storeCondition e with
+    | Some what ->
+      Exception.raiseStoreCondition
+        $"Can't use the package store: {what}. Nothing was lost -- fix it and run the same command again."
+        [ "dbPath", LibConfig.Config.dbPath ]
+    | None -> ()
+
   let executeNonQueryAsync props =
     timedTask "nonQuery" (fun () ->
       Sql.executeNonQueryAsync props
       |> Async.StartImmediateAsTask
-      |> Task.map Result.unwrap)
+      |> Task.map (function
+        | Ok n -> n
+        | Error(e : exn) ->
+          raiseIfStoreCondition e
+          raise e))
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     task {
@@ -119,6 +164,7 @@ module Sql =
         return
           Exception.raiseInternal $"Too many results, expected 1" [ "actual", list ]
       | Error err ->
+        raiseIfStoreCondition err
         return
           Exception.raiseInternal
             $"SQL query failed in executeRowAsync: {err.Message}"
@@ -142,6 +188,7 @@ module Sql =
             $"Too many results, expected 0 or 1"
             [ "actual", list ]
       | Error err ->
+        raiseIfStoreCondition err
         return
           Exception.raiseInternal
             $"SQL query failed in executeRowOptionAsync: {err.Message}"
@@ -155,6 +202,7 @@ module Sql =
       match r with
       | Ok v -> v
       | Error err ->
+        raiseIfStoreCondition err
         Exception.raiseInternal $"SQL query failed: {err}" [ "error", err ])
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
@@ -166,6 +214,7 @@ module Sql =
     | Ok result ->
       Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
     | Error err ->
+      raiseIfStoreCondition err
       Exception.raiseInternal
         $"Database query failed in executeExistsSync: {err}"
         [ "err", err ]
@@ -177,6 +226,7 @@ module Sql =
           Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
       with
       | Error err ->
+        raiseIfStoreCondition err
         Exception.raiseInternal
           $"Database statement failed in executeStatementAsync: {err}"
           [ "err", err ]
@@ -187,6 +237,7 @@ module Sql =
     match timedSync "statementSync" (fun () -> Sql.executeNonQuery props) with
     | Ok _count -> ()
     | Error err ->
+      raiseIfStoreCondition err
       Exception.raiseInternal
         $"Database statement failed in executeStatementSync: {err}"
         [ "err", err ]
@@ -199,6 +250,7 @@ module Sql =
     match connect |> Sql.executeTransaction statements with
     | Ok counts -> counts
     | Error err ->
+      raiseIfStoreCondition err
       Exception.raiseInternal
         $"Database transaction failed in executeTransactionSync: {err}"
         [ "err", err ]
