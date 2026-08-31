@@ -40,6 +40,7 @@ let main (args : string array) : int =
 
         // package manager
         Tests.Propagation.tests
+        Tests.UnguardedOrigins.tests
         Tests.Hashing.tests
         Tests.BranchOps.tests
 

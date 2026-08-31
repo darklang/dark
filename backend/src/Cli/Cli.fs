@@ -205,6 +205,24 @@ let main (args : string[]) =
     // to themselves rather than to whichever query happened to run first.
     Telemetry.time "cli.dbConnect" [] LibDB.Sqlite.Sql.warm
 
+    // Where the unguarded HTTP transport may be pointed. Two sources, both of them
+    // local intent: a URL on this command line, and the peers this instance has
+    // connected. Anywhere else it refuses, which is the position a package pulled
+    // from a peer is in.
+    //
+    // The stored side is a lookup rather than a snapshot because `dark sync connect`
+    // adds a peer and probes it inside one process, so a value read here would be a
+    // command too late. `sync_peers_v0` is created by the Dark side on first use, so
+    // an instance that has never synced has no such table, and nothing to allow.
+    LibExecution.UnguardedOrigins.setFromArgv args
+    LibExecution.UnguardedOrigins.setStoredLookup (fun () ->
+      try
+        (LibDB.Sqlite.Sql.query "SELECT url FROM sync_peers_v0"
+         |> LibDB.Sqlite.Sql.executeAsync (fun read -> read.string "url"))
+          .Result
+      with _ ->
+        [])
+
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
       Telemetry.time "cli.createPM" [] (fun () -> LibDB.PackageManager.rt)

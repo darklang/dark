@@ -25,6 +25,7 @@
     <Compile Include="PackageRefs.fs" />
     <!-- Capabilities (resource-domain gating model — RT-independent) /-->
     <Compile Include="Capabilities.fs" />
+    <Compile Include="UnguardedOrigins.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="CapabilityCheck.fs" />
