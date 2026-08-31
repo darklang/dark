@@ -98,6 +98,58 @@ module ParseQueryString =
   Stdlib.Http.parseQueryString "https://x?token=a=b" =
     Stdlib.Dict.fromListOverwritingDuplicates [ ("token", "a=b") ]
 
+  // Keys and values are both decoded.
+  Stdlib.Http.parseQueryString "https://x?q=List+map&n=A%2FB" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("q", "List map"); ("n", "A/B") ]
+
+
+module UrlDecode =
+  // What an HTML form sends for a space in a GET.
+  Stdlib.Http.urlDecode "List+map" = "List map"
+
+  Stdlib.Http.urlDecode "A%2FB" = "A/B"
+  Stdlib.Http.urlDecode "a%3Db" = "a=b"
+
+  // Decoding is byte-level, so a multi-byte character survives. Per character it would be two.
+  Stdlib.Http.urlDecode "caf%C3%A9" = "café"
+
+  // Double-encoded: the user typed a percent sign and the form encoded it.
+  Stdlib.Http.urlDecode "%2541" = "%41"
+
+  // A literal `+` travels as `%2B`, and survives the `+`-means-space substitution because that
+  // runs over the raw text, where an escape holds no `+` of its own. Searching for `C++` is the
+  // case that notices if those two steps are ever reordered.
+  Stdlib.Http.urlDecode "a%2Bb" = "a+b"
+  Stdlib.Http.urlDecode "C%2B%2B" = "C++"
+  Stdlib.Http.urlDecode "a%2Bb+c" = "a+b c"
+
+  // A `%` that starts no escape is itself. A search box may contain one, including at the end,
+  // where decoding an empty hex string succeeds and would otherwise contribute no bytes.
+  Stdlib.Http.urlDecode "100%" = "100%"
+  Stdlib.Http.urlDecode "%" = "%"
+  Stdlib.Http.urlDecode "a%2" = "a%2"
+  Stdlib.Http.urlDecode "50%zz" = "50%zz"
+
+  Stdlib.Http.urlDecode "" = ""
+
+
+module QueryParams =
+  (Stdlib.Http.Request.queryParams (
+    Stdlib.Http.Request
+      { url = "/s?q=List+map&n=A%2FB"; headers = []; body = Stdlib.Blob.empty })) =
+    [ ("q", "List map"); ("n", "A/B") ]
+
+  // A field splits at its FIRST `=` only, so a value may hold one: base64 padding and a nested
+  // query string both do.
+  (Stdlib.Http.Request.queryParam
+    (Stdlib.Http.Request { url = "/s?q=a=b"; headers = []; body = Stdlib.Blob.empty })
+    "q") = Stdlib.Option.Option.Some "a=b"
+
+  // Only the first `?` separates the query string; a later one is part of a value.
+  (Stdlib.Http.Request.queryParams (
+    Stdlib.Http.Request
+      { url = "/s?a=1?b=2"; headers = []; body = Stdlib.Blob.empty })) = [ ("a", "1?b=2") ]
+
 
 module ParseHeaders =
   Stdlib.Http.parseHeaders "x: y" = Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ]
