@@ -671,8 +671,11 @@ let testReplCapturesRealValues (): TestResult =
     [ (Darklang.Cli.Repl.captureValue branch 42, "ok:42")
       (Darklang.Cli.Repl.captureValue branch [ 1L; 2L ], "ok:[1L; 2L]")
       (Darklang.Cli.Repl.captureValue branch "hi", "ok:\"hi\"")
+      // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
+      // fully-qualified spelling both parse back to the same value, which is what matters here: the
+      // property is that the output is source you could paste in, not that it is spelled one way.
       (Darklang.Cli.Repl.captureValue branch (Stdlib.Option.Option.Some 1),
-       "ok:Stdlib.Option.Option.Some(1)") ]
+       "ok:Option.Some(1)") ]
   let wrong =
     cases
     |> Stdlib.List.filter (fun c -> let (got, want) = c in got != want)

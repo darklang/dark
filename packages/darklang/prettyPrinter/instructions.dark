@@ -120,7 +120,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   | DApplicable app ->
     match app with
     | AppNamedFn fn -> "&" ++ (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
-    | AppLambda l -> $"&lambda#{Stdlib.Int64.toString l.exprId}"
+    | AppLambda l -> $"&lambda#{Stdlib.UInt64.toString l.exprId}"
   | other -> PrettyPrinter.RuntimeTypes.dval branchId other
 
 
@@ -195,7 +195,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     $"{register t} <- {n}"
   | CreateLambda(t, l) ->
     let n = Stdlib.Int.toString (Stdlib.List.length l.patterns)
-    $"{register t} <- lambda#{Stdlib.Int64.toString l.exprId} ({n} params)"
+    $"{register t} <- lambda#{Stdlib.UInt64.toString l.exprId} ({n} params)"
   | Apply(t, fnReg, _, args) ->
     $"{register t} <- {register fnReg}({registers args})"
   | RaiseNRE(names, _) -> Stdlib.String.join names "."
