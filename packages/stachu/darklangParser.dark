@@ -111,7 +111,7 @@ type Expr =
 
   // Data structures
   | EList of List<Expr>
-  | EDict of List<(String * Expr)>
+  | EDict of List<(Expr * Expr)>
   | ETuple of first: Expr * second: Expr * rest: List<Expr>
 
   // Records and Enums
@@ -436,15 +436,15 @@ let tupleLiteral (exprParser: P<Expr>) : P<Expr> =
 // Dict parser
 // ============================================
 
-let dictPair (exprParser: P<Expr>) : P<(String * Expr)> =
+let dictPair (exprParser: P<Expr>) : P<(Expr * Expr)> =
   Parser.map
     (fun result ->
       let (key, (_, value)) = result
       (key, value))
     (Parser.andThen
-      (variableIdentifier ())
+      exprParser
       (Parser.andThen
-        (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs "=") (ws ())))
+        (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ":") (ws ())))
         exprParser))
 
 let dictLiteral (exprParser: P<Expr>) : P<Expr> =

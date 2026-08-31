@@ -103,7 +103,7 @@ let moduleKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 
 let groupByModule
   (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
-  : Dict<List<LanguageTools.ProgramTypes.LocatedItem<'a>>> =
+  : Dict<String, List<LanguageTools.ProgramTypes.LocatedItem<'a>>> =
   items
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc item ->
     let key = moduleKey item.location

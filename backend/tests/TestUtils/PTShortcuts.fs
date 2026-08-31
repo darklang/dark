@@ -33,7 +33,14 @@ let strInterp (expr : Expr) : StringSegment = StringInterpolation expr
 let eStr (segments : List<StringSegment>) : Expr = EString(gid (), segments)
 
 let eList (elems : Expr list) : Expr = EList(gid (), elems)
-let eDict (entries : List<string * Expr>) : Expr = EDict(gid (), entries)
+/// String-keyed entries, the common shape in tests. Use `eDictOf` for other keys.
+let eDict (entries : List<string * Expr>) : Expr =
+  EDict(
+    gid (),
+    entries |> List.map (fun (k, v) -> (EString(gid (), [ StringText k ]), v))
+  )
+
+let eDictOf (entries : List<Expr * Expr>) : Expr = EDict(gid (), entries)
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
 

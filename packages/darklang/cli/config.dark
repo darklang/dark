@@ -10,14 +10,14 @@ let configFilePath () : String =
   $"{dir}/cli-config.json"
 
 // Read config from disk
-let readConfig () : Dict<String> =
+let readConfig () : Dict<String, String> =
   match Stdlib.Cli.FileSystem.pathExists (configFilePath ()) with
   | true ->
     match Stdlib.Cli.FileSystem.readFile (configFilePath ()) with
     | Ok bytes ->
       let contents = Stdlib.String.fromBlobWithReplacement bytes
 
-      match Stdlib.Json.parse<Dict<String>> contents with
+      match Stdlib.Json.parse<Dict<String, String>> contents with
       | Ok config -> config
       | Error _ -> Dict {}
 
@@ -27,8 +27,8 @@ let readConfig () : Dict<String> =
 
 
 // Write config to disk
-let writeConfig (config: Dict<String>) : Unit =
-  let json = Stdlib.Json.serialize<Dict<String>> config
+let writeConfig (config: Dict<String, String>) : Unit =
+  let json = Stdlib.Json.serialize<Dict<String, String>> config
   let jsonBytes = Stdlib.String.toBlob json
   let _ = Stdlib.Cli.FileSystem.overwriteFile (configFilePath ()) jsonBytes
   ()

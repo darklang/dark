@@ -82,7 +82,9 @@ module TypeReference =
       Range *
       keywordDict: Range *
       openBrace: Range *
-      typ: TypeReference.TypeReference *
+      key: TypeReference.TypeReference *
+      symbolComma: Range *
+      value: TypeReference.TypeReference *
       closeBrace: Range
 
     | TTuple of
@@ -277,7 +279,7 @@ type Expr =
 
   | EDict of
     Range *
-    contents: List<(Range * (Range * String) * Expr)> *
+    contents: List<(Range * Expr * Range * Expr)> *
     keywordDict: Range *
     symbolOpenBrace: Range *
     symbolCloseBrace: Range

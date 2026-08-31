@@ -35,7 +35,8 @@ let blob = known KTBlob
 let stream (inner : ValueType) : ValueType = known (KTStream inner)
 
 let list (inner : ValueType) : ValueType = known (KTList inner)
-let dict (inner : ValueType) : ValueType = known (KTDict inner)
+let dict (key : ValueType) (value : ValueType) : ValueType =
+  known (KTDict(key, value))
 let tuple
   (first : ValueType)
   (second : ValueType)
@@ -84,7 +85,10 @@ let rec private mergeKnownTypes
     | KTStream left, KTStream right -> merge left right |> Result.map KTStream
 
     | KTList left, KTList right -> merge left right |> Result.map KTList
-    | KTDict left, KTDict right -> merge left right |> Result.map KTDict
+    | KTDict(lk, lv), KTDict(rk, rv) ->
+      match merge lk rk, merge lv rv with
+      | Ok k, Ok v -> Ok(KTDict(k, v))
+      | _ -> Error()
     | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
       let firstMerged = merge l1 r1
       let secondMerged = merge l2 r2

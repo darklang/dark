@@ -197,46 +197,53 @@ let evalStrInt (tag : int) (s : string) (n : DarkInt) : Dval voption =
 let evalDictGet
   (threadID : ThreadID)
   (tag : int)
-  (o : Map<string, Dval>)
-  (k : string)
+  (o : DictMap)
+  (k : Dval)
   : Dval voption =
-  if tag = dictGet then
-    ValueSome(Map.find k o |> TypeChecker.DvalCreator.option threadID VT.unknownTODO)
+  if tag = dictGet && Dval.isUsableDictKey k then
+    ValueSome(
+      Map.find (DictKey k) o
+      |> TypeChecker.DvalCreator.option threadID VT.unknownTODO
+    )
   else
     ValueNone
 
 
-/// `Dict.setOverridingDuplicates`: a `Dict`, a `String` key and a value. The only three-argument
 /// operator here.
 let evalDictSet
   (threadID : ThreadID)
   (tag : int)
-  (vt : ValueType)
-  (o : Map<string, Dval>)
-  (k : string)
+  (keyType : ValueType)
+  (valueType : ValueType)
+  (o : DictMap)
+  (k : Dval)
   (v : Dval)
   : Dval voption =
-  if tag = dictSet || tag = dictSetStrict then
+  if (tag = dictSet || tag = dictSetStrict) && Dval.isUsableDictKey k then
     // `Dict.set` raises on a key already present and `setOverridingDuplicates` does not, so the
     // strict one declines to the slow path when the key is there and lets the builtin raise.
-    if tag = dictSetStrict && Map.containsKey k o then
+    if tag = dictSetStrict && Map.containsKey (DictKey k) o then
       ValueNone
     else
       // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
       // path's *parameter* check catches a mismatched value first and reports it differently, and an
       // error message that depends on whether tracing happens to be on is worse than anything this
       // path is worth. Same reason `evalList` declines on a failed merge.
-      match VT.merge vt (Dval.toValueType v) with
+      match VT.merge valueType (Dval.toValueType v) with
       | Ok _ ->
-        let struct (typ, map) =
-          TypeChecker.DvalCreator.dictAddEntry
-            threadID
-            vt
-            o
-            k
-            v
-            TypeChecker.ReplaceValue
-        ValueSome(DDict(typ, map))
+        match VT.merge keyType (Dval.toValueType k) with
+        | Ok _ ->
+          let struct (keyType, valueType, map) =
+            TypeChecker.DvalCreator.dictAddEntry
+              threadID
+              keyType
+              valueType
+              o
+              k
+              v
+              TypeChecker.ReplaceValue
+          ValueSome(DDict(keyType, valueType, map))
+        | Error() -> ValueNone
       | Error() -> ValueNone
   else
     ValueNone

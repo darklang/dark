@@ -156,7 +156,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetWipSummary" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TDict TInt
+      returnType = TDict(TString, TInt)
       description = "Get summary of WIP ops on a branch (counts by type)."
       fn =
         function
@@ -164,7 +164,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let! summary = LibDB.Queries.getWipSummary branchId
             return
-              Dval.dict
+              Dval.stringDict
                 KTInt
                 [ "types", Dval.int (bigint summary.types)
                   "values", Dval.int (bigint summary.values)
@@ -184,7 +184,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetWipItems" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TList(TDict TString)
+      returnType = TList(TDict(TString, TString))
       description =
         "Get WIP items on a branch (excludes auto-propagated ops). Returns list of dicts with name, kind, modulePath, propagatedCount."
       fn =
@@ -195,13 +195,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return
               items
               |> List.map (fun item ->
-                Dval.dict
+                Dval.stringDict
                   KTString
                   [ "name", DString item.name
                     "kind", DString item.kind
                     "modulePath", DString item.modulePath
                     "propagatedCount", DString(string item.propagatedCount) ])
-              |> Dval.list (KTDict(ValueType.Known KTString))
+              |> Dval.list (
+                KTDict(ValueType.Known KTString, ValueType.Known KTString)
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

@@ -42,7 +42,12 @@ let rec private countDvalNodes (dv : RT.Dval) : int =
   | RT.DList(_, xs) -> 1 + List.sumBy countDvalNodes xs
   | RT.DTuple(a, b, rest) ->
     1 + countDvalNodes a + countDvalNodes b + List.sumBy countDvalNodes rest
-  | RT.DDict(_, m) -> 1 + (m |> Map.values |> Seq.sumBy countDvalNodes)
+  | RT.DDict(_, _, m) ->
+    1
+    + (m
+       |> Map.toSeq
+       |> Seq.sumBy (fun (k : RT.DictKey, v) ->
+         countDvalNodes k.Dval + countDvalNodes v))
   | RT.DRecord(_, _, _, m) -> 1 + (m |> Map.values |> Seq.sumBy countDvalNodes)
   | RT.DEnum(_, _, _, _, fs) -> 1 + List.sumBy countDvalNodes fs
   | _ -> 1

@@ -27,8 +27,8 @@ type TreeStructure =
     parent: Stdlib.Option.Option<Int> }
 
 type Outline =
-  { nodes: Dict<NodeContent>
-    structure: Dict<TreeStructure>
+  { nodes: Dict<String, NodeContent>
+    structure: Dict<String, TreeStructure>
     rootChildren: List<Int>
     nextId: Int }
 

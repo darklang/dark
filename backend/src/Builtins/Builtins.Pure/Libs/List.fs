@@ -25,147 +25,16 @@ module DvalComparator =
     elif result > 0 then Greater
     else Equal
 
-  // should this take a vmstate?
-  let rec compareDval (dv1 : Dval) (dv2 : Dval) : Order =
-    match dv1, dv2 with
-    | DUnit, DUnit -> Equal
 
-    | DBool b1, DBool b2 -> order b1 b2
-
-    | DInt8 i1, DInt8 i2 -> order i1 i2
-    | DUInt8 i1, DUInt8 i2 -> order i1 i2
-    | DInt16 i1, DInt16 i2 -> order i1 i2
-    | DUInt16 i1, DUInt16 i2 -> order i1 i2
-    | DInt32 i1, DInt32 i2 -> order i1 i2
-    | DUInt32 i1, DUInt32 i2 -> order i1 i2
-    | DInt64 i1, DInt64 i2 -> order i1 i2
-    | DUInt64 i1, DUInt64 i2 -> order i1 i2
-    | DInt128 i1, DInt128 i2 -> order i1 i2
-    | DUInt128 i1, DUInt128 i2 -> order i1 i2
-    // to bigint so `order` compares numerically, not by struct case tag
-    | DInt i1, DInt i2 -> order (DarkInt.toBigInt i1) (DarkInt.toBigInt i2)
-
-    | DFloat f1, DFloat f2 -> order f1 f2
-
-    | DChar c1, DChar c2 -> order c1 c2
-    | DString s1, DString s2 -> order s1 s2
-
-    | DDateTime dt1, DDateTime dt2 -> order dt1 dt2
-
-    | DUuid u1, DUuid u2 -> order u1 u2
-
-    | DList(_, l1), DList(_, l2) -> compareLists l1 l2
-
-    | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
-      compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
-
-
-    | DDict(_vtTODO1, o1), DDict(_vtTODO2, o2) ->
-      compareMaps (Map.toList o1) (Map.toList o2)
-
-    | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
-      match order tn1 tn2 with
-      | Less -> Less
-      | Greater -> Greater
-      | Equal -> compareMaps (Map.toList o1) (Map.toList o2)
-
-    | DEnum(typeName1, _, _typeArgsTODO1, case1, fields1),
-      DEnum(typeName2, _, _typeArgsTODO2, case2, fields2) ->
-      match order typeName1 typeName2 with
-      | Less -> Less
-      | Greater -> Greater
-      | Equal ->
-        match order case1 case2 with
-        | Less -> Less
-        | Greater -> Greater
-        | Equal -> compareLists fields1 fields2
-
-    // CLEANUP consider supporting sorting of `DApplicable`s
-    // | DApplicable app1, DApplicable app2 ->
-    //   match app1, app2 with
-    //   | AppLambda l1, AppLambda l2 -> ...
-    //   | AppNamedFn n1, AppNamedFn n2 -> ...
-    //   | _ -> ...
-
-    // | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-    //   let l1' = NEList.toList l1.parameters
-    //   let l2' = NEList.toList l2.parameters
-    //   let c = compareLetPatternsLists l1' l2'
-    //   if c = 0 then compareExprs l1.body l2.body else c
-
-    | DDB name1, DDB name2 -> order name1 name2
-
-    | DBlob a, DBlob b ->
-      // Blobs don't have a natural ordering — compare by hash for
-      // persistent refs, UUID for ephemeral, to keep sort stable.
-      match a, b with
-      | Persistent(h1, _), Persistent(h2, _) -> order h1 h2
-      | Ephemeral e1, Ephemeral e2 -> order e1.id e2.id
-      | Persistent _, Ephemeral _ -> Less
-      | Ephemeral _, Persistent _ -> Greater
-
-    // exhaustiveness check
-    | DUnit, _
-    | DBool _, _
-    | DInt8 _, _
-    | DUInt8 _, _
-    | DInt16 _, _
-    | DUInt16 _, _
-    | DInt32 _, _
-    | DUInt32 _, _
-    | DInt64 _, _
-    | DUInt64 _, _
-    | DInt128 _, _
-    | DUInt128 _, _
-    | DInt _, _
-    | DFloat _, _
-    | DChar _, _
-    | DString _, _
-    | DList _, _
-    | DDict _, _
-    | DTuple _, _
-    | DDateTime _, _
-    | DUuid _, _
-    | DRecord _, _
-    | DEnum _, _
-    | DApplicable _, _
-    | DDB _, _
-    | DBlob _, _
-    | DStream _, _ ->
-      // TODO: Feels like this should hook into typechecker and ValueTypes somehow
+  let compareDval (dv1 : Dval) (dv2 : Dval) : Order =
+    try
+      order (DvalOrdering.compareForSort dv1 dv2) 0
+    with :? DvalComparisonException as e ->
       RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
-        Dval.toValueType dv1,
-        Dval.toValueType dv2
+        Dval.toValueType e.Left,
+        Dval.toValueType e.Right
       )
       |> raiseUntargetedRTE
-
-
-
-  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : Order =
-    match l1, l2 with
-    | [], [] -> Equal
-    | [], _ -> Less
-    | _, [] -> Greater
-    | h1 :: t1, h2 :: t2 ->
-      match compareDval h1 h2 with
-      | Greater -> Greater
-      | Less -> Less
-      | Equal -> compareLists t1 t2
-
-  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : Order =
-    match o1, o2 with
-    | [], [] -> Equal
-    | [], _ -> Less
-    | _, [] -> Greater
-    | (k1, v1) :: t1, (k2, v2) :: t2 ->
-      match order k1 k2 with
-      | Greater -> Greater
-      | Less -> Less
-      | Equal ->
-        match compareDval v1 v2 with
-        | Greater -> Greater
-        | Less -> Less
-        | Equal -> compareMaps t1 t2
 
   let compareDvalInt v1 v2 =
     match compareDval v1 v2 with

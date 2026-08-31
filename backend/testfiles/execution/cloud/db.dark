@@ -95,12 +95,12 @@ type TestNestedAliasRecord = AliasOfRecord
 module SetDoesUpsert =
   (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
    let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
+   Stdlib.DB.getAllWithKeys XDB) = Dict { "hello": X { x = "goodbye" } }
 
 module SetCharUpserts =
   (let old = Stdlib.DB.set (Z { x = 'a' }) "a" ZDB
    let newval = Stdlib.DB.set (Z { x = 'b' }) "a" ZDB
-   Stdlib.DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
+   Stdlib.DB.getAllWithKeys ZDB) = Dict { "a": Z { x = 'b' } }
 
 
 
@@ -484,7 +484,7 @@ module GetAllWithKeys =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
    Stdlib.DB.getAllWithKeys XDB) =
-    Dict { one = X { x = "hello" }; two = X { x = "goodbye" } }
+    Dict { "one": X { x = "hello" }; "two": X { x = "goodbye" } }
 
 
 module GetManyWithKeys =
@@ -492,8 +492,8 @@ module GetManyWithKeys =
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
    Stdlib.DB.getManyWithKeys [ "one", "two" ] XDB) =
     Dict
-      { one = (X { x = "hello" })
-        two = (X { x = "goodbye" }) }
+      { "one": (X { x = "hello" })
+        "two": (X { x = "goodbye" }) }
 
 
 module GetExisting =
@@ -525,13 +525,13 @@ module Delete =
   // delete nothing
   (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let _ = Stdlib.DB.delete "two" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
+   Stdlib.DB.getAllWithKeys XDB) = Dict { "one": (X { x = "hello" }) }
 
   // deletes only one
   (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
    let _ = Stdlib.DB.delete "one" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
+   Stdlib.DB.getAllWithKeys XDB) = Dict { "two": (X { x = "goodbye" }) }
 
 module DeleteAll =
   (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
@@ -1031,3 +1031,7 @@ module QueryCount =
 
 
 ((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36
+
+
+module DBAsDictKey =
+  Dict { XDB: 1L } = error="Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, and values containing them cannot be keys."

@@ -1986,7 +1986,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
           | _ -> false)
     // a bare `Dict { … }` is a dict LITERAL, not a record of a type named `Dict`;
     // `Dict` is a keyword here, so it parses to its own node with the keyword range.
-    if braceIsRecordLit && List.isEmpty mods && final.name = "Dict" then
+    if List.isEmpty mods && final.name = "Dict" && tok state j = TLBrace then
       parseDict state final.range j
     elif braceIsRecordLit then
       parseRecord
@@ -2318,9 +2318,6 @@ and parseRecord
     (WT.ERecord(span nameRange closeB, typeName, List.ofSeq fields, openB, closeB),
      p))
 
-// `Dict { key = value ; … }`. `keywordDict` is the `Dict` range; `i` is the `{`.
-// Structurally identical to parseRecord (keys are field-like names), but emits an
-// EDict carrying the `Dict` keyword range.
 and parseDict
   (state : ParserState)
   (keywordDict : TokenRange)
@@ -2329,19 +2326,30 @@ and parseDict
   let openB = rng state i
   withElementScope state (fun () ->
     let entries =
-      System.Collections.Generic.List<TokenRange * (TokenRange * string) * WT.Expr>()
+      System.Collections.Generic.List<TokenRange * WT.Expr * TokenRange * WT.Expr>()
     let mutable k = i + 1
     let mutable go = true
     while go && tok state k <> TRBrace && tok state k <> TEOF do
-      match tok state k, tok state (k + 1) with
-      | TIdent kname, TEquals ->
-        let knameR = rng state k
-        setStmtCol state (rng state k).start.column
-        let (value, k2) = parseExpr state (k + 2)
-        entries.Add(span knameR (WT.exprRange value), (knameR, kname), value)
+      setStmtCol state (rng state k).start.column
+      let (key, kAfterKey) = parseExpr state k
+      if kAfterKey <= k then
+        errExpected state k "a dict entry 'key: value'"
+        go <- false
+      elif tok state kAfterKey <> TColon then
+        errExpected state kAfterKey "`:` between a dict key and its value"
+        go <- false
+      else
+        let colonR = rng state kAfterKey
+        let (value, k2) = parseExpr state (kAfterKey + 1)
+        entries.Add(
+          span (WT.exprRange key) (WT.exprRange value),
+          key,
+          colonR,
+          value
+        )
         if tok state k2 = TSemicolon || tok state k2 = TComma then
           k <- k2 + 1
-        elif k2 > k then
+        elif k2 > kAfterKey then
           if tok state k2 <> TRBrace then
             requireElementSeparator
               state
@@ -2351,9 +2359,6 @@ and parseDict
           k <- k2
         else
           go <- false
-      | _ ->
-        errExpected state k "a dict entry 'key = value'"
-        go <- false
     let (closeB, p) =
       if tok state k = TRBrace then
         (rng state k, k + 1)
@@ -2564,9 +2569,17 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
         "Generic type arguments must be adjacent to the type name"
     let kwDict = rng state i
     let openB = rng state (i + 1)
-    let (inner, j) = parseTypeRef state (i + 2)
+    let (key, j) = parseTypeRef state (i + 2)
+    let (commaR, j) =
+      if tok state j = TComma then
+        (rng state j, j + 1)
+      else
+        errExpected state j "a comma between Dict's key and value types"
+        (zeroWidthAtEnd (rng state j), j)
+    let (value, j) = parseTypeRef state j
     let (closeB, k) = expectGt state j
-    (WT.TDict(span (rng state i) closeB, kwDict, openB, inner, closeB), k)
+    (WT.TDict(span (rng state i) closeB, kwDict, openB, key, commaR, value, closeB),
+     k)
   | TIdent(PrimTypeName ctor) when not ((txt state i).StartsWith "'") ->
     (ctor (rng state i), i + 1)
   // a tick-prefixed name is ALWAYS a type variable, even when uppercase

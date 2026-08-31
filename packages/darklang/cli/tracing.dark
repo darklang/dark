@@ -985,7 +985,7 @@ let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool 
 let renderCall
   (opts: ViewOptions)
   (branchId: Uuid)
-  (childrenMap: Dict<List<FnCall>>)
+  (childrenMap: Dict<String, List<FnCall>>)
   (call: FnCall)
   (depth: Int)
   (ancestorMatched: Bool)

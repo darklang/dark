@@ -409,7 +409,7 @@ let persistableAcceptsPlainShapes =
         RT.DBlob(RT.Persistent("deadbeef", 4L))
         RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
         RT.DTuple(RT.DInt64 1L, RT.DString "a", [])
-        RT.DDict(RT.ValueType.Known RT.KTInt64, Map.ofList [ ("k", RT.DInt64 42L) ]) ]
+        Dval.stringDict RT.KTInt64 [ ("k", RT.DInt64 42L) ] ]
     for dv in cases do
       Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
   }
@@ -604,16 +604,21 @@ let rewriteWithNoOpPreservesNestedRefs =
     let inner = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 7L ])
     let middle = RT.DTuple(RT.DString "k", inner, [])
     let outer =
-      RT.DDict(RT.ValueType.Unknown, Map [ "a", middle; "b", RT.DBool true ])
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Unknown,
+        Map
+          [ RT.DictKey(RT.DString "a"), middle
+            RT.DictKey(RT.DString "b"), RT.DBool true ]
+      )
     let! result = noopRewriteWith outer
     Expect.isTrue (obj.ReferenceEquals(result, outer)) "outer DDict ref preserved"
     // Reach into the result and verify the inner refs survived too.
     match result with
-    | RT.DDict(_, m) ->
-      Expect.isTrue
-        (obj.ReferenceEquals(m["a"], middle))
-        "nested DTuple ref preserved"
-      match m["a"] with
+    | RT.DDict(_, _, m) ->
+      let a = m[RT.DictKey(RT.DString "a")]
+      Expect.isTrue (obj.ReferenceEquals(a, middle)) "nested DTuple ref preserved"
+      match a with
       | RT.DTuple(_, innerResult, _) ->
         Expect.isTrue
           (obj.ReferenceEquals(innerResult, inner))
@@ -644,6 +649,109 @@ let rewriteWithSingleChangePreservesSiblings =
       Expect.isTrue (obj.ReferenceEquals(c, sibling2)) "right sibling ref preserved"
       Expect.equal b (RT.DInt64 99L) "target replaced"
     | _ -> failtest $"expected DList of 3, got {result}"
+  }
+
+let rewriteWithRewritesDictKey =
+  testTask "Dval.rewriteWith: rewriting a key re-keys the dict" {
+    let dv =
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Known RT.KTInt64,
+        Map
+          [ RT.DictKey(RT.DString "rewrite-me"), RT.DInt64 1L
+            RT.DictKey(RT.DString "zzz"), RT.DInt64 2L ]
+      )
+    let! result =
+      RT.Dval.rewriteWith
+        (fun d ->
+          uply {
+            match d with
+            | RT.DString "rewrite-me" -> return Some(RT.DString "aaa")
+            | _ -> return None
+          })
+        dv
+      |> Ply.toTask
+    match result with
+    | RT.DDict(_, _, m) ->
+      Expect.equal (Map.count m) 2 "entry count unchanged"
+      Expect.equal
+        (Map.find (RT.DictKey(RT.DString "aaa")) m)
+        (Some(RT.DInt64 1L))
+        "value found under the rewritten key"
+      Expect.equal
+        (Map.find (RT.DictKey(RT.DString "rewrite-me")) m)
+        None
+        "old key is gone"
+      Expect.equal
+        (Map.find (RT.DictKey(RT.DString "zzz")) m)
+        (Some(RT.DInt64 2L))
+        "untouched entry survives"
+      Expect.equal
+        (m |> Map.toList |> List.map (fun (k, _) -> k.Dval))
+        [ RT.DString "aaa"; RT.DString "zzz" ]
+        "keys still iterate in sorted order"
+    | _ -> failtest $"expected DDict, got {result}"
+  }
+
+let rewriteWithRewritesDictKeyAndValue =
+  testTask "Dval.rewriteWith: a key and a value can be rewritten together" {
+    let dv =
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Known RT.KTString,
+        Map [ RT.DictKey(RT.DString "k"), RT.DString "v" ]
+      )
+    let! result =
+      RT.Dval.rewriteWith
+        (fun d ->
+          uply {
+            match d with
+            | RT.DString "k" -> return Some(RT.DString "k2")
+            | RT.DString "v" -> return Some(RT.DString "v2")
+            | _ -> return None
+          })
+        dv
+      |> Ply.toTask
+    match result with
+    | RT.DDict(_, _, m) ->
+      Expect.equal
+        (Map.toList m |> List.map (fun (k, v) -> k.Dval, v))
+        [ RT.DString "k2", RT.DString "v2" ]
+        "both halves rewritten"
+    | _ -> failtest $"expected DDict, got {result}"
+  }
+
+let rewriteWithCollapsesCollidingDictKeys =
+  testTask "Dval.rewriteWith: a rewrite that collides two keys keeps one entry" {
+    let dv =
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Known RT.KTInt64,
+        Map
+          [ RT.DictKey(RT.DString "a"), RT.DInt64 1L
+            RT.DictKey(RT.DString "b"), RT.DInt64 2L ]
+      )
+    let! result =
+      RT.Dval.rewriteWith
+        (fun d ->
+          uply {
+            match d with
+            | RT.DString _ -> return Some(RT.DString "same")
+            | _ -> return None
+          })
+        dv
+      |> Ply.toTask
+    match result with
+    | RT.DDict(_, _, m) ->
+      Expect.equal (Map.count m) 1 "collided keys collapse to one entry"
+      Expect.isTrue
+        (Map.containsKey (RT.DictKey(RT.DString "same")) m)
+        "the surviving entry is under the rewritten key"
+      Expect.equal
+        (Map.find (RT.DictKey(RT.DString "same")) m)
+        (Some(RT.DInt64 1L))
+        "the first key in dict order wins"
+    | _ -> failtest $"expected DDict, got {result}"
   }
 
 let rewriteWithNoOpOnPrimitivePreservesRef =
@@ -862,6 +970,9 @@ let tests =
       rewriteWithNoOpPreservesNestedRefs
       rewriteWithSingleChangePreservesSiblings
       rewriteWithNoOpOnPrimitivePreservesRef
+      rewriteWithRewritesDictKey
+      rewriteWithRewritesDictKeyAndValue
+      rewriteWithCollapsesCollidingDictKeys
       promoteRewritesInsideClosedRegisters
       promoteRewritesInsideAppLambdaArgs
       promoteRewritesInsideAppNamedFnArgs

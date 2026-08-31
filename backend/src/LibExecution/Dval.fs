@@ -31,11 +31,33 @@ let uuid (s : System.Guid) = DUuid s
 
 let list (typ : KnownType) (list : List<Dval>) : Dval = DList(VT.known typ, list)
 
-let dict (typ : KnownType) (entries : List<string * Dval>) : Dval =
-  DDict(VT.known typ, Map entries)
+let dict
+  (keyType : KnownType)
+  (valueType : KnownType)
+  (entries : List<Dval * Dval>)
+  : Dval =
+  entries |> List.iter (fst >> RuntimeTypes.Dval.assertUsableDictKey)
+  DDict(
+    VT.known keyType,
+    VT.known valueType,
+    entries |> List.map (fun (k, v) -> DictKey k, v) |> Map
+  )
 
-let dictFromMap (typ : KnownType) (entries : Map<string, Dval>) : Dval =
-  DDict(VT.known typ, entries)
+let stringDict (valueType : KnownType) (entries : List<string * Dval>) : Dval =
+  DDict(
+    VT.string,
+    VT.known valueType,
+    entries
+    |> List.fold (fun acc (k, v) -> Map.add (DictKey(DString k)) v acc) Map.empty
+  )
+
+let stringDictFromMap (valueType : KnownType) (entries : Map<string, Dval>) : Dval =
+  DDict(
+    VT.string,
+    VT.known valueType,
+    entries
+    |> Map.fold (fun acc k v -> Map.add (DictKey(DString k)) v acc) Map.empty
+  )
 
 
 let optionType () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())
@@ -144,7 +166,8 @@ let rec isPersistable (dv : Dval) : bool =
   | DList(_, items) -> items |> List.forall isPersistable
   | DTuple(a, b, rest) ->
     isPersistable a && isPersistable b && List.forall isPersistable rest
-  | DDict(_, entries) -> entries |> Map.values |> Seq.forall isPersistable
+  | DDict(_, _, entries) ->
+    entries |> Map.forall (fun k v -> isPersistable k.Dval && isPersistable v)
   | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isPersistable
   | DEnum(_, _, _, _, fields) -> fields |> List.forall isPersistable
 
@@ -162,7 +185,13 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
 
   | DList(_, items) -> items |> List.tryPick nonPersistableReason
   | DTuple(a, b, rest) -> [ a; b ] @ rest |> List.tryPick nonPersistableReason
-  | DDict(_, entries) -> entries |> Map.values |> Seq.tryPick nonPersistableReason
+  | DDict(_, _, entries) ->
+    entries
+    |> Map.toSeq
+    |> Seq.tryPick (fun (k, v) ->
+      match nonPersistableReason k.Dval with
+      | Some r -> Some r
+      | None -> nonPersistableReason v)
   | DRecord(_, _, _, fields) ->
     fields |> Map.values |> Seq.tryPick nonPersistableReason
   | DEnum(_, _, _, _, fields) -> fields |> List.tryPick nonPersistableReason
@@ -242,8 +271,9 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     a3.Length = b3.Length && r a1 b1 && r a2 b2 && List.forall2 r a3 b3
 
-  | DDict(typeA, a), DDict(typeB, b) ->
-    Result.isOk (ValueType.merge typeA typeB)
+  | DDict(keyTypeA, valueTypeA, a), DDict(keyTypeB, valueTypeB, b) ->
+    Result.isOk (ValueType.merge keyTypeA keyTypeB)
+    && Result.isOk (ValueType.merge valueTypeA valueTypeB)
     && Map.count a = Map.count b
     && (a
         |> Map.toSeq

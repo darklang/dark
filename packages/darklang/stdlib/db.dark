@@ -27,7 +27,7 @@ let getExisting (keys: List<String>) (table: DB<'a>) : List<'a> =
 
 /// Finds many values in <param table> by <param keys>,
 /// returning a {{ {key:{value}, key2: {value2} } }} object of keys and values
-let getManyWithKeys (keys: List<String>) (table: DB<'a>) : Dict<'a> =
+let getManyWithKeys (keys: List<String>) (table: DB<'a>) : Dict<String, 'a> =
   Builtin.dbGetManyWithKeys keys table
 
 
@@ -45,7 +45,7 @@ let getAll (table: DB<'a>) : List<'a> = Builtin.dbGetAll table
 
 /// Fetch all the values in <param table>.
 /// Returns an object with key: value. ie. {key : value, key2: value2}
-let getAllWithKeys (table: DB<'a>) : Dict<'a> = Builtin.dbGetAllWithKeys table
+let getAllWithKeys (table: DB<'a>) : Dict<String, 'a> = Builtin.dbGetAllWithKeys table
 
 
 /// Return the number of items stored in <param table>
@@ -70,7 +70,7 @@ let query (table: DB<'a>) (filter: ('a -> Bool)) : List<'a> =
 /// Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict.
 /// Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
 /// Errors at compile-time if Dark's compiler does not support the code in question.
-let queryWithKey (table: DB<'a>) (filter: ('a -> Bool)) : Dict<'a> =
+let queryWithKey (table: DB<'a>) (filter: ('a -> Bool)) : Dict<String, 'a> =
   Builtin.dbQueryWithKey table filter
 
 

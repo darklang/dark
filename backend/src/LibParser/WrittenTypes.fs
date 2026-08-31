@@ -112,7 +112,9 @@ and TypeReference =
     Range *
     keywordDict : Range *
     openBracket : Range *
-    inner : TypeReference *
+    key : TypeReference *
+    symbolComma : Range *
+    value : TypeReference *
     closeBracket : Range
   | TCustom of QualifiedTypeIdentifier
   | TVariable of Range * tick : Range * name : (Range * string) // `'a`
@@ -332,7 +334,7 @@ and Expr =
   // is a keyword (its own range), not a type name, so it's a distinct node.
   | EDict of
     Range *
-    contents : List<Range * (Range * string) * Expr> *  // (entry, (key range, key), value)
+    contents : List<Range * Expr * Range * Expr> *  // (entry, key, `:` range, value)
     keywordDict : Range *
     symbolOpenBrace : Range *
     symbolCloseBrace : Range
@@ -550,7 +552,7 @@ let typeReferenceRange (t : TypeReference) : Range =
   | TUuid r
   | TBlob r
   | TList(r, _, _, _, _)
-  | TDict(r, _, _, _, _)
+  | TDict(r, _, _, _, _, _, _)
   | TVariable(r, _, _)
   | TTuple(r, _, _, _, _, _, _)
   | TFn(r, _, _) -> r

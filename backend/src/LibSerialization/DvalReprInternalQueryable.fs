@@ -140,13 +140,19 @@ let rec private toJsonV0
     | DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially writeDval l)
 
-    | DDict(_typeArgsTODO, o) ->
+    | DDict(_, _, o) ->
       do!
         w.writeObject (fun () ->
           Ply.List.iterSequentially
-            (fun (k : string, v) ->
+            (fun (k : DictKey, v) ->
               uply {
-                w.WritePropertyName k
+                match k.Dval with
+                | DString k -> w.WritePropertyName k
+                | key ->
+                  Exception.raiseInternal
+                    "Only a Dict with String keys can be stored in a queryable field"
+                    [ "keyType", LibExecution.RuntimeTypes.Dval.toValueType key ]
+
                 do! writeDval v
               })
             (Map.toList o))
@@ -283,15 +289,15 @@ let parseJsonV0
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
 
-    | TDict typ, JsonValueKind.Object ->
+    | TDict(TString, typ), JsonValueKind.Object ->
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
 
       objFields
       |> Map.toList
-      |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
+      |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> DString k, v))
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
 
 
     | TCustomType({ resolved = Ok typeName }, typeArgs), valueKind ->
@@ -454,7 +460,12 @@ module Test =
     // VTTODO these should probably just check the valueType, not any internal data
     | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
     | DList(_, dvals) -> List.all isQueryableDval dvals
-    | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
+    | DDict(_, _, map) ->
+      map
+      |> Map.forall (fun k v ->
+        match k.Dval with
+        | DString _ -> isQueryableDval v
+        | _ -> false)
 
     | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 

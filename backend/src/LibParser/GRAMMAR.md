@@ -151,7 +151,8 @@ Expression forms include:
 - literals and unit `()`
 - tuples `(a, b, …)`
 - lists `[a, b]`, separated by `,` or newlines
-- dicts `Dict { k = v }`
+- dicts `Dict { k: v }`, where both halves are expressions -- `:` rather than the
+  record literal's `=`, since a dict key is a value, not a field name
 - named records `Type { f = v }`; anonymous records are rejected until they
   have a real inferred/represented type
 - record updates `{ r with f = v }`
@@ -250,7 +251,7 @@ Generics work on:
 ## Types
 
 Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
-Blob` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<T>` have special
+Blob` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>` and `DB<T>`, are custom
 types with optional type arguments.
 

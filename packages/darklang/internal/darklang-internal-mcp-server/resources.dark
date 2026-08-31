@@ -54,7 +54,7 @@ let types () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Type System"
     description = "Documentation for Darklang's type system"
     handler = fun _uri ->
-      "# Darklang Type System\n\n## Basic Types\n- Int\n- Float\n- Bool\n- String\n- Unit\n\n## Complex Types\n- List<T>\n- Dict<T>\n- Option<T>\n- Result<T, E>\n\n## Custom Types\n- Records\n- Enums\n- Type aliases\n\nThe type system is designed to be expressive yet simple to use."
+      "# Darklang Type System\n\n## Basic Types\n- Int\n- Float\n- Bool\n- String\n- Unit\n\n## Complex Types\n- List<T>\n- Dict<K, V>\n- Option<T>\n- Result<T, E>\n\n## Custom Types\n- Records\n- Enums\n- Type aliases\n\nThe type system is designed to be expressive yet simple to use."
   }
 
 

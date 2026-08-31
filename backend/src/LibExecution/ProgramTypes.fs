@@ -364,7 +364,7 @@ type TypeReference =
 
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
-  | TDict of TypeReference
+  | TDict of key : TypeReference * value : TypeReference
 
   /// A type defined by a standard library module or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
@@ -452,7 +452,7 @@ type Expr =
 
   // -- Basic structures --
   | EList of id * List<Expr>
-  | EDict of id * List<string * Expr>
+  | EDict of id * List<Expr * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
   // -- "Applying" args to things, such as fns and lambdas --

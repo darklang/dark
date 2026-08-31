@@ -93,8 +93,11 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.TStream inner
       | PT.TList inner
-      | PT.TDict inner
       | PT.TDB inner -> work.Push(TypeRef inner)
+
+      | PT.TDict(key, value) ->
+        work.Push(TypeRef key)
+        work.Push(TypeRef value)
 
       | PT.TTuple(first, second, rest) ->
         pushTypesInOrder rest

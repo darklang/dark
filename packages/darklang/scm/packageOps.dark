@@ -90,7 +90,7 @@ type WipSummary =
     total: Int }
 
 /// Get a count from a Dict, defaulting to 0
-let getCount (d: Dict<Int>) (key: String) : Int =
+let getCount (d: Dict<String, Int>) (key: String) : Int =
   match Stdlib.Dict.get d key with
   | Some v -> v
   | None -> 0
@@ -116,7 +116,7 @@ let getCommitCount (branchId: Uuid) : Int =
   Builtin.scmGetCommitCount branchId
 
 /// Get WIP items on a branch (excludes auto-propagated ops)
-let getWipItems (branchId: Uuid) : List<Dict<String>> =
+let getWipItems (branchId: Uuid) : List<Dict<String, String>> =
   Builtin.scmGetWipItems branchId
 
 

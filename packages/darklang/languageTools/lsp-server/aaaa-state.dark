@@ -25,5 +25,5 @@ type LspState =
     /// Documents that are currently open in the editor
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
     /// note: the string key here is the URI
-    documentsInScope: Dict<DocumentInScope>
+    documentsInScope: Dict<String, DocumentInScope>
   }

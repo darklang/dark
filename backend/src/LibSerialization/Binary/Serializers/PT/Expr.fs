@@ -568,7 +568,7 @@ module Expr =
       List.write
         w
         (fun w (key, value) ->
-          String.write w key
+          write w key
           write w value)
         pairs
     | EFnName(id, nameRes) ->
@@ -745,7 +745,7 @@ module Expr =
       let id = r.ReadUInt64()
       let pairs =
         List.read r (fun r ->
-          let key = String.read r
+          let key = read r
           let value = read r
           (key, value))
       EDict(id, pairs)

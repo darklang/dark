@@ -123,6 +123,10 @@ module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
     { originalName = []; resolved = Ok value }
 
+type private DvalComparisonMode =
+  | DictKey
+  | Sort
+
 
 /// A KnownType represents the type of a dval.
 ///
@@ -197,8 +201,7 @@ type KnownType =
   /// let e = Error ("str") // type args: [Unknown, Known KTString]
   | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
-  /// let myDict = {} // KTDict Unknown
-  | KTDict of ValueType
+  | KTDict of key : ValueType * value : ValueType
 
 /// Represents the actual type of a Dval
 ///
@@ -373,7 +376,7 @@ type TypeReference =
   | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
-  | TDict of TypeReference // CLEANUP add key type
+  | TDict of key : TypeReference * value : TypeReference
   | TFn of NEList<TypeReference> * TypeReference
   | TCustomType of
     NameResolution<FQTypeName.FQTypeName> *
@@ -415,7 +418,7 @@ type TypeReference =
       | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
       | TList t -> isConcrete t
-      | TDict t -> isConcrete t
+      | TDict(k, v) -> isConcrete k && isConcrete v
 
       | TCustomType(_, ts) -> List.forall isConcrete ts
 
@@ -781,8 +784,7 @@ type Instruction =
   /// Create a list, and type-check to ensure the items are of a consistent type
   | CreateList of createTo : Register * itemsToAdd : List<Register>
 
-  /// Create a dict, and type-check to ensure the entries are of a consistent type
-  | CreateDict of createTo : Register * entries : List<string * Register>
+  | CreateDict of createTo : Register * entries : List<Register * Register>
 
 
   // == Working with Custom Data ==
@@ -847,6 +849,240 @@ and Instructions =
 
 
 and DvalMap = Map<string, Dval>
+
+and [<CustomEquality; CustomComparison>] DictKey =
+  | DictKey of Dval
+
+  member this.Dval : Dval =
+    let (DictKey dv) = this
+    dv
+
+  static member caseTag(dv : Dval) : int =
+    match dv with
+    | DUnit -> 0
+    | DBool _ -> 1
+    | DInt8 _ -> 2
+    | DUInt8 _ -> 3
+    | DInt16 _ -> 4
+    | DUInt16 _ -> 5
+    | DInt32 _ -> 6
+    | DUInt32 _ -> 7
+    | DInt64 _ -> 8
+    | DUInt64 _ -> 9
+    | DInt128 _ -> 10
+    | DUInt128 _ -> 11
+    | DInt _ -> 12
+    | DFloat _ -> 13
+    | DChar _ -> 14
+    | DString _ -> 15
+    | DDateTime _ -> 16
+    | DUuid _ -> 17
+    | DList _ -> 18
+    | DTuple _ -> 19
+    | DDict _ -> 20
+    | DRecord _ -> 21
+    | DEnum _ -> 22
+    | DDB _ -> 23
+    | DBlob _ -> 24
+    | DApplicable _ -> 25
+    | DStream _ -> 26
+
+  static member compare (a : Dval) (b : Dval) : int =
+    DvalOrdering.compareForDictKey a b
+
+  static member hash(dv : Dval) : int =
+    let tag = DictKey.caseTag dv
+    let combine (h : int) : int = tag * 31 + h
+    match dv with
+    | DUnit -> combine 0
+    | DBool x -> combine (hash x)
+    | DInt8 x -> combine (hash x)
+    | DUInt8 x -> combine (hash x)
+    | DInt16 x -> combine (hash x)
+    | DUInt16 x -> combine (hash x)
+    | DInt32 x -> combine (hash x)
+    | DUInt32 x -> combine (hash x)
+    | DInt64 x -> combine (hash x)
+    | DUInt64 x -> combine (hash x)
+    | DInt128 x -> combine (hash x)
+    | DUInt128 x -> combine (hash x)
+    | DInt x -> combine (hash (DarkInt.toBigInt x))
+    | DFloat x -> combine (hash x)
+    | DChar x -> combine (hash x)
+    | DString x -> combine (hash x)
+    | DDateTime x -> combine (hash x)
+    | DUuid x -> combine (hash x)
+    | DList(_, xs) -> combine (DictKey.hashList xs)
+    | DTuple(x1, x2, xs) -> combine (DictKey.hashList (x1 :: x2 :: xs))
+    | DDict(_, _, xs) ->
+      xs
+      |> Map.toList
+      |> List.fold
+        (fun acc (k, v) -> acc * 31 + DictKey.hash k.Dval * 31 + DictKey.hash v)
+        17
+      |> combine
+    | DRecord(_, tn, _, fields) ->
+      fields
+      |> Map.toList
+      |> List.fold
+        (fun acc (k, v) -> acc * 31 + hash k * 31 + DictKey.hash v)
+        (hash tn)
+      |> combine
+    | DEnum(_, tn, _, caseName, fields) ->
+      combine ((hash tn * 31 + hash caseName) * 31 + DictKey.hashList fields)
+    | DDB x -> combine (hash x)
+    | DBlob x ->
+      match x with
+      | Persistent(h, l) -> combine (hash h * 31 + hash l)
+      | Ephemeral e -> combine (hash e.id)
+    | DApplicable _
+    | DStream _ ->
+      Exception.raiseInternal
+        "A lambda or stream reached a Dict key hash; it should have been rejected \
+         when the dict was built"
+        []
+
+  static member private hashList(xs : List<Dval>) : int =
+    List.fold (fun acc x -> acc * 31 + DictKey.hash x) 17 xs
+
+  override this.Equals(other : obj) : bool =
+    match other with
+    | :? DictKey as other -> DictKey.compare this.Dval other.Dval = 0
+    | _ -> false
+
+  override this.GetHashCode() : int = DictKey.hash this.Dval
+
+  interface System.IComparable with
+    member this.CompareTo(other : obj) : int =
+      match other with
+      | :? DictKey as other -> DictKey.compare this.Dval other.Dval
+      | _ -> Exception.raiseInternal "Compared a DictKey against a non-DictKey" []
+
+and DvalComparisonException(left : Dval, right : Dval) =
+  inherit System.Exception()
+  member _.Left = left
+  member _.Right = right
+
+and DvalOrdering private () =
+  static member private compare
+    (mode : DvalComparisonMode)
+    (a : Dval)
+    (b : Dval)
+    : int =
+    match a, b with
+    | DUnit, DUnit -> 0
+    | DBool x, DBool y -> compare x y
+    | DInt8 x, DInt8 y -> compare x y
+    | DUInt8 x, DUInt8 y -> compare x y
+    | DInt16 x, DInt16 y -> compare x y
+    | DUInt16 x, DUInt16 y -> compare x y
+    | DInt32 x, DInt32 y -> compare x y
+    | DUInt32 x, DUInt32 y -> compare x y
+    | DInt64 x, DInt64 y -> compare x y
+    | DUInt64 x, DUInt64 y -> compare x y
+    | DInt128 x, DInt128 y -> compare x y
+    | DUInt128 x, DUInt128 y -> compare x y
+    | DInt x, DInt y -> DarkInt.compare x y
+    | DFloat x, DFloat y -> compare x y
+    | DChar x, DChar y -> compare x y
+    | DString x, DString y -> compare x y
+    | DDateTime x, DDateTime y -> compare x y
+    | DUuid x, DUuid y -> compare x y
+
+    | DList(_, x), DList(_, y) -> DvalOrdering.compareList mode x y
+    | DTuple(x1, x2, xs), DTuple(y1, y2, ys) ->
+      DvalOrdering.compareList mode (x1 :: x2 :: xs) (y1 :: y2 :: ys)
+
+    | DDict(_, _, x), DDict(_, _, y) ->
+      DvalOrdering.compareEntries mode (Map.toList x) (Map.toList y)
+
+    | DRecord(_, x, _, xFields), DRecord(_, y, _, yFields) ->
+      let c = compare x y
+      if c <> 0 then
+        c
+      else
+        DvalOrdering.compareEntries
+          mode
+          (Map.toList xFields |> List.map (fun (k, v) -> DictKey(DString k), v))
+          (Map.toList yFields |> List.map (fun (k, v) -> DictKey(DString k), v))
+
+    | DEnum(_, xType, _, xCase, xFields), DEnum(_, yType, _, yCase, yFields) ->
+      let c = compare xType yType
+      if c <> 0 then
+        c
+      else
+        let c = compare xCase yCase
+        if c <> 0 then c else DvalOrdering.compareList mode xFields yFields
+
+    | DDB x, DDB y -> compare x y
+
+    | DBlob x, DBlob y ->
+      match x, y with
+      | Persistent(xh, xl), Persistent(yh, yl) ->
+        let c = compare xh yh
+        if c <> 0 then c else compare xl yl
+      | Ephemeral x, Ephemeral y -> compare x.id y.id
+      | Persistent _, Ephemeral _ -> -1
+      | Ephemeral _, Persistent _ -> 1
+
+    | _ -> DvalOrdering.incompatible mode a b
+
+  static member private incompatible
+    (mode : DvalComparisonMode)
+    (a : Dval)
+    (b : Dval)
+    : int =
+    match mode with
+    | DvalComparisonMode.Sort -> raise (DvalComparisonException(a, b))
+    | DvalComparisonMode.DictKey ->
+      match a, b with
+      | DApplicable _, _
+      | _, DApplicable _
+      | DStream _, _
+      | _, DStream _ ->
+        Exception.raiseInternal
+          "A lambda or stream reached a Dict key comparison; it should have been \
+           rejected when the dict was built"
+          []
+      | _ -> compare (DictKey.caseTag a) (DictKey.caseTag b)
+
+  static member private compareList
+    (mode : DvalComparisonMode)
+    (a : List<Dval>)
+    (b : List<Dval>)
+    : int =
+    match a, b with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | x :: xs, y :: ys ->
+      let c = DvalOrdering.compare mode x y
+      if c <> 0 then c else DvalOrdering.compareList mode xs ys
+
+  static member private compareEntries
+    (mode : DvalComparisonMode)
+    (a : List<DictKey * Dval>)
+    (b : List<DictKey * Dval>)
+    : int =
+    match a, b with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | (xk, xv) :: xs, (yk, yv) :: ys ->
+      let c = DvalOrdering.compare mode xk.Dval yk.Dval
+      if c <> 0 then
+        c
+      else
+        let c = DvalOrdering.compare mode xv yv
+        if c <> 0 then c else DvalOrdering.compareEntries mode xs ys
+
+  static member compareForSort (a : Dval) (b : Dval) : int =
+    DvalOrdering.compare DvalComparisonMode.Sort a b
+
+  static member compareForDictKey (a : Dval) (b : Dval) : int =
+    DvalOrdering.compare DvalComparisonMode.DictKey a b
+
+and DictMap = Map<DictKey, Dval>
 
 
 /// Lambdas are a bit special:
@@ -971,11 +1207,7 @@ and [<NoComparison>] Dval =
   // Compound types
   | DList of ValueType * List<Dval>
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
-  | DDict of
-    // This is the type of the _values_, not the keys. Once users can specify the
-    // key type, we likely will need to add a `keyType: ValueType` field here. TODO
-    valueType : ValueType *
-    entries : DvalMap
+  | DDict of keyType : ValueType * valueType : ValueType * entries : DictMap
 
   // TODO: go through all instances of DRecord and DEnum
   // and make sure the typeNames are in the correct order
@@ -1154,8 +1386,8 @@ module RuntimeError =
     type TypeCheckPathPart =
       | ListType
 
+      | DictKeyType
       | DictValueType
-      // CLEANUP add DictKeyType here, once Dicts support non-string keys
 
       | TupleLength of expected : int * actual : int
       | TupleAtIndex of int
@@ -1201,13 +1433,20 @@ module RuntimeError =
 
   module Dicts =
     type Error =
-      | TriedToAddKeyAfterAlreadyPresent of key : string
+      | TriedToAddKeyAfterAlreadyPresent of key : Dval
 
       | TriedToAddMismatchedData of
-        key : string *
+        key : Dval *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
+
+      | UnsupportedKeyType of keyType : ValueType * key : Dval
+
+      | MismatchedKeyType of
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualKey : Dval
 
 
   module Lets =
@@ -1660,14 +1899,14 @@ module Dval =
   //
   // `ConditionalWeakTable` rather than a dictionary so a ValueType built from user data doesn't pin
   // itself for the life of the process, and because it's thread-safe -- tests run VMs in parallel.
-  let private listVTs =
-    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+  type private Cache<'k, 'v when 'k : not struct and 'v : not struct> =
+    System.Runtime.CompilerServices.ConditionalWeakTable<'k, 'v>
 
-  let private dictVTs =
-    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+  let private listVTs = Cache<ValueType, ValueType>()
 
-  let private customVTs =
-    System.Runtime.CompilerServices.ConditionalWeakTable<FQTypeName.FQTypeName, ValueType>()
+  let private dictVTs = Cache<ValueType, Cache<ValueType, ValueType>>()
+
+  let private customVTs = Cache<FQTypeName.FQTypeName, ValueType>()
 
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
@@ -1701,14 +1940,18 @@ module Dval =
         listVTs.AddOrUpdate(t, vt)
         vt
 
-    | DDict(t, _) ->
+    | DDict(kt, vt, _) ->
+      let mutable byValue = Unchecked.defaultof<Cache<ValueType, ValueType>>
+      if not (dictVTs.TryGetValue(kt, &byValue)) then
+        byValue <- Cache<ValueType, ValueType>()
+        dictVTs.AddOrUpdate(kt, byValue)
       let mutable hit = Unchecked.defaultof<ValueType>
-      if dictVTs.TryGetValue(t, &hit) then
+      if byValue.TryGetValue(vt, &hit) then
         hit
       else
-        let vt = ValueType.Known(KTDict t)
-        dictVTs.AddOrUpdate(t, vt)
-        vt
+        let result = ValueType.Known(KTDict(kt, vt))
+        byValue.AddOrUpdate(vt, result)
+        result
     | DTuple(first, second, theRest) ->
       ValueType.Known(
         KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
@@ -1762,6 +2005,48 @@ module Dval =
     | DBlob _ -> ValueType.Known KTBlob
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
+
+
+  let rec isUsableDictKey (dv : Dval) : bool =
+    match dv with
+    | DApplicable _
+    | DStream _
+    | DDB _ -> false
+
+    | DList(_, items) -> List.forall isUsableDictKey items
+    | DTuple(a, b, rest) ->
+      isUsableDictKey a && isUsableDictKey b && List.forall isUsableDictKey rest
+    | DDict(_, _, entries) ->
+      entries |> Map.forall (fun k v -> isUsableDictKey k.Dval && isUsableDictKey v)
+    | DRecord(_, _, _, fields) -> fields |> Map.forall (fun _ v -> isUsableDictKey v)
+    | DEnum(_, _, _, _, fields) -> List.forall isUsableDictKey fields
+
+    | DUnit
+    | DBool _
+    | DInt8 _
+    | DUInt8 _
+    | DInt16 _
+    | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
+    | DInt64 _
+    | DUInt64 _
+    | DInt128 _
+    | DUInt128 _
+    | DInt _
+    | DFloat _
+    | DChar _
+    | DString _
+    | DDateTime _
+    | DUuid _
+    | DBlob _ -> true
+
+  let assertUsableDictKey (key : Dval) : unit =
+    if not (isUsableDictKey key) then
+      RuntimeError.Error.Dict(
+        RuntimeError.Dicts.UnsupportedKeyType(toValueType key, key)
+      )
+      |> raiseUntargetedRTE
 
 
   /// Generic Dval-rewriting walker. At each node, asks `f`:
@@ -1828,9 +2113,9 @@ module Dval =
             else
               return DTuple(a', b', rest')
 
-          | DDict(vt, entries) ->
-            let! entries' = walkMap entries
-            return (if same entries' entries then dv else DDict(vt, entries'))
+          | DDict(kt, vt, entries) ->
+            let! entries' = walkDictEntries entries
+            return (if same entries' entries then dv else DDict(kt, vt, entries'))
 
           | DRecord(src, rt, typeArgs, fields) ->
             let! fields' = walkMap fields
@@ -1912,6 +2197,24 @@ module Dval =
         for KeyValue(k, v) in m do
           let! v' = go v
           if not (same v' v) then acc <- Map.add k v' acc
+        return acc
+      }
+
+    and walkDictEntries (m : DictMap) : Ply.Ply<DictMap> =
+      uply {
+        let mutable acc = m
+        let mutable rekeyed = []
+        for KeyValue(k, v) in m do
+          let! k' = go k.Dval
+          let! v' = go v
+          if same k' k.Dval then
+            if not (same v' v) then acc <- Map.add k v' acc
+          else
+            rekeyed <- (k, DictKey k', v') :: rekeyed
+
+        for (oldKey, newKey, value) in rekeyed do
+          acc <- acc |> Map.remove oldKey |> Map.add newKey value
+
         return acc
       }
 
@@ -3033,7 +3336,7 @@ module Types =
     | TStream t -> TStream(r t)
     | TTuple(t1, t2, rest) -> TTuple(r t1, r t2, List.map r rest)
     | TList t -> TList(r t)
-    | TDict t -> TDict(r t)
+    | TDict(k, v) -> TDict(r k, r v)
 
     | TCustomType(typ, args) -> TCustomType(typ, List.map r args)
 
@@ -3157,9 +3460,10 @@ module TypeReference =
           let! inner = toVT types tst inner
           return ValueType.Known(KTList inner)
 
-        | TDict inner ->
-          let! inner = toVT types tst inner
-          return ValueType.Known(KTDict inner)
+        | TDict(key, value) ->
+          let! key = toVT types tst key
+          let! value = toVT types tst value
+          return ValueType.Known(KTDict(key, value))
 
         | TCustomType({ resolved = Ok typeName }, typeArgs) ->
           let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
@@ -3213,7 +3517,7 @@ module TypeReference =
     | KTBlob -> TBlob
     | KTStream inner -> TStream(fromVT inner)
     | KTList inner -> TList(fromVT inner)
-    | KTDict inner -> TDict(fromVT inner)
+    | KTDict(key, value) -> TDict(fromVT key, fromVT value)
     | KTTuple(first, second, rest) ->
       TTuple(fromVT first, fromVT second, List.map fromVT rest)
     | KTCustomType(typeName, typeArgs) ->
@@ -3258,7 +3562,7 @@ module TypeReference =
 
     | TList inner -> TList(r inner)
     | TStream inner -> TStream(r inner)
-    | TDict inner -> TDict(r inner)
+    | TDict(key, value) -> TDict(r key, r value)
     | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
     | TCustomType(typeName, typeArgs) -> TCustomType(typeName, List.map r typeArgs)
     | TFn(args, ret) -> TFn(NEList.map r args, r ret)

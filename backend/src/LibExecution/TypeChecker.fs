@@ -178,9 +178,12 @@ let rec unifyValueTypeSync
       match actual with
       | ValueType.Known(KTStream innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
-    | TDict innerT ->
+    | TDict(keyT, valueT) ->
       match actual with
-      | ValueType.Known(KTDict innerV) -> unifyValueTypeSync tst innerT innerV
+      | ValueType.Known(KTDict(keyV, valueV)) ->
+        match unifyValueTypeSync tst keyT keyV with
+        | Unified tst -> unifyValueTypeSync tst valueT valueV
+        | notUnified -> notUnified
       | _ -> Undecided
 
     | TTuple(tFirst, tSecond, tRest) ->
@@ -331,8 +334,12 @@ let rec unifyValueType
         | TList innerT, ValueType.Known(KTList innerV) ->
           return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
 
-        | TDict innerT, ValueType.Known(KTDict innerV) ->
-          return! r tst (TypeCheckPathPart.DictValueType :: pathSoFar) innerT innerV
+        | TDict(keyT, valueT), ValueType.Known(KTDict(keyV, valueV)) ->
+          match! r tst (TypeCheckPathPart.DictKeyType :: pathSoFar) keyT keyV with
+          | Ok tst ->
+            return!
+              r tst (TypeCheckPathPart.DictValueType :: pathSoFar) valueT valueV
+          | error -> return error
 
         | TTuple(tFirst, tSecond, tRest),
           ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
@@ -575,9 +582,12 @@ let private unifyDvalSync
     match actual with
     | DList(innerV, _) -> unifyValueTypeSync tst innerT innerV
     | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
-  | TDict innerT ->
+  | TDict(keyT, valueT) ->
     match actual with
-    | DDict(innerV, _) -> unifyValueTypeSync tst innerT innerV
+    | DDict(keyV, valueV, _) ->
+      match unifyValueTypeSync tst keyT keyV with
+      | Unified tst -> unifyValueTypeSync tst valueT valueV
+      | notUnified -> notUnified
     | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
   | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
 
@@ -828,27 +838,39 @@ module DvalCreator =
         |> RTE.Error.List
         |> raiseRTE threadID
 
-  /// The same, for a dict's entries.
   let rec private dictEntries
     (threadID : ThreadID)
-    (typ : ValueType)
-    (acc : DvalMap)
-    (remaining : List<string * Dval>)
-    : struct (ValueType * DvalMap) =
+    (keyType : ValueType)
+    (valueType : ValueType)
+    (acc : DictMap)
+    (remaining : List<Dval * Dval>)
+    : struct (ValueType * ValueType * DictMap) =
     match remaining with
-    | [] -> struct (typ, acc)
+    | [] -> struct (keyType, valueType, acc)
     | (k, v) :: rest ->
-      if Map.containsKey k acc then
+      Dval.assertUsableDictKey k
+      let key = DictKey k
+
+      if Map.containsKey key acc then
         RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
         |> RTE.Error.Dict
         |> raiseRTE threadID
 
+      let kt = Dval.toValueType k
+      let keyType =
+        match VT.merge keyType kt with
+        | Ok merged -> merged
+        | Error() ->
+          RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
+          |> RTE.Error.Dict
+          |> raiseRTE threadID
+
       let vt = Dval.toValueType v
 
-      match VT.merge typ vt with
-      | Ok merged -> dictEntries threadID merged (Map.add k v acc) rest
+      match VT.merge valueType vt with
+      | Ok merged -> dictEntries threadID keyType merged (Map.add key v acc) rest
       | Error() ->
-        RTE.Dicts.Error.TriedToAddMismatchedData(k, typ, vt, v)
+        RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
         |> RTE.Error.Dict
         |> raiseRTE threadID
 
@@ -863,32 +885,47 @@ module DvalCreator =
   // CLEANUP see notes in `list` above
   let dict
     (threadID : ThreadID)
-    (typ : ValueType)
-    (entries : List<string * Dval>)
+    (keyType : ValueType)
+    (valueType : ValueType)
+    (entries : List<Dval * Dval>)
     : Dval =
-    let struct (typ, entries) = dictEntries threadID typ Map.empty entries
-    DDict(typ, entries)
+    let struct (keyType, valueType, entries) =
+      dictEntries threadID keyType valueType Map.empty entries
+    DDict(keyType, valueType, entries)
 
   let dictAddEntry
     (threadID : ThreadID)
-    (typ : ValueType)
-    (entries : DvalMap)
-    (k : string)
+    (keyType : ValueType)
+    (valueType : ValueType)
+    (entries : DictMap)
+    (k : Dval)
     (v : Dval)
     (overwrite : OverwriteBehaviour)
-    : struct (ValueType * DvalMap) =
+    : struct (ValueType * ValueType * DictMap) =
+    Dval.assertUsableDictKey k
+    let key = DictKey k
+
     match overwrite with
-    | ThrowIfDuplicate when Map.containsKey k entries ->
+    | ThrowIfDuplicate when Map.containsKey key entries ->
       RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
       |> RTE.Error.Dict
       |> raiseRTE threadID
     | ReplaceValue
     | ThrowIfDuplicate ->
+      let kt = Dval.toValueType k
+      let keyType =
+        match VT.merge keyType kt with
+        | Ok merged -> merged
+        | Error() ->
+          RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
+          |> RTE.Error.Dict
+          |> raiseRTE threadID
+
       let vt = Dval.toValueType v
-      match VT.merge typ vt with
-      | Ok merged -> struct (merged, Map.add k v entries)
+      match VT.merge valueType vt with
+      | Ok merged -> struct (keyType, merged, Map.add key v entries)
       | Error() ->
-        RTE.Dicts.Error.TriedToAddMismatchedData(k, typ, vt, v)
+        RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
         |> RTE.Error.Dict
         |> raiseRTE threadID
 

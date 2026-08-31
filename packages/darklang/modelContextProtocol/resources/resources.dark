@@ -192,7 +192,7 @@ module Helpers =
     Stdlib.String.startsWith uri template
 
   /// Extract variables from a URI based on a template
-  let extractUriVariables (uri: ResourceUri) (template: ResourceUriTemplate) : Stdlib.Option.Option<Dict<String>> =
+  let extractUriVariables (uri: ResourceUri) (template: ResourceUriTemplate) : Stdlib.Option.Option<Dict<String, String>> =
     // This is a simplified implementation that assumes templates use {varName} syntax
     // A more complete implementation would handle more complex URI template syntax
 

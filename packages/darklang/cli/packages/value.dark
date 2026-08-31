@@ -178,7 +178,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "  # Collections:"
     "  val myList = [1, 2, 3]"
-    "  val myDict = Dict { key = \"value\" }"
+    "  val myDict = Dict { \"key\": \"value\" }"
     ""
     "  # Type alias:"
     "  val userId = Uuid.parse \"123e4567-e89b-12d3-a456-426614174000\""

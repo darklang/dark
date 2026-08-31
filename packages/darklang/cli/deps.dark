@@ -23,7 +23,7 @@ let getDependents (branchId: Uuid) (targets: List<Item>) : List<HashedItem> =
 let resolveNames
   (branchId: Uuid)
   (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
-  : Dict<String> =
+  : Dict<String, String> =
   Deps.resolveNamesIn branchId [] itemHashes
 
 
@@ -36,7 +36,7 @@ let resolveNamesIn
   (branchId: Uuid)
   (currentModule: List<String>)
   (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
-  : Dict<String> =
+  : Dict<String, String> =
   (Builtin.depsResolveLocations branchId itemHashes)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
     let h = Darklang.LanguageTools.ProgramTypes.hashToString itemHash
@@ -47,7 +47,7 @@ let resolveNamesIn
 
 /// Get displayable name for an item, using precomputed names dict or falling back to hash
 let getName
-  (namesDict: Dict<String>)
+  (namesDict: Dict<String, String>)
   (hash: LanguageTools.ProgramTypes.Hash)
   : String =
   let h = Darklang.LanguageTools.ProgramTypes.hashToString hash

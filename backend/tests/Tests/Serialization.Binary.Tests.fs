@@ -146,6 +146,56 @@ module RT =
         |> BS.RT.Instructions.deserialize "instrs")
       Values.RuntimeTypes.instructions
 
+  /// Invalid keys are placed in one-entry maps so construction does not invoke the
+  /// comparer. Deserialization must reject them with a format error.
+  let private expectRefusedOnRead (name : string) (dv : RT.Dval) =
+    let bytes = BS.RT.Dval.serialize "dval" dv
+    let thrown =
+      try
+        BS.RT.Dval.deserialize "dval" bytes |> ignore<RT.Dval>
+        None
+      with e ->
+        Some(e.ToString())
+    match thrown with
+    | None -> failtest $"expected deserialize to refuse {name} as a dict key"
+    | Some message ->
+      Expect.stringContains
+        message
+        "Dict key that cannot be a key"
+        $"{name} must be refused as a format error, not by the comparer's guard"
+
+  /// DB references are comparable but intentionally unsupported as keys.
+  let dictWithDbKeyRejectedOnRead =
+    test "a Dict keyed by a DB reference is refused on deserialize" {
+      expectRefusedOnRead
+        "a DB reference"
+        (RT.DDict(
+          RT.ValueType.Unknown,
+          RT.ValueType.Unknown,
+          Map [ RT.DictKey(RT.DDB "somedb"), RT.DUnit ]
+        ))
+    }
+
+  /// Lambdas are neither valid nor comparable as keys.
+  let dictWithLambdaKeyRejectedOnRead =
+    test "a Dict keyed by a lambda is refused on deserialize" {
+      let lambda =
+        RT.DApplicable(
+          RT.AppNamedFn
+            { name = RT.FQFnName.Builtin { name = "someFn"; version = 0 }
+              typeSymbolTable = RT.TST.empty
+              typeArgs = []
+              argsSoFar = [] }
+        )
+      expectRefusedOnRead
+        "a lambda"
+        (RT.DDict(
+          RT.ValueType.Unknown,
+          RT.ValueType.Unknown,
+          Map [ RT.DictKey lambda, RT.DUnit ]
+        ))
+    }
+
 
 module ConsistentSerializationTests =
   type Format =
@@ -229,6 +279,8 @@ let tests =
           RT.packageValueTests
           RT.packageFnTests
           RT.dvalTests
-          RT.instructionsTests ]
+          RT.instructionsTests
+          RT.dictWithDbKeyRejectedOnRead
+          RT.dictWithLambdaKeyRejectedOnRead ]
 
       testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]

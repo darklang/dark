@@ -258,7 +258,7 @@ module TypeReference =
           toDT second
           DList(VT.known (knownType ()), List.map toDT theRest) ]
 
-      | TDict inner -> "TDict", [ toDT inner ]
+      | TDict(key, value) -> "TDict", [ toDT key; toDT value ]
 
       | TCustomType(typeName, typeArgs) ->
         "TCustomType",
@@ -304,7 +304,7 @@ module TypeReference =
 
     | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
 
-    | DEnum(_, _, [], "TDict", [ inner ]) -> TDict(fromDT inner)
+    | DEnum(_, _, [], "TDict", [ key; value ]) -> TDict(fromDT key, fromDT value)
 
     | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
       TCustomType(
@@ -472,7 +472,7 @@ module KnownType =
           ValueType.toDT second
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT theRest) ]
       | KTList inner -> "KTList", [ ValueType.toDT inner ]
-      | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
+      | KTDict(key, value) -> "KTDict", [ ValueType.toDT key; ValueType.toDT value ]
 
       | KTCustomType(typeName, typeArgs) ->
         "KTCustomType",
@@ -522,7 +522,8 @@ module KnownType =
         List.map ValueType.fromDT theRest
       )
     | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
-    | DEnum(_, _, [], "KTDict", [ inner ]) -> KTDict(ValueType.fromDT inner)
+    | DEnum(_, _, [], "KTDict", [ key; value ]) ->
+      KTDict(ValueType.fromDT key, ValueType.fromDT value)
 
     | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
       KTCustomType(FQTypeName.fromDT typeName, List.map ValueType.fromDT typeArgs)
@@ -605,10 +606,9 @@ module ApplicableLambda =
            |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
          ))
         ("typeSymbolTable",
-         DDict(
-           VT.known (ValueType.knownType ()),
-           TST.map ValueType.toDT lambda.typeSymbolTable
-         ))
+         Dval.stringDictFromMap
+           (ValueType.knownType ())
+           (TST.map ValueType.toDT lambda.typeSymbolTable))
         ("argsSoFar",
          DList(VT.known (Dval.knownType ()), List.map Dval.toDT lambda.argsSoFar)) ]
 
@@ -708,10 +708,19 @@ module Dval =
         "DList"
         [ ValueType.toDT vt; DList(VT.known (knownType ()), List.map toDT items) ]
 
-    | DDict(vt, entries) ->
+    | DDict(kt, vt, entries) ->
       mk
         "DDict"
-        [ ValueType.toDT vt; DDict(VT.known (knownType ()), Map.map toDT entries) ]
+        [ ValueType.toDT kt
+          ValueType.toDT vt
+          DDict(
+            VT.known (knownType ()),
+            VT.known (knownType ()),
+            entries
+            |> Map.toList
+            |> List.map (fun (k, v) -> DictKey(toDT k.Dval), toDT v)
+            |> Map
+          ) ]
 
     | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
       mk
@@ -719,7 +728,7 @@ module Dval =
         [ FQTypeName.toDT runtimeTypeName
           FQTypeName.toDT sourceTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
-          DDict(VT.known (knownType ()), Map.map toDT fields) ]
+          Dval.stringDictFromMap (knownType ()) (Map.map toDT fields) ]
 
     | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
       mk
@@ -782,8 +791,15 @@ module Dval =
     | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, l) ]) ->
       DList(ValueType.fromDT vt, List.map fromDT l)
 
-    | DEnum(_, _, [], "DDict", [ vt; DDict(_vtTODO, map) ]) ->
-      DDict(ValueType.fromDT vt, Map.map fromDT map)
+    | DEnum(_, _, [], "DDict", [ kt; vt; DDict(_ktTODO, _vtTODO, map) ]) ->
+      DDict(
+        ValueType.fromDT kt,
+        ValueType.fromDT vt,
+        map
+        |> Map.toList
+        |> List.map (fun (k, v) -> DictKey(fromDT k.Dval), fromDT v)
+        |> Map
+      )
 
     | DEnum(_,
             _,
@@ -867,6 +883,11 @@ module Instruction =
     |> List.map (fun (n, r) -> DTuple(DString n, reg r, []))
     |> Dval.list (KTTuple(VT.string, VT.int32, []))
 
+  let private regPairs (prs : List<Register * Register>) : Dval =
+    prs
+    |> List.map (fun (k, v) -> DTuple(reg k, reg v, []))
+    |> Dval.list (KTTuple(VT.int32, VT.int32, []))
+
   let private typeArgs (ts : List<TypeReference>) : Dval =
     ts |> List.map TypeReference.toDT |> Dval.list (TypeReference.knownType ())
 
@@ -903,7 +924,7 @@ module Instruction =
       | CreateTuple(t, a, b, rest) ->
         "CreateTuple", [ reg t; reg a; reg b; regs rest ]
       | CreateList(t, items) -> "CreateList", [ reg t; regs items ]
-      | CreateDict(t, entries) -> "CreateDict", [ reg t; namedRegs entries ]
+      | CreateDict(t, entries) -> "CreateDict", [ reg t; regPairs entries ]
       | CreateRecord(t, name, targs, fields) ->
         "CreateRecord",
         [ reg t; FQTypeName.toDT name; typeArgs targs; namedRegs fields ]
@@ -1108,33 +1129,51 @@ module RuntimeError =
       let (caseName, fields) =
         match e with
         | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
-          "TriedToAddKeyAfterAlreadyPresent", [ DString key ]
+          "TriedToAddKeyAfterAlreadyPresent", [ Dval.toDT key ]
         | RuntimeError.Dicts.TriedToAddMismatchedData(key,
                                                       expectedType,
                                                       actualType,
                                                       actualValue) ->
           "TriedToAddMismatchedData",
-          [ DString key
+          [ Dval.toDT key
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
+        | RuntimeError.Dicts.UnsupportedKeyType(keyType, key) ->
+          "UnsupportedKeyType", [ ValueType.toDT keyType; Dval.toDT key ]
+        | RuntimeError.Dicts.MismatchedKeyType(expectedType, actualType, actualKey) ->
+          "MismatchedKeyType",
+          [ ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualKey ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : RuntimeError.Dicts.Error =
       match d with
-      | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ DString key ]) ->
-        RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key
+      | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ key ]) ->
+        RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent(Dval.fromDT key)
       | DEnum(_,
               _,
               [],
               "TriedToAddMismatchedData",
               [ key; expectedType; actualType; actualValue ]) ->
         RuntimeError.Dicts.TriedToAddMismatchedData(
-          D.string key,
+          Dval.fromDT key,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
+        )
+      | DEnum(_, _, [], "UnsupportedKeyType", [ keyType; key ]) ->
+        RuntimeError.Dicts.UnsupportedKeyType(
+          ValueType.fromDT keyType,
+          Dval.fromDT key
+        )
+      | DEnum(_, _, [], "MismatchedKeyType", [ expectedType; actualType; actualKey ]) ->
+        RuntimeError.Dicts.MismatchedKeyType(
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualKey
         )
       | _ -> Exception.raiseInternal "Invalid Dicts.Error" []
 

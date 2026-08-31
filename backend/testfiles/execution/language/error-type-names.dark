@@ -33,7 +33,7 @@ module NestedInTypeArguments =
   // problem as the outermost one.
   let takesListOfInt (x: List<Darklang.Stdlib.Int.ParseError>) : Int = 1
   let takesListOfUuid (x: List<Darklang.Stdlib.Uuid.ParseError>) : Int = 2
-  let takesDeep (x: Dict<List<Darklang.Stdlib.Uuid.ParseError>>) : Int = 3
+  let takesDeep (x: Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>) : Int = 3
 
   // The sharpest case: one hash, two positions, two names, in one type.
   let takesPair
@@ -43,7 +43,7 @@ module NestedInTypeArguments =
 
   (takesListOfInt 5) = error="NestedInTypeArguments.takesListOfInt's 1st parameter `x` expects List<Darklang.Stdlib.Int.ParseError>, but got Int (5)"
   (takesListOfUuid 5) = error="NestedInTypeArguments.takesListOfUuid's 1st parameter `x` expects List<Darklang.Stdlib.Uuid.ParseError>, but got Int (5)"
-  (takesDeep 5) = error="NestedInTypeArguments.takesDeep's 1st parameter `x` expects Dict<List<Darklang.Stdlib.Uuid.ParseError>>, but got Int (5)"
+  (takesDeep 5) = error="NestedInTypeArguments.takesDeep's 1st parameter `x` expects Dict<String, List<Darklang.Stdlib.Uuid.ParseError>>, but got Int (5)"
   (takesPair 5) = error="NestedInTypeArguments.takesPair's 1st parameter `x` expects (Darklang.Stdlib.Int.ParseError * Darklang.Stdlib.Uuid.ParseError), but got Int (5)"
 
 module RecordAndEnumFields =

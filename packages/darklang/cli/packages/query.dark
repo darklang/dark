@@ -121,14 +121,14 @@ let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResult
 /// Sets are kept as Dicts keyed by the underlying hex string (there's no
 /// Stdlib.Set yet), giving O(1) lookup. The unit value is unused.
 type DeprecationSets =
-  { allDeprecated: Dict<Bool>
-    hidden: Dict<Bool> }
+  { allDeprecated: Dict<String, Bool>
+    hidden: Dict<String, Bool> }
 
 
-/// Build a Dict<Bool> keyed by each hash's underlying hex string.
+/// Build a Dict<String, Bool> keyed by each hash's underlying hex string.
 let hashListToDict
   (hashes: List<LanguageTools.ProgramTypes.Hash>)
-  : Dict<Bool> =
+  : Dict<String, Bool> =
   hashes
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc hash ->
     let key = LanguageTools.ProgramTypes.hashToString hash
@@ -146,7 +146,7 @@ let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
 
 
 let memberOf
-  (d: Dict<Bool>)
+  (d: Dict<String, Bool>)
   (hash: LanguageTools.ProgramTypes.Hash)
   : Bool =
   Stdlib.Dict.member d (LanguageTools.ProgramTypes.hashToString hash)

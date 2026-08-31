@@ -129,12 +129,20 @@ module TypeReference =
       | TDateTime r
       | TBlob r -> [ makeToken r TokenType.TypeName ]
       | TStream(_r, rk, ro, t, rc)
-      | TList(_r, rk, ro, t, rc)
-      | TDict(_r, rk, ro, t, rc) ->
+      | TList(_r, rk, ro, t, rc) ->
         Stdlib.List.flatten (
           [ [ makeToken rk TokenType.Keyword ]
             [ makeToken ro TokenType.Symbol ]
             (TypeReference.tokenize t)
+            [ makeToken rc TokenType.Symbol ] ]
+        )
+      | TDict(_r, rk, ro, keyType, rcomma, valueType, rc) ->
+        Stdlib.List.flatten (
+          [ [ makeToken rk TokenType.Keyword ]
+            [ makeToken ro TokenType.Symbol ]
+            (TypeReference.tokenize keyType)
+            [ makeToken rcomma TokenType.Symbol ]
+            (TypeReference.tokenize valueType)
             [ makeToken rc TokenType.Symbol ] ]
         )
       | TTuple(_r, first, ra, second, rest, ro, rc) ->
@@ -715,11 +723,11 @@ module Expr =
             symbolCloseBrace) ->
       let contents =
         contentsMaybe
-        |> Stdlib.List.map (fun (_, key, value) ->
-          let (r, _) = key
-
+        |> Stdlib.List.map (fun (_, key, colonRange, value) ->
           [ // key
-            [ makeToken r TokenType.Property ]
+            Expr.tokenize key
+            // :
+            [ makeToken colonRange TokenType.Symbol ]
             // value
             Expr.tokenize value ]
           |> Stdlib.List.flatten)

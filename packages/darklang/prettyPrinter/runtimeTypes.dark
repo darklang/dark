@@ -271,7 +271,10 @@ let typeReference
 
   | TList inner -> $"List<{typeReference branchId inner}>"
 
-  | TDict inner -> $"Dict<{typeReference branchId inner}>"
+  | TDict(key, value) ->
+    let k = typeReference branchId key
+    let v = typeReference branchId value
+    $"Dict<{k}, {v}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -348,7 +351,10 @@ let knownType
     |> Stdlib.String.join " * "
     |> fun s -> $"({s})"
   | KTList typ -> $"List<{valueType branchId typ}>"
-  | KTDict typ -> $"Dict<{valueType branchId typ}>"
+  | KTDict(key, value) ->
+    let k = valueType branchId key
+    let v = valueType branchId value
+    $"Dict<{k}, {v}>"
 
   | KTFn(argTypes, retType) ->
     (Stdlib.List.push argTypes retType)
@@ -428,8 +434,10 @@ let declaredKnownType
   | KTList inner, Some(TList dInner) ->
     $"List<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
 
-  | KTDict inner, Some(TDict dInner) ->
-    $"Dict<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
+  | KTDict(key, value), Some(TDict(dKey, dValue)) ->
+    let k = declaredValueType branchId (Stdlib.Option.Option.Some dKey) key
+    let v = declaredValueType branchId (Stdlib.Option.Option.Some dValue) value
+    $"Dict<{k}, {v}>"
 
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
     let items = Stdlib.List.append [ t1, t2 ] trest
@@ -532,7 +540,10 @@ module Dval =
       |> Stdlib.String.join " * "
       |> fun parts -> "(" ++ parts ++ ")"
     | DList (vt, _) -> $"List<{valueType branchId vt}>"
-    | DDict (vt, _) -> $"Dict<{valueType branchId vt}>"
+    | DDict(kt, vt, _) ->
+      let k = valueType branchId kt
+      let v = valueType branchId vt
+      $"Dict<{k}, {v}>"
     | DRecord (_, typeName, typeArgs, _) ->
       let typeArgsPart =
         match typeArgs with
@@ -701,7 +712,7 @@ module Dval =
       else
         bracketed "[" "]" (l |> Stdlib.List.map (fun i -> child i))
 
-    | DDict(_, d) ->
+    | DDict(_, _, d) ->
       if d == Stdlib.Dict.empty then
         txt "{}"
       else
@@ -710,8 +721,11 @@ module Dval =
           |> Stdlib.Dict.toList
           |> Stdlib.List.map (fun pair ->
             let (key, value) = pair
-            let key = PrettyPrinter.formatFieldName key
-            Stdlib.Pretty.concat (txt $"{key}: ") (child value))
+
+            Stdlib.Pretty.concat
+              (Stdlib.Pretty.concat (child key) (txt ": "))
+              (child value))
+
         braced "{" "}" parts
 
     // Don't fetch the bytes for rendering -- payloads can be many MB.

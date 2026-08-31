@@ -63,7 +63,7 @@ type TypeReference =
   | TStream of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TList of TypeReference
-  | TDict of TypeReference
+  | TDict of key: TypeReference * value: TypeReference
   | TCustomType of
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs: List<TypeReference>
@@ -71,7 +71,7 @@ type TypeReference =
   | TDB of TypeReference
   | TVariable of String
 
-type TypeSymbolTable = Dict<TypeReference>
+type TypeSymbolTable = Dict<String, TypeReference>
 
 
 type KnownType =
@@ -97,7 +97,7 @@ type KnownType =
   | KTStream of ValueType
   | KTTuple of ValueType * ValueType * List<ValueType>
   | KTList of ValueType
-  | KTDict of ValueType
+  | KTDict of key: ValueType * value: ValueType
 
   | KTFn of List<ValueType> * ValueType
 
@@ -145,7 +145,9 @@ type MatchPattern =
 
 type Register = Int32
 
-type DvalMap = Dict<Dval>
+type DvalMap = Dict<String, Dval>
+
+type DictMap = Dict<Dval, Dval>
 
 type StringSegment =
   | Text of String
@@ -179,7 +181,7 @@ type Instruction =
     second: Register *
     theRest: List<Register>
   | CreateList of createTo: Register * itemsToAdd: List<Register>
-  | CreateDict of createTo: Register * entries: List<(String * Register)>
+  | CreateDict of createTo: Register * entries: List<(Register * Register)>
   | CreateRecord of
     createTo: Register *
     typeName: FQTypeName.FQTypeName *
@@ -262,7 +264,7 @@ type Dval =
 
   | DTuple of Dval * Dval * List<Dval>
   | DList of ValueType * List<Dval>
-  | DDict of ValueType * DvalMap
+  | DDict of keyType: ValueType * valueType: ValueType * entries: DictMap
 
   | DRecord of
     runtimeTypeName: FQTypeName.FQTypeName *

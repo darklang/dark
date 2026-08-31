@@ -344,7 +344,8 @@ module Expect =
 
     | DList(_, items) -> List.all r items
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
-    | DDict(_, entries) -> entries |> Map.values |> List.all r
+    | DDict(_, _, entries) ->
+      entries |> Map.toList |> List.all (fun (k, v) -> r k.Dval && r v)
 
     | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
     | DEnum(_, _, _, _, fields) -> fields |> List.all r
@@ -522,25 +523,26 @@ module Expect =
         check ("Length" :: path) (List.length theRestL) (List.length theRestR)
         List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
-      | DDict(lType, ls), DDict(rType, rs) ->
+      | DDict(lKeyType, lType, ls), DDict(rKeyType, rType, rs) ->
         check ("Length" :: path) (Map.count ls) (Map.count rs)
 
+        checkValueType ("KeyType" :: path) lKeyType rKeyType
         checkValueType ("Type" :: path) lType rType
 
         // check keys from ls are in both, check matching values
         Map.iterWithIndex
-          (fun key v1 ->
+          (fun (key : DictKey) v1 ->
             match Map.find key rs with
-            | Some v2 -> de (key :: path) v1 v2
-            | None -> check (key :: path) ls rs)
+            | Some v2 -> de (string key.Dval :: path) v1 v2
+            | None -> check (string key.Dval :: path) ls rs)
           ls
 
         // check keys from rs are in both
         Map.iterWithIndex
-          (fun key _ ->
+          (fun (key : DictKey) _ ->
             match Map.find key rs with
             | Some _ -> () // already checked
-            | None -> check (key :: path) ls rs)
+            | None -> check (string key.Dval :: path) ls rs)
           rs
 
 
@@ -1037,7 +1039,13 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let rec visit dv : unit =
     match dv with
     | DList(_, items) -> List.map visit items |> ignore<List<unit>>
-    | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
+    | DDict(_, _, entries) ->
+      entries
+      |> Map.toList
+      |> List.map (fun (k, v) ->
+        visit k.Dval
+        visit v)
+      |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 
@@ -1253,13 +1261,23 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        Map.ofList [ "$type", Dval.int64 5 ]
      ),
      TCustomType(NameResolution.ok (FQTypeName.Package hash), []))
-    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
+    ("dict", Dval.stringDict KTInt64 [ "foo", Dval.int64 5 ], TDict(TString, TInt64))
     ("dict3",
-     DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
-     TDict TString)
+     Dval.stringDict KTString [ ("type", DString "weird"); ("value", DString "x") ],
+     TDict(TString, TString))
     // More Json.NET tests
-    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int64 5 ]), TDict TInt64)
-    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int64 5 ]), TDict TInt64)
+    ("dict4",
+     Dval.stringDict KTInt64 [ "foo\\\\bar", Dval.int64 5 ],
+     TDict(TString, TInt64))
+    ("dict5",
+     Dval.stringDict KTInt64 [ "$type", Dval.int64 5 ],
+     TDict(TString, TInt64))
+    ("dictIntKeys",
+     Dval.dict
+       KTInt
+       KTString
+       [ (Dval.int (bigint 1), DString "one"); (Dval.int (bigint 2), DString "two") ],
+     TDict(TInt, TString))
     // ("lambda",
     //  DApplicable(
     //    Lambda

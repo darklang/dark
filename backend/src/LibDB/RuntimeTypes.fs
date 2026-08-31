@@ -243,7 +243,10 @@ module Blob =
         let acc = go acc a
         let acc = go acc b
         rest |> List.fold go acc
-      | RT.DDict(_, entries) -> entries |> Map.values |> Seq.fold go acc
+      | RT.DDict(_, _, entries) ->
+        entries
+        |> Map.toSeq
+        |> Seq.fold (fun acc (k : RT.DictKey, v) -> go (go acc k.Dval) v) acc
       | RT.DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.fold go acc
       | RT.DEnum(_, _, _, _, fields) -> fields |> List.fold go acc
     go Set.empty dv

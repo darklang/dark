@@ -35,7 +35,6 @@ type ThingAtPosition =
     typ: String *
     description: Stdlib.Option.Option<String>
   | TypeParameter of description: Stdlib.Option.Option<String>
-  | DictKey of String * description: Stdlib.Option.Option<String>
   | EnumLabel of description: Stdlib.Option.Option<String>
 
 

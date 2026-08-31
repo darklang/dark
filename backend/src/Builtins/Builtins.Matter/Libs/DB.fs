@@ -382,7 +382,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dbGetManyWithKeys" 0
       typeParams = []
       parameters = [ keysParam; tableParam "a" ]
-      returnType = TDict(tvar "a")
+      returnType = TDict(TString, tvar "a")
       description =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
@@ -401,7 +401,12 @@ let fns () : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getManyWithKeys exeState vm.threadID tst db
-            return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
+            return
+              TypeChecker.DvalCreator.dict
+                vm.threadID
+                VT.string
+                VT.unknownDbTODO
+                (result |> List.map (fun (k, v) -> DString k, v))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -483,7 +488,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dbGetAllWithKeys" 0
       typeParams = []
       parameters = [ tableParam "a" ]
-      returnType = TDict(tvar "a")
+      returnType = TDict(TString, tvar "a")
       description =
         "Fetch all the values in <param table>. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
@@ -495,7 +500,12 @@ let fns () : List<BuiltInFn> =
             let db = exeState.program.dbs[dbname]
             let tst = TST.empty // TODO idk if this is reasonable
             let! result = UserDB.getAll exeState vm.threadID tst db
-            return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
+            return
+              TypeChecker.DvalCreator.dict
+                vm.threadID
+                VT.string
+                VT.unknownDbTODO
+                (result |> List.map (fun (k, v) -> DString k, v))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -600,7 +610,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dbQueryWithKey" 0
       typeParams = []
       parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TDict(tvar "a")
+      returnType = TDict(TString, tvar "a")
       description =
         "Fetch all the values from <param table> for which filter returns true, returning {key : value} as a dict."
       fn =

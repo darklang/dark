@@ -1,7 +1,7 @@
 module Darklang.ModelContextProtocol.ServerBuilder.Tools
 
 // Get all tool descriptions from the builder
-let getToolDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.ToolDescription> =
+let getToolDescriptions (server: McpServerBuilder) : Dict<String, ModelContextProtocol.ToolDescription> =
   server.tools
   |> Stdlib.Dict.map (fun _key toolDef -> toolDef.description)
 

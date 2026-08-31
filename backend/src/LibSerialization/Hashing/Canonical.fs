@@ -180,9 +180,10 @@ let writeTypeReference
   | PT.TList inner ->
     w.Write 14uy
     writeTypeReference mode w inner
-  | PT.TDict inner ->
+  | PT.TDict(key, value) ->
     w.Write 15uy
-    writeTypeReference mode w inner
+    writeTypeReference mode w key
+    writeTypeReference mode w value
   | PT.TDB inner ->
     w.Write 16uy
     writeTypeReference mode w inner
@@ -481,7 +482,7 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
     Common.List.write
       w
       (fun w (key, value) ->
-        Common.String.write w key
+        writeExpr mode w key
         writeExpr mode w value)
       pairs
   | PT.EFnName(_id, nameRes) ->

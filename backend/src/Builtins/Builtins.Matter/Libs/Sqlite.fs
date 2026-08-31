@@ -91,7 +91,12 @@ let private queryImpl
   (sql : string)
   (parameters : List<string>)
   : Ply<Dval> =
-  let rowsKT = KTList(ValueType.Known(KTDict(ValueType.Known Value.knownType)))
+  let rowsKT =
+    KTList(
+      ValueType.Known(
+        KTDict(ValueType.Known KTString, ValueType.Known Value.knownType)
+      )
+    )
 
   uply {
     try
@@ -117,9 +122,11 @@ let private queryImpl
           let cells =
             [ for i in 0 .. reader.FieldCount - 1 ->
                 (reader.GetName i, Value.toDT (reader.GetValue i)) ]
-          rows.Add(Dval.dict Value.knownType cells)
+          rows.Add(Dval.stringDict Value.knownType cells)
       let listDval =
-        Dval.list (KTDict(ValueType.Known Value.knownType)) (List.ofSeq rows)
+        Dval.list
+          (KTDict(ValueType.Known KTString, ValueType.Known Value.knownType))
+          (List.ofSeq rows)
       return Dval.resultOk rowsKT KTString listDval
     with e ->
       return Dval.resultError rowsKT KTString (DString e.Message)
@@ -165,7 +172,8 @@ let fns () : List<BuiltInFn> =
             (TList TString)
             ("values bound to @p0..@pN placeholders, in order (injection-safe); "
              + "[] for none") ]
-      returnType = TypeReference.result (TList(TDict Value.typeRef)) TString
+      returnType =
+        TypeReference.result (TList(TDict(TString, Value.typeRef))) TString
       description =
         "Opens the SQLite file at <param path> and runs the SELECT <param sql>, "
         + "binding <param params> to @p0..@pN placeholders (injection-safe; pass "

@@ -708,7 +708,7 @@ let private desugarTests =
           | other -> failtest $"expected a single unit placeholder, got: {other}"
         | other -> failtest $"expected a call with one type arg, got: {other}")
       testCase "`Dict { … }` lowers to EDict, not a record" (fun _ ->
-        match toPT (lowerExpr "Dict { a = 1L; b = 2L }") with
+        match toPT (lowerExpr "Dict { \"a\": 1L; \"b\": 2L }") with
         | PT.EDict(_, pairs) ->
           Expect.equal (List.length pairs) 2 "two dict entries"
         | other -> failtest $"expected EDict, got: {other}")
@@ -1114,9 +1114,9 @@ let private typeTests =
         match parsedType "List<Int64>" with
         | WT.TList(_, _, _, WT.TInt64 _, _) -> ()
         | o -> failtest $"{o}")
-      testCase "Dict<String>" (fun _ ->
-        match parsedType "Dict<String>" with
-        | WT.TDict(_, _, _, WT.TString _, _) -> ()
+      testCase "Dict<String, Int64>" (fun _ ->
+        match parsedType "Dict<String, Int64>" with
+        | WT.TDict(_, _, _, WT.TString _, _, WT.TInt64 _, _) -> ()
         | o -> failtest $"{o}")
       testCase "tuple type (star-separated)" (fun _ ->
         match parsedType "Int64 * String" with
@@ -1255,7 +1255,7 @@ let private recoveryTests =
             "Pair(1L 2L)"
             "match pair with | Pair(a b) -> a"
             "Person { a = 1L b = 2L }"
-            "Dict { a = 1L b = 2L }"
+            "Dict { \"a\": 1L \"b\": 2L }"
             "{ value with a = 1L b = 2L }"
             "type R = { a: Int64 b: String }" ] do
           Expect.isNonEmpty
@@ -1268,7 +1268,7 @@ let private recoveryTests =
             "Pair(1L, 2L)"
             "match pair with | Pair(a, b) -> a"
             "Person { a = 1L; b = 2L }"
-            "Dict { a = 1L; b = 2L }"
+            "Dict { \"a\": 1L; \"b\": 2L }"
             "{ value with a = 1L; b = 2L }"
             "type R = { a: Int64; b: String }" ] do
           Expect.isEmpty
@@ -1642,7 +1642,8 @@ let private rangeInvariantTests =
     | WT.ERecordFieldAccess(_, o, _, _) -> [ o ]
     | WT.ELambda(_, _, b, _, _) -> [ b ]
     | WT.ERecord(_, _, fields, _, _) -> fields |> List.map (fun (_, _, v) -> v)
-    | WT.EDict(_, contents, _, _, _) -> contents |> List.map (fun (_, _, v) -> v)
+    | WT.EDict(_, contents, _, _, _) ->
+      contents |> List.collect (fun (_, k, _, v) -> [ k; v ])
     | WT.ERecordUpdate(_, r, ups, _, _, _) ->
       r :: (ups |> List.map (fun (_, _, v) -> v))
     | WT.EEnum(_, _, _, fields, _) -> fields

@@ -155,7 +155,10 @@ module TypeReference =
 
       | WT.TList(_, _, _, inner, _) -> return! toPT inner |> Ply.map PT.TList
 
-      | WT.TDict(_, _, _, inner, _) -> return! toPT inner |> Ply.map PT.TDict
+      | WT.TDict(_, _, _, key, _, value, _) ->
+        let! key = toPT key
+        let! value = toPT value
+        return PT.TDict(key, value)
 
       | WT.TVariable(_, _, (_, name)) -> return PT.TVariable name
 
@@ -648,10 +651,11 @@ module Expr =
         let id = gid ()
         let! pairs =
           contents
-          |> Ply.List.mapSequentially (fun (_, (_, key), v) ->
+          |> Ply.List.mapSequentially (fun (_, k, _, v) ->
             uply {
+              let! k = toPT context k
               let! v = toPT context v
-              return (key, v)
+              return (k, v)
             })
         return PT.EDict(id, pairs)
       | WT.ERecord(_, tn, fields, _, _) ->
@@ -1080,8 +1084,8 @@ module PackageFn =
     | PT.TVariable _ -> acc
     | PT.TList inner
     | PT.TStream inner
-    | PT.TDict inner
     | PT.TDB inner -> collectTVars acc inner
+    | PT.TDict(key, value) -> collectTVars (collectTVars acc key) value
     | PT.TTuple(a, b, rest) ->
       let acc = collectTVars acc a
       let acc = collectTVars acc b

@@ -144,10 +144,6 @@ let hoverInfoForThingAtPosition
     let metadata = Stdlib.Option.Option.Some("Type parameter")
     createHoverInfo range description metadata
 
-  | DictKey key description ->
-    let metadata = Stdlib.Option.Option.Some("Dict key: " ++ key)
-    createHoverInfo range description metadata
-
 
 let createCodeSnippet (text: String) : String =
   $"""
@@ -347,7 +343,7 @@ let collectBuiltinTypeHoverInfoAtPos
     else
       Stdlib.Option.Option.None
 
-  | TDict(r, keywordRange, _, typ, _) ->
+  | TDict(r, keywordRange, _, keyType, _, valueType, _) ->
     // check if position is within the Dict range
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the Dict keyword
@@ -361,8 +357,10 @@ let collectBuiltinTypeHoverInfoAtPos
         |> Stdlib.Option.Option.Some
 
       | None ->
-        // check if we are hovering over the type reference
-        collectTypeRefHoverInfoAtPos ctx typ position
+        // check if we are hovering over either type reference
+        match collectTypeRefHoverInfoAtPos ctx keyType position with
+        | Some r -> Stdlib.Option.Option.Some r
+        | None -> collectTypeRefHoverInfoAtPos ctx valueType position
 
     else
       Stdlib.Option.Option.None
@@ -1585,27 +1583,12 @@ let collectExpressionHoverInfoAtPos
 
       | None ->
         // check if we are hovering over one of the Dict contents
+        // Both halves are expressions, so a key hovers like any other expression.
         contents
-        |> Stdlib.List.filterMap (fun (_, k, v) ->
-          let (keyRange, key) = k
-
-          match
-            CursorPosition.checkIfPositionWithinRange position keyRange
-          with
-          | Some r ->
-            let description =
-              Stdlib.Option.Option.Some(
-                "TODO: add description when /// comments are supported"
-              )
-
-            let thingAtPosition =
-              CursorPosition.ThingAtPosition.DictKey key description
-
-            (hoverInfoForThingAtPosition ctx thingAtPosition r)
-            |> Stdlib.Option.Option.Some
-
-          | None ->
-            collectExpressionHoverInfoAtPos ctx v position)
+        |> Stdlib.List.filterMap (fun (_, k, _, v) ->
+          match collectExpressionHoverInfoAtPos ctx k position with
+          | Some r -> Stdlib.Option.Option.Some r
+          | None -> collectExpressionHoverInfoAtPos ctx v position)
         |> Stdlib.List.head
     else
       Stdlib.Option.Option.None

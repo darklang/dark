@@ -41,7 +41,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "environmentGetAll" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDict TString
+      returnType = TDict(TString, TString)
       description =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
@@ -56,7 +56,7 @@ let fns () : List<BuiltInFn> =
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
             |> Seq.toList
-            |> Dval.dict KTString
+            |> Dval.stringDict KTString
 
           Ply(envMap)
         | _ -> incorrectArgs ())

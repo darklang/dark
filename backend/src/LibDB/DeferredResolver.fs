@@ -217,9 +217,10 @@ let rec private reResolveTypeRef
       let! inner = reResolveTypeRef branchId contextModules pm inner
       return PT.TList inner
 
-    | PT.TDict inner ->
-      let! inner = reResolveTypeRef branchId contextModules pm inner
-      return PT.TDict inner
+    | PT.TDict(key, value) ->
+      let! key = reResolveTypeRef branchId contextModules pm key
+      let! value = reResolveTypeRef branchId contextModules pm value
+      return PT.TDict(key, value)
 
     | PT.TDB inner ->
       let! inner = reResolveTypeRef branchId contextModules pm inner

@@ -127,14 +127,16 @@ module TokenizeTypeReference =
       (TokenType.TypeName, (0, 19), (0, 25))
       (TokenType.Symbol, (0, 25), (0, 26)) ]
 
-  ("type MyDict = Dict<Int64>" |> tokenize) =
+  ("type MyDict = Dict<String, Int64>" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 4))
       (TokenType.TypeName, (0, 5), (0, 11))
       (TokenType.Symbol, (0, 12), (0, 13))
       (TokenType.Keyword, (0, 14), (0, 18))
       (TokenType.Symbol, (0, 18), (0, 19))
-      (TokenType.TypeName, (0, 19), (0, 24))
-      (TokenType.Symbol, (0, 24), (0, 25)) ]
+      (TokenType.TypeName, (0, 19), (0, 25))
+      (TokenType.Symbol, (0, 25), (0, 26))
+      (TokenType.TypeName, (0, 27), (0, 32))
+      (TokenType.Symbol, (0, 32), (0, 33)) ]
 
   ("type MyTuple2 = (String * Int64)" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 4))
@@ -377,19 +379,25 @@ module TokenizeValueDeclaration =
       (TokenType.Symbol, (0, 27), (0, 28))
       (TokenType.Symbol, (0, 28), (0, 29)) ]
 
-  ("val dictValue = Dict { a = 1L; b = 2L }" |> tokenize) =
+  ("val dictValue = Dict { \"a\": 1L; \"b\": 2L }" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 3))
       (TokenType.VariableName, (0, 4), (0, 13))
       (TokenType.Symbol, (0, 14), (0, 15))
       (TokenType.Keyword, (0, 16), (0, 20))
       (TokenType.Symbol, (0, 21), (0, 22))
-      (TokenType.Property, (0, 23), (0, 24))
-      (TokenType.Number, (0, 27), (0, 28))
-      (TokenType.Symbol, (0, 28), (0, 29))
-      (TokenType.Property, (0, 31), (0, 32))
-      (TokenType.Number, (0, 35), (0, 36))
-      (TokenType.Symbol, (0, 36), (0, 37))
-      (TokenType.Symbol, (0, 38), (0, 39)) ]
+      (TokenType.Symbol, (0, 23), (0, 24))
+      (TokenType.String, (0, 24), (0, 25))
+      (TokenType.Symbol, (0, 25), (0, 26))
+      (TokenType.Symbol, (0, 26), (0, 27))
+      (TokenType.Number, (0, 28), (0, 29))
+      (TokenType.Symbol, (0, 29), (0, 30))
+      (TokenType.Symbol, (0, 32), (0, 33))
+      (TokenType.String, (0, 33), (0, 34))
+      (TokenType.Symbol, (0, 34), (0, 35))
+      (TokenType.Symbol, (0, 35), (0, 36))
+      (TokenType.Number, (0, 37), (0, 38))
+      (TokenType.Symbol, (0, 38), (0, 39))
+      (TokenType.Symbol, (0, 40), (0, 41)) ]
 
   ("val enumValue = Stdlib.Option.Option.Some(1L)" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 3))
@@ -494,16 +502,22 @@ module TokenizeExpression =
       (TokenType.Symbol, (0, 18), (0, 19)) ]
 
 
-  ("Dict { a = 1L; b = 2L }" |> tokenize) =
+  ("Dict { \"a\": 1L; \"b\": 2L }" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 4))
       (TokenType.Symbol, (0, 5), (0, 6))
-      (TokenType.Property, (0, 7), (0, 8))
-      (TokenType.Number, (0, 11), (0, 12))
-      (TokenType.Symbol, (0, 12), (0, 13))
-      (TokenType.Property, (0, 15), (0, 16))
-      (TokenType.Number, (0, 19), (0, 20))
-      (TokenType.Symbol, (0, 20), (0, 21))
-      (TokenType.Symbol, (0, 22), (0, 23)) ]
+      (TokenType.Symbol, (0, 7), (0, 8))
+      (TokenType.String, (0, 8), (0, 9))
+      (TokenType.Symbol, (0, 9), (0, 10))
+      (TokenType.Symbol, (0, 10), (0, 11))
+      (TokenType.Number, (0, 12), (0, 13))
+      (TokenType.Symbol, (0, 13), (0, 14))
+      (TokenType.Symbol, (0, 16), (0, 17))
+      (TokenType.String, (0, 17), (0, 18))
+      (TokenType.Symbol, (0, 18), (0, 19))
+      (TokenType.Symbol, (0, 19), (0, 20))
+      (TokenType.Number, (0, 21), (0, 22))
+      (TokenType.Symbol, (0, 22), (0, 23))
+      (TokenType.Symbol, (0, 24), (0, 25)) ]
 
 
   ("(true, false, true)" |> tokenize) =

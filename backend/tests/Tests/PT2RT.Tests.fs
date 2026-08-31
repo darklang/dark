@@ -150,29 +150,38 @@ module Expr =
 
     let simple =
       t
-        "Dict { t: true}"
+        "Dict { \"key\": true }"
         E.Dict.simple
-        (2, [ RT.LoadVal(1, RT.DBool true); RT.CreateDict(0, [ ("key", 1) ]) ], 0)
+        (3,
+         [ RT.LoadVal(1, RT.DString "key")
+           RT.LoadVal(2, RT.DBool true)
+           RT.CreateDict(0, [ (1, 2) ]) ],
+         0)
 
     let multEntries =
       t
-        "Dict {t: true; f: false}"
+        "Dict { \"t\": true; \"f\": false }"
         E.Dict.multEntries
-        (3,
-         [ RT.LoadVal(1, RT.DBool true)
-           RT.LoadVal(2, RT.DBool false)
-           RT.CreateDict(0, [ ("t", 1); ("f", 2) ]) ],
+        (5,
+         [ RT.LoadVal(1, RT.DString "t")
+           RT.LoadVal(2, RT.DBool true)
+           RT.LoadVal(3, RT.DString "f")
+           RT.LoadVal(4, RT.DBool false)
+           RT.CreateDict(0, [ (1, 2); (3, 4) ]) ],
          0)
 
     let dupeKey =
       t
-        "Dict {t: true; f: false; t: true}"
+        "Dict { \"t\": true; \"f\": false; \"t\": false }"
         E.Dict.dupeKey
-        (4,
-         [ RT.LoadVal(1, RT.DBool true)
-           RT.LoadVal(2, RT.DBool false)
-           RT.LoadVal(3, RT.DBool false)
-           RT.CreateDict(0, [ ("t", 1); ("f", 2); ("t", 3) ]) ],
+        (7,
+         [ RT.LoadVal(1, RT.DString "t")
+           RT.LoadVal(2, RT.DBool true)
+           RT.LoadVal(3, RT.DString "f")
+           RT.LoadVal(4, RT.DBool false)
+           RT.LoadVal(5, RT.DString "t")
+           RT.LoadVal(6, RT.DBool false)
+           RT.CreateDict(0, [ (1, 2); (3, 4); (5, 6) ]) ],
          0)
 
     let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
