@@ -1,0 +1,25 @@
+// Clipping for terminal rows. Widths are DISPLAY CELLS, not characters: a wide glyph occupies two
+// columns, so a row measured by character count goes ragged on the first one.
+
+module ClipMarked =
+  // A line that fits is untouched, marker and all.
+  Stdlib.Cli.Tui.Text.clipMarked "short" 30 = "short"
+  Stdlib.Cli.Tui.Text.clipMarked "exactly ten" 11 = "exactly ten"
+
+  // A line that does not fit ends in an ellipsis, so it reads as truncated rather than as a
+  // shorter label that happens to end there.
+  Stdlib.Cli.Tui.Text.clipMarked "Interactive tree outliner (full)" 30 =
+    "Interactive tree outliner (fu…"
+
+  Stdlib.Cli.Tui.Text.clipMarked "abcdef" 3 = "ab…"
+
+  // Below two columns there is no room to say anything, so it degrades to a plain clip rather than
+  // spending the only column on a marker.
+  Stdlib.Cli.Tui.Text.clipMarked "abcdef" 1 = "a"
+  Stdlib.Cli.Tui.Text.clipMarked "abcdef" 0 = ""
+
+  // Cells, not characters. Three CJK characters are six columns, so they fit exactly in six and
+  // clip to two plus the marker in five.
+  Stdlib.Cli.Tui.Text.styledWidth "日本語" = 6
+  Stdlib.Cli.Tui.Text.clipMarked "日本語" 6 = "日本語"
+  Stdlib.Cli.Tui.Text.clipMarked "日本語のテキスト" 6 = "日本…"

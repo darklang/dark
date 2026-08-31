@@ -12,6 +12,15 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
     // Bottom-anchored viewport: once the selection passes the last visible row, scroll so it stays on screen.
     let visible = region.rows
     let scrollOffset = Stdlib.Int.max 0 (selected - visible + 1)
+
+    // The scrollbar owns the last column when there is one, so a full-width row does not sit under
+    // the thumb.
+    let textWidth =
+      if total > region.rows then
+        Stdlib.Int.max 0 (region.cols - 1)
+      else
+        region.cols
+
     let rows =
       displayLines
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
@@ -19,7 +28,10 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
       |> Stdlib.List.take visible
       |> Stdlib.List.map (fun pair ->
         let (i, l) = pair
-        Layout.at region (i - scrollOffset) 0 l)
+        // Marked, not silently cut. These are names, and a row that just stops reads as the whole
+        // one: "Interactive tree outliner (ful" looks complete to anyone who has not seen the pane
+        // wider.
+        Layout.at region (i - scrollOffset) 0 (Tui.Text.clipMarked l textWidth))
       |> Stdlib.List.flatten
 
     // Scrollbar thumb, only when the list is taller than the pane. It used to be printed directly, because
