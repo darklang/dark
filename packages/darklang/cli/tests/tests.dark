@@ -117,6 +117,12 @@ let testEvalListLength (): TestResult =
     TestResult.Fail $"Expected '3', got '{output}'"
 
 
+/// Create, update, and what happens to a module that does not type-check.
+///
+/// A declaration that fails the at-rest check is SAVED AS WIP and refused at `commit`, not rejected
+/// at author time: a draft may be broken because you write the caller before the callee, a commit may
+/// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
+/// message says it is WIP, and the definitions that were already there are untouched.
 let testModuleCommand (): TestResult =
   let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-module-test-" ++ suffix
@@ -204,8 +210,9 @@ let testModuleCommand (): TestResult =
     && initialEval == "12"
     && Stdlib.String.contains updateOutput "Defined 4 declarations"
     && updatedEval == "27"
-    && Stdlib.String.contains invalidOutput "expects 1 field(s)"
-    && Stdlib.String.contains searchOutput "No results found"
+    && Stdlib.String.contains invalidOutput "expects 1 field"
+    && Stdlib.String.contains invalidOutput "saved as WIP"
+    && Stdlib.String.contains searchOutput "shouldNotExist"
     && afterInvalidEval == "27"
   then
     TestResult.Pass
@@ -525,8 +532,23 @@ let testViewInstructions (): TestResult =
 
 
 let testViewInstructionsShowsLambdas (): TestResult =
-  // `filter` is `fold` plus a lambda, and a listing that stopped at `CreateLambda` would be a dead end.
-  let output = runWithCommand ["view"; "Stdlib.List.filter"; "--instructions"]
+  // A listing that stopped at `CreateLambda` would be a dead end, so a lambda gets its own section
+  // below the function that creates it.
+  //
+  // The subject is authored here rather than borrowed from the stdlib. Whether a given stdlib function
+  // compiles to a lambda is an implementation detail: it can become a direct builtin call, and then a
+  // test pointing at it still runs, still fails, and covers nothing.
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let name = "Tests.CliLambda.keepBig" ++ suffix
+
+  let _ =
+    runWithCommand
+      [ "fn"
+        "/" ++ name
+        "(xs: List<Int64>) : List<Int64> = Stdlib.List.filter xs (fun x -> if x > 2L then true else false)" ]
+
+  let output = runWithCommand ["view"; name; "--instructions"]
+  let _ = runWithCommand [ "delete"; "fn"; name; "--yes" ]
 
   if Stdlib.String.contains output "CreateLambda"
     && Stdlib.String.contains output "lambda#"
@@ -534,7 +556,7 @@ let testViewInstructionsShowsLambdas (): TestResult =
   then
     TestResult.Pass
   else
-    TestResult.Fail $"Expected the lambda's own listing under filter's, got: {output}"
+    TestResult.Fail $"Expected the lambda's own listing under {name}'s, got: {output}"
 
 
 let testViewCompilerViewsRejectNonFunctions (): TestResult =
