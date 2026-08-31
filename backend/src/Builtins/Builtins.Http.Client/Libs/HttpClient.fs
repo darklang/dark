@@ -817,12 +817,14 @@ let fns (config : Configuration) : List<BuiltInFn> =
     // runs the same disposer chain when the DStream becomes
     // unreachable.
     // ——————————————————————————————————————————————————————————
-    // GET with SSRF guards OFF, returning raw BYTES — for pulling a peer's op wire over the tailnet.
-    // (The safe `httpClientRequest` bans loopback/RFC-1918/tailnet, which a peer's sync server sits behind;
-    // the Blob variant hands the body back as bytes for the caller to decode — `Stdlib.Blob.toString` for the
-    // JSON wire.) TRUSTED-CLI use: the caller IS the code author; used by `Sync.pull` / `dark sync fetch <url>`.
-    // TODO(sync-ssrf): this is registered in the general builtin set, so it's reachable from any CLI-run Dark
-    // (incl. packages pulled from a peer). Gate it to the sync surface (its own library or a sync capability).
+    // GET with SSRF guards OFF, returning raw BYTES: the server wanted sits behind
+    // loopback/RFC-1918/tailnet, which the safe path bans. The body comes as bytes
+    // for the caller to decode -- `Stdlib.Blob.toString` for the JSON wire.
+    //
+    // Registered in the general builtin set, so any CLI-run Dark can reach it,
+    // including code that arrived from elsewhere. `LibExecution.UnguardedOrigins`
+    // keeps that from meaning "can read your loopback": the guards come off only
+    // towards origins this machine was pointed at.
     { name = fn "httpGetUnsafeBytes" 0
       typeParams = []
       parameters =
@@ -841,23 +843,36 @@ let fns (config : Configuration) : List<BuiltInFn> =
         (function
         | _, _, _, [| DString uri |] ->
           uply {
-            let request : Request =
-              { url = uri; method = HttpMethod "GET"; headers = []; body = [||] }
-
-            let! response = makeRequest syncConfig syncClient request
-
-            match response with
-            | Ok r -> return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
-            | Error err ->
-              let reason =
-                match err with
-                | RequestError.BadUrl _ -> "bad url"
-                | RequestError.Timeout -> "timeout"
-                | RequestError.BadHeader _ -> "bad header"
-                | RequestError.NetworkError -> "network error"
-                | RequestError.BadMethod -> "bad method"
+            // Before the request is built, so a refused origin is never dialled.
+            if not (LibExecution.UnguardedOrigins.isAllowed uri) then
               return
-                Dval.resultError KTBlob KTString (DString $"fetch failed: {reason}")
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString(LibExecution.UnguardedOrigins.refusalMessage uri))
+            else
+
+              let request : Request =
+                { url = uri; method = HttpMethod "GET"; headers = []; body = [||] }
+
+              let! response = makeRequest syncConfig syncClient request
+
+              match response with
+              | Ok r ->
+                return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+              | Error err ->
+                let reason =
+                  match err with
+                  | RequestError.BadUrl _ -> "bad url"
+                  | RequestError.Timeout -> "timeout"
+                  | RequestError.BadHeader _ -> "bad header"
+                  | RequestError.NetworkError -> "network error"
+                  | RequestError.BadMethod -> "bad method"
+                return
+                  Dval.resultError
+                    KTBlob
+                    KTString
+                    (DString $"fetch failed: {reason}")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
