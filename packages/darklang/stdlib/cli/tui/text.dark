@@ -32,6 +32,22 @@ let clipToWidth (text: String) (maxWidth: Int) : String =
   Builtin.cliTerminalClipToWidth text maxWidth
 
 
+/// Clip to <param maxWidth>, marking the cut so a truncated line reads as truncated.
+///
+/// `clipToWidth` alone just stops, which is indistinguishable from a line that happened to be that long --
+/// "Interactive tree outliner (ful" looks like the whole label to anyone who has not seen it wider. One
+/// character of ellipsis is the difference between "there is more" and "that is all".
+///
+/// Below two columns there is no room to say anything, so it degrades to a plain clip.
+let clipMarked (text: String) (maxWidth: Int) : String =
+  if styledWidth text <= maxWidth then
+    text
+  else if maxWidth <= 1 then
+    clipToWidth text maxWidth
+  else
+    (clipToWidth text (maxWidth - 1)) ++ "…"
+
+
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
 /// can, use `wrapAtWords`.
 let wrapAtColumn (text: String) (maxWidth: Int) : List<String> =
