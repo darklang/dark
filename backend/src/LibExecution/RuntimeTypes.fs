@@ -123,9 +123,10 @@ module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
     { originalName = []; resolved = Ok value }
 
+/// Which contract `DvalOrdering.compare` is answering under.
 type private DvalComparisonMode =
-  | DictKey
-  | Sort
+  | ForDictKey
+  | ForSort
 
 
 /// A KnownType represents the type of a dval.
@@ -1033,8 +1034,8 @@ and DvalOrdering private () =
     (b : Dval)
     : int =
     match mode with
-    | DvalComparisonMode.Sort -> raise (DvalComparisonException(a, b))
-    | DvalComparisonMode.DictKey ->
+    | DvalComparisonMode.ForSort -> raise (DvalComparisonException(a, b))
+    | DvalComparisonMode.ForDictKey ->
       match a, b with
       | DApplicable _, _
       | _, DApplicable _
@@ -1077,10 +1078,10 @@ and DvalOrdering private () =
         if c <> 0 then c else DvalOrdering.compareEntries mode xs ys
 
   static member compareForSort (a : Dval) (b : Dval) : int =
-    DvalOrdering.compare DvalComparisonMode.Sort a b
+    DvalOrdering.compare DvalComparisonMode.ForSort a b
 
   static member compareForDictKey (a : Dval) (b : Dval) : int =
-    DvalOrdering.compare DvalComparisonMode.DictKey a b
+    DvalOrdering.compare DvalComparisonMode.ForDictKey a b
 
 and DictMap = Map<DictKey, Dval>
 

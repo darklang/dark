@@ -296,6 +296,14 @@ let rec internal normalizeAliases
   | Some(expanded, seen) -> normalizeAliases state nodeId seen expanded
   | None -> typ
 
+/// Keeps arguments for type parameters that appear in the declaration's fields.
+/// Arguments for phantom type parameters are ignored, so `Phantom<Int -> Int>` remains
+/// a usable key.
+///
+/// This stays outside the recursive group so it can accept both `StaticType` and
+/// `TypeReference` arguments.
+///
+/// CLEANUP Replace this reachability analysis with `comparable` constraints.
 let private argsThatReachValues
   (typeParams : List<string>)
   (usedNames : Set<string>)
@@ -345,9 +353,16 @@ let rec internal isUsableDictKeyType
         && (argsThatReachValues declaration.typeParams used args
             |> List.forall (isUsableDictKeyType state seen))
 
-  // TODO: Reject invalid generic key types during type checking with `comparable`.
+  // A type variable answers `true`: nothing here can say "this variable must be
+  // orderable", so it falls to the runtime check. TODO: reject these at check time with
+  // a `comparable` constraint kind -- see the CLEANUP on `argsThatReachValues`, which
+  // that would also delete.
   | TRigidVariable _
   | TInferenceVariable _
+
+  // Matched exhaustively, with no `_`: a new `StaticType` case should not compile until
+  // someone decides whether it can be a key. A silent `true` here is how a new
+  // unorderable type would slip past the checker into the runtime guard.
   | TUnit
   | TBool
   | TInt8
