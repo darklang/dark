@@ -1,8 +1,8 @@
-/// Reference example apps — one of each kind:
+/// Reference example apps -- one of each kind:
 ///   - `heartbeat`, a daemon: claims a pidfile (via `Stdlib.Cli.Daemon`) and logs a beat every interval
 ///     until `apps stop` SIGTERMs it.
 ///   - `TextEdit`, a foreground app: `Stdlib.Cli.UI.TextField` surfaced standalone via the generic
-///     `Cli.Component` adapter — shows how a self-contained component becomes an app in a few lines.
+///     `Cli.Component` adapter -- shows how a self-contained component becomes an app in a few lines.
 module Darklang.Cli.Apps.Examples
 
 // One beat: log the time + pid, sleep the interval, recurse. `remaining` is a very large step count
@@ -19,7 +19,7 @@ let beat (name: String) (intervalMs: Int) (remaining: Int) : Int =
 
 // The daemon entrypoint: claim the pidfile (recording THIS detached process's pid), then beat forever.
 // Invoked as `Darklang.Cli.Apps.Examples.heartbeat "heartbeat"` by `apps start`. The interval is read
-// from config (`apps.<name>.intervalMs`, default 5000) — daemons take their config from cli-config.json,
+// from config (`apps.<name>.intervalMs`, default 5000) -- daemons take their config from cli-config.json,
 // not argv.
 let heartbeat (name: String) : Int =
   let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 5000
@@ -64,7 +64,7 @@ module TextEdit =
     Component.launch cliState component Stdlib.Cli.UI.TextField.empty
 
   let help (_state: Cli.AppState) : String =
-    "A tiny text editor (demo) — type, Enter or Esc to exit."
+    "A tiny text editor (demo) -- type, Enter or Esc to exit."
 
   let complete
     (_state: Cli.AppState)

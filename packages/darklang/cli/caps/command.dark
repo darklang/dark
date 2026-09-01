@@ -165,6 +165,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `caps grant <spec…>` — e.g. `grant http-client GET`, `grant file write ~/x`, `grant random`
   | "grant" :: specWords ->
     let spec = Stdlib.String.join specWords " "
+
+    // An empty spec parses as a no-op, and reporting a grant that did not happen is worse
+    // than an error on a capability surface. `caps set` refuses its empty form too.
+    if (Stdlib.String.trim spec) == "" then
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          "usage: caps grant <spec> -- e.g. `caps grant http-client GET`. `caps help` has the grammar.")
+      state
+    else
+
     match Command.grantSpec spec with
     | Ok() -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ granted  {spec}")
     | Error bad ->

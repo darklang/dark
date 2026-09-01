@@ -36,4 +36,5 @@ let dbName =
   | Some s -> s
   | None -> "data.db"
 
-let dbPath = $"{runDir}/{dbName}"
+// `runDir` already ends in a separator, so no slash here. This path gets printed.
+let dbPath = $"{runDir}{dbName}"

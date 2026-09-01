@@ -1031,6 +1031,32 @@ let private everyCommandRefusesABogusArgument =
             detail
       })
 
+/// An empty grant is not a grant, and must not report that it is.
+let private capsRefusesAnEmptyGrant =
+  cliTest
+    "`caps grant` with no spec is refused rather than reported as granted"
+    (fun state ->
+      task {
+        let! refused = runCli state [ "caps"; "grant"; "" ]
+
+        Expect.stringContains
+          refused
+          "usage: caps grant"
+          "it should say how to use it"
+
+        Expect.isFalse
+          (refused.Contains "granted")
+          "and must not report a grant that did not happen"
+
+        // The guard must not swallow the working path.
+        let! granted = runCli state [ "caps"; "grant"; "http-client"; "GET" ]
+        Expect.stringContains granted "granted" "a real spec is still granted"
+
+        let! _ = runCli state [ "caps"; "clear" ]
+        ()
+      })
+
+
 /// A dash-led argument is a mistyped flag, never a name.
 ///
 /// `create` and `rename` are the two that WRITE the name they are given, so they are the two
@@ -1178,6 +1204,7 @@ let tests =
       testTracesTruncatedStillShowsRoot
       // Command sweeps
       everyExclusionIsReal
+      capsRefusesAnEmptyGrant
       everyCommandAnswersHelp
       everyCommandRefusesABogusArgument
       aDashLedArgumentIsNeverAName
