@@ -11,6 +11,10 @@ val pi = 3.141592653589793
 val tau = 6.283185307179586
 
 
+/// An approximation of Euler's number, the base of the natural logarithm.
+val e = 2.718281828459045
+
+
 /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
 /// by all of Dark's trigonometry functions.
 let degrees (angleInDegrees: Float) : Float =
