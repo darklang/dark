@@ -331,7 +331,7 @@ module NonStringKeys =
 
     Stdlib.Dict.set (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ])) 2L 3L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (3)"
 
-    Stdlib.Dict.fromList [ (1L, "a"); ((fun x -> x), "b") ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.fromList [ (1L, "a"); ((fun x -> x), "b") ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
     Stdlib.Dict.fromList [ (1L, "a"); (1L, "b") ] = Stdlib.Option.Option.None
 
@@ -384,25 +384,25 @@ module NonStringKeys =
       [ [ [ 1L ]; [ 3L ] ]; [ [ 2L ] ] ]
 
   module RecursiveAdmissibility =
-    Dict { [ (fun x -> x) ]: 1L } = error="Cannot use [(lambda)] as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Dict { [ (fun x -> x) ]: 1L } = error="Cannot use [(lambda)] as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Dict { (1L, (fun x -> x)): 1L } = error="Cannot use (1, (lambda)) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Dict { (1L, (fun x -> x)): 1L } = error="Cannot use (1, (lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Dict { (Stdlib.Option.Option.Some (fun x -> x)): 1L } = error="Cannot use Some((lambda)) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Dict { (Stdlib.Option.Option.Some (fun x -> x)): 1L } = error="Cannot use Some((lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
   module Errors =
     Dict { 1L: "a"; "b": "c" } = error="This dict uses keys of type Int64, but \"b\" has type String."
 
-    (Dict { (fun x -> x): 1L }) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    (Dict { (fun x -> x): 1L }) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.get (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.get (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.set (Dict { }) (fun x -> x) 1L = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.set (Dict { }) (fun x -> x) 1L = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.setOverridingDuplicates (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.setOverridingDuplicates (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+    Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."

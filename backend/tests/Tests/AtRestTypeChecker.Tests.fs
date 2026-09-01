@@ -596,6 +596,13 @@ let private unitTests =
         |> expectDiagnostic Checker.UnsupportedDictKeyType
       }
 
+      test "rejects a Dict keyed by a Blob" {
+        let keyed = PT.TDict(PT.TBlob, PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 204UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
       test "rejects a Dict keyed by a Stream" {
         let keyed = PT.TDict(PT.TStream PT.TInt, PT.TString)
         oneArgFn keyed PT.TUnit (PT.EUnit 203UL)

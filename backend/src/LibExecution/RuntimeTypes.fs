@@ -2012,7 +2012,8 @@ module Dval =
     match dv with
     | DApplicable _
     | DStream _
-    | DDB _ -> false
+    | DDB _
+    | DBlob _ -> false
 
     | DList(_, items) -> List.forall isUsableDictKey items
     | DTuple(a, b, rest) ->
@@ -2039,8 +2040,7 @@ module Dval =
     | DChar _
     | DString _
     | DDateTime _
-    | DUuid _
-    | DBlob _ -> true
+    | DUuid _ -> true
 
   let assertUsableDictKey (key : Dval) : unit =
     if not (isUsableDictKey key) then
@@ -2204,18 +2204,9 @@ module Dval =
     and walkDictEntries (m : DictMap) : Ply.Ply<DictMap> =
       uply {
         let mutable acc = m
-        let mutable rekeyed = []
         for KeyValue(k, v) in m do
-          let! k' = go k.Dval
           let! v' = go v
-          if same k' k.Dval then
-            if not (same v' v) then acc <- Map.add k v' acc
-          else
-            rekeyed <- (k, DictKey k', v') :: rekeyed
-
-        for (oldKey, newKey, value) in rekeyed do
-          acc <- acc |> Map.remove oldKey |> Map.add newKey value
-
+          if not (same v' v) then acc <- Map.add k v' acc
         return acc
       }
 

@@ -325,7 +325,8 @@ let rec internal isUsableDictKeyType
   match typ with
   | TFn _
   | TStream _
-  | TDB _ -> false
+  | TDB _
+  | TBlob -> false
 
   | TList inner -> isUsableDictKeyType state seen inner
   | TDict(key, value) ->
@@ -380,8 +381,7 @@ let rec internal isUsableDictKeyType
   | TChar
   | TString
   | TUuid
-  | TDateTime
-  | TBlob -> true
+  | TDateTime -> true
 
 and private declarationFieldTypes
   (declaration : PT.TypeDeclaration.T)
@@ -404,7 +404,8 @@ and private isUsableDictKeyDeclType
   match typ with
   | TypeReference.TFn _
   | TypeReference.TStream _
-  | TypeReference.TDB _ -> false
+  | TypeReference.TDB _
+  | TypeReference.TBlob -> false
 
   | TypeReference.TList inner -> recurse inner
   | TypeReference.TDict(key, value) -> recurse key && recurse value

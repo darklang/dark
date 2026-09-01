@@ -1034,4 +1034,4 @@ module QueryCount =
 
 
 module DBAsDictKey =
-  Dict { XDB: 1L } = error="Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, and values containing them cannot be keys."
+  Dict { XDB: 1L } = error="Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
