@@ -52,6 +52,20 @@ never blocks: it means the checker lacked evidence, not that the declaration is
 wrong. `typecheck` summarizes the whole branch; `--all` also lists successful
 items, `--failed` or `--incomplete` lists only that verdict.
 
+## Changing something that exists
+
+Read it, transform it, write it back. Do not retype a declaration to change one
+line of it:
+
+  view Some.fn --raw > /tmp/f.dark  # the declaration alone, nothing around it
+                                    # ...edit /tmp/f.dark...
+  edit Some.fn /tmp/f.dark          # applies it; no editor, no terminal needed
+
+`--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
+than a screen-scrape. Plain `view` is for a person to read and carries a
+capabilities line you would have to strip. `edit <name>` with no file opens
+$EDITOR instead, which is the shape for a human, not for you.
+
 ## Names and syntax
 
 - `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
