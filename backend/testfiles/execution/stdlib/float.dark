@@ -201,3 +201,42 @@ Stdlib.Float.toString 0.0 = "0.0"
 Stdlib.Float.toString -0.5 = "-0.5"
 Stdlib.Float.toString 0.5 = "0.5"
 Stdlib.Float.toString -55555555555555555555555555555.5 = "-5.55555555556e+28"
+
+
+// toInt truncates toward zero.
+Stdlib.Float.toInt 3.0 = 3
+Stdlib.Float.toInt 0.0 = 0
+Stdlib.Float.toInt -0.0 = 0
+Stdlib.Float.toInt 1.5 = 1
+Stdlib.Float.toInt 1.9 = 1
+Stdlib.Float.toInt -1.5 = -1
+Stdlib.Float.toInt -1.9 = -1
+Stdlib.Float.toInt -3.0 = -3
+Stdlib.Float.toInt 0.1 = 0
+Stdlib.Float.toInt 2147483648.7 = 2147483648
+Stdlib.Float.toInt 2.5 = Stdlib.Float.roundTowardsZero 2.5
+Stdlib.Float.toInt -2.5 = Stdlib.Float.roundTowardsZero -2.5
+// Truncation and floor differ for negative values.
+Stdlib.Float.toInt -1.5 = -1
+Stdlib.Float.floor -1.5 = -2
+// NaN and infinities cannot become Ints.
+Stdlib.Float.toInt Builtin.testNan =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.toInt Builtin.testInfinity =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.toInt Builtin.testNegativeInfinity =
+  error="Encountered out-of-range value for type of Int"
+
+
+// IEEE 754 binary64 representations.
+Stdlib.Float.toBits 0.0 = 0
+Stdlib.Float.toBits 0.5 = 4602678819172646912
+Stdlib.Float.toBits 1.0 = 4607182418800017408
+Stdlib.Float.toBits 2.0 = 4611686018427387904
+Stdlib.Float.toBits Builtin.testInfinity = 9218868437227405312
+// Bit equality distinguishes signed zero and is reflexive for a fixed NaN.
+Stdlib.Float.toBits -0.0 = -9223372036854775808
+(Stdlib.Float.toBits -0.0 == Stdlib.Float.toBits 0.0) = false
+(-0.0 == 0.0) = true
+(Stdlib.Float.toBits (Builtin.testNan)
+ == Stdlib.Float.toBits (Builtin.testNan)) = true

@@ -144,3 +144,12 @@ let toString (a: Float) : String = Builtin.floatToString a
 
 /// Returns true if <param f> is NaN
 let isNaN (f: Float) : Bool = Builtin.floatIsNaN f
+
+
+/// Convert <param a> to an <type Int> by discarding its fractional part.
+/// Raises for NaN and infinities. Alias of <fn Float.roundTowardsZero>.
+let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
+
+
+/// Return <param a>'s IEEE 754 binary64 bits as a signed 64-bit value.
+let toBits (a: Float) : Int = Builtin.floatToBits a
