@@ -151,6 +151,32 @@ module QueryParams =
       { url = "/s?a=1?b=2"; headers = []; body = Stdlib.Blob.empty })) = [ ("a", "1?b=2") ]
 
 
+module RequestHeader =
+  // Case-insensitive, as HTTP requires: one stored casing, three asked-for casings.
+  (Stdlib.Http.Request.header
+    (Stdlib.Http.Request
+      { url = "/"; headers = [ ("Authorization", "Bearer t") ]; body = Stdlib.Blob.empty })
+    "authorization") = Stdlib.Option.Option.Some "Bearer t"
+
+  (Stdlib.Http.Request.header
+    (Stdlib.Http.Request
+      { url = "/"; headers = [ ("authorization", "Bearer t") ]; body = Stdlib.Blob.empty })
+    "AUTHORIZATION") = Stdlib.Option.Option.Some "Bearer t"
+
+  (Stdlib.Http.Request.header
+    (Stdlib.Http.Request
+      { url = "/"; headers = [ ("X-Thing", "v") ]; body = Stdlib.Blob.empty })
+    "x-other") = Stdlib.Option.Option.None
+
+  // A repeated header is legal. The first wins, which is what `queryParam` does too.
+  (Stdlib.Http.Request.header
+    (Stdlib.Http.Request
+      { url = "/"
+        headers = [ ("Accept", "one"); ("accept", "two") ]
+        body = Stdlib.Blob.empty })
+    "Accept") = Stdlib.Option.Option.Some "one"
+
+
 module ParseHeaders =
   Stdlib.Http.parseHeaders "x: y" = Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ]
 

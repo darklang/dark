@@ -18,9 +18,20 @@ let asText (v: Value) : Stdlib.Option.Option<String> =
   | Text s -> Stdlib.Option.Option.Some s
   | _ -> Stdlib.Option.Option.None
 
+/// The Int64 of an <param Int> cell (Some), else None.
 let asInt (v: Value) : Stdlib.Option.Option<Int64> =
   match v with
   | Int i -> Stdlib.Option.Option.Some i
+  | _ -> Stdlib.Option.Option.None
+
+/// The Blob of a <param Bytes> cell (Some), else None -- pull a BLOB column out of a row.
+///
+/// The <type Value> type carries BLOBs through the round-trip rather than stringifying
+/// them, and this is how you get one back out. Without it a caller has to match the case
+/// by hand, which is where a stringified blob comes from.
+let asBytes (v: Value) : Stdlib.Option.Option<Blob> =
+  match v with
+  | Bytes b -> Stdlib.Option.Option.Some b
   | _ -> Stdlib.Option.Option.None
 
 

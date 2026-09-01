@@ -13,6 +13,28 @@ module CreateRead =
    let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "2"; "bob" ]
    Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name") = [ "o'brien"; "bob" ]
 
+// A BLOB column comes back as `Bytes`, and `asBytes` is how you get it out. The `Value`
+// type carries blobs through rather than stringifying them; without an accessor a caller
+// matches the case by hand, which is where a stringified blob comes from.
+module Blobs =
+  (let db = "/tmp/dark-test-sqlite-blob.db"
+   let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+   let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1"; "hi" ]
+
+   match Stdlib.Sqlite.query db "SELECT CAST(name AS BLOB) AS b FROM t" with
+   | Ok [ row ] ->
+     match Stdlib.Dict.get row "b" with
+     | Some v ->
+       Stdlib.Sqlite.asBytes v
+       |> Stdlib.Option.map (fun b -> Stdlib.String.fromBytesWithReplacement (Stdlib.Blob.toList b))
+     | None -> Stdlib.Option.Option.None
+   | _ -> Stdlib.Option.Option.None) = Stdlib.Option.Option.Some "hi"
+
+  // A TEXT cell is not a blob, and asking for one says so rather than coercing.
+  Stdlib.Sqlite.asBytes (Stdlib.Sqlite.Value.Text "hi") = Stdlib.Option.Option.None
+
+
 // UPDATE + DELETE — final state after renaming id=1 and removing id=2 is just ["updated"].
 module UpdateDelete =
   (let db = "/tmp/dark-test-sqlite-b.db"
