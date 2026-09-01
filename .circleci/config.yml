@@ -222,8 +222,9 @@ jobs:
           name: Run backend tests
           command: timeout 20m scripts/run-backend-tests --published
 
-      # Allocation for a fixed workload repeats to a tenth of a percent and doesn't care how loaded
-      # the box is, so it's the one performance number that can be asserted on here. Time isn't.
+      # Allocation for a fixed workload is steady enough to assert on and doesn't care how loaded
+      # the box is, which is more than can be said for time. The store is freshly loaded above, and
+      # that matters: the same binary on a working store allocates a couple of percent more.
       - run:
           name: Check the reference workload is within its allocation budget
           command: scripts/perf/gate --published

@@ -263,13 +263,15 @@ def fixture_save(name=None):
 def rundir_for(binary):
     """Which store a given binary actually uses.
 
-    Not always this repo's `rundir`. A published binary carries an embedded seed, and
-    `EmbeddedResources.extract()` sets DARK_CONFIG_RUNDIR to `<exe dir>/.darklang` unconditionally --
-    it ignores any value already in the environment, so this can't be redirected, only discovered.
-    A Debug build has no embedded resource, skips that branch, and uses the repo rundir.
+    An explicit DARK_CONFIG_RUNDIR wins for every binary, published or Debug, so when it is set that IS
+    the answer. `<exe dir>/.darklang` is only the default a published binary computes for itself when the
+    variable is unset, and a leftover directory next to an exe must not outrank the store we were told
+    to use.
 
     Getting this wrong silently compares two binaries against two different stores, which is how a
     harness ends up lying more convincingly than no harness at all."""
+    if os.environ.get("DARK_CONFIG_RUNDIR"):
+        return os.environ["DARK_CONFIG_RUNDIR"]
     adjacent = os.path.join(os.path.dirname(os.path.abspath(binary)), ".darklang")
     return adjacent if os.path.isdir(adjacent) else RUNDIR
 
@@ -465,7 +467,7 @@ def cmd_run(args):
         # Warmup, discarded: the first runs of a fresh binary pay JIT and page-cache costs that no later run
         # repeats, and folding them into the median makes every batch look worse than the steady state.
         for _ in range(args.warmup):
-            run_once(binary, argv, args.trace, False)
+            run_once(binary, argv, args.trace, False, fixture_path(args.fixture))
 
         samples = []
         for i in range(args.n):

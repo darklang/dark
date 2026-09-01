@@ -13,9 +13,23 @@ checked.** Everything below is a way of not doing that.
 
 ## 1. Measure allocation, not time
 
-Allocation for a fixed workload repeats **to the byte** and doesn't care how loaded the machine is.
-Time on this box drifts about 12 ms, enough to hide or invent most individual wins; eleven runs
+Allocation for a fixed workload is far steadier than time and doesn't care how loaded the machine
+is. Time on this box drifts about 12 ms, enough to hide or invent most individual wins; eleven runs
 cannot reliably resolve a 10 ms difference.
+
+It is not, however, byte-identical. `steady.dark` in debug, ten runs back to back:
+
+    mean    7,343,612 bytes
+    stdev      15,969   = 0.22%
+    spread     56,504   = 0.77%
+
+So treat ~0.8% as the noise floor for a single run of this workload, and do not believe a win
+smaller than that from one measurement each side.
+
+**The store counts as part of the workload.** The same binary on a working rundir allocates about
+2.5% more than on a freshly loaded one, measured both ways: enough to swamp the noise floor and
+enough to fail the gate. `scripts/perf/gate` prints which store it measured for this reason. A
+number is only comparable to another taken against the same store.
 
 Decide with allocation, report time, never gate on time. A change that looks flat in allocation and
 good in time is flat.

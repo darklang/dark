@@ -116,8 +116,10 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.
 
-Decide with allocation, not time. Allocation for a fixed workload repeats to a tenth of a percent
-and doesn't care how loaded the box is; time drifts by more than most individual wins are worth. So
+Decide with allocation, not time. Allocation for a fixed workload is far steadier than time and
+doesn't care how loaded the box is; time drifts by more than most individual wins are worth. It is
+not byte-identical though, and the store it runs against matters as much as the binary --
+`docs/perf/playbook.md` has the measured noise floor. So
 `gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
 after the backend tests. When a change earns a lower number, lower the budget in the same commit
 with `scripts/perf/gate --update`, or it stops being a gate and becomes a ceiling to drift up to.

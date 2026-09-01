@@ -18,13 +18,11 @@ release_exe() {
   ls -t "${RELEASE_EXE_PATHS[@]}" 2>/dev/null | head -1 || true
 }
 
-# Where a given binary writes its telemetry. A published binary resolves its log directory relative
-# to its own location rather than to DARK_CONFIG_RUNDIR, so the two build modes disagree.
-telemetry_for() {
-  case "$1" in
-  backend/Build/out/Cli/Debug/*) echo "${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl" ;;
-  *) echo "$(dirname "$1")/.darklang/logs/telemetry.jsonl" ;;
-  esac
+# Where a binary writes its telemetry: under the store it is using. Published and Debug builds both
+# honour DARK_CONFIG_RUNDIR, and every perf script re-execs into the container, which sets it, so
+# there is no per-binary case here to get wrong.
+telemetry_path() {
+  echo "${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
 }
 
 # `$1` is the tool's name. Prints where a published CLI was looked for, since an empty path in a
@@ -35,4 +33,21 @@ no_release_exe() {
     printf '  %s\n' "${RELEASE_EXE_PATHS[@]}"
     echo "Build one with scripts/build/build-release-cli-exes.sh, or publish the solution."
   } >&2
+}
+
+# Refuse a published CLI that predates the source it is meant to contain. A stale artifact does not
+# produce a stale-looking number -- it produces a plausible one, for the previous build, and a budget
+# compared against it says nothing. `find -print -quit` stops at the first newer file, so this costs
+# nothing on a warm tree.
+assert_release_exe_fresh() {
+  local exe=$1 tool=$2 newer
+  newer=$(find packages backend/src -type f \( -name '*.dark' -o -name '*.fs' \) \
+    -newer "$exe" -print -quit 2>/dev/null || true)
+  [[ -z "$newer" ]] && return 0
+  {
+    echo "$tool: $(basename "$exe") is older than $newer."
+    echo "  It would be measured instead of your change. Rebuild it:"
+    echo "    scripts/build/build-release-cli-exes.sh"
+  } >&2
+  return 1
 }
