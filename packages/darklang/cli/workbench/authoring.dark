@@ -171,12 +171,7 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
   let modules = modulePathOf state.location
   let fullName = Stdlib.String.join (Stdlib.List.append modules [ item.name ]) "."
   let results = Packages.Query.searchExactMatch state.branchId modules item.name
-  let ctx =
-    PrettyPrinter.ProgramTypes.Context
-      { branchId = state.branchId
-        currentModule = []
-        currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId
   // Prefill from the item's current source, per kind. `val` items save under the "value" kind (see saveEditing).
   let kindAndSrc =
     if item.kind == "type" then

@@ -52,12 +52,7 @@ module ReadFile =
         let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
 
-        let ctx =
-          PrettyPrinter.ProgramTypes.Context
-            { branchId = branchId
-              currentModule = []
-              currentFunction = Stdlib.Option.Option.None
-              width = 80 }
+        let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
@@ -97,11 +92,7 @@ module ReadFile =
                 exactMatch = false }
 
           let ctx =
-            PrettyPrinter.ProgramTypes.Context
-              { branchId = state.currentBranchId
-                currentModule = []
-                currentFunction = Stdlib.Option.Option.None
-                width = 80 }
+            PrettyPrinter.ProgramTypes.Context.forBranch state.currentBranchId
 
           let results =
             LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
@@ -432,11 +423,7 @@ module WriteFile =
                     exactMatch = false }
 
               let ctx =
-                PrettyPrinter.ProgramTypes.Context
-                  { branchId = state.currentBranchId
-                    currentModule = []
-                    currentFunction = Stdlib.Option.Option.None
-                    width = 80 }
+                PrettyPrinter.ProgramTypes.Context.forBranch state.currentBranchId
 
               let results =
                 LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery

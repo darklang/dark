@@ -211,12 +211,7 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
     let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
     let results = Packages.Query.searchExactMatch branchId mods leaf
-    let ctx =
-      PrettyPrinter.ProgramTypes.Context
-        { branchId = branchId
-          currentModule = []
-          currentFunction = Stdlib.Option.Option.None
-          width = 80 }
+    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
     let src =
       if kind == "Type" then
         match results.types with

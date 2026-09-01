@@ -27,6 +27,54 @@ let resolveReplacementName
     $"<hash:{LanguageTools.ProgramTypes.hashToShort hash}>"
 
 
+/// The declaration alone: no deprecation header, no capabilities line, no colour.
+/// Feed it to `dark module` or `dark edit` and it round-trips.
+///
+/// Reading an item and writing it back should be a pipe. Stripping a trailer and a
+/// prefix with `sed` is a screen-scrape: it works until the display changes.
+let rawSource
+  (branchId: Uuid)
+  (location: PackageLocation)
+  : Stdlib.Result.Result<String, String> =
+  let sourceOf
+    (loc: LanguageTools.ProgramTypes.PackageLocation)
+    : Stdlib.Result.Result<String, String> =
+    // `preferredLocation`, so a shared body is headed with the name asked for.
+    let ctx =
+      { terminalContext branchId (Stdlib.List.push loc.modules loc.owner) with
+          preferredLocation = Stdlib.Option.Option.Some loc }
+    let modulePath = Stdlib.List.append [ loc.owner ] loc.modules
+    let results = Query.searchExactMatch branchId modulePath loc.name
+
+    match (results.fns, results.types, results.values) with
+    | (item :: _, _, _) ->
+      Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
+    | (_, item :: _, _) ->
+      Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageType ctx item.entity)
+    | (_, _, item :: _) ->
+      Stdlib.Result.Result.Ok(
+        PrettyPrinter.ProgramTypes.packageValue ctx item.entity
+      )
+    | _ ->
+      let where = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+      Stdlib.Result.Result.Error $"nothing at {where}"
+
+  match location with
+  | Module _ ->
+    Stdlib.Result.Result.Error
+      "--raw prints ONE declaration. Name a fn, type or value, not a module."
+  | Type loc -> sourceOf loc
+  | Value loc -> sourceOf loc
+  | Function loc -> sourceOf loc
+
+
+/// Print `rawSource`, or say why there is none.
+let printRaw (branchId: Uuid) (location: PackageLocation) : Unit =
+  match rawSource branchId location with
+  | Ok src -> Stdlib.printLine src
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+
+
 /// Build a deprecation header for an item, if any.
 let deprecationHeaderRowsFor
   (branchId: Uuid)
@@ -152,7 +200,10 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Type '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
+      // `preferredLocation`, so a shared body is headed with the name asked for.
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
@@ -173,7 +224,10 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Function '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
+      // `preferredLocation`, so a shared body is headed with the name asked for.
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       let capsBadge =
@@ -198,7 +252,10 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Value '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
+      // `preferredLocation`, so a shared body is headed with the name asked for.
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
@@ -219,6 +276,11 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
 /// other two are compiler views of a function.
 type ViewMode =
   | Source
+  /// The declaration alone: no highlighting, no deprecation header, no capabilities
+  /// line. What you get back is what `dark module` and `dark edit` accept, so
+  /// reading an item and writing it back is a pipe rather than a screen-scrape. The
+  /// default view is for a person; this is for whatever reads it next.
+  | Raw
   /// The ProgramTypes tree the parser built, before compilation.
   | Ast
   /// The register-machine instructions the function actually runs.
@@ -228,6 +290,7 @@ type ViewMode =
 let modeName (mode: ViewMode) : String =
   match mode with
   | Source -> "source"
+  | Raw -> "--raw"
   | Ast -> "--ast"
   | Instructions -> "--instructions"
 
@@ -247,6 +310,7 @@ let parseArgs
       | Error e -> Stdlib.Result.Result.Error e
       | Ok _ ->
         match flag with
+        | "--raw" -> Stdlib.Result.Result.Ok ViewMode.Raw
         | "--ast" -> Stdlib.Result.Result.Ok ViewMode.Ast
         | "--instructions" -> Stdlib.Result.Result.Ok ViewMode.Instructions
         | "--instrs" -> Stdlib.Result.Result.Ok ViewMode.Instructions
@@ -382,6 +446,7 @@ let viewCompiled
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.error "No compiled instructions stored for this function.")
     | Source -> viewEntity branchId location
+    | Raw -> printRaw branchId location
 
 
 // VIEW command - view modules, functions, types, or constants, as source, AST, or instructions
@@ -403,11 +468,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     match locationResult with
     | Error errorMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {errorMsg}")
+      // Names the target you asked for. "Cannot view: Not found: Zzz" says what
+      // failed but not what you typed, which matters when the arg was resolved
+      // relative to your current location.
+      //
+      // Unwrapped, not interpolated raw: `pathArg` is an Option, and interpolating
+      // one raises "Expected String in string interpolation", so the error path
+      // meant to name your target would crash instead of printing it.
+      let asked = pathArg |> Stdlib.Option.withDefault ""
+      let what = if asked == "" then "" else $" {asked}"
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view{what}: {errorMsg}")
       state
     | Ok location ->
       match mode with
       | Source -> viewEntity branchId location
+      | Raw -> printRaw branchId location
       | _ -> viewCompiled branchId location mode
 
       state
@@ -417,7 +492,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   // Complete the path as before, and offer the view flags once something is typed. Flags are filtered
   // out of the path completion so `view List.last --a` completes the flag, not a package path.
   let flagCompletions (partial: String) : List<Completion.CompletionItem> =
-    [ "--ast"; "--instructions" ]
+    [ "--raw"; "--ast"; "--instructions" ]
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
     |> Stdlib.List.map (fun name -> Completion.simple name)
 
@@ -433,11 +508,16 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : String =
   [
-    "Usage: view [path] [--ast | --instructions]"
+    "Usage: view [path] [--raw | --ast | --instructions]"
     "View detailed information about functions, types, values, or modules."
     ""
     "With path: View the specified entity with syntax highlighting."
     "Without path: View current location."
+    ""
+    "Options:"
+    "  --raw             The declaration alone, with no header, badge or colour."
+    "                    What `dark module` and `dark edit` accept, so reading an"
+    "                    item and writing it back is a pipe."
     ""
     "Options (functions only):"
     "  --ast             The ProgramTypes tree the parser built, before compilation."
@@ -449,6 +529,7 @@ let help (_state: AppState) : String =
     "  view List.head                  - View the List.head function"
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
+    "  view List.head --raw            - Print just the declaration"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map"
   ] |> Stdlib.String.join "\n"

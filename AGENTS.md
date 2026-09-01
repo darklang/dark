@@ -279,6 +279,22 @@ The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
 
 Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
 
+For poking at it by hand, or driving something `expect` would be awkward for -- an editor,
+a pager, anything that takes over the screen -- `tmux` is more reliable:
+
+    tmux new-session -d -s work -x 200 -y 50
+    tmux send-keys -t work:0 'scripts/run-in-docker bash' Enter
+    tmux send-keys -t work:0 './scripts/run-cli ...' Enter
+    tmux capture-pane -t work:0 -p          # read the screen
+    tmux kill-session -t work
+
+Inside a pane, stdin IS a terminal, so `run-in-docker` allocates a TTY and everything that
+needs one works: `dark edit` really opens `$EDITOR`, and you drive it with more `send-keys`
+(`:%s/a/b/` then `:wq`, or `:cq` to exit non-zero and test the cancel path).
+
+Poll `capture-pane` in a loop rather than sleeping between steps; a command that shells out
+per invocation takes a second or more, and the pane is the only thing that tells you it is done.
+
 ## Debugging
 
     Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
