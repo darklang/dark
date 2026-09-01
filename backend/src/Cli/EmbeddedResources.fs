@@ -24,8 +24,8 @@ let private isInstalledMode () : bool =
   let dir = exeDirectory ()
   dir.EndsWith("/.darklang/bin") || dir.EndsWith("\\.darklang\\bin")
 
-/// Gets the appropriate .darklang directory path
-let private getDarklangDirectory () : string =
+/// The .darklang directory to use when nothing says otherwise.
+let private getDefaultDarklangDirectory () : string =
   if isInstalledMode () then
     // Installed mode: use the central ~/.darklang directory
     let home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
@@ -33,6 +33,18 @@ let private getDarklangDirectory () : string =
   else
     // Portable mode: use adjacent .darklang directory
     Path.Combine(exeDirectory (), ".darklang")
+
+/// Where this instance keeps its store, logs and local config.
+///
+/// An explicit `DARK_CONFIG_RUNDIR` wins over the default. Overwriting it instead would
+/// mean every process on a machine shares one store, so a second instance -- a throwaway
+/// store to try something in, or two binaries measured against the same data -- could not
+/// be asked for at all.
+let private getDarklangDirectory () : string =
+  match Environment.GetEnvironmentVariable "DARK_CONFIG_RUNDIR" with
+  | null
+  | "" -> getDefaultDarklangDirectory ()
+  | explicit -> explicit
 
 let private extractResource (resourceName : string) (targetPath : string) : unit =
   let assembly = Assembly.GetExecutingAssembly()

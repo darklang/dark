@@ -25,9 +25,10 @@
 # Both times the tell was output (`ls` printing 5 lines where the other printed
 # 7), not timing or exit status.
 #
-# Each artifact gets its own DARKLANG_HOME. Two binaries sharing one .darklang
-# directory corrupt the store outright ("database disk image is malformed"),
-# which is its own way to produce a confidently wrong result.
+# Each artifact gets its own HOME, which is what decides where an installed-mode
+# binary keeps its store. Two binaries sharing one .darklang directory corrupt
+# the store outright ("database disk image is malformed"), which is its own way
+# to produce a confidently wrong result.
 
 set -euo pipefail
 
@@ -178,6 +179,29 @@ else
   echo "  ok   eval outside the checkout"
 fi
 rm -rf "$OUTSIDE"
+
+echo ""
+echo "The store it was pointed at:"
+
+# A published binary carries an embedded seed and, told nothing, extracts it beside
+# itself. An explicit DARK_CONFIG_RUNDIR has to win over that default, or every
+# process on a machine shares one store and a second instance cannot be asked for.
+NAMED=$(mktemp -d /tmp/dark-artifact-store.XXXXXX)
+cp "$ARTIFACT" "$NAMED/dark"
+named_rc=0
+named_out=$( cd "$NAMED" && HOME="$NAMED" DARK_CONFIG_RUNDIR="$NAMED/named" \
+  ./dark eval "1 + 2" 2>&1 ) || named_rc=$?
+if [[ $named_rc -ne 0 || ! -f "$NAMED/named/data.db" ]]; then
+  echo "  FAIL store follows DARK_CONFIG_RUNDIR (exit $named_rc)"
+  echo "$named_out" | tail -15 | indent
+  failures=$((failures + 1))
+elif [[ -e "$NAMED/.darklang/data.db" ]]; then
+  echo "  FAIL store follows DARK_CONFIG_RUNDIR (seeded .darklang beside the exe too)"
+  failures=$((failures + 1))
+else
+  echo "  ok   store follows DARK_CONFIG_RUNDIR"
+fi
+rm -rf "$NAMED"
 
 echo ""
 echo "Dark CLI test suite:"
