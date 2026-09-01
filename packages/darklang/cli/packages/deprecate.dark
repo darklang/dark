@@ -137,8 +137,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
 
-  | (Some _, None, _) ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing target (location or hash)")
+  // The first positional is the KIND, so a lone dotted name lands here. Reporting
+  // only the missing target sends you looking for an argument you already gave.
+  | (Some itemType, None, _) ->
+    match Propagate.itemKindFromString itemType with
+    | Some _ ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          $"Error: Missing target (location or hash) after '{itemType}'")
+    | None ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          ($"Error: '{itemType}' is not a valid item kind. "
+           ++ "Expected fn, type, or value."))
+
     state
 
   | (_, _, None) ->

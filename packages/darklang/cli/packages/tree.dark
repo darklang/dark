@@ -149,22 +149,19 @@ let execute (state: AppState) (args: List<String>): AppState =
       || (a == "--include-deprecated")
       || (Stdlib.String.startsWith a "--depth=")
 
-    let unknownFlags =
-      args
-      |> Stdlib.List.filter (fun a ->
-        (Stdlib.String.startsWith a "--") && (Stdlib.Bool.not (knownFlag a)))
+    // A bare word here is the path, so only flags are checked.
+    let known =
+      (fun a -> (Stdlib.Bool.not (Stdlib.String.startsWith a "--")) || (knownFlag a))
 
-    match unknownFlags with
-    | bad :: _ ->
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.error $"tree does not understand `{bad}`.")
-
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.hint
-          "  flags: --depth=N, --toc, --include-deprecated")
-
+    if
+      Cli.refuseUnknownArgs
+        "tree"
+        "flags: --depth=N, --toc, --include-deprecated"
+        known
+        args
+    then
       state
-    | [] ->
+    else
 
     // Refused, not ignored: falling back to the current location answers a different
     // question, and says nothing about the path you gave.

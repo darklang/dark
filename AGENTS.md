@@ -92,10 +92,38 @@ tell you the tree has moved on rather than silently running a stale binary.
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
 
-The one trap worth knowing here: a filter that matches nothing used to be reported as
-`0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
-including what the three filter flags actually do and why they used to disagree with
-their own help text.
+`run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
+already there, so an `.fs` change you have not built yet is simply not in the run. It looks
+exactly like a pass, and a red test you "fixed" stays red with its old message, which is the
+tell. Build first:
+
+    scripts/dev/build && ./scripts/run-backend-tests
+
+The other trap: a filter that matches nothing used to be reported as `0 tests run - Success!`
+with exit 0. It fails now. `docs/unittests.md` has the rest, including what the three filter
+flags actually do and why they used to disagree with their own help text.
+
+### Sweeping the CLI after a change
+
+A Dark call site is not type-checked until it executes, so a rename or a type change across
+`packages/` leaves holes a green suite cannot see. The bugs that get found here are found by
+running commands, not by reading them, and always the same four ways:
+
+1. every command BARE
+2. every command with `--help`
+3. every command with valid arguments
+4. every command with arguments a person would get wrong (missing, misspelled, wrong type)
+
+Grep the output for `Encountered a Runtime Error`, `expects .* but got`, `No matching case
+found`, `couldn't be found`. Shape 4 is the one people skip and it finds the most: a
+fall-through arm answers plausibly instead of refusing, so `dark commits zzznope` listed
+main's commits as though nothing had been asked.
+
+Shapes 2 and 4 are automated in `CliTraces.Tests.fs`, driven off the command registry rather
+than a list, so a new command is swept the day it is registered. A command that must not be
+RUN goes in `notSweepable` there, with the reason; a name in that list that is no longer
+registered fails its own test, because an exclusion nobody revisits is how a sweep quietly
+stops covering the thing it was written for.
 
 ### Performance
 

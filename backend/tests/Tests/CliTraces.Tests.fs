@@ -93,6 +93,23 @@ let private runCli (state : RT.ExecutionState) (args : string list) : Task<strin
   }
 
 
+/// `runCli`, but a runtime error is a result rather than the end of the test.
+///
+/// For the sweeps below: one command that throws must not stop the other sixty from being
+/// checked, and WHICH command threw is the finding, so it has to come back as a value.
+let private runCliCatching
+  (state : RT.ExecutionState)
+  (args : string list)
+  : Task<Result<string, string>> =
+  task {
+    try
+      let! output = runCli state args
+      return Ok output
+    with e ->
+      return Error(e.Message.Split('\n')[0])
+  }
+
+
 /// Helper: extract the trace ID from a `traces list 1 --json` output.
 let private parseTraceID (json : string) : string =
   let split = json.Split("\"traceId\":\"")
@@ -877,6 +894,242 @@ let private testTracesTruncatedStillShowsRoot =
   }
 
 
+// ─── Command sweeps ───────────────────────────────────────────────────────
+//
+// Every test above names one command. These name none: they ask the registry what exists and
+// hold all of it to one rule, so a command nobody wrote a test for is still covered, and so is
+// the next one somebody adds.
+
+/// Every command the CLI registry knows about, read out of `dark help`.
+let private registeredCommands (state : RT.ExecutionState) : Task<List<string>> =
+  task {
+    let! output = runCli state [ "help" ]
+
+    return
+      output.Split('\n')
+      |> Array.toList
+      |> List.choose (fun line ->
+        if line.StartsWith "  " && line.Contains " - " then
+          let name = line.Trim().Split(' ')[0]
+          if name = "" || name.StartsWith "-" then None else Some name
+        else
+          None)
+      |> List.distinct
+  }
+
+/// Phrases that mean "you used this wrong". A request for HELP must never be answered with one.
+///
+/// Deliberately NOT "usage:" or "required": both appear in good help text, and a check that flags
+/// them flags forty commands and gets switched off.
+let private soundsLikeMisuse (output : string) : bool =
+  let o = output.ToLower()
+  [ "error:"
+    "internal error"
+    "is not a valid"
+    "unknown topic"
+    "unknown command" ]
+  |> List.exists (fun phrase -> o.Contains phrase)
+
+/// Commands the sweeps must not RUN, because running them is the problem: they take over the
+/// screen, rewrite the install, end the session or reach the network.
+///
+/// Asserted to be registered, below. An exclusion for a command that no longer exists is how a
+/// sweep quietly stops covering the thing it was written for.
+let private notSweepable =
+  Set.ofList
+    [ "quit"
+      "install"
+      "uninstall"
+      "update"
+      "install-status"
+      "serve"
+      "outliner"
+      "views"
+      "text-editor"
+      "apps"
+      "login"
+      "logout"
+      "export-seed"
+      "devices"
+      "clear"
+      "agent" ]
+
+let private everyExclusionIsReal =
+  cliTest "every command excluded from the sweeps still exists" (fun state ->
+    task {
+      let! commands = registeredCommands state
+      Expect.isGreaterThan (List.length commands) 20 "the registry was read"
+
+      let registered = Set.ofList commands
+      let stale = Set.difference notSweepable registered
+
+      if not (Set.isEmpty stale) then
+        Tests.failtestf
+          "excluded from the sweeps but no longer registered: %s"
+          (stale |> Set.toList |> String.concat ", ")
+    })
+
+/// `--help`, not a bare `help`: the flag is handled centrally, so every command answers it,
+/// while a bare `help` is an ordinary argument. `dark fn help` authors a function called `help`,
+/// and that is the documented shape rather than an oversight.
+let private everyCommandAnswersHelp =
+  cliTest "every registered command answers `--help` with help" (fun state ->
+    task {
+      let! commands = registeredCommands state
+      let mutable failures : List<string * string> = []
+
+      for cmd in commands do
+        if not (Set.contains cmd notSweepable) then
+          match! runCliCatching state [ cmd; "--help" ] with
+          | Error e -> failures <- (cmd, $"crashed: {e}") :: failures
+          | Ok output ->
+            if output = "" then
+              failures <- (cmd, "printed nothing") :: failures
+            elif soundsLikeMisuse output then
+              failures <- (cmd, output.Split('\n')[0]) :: failures
+
+      // Reported together: when this breaks it breaks for a whole family at once, and finding
+      // that out one re-run at a time is the slow way.
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.rev
+          |> List.map (fun (c, why) -> $"  dark {c} --help -> {why}")
+          |> String.concat "\n"
+
+        Tests.failtestf "commands that don't answer `--help`:\n%s" detail
+    })
+
+let private everyCommandRefusesABogusArgument =
+  cliTest
+    "no registered command ignores an argument that means nothing"
+    (fun state ->
+      task {
+        let! commands = registeredCommands state
+        let mutable failures : List<string * string> = []
+
+        for cmd in commands do
+          if not (Set.contains cmd notSweepable) then
+            // Saying nothing is the failure this catches. A command that silently drops an
+            // argument it did not understand looks exactly like one that did what you asked.
+            match! runCliCatching state [ cmd; "zzz-no-such-thing-zzz" ] with
+            | Error e -> failures <- (cmd, $"crashed: {e}") :: failures
+            | Ok output ->
+              if output.Trim() = "" then
+                failures <- (cmd, "said nothing") :: failures
+
+        if not (List.isEmpty failures) then
+          let detail =
+            failures
+            |> List.rev
+            |> List.map (fun (c, why) ->
+              $"  dark {c} zzz-no-such-thing-zzz -> {why}")
+            |> String.concat "\n"
+
+          Tests.failtestf
+            "commands that ignore an argument they don't understand:\n%s"
+            detail
+      })
+
+/// A dash-led argument is a mistyped flag, never a name.
+///
+/// `create` and `rename` are the two that WRITE the name they are given, so they are the two
+/// where taking it leaves something behind to find and clean up afterwards.
+let private aDashLedArgumentIsNeverAName =
+  cliTest
+    "a dash-led argument is refused as a name rather than taken as one"
+    (fun state ->
+      task {
+        let! created = runCli state [ "branch"; "create"; "--zzz-not-a-branch" ]
+        Expect.stringContains
+          created
+          "starts with a dash"
+          "branch create should refuse it"
+
+        let! renamed =
+          runCli state [ "branch"; "rename"; "main"; "--zzz-not-a-branch" ]
+        Expect.stringContains
+          renamed
+          "starts with a dash"
+          "branch rename should refuse it"
+
+        let! branches = runCli state [ "branch"; "list" ]
+
+        Expect.isFalse
+          (branches.Contains "--zzz-not-a-branch")
+          "and neither may leave a branch behind"
+      })
+
+/// Commands that take a target, given one that does not exist.
+///
+/// The rule: SAY WHICH THING you could not find. "Cannot merge main branch" is what `merge`
+/// answered for any argument at all, so a typo read as a fact about your branch rather than as
+/// a command that never ran.
+///
+/// Rows for commands that do not exist on main yet are kept here, commented, rather than
+/// deleted: they are re-enabled by removing the `//` when the command lands, which is a thing
+/// the next person can do without knowing this list was ever longer.
+///     "conflicts branch", [ "conflicts"; "branch"; "zzznope" ]
+///     "review approve",   [ "review"; "approve"; "zzznope" ]
+///     "review reject",    [ "review"; "reject"; "zzznope" ]
+///     "propagate show",   [ "propagate"; "show"; "Zzz.Nope.nope" ]
+///     "propagate pin",    [ "propagate"; "pin"; "Zzz.Nope.nope" ]
+///     "propagate follow", [ "propagate"; "follow"; "Zzz.Nope.nope" ]
+///     "constraints resolve", [ "constraints"; "resolve"; "zzznope" ]
+///     "ack",              [ "ack"; "zzznope" ]
+let private nonexistentTargets : List<string * List<string>> =
+  [ "view", [ "view"; "Zzz.Nope.nope" ]
+    "deps", [ "deps"; "Zzz.Nope.nope" ]
+    "ls", [ "ls"; "Zzz.Nope.nope" ]
+    "nav", [ "nav"; "Zzz.Nope.nope" ]
+    "tree", [ "tree"; "Zzz.Nope.nope" ]
+    "hash", [ "hash"; "Zzz.Nope.nope" ]
+    "undo", [ "undo"; "Zzz.Nope.nope" ]
+    "deprecate", [ "deprecate"; "Zzz.Nope.nope" ]
+    "delete", [ "delete"; "Zzz.Nope.nope" ]
+    "show", [ "show"; "zzznope" ]
+    "commits", [ "commits"; "zzznope" ]
+    "merge", [ "merge"; "zzznope" ]
+    "rebase", [ "rebase"; "zzznope" ]
+    "review", [ "review"; "zzznope" ]
+    "discard", [ "discard"; "zzznope" ]
+    "conflicts", [ "conflicts"; "zzznope" ]
+    "branch switch", [ "branch"; "switch"; "zzznope" ]
+    "branch archive", [ "branch"; "archive"; "zzznope" ]
+    "branch set-default", [ "branch"; "set-default"; "zzznope" ] ]
+
+let private missingTargetsAreNamed =
+  cliTest "a command that can't find its target says which target" (fun state ->
+    task {
+      let mutable failures : List<string * string> = []
+
+      for (label, args) in nonexistentTargets do
+        let! result = runCliCatching state args
+        let output = result |> Result.defaultValue ""
+        let target = args |> List.last |> Option.defaultValue ""
+
+        // The first segment, not the whole target: a traversal stops at the first segment it
+        // cannot find, so `Zzz.Nope.nope` is answered with `Zzz`.
+        let firstSegment = target.Split('.')[0]
+
+        if output.Trim() = "" then
+          failures <- (label, "said nothing") :: failures
+        elif not (output.Contains firstSegment) then
+          failures <- (label, output.Split('\n')[0]) :: failures
+
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.rev
+          |> List.map (fun (c, why) -> $"  dark {c} <missing> -> {why}")
+          |> String.concat "\n"
+
+        Tests.failtestf
+          "commands that don't say what they couldn't find:\n%s"
+          detail
+    })
+
+
 let tests =
   testSequenced
   <| testList
@@ -922,4 +1175,10 @@ let tests =
       testTracesArity1Catchalls
       testTracesRouteEmptyRejection
       testTracesFindEscapesLikeWildcards
-      testTracesTruncatedStillShowsRoot ]
+      testTracesTruncatedStillShowsRoot
+      // Command sweeps
+      everyExclusionIsReal
+      everyCommandAnswersHelp
+      everyCommandRefusesABogusArgument
+      aDashLedArgumentIsNeverAName
+      missingTargetsAreNamed ]

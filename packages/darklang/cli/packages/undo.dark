@@ -49,8 +49,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
 
-  | [itemType] ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing name argument")
+  // `undo` takes a KIND then a name, so a lone dotted name is read as the kind.
+  // Saying only "missing name" sends you looking for an argument you already gave.
+  | [ itemType ] ->
+    match Propagate.itemKindFromString itemType with
+    | Some _ ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          $"Error: Missing name argument after '{itemType}'")
+    | None ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          ($"Error: '{itemType}' is not a valid item kind. "
+           ++ "Expected fn, type, or value."))
     Stdlib.printLine ""
     Stdlib.printLine "Usage: undo <fn|type|value> <name> [--yes|-y]"
     state

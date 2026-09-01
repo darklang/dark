@@ -2,6 +2,16 @@ module Darklang.Cli.SCM.Discard
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let known =
+    (fun a -> (a == "--yes") || (a == "-y"))
+
+  let understood =
+    "flags: --yes (-y). Discards all uncommitted work; `undo <name>` takes one."
+
+  if Cli.refuseUnknownArgs "discard" understood known args then
+    state
+  else
+
   let branchId = state.currentBranchId
 
   let autoConfirm =
