@@ -43,7 +43,6 @@
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="EphemeralPackages.fs" />
     <Compile Include="PackageManager.fs" />
-    <Compile Include="Scripts.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="Conflicts.fs" />
     <Compile Include="ChangeSummary.fs" />

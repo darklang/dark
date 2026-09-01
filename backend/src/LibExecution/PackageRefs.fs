@@ -456,7 +456,6 @@ module Type =
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let unhandled = p [ "Cli"; "ExecutionError" ] "Unhandled"
-    let script = p [ "Cli"; "Scripts" ] "Script"
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"

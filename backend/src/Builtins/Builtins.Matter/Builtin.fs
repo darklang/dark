@@ -28,7 +28,6 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Branches.builtins ()
       Libs.PM.Rebase.builtins ()
       Libs.PM.Merge.builtins ()
-      Libs.PM.Scripts.builtins ()
       Libs.PM.Dependencies.builtins ()
       Libs.PM.Seed.builtins
       Libs.PM.Caps.builtins
