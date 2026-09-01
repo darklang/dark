@@ -132,15 +132,7 @@ let findHandler
 
 /// Get the HTTP method from a request (from x-http-method header)
 let getMethod (req: Http.Request) : String =
-  let found =
-    req.headers
-    |> List.findFirst (fun pair ->
-      let (key, _) = pair
-      String.toLowercase key == "x-http-method")
-
-  match found with
-  | Some ((_, value)) -> value
-  | None -> "GET"
+  Http.Request.header req "x-http-method" |> Option.withDefault "GET"
 
 
 /// Get the path from a request URL

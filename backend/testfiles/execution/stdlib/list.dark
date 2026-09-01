@@ -317,6 +317,14 @@ Stdlib.List.unique [ 1L; 1L; 1L; 1L ] = [ 1L ]
 Stdlib.List.unique [ 7L; 42L; 7L; 2L; 10L ] = [ 2L; 7L; 10L; 42L ]
 Stdlib.List.unique [] = []
 
+// `dedup` keeps the FIRST occurrence where it was. Compare the `unique` cases just above:
+// same input, sorted output. That difference is the whole reason it exists.
+Stdlib.List.dedup [ 7L; 42L; 7L; 2L; 10L ] = [ 7L; 42L; 2L; 10L ]
+Stdlib.List.dedup [ 1L; 1L; 1L; 1L ] = [ 1L ]
+Stdlib.List.dedup [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
+Stdlib.List.dedup [] = []
+Stdlib.List.dedup [ "b"; "a"; "b"; "a" ] = [ "b"; "a" ]
+
 module Zipping =
   // TODO: more tests, with values of more complex types
   Stdlib.List.unzip [ (1L, 10L); (2L, 20L); (3L, 30L) ] = ([ 1L; 2L; 3L ], [ 10L; 20L; 30L ])

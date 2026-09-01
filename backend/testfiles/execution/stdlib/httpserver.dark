@@ -1,0 +1,25 @@
+// `Stdlib.HttpServer`'s pure helpers. The `.test` files under `backend/testfiles/http-server/`
+// drive `serve` end to end; these cover the pieces it is built from, which nothing reached
+// before.
+
+module GetMethod =
+  // The method rides in `x-http-method`, and the header name is matched case-insensitively,
+  // so a client that capitalises it differently still gets its method honoured.
+  (Stdlib.HttpServer.getMethod (
+    Stdlib.Http.Request
+      { url = "/"; headers = [ ("x-http-method", "POST") ]; body = Stdlib.Blob.empty })) =
+    "POST"
+
+  (Stdlib.HttpServer.getMethod (
+    Stdlib.Http.Request
+      { url = "/"; headers = [ ("X-Http-Method", "DELETE") ]; body = Stdlib.Blob.empty })) =
+    "DELETE"
+
+  // No header at all means GET, which is what a browser sends.
+  (Stdlib.HttpServer.getMethod (
+    Stdlib.Http.Request { url = "/"; headers = []; body = Stdlib.Blob.empty })) = "GET"
+
+  // An unrelated header is not the method.
+  (Stdlib.HttpServer.getMethod (
+    Stdlib.Http.Request
+      { url = "/"; headers = [ ("Accept", "text/html") ]; body = Stdlib.Blob.empty })) = "GET"

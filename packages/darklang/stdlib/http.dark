@@ -111,6 +111,29 @@ module Request =
           (Stdlib.Http.urlDecode key,
            Stdlib.Http.urlDecode (Stdlib.String.join valueParts "=")))
 
+  /// The value of <param key>, matched case-INSENSITIVELY, as HTTP requires: a client
+  /// may send `Authorization`, `authorization` or `AUTHORIZATION` and all three mean the
+  /// same header. A case-sensitive lookup reads as "the client didn't send it", which for
+  /// an auth check refuses a request that was perfectly well formed.
+  ///
+  /// The first match wins. A repeated header is legal and means a list, which no caller
+  /// here wants yet; taking the first is the same choice <fn queryParam> makes.
+  let header
+    (req: Stdlib.Http.Request)
+    (key: String)
+    : Stdlib.Option.Option<String> =
+    let wanted = Stdlib.String.toLowercase key
+
+    req.headers
+    |> Stdlib.List.filterMap (fun pair ->
+      let (k, v) = pair
+
+      if (Stdlib.String.toLowercase k) == wanted then
+        Stdlib.Option.Option.Some v
+      else
+        Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+
   let queryParam
     (req: Stdlib.Http.Request)
     (key: String)
