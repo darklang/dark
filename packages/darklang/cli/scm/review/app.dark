@@ -710,6 +710,13 @@ let printAllBranches () : Unit =
 
 
 let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
+  let known =
+    (fun a -> a == "--all")
+
+  if Cli.refuseUnknownArgs "review" "flags: --all" known args then
+    cliState
+  else
+
   let branchId = cliState.currentBranchId
   let showAll = Stdlib.List.member args "--all"
 

@@ -295,7 +295,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       $"OK — {c.location} will be {theirs}, not {mine}   (syncs to your peers)")
 
-  | _ ->
+  // Printing help alone reads as an answer: `conflicts zzznope` looked exactly like
+  // `conflicts --help`, so a typo passed for a command that ran and found nothing.
+  | bad :: _ ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
+
     Stdlib.printLine (help state)
     state
 

@@ -41,6 +41,20 @@ let renderDetailed (c: SCM.PackageOps.Commit) (isAncestor: Bool) (long: Bool) : 
   Stdlib.printLine ""
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let known =
+    (fun a ->
+      (Stdlib.String.startsWith a "--")
+      || (match Stdlib.Int.parse a with
+          | Ok _ -> true
+          | Error _ -> false))
+
+  let understood =
+    "flags: --detailed, --full, --long; or a number of commits to show"
+
+  if Cli.refuseUnknownArgs "commits" understood known args then
+    state
+  else
+
   let branchId = state.currentBranchId
   let detailed =
     (Stdlib.List.member args "--detailed") || (Stdlib.List.member args "--full")

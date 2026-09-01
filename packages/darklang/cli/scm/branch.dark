@@ -152,6 +152,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | [ "create"; name ] ->
+    if Cli.refuseDashLedName "branch" name then
+      state
+    else
+
     let newBranch = SCM.Branch.create name state.currentBranchId
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Created and switched to branch '{name}'")
     if state.nonInteractive then
@@ -204,6 +208,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | [ "rename"; oldName; newName ] ->
+    if Cli.refuseDashLedName "branch" newName then
+      state
+    else
+
     match SCM.Branch.getByName oldName with
     | Some b ->
       match SCM.Branch.rename b.id newName with

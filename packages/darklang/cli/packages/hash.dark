@@ -34,7 +34,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine $"{kindStr} {formatHash hash long}"
         state
       | None ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Not found at this location")
+        let looked =
+          PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Not found: {looked}")
         state
 
 let help (_state: Cli.AppState) : String =

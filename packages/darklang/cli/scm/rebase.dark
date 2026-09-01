@@ -2,6 +2,13 @@ module Darklang.Cli.SCM.Rebase
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let known =
+    (fun a -> (a == "--status") || (a == "-s"))
+
+  if Cli.refuseUnknownArgs "rebase" "flags: --status (-s)" known args then
+    state
+  else
+
   let showStatus =
     (Stdlib.List.member args "--status") || (Stdlib.List.member args "-s")
 

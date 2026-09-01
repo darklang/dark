@@ -27,7 +27,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
         match matching with
         | [ c ] -> LanguageTools.ProgramTypes.hashToString c.hash
         | [] ->
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.error "No matching commit found.")
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.error $"No commit matches `{commitHashStr}`.")
           commitHashStr
         | _ ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Multiple commits match that prefix. Be more specific.")

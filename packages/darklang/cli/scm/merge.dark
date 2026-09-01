@@ -2,6 +2,13 @@ module Darklang.Cli.SCM.Merge
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  let known =
+    (fun a -> (a == "--dry-run") || (a == "-n"))
+
+  if Cli.refuseUnknownArgs "merge" "flags: --dry-run (-n)" known args then
+    state
+  else
+
   let dryRun =
     (Stdlib.List.member args "--dry-run") || (Stdlib.List.member args "-n")
 

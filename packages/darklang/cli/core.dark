@@ -76,6 +76,46 @@ type AppState =
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
 
+/// Refuse arguments a command does not understand, naming the first and the rest.
+///
+/// A command that picks out its flags with `List.member` and drops the rest answers
+/// a typo as though you had typed nothing: `dark commits zzznope` listed main's
+/// commits, which reads as an answer about `zzznope`. Returns whether it refused, so
+/// the caller stops.
+let refuseUnknownArgs
+  (command: String)
+  (understood: String)
+  (isKnown: String -> Bool)
+  (args: List<String>)
+  : Bool =
+  let unknown = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (isKnown a))
+
+  match unknown with
+  | [] -> false
+  | bad :: _ ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"{command} does not understand `{bad}`.")
+
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {understood}")
+    true
+
+
+/// Refuse a dash-led argument where a name belongs.
+///
+/// A leading dash means someone mistyped a flag; it is never a name anyone meant
+/// to use. Taken as one it creates a branch called `--frce` that then has to be
+/// found and archived.
+let refuseDashLedName (kind: String) (name: String) : Bool =
+  if Stdlib.String.startsWith name "-" then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        $"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name.")
+
+    true
+  else
+    false
+
+
 /// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the
 /// list and the options, and building the list is 60 records of 6 fields including 3 fn refs each. Calling it
 /// twice per process start was pure duplicate work, on every invocation including `dark version`.
