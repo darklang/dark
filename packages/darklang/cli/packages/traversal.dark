@@ -117,7 +117,13 @@ let resolveEntity
       | [] ->
         match entityResults.values with
         | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
-        | [] -> Stdlib.Result.Result.Error "Not found"
+        | [] ->
+          // The path, not just "Not found": that same sentence otherwise covers a
+          // typo, an unauthored name, and a path resolved from somewhere unexpected.
+          let looked =
+            Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+
+          Stdlib.Result.Result.Error $"Not found: {looked}"
 
 
 let applyPath

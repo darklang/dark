@@ -35,6 +35,13 @@ let allTests (): List<String * TestFunction> =
     ( "Edit Leaves The Item Alone On A Bad File",
       fun () -> testEditLeavesTheItemAloneOnABadFile () )
     ("Edit Refuses What It Cannot Edit", fun () -> testEditRefusesWhatItCannotEdit ())
+    ( "Authoring Accepts A Quoted Separator",
+      fun () -> testAuthoringAcceptsAQuotedSeparator () )
+    ( "Authoring Refuses A Lowercase Module",
+      fun () -> testAuthoringRefusesALowercaseModule () )
+    ("Not Found Names The Path", fun () -> testNotFoundNamesThePath ())
+    ( "Tree Refuses What It Cannot Show",
+      fun () -> testTreeRefusesWhatItCannotShow () )
     ("View Unknown Flag", fun () -> testViewUnknownFlag ())
 
     ("Native List Edge Cases", fun () -> testNativeListEdgeCases ())

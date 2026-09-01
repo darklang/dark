@@ -38,3 +38,26 @@ let formatLocation (location: PackageLocation) : String =
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
   | Function loc ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"
+
+
+/// The definition a person typed, from the arguments after the item's name.
+///
+/// The `=` separating name from definition arrives either as its own argument or
+/// attached to the front; both come off, leading ones only, since the `=` in
+/// `(x: Int64) : Int64 = x` is the body's. A lone `-` reads stdin, so the separate
+/// argument has to go first.
+let definitionFromArgs (args: List<String>) : String =
+  let withoutSeparator =
+    match args with
+    | "=" :: rest -> rest
+    | parts -> parts
+
+  match withoutSeparator with
+  | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
+  | parts ->
+    let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
+
+    if Stdlib.String.startsWith joined "=" then
+      Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
+    else
+      joined
