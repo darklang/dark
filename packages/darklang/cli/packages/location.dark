@@ -31,5 +31,23 @@ let parseRelativeTo
     let name = (Stdlib.List.last rest) |> Builtin.unwrap
     let modules = Stdlib.List.dropLast rest
 
-    Stdlib.Result.Result.Ok
-      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })
+    // Module segments must be capitalised. A lowercase one is read as the item's NAME,
+    // so `Zz.low.f` authors `Zz.low`, and every later reference fails with "Zz.low not
+    // found" -- far from here. Owners are exempt.
+    let badModule =
+      modules
+      |> Stdlib.List.findFirst (fun m ->
+        match Stdlib.String.toList m with
+        | [] -> true
+        | first :: _ -> Stdlib.Bool.not (Stdlib.Char.isUppercase first))
+
+    match badModule with
+    | Some bad ->
+      Stdlib.Result.Result.Error
+        ($"module names must start with a capital, and \"{bad}\" does not. "
+         ++ "A lowercase segment is read as the item's NAME, so nothing could refer "
+         ++ "to what this would create.")
+    | None ->
+      Stdlib.Result.Result.Ok
+        (LanguageTools.ProgramTypes.PackageLocation
+          { owner = owner; modules = modules; name = name })

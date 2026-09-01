@@ -938,3 +938,103 @@ let testEditRefusesWhatItCannotEdit (): TestResult =
       ++ $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
       ++ $"no terminal: {noTerminal}"
     )
+
+
+/// Every way of passing a definition authors the same item. The `=` is a separator:
+/// unquoted the shell splits it off, quoted it arrives attached, and both come off.
+let testAuthoringAcceptsAQuotedSeparator (): TestResult =
+  let branch = "cli-quoted-eq-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let run (args: List<String>) : String =
+    runWithCommand (Stdlib.List.append [ "--branch"; branch ] args)
+
+  let body = "(x: Int64) : Int64 = Stdlib.Int64.multiply x 2L"
+  let _ = runWithCommand [ "branch"; "create"; branch ]
+  let _ = run [ "fn"; "/Tests.QuotedEq.quoted"; "= " ++ body ]
+  let _ = run [ "fn"; "/Tests.QuotedEq.split"; "="; body ]
+  let typed = run [ "type"; "/Tests.QuotedEq.T"; "= { x: Int64 }" ]
+  let valued = run [ "val"; "/Tests.QuotedEq.v"; "= 42L" ]
+
+  // The hash is the assertion: the same item, not merely both accepted. Evaluating it
+  // shows the `=` inside the body survived.
+  let quotedHash = run [ "hash"; "Tests.QuotedEq.quoted" ]
+  let splitHash = run [ "hash"; "Tests.QuotedEq.split" ]
+  let evaluated = run [ "eval"; "Tests.QuotedEq.quoted 21L" ]
+
+  if
+    quotedHash == splitHash
+      && Stdlib.String.contains evaluated "42"
+      && Stdlib.String.contains typed "Created type"
+      && Stdlib.String.contains valued "Created value"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail(
+      $"hashes {quotedHash} / {splitHash}, eval {evaluated}, {typed}, {valued}"
+    )
+
+
+/// A lowercase module segment is refused. It would be read as the item's NAME, so
+/// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
+let testAuthoringRefusesALowercaseModule (): TestResult =
+  let branch = "cli-lowercase-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let run (args: List<String>) : String =
+    runWithCommand (Stdlib.List.append [ "--branch"; branch ] args)
+
+  let _ = runWithCommand [ "branch"; "create"; branch ]
+  let refused = run [ "fn"; "/Tests.lower.f"; "() : Int64 = 1L" ]
+  let listed = run [ "ls"; "Tests.lower" ]
+
+  if
+    Stdlib.String.contains refused "must start with a capital"
+      && Stdlib.Bool.not (Stdlib.String.contains refused "Created")
+      && Stdlib.String.contains listed "Not found"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail $"refusal: {refused}, and listing said: {listed}"
+
+
+/// "Not found" names the path, once. Naming it at the traversal covers every caller,
+/// which is why none of them adds it again.
+let testNotFoundNamesThePath (): TestResult =
+  // A real prefix, so the traversal gets past it: it reports the FIRST missing segment,
+  // and a wholly unknown path would only ever report its first.
+  let missing = "Darklang.Stdlib.NoSuchModule.thing"
+  let expected = "Not found: Darklang.Stdlib.NoSuchModule"
+  let viewed = runWithCommand [ "view"; missing ]
+  let listed = runWithCommand [ "ls"; missing ]
+  let navigated = runWithCommand [ "nav"; missing ]
+
+  let names (s: String) : Bool = Stdlib.String.contains s expected
+  let twice = (Stdlib.List.length (Stdlib.String.split viewed "NoSuchModule")) > 2
+
+  if names viewed && names listed && names navigated && Stdlib.Bool.not twice then
+    TestResult.Pass
+  else
+    TestResult.Fail $"view: {viewed}, ls: {listed}, nav: {navigated}"
+
+
+/// `tree` refuses what it cannot show. Both arms used to answer instead: an unknown flag
+/// was dropped with the real ones, and an unresolvable path fell back to where you stood.
+let testTreeRefusesWhatItCannotShow (): TestResult =
+  let badFlag = runWithCommand [ "tree"; "--zzbogus" ]
+  let badPath = runWithCommand [ "tree"; "Zz.NoSuchThing" ]
+  let twoPaths = runWithCommand [ "tree"; "Darklang.Stdlib"; "Darklang.Cli" ]
+  let withDepth = runWithCommand [ "tree"; "Darklang.Stdlib.Option"; "--depth=1" ]
+
+  // The header the render prints. Seeing it in a refusal means it showed a tree anyway.
+  let shown (s: String) : Bool = Stdlib.String.contains s "Package tree from"
+
+  if
+    Stdlib.String.contains badFlag "does not understand"
+      && Stdlib.Bool.not (shown badFlag)
+      && Stdlib.String.contains badPath "Not found"
+      && Stdlib.Bool.not (shown badPath)
+      && Stdlib.String.contains twoPaths "at most one path"
+      && shown withDepth
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail(
+      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {shown withDepth}"
+    )

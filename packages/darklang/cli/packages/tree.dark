@@ -135,31 +135,61 @@ let execute (state: AppState) (args: List<String>): AppState =
         | Error _ -> 2
       | None -> 2 // Default depth of 2 for concise but useful view
 
-    // Determine starting location
     let branchId = state.currentBranchId
+
+    let pathArgs =
+      args
+      |> Stdlib.List.filter (fun a ->
+        Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
+
+    // An unrecognised flag is dropped by the filter above, making `tree --zzbogus`
+    // indistinguishable from a bare `tree`. Only these three exist.
+    let knownFlag (a: String) : Bool =
+      (a == "--toc")
+      || (a == "--include-deprecated")
+      || (Stdlib.String.startsWith a "--depth=")
+
+    let unknownFlags =
+      args
+      |> Stdlib.List.filter (fun a ->
+        (Stdlib.String.startsWith a "--") && (Stdlib.Bool.not (knownFlag a)))
+
+    match unknownFlags with
+    | bad :: _ ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"tree does not understand `{bad}`.")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "  flags: --depth=N, --toc, --include-deprecated")
+
+      state
+    | [] ->
+
+    // Refused, not ignored: falling back to the current location answers a different
+    // question, and says nothing about the path you gave.
     let startLocation =
-      let pathArgs =
-        args
-        |> Stdlib.List.filter (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
-
       match pathArgs with
-      | [] -> state.packageData.currentLocation
+      | [] -> Stdlib.Result.Result.Ok state.packageData.currentLocation
       | [ pathStr ] ->
-        match Traversal.traverse branchId state.packageData.currentLocation pathStr with
-        | Ok location -> location
-        | Error _ -> state.packageData.currentLocation
-      | _ -> state.packageData.currentLocation
+        Traversal.traverse branchId state.packageData.currentLocation pathStr
+      | _ ->
+        Stdlib.Result.Result.Error "tree takes at most one path"
 
-    // Load deprecation sets once for the whole tree render.
-    let depSets = Query.loadDeprecationSets branchId
+    match startLocation with
+    | Error e ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show a tree: {e}")
+      state
+    | Ok startLocation ->
+      // Load deprecation sets once for the whole tree render.
+      let depSets = Query.loadDeprecationSets branchId
 
-    // Display tree
-    let locationStr = Packages.formatLocation startLocation
-    Stdlib.printLine $"Package tree from {locationStr}:"
-    Stdlib.printLine ""
-    displayTree branchId startLocation maxDepth 0 "" depSets includeDeprecated
+      let locationStr = Packages.formatLocation startLocation
+      Stdlib.printLine $"Package tree from {locationStr}:"
+      Stdlib.printLine ""
+      displayTree branchId startLocation maxDepth 0 "" depSets includeDeprecated
 
-    state
+      state
 
 
 // Display tree recursively from a given location.

@@ -468,16 +468,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     match locationResult with
     | Error errorMsg ->
-      // Names the target you asked for. "Cannot view: Not found: Zzz" says what
-      // failed but not what you typed, which matters when the arg was resolved
-      // relative to your current location.
-      //
-      // Unwrapped, not interpolated raw: `pathArg` is an Option, and interpolating
-      // one raises "Expected String in string interpolation", so the error path
-      // meant to name your target would crash instead of printing it.
-      let asked = pathArg |> Stdlib.Option.withDefault ""
-      let what = if asked == "" then "" else $" {asked}"
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view{what}: {errorMsg}")
+      // The traversal names the path it looked for, so this does not repeat it.
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {errorMsg}")
       state
     | Ok location ->
       match mode with
