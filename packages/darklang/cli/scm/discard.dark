@@ -38,12 +38,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine ""
 
     let proceed =
-      if autoConfirm then
-        true
-      else
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "This cannot be undone. Proceed? (y/n): ")
-        let response = Stdlib.Cli.Stdin.readLine ()
-        (response == "y") || (response == "Y")
+      Cli.Prompt.confirmExplicit
+        autoConfirm
+        (Stdlib.Cli.UI.Colors.warning "This cannot be undone. Proceed? (y/n): ")
 
     if proceed then
       match SCM.PackageOps.discard branchId with

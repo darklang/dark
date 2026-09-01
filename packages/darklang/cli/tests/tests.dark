@@ -1038,3 +1038,30 @@ let testTreeRefusesWhatItCannotShow (): TestResult =
     TestResult.Fail(
       $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {shown withDepth}"
     )
+
+/// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
+/// refuses, and the work is still there. `-y` is how a script says yes.
+let testDiscardNeedsAnExplicitYes (): TestResult =
+  let branch = "cli-discard-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let run (args: List<String>) : String =
+    runWithCommand (Stdlib.List.append [ "--branch"; branch ] args)
+
+  let _ = runWithCommand [ "branch"; "create"; branch ]
+  let _ = run [ "fn"; "/Tests.Discard.a"; "() : Int64 = 1L" ]
+
+  let refused = run [ "discard" ]
+  let survived = run [ "status" ]
+  let discarded = run [ "discard"; "-y" ]
+  let after = run [ "status" ]
+
+  if
+    Stdlib.String.contains refused "cancelled"
+      && Stdlib.String.contains survived "1 function"
+      && Stdlib.String.contains discarded "Discarded"
+      && Stdlib.Bool.not (Stdlib.String.contains after "1 function")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail(
+      $"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}"
+    )

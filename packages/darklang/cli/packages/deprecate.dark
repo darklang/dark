@@ -240,13 +240,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             state
           else
             let proceed =
-              if parsed.autoConfirm then
-                true
-              else
-                Stdlib.printLine ""
-                Stdlib.print (Stdlib.Cli.UI.Colors.warning "Proceed? (y/n): ")
-                let response = Stdlib.Cli.Stdin.readLine ()
-                (response == "y") || (response == "Y")
+              Cli.Prompt.confirmExplicit
+                parsed.autoConfirm
+                (Stdlib.Cli.UI.Colors.warning "Proceed? (y/n): ")
 
             if proceed then
               let op =

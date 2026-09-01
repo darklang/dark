@@ -1,5 +1,34 @@
 module Darklang.Cli.Prompt
 
+/// Is stdin a terminal? Both confirmations need it, and a builtin gets one wrapper.
+let interactive () : Bool = Builtin.stdinIsInteractive ()
+
+/// Ask a yes/no question. `-y`, an empty answer, and non-interactive stdin all proceed.
+///
+/// CI gets a pty, so this asks, then waits for someone who isn't there. Pass `-y`.
+let confirm (autoConfirm: Bool) (question: String) : Bool =
+  if autoConfirm then
+    true
+  else if Stdlib.Bool.not (interactive ()) then
+    true
+  else
+    Stdlib.printLine question
+    let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
+    (response == "") || (response == "y") || (response == "Y")
+
+/// Like <fn confirm>, but an empty answer and non-interactive stdin both mean no. For
+/// commands that throw work away, where a stray Return should not be a yes.
+let confirmExplicit (autoConfirm: Bool) (question: String) : Bool =
+  if autoConfirm then
+    true
+  else if Stdlib.Bool.not (interactive ()) then
+    false
+  else
+    Stdlib.printLine question
+    let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
+    (response == "y") || (response == "Y")
+
+
 /// State for prompt-specific fields (text, cursor, history)
 type State =
   { text: String
