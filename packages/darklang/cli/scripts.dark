@@ -7,28 +7,83 @@ type Script = {
 }
 
 
-// The stored-script surface. The wrappers live here, next to the type the
-// builtins return; the LSP's script filesystem provider calls them too.
+// The `scripts_v0` store. Plain CRUD over one table, so the SQL lives here and the
+// command below only formats. The LSP's script filesystem provider calls these too.
+
+let scriptsDb () : String = Darklang.Sync.localDbPath ()
+
+let scriptFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
+  match
+    (Stdlib.Sqlite.textField row "id",
+     Stdlib.Sqlite.textField row "name",
+     Stdlib.Sqlite.textField row "text")
+  with
+  | (Some id, Some name, Some text) ->
+    (Script { id = id; name = name; text = text }) |> Stdlib.Option.Option.Some
+  | _ -> Stdlib.Option.Option.None
 
 /// Every stored script.
 let list () : List<Script> =
-  Builtin.pmScriptsList ()
+  match
+    Stdlib.Sqlite.query
+      (scriptsDb ())
+      "SELECT id, name, text FROM scripts_v0 ORDER BY name"
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap scriptFromRow
+  | Error _ -> []
 
 /// The stored script named <param name>, if there is one.
 let get (name: String) : Stdlib.Option.Option<Script> =
-  Builtin.pmScriptsGet name
+  match
+    Stdlib.Sqlite.queryOneP
+      (scriptsDb ())
+      "SELECT id, name, text FROM scripts_v0 WHERE name = @p0"
+      [ name ]
+  with
+  | Some row -> scriptFromRow row
+  | None -> Stdlib.Option.Option.None
 
-/// Store a new script. Errors if the name is taken.
+/// Store a new script. Errors if the name is taken, so a typo cannot overwrite one:
+/// `scripts edit` is how you change a script.
 let add (name: String) (text: String) : Stdlib.Result.Result<Script, String> =
-  Builtin.pmScriptsAdd name text
+  match get name with
+  | Some _ ->
+    Stdlib.Result.Result.Error $"Script with name '{name}' already exists"
+  | None ->
+    let id = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())
+
+    match
+      Stdlib.Sqlite.execP
+        (scriptsDb ())
+        "INSERT INTO scripts_v0 (id, name, text) VALUES (@p0, @p1, @p2)"
+        [ id; name; text ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok(Script { id = id; name = name; text = text })
+    | Error e -> Stdlib.Result.Result.Error $"Failed to add script: {e}"
 
 /// Replace an existing script's text. Errors if there's no such script.
+///
+/// The row count answers "was there one?", so this is one statement rather than a read
+/// followed by a write with a gap in between.
 let update (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.pmScriptsUpdate name text
+  match
+    Stdlib.Sqlite.execP
+      (scriptsDb ())
+      "UPDATE scripts_v0 SET text = @p0 WHERE name = @p1"
+      [ text; name ]
+  with
+  | Ok 0 -> Stdlib.Result.Result.Error $"Script '{name}' not found"
+  | Ok _ -> Stdlib.Result.Result.Ok()
+  | Error e -> Stdlib.Result.Result.Error $"Failed to update script: {e}"
 
 /// Delete a stored script. Errors if there's no such script.
 let delete (name: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.pmScriptsDelete name
+  match
+    Stdlib.Sqlite.execP (scriptsDb ()) "DELETE FROM scripts_v0 WHERE name = @p0" [ name ]
+  with
+  | Ok 0 -> Stdlib.Result.Result.Error $"Script '{name}' not found"
+  | Ok _ -> Stdlib.Result.Result.Ok()
+  | Error e -> Stdlib.Result.Result.Error $"Failed to delete script: {e}"
 
 
 // Scripts command - manage and run stored Dark scripts

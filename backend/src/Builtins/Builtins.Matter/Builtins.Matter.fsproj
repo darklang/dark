@@ -17,7 +17,6 @@
     <Compile Include="Libs/PM/Rebase.fs" />
     <Compile Include="Libs/PM/Merge.fs" />
     <Compile Include="Libs/PM/Packages.fs" />
-    <Compile Include="Libs/PM/Scripts.fs" />
     <Compile Include="Libs/PM/Dependencies.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
     <Compile Include="Libs/PM/Caps.fs" />
