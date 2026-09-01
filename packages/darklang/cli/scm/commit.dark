@@ -27,19 +27,13 @@ let parseInclude (args: List<String>) : Stdlib.Option.Option<List<String>> =
     Stdlib.Option.Option.Some names
 
 
-/// Ask a y/n question. `--yes` auto-confirms. An empty answer takes
-/// `defaultYes` (so a "(Y/n)" prompt defaults to yes, "(y/n)" to no).
+/// Ask a y/n question. `--yes` auto-confirms, and `defaultYes` decides what an empty
+/// answer means, so a "(Y/n)" prompt defaults to yes and a "(y/n)" one to no.
 let promptYesNo (question: String) (autoConfirm: Bool) (defaultYes: Bool) : Bool =
-  if autoConfirm then
-    true
+  if defaultYes then
+    Cli.Prompt.confirm autoConfirm question
   else
-    Stdlib.printLine question
-    let response = Stdlib.Cli.Stdin.readLine ()
-
-    if Stdlib.String.isEmpty (Stdlib.String.trim response) then
-      defaultYes
-    else
-      (response == "y") || (response == "Y")
+    Cli.Prompt.confirmExplicit autoConfirm question
 
 
 let printUnresolved (items: List<SCM.UnresolvedCheck.UnresolvedItem>) : Unit =

@@ -197,14 +197,14 @@ let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) (aut
     if currentVersion == "local-binary" then
       let choice =
         if autoConfirm then
-          "y"
+          true
         else
           Stdlib.printLine "You're currently running a locally-installed binary (from development)."
           Stdlib.printLine $"Latest official release is {latestVersion}."
-          Stdlib.printLine "Update to the official release? (y/n): "
-          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
-      if choice == "y" || choice == "Y" then
+          Cli.Prompt.confirmExplicit false "Update to the official release? (y/n): "
+
+      if choice then
         match Download.installOrUpdateLatestRelease host with
         | Ok _ -> Stdlib.Result.Result.Ok($"Successfully updated to official release {latestVersion}")
         | Error e -> Stdlib.Result.Result.Error e
@@ -226,14 +226,9 @@ let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) (aut
 /// Uninstall the CLI with user confirmation
 /// If autoConfirm is true, skips confirmation prompt
 let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
-  let response =
-    if autoConfirm then
-      "y"
-    else
-      Stdlib.printLine "Are you sure you want to uninstall the CLI? (y/n): "
-      Stdlib.Cli.Stdin.readLine ()
-
-  if response == "y" || response == "Y" then
+  if Cli.Prompt.confirmExplicit
+       autoConfirm
+       "Are you sure you want to uninstall the CLI? (y/n): " then
     Stdlib.printLine "Uninstalling..."
     match Uninstall.runUninstall host with
     | Ok _ -> Stdlib.Result.Result.Ok("Uninstall complete")
