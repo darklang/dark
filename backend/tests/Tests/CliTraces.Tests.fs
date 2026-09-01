@@ -1048,12 +1048,11 @@ let private capsRefusesAnEmptyGrant =
           (refused.Contains "granted")
           "and must not report a grant that did not happen"
 
-        // The guard must not swallow the working path.
-        let! granted = runCli state [ "caps"; "grant"; "http-client"; "GET" ]
-        Expect.stringContains granted "granted" "a real spec is still granted"
-
-        let! _ = runCli state [ "caps"; "clear" ]
-        ()
+        // Read, never write. `caps clear` here revoked the grant of whoever ran the suite,
+        // and a missing grant file reads as ALL capabilities, so the revocation was silent
+        // until something got denied much later.
+        let! shown = runCli state [ "caps" ]
+        Expect.stringContains shown "Capabilities" "and the grant is still readable"
       })
 
 
