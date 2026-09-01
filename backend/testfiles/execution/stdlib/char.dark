@@ -219,6 +219,60 @@ Stdlib.Char.fromCodepoint 57343 = Stdlib.Option.Option.None
 Stdlib.Char.fromCodepoint 1114112 = Stdlib.Option.Option.None
 Stdlib.Char.fromCodepoint 2147483647 = Stdlib.Option.Option.None
 
-// Invalid: negative — the F# test parser rejects `-NL`, so build via `0L - N`.
-Stdlib.Char.fromCodepoint (0 - 1) = Stdlib.Option.Option.None
-Stdlib.Char.fromCodepoint (0 - 1000) = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint -1 = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint -1000 = Stdlib.Option.Option.None
+
+
+Stdlib.Char.isLetter 'a' = true
+Stdlib.Char.isLetter 'Z' = true
+Stdlib.Char.isLetter 'é' = true
+Stdlib.Char.isLetter 'ω' = true
+Stdlib.Char.isLetter 'ż' = true
+Stdlib.Char.isLetter 'ჾ' = true
+Stdlib.Char.isLetter '3' = false
+Stdlib.Char.isLetter ' ' = false
+Stdlib.Char.isLetter '-' = false
+Stdlib.Char.isLetter (smiley ()) = false
+Stdlib.Char.isLetter (hand ()) = false
+Stdlib.Char.isLetter (family ()) = false
+
+
+Stdlib.Char.isWhitespace ' ' = true
+Stdlib.Char.isWhitespace '\t' = true
+Stdlib.Char.isWhitespace '\n' = true
+Stdlib.Char.isWhitespace ' ' = true
+
+Stdlib.Char.isWhitespace ("\r\n" |> Stdlib.String.head |> Builtin.unwrap) = true
+Stdlib.Char.isWhitespace 'a' = false
+Stdlib.Char.isWhitespace '0' = false
+Stdlib.Char.isWhitespace (smiley ()) = false
+
+
+Stdlib.Char.isAlphanumeric 'a' = true
+Stdlib.Char.isAlphanumeric 'Z' = true
+Stdlib.Char.isAlphanumeric 'é' = true
+Stdlib.Char.isAlphanumeric 'ω' = true
+Stdlib.Char.isAlphanumeric '7' = true
+Stdlib.Char.isAlphanumeric '٧' = true
+Stdlib.Char.isAlphanumeric '-' = false
+Stdlib.Char.isAlphanumeric ' ' = false
+Stdlib.Char.isAlphanumeric (smiley ()) = false
+
+
+// Single-scalar Chars return their codepoint.
+Stdlib.Char.toCodepoint 'a' = Stdlib.Option.Option.Some 97
+Stdlib.Char.toCodepoint 'A' = Stdlib.Option.Option.Some 65
+Stdlib.Char.toCodepoint '3' = Stdlib.Option.Option.Some 51
+Stdlib.Char.toCodepoint 'é' = Stdlib.Option.Option.Some 233
+Stdlib.Char.toCodepoint 'ż' = Stdlib.Option.Option.Some 380
+Stdlib.Char.toCodepoint (smiley ()) = Stdlib.Option.Option.Some 128514
+
+// Multi-scalar Chars return None.
+Stdlib.Char.toCodepoint (hand ()) = Stdlib.Option.Option.None
+Stdlib.Char.toCodepoint (family ()) = Stdlib.Option.Option.None
+
+// Round-trip BMP and non-BMP scalars.
+Stdlib.Char.toCodepoint (Stdlib.Char.fromCodepoint 65 |> Builtin.unwrap) =
+  Stdlib.Option.Option.Some 65
+Stdlib.Char.toCodepoint (Stdlib.Char.fromCodepoint 128514 |> Builtin.unwrap) =
+  Stdlib.Option.Option.Some 128514
