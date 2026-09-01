@@ -6,7 +6,7 @@
 /// Built on the POSIX stdlib: pidfile via `Cli.File`, signal-0 liveness via
 /// `Posix.isProcessRunning`, detached launch + SIGTERM via `Process`/`Posix`.
 /// 
-/// The launcher is the running executable itself (`getCurrentExecutablePath`) — no env var.
+/// The launcher is the running executable itself (`getCurrentExecutablePath`) -- no env var.
 module Darklang.Stdlib.Cli.Daemon
 
 
@@ -60,7 +60,7 @@ let recordedPid (name: String) : Stdlib.Option.Option<Int> =
     Stdlib.Option.Option.None
 
 
-// Alive? pidfile present AND that pid is a running process (signal-0) — so a stale pidfile (daemon
+// Alive? pidfile present AND that pid is a running process (signal-0) -- so a stale pidfile (daemon
 // killed without cleanup) correctly reads as not running.
 let isRunning (name: String) : Bool =
   match recordedPid name with
@@ -75,7 +75,7 @@ let statusLine (name: String) : String =
     if Posix.isProcessRunning pid then
       $"{name}: running (pid {Stdlib.Int.toString pid})"
     else
-      $"{name}: stale (pid {Stdlib.Int.toString pid} not running — `stop` clears it)"
+      $"{name}: stale (pid {Stdlib.Int.toString pid} not running -- `stop` clears it)"
   | None -> $"{name}: stopped"
 
 
@@ -103,7 +103,7 @@ let stop (name: String) : Stdlib.Result.Result<String, String> =
 
 // ── launch ──
 
-// The executable to re-invoke for the detached child — the `dark` binary currently running. No env var:
+// The executable to re-invoke for the detached child -- the `dark` binary currently running. No env var:
 // `getCurrentExecutablePath` is what the installer already uses to find itself.
 let launcher () : String =
   Stdlib.Cli.Sys.currentExecutablePath ()
@@ -114,7 +114,7 @@ let launcher () : String =
 // appends to the daemon's logfile. The entrypoint must `claimPidfile name` first.
 let launchDetached (name: String) (expr: String) : Stdlib.Result.Result<Unit, String> =
   // Create the run dir up front: the shell redirect below (and the pidfile) need it to exist, and
-  // `claimPidfile` only mkdirs it from inside the child — too late for this redirect on a fresh machine.
+  // `claimPidfile` only mkdirs it from inside the child -- too late for this redirect on a fresh machine.
   let _ = Posix.mkdirRecursive (runDir ())
 
   let cmd =
@@ -151,7 +151,7 @@ let waitUntilRunning
       waitUntilRunning name (tries - 1)
 
 
-// Launch a named daemon detached, running `expr`, then VERIFY it actually came up — returns the live pid
+// Launch a named daemon detached, running `expr`, then VERIFY it actually came up -- returns the live pid
 // or an error if it never claimed its pidfile (instead of falsely reporting success the instant the
 // shell forks). Refuses if it's already running.
 let start (name: String) (expr: String) : Stdlib.Result.Result<Int, String> =

@@ -126,8 +126,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ $"Using router: {parsed.routerPath}"
                 $"Max body bytes: {maxBytesStr}"
                 ""
-                Stdlib.Cli.UI.Colors.success $"Listening on http://localhost:{portStr}" ]
+                Stdlib.Cli.UI.Colors.success
+                  $"Listening on http://localhost:{portStr}, and on every interface" ]
 
+            // It binds `http://*:port`. Saying "localhost" read as local-only, and there is
+            // no flag to change what it binds because there does not need to be.
             let tail =
               [ Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
                 "Press Ctrl+C to stop"
