@@ -50,16 +50,13 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        // CliTraces is excluded: it hangs CI, and why is not yet known. The cases
-        // are sequenced (`Console.SetOut` capture forces it) so Expecto prints
-        // nothing until the summary, and `testVersionCommand` runs `dark version`,
-        // which fetches from api.github.com. Request and connect timeouts are
-        // already 30s and 10s, so the fetch alone cannot explain a ten-minute
-        // stall. Re-enabling needs a repro on a runner without egress, not a guess.
+        // Sequenced, because these capture `Console.Out` and that is process-global.
         //
-        // Uncomment the line below to run them; no filter reaches them while it is commented out,
-        // so nothing currently exercises the tracer end to end.
-        // Tests.CliTraces.tests
+        // Every destructive command here passes `--yes`. CI runs with a pty, so the
+        // "is anyone watching?" check says yes and the confirmation prompt blocks on a
+        // terminal nobody types into; a pipe skips the prompt, so the omission is
+        // invisible locally. `packages/darklang/cli/tracing.dark` has the detail.
+        Tests.CliTraces.tests
         Tests.CliScriptLowering.tests
         Tests.Toplevels.tests
 

@@ -58,6 +58,7 @@ echo $$ > "$LOCK"
 
 # shellcheck disable=SC2317  # reached via trap
 cleanup() {
+  kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
   killall -9 Tests 2>/dev/null || true
   rm -f "$LOCK"
 }
@@ -140,11 +141,36 @@ true > "${TEST_LOG}" # truncate
 
 cd backend
 echo -e "Logging to: ${grey}${TEST_LOG}${reset}"
+
+# CI only, because CI is the only place with nothing else to look at: the spinner is
+# disabled up there, and Expecto prints nothing between "Running tests..." and the
+# summary. A step with no output for ten minutes gets killed, which turns any slowdown
+# into a hang with no evidence of where. Locally the spinner already says it is alive.
+#
+# Two minutes, not thirty seconds: this exists to stay inside a ten-minute limit, not to
+# report progress, so the cheapest interval that does that is the right one. A four
+# minute run costs one line. Use `--debug` when you need to know WHICH test.
+#
+# Goes to this script's stdout rather than through the `tee` below, so it lands in the
+# step output CI keeps rather than in `fsharp-tests.log`. Killed with the runner.
+if [[ -v CI ]]; then
+  (
+    start=$(date +%s)
+    while true; do
+      sleep 120
+      echo "[heartbeat] tests still running, $(( $(date +%s) - start ))s elapsed"
+    done
+  ) &
+  HEARTBEAT_PID=$!
+fi
+
 set +e
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
 "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" 2>&1 | tee "${TEST_LOG}"
 STATUS=${PIPESTATUS[0]}
 set -e
+
+kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
 
 # Expecto reports a filter that matched nothing as "0 tests run - Success!" and exits
 # 0, which is the worst answer available: you believe you ran a suite you didn't.

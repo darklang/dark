@@ -215,7 +215,12 @@ jobs:
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
-      - run: scripts/run-backend-tests --published
+      # Bounded, so a wedged suite dies at a known point with its log intact rather than
+      # running until CircleCI's job cap. The runner emits a heartbeat every 30s, so the
+      # default no-output timeout can no longer fire on a healthy-but-slow run.
+      - run:
+          name: Run backend tests
+          command: timeout 20m scripts/run-backend-tests --published
 
       # Allocation for a fixed workload repeats to a tenth of a percent and doesn't care how loaded
       # the box is, so it's the one performance number that can be asserted on here. Time isn't.
@@ -237,8 +242,12 @@ jobs:
             - backend/Build/obj
             - /home/dark/.nuget
           key: v5-backend-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
+      - store_artifacts:
+          path: rundir
+          when: always
+      - store_test_results:
+          path: rundir/test_results
+          when: always
 
   # Build cli binaries
   build-cli:
@@ -288,9 +297,13 @@ jobs:
             - backend/Build/obj
             - /home/dark/.nuget
           key: v5-cli-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
+      - store_artifacts:
+          path: rundir
+          when: always
       - store_artifacts: { path: clis }
-      - store_test_results: { path: rundir/test_results }
+      - store_test_results:
+          path: rundir/test_results
+          when: always
 
   ##########################
   # Release matrix (NativeAOT, fanned out by OS)

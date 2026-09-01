@@ -452,7 +452,10 @@ let private realTests =
                  || out.Contains "unreachable")
                 "it surfaces that the peer was unreachable"
               // The store is unharmed: a normal read-only command still works afterward.
-              let ver = darkIn b.dir [ "version" ]
+              // `--local`, because bare `version` checks GitHub for a newer release and
+              // waits ~11s to give up where there is no egress. What is being asked here
+              // is whether the CLI still answers at all.
+              let ver = darkIn b.dir [ "version"; "--local" ]
               Expect.isFalse
                 (ver = "")
                 "the CLI + store are still usable after the failed sync"

@@ -150,12 +150,26 @@ let private testHelpCommand =
       Expect.stringContains output "status" "status command"
     })
 
+/// `--local`, so the suite does not depend on reaching GitHub.
+///
+/// Bare `version` checks for a newer release, and against a firewall that drops rather
+/// than refuses it waits ~11s before giving up. What this test is about is the version
+/// the binary reports, which `--local` answers from the binary alone.
 let private testVersionCommand =
   cliTest "version command" (fun state ->
     task {
-      let! output = runCli state [ "version" ]
+      let! output = runCli state [ "version"; "--local" ]
       Expect.stringContains output "Darklang CLI" "CLI banner"
       Expect.stringContains output "alpha-" "version prefix"
+      Expect.isFalse
+        (output.Contains "update available" || output.Contains "unable to check")
+        "and says nothing about updates, since it did not look"
+
+      // A near miss must not silently fall through to the network check, which is the
+      // one thing the caller was trying to avoid.
+      let! typo = runCli state [ "version"; "--locl" ]
+      Expect.stringContains typo "unknown option" "a mistyped flag is named"
+      Expect.isFalse (typo.Contains "update available") "and nothing was fetched"
     })
 
 let private testStatusCommand =
@@ -425,7 +439,7 @@ let private testTracesDeleteSingle =
           let! latestJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let latestTid = parseTraceID latestJson
 
-          let! delOut = runCli state [ "traces"; "delete"; latestTid ]
+          let! delOut = runCli state [ "traces"; "delete"; latestTid; "--yes" ]
           Expect.stringContains delOut "Deleted trace" "delete confirm"
 
           // Post-delete: the previously-latest trace should be gone (its
@@ -451,7 +465,8 @@ let private testTracesPruneKeep =
           let! latestJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let latestTid = parseTraceID latestJson
 
-          let! pruneOut = runCli state [ "traces"; "delete"; "--keep"; "1" ]
+          let! pruneOut =
+            runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
           Expect.stringContains pruneOut "Pruned 2 trace" "prune confirm"
 
           // Post-prune: the previously-latest is the only one left.
@@ -653,10 +668,12 @@ let private testTracesDeleteGrammar =
           let! clearTwo = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! _ = runCli state [ "eval"; "2L + 2L" ]
-          let! pruneNone = runCli state [ "traces"; "delete"; "--keep"; "0" ]
+          let! pruneNone =
+            runCli state [ "traces"; "delete"; "--keep"; "0"; "--yes" ]
           let! _ = runCli state [ "eval"; "3L + 3L" ]
           let! _ = runCli state [ "eval"; "4L + 4L" ]
-          let! pruneOne = runCli state [ "traces"; "delete"; "--keep"; "1" ]
+          let! pruneOne =
+            runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
 
           Expect.stringContains clearOne "Cleared 1 trace." "singular"
           Expect.stringContains clearTwo "Cleared 2 traces." "plural"
@@ -708,9 +725,9 @@ let private testTracesPruneIdempotent =
           // "kept" set is consistent. Verifying the result is
           // deterministic across repeated calls is the cheap
           // observable check that doesn't need parallel writers.
-          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
-          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
-          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
 
           let! listOut = runCli state [ "traces"; "list" ]
           // Lines look like "  <timestamp>  <uuid>  <handler>".
