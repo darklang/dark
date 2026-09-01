@@ -2,9 +2,28 @@ module Darklang.Cli.Installation.Version
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
-  // date is the point of the command, not a side errand.
-  Stdlib.printLine (Helpers.versionInfoWithUpdateCheck ())
+  // Named, not ignored: a mistyped `--locl` would otherwise fall through to the update
+  // check, which is the one thing the caller was trying to skip.
+  let unknown = args |> Stdlib.List.filter (fun a -> a != "--local")
+
+  match unknown with
+  | bad :: _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"version: unknown option `{bad}`")
+    Stdlib.printLine (help state)
+    state
+  | [] ->
+
+  // The update check is a network round trip and it dominates the command. Deliberate:
+  // knowing you are out of date is the point, not a side errand.
+  //
+  // `--local` answers from the binary alone, for a caller that wants to know WHICH
+  // binary this is rather than whether it is current: a test, a script, a machine with
+  // no egress. Against a firewall that DROPS rather than refuses -- the shape of a CI
+  // runner -- the check takes ~11s to give up and then says nothing useful anyway.
+  if Stdlib.List.member args "--local" then
+    Stdlib.printLine $"Darklang CLI {Helpers.cliVersion ()}"
+  else
+    Stdlib.printLine (Helpers.versionInfoWithUpdateCheck ())
 
   // Store-format coordinate — the on-disk data shape this Dark speaks vs what your local data is stamped at.
   // (This is what the boot-time migrator + sync's wire-version key off; see `dark update`.) It is NOT a product
@@ -41,9 +60,12 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 let help (_state: AppState) : String =
   [
-    "Usage: version"
+    "Usage: version [--local]"
     "Display CLI version and store-format information."
     ""
     "Shows the current version, whether a newer release exists, and whether your data"
     "matches this binary's store format."
+    ""
+    "  --local    Skip the check for a newer release, which needs the network."
+    "             Answers immediately, and says nothing about updates."
   ] |> Stdlib.String.join "\n"

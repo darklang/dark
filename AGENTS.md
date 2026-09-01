@@ -295,6 +295,30 @@ needs one works: `dark edit` really opens `$EDITOR`, and you drive it with more 
 Poll `capture-pane` in a loop rather than sleeping between steps; a command that shells out
 per invocation takes a second or more, and the pane is the only thing that tells you it is done.
 
+## CI has a terminal, and that changes behaviour
+
+`Builtin.stdinIsInteractive ()` is false on a pipe and TRUE on a pty. CircleCI gives each
+step a pty, so anything gated on "is a human here?" answers YES in CI, and a command that
+then reads stdin blocks on a terminal nobody types into. Forever.
+
+It presents as a hang, not a failure: no error, no output, and the step killed for
+silence with nothing in the log naming the culprit.
+
+So anything unattended passes `--yes` explicitly. Never rely on being detected as
+non-interactive, and never test a destructive command without it. Reproducing this class
+needs a real terminal, which `tmux` gives you (see above); the same run from a pipe
+passes, which is why it survives local testing.
+
+Three things make the next one findable, all in place:
+
+    scripts/run-backend-tests        under CI, a heartbeat every 2min, so a live run
+                                     never looks silent to CI's no-output timeout
+    scripts/run-backend-tests --debug   names every test as it starts, which is how you
+                                     find WHICH one is stuck
+    .circleci/config.yml             `when: always` on store_artifacts, so a failing step
+                                     still uploads rundir, and `timeout 20m` on the test
+                                     step so it dies somewhere known
+
 ## Debugging
 
     Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout

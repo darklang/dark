@@ -177,10 +177,13 @@ let parseViewOptions
 
 /// Confirm a destructive op. Returns true to proceed, false to bail.
 ///
-/// `--yes` / `-y` skips the prompt; non-interactive stdin (piped
-/// scripts, test runs, CI) also skips so callers don't hang or
-/// fail on EOF. Only an interactive user without `--yes` sees the
-/// prompt — matching the `rm -i` shape.
+/// `--yes` / `-y` skips the prompt. So does stdin that is not a terminal, which covers a
+/// pipe or a redirect. Everyone else is asked — the `rm -i` shape.
+///
+/// "Not a terminal" is narrower than "nobody is watching", and the gap is where things
+/// hang. A CI runner gets a pty, so this asks, and then blocks on a terminal nobody will
+/// ever type into. Anything unattended has to pass `--yes` rather than rely on being
+/// detected.
 let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
   if autoConfirm then
     true
