@@ -962,3 +962,42 @@ module Repeat =
   Stdlib.String.repeat "é" 2 = "éé"
   Stdlib.String.repeat "👨‍👩‍👧‍👦" 2 = "👨‍👩‍👧‍👦👨‍👩‍👧‍👦"
   Stdlib.String.length (Stdlib.String.repeat "─" 80) = 80
+
+
+module ToCodepoints =
+  Stdlib.String.toCodepoints "" = []
+  Stdlib.String.toCodepoints "abc" = [ 97, 98, 99 ]
+  Stdlib.String.toCodepoints "héllo" = [ 104, 233, 108, 108, 111 ]
+  // One cluster containing three codepoints.
+  Stdlib.String.toCodepoints "👩‍👧" = [ 128105, 8205, 128103 ]
+
+
+module CodepointLength =
+  Stdlib.String.codepointLength "" = 0
+  Stdlib.String.codepointLength "abcdef" = 6
+  // A non-BMP scalar is one codepoint and one grapheme cluster.
+  Stdlib.String.codepointLength "😄" = 1
+  Stdlib.String.length "😄" = 1
+  // Multi-scalar clusters increase only the codepoint count.
+  Stdlib.String.codepointLength "👩‍👧" = 3
+  Stdlib.String.length "👩‍👧" = 1
+  Stdlib.String.codepointLength "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 17
+  Stdlib.String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
+
+
+module GetByteAt =
+  Stdlib.String.getByteAt "abc" 0 = Stdlib.Option.Option.Some 97uy
+  Stdlib.String.getByteAt "abc" 1 = Stdlib.Option.Option.Some 98uy
+  Stdlib.String.getByteAt "abc" 2 = Stdlib.Option.Option.Some 99uy
+  // UTF-8 encodes é as C3 A9.
+  Stdlib.String.getByteAt "é" 0 = Stdlib.Option.Option.Some 195uy
+  Stdlib.String.getByteAt "é" 1 = Stdlib.Option.Option.Some 169uy
+  Stdlib.String.getByteAt "é" 2 = Stdlib.Option.Option.None
+  Stdlib.String.getByteAt "abc" 3 = Stdlib.Option.Option.None
+  Stdlib.String.getByteAt "" 0 = Stdlib.Option.Option.None
+  Stdlib.String.getByteAt "abc" -1 = Stdlib.Option.Option.None
+  // Oversized indices return None.
+  Stdlib.String.getByteAt "abc" 4503599627370498 = Stdlib.Option.Option.None
+  // Match the full UTF-8 encoding.
+  Stdlib.String.getByteAt "héllo" 2 =
+    Stdlib.List.getAt (Stdlib.String.toBytes "héllo") 2
