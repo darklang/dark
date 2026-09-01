@@ -70,12 +70,7 @@ let renderContent
   (hashStr: String)
   : String =
   let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
-  let ctx =
-    PrettyPrinter.ProgramTypes.Context
-      { branchId = branchId
-        currentModule = []
-        currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
   // Resolve the hash across kinds rather than by the conflict's stored `itemKind`. A hash is
   // content-addressed and kind-agnostic, and a CROSS-KIND conflict (one side bound the name to a value, the
   // other to a fn — reachable since a name holds ONE item regardless of kind, post one-name-one-item) stores

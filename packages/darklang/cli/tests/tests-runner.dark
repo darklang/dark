@@ -26,6 +26,15 @@ let allTests (): List<String * TestFunction> =
     ("View Instructions Lambdas", fun () -> testViewInstructionsShowsLambdas ())
     ("View Compiler Views Reject Non-Fns", fun () -> testViewCompilerViewsRejectNonFunctions ())
     ("View Flag Before Path", fun () -> testViewFlagBeforePath ())
+    ("View Raw Is Undecorated", fun () -> testViewRawIsUndecorated ())
+    ( "View Heads With The Name You Asked For",
+      fun () -> testViewHeadsWithTheNameYouAskedFor () )
+    ("Edit Round Trips Through Raw", fun () -> testEditRoundTripsThroughRaw ())
+    ( "Edit Round Trips Types And Values",
+      fun () -> testEditRoundTripsTypesAndValues () )
+    ( "Edit Leaves The Item Alone On A Bad File",
+      fun () -> testEditLeavesTheItemAloneOnABadFile () )
+    ("Edit Refuses What It Cannot Edit", fun () -> testEditRefusesWhatItCannotEdit ())
     ("View Unknown Flag", fun () -> testViewUnknownFlag ())
 
     ("Native List Edge Cases", fun () -> testNativeListEdgeCases ())

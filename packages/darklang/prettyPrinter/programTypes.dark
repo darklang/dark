@@ -53,7 +53,15 @@ type Context =
 
     /// Columns available. Layout decisions are made against this; it is a field rather than something
     /// looked up so that printing stays reproducible and a caller can print for a pane.
-    width: Int }
+    width: Int
+
+    /// The location this definition is being shown under, when the caller knows it.
+    ///
+    /// Only `FQ*.Package.atDefinition` can use it: that is the one lookup whose hash
+    /// is the subject's own. A name inside the body resolves against its own
+    /// candidates, where this location does not appear.
+    preferredLocation:
+      Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
@@ -61,7 +69,8 @@ module Context =
       { branchId = branchId
         currentModule = []
         currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+        width = 80
+        preferredLocation = Stdlib.Option.Option.None }
 
   val forMain = forBranch SCM.Branch.mainBranchId
 
@@ -75,10 +84,13 @@ module Context =
       { branchId = branchId
         currentModule = path
         currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+        width = 80
+        preferredLocation = Stdlib.Option.Option.None }
 
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
-    LanguageTools.PackageManager.PickContext { currentModule = ctx.currentModule }
+    LanguageTools.PackageManager.PickContext
+      { currentModule = ctx.currentModule
+        preferredLocation = ctx.preferredLocation }
 
 let packageNameWithContext
   (ctx: Context)

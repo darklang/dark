@@ -216,10 +216,28 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 |> Stdlib.List.map (fun update ->
                   (update.location, update.hash, update.kind))
               Propagate.autoPropagateUpdates branchId propagationUpdates
-              let count = Stdlib.List.length declarations
+
+              // Counted from the ops that were recorded, not from the declarations
+              // that were parsed, so the number is what happened rather than what
+              // was asked for.
+              let definedNames =
+                ops
+                |> Stdlib.List.filterMap (fun op ->
+                  match op with
+                  | SetName(location, _) -> Stdlib.Option.Option.Some location.name
+                  | _ -> Stdlib.Option.Option.None)
+
+              let count = Stdlib.List.length definedNames
+
+              // "1 declarations" is the sort of thing you stop reading, and `edit`
+              // routes through here for a single item, so the singular is a common
+              // case rather than an edge one.
+              let what = if count == 1 then "declaration" else "declarations"
+
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success
-                  $"✓ Defined {Stdlib.Int.toString count} declarations in {modulePath}")
+                  $"✓ Defined {Stdlib.Int.toString count} {what} in {modulePath}")
+
               state
 
 

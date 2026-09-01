@@ -101,12 +101,7 @@ let prettyPrintFromPM (branchId: Uuid) (itemName: String) (kind: String) : Strin
   let loc = LanguageTools.ProgramTypes.parsePackageLocation itemName
   let modulePath = Stdlib.List.append [loc.owner] loc.modules
   let results = Darklang.Cli.Packages.Query.searchExactMatch branchId modulePath loc.name
-  let ctx =
-    PrettyPrinter.ProgramTypes.Context
-      { branchId = branchId
-        currentModule = []
-        currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
   match kind with
   | "Fn" ->
     match results.fns with
@@ -129,12 +124,7 @@ let prettyPrintFromOps
   (itemName: String)
   (kind: String)
   : Stdlib.Option.Option<String> =
-  let ctx =
-    PrettyPrinter.ProgramTypes.Context
-      { branchId = branchId
-        currentModule = []
-        currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
   let targetHash =
     (extractSetOps ops)
     |> Stdlib.List.filterMap (fun entry ->

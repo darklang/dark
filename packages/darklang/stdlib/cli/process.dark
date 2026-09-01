@@ -45,6 +45,19 @@ let run (program: String) (args: List<String>) : Result.Result<Output, Posix.Err
         stderr = Stdlib.Tuple3.third result })
 
 
+/// Run a program ON THIS TERMINAL and return its exit code.
+///
+/// Inherits stdin, stdout and stderr instead of capturing them, which is what
+/// anything that DRAWS needs: an editor with a redirected stdout paints into a pipe
+/// and reads keys from nowhere. Use `run` when you want the output, this when you
+/// want the program to be usable.
+let runInteractive
+  (program: String)
+  (args: List<String>)
+  : Result.Result<Int, Posix.Error> =
+  Builtin.posixSpawnInteractive program args
+
+
 /// Run a program and return stdout as text, or stderr as error.
 /// Returns String errors because it mixes spawn failures with command failures.
 let exec (program: String) (args: List<String>) : Result.Result<String, String> =

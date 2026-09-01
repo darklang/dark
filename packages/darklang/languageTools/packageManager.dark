@@ -10,11 +10,23 @@ module Darklang.LanguageTools.PackageManager
 /// When a hash maps to multiple named locations (e.g. Person and Person2 are
 /// structurally identical), we use context to pick the best display name.
 type PickContext =
-  { currentModule: List<String> }
+  { currentModule: List<String>
+
+    /// Which name to pick when the hash has several, if this is one of them.
+    ///
+    /// A hash can be bound to more than one location -- two items with identical
+    /// bodies are one item -- and the scoring below cannot tell those apart. It
+    /// scores by module prefix, which is right for a name appearing inside someone
+    /// else's code and arbitrary for the item a caller is displaying: without this,
+    /// `dark view Zz.alpha` prints a definition headed `Zz.beta`.
+    ///
+    /// Ignored when it is not among the candidates, so a caller can set it whenever
+    /// it knows which location it is displaying, without checking first.
+    preferredLocation: Stdlib.Option.Option<ProgramTypes.PackageLocation> }
 
 module PickContext =
   val empty =
-    PickContext { currentModule = [] }
+    PickContext { currentModule = []; preferredLocation = Stdlib.Option.Option.None }
 
 /// Count how many leading segments of two lists match.
 let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
@@ -33,6 +45,21 @@ let pickLocation
   (ctx: PickContext)
   (locations: List<ProgramTypes.PackageLocation>)
   : Stdlib.Option.Option<ProgramTypes.PackageLocation> =
+  // The asked-for name wins outright when it is one of the candidates. Only then: a
+  // preference for a name this hash is not bound to would be a lie, and the scoring
+  // below is right for every other case.
+  let asked =
+    match ctx.preferredLocation with
+    | Some p ->
+      locations
+      |> Stdlib.List.findFirst (fun l ->
+        (l.owner == p.owner) && (l.modules == p.modules) && (l.name == p.name))
+    | None -> Stdlib.Option.Option.None
+
+  match asked with
+  | Some a -> Stdlib.Option.Option.Some a
+  | None ->
+
   match locations with
   | [] -> Stdlib.Option.Option.None
   | [ single ] -> Stdlib.Option.Option.Some single

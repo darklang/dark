@@ -13,7 +13,15 @@ let ctx
   (currentModule: List<String>)
   : Darklang.LanguageTools.PackageManager.PickContext =
   Darklang.LanguageTools.PackageManager.PickContext
-    { currentModule = currentModule }
+    { currentModule = currentModule; preferredLocation = Stdlib.Option.Option.None }
+
+let preferCtx
+  (currentModule: List<String>)
+  (preferredLocation: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Darklang.LanguageTools.PackageManager.PickContext =
+  Darklang.LanguageTools.PackageManager.PickContext
+    { currentModule = currentModule
+      preferredLocation = Stdlib.Option.Option.Some preferredLocation }
 
 let pick
   (ctx: Darklang.LanguageTools.PackageManager.PickContext)
@@ -188,3 +196,33 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
     loc "Darklang" ["Stdlib"] "flatten"
     loc "Darklang" ["Stdlib"; "List"] "flatten" ])
   = Stdlib.Option.Option.Some (loc "Darklang" [] "flatten")
+
+
+// ========================================
+// pickLocation: an asked-for name beats scoring
+// ========================================
+
+// Two names sharing a body share a hash, so both come back as candidates. The one the
+// caller asked about wins, whatever the context would have scored higher.
+(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["SomeOther"] "map"))
+  [ loc "Darklang" ["Stdlib"; "List"] "map"
+    loc "Darklang" ["SomeOther"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["SomeOther"] "map")
+
+// The order it comes back in does not matter either.
+(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["SomeOther"] "map"))
+  [ loc "Darklang" ["SomeOther"] "map"
+    loc "Darklang" ["Stdlib"; "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["SomeOther"] "map")
+
+// A preference for a name this hash is NOT bound to is ignored rather than honoured:
+// scoring is right for every case except the one the caller named.
+(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["Absent"] "map"))
+  [ loc "Darklang" ["Stdlib"; "List"] "map"
+    loc "Darklang" ["SomeOther"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+
+// A preference that differs only by name is a different location, so it does not match.
+(pick (preferCtx [] (loc "Darklang" ["Stdlib"] "second"))
+  [ loc "Darklang" ["Stdlib"] "first" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"] "first")

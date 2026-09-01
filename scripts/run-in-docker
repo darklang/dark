@@ -67,6 +67,15 @@ for var in $(env | sed -n 's/^\(DARK_[A-Z0-9_]*\)=.*/\1/p'); do
   DARK_ENV_FLAGS+=( -e "$var" )
 done
 
+# EDITOR and VISUAL too: `dark edit` spawns the editor INSIDE the container, so without
+# these it falls back to vi no matter what the host is set to. Only forwarded when set,
+# since `-e VAR` on an unset var would export it empty and hide the fallback.
+for var in EDITOR VISUAL; do
+  if [[ -n "${!var:-}" ]]; then
+    DARK_ENV_FLAGS+=( -e "$var" )
+  fi
+done
+
 # The `cat <&0` below reads fd 0 to EOF, so only forward it when something will get there.
 # Pipes and regular files always do. Sockets are ambiguous: agent harnesses hand over one that
 # carries no data and never EOFs, while node/libuv's `stdio: 'pipe'` socketpair does both, so

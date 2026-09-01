@@ -75,7 +75,9 @@ let typeNameWith
     let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
     match
       Darklang.LanguageTools.PackageManager.pickLocation
-        (LanguageTools.PackageManager.PickContext { currentModule = opts.currentModule })
+        (LanguageTools.PackageManager.PickContext
+          { currentModule = opts.currentModule
+            preferredLocation = Stdlib.Option.Option.None })
         locations
     with
     | Some l -> PrettyPrinter.shortenName opts.currentModule l.owner l.modules l.name
