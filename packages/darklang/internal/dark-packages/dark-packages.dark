@@ -104,7 +104,7 @@ let pingHandlerFn (req: HttpRequest) : HttpResponse =
   Stdlib.Http.responseWithText "pong" 200
 
 val pingHandler =
-  Handler { route = "/ping"; method = "GET"; handler = pingHandlerFn }
+  Stdlib.HttpServer.get "/ping" pingHandlerFn
 
 
 let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
@@ -120,7 +120,7 @@ let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
     Stdlib.Http.badRequest "Invalid request body. Expected JSON list of PackageOp."
 
 val opsPostHandler =
-  Handler { route = "/ops"; method = "POST"; handler = opsPostHandlerFn }
+  Stdlib.HttpServer.post "/ops" opsPostHandlerFn
 
 
 let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
@@ -135,7 +135,7 @@ let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
       Stdlib.Http.responseWithJson json 200
 
 val opsGetHandler =
-  Handler { route = "/ops"; method = "GET"; handler = opsGetHandlerFn }
+  Stdlib.HttpServer.get "/ops" opsGetHandlerFn
 
 
 let statsHandlerFn (req: HttpRequest) : HttpResponse =
@@ -201,7 +201,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
               Stdlib.Http.responseWithJson json 200
 
 val searchHandler =
-  Handler { route = "/search"; method = "GET"; handler = searchHandlerFn }
+  Stdlib.HttpServer.get "/search" searchHandlerFn
 
 
 /// `/:location` — interpret the single path segment as a dotted name. For a
@@ -319,7 +319,7 @@ let typeGetHandlerFn (req: HttpRequest) : HttpResponse =
     | None -> Stdlib.Http.notFound ()
 
 val typeGetHandler =
-  Handler { route = typeGetRoute; method = "GET"; handler = typeGetHandlerFn }
+  Stdlib.HttpServer.get typeGetRoute typeGetHandlerFn
 
 
 val typeGetWithLocationRoute = "/type/get/with-location/:hash"

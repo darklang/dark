@@ -23,3 +23,17 @@ module GetMethod =
   (Stdlib.HttpServer.getMethod (
     Stdlib.Http.Request
       { url = "/"; headers = [ ("Accept", "text/html") ]; body = Stdlib.Blob.empty })) = "GET"
+
+module Routes =
+  // `get`/`post` build the Handler a record literal would, so a route table reads as routes.
+  ((Stdlib.HttpServer.get "/ping" (fun req ->
+      Stdlib.Http.Response
+        { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).route) = "/ping"
+
+  ((Stdlib.HttpServer.get "/ping" (fun req ->
+      Stdlib.Http.Response
+        { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).method) = "GET"
+
+  ((Stdlib.HttpServer.post "/ops" (fun req ->
+      Stdlib.Http.Response
+        { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).method) = "POST"
