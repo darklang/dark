@@ -292,10 +292,121 @@ let descriptionsAreJoined =
       } ]
 
 
+/// `Builtin.<name>` spellings that are NOT a builtin call. Dark has its own `Builtin`
+/// modules and cases; the lookbehind below drops the qualified ones, and these bare
+/// ones can only be told apart by the file they sit in.
+let private notActuallyBuiltins : Set<string> =
+  Set.ofList
+    [ "tokenize" // semanticTokens.dark has its own `Builtin` module
+      "toPT" // same, in writtenTypesToProgramTypes.dark
+      "fullForReference" // FQValueName.Builtin
+      "Json" // `Builtin.Json.*`: a module under the builtin namespace, not a builtin
+      "X" ] // `Builtin.X` as prose, inside the for-ai docs
+
+
+/// Every builtin that package code names has to exist. A `Builtin.x` naming nothing
+/// builds fine and throws the moment someone reaches it.
+///
+/// Textual, because a name resolving only when it RUNS is the hole being covered --
+/// there is no resolution step to hook.
+let everyBuiltinPackagesCallExists =
+  testTask "every builtin that package code calls exists" {
+    let names (b : RT.Builtins) =
+      Set.union
+        (b.fns.Values |> Seq.map (fun fn -> fn.name.name) |> Set.ofSeq)
+        (b.values.Values |> Seq.map (fun v -> v.name.name) |> Set.ofSeq)
+
+    let defined = allBuiltinSets () |> List.map names |> Set.unionMany
+
+    let regex =
+      Regex(
+        @"(?<![a-zA-Z0-9_.])Builtin\.([a-zA-Z][a-zA-Z0-9_]*)",
+        RegexOptions.Compiled
+      )
+
+    let missing =
+      regex.Matches(packagesText.Value)
+      |> Seq.map (fun m -> m.Groups[1].Value)
+      |> Set.ofSeq
+      |> Set.filter (fun name ->
+        not (Set.contains name defined)
+        && not (Set.contains name notActuallyBuiltins))
+
+    if not (Set.isEmpty missing) then
+      let listed = missing |> Set.toList |> List.sort |> String.concat ", "
+      Expect.isTrue
+        false
+        ($"package code calls builtins that don't exist: {listed}\n\n"
+         + "A missing builtin resolves lazily, so nothing else in this suite will tell "
+         + "you. Either it was deleted and its callers need repointing at the Dark "
+         + "replacement, or it was renamed.")
+  }
+
+
+/// Every CLI command's `help` returns the help TEXT, not an AppState.
+///
+/// `executeCommandHelp` appends the alias line to whatever `help` returns, so one that
+/// prints internally and returns `state` makes `dark <cmd> --help` throw. A Dark record
+/// field is not checked against the function stored in it, so nothing else catches it.
+let everyCliHelpReturnsText =
+  testTask "every CLI command's `help` returns String" {
+    let root = Path.Combine(findRepoRoot (), "packages", "darklang", "cli")
+    Expect.isTrue (Directory.Exists root) $"the CLI package directory exists: {root}"
+
+    let sourceLines =
+      Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
+      |> Seq.collect (fun path ->
+        File.ReadAllLines path
+        |> Array.toSeq
+        |> Seq.mapi (fun i line -> (path.Replace('\\', '/'), i + 1, line.Trim())))
+      |> List.ofSeq
+
+    let report (matches : string -> bool) : List<string> =
+      sourceLines
+      |> List.filter (fun (_, _, t) -> matches t)
+      |> List.map (fun (path, n, t) -> $"  {path}:{n}  {t}")
+      |> List.sort
+
+    // `help`, and also `helpShow`/`helpReview`: the registry takes any of them for the
+    // `help` slot, so the contract is the same for all of them. Keyed on the AppState
+    // parameter, which is what makes it a registry help rather than a local helper
+    // that happens to start with the same word.
+    let offenders =
+      report (fun t ->
+        t.StartsWith "let help"
+        && t.Contains "AppState)"
+        && not (t.EndsWith ": String ="))
+
+    // The other half of the same contract: a caller that RETURNS `help state` where an
+    // AppState is expected.
+    let badCallers =
+      report (fun t ->
+        Regex.IsMatch(t, @"^(\| .*-> )?help[A-Za-z]* _?state$")
+        && not (t.Contains "printLine"))
+
+    if not (List.isEmpty badCallers) then
+      Expect.isTrue
+        false
+        ("These call sites return a `help` result where an AppState is expected:\n"
+         + String.concat "\n" badCallers
+         + "\n\n`help` returns the TEXT. A caller that wants to show it and carry on "
+         + "writes `Stdlib.printLine (help state)` and then `state`.")
+
+    if not (List.isEmpty offenders) then
+      Expect.isTrue
+        false
+        ("These `help` functions do not return the help text:\n"
+         + String.concat "\n" offenders
+         + "\n\nBuild the lines and `|> Stdlib.String.join \"\\n\"`.")
+  }
+
+
 let tests =
   testList
     "builtin"
     [ oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
       everyBuiltinIsReferenced
-      descriptionsAreJoined ]
+      descriptionsAreJoined
+      everyBuiltinPackagesCallExists
+      everyCliHelpReturnsText ]
