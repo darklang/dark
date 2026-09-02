@@ -1,0 +1,75 @@
+#!/usr/bin/expect -f
+#
+# The workbench under a real TTY.
+#
+# `dark` with no arguments opens the workbench, so this is the default experience, and none of it is
+# reachable from the test suite: the views can be rendered directly, but keyboard handling, the
+# alternate screen and resize need a terminal.
+#
+# Every step asserts. Two things about asserting against this program, both learned the hard way:
+#
+#   1. The screen is redrawn as a DIFF, so text already on screen is not sent again. Every assertion
+#      below names something only the view being switched to draws, or follows a resize, which
+#      repaints the whole frame and so re-emits what is already there.
+#   2. Views are switched by their digit in the sidebar.
+
+set timeout 45
+log_user 0
+
+proc fail {msg} {
+  puts "FAIL: $msg"
+  exit 1
+}
+
+proc want {pattern what} {
+  expect {
+    -re $pattern { puts "  ok: $what" }
+    timeout { fail "timed out waiting for $what" }
+    eof { fail "process exited while waiting for $what" }
+  }
+}
+
+spawn ./backend/Build/out/Cli/Debug/net10.0/Cli
+
+# 1. it opens on the workbench rather than the classic prompt
+want "(?i)recent commits" "the workbench on startup"
+
+# 2. switching views actually draws the view, not just a moved sidebar marker
+send "2"
+want "(?i)(darklang/|builtins)" "the Code view"
+
+send "3"
+want "(?i)(working tree clean|nothing to commit)" "the Changes view"
+
+# 3. below a usable size the workbench degrades to a message rather than a garbled frame, and the
+#    message has to carry the size you need. The guard fires from 24 columns, so a single 44-column
+#    line loses its tail to the clip -- and the tail is the only part that tells you what to do.
+stty rows 24 columns 40 < $spawn_out(slave,name)
+exec kill -WINCH [exp_pid]
+want "terminal too small" "the too-small guard"
+want "56x12" "the size you need, not clipped off the end of it"
+
+# 4. and it comes back: growing the terminal repaints the whole frame
+stty rows 30 columns 100 < $spawn_out(slave,name)
+exec kill -WINCH [exp_pid]
+want "(?i)(working tree clean|nothing to commit)" "a full repaint once the terminal is big enough again"
+
+# 5. a view further down the list still draws after all of that
+send "8"
+want "(?i)for-ai" "the Docs view"
+
+# 6. quitting leaves cleanly. A non-zero status would mean the alternate screen was left on a throw.
+send "q"
+expect {
+  eof { }
+  timeout { fail "q did not exit the workbench" }
+}
+
+set waitval [wait]
+set exitcode [lindex $waitval 3]
+if {$exitcode != 0} {
+  fail "exited $exitcode, not 0"
+}
+
+puts "workbench TTY session OK"
+exit 0

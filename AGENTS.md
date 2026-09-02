@@ -306,6 +306,12 @@ nested functions require them.
 The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
 
     ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+    ./scripts/run-in-docker expect scripts/testing/test-workbench.expect
+
+`run-cli` with no args opens the WORKBENCH, so that second one covers the default experience:
+switching views, resize, the too-small guard, and quitting cleanly. None of it is reachable from
+the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
+the alternate screen and SIGWINCH.
 
 Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
 
