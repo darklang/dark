@@ -127,8 +127,20 @@ module Registry =
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
     let handler = findCommandIn state.allCommandsCache name
 
+    // A bare `help` as the FIRST argument means `--help`. Handled here rather than per-command, because
+    // left to them `help` is read as the argument that command wanted: `dark fn help` answers "Function
+    // body required", `dark delete help` answers "'help' is not a valid item kind".
+    //
+    // First argument only. The cost is `dark search help`, which shows help rather than searching.
+    let firstIsHelp =
+      match Stdlib.List.head args with
+      | Some "help" -> true
+      | _ -> false
+
     let hasHelpFlag =
-      (Stdlib.List.member args "--help") || (Stdlib.List.member args "-h")
+      (Stdlib.List.member args "--help")
+      || (Stdlib.List.member args "-h")
+      || firstIsHelp
 
     if hasHelpFlag then
       executeCommandHelp name state
