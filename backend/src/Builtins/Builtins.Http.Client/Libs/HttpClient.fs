@@ -202,22 +202,57 @@ module BaseClient =
               // Use this to hide more specific errors when looking at loopback
               Exception.raiseInternal "Could not connect" []
 
-            // Create the socket with the resolved IP's address family (v4 vs v6).
-            // The 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal
-            // (e.g. 127.0.0.1) when the host has IPv6 dual-mode
-            // — absent in some containers, giving a NetworkError.
-            // Matching the family connects either way.
-            let socket =
-              new System.Net.Sockets.Socket(
-                ips[0].AddressFamily,
-                System.Net.Sockets.SocketType.Stream,
-                System.Net.Sockets.ProtocolType.Tcp
-              )
-            socket.NoDelay <- true
+            // TRY EVERY resolved address, not just the first. A name routinely
+            // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
+            // some of which have anything listening, and the order is the resolver's
+            // to choose. Connecting to ips[0] alone makes `http://localhost:<port>`
+            // fail against a server bound to IPv4, and report it as a flat "network
+            // error".
+            //
+            // Every address was already checked against the allow-list above, so
+            // trying the rest widens nothing: the DNS-rebinding guard is that we
+            // connect to a resolved ADDRESS rather than let the OS re-resolve the
+            // name, and that still holds for each one.
+            //
+            // The socket's address family has to match the address it dials. The
+            // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
+            // the host has dual-mode, and containers often don't.
+            let mutable stream : Stream = null
+            let mutable lastError : exn = null
+            let mutable i = 0
 
-            let endpoint = System.Net.IPEndPoint(ips[0], context.DnsEndPoint.Port)
-            do! socket.ConnectAsync(endpoint, cancellationToken)
-            return new System.Net.Sockets.NetworkStream(socket, true)
+            while isNull stream && i < ips.Length do
+              let ip = ips[i]
+              i <- i + 1
+
+              let socket =
+                new System.Net.Sockets.Socket(
+                  ip.AddressFamily,
+                  System.Net.Sockets.SocketType.Stream,
+                  System.Net.Sockets.ProtocolType.Tcp
+                )
+              socket.NoDelay <- true
+
+              try
+                let endpoint = System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
+                do! socket.ConnectAsync(endpoint, cancellationToken)
+                stream <- new System.Net.Sockets.NetworkStream(socket, true)
+              with e ->
+                socket.Dispose()
+                lastError <- e
+                // A cancelled request is the caller giving up, not this address
+                // being wrong. Trying the next one would ignore the timeout and dial
+                // again on a token that's already done.
+                if cancellationToken.IsCancellationRequested then i <- ips.Length
+
+            match stream with
+            | null ->
+              return
+                Exception.raiseInternal
+                  "Could not connect"
+                  [ "reason",
+                    (if isNull lastError then "no address" else lastError.Message) ]
+            | s -> return s
           with :? System.ArgumentException ->
             return Exception.raiseInternal "Could not connect" []
         }
@@ -858,8 +893,23 @@ let fns (config : Configuration) : List<BuiltInFn> =
               let! response = makeRequest syncConfig syncClient request
 
               match response with
-              | Ok r ->
+              // A non-2xx is a FAILURE, not a body. Returning Ok for any completed
+              // exchange means a server answering 400 or 404 reaches the caller as a
+              // successful fetch whose payload happens to be an error page.
+              | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
                 return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+              | Ok r ->
+                let snippet =
+                  try
+                    let t = System.Text.Encoding.UTF8.GetString(r.body)
+                    if t.Length > 200 then t.Substring(0, 200) + "..." else t
+                  with _ ->
+                    ""
+                return
+                  Dval.resultError
+                    KTBlob
+                    KTString
+                    (DString $"HTTP {r.statusCode}: {snippet}")
               | Error err ->
                 let reason =
                   match err with
