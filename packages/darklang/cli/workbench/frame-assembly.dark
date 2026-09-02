@@ -229,13 +229,22 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
 
   let spans =
     if tooSmall then
-      let msg = "terminal too small - resize to at least 56x12"
+      // Two lines, because one was 44 columns wide and the guard fires from 24. The canvas clips at the
+      // width, so the single-line version lost its tail -- and the tail was the size you needed, which is
+      // the only thing the message is for. Both lines fit in 24.
       let screen =
         Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+
+      let centred (text: String) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
+        let col =
+          Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth text)) 2)
+        Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText text)
+
       let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
-      let col =
-        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth msg)) 2)
-      Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText msg)
+
+      Stdlib.List.flatten
+        [ centred "terminal too small" (Stdlib.Int.max 0 (row - 1))
+          centred "resize to at least 56x12" row ]
     else
       renderFull state size
 
