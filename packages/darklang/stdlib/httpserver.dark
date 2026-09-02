@@ -9,6 +9,15 @@ type Handler =
     handler: Http.Request -> Http.Response }
 
 
+/// A GET route, so a handler table reads as routes rather than record boilerplate.
+let get (route: String) (fn: Http.Request -> Http.Response) : Handler =
+  Handler { route = route; method = "GET"; handler = fn }
+
+/// A POST route. See <fn Stdlib.HttpServer.get>.
+let post (route: String) (fn: Http.Request -> Http.Response) : Handler =
+  Handler { route = route; method = "POST"; handler = fn }
+
+
 /// Result of matching a route pattern against a request path
 type RouteMatch =
   { matched: Bool
