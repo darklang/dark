@@ -37,6 +37,18 @@ let daemonCommand (app: Model.App) : String =
     (Stdlib.Cli.Daemon.launcher ()) ++ " eval '" ++ entrypoint ++ " \"" ++ app.slug ++ "\"'"
   | Foreground _ -> ""
 
+/// Can this string go into a unit file or a plist without changing its structure?
+///
+/// A newline ends a systemd directive and starts the next one, so a name carrying one writes
+/// whatever follows it as its own directive. `<` and `&` do the same to the plist. Nothing that
+/// belongs in an app name or an entrypoint contains any of them.
+let isSafeForUnitFile (s: String) : Bool =
+  Stdlib.Bool.not (
+    (Stdlib.String.contains s "\n")
+    || (Stdlib.String.contains s "\r")
+    || (Stdlib.String.contains s "<")
+    || (Stdlib.String.contains s "&"))
+
 let systemdUnit (app: Model.App) : String =
   $"[Unit]\nDescription={app.name} (Dark app)\n\n[Service]\nExecStart={daemonCommand app}\nRestart=on-failure\n\n[Install]\nWantedBy=default.target\n"
 
@@ -49,6 +61,12 @@ let enable (app: Model.App) : EnableResult =
     EnableResult.Failed $"invalid app slug '{app.slug}'"
   else if Stdlib.Bool.not (Model.isDaemon app.target) then
     EnableResult.Failed $"'{app.slug}' is a foreground app — only daemons can auto-start"
+  // Checked here rather than at the interpolation, so both platforms are covered by one guard and
+  // nothing gets written when it fails.
+  else if Stdlib.Bool.not (isSafeForUnitFile app.name) then
+    EnableResult.Failed $"'{app.slug}' has a name that can't go in a service file"
+  else if Stdlib.Bool.not (isSafeForUnitFile (daemonCommand app)) then
+    EnableResult.Failed $"'{app.slug}' has an entrypoint that can't go in a service file"
   else
     match platform () with
     | Unsupported ->

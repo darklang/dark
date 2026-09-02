@@ -104,18 +104,20 @@ let private queryImpl
       use reader = readerObj
       let rows = System.Collections.Generic.List<Dval>()
 
-      let rec loop () : Ply<unit> =
-        uply {
-          let! hasRow = reader.ReadAsync()
-          if hasRow then
-            let cells =
-              [ for i in 0 .. reader.FieldCount - 1 ->
-                  (reader.GetName i, Value.toDT (reader.GetValue i)) ]
-            rows.Add(Dval.dict Value.knownType cells)
-            return! loop ()
-        }
+      // Iterative, not recursive. Reading rows by recursing costs a stack frame per ROW, so a
+      // result set in the tens of thousands overflows the stack and kills the process -- not a
+      // catchable error, and nothing a caller can do about it.
+      let mutable hasRow = true
 
-      do! loop ()
+      while hasRow do
+        let! more = reader.ReadAsync()
+        hasRow <- more
+
+        if more then
+          let cells =
+            [ for i in 0 .. reader.FieldCount - 1 ->
+                (reader.GetName i, Value.toDT (reader.GetValue i)) ]
+          rows.Add(Dval.dict Value.knownType cells)
       let listDval =
         Dval.list (KTDict(ValueType.Known Value.knownType)) (List.ofSeq rows)
       return Dval.resultOk rowsKT KTString listDval
