@@ -60,8 +60,7 @@ let createState
     // CLI host seeds `dark run`/`eval` from `PolicyStore`; trusted internal
     // callers and tests opt into permissive explicitly with
     // `setInstancePolicy Policy.allowAll`.
-    access =
-      LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
+    access = LibExecution.Permissions.Access.denyAll
 
     packagePolicy = fun _ -> LibExecution.Permissions.Policy.allowAll
 

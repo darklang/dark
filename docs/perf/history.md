@@ -243,3 +243,9 @@ cost overstates by more than 2x.
   with a one-restriction allow-all fast path; `Request.ofAmbientEffect` moved the
   effect→request match out of the gate; posix and host arms collapsed into helpers
   (no per-op effect).
+- After the rebase onto main's VM pooling (2026-09-03): debug 10.3MB, published 10.0MB against
+  main's 7.2MB / 6.85MB. A 10x-iteration profile showed `FSharpList<Restriction>` scaling with
+  the workload: `VMState.reuseFor` reset the pooled root frame with `Access.start Policy.denyAll`,
+  a fresh list per lambda application. `Access.denyAll` is now one shared immutable value:
+  debug 9.2MB, published 9.1MB, both pinned. The remaining ~2MB is startup (strings from the
+  bundled-hash query, policy load) and does not scale with the workload.

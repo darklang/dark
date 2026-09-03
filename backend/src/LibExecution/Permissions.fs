@@ -482,6 +482,11 @@ module Access =
   let start (instancePolicy : Policy) : Access =
     Access [ { layer = Layer.Instance; policy = instancePolicy } ]
 
+  /// The fail-safe starting point, shared because `Access` is immutable.
+  /// Pooled VMs reset their root frame to this value on every reuse, avoiding
+  /// a new restriction list for each execution.
+  let denyAll : Access = start Policy.denyAll
+
   let restrict
     (layer : Layer)
     (policy : Policy)

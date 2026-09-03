@@ -3031,7 +3031,7 @@ type VMState =
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
-        access = Permissions.Access.start Permissions.Policy.denyAll
+        access = Permissions.Access.denyAll
         instrData = rootInstrData
         expectedReturnType = ValueNone
         programCounter = 0
@@ -3101,7 +3101,7 @@ type VMState =
         frame.programCounter <- 0
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
-        frame.access <- Permissions.Access.start Permissions.Policy.denyAll
+        frame.access <- Permissions.Access.denyAll
         if frame.registers.Length < registerCount then
           frame.registers <- Array.zeroCreate registerCount
         else
@@ -3113,7 +3113,7 @@ type VMState =
           instrData = instrData
           expectedReturnType = ValueNone
           programCounter = 0
-          access = Permissions.Access.start Permissions.Policy.denyAll
+          access = Permissions.Access.denyAll
           registers = Array.zeroCreate registerCount
           argBufs = Array.empty
           typeSymbolTable = TST.empty

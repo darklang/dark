@@ -1,8 +1,8 @@
 {
   "tolerance": 0.03,
   "steady": {
-    "debug": 9629000,
-    "published": 7641184,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Debug includes the permission system's measured fixed startup cost; lower either budget whenever a change earns it."
+    "debug": 9276664,
+    "published": 9103560,
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Both include the permission system's fixed startup cost (~2 MB over the pre-permissions baseline: bundled-hash set, policy load, per-run access); the per-operation path is unchanged. Lower either budget whenever a change earns it."
   }
 }

@@ -179,6 +179,16 @@ let private executeHandler
   }
 
 
+/// The per-request state, built outside `handleRequest`'s task: a record copy of
+/// `ExecutionState` inside the resumable block keeps the Release compiler from
+/// reducing the state machine (FS3511).
+let private perRequestStateFor
+  (exeState : ExecutionState)
+  (tracer : Tracing.T)
+  : ExecutionState =
+  { exeState with tracing = tracer.executionTracing }
+
+
 /// Process a single request: parse → dispatch → write response. Errors
 /// surface as 500s; full detail goes to `logRequest` rather than the wire.
 let private handleRequest
@@ -224,7 +234,7 @@ let private handleRequest
               "(http request)"
           let tracer =
             Tracing.createCliTracer traceID traceDesc "request" requestDval
-          let perRequestState = { exeState with tracing = tracer.executionTracing }
+          let perRequestState = perRequestStateFor exeState tracer
 
           let! result = executeHandler perRequestState handler requestDval
           let! response = Http.Response.toHttpResponse perRequestState result
