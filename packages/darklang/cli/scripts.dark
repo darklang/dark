@@ -12,7 +12,7 @@ type Script = {
 
 let scriptsDb () : String = Darklang.Sync.localDbPath ()
 
-let scriptFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
+let scriptFromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
   match
     (Stdlib.Sqlite.textField row "id",
      Stdlib.Sqlite.textField row "name",

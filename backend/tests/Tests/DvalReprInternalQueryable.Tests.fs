@@ -103,7 +103,7 @@ let testToDeveloperRepr =
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]), "(1, 2, 3)"
-          RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{ : () }"
+          Dval.stringDict RT.KTUnit [ "", RT.DUnit ], "{ \"\": () }"
           RT.DList(VT.unit, [ RT.DUnit ]), "[()]" ] ]
 
 let allRoundtrips =

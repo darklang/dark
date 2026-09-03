@@ -10,9 +10,9 @@ type LoggingLevel = Darklang.ModelContextProtocol.LoggingLevel
 // Main builder type that accumulates server configuration
 type McpServerBuilder =
   { name: String
-    tools: Dict<ToolDefinition>
-    resources: Dict<ResourceDefinition>
-    prompts: Dict<PromptDefinition> }
+    tools: Dict<String, ToolDefinition>
+    resources: Dict<String, ResourceDefinition>
+    prompts: Dict<String, PromptDefinition> }
 
 
 // Server state for the builder-based server
@@ -23,5 +23,5 @@ type BuilderServerState =
     traceLevel: TraceLevel
     loggingLevel: LoggingLevel
     logFilePath: String
-    resourceTemplates: Dict<ModelContextProtocol.ResourceTemplateDescription>
+    resourceTemplates: Dict<String, ModelContextProtocol.ResourceTemplateDescription>
     roots: List<ModelContextProtocol.Root> }

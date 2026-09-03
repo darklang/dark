@@ -61,7 +61,7 @@ module RuntimeTypes =
 
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
       RT.TList RT.TInt64
-      RT.TDict RT.TBool
+      RT.TDict(RT.TString, RT.TBool)
 
       RT.TFn(NEList.singleton RT.TBool, RT.TBool)
 
@@ -103,7 +103,7 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
       known (RT.KnownType.KTList ktUnit)
-      known (RT.KnownType.KTDict ktUnit)
+      known (RT.KnownType.KTDict(ktUnit, ktUnit))
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
@@ -273,7 +273,7 @@ module ProgramTypes =
         TString
         TList TInt64
         TTuple(TBool, TBool, [ TBool ])
-        TDict TBool
+        TDict(TString, TBool)
         TDB TBool
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
         TCustomType(NameResolution.ok (FQTypeName.Package hashPT), [ TBool ])
@@ -576,7 +576,11 @@ module ProgramTypes =
                                     ELet(
                                       id,
                                       LPVariable(id, "dict"),
-                                      EDict(id, [ ("a string", EInt64(id, 2L)) ]),
+                                      EDict(
+                                        id,
+                                        [ (EString(id, [ StringText "a string" ]),
+                                           EInt64(id, 2L)) ]
+                                      ),
                                       ELet(
                                         id,
                                         LPVariable(id, "int8"),

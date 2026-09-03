@@ -132,14 +132,17 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
 
   | DList(_, items) -> w.writeArray (fun () -> List.iter r items)
 
-  | DDict(_, fields) ->
+  | DDict(_, _, fields) ->
     // `Map.iter` rather than `Map.toList |> List.iter`: the latter builds a tuple and a cons per
     // field, for a list that is walked once and dropped. Both visit in ascending key order.
     w.writeObject (fun () ->
       fields
-      |> Map.iter (fun k v ->
-        w.WritePropertyName k
-        r v))
+      |> Map.iter (fun (k : DictKey) v ->
+        match k.Dval with
+        | DString k ->
+          w.WritePropertyName k
+          r v
+        | _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID))
 
   // Enums and Records
   | DEnum(_, _, _, caseName, fields) ->
@@ -563,17 +566,17 @@ let parse
         | _ ->
           Exception.raiseInternal "Shouldn't be possible due to length check" [])
 
-    | TDict tDict, JsonValueKind.Object ->
+    | TDict(TString, tDict), JsonValueKind.Object ->
       j.EnumerateObject()
       |> Seq.map (fun jp ->
         uply {
           let! converted =
             convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
-          return (jp.Name, converted)
+          return (DString jp.Name, converted)
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
 
     | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
       uply {

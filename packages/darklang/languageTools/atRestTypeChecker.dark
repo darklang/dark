@@ -24,7 +24,7 @@ type StaticType =
   | TStream of StaticType
   | TList of StaticType
   | TTuple of StaticType * StaticType * List<StaticType>
-  | TDict of StaticType
+  | TDict of key: StaticType * value: StaticType
   | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
   | TFn of List<StaticType> * StaticType
   | TDB of StaticType
@@ -53,6 +53,7 @@ type IssueCode =
   | InvalidInfixOperand
   | DuplicateTypeParameter
   | DuplicateTypeMember
+  | UnsupportedDictKeyType
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -225,7 +226,7 @@ let staticTypeToStringWith
         [ recurse first, recurse second ]
         (Stdlib.List.map rest recurse)
     "(" ++ Stdlib.String.join parts " * " ++ ")"
-  | TDict inner -> wrapped "Dict" inner
+  | TDict(key, value) -> "Dict<" ++ recurse key ++ ", " ++ recurse value ++ ">"
   | TCustom(hash, args) ->
     let name =
       match customTypeName hash with
@@ -267,6 +268,7 @@ let issueCodeToString (code: IssueCode) : String =
   | InvalidInfixOperand -> "InvalidInfixOperand"
   | DuplicateTypeParameter -> "DuplicateTypeParameter"
   | DuplicateTypeMember -> "DuplicateTypeMember"
+  | UnsupportedDictKeyType -> "UnsupportedDictKeyType"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
   | UnresolvedValueName -> "UnresolvedValueName"

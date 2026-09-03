@@ -1,25 +1,47 @@
+type Point = { x: Int64; y: Int64 }
+
+type PointAlias = Point
+
+type SameShape = { x: Int64; y: Int64 }
+
+type DifferentShape = { a: Int64; b: Int64 }
+
+type Colour =
+  | Red
+  | Blue of Int64
+
+type ColourAlias = Colour
+
+
+val valDict = Dict { 1L: "a"; 2L: "b" }
+
+module ValDict =
+  Stdlib.Dict.keys valDict = [ 1L, 2L ]
+
+  Stdlib.Dict.set valDict "notAnInt" "c" = error="Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"notAnInt\")"
+
+
 module Empty =
   Stdlib.Dict.empty = Dict { }
 
 
 module ConstructionErrors =
-  Dict { a = 1; a = 2 } = error="Cannot add two dictionary entries with the same key `a`"
-  Dict { a = 1l; b = "two" } = error="Cannot add a String (\"two\") to a dict of Int32. Failed at key `b`."
+  Dict { "a": 1; "a": 2 } = error="Cannot add two dictionary entries with the same key \"a\""
+  Dict { "a": 1l; "b": "two" } = error="Cannot add a String (\"two\") to a dict of Int32. Failed at key \"b\"."
 module FilterMap =
   Stdlib.Dict.filterMap (Dict { }) (fun key value -> 0L) = (Dict { })
 
   (Stdlib.Dict.filterMap
-    (Dict { a = "x"; b = "y"; c = "z" })
+    (Dict { "a": "x"; "b": "y"; "c": "z" })
     (fun key value ->
       if value == "y" then
         Stdlib.Option.Option.None
       else
         Stdlib.Option.Option.Some(key ++ value))
-  ) = (Dict { c = "cz"; a = "ax" })
+  ) = (Dict { "c": "cz"; "a": "ax" })
 
   // CLEANUP figure out why this isn't failing on the `false` not being an option
   // (Stdlib.Dict.filterMap
-  //   (Dict { a = "x"; b = "y"; c = "z" })
   //   (fun key value ->
   //     if value == "y" then
   //       false
@@ -28,149 +50,359 @@ module FilterMap =
   // ) = error="Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
 module Filter =
   (Stdlib.Dict.filter
-    (Dict { key1 = "val1"; key2 = "val2" })
-    (fun k v -> k == "key1")) = (Dict { key1 = "val1" })
+    (Dict { "key1": "val1"; "key2": "val2" })
+    (fun k v -> k == "key1")) = (Dict { "key1": "val1" })
 
-  Stdlib.Dict.filter (Dict { key1 = 1L; key2 = 3L }) (fun k v -> v < 2L) =
-    (Dict { key1 = 1L })
+  Stdlib.Dict.filter (Dict { "key1": 1L; "key2": 3L }) (fun k v -> v < 2L) =
+    (Dict { "key1": 1L })
 
   Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
-  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) = error="Encountered a condition that must be a Bool, but got an Int64 (2)"
+  Stdlib.Dict.filter (Dict { "a": 1L; "b": 2L; "c": 3L }) (fun k v -> 2L) = error="Encountered a condition that must be a Bool, but got an Int64 (2)"
 module FromListOverwritingDuplicates =
   Stdlib.Dict.fromListOverwritingDuplicates [] = (Dict { })
 
   (Stdlib.Dict.fromListOverwritingDuplicates [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]) =
-    (Dict { b = 2L; duplicate_key = 3L })
+    (Dict { "b": 2L; "duplicate_key": 3L })
 
   Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1L), ("b", 2L), ("c", 3L) ] =
-    (Dict { c = 3L; b = 2L; a = 1L })
+    (Dict { "c": 3L; "b": 2L; "a": 1L })
 
   Stdlib.Dict.fromListOverwritingDuplicates [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
-  // CLEANUP improve the error message to:
-  //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
-  Stdlib.Dict.fromListOverwritingDuplicates [ (1L, 2L) ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * Int64)>, but got List<(Int64 * Int64)> ([(1, 2)])"
-  Stdlib.Dict.fromListOverwritingDuplicates [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([1])"
+  Stdlib.Dict.fromListOverwritingDuplicates [ (1L, 2L) ] = Dict { 1L: 2L }
+
+  Stdlib.Dict.fromListOverwritingDuplicates [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(_ * _)>, but got List<Int64> ([1])"
 module FromList =
   Stdlib.Dict.fromList [] = Stdlib.Option.Option.Some(Dict { })
 
   Stdlib.Dict.fromList [ ("a", 1L), ("b", 2L), ("c", 3L) ] =
-    Stdlib.Option.Option.Some(Dict { c = 3L; b = 2L; a = 1L })
+    Stdlib.Option.Option.Some(Dict { "c": 3L; "b": 2L; "a": 1L })
 
   // CLEANUP this test feels surprising - should it error or something?
   Stdlib.Dict.fromList [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ] = Stdlib.Option.Option.None
 
   Stdlib.Dict.fromList [ ("Content-Length", "0"), ("Server", "dark") ] =
-    Stdlib.Option.Option.Some(Dict { ``Content-Length`` = "0"; Server = "dark" })
+    Stdlib.Option.Option.Some(Dict { "Content-Length": "0"; "Server": "dark" })
 
   Stdlib.Dict.fromList [ Builtin.testRuntimeError "err" ] = error="Uncaught exception: err"
-  // CLEANUP improve the error message to
-  //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  Stdlib.Dict.fromList [ (1L, 1L) ] = error="Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * Int64)>, but got List<(Int64 * Int64)> ([(1, 1)])"
+  Stdlib.Dict.fromList [ (1L, 1L) ] = Stdlib.Option.Option.Some(Dict { 1L: 1L })
 module Get =
-  Stdlib.Dict.get (Dict { key1 = "val1" }) "key1" = Stdlib.Option.Option.Some "val1"
+  Stdlib.Dict.get (Dict { "key1": "val1" }) "key1" = Stdlib.Option.Option.Some "val1"
 
-  Stdlib.Dict.get (Dict { key1 = "val1" }) "" = Stdlib.Option.Option.None
+  Stdlib.Dict.get (Dict { "key1": "val1" }) "" = Stdlib.Option.Option.None
 
 
 module IsEmpty =
-  Stdlib.Dict.isEmpty (Dict { a = 1L }) = false
+  Stdlib.Dict.isEmpty (Dict { "a": 1L }) = false
   Stdlib.Dict.isEmpty (Dict { }) = true
 
 
 module Keys =
-  Stdlib.Dict.keys (Dict { key1 = "val1" }) = [ "key1" ]
+  Stdlib.Dict.keys (Dict { "key1": "val1" }) = [ "key1" ]
 
 
 module Map =
   Stdlib.Dict.map (Dict { }) (fun key value -> 0L) = (Dict { })
 
   (Stdlib.Dict.map
-    (Dict { key1 = "val1"; key2 = "val2" })
+    (Dict { "key1": "val1"; "key2": "val2" })
     (fun k x -> k ++ x)
-  ) = (Dict { key2 = "key2val2"; key1 = "key1val1" })
+  ) = (Dict { "key2": "key2val2"; "key1": "key1val1" })
 
   (Stdlib.Dict.map
-    (Dict { key1 = 5L; key2 = 3L; key3 = 3L })
+    (Dict { "key1": 5L; "key2": 3L; "key3": 3L })
     (fun k x ->
       Stdlib.Bool.and
         (Stdlib.Int64.greaterThanOrEqualTo x 1L)
         (Stdlib.Int64.lessThanOrEqualTo x 4L)
     )
-    )= (Dict { key3 = true; key2 = true; key1 = false })
+    )= (Dict { "key3": true; "key2": true; "key1": false })
 
-  Stdlib.Dict.map (Dict { a = 1L; b = 2L }) (fun k x -> x + 1L) =
-    (Dict { b = 3L; a = 2L })
+  Stdlib.Dict.map (Dict { "a": 1L; "b": 2L }) (fun k x -> x + 1L) =
+    (Dict { "b": 3L; "a": 2L })
 
 
 
 module Member =
-  Stdlib.Dict.member (Dict { otherKey = 5L; someKey = 5L }) "someKey" = true
+  Stdlib.Dict.member (Dict { "otherKey": 5L; "someKey": 5L }) "someKey" = true
 
-  Stdlib.Dict.member (Dict { otherKey = 5L }) "someKey" = false
+  Stdlib.Dict.member (Dict { "otherKey": 5L }) "someKey" = false
 
 
 module Merge =
   Stdlib.Dict.merge (Dict { }) (Dict { }) = (Dict { })
 
-  Stdlib.Dict.merge (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict { key2 = "val2"; key1 = "val1" })
+  Stdlib.Dict.merge (Dict { "key1": "val1" }) (Dict { "key2": "val2" }) = (Dict { "key2": "val2"; "key1": "val1" })
 
-  Stdlib.Dict.merge (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict { key1 = "val_r" })
+  Stdlib.Dict.merge (Dict { "key1": "val_l" }) (Dict { "key1": "val_r" }) = (Dict { "key1": "val_r" })
 
 
 module Set =
-  Stdlib.Dict.set (Dict { key1 = "val1" }) "key2" "val2" =
-    (Dict { key1 = "val1"; key2 = "val2" })
+  Stdlib.Dict.set (Dict { "key1": "val1" }) "key2" "val2" =
+    (Dict { "key1": "val1"; "key2": "val2" })
 
-  Stdlib.Dict.set (Dict { key1 = "val1before" }) "key1" "val1after" = error="Cannot add two dictionary entries with the same key `key1`"
-  Stdlib.Dict.set (Dict { key1 = "val1"; key2 = "val2" }) "key2" "newVal2" = error="Cannot add two dictionary entries with the same key `key2`"
-  Dict { key1 = "val1"; key2 = 2L } = error="Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
-  Stdlib.Dict.set (Dict { key1 = "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
+  Stdlib.Dict.set (Dict { "key1": "val1before" }) "key1" "val1after" = error="Cannot add two dictionary entries with the same key \"key1\""
+  Stdlib.Dict.set (Dict { "key1": "val1"; "key2": "val2" }) "key2" "newVal2" = error="Cannot add two dictionary entries with the same key \"key2\""
+  Dict { "key1": "val1"; "key2": 2L } = error="Cannot add an Int64 (2) to a dict of String. Failed at key \"key2\"."
+  Stdlib.Dict.set (Dict { "key1": "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
   Stdlib.Dict.set (Dict { }) "key1" "val1" =
-    (Dict { key1 = "val1" })
+    (Dict { "key1": "val1" })
 
   Stdlib.Dict.set (Dict { }) "key1" 2L =
-    (Dict { key1 = 2L })
+    (Dict { "key1": 2L })
 
 
 module SetOverridingDuplicates =
-  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1" }) "key2" "val2" =
-    (Dict { key1 = "val1"; key2 = "val2" })
+  Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" "val2" =
+    (Dict { "key1": "val1"; "key2": "val2" })
 
-  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
+  Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" 2L = error="Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
   // (where this differs from .set)
-  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1before" }) "key1" "val1after" =
-    (Dict { key1 = "val1after" })
+  Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1before" }) "key1" "val1after" =
+    (Dict { "key1": "val1after" })
 
-  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1"; key2 = "val2" }) "key2" "newVal2" =
-    (Dict { key1 = "val1"; key2 = "newVal2" })
+  Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1"; "key2": "val2" }) "key2" "newVal2" =
+    (Dict { "key1": "val1"; "key2": "newVal2" })
 
 
 module Singleton =
-  Stdlib.Dict.singleton "one" 1L = (Dict { one = 1L })
+  Stdlib.Dict.singleton "one" 1L = (Dict { "one": 1L })
 
-  Stdlib.Dict.singleton "Content-Length" 1L = (Dict { ``Content-Length`` = 1L })
+  Stdlib.Dict.singleton "Content-Length" 1L = (Dict { "Content-Length": 1L })
 
 
 module Size =
-  Stdlib.Dict.size (Dict { a = 3L; b = 1L; c = 1L }) = 3
+  Stdlib.Dict.size (Dict { "a": 3L; "b": 1L; "c": 1L }) = 3
   Stdlib.Dict.size (Dict { }) = 0
 
 
 module ToList =
   Stdlib.Dict.toList (Dict { }) = []
 
-  Stdlib.Dict.toList (Dict { a = 1L; b = 2L; c = 3L }) =
+  Stdlib.Dict.toList (Dict { "a": 1L; "b": 2L; "c": 3L }) =
     [ ("a", 1L), ("b", 2L), ("c", 3L) ]
 
 
 
 module Values =
-  Stdlib.Dict.values (Dict { key1 = "val1" }) = [ "val1" ]
+  Stdlib.Dict.values (Dict { "key1": "val1" }) = [ "val1" ]
 
 
 module Remove =
-  Stdlib.Dict.remove (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict { key2 = "val2" })
-  Stdlib.Dict.remove (Dict { key1 = "val1" }) "key1" = (Dict { })
-  Stdlib.Dict.remove (Dict { key1 = "val1" }) "key2" = (Dict { key1 = "val1" })
+  Stdlib.Dict.remove (Dict { "key1": "val1"; "key2": "val2" }) "key1" = (Dict { "key2": "val2" })
+  Stdlib.Dict.remove (Dict { "key1": "val1" }) "key1" = (Dict { })
+  Stdlib.Dict.remove (Dict { "key1": "val1" }) "key2" = (Dict { "key1": "val1" })
   Stdlib.Dict.remove (Dict { }) "key1" = (Dict { })
+
+module NonStringKeys =
+  module Int =
+    Stdlib.Dict.get (Dict { 1L: "one"; 2L: "two" }) 2L =
+      Stdlib.Option.Option.Some "two"
+
+    Stdlib.Dict.get (Dict { 1L: "one" }) 9L = Stdlib.Option.Option.None
+    Stdlib.Dict.``member`` (Dict { 1L: "one" }) 1L = true
+    Stdlib.Dict.remove (Dict { 1L: "one"; 2L: "two" }) 1L = Dict { 2L: "two" }
+    Stdlib.Dict.keys (Dict { 2L: "two"; 1L: "one" }) = [ 1L, 2L ]
+
+  module Tuple =
+    Stdlib.Dict.get (Dict { (1L, "a"): "first" }) ((1L, "a")) =
+      Stdlib.Option.Option.Some "first"
+
+    Stdlib.Dict.get (Dict { (1L, "a"): "first" }) ((1L, "b")) =
+      Stdlib.Option.Option.None
+
+  module List =
+    Stdlib.Dict.get (Dict { [ 1L, 2L ]: "onetwo" }) [ 1L, 2L ] =
+      Stdlib.Option.Option.Some "onetwo"
+
+  module Enum =
+    Stdlib.Dict.get
+      (Dict { Stdlib.Option.Option.Some 1L: "some" })
+      (Stdlib.Option.Option.Some 1L) = Stdlib.Option.Option.Some "some"
+
+  module Ordering =
+    Stdlib.Dict.keys (Dict { 10L: "a"; 9L: "b"; 100L: "c" }) = [ 9L, 10L, 100L ]
+
+  module ComputedKeys =
+    Stdlib.Dict.get (Dict { (1L + 1L): "two" }) 2L = Stdlib.Option.Option.Some "two"
+
+    (let x = "hello"
+     Stdlib.Dict.keys (Dict { x: 1L })) = [ "hello" ]
+
+    (let ``type`` = "a value"
+     Stdlib.Dict.keys (Dict { ``type``: 1L })) = [ "a value" ]
+
+
+  module FloatKeys =
+    Stdlib.Dict.get (Dict { 0.0: "zero" }) -0.0 = Stdlib.Option.Option.Some "zero"
+
+    (let nan = Stdlib.Float.sqrt -1.0
+     nan == nan) = false
+
+    (let nan = Stdlib.Float.sqrt -1.0
+     Stdlib.Dict.get (Dict { nan: "nan" }) nan) = Stdlib.Option.Option.Some "nan"
+
+    (let nan = Stdlib.Float.sqrt -1.0
+     Stdlib.Dict.size (Stdlib.Dict.setOverridingDuplicates (Dict { nan: "a" }) nan "b")) = 1
+
+    (let inf = 1.0 / 0.0
+     Stdlib.Dict.get (Dict { inf: "inf" }) inf) = Stdlib.Option.Option.Some "inf"
+
+    (let inf = 1.0 / 0.0
+     let ninf = -1.0 / 0.0
+     let nan = Stdlib.Float.sqrt -1.0
+     Stdlib.Dict.keys (Dict { inf: 1L; ninf: 2L; 0.0: 3L; nan: 4L })) =
+      [ Stdlib.Float.sqrt -1.0, -1.0 / 0.0, 0.0, 1.0 / 0.0 ]
+
+  module EveryKeyType =
+    Stdlib.Dict.get (Dict { (): "unit" }) () = Stdlib.Option.Option.Some "unit"
+
+    Stdlib.Dict.get (Dict { true: "t"; false: "f" }) true =
+      Stdlib.Option.Option.Some "t"
+
+    Stdlib.Dict.get (Dict { 1y: "i8" }) 1y = Stdlib.Option.Option.Some "i8"
+    Stdlib.Dict.get (Dict { 1uy: "u8" }) 1uy = Stdlib.Option.Option.Some "u8"
+    Stdlib.Dict.get (Dict { 1s: "i16" }) 1s = Stdlib.Option.Option.Some "i16"
+    Stdlib.Dict.get (Dict { 1us: "u16" }) 1us = Stdlib.Option.Option.Some "u16"
+    Stdlib.Dict.get (Dict { 1l: "i32" }) 1l = Stdlib.Option.Option.Some "i32"
+    Stdlib.Dict.get (Dict { 1ul: "u32" }) 1ul = Stdlib.Option.Option.Some "u32"
+    Stdlib.Dict.get (Dict { 1L: "i64" }) 1L = Stdlib.Option.Option.Some "i64"
+    Stdlib.Dict.get (Dict { 1UL: "u64" }) 1UL = Stdlib.Option.Option.Some "u64"
+    Stdlib.Dict.get (Dict { 1Q: "i128" }) 1Q = Stdlib.Option.Option.Some "i128"
+    Stdlib.Dict.get (Dict { 1Z: "u128" }) 1Z = Stdlib.Option.Option.Some "u128"
+    Stdlib.Dict.get (Dict { 1: "int" }) 1 = Stdlib.Option.Option.Some "int"
+
+    Stdlib.Dict.get (Dict { 1.5: "float" }) 1.5 = Stdlib.Option.Option.Some "float"
+    Stdlib.Dict.get (Dict { 'a': "char" }) 'a' = Stdlib.Option.Option.Some "char"
+    Stdlib.Dict.get (Dict { "s": "string" }) "s" = Stdlib.Option.Option.Some "string"
+
+    (let u = Builtin.unwrap (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+     Stdlib.Dict.get (Dict { u: "uuid" }) u) = Stdlib.Option.Option.Some "uuid"
+
+    (let d = Builtin.unwrap (Stdlib.DateTime.parse "2026-08-31T00:00:00Z")
+     Stdlib.Dict.get (Dict { d: "datetime" }) d) = Stdlib.Option.Option.Some "datetime"
+
+    Stdlib.Dict.get (Dict { [ 1L, 2L ]: "list" }) [ 1L, 2L ] =
+      Stdlib.Option.Option.Some "list"
+
+    Stdlib.Dict.get (Dict { (1L, 'c', "s"): "tuple" }) ((1L, 'c', "s")) =
+      Stdlib.Option.Option.Some "tuple"
+
+    Stdlib.Dict.get
+      (Dict { Stdlib.Option.Option.Some 1L: "enum" })
+      (Stdlib.Option.Option.Some 1L) = Stdlib.Option.Option.Some "enum"
+
+    Stdlib.Dict.get
+      (Dict { Point { x = 1L; y = 2L }: "record" })
+      (Point { x = 1L; y = 2L }) = Stdlib.Option.Option.Some "record"
+
+    Stdlib.Dict.get (Dict { Point { x = 1L; y = 2L }: "record" }) (Point { x = 1L; y = 9L }) =
+      Stdlib.Option.Option.None
+
+    Stdlib.Dict.get
+      (Dict { (Dict { 1L: "inner" }): "dict" })
+      (Dict { 1L: "inner" }) = Stdlib.Option.Option.Some "dict"
+
+  module KeyOrdering =
+    Stdlib.Dict.keys (Dict { true: 1L; false: 2L }) = [ false, true ]
+    Stdlib.Dict.keys (Dict { 'c': 1L; 'a': 2L }) = [ 'a', 'c' ]
+    Stdlib.Dict.keys (Dict { 2L: 1L; -3L: 2L; 0L: 3L }) = [ -3L, 0L, 2L ]
+
+    Stdlib.Dict.keys
+      (Dict { 9223372036854775808: 1L; 9223372036854775807: 2L; 0: 3L }) =
+      [ 0, 9223372036854775807, 9223372036854775808 ]
+
+    Stdlib.Dict.keys (Dict { -9223372036854775809: 1L; 0: 2L }) =
+      [ -9223372036854775809, 0 ]
+
+    Stdlib.Dict.keys (Dict { [ 2L ]: 1L; [ 1L, 9L ]: 2L; []: 3L }) =
+      [ [], [ 1L, 9L ], [ 2L ] ]
+
+  module FromListInfersTypes =
+    Stdlib.Dict.set
+      (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ]))
+      "b"
+      "c" = error="Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"b\")"
+
+    Stdlib.Dict.set
+      (Stdlib.Dict.fromListOverwritingDuplicates [ (1L, "a") ])
+      "b"
+      "c" = error="Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"b\")"
+
+    Stdlib.Dict.set (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ])) 2L 3L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (3)"
+
+    Stdlib.Dict.fromList [ (1L, "a"), ((fun x -> x), "b") ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.fromList [ (1L, "a"), (1L, "b") ] = Stdlib.Option.Option.None
+
+    Stdlib.Dict.fromList [ (2L, "b"), (1L, "a") ] =
+      Stdlib.Option.Option.Some(Dict { 1L: "a"; 2L: "b" })
+
+  module IdentityMatchesEquality =
+    (Point { x = 1L; y = 2L }) == (PointAlias { x = 1L; y = 2L }) = true
+
+    Stdlib.Dict.``member``
+      (Dict { Point { x = 1L; y = 2L }: "p" })
+      (PointAlias { x = 1L; y = 2L }) = true
+
+    (Colour.Blue 1L) == (ColourAlias.Blue 1L) = true
+    Stdlib.Dict.``member`` (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L) = true
+
+    (Point { x = 1L; y = 2L }) == (SameShape { x = 1L; y = 2L }) = true
+
+    Stdlib.Dict.``member``
+      (Dict { Point { x = 1L; y = 2L }: "p" })
+      (SameShape { x = 1L; y = 2L }) = true
+
+    (Point { x = 1L; y = 2L }) == (DifferentShape { a = 1L; b = 2L }) = error="Cannot perform equality check on SameShape and DifferentShape"
+
+  module RecordFieldOrder =
+    (Point { x = 1L; y = 2L }) == (Point { y = 2L; x = 1L }) = true
+
+    Stdlib.Dict.``member``
+      (Dict { Point { x = 1L; y = 2L }: "p" })
+      (Point { y = 2L; x = 1L }) = true
+
+  module NestedDictOrder =
+    Stdlib.Dict.``member``
+      (Dict { (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "a" 1L) "b" 2L): "x" })
+      (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "b" 2L) "a" 1L) = true
+
+  module DeepComposites =
+    Stdlib.Dict.``member``
+      (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
+      (([ Point { x = 1L; y = 2L } ], "s")) = true
+
+    Stdlib.Dict.``member``
+      (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
+      (([ Point { x = 1L; y = 9L } ], "s")) = false
+
+    Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ] = false
+    Stdlib.Dict.``member`` (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ] = false
+
+    Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L; [ [ 1L ], [ 3L ] ]: 2L }) =
+      [ [ [ 1L ], [ 3L ] ], [ [ 2L ] ] ]
+
+  module RecursiveAdmissibility =
+    Dict { [ (fun x -> x) ]: 1L } = error="Cannot use [(lambda)] as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Dict { (1L, (fun x -> x)): 1L } = error="Cannot use (1, (lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Dict { (Stdlib.Option.Option.Some (fun x -> x)): 1L } = error="Cannot use Some((lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+  module Errors =
+    Dict { 1L: "a"; "b": "c" } = error="This dict uses keys of type Int64, but \"b\" has type String."
+
+    (Dict { (fun x -> x): 1L }) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.get (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.set (Dict { }) (fun x -> x) 1L = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.setOverridingDuplicates (Dict { 1L: "a" }) (fun x -> x) "b" = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+    Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."

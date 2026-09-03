@@ -188,8 +188,10 @@ module RoundTripExpect =
     | RT.DTuple(a, b, rest) -> (a :: b :: rest) |> List.collect collectUnresolved
     | RT.DRecord(_, _, _, fields) -> fromFields fields
     | RT.DEnum(_, _, _, _, fields) -> fields |> List.collect collectUnresolved
-    | RT.DDict(_, entries) ->
-      entries |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v)
+    | RT.DDict(_, _, entries) ->
+      entries
+      |> Map.toList
+      |> List.collect (fun (k, v) -> collectUnresolved k.Dval @ collectUnresolved v)
     | RT.DApplicable(RT.AppLambda lambda) ->
       let closed =
         lambda.closedRegisters
@@ -776,16 +778,16 @@ let typeReferences =
       false
     t
       "int64 dict alias"
-      "type MyDict = Dict<Int64>"
-      "type MyDict =\n  Dict<Int64>"
+      "type MyDict = Dict<String, Int64>"
+      "type MyDict =\n  Dict<String, Int64>"
       []
       []
       []
       false
     t
       "custom type dict alias"
-      "type MyDict = Dict<MyString>"
-      "type MyDict =\n  Dict<MyString>"
+      "type MyDict = Dict<MyString, Int64>"
+      "type MyDict =\n  Dict<MyString, Int64>"
       [ myString ]
       []
       []
@@ -841,8 +843,8 @@ let typeReferences =
       false
     t
       "fn with tuple arg"
-      "type MyFn = (String * Int64 * Bool) -> Dict<Int64> -> List<List<String>>"
-      "type MyFn =\n  (String * Int64 * Bool) -> Dict<Int64> -> List<List<String>>"
+      "type MyFn = (String * Int64 * Bool) -> Dict<String, Int64> -> List<List<String>>"
+      "type MyFn =\n  (String * Int64 * Bool) -> Dict<String, Int64> -> List<List<String>>"
       []
       []
       []
@@ -1454,75 +1456,64 @@ let exprs =
 
     // dict literal
     t "empty dict" "Dict { }" "Dict {}" [] [] [] false
-    t "simple int dict" "Dict { a = 1L }" "Dict { a = 1L }" [] [] [] false
+    t
+      "simple string-keyed dict"
+      "Dict { \"a\": 1L }"
+      "Dict { \"a\": 1L }"
+      []
+      []
+      []
+      false
     t
       "string dict"
-      "Dict { a = \"hello\"; b = \"test\" }"
-      "Dict { a = \"hello\"; b = \"test\" }"
+      "Dict { \"a\": \"hello\"; \"b\": \"test\" }"
+      "Dict { \"a\": \"hello\"; \"b\": \"test\" }"
       []
       []
       []
       false
     t
-      "longer int dict"
-      "Dict { a = 1L; b = 2L; c = 3L }"
-      "Dict { a = 1L; b = 2L; c = 3L }"
-      []
-      []
-      []
-      false
-    t
-      "dict with double_backtick_identifier"
-      "Dict { ``Content-Length`` = 1L }"
-      "Dict { ``Content-Length`` = 1L }"
+      "longer dict"
+      "Dict { \"a\": 1L; \"b\": 2L; \"c\": 3L }"
+      "Dict { \"a\": 1L; \"b\": 2L; \"c\": 3L }"
       []
       []
       []
       false
 
-    // Keep the printer's field-name rule in sync with the lexer: quote names
-    // that cannot be bare, and leave legal bare names alone.
+    // Dict keys are expressions, not field names. String keys use ordinary string syntax.
     t
-      "dict field name that is a keyword"
-      "Dict { ``type`` = 1L }"
-      "Dict { ``type`` = 1L }"
+      "dict key that isn't a bare identifier"
+      "Dict { \"Content-Length\": 1L }"
+      "Dict { \"Content-Length\": 1L }"
       []
       []
       []
       false
     t
-      "dict field name that is a keyword (match)"
-      "Dict { ``match`` = 1L }"
-      "Dict { ``match`` = 1L }"
+      "dict keyed by Int64"
+      "Dict { 1L: \"one\"; 2L: \"two\" }"
+      "Dict { 1L: \"one\"; 2L: \"two\" }"
       []
       []
       []
       false
     t
-      "dict field name with a leading digit"
-      "Dict { ``2fa`` = 1L }"
-      "Dict { ``2fa`` = 1L }"
+      "dict keyed by tuple"
+      "Dict { (1L, \"a\"): true }"
+      "Dict { (1L, \"a\"): true }"
       []
       []
       []
       false
     t
-      "dict field name with an apostrophe stays bare"
-      "Dict { foo' = 1L }"
-      "Dict { foo' = 1L }"
+      "dict with a computed key"
+      "Dict { Stdlib.Int64.toString 1L: 1L }"
+      "Dict { Stdlib.Int64.toString 1L: 1L }"
       []
       []
       []
       false
-    t
-      "dict bare field name is not over-quoted"
-      "Dict { name = 1L }"
-      "Dict { name = 1L }"
-      []
-      []
-      []
-      false
-
     // tuple literals
     t "tuple 2" "(1L, \"hello\")" "(1L, \"hello\")" [] [] [] false
     t "tuple 3" "(1L, \"hello\", 2L)" "(1L, \"hello\", 2L)" [] [] [] false
@@ -2471,16 +2462,16 @@ let valueDeclarations =
       false
     t
       "dict, one entry"
-      "val dict = Dict { a = 1L }"
-      "val dict = Dict { a = 1L }"
+      "val dict = Dict { \"a\": 1L }"
+      "val dict = Dict { \"a\": 1L }"
       []
       []
       []
       false
     t
       "dict, two entries"
-      "val dict = Dict { a = \"hello\"; b = \"test\" }"
-      "val dict = Dict { a = \"hello\"; b = \"test\" }"
+      "val dict = Dict { \"a\": \"hello\"; \"b\": \"test\" }"
+      "val dict = Dict { \"a\": \"hello\"; \"b\": \"test\" }"
       []
       []
       []

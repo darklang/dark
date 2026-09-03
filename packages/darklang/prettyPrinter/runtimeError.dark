@@ -212,7 +212,7 @@ module RuntimeError =
       match err with
       | TriedToAddKeyAfterAlreadyPresent key ->
         [ ES.String "Cannot add two dictionary entries with the same key "
-          ES.FieldName key ]
+          ES.FullValue key ]
       | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
         [ ES.String "Cannot add "
           ES.IndefiniteArticle
@@ -222,7 +222,20 @@ module RuntimeError =
           ES.String ") to a dict of "
           ES.ValueType expectedType
           ES.String ". Failed at key "
-          ES.FieldName key
+          ES.FullValue key
+          ES.String "." ]
+      | UnsupportedKeyType (_keyType, key) ->
+        [ ES.String "Cannot use "
+          ES.FullValue key
+          ES.String " as a dict key. Functions, streams, database references,"
+          ES.String " blobs, and values containing them cannot be keys." ]
+      | MismatchedKeyType (expectedType, actualType, actualKey) ->
+        [ ES.String "This dict uses keys of type "
+          ES.ValueType expectedType
+          ES.String ", but "
+          ES.FullValue actualKey
+          ES.String " has type "
+          ES.ValueType actualType
           ES.String "." ]
 
     | Let (PatternDoesNotMatch (dval, pat)) ->

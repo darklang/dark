@@ -38,13 +38,20 @@ module Lists =
 
 module Dicts =
   type Error =
-    | TriedToAddKeyAfterAlreadyPresent of key: String
+    | TriedToAddKeyAfterAlreadyPresent of key: Dval
 
     | TriedToAddMismatchedData of
-      key: String *
+      key: Dval *
       expectedType: ValueType *
       actualType: ValueType *
       actualValue: Dval
+
+    | UnsupportedKeyType of keyType: ValueType * key: Dval
+
+    | MismatchedKeyType of
+      expectedType: ValueType *
+      actualType: ValueType *
+      actualKey: Dval
 
 module Lets =
   type Error =

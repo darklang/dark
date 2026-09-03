@@ -41,7 +41,7 @@ type StaticType =
   | TStream of StaticType
   | TList of StaticType
   | TTuple of StaticType * StaticType * List<StaticType>
-  | TDict of StaticType
+  | TDict of key : StaticType * value : StaticType
   | TCustom of FQTypeName.Package * List<StaticType>
   | TFn of NEList<StaticType> * StaticType
   | TDB of StaticType
@@ -81,6 +81,7 @@ type DiagnosticCode =
   | InvalidInfixOperand
   | DuplicateTypeParameter
   | DuplicateTypeMember
+  | UnsupportedDictKeyType
 
 type BlockerCode =
   | UnresolvedTypeName
@@ -248,7 +249,7 @@ let rec private runtimeTypeToProgramType (typ : RT.TypeReference) : TypeReferenc
   | RT.TList inner -> TypeReference.TList(recurse inner)
   | RT.TTuple(first, second, rest) ->
     TypeReference.TTuple(recurse first, recurse second, List.map recurse rest)
-  | RT.TDict inner -> TypeReference.TDict(recurse inner)
+  | RT.TDict(key, value) -> TypeReference.TDict(recurse key, recurse value)
   | RT.TFn(args, ret) -> TypeReference.TFn(NEList.map recurse args, recurse ret)
   | RT.TVariable name -> TypeReference.TVariable name
   | RT.TDB inner -> TypeReference.TDB(recurse inner)
@@ -272,8 +273,8 @@ let rec private runtimeTypeVariables (typ : RT.TypeReference) : Set<string> =
   | RT.TVariable name -> Set.singleton name
   | RT.TStream inner
   | RT.TList inner
-  | RT.TDict inner
   | RT.TDB inner -> recurse inner
+  | RT.TDict(key, value) -> Set.union (recurse key) (recurse value)
   | RT.TTuple(first, second, rest) ->
     Set.unionMany
       [ recurse first; recurse second; rest |> List.map recurse |> Set.unionMany ]

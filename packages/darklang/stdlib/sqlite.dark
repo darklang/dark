@@ -53,7 +53,7 @@ let queryP
   (dbPath: String)
   (sql: String)
   (params: List<String>)
-  : Stdlib.Result.Result<List<Dict<Value>>, String> =
+  : Stdlib.Result.Result<List<Dict<String, Value>>, String> =
   Builtin.sqliteQuery dbPath sql params
 
 /// Run a SELECT against <param dbPath>; returns each row as a dict of column name
@@ -61,7 +61,7 @@ let queryP
 let query
   (dbPath: String)
   (sql: String)
-  : Stdlib.Result.Result<List<Dict<Value>>, String> =
+  : Stdlib.Result.Result<List<Dict<String, Value>>, String> =
   queryP dbPath sql []
 
 
@@ -71,19 +71,19 @@ let query
 // typed value back.
 
 /// The text value of column <param col> in <param row>, or None if missing/non-text.
-let textField (row: Dict<Value>) (col: String) : Stdlib.Option.Option<String> =
+let textField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<String> =
   match Stdlib.Dict.get row col with
   | Some v -> asText v
   | None -> Stdlib.Option.Option.None
 
 /// The Int value of column <param col> in <param row>, or None if missing/non-int.
-let intField (row: Dict<Value>) (col: String) : Stdlib.Option.Option<Int64> =
+let intField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<Int64> =
   match Stdlib.Dict.get row col with
   | Some v -> asInt v
   | None -> Stdlib.Option.Option.None
 
 /// The first row of <param sql> (or None if it returned no rows / errored).
-let queryOne (dbPath: String) (sql: String) : Stdlib.Option.Option<Dict<Value>> =
+let queryOne (dbPath: String) (sql: String) : Stdlib.Option.Option<Dict<String, Value>> =
   match query dbPath sql with
   | Ok(row :: _) -> Stdlib.Option.Option.Some row
   | _ -> Stdlib.Option.Option.None
@@ -93,7 +93,7 @@ let queryOneP
   (dbPath: String)
   (sql: String)
   (params: List<String>)
-  : Stdlib.Option.Option<Dict<Value>> =
+  : Stdlib.Option.Option<Dict<String, Value>> =
   match queryP dbPath sql params with
   | Ok(row :: _) -> Stdlib.Option.Option.Some row
   | _ -> Stdlib.Option.Option.None

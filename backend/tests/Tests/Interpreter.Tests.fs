@@ -10,6 +10,7 @@ module Cap = LibExecution.Capabilities
 module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RTE = RT.RuntimeError
+module Dval = LibExecution.Dval
 
 module E = TestValues.Expressions
 module PM = TestValues.PM
@@ -136,25 +137,25 @@ module String =
 
 
 module Dict =
-  let empty = t "Dict {}" E.Dict.empty (RT.DDict(VT.unknown, Map.empty))
+  let empty = t "Dict {}" E.Dict.empty (RT.DDict(VT.unknown, VT.unknown, Map.empty))
 
   let simple =
     t
-      "Dict { t: true}"
+      "Dict { \"key\": true }"
       E.Dict.simple
-      (RT.DDict(VT.bool, Map [ "key", RT.DBool true ]))
+      (Dval.stringDict RT.KTBool [ "key", RT.DBool true ])
 
   let multEntries =
     t
-      "Dict {t: true; f: false}"
+      "Dict { \"t\": true; \"f\": false }"
       E.Dict.multEntries
-      (RT.DDict(VT.bool, Map [ "t", RT.DBool true; "f", RT.DBool false ]))
+      (Dval.stringDict RT.KTBool [ "t", RT.DBool true; "f", RT.DBool false ])
 
   let dupeKey =
     tFail
-      "Dict {t: true; f: false; t: false}"
+      "Dict { \"t\": true; \"f\": false; \"t\": false }"
       E.Dict.dupeKey
-      (RTE.Dict(RTE.Dicts.TriedToAddKeyAfterAlreadyPresent "t"))
+      (RTE.Dict(RTE.Dicts.TriedToAddKeyAfterAlreadyPresent(RT.DString "t")))
 
   let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
 
@@ -812,8 +813,9 @@ module SyncUnify =
       RT.TList RT.TString
       RT.TList(RT.TVariable "a")
       RT.TList(RT.TList RT.TInt64)
-      RT.TDict RT.TInt64
-      RT.TDict(RT.TVariable "a")
+      RT.TDict(RT.TString, RT.TInt64)
+      RT.TDict(RT.TString, RT.TVariable "a")
+      RT.TDict(RT.TInt64, RT.TString)
       RT.TStream RT.TInt64
       RT.TTuple(RT.TInt64, RT.TString, [])
       RT.TTuple(RT.TInt64, RT.TString, [ RT.TBool ])
@@ -832,7 +834,11 @@ module SyncUnify =
       RT.DList(RT.ValueType.Known RT.KTString, [ RT.DString "s" ])
       RT.DList(RT.ValueType.Unknown, [])
       RT.DList(RT.ValueType.Known(RT.KTList(RT.ValueType.Known RT.KTInt64)), [])
-      RT.DDict(RT.ValueType.Known RT.KTInt64, Map.empty)
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Known RT.KTInt64,
+        Map.empty
+      )
       RT.DTuple(RT.DInt64 1L, RT.DString "s", [])
       RT.DTuple(RT.DInt64 1L, RT.DString "s", [ RT.DBool true ]) ]
 
@@ -896,6 +902,198 @@ module SyncUnify =
   let tests = testList "SyncUnify" [ agreesWithAsyncPath ]
 
 
+module DictKeyOrdering =
+  let private oneOfEachCase : List<string * RT.Dval> =
+    [ "DUnit", RT.DUnit
+      "DBool", RT.DBool true
+      "DInt8", RT.DInt8 1y
+      "DUInt8", RT.DUInt8 1uy
+      "DInt16", RT.DInt16 1s
+      "DUInt16", RT.DUInt16 1us
+      "DInt32", RT.DInt32 1
+      "DUInt32", RT.DUInt32 1u
+      "DInt64", RT.DInt64 1L
+      "DUInt64", RT.DUInt64 1UL
+      "DInt128", RT.DInt128(System.Int128.op_Implicit 1)
+      "DUInt128", RT.DUInt128(System.UInt128.op_Implicit 1u)
+      "DInt", LibExecution.Dval.int 1I
+      "DFloat", RT.DFloat 1.0
+      "DChar", RT.DChar "c"
+      "DString", RT.DString "s"
+      "DDateTime", RT.DDateTime(LibExecution.DarkDateTime.T(2026, 8, 31, 0, 0, 0))
+      "DUuid", RT.DUuid(System.Guid.NewGuid())
+      "DList", RT.DList(VT.unknown, [])
+      "DTuple", RT.DTuple(RT.DUnit, RT.DUnit, [])
+      "DDict", RT.DDict(VT.unknown, VT.unknown, Map.empty)
+      "DRecord",
+      RT.DRecord(
+        RT.FQTypeName.Package(RT.Hash "t"),
+        RT.FQTypeName.Package(RT.Hash "t"),
+        [],
+        Map.empty
+      )
+      "DEnum",
+      RT.DEnum(
+        RT.FQTypeName.Package(RT.Hash "t"),
+        RT.FQTypeName.Package(RT.Hash "t"),
+        [],
+        "Case",
+        []
+      )
+      "DDB", RT.DDB "db"
+      "DBlob", RT.DBlob(RT.Persistent("hash", 0L)) ]
+
+  let allCasesAreDistinctKeys =
+    testCase "every Dval case is a distinct dict key" (fun _ ->
+      let asMap =
+        oneOfEachCase |> List.map (fun (name, dv) -> RT.DictKey dv, name) |> Map
+      Expect.equal
+        (Map.count asMap)
+        (List.length oneOfEachCase)
+        "two Dval cases collapsed into one key — check DictKey.caseTag for a collision")
+
+  let everyCaseFindsItself =
+    testCase "every Dval case can be looked up again" (fun _ ->
+      let asMap =
+        oneOfEachCase |> List.map (fun (name, dv) -> RT.DictKey dv, name) |> Map
+      for (name, dv) in oneOfEachCase do
+        Expect.equal
+          (Map.tryFind (RT.DictKey dv) asMap)
+          (Some name)
+          $"{name} must find itself")
+
+  let admissibilityMatchesComparability =
+    testCase "admissible keys are comparable; inadmissible ones are named" (fun _ ->
+      for (name, dv) in oneOfEachCase do
+        if LibExecution.RuntimeTypes.Dval.isUsableDictKey dv then
+          let asMap = Map [ RT.DictKey dv, name ]
+          Expect.equal
+            (Map.tryFind (RT.DictKey dv) asMap)
+            (Some name)
+            $"{name} is admissible, so it must compare without raising"
+        else
+          Expect.isTrue
+            (List.contains name [ "DDB"; "DBlob" ])
+            $"unexpected inadmissible case: {name}")
+
+  let inadmissibleValuesPoisonTheirContainers =
+    testCase "a container holding an inadmissible value is inadmissible" (fun _ ->
+      let db = RT.DDB "somedb"
+      let isValid = LibExecution.RuntimeTypes.Dval.isUsableDictKey
+      let dictOfDb =
+        RT.DDict(VT.unknown, VT.unknown, Map [ RT.DictKey RT.DUnit, db ])
+      Expect.isFalse (isValid db) "a DB ref is not a key"
+      Expect.isFalse (isValid (RT.DList(VT.unknown, [ db ]))) "nor a list of one"
+      Expect.isFalse
+        (isValid (RT.DTuple(RT.DUnit, db, [])))
+        "nor a tuple holding one"
+      Expect.isFalse (isValid dictOfDb) "nor a dict holding one as a value"
+      Expect.isTrue
+        (isValid (RT.DList(VT.unknown, [ RT.DInt64 1L ])))
+        "a list of ordinary values is still a key")
+
+  let private seamPairs : List<string * RT.Dval * RT.Dval> =
+    let runtimeName = RT.FQTypeName.Package(RT.Hash "shared-runtime-type")
+    let sourceA = RT.FQTypeName.Package(RT.Hash "written-as-alias")
+    let sourceB = RT.FQTypeName.Package(RT.Hash "written-directly")
+    let fields = Map [ "x", RT.DInt64 1L ]
+    [ "record via alias vs directly",
+      RT.DRecord(sourceA, runtimeName, [], fields),
+      RT.DRecord(sourceB, runtimeName, [], fields)
+
+      "enum via alias vs directly",
+      RT.DEnum(sourceA, runtimeName, [], "Case", [ RT.DInt64 1L ]),
+      RT.DEnum(sourceB, runtimeName, [], "Case", [ RT.DInt64 1L ])
+
+      "signed zero", RT.DFloat 0.0, RT.DFloat -0.0
+
+      "persistent blobs differing only in length",
+      RT.DBlob(RT.Persistent("samehash", 1L)),
+      RT.DBlob(RT.Persistent("samehash", 2L)) ]
+
+  let private sameKey (a : RT.Dval) (b : RT.Dval) : bool =
+    Map.containsKey (RT.DictKey a) (Map [ RT.DictKey b, () ])
+
+  let identityAgreesWithEquality =
+    testCase "key identity agrees with == on every pair but NaN" (fun _ ->
+      let values =
+        (oneOfEachCase |> List.map (fun (n, dv) -> n, dv))
+        @ [ "DFloat 0.0", RT.DFloat 0.0
+            "DFloat -0.0", RT.DFloat -0.0
+            "DFloat 1.0", RT.DFloat 1.0 ]
+      for (leftName, left) in values do
+        for (rightName, right) in values do
+          Expect.equal
+            (sameKey left right)
+            (LibExecution.Dval.equals left right)
+            $"{leftName} vs {rightName}: same key and == must agree")
+
+  let identityAgreesWithEqualityOnSeams =
+    testCase "...including on the pairs most likely to drift" (fun _ ->
+      for (name, left, right) in seamPairs do
+        Expect.equal
+          (sameKey left right)
+          (LibExecution.Dval.equals left right)
+          $"{name}: same key and == must agree")
+
+  let nestedIncompatibilityIsReported =
+    testCase "nested incompatible values are reported" (fun _ ->
+      let left = RT.DList(VT.unknown, [ RT.DInt64 1L ])
+      let right = RT.DList(VT.unknown, [ RT.DString "one" ])
+      try
+        RT.DvalOrdering.compareForSort left right |> ignore<int>
+        failtest "expected the incompatible nested values"
+      with :? RT.DvalComparisonException as e ->
+        match e.Left, e.Right with
+        | RT.DInt64 1L, RT.DString "one" -> ()
+        | _ -> failtest "expected the incompatible nested values")
+
+  let equalityIsNotTransitive =
+    testCase "Dval.equals is not an equivalence relation" (fun _ ->
+      let tn = RT.FQTypeName.Package(RT.Hash "some-enum")
+      let withArg vt = RT.DEnum(tn, tn, [ vt ], "None", [])
+      let unknown = withArg RT.ValueType.Unknown
+      let ints = withArg VT.int64
+      let strings = withArg VT.string
+      Expect.isTrue
+        (LibExecution.Dval.equals unknown ints)
+        "Unknown == Int64 (merge succeeds)"
+      Expect.isTrue
+        (LibExecution.Dval.equals unknown strings)
+        "Unknown == String (merge succeeds)"
+      Expect.isFalse
+        (LibExecution.Dval.equals ints strings)
+        "but Int64 <> String — so equals is not transitive")
+
+  let divergencesAreDeliberate =
+    testCase "the two divergences from == are deliberate" (fun _ ->
+      let nan = RT.DFloat(0.0 / 0.0)
+      Expect.isFalse (LibExecution.Dval.equals nan nan) "== says NaN <> NaN"
+      Expect.isTrue (sameKey nan nan) "as a key, NaN must find itself"
+
+      let tn = RT.FQTypeName.Package(RT.Hash "some-enum")
+      let withArg vt = RT.DEnum(tn, tn, [ vt ], "None", [])
+      Expect.isFalse
+        (LibExecution.Dval.equals (withArg VT.int64) (withArg VT.string))
+        "== distinguishes differing type args"
+      Expect.isTrue
+        (sameKey (withArg VT.int64) (withArg VT.string))
+        "key identity ignores them, because merge-based equality isn't transitive")
+
+  let tests =
+    testList
+      "DictKeyOrdering"
+      [ allCasesAreDistinctKeys
+        everyCaseFindsItself
+        admissibilityMatchesComparability
+        inadmissibleValuesPoisonTheirContainers
+        identityAgreesWithEquality
+        identityAgreesWithEqualityOnSeams
+        nestedIncompatibilityIsReported
+        divergencesAreDeliberate
+        equalityIsNotTransitive ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -918,4 +1116,5 @@ let tests =
       Lambdas.tests
       Fns.tests
       Statement.tests
-      SyncUnify.tests ]
+      SyncUnify.tests
+      DictKeyOrdering.tests ]

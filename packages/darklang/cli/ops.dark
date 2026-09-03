@@ -12,7 +12,7 @@ let db () : String = Darklang.Sync.localDbPath ()
 let short (s: String) : String =
   if Stdlib.String.length s <= 8 then s else Stdlib.String.slice s 0 8
 
-let textCell (row: Dict<Stdlib.Sqlite.Value>) (col: String) : String =
+let textCell (row: Dict<String, Stdlib.Sqlite.Value>) (col: String) : String =
   (Stdlib.Sqlite.textField row col) |> Stdlib.Option.withDefault ""
 
 /// How many ops are on <param branchId>. `dark ops` is about THIS branch: the log holds every branch's ops

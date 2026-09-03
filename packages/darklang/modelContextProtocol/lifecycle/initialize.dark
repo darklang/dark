@@ -4,7 +4,7 @@ module Darklang.ModelContextProtocol.LifeCycle.InitializeRequest
 /// Client capabilities for the Model Context Protocol
 type ClientCapabilities =
   { elicitation: Stdlib.Option.Option<Json>
-    experimental: Stdlib.Option.Option<Dict<Json>>
+    experimental: Stdlib.Option.Option<Dict<String, Json>>
     roots: Stdlib.Option.Option<RootsClientCapabilities>
     sampling: Stdlib.Option.Option<Json> }
 

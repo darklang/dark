@@ -192,13 +192,15 @@ module WrittenTypesToDarkTypes =
           rangeToDT openB
           typeReferenceToDT inner
           rangeToDT closeB ]
-    | WT.TDict(r, kw, openB, inner, closeB) ->
+    | WT.TDict(r, kw, openB, key, comma, value, closeB) ->
       builtin
         "TDict"
         [ rangeToDT r
           rangeToDT kw
           rangeToDT openB
-          typeReferenceToDT inner
+          typeReferenceToDT key
+          rangeToDT comma
+          typeReferenceToDT value
           rangeToDT closeB ]
     | WT.TVariable(r, tick, (nameR, nm)) ->
       builtin "TVariable" [ rangeToDT r; rangeToDT tick; rangedString nameR nm ]
@@ -734,13 +736,13 @@ module WrittenTypesToDarkTypes =
         VT.tuple
           (VT.customType (rangeTypeName ()) [])
           VT.unknownTODO
-          [ VT.unknownTODO ]
+          [ VT.customType (rangeTypeName ()) []; VT.unknownTODO ]
       let contentsDval =
         DList(
           entryVT,
           contents
-          |> List.map (fun (er, (kr, key), value) ->
-            DTuple(rangeToDT er, rangedString kr key, [ exprToDT value ]))
+          |> List.map (fun (er, key, colonR, value) ->
+            DTuple(rangeToDT er, exprToDT key, [ rangeToDT colonR; exprToDT value ]))
         )
       DEnum(
         t,

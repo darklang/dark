@@ -83,7 +83,7 @@ type TypeReference =
 
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
-  | TDict of TypeReference
+  | TDict of key: TypeReference * value: TypeReference
 
   | TCustomType of
     NameResolution<FQTypeName.FQTypeName> *
@@ -229,7 +229,7 @@ type Expr =
   // structures of data
   | EList of ID * List<Expr>
 
-  | EDict of ID * List<String * Expr>
+  | EDict of ID * List<Expr * Expr>
 
   | ETuple of ID * Expr * Expr * List<Expr>
 

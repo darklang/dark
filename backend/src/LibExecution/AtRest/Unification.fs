@@ -52,8 +52,8 @@ type internal State(environment : TypeEnvironment) =
       | TInferenceVariable variable -> Set.singleton variable
       | TStream inner
       | TList inner
-      | TDict inner
       | TDB inner -> collect inner
+      | TDict(key, value) -> Set.union (collect key) (collect value)
       | TTuple(first, second, rest) ->
         Set.unionMany
           [ collect first
@@ -166,7 +166,7 @@ let rec internal convertType
   | TypeReference.TList inner -> TList(recurse inner)
   | TypeReference.TTuple(first, second, rest) ->
     TTuple(recurse first, recurse second, List.map recurse rest)
-  | TypeReference.TDict inner -> TDict(recurse inner)
+  | TypeReference.TDict(key, value) -> TDict(recurse key, recurse value)
   | TypeReference.TFn(args, ret) -> TFn(NEList.map recurse args, recurse ret)
   | TypeReference.TDB inner -> TDB(recurse inner)
   | TypeReference.TVariable name ->
@@ -199,7 +199,7 @@ let rec internal applySubstitutions (state : State) (typ : StaticType) : StaticT
   | TList inner -> TList(recurse inner)
   | TTuple(first, second, rest) ->
     TTuple(recurse first, recurse second, List.map recurse rest)
-  | TDict inner -> TDict(recurse inner)
+  | TDict(key, value) -> TDict(recurse key, recurse value)
   | TCustom(name, args) -> TCustom(name, List.map recurse args)
   | TFn(args, ret) -> TFn(NEList.map recurse args, recurse ret)
   | TDB inner -> TDB(recurse inner)
@@ -217,8 +217,8 @@ let rec internal containsTaintedInferenceVariable
     || (Map.tryFind variable state.Substitutions |> Option.exists recurse)
   | TStream inner
   | TList inner
-  | TDict inner
   | TDB inner -> recurse inner
+  | TDict(key, value) -> recurse key || recurse value
   | TTuple(first, second, rest) ->
     recurse first || recurse second || List.exists recurse rest
   | TCustom(_, args) -> List.exists recurse args
@@ -238,8 +238,8 @@ let rec private containsInferenceVar
   | TInferenceVariable var -> var = needle
   | TStream inner
   | TList inner
-  | TDict inner
   | TDB inner -> recurse inner
+  | TDict(key, value) -> recurse key || recurse value
   | TTuple(first, second, rest) ->
     recurse first || recurse second || List.exists recurse rest
   | TCustom(_, args) -> List.exists recurse args
@@ -296,6 +296,181 @@ let rec internal normalizeAliases
   | Some(expanded, seen) -> normalizeAliases state nodeId seen expanded
   | None -> typ
 
+/// Keeps arguments for type parameters that appear in the declaration's fields.
+/// Arguments for phantom type parameters are ignored, so `Phantom<Int -> Int>` remains
+/// a usable key.
+///
+/// This stays outside the recursive group so it can accept both `StaticType` and
+/// `TypeReference` arguments.
+///
+/// CLEANUP Replace this reachability analysis with `comparable` constraints.
+let private argsThatReachValues
+  (typeParams : List<string>)
+  (usedNames : Set<string>)
+  (args : List<'arg>)
+  : List<'arg> =
+  if List.length typeParams <> List.length args then
+    args
+  else
+    List.zip typeParams args
+    |> List.filter (fun (p, _) -> Set.contains p usedNames)
+    |> List.map snd
+
+let rec internal isUsableDictKeyType
+  (state : State)
+  (seen : Set<FQTypeName.Package>)
+  (typ : StaticType)
+  : bool =
+  ensureStack ()
+  match typ with
+  | TFn _
+  | TStream _
+  | TDB _
+  | TBlob -> false
+
+  | TList inner -> isUsableDictKeyType state seen inner
+  | TDict(key, value) ->
+    isUsableDictKeyType state seen key && isUsableDictKeyType state seen value
+  | TTuple(first, second, rest) ->
+    isUsableDictKeyType state seen first
+    && isUsableDictKeyType state seen second
+    && List.forall (isUsableDictKeyType state seen) rest
+
+  | TCustom(name, args) ->
+    if Set.contains name seen then
+      true
+    else
+      match Map.tryFind name state.Environment.types with
+      | None -> true
+      | Some declaration ->
+        let seen = Set.add name seen
+        let fieldTypes = declarationFieldTypes declaration
+        let used =
+          fieldTypes
+          |> List.map (typeVariablesThatReachValues state seen)
+          |> Set.unionMany
+
+        fieldTypes |> List.forall (isUsableDictKeyDeclType state seen)
+        && (argsThatReachValues declaration.typeParams used args
+            |> List.forall (isUsableDictKeyType state seen))
+
+  // A type variable answers `true`: nothing here can say "this variable must be
+  // orderable", so it falls to the runtime check. TODO: reject these at check time with
+  // a `comparable` constraint kind -- see the CLEANUP on `argsThatReachValues`, which
+  // that would also delete.
+  | TRigidVariable _
+  | TInferenceVariable _
+
+  // Matched exhaustively, with no `_`: a new `StaticType` case should not compile until
+  // someone decides whether it can be a key. A silent `true` here is how a new
+  // unorderable type would slip past the checker into the runtime guard.
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime -> true
+
+and private declarationFieldTypes
+  (declaration : PT.TypeDeclaration.T)
+  : List<TypeReference> =
+  match declaration.definition with
+  | PT.TypeDeclaration.Alias target -> [ target ]
+  | PT.TypeDeclaration.Record fields -> fields |> NEList.toList |> List.map _.typ
+  | PT.TypeDeclaration.Enum cases ->
+    cases
+    |> NEList.toList
+    |> List.collect (fun case -> case.fields |> List.map _.typ)
+
+and private isUsableDictKeyDeclType
+  (state : State)
+  (seen : Set<FQTypeName.Package>)
+  (typ : TypeReference)
+  : bool =
+  ensureStack ()
+  let recurse = isUsableDictKeyDeclType state seen
+  match typ with
+  | TypeReference.TFn _
+  | TypeReference.TStream _
+  | TypeReference.TDB _
+  | TypeReference.TBlob -> false
+
+  | TypeReference.TList inner -> recurse inner
+  | TypeReference.TDict(key, value) -> recurse key && recurse value
+  | TypeReference.TTuple(first, second, rest) ->
+    recurse first && recurse second && List.forall recurse rest
+
+  | TypeReference.TCustomType(name, args) ->
+    match resolvedName name with
+    | Some(FQTypeName.Package packageName) ->
+      let reachable =
+        match Map.tryFind packageName state.Environment.types with
+        | None -> args
+        | Some declaration ->
+          let used =
+            declarationFieldTypes declaration
+            |> List.map (
+              typeVariablesThatReachValues state (Set.add packageName seen)
+            )
+            |> Set.unionMany
+          argsThatReachValues declaration.typeParams used args
+      isUsableDictKeyType state seen (TCustom(packageName, []))
+      && List.forall recurse reachable
+    | _ -> true // unresolved; reported elsewhere
+
+  | TypeReference.TVariable _ -> true
+  | _ -> true
+
+and private typeVariablesThatReachValues
+  (state : State)
+  (seen : Set<FQTypeName.Package>)
+  (typ : TypeReference)
+  : Set<string> =
+  let recurse = typeVariablesThatReachValues state seen
+  match typ with
+  | TypeReference.TVariable name -> Set.singleton name
+  | TypeReference.TList inner
+  | TypeReference.TStream inner
+  | TypeReference.TDB inner -> recurse inner
+  | TypeReference.TDict(key, value) -> Set.union (recurse key) (recurse value)
+  | TypeReference.TTuple(first, second, rest) ->
+    Set.unionMany
+      [ recurse first; recurse second; rest |> List.map recurse |> Set.unionMany ]
+  | TypeReference.TCustomType(name, args) ->
+    let reachableArgs =
+      match resolvedName name with
+      | Some(FQTypeName.Package packageName) when not (Set.contains packageName seen) ->
+        match Map.tryFind packageName state.Environment.types with
+        | Some declaration ->
+          let declarationVars =
+            declarationFieldTypes declaration
+            |> List.map (
+              typeVariablesThatReachValues state (Set.add packageName seen)
+            )
+            |> Set.unionMany
+          argsThatReachValues declaration.typeParams declarationVars args
+        | None -> args
+      | _ -> args
+    reachableArgs |> List.map recurse |> Set.unionMany
+  | TypeReference.TFn(parameters, ret) ->
+    Set.union
+      (parameters |> NEList.toList |> List.map recurse |> Set.unionMany)
+      (recurse ret)
+  | _ -> Set.empty
+
+
 /// Validate every component reachable from a type. Declaration parameters remain
 /// rigid; nominal record/enum recursion stops after one structural visit, while
 /// transparent alias cycles remain errors.
@@ -312,8 +487,13 @@ let rec internal validateTypeClosureFrom
   match typ with
   | TStream inner
   | TList inner
-  | TDict inner
   | TDB inner -> recurse inner
+  | TDict(key, value) ->
+    if not (isUsableDictKeyType state Set.empty key) then
+      state.Error(UnsupportedDictKeyType, nodeId, None, Some key, NoDetail)
+
+    recurse key
+    recurse value
   | TTuple(first, second, rest) ->
     recurse first
     recurse second
@@ -462,8 +642,10 @@ let rec internal unify
   | left, right when samePrimitive left right -> ()
   | TStream left, TStream right
   | TList left, TList right
-  | TDict left, TDict right
   | TDB left, TDB right -> unify state nodeId site left right
+  | TDict(leftKey, leftValue), TDict(rightKey, rightValue) ->
+    unify state nodeId site leftKey rightKey
+    unify state nodeId site leftValue rightValue
   | TTuple(l1, l2, lr), TTuple(r1, r2, rr) when List.length lr = List.length rr ->
     unify state nodeId site l1 r1
     unify state nodeId site l2 r2
@@ -529,8 +711,8 @@ let rec internal inferenceVariables (typ : StaticType) : Set<int> =
   | TInferenceVariable var -> Set.singleton var
   | TStream inner
   | TList inner
-  | TDict inner
   | TDB inner -> recurse inner
+  | TDict(key, value) -> Set.union (recurse key) (recurse value)
   | TTuple(first, second, rest) ->
     Set.unionMany
       [ recurse first; recurse second; rest |> List.map recurse |> Set.unionMany ]
@@ -583,7 +765,7 @@ let internal instantiateScheme
     | TList inner -> TList(replace inner)
     | TTuple(first, second, rest) ->
       TTuple(replace first, replace second, List.map replace rest)
-    | TDict inner -> TDict(replace inner)
+    | TDict(key, value) -> TDict(replace key, replace value)
     | TCustom(name, args) -> TCustom(name, List.map replace args)
     | TFn(args, ret) -> TFn(NEList.map replace args, replace ret)
     | TDB inner -> TDB(replace inner)

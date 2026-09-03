@@ -177,9 +177,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       pairs
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
-        Stdlib.List.append
-          [ line (depth + 1) "key" key ]
-          (expr ctx (depth + 2) value))
+        Stdlib.List.append (expr ctx (depth + 1) key) (expr ctx (depth + 2) value))
       |> Stdlib.List.flatten
     Stdlib.List.append (here "Dict" $"{n} entries") pairLines
 

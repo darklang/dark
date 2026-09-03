@@ -65,9 +65,10 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
     w.Write 21uy
     FQTypeName.write w fqTypeName
     List.write w writeValueType typeArgs
-  | KTDict vt ->
+  | KTDict(keyType, valueType) ->
     w.Write 22uy
-    writeValueType w vt
+    writeValueType w keyType
+    writeValueType w valueType
   | KTBlob -> w.Write 23uy
   | KTStream vt ->
     w.Write 24uy
@@ -165,10 +166,11 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     writeDval w first
     writeDval w second
     List.write w writeDval rest
-  | DDict(valueType, entries) ->
+  | DDict(keyType, valueType, entries) ->
     w.Write 19uy
+    writeValueType w keyType
     writeValueType w valueType
-    Map.write String.write writeDval w entries
+    Map.write (fun w (k : DictKey) -> writeDval w k.Dval) writeDval w entries
   | DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields) ->
     w.Write 20uy
     FQTypeName.write w sourceTypeName
@@ -254,7 +256,10 @@ and readKnownType (r : BinaryReader) : KnownType =
     let fqTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
     KTCustomType(fqTypeName, typeArgs)
-  | 22uy -> KTDict(readValueType r)
+  | 22uy ->
+    let keyType = readValueType r
+    let valueType = readValueType r
+    KTDict(keyType, valueType)
   | 23uy -> KTBlob
   | 24uy -> KTStream(readValueType r)
   | 25uy -> KTInt
@@ -322,9 +327,15 @@ and readDvalImpl (r : BinaryReader) : Dval =
     let rest = List.read r readDval
     DTuple(first, second, rest)
   | 19uy ->
+    let keyType = readValueType r
     let valueType = readValueType r
-    let entries = Map.read String.read readDval r
-    DDict(valueType, entries)
+    let readKey (r : BinaryReader) : DictKey =
+      let k = readDval r
+      if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey k) then
+        raiseFormatError "Dict key that cannot be a key"
+      DictKey k
+    let entries = Map.read readKey readDval r
+    DDict(keyType, valueType, entries)
   | 20uy ->
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r

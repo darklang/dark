@@ -261,9 +261,9 @@ module Instruction =
       w.Write(createTo : int)
       List.write
         w
-        (fun w (key, reg) ->
-          String.write w key
-          w.Write(reg : int))
+        (fun w (keyReg, valueReg) ->
+          w.Write(keyReg : int)
+          w.Write(valueReg : int))
         entries
     | CreateRecord(createTo, typeName, typeArgs, fields) ->
       w.Write 13uy
@@ -381,9 +381,9 @@ module Instruction =
       let createTo = r.ReadInt32()
       let entries =
         List.read r (fun r ->
-          let key = String.read r
-          let reg = r.ReadInt32()
-          (key, reg))
+          let keyReg = r.ReadInt32()
+          let valueReg = r.ReadInt32()
+          (keyReg, valueReg))
       CreateDict(createTo, entries)
     | 13uy ->
       let createTo = r.ReadInt32()

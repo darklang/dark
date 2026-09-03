@@ -4,16 +4,16 @@ module Darklang.Cli.Installation.Config
 
 val defaultConfig =
   Dict
-    { version = "v0.0.0"
-      lastUpdateTimestamp = "0" }
+    { "version": "v0.0.0"
+      "lastUpdateTimestamp": "0" }
 
 // TODO: typify the error messages
-let read (configPath: String) : Stdlib.Result.Result<Dict<String>, String> =
+let read (configPath: String) : Stdlib.Result.Result<Dict<String, String>, String> =
   match Stdlib.Cli.FileSystem.readFile configPath with
   | Ok content ->
     content
     |> Stdlib.String.fromBlobWithReplacement
-    |> Stdlib.Json.parse<Dict<String>>
+    |> Stdlib.Json.parse<Dict<String, String>>
     |> Stdlib.Result.mapError (fun _ -> "Failed to parse config.json")
   | Error _ -> Stdlib.Result.Result.Error "Failed to read config.json"
 
@@ -39,7 +39,7 @@ let updateVersion
 
   let serializedConfig =
     updatedConfig
-    |> Stdlib.Json.serialize<Dict<String>>
+    |> Stdlib.Json.serialize<Dict<String, String>>
     |> Stdlib.String.toBlob
 
   match Stdlib.Cli.FileSystem.overwriteFile configPath serializedConfig with

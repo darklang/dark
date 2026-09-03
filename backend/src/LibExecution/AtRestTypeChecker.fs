@@ -84,7 +84,7 @@ let private displayType (scheme : TypeScheme) : StaticType =
     | TList inner -> TList(replace inner)
     | TTuple(first, second, rest) ->
       TTuple(replace first, replace second, List.map replace rest)
-    | TDict inner -> TDict(replace inner)
+    | TDict(key, value) -> TDict(replace key, replace value)
     | TCustom(name, args) -> TCustom(name, List.map replace args)
     | TFn(args, ret) -> TFn(NEList.map replace args, replace ret)
     | TDB inner -> TDB(replace inner)

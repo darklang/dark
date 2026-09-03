@@ -409,7 +409,7 @@ let persistableAcceptsPlainShapes =
         RT.DBlob(RT.Persistent("deadbeef", 4L))
         RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
         RT.DTuple(RT.DInt64 1L, RT.DString "a", [])
-        RT.DDict(RT.ValueType.Known RT.KTInt64, Map.ofList [ ("k", RT.DInt64 42L) ]) ]
+        Dval.stringDict RT.KTInt64 [ ("k", RT.DInt64 42L) ] ]
     for dv in cases do
       Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
   }
@@ -604,16 +604,21 @@ let rewriteWithNoOpPreservesNestedRefs =
     let inner = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 7L ])
     let middle = RT.DTuple(RT.DString "k", inner, [])
     let outer =
-      RT.DDict(RT.ValueType.Unknown, Map [ "a", middle; "b", RT.DBool true ])
+      RT.DDict(
+        RT.ValueType.Known RT.KTString,
+        RT.ValueType.Unknown,
+        Map
+          [ RT.DictKey(RT.DString "a"), middle
+            RT.DictKey(RT.DString "b"), RT.DBool true ]
+      )
     let! result = noopRewriteWith outer
     Expect.isTrue (obj.ReferenceEquals(result, outer)) "outer DDict ref preserved"
     // Reach into the result and verify the inner refs survived too.
     match result with
-    | RT.DDict(_, m) ->
-      Expect.isTrue
-        (obj.ReferenceEquals(m["a"], middle))
-        "nested DTuple ref preserved"
-      match m["a"] with
+    | RT.DDict(_, _, m) ->
+      let a = m[RT.DictKey(RT.DString "a")]
+      Expect.isTrue (obj.ReferenceEquals(a, middle)) "nested DTuple ref preserved"
+      match a with
       | RT.DTuple(_, innerResult, _) ->
         Expect.isTrue
           (obj.ReferenceEquals(innerResult, inner))

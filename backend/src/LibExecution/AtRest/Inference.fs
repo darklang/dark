@@ -799,9 +799,11 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     elements |> List.iter (checkExpr state env elementType)
     TList elementType
   | EDict(nodeId, entries) ->
+    let keyType = state.Fresh(Some nodeId)
     let valueType = state.Fresh(Some nodeId)
+    entries |> List.iter (fst >> checkExpr state env keyType)
     entries |> List.iter (snd >> checkExpr state env valueType)
-    TDict valueType
+    TDict(keyType, valueType)
   | ETuple(_, first, second, rest) ->
     TTuple(
       inferExpr state env first,

@@ -10,45 +10,72 @@ module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 
+let varK = TVariable "k"
 let varA = TVariable "a"
 let varB = TVariable "b"
 
 
-/// Add every (key, value) tuple to the map, merging the value type as it goes. A top-level
-/// recursion rather than a fold: the lambda would be a closure and the accumulator a tuple, both
-/// allocated per entry.
 let rec private addAllEntries
   (threadID : ThreadID)
-  (typ : ValueType)
-  (acc : DvalMap)
+  (keyType : ValueType)
+  (valueType : ValueType)
+  (acc : DictMap)
   (remaining : List<Dval>)
-  : struct (ValueType * DvalMap) =
+  : struct (ValueType * ValueType * DictMap) =
   match remaining with
-  | [] -> struct (typ, acc)
-  | DTuple(DString k, value, []) :: rest ->
-    let struct (typ, acc) =
+  | [] -> struct (keyType, valueType, acc)
+  | DTuple(k, value, []) :: rest ->
+    let struct (keyType, valueType, acc) =
       TypeChecker.DvalCreator.dictAddEntry
         threadID
-        typ
+        keyType
+        valueType
         acc
         k
         value
         TypeChecker.ReplaceValue
-    addAllEntries threadID typ acc rest
+    addAllEntries threadID keyType valueType acc rest
   | dv :: _ ->
     Exception.raiseInternal
-      "Not string tuples in fromListOverwritingDuplicates"
+      "Not pair tuples in fromListOverwritingDuplicates"
       [ "dval", dv ]
+
+let rec private addAllEntriesUnlessDuplicate
+  (threadID : ThreadID)
+  (keyType : ValueType)
+  (valueType : ValueType)
+  (acc : DictMap)
+  (remaining : List<Dval>)
+  : Option<struct (ValueType * ValueType * DictMap)> =
+  match remaining with
+  | [] -> Some(struct (keyType, valueType, acc))
+  | DTuple(k, value, []) :: rest ->
+    LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
+
+    if Map.containsKey (DictKey k) acc then
+      None
+    else
+      let struct (keyType, valueType, acc) =
+        TypeChecker.DvalCreator.dictAddEntry
+          threadID
+          keyType
+          valueType
+          acc
+          k
+          value
+          TypeChecker.ReplaceValue
+      addAllEntriesUnlessDuplicate threadID keyType valueType acc rest
+  | dv :: _ -> Exception.raiseInternal "Not pair tuples in fromList" [ "dval", dv ]
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) "" ]
+      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
       returnType = TInt
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, _, [| DDict(_vtTODO, o) |] -> Ply(Dval.int (bigint (Map.count o)))
+        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.int (bigint (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -58,18 +85,18 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictKeys" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = TList TString
-      description =
-        "Returns <param dict>'s keys in a <type List>, in an arbitrary order"
+      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      returnType = TList varK
+      description = "Returns <param dict>'s keys in a <type List>, in key order"
       fn =
         (function
-        | _, _, _, [| DDict(_, o) |] ->
-          // CLEANUP follow up here if/when `key` type is dynamic (not just String)
+        | _, _, _, [| DDict(keyType, _, o) |] ->
           // `Map.foldBack` walks the tree directly, in `Map.keys`' ascending order. A lazy `Seq`
           // chain would cost an enumerator and a closure per stage.
-          Map.foldBack (fun k _ acc -> DString k :: acc) o []
-          |> Dval.list KTString
+          DList(
+            keyType,
+            Map.foldBack (fun (k : DictKey) _ acc -> k.Dval :: acc) o []
+          )
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -80,13 +107,13 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictValues" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) "" ]
+      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
       returnType = (TList varA)
       description =
-        "Returns <param dict>'s values in a <type List>, in an arbitrary order"
+        "Returns <param dict>'s values in a <type List>, ordered by their keys"
       fn =
         (function
-        | _, _, _, [| DDict(valueType, o) |] ->
+        | _, _, _, [| DDict(_, valueType, o) |] ->
           // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
           DList(valueType, Map.foldBack (fun _ v acc -> v :: acc) o []) |> Ply
         | _ -> incorrectArgs ())
@@ -98,18 +125,17 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictToList" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = TList(TTuple(TString, varA, []))
+      parameters = [ Param.make "dict" (TDict(varK, varA)) "" ]
+      returnType = TList(TTuple(varK, varA, []))
       description =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, "
-        + "in an arbitrary order. This function is the opposite of <fn "
-        + "Dict.fromList>"
+        + "in key order. This function is the opposite of <fn Dict.fromList>"
       fn =
         (function
-        | _, _, _, [| DDict(valueType, o) |] ->
-          let f k v acc = DTuple(DString k, v, []) :: acc
+        | _, _, _, [| DDict(keyType, valueType, o) |] ->
+          let f (k : DictKey) v acc = DTuple(k.Dval, v, []) :: acc
           Map.foldBack f o []
-          |> fun pairs -> DList(VT.tuple VT.string valueType [], pairs)
+          |> fun pairs -> DList(VT.tuple keyType valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -119,23 +145,25 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictFromListOverwritingDuplicates" 0
-      typeParams = [ "a" ]
-      parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
-      returnType = TDict varA
+      typeParams = [ "k"; "a" ]
+      parameters = [ Param.make "entries" (TList(TTuple(varK, varA, []))) "" ]
+      returnType = TDict(varK, varA)
       description =
         "Returns a <type dict> with <param entries>. Each value in <param "
-        + "entries> must be a {{(key, value)}} tuple, where <var key> is a <type "
-        + "String>.\n\nIf <param entries> contains duplicate <var key>s, the last "
-        + "entry with that key will be used in the resulting dictionary (use <fn "
-        + "Dict.fromList> if you want to enforce unique keys).\n\nThis function "
-        + "is the opposite of <fn Dict.toList>."
+        + "entries> must be a {{(key, value)}} tuple.\n\nIf <param entries> "
+        + "contains duplicate <var key>s, the last entry with that key will be "
+        + "used in the resulting dictionary (use <fn Dict.fromList> if you want "
+        + "to enforce unique keys).\n\nThis function is the opposite of <fn "
+        + "Dict.toList>."
       fn =
         (function
-        | _, _, _, [| DList(_, []) |] -> DDict(VT.unknown, Map.empty) |> Ply
+        | _, _, _, [| DList(_, []) |] ->
+          DDict(VT.unknown, VT.unknown, Map.empty) |> Ply
 
-        | _, vm, _, [| DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) |] ->
-          let struct (typ, map) = addAllEntries vm.threadID valueType Map.empty l
-          DDict(typ, map) |> Ply
+        | _, vm, _, [| DList(ValueType.Known(KTTuple(keyType, valueType, [])), l) |] ->
+          let struct (keyType, valueType, map) =
+            addAllEntries vm.threadID keyType valueType Map.empty l
+          DDict(keyType, valueType, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -145,37 +173,33 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictFromList" 0
       typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
-      returnType = TypeReference.option (TDict varB)
+      parameters = [ Param.make "entries" (TList(TTuple(varK, varB, []))) "" ]
+      returnType = TypeReference.option (TDict(varK, varB))
       description =
-        "Each value in <param entries> must be a {{(key, value)}} tuple, where "
-        + "<var key> is a <type String>.\n\nIf <param entries> contains no "
-        + "duplicate keys, returns {{Some <var dict>}} where <var dict> has "
-        + "<param entries>.\n\nOtherwise, returns {{None}} (use <fn "
-        + "Dict.fromListOverwritingDuplicates> if you want to overwrite duplicate "
-        + "keys)."
+        "Each value in <param entries> must be a {{(key, value)}} tuple.\n\nIf "
+        + "<param entries> contains no duplicate keys, returns {{Some <var "
+        + "dict>}} where <var dict> has <param entries>.\n\nOtherwise, returns "
+        + "{{None}} (use <fn Dict.fromListOverwritingDuplicates> if you want to "
+        + "overwrite duplicate keys)."
       fn =
-        let dictType = VT.unknownTODO
-        let optType = VT.dict dictType
         (function
-        | _, vmState, _, [| DList(_vtTODO, l) |] ->
-          let f acc dv =
-            match acc, dv with
-            | None, _ -> None
-            | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
-            | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
-            | Some _, DTuple(_, _, [])
-            | Some _, _ ->
-              Exception.raiseInternal "Not string tuples in fromList" [ "dval", dv ]
-
-          let result = List.fold f (Some Map.empty) l
-
-          match result with
-          | Some entries ->
-            DDict(dictType, entries)
-            |> TypeChecker.DvalCreator.optionSome vmState.threadID optType
+        | _, vm, _, [| DList(_vtTODO, l) |] ->
+          match
+            addAllEntriesUnlessDuplicate
+              vm.threadID
+              VT.unknown
+              VT.unknown
+              Map.empty
+              l
+          with
+          | Some(struct (keyType, valueType, entries)) ->
+            DDict(keyType, valueType, entries)
+            |> TypeChecker.DvalCreator.optionSome
+              vm.threadID
+              (VT.dict keyType valueType)
             |> Ply
-          | None -> TypeChecker.DvalCreator.optionNone optType |> Ply
+          | None ->
+            TypeChecker.DvalCreator.optionNone (VT.dict VT.unknown VT.unknown) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -185,7 +209,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictGet" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
+      parameters =
+        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
       returnType = TypeReference.option varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding "
@@ -193,8 +218,9 @@ let fns () : List<BuiltInFn> =
         + "{{None}}."
       fn =
         (function
-        | _, vm, _, [| DDict(_vtTODO, o); DString s |] ->
-          Map.find s o
+        | _, vm, _, [| DDict(_, _, o); key |] ->
+          LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
+          Map.find (DictKey key) o
           |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
           |> Ply
         | _ -> incorrectArgs ())
@@ -206,14 +232,17 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictMember" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
+      parameters =
+        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
       returnType = TBool
       description =
         "Returns {{true}} if the <param dict> contains an entry with <param "
         + "key>, and {{false}} otherwise"
       fn =
         (function
-        | _, _, _, [| DDict(_, o); DString s |] -> Ply(DBool(Map.containsKey s o))
+        | _, _, _, [| DDict(_, _, o); key |] ->
+          LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
+          Ply(DBool(Map.containsKey (DictKey key) o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -224,24 +253,25 @@ let fns () : List<BuiltInFn> =
     { name = fn "dictMerge" 0
       typeParams = []
       parameters =
-        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
-      returnType = TDict varA
+        [ Param.make "left" (TDict(varK, varA)) ""
+          Param.make "right" (TDict(varK, varA)) "" ]
+      returnType = TDict(varK, varA)
       description =
         "Returns a combined dictionary with both dictionaries' entries. If the "
         + "same key exists in both <param left> and <param right>, it will have "
         + "the value from <param right>."
       fn =
         (function
-        | _, _vm, _, [| DDict(vt1, intoMap); DDict(vt2, fromMap) |] ->
-          match VT.merge vt1 vt2 with
-          | Ok mergedType ->
+        | _, _vm, _, [| DDict(kt1, vt1, intoMap); DDict(kt2, vt2, fromMap) |] ->
+          match VT.merge kt1 kt2, VT.merge vt1 vt2 with
+          | Ok mergedKeyType, Ok mergedValueType ->
             let f accMap k v = Map.add k v accMap
             let mergedMap = Map.fold f intoMap fromMap
-            DDict(mergedType, mergedMap) |> Ply
-          | Error() ->
+            DDict(mergedKeyType, mergedValueType, mergedMap) |> Ply
+          | _ ->
             Exception.raiseInternal
               "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
-              [ ("vt1", vt1); ("vt2", vt2) ]
+              [ ("kt1", kt1); ("kt2", kt2); ("vt1", vt1); ("vt2", vt2) ]
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -250,27 +280,28 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictSet" 0
-      typeParams = [ "a" ]
+      typeParams = [ "k"; "a" ]
       parameters =
-        [ Param.make "dict" (TDict(TVariable "a")) ""
-          Param.make "key" TString ""
+        [ Param.make "dict" (TDict(varK, varA)) ""
+          Param.make "key" varK ""
           Param.make "val" varA "" ]
-      returnType = (TDict(TVariable "a"))
+      returnType = TDict(varK, varA)
       description =
         "Returns a copy of <param dict> with the <param key> set to <param "
         + "val>. If the key already exists in the Dict, an exception is raised."
       fn =
         (function
-        | _, vm, _, [| DDict(vt, o); DString k; v |] ->
-          let struct (typ, map) =
+        | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
+          let struct (kt, vt, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
+              kt
               vt
               o
               k
               v
               TypeChecker.ThrowIfDuplicate
-          DDict(typ, map) |> Ply
+          DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -279,28 +310,29 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictSetOverridingDuplicates" 0
-      typeParams = [ "a" ]
+      typeParams = [ "k"; "a" ]
       parameters =
-        [ Param.make "dict" (TDict(TVariable "a")) ""
-          Param.make "key" TString ""
+        [ Param.make "dict" (TDict(varK, varA)) ""
+          Param.make "key" varK ""
           Param.make "val" varA "" ]
-      returnType = (TDict(TVariable "a"))
+      returnType = TDict(varK, varA)
       description =
         "Returns a copy of <param dict> with the <param key> set to <param "
         + "val>. If the key already exists in the Dict, the previous value is "
         + "overwritten."
       fn =
         (function
-        | _, vm, _, [| DDict(vt, o); DString k; v |] ->
-          let struct (typ, map) =
+        | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
+          let struct (kt, vt, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
+              kt
               vt
               o
               k
               v
               TypeChecker.ReplaceValue
-          DDict(typ, map) |> Ply
+          DDict(kt, vt, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -310,13 +342,16 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dictRemove" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
-      returnType = TDict varA
+      parameters =
+        [ Param.make "dict" (TDict(varK, varA)) ""; Param.make "key" varK "" ]
+      returnType = TDict(varK, varA)
       description =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."
       fn =
         (function
-        | _, _, _, [| DDict(vt, o); DString k |] -> DDict(vt, Map.remove k o) |> Ply
+        | _, _, _, [| DDict(kt, vt, o); k |] ->
+          LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
+          DDict(kt, vt, Map.remove (DictKey k) o) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

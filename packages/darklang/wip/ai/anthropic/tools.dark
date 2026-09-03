@@ -53,7 +53,7 @@ let boolProp (description: String) : PropertyDef =
 
 type ToolInputSchema =
   { ``type``: String
-    properties: Dict<PropertyDef>
+    properties: Dict<String, PropertyDef>
     required: Stdlib.Option.Option<List<String>> }
 
 type Tool =
@@ -67,7 +67,7 @@ type Tool =
 let makeTool
   (name: String)
   (description: String)
-  (properties: Dict<PropertyDef>)
+  (properties: Dict<String, PropertyDef>)
   (required: List<String>)
   : Tool =
   Tool
@@ -86,7 +86,7 @@ let makeTool
 let makeToolStrict
   (name: String)
   (description: String)
-  (properties: Dict<PropertyDef>)
+  (properties: Dict<String, PropertyDef>)
   (required: List<String>)
   : Tool =
   Tool
@@ -104,7 +104,7 @@ let makeToolStrict
 let makeToolCached
   (name: String)
   (description: String)
-  (properties: Dict<PropertyDef>)
+  (properties: Dict<String, PropertyDef>)
   (required: List<String>)
   (cache: Models.CacheControl)
   : Tool =

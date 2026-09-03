@@ -1,7 +1,7 @@
 module Darklang.ModelContextProtocol.ServerBuilder.Prompts
 
 // Get all prompt descriptions from the builder
-let getPromptDescriptions (server: McpServerBuilder) : Dict<ModelContextProtocol.PromptDescription> =
+let getPromptDescriptions (server: McpServerBuilder) : Dict<String, ModelContextProtocol.PromptDescription> =
   server.prompts
   |> Stdlib.Dict.map (fun _key promptDef -> promptDef.description)
 

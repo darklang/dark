@@ -522,12 +522,14 @@ let executeCompiledQuery
       let! kvPairs =
         results
         |> List.map (fun (key, data) ->
-          dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
+          dbToDval types threadID tst db data
+          |> Ply.map (fun dval -> (RT.DString key, dval)))
         |> Ply.List.flatten
 
       return
         LibExecution.TypeChecker.DvalCreator.dict
           threadID
+          LibExecution.ValueType.string
           LibExecution.ValueType.unknownDbTODO
           kvPairs
 

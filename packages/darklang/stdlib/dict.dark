@@ -5,81 +5,80 @@ module Darklang.Stdlib.Dict
 val empty = Dict { }
 
 /// Returns {{true}} if the <param dict> contains no entries
-let isEmpty (dict: Dict<'a>) : Bool = dict == Dict.empty
+let isEmpty (dict: Dict<'k, 'v>) : Bool = dict == Dict.empty
 
 /// Returns a dictionary with a single entry {{<param key>: <param value>}}
-let singleton (key: String) (value: 'a) : Dict<'a> =
+let singleton (key: 'k) (value: 'v) : Dict<'k, 'v> =
   Stdlib.Dict.set (Dict { }) key value
 
 /// Returns the number of entries in <param dict>
-let size (dict: Dict<'a>) : Int =
+let size (dict: Dict<'k, 'v>) : Int =
   Builtin.dictSize dict
 
 
 /// If the <param dict> contains <param key>, returns the corresponding value,
 /// wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}.
-let get (dict: Dict<'a>) (key: String) : Stdlib.Option.Option<'a> =
+let get (dict: Dict<'k, 'v>) (key: 'k) : Stdlib.Option.Option<'v> =
   Builtin.dictGet dict key
 
 
 /// Returns a copy of <param dict> with the <param key> set to <param val>
-let set (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
+let set (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
   Builtin.dictSet dict key ``val``
 
 
 /// Returns a copy of <param dict> with the <param key> set to <param val>
-let setOverridingDuplicates (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
+let setOverridingDuplicates (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
   Builtin.dictSetOverridingDuplicates dict key ``val``
 
 
 /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
-let remove (dict: Dict<'a>) (key: String) : Dict<'a> =
+let remove (dict: Dict<'k, 'v>) (key: 'k) : Dict<'k, 'v> =
   Builtin.dictRemove dict key
 
 
 /// Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>.
-let merge (left: Dict<'a>) (right: Dict<'a>) : Dict<'a> =
+let merge (left: Dict<'k, 'v>) (right: Dict<'k, 'v>) : Dict<'k, 'v> =
   Builtin.dictMerge left right
 
 
-/// Returns <param dict>'s keys in a <type List>, in an arbitrary order
-let keys (dict: Dict<'a>) : List<String> =
+/// Returns <param dict>'s keys in a <type List>, in key order
+let keys (dict: Dict<'k, 'v>) : List<'k> =
   Builtin.dictKeys dict
 
 
-/// Returns <param dict>'s values in a <type List>, in an arbitrary order
-let values (dict: Dict<'a>) : List<'a> =
+/// Returns <param dict>'s values in a <type List>, in key order
+let values (dict: Dict<'k, 'v>) : List<'v> =
   Builtin.dictValues dict
 
 
-/// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict.fromList>
-let toList (dict: Dict<'a>) : List<(String * 'a)> =
+/// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in key order. This function is the opposite of <fn Dict.fromList>
+let toList (dict: Dict<'k, 'v>) : List<('k * 'v)> =
   Builtin.dictToList dict
 
 
 /// Returns a <type dict> with <param entries>. Each value in <param entries>
-/// must be a {{(key, value)}} tuple, where <var key> is a <type String>.
+/// must be a {{(key, value)}} tuple.
 /// If <param entries> contains duplicate <var key>s, the last entry with that
 /// key will be used in the resulting dictionary (use <fn Dict.fromList> if you
 /// want to enforce unique keys).
 /// This function is the opposite of <fn Dict.toList>.
-let fromListOverwritingDuplicates (entries: List<(String * 'a)>) : Dict<'a> =
+let fromListOverwritingDuplicates (entries: List<('k * 'v)>) : Dict<'k, 'v> =
   Builtin.dictFromListOverwritingDuplicates entries
 
 
-/// Each value in <param entries> must be a {{(key, value)}} tuple, where <var
-/// key> is a <type String>.
+/// Each value in <param entries> must be a {{(key, value)}} tuple.
 /// If <param entries> contains no duplicate keys, returns {{Some <var dict>}}
 /// where <var dict> has <param entries>.
 /// Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
 /// if you want to overwrite duplicate keys).
-let fromList (entries: List<(String * 'a)>) : Stdlib.Option.Option<Dict<'a>> =
+let fromList (entries: List<('k * 'v)>) : Stdlib.Option.Option<Dict<'k, 'v>> =
   Builtin.dictFromList entries
 
 
 /// Returns {{true}} if the <param dict> contains an entry with <param key>,
 /// and {{false}} otherwise
-let ``member`` (dict: Dict<'a>) (key: String) : Bool =
+let ``member`` (dict: Dict<'k, 'v>) (key: 'k) : Bool =
   Builtin.dictMember dict key
 
 
@@ -87,7 +86,7 @@ let ``member`` (dict: Dict<'a>) (key: String) : Bool =
 /// dict> with values that have been transformed by {{fn}}, which operates on
 /// each key-value pair.
 /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
-let map (dict: Dict<'a>) (fn: String -> 'a -> 'b) : Dict<'b> =
+let map (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> 'b) : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toList
   |> List.map (fun (k, v) -> (k, fn k v))
@@ -95,14 +94,14 @@ let map (dict: Dict<'a>) (fn: String -> 'a -> 'b) : Dict<'b> =
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
-let iter (dict: Dict<'a>) (fn: String -> 'a -> Unit) : Unit =
+let iter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Unit) : Unit =
   dict |> Stdlib.Dict.toList |> List.iter (fun (k, v) -> fn k v)
 
 
 /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
 /// dict> that contains only the entries of <param dict> for which <param fn>
 /// returned {{true}}.
-let filter (dict: Dict<'a>) (fn: String -> 'a -> Bool) : Dict<'a> =
+let filter (dict: Dict<'k, 'v>) (fn: 'k -> 'v -> Bool) : Dict<'k, 'v> =
   dict
   |> Stdlib.Dict.toList
   |> List.filter (fun (k, v) -> fn k v)
@@ -114,9 +113,9 @@ let filter (dict: Dict<'a>) (fn: String -> 'a -> Bool) : Dict<'a> =
 /// If {{fn key value}} returns {{Some newValue}}, adds the entry <var key>: <var newValue> to the new dictionary.
 /// This function combines <fn Dict.filter> and <fn Dict.map>.
 let filterMap
-  (dict: Dict<'a>)
-  (fn: String -> 'a -> Option.Option<'b>)
-  : Dict<'b> =
+  (dict: Dict<'k, 'v>)
+  (fn: 'k -> 'v -> Option.Option<'b>)
+  : Dict<'k, 'b> =
   dict
   |> Stdlib.Dict.toList
   |> List.filterMap (fun (k, v) ->

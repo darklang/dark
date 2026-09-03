@@ -23,6 +23,16 @@ let namedRegisters (prs: List<(String * LanguageTools.RuntimeTypes.Register)>) :
   |> Stdlib.String.join ", "
 
 
+let registerPairs
+  (prs: List<(LanguageTools.RuntimeTypes.Register * LanguageTools.RuntimeTypes.Register)>)
+  : String =
+  prs
+  |> Stdlib.List.map (fun pair ->
+    let (k, v) = pair
+    $"{register k}: {register v}")
+  |> Stdlib.String.join ", "
+
+
 /// Register-aware pattern rendering. `PrettyPrinter.RuntimeTypes.letPattern` prints `LPVariable` as
 /// "[variable]" because it has no register vocabulary; in a listing the register is the whole point.
 let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
@@ -103,7 +113,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   | DInt i -> Stdlib.Int.toString i
   | DFloat f -> Stdlib.Float.toString f
   | DList(_, items) -> $"[{Stdlib.Int.toString (Stdlib.List.length items)} items]"
-  | DDict(_, entries) ->
+  | DDict(_, _, entries) ->
     let n = Stdlib.List.length (Stdlib.Dict.keys entries)
     $"{{{Stdlib.Int.toString n} entries}}"
   | DRecord(_, typeName, _, fields) ->
@@ -180,7 +190,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     let all = registers (Stdlib.List.append [ first, second ] theRest)
     $"{register t} <- ({all})"
   | CreateList(t, items) -> $"{register t} <- [{registers items}]"
-  | CreateDict(t, entries) -> $"{register t} <- {{{namedRegisters entries}}}"
+  | CreateDict(t, entries) -> $"{register t} <- {{{registerPairs entries}}}"
   | CreateRecord(t, typeName, _, fields) ->
     let n = PrettyPrinter.RuntimeTypes.typeName branchId typeName
     $"{register t} <- {n} {{{namedRegisters fields}}}"

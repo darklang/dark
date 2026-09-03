@@ -20,7 +20,7 @@ let content () : String =
 
 ## Collections
   List<T>     [1, 2]
-  Dict<T>     Dict { key = "value" }
+  Dict<K, V>  Dict { "key": "value" }
   (a, b)      tuple
 
 ## Records

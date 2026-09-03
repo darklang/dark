@@ -87,15 +87,15 @@
  Stdlib.List.map triplets transformer) = error="Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
 Stdlib.Dict.map
   (Dict
-    { key1 = ("val11", "val12")
-      key2 = ("val21", "val22") })
+    { "key1": ("val11", "val12")
+      "key2": ("val21", "val22") })
   (fun x (y, z) -> x ++ y ++ z) =
-   (Dict { key2 = "key2val21val22"; key1 = "key1val11val12" })
+   (Dict { "key2": "key2val21val22"; "key1": "key1val11val12" })
 
 (Stdlib.Dict.map
-  (Dict { key1 = ("val11", "val12"); key2 = ("val21", "val22") })
+  (Dict { "key1": ("val11", "val12"); "key2": ("val21", "val22") })
   (fun x (_, z) -> x ++ z)) =
-    (Dict { key2 = "key2val22"; key1 = "key1val12" })
+    (Dict { "key2": "key2val22"; "key1": "key1val12" })
 
 
 // Regression check: applying a function directly from a record field.

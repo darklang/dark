@@ -49,7 +49,7 @@ type Context =
     currentModule: List<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
-    currentFunction: Stdlib.Option.Option<(String * Dict<Int>)>
+    currentFunction: Stdlib.Option.Option<(String * Dict<String, Int>)>
 
     /// Columns available. Layout decisions are made against this; it is a field rather than something
     /// looked up so that printing stays reproducible and a caller can print for a pane.
@@ -298,7 +298,11 @@ let typeReferenceDocWithFnParens
   match t with
   | TStream inner -> angled "Stream" [ typeReferenceDocWithFnParens ctx false inner ]
   | TList inner -> angled "List" [ typeReferenceDocWithFnParens ctx false inner ]
-  | TDict inner -> angled "Dict" [ typeReferenceDocWithFnParens ctx false inner ]
+  | TDict(key, value) ->
+    angled
+      "Dict"
+      [ typeReferenceDocWithFnParens ctx false key
+        typeReferenceDocWithFnParens ctx false value ]
   | TDB inner -> angled "DB" [ typeReferenceDocWithFnParens ctx false inner ]
 
   | TTuple(first, second, theRest) ->
@@ -387,8 +391,10 @@ let typeReferenceFlatAtPrecedence
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
-  | TDict inner ->
-    $"Dict<{typeReferenceFlatAtPrecedence ctx false inner}>"
+  | TDict(key, value) ->
+    let k = typeReferenceFlatAtPrecedence ctx false key
+    let v = typeReferenceFlatAtPrecedence ctx false value
+    $"Dict<{k}, {v}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -902,7 +908,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
         Stdlib.Pretty.concat
-          (txt $"{PrettyPrinter.formatFieldName key} = ")
+          (Stdlib.Pretty.concat (exprDoc ctx key) (txt ": "))
           (exprDoc ctx value))
 
     Stdlib.Pretty.concat (txt "Dict ") (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
@@ -998,7 +1004,7 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       pairs
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
-        $"{PrettyPrinter.formatFieldName key} = {expr ctx value}")
+        $"{expr ctx key}: {expr ctx value}")
       |> Stdlib.String.join "; "
       |> fun parts -> "{ " ++ parts ++ " }"
 

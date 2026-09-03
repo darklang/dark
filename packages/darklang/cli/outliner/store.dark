@@ -26,8 +26,8 @@ type V1TreeStructure =
     collapsed: Bool }
 
 type V1Outline =
-  { nodes: Dict<V1NodeContent>
-    structure: Dict<V1TreeStructure>
+  { nodes: Dict<String, V1NodeContent>
+    structure: Dict<String, V1TreeStructure>
     rootChildren: List<Int>
     nextId: Int }
 

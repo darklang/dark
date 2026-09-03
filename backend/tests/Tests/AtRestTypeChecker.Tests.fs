@@ -105,6 +105,9 @@ let private enumCase
 let private customType (name : PT.FQTypeName.Package) : PT.TypeReference =
   PT.TCustomType(PT.NameResolution.ok (PT.FQTypeName.Package name), [])
 
+let private nr (name : PT.FQTypeName.Package) =
+  PT.NameResolution.ok (PT.FQTypeName.Package name)
+
 let private unitTests =
   testList
     "checker"
@@ -579,9 +582,247 @@ let private unitTests =
         |> expectChecked
       }
 
+      test "rejects a Dict keyed by a function type" {
+        let keyed = PT.TDict(PT.TFn(NEList.singleton PT.TInt, PT.TInt), PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 190UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "rejects a Dict keyed by a DB reference" {
+        let keyed = PT.TDict(PT.TDB PT.TInt, PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 202UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "rejects a Dict keyed by a Blob" {
+        let keyed = PT.TDict(PT.TBlob, PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 204UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "rejects a Dict keyed by a Stream" {
+        let keyed = PT.TDict(PT.TStream PT.TInt, PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 203UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "rejects a Dict keyed by a tuple containing a function type" {
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let keyed = PT.TDict(PT.TTuple(PT.TString, fnType, []), PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 191UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "accepts a Dict keyed by an ordinary type" {
+        let keyed = PT.TDict(PT.TTuple(PT.TInt, PT.TString, []), PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 192UL)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "accepts a Dict keyed by a type variable" {
+        let keyed = PT.TDict(PT.TVariable "k", PT.TString)
+        { oneArgFn keyed PT.TUnit (PT.EUnit 193UL) with typeParams = [ "k" ] }
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "rejects a Dict keyed by a record with a function field" {
+        let name = PT.FQTypeName.package "handler-with-fn-field"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.ofList
+                  { name = "name"; typ = PT.TString; description = "" }
+                  [ { name = "run"
+                      typ = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+                      description = "" } ]
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        oneArgFn (PT.TDict(customType name, PT.TString)) PT.TUnit (PT.EUnit 194UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "accepts a Dict keyed by a record with only ordinary fields" {
+        let name = PT.FQTypeName.package "plain-record"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton { name = "x"; typ = PT.TInt; description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        oneArgFn (PT.TDict(customType name, PT.TString)) PT.TUnit (PT.EUnit 195UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "accepts a Dict keyed by a recursive record" {
+        let name = PT.FQTypeName.package "recursive-key-record"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton
+                  { name = "kids"
+                    typ = PT.TList(customType name)
+                    description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        oneArgFn (PT.TDict(customType name, PT.TString)) PT.TUnit (PT.EUnit 196UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "rejects a Dict keyed by a generic box holding a function" {
+        let name = PT.FQTypeName.package "box-key"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton
+                  { name = "v"; typ = PT.TVariable "a"; description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let keyed = PT.TDict(PT.TCustomType(nr name, [ fnType ]), PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 197UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "accepts a Dict keyed by a phantom-parameter type given a function" {
+        let name = PT.FQTypeName.package "phantom-key"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton { name = "x"; typ = PT.TString; description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let keyed = PT.TDict(PT.TCustomType(nr name, [ fnType ]), PT.TString)
+        oneArgFn keyed PT.TUnit (PT.EUnit 198UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "rejects a partly-generic key type with a visible function" {
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let keyed = PT.TDict(PT.TTuple(fnType, PT.TVariable "a", []), PT.TString)
+        { oneArgFn keyed PT.TUnit (PT.EUnit 199UL) with typeParams = [ "a" ] }
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "rejects a Dict keyed through a generic type holding a function" {
+        let inner = PT.FQTypeName.package "generic-inner-with-fn"
+        let innerDecl : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.ofList
+                  { name = "v"; typ = PT.TVariable "a"; description = "" }
+                  [ { name = "run"
+                      typ = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+                      description = "" } ]
+              ) }
+        let outer = PT.FQTypeName.package "outer-holding-generic"
+        let outerDecl : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton
+                  { name = "i"
+                    typ = PT.TCustomType(nr inner, [ PT.TInt ])
+                    description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType inner innerDecl
+          |> Checker.TypeEnvironment.addType outer outerDecl
+        oneArgFn (PT.TDict(customType outer, PT.TString)) PT.TUnit (PT.EUnit 200UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.UnsupportedDictKeyType
+      }
+
+      test "accepts a phantom-parameter type given a function, nested in a record" {
+        let phantom = PT.FQTypeName.package "nested-phantom"
+        let phantomDecl : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton { name = "x"; typ = PT.TString; description = "" }
+              ) }
+        let holder = PT.FQTypeName.package "holder-of-phantom"
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let holderDecl : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton
+                  { name = "p"
+                    typ = PT.TCustomType(nr phantom, [ fnType ])
+                    description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType phantom phantomDecl
+          |> Checker.TypeEnvironment.addType holder holderDecl
+        oneArgFn (PT.TDict(customType holder, PT.TString)) PT.TUnit (PT.EUnit 201UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "accepts a generic parameter passed through a phantom type" {
+        let phantom = PT.FQTypeName.package "transitive-phantom"
+        let phantomDecl : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton { name = "x"; typ = PT.TString; description = "" }
+              ) }
+        let wrapper = PT.FQTypeName.package "phantom-wrapper"
+        let wrapperDecl : PT.TypeDeclaration.T =
+          { typeParams = [ "a" ]
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton
+                  { name = "p"
+                    typ = PT.TCustomType(nr phantom, [ PT.TVariable "a" ])
+                    description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType phantom phantomDecl
+          |> Checker.TypeEnvironment.addType wrapper wrapperDecl
+        let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+        let key = PT.TCustomType(nr wrapper, [ fnType ])
+        oneArgFn (PT.TDict(key, PT.TString)) PT.TUnit (PT.EUnit 204UL)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
       test "nested missing type dependencies keep signatures incomplete" {
         let missing = PT.FQTypeName.package "nested-missing-type"
-        let nested = PT.TList(PT.TDict(customType missing))
+        let nested = PT.TList(PT.TDict(PT.TString, customType missing))
         oneArgFn nested PT.TUnit (PT.EUnit 180UL)
         |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectBlocker Checker.MissingTypeDeclaration

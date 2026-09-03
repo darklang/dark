@@ -64,7 +64,7 @@ module Tuples =
 
 module Dicts =
   // Dict literal
-  Stachu.DarklangParser.parse "Dict { x = 1L }" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EDict [("x", Stachu.DarklangParser.Expr.EInt64 1L)], "")
+  Stachu.DarklangParser.parse "Dict { \"x\": 1L }" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EDict [(Stachu.DarklangParser.Expr.EString [ Stachu.DarklangParser.StringSegment.StringText "x" ], Stachu.DarklangParser.Expr.EInt64 1L)], "")
 
 
 module InfixOperators =

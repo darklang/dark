@@ -265,7 +265,7 @@ let rec private exprIssues (expr : WT.Expr) : List<Issue> =
     @ (elseExpr |> Option.map recurse |> Option.defaultValue [])
   | WT.ERecordFieldAccess(_, record, _, _) -> recurse record
   | WT.EDict(_, entries, _, _, _) ->
-    entries |> List.collect (fun (_, _, value) -> recurse value)
+    entries |> List.collect (fun (_, key, _, value) -> recurse key @ recurse value)
   | WT.EEnum(_, _, _, fields, _) -> fields |> List.collect recurse
   | WT.EPipe(_, first, parts) ->
     let pipeIssues part =

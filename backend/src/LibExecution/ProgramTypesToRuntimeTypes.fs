@@ -102,7 +102,7 @@ module TypeReference =
     | PT.TList inner -> RT.TList(toRT inner)
     | PT.TTuple(first, second, theRest) ->
       RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
-    | PT.TDict typ -> RT.TDict(toRT typ)
+    | PT.TDict(key, value) -> RT.TDict(toRT key, toRT value)
 
     | PT.TCustomType(typeName, typeArgs) ->
       RT.TCustomType(
@@ -148,7 +148,8 @@ module TypeReference =
           theRest |> List.map toValueType
         )
       )
-    | PT.TDict typ -> RT.ValueType.Known(RT.KTDict(toValueType typ))
+    | PT.TDict(key, value) ->
+      RT.ValueType.Known(RT.KTDict(toValueType key, toValueType value))
     | PT.TCustomType(typeName, typeArgs) ->
       match typeName.resolved with
       | Ok resolved ->
@@ -650,10 +651,12 @@ module Expr =
         items
         |> List.fold
           (fun (rc, instrs, entryPairs) (key, value) ->
-            let itemInstrs = toRT symbols rc currentFnName value
-            (itemInstrs.registerCount,
-             instrs @ itemInstrs.instructions,
-             entryPairs @ [ (key, itemInstrs.resultIn) ]))
+            let keyInstrs = toRT symbols rc currentFnName key
+            let valueInstrs =
+              toRT symbols keyInstrs.registerCount currentFnName value
+            (valueInstrs.registerCount,
+             instrs @ keyInstrs.instructions @ valueInstrs.instructions,
+             entryPairs @ [ (keyInstrs.resultIn, valueInstrs.resultIn) ]))
           init
 
       { registerCount = regCounter
@@ -1214,9 +1217,10 @@ module PackageValue =
   // This currently prints `true`; `answer` should evaluate to `3L`.
   let rec evalConstantExpr
     (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (threadID : RT.ThreadID)
     (expr : PT.Expr)
     : RT.Dval =
-    let recurse = evalConstantExpr builtinValues
+    let recurse = evalConstantExpr builtinValues threadID
     match expr with
     | PT.EUnit _ -> RT.DUnit
     | PT.EBool(_, b) -> RT.DBool b
@@ -1256,11 +1260,12 @@ module PackageValue =
       let restVals = rest |> List.map recurse
       RT.DTuple(firstVal, secondVal, restVals)
     | PT.EDict(_, entries) ->
-      let evalEntries =
-        entries
-        |> List.map (fun (key, valueExpr) -> (key, recurse valueExpr))
-        |> Map.ofList
-      RT.DDict(RT.ValueType.Unknown, evalEntries)
+      entries
+      |> List.map (fun (keyExpr, valueExpr) -> (recurse keyExpr, recurse valueExpr))
+      |> TypeChecker.DvalCreator.dict
+        threadID
+        RT.ValueType.Unknown
+        RT.ValueType.Unknown
     | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
       let resolvedTypeName =
         match typeName.resolved with
@@ -1333,7 +1338,8 @@ module PackageValue =
     (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (c : PT.PackageValue.PackageValue)
     : RT.PackageValue.PackageValue =
-    let body = evalConstantExpr builtinValues c.body
+    let threadID = System.Guid.NewGuid()
+    let body = evalConstantExpr builtinValues threadID c.body
     { hash = Hash.toRT c.hash; body = body }
 
 module PackageFn =

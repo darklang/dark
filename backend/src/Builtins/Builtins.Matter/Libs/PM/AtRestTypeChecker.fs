@@ -319,7 +319,8 @@ module private DarkTypes =
     | Checker.TList inner -> make "TList" [ staticTypeToDT inner ]
     | Checker.TTuple(first, second, rest) ->
       make "TTuple" [ staticTypeToDT first; staticTypeToDT second; list rest ]
-    | Checker.TDict inner -> make "TDict" [ staticTypeToDT inner ]
+    | Checker.TDict(key, value) ->
+      make "TDict" [ staticTypeToDT key; staticTypeToDT value ]
     | Checker.TCustom(hash, args) ->
       make "TCustom" [ PT2DT.Hash.toDT hash; list args ]
     | Checker.TFn(parameters, returnType) ->
@@ -357,6 +358,7 @@ module private DarkTypes =
       | Checker.InvalidInfixOperand -> "InvalidInfixOperand"
       | Checker.DuplicateTypeParameter -> "DuplicateTypeParameter"
       | Checker.DuplicateTypeMember -> "DuplicateTypeMember"
+      | Checker.UnsupportedDictKeyType -> "UnsupportedDictKeyType"
     enumValue (issueCodeName ()) caseName []
 
   let blockerCodeToDT (code : Checker.BlockerCode) : Dval =

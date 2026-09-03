@@ -79,11 +79,12 @@ module Collections =
   pp (1, "two", true) = "(1, \"two\", true)"
 
   pp (Stdlib.Dict.empty) = "{}"
-  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ]) = "{ a: 1, b: 2 }"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ]) = "{ \"a\": 1, \"b\": 2 }"
 
-  // A key that isn't a bare identifier is backticked, the way the source printer quotes field names.
-  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ]) = "{ ``has-hyphen``: 1 }"
-  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ]) = "{ ``type``: 1 }"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ]) = "{ \"has-hyphen\": 1 }"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ]) = "{ \"type\": 1 }"
+  pp (Dict { 1L: "one"; 2L: "two" }) = "{ 1: \"one\", 2: \"two\" }"
+  pp (Dict { (1L, "a"): true }) = "{ (1, \"a\"): true }"
 
 
 // ========================================

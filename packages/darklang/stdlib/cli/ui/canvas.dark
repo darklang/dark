@@ -166,21 +166,19 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
         if span.row < 0 || span.row >= h then
           acc
         else
-          let key = Stdlib.Int.toString span.row
-
           // Matched here rather than `|> Option.withDefault []`. `withDefault` is a real package
           // call, and this runs once per span. Worth the two extra lines only because of where it
           // sits; everywhere else `withDefault` reads better and costs nothing that matters.
           let existing =
-            match Stdlib.Dict.get acc key with
+            match Stdlib.Dict.get acc span.row with
             | Some existing -> existing
             | None -> []
 
-          Stdlib.Dict.setOverridingDuplicates acc key (Stdlib.List.append existing [ span ]))
+          Stdlib.Dict.setOverridingDuplicates acc span.row (Stdlib.List.append existing [ span ]))
 
     Stdlib.List.range 0 (h - 1)
     |> Stdlib.List.map (fun row ->
-      match Stdlib.Dict.get byRow (Stdlib.Int.toString row) with
+      match Stdlib.Dict.get byRow row with
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
       // blanks cost nothing, and an empty string compares equal frame to frame.
       | None -> ""

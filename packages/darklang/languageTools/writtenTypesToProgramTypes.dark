@@ -13,7 +13,7 @@ module Darklang.LanguageTools.WrittenTypesToProgramTypes
 //     DeferredResolver has nothing to refresh.
 type Context =
   { currentFnName: Stdlib.Option.Option<List<String>>
-    argMap: Dict<Int>
+    argMap: Dict<String, Int>
     localBindings: List<String> }
 
 val defaultContext =
@@ -202,11 +202,12 @@ module TypeReference =
 
         (ProgramTypes.TypeReference.TList(typ), unresolvedNames)
 
-      | TDict(_range, _, _, valueType, _) ->
-        let (valueType, unresolvedNames) =
-          TypeReference.toPT ctx valueType
+      | TDict(_range, _, _, keyType, _, valueType, _) ->
+        let (keyType, keyUnresolvedNames) = TypeReference.toPT ctx keyType
+        let (valueType, valueUnresolvedNames) = TypeReference.toPT ctx valueType
 
-        (ProgramTypes.TypeReference.TDict valueType, unresolvedNames)
+        (ProgramTypes.TypeReference.TDict(keyType, valueType),
+         Stdlib.List.append keyUnresolvedNames valueUnresolvedNames)
 
       | TTuple(_range, first, _, second, theRest, _, _) ->
         let (first, firstUnresolvedNames) = TypeReference.toPT ctx first
@@ -655,10 +656,10 @@ module Expr =
 
     | EDict(_, contents, _, _, _) ->
       let (contents, unresolvedNames) =
-        (Stdlib.List.map contents (fun (_, k, v) ->
-          let (_, k) = k
-          let (v, unresolvedNames) = toPT ctx context v
-          ((k, v), unresolvedNames)))
+        (Stdlib.List.map contents (fun (_, k, _, v) ->
+          let (k, kUnresolvedNames) = toPT ctx context k
+          let (v, vUnresolvedNames) = toPT ctx context v
+          ((k, v), Stdlib.List.append kUnresolvedNames vUnresolvedNames)))
         |> Stdlib.List.unzip
 
       (ProgramTypes.Expr.EDict(gid (), contents),
@@ -1320,7 +1321,9 @@ module FunctionDeclaration =
       if Stdlib.List.``member`` acc name then acc else Stdlib.List.append acc [ name ]
     | TList inner -> collectTVarsInTypeRef acc inner
     | TStream inner -> collectTVarsInTypeRef acc inner
-    | TDict inner -> collectTVarsInTypeRef acc inner
+    | TDict(key, value) ->
+      let acc = collectTVarsInTypeRef acc key
+      collectTVarsInTypeRef acc value
     | TDB inner -> collectTVarsInTypeRef acc inner
     | TTuple (a, b, rest) ->
       let acc = collectTVarsInTypeRef acc a

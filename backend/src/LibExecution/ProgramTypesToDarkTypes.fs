@@ -337,7 +337,7 @@ module TypeReference =
           toDT second
           DList(VT.known (knownType ()), List.map toDT theRest) ]
 
-      | PT.TDict inner -> "TDict", [ toDT inner ]
+      | PT.TDict(key, value) -> "TDict", [ toDT key; toDT value ]
 
       | PT.TCustomType(typeName, typeArgs) ->
         "TCustomType",
@@ -384,7 +384,7 @@ module TypeReference =
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       PT.TTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "TDict", [ inner ]) -> PT.TDict(fromDT inner)
+    | DEnum(_, _, [], "TDict", [ key; value ]) -> PT.TDict(fromDT key, fromDT value)
 
     | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
       PT.TCustomType(
@@ -804,8 +804,8 @@ module Expr =
         "EDict",
         [ DInt64(int64 id)
           DList(
-            VT.tuple VT.string (VT.known (knownType ())) [],
-            pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
+            VT.tuple (VT.known (knownType ())) (VT.known (knownType ())) [],
+            pairs |> List.map (fun (k, v) -> DTuple(toDT k, toDT v, []))
           ) ]
 
       | PT.ETuple(id, first, second, theRest) ->
@@ -989,7 +989,7 @@ module Expr =
         pairsList
         |> List.collect (fun pair ->
           match pair with
-          | DTuple(DString k, v, _) -> [ (k, fromDT v) ]
+          | DTuple(k, v, _) -> [ (fromDT k, fromDT v) ]
           | _ -> [])
       PT.EDict(uint64 id, pairs)
 

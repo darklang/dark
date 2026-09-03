@@ -104,15 +104,17 @@ let dvalToExpr
         | Error e -> Stdlib.Result.Result.Error e
         | Ok erest ->
           Stdlib.Result.Result.Ok(ProgramTypes.Expr.ETuple(gid (), ef, es, erest))
-  | DDict(_valueType, entries) ->
+  | DDict(_keyType, _valueType, entries) ->
     let converted =
       entries
       |> Stdlib.Dict.toList
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
-        match dvalToExpr branchId v with
-        | Ok e -> Stdlib.Result.Result.Ok((k, e))
-        | Error err -> Stdlib.Result.Result.Error err)
+
+        match (dvalToExpr branchId k, dvalToExpr branchId v) with
+        | (Ok ek, Ok ev) -> Stdlib.Result.Result.Ok((ek, ev))
+        | (Error err, _) -> Stdlib.Result.Result.Error err
+        | (_, Error err) -> Stdlib.Result.Result.Error err)
     match Stdlib.Result.collect converted with
     | Ok kvs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDict(gid (), kvs))
     | Error e -> Stdlib.Result.Result.Error e

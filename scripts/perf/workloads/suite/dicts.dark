@@ -8,7 +8,7 @@ let iters () : Int =
     | Error _ -> 0
   | None -> 0
 
-let build (n: Int) : Dict<Int> =
+let build (n: Int) : Dict<String, Int> =
   Stdlib.List.fold (Stdlib.List.range 1 n) Stdlib.Dict.empty (fun acc i ->
     Stdlib.Dict.set acc ("k" ++ (Stdlib.Int.toString i)) i)
 

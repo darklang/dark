@@ -37,9 +37,10 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   | TList inner ->
     w.Write 18uy
     write w inner
-  | TDict inner ->
+  | TDict(key, value) ->
     w.Write 19uy
-    write w inner
+    write w key
+    write w value
   | TFn(paramTypes, returnType) ->
     w.Write 20uy
     NEList.write write w paramTypes
@@ -85,7 +86,10 @@ let rec read (r : BinaryReader) : TypeReference =
     let rest = List.read r read
     TTuple(first, second, rest)
   | 18uy -> TList(read r)
-  | 19uy -> TDict(read r)
+  | 19uy ->
+    let key = read r
+    let value = read r
+    TDict(key, value)
   | 20uy ->
     let paramTypes = NEList.read read r
     let returnType = read r

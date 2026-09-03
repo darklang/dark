@@ -94,7 +94,8 @@ let rec private transformTypeRef
   | PT.TStream inner -> PT.TStream(transformTypeRef mapping inner)
 
   | PT.TList inner -> PT.TList(transformTypeRef mapping inner)
-  | PT.TDict inner -> PT.TDict(transformTypeRef mapping inner)
+  | PT.TDict(key, value) ->
+    PT.TDict(transformTypeRef mapping key, transformTypeRef mapping value)
   | PT.TDB inner -> PT.TDB(transformTypeRef mapping inner)
 
   | PT.TTuple(first, second, rest) ->

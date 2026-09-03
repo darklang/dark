@@ -41,8 +41,8 @@ module private FreeTVars =
     | TVariable name -> Set.add name acc
     | TList inner
     | TStream inner
-    | TDict inner
     | TDB inner -> collect acc inner
+    | TDict(key, value) -> collect (collect acc key) value
     | TTuple(a, b, rest) ->
       let acc = collect acc a
       let acc = collect acc b
@@ -268,8 +268,8 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTBlob
     | KTDB _ -> true
     | KTList inner
-    | KTStream inner
-    | KTDict inner -> isFullyKnown inner
+    | KTStream inner -> isFullyKnown inner
+    | KTDict(key, value) -> isFullyKnown key && isFullyKnown value
     | KTTuple(a, b, rest) ->
       isFullyKnown a && isFullyKnown b && List.forall isFullyKnown rest
     | KTCustomType(_, args) -> List.forall isFullyKnown args
@@ -325,9 +325,10 @@ let rec private inferTVarsFromArg
     match vt with
     | ValueType.Known(KTStream vt') -> inferTVarsFromArg acc tr' vt'
     | _ -> acc
-  | TDict tr' ->
+  | TDict(keyT, valueT) ->
     match vt with
-    | ValueType.Known(KTDict vt') -> inferTVarsFromArg acc tr' vt'
+    | ValueType.Known(KTDict(keyV, valueV)) ->
+      inferTVarsFromArg (inferTVarsFromArg acc keyT keyV) valueT valueV
     | _ -> acc
 
   | TTuple(a, b, rest) ->
@@ -384,9 +385,10 @@ let private inferTVarsFromDval
     match dv with
     | DList(vt', _) -> inferTVarsFromArg acc tr' vt'
     | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
-  | TDict tr' ->
+  | TDict(keyT, valueT) ->
     match dv with
-    | DDict(vt', _) -> inferTVarsFromArg acc tr' vt'
+    | DDict(keyV, valueV, _) ->
+      inferTVarsFromArg (inferTVarsFromArg acc keyT keyV) valueT valueV
     | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
   | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
 
@@ -1092,15 +1094,15 @@ let private tryFastOp
         | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalList tag vt1 l1 vt2 l2
         | _ -> ValueNone
-      | ValueSome(struct (DDict(vt, o), rest)) ->
+      | ValueSome(struct (DDict(kt, vt, o), rest)) ->
         match ArgSeq.uncons rest with
-        | ValueSome(struct (DString k, tail)) ->
+        | ValueSome(struct (k, tail)) ->
           if ArgSeq.isEmpty tail then
             FastOps.evalDictGet threadID tag o k
           else
             match ArgSeq.uncons tail with
             | ValueSome(struct (v, rest3)) when ArgSeq.isEmpty rest3 ->
-              FastOps.evalDictSet threadID tag vt o k v
+              FastOps.evalDictSet threadID tag kt vt o k v
             | _ -> ValueNone
         | _ -> ValueNone
       | _ -> ValueNone
@@ -1144,18 +1146,20 @@ let private tryFastOpOn
         // `member` takes a list and a bare value, so it is the one entry whose second operand is
         // not constrained by the first's shape.
         | other -> FastOps.evalListMember tag l1 other
-      | DDict(_, o) ->
-        match registers[secondReg] with
-        | DString k -> FastOps.evalDictGet threadID tag o k
-        | _ -> ValueNone
+      | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
       | _ -> ValueNone
 
     | [ secondReg; thirdReg ] ->
       match registers[argRegs.head] with
-      | DDict(vt, o) ->
-        match registers[secondReg] with
-        | DString k -> FastOps.evalDictSet threadID tag vt o k registers[thirdReg]
-        | _ -> ValueNone
+      | DDict(kt, vt, o) ->
+        FastOps.evalDictSet
+          threadID
+          tag
+          kt
+          vt
+          o
+          registers[secondReg]
+          registers[thirdReg]
       | _ -> ValueNone
 
     | _ -> ValueNone
@@ -1392,8 +1396,9 @@ let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
     aName.resolved = bName.resolved && sameTypes aArgs bArgs
   | TStream x, TStream y
   | TList x, TList y
-  | TDict x, TDict y
   | TDB x, TDB y -> sameType x y
+  | TDict(aKey, aValue), TDict(bKey, bValue) ->
+    sameType aKey bKey && sameType aValue bValue
   | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->
     sameType a1 b1 && sameType a2 b2 && sameTypes aRest bRest
   | TFn(aArgs, aRet), TFn(bArgs, bRet) ->
@@ -2533,9 +2538,11 @@ let private runSyncInstructions
           TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
       | CreateDict(dictReg, entries) ->
         let entries =
-          entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
+          entries
+          |> List.map (fun (keyReg, valueReg) ->
+            (registers[keyReg], registers[valueReg]))
         registers[dictReg] <-
-          TypeChecker.DvalCreator.dict vm.threadID VT.unknown entries
+          TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         let first = registers[firstReg]
         let second = registers[secondReg]

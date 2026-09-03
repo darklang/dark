@@ -55,9 +55,10 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
     w.Write 21uy
     FQTypeName.write w typeName
     List.write w write typeArgs
-  | KTDict vt ->
+  | KTDict(keyType, valueType) ->
     w.Write 22uy
-    write w vt
+    write w keyType
+    write w valueType
   | KTBlob -> w.Write 23uy
   | KTStream vt ->
     w.Write 24uy
@@ -104,7 +105,10 @@ and readKnownType (r : BinaryReader) : KnownType =
     let typeName = FQTypeName.read r
     let typeArgs = List.read r read
     KTCustomType(typeName, typeArgs)
-  | 22uy -> KTDict(read r)
+  | 22uy ->
+    let keyType = read r
+    let valueType = read r
+    KTDict(keyType, valueType)
   | 23uy -> KTBlob
   | 24uy -> KTStream(read r)
   | 25uy -> KTInt
