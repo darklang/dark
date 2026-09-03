@@ -299,6 +299,13 @@ let parseJsonV0
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
 
+    // Mirror the writer in toJsonV0: a JSON object's keys are strings, so only a
+    // string-keyed Dict has a representation here.
+    | TDict(keyType, _), JsonValueKind.Object ->
+      Exception.raiseInternal
+        "Only a Dict with String keys can be stored in a queryable field"
+        [ "keyType", keyType ]
+
 
     | TCustomType({ resolved = Ok typeName }, typeArgs), valueKind ->
       uply {

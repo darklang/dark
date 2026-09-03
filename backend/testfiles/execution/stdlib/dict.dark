@@ -16,7 +16,7 @@ type ColourAlias = Colour
 val valDict = Dict { 1L: "a"; 2L: "b" }
 
 module ValDict =
-  Stdlib.Dict.keys valDict = [ 1L; 2L ]
+  Stdlib.Dict.keys valDict = [ 1L, 2L ]
 
   Stdlib.Dict.set valDict "notAnInt" "c" = error="Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"notAnInt\")"
 
@@ -202,7 +202,7 @@ module NonStringKeys =
     Stdlib.Dict.get (Dict { 1L: "one" }) 9L = Stdlib.Option.Option.None
     Stdlib.Dict.``member`` (Dict { 1L: "one" }) 1L = true
     Stdlib.Dict.remove (Dict { 1L: "one"; 2L: "two" }) 1L = Dict { 2L: "two" }
-    Stdlib.Dict.keys (Dict { 2L: "two"; 1L: "one" }) = [ 1L; 2L ]
+    Stdlib.Dict.keys (Dict { 2L: "two"; 1L: "one" }) = [ 1L, 2L ]
 
   module Tuple =
     Stdlib.Dict.get (Dict { (1L, "a"): "first" }) ((1L, "a")) =
@@ -212,7 +212,7 @@ module NonStringKeys =
       Stdlib.Option.Option.None
 
   module List =
-    Stdlib.Dict.get (Dict { [ 1L; 2L ]: "onetwo" }) [ 1L; 2L ] =
+    Stdlib.Dict.get (Dict { [ 1L, 2L ]: "onetwo" }) [ 1L, 2L ] =
       Stdlib.Option.Option.Some "onetwo"
 
   module Enum =
@@ -221,7 +221,7 @@ module NonStringKeys =
       (Stdlib.Option.Option.Some 1L) = Stdlib.Option.Option.Some "some"
 
   module Ordering =
-    Stdlib.Dict.keys (Dict { 10L: "a"; 9L: "b"; 100L: "c" }) = [ 9L; 10L; 100L ]
+    Stdlib.Dict.keys (Dict { 10L: "a"; 9L: "b"; 100L: "c" }) = [ 9L, 10L, 100L ]
 
   module ComputedKeys =
     Stdlib.Dict.get (Dict { (1L + 1L): "two" }) 2L = Stdlib.Option.Option.Some "two"
@@ -252,7 +252,7 @@ module NonStringKeys =
      let ninf = -1.0 / 0.0
      let nan = Stdlib.Float.sqrt -1.0
      Stdlib.Dict.keys (Dict { inf: 1L; ninf: 2L; 0.0: 3L; nan: 4L })) =
-      [ Stdlib.Float.sqrt -1.0; -1.0 / 0.0; 0.0; 1.0 / 0.0 ]
+      [ Stdlib.Float.sqrt -1.0, -1.0 / 0.0, 0.0, 1.0 / 0.0 ]
 
   module EveryKeyType =
     Stdlib.Dict.get (Dict { (): "unit" }) () = Stdlib.Option.Option.Some "unit"
@@ -282,7 +282,7 @@ module NonStringKeys =
     (let d = Builtin.unwrap (Stdlib.DateTime.parse "2026-08-31T00:00:00Z")
      Stdlib.Dict.get (Dict { d: "datetime" }) d) = Stdlib.Option.Option.Some "datetime"
 
-    Stdlib.Dict.get (Dict { [ 1L; 2L ]: "list" }) [ 1L; 2L ] =
+    Stdlib.Dict.get (Dict { [ 1L, 2L ]: "list" }) [ 1L, 2L ] =
       Stdlib.Option.Option.Some "list"
 
     Stdlib.Dict.get (Dict { (1L, 'c', "s"): "tuple" }) ((1L, 'c', "s")) =
@@ -304,19 +304,19 @@ module NonStringKeys =
       (Dict { 1L: "inner" }) = Stdlib.Option.Option.Some "dict"
 
   module KeyOrdering =
-    Stdlib.Dict.keys (Dict { true: 1L; false: 2L }) = [ false; true ]
-    Stdlib.Dict.keys (Dict { 'c': 1L; 'a': 2L }) = [ 'a'; 'c' ]
-    Stdlib.Dict.keys (Dict { 2L: 1L; -3L: 2L; 0L: 3L }) = [ -3L; 0L; 2L ]
+    Stdlib.Dict.keys (Dict { true: 1L; false: 2L }) = [ false, true ]
+    Stdlib.Dict.keys (Dict { 'c': 1L; 'a': 2L }) = [ 'a', 'c' ]
+    Stdlib.Dict.keys (Dict { 2L: 1L; -3L: 2L; 0L: 3L }) = [ -3L, 0L, 2L ]
 
     Stdlib.Dict.keys
       (Dict { 9223372036854775808: 1L; 9223372036854775807: 2L; 0: 3L }) =
-      [ 0; 9223372036854775807; 9223372036854775808 ]
+      [ 0, 9223372036854775807, 9223372036854775808 ]
 
     Stdlib.Dict.keys (Dict { -9223372036854775809: 1L; 0: 2L }) =
-      [ -9223372036854775809; 0 ]
+      [ -9223372036854775809, 0 ]
 
-    Stdlib.Dict.keys (Dict { [ 2L ]: 1L; [ 1L; 9L ]: 2L; []: 3L }) =
-      [ []; [ 1L; 9L ]; [ 2L ] ]
+    Stdlib.Dict.keys (Dict { [ 2L ]: 1L; [ 1L, 9L ]: 2L; []: 3L }) =
+      [ [], [ 1L, 9L ], [ 2L ] ]
 
   module FromListInfersTypes =
     Stdlib.Dict.set
@@ -331,11 +331,11 @@ module NonStringKeys =
 
     Stdlib.Dict.set (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ])) 2L 3L = error="Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (3)"
 
-    Stdlib.Dict.fromList [ (1L, "a"); ((fun x -> x), "b") ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+    Stdlib.Dict.fromList [ (1L, "a"), ((fun x -> x), "b") ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-    Stdlib.Dict.fromList [ (1L, "a"); (1L, "b") ] = Stdlib.Option.Option.None
+    Stdlib.Dict.fromList [ (1L, "a"), (1L, "b") ] = Stdlib.Option.Option.None
 
-    Stdlib.Dict.fromList [ (2L, "b"); (1L, "a") ] =
+    Stdlib.Dict.fromList [ (2L, "b"), (1L, "a") ] =
       Stdlib.Option.Option.Some(Dict { 1L: "a"; 2L: "b" })
 
   module IdentityMatchesEquality =
@@ -377,11 +377,11 @@ module NonStringKeys =
       (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
       (([ Point { x = 1L; y = 9L } ], "s")) = false
 
-    Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ]; [] ] = false
-    Stdlib.Dict.``member`` (Dict { [ [ 1L ]; [] ]: "a" }) [ [ 1L ] ] = false
+    Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ] = false
+    Stdlib.Dict.``member`` (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ] = false
 
-    Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L; [ [ 1L ]; [ 3L ] ]: 2L }) =
-      [ [ [ 1L ]; [ 3L ] ]; [ [ 2L ] ] ]
+    Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L; [ [ 1L ], [ 3L ] ]: 2L }) =
+      [ [ [ 1L ], [ 3L ] ], [ [ 2L ] ] ]
 
   module RecursiveAdmissibility =
     Dict { [ (fun x -> x) ]: 1L } = error="Cannot use [(lambda)] as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
