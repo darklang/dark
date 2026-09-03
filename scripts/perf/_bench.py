@@ -70,7 +70,7 @@ SCENARIOS = {
     "help": ["help"],
     "tree": ["tree"],
     "eval-trivial": ["eval", "1L + 2L"],
-    "eval-map5": ["eval", "Stdlib.List.map [1;2;3;4;5] (fun x -> x + 1)"],
+    "eval-map5": ["eval", "Stdlib.List.map [1,2,3,4,5] (fun x -> x + 1)"],
     "eval-map1000": ["eval", "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 1000) (fun x -> x + 1))"],
     # Heavy enough that the interpreter, not process startup, dominates. Startup is ~400 ms of fixed cost,
     # so a scenario doing 20 ms of list work can't show a list-work improvement at all.

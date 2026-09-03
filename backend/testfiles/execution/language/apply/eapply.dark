@@ -7,10 +7,10 @@
 (let fn = Stdlib.Int64.max
  fn 3L 7L) = 7L
 
-([ 1L; 2L; 3L; 4L; 5L ]
+([ 1L, 2L, 3L, 4L, 5L ]
  |> Stdlib.List.map  (fun x y -> x)
  |> Stdlib.List.map (fun l -> l 1L)) =
-    [ 1L; 2L; 3L; 4L; 5L ]
+    [ 1L, 2L, 3L, 4L, 5L ]
 
 // ---------------------------
 // DarkInternal tests are internal

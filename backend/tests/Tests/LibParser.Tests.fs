@@ -238,7 +238,7 @@ let private parserStructureTests =
                                                       _,
                                                       Some _) ] }) -> ()
         | other -> failtest $"if: {other}"
-        match (P.parse "[1L; 2L; 3L]").parsed with
+        match (P.parse "[1L, 2L, 3L]").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EList(_, elems, _, _) ] }) ->
           Expect.equal (List.length elems) 3 "three list elements"
         | other -> failtest $"list: {other}"
@@ -1264,7 +1264,7 @@ let private recoveryTests =
 
         for source in
           [ "[1L, 2L]"
-            "match xs with | [a; b] -> a"
+            "match xs with | [a, b] -> a"
             "Pair(1L, 2L)"
             "match pair with | Pair(a, b) -> a"
             "Person { a = 1L; b = 2L }"
@@ -1291,10 +1291,10 @@ let private recoveryTests =
             (P.parse src).diagnostics
             $"glued number {src} diagnoses"
         // guard: valid suffixed / bare literals stay clean
-        for src in [ "123L"; "1.5"; "1e300"; "[1L; 2L]" ] do
+        for src in [ "123L"; "1.5"; "1e300"; "[1L, 2L]" ] do
           Expect.isEmpty (P.parse src).diagnostics $"valid literal {src} is clean")
       testCase "two independent errors still recover both list elements" (fun _ ->
-        let r = P.parse "[1L + ; 2L * ]"
+        let r = P.parse "[1L + , 2L * ]"
         Expect.isNonEmpty r.diagnostics "has diagnostics"
         match r.parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EList(_, [ _; _ ], _, _) ] }) ->
@@ -1319,7 +1319,7 @@ let private recoveryTests =
           let src =
             "module Test\n"
             + "let broken1 (x: Int64) : Int64 =\n  x + \n\n"
-            + "let broken2 () : Int64 =\n  [1L; 2L\n\n"
+            + "let broken2 () : Int64 =\n  [1L, 2L\n\n"
             + "let fine (y: Int64) : Int64 =\n  y * 2L\n"
           let r = P.parse src
           Expect.isNonEmpty r.diagnostics "reports the errors"
@@ -1497,9 +1497,17 @@ let private goldenDiagnosticsTests =
         [ "expected '->' in match case, found end of file"
           "expected an expression, found end of file" ]
       golden
-        "let x = [1L; 2L"
+        "let x = [1L, 2L"
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ]
+      golden "[1L; 2L]" [ "expected ',' between list elements, found ';'" ]
+      golden
+        "[1L; 2L; 3L]"
+        [ "expected ',' between list elements, found ';'"
+          "expected ',' between list elements, found ';'" ]
+      golden
+        "match x with | [a; b] -> a"
+        [ "expected ',' between list-pattern elements, found ';'" ]
       testCase "diagnostics carry stable codes, related spans, and hints" (fun _ ->
         match (P.parse "(1L + 2L").diagnostics with
         | [ d ] ->
@@ -1522,6 +1530,11 @@ let private goldenDiagnosticsTests =
             d.code
             P.DiagnosticCode.lex
             "lex diagnostics carry the LEX code"
+        | other -> failtest $"expected one diagnostic, got {other}"
+        match (P.parse "[1L; 2L]").diagnostics with
+        | [ d ] ->
+          Expect.equal d.code P.DiagnosticCode.expected "code"
+          Expect.equal d.hint (Some "use ',' instead") "hint"
         | other -> failtest $"expected one diagnostic, got {other}")
       testCase "renderDiagnostic: caret snippet + related + hint" (fun _ ->
         let src = "let x = (1L +"
@@ -1548,7 +1561,7 @@ let private fuzzTests =
     [ "let f (x: Int64) : Int64 =\n  let y = x + 1L\n  y * 2L"
       "module A.B\ntype T = { a: Int64; b: List<String> }\nlet v = T { a = 1L; b = [] }"
       "match xs with\n| [] -> 0L\n| h :: t -> h + (sum t)\n| _ -> $\"n {h} m\""
-      "[1L; 2L] |> Stdlib.List.map (fun x -> x * 2L) |> (++) \"s\""
+      "[1L, 2L] |> Stdlib.List.map (fun x -> x * 2L) |> (++) \"s\""
       "type E = | A of Int64 * String | B\nlet g () : E = A(1L, \"x\")" ]
   testList
     "fuzz"

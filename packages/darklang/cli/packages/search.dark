@@ -80,7 +80,7 @@ let sortKey
   let mr = Stdlib.Int.toString (matchRank (itemQuery query) name)
   let st = if isStdlib owner modules then "0" else "1"
   let path =
-    [ [owner]; modules; [name] ]
+    [ [owner], modules, [name] ]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "."
   $"{mr}{st}:{path}"
@@ -137,7 +137,7 @@ let overflowNote (total: Int) (shown: Int) : Unit =
 
 
 let fullPathOf (item: LanguageTools.ProgramTypes.LocatedItem<'a>) : String =
-  [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
+  [ [ item.location.owner ], item.location.modules, [ item.location.name ] ]
   |> Stdlib.List.flatten
   |> Stdlib.String.join "."
 
@@ -478,7 +478,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--batch"; "--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--with-docs"; "--include-deprecated"]
+      ["--batch", "--type", "--fn", "--val", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

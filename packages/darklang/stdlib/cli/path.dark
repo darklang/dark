@@ -79,7 +79,7 @@ let withExtension (path: String) (ext: String) : String =
   let newName = $"{stem}{ext}"
 
   if dir == "." then newName
-  else Path.join [ dir; newName ]
+  else Path.join [ dir, newName ]
 
 
 /// Check if a path is absolute (starts with /).
@@ -122,7 +122,7 @@ let resolve (path: String) : Result.Result<String, Posix.Error> =
     Stdlib.Result.Result.Ok(normalize path)
   else
     (Posix.getCwd ())
-    |> Stdlib.Result.map (fun cwd -> normalize (join [ cwd; path ]))
+    |> Stdlib.Result.map (fun cwd -> normalize (join [ cwd, path ]))
 
 
 /// Resolve a potentially relative path to an absolute normalized path.

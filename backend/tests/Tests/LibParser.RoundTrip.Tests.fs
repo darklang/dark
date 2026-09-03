@@ -1404,21 +1404,21 @@ let exprs =
     // list literal
     t "empty list" "[]" "[]" [] [] [] false
     t "string list" "[\"hello\"]" "[\"hello\"]" [] [] [] false
-    t "int list 2" "[1L; 2L]" "[1L; 2L]" [] [] [] false
-    t "int list 3" "[1L; 2L; 3L;]" "[1L; 2L; 3L]" [] [] [] false
+    t "int list 2" "[1L, 2L]" "[1L, 2L]" [] [] [] false
+    t "int list 3" "[1L, 2L, 3L,]" "[1L, 2L, 3L]" [] [] [] false
     t
       "bool list"
-      "[true; false; true; false]"
-      "[true; false; true; false]"
+      "[true, false, true, false]"
+      "[true, false, true, false]"
       []
       []
       []
       false
-    t "int list list" "[[1L; 2L]; [3L; 4L]]" "[[1L; 2L]; [3L; 4L]]" [] [] [] false
+    t "int list list" "[[1L, 2L], [3L, 4L]]" "[[1L, 2L], [3L, 4L]]" [] [] [] false
     t
       "list with newline as a separator"
       "[ true\n false\n true ]"
-      "[true; false; true]"
+      "[true, false, true]"
       []
       []
       []
@@ -1429,9 +1429,9 @@ let exprs =
       """[
   Stdlib.Tuple2.second (4L, 5L)
   Stdlib.Int64.add 1L 2L
-  Stdlib.List.head [1L; 2L]
+  Stdlib.List.head [1L, 2L]
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L);\n  Stdlib.Int64.add 1L 2L;\n  Stdlib.List.head [1L; 2L]\n]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.add 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
       []
       []
       []
@@ -1444,9 +1444,9 @@ let exprs =
   (Stdlib.Int64.add
     1L
     2L)
-  Stdlib.List.head [1L; 2L]
+  Stdlib.List.head [1L, 2L]
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L);\n  Stdlib.Int64.add 1L 2L;\n  Stdlib.List.head [1L; 2L]\n]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.add 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
       []
       []
       []
@@ -2085,16 +2085,16 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "match, int list 1"
-      "match [1L; 2L] with\n| [1L; 2L] -> true"
-      "match [1L; 2L] with\n| [1L; 2L] -> true"
+      "match [1L, 2L] with\n| [1L, 2L] -> true"
+      "match [1L, 2L] with\n| [1L, 2L] -> true"
       []
       []
       []
       false
     t
       "match, int list 2"
-      "match [1L; 2L; 3L] with\n| head :: tail ->\n \"pass\""
-      "match [1L; 2L; 3L] with\n| head :: tail -> \"pass\""
+      "match [1L, 2L, 3L] with\n| head :: tail ->\n \"pass\""
+      "match [1L, 2L, 3L] with\n| head :: tail -> \"pass\""
       []
       []
       []
@@ -2186,8 +2186,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
     t
       "pipe, computed arg"
-      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
-      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
+      "[1L, 2L] |> Stdlib.List.take (2L - 1L)"
+      "[1L, 2L] |> Stdlib.List.take (2L - 1L)"
       []
       []
       []
@@ -2283,8 +2283,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, into fn call 5"
-      "[1L; 2L] |> Stdlib.List.last |> Builtin.unwrap"
-      "[1L; 2L] |> Stdlib.List.last |> Builtin.unwrap"
+      "[1L, 2L] |> Stdlib.List.last |> Builtin.unwrap"
+      "[1L, 2L] |> Stdlib.List.last |> Builtin.unwrap"
       []
       []
       []
@@ -2501,16 +2501,16 @@ let valueDeclarations =
     t "list, empty" "val emptyList = []" "val emptyList = []" [] [] [] false
     t
       "list, int"
-      "val listOfInts = [1L; 2L; 3L]"
-      "val listOfInts = [1L; 2L; 3L]"
+      "val listOfInts = [1L, 2L, 3L]"
+      "val listOfInts = [1L, 2L, 3L]"
       []
       []
       []
       false
     t
       "list, list, int"
-      "val listOfLists = [[1L; 2L]; [3L; 4L]]"
-      "val listOfLists = [[1L; 2L]; [3L; 4L]]"
+      "val listOfLists = [[1L, 2L], [3L, 4L]]"
+      "val listOfLists = [[1L, 2L], [3L, 4L]]"
       []
       []
       []

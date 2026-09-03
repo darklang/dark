@@ -202,7 +202,7 @@ module Shared =
         Stdlib.Blob.concat
           (Stdlib.List.append
             textPartBlobs
-            (Stdlib.List.append arrayPartBlobs [ filePartBlob; closing ]))
+            (Stdlib.List.append arrayPartBlobs [ filePartBlob, closing ]))
 
       Stdlib.Result.Result.Ok(
         MultipartRequest

@@ -15,7 +15,7 @@ let fib (n: Int64) : Int64 =
   if n < 2L then n else (fib (n - 1L)) + (fib (n - 2L))
 
 let main () : Int64 =
-  let shapes = [Shape.Circle 2.0; Shape.Rect (3.0, 4.0); Shape.Named ("boxed", Shape.Rect (1.5, 2.0))]
+  let shapes = [Shape.Circle 2.0, Shape.Rect (3.0, 4.0), Shape.Named ("boxed", Shape.Rect (1.5, 2.0))]
   let areas = shapes |> Stdlib.List.map (fun s -> area s)
   let total = areas |> Stdlib.List.fold 0.0 (fun acc a -> acc + a)
   Builtin.debug "areas" areas
@@ -26,7 +26,7 @@ let main () : Int64 =
 
   Builtin.debug "fib 18" (fib 18L)
 
-  let acct = Acct { id = 7L; name = "ada"; tags = ["x"; "y"] }
+  let acct = Acct { id = 7L; name = "ada"; tags = ["x", "y"] }
   let json = Stdlib.Json.serialize<Acct> acct
   Builtin.debug "json" json
   match Stdlib.Json.parse<Acct> json with

@@ -31,7 +31,7 @@ module Topics =
     [ DocTopic
         { name = "for-ai"
           description = "AI agent guide - start here"
-          aliases = [ "ai"; "agent" ]
+          aliases = [ "ai", "agent" ]
           context = "cli"
           content = Docs.ForAI.content
           subtopics = [] }
@@ -39,7 +39,7 @@ module Topics =
       DocTopic
         { name = "for-ai-internal"
           description = "AI guide for monorepo/F# work"
-          aliases = [ "internal"; "dev" ]
+          aliases = [ "internal", "dev" ]
           context = "internal"
           content = Docs.ForAIInternal.content
           subtopics = [] }
@@ -79,7 +79,7 @@ module Topics =
       DocTopic
         { name = "pattern-matching"
           description = "Match expressions"
-          aliases = [ "match"; "patterns" ]
+          aliases = [ "match", "patterns" ]
           context = "general"
           content = Docs.PatternMatching.content
           subtopics = [] }
@@ -87,7 +87,7 @@ module Topics =
       DocTopic
         { name = "functions"
           description = "Functions and lambdas"
-          aliases = [ "fn"; "fns" ]
+          aliases = [ "fn", "fns" ]
           context = "general"
           content = Docs.Functions.content
           subtopics = [] }
@@ -135,7 +135,7 @@ module Topics =
       DocTopic
         { name = "http-server"
           description = "HTTP server guide"
-          aliases = [ "http"; "server" ]
+          aliases = [ "http", "server" ]
           context = "general"
           content = Docs.HttpServer.content
           subtopics = [] }
@@ -151,7 +151,7 @@ module Topics =
       DocTopic
         { name = "scm"
           description = "Version control for packages"
-          aliases = [ "git"; "vcs"; "commits" ]
+          aliases = [ "git", "vcs", "commits" ]
           context = "cli"
           content = Docs.SCM.content
           subtopics = [] }
@@ -159,7 +159,7 @@ module Topics =
       DocTopic
         { name = "deprecation"
           description = "Mark package items as deprecated / obsolete / harmful"
-          aliases = [ "deprecate"; "delete" ]
+          aliases = [ "deprecate", "delete" ]
           context = "cli"
           content = Docs.Deprecation.content
           subtopics = [] }
@@ -167,7 +167,7 @@ module Topics =
       DocTopic
         { name = "interactive-testing"
           description = "Interactive CLI testing & telemetry"
-          aliases = [ "testing"; "telemetry"; "expect"; "perf" ]
+          aliases = [ "testing", "telemetry", "expect", "perf" ]
           context = "internal"
           content = Docs.InteractiveTesting.content
           subtopics = [] }
@@ -179,7 +179,7 @@ module Topics =
       DocTopic
         { name = "signatures"
           description = "Live: stdlib fns + signatures (drill-in for `docs stdlib`)"
-          aliases = [ "sigs"; "api" ]
+          aliases = [ "sigs", "api" ]
           context = "cli"
           content = fun () -> "Run `docs signatures` to render. See `docs signatures --help`."
           subtopics = [] } ]

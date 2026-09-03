@@ -134,4 +134,4 @@ let view
 
   let bodySpans = if region.rows == 0 then [] else body region
 
-  Canvas.toView size (Stdlib.List.flatten [ titleSpans; bodySpans; helpSpans ])
+  Canvas.toView size (Stdlib.List.flatten [ titleSpans, bodySpans, helpSpans ])

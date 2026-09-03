@@ -80,7 +80,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
           match state.editing with
           | Some _ ->
             Frame.formatHints
-              [ ("type", "edit"); ("↑↓←→", "move"); ("home/end", "line"); ("^k", "kill"); ("tab", "indent"); ("^s", "save"); ("esc", "cancel") ]
+              [ ("type", "edit"), ("↑↓←→", "move"), ("home/end", "line"), ("^k", "kill"), ("tab", "indent"), ("^s", "save"), ("esc", "cancel") ]
           | None ->
             match state.input with
             | Some inp ->
@@ -101,10 +101,10 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               ++ ghost
             | None ->
               match state.reading with
-              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); ("PgUp/PgDn", "page"); (":", "cmd"); ("esc", "back") ]
+              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ]
               | None ->
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
-                  Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
+                  Frame.formatHints [ ("↑↓", "move"), ("⏎", "jump"), ("esc", "close"), ("q", "quit") ]
                 else hintsForView state
         // A toast sits *beside* the hints, right-aligned, rather than
         // replacing the row. It used to take the whole row, so every message
@@ -143,9 +143,9 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
             h
           else
             (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Stdlib.Cli.UI.Colors.dimText "…")
-        Stdlib.List.flatten [ Frame.renderKeyHints r shownHints; toast ])
+        Stdlib.List.flatten [ Frame.renderKeyHints r shownHints, toast ])
   Stdlib.List.flatten
-    [ Stdlib.Cli.UI.Layout.vstack screen [ context; body; hints ]
+    [ Stdlib.Cli.UI.Layout.vstack screen [ context, body, hints ]
       match state.overlay with
       | NoOverlay -> []
       | Keymap -> renderHelpOverlay screen
@@ -218,7 +218,7 @@ let renderCommandCompletions (state: State) (screen: Stdlib.Cli.UI.Layout.Region
               Stdlib.Cli.UI.Layout.at inner i 0 line)
             |> Stdlib.List.flatten
           // Clear the interior first - this floats over the body, which would otherwise bleed through.
-          Stdlib.List.flatten [ Stdlib.Cli.UI.Layout.clearRegion inner; rows ])
+          Stdlib.List.flatten [ Stdlib.Cli.UI.Layout.clearRegion inner, rows ])
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls

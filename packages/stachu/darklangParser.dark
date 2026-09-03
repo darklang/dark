@@ -400,7 +400,7 @@ let listLiteral (exprParser: P<Expr>) : P<Expr> =
       (Parser.sepBy
         exprParser
         (Parser.orElse
-          (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ";") (ws ())))
+          (Parser.keepRight (ws ()) (Parser.keepLeft (symbolNoWs ",") (ws ())))
           (ws1 ()))))
 
 

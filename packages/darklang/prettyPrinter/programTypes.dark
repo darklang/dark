@@ -43,7 +43,7 @@ module NameResolutionError =
 // we can shorten names that share the same prefix
 type Context =
   { branchId: Uuid
-    /// The module we're printing from, owner-first (`["Darklang"; "Stdlib"; "Option"]`), or empty for
+    /// The module we're printing from, owner-first (`["Darklang", "Stdlib", "Option"]`), or empty for
     /// "no context". A path rather than a dotted string, because shortening compares segments and
     /// `PickContext` wants a path too; the two used to disagree and be converted by splitting on ".".
     currentModule: List<String>
@@ -74,7 +74,7 @@ module Context =
 
   val forMain = forBranch SCM.Branch.mainBranchId
 
-  /// A context anchored at `path` (owner-first, e.g. `["Darklang"; "Stdlib"; "Option"]`).
+  /// A context anchored at `path` (owner-first, e.g. `["Darklang", "Stdlib", "Option"]`).
   ///
   /// References inside a printed definition are then spelled the way someone standing in that module
   /// would say them. Anything that knows which module it is showing should use this rather than
@@ -303,7 +303,7 @@ let typeReferenceDocWithFnParens
 
   | TTuple(first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       // Preserve function types nested in the tuple.
       |> Stdlib.List.map (fun item -> typeReferenceDocWithFnParens ctx true item)
     let separator = Stdlib.Pretty.concat (txt " *") Stdlib.Pretty.line
@@ -381,7 +381,7 @@ let typeReferenceFlatAtPrecedence
     $"List<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TTuple(first, second, theRest) ->
-    (Stdlib.List.append [ first; second ] theRest)
+    (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item ->
       typeReferenceFlatAtPrecedence ctx true item)
     |> Stdlib.String.join " * "
@@ -452,7 +452,7 @@ let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
   | LPVariable(_id, name) -> name
   | LPWildcard _id -> "_"
   | LPTuple(_id, first, second, theRest) ->
-    (Stdlib.List.append [ first; second ] theRest)
+    (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> letPattern item)
     |> Stdlib.String.join ", "
     |> fun parts -> "(" ++ parts ++ ")"
@@ -487,7 +487,7 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPList(_id, items) ->
     items
     |> Stdlib.List.map (fun item -> matchPattern item)
-    |> Stdlib.String.join "; "
+    |> Stdlib.String.join ", "
     |> fun parts -> "[" ++ parts ++ "]"
 
   | MPListCons(_id, head, tail) ->
@@ -496,7 +496,7 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     $"{headPart} :: {tailPart}"
 
   | MPTuple(_, first, second, theRest) ->
-    (Stdlib.List.append [ first; second ] theRest)
+    (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> matchPattern item)
     |> Stdlib.String.join ", "
     |> fun parts -> "(" ++ parts ++ ")"
@@ -707,7 +707,7 @@ let applyArgNeedsParens (arg: LanguageTools.ProgramTypes.Expr) : Bool =
 
 /// `opening parts... closing`, on one line if it fits and one part per line if it doesn't.
 ///
-/// `opener` decides whether the delimiters hug: `softLine` for brackets (`[1; 2]`), `line` for braces
+/// `opener` decides whether the delimiters hug: `softLine` for brackets (`[1, 2]`), `line` for braces
 /// (`{ a = 1 }`). `sep` stays in the output either way, so the broken form still parses.
 let wrapExprs
   (opening: String)
@@ -864,16 +864,16 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // Collections: one line when they fit, one element per line when they don't. They never broke before,
   // at any length, so a forty-element list was a single four-hundred-column line.
   //
-  // Brackets hug their contents (`softLine`, so `[1; 2]` gains no inner spaces) while braces keep theirs
+  // Brackets hug their contents (`softLine`, so `[1, 2]` gains no inner spaces) while braces keep theirs
   // (`line`, so a record reads `T { a = 1 }`). Separators stay explicit either way, which is what makes
   // the broken form parse back.
   | EList(_id, items) ->
     let parts = items |> Stdlib.List.map (fun i -> exprDoc ctx i)
-    wrapExprs "[" "]" ";" Stdlib.Pretty.softLine parts
+    wrapExprs "[" "]" "," Stdlib.Pretty.softLine parts
 
   | ETuple(_id, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       |> Stdlib.List.map (fun i -> exprDoc ctx i)
     wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
 

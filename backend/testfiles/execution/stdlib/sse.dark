@@ -32,11 +32,11 @@
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "first"
                                                  eventType = ""
-                                                 id = "" };
+                                                 id = "" },
                                              Stdlib.HttpClient.Sse.Event
                                                { data = "second"
                                                  eventType = ""
-                                                 id = "" };
+                                                 id = "" },
                                              Stdlib.HttpClient.Sse.Event
                                                { data = "third"
                                                  eventType = ""
@@ -62,7 +62,7 @@
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "one"
                                                  eventType = ""
-                                                 id = "42" };
+                                                 id = "42" },
                                              Stdlib.HttpClient.Sse.Event
                                                { data = "two"
                                                  eventType = ""
@@ -77,7 +77,7 @@
    (Stdlib.HttpClient.Sse.parse stream)) = [ Stdlib.HttpClient.Sse.Event
                                                { data = "hello"
                                                  eventType = ""
-                                                 id = "" };
+                                                 id = "" },
                                              Stdlib.HttpClient.Sse.Event
                                                { data = "world"
                                                  eventType = ""

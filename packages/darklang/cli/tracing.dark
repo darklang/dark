@@ -200,32 +200,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "list" ] ->
     if wantsJson then executeListJson state 20 else executeList state 20
-  | [ "list"; "--fn" ] ->
+  | [ "list", "--fn" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces list --fn <name> [limit] [--json]")
     state
-  | [ "list"; "--route" ] ->
+  | [ "list", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces list --route <substring> [limit] [--json]")
     state
-  | [ "list"; limitStr ] ->
+  | [ "list", limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeListJson state limit else executeList state limit
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
-  | [ "list"; "--fn"; fnName ] ->
+  | [ "list", "--fn", fnName ] ->
     executeListByFn state fnName 20 wantsJson
-  | [ "list"; "--fn"; fnName; limitStr ] ->
+  | [ "list", "--fn", fnName, limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByFn state fnName limit wantsJson
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
-  | [ "list"; "--route"; route ] ->
+  | [ "list", "--route", route ] ->
     executeListByRoute state route 20 wantsJson
-  | [ "list"; "--route"; route; limitStr ] ->
+  | [ "list", "--route", route, limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByRoute state route limit wantsJson
     | Error _ ->
@@ -234,12 +234,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "follow" ] ->
     executeFollow state Stdlib.Option.Option.None wantsJson
-  | [ "follow"; "--route"; route ] ->
+  | [ "follow", "--route", route ] ->
     executeFollow state (Stdlib.Option.Option.Some route) wantsJson
 
   | [ "stats" ] ->
     if wantsJson then executeStatsJson state 100 else executeStats state 100
-  | [ "stats"; limitStr ] ->
+  | [ "stats", limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeStatsJson state limit else executeStats state limit
@@ -248,36 +248,36 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1
-  // Flag-without-arg case must precede the `[ "tail"; nStr ]` arm
+  // Flag-without-arg case must precede the `[ "tail", nStr ]` arm
   // (which would otherwise treat "--route" as a malformed N).
-  | [ "tail"; "--route" ] ->
+  | [ "tail", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] --route <substring>")
     state
-  | [ "tail"; nStr ] ->
+  | [ "tail", nStr ] ->
     match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state Stdlib.Option.Option.None n
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
       state
-  | [ "tail"; "--route"; route ] ->
+  | [ "tail", "--route", route ] ->
     executeTail state (Stdlib.Option.Option.Some route) 1
-  | [ "tail"; "--route"; route; nStr ]
-  | [ "tail"; nStr; "--route"; route ] ->
+  | [ "tail", "--route", route, nStr ]
+  | [ "tail", nStr, "--route", route ] ->
     match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state (Stdlib.Option.Option.Some route) n
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
       state
 
-  | [ "find"; pattern ] ->
+  | [ "find", pattern ] ->
     if wantsFindView then
       executeFindView state pattern
     elif wantsJson then
       executeFindJson state pattern 20
     else
       executeFind state pattern 20
-  | [ "find"; pattern; limitStr ] ->
+  | [ "find", pattern, limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeFindJson state pattern limit
@@ -289,7 +289,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "hotspots" ] ->
     if wantsJson then executeHotspotsJson state 100
     else executeHotspots state 100
-  | [ "hotspots"; limitStr ] ->
+  | [ "hotspots", limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeHotspotsJson state limit
@@ -308,7 +308,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
 
-  | [ "replay"; traceID ] ->
+  | [ "replay", traceID ] ->
     match resolveTraceID traceID with
     | Some full -> executeReplay state full
     | None -> state
@@ -316,14 +316,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `delete` covers all four shapes: by ID, --keep N, --before <duration>,
   // and --all. `prune` and `clear` were split out historically; folding
   // them into one verb keeps the CLI surface tighter.
-  | [ "delete"; "--all" ] ->
+  | [ "delete", "--all" ] ->
     if confirmDestructive autoConfirm "Delete all traces?" then
       executeClear state
     else
       Stdlib.printLine "Cancelled."
       state
 
-  | [ "delete"; "--before"; durationStr ] ->
+  | [ "delete", "--before", durationStr ] ->
     if confirmDestructive
          autoConfirm
          $"Delete traces older than {durationStr}?" then
@@ -332,7 +332,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine "Cancelled."
       state
 
-  | [ "delete"; "--keep"; nStr ] ->
+  | [ "delete", "--keep", nStr ] ->
     match Stdlib.Int.parse nStr with
     | Ok n ->
       if confirmDestructive
@@ -346,7 +346,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "--keep N"))
       state
 
-  | [ "delete"; traceID ] ->
+  | [ "delete", traceID ] ->
     match resolveTraceID traceID with
     | Some full ->
       if confirmDestructive autoConfirm $"Delete trace {full}?" then
@@ -359,14 +359,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // Focused usage messages for the remaining "flag without arg" cases
   // that don't conflict with positional-catching arms higher up
   // (the list/tail variants are handled inline above).
-  | [ "follow"; "--route" ] ->
+  | [ "follow", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces follow --route <substring> [--json]")
     state
-  | [ "delete"; "--keep" ] ->
+  | [ "delete", "--keep" ] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces delete --keep <N>")
     state
-  | [ "delete"; "--before" ] ->
+  | [ "delete", "--before" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Usage: traces delete --before <duration> (e.g. 30s, 5m, 1h, 2d)")
@@ -437,8 +437,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // explicitly before dumping help so a typo'd `traces lst` doesn't
     // look like it succeeded silently.
     let knownSubcommands =
-      [ "help"; "list"; "view"; "tail"; "follow"; "find"; "hotspots"
-        "stats"; "replay"; "delete" ]
+      [ "help", "list", "view", "tail", "follow", "find", "hotspots"
+        "stats", "replay", "delete" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -1243,9 +1243,9 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "--json" ]
   | [ "tail" ] -> [ Completion.simple "--route" ]
   | [ "follow" ] ->
-    [ Completion.simple "--route"; Completion.simple "--json" ]
+    [ Completion.simple "--route", Completion.simple "--json" ]
   | [ "find" ] ->
-    [ Completion.simple "--view"; Completion.simple "--json" ]
+    [ Completion.simple "--view", Completion.simple "--json" ]
   | [ "delete" ] ->
     [ Completion.simple "--all"
       Completion.simple "--keep"
@@ -1266,12 +1266,12 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   // substring/path — no canonical completion to suggest. Returning
   // an empty list forces the user to type a value rather than
   // tab-cycling through the wrong flags.
-  | [ "list"; "--fn" ]
-  | [ "list"; "--route" ]
-  | [ "tail"; "--route" ]
-  | [ "follow"; "--route" ] -> []
+  | [ "list", "--fn" ]
+  | [ "list", "--route" ]
+  | [ "tail", "--route" ]
+  | [ "follow", "--route" ] -> []
   | "find" :: _ :: _ ->
-    [ Completion.simple "--view"; Completion.simple "--json" ]
+    [ Completion.simple "--view", Completion.simple "--json" ]
   | "tail" :: _ :: _ -> [ Completion.simple "--route" ]
   | "list" :: _ :: _ ->
     [ Completion.simple "--json" ]

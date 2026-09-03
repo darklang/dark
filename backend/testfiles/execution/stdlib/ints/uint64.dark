@@ -83,35 +83,35 @@ Stdlib.UInt64.divide 1UL 0UL = error="Cannot divide by 0"
 |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 1UL 2UL)
 |> Stdlib.List.map (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 1UL)
-  && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
+  && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 10UL 20UL)
 |> Stdlib.List.map (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 10UL)
-  && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
+  && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 2UL 1UL)
 |> Stdlib.List.map (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 1UL)
-  && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
+  && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 20UL 10UL)
 |> Stdlib.List.map (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 10UL)
-  && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
+  && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 1UL)
- |> Stdlib.List.unique) = [ 0UL; 1UL ]
+ |> Stdlib.List.unique) = [ 0UL, 1UL ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 2UL)
- |> Stdlib.List.unique) = [ 0UL; 1UL; 2UL ]
+ |> Stdlib.List.unique) = [ 0UL, 1UL, 2UL ]
 
-Stdlib.UInt64.sum [ 1UL; 2UL ] = 3UL
+Stdlib.UInt64.sum [ 1UL, 2UL ] = 3UL
 
 // parses OK
 Stdlib.UInt64.parse "0" = Stdlib.Result.Result.Ok 0UL

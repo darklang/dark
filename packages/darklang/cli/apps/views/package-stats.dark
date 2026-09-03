@@ -117,5 +117,5 @@ let rowsAtSize
       headerLine
       divider ]
     moduleRows
-    [ divider; ""; hints; "" ]
+    [ divider, "", hints, "" ]
   ]

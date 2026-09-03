@@ -120,7 +120,7 @@ let launchDetached (name: String) (expr: String) : Stdlib.Result.Result<Unit, St
   let cmd =
     $"nohup {launcher ()} eval '{expr}' >> {logPath name} 2>&1 &"
 
-  match Process.exec "/bin/sh" [ "-c"; cmd ] with
+  match Process.exec "/bin/sh" [ "-c", cmd ] with
   | Ok _ -> Stdlib.Result.Result.Ok()
   | Error e -> Stdlib.Result.Result.Error $"failed to launch {name}: {e}"
 

@@ -167,7 +167,7 @@ let runAppsSubcommand (state: State) (sub: String) : Step =
   | Some app ->
     let appState =
       classicState state
-    let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub; app.slug ])
+    let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub, app.slug ])
     let refreshed =
       itemsForView vApps state.branchId state.location state.scm.section state.ai.section state.matter.lens
     let shown =

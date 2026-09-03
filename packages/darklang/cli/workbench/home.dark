@@ -75,7 +75,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
   // each section but the first, so the sections read as sections rather than
   // one run of rows.
   let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
-    if Stdlib.List.isEmpty rows then [] else Stdlib.List.append [ homeHeader ""; homeHeader label ] rows
+    if Stdlib.List.isEmpty rows then [] else Stdlib.List.append [ homeHeader "", homeHeader label ] rows
   let openCount = Stdlib.Int.toString (Stdlib.List.length open_)
   Stdlib.List.flatten
     [ section ("needs you · " ++ (Stdlib.Int.toString (Stdlib.List.length conflicts))) conflicts
@@ -151,7 +151,7 @@ let welcomeLines (state: State) : List<String> =
     Stdlib.Cli.UI.Colors.dimText "name, and syncs. This is your branch."
     ""
     (key "2") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "look around") ++ (Stdlib.Cli.UI.Colors.dimText "     the tree - Darklang.Stdlib first")
-    (key (replKeys ++ " ⏎")) ++ "  " ++ (Stdlib.Cli.UI.Colors.boldText "try something") ++ (Stdlib.Cli.UI.Colors.dimText " REPL - Stdlib.List.map (fun x -> x + 1) [1; 2]")
+    (key (replKeys ++ " ⏎")) ++ "  " ++ (Stdlib.Cli.UI.Colors.boldText "try something") ++ (Stdlib.Cli.UI.Colors.dimText " REPL - Stdlib.List.map (fun x -> x + 1) [1, 2]")
     (key ":") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "make something") ++ (Stdlib.Cli.UI.Colors.dimText "  :new fn " ++ name ++ ".hello")
     (key "b") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "branch first") ++ (Stdlib.Cli.UI.Colors.dimText "    if you'd rather not work on main") ]
 
@@ -257,7 +257,7 @@ let homeBranchDetail (state: State) : List<String> =
       if Stdlib.List.isEmpty own then []
       else
         Stdlib.List.flatten
-          [ [ ""; Stdlib.Cli.UI.Colors.dimText "its commits" ]
+          [ [ "", Stdlib.Cli.UI.Colors.dimText "its commits" ]
             own |> Stdlib.List.map (fun c ->
               "  " ++ c.message ++ (Stdlib.Cli.UI.Colors.dimText ("   " ++ c.committerName ++ " · " ++ (ago c.createdAt) ++ " · " ++ (plural c.opCount "op")))) ]
     Stdlib.List.flatten
@@ -299,7 +299,7 @@ let homeDetail (state: State) : List<String> =
           if homeRowIsCurrentBranch state then "b new branch  ·  r rebase onto parent  ·  m merge into parent"
           else "⏎ switch to it  ·  b new  ·  m merge into parent  ·  r rebase  ·  x delete"
         else ""
-      Stdlib.List.flatten [ lines; if keys == "" then [] else [ ""; Stdlib.Cli.UI.Colors.dimText keys ] ]
+      Stdlib.List.flatten [ lines, if keys == "" then [] else [ "", Stdlib.Cli.UI.Colors.dimText keys ] ]
 
 /// The title for Home's selected-row detail.
 let homeDetailTitle (state: State) : String =

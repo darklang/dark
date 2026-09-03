@@ -11,7 +11,7 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
 
 /// A one-line, clipped rendering of a value's body for the row description:
-/// `= "hello"`, `= [1; 2; 3]`. First line only, and no more than `width`
+/// `= "hello"`, `= [1, 2, 3]`. First line only, and no more than `width`
 /// columns - a value can be a whole table.
 let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.ProgramTypes.Expr) (width: Int) : String =
   let printed = PrettyPrinter.ProgramTypes.expr ctx body
@@ -55,7 +55,7 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
       let args = if Stdlib.List.isEmpty params then "()" else Stdlib.String.join params " -> "
       let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
       BodyItem { name = f.location.name; kind = "fn"; isModule = false; desc = sig_ })
-  Stdlib.List.flatten [ moduleItems; typeItems; valItems; fnItems ]
+  Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
 
 /// How many uncommitted *items* there are - the same number the Changes list shows.
 ///

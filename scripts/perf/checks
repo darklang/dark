@@ -123,7 +123,7 @@ run "error raised inside nested lambdas" \
     "two map levels, two Lambda frames, then 'Cannot divide by 0'" \
     "$(case_file lambda-callstack <<'DARK'
 let main () : Int64 =
-  let grid = [[1L; 2L]; [3L; 4L]]
+  let grid = [[1L, 2L], [3L, 4L]]
   let ys = grid |> Stdlib.List.map (fun row ->
     row |> Stdlib.List.map (fun x -> if x == 3L then x / 0L else x))
   Builtin.debug "ys" ys

@@ -233,7 +233,7 @@ let private testEvalCases =
   testCliEquals
     "eval smoke"
     [ "String.length", [ "eval"; "Stdlib.String.length \"hello\"" ], "5"
-      "List.length", [ "eval"; "[1L; 2L; 3L] |> Stdlib.List.length" ], "3"
+      "List.length", [ "eval"; "[1L, 2L, 3L] |> Stdlib.List.length" ], "3"
       "simple expr", [ "eval"; "2L + 3L" ], "5"
       "string concat", [ "eval"; "\"hello\" ++ \"world\"" ], "helloworld" ]
 

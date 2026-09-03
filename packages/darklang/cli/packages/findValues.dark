@@ -50,7 +50,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       state
 
-  | [ typePath; namespace_ ] ->
+  | [ typePath, namespace_ ] ->
     match resolveTypeHash state.currentBranchId typePath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)

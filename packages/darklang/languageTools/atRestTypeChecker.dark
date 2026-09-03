@@ -222,7 +222,7 @@ let staticTypeToStringWith
   | TTuple(first, second, rest) ->
     let parts =
       Stdlib.List.append
-        [ recurse first; recurse second ]
+        [ recurse first, recurse second ]
         (Stdlib.List.map rest recurse)
     "(" ++ Stdlib.String.join parts " * " ++ ")"
   | TDict inner -> wrapped "Dict" inner

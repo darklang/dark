@@ -79,7 +79,7 @@ module TinyLang =
     Stachu.Parser.map (fun _ -> BinOp.Div) (Stachu.Parser.string "/")
 
   let binOp () : Stachu.Parser.Parser<BinOp> =
-    Stachu.Parser.choice [ addOp (); subOp (); mulOp (); divOp () ]
+    Stachu.Parser.choice [ addOp (), subOp (), mulOp (), divOp () ]
 
 
 // ============================================
@@ -242,7 +242,7 @@ module ListExpr =
         (Stachu.Parser.sepBy
           (TinyLang.intLiteral ())
           (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
-    "[1, 2, 3]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EInt 1L; TinyLang.Expr.EInt 2L; TinyLang.Expr.EInt 3L ], "")
+    "[1, 2, 3]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EInt 1L, TinyLang.Expr.EInt 2L, TinyLang.Expr.EInt 3L ], "")
 
 
 module BoolListExpr =
@@ -256,7 +256,7 @@ module BoolListExpr =
         (Stachu.Parser.sepBy
           (TinyLang.boolLiteral ())
           (Stachu.Parser.between (TinyLang.ws ()) (TinyLang.ws ()) (Stachu.Parser.string ",")))))
-    "[true, false, true]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EBool true; TinyLang.Expr.EBool false; TinyLang.Expr.EBool true ], "")
+    "[true, false, true]") = Stachu.Parser.ParseResult.Success(TinyLang.Expr.EList [ TinyLang.Expr.EBool true, TinyLang.Expr.EBool false, TinyLang.Expr.EBool true ], "")
 
 
 module Keywords =

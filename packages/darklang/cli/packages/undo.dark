@@ -254,5 +254,5 @@ let help (_state: Cli.AppState) : String =
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | [] -> ["fn", "type", "value"] |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

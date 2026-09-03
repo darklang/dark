@@ -14,28 +14,28 @@ let handleInitializeRequest
   let serverCapabilities =
     Json.Object [
       ("resources", Json.Object [
-        ("subscribe", Json.Bool false);
+        ("subscribe", Json.Bool false),
         ("listChanged", Json.Bool false)
-      ]);
+      ]),
       ("tools", Json.Object [
         ("listChanged", Json.Bool false)
-      ]);
+      ]),
       ("prompts", Json.Object [
         ("listChanged", Json.Bool false)
-      ]);
+      ]),
       ("logging", Json.Object [])
     ]
 
   let serverInfo =
     Json.Object [
-      ("name", Json.String server.name);
+      ("name", Json.String server.name),
       ("version", Json.String "1.0.0")
     ]
 
   let result =
     Json.Object [
-      ("protocolVersion", Json.String "2025-06-18");
-      ("capabilities", serverCapabilities);
+      ("protocolVersion", Json.String "2025-06-18"),
+      ("capabilities", serverCapabilities),
       ("serverInfo", serverInfo)
     ]
 

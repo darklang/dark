@@ -31,7 +31,7 @@ module Variables =
 
 module QualifiedNames =
   // Qualified function reference
-  Stachu.DarklangParser.parse "Stdlib.List.map" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFnName(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib"; "List"]; name = "map" }), "")
+  Stachu.DarklangParser.parse "Stdlib.List.map" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFnName(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib", "List"]; name = "map" }), "")
 
   Stachu.DarklangParser.parse "MyModule.myFn" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFnName(Stachu.DarklangParser.QualifiedName { modules = ["MyModule"]; name = "myFn" }), "")
 
@@ -51,7 +51,7 @@ module Lists =
   Stachu.DarklangParser.parse "[]" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EList [], "")
 
   // List with elements
-  Stachu.DarklangParser.parse "[1L; 2L; 3L]" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EList [Stachu.DarklangParser.Expr.EInt64 1L; Stachu.DarklangParser.Expr.EInt64 2L; Stachu.DarklangParser.Expr.EInt64 3L], "")
+  Stachu.DarklangParser.parse "[1L, 2L, 3L]" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EList [Stachu.DarklangParser.Expr.EInt64 1L, Stachu.DarklangParser.Expr.EInt64 2L, Stachu.DarklangParser.Expr.EInt64 3L], "")
 
 
 module Tuples =
@@ -95,12 +95,12 @@ module LambdaExpressions =
 
 module MatchExpressions =
   // Match with two cases
-  Stachu.DarklangParser.parse "match x with | true -> 1L | false -> 0L" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EMatch(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool true; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 1L }; Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool false; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 0L }]), "")
+  Stachu.DarklangParser.parse "match x with | true -> 1L | false -> 0L" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EMatch(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool true; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 1L }, Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool false; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 0L }]), "")
 
 
 module PipeExpressions =
   // Simple pipe
-  Stachu.DarklangParser.parse "x |> Stdlib.List.map" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EPipe(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.PipeExpr.PipeFnCall(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib"; "List"]; name = "map" }, [])]), "")
+  Stachu.DarklangParser.parse "x |> Stdlib.List.map" = Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EPipe(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.PipeExpr.PipeFnCall(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib", "List"]; name = "map" }, [])]), "")
 
 
 module FieldAccess =

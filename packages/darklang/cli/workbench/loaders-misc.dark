@@ -65,7 +65,7 @@ let loadThingItems (branchId: Uuid) : List<BodyItem> =
   (LanguageTools.PackageManager.Search.search branchId q).values
   |> Stdlib.List.map (fun i ->
     let full =
-      Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ]; i.location.modules; [ i.location.name ] ]) "."
+      Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ], i.location.modules, [ i.location.name ] ]) "."
     BodyItem { name = full; kind = "val"; isModule = false; desc = "" })
 
 /// The source of the selected Thing (value), for the preview - looked up by its full path.
@@ -245,7 +245,7 @@ let loadTraceBodyItems () : List<BodyItem> =
   else
     // Nothing recorded here yet, so show a shape-of-the-thing sample. Tagged distinctly so the detail pane
     // can say which it's looking at, rather than calling every trace mock.
-    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false; desc = "" }
+    [ BodyItem { name = "✓ eval   Stdlib.List.map [1,2,3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false; desc = "" }
       BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace-sample"; isModule = false; desc = "" }
       BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace-sample"; isModule = false; desc = "" }
       BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace-sample"; isModule = false; desc = "" }

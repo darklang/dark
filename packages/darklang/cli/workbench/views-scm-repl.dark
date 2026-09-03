@@ -146,7 +146,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
             ""
             Stdlib.Cli.UI.Colors.dimText "try:"
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  1 + 1")
-            (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  let xs = [ 1; 2; 3 ]")
+            (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  let xs = [ 1, 2, 3 ]")
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  Stdlib.List.map xs (fun x -> x * 2)")
             ""
             Stdlib.Cli.UI.Colors.dimText "`let` binds for the session - the"
@@ -206,13 +206,13 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
         if (Stdlib.String.trim state.repl.last) == "" then
           []
         else
-          [ ""; Stdlib.Cli.UI.Colors.dimText "last result:"; Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green state.repl.last ]
+          [ "", Stdlib.Cli.UI.Colors.dimText "last result:", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green state.repl.last ]
       let count = Stdlib.List.length state.repl.bindings
       let heading =
         if count == 0 then Stdlib.Cli.UI.Colors.dimText "session bindings:"
         else Stdlib.Cli.UI.Colors.dimText ("session bindings  ·  " ++ (plural count "name") ++ ":")
       let lines =
-        Stdlib.List.flatten [ [ heading; "" ]; bindingLines; resultLines ]
+        Stdlib.List.flatten [ [ heading, "" ], bindingLines, resultLines ]
       lines
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.take inner.rows

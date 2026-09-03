@@ -36,7 +36,7 @@ let letPattern (pat: LanguageTools.ProgramTypes.LetPattern) : String =
   | LPUnit _ -> "()"
   | LPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> letPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -65,12 +65,12 @@ let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPString(_, s) -> "\"" ++ (clip s) ++ "\""
   | MPList(_, items) ->
     let parts =
-      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join "; "
+      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join ", "
     $"[{parts}]"
   | MPListCons(_, head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
   | MPTuple(_, first, second, theRest) ->
     let parts =
-      (Stdlib.List.append [ first; second ] theRest)
+      (Stdlib.List.append [ first, second ] theRest)
       |> Stdlib.List.map (fun p -> matchPattern p)
       |> Stdlib.String.join ", "
     $"({parts})"
@@ -165,7 +165,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
         elseLines ]
 
   | ELet(_, pat, rhs, body) ->
-    Stdlib.List.flatten [ here "Let" (letPattern pat); child rhs; child body ]
+    Stdlib.List.flatten [ here "Let" (letPattern pat), child rhs, child body ]
 
   | EList(_, items) ->
     let n = Stdlib.Int.toString (Stdlib.List.length items)
@@ -186,7 +186,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | ETuple(_, first, second, theRest) ->
     Stdlib.List.append
       (here "Tuple" "")
-      (children (Stdlib.List.append [ first; second ] theRest))
+      (children (Stdlib.List.append [ first, second ] theRest))
 
   | EApply(_, fn, typeArgs, args) ->
     Stdlib.List.flatten
@@ -201,13 +201,13 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
 
   | EInfix(_, op, lhs, rhs) ->
     let opStr = PrettyPrinter.ProgramTypes.infix op
-    Stdlib.List.flatten [ here "Infix" opStr; child lhs; child rhs ]
+    Stdlib.List.flatten [ here "Infix" opStr, child lhs, child rhs ]
 
   | ERecordFieldAccess(_, record, fieldName) ->
     Stdlib.List.append (here "RecordFieldAccess" $".{fieldName}") (child record)
 
   | EStatement(_, first, next) ->
-    Stdlib.List.flatten [ here "Statement" ""; child first; child next ]
+    Stdlib.List.flatten [ here "Statement" "", child first, child next ]
 
   | EMatch(_, arg, cases) ->
     let n = Stdlib.Int.toString (Stdlib.List.length cases)
@@ -233,7 +233,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       let scrutinee =
         if only.detail == "" then only.label else $"{only.label} {only.detail}"
       Stdlib.List.append (here "Match" $"on {scrutinee}, {n} cases") caseLines
-    | argLines -> Stdlib.List.flatten [ here "Match" $"{n} cases"; argLines; caseLines ]
+    | argLines -> Stdlib.List.flatten [ here "Match" $"{n} cases", argLines, caseLines ]
 
   | ERecord(_, typeName, typeArgs, fields) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
@@ -259,7 +259,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
           (expr ctx (depth + 2) value))
       |> Stdlib.List.flatten
     Stdlib.List.flatten
-      [ here "RecordUpdate" ""; child record; updateLines ]
+      [ here "RecordUpdate" "", child record, updateLines ]
 
   | EEnum(_, typeName, typeArgs, caseName, fields) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.typeName ctx typeName
@@ -271,7 +271,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
     let partLines =
       (Stdlib.List.map parts (fun p -> pipeExpr ctx (depth + 1) p))
       |> Stdlib.List.flatten
-    Stdlib.List.flatten [ here "Pipe" $"{n} stages"; child lhs; partLines ]
+    Stdlib.List.flatten [ here "Pipe" $"{n} stages", child lhs, partLines ]
 
 
 let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: LanguageTools.ProgramTypes.PipeExpr) : List<Line> =

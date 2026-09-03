@@ -31,12 +31,12 @@ Stdlib.Cli.Path.isAbsolute "/" = true
 Stdlib.Cli.Path.isAbsolute "" = false
 
 // Path.join
-Stdlib.Cli.Path.join ["home"; "user"; "file.txt"] = "home/user/file.txt"
-Stdlib.Cli.Path.join ["/home"; "user"] = "/home/user"
+Stdlib.Cli.Path.join ["home", "user", "file.txt"] = "home/user/file.txt"
+Stdlib.Cli.Path.join ["/home", "user"] = "/home/user"
 Stdlib.Cli.Path.join [] = ""
-Stdlib.Cli.Path.join [""; "a"; ""; "b"] = "a/b"
-Stdlib.Cli.Path.join ["a"; "/b"; "c"] = "/b/c"
-Stdlib.Cli.Path.join ["a/"; "b"] = "a/b"
+Stdlib.Cli.Path.join ["", "a", "", "b"] = "a/b"
+Stdlib.Cli.Path.join ["a", "/b", "c"] = "/b/c"
+Stdlib.Cli.Path.join ["a/", "b"] = "a/b"
 
 // Path.normalize
 Stdlib.Cli.Path.normalize "/home/../lib/./foo" = "/lib/foo"

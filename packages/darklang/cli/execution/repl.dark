@@ -49,7 +49,7 @@ let isSimpleName (name: String) : Bool =
 ///
 /// A line that starts with whitespace continues the one above it, so a wrapped expression stays whole:
 ///
-///   let a = 21L                        -> ["let a = 21L"; "a * 2L"]
+///   let a = 21L                        -> ["let a = 21L", "a * 2L"]
 ///   a * 2L
 ///
 ///   Stdlib.List.map xs                 -> ["Stdlib.List.map xs\n  (fun x -> x * 2L)"]
@@ -127,8 +127,8 @@ let wantsAnotherLine (text: String) : Bool =
       |> Stdlib.String.trim
     // Operators match the raw tail (`x*` needs no space before it); keywords match the last whitespace-
     // delimited token, so a name that merely ends in "if" or "let" isn't mistaken for one.
-    let operators = [ "="; "|>"; "&&"; "||"; "->"; "+"; "-"; "*"; "/"; "," ]
-    let keywords = [ "then"; "else"; "with"; "fun"; "if"; "match"; "let" ]
+    let operators = [ "=", "|>", "&&", "||", "->", "+", "-", "*", "/", "," ]
+    let keywords = [ "then", "else", "with", "fun", "if", "match", "let" ]
     let lastToken =
       Stdlib.String.split lastLine " "
       |> Stdlib.List.reverse

@@ -83,17 +83,17 @@ let main () : Int64 =
     a + b)
 
   Builtin.debug "--- lists" 0L
-  measure "cons onto a 3-list" (fun i -> Stdlib.List.length (Stdlib.List.push [ 1; 2; 3 ] i))
+  measure "cons onto a 3-list" (fun i -> Stdlib.List.length (Stdlib.List.push [ 1, 2, 3 ] i))
   measure "range 1..5" (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
   measure "map over 5" (fun i ->
-    Stdlib.List.length (Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + i)))
+    Stdlib.List.length (Stdlib.List.map [ 1, 2, 3, 4, 5 ] (fun x -> x + i)))
   measure "fold over 5" (fun i ->
-    Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))
+    Stdlib.List.fold [ 1, 2, 3, 4, 5 ] 0 (fun acc x -> acc + x))
   measure "any over 5" (fun i ->
-    if Stdlib.List.any [ 1; 2; 3; 4; 5 ] (fun x -> x > 4) then 1 else 0)
+    if Stdlib.List.any [ 1, 2, 3, 4, 5 ] (fun x -> x > 4) then 1 else 0)
 
   measure "findFirst over 5" (fun i ->
-    match Stdlib.List.findFirst [ 1; 2; 3; 4; 5 ] (fun x -> x > 4) with
+    match Stdlib.List.findFirst [ 1, 2, 3, 4, 5 ] (fun x -> x > 4) with
     | Some v -> v
     | None -> 0)
 

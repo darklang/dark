@@ -23,7 +23,7 @@ let topLevelBucket
 
 let execute (state: Cli.AppState) (_args: List<String>) : Cli.AppState =
   let branchId = state.currentBranchId
-  let rootPath = [ "Darklang"; "Stdlib" ]
+  let rootPath = [ "Darklang", "Stdlib" ]
 
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery

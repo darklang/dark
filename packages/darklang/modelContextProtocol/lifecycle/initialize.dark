@@ -153,7 +153,7 @@ let toJson (params: InitializeParams) : Json =
     |> Stdlib.Option.map (fun j -> ("sampling", j))
 
   let capabilitiesFields =
-    [elicitationJson; experimentalJson; rootsJson; samplingJson]
+    [elicitationJson, experimentalJson, rootsJson, samplingJson]
     |> Stdlib.Option.values
 
   let traceJson =
@@ -164,7 +164,7 @@ let toJson (params: InitializeParams) : Json =
     | None -> Stdlib.Option.Option.None
 
   let fields =
-    [clientInfoJson; Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields)); traceJson]
+    [clientInfoJson, Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields)), traceJson]
     |> Stdlib.Option.values
 
   Json.Object fields
@@ -182,7 +182,7 @@ module InitializeResult =
         Stdlib.Option.Option.Some ((
           "serverInfo",
           Json.Object [
-            ("name", Json.String info.name);
+            ("name", Json.String info.name),
             ("version", Json.String info.version)
           ]
         ))
@@ -194,7 +194,7 @@ module InitializeResult =
         Stdlib.Option.Option.Some ((
           "resources",
           Json.Object [
-            ("supportsResourceListing", Json.Bool res.supportsResourceListing);
+            ("supportsResourceListing", Json.Bool res.supportsResourceListing),
             ("supportsResourceTemplates", Json.Bool res.supportsResourceTemplates)
           ]
         ))
@@ -211,11 +211,11 @@ module InitializeResult =
       | None -> Stdlib.Option.Option.None
 
     let capabilitiesFields =
-      [resourceCapabilitiesJson; toolCapabilitiesJson]
+      [resourceCapabilitiesJson, toolCapabilitiesJson]
       |> Stdlib.Option.values
 
     let fields =
-      [serverInfoJson; Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields))]
+      [serverInfoJson, Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields))]
       |> Stdlib.Option.values
 
     Json.Object fields

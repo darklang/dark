@@ -66,12 +66,12 @@ let toDeprecateArgs
   (itemTypeStr: String)
   (target: String)
   : List<String> =
-  let baseArgs = [ itemTypeStr; target; "--kind"; "obsolete" ]
+  let baseArgs = [ itemTypeStr, target, "--kind", "obsolete" ]
   let messageArgs =
-    if parsed.message != "" then [ "-m"; parsed.message ] else []
+    if parsed.message != "" then [ "-m", parsed.message ] else []
   let confirmArgs = if parsed.autoConfirm then [ "--yes" ] else []
   let dryRunArgs = if parsed.dryRun then [ "--dry-run" ] else []
-  Stdlib.List.flatten [ baseArgs; messageArgs; confirmArgs; dryRunArgs ]
+  Stdlib.List.flatten [ baseArgs, messageArgs, confirmArgs, dryRunArgs ]
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -153,5 +153,5 @@ let complete
   (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["fn"; "type"; "value"] |> Stdlib.List.map Cli.Completion.simple
+  | [] -> ["fn", "type", "value"] |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

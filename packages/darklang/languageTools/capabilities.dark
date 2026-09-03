@@ -271,12 +271,12 @@ let parseGrant
       LanguageTools.Capabilities.capHttp
         LanguageTools.Capabilities.Scope.Any
         (LanguageTools.Capabilities.anyUrl ()))
-  | [ "http-client"; m ] ->
+  | [ "http-client", m ] ->
     Stdlib.Option.Option.Some(
       LanguageTools.Capabilities.capHttp
         (LanguageTools.Capabilities.methodScope m)
         (LanguageTools.Capabilities.anyUrl ()))
-  | [ "http-client"; m; url ] ->
+  | [ "http-client", m, url ] ->
     Stdlib.Option.Option.Some(
       LanguageTools.Capabilities.capHttp
         (LanguageTools.Capabilities.methodScope m)
@@ -288,7 +288,7 @@ let parseGrant
       LanguageTools.Capabilities.capExec
         LanguageTools.Capabilities.Scope.Any
         LanguageTools.Capabilities.Scope.Any)
-  | [ "exec"; p ] ->
+  | [ "exec", p ] ->
     Stdlib.Option.Option.Some(
       LanguageTools.Capabilities.capExec
         (LanguageTools.Capabilities.programScope p)
@@ -298,27 +298,27 @@ let parseGrant
       LanguageTools.Capabilities.capExec
         (LanguageTools.Capabilities.programScope p)
         (LanguageTools.Capabilities.Scope.Only argv))
-  | [ "file"; a ] ->
+  | [ "file", a ] ->
     (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
      | Some rw -> Stdlib.Option.Option.Some({ e with file = rw })
      | None -> Stdlib.Option.Option.None)
-  | [ "file"; a; p ] ->
+  | [ "file", a, p ] ->
     (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ p ]) with
      | Some rw -> Stdlib.Option.Option.Some({ e with file = rw })
      | None -> Stdlib.Option.Option.None)
-  | [ "env"; a ] ->
+  | [ "env", a ] ->
     (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
      | Some rw -> Stdlib.Option.Option.Some({ e with env = rw })
      | None -> Stdlib.Option.Option.None)
-  | [ "env"; a; v ] ->
+  | [ "env", a, v ] ->
     (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ v ]) with
      | Some rw -> Stdlib.Option.Option.Some({ e with env = rw })
      | None -> Stdlib.Option.Option.None)
-  | [ "db"; a ] ->
+  | [ "db", a ] ->
     (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
      | Some rw -> Stdlib.Option.Option.Some({ e with db = rw })
      | None -> Stdlib.Option.Option.None)
-  | [ "db"; a; t ] ->
+  | [ "db", a, t ] ->
     (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ t ]) with
      | Some rw -> Stdlib.Option.Option.Some({ e with db = rw })
      | None -> Stdlib.Option.Option.None)
@@ -395,7 +395,7 @@ let scopeArgs (s: LanguageTools.Capabilities.Scope<String>) : List<List<String>>
   | Any -> [ [] ]
   | Only xs -> if Stdlib.List.isEmpty xs then [] else Stdlib.List.map xs (fun x -> [ x ])
 
-/// `prefix` tokens (e.g. ["file"; "read"]) joined with the scope arg into one spec line.
+/// `prefix` tokens (e.g. ["file", "read"]) joined with the scope arg into one spec line.
 let specLine (prefix: List<String>) (a: List<String>) : String =
   Stdlib.String.join (Stdlib.List.append prefix a) " "
 
@@ -434,9 +434,9 @@ let render (c: LanguageTools.Capabilities.Capabilities) : List<String> =
   let fileSpecs =
     Stdlib.List.append
       ((LanguageTools.Capabilities.scopeArgs c.file.read)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file"; "read" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file", "read" ] a))
       ((LanguageTools.Capabilities.scopeArgs c.file.write)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file"; "write" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file", "write" ] a))
   let execSpecs =
     c.exec
     |> Stdlib.List.map (fun rule ->
@@ -452,20 +452,20 @@ let render (c: LanguageTools.Capabilities.Capabilities) : List<String> =
       |> Stdlib.List.map (fun p ->
         match (p, argToks) with
         | ("*", []) -> "exec"
-        | _ -> Stdlib.String.join (Stdlib.List.append [ "exec"; p ] argToks) " "))
+        | _ -> Stdlib.String.join (Stdlib.List.append [ "exec", p ] argToks) " "))
     |> Stdlib.List.flatten
   let envSpecs =
     Stdlib.List.append
       ((LanguageTools.Capabilities.scopeArgs c.env.read)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env"; "read" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env", "read" ] a))
       ((LanguageTools.Capabilities.scopeArgs c.env.write)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env"; "write" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env", "write" ] a))
   let dbSpecs =
     Stdlib.List.append
       ((LanguageTools.Capabilities.scopeArgs c.db.read)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db"; "read" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db", "read" ] a))
       ((LanguageTools.Capabilities.scopeArgs c.db.write)
-       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db"; "write" ] a))
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db", "write" ] a))
   let flagSpecs =
     Stdlib.List.flatten
       [ (if c.stdout then [ "stdout" ] else [])
@@ -474,4 +474,4 @@ let render (c: LanguageTools.Capabilities.Capabilities) : List<String> =
         (if c.clock then [ "clock" ] else [])
         (if c.llm then [ "llm" ] else []) ]
   Stdlib.List.flatten
-    [ httpSpecs; serverSpecs; fileSpecs; execSpecs; envSpecs; dbSpecs; flagSpecs ]
+    [ httpSpecs, serverSpecs, fileSpecs, execSpecs, envSpecs, dbSpecs, flagSpecs ]

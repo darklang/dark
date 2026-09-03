@@ -46,7 +46,7 @@ val workspaces =
     // documentation about it.
     Workspace
       { name = "Code"
-        dests = [ ("Tree", mkDest vMatter 0); ("Builtins", mkDest (extViewIndex "builtins") 0) ] }
+        dests = [ ("Tree", mkDest vMatter 0), ("Builtins", mkDest (extViewIndex "builtins") 0) ] }
     Workspace
       { name = "Changes"
         dests =
@@ -66,10 +66,10 @@ val workspaces =
     // Read-only results of running software.
     Workspace
       { name = "Activity"
-        dests = [ ("Traces", mkDest vTraces 0); ("Errors", mkDest (extViewIndex "errors") 0) ] }
+        dests = [ ("Traces", mkDest vTraces 0), ("Errors", mkDest (extViewIndex "errors") 0) ] }
     Workspace
       { name = "AI"
-        dests = [ ("Agents", mkDest vAI 0); ("Prompts", mkDest vAI 1) ] }
+        dests = [ ("Agents", mkDest vAI 0), ("Prompts", mkDest vAI 1) ] }
     Workspace { name = "Docs"; dests = [ ("Guides", mkDest vDocs 0) ] }
     // This machine: its config and the peers it syncs with.
     Workspace { name = "Instance"; dests = [ ("Devices", mkDest vDevices 0) ] } ]

@@ -22,7 +22,7 @@ let exportInto (outline: Outline) (ids: List<Int>) (depth: Int) (acc: List<Strin
 
 let export (doc: Document) : String =
   let lines = Stdlib.List.reverse (exportInto doc.outline doc.outline.rootChildren 0 [])
-  Stdlib.String.join (Stdlib.List.flatten [ [ $"# {doc.title}"; "" ]; lines ]) "\n"
+  Stdlib.String.join (Stdlib.List.flatten [ [ $"# {doc.title}", "" ], lines ]) "\n"
 
 
 // --- Import ---

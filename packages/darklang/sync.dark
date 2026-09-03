@@ -155,7 +155,7 @@ let cursorFor (peer: String) (kind: String) : Int64 =
   (Stdlib.Sqlite.scalarIntP
     (syncDb ())
     "SELECT cursor FROM sync_cursors_v1 WHERE peer = @p0 AND kind = @p1"
-    [ peer; kind ]
+    [ peer, kind ]
     "cursor")
   |> Stdlib.Option.withDefault 0L
 
@@ -164,7 +164,7 @@ let setCursor (peer: String) (kind: String) (cursor: Int64) : Unit =
     Stdlib.Sqlite.execP
       (syncDb ())
       "INSERT OR REPLACE INTO sync_cursors_v1 (peer, kind, cursor) VALUES (@p0, @p1, @p2)"
-      [ peer; kind; Stdlib.Int64.toString cursor ]
+      [ peer, kind, Stdlib.Int64.toString cursor ]
 
   ()
 
@@ -189,7 +189,7 @@ let reachable (url: String) : Stdlib.Result.Result<Int64, String> =
       // The health body is "ok ops=<n>".
       if Stdlib.String.startsWith text "ok" then
         match Stdlib.String.split text "=" with
-        | [ _; nStr ] ->
+        | [ _, nStr ] ->
           match Stdlib.Int64.parse (Stdlib.String.trim nStr) with
           | Ok n -> Stdlib.Result.Result.Ok n
           | Error _ -> Stdlib.Result.Result.Ok 0L

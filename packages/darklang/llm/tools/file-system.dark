@@ -302,4 +302,4 @@ val searchTool =
 
 /// All file system tools
 val all =
-  [ readTool; writeTool; listTool; searchTool ]
+  [ readTool, writeTool, listTool, searchTool ]

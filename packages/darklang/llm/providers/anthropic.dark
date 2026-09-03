@@ -602,7 +602,7 @@ let getBetaHeaders (ext: Provider.RequestExtensions) : List<String> =
   let context =
     if ext.extendedContext then [ "context-1m-2025-08-07" ] else []
 
-  Stdlib.List.flatten [ webSearch; webFetch; context ]
+  Stdlib.List.flatten [ webSearch, webFetch, context ]
 
 
 /// Send extended request to Anthropic API

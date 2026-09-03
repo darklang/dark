@@ -678,5 +678,5 @@ let view
       else
         []
 
-    Stdlib.List.flatten [ lines; thumb ]
+    Stdlib.List.flatten [ lines, thumb ]
 

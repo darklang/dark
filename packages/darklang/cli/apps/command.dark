@@ -140,7 +140,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "  `apps add <slug>` to add one to this instance")
     state
 
-  | [ "add"; slug ] ->
+  | [ "add", slug ] ->
     match Registry.findBySlug state.currentBranchId slug with
     | None ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
@@ -163,7 +163,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         | Daemon _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  start it with `apps start {slug}`")
         state
 
-  | [ "remove"; slug ] ->
+  | [ "remove", slug ] ->
     if Registry.isInstalled slug then
       Registry.removeInstalled slug
       Install.removeAlias slug
@@ -173,12 +173,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     state
 
-  | [ "run"; slug ] -> runApp state slug
+  | [ "run", slug ] -> runApp state slug
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
-  | [ "start"; slug ] | [ "spawn"; slug ] -> startDaemon state slug
+  | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
 
-  | [ "stop"; slug ] ->
+  | [ "stop", slug ] ->
     match Stdlib.Cli.Daemon.stop slug with
     | Ok msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -206,11 +206,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     state
 
-  | [ "status"; slug ] ->
+  | [ "status", slug ] ->
     Stdlib.printLine ("  " ++ Stdlib.Cli.Daemon.statusLine slug)
     state
 
-  | [ "logs"; slug ] ->
+  | [ "logs", slug ] ->
     let lines = Stdlib.Cli.Daemon.tailLog slug 20
 
     if Stdlib.List.isEmpty lines then
@@ -220,9 +220,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     state
 
-  | [ "inspect"; slug ] -> inspect state slug
+  | [ "inspect", slug ] -> inspect state slug
 
-  | [ "enable"; slug ] ->
+  | [ "enable", slug ] ->
     match Registry.findBySlug state.currentBranchId slug with
     | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
     | Some app ->
@@ -232,7 +232,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Failed e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     state
 
-  | [ "disable"; slug ] ->
+  | [ "disable", slug ] ->
     match Service.disable slug with
     | Ok msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {msg}")
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -253,8 +253,8 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list"; "list-available"; "add"; "remove"; "run"; "start"; "spawn"
-      "stop"; "status"; "logs"; "inspect"; "enable"; "disable" ]
+    [ "list", "list-available", "add", "remove", "run", "start", "spawn"
+      "stop", "status", "logs", "inspect", "enable", "disable" ]
     |> Stdlib.List.map Cli.Completion.simple
   // Only load the catalog once a verb needs slug completions.
   | [ verb ] ->

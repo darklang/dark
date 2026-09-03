@@ -7,14 +7,14 @@ module Error =
 
 
 // Check we get previous errors before later ones
-(Stdlib.List.map [ 1L; 2L; 3L; 4L; 5L ] (fun x -> Builtin.testRuntimeError "X"))
+(Stdlib.List.map [ 1L, 2L, 3L, 4L, 5L ] (fun x -> Builtin.testRuntimeError "X"))
 |> Stdlib.List.fakeFunction = error="Uncaught exception: X"
 module ErrorPropagation =
   Stdlib.List.head (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
   (if Builtin.testRuntimeError "test" then 5L else 6L) = error="Uncaught exception: test"
   (Stdlib.List.head (Builtin.testRuntimeError "test")).field = error="Uncaught exception: test"
-  [ 5L; 6L; Stdlib.List.head (Builtin.testRuntimeError "test") ] = error="Uncaught exception: test"
-  [ 5L; 6L; Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
+  [ 5L, 6L, Stdlib.List.head (Builtin.testRuntimeError "test") ] = error="Uncaught exception: test"
+  [ 5L, 6L, Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
   5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L = error="Uncaught exception: test"
   5L |> (+) (Builtin.testRuntimeError "test") = error="Uncaught exception: test"
   ("test" |> Builtin.testRuntimeError) = error="Uncaught exception: test"

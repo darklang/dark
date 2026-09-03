@@ -177,7 +177,7 @@ let objectPropNullable
 /// Nullable: ["string", "null"]
 let typeToJson (typeName: String) (nullable: Bool) : Json =
   if nullable then
-    Json.Array [ Json.String typeName; Json.String "null" ]
+    Json.Array [ Json.String typeName, Json.String "null" ]
   else
     Json.String typeName
 
@@ -429,7 +429,7 @@ let toolChoiceToJson (choice: ToolChoice) : Json =
   | None_ -> Json.String "none"
   | Required -> Json.String "required"
   | Function name ->
-    Json.Object [ ("type", Json.String "function"); ("name", Json.String name) ]
+    Json.Object [ ("type", Json.String "function"), ("name", Json.String name) ]
   | AllowedTools data ->
     let modeStr =
       match data.mode with
@@ -502,7 +502,7 @@ let toolRequestOptionsToJsonFields
     else
       [ ("parallel_tool_calls", Json.Bool false) ]
 
-  Stdlib.List.flatten [ toolsField; choiceField; parallelField ]
+  Stdlib.List.flatten [ toolsField, choiceField, parallelField ]
 
 
 // =============================================================================

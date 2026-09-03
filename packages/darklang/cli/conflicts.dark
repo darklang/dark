@@ -189,7 +189,7 @@ let resolveInteractively
     let choice =
       Stdlib.Cli.UI.Prompt.select
         $"  keep which for {leafName c.location}?"
-        [ "mine"; "theirs"; "skip (decide later)" ]
+        [ "mine", "theirs", "skip (decide later)" ]
 
     match choice with
     | "mine" ->
@@ -240,7 +240,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | cs -> printOpenList state cs
 
-  | [ "show"; location ] ->
+  | [ "show", location ] ->
     match findOpen location with
     | Some c ->
       let branchId = state.currentBranchId
@@ -310,6 +310,6 @@ let complete
   : List<Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list"; "show"; "ok"; "keep-mine"; "keep-theirs" ]
+    [ "list", "show", "ok", "keep-mine", "keep-theirs" ]
     |> Stdlib.List.map Completion.simple
   | _ -> []

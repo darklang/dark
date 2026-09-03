@@ -41,7 +41,7 @@
 // aws
 (let scope = "20150830/us-east-1/iam/aws4_request"
  let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"
- let strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ]
+ let strs = [ "AWS4-HMAC-SHA256", "20150830T123600Z", scope, content ]
  let strToSign = Stdlib.String.join strs Stdlib.String.newline
 
  let secret = Stdlib.Blob.fromString "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"

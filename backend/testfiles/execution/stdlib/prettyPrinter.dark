@@ -72,14 +72,14 @@ module Collections =
   // `List<_>`, not `List<Int>`, even though `emptyInts` is annotated: an empty list carries no element
   // type at runtime, so there is nothing for the printer to report. See the note in Records below.
   pp (emptyInts ()) = "List<_> []"
-  pp [ 1; 2; 3 ] = "[1, 2, 3]"
-  pp [ [ 1; 2 ]; [ 3 ] ] = "[[1, 2], [3]]"
+  pp [ 1, 2, 3 ] = "[1, 2, 3]"
+  pp [ [ 1, 2 ], [ 3 ] ] = "[[1, 2], [3]]"
 
   pp (1, 2) = "(1, 2)"
   pp (1, "two", true) = "(1, \"two\", true)"
 
   pp (Stdlib.Dict.empty) = "{}"
-  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]) = "{ a: 1, b: 2 }"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ]) = "{ a: 1, b: 2 }"
 
   // A key that isn't a bare identifier is backticked, the way the source printer quotes field names.
   pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ]) = "{ ``has-hyphen``: 1 }"
@@ -96,7 +96,7 @@ module Records =
   // Breaks, because the whole line is measured: the type name in front counts toward the fit. The
   // string version measured the joined fields alone, so a 51-character name didn't count and this
   // printed as one 118-column line while reporting that it fitted in 80.
-  pp (loc "Darklang" [ "Stdlib"; "List" ] "map") =
+  pp (loc "Darklang" [ "Stdlib", "List" ] "map") =
     "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}"
 
   // `List<_>`, not `List<String>`: an empty list carries no element type at runtime, and the printer
@@ -134,32 +134,32 @@ module Shortening =
     Darklang.PrettyPrinter.shortenName currentModule owner modules name
 
   // Same module: the leaf name alone.
-  short [ "Darklang"; "LanguageTools"; "ProgramTypes"; "PackageFn" ]
-        "Darklang" [ "LanguageTools"; "ProgramTypes"; "PackageFn" ] "Parameter" = "Parameter"
+  short [ "Darklang", "LanguageTools", "ProgramTypes", "PackageFn" ]
+        "Darklang" [ "LanguageTools", "ProgramTypes", "PackageFn" ] "Parameter" = "Parameter"
 
   // Parent module: still just the leaf, because the resolver walks up.
-  short [ "Darklang"; "LanguageTools"; "ProgramTypes"; "PackageFn" ]
-        "Darklang" [ "LanguageTools"; "ProgramTypes" ] "TypeReference" = "TypeReference"
+  short [ "Darklang", "LanguageTools", "ProgramTypes", "PackageFn" ]
+        "Darklang" [ "LanguageTools", "ProgramTypes" ] "TypeReference" = "TypeReference"
 
   // Sibling module: keep the part that differs.
-  short [ "Darklang"; "Stdlib"; "Option" ] "Darklang" [ "Stdlib"; "List" ] "map" = "List.map"
+  short [ "Darklang", "Stdlib", "Option" ] "Darklang" [ "Stdlib", "List" ] "map" = "List.map"
 
   // No context at all: `Stdlib.` resolves with `Darklang` implied, so the owner comes off.
-  short [] "Darklang" [ "Stdlib"; "List" ] "map" = "Stdlib.List.map"
+  short [] "Darklang" [ "Stdlib", "List" ] "map" = "Stdlib.List.map"
 
   // Someone else's package stays fully qualified.
-  short [ "Darklang"; "Stdlib" ] "Stachu" [ "Parser" ] "map" = "Stachu.Parser.map"
+  short [ "Darklang", "Stdlib" ] "Stachu" [ "Parser" ] "map" = "Stachu.Parser.map"
 
   // Option and Result resolve unqualified from anywhere.
-  short [ "Darklang"; "Stdlib"; "List" ] "Darklang" [ "Stdlib"; "Option" ] "Option" = "Option"
-  short [ "Stachu"; "Whatever" ] "Darklang" [ "Stdlib"; "Result" ] "Result" = "Result"
+  short [ "Darklang", "Stdlib", "List" ] "Darklang" [ "Stdlib", "Option" ] "Option" = "Option"
+  short [ "Stachu", "Whatever" ] "Darklang" [ "Stdlib", "Result" ] "Result" = "Result"
 
   // Prefixes are compared segment-wise. The old rule compared strings, so from `...List` a reference to
   // `...ListView.render` was shortened to `iew.render`.
-  short [ "Darklang"; "Stdlib"; "List" ] "Darklang" [ "Stdlib"; "ListView" ] "render" = "ListView.render"
+  short [ "Darklang", "Stdlib", "List" ] "Darklang" [ "Stdlib", "ListView" ] "render" = "ListView.render"
 
   // A partial segment match is not a match.
-  short [ "Darklang"; "Stdlib"; "Li" ] "Darklang" [ "Stdlib"; "List" ] "map" = "List.map"
+  short [ "Darklang", "Stdlib", "Li" ] "Darklang" [ "Stdlib", "List" ] "map" = "List.map"
 
 
 // ========================================
@@ -176,20 +176,20 @@ module Options =
       (Builtin.reflect v)
 
   // Wide enough: one line.
-  at 200 [ 1; 2; 3 ] = "[1, 2, 3]"
+  at 200 [ 1, 2, 3 ] = "[1, 2, 3]"
 
   // Narrow enough that the same list has to break.
-  at 8 [ 100; 200; 300 ] = "[\n  100,\n  200,\n  300\n]"
+  at 8 [ 100, 200, 300 ] = "[\n  100,\n  200,\n  300\n]"
 
   // The default is 80 columns, and `dval` is the default-options wrapper, so the two agree.
-  (at 80 [ 1; 2; 3 ]) == (pp [ 1; 2; 3 ]) = true
+  (at 80 [ 1, 2, 3 ]) == (pp [ 1, 2, 3 ]) = true
 
   // Nested wrappers, which is where the old output was worst: this used to be three lines of
   // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int>>>.Some(...)`.
-  pp (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some [ 1; 2; 3 ])) = "Some(Some([1, 2, 3]))"
+  pp (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some [ 1, 2, 3 ])) = "Some(Some([1, 2, 3]))"
 
   // A non-wrapper enum keeps its type name.
-  pp (Stdlib.List.chunkBySize [ 1; 2; 3 ] 0) =
+  pp (Stdlib.List.chunkBySize [ 1, 2, 3 ] 0) =
     "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"
 
   // Unless the type has several names and nothing says which. `Stdlib.Int.ParseError`,

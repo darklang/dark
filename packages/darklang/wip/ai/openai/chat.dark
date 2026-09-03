@@ -520,7 +520,7 @@ let withMultiModalMessage (req: Request) (parts: List<Content.ContentPart>) : Re
 
 /// Add an image message
 let withImageMessage (req: Request) (imageUrl: String) (prompt: String) : Request =
-  withMultiModalMessage req [ Content.imageUrl imageUrl; Content.text prompt ]
+  withMultiModalMessage req [ Content.imageUrl imageUrl, Content.text prompt ]
 
 /// Add a tool result
 let withToolResult (req: Request) (toolCallId: String) (content: String) : Request =
@@ -556,7 +556,7 @@ let withModalities (req: Request) (mods: List<Modality>) : Request =
 
 /// Enable audio output
 let withAudioOutput (req: Request) (voice: String) (format: AudioOutputFormat) : Request =
-  let withMods = { req with modalities = Stdlib.Option.Option.Some [ Modality.Text; Modality.Audio ] }
+  let withMods = { req with modalities = Stdlib.Option.Option.Some [ Modality.Text, Modality.Audio ] }
   { withMods with audio = Stdlib.Option.Option.Some(AudioParam { voice = voice; format = format }) }
 
 /// Set audio parameters

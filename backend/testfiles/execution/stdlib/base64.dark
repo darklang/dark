@@ -42,7 +42,7 @@ Stdlib.Base64.decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj7
 // These produce strings of bytes which are technically legal it seems
 Stdlib.Base64.decode "-p" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 250uy ])
 Stdlib.Base64.decode "lI" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 148uy ])
-Stdlib.Base64.decode "5Sk" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 229uy; 41uy ])
+Stdlib.Base64.decode "5Sk" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 229uy, 41uy ])
 Stdlib.Base64.decode "AA" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 0uy ])
 Stdlib.Base64.decode "_w" = Stdlib.Result.Result.Ok(Stdlib.Blob.fromList [ 255uy ])
 

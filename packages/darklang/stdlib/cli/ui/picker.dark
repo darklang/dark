@@ -121,5 +121,5 @@ let view (state: State) (region: Layout.Region) : List<Layout.Span> =
     else
       []
 
-  Stdlib.List.flatten [ rows; thumb ]
+  Stdlib.List.flatten [ rows, thumb ]
 

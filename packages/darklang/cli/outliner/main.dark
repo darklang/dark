@@ -154,7 +154,7 @@ let deleteDocument (state: State) (docId: Int) : State =
 
 // --- Export ---
 
-val exportFormats = [ ("Markdown", ".md"); ("OPML", ".opml") ]
+val exportFormats = [ ("Markdown", ".md"), ("OPML", ".opml") ]
 
 let makeExportPicker () : Stdlib.Cli.UI.Picker.State =
   Stdlib.Cli.UI.Picker.make
@@ -530,7 +530,7 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
     | None -> body
     | Some pair ->
       let (question, _pending) = pair
-      Stdlib.List.flatten [ body; Stdlib.Cli.UI.Confirm.view question region ])
+      Stdlib.List.flatten [ body, Stdlib.Cli.UI.Confirm.view question region ])
 
 
 // --- Loading and saving ---

@@ -194,7 +194,7 @@ let pipe
 /// Caller is responsible for sanitizing all inputs.
 let shellPipeline (commands: List<String>) : Result.Result<Output, Posix.Error> =
   let cmd = Stdlib.String.join commands " | "
-  run "/bin/sh" [ "-c"; cmd ]
+  run "/bin/sh" [ "-c", cmd ]
 
 
 /// Check if a process is running.

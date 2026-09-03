@@ -14,7 +14,7 @@ type Boxed<'v> = { v: 'v; tag: String }
 let empties () : List<Int> = []
 
 let work (n: Int) : Int =
-  let xs = [n; n + 1; n + 2]
+  let xs = [n, n + 1, n + 2]
 
   // Option from the standard library, matched
   let a =

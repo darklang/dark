@@ -102,20 +102,20 @@ module Sampling =
     match content with
     | Text text ->
         Json.Object [
-          ("type", Json.String "text");
+          ("type", Json.String "text"),
           ("text", Json.String text)
         ]
     | Image img ->
         Json.Object [
-          ("type", Json.String "image");
-          ("data", Json.String img.data);
+          ("type", Json.String "image"),
+          ("data", Json.String img.data),
           ("mimeType", Json.String img.mimeType)
         ]
     | Resource res ->
         Json.Object [
-          ("type", Json.String "resource");
-          ("uri", Json.String res.uri);
-          ("mimeType", Json.String res.mimeType);
+          ("type", Json.String "resource"),
+          ("uri", Json.String res.uri),
+          ("mimeType", Json.String res.mimeType),
           ("text", Json.String res.text)
         ]
 
@@ -127,7 +127,7 @@ module Sampling =
       | Assistant -> "assistant"
 
     Json.Object [
-      ("role", Json.String roleStr);
+      ("role", Json.String roleStr),
       ("content", samplingContentToJson msg.content)
     ]
 
@@ -197,8 +197,8 @@ module Sampling =
       | Assistant -> "assistant"
 
     let fields = [
-      ("role", Json.String roleStr);
-      ("content", samplingContentToJson result.content);
+      ("role", Json.String roleStr),
+      ("content", samplingContentToJson result.content),
       ("model", Json.String result.model)
     ]
 

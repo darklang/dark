@@ -38,15 +38,15 @@ module Find =
 
 module FindAll =
   // Basic findAll
-  Stdlib.Regex.findAll "hello world" "o" = [ "o"; "o" ]
+  Stdlib.Regex.findAll "hello world" "o" = [ "o", "o" ]
   Stdlib.Regex.findAll "hello world" "x" = []
   Stdlib.Regex.findAll "" "test" = []
-  Stdlib.Regex.findAll "test" "" = [ ""; ""; ""; ""; "" ]
+  Stdlib.Regex.findAll "test" "" = [ "", "", "", "", "" ]
 
   // Pattern matching - finds all matches
-  Stdlib.Regex.findAll "test123abc456def789" "\\d+" = [ "123"; "456"; "789" ]
-  Stdlib.Regex.findAll "hello world foo bar" "\\w+" = [ "hello"; "world"; "foo"; "bar" ]
-  Stdlib.Regex.findAll "one two three" "[a-z]+" = [ "one"; "two"; "three" ]
+  Stdlib.Regex.findAll "test123abc456def789" "\\d+" = [ "123", "456", "789" ]
+  Stdlib.Regex.findAll "hello world foo bar" "\\w+" = [ "hello", "world", "foo", "bar" ]
+  Stdlib.Regex.findAll "one two three" "[a-z]+" = [ "one", "two", "three" ]
 
   // No matches returns empty list
   Stdlib.Regex.findAll "hello" "\\d+" = []
@@ -84,17 +84,17 @@ module ReplaceAll =
 
 module Split =
   // Basic split
-  Stdlib.Regex.split "hello world foo bar" " " = [ "hello"; "world"; "foo"; "bar" ]
-  Stdlib.Regex.split "a,b,c,d" "," = [ "a"; "b"; "c"; "d" ]
+  Stdlib.Regex.split "hello world foo bar" " " = [ "hello", "world", "foo", "bar" ]
+  Stdlib.Regex.split "a,b,c,d" "," = [ "a", "b", "c", "d" ]
   Stdlib.Regex.split "test" "x" = [ "test" ]
   Stdlib.Regex.split "" "," = [ "" ]
 
   // Pattern split
-  Stdlib.Regex.split "test123abc456def789" "\\d+" = [ "test"; "abc"; "def"; "" ]
-  Stdlib.Regex.split "one1two22three333four" "\\d+" = [ "one"; "two"; "three"; "four" ]
+  Stdlib.Regex.split "test123abc456def789" "\\d+" = [ "test", "abc", "def", "" ]
+  Stdlib.Regex.split "one1two22three333four" "\\d+" = [ "one", "two", "three", "four" ]
 
   // Split by whitespace
-  Stdlib.Regex.split "hello  world\tfoo\nbar" "\\s+" = [ "hello"; "world"; "foo"; "bar" ]
+  Stdlib.Regex.split "hello  world\tfoo\nbar" "\\s+" = [ "hello", "world", "foo", "bar" ]
 
 module RealWorld =
   // Email validation
@@ -113,7 +113,7 @@ module RealWorld =
   Stdlib.Regex.isMatch "http://test.org" "https?://[\\w\\.-]+" = true
 
   // Extract all numbers from text
-  Stdlib.Regex.findAll "The price is 99.99 and quantity is 5" "\\d+\\.?\\d*" = [ "99.99"; "5" ]
+  Stdlib.Regex.findAll "The price is 99.99 and quantity is 5" "\\d+\\.?\\d*" = [ "99.99", "5" ]
 
   // Clean up whitespace
   Stdlib.Regex.replaceAll "hello    world   foo" "\\s+" " " = "hello world foo"

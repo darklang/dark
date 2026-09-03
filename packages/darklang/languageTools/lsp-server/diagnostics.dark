@@ -260,6 +260,6 @@ let gatherAndReportDiagnostics
 
   let diagnostics =
     Stdlib.List.flatten
-      [ warningDiagnostics; syntaxErrorDiagnostics; checkerDiagnostics ]
+      [ warningDiagnostics, syntaxErrorDiagnostics, checkerDiagnostics ]
 
   sendDiagnostic requestUri diagnostics

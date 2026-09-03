@@ -305,7 +305,7 @@ let handleIncomingMessage
 
         | ("dark/renameBranch",
           Some requestId,
-          Some(Object [ ("branchId", String branchIdStr); ("newName", String newName) ])) ->
+          Some(Object [ ("branchId", String branchIdStr), ("newName", String newName) ])) ->
           Branches.handleRenameBranchRequest state requestId branchIdStr newName
 
         | ("dark/rebase", Some requestId, _) ->

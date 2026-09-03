@@ -396,7 +396,7 @@ let moduleDeclaration
       |> Stdlib.Option.Option.Some
 
   let parts =
-    [ typesPart; fnsPart; valuesPart; exprsPart; submodulesPart ]
+    [ typesPart, fnsPart, valuesPart, exprsPart, submodulesPart ]
     |> Stdlib.List.filterMap (fun s -> s)
 
   match parts with

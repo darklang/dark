@@ -81,4 +81,4 @@ let panel
   (focused: Bool)
   (renderInner: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
-  Stdlib.List.flatten [ draw region title focused; renderInner (inner region) ]
+  Stdlib.List.flatten [ draw region title focused, renderInner (inner region) ]

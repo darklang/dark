@@ -77,7 +77,7 @@ let divOp () : Parser.Parser<BinOp> =
   Parser.map (fun _ -> BinOp.Div) (Parser.string "/")
 
 let binOp () : Parser.Parser<BinOp> =
-  Parser.choice [ addOp (); subOp (); mulOp (); divOp () ]
+  Parser.choice [ addOp (), subOp (), mulOp (), divOp () ]
 
 
 // ============================================
@@ -86,7 +86,7 @@ let binOp () : Parser.Parser<BinOp> =
 
 /// Parse a simple atom (int, bool, or var)
 let atom () : Parser.Parser<Expr> =
-  Parser.choice [ intLiteral (); boolLiteral (); varExpr () ]
+  Parser.choice [ intLiteral (), boolLiteral (), varExpr () ]
 
 /// Parse a binary expression: atom op atom
 let binExpr () : Parser.Parser<Expr> =

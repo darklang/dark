@@ -71,7 +71,7 @@ module ListResourcesResponse =
       | None -> Json.Null
 
     Json.Object [
-      ("resources", Json.Array resourcesJson);
+      ("resources", Json.Array resourcesJson),
       ("nextCursor", nextCursorJson)
     ]
 
@@ -113,8 +113,8 @@ module ReadResourceResponse =
       response.contents
       |> Stdlib.List.map (fun content ->
         Json.Object [
-          ("uri", Json.String content.uri);
-          ("mimeType", Json.String content.mimeType);
+          ("uri", Json.String content.uri),
+          ("mimeType", Json.String content.mimeType),
           ("text", Json.String content.text)
         ]
       )
@@ -159,7 +159,7 @@ module ListResourceTemplatesResponse =
       response.resourceTemplates
       |> Stdlib.List.map (fun template ->
         let fields = [
-          ("uriTemplate", Json.String template.uriTemplate);
+          ("uriTemplate", Json.String template.uriTemplate),
           ("name", Json.String template.name)
         ]
 

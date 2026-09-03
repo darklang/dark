@@ -180,7 +180,7 @@ let testTextWrapAtWordsBreaksAtSpaces (): TestResult =
   // The word wrapper stays in Dark, measuring whole words.
   let rows = Stdlib.Cli.Tui.Text.wrapAtWords "alpha beta gamma" 11
 
-  if rows == [ "alpha beta"; "gamma" ] then
+  if rows == [ "alpha beta", "gamma" ] then
     TestResult.Pass
   else
     TestResult.Fail $"Expected a break at the space, got {Stdlib.String.join rows " | "}"
@@ -193,7 +193,7 @@ let inlineView (rows: List<String>) : Stdlib.Cli.Tui.View =
 
 
 let testInlineFrameEmitsNothingWhenUnchanged (): TestResult =
-  let view = inlineView [ "a"; "b" ]
+  let view = inlineView [ "a", "b" ]
   let output =
     Stdlib.Cli.Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some view) view
 
@@ -205,8 +205,8 @@ let testInlineFrameEmitsNothingWhenUnchanged (): TestResult =
 
 
 let testInlineFrameMovesRelativeToPreviousCursor (): TestResult =
-  let previous = inlineView [ "a"; "b" ]
-  let next = inlineView [ "a"; "B" ]
+  let previous = inlineView [ "a", "b" ]
+  let next = inlineView [ "a", "B" ]
   let output =
     Stdlib.Cli.Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some previous) next
 
@@ -558,7 +558,7 @@ let testReplParsesLetBinding (): TestResult =
   // expression all have to fall through to being evaluated rather than silently binding something wrong.
   let cases =
     [ ("let x = 1", Stdlib.Option.Option.Some(("x", "1")))
-      ("  let  ys  =  [ 1; 2 ]  ", Stdlib.Option.Option.Some(("ys", "[ 1; 2 ]")))
+      ("  let  ys  =  [ 1, 2 ]  ", Stdlib.Option.Option.Some(("ys", "[ 1, 2 ]")))
       ("let _priv = 3", Stdlib.Option.Option.Some(("_priv", "3")))
       ("let x2 = x + 1", Stdlib.Option.Option.Some(("x2", "x + 1")))
       // The right-hand side keeps its own `=`, so a record or a lambda body survives.
@@ -590,7 +590,7 @@ let testReplInjectsBindingChain (): TestResult =
   let empty = Darklang.Cli.Repl.withBindings [] "x + 1"
   let one = Darklang.Cli.Repl.withBindings [ bound "x" "42" ] "x + 1"
   let two =
-    Darklang.Cli.Repl.withBindings [ bound "x" "42"; bound "y" "x + 1" ] "y * 2"
+    Darklang.Cli.Repl.withBindings [ bound "x" "42", bound "y" "x + 1" ] "y * 2"
   if (empty == "x + 1")
      && (one == "let x = 42\nx + 1")
      && (two == "let x = 42\nlet y = x + 1\ny * 2") then
@@ -605,7 +605,7 @@ let testReplUncapturedRebindMovesLast (): TestResult =
   let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n; source = s; value = s; captured = c })
   let after =
     Darklang.Cli.Repl.upsert
-      [ mk "a" "1" true; mk "d" "Stdlib.DateTime.now ()" false ]
+      [ mk "a" "1" true, mk "d" "Stdlib.DateTime.now ()" false ]
       (mk "a" "d" false)
   let order = after |> Stdlib.List.map (fun b -> b.name) |> Stdlib.String.join ","
   if order == "d,a" then
@@ -618,7 +618,7 @@ let testReplRebindKeepsPosition (): TestResult =
   // Rebinding `x` must not move it after `y`, or `y`'s chain entry would reference an undefined name.
   let after =
     Darklang.Cli.Repl.upsert
-      [ bound "x" "1"; bound "y" "x + 1" ]
+      [ bound "x" "1", bound "y" "x + 1" ]
       (bound "x" "99")
   let names = after |> Stdlib.List.map (fun b -> b.name) |> Stdlib.String.join ","
   let sources = after |> Stdlib.List.map (fun b -> b.source) |> Stdlib.String.join ","
@@ -631,7 +631,7 @@ let testReplRebindKeepsPosition (): TestResult =
 let testReplReadsCapturedValue (): TestResult =
   // `captureValue` reports through a tagged string; anything that isn't an `ok:` means "hold the expression
   // instead", including an empty result.
-  if (Darklang.Cli.Repl.readCaptured "ok:[1L; 2L]" == Stdlib.Option.Option.Some "[1L; 2L]")
+  if (Darklang.Cli.Repl.readCaptured "ok:[1L, 2L]" == Stdlib.Option.Option.Some "[1L, 2L]")
      && (Darklang.Cli.Repl.readCaptured "err:no literal" == Stdlib.Option.Option.None)
      && (Darklang.Cli.Repl.readCaptured "" == Stdlib.Option.Option.None) then
     TestResult.Pass
@@ -644,10 +644,10 @@ let testReplSplitsPastedStatements (): TestResult =
   // statement ends. Indentation is the signal: an indented line continues the one above, so a wrapped
   // expression stays whole while a chain separates.
   let cases =
-    [ ("let a = 21L\na * 2L", [ "let a = 21L"; "a * 2L" ])
+    [ ("let a = 21L\na * 2L", [ "let a = 21L", "a * 2L" ])
       ("Stdlib.List.map xs\n  (fun x -> x * 2L)", [ "Stdlib.List.map xs\n  (fun x -> x * 2L)" ])
       // A blank line closes a statement rather than joining across it.
-      ("let a = 1\n\nlet b = 2", [ "let a = 1"; "let b = 2" ])
+      ("let a = 1\n\nlet b = 2", [ "let a = 1", "let b = 2" ])
       ("one line", [ "one line" ])
       ("", []) ]
   let wrong =
@@ -669,7 +669,7 @@ let testReplCapturesRealValues (): TestResult =
   let branch = Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId
   let cases =
     [ (Darklang.Cli.Repl.captureValue branch 42, "ok:42")
-      (Darklang.Cli.Repl.captureValue branch [ 1L; 2L ], "ok:[1L; 2L]")
+      (Darklang.Cli.Repl.captureValue branch [ 1L, 2L ], "ok:[1L, 2L]")
       (Darklang.Cli.Repl.captureValue branch "hi", "ok:\"hi\"")
       // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
       // fully-qualified spelling both parse back to the same value, which is what matters here: the

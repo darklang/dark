@@ -192,7 +192,7 @@ Stdlib.Float.sqrt 0.0 = 0.0
 
 Stdlib.Float.subtract 1.0 0.2 = 0.8
 
-Stdlib.Float.sum [ 1.0; 0.2 ] = 1.2
+Stdlib.Float.sum [ 1.0, 0.2 ] = 1.2
 
 Builtin.testNan == Builtin.testNan = false
 

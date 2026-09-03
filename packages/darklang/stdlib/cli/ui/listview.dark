@@ -45,4 +45,4 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
       else
         []
 
-    Stdlib.List.flatten [ rows; thumb ]
+    Stdlib.List.flatten [ rows, thumb ]

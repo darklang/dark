@@ -81,7 +81,7 @@ let renderEditing (es: EditingState) (region: Stdlib.Cli.UI.Layout.Region) : Lis
         else
           Stdlib.Cli.UI.Layout.at inner screenRow 1 l)
       |> Stdlib.List.flatten
-    Stdlib.List.flatten [ errSpans; bodySpans ])
+    Stdlib.List.flatten [ errSpans, bodySpans ])
 
 /// The jumpable search-results list, framed in a box. ⏎ navigates to the hit.
 let renderSearchResults (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
@@ -135,51 +135,51 @@ let hintsForView (state: State) : String =
   // Global keys, always the same, anchored at the right end of the footer.
   // Short enough that a view's own keys still fit beside them at 120 columns;
   // ` and the rest of the long tail live in `?`.
-  let global = [ ("/", "find"); (":", "cmd"); ("?", "help"); ("esc", "back"); ("q", "quit") ]
+  let global = [ ("/", "find"), (":", "cmd"), ("?", "help"), ("esc", "back"), ("q", "quit") ]
   let ctx =
     if sidebarFocused state then
       // Home exposes the shortcut back to the command prompt.
-      if view == vHome then [ ("↑↓", "move"); ("⏎", "go"); ("1-9", "workspace"); ("→", "to view"); ("p", "prompt") ]
-      else [ ("↑↓", "move"); ("⏎", "go"); ("→", "to view") ]
+      if view == vHome then [ ("↑↓", "move"), ("⏎", "go"), ("1-9", "workspace"), ("→", "to view"), ("p", "prompt") ]
+      else [ ("↑↓", "move"), ("⏎", "go"), ("→", "to view") ]
     else if view == vMatter then
       Stdlib.List.flatten
         // Spelled out: `n/t/v new` read as one key, and `t` alone got taken
         // for "try".
-        [ [ ("↑↓", "move"); ("⏎", "open"); ("esc", "up"); ("e", "edit"); ("n/t/v", "new fn/type/val"); ("r", "rename"); ("x", "traces"); ("f", "filter") ]
+        [ [ ("↑↓", "move"), ("⏎", "open"), ("esc", "up"), ("e", "edit"), ("n/t/v", "new fn/type/val"), ("r", "rename"), ("x", "traces"), ("f", "filter") ]
           paneHint ]
     else if view == vHome then
       // Home's verbs follow the row the cursor is on.
       let rowKeys =
-        if homeRowIs state "home-conflict" then [ ("o", "ours"); ("t", "theirs"); ("a", "ack"); ("⏎", "resolve") ]
-        else if homeRowIs state "home-wip" then [ ("⏎", "open"); ("c", "commit"); ("x", "discard") ]
-        else if homeRowIs state "home-branch" then [ ("⏎", "switch"); ("b", "new"); ("m", "merge"); ("r", "rebase") ]
-        else [ ("⏎", "open"); ("b", "branch") ]
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; rowKeys; paneHint ]
+        if homeRowIs state "home-conflict" then [ ("o", "ours"), ("t", "theirs"), ("a", "ack"), ("⏎", "resolve") ]
+        else if homeRowIs state "home-wip" then [ ("⏎", "open"), ("c", "commit"), ("x", "discard") ]
+        else if homeRowIs state "home-branch" then [ ("⏎", "switch"), ("b", "new"), ("m", "merge"), ("r", "rebase") ]
+        else [ ("⏎", "open"), ("b", "branch") ]
+      Stdlib.List.flatten [ [ ("↑↓", "move") ], rowKeys, paneHint ]
     else if view == vScratch then
-      [ ("⏎", "type"); ("f", "clear log"); ("x", "clear session") ]
+      [ ("⏎", "type"), ("f", "clear log"), ("x", "clear session") ]
     else if view == vSCM then
       if state.scm.section == ScmSection.Branches then
-        [ ("↑↓", "move"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]
+        [ ("↑↓", "move"), ("⏎", "switch"), ("r", "rename"), ("x", "delete"), ("b", "new") ]
       else if state.scm.section == ScmSection.Conflicts then
-        [ ("↑↓", "move"); ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
+        [ ("↑↓", "move"), ("o", "ours"), ("t", "theirs"), ("a", "ack") ]
       else
         // merge/rebase are in `?` - eight verbs plus the globals didn't fit a
         // 120-column footer.
         Stdlib.List.flatten
-          [ [ ("↑↓", "move"); ("⏎", "open"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch") ]
+          [ [ ("↑↓", "move"), ("⏎", "open"), ("c", "commit"), ("x", "discard"), ("b", "branch"), ("s", "switch") ]
             paneHint ]
     else if view == vDevices then
-      [ ("c", "config"); ("s", "sync"); ("a", "add") ]
+      [ ("c", "config"), ("s", "sync"), ("a", "add") ]
     else if view == vAI then
       let enterHint = if state.ai.section == AiSection.Prompts then ("⏎", "use") else ("⏎", "open")
-      Stdlib.List.flatten [ [ ("↑↓", "move"); enterHint; ("a", "ask") ]; paneHint ]
+      Stdlib.List.flatten [ [ ("↑↓", "move"), enterHint, ("a", "ask") ], paneHint ]
     else if view == vApps then
-      [ ("↑↓", "move"); ("⏎", "inspect"); ("i", "install"); ("r", "start"); ("s", "stop") ]
+      [ ("↑↓", "move"), ("⏎", "inspect"), ("i", "install"), ("r", "start"), ("s", "stop") ]
     else if view == vTraces then
       Stdlib.List.flatten
-        [ [ ("↑↓", "move") ]; paneHint; [ ("⏎", "open"); ("f", "filter") ] ]
+        [ [ ("↑↓", "move") ], paneHint, [ ("⏎", "open"), ("f", "filter") ] ]
     else if view == vDocs then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; paneHint; [ ("⏎", "read") ] ]
+      Stdlib.List.flatten [ [ ("↑↓", "move") ], paneHint, [ ("⏎", "read") ] ]
     else
       // Extension views compose their own key-hints (see `extensionViews`).
       match extensionViewAt view with

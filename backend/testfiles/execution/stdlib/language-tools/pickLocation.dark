@@ -41,12 +41,12 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix [] [] = 0
 Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] [] = 0
 Darklang.LanguageTools.PackageManager.countMatchingPrefix [] ["A"] = 0
 Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] ["A"] = 1
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"] = 2
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"; "C"] = 3
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "X"] = 1
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["X"; "B"] ["A"; "B"] = 0
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"] = 2
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; "C"] = 2
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A", "B"] ["A", "B"] = 2
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A", "B", "C"] ["A", "B", "C"] = 3
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A", "B"] ["A", "X"] = 1
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["X", "B"] ["A", "B"] = 0
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A", "B", "C"] ["A", "B"] = 2
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A", "B"] ["A", "B", "C"] = 2
 
 
 // ========================================
@@ -60,8 +60,8 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 // pickLocation: single location → always returns it
 // ========================================
 
-(pick (emptyCtx ()) [ loc "Darklang" ["Stdlib"; "List"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+(pick (emptyCtx ()) [ loc "Darklang" ["Stdlib", "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 
 // ========================================
@@ -87,16 +87,16 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 // ========================================
 
 // We're in Darklang.Stdlib.List — Stdlib.List.map has better prefix match than SomeOther.map
-(pick (ctx ["Darklang"; "Stdlib"; "List"])
-  [ loc "Darklang" ["Stdlib"; "List"] "map"
+(pick (ctx ["Darklang", "Stdlib", "List"])
+  [ loc "Darklang" ["Stdlib", "List"] "map"
     loc "Darklang" ["SomeOther"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 // Reversed — context match still wins
-(pick (ctx ["Darklang"; "Stdlib"; "List"])
+(pick (ctx ["Darklang", "Stdlib", "List"])
   [ loc "Darklang" ["SomeOther"] "map"
-    loc "Darklang" ["Stdlib"; "List"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+    loc "Darklang" ["Stdlib", "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 
 // ========================================
@@ -105,10 +105,10 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 
 // We're in Darklang.Stdlib.Json. Stdlib.List.map shares 2-segment prefix (Darklang.Stdlib).
 // SomeOther.map shares only 1 (Darklang). Stdlib.List.map wins.
-(pick (ctx ["Darklang"; "Stdlib"; "Json"])
+(pick (ctx ["Darklang", "Stdlib", "Json"])
   [ loc "Darklang" ["SomeOther"] "map"
-    loc "Darklang" ["Stdlib"; "List"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+    loc "Darklang" ["Stdlib", "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 
 // ========================================
@@ -116,10 +116,10 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 // ========================================
 
 // Both share "Darklang.Stdlib" prefix (2 segments). Shorter one wins.
-(pick (ctx ["Darklang"; "Stdlib"])
-  [ loc "Darklang" ["Stdlib"; "List"; "Internal"] "helper"
-    loc "Darklang" ["Stdlib"; "List"] "helper" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "helper")
+(pick (ctx ["Darklang", "Stdlib"])
+  [ loc "Darklang" ["Stdlib", "List", "Internal"] "helper"
+    loc "Darklang" ["Stdlib", "List"] "helper" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "helper")
 
 
 // ========================================
@@ -143,7 +143,7 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 
 // We're in Darklang.UserDefinedAliases. Person2 matches 2 segments.
 // Person matches only 1 (Darklang). Context wins despite Person being shorter.
-(pick (ctx ["Darklang"; "UserDefinedAliases"])
+(pick (ctx ["Darklang", "UserDefinedAliases"])
   [ loc "Darklang" [] "Person"
     loc "Darklang" ["UserDefinedAliases"] "Person2" ])
   = Stdlib.Option.Option.Some (loc "Darklang" ["UserDefinedAliases"] "Person2")
@@ -155,10 +155,10 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 
 // We're in Darklang.Stdlib.List. Stdlib.List.map matches 3 segments.
 // Stdlib.map matches only 2. Deeper match wins.
-(pick (ctx ["Darklang"; "Stdlib"; "List"])
+(pick (ctx ["Darklang", "Stdlib", "List"])
   [ loc "Darklang" ["Stdlib"] "map"
-    loc "Darklang" ["Stdlib"; "List"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+    loc "Darklang" ["Stdlib", "List"] "map" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 
 // ========================================
@@ -167,7 +167,7 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 
 // We're in Stachu.MyLib — Stachu.MyLib.helper matches 2 segments.
 // Darklang.Stdlib.helper matches 0. Context wins.
-(pick (ctx ["Stachu"; "MyLib"])
+(pick (ctx ["Stachu", "MyLib"])
   [ loc "Darklang" ["Stdlib"] "helper"
     loc "Stachu" ["MyLib"] "helper" ])
   = Stdlib.Option.Option.Some (loc "Stachu" ["MyLib"] "helper")
@@ -184,17 +184,17 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 // ========================================
 
 // Three locations, context matches the deepest one best
-(pick (ctx ["Darklang"; "Stdlib"; "List"])
+(pick (ctx ["Darklang", "Stdlib", "List"])
   [ loc "Darklang" [] "flatten"
     loc "Darklang" ["Stdlib"] "flatten"
-    loc "Darklang" ["Stdlib"; "List"] "flatten" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "flatten")
+    loc "Darklang" ["Stdlib", "List"] "flatten" ])
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "flatten")
 
 // Same three, empty context — shortest path wins
 (pick (emptyCtx ())
   [ loc "Darklang" [] "flatten"
     loc "Darklang" ["Stdlib"] "flatten"
-    loc "Darklang" ["Stdlib"; "List"] "flatten" ])
+    loc "Darklang" ["Stdlib", "List"] "flatten" ])
   = Stdlib.Option.Option.Some (loc "Darklang" [] "flatten")
 
 
@@ -204,23 +204,23 @@ Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; 
 
 // Two names sharing a body share a hash, so both come back as candidates. The one the
 // caller asked about wins, whatever the context would have scored higher.
-(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["SomeOther"] "map"))
-  [ loc "Darklang" ["Stdlib"; "List"] "map"
+(pick (preferCtx ["Darklang", "Stdlib", "List"] (loc "Darklang" ["SomeOther"] "map"))
+  [ loc "Darklang" ["Stdlib", "List"] "map"
     loc "Darklang" ["SomeOther"] "map" ])
   = Stdlib.Option.Option.Some (loc "Darklang" ["SomeOther"] "map")
 
 // The order it comes back in does not matter either.
-(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["SomeOther"] "map"))
+(pick (preferCtx ["Darklang", "Stdlib", "List"] (loc "Darklang" ["SomeOther"] "map"))
   [ loc "Darklang" ["SomeOther"] "map"
-    loc "Darklang" ["Stdlib"; "List"] "map" ])
+    loc "Darklang" ["Stdlib", "List"] "map" ])
   = Stdlib.Option.Option.Some (loc "Darklang" ["SomeOther"] "map")
 
 // A preference for a name this hash is NOT bound to is ignored rather than honoured:
 // scoring is right for every case except the one the caller named.
-(pick (preferCtx ["Darklang"; "Stdlib"; "List"] (loc "Darklang" ["Absent"] "map"))
-  [ loc "Darklang" ["Stdlib"; "List"] "map"
+(pick (preferCtx ["Darklang", "Stdlib", "List"] (loc "Darklang" ["Absent"] "map"))
+  [ loc "Darklang" ["Stdlib", "List"] "map"
     loc "Darklang" ["SomeOther"] "map" ])
-  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib"; "List"] "map")
+  = Stdlib.Option.Option.Some (loc "Darklang" ["Stdlib", "List"] "map")
 
 // A preference that differs only by name is a different location, so it does not match.
 (pick (preferCtx [] (loc "Darklang" ["Stdlib"] "second"))

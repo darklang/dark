@@ -6,11 +6,11 @@ module Darklang.Cli.Caps.Main
 
 // the toggle-only domains (no scope/coupling) — shown as a checklist at the top
 val flagDomains =
-  [ "random"; "clock"; "stdout"; "stdin"; "llm"; "http-server" ]
+  [ "random", "clock", "stdout", "stdin", "llm", "http-server" ]
 
 // the domains that need a rule editor (and which one)
 val ruleDomains =
-  [ "http-client"; "file"; "env"; "db"; "exec" ]
+  [ "http-client", "file", "env", "db", "exec" ]
 
 type Row =
   | FlagRow of String * Bool
@@ -274,7 +274,7 @@ let browsingRows (state: State) (height: Int) : List<String> =
   let allRows =
     Stdlib.List.flatten
       [ flagRows
-        [ ""; Darklang.Stdlib.Cli.UI.Colors.dimText "  Scoped rules" ]
+        [ "", Darklang.Stdlib.Cli.UI.Colors.dimText "  Scoped rules" ]
         ruleRows ]
   let selectedPhysicalRow =
     if state.cursor < flagCount then
@@ -303,7 +303,7 @@ let menuRows
         Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.selection line
       else
         line)
-  let rows = Stdlib.List.append [ title; "" ] itemRows
+  let rows = Stdlib.List.append [ title, "" ] itemRows
   // Account for the title and blank row before the selected menu item.
   Darklang.Stdlib.Cli.Tui.Layout.viewport rows (cursor + 2) height
 
@@ -366,7 +366,7 @@ let viewAtSize
     else
       [ Darklang.Stdlib.Cli.UI.Colors.dimText helpText ]
   let viewRows =
-    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
+    Stdlib.List.flatten [ titleRows, bodyRows, helpRows ]
     |> Stdlib.List.take contentHeight
     |> Stdlib.List.map (fun row ->
       Darklang.Stdlib.Cli.Tui.Text.clipToWidth row width)

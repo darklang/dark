@@ -295,7 +295,7 @@ val baseViewSpecs =
     (vDocs, "") ]
 
 /// Accounts that can see gated workbench views.
-val gatedViewAccounts = [ "stachu"; "feriel" ]
+val gatedViewAccounts = [ "stachu", "feriel" ]
 
 /// Does this account see the gated views?
 ///

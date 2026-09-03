@@ -56,7 +56,7 @@ module Values =
   val charValue = 'c'
   val unitValue = ()
   val enumValue = Stdlib.Option.Option.Some 5L
-  val listValue = [ 1L; 2L; 3L ]
+  val listValue = [ 1L, 2L, 3L ]
   val dictValue = Dict { a = 1L; b = 2L; c = 3L }
   val recordValue = Stdlib.Cli.Host.Host {
     os = Stdlib.Cli.OS.OS.Linux

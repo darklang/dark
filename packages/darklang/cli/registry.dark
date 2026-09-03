@@ -14,14 +14,14 @@ module Registry =
       complete: AppState -> List<String> -> List<Completion.CompletionItem> }
 
   let allCommands () : List<CommandHandler> =
-    [ ("quit", "Exit the CLI", [ "exit"; "q" ], Quit.execute, Quit.help, Quit.complete)
-      ("help", "Show help for commands", [ "commands"; "?"; "--help"; "-h" ], Help.execute, Help.help, Help.complete)
+    [ ("quit", "Exit the CLI", [ "exit", "q" ], Quit.execute, Quit.help, Quit.complete)
+      ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], Help.execute, Help.help, Help.complete)
       ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
       ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
       ("update", "Update CLI to latest version", [ "upgrade" ], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
       ("install-status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
-      ("version", "Display CLI version", [ "--version"; "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
+      ("version", "Display CLI version", [ "--version", "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
       ("nav", "Navigate between packages, modules, and entities", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
       ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
@@ -42,10 +42,10 @@ module Registry =
       ("edit", "Change an item without retyping it", [], Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
       ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
-      ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
+      ("status", "Show uncommitted changes", [ "wip", "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
       // `commits` is the name, `log` an alias: it lists commits, and every other noun in this CLI says what
       // it lists (`ops`, `branch`, `conflicts`, `instances`). `log` only reads as "commits" if you've used git.
-      ("commits", "Show commit history", [ "log"; "history" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
+      ("commits", "Show commit history", [ "log", "history" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
       ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
       ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
       ("show", "Show commit details", [], SCM.ShowCommit.execute, SCM.ShowCommit.help, SCM.ShowCommit.complete)
@@ -56,7 +56,7 @@ module Registry =
       ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
-      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc", "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
       ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
       ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
@@ -160,16 +160,16 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "typecheck"; "deps"; "val"; "let"; "fn"; "type"; "module"; "hash"; "db"; "deprecate"; "delete" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "let", "fn", "type", "module", "hash", "db", "deprecate", "delete" ])
       ("SCM",
-       [ "status"; "commits"; "commit"; "discard"; "show"; "ops"; "branch"; "rebase"; "merge"; "review" ])
-      ("Execution", [ "run"; "eval"; "scripts" ])
-      ("Installation", [ "install"; "update"; "uninstall"; "version" ])
+       [ "status", "commits", "commit", "discard", "show", "ops", "branch", "rebase", "merge", "review" ])
+      ("Execution", [ "run", "eval", "scripts" ])
+      ("Installation", [ "install", "update", "uninstall", "version" ])
       ("AI", [ "agent" ])
       ("Security", [ "caps" ])
-      ("Network", [ "devices"; "sync"; "conflicts" ])
+      ("Network", [ "devices", "sync", "conflicts" ])
       ("Apps", [ "apps" ])
-      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
+      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "views" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -205,10 +205,10 @@ module Registry =
     let availableCommands = "Commands:"
 
     let groupsWithFooter =
-      Stdlib.List.append formattedGroups [ ""; "Type 'help' for detailed command info" ]
+      Stdlib.List.append formattedGroups [ "", "Type 'help' for detailed command info" ]
 
     let allLines =
-      Stdlib.List.append [ welcome; ""; availableCommands; "" ] groupsWithFooter
+      Stdlib.List.append [ welcome, "", availableCommands, "" ] groupsWithFooter
 
     Logo.combineLogoAndText Logo.logo allLines Stdlib.Cli.UI.Colors.logoColor
 
@@ -276,7 +276,7 @@ module Registry =
         | None -> []
       // \u0000 can't occur in a typed token, so joining is unambiguous.
       Stdlib.String.join
-        (Stdlib.List.append [ loc; parsed.commandName ] completedArgs)
+        (Stdlib.List.append [ loc, parsed.commandName ] completedArgs)
         "\u0000"
 
   /// The half of completion that depends only on the command and its *completed* arguments. For `nav`/`ls`

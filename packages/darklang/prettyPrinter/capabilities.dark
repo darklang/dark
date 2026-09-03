@@ -22,17 +22,17 @@ let detail (spec: String) : String =
     |> Stdlib.List.filter (fun s -> s != "")
   match parts with
   | [ "http-client" ] -> "any method → anywhere"
-  | [ "http-client"; m ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → anywhere"
-  | [ "http-client"; m; url ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → {url}"
+  | [ "http-client", m ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → anywhere"
+  | [ "http-client", m, url ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → {url}"
   | [ "http-server" ] -> "bind any port"
-  | [ "file"; rw ] -> $"{rw} → anywhere"
-  | [ "file"; rw; p ] -> $"{rw} → {p}"
-  | [ "env"; rw ] -> $"{rw} → any var"
-  | [ "env"; rw; v ] -> $"{rw} → {v}"
-  | [ "db"; rw ] -> $"{rw} → any table"
-  | [ "db"; rw; t ] -> $"{rw} → {t}"
+  | [ "file", rw ] -> $"{rw} → anywhere"
+  | [ "file", rw, p ] -> $"{rw} → {p}"
+  | [ "env", rw ] -> $"{rw} → any var"
+  | [ "env", rw, v ] -> $"{rw} → {v}"
+  | [ "db", rw ] -> $"{rw} → any table"
+  | [ "db", rw, t ] -> $"{rw} → {t}"
   | [ "exec" ] -> "any program"
-  | [ "exec"; prog ] -> prog
+  | [ "exec", prog ] -> prog
   | "exec" :: prog :: progArgs -> $"""{prog}  ({Stdlib.String.join progArgs " "})"""
   | [ _ ] -> "" // flag domains
   | _ -> Stdlib.String.join (Stdlib.List.drop parts 1) " "

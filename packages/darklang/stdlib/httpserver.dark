@@ -150,7 +150,7 @@ let getPath (req: Http.Request) : String =
 
   let urlWithoutProtocol =
     match parts with
-    | [ _; rest ] -> rest
+    | [ _, rest ] -> rest
     | _ -> req.url
 
   let pathParts = String.split urlWithoutProtocol "/"

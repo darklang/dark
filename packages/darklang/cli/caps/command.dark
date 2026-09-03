@@ -17,7 +17,7 @@ module Darklang.Cli.Caps.Command
 // localhost, but GET-only externally": `http-client * *://localhost:*` + `http-client GET`.
 val profiles =
   [ ("read-only",
-     [ "http-client GET"; "file read"; "db read"; "env read"; "clock"; "random"; "stdin"; "stdout" ])
+     [ "http-client GET", "file read", "db read", "env read", "clock", "random", "stdin", "stdout" ])
     ("local-dev",
      [ "http-server"
        "http-client * *://localhost:*" // any method/scheme/port to your own local services
@@ -218,14 +218,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ granted ALL capabilities — this instance is now unrestricted")
     Command.show state
 
-  | [ "revoke"; domain ] ->
+  | [ "revoke", domain ] ->
     if Command.revokeDomain domain then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ revoked  {domain}")
     else
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{domain}' was not granted (nothing to revoke)")
     state
 
-  | [ "grant-for-fn"; fnName ] -> Command.grantForFn state fnName
+  | [ "grant-for-fn", fnName ] -> Command.grantForFn state fnName
 
   | [ "profile" ] ->
     Stdlib.printLine
@@ -238,7 +238,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   // A profile is a complete posture, so applying one REPLACES the grant (set, not adjust).
-  | [ "profile"; name ] ->
+  | [ "profile", name ] ->
     match Stdlib.List.findFirst Command.profiles (fun (n, _) -> n == name) with
     | None ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no profile '{name}' — see `caps profile`")
@@ -254,7 +254,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
 
   // `caps needed-for <fn>` — the capabilities a function (transitively) needs.
-  | [ "needed-for"; fnName ] ->
+  | [ "needed-for", fnName ] ->
     Command.showFnNeeds state fnName
     state
 

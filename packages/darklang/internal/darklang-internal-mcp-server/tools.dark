@@ -39,7 +39,7 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
             let full =
               Stdlib.String.join
                 (Stdlib.List.flatten
-                  [ [ fn.location.owner ]; fn.location.modules; [ fn.location.name ] ])
+                  [ [ fn.location.owner ], fn.location.modules, [ fn.location.name ] ])
                 "."
             if fn.entity.description == "" then
               "- " ++ full

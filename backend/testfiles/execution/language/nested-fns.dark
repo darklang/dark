@@ -17,14 +17,14 @@
    match list with
    | [] -> acc
    | head :: tail -> reverseHelper tail (Stdlib.List.push acc head)
- reverseHelper [ 1L; 2L; 3L ] []) = [ 3L; 2L; 1L ]
+ reverseHelper [ 1L, 2L, 3L ] []) = [ 3L, 2L, 1L ]
 
 // generic type params in annotations are accepted (dropped at runtime)
 (let rev (list: List<'a>) (acc: List<'a>) : List<'a> =
    match list with
    | [] -> acc
    | head :: tail -> rev tail (Stdlib.List.push acc head)
- rev [ "a"; "b"; "c" ] []) = [ "c"; "b"; "a" ]
+ rev [ "a", "b", "c" ] []) = [ "c", "b", "a" ]
 
 // nested fn closes over an outer let binding AND recurses
 (let limit = 10L

@@ -96,8 +96,8 @@ let formatFieldName (name: String) : String =
   // Keep this list in sync with the lexer's `keyword` function
   // (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
   let reserved =
-    [ "let"; "val"; "in"; "if"; "elif"; "then"; "else"; "type"; "of"
-      "match"; "with"; "fun"; "when"; "true"; "false"; "_" ]
+    [ "let", "val", "in", "if", "elif", "then", "else", "type", "of"
+      "match", "with", "fun", "when", "true", "false", "_" ]
   let isReserved =
     reserved |> Stdlib.List.findFirst (fun k -> k == name) |> Stdlib.Option.isSome
 
@@ -146,8 +146,8 @@ let shortenName
 
   // `Option` / `Result` and nothing else: the resolver gives these an unconditional stdlib fallback.
   let isAlwaysBare =
-    (fullPath == [ "Darklang"; "Stdlib"; "Option" ] && name == "Option")
-    || (fullPath == [ "Darklang"; "Stdlib"; "Result" ] && name == "Result")
+    (fullPath == [ "Darklang", "Stdlib", "Option" ] && name == "Option")
+    || (fullPath == [ "Darklang", "Stdlib", "Result" ] && name == "Result")
 
   if isAlwaysBare then
     name

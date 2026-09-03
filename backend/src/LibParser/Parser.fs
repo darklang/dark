@@ -726,6 +726,19 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       || (rng state k).start.row <> (rng state (k - 1)).end_.row
       || (rng state k).start.column > (rng state (k - 1)).end_.column) // space before `-`
 
+// `;` used to separate list elements and list-pattern elements; `,` is the only
+// separator now. Report it precisely and keep parsing as if it had been a `,`, so
+// a file written in the old style yields one diagnostic per `;` instead of a
+// cascade of recovery noise from the elements after it.
+let private errListSemicolon (state : ParserState) (i : int) (what : string) =
+  errFull
+    state
+    DiagnosticCode.expected
+    i
+    $"expected ',' between {what}, found ';'"
+    []
+    (Some "use ',' instead")
+
 let private requireElementSeparator
   (state : ParserState)
   (previousRange : TokenRange)
@@ -1131,7 +1144,11 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
           k
           $"unexpected {foundDesc state k} in list pattern"
         go <- false
-      elif tok state k2 = TSemicolon || tok state k2 = TComma then
+      elif tok state k2 = TComma then
+        elems.Add(p, Some(rng state k2))
+        k <- k2 + 1
+      elif tok state k2 = TSemicolon then
+        errListSemicolon state k2 "list-pattern elements"
         elems.Add(p, Some(rng state k2))
         k <- k2 + 1
       else
@@ -1141,7 +1158,7 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
             state
             (WT.mpRange p)
             k2
-            "a comma, semicolon, or newline between list-pattern elements"
+            "a comma or newline between list-pattern elements"
         k <- k2
     let (closeB, p2) =
       if tok state k = TRBracket then
@@ -2204,7 +2221,7 @@ and parseParen (state : ParserState) (i : int) : WT.Expr * int =
           errUnclosed state m ")" "(" openP
           (folded, m))
 
-// `[ e ; e ; … ]` (or comma/newline separators); each element keeps its
+// `[ e , e , … ]` (or newline separators); each element keeps its
 // trailing-separator range
 and parseList (state : ParserState) (i : int) : WT.Expr * int =
   let openB = rng state i
@@ -2230,7 +2247,11 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
           k
           $"unexpected {foundDesc state k} in list"
         go <- false
-      elif tok state k2 = TSemicolon || tok state k2 = TComma then
+      elif tok state k2 = TComma then
+        elems.Add(e, Some(rng state k2))
+        k <- k2 + 1
+      elif tok state k2 = TSemicolon then
+        errListSemicolon state k2 "list elements"
         elems.Add(e, Some(rng state k2))
         k <- k2 + 1
       else
@@ -2240,7 +2261,7 @@ and parseList (state : ParserState) (i : int) : WT.Expr * int =
             state
             (WT.exprRange e)
             k2
-            "a comma, semicolon, or newline between list elements"
+            "a comma or newline between list elements"
         k <- k2
     let (closeB, p) =
       if tok state k = TRBracket then

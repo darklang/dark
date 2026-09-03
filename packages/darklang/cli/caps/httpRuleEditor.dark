@@ -19,7 +19,7 @@ type EditResult =
   | Cancelled
 
 val methods =
-  [ "*"; "GET"; "POST"; "PUT"; "PATCH"; "DELETE"; "HEAD"; "OPTIONS" ]
+  [ "*", "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" ]
 
 val empty =
   State
@@ -39,12 +39,12 @@ let fromSpec (spec: String) : State =
   let parts =
     (Stdlib.String.split spec " ") |> Stdlib.List.filter (fun s -> s != "")
   match parts with
-  | [ "http-client"; m; url ] ->
+  | [ "http-client", m, url ] ->
     State
       { methodIdx = indexOfMethod m
         url = Stdlib.Cli.UI.TextField.fromText url
         field = Field.MethodField }
-  | [ "http-client"; m ] ->
+  | [ "http-client", m ] ->
     State
       { methodIdx = indexOfMethod m
         url = Stdlib.Cli.UI.TextField.empty

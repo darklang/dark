@@ -77,7 +77,7 @@ let enable (app: Model.App) : EnableResult =
       match Stdlib.Cli.File.writeText path (systemdUnit app) with
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
-        match Stdlib.Cli.Process.exec "systemctl" [ "--user"; "enable"; "--now"; $"dark-{app.slug}.service" ] with
+        match Stdlib.Cli.Process.exec "systemctl" [ "--user", "enable", "--now", $"dark-{app.slug}.service" ] with
         | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
         | Error _ ->
           EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: systemctl --user enable --now dark-{app.slug}.service"
@@ -87,7 +87,7 @@ let enable (app: Model.App) : EnableResult =
       match Stdlib.Cli.File.writeText path (launchdPlist app) with
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
-        match Stdlib.Cli.Process.exec "launchctl" [ "load"; path ] with
+        match Stdlib.Cli.Process.exec "launchctl" [ "load", path ] with
         | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
         | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: launchctl load {path}"
 
@@ -110,8 +110,8 @@ let disable (slug: String) : Stdlib.Result.Result<String, String> =
     | Unsupported ->
       Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
     | Linux ->
-      let _ = Stdlib.Cli.Process.exec "systemctl" [ "--user"; "disable"; "--now"; $"dark-{slug}.service" ]
+      let _ = Stdlib.Cli.Process.exec "systemctl" [ "--user", "disable", "--now", $"dark-{slug}.service" ]
       removeUnit slug
     | Mac ->
-      let _ = Stdlib.Cli.Process.exec "launchctl" [ "unload"; unitPath slug ]
+      let _ = Stdlib.Cli.Process.exec "launchctl" [ "unload", unitPath slug ]
       removeUnit slug

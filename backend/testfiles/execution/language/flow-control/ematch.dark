@@ -336,36 +336,36 @@ module Char =
 
 
 module List =
-  (match [ 1L; 2L; 3L ] with
+  (match [ 1L, 2L, 3L ] with
    | [] -> "fail"
-   | [ 1L; 2L; 3L ] -> "pass"
+   | [ 1L, 2L, 3L ] -> "pass"
    | var -> "fail") = "pass"
 
-  (match [ 1L; 2L; 3L ] with
-   | [ 1L; 2L; 3L ] -> "pass"
+  (match [ 1L, 2L, 3L ] with
+   | [ 1L, 2L, 3L ] -> "pass"
    | [] -> "fail"
    | var -> "fail") = "pass"
 
-  (match [ 1L; 2L; 3L ] with
+  (match [ 1L, 2L, 3L ] with
    | var ->
      let length = (Stdlib.List.length var) |> Stdlib.Int.toString
 
      $"pass with length: {length}"
-   | [ 1L; 2L; 3L ] -> "fail"
+   | [ 1L, 2L, 3L ] -> "fail"
    | [] -> "fail") = "pass with length: 3"
 
   (match [] with
    | [] -> "pass"
-   | [ 1L; 2L; 3L ] -> "fail"
+   | [ 1L, 2L, 3L ] -> "fail"
    | var -> "fail") = "pass"
 
-  (match [ 1L; 2L; 3L ] with
-   | [ 1L; 2L ] -> "fail"
-   | [ 1L; 2L; 3L; 4L ] -> "fail"
-   | [ 1L; 2L; 3L ] -> "pass"
+  (match [ 1L, 2L, 3L ] with
+   | [ 1L, 2L ] -> "fail"
+   | [ 1L, 2L, 3L, 4L ] -> "fail"
+   | [ 1L, 2L, 3L ] -> "pass"
    | var -> "fail") = "pass"
 
-  (match [ 1L; 2L; 3L ] with
+  (match [ 1L, 2L, 3L ] with
    | head :: tail -> $"pass"
    | [] -> "fail") = "pass"
 
@@ -374,56 +374,56 @@ module List =
    | [] -> "pass") = "pass"
 
   module NestedList =
-    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+    (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
      | [] -> "fail"
-     | [ [ 1L; 2L ]; [ 3L; 4L ] ] -> "pass"
+     | [ [ 1L, 2L ], [ 3L, 4L ] ] -> "pass"
      | var -> "fail") = "pass"
 
-    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
-     | [ [ 1L; 2L ]; [ 3L; 4L ] ] -> "pass"
+    (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+     | [ [ 1L, 2L ], [ 3L, 4L ] ] -> "pass"
      | [] -> "fail"
      | var -> "fail") = "pass"
 
-    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
-     | [ a; b ] -> $"pass"
+    (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+     | [ a, b ] -> $"pass"
      | [] -> "fail") = "pass"
 
-    (match [ [ 1L; 2L ]; [] ] with
-     | [ []; _ ] -> "fail"
-     | [ [ 1L; 2L ]; _ ] -> "pass"
+    (match [ [ 1L, 2L ], [] ] with
+     | [ [], _ ] -> "fail"
+     | [ [ 1L, 2L ], _ ] -> "pass"
      | _ -> "fail") = "pass"
 
-    (match [ [ 1L; 2L ]; [ 3L; 4L; 5L ] ] with
-     | [ [ 1L; 2L ]; [ _ ] ] -> "fail"
-     | [ [ 1L; 2L ]; [ _; _ ] ] -> "fail"
-     | [ [ 1L; 2L ]; [ _; _; _ ] ] -> "pass") = "pass"
+    (match [ [ 1L, 2L ], [ 3L, 4L, 5L ] ] with
+     | [ [ 1L, 2L ], [ _ ] ] -> "fail"
+     | [ [ 1L, 2L ], [ _, _ ] ] -> "fail"
+     | [ [ 1L, 2L ], [ _, _, _ ] ] -> "pass") = "pass"
 
-    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
-     | [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ] -> "fail"
-     | [ _; [ 3L; _ ] ] -> "pass"
+    (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+     | [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ] -> "fail"
+     | [ _, [ 3L, _ ] ] -> "pass"
      | _ -> "fail") = "pass"
 
 
   module ListCons =
-    (match [ 1L; 2L; 3L ] with
+    (match [ 1L, 2L, 3L ] with
      | 1L :: 2L :: [ 3L ] -> 42L) = 42L
 
-    (match [ 1L; 2L; 3L ] with
+    (match [ 1L, 2L, 3L ] with
      | 1L :: 2L :: [ 3L ] -> 42L
      | [] -> 4L
      | _ -> 2L) = 42L
 
-    (match [ 1L; 2L; 3L ] with
+    (match [ 1L, 2L, 3L ] with
      | [] -> 4L
      | 1L :: 2L :: [ 3L ] -> 42L
      | _ -> 2L) = 42L
 
-    (match [ 1L; 2L; 3L ] with
+    (match [ 1L, 2L, 3L ] with
      | _ -> 2L
      | 1L :: 2L :: [ 3L ] -> 42L
      | [] -> 4L) = 2L
 
-    (match [ 1L; 2L; 3L ] with
+    (match [ 1L, 2L, 3L ] with
      | head :: rest -> head + (rest |> Stdlib.List.head |> Builtin.unwrap)) = 3L
 
 
@@ -435,11 +435,11 @@ module List =
 
     (headTail []) = (0L, [])
     (headTail [ 1L ]) = (1L, [])
-    (headTail [ 1L; 2L ]) = (1L, [ 2L ])
-    (headTail [ 1L; 2L; 3L ]) = (1L, [ 2L; 3L ])
+    (headTail [ 1L, 2L ]) = (1L, [ 2L ])
+    (headTail [ 1L, 2L, 3L ]) = (1L, [ 2L, 3L ])
 
-    (match [ "dd"; "aa"; "fff"; "gg" ] with
-     | head :: tail -> (head, tail)) = ("dd", [ "aa"; "fff"; "gg" ])
+    (match [ "dd", "aa", "fff", "gg" ] with
+     | head :: tail -> (head, tail)) = ("dd", [ "aa", "fff", "gg" ])
 
     // heads tail
     let sequence (list: List<Int64>) : Int64 =
@@ -451,9 +451,9 @@ module List =
 
     (sequence []) = 0L
     (sequence [ 1L ]) = -1L
-    (sequence [ 1L; 2L ]) = 2L
-    (sequence [ 1L; 2L; 3L ]) = 6L
-    (sequence [ 1L; 2L; 3L; 0L ]) = 6L
+    (sequence [ 1L, 2L ]) = 2L
+    (sequence [ 1L, 2L, 3L ]) = 6L
+    (sequence [ 1L, 2L, 3L, 0L ]) = 6L
 
     // nested
     let complexSum (list: List<List<Int64>>) : Int64 =
@@ -464,23 +464,23 @@ module List =
       | _ -> 0L
 
     (complexSum []) = 0L
-    (complexSum [ [ 1L; 2L ]; [ 3L; 4L ] ]) = 4L
-    (complexSum [ [ 1L; 2L; 3L ]; [ 3L; 4L; 5L ]; [ 4L; 5L; 6L ] ]) = 14L
+    (complexSum [ [ 1L, 2L ], [ 3L, 4L ] ]) = 4L
+    (complexSum [ [ 1L, 2L, 3L ], [ 3L, 4L, 5L ], [ 4L, 5L, 6L ] ]) = 14L
 
     // wildcard
-    (match [ 1L; 2L; 3L; 4L ] with
-     | 1L :: a :: [ 4L; 3L ] -> a + 1L
+    (match [ 1L, 2L, 3L, 4L ] with
+     | 1L :: a :: [ 4L, 3L ] -> a + 1L
      | _ :: a :: _ -> a + 2L
      | 1L :: a :: rest -> a + 3L) = 4L
 
     // misc
-    (match [ 1L; 2L; 3L; 4L ] with
-     | 2L :: a :: [ 3L; 4L ] -> a + 1L
-     | 1L :: a :: [ 4L; 3L ] -> a + 2L
-     | 1L :: a :: [ 3L; 4L ] -> a + 3L
+    (match [ 1L, 2L, 3L, 4L ] with
+     | 2L :: a :: [ 3L, 4L ] -> a + 1L
+     | 1L :: a :: [ 4L, 3L ] -> a + 2L
+     | 1L :: a :: [ 3L, 4L ] -> a + 3L
      | 1L :: a :: rest -> a + 4L) = 5L
 
-    (match [ 1L; 2L; 3L; 4L ] with
+    (match [ 1L, 2L, 3L, 4L ] with
      | 2L :: a :: rest -> a - 1L
      | 1L :: a :: rest -> a * 2L) = 4L
 
@@ -509,10 +509,10 @@ module Tuple =
    | (1L, 'a', true) -> "fail"
    | (1L, 'a') -> "pass") = "pass"
 
-  (match (true, [ 1L; 2L ]) with
-   | (true, [ 1L; 2L; 3L ]) -> "fail"
+  (match (true, [ 1L, 2L ]) with
+   | (true, [ 1L, 2L, 3L ]) -> "fail"
    | (false, _) -> "fail"
-   | (true, [ 1L; 2L ]) -> "pass") = "pass"
+   | (true, [ 1L, 2L ]) -> "pass") = "pass"
 
   module NestedTuple =
 
@@ -571,10 +571,10 @@ module Result =
    | Ok var -> $"unexpected: {var}"
    | Error msg -> $"pass: {msg}") = "pass: failure"
 
-  (match Stdlib.Result.Result.Ok [ 1L; 2L; 3L ] with
-   | Ok [ 1L; 2L; 3L; 4L ] -> "fail"
+  (match Stdlib.Result.Result.Ok [ 1L, 2L, 3L ] with
+   | Ok [ 1L, 2L, 3L, 4L ] -> "fail"
    | Error _ -> "fail"
-   | Ok [ 1L; 2L; 3L ] -> "pass"
+   | Ok [ 1L, 2L, 3L ] -> "pass"
    | _ -> "fail") = "pass"
 
   (match Stdlib.Result.Result.Ok((1L, 'a')) with
@@ -612,10 +612,10 @@ module Option =
    | None -> "fail"
    | Some msg -> $"pass: {msg}") = "pass: hello"
 
-  (match Stdlib.Option.Option.Some [ 1L; 2L; 3L ] with
-   | Some [ 1L; 2L; 3L; 4L ] -> "fail"
+  (match Stdlib.Option.Option.Some [ 1L, 2L, 3L ] with
+   | Some [ 1L, 2L, 3L, 4L ] -> "fail"
    | None -> "fail"
-   | Some [ 1L; 2L; 3L ] -> "pass"
+   | Some [ 1L, 2L, 3L ] -> "pass"
    | _ -> "fail") = "pass"
 
   (match Stdlib.Option.Option.Some((1L, 'a')) with
@@ -759,8 +759,8 @@ module PatternGrouping =
    | (1L,_) | (_,1L) -> "pass"
    | _ -> "fail") = "pass"
 
-  (match [1L;2L] with
-   | [1L;_] | [_;1L] -> "pass"
+  (match [1L,2L] with
+   | [1L,_] | [_,1L] -> "pass"
    | _ -> "fail") = "pass"
 
   (match Stdlib.Option.Option.Some(1L) with
@@ -793,12 +793,12 @@ module PatternGrouping =
    | (x, 2L, y) | (y, x, 2L) when x + y == 4L -> "pass"
    | _ -> "fail") = "pass"
 
-  (match ([1L;2L], 3L) with
+  (match ([1L,2L], 3L) with
    | ([x], y) | (x :: _, y) when x > 0L -> "pass"
    | _ -> "fail") = "pass"
 
-  (match [1L;2L] with
-   | [x;y] | x::y -> "fail"
+  (match [1L,2L] with
+   | [x,y] | x::y -> "fail"
    | _ -> "pass") = "fail"
 
   (match (1L, "test") with

@@ -290,7 +290,7 @@ module Json =
       |> Stdlib.List.map (fun edge -> edgeToJson edge)
       |> Stdlib.AltJson.Json.Array
 
-    ([ ("nodes", nodesJson); ("edges", edgesJson) ]
+    ([ ("nodes", nodesJson), ("edges", edgesJson) ]
      |> Stdlib.AltJson.Json.Object)
     |> Stdlib.AltJson.format
 

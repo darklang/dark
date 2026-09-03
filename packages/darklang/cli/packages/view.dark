@@ -484,7 +484,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   // Complete the path as before, and offer the view flags once something is typed. Flags are filtered
   // out of the path completion so `view List.last --a` completes the flag, not a package path.
   let flagCompletions (partial: String) : List<Completion.CompletionItem> =
-    [ "--raw"; "--ast"; "--instructions" ]
+    [ "--raw", "--ast", "--instructions" ]
     |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
     |> Stdlib.List.map (fun name -> Completion.simple name)
 

@@ -47,26 +47,26 @@ module Shadowing =
    | Ok x -> x) = 6L
 
   (let x = 35L
-  Stdlib.List.map [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L)) =
-    [ 3L; 4L; 5L; 6L ]
+  Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x -> x + 2L)) =
+    [ 3L, 4L, 5L, 6L ]
 
   (let x = 35L
    match Stdlib.Result.Result.Ok 6L with
-   | Ok x -> (Stdlib.List.map [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L))) =
-     [ 3L; 4L; 5L; 6L ]
+   | Ok x -> (Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x -> x + 2L))) =
+     [ 3L, 4L, 5L, 6L ]
 
-  (Stdlib.List.map [ 1L; 2L; 3L; 4L ] (fun x ->
+  (Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
     (let x = 35L
      match Stdlib.Result.Result.Ok 6L with
-     | Ok x -> x + 2L))) = [ 8L; 8L; 8L; 8L ]
+     | Ok x -> x + 2L))) = [ 8L, 8L, 8L, 8L ]
 
-  (Stdlib.List.map [ 1L; 2L; 3L; 4L ] (fun x ->
+  (Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
     match Stdlib.Result.Result.Ok 6L with
-    | Ok x -> let x = 9L in x + 2L)) = [ 11L; 11L; 11L; 11L ]
+    | Ok x -> let x = 9L in x + 2L)) = [ 11L, 11L, 11L, 11L ]
 
-  (Stdlib.List.map [ 1L; 2L; 3L; 4L ] (fun x ->
+  (Stdlib.List.map [ 1L, 2L, 3L, 4L ] (fun x ->
     (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok 6L) with
-     | Ok(Ok x) -> let x = 9L in x + 2L))) = [ 11L; 11L; 11L; 11L ]
+     | Ok(Ok x) -> let x = 9L in x + 2L))) = [ 11L, 11L, 11L, 11L ]
 
 
 module Wildcard =
@@ -96,7 +96,7 @@ module Wildcard =
   // (let _ = 5L in _) should give a variable not found error
 
   // Wildcard with complex values
-  (let _ = [ 1L; 2L; 3L ] in "done") = "done"
+  (let _ = [ 1L, 2L, 3L ] in "done") = "done"
 
 
 module Errors =

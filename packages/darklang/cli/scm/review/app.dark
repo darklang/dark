@@ -194,7 +194,7 @@ let diffForItems
   Stdlib.List.fold items [] (fun acc pkg ->
     let separator =
       if Stdlib.List.isEmpty acc then []
-      else [Stdlib.Diff.DiffLine.Same ""; Stdlib.Diff.DiffLine.Same "---"]
+      else [Stdlib.Diff.DiffLine.Same "", Stdlib.Diff.DiffLine.Same "---"]
     let itemDiff = diffForItem ops branchId parentId pkg
     Stdlib.List.append (Stdlib.List.append acc separator) itemDiff)
 
@@ -386,7 +386,7 @@ let formatBranchCounts (wipCount: Int) (committedCount: Int) (colorPrefix: Strin
       let word = if committedCount == 1 then "commit" else "commits"
       Darklang.Stdlib.Cli.UI.Colors.colorize (colorPrefix ++ Darklang.Stdlib.Cli.UI.Colors.purple) $"{Stdlib.Int.toString committedCount} {word}"
     else ""
-  [wipText; committedText]
+  [wipText, committedText]
   |> Stdlib.List.filter (fun s -> s != "")
   |> Stdlib.String.join "  "
 
@@ -486,7 +486,7 @@ let branchListRows
           Darklang.Stdlib.Cli.UI.Colors.colorize borderColor ("   ╰" ++ hBar) ])
       |> Stdlib.List.flatten
 
-    fitRows height (Stdlib.List.append [ heading; "" ] cards)
+    fitRows height (Stdlib.List.append [ heading, "" ] cards)
 
 let detailRows (detail: DetailState) (height: Int) : List<String> =
   let heading =
@@ -520,7 +520,7 @@ let detailRows (detail: DetailState) (height: Int) : List<String> =
               ""
           $"{prefix}{kindLabel pkg.kind} {pkg.name}{propText}")
 
-    fitRows height (Stdlib.List.append [ heading; "" ] items)
+    fitRows height (Stdlib.List.append [ heading, "" ] items)
 
 let diffRows (diffState: DiffState) (height: Int) : List<String> =
   let branchName =
@@ -541,7 +541,7 @@ let diffRows (diffState: DiffState) (height: Int) : List<String> =
       | Removed text -> Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.red ("  - " ++ text)
       | Same text -> "    " ++ text)
 
-  fitRows height (Stdlib.List.append [ heading; "" ] lines)
+  fitRows height (Stdlib.List.append [ heading, "" ] lines)
 
 let commitListRows
   (commitList: CommitListState)
@@ -573,7 +573,7 @@ let commitListRows
           Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.dim entry.date
         $"{prefix}{hashText} {entry.message}  {opsText}  {dateText}")
 
-    fitRows height (Stdlib.List.append [ heading; "" ] entries)
+    fitRows height (Stdlib.List.append [ heading, "" ] entries)
 
 /// Build review's complete desired screen without performing terminal I/O.
 let viewAtSize
@@ -601,7 +601,7 @@ let viewAtSize
   let titleRows = fitRows titleHeight [ titleRow mode ]
   let helpRows = if helpHeight == 0 then [] else [ helpRow helpText ]
   let rows =
-    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
+    Stdlib.List.flatten [ titleRows, bodyRows, helpRows ]
     |> Stdlib.List.take contentHeight
     |> Stdlib.List.map (fun row ->
       Darklang.Stdlib.Cli.Tui.Text.clipToWidth row width)

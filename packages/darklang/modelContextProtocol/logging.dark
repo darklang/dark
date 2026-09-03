@@ -53,7 +53,7 @@ module LogMessage =
 
   let toJson (params: LogMessageParams) : Json =
     let fields = [
-      ("level", Json.String (loggingLevelToString params.level));
+      ("level", Json.String (loggingLevelToString params.level)),
       ("message", Json.String params.message)
     ]
 
