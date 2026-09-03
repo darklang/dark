@@ -1,4 +1,5 @@
 Stdlib.Math.pi = 3.14159265359
+Stdlib.Math.e = 2.71828182846
 Stdlib.Math.tau = Stdlib.Float.multiply 2.0 Stdlib.Math.pi
 
 

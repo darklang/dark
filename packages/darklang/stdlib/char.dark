@@ -25,6 +25,18 @@ let isDigit (c: Char) : Bool =
   && (Stdlib.Char.isLessThanOrEqualTo c '9')
 
 
+/// Return whether the first scalar in <param c> is a Unicode letter.
+let isLetter (c: Char) : Bool = Builtin.charIsLetter c
+
+
+/// Return whether the first scalar in <param c> is Unicode whitespace.
+let isWhitespace (c: Char) : Bool = Builtin.charIsWhitespace c
+
+
+/// Return whether the first scalar in <param c> is a Unicode letter or digit.
+let isAlphanumeric (c: Char) : Bool = Builtin.charIsAlphanumeric c
+
+
 /// Return whether <param c> is an ASCII letter
 let isASCIILetter (c: Char) : Bool =
   (Stdlib.Char.isGreaterThanOrEqualTo c 'a')
@@ -74,3 +86,8 @@ let toString (c: Char) : String = Builtin.charToString c
 /// or {{None}} if the value is not a valid scalar (negative, > 0x10FFFF, or a surrogate).
 let fromCodepoint (codepoint: Int) : Stdlib.Option.Option<Char> =
   Builtin.charFromCodepoint codepoint
+
+
+/// Return the codepoint when <param c> contains exactly one Unicode scalar.
+/// This is the inverse of <fn Char.fromCodepoint>.
+let toCodepoint (c: Char) : Stdlib.Option.Option<Int> = Builtin.charToCodepoint c

@@ -56,6 +56,31 @@ let private normalizeEgcIndex (len : int) (d : DarkInt) : int =
   | DarkInt.Infinite b -> if b.Sign > 0 then len else 0
 
 
+/// Return a byte from `s`'s UTF-8 encoding without encoding the whole string.
+/// UTF-8 offsets use int64 because the encoding can exceed Int32.MaxValue bytes.
+let private utf8ByteAt (s : string) (index : int64) : byte option =
+  if index < 0L then
+    None
+  else
+    let mutable offset = 0L
+    let mutable found = None
+    let mutable runes = s.EnumerateRunes()
+
+    while found.IsNone && runes.MoveNext() do
+      let rune = runes.Current
+      let length = int64 rune.Utf8SequenceLength
+
+      if index < offset + length then
+        let buffer = Array.zeroCreate<byte> 4
+        rune.EncodeToUtf8(System.Span<byte> buffer) |> ignore<int>
+        // The offset within one rune is at most three.
+        found <- Some buffer[int (index - offset)]
+      else
+        offset <- offset + length
+
+    found
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "stringDisplayWidth" 0
       typeParams = []
@@ -792,6 +817,84 @@ let fns () : List<BuiltInFn> =
               if endIsBoundary && matches then lastFound <- egcIndex
               egcIndex <- egcIndex + 1
             Ply(Dval.int (bigint lastFound))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringToCodepoints" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TList TInt
+      description =
+        "Return the Unicode codepoints of <param s>, in order. A different question from "
+        + "<fn String.toList>, which cuts <param s> into grapheme clusters: a flag, or an "
+        + "emoji built with a zero-width joiner, is one Char and several codepoints."
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          s.EnumerateRunes()
+          |> Seq.map (fun rune -> Dval.int (bigint rune.Value))
+          |> Seq.toList
+          |> Dval.list KTInt
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringCodepointLength" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TInt
+      description =
+        "Return how many Unicode codepoints <param s> has. At least <fn String.length>, "
+        + "which counts grapheme clusters, and unrelated to <fn String.displayWidth>, "
+        + "which counts the cells the text occupies."
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          // Count directly to avoid boxing the rune enumerator.
+          let mutable count = 0
+          let mutable i = 0
+
+          while i < s.Length do
+            let isPair =
+              System.Char.IsHighSurrogate s[i]
+              && i + 1 < s.Length
+              && System.Char.IsLowSurrogate s[i + 1]
+
+            count <- count + 1
+            i <- i + (if isPair then 2 else 1)
+
+          count |> bigint |> Dval.int |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringGetByteAt" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString ""; Param.make "index" TInt "" ]
+      returnType = TypeReference.option TUInt8
+      description =
+        "Return {{Some <var b>}} for the byte at <param index> of <param s>'s UTF-8 "
+        + "encoding, or {{None}} when <param index> is negative or past the end. This "
+        + "indexes bytes, not characters: every character outside ASCII spans more than "
+        + "one, so an index here does not line up with one into <fn String.toList>."
+      fn =
+        (function
+        | _, _, _, [| DString s; DInt index |] ->
+          // Values outside int64 are necessarily past the end.
+          match DarkInt.toInt64 index |> Option.bind (utf8ByteAt s) with
+          | Some b -> Dval.optionSome KTUInt8 (DUInt8 b) |> Ply
+          | None -> Dval.optionNone KTUInt8 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

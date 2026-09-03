@@ -360,6 +360,26 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "floatToBits" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat "" ]
+      returnType = TInt
+      description =
+        "Return the IEEE 754 binary64 bit pattern of <param a> as a signed 64-bit value: "
+        + "the sign in bit 63, then 11 bits of exponent, then 52 of significand. Tells "
+        + "apart what {{==}} cannot -- {{0.0}} and {{-0.0}} have different patterns, and "
+        + "every NaN has a pattern despite equalling nothing, itself included."
+      fn =
+        (function
+        | _, _, _, [| DFloat a |] ->
+          System.BitConverter.DoubleToInt64Bits a |> bigint |> Dval.int |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

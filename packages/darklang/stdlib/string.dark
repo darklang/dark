@@ -65,6 +65,14 @@ let toLowercase (s: String) : String = Builtin.stringToLowercase s
 let length (s: String) : Int = Builtin.stringLength s
 
 
+/// Return the Unicode codepoints in <param s>.
+let toCodepoints (s: String) : List<Int> = Builtin.stringToCodepoints s
+
+
+/// Return the number of Unicode codepoints in <param s>.
+let codepointLength (s: String) : Int = Builtin.stringCodepointLength s
+
+
 /// How many cells <param s> occupies in a fixed-width grid.
 ///
 /// A different question from <fn length>, which counts characters: `界` is one character two cells
@@ -420,6 +428,12 @@ let fromBlobWithReplacement (blob: Blob) : String =
 /// Converts a UTF8-encoded Blob into a string. Returns None if the
 /// bytes aren't valid UTF-8.
 let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
+
+
+/// Return the byte at <param index> in <param str>'s UTF-8 encoding.
+/// Returns {{None}} when <param index> is outside the encoding.
+let getByteAt (str: String) (index: Int) : Option.Option<UInt8> =
+  Builtin.stringGetByteAt str index
 
 
 /// Checks if <param subject> starts with <param prefix>
