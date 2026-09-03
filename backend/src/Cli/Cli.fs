@@ -13,12 +13,11 @@ module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
 module BuiltinCli = Builtins.Cli.Builtin
 
-// Dual logging (console + cli.log file)
+// Log to stderr and, when possible, to cli.log.
 let private logError (message : string) : unit =
-  // Always write to stderr for immediate feedback
   System.Console.Error.WriteLine message
 
-  // Also try to log to file (best effort - don't fail if we can't)
+  // Logging must not make the command fail.
   try
     let logPath = System.IO.Path.Combine(LibConfig.Config.logDir, "cli.log")
     let logDir = System.IO.Path.GetDirectoryName(logPath)
@@ -29,7 +28,7 @@ let private logError (message : string) : unit =
     let logEntry = $"[{timestamp}] {message}\n"
     System.IO.File.AppendAllText(logPath, logEntry)
   with _ ->
-    () // Silently ignore logging errors - don't make things worse
+    ()
 
 // ---------------------
 // Version information
@@ -48,9 +47,7 @@ open System.Reflection
 let info () =
   let buildAttributes =
     Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Cli.fsproj
-  // It doesn't feel like this is how it's supposed to be used, but it works. But
-  // what if we wanted more than two parameters?
+  // These values are written by the build in Cli.fsproj.
   let buildDate = buildAttributes.Key
   let gitHash = buildAttributes.Value
   { hash = gitHash; buildDate = buildDate; inDevelopment = inDevelopment }
@@ -60,19 +57,13 @@ let info () =
 // Execution
 // ---------------------
 
-/// Deferred deliberately, and this must stay a `lazy`.
-///
-/// Constructing the builtins resolves PackageRefs. On a first run the hash file is still empty at that
-/// point: `Seed.growIfNeeded` is what regenerates it and calls `PackageRefs.reloadHashes`. A plain
-/// module-level value is built by F#'s per-file static initializer, which runs before `main` does
-/// anything at all, so every ref would resolve to "" -- silently tolerated, by design, so that a fresh
-/// clone can load -- and the builtins would then disagree with the freshly grown package DB. The first
-/// command fails with `Apply` (or `FnNotFound (Package (Hash ""))`). Forced after the grow instead.
-/// This is the same invariant that makes `growIfNeeded` take `getBuiltins` as a function; see Seed.fs.
+/// Build builtins after package seeding has refreshed PackageRefs.
+/// Keeping this lazy prevents F# module initialization from resolving hashes
+/// before the package database exists.
 let private builtinsLazy : Lazy<RT.Builtins> =
   lazy
-    // Outer CLI uses main branch for its own execution context.
-    // User scripts get branch-specific context via cliParseAndExecuteScript.
+    // The CLI itself runs against the main branch. User scripts choose their
+    // branch in cliParseAndExecuteScript.
     (LibExecution.Builtin.combine
       [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
         Builtins.CliHost.Builtin.builtins ()
@@ -117,17 +108,26 @@ let state (packageManager : RT.PackageManager) =
     program
 
 
-
-
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
   : Task<RT.ExecutionResult> =
   task {
-    // Split out because `cli.execute` turned out to be nearly identical for `status` and `help` despite help
-    // running 5x the instructions, which means most of it is a FIXED cost, not the Dark code running.
-    // `state` builds the builtins map and the execution state; this says how much of the fixed cost is that.
+    // Keep state construction separate so startup cost is measurable.
     let state = Telemetry.time "cli.buildState" [] (fun () -> state packageManager)
+    // Load bundled Darklang function hashes once for package-approval checks.
+    let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    let state =
+      // CLI control code is trusted; guest `run`/`eval` create restricted states.
+      { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll state with
+          // CLI control code may manage the instance policy.
+          canManagePolicies = true
+          // Only the trusted `sync` command may reach private-network HTTP targets.
+          canUsePrivateNetworkHttp =
+            match args with
+            | "sync" :: _ -> true
+            | _ -> false
+          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
     let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
@@ -137,6 +137,36 @@ let execute
 
 let initSerializers () = ()
 
+/// Record host-operation decisions for troubleshooting and review in
+/// `rundir/logs/host-audit.jsonl`. Set `DARK_AUDIT=off` to skip this audit file.
+let private installAuditLog () : unit =
+  if System.Environment.GetEnvironmentVariable "DARK_AUDIT" <> "off" then
+    let logPath =
+      System.IO.Path.Combine(LibConfig.Config.runDir, "logs", "host-audit.jsonl")
+    let lockObj = obj ()
+    LibExecution.Host.setAuditSink (fun op outcome ->
+      try
+        let decision, layer, detail =
+          match outcome with
+          | LibExecution.HostTypes.Outcome.Success _ -> "allowed", "", ""
+          | LibExecution.HostTypes.Outcome.Denied(layer, _, resource, _) ->
+            "denied", string layer, resource
+          | LibExecution.HostTypes.Outcome.Failed failure ->
+            "failed", "", failure.message
+          | LibExecution.HostTypes.Outcome.Rejected m -> "rejected", "", m
+        let detail = LibExecution.HostTypes.redactAuditDetail op detail
+        let line =
+          System.Text.Json.JsonSerializer.Serialize(
+            {| ts = System.DateTime.UtcNow.ToString("o")
+               op = LibExecution.HostTypes.describeOperation op
+               decision = decision
+               layer = layer
+               detail = detail |}
+          )
+        lock lockObj (fun () -> System.IO.File.AppendAllText(logPath, line + "\n"))
+      with _ ->
+        ())
+
 [<EntryPoint>]
 let main (args : string[]) =
   try
@@ -145,9 +175,7 @@ let main (args : string[]) =
     // obtain, so taking this first is what keeps the measurement from including itself.
     let mainEntry = System.DateTime.UtcNow
 
-    // How long the process took to reach here. `cli.total` starts after resource extraction and can't
-    // see runtime init, assembly loading or JIT of the startup path, which is a large share of a short
-    // command. Wall clock rather than Stopwatch, because the only fixed point is when the OS started us.
+    // Measure startup before cli.total, including runtime and assembly loading.
     let telemetryEnabled =
       match System.Environment.GetEnvironmentVariable "DARK_TELEMETRY" with
       | "1" -> true
@@ -155,9 +183,7 @@ let main (args : string[]) =
 
     let preMainMs =
       if telemetryEnabled then
-        // `Process.GetCurrentProcess()` reads /proc and initialises the Process machinery, which is
-        // not free on a command this short. It sits after `mainEntry` deliberately: it is the cost of
-        // reading the clock, not part of the startup being measured.
+        // Keep Process initialization out of the startup measurement.
         let processStart =
           System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()
         int64 (mainEntry - processStart).TotalMilliseconds
@@ -171,28 +197,37 @@ let main (args : string[]) =
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
-    // Now safe to access LibConfig paths.
-    //
-    // Gated on DARK_TELEMETRY (read above), the same switch the Dark side reads (see `initState` in
-    // cli/core.dark), so both halves of the instrument turn on together. Unconditional init would append
-    // to telemetry.jsonl on every invocation, and, since `InterpreterStats.create()` keys off this, would
-    // also leave per-instruction counting on in the hot loop for every run.
+    // Extraction established the rundir, so policy paths are safe to use.
+    try
+      LibDB.PolicyStore.seedInstanceIfMissing
+        LibExecution.Permissions.Policy.defaultInstance
+    with e ->
+      eprintfn
+        "warning: could not initialize ~/.darklang/policy (%s); host effects are denied this run"
+        e.Message
+
+    // Prevent scoped guest file operations from targeting the package store.
+    LibExecution.HostSecurity.setPackageDbPath LibConfig.Config.dbPath
+
+    // Record host-operation decisions at the boundary.
+    installAuditLog ()
+
+    // Use the same DARK_TELEMETRY switch as the Dark-side instrumentation.
     if telemetryEnabled then
       Telemetry.init (
         System.IO.Path.Combine(LibConfig.Config.logDir, "telemetry.jsonl")
       )
-    // Emitted now rather than at the top, because telemetry has no output path until `init` above.
+    // The output path is available only after telemetry.init.
     Telemetry.event "cli.preMain" [ "ms", string preMainMs ]
     let ticksToMs (t : int64) = t * 1000L / System.Diagnostics.Stopwatch.Frequency
     Telemetry.event "cli.extractResources" [ "ms", string (ticksToMs extractTicks) ]
-    // Drained here rather than logged in place: `extract` runs before telemetry has an output path.
+    // Resource extraction happened before telemetry had an output path.
     for (label, ticks) in EmbeddedResources.timings do
       Telemetry.event $"cli.{label}" [ "ms", string (ticksToMs ticks) ]
 
     use _totalSpan = Telemetry.span "cli.total" []
 
-    // Named so the phases inside `cli.total` sum to it. Without this most of the total lands in "the
-    // rest", which is not a useful place for time to live.
+    // Keep database setup phases visible in cli.total.
     Telemetry.time "cli.seedCheck" [] (fun () ->
       // If data.db is missing but seed.db exists, copy seed as data.db
       let dbPath = LibConfig.Config.dbPath
@@ -201,27 +236,8 @@ let main (args : string[]) =
         System.Console.Error.WriteLine "Copying seed.db as data.db"
         System.IO.File.Copy(seedPath, dbPath))
 
-    // Separated from `growIfNeeded` so the first connection open and its PRAGMA round trip are attributable
-    // to themselves rather than to whichever query happened to run first.
+    // Open the connection separately so its setup cost is measured on its own.
     Telemetry.time "cli.dbConnect" [] LibDB.Sqlite.Sql.warm
-
-    // Where the unguarded HTTP transport may be pointed. Two sources, both of them
-    // local intent: a URL on this command line, and the peers this instance has
-    // connected. Anywhere else it refuses, which is the position a package pulled
-    // from a peer is in.
-    //
-    // The stored side is a lookup rather than a snapshot because `dark sync connect`
-    // adds a peer and probes it inside one process, so a value read here would be a
-    // command too late. `sync_peers_v0` is created by the Dark side on first use, so
-    // an instance that has never synced has no such table, and nothing to allow.
-    LibExecution.UnguardedOrigins.setFromArgv args
-    LibExecution.UnguardedOrigins.setStoredLookup (fun () ->
-      try
-        (LibDB.Sqlite.Sql.query "SELECT url FROM sync_peers_v0"
-         |> LibDB.Sqlite.Sql.executeAsync (fun read -> read.string "url"))
-          .Result
-      with _ ->
-        [])
 
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
@@ -235,10 +251,7 @@ let main (args : string[]) =
         .Result
       |> ignore<bool>)
 
-    // After the grow, never before: see the comment on `builtinsLazy`. Forced explicitly (rather than
-    // left to whoever touches it first) so its cost lands in a span of its own instead of in
-    // `cli.execute`. On a first run `growIfNeeded` will already have forced it, so this reads ~0 and the
-    // cost shows up under `cli.growIfNeeded`; on every warm run it reads as it always did.
+    // Force builtins after seeding so initialization is measured separately.
     Telemetry.time "cli.builtinsInit" [] (fun () ->
       builtinsLazy.Force().fns.Count |> ignore<int>)
 
@@ -251,16 +264,13 @@ let main (args : string[]) =
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 
-    // Startup instrumentation. All of it is inert when telemetry is off; read it with
-    // `scripts/perf/view-telemetry.py`.
+    // Startup metrics are emitted only when telemetry is enabled.
 
-    // How many package items this run actually decoded. Emitted alongside the spans because per-item
-    // cost and item count are useless separately.
+    // Pair the decoded item count with the timing spans.
     Telemetry.counterSnapshot ()
     |> List.iter (fun (name, n) -> Telemetry.event name [ "count", string n ])
 
-    // Total the interpreter counters across every VM this run created. A VM is per-`executeFunction`
-    // and the stats hang off it, so without the sink the object is gone before anything could ask.
+    // Collect counters from every VM created by executeFunction.
     if Telemetry.isEnabled () then
       let stats =
         RT.InterpreterStatsSink.all
@@ -270,8 +280,7 @@ let main (args : string[]) =
           | _ -> None)
         |> Seq.toList
 
-      // Per-opcode allocation, summed across every VM. Names come from reflection over the Instruction DU
-      // so tag order can't drift out of sync with a hand-written list.
+      // Per-opcode allocation across all VMs. Names come from the Instruction DU.
       let opcodeNames = RT.Opcode.names
       let totalAlloc = Array.zeroCreate 32
       let totalCount = Array.zeroCreate 32
@@ -288,8 +297,7 @@ let main (args : string[]) =
               "allocBytes", string totalAlloc[i]
               "bytesPerOp", string (totalAlloc[i] / totalCount[i]) ]
 
-      // Per-builtin allocation, summed across VMs. This is what named the cost: ~99% of everything the
-      // process allocates happens inside builtin bodies, not the interpreter around them.
+      // Per-builtin allocation across all VMs.
       let byBuiltin = System.Collections.Generic.Dictionary<string, int64>()
       for s in stats do
         for kv in s.builtinAlloc do
@@ -341,9 +349,7 @@ let main (args : string[]) =
           "tstSizeMax",
           string (stats |> List.map (fun s -> s.tstSizeMax) |> List.fold max 0L) ]
 
-    // Allocation per instruction, to separate "we allocate a Dval per operation" from "the async state
-    // machine costs per operation". Process-total, so it costs one call at exit rather than anything per
-    // instruction. GC counts come along because collection pauses would show up as neither.
+    // Report allocation and GC totals after the run, not during each instruction.
     if Telemetry.isEnabled () then
       Telemetry.event
         "gc.stats"
@@ -368,7 +374,10 @@ let main (args : string[]) =
 
     match result with
     | Error(rte, callStack) ->
-      let state = state cliPackageManager
+      // Error formatting uses trusted Darklang functions shipped with the CLI.
+      let state =
+        state cliPackageManager
+        |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
 
       let errorCallStackStr =
         (LibExecution.Execution.callStackString state callStack).Result
@@ -389,7 +398,10 @@ let main (args : string[]) =
     | Ok(RT.DInt64 i) -> intToExitCode (RT.DarkInt.Finite i)
     | Ok(RT.DInt i) -> intToExitCode i
     | Ok dval ->
-      let state = state cliPackageManager
+      // Result formatting uses trusted Darklang functions shipped with the CLI.
+      let state =
+        state cliPackageManager
+        |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
       let output = (Exe.dvalToRepr state dval).Result
       logError $"Error: main function must return an int (returned {output})"
       1

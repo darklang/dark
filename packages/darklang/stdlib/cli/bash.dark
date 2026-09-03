@@ -15,7 +15,7 @@ let applyBashConfigChanges () : Result.Result<Unit, String> =
 /// Write content to .bashrc file
 let overwriteBashrc (content: String) : Result.Result<Unit, String> =
   (FileSystem.overwriteFile "$HOME/.bashrc" (Stdlib.String.toBlob content))
-  |> Result.map (fun _ -> ())
+  |> Result.mapError FileSystem.FileError.toString
 
 
 /// Delete an alias from .bashrc

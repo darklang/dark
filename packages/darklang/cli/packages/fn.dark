@@ -43,6 +43,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
 
 
+/// After defining a fn: its transitive permission requirements (naming its
+/// callbacks when the static walk cannot follow them), and where to inspect
+/// them.
+let printFunctionPermissionSummary (hash: String) : Unit =
+  let requirements = Permissions.Command.requirementDisplay hash
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.hint $"  permission requirements: {requirements}")
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.hint $"  inspect: `permissions show {hash}`")
+
+
 let createFnInline
   (currentLocation: Packages.PackageLocation)
   (locationStr: String)
@@ -116,10 +127,17 @@ let createFnInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Fn
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddFn and SetName
+          // Create ops: AddFn and SetName, with stabilized hashes.
           let ops =
-            [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
+            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+              [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
+
+          // The stabilized hash is what propagation and the requirements
+          // summary must use; the parser's placeholder names nothing stored.
+          let finalHash =
+            LanguageTools.WrittenTypesToProgramTypes.fnHashBoundAt ops location
+            |> Stdlib.Option.withDefault packageFn.hash
 
           match SCM.PackageOps.addAuthored state.currentBranchId ops with
           | Ok report ->
@@ -134,7 +152,17 @@ let createFnInline
 
             // Auto-propagate if this is an update
             if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageFn.hash LanguageTools.ProgramTypes.ItemKind.Fn
+              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Fn
+              printFunctionPermissionSummary
+                (LanguageTools.ProgramTypes.hashToString finalHash)
+              // Pins do not move on their own: whoever pinned the previous
+              // version keeps it until they review this one.
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.hint
+                  $"  anyone pinned to the previous version keeps it until they run `permissions update {fullPath}`")
+            else
+              printFunctionPermissionSummary
+                (LanguageTools.ProgramTypes.hashToString finalHash)
 
             Stdlib.printLine ""
             state

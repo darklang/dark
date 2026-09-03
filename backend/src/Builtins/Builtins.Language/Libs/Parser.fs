@@ -966,10 +966,13 @@ module WrittenTypesToDarkTypes =
       Map [ "pat", patDval; "whenCondition", whenDval; "rhs", exprToDT c.rhs ]
     )
 
-  // `<'a, 'b>` type params serialize as `List<(Range * String)>` (the WT shape).
-  let private typeParamsToDT (tps : List<string * Tok.TokenRange>) : Dval =
-    let elemVT = VT.tuple (VT.customType (rangeTypeName ()) []) VT.string []
-    DList(elemVT, tps |> List.map (fun (name, r) -> rangedString r name))
+  // A list of names with their source ranges, `List<(Range * String)>` in the
+  // WT shape: `<'a, 'b>` type params and the `:{Http, …}` effect row.
+  let private rangedNamesVT () : ValueType =
+    VT.tuple (VT.customType (rangeTypeName ()) []) VT.string []
+
+  let private rangedNamesToDT (names : List<string * Tok.TokenRange>) : Dval =
+    DList(rangedNamesVT (), names |> List.map (fun (name, r) -> rangedString r name))
 
   let private fnDeclToDT (f : WT.FnDecl) : Dval =
     let t = tn WTRefs.fnDeclaration
@@ -980,12 +983,16 @@ module WrittenTypesToDarkTypes =
       Map
         [ "range", rangeToDT f.range
           "name", identifierToDT WTRefs.fnIdentifier f.name
-          "typeParams", typeParamsToDT f.typeParams
+          "typeParams", rangedNamesToDT f.typeParams
           "parameters",
           DList(
             VT.customType (tn WTRefs.fnParameter) [],
             List.map fnParamToDT f.parameters
           )
+          "effects",
+          f.effects
+          |> Option.map (List.map (fun id -> id.name, id.range) >> rangedNamesToDT)
+          |> Dval.option (KTList(rangedNamesVT ()))
           "returnType", typeReferenceToDT f.returnType
           "body", exprToDT f.body
           "description", DString f.description
@@ -1101,7 +1108,7 @@ module WrittenTypesToDarkTypes =
       Map
         [ "range", rangeToDT td.range
           "name", identifierToDT WTRefs.typeIdentifier td.name
-          "typeParams", typeParamsToDT td.typeParams
+          "typeParams", rangedNamesToDT td.typeParams
           "definition", definitionToDT td.definition
           "description", DString td.description
           "keywordType", rangeToDT td.keywordType
@@ -1269,7 +1276,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "parserParseDiagnostics" 0
@@ -1295,7 +1302,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     // CLEANUP: replace this with one parser that takes Package, Script, or Test.
@@ -1340,7 +1347,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

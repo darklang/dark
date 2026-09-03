@@ -213,7 +213,8 @@ let save
       "the file changed underneath this session - another outliner has it open"
   else
     match Stdlib.Cli.FileSystem.overwriteFile pending (Stdlib.String.toBlob json) with
-    | Error e -> Stdlib.Result.Result.Error e
+    | Error e ->
+      Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.toString e)
     | Ok _ ->
       match Stdlib.Cli.Posix.rename pending path with
       | Ok _ -> Stdlib.Result.Result.Ok(stamp ())

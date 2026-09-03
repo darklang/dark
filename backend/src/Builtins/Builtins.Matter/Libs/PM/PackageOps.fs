@@ -2,6 +2,7 @@ module Builtins.Matter.Libs.PM.PackageOps
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
@@ -43,7 +44,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -69,7 +70,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -102,34 +103,34 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               if not (List.isEmpty clashes) then
                 return resultError (Dval.string (String.concat "\n" clashes))
               else
-                // All ops are added as WIP - use scmCommitWipOpsByIds to commit them
-                let! insertedCount =
-                  LibDB.Inserts.insertAndApplyOpsAsWip branchId ops
+                // These package changes came from running Dark code, so store
+                // them as WIP through the guarded path. Commit them later
+                // with `scmCommitWipOpsByIds`; reserved bundled-function names
+                // are rejected here.
+                match! LibDB.Inserts.insertUntrustedOps branchId None ops with
+                | Error reason -> return resultError (Dval.string reason)
+                | Ok insertedCount ->
 
-                // Auto-refresh existing WIP items: re-resolve names and
-                // recompute SCC-aware hashes now that new items exist
-                let! _refreshed = LibDB.WipRefresh.refresh pm branchId
+                  // Re-resolve WIP names and recompute hashes after the insert.
+                  let! _refreshed = LibDB.WipRefresh.refresh pm branchId
 
-                // Populate `rt_dval` for any package_values rows still
-                // NULL after this insert+refresh. `applyAddValue` always
-                // inserts NULL and Phase-3 `evaluateAllValues` only runs
-                // at startup when there are unapplied ops. Without this
-                // step, a CLI-added value that references another value
-                // (qualified or bare) would fail at eval with a NULL
-                // rt_dval until the next cold restart.
-                let! _ =
-                  LibDB.Seed.evaluateAllValues
-                    exeState.builtins
-                    LibDB.PackageManager.rt
+                  // Evaluate values whose runtime form is still missing.
+                  // New values start with NULL `rt_dval`; doing this now lets
+                  // later operations use them without restarting the CLI.
+                  let! _ =
+                    LibDB.Seed.evaluateAllValues
+                      branchId
+                      exeState.builtins
+                      LibDB.PackageManager.rt
 
-                return resultOk (Dval.int (bigint insertedCount))
+                  return resultOk (Dval.int (bigint insertedCount))
             with ex ->
               return resultError (Dval.string ex.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -149,7 +150,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -176,7 +177,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -208,7 +209,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -227,7 +228,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -246,7 +247,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -286,7 +287,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -335,7 +336,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -360,7 +361,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -384,7 +385,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -410,7 +411,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -429,7 +430,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -471,7 +472,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -522,7 +523,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

@@ -3,6 +3,70 @@ module LibExecution.ProgramTypesAst
 open Prelude
 open ProgramTypes
 
+/// Return an expression's direct children in source order, including children
+/// inside pipes, match guards and cases, and string interpolations. Recursive
+/// walkers can process the returned list to visit the full tree.
+let rec subExprs (expr : Expr) : List<Expr> =
+  match expr with
+  | EUnit _
+  | EBool _
+  | EInt8 _
+  | EUInt8 _
+  | EInt16 _
+  | EUInt16 _
+  | EInt32 _
+  | EUInt32 _
+  | EInt64 _
+  | EUInt64 _
+  | EInt128 _
+  | EUInt128 _
+  | EInt _
+  | EFloat _
+  | EChar _
+  | EVariable _
+  | EArg _
+  | ESelf _
+  | EValue _
+  | EFnName _ -> []
+
+  | EString(_, segments) ->
+    segments
+    |> List.choose (fun s ->
+      match s with
+      | StringText _ -> None
+      | StringInterpolation e -> Some e)
+
+  | EIf(_, cond, thenExpr, elseExpr) -> cond :: thenExpr :: Option.toList elseExpr
+  | EMatch(_, arg, cases) ->
+    arg
+    :: (cases |> List.collect (fun c -> Option.toList c.whenCondition @ [ c.rhs ]))
+  | EPipe(_, lhs, parts) -> lhs :: List.collect pipeSubExprs parts
+  | ELet(_, _, value, body) -> [ value; body ]
+  | EStatement(_, first, next) -> [ first; next ]
+
+  | EList(_, items) -> items
+  | EDict(_, pairs) -> List.map snd pairs
+  | ETuple(_, first, second, rest) -> first :: second :: rest
+  | EEnum(_, _, _, _, fields) -> fields
+  | ERecord(_, _, _, fields) -> List.map snd fields
+  | ERecordFieldAccess(_, record, _) -> [ record ]
+  | ERecordUpdate(_, record, updates) ->
+    record :: (updates |> NEList.toList |> List.map snd)
+
+  | EInfix(_, _, lhs, rhs) -> [ lhs; rhs ]
+  | ELambda(_, _, body) -> [ body ]
+  | EApply(_, fnExpr, _, args) -> fnExpr :: NEList.toList args
+
+/// The expressions nested directly in one part of a pipeline.
+and pipeSubExprs (pe : PipeExpr) : List<Expr> =
+  match pe with
+  | EPipeLambda(_, _, body) -> [ body ]
+  | EPipeInfix(_, _, rhs) -> [ rhs ]
+  | EPipeFnCall(_, _, _, args) -> args
+  | EPipeEnum(_, _, _, fields) -> fields
+  | EPipeVariable(_, _, args) -> args
+
+
 /// TODO type symbols, too
 /// TODO I'm not sure if this is useful any more - wrote this when doing some Lambda work but idk
 let rec symbolsUsedInExpr (expr : Expr) : Set<string> =

@@ -5,6 +5,7 @@ module Builtins.Random.Libs.Uuid
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 
 let fns () : List<BuiltInFn> =
@@ -22,7 +23,7 @@ let fns () : List<BuiltInFn> =
         // Similarly to DateTime.now, it's not particularly fun for this to change
         // when live programming, so let's keep this as Impure rather than ImpurePreviewable
         Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

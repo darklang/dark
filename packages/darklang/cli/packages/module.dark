@@ -197,6 +197,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               { ctx with pm = pm }
               rootModule
 
+          // Resolve the placeholders as one graph so mutually recursive
+          // declarations receive consistent content-addressed hashes.
+          let ops = LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps ops
           let updates = updatedItems branchId ops
 
           if Errors.reportUnresolvedNames branchId unresolvedNames then
@@ -237,7 +240,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success
                   $"✓ Defined {Stdlib.Int.toString count} {what} in {modulePath}")
-
+              // What each new function requires, while the author is looking.
+              ops
+              |> Stdlib.List.filterMap (fun op ->
+                match op with
+                | SetName(location, PackageFn hash) ->
+                  let fullPath =
+                    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+                  Stdlib.Option.Option.Some(
+                    Stdlib.Cli.UI.Colors.hint
+                      $"  {fullPath}  {Permissions.Command.requirementBadge hash}")
+                | _ -> Stdlib.Option.Option.None)
+              |> Stdlib.printLines
               state
 
 

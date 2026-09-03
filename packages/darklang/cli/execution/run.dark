@@ -1,12 +1,22 @@
 module Darklang.Cli.Run
 
 
-/// Parse <param code> as a script and run it, returning its exit code. The one
-/// call into the host's script runner: `run <path>` and `scripts run <name>`
-/// both come through here.
+/// Parse <param code> as a script and run it, returning its exit code and the
+/// permission warnings the run recorded. The one call into the host's script
+/// runner: `run <path>` and `scripts run <name>` both come through here.
 ///
-/// <param sandbox> runs the body with no capabilities at all, for code you
-/// don't trust; otherwise it runs under the host's configured grant.
+/// <param sandbox> runs the body under a deny-all policy, for code you don't
+/// trust; otherwise it runs under the host's configured instance policy.
+///
+/// <param warnPermissions> puts the permission checks into warn-only mode: a
+/// request the policy doesn't cover is recorded and allowed to proceed instead
+/// of failing the run. Each recorded request is (resource, denial reason, the
+/// fn it happened in when known); the list is always empty when
+/// warnPermissions is false.
+///
+/// <param sessionAllow> are rules the user allowed for this run only ("allow
+/// once" at the prompt): they widen the instance layer in memory and are
+/// never saved.
 let parseAndExecute
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
@@ -15,7 +25,11 @@ let parseAndExecute
   (args: List<String>)
   (allowHarmful: Bool)
   (sandbox: Bool)
-  : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
+  (warnPermissions: Bool)
+  (sessionAllow: List<LanguageTools.Permissions.Rule>)
+  : Stdlib.Result.Result<(Int *
+                          List<(String * String * Stdlib.Option.Option<String>)>),
+                         ExecutionError.ExecutionError> =
   Builtin.cliParseAndExecuteScript
     accountID
     branchId
@@ -24,6 +38,27 @@ let parseAndExecute
     args
     allowHarmful
     sandbox
+    warnPermissions
+    sessionAllow
+
+
+/// Format permission warnings for the terminal; return [] when there are none.
+let permissionWarningLines
+  (violations: List<(String * String * Stdlib.Option.Option<String>)>)
+  : List<String> =
+  match violations with
+  | [] -> []
+  | vs ->
+    let entries =
+      vs
+      |> Stdlib.List.map (fun v ->
+        let (resource, needed, via) = v
+        match via with
+        | Some fn -> $"  - {resource}: {needed} (in {fn})"
+        | None -> $"  - {resource}: {needed}")
+    Stdlib.List.append
+      [ "warning: this run went beyond the configured permission policy:" ]
+      entries
 
 
 // `run-script <path> [args...]` — execute a Dark script file.
@@ -33,27 +68,35 @@ let parseAndExecute
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member args "--allow-harmful"
-  // `dark run` respects the host's configured grant by default (same as `eval`).
-  // `--sandbox` drops to NO capabilities, for running untrusted scripts.
+  // `dark run` respects the host's configured instance policy by default (same
+  // as `eval`). `--sandbox` adds a deny-all run policy. This is runtime
+  // authorization, not OS containment.
   let sandbox =
     Stdlib.List.member args "--sandbox"
+  // `--warn-permissions` reports requests beyond the policy instead of denying them.
+  let warnPermissions =
+    Stdlib.List.member args "--warn-permissions"
   let args =
     args
     |> Stdlib.List.filter (fun a ->
-      (a != "--allow-harmful") && (a != "--sandbox"))
+      (a != "--allow-harmful") && (a != "--sandbox") && (a != "--warn-permissions"))
 
-  match args with
-  | [] ->
-    Stdlib.printLine (help state)
+  if sandbox && warnPermissions then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        "--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
     state
-  | scriptPath :: scriptArgs ->
-    executeScript state scriptPath scriptArgs allowHarmful sandbox
+  else
+    match args with
+    | [] ->
+      Stdlib.printLine (help state)
+      state
+    | scriptPath :: scriptArgs ->
+      executeScript state scriptPath scriptArgs allowHarmful sandbox warnPermissions
 
 
-// Does <param path> look like a package location (`Demo.Sync.double`) rather than a script file? Dotted, no
-// directory, no `.dark` — i.e. what you'd type right after `dark fn Demo.Sync.double ...` succeeded. `run`
-// takes a FILE, so that lands on "Script not found", which is true and useless: the thing exists, you just
-// named it to the wrong command. A guess is enough here — it only ever changes which hint we print.
+// Recognize a dotted package name so `run` can suggest `eval` instead of
+// reporting an unhelpful "script not found" error.
 let looksLikePackageName (path: String) : Bool =
   (Stdlib.String.contains path ".")
   && (Stdlib.String.contains path "/" |> Stdlib.Bool.not)
@@ -65,6 +108,7 @@ let executeScript
   (args: List<String>)
   (allowHarmful: Bool)
   (sandbox: Bool)
+  (warnPermissions: Bool)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile scriptPath with
   | Error e ->
@@ -84,27 +128,118 @@ let executeScript
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
-    let result =
-      parseAndExecute
-        state.accountID
-        state.currentBranchId
-        scriptPath
-        scriptSourceCode
-        args
-        allowHarmful
-        sandbox
-
-    match result with
-    | Ok exitCode ->
-      if exitCode == 0 then
-        state
-      else
-        Stdlib.printLine $"Script exited with code {Stdlib.Int.toString exitCode}"
-        state
-    | Error e ->
-      let pretty = ExecutionError.toString state.currentBranchId e
-      Stdlib.printLine $"Script error: {pretty}"
+    runScript
       state
+      scriptPath
+      scriptSourceCode
+      args
+      allowHarmful
+      sandbox
+      warnPermissions
+      []
+      8
+
+
+let allowOnce () : String = "Allow once (this run only)"
+let allowAlways () : String = "Allow always (save to the instance policy)"
+let denyChoice () : String = "Deny"
+
+let printScriptError (state: AppState) (e: ExecutionError.ExecutionError) : AppState =
+  match e with
+  | Denied denied ->
+    if denied.callStack != "" then
+      Stdlib.printLine $"Error when executing Script. Call-stack:\n{denied.callStack}"
+    else
+      ()
+  | _ -> ()
+  let pretty = ExecutionError.toString state.currentBranchId e
+  Stdlib.printLine $"Script error: {pretty}"
+  state
+
+/// Run the script and, at an interactive terminal, offer to retry an
+/// instance-policy denial. "Once" is temporary; "always" saves the rule.
+/// Sandbox, warning mode, and non-interactive runs never prompt.
+let runScript
+  (state: AppState)
+  (scriptPath: String)
+  (code: String)
+  (args: List<String>)
+  (allowHarmful: Bool)
+  (sandbox: Bool)
+  (warnPermissions: Bool)
+  (sessionAllow: List<LanguageTools.Permissions.Rule>)
+  (promptsLeft: Int)
+  : AppState =
+  let result =
+    parseAndExecute
+      state.accountID
+      state.currentBranchId
+      scriptPath
+      code
+      args
+      allowHarmful
+      sandbox
+      warnPermissions
+      sessionAllow
+  match result with
+  | Ok((exitCode, violations)) ->
+    match permissionWarningLines violations with
+    | [] -> ()
+    | lines -> Stdlib.printLines lines
+    if exitCode == 0 then
+      state
+    else
+      Stdlib.printLine $"Script exited with code {Stdlib.Int.toString exitCode}"
+      state
+  | Error(Denied denied) ->
+    let canAsk =
+      promptsLeft > 0
+      && Stdlib.Bool.not sandbox
+      && Stdlib.Bool.not warnPermissions
+      && (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).inputIsTerminal
+    match denied.rule with
+    | Some rule when canAsk ->
+      match LanguageTools.Permissions.parseRuleText rule with
+      | Some rules ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.warning
+            $"The script wants {denied.resource}, which the instance policy does not allow.")
+        let choice =
+          Stdlib.Cli.UI.Prompt.select
+            $"Allow `{rule}`?"
+            [ allowOnce (), allowAlways (), denyChoice () ]
+        if choice == allowOnce () then
+          runScript
+            state
+            scriptPath
+            code
+            args
+            allowHarmful
+            sandbox
+            warnPermissions
+            (Stdlib.List.append sessionAllow rules)
+            (promptsLeft - 1)
+        elif choice == allowAlways () then
+          Darklang.Cli.Permissions.Command.editPolicy
+            (fun current ->
+              Stdlib.Result.Result.Ok(
+                { current with allow = Stdlib.List.append current.allow rules }))
+            $"✓ allowed {rule}"
+          runScript
+            state
+            scriptPath
+            code
+            args
+            allowHarmful
+            sandbox
+            warnPermissions
+            (Stdlib.List.append sessionAllow rules)
+            (promptsLeft - 1)
+        else
+          printScriptError state (ExecutionError.ExecutionError.Denied denied)
+      | None -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
+    | _ -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
+  | Error e -> printScriptError state e
 
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
@@ -139,9 +274,15 @@ let help (_state: AppState) : String =
     "  run-script script.dark a b c      - Run with args"
     ""
     "Flags:"
-    "  --sandbox          - Run with NO capabilities (deny-all) for untrusted scripts."
-    "                       By default a script runs under your configured grant (see `caps`)."
+    "  --sandbox          - Add a deny-all run policy (not OS containment)."
+    "                       By default a script runs under your instance policy (see `permissions`)."
+    "  --warn-permissions - UNSAFE audit mode: let requests beyond the run and package"
+    "                       policies run and report them; the instance policy and function"
+    "                       ceilings still deny. Not with --sandbox."
     "  --allow-harmful    - Opt out of Harmful-deprecation halting."
+    ""
+    "When a script is denied by the instance policy at an interactive terminal, run"
+    "offers to allow the exact rule once (this run) or always (saved), then retries."
     ""
     "To call a package function, use 'eval' instead:"
     "  eval Stdlib.Int.add 5 3" ]

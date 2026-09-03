@@ -6,9 +6,12 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
+module Host = LibExecution.Host
+module PermissionCheck = LibExecution.PermissionCheck
 open Builtin.Shortcuts
 
 
@@ -20,15 +23,21 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current working directory"
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
+        | state, vm, _, [| DUnit |] ->
           uply {
-            let contents = System.IO.Directory.GetCurrentDirectory()
-            return DString contents
+            let op = Host.Operation.DirectoryCurrent
+            match! PermissionCheck.performHost state vm op with
+            | Ok response -> return DString(Host.expectPath response)
+            | Error failure ->
+              return
+                Exception.raiseInternal
+                  "reading the working directory failed"
+                  [ "message", failure.message ]
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileRead
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
 
 
@@ -39,23 +48,19 @@ let fns () : List<BuiltInFn> =
       description = "Returns the directory at <param path>"
       fn =
         (function
-        | state, _, _, [| DString path |] ->
+        | state, vm, _, [| DString path |] ->
           uply {
-            // precise check: this exact path must be covered (gate checked file presence).
-            LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
-            // TODO make async
-            let contents =
-              try
-                System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
-              with _ ->
-                []
-
-            return DList(VT.string, List.map DString contents)
+            let op = Host.Operation.DirectoryList(Host.expandHome path)
+            match! PermissionCheck.performHost state vm op with
+            | Ok response ->
+              let entries = Host.expectEntries response
+              return DList(VT.string, List.map DString entries)
+            | Error _ -> return DList(VT.string, [])
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileRead
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
 
 
@@ -66,16 +71,26 @@ let fns () : List<BuiltInFn> =
       description = "Returns the full path to the currently running executable"
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
+        | state, vm, _, [| DUnit |] ->
           uply {
-            let exePath =
-              System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
-            return DString exePath
+            match!
+              PermissionCheck.performHost
+                state
+                vm
+                Host.Operation.CurrentExecutablePath
+            with
+            | Ok response -> return DString(Host.expectPath response)
+            | Error failure ->
+              return
+                Exception.raiseInternal
+                  "current executable path failed"
+                  [ "message", failure.message ]
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      // The answer is a path, so it is a read of that path.
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated } ]
 
 

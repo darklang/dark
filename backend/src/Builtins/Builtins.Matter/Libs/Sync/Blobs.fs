@@ -23,6 +23,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 
@@ -47,7 +48,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     // Sender: the bytes for one hash, base64 (GET /sync/blob?hash=), or empty if this instance lacks it.
@@ -69,7 +70,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     // Receiver: of a peer's offered hashes, which this instance LACKS — exactly the blobs to fetch.
@@ -100,7 +101,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     // Receiver: store a fetched blob — base64-decode + insert under its content hash. Idempotent (dedup).
@@ -129,7 +130,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated } ]
 
 

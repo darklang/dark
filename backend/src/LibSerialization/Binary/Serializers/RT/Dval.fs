@@ -100,6 +100,10 @@ and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   writeTypeSymbolTable w namedFn.typeSymbolTable
   List.write w TypeReference.write namedFn.typeArgs
   List.write w writeDval namedFn.argsSoFar
+  // Serialize only whether access was captured, never the access itself.
+  // Compiled code references stay uncaptured and inherit the caller's access;
+  // persisted captured values decode as deny-all.
+  w.Write namedFn.access.IsSome
 
 and writeTypeSymbolTable (w : BinaryWriter) (tst : TypeSymbolTable) =
   // Via a Map so the wire format is unchanged by the table's in-memory representation. This runs when
@@ -283,6 +287,8 @@ and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
   { exprId = exprId
     closedRegisters = closedRegisters
     typeSymbolTable = typeSymbolTable
+    access =
+      LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
     argsSoFar = argsSoFar }
 
 and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
@@ -290,9 +296,19 @@ and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
   let typeSymbolTable = readTypeSymbolTable r
   let typeArgs = List.read r TypeReference.read
   let argsSoFar = List.read r readDval
+  let wasCaptured = r.ReadBoolean()
   { name = name
     typeSymbolTable = typeSymbolTable
     typeArgs = typeArgs
+    // Captured values decode as deny-all; code constants inherit the caller.
+    access =
+      if wasCaptured then
+        Some(
+          LibExecution.Permissions.Access.start
+            LibExecution.Permissions.Policy.denyAll
+        )
+      else
+        None
     argsSoFar = argsSoFar }
 
 and readTypeSymbolTable (r : BinaryReader) : TypeSymbolTable =

@@ -403,18 +403,32 @@ type FnParam =
     symbolColon : Range *
     symbolRightParen : Range
 
-/// `let name (p: T) … : Ret = body`
+/// `let name (p: T) … :{Effect, …} Ret = body`
 type FnDecl =
-  { range : Range
+  {
+    range : Range
     name : Identifier
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
     parameters : List<FnParam>
+    /// An optional effect row after the return colon, such as
+    /// `:{Http, Clock} Ret`, sets the function's permission ceiling. It limits
+    /// the effects used by the body and its calls; it never grants access.
+    /// Effect names are resolved, and unknown names reported, by
+    /// `WrittenTypesToProgramTypes`.
+    /// `: Ret` means no ceiling; `:{}` requires a pure body; a non-empty row
+    /// allows only the listed effects.
+    ///
+    ///   `: String`              None       no row, no promise
+    ///   `:{} String`            Some []    effect-free: every host effect inside is denied
+    ///   `:{Http, Clock} String` Some [...] only these; anything else inside is denied
+    effects : Option<List<Identifier>>
     returnType : TypeReference
     body : Expr
     keywordLet : Range
     symbolColon : Range
     symbolEquals : Range
-    description : string } // preceding `///` doc comments
+    description : string
+  } // preceding `///` doc comments
 
 /// `let name = body` (no params)
 type ValueDecl =
@@ -601,12 +615,16 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { name : Name
+    {
+      name : Name
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
-      description : string }
+      /// The declared permission ceiling (effect case names); see `FnDecl`.
+      effects : Option<List<string>>
+      description : string
+    }
 
 
 module DB =
@@ -684,6 +702,7 @@ let packageFn
     typeParams = fn.typeParams |> List.map fst
     parameters = parameters
     returnType = fn.returnType
+    effects = fn.effects |> Option.map (List.map (fun id -> id.name))
     description = fn.description }
 
 let packageType

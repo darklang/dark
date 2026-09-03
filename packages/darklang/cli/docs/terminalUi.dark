@@ -72,7 +72,7 @@ frames.
 `ViewMode` is the fork that matters:
 
   Fullscreen  takes the alternate screen, addresses rows absolutely (ESC [ row;1 H).
-              The workbench, nav, the editor, caps, outliner, review.
+              The workbench, nav, the editor, permissions, outliner, review.
   Inline      occupies N rows where the cursor already is, keeps normal scrollback, and addresses
               rows relative to where the previous frame left the cursor (ESC [ n A / ESC [ n B).
               The main prompt and the completion picker.

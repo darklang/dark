@@ -361,6 +361,17 @@ let receiveOps
     if List.isEmpty events then
       return 0L
     else
+      // Do not let synced data claim the `Darklang` owner used for trusted
+      // bundled functions.
+      let incomingOps =
+        events
+        |> List.map (fun (opId, opBlob, _, _, _) ->
+          BS.PT.PackageOp.deserialize opId opBlob)
+      match Inserts.reservedOwnerViolation incomingOps with
+      | Some reason ->
+        raise (System.InvalidOperationException $"rejecting synced ops: {reason}")
+      | None -> ()
+
       // Insert the referenced commits FIRST (same transaction, in order) so the ops' commit_hash FK is
       // satisfied — a synced op belongs to a commit that must exist on the receiver. INSERT OR IGNORE dedups.
       // TODO(sync-accounts): a synced commit carries an account_id but accounts don't sync. Today the 5
@@ -372,9 +383,9 @@ let receiveOps
         |> List.map (fun (hash, message, branchId, accountId, createdAt) ->
           let sql =
             """
-            INSERT OR IGNORE INTO commits (hash, message, branch_id, account_id, created_at)
-            VALUES (@hash, @message, @branch_id, @account_id, @created_at)
-            """
+          INSERT OR IGNORE INTO commits (hash, message, branch_id, account_id, created_at)
+          VALUES (@hash, @message, @branch_id, @account_id, @created_at)
+          """
           let ps =
             [ "hash", Sql.string hash
               "message", Sql.string message
@@ -408,7 +419,7 @@ let receiveOps
               origin_ts = MIN(package_ops.origin_ts, excluded.origin_ts),
               applied =
                 CASE WHEN excluded.origin_ts < package_ops.origin_ts THEN 0
-                     ELSE package_ops.applied END
+                    ELSE package_ops.applied END
             """
           let ps =
             [ "id", Sql.uuid opId
@@ -476,9 +487,14 @@ let rebuildProjections () : Task<int64> =
   }
 
 
+/// Remove seed-time access so a stored package value cannot retain the
+/// permissions of the process that created it.
+let private stripCapturedAccess = LibExecution.Dval.stripCapturedAccess
+
 /// Evaluate all package values that have NULL rt_dval.
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
+  (branchId : PT.BranchId)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : Task<Result<unit, string list>> =
@@ -495,8 +511,11 @@ let evaluateAllValues
         Execution.noTracing
         sendException
         notify
-        PT.mainBranchId
+        branchId
         program
+      // Seeding is trusted host-side work; guest execution remains deny-all
+      // by default.
+      |> Execution.setInstancePolicy LibExecution.Permissions.Policy.allowAll
 
     let maxPasses = 10
     let mutable pass = 0
@@ -558,6 +577,7 @@ let evaluateAllValues
               // non-persistable and trip the [isPersistable] guard
               // below with a clear error.
               let! dval = LibExecution.Blob.promote pm.persistBlob dval
+              let dval = stripCapturedAccess dval
 
               if not (LibExecution.Dval.isPersistable dval) then
                 let reason =
@@ -643,7 +663,7 @@ let growIfNeeded
     if appliedCount > 0L || hasUnevaluatedValues then
       let! _evalResult =
         Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
-          evaluateAllValues (getBuiltins ()) pm)
+          evaluateAllValues PT.mainBranchId (getBuiltins ()) pm)
       do!
         Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
           Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)

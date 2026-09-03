@@ -702,7 +702,8 @@ let pm : PT.PackageManager =
             [ { name = "_y"; typ = PT.TVariable "y"; description = "TODO" } ]
         returnType = PT.TVariable "x"
         body = eVar "x"
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     let outer : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Outer.hash
@@ -720,7 +721,8 @@ let pm : PT.PackageManager =
               [ PT.TString; PT.TBool ]
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     let myAdd : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyAdd.hash
@@ -731,7 +733,8 @@ let pm : PT.PackageManager =
             [ { name = "b"; typ = PT.TInt64; description = "TODO" } ]
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     let fact : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Fact.hash
@@ -754,7 +757,8 @@ let pm : PT.PackageManager =
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
 
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     // let addUpTO (n : Int64) : Int64 =
     //   if n <= 0 then 0
@@ -785,7 +789,8 @@ let pm : PT.PackageManager =
                         []
                         [ eVar "n"; eInt64 1L ] ]) ]
             ))
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatTakesALambda.hash
@@ -799,7 +804,8 @@ let pm : PT.PackageManager =
                 description = "TODO" } ]
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
@@ -808,7 +814,8 @@ let pm : PT.PackageManager =
           NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []
         returnType = PT.TUnit
         body = eUnit ()
-        description = "TODO" }
+        description = "TODO"
+        permissionCeiling = None }
 
     [ inner
       outer

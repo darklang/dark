@@ -6,7 +6,7 @@ open TestUtils.TestUtils
 
 module TerminalRestoreGuard = Builtins.Cli.Libs.Terminal.TerminalRestoreGuard
 module TerminalText = Builtins.Cli.Libs.TerminalText
-module PosixLibc = Builtins.Cli.Libs.Posix.Libc
+module HostLibc = LibExecution.HostLibc
 
 
 let private red = "\u001b[31m"
@@ -124,17 +124,17 @@ let tests =
         try
           System.IO.File.WriteAllText(path, "one\ntwo\nthree\n")
 
-          match PosixLibc.openFile path PosixLibc.O_RDONLY 0 with
+          match HostLibc.openFile path HostLibc.O_RDONLY 0 with
           | Error(errno, message) ->
             failtestf "open failed with errno %d: %s" errno message
           | Ok fd ->
             try
               Expect.equal
-                (PosixLibc.fdSeek fd 8L PosixLibc.SEEK_SET)
+                (HostLibc.fdSeek fd 8L HostLibc.SEEK_SET)
                 (Ok 8L)
                 "seek should return the new absolute byte offset"
 
-              match PosixLibc.fdRead fd 6 with
+              match HostLibc.fdRead fd 6 with
               | Error(errno, message) ->
                 failtestf "read failed with errno %d: %s" errno message
               | Ok bytes ->
@@ -143,7 +143,7 @@ let tests =
                   "three\n"
                   "the bounded read should start at the seeked offset"
             finally
-              PosixLibc.fdClose fd |> ignore
+              HostLibc.fdClose fd |> ignore
         finally
           System.IO.File.Delete path
       }

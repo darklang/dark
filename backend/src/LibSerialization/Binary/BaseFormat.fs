@@ -42,7 +42,8 @@ module Varint =
 
 module Validation =
   let validateVersion (version : uint32) =
-    if version > CurrentVersion then
+    // Reject formats from other versions rather than guessing how to parse them.
+    if version <> CurrentVersion then
       raise (BinaryFormatException(UnsupportedVersion version))
 
   let validateDataLength (expected : uint32) (actual : uint32) =

@@ -59,7 +59,7 @@ module HandleCommand =
       LibExecution.PackageRefs.reloadHashes ()
 
       // Evaluate all values now that all definitions are in the DB
-      let! evalResult = evaluateAllValues (Builtins.all ()) PM.rt
+      let! evalResult = evaluateAllValues PT.mainBranchId (Builtins.all ()) PM.rt
       match evalResult with
       | Error errors ->
         for e in errors do

@@ -563,13 +563,12 @@ let testsFromFiles version =
 // DStream HTTP tests and the file-driven httpclient.tests corpus.
 // ---------------
 module MockHelpers =
-  module HC = Builtins.Http.Client.Libs.HttpClient
+  module HostHttp = LibExecution.HostHttp
 
-  // looseConfig for these tests — they hit the in-process mock
-  // server on localhost, which the production defaultConfig blocks.
-  let httpConfig : HC.Configuration = { HC.looseConfig with timeoutInMs = 5000 }
-
-  let httpClient = HC.BaseClient.create httpConfig
+  /// The guest profile used by `Host.perform`; loopback is enabled for mocks.
+  let profile () : HostHttp.Profile =
+    installTestHttpConfig ()
+    HostHttp.profileFor LibExecution.HostTypes.HttpProfile.Guest
 
   /// Register a test case in the mock server and return the URL to hit.
   let registerTestCase
@@ -592,8 +591,6 @@ module MockHelpers =
             body = bodyBytes } }
     $"http://{host}/v0/{name}"
 
-  let getRequest (url : string) : HC.Request =
-    { url = url; method = System.Net.Http.HttpMethod.Get; headers = []; body = [||] }
 
 
 // ————————————————————————————————————————————————————————————
@@ -605,46 +602,36 @@ module MockHelpers =
 // the whole point of the test.
 // ————————————————————————————————————————————————————————————
 module StreamDvalTests =
-  module HC = Builtins.Http.Client.Libs.HttpClient
+  module HostHttp = LibExecution.HostHttp
   module RT = LibExecution.RuntimeTypes
   module VT = LibExecution.ValueType
 
-  /// Build a DStream wrapping an open HttpResponseMessage's body —
-  /// same closure shape as the builtin. Returns the DStream and a
-  /// ref<bool> that flips when the disposer runs, so tests can
-  /// assert cleanup.
+  /// Build a host-backed stream and expose whether its disposer ran.
   let private buildBodyStream
-    (response : System.Net.Http.HttpResponseMessage)
-    : Task<RT.Dval * bool ref> =
-    task {
-      let! responseStream = response.Content.ReadAsStreamAsync()
-      let buffer = Array.zeroCreate<byte> 8192
-      let mutable bufferLen = 0
-      let mutable bufferPos = 0
-      let next () : Ply<Option<RT.Dval>> =
-        uply {
-          if bufferPos >= bufferLen then
-            let! n = responseStream.ReadAsync(buffer, 0, buffer.Length)
-            if n = 0 then
-              return None
-            else
-              bufferLen <- n
-              bufferPos <- 0
-              let b = buffer[bufferPos]
-              bufferPos <- bufferPos + 1
-              return Some(RT.DUInt8 b)
-          else
-            let b = buffer[bufferPos]
-            bufferPos <- bufferPos + 1
-            return Some(RT.DUInt8 b)
-        }
-      let disposerRan = ref false
-      let disposer () =
-        disposerRan.Value <- true
-        responseStream.Dispose()
-        response.Dispose()
-      return Stream.newFromIO VT.uint8 next (Some disposer), disposerRan
-    }
+    (head : LibExecution.HostTypes.HttpStreamHead)
+    : RT.Dval * bool ref =
+    let mutable buffered : byte[] = [||]
+    let mutable bufferPos = 0
+    let next () : Ply<Option<RT.Dval>> =
+      uply {
+        if bufferPos >= buffered.Length then
+          let! chunk = HostHttp.readChunk head.handle 8192
+          match chunk with
+          | None -> return None
+          | Some bytes ->
+            buffered <- bytes
+            bufferPos <- 1
+            return Some(RT.DUInt8 bytes[0])
+        else
+          let b = buffered[bufferPos]
+          bufferPos <- bufferPos + 1
+          return Some(RT.DUInt8 b)
+      }
+    let disposerRan = ref false
+    let disposer () =
+      disposerRan.Value <- true
+      HostHttp.closeStream head.handle
+    Stream.newFromIO VT.uint8 next (Some disposer), disposerRan
 
 
   let drainToBytes (s : RT.Dval) : Task<byte[]> =
@@ -668,15 +655,11 @@ module StreamDvalTests =
           let body = "hello streams"
           let url =
             MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
-          let! setup =
-            HC.openStreamingRequest
-              MockHelpers.httpConfig
-              MockHelpers.httpClient
-              (MockHelpers.getRequest url)
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
-          | Ok(response, _headers) ->
-            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+          | Ok head ->
+            let (s, (disposerRan : bool ref)) = buildBodyStream head
             let! (bytes : byte[]) = drainToBytes s
             Expect.equal
               (UTF8.ofBytesUnsafe bytes)
@@ -696,15 +679,11 @@ module StreamDvalTests =
           let body = String.replicate 28000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
-          let! setup =
-            HC.openStreamingRequest
-              MockHelpers.httpConfig
-              MockHelpers.httpClient
-              (MockHelpers.getRequest url)
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
-          | Ok(response, _headers) ->
-            let! (s, _) = buildBodyStream response
+          | Ok head ->
+            let (s, _) = buildBodyStream head
             let! (bytes : byte[]) = drainToBytes s
             Expect.equal
               bytes.Length
@@ -715,15 +694,11 @@ module StreamDvalTests =
         testTask "empty body drains to zero bytes; disposer still runs" {
           let url =
             MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
-          let! setup =
-            HC.openStreamingRequest
-              MockHelpers.httpConfig
-              MockHelpers.httpClient
-              (MockHelpers.getRequest url)
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
-          | Ok(response, _headers) ->
-            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+          | Ok head ->
+            let (s, (disposerRan : bool ref)) = buildBodyStream head
             let! (bytes : byte[]) = drainToBytes s
             Expect.equal bytes.Length 0 "empty body = zero bytes"
             Expect.isTrue disposerRan.Value "disposer runs even on empty drain"
@@ -733,15 +708,11 @@ module StreamDvalTests =
           let body = "unused"
           let url =
             MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
-          let! setup =
-            HC.openStreamingRequest
-              MockHelpers.httpConfig
-              MockHelpers.httpClient
-              (MockHelpers.getRequest url)
+          let! setup = HostHttp.openStream (MockHelpers.profile ()) "GET" url []
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
-          | Ok(response, _headers) ->
-            let! (s, (disposerRan : bool ref)) = buildBodyStream response
+          | Ok head ->
+            let (s, (disposerRan : bool ref)) = buildBodyStream head
             // Replicate streamClose: flip disposed, walk impl chain.
             match s with
             | RT.DStream(impl, disposed, _) ->

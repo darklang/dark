@@ -12,7 +12,7 @@ let overwriteFishConfig (content: String) : Result.Result<Unit, String> =
   (FileSystem.overwriteFile
     "$HOME/.config/fish/config.fish"
     (Stdlib.String.toBlob content))
-  |> Result.map (fun _ -> ())
+  |> Result.mapError FileSystem.FileError.toString
 
 
 /// Delete an alias from config.fish

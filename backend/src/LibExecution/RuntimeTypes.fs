@@ -1130,14 +1130,23 @@ and LambdaImpl =
 
 
 and ApplicableNamedFn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
 
     typeSymbolTable : TypeSymbolTable
 
     // CLEANUP maybe this could be List<ValueType>?
     typeArgs : List<TypeReference>
 
-    argsSoFar : List<Dval> }
+    /// Runtime authorization context captured by this first-class function
+    /// value. Compiled references start uncaptured (`None`); `LoadVal` attaches
+    /// the evaluating frame's access before the value can escape. Access
+    /// controls the effects the function may perform. Serialization stores only
+    /// whether access was captured; decoded captured values use deny-all.
+    access : Option<Permissions.Access>
+
+    argsSoFar : List<Dval>
+  }
 
 and ApplicableLambda =
   {
@@ -1159,6 +1168,10 @@ and ApplicableLambda =
     /// [1] the `name: String -> Type` lookup of resolved generics
     /// for e.g. `Option<'a>`
     typeSymbolTable : TypeSymbolTable
+
+    /// Runtime access captured with the closure. It is deliberately not
+    /// serialized; decoded closures receive deny-all access.
+    access : Permissions.Access
 
     argsSoFar : List<Dval>
   }
@@ -1740,6 +1753,30 @@ module CallStack =
   let last (cs : CallStack) : Option<ExecutionPoint> = List.head cs
 
 
+/// A request that exceeded the active policies in warn-only mode
+/// (`dark run --warn-permissions`). `resource` identifies the target,
+/// `needed` explains the denied layer and reason, and `via` identifies the
+/// function or lambda that made the request.
+type PermissionViolation =
+  { resource : string; needed : string; via : Option<ExecutionPoint> }
+
+/// Details of a policy denial kept for the CLI's allow-and-retry prompt:
+/// the denying layer, attempted resource, and suggested allow rule when one
+/// exists.
+type PermissionDenialRecord =
+  { layer : Permissions.Layer; resource : string; suggestion : Option<string> }
+
+/// Record a violation once; repeated requests produce one warning.
+let recordPermissionViolation
+  (sink : ResizeArray<PermissionViolation>)
+  (via : Option<ExecutionPoint>)
+  (resource : string)
+  (needed : string)
+  : unit =
+  let v = { resource = resource; needed = needed; via = via }
+  if not (sink.Contains v) then sink.Add v
+
+
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
 /// this type.
@@ -2227,13 +2264,23 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
   type PackageFn =
-    { hash : Hash
+    {
+      hash : Hash
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
 
+      /// The author's ceiling from the declaration's `:{…}` row; see
+      /// `ProgramTypes.PackageFn.permissionCeiling`. Entering the function
+      /// appends it as a `Layer.Function` restriction: `None` adds nothing,
+      /// `Some Set.empty` (`:{}`) denies every host effect, `Some {…}` allows
+      /// only those. What the caller captured at runtime is separate, in
+      /// `Access`; this never widens it.
+      permissionCeiling : Option<Set<Effects.Effect>>
+
       // CLEANUP consider renaming - just `instructions` maybe?
-      body : Instructions }
+      body : Instructions
+    }
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -2452,6 +2499,27 @@ type InstrData =
     resultReg : Register
   }
 
+/// Cached consumer policy and the policy function that produced it. The owner
+/// is compared by reference so a changed policy is resolved again.
+type PackagePolicyMemo =
+  { owner : obj; policy : Permissions.Policy; isAllowAll : bool }
+
+/// Cached data needed to call a package function: its instructions and the
+/// restrictions applied when entering its frame.
+type PackageFnCallData =
+  {
+    instrData : InstrData
+
+    /// The layer used for the consumer's package policy.
+    packageLayer : Permissions.Layer
+
+    /// The author's `permissionCeiling`, if declared.
+    ceiling : voption<struct (Permissions.Layer * Permissions.Policy)>
+
+    /// The last resolved consumer policy, paired with its owner.
+    mutable policy : PackagePolicyMemo
+  }
+
 /// One activation of a function, lambda or the root script.
 ///
 /// Every field is mutable because frames are pooled: a popped frame goes back into
@@ -2470,6 +2538,9 @@ type CallFrame =
     mutable parent : voption<struct (uuid * Register * int)>
 
     mutable executionPoint : ExecutionPoint
+
+    /// Immutable runtime permissions active in this frame.
+    mutable access : Permissions.Access
 
     /// The instructions this frame runs, resolved once when the frame is pushed.
     ///
@@ -2862,6 +2933,15 @@ type VMState =
     callFrames : Dictionary<uuid, CallFrame>
     mutable currentFrameID : uuid
 
+    /// The access the builtin currently being invoked runs under: the applying
+    /// frame's, narrowed by whatever the applicable captured when it escaped
+    /// the frame that created it. `Apply` sets it before every builtin call
+    /// and `PermissionCheck` reads it instead of the frame, so a captured
+    /// builtin reference is bounded exactly like a captured lambda or package
+    /// fn. One builtin is in flight per VM at a time (a builtin that calls
+    /// back into Dark does so in a fresh VM), so a single slot suffices.
+    mutable activeAccess : Permissions.Access
+
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
     // A struct tuple: reference-tupled, this was allocated on every lambda application, which
@@ -2951,6 +3031,7 @@ type VMState =
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
+        access = Permissions.Access.start Permissions.Policy.denyAll
         instrData = rootInstrData
         expectedReturnType = ValueNone
         programCounter = 0
@@ -2961,6 +3042,7 @@ type VMState =
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
+      activeAccess = rootCallFrame.access
       callFrames =
         let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
@@ -3019,6 +3101,7 @@ type VMState =
         frame.programCounter <- 0
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
+        frame.access <- Permissions.Access.start Permissions.Policy.denyAll
         if frame.registers.Length < registerCount then
           frame.registers <- Array.zeroCreate registerCount
         else
@@ -3030,6 +3113,7 @@ type VMState =
           instrData = instrData
           expectedReturnType = ValueNone
           programCounter = 0
+          access = Permissions.Access.start Permissions.Policy.denyAll
           registers = Array.zeroCreate registerCount
           argBufs = Array.empty
           typeSymbolTable = TST.empty
@@ -3039,6 +3123,7 @@ type VMState =
     vm.callFrames.Clear()
     vm.callFrames[rootCallFrameID] <- rootCallFrame
     vm.currentFrameID <- rootCallFrameID
+    vm.activeAccess <- rootCallFrame.access
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
@@ -3083,10 +3168,9 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
     sqlSpec : SqlSpec
-    /// The capabilities this builtin needs — pure (`noCaps`) by default; effectful builtins declare
-    /// their need. The call-site gate checks PRESENCE against this; nuanced builtins (http/file/exec)
-    /// additionally enforce the specific scope (URL/path/args) in their own body.
-    capabilities : Capabilities.Capabilities
+    /// Conservative effects of invoking this builtin. Scoped host effects
+    /// construct an exact `Permissions.Request` in their body.
+    callEffects : Set<Effects.Effect>
     fn : BuiltInFnSig
   }
 
@@ -3149,10 +3233,10 @@ and ExecutionState =
     lambdaInstrCache :
       System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
 
-    /// Memoization of `InstrData` derived from package function bodies.
+    /// Memoization of what a package-fn call needs (`PackageFnCallData`).
     /// Shared across VMs for the same reason as `lambdaInstrCache`.
-    packageFnInstrCache :
-      System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Package, InstrData>
+    packageFnCallCache :
+      System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Package, PackageFnCallData>
 
     /// Called to report exceptions
     reportException : ExceptionReporter
@@ -3176,10 +3260,33 @@ and ExecutionState =
     fns : Functions
     values : Values
 
-    /// The capabilities the running code is allowed — read by the call-site gate (an uncovered builtin
-    /// call is denied). Callers set it: `eval`/host use the configured grant (allCaps by default), `dark
-    /// run` uses NONE.
-    grantedCaps : Capabilities.Capabilities
+    /// Permission context for this execution, including instance and run rules.
+    access : Permissions.Access
+
+    /// Consumer approval policy for an immutable package function. Missing
+    /// approvals return deny-all.
+    packagePolicy : FQFnName.Package -> Permissions.Policy
+
+    /// Host-only permission to modify stored policies. Guest executions never
+    /// receive it.
+    canManagePolicies : bool
+
+    /// Host-only authority to use HTTP profiles that reach loopback and
+    /// private networks. Ordinary HTTP permission does not grant this.
+    canUsePrivateNetworkHttp : bool
+
+    /// True for a bundled Darklang function trusted to call first-party-only
+    /// builtins. Defaults to false.
+    isBundledPackageFn : FQFnName.Package -> bool
+
+    /// When a warning collection is provided, requests not covered by
+    /// caller-owned policies are recorded and allowed. Without one, denials
+    /// are enforced normally.
+    permissionWarnings : Option<ResizeArray<PermissionViolation>>
+
+    /// Denials raised under this state, in occurrence order. Hosts give each
+    /// guest run a fresh list to distinguish policy denials from other errors.
+    deniedRequests : ResizeArray<PermissionDenialRecord>
 
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;

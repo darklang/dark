@@ -218,11 +218,22 @@ module ExecutionError =
     { message: String
       metadata: List<(String * String)> }
 
+  /// A run that ended on a permission denial by the instance policy: the
+  /// error as the guest saw it, what was attempted, and the exact
+  /// `permissions allow` rule that would cover it when one exists.
+  type PermissionDenied =
+    { error: LanguageTools.RuntimeTypes.RuntimeError.Error
+      resource: String
+      rule: Stdlib.Option.Option<String>
+      /// The rendered call stack, printed when the denial stands.
+      callStack: String }
+
   /// Boundary type for CLI command failures. Each variant carries its own
   /// structured payload — no flattening to strings at the boundary.
   type ExecutionError =
     | Parse of LanguageTools.Parser.CliScript.ParseError
     | Runtime of LanguageTools.RuntimeTypes.RuntimeError.Error
+    | Denied of PermissionDenied
     | Unhandled of Unhandled
 
   let toString (branchId: Uuid) (err: ExecutionError) : String =
@@ -230,6 +241,8 @@ module ExecutionError =
     | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString pe
     | Runtime rte ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
+    | Denied denied ->
+      PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId denied.error
     | Unhandled u ->
       match u.metadata with
       | [] -> $"Internal error: {u.message}"

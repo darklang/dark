@@ -1,8 +1,8 @@
 {
   "tolerance": 0.03,
   "steady": {
-    "debug": 7200232,
-    "published": 6848648,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it."
+    "debug": 9629000,
+    "published": 7641184,
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Debug includes the permission system's measured fixed startup cost; lower either budget whenever a change earns it."
   }
 }

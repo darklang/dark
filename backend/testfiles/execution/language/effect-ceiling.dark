@@ -1,0 +1,17 @@
+// A function's `:{…}` row is its permission ceiling: the most it may ever do.
+// It never grants anything, so a row that covers the body changes nothing, and
+// `:{}` on a pure body is fine. (A row narrower than the body is denied at
+// runtime; see the PermissionsGate tests in Interpreter.Tests.)
+
+module Ceiling =
+  let pure (x: Int64) :{} Int64 = x + 1L
+
+  let clocked () :{Clock} Bool =
+    let _now = Stdlib.DateTime.now ()
+    true
+
+  let widerThanNeeded (x: Int64) :{Http, FileRead, Clock} Int64 = x * 2L
+
+  Ceiling.pure 1L = 2L
+  Ceiling.clocked () = true
+  Ceiling.widerThanNeeded 4L = 8L

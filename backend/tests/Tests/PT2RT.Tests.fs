@@ -376,6 +376,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "int64Mod" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -388,6 +389,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "equals" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -528,6 +530,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "equals" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -637,6 +640,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -657,6 +661,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -685,6 +690,7 @@ module Expr =
                              { name = RT.FQFnName.fqBuiltin "add" 0
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               access = None
                                argsSoFar = [] }
                          )
                        )
@@ -717,6 +723,7 @@ module Expr =
                              { name = RT.FQFnName.fqBuiltin "add" 0
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               access = None
                                argsSoFar = [] }
                          ))
                        )
@@ -742,6 +749,7 @@ module Expr =
                              { name = RT.FQFnName.fqBuiltin "multiply" 0
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
+                               access = None
                                argsSoFar = [] }
                          ))
                        )
@@ -758,6 +766,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -771,6 +780,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "add" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -1013,6 +1023,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     access = None
                      argsSoFar = [] }
                )
              )
@@ -1100,6 +1111,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1130,6 +1142,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1163,6 +1176,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1201,6 +1215,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1236,6 +1251,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1282,6 +1298,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1293,6 +1310,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1328,6 +1346,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1339,6 +1358,7 @@ module Expr =
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
+                                 access = None
                                  argsSoFar = [] }
                            )
                          )
@@ -1377,6 +1397,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     access = None
                      argsSoFar = [] }
                )
              ) ],
@@ -1395,6 +1416,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     access = None
                      argsSoFar = [] }
                )
              )
@@ -1415,6 +1437,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     access = None
                      argsSoFar = [] }
                )
              )
@@ -1435,6 +1458,7 @@ module Expr =
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
+                     access = None
                      argsSoFar = [] }
                )
              )
@@ -1462,6 +1486,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       access = None
                        argsSoFar = [] }
                  )
                ) ],
@@ -1480,6 +1505,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       access = None
                        argsSoFar = [] }
                  )
                )
@@ -1500,6 +1526,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       access = None
                        argsSoFar = [] }
                  )
                )
@@ -1534,6 +1561,7 @@ module Expr =
                                  { name = RT.FQFnName.fqBuiltin "add" 0
                                    typeSymbolTable = RT.TST.empty
                                    typeArgs = []
+                                   access = None
                                    argsSoFar = [] }
                              )
                            )
@@ -1549,6 +1577,7 @@ module Expr =
                            E.Fns.Package.MyFnThatTakesALambda.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       access = None
                        argsSoFar = [] }
                  )
                )
@@ -1572,6 +1601,7 @@ module Expr =
                      { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
+                       access = None
                        argsSoFar = [] }
                  )
                )
@@ -1610,6 +1640,7 @@ module Expr =
                  { name = RT.FQFnName.fqBuiltin "printLine" 0
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
+                   access = None
                    argsSoFar = [] }
              )
            )
@@ -1652,7 +1683,8 @@ module PackageFn =
           typeParams = typeParams
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
-          description = "TODO" }
+          description = "TODO"
+          permissionCeiling = None }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)

@@ -101,10 +101,16 @@ let createValueInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Value
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddValue and SetName
+          // Create ops: AddValue and SetName, with stabilized hashes.
           let ops =
-            [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash) ]
+            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+              [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash) ]
+          // The stabilized hash is what propagation must use; the parser's
+          // placeholder names nothing stored.
+          let finalHash =
+            LanguageTools.WrittenTypesToProgramTypes.valueHashBoundAt ops location
+            |> Stdlib.Option.withDefault packageValue.hash
 
           match SCM.PackageOps.addAuthored state.currentBranchId ops with
           | Ok report ->
@@ -119,7 +125,7 @@ let createValueInline
 
             // Auto-propagate if this is an update
             if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageValue.hash LanguageTools.ProgramTypes.ItemKind.Value
+              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Value
 
             Stdlib.printLine ""
             state

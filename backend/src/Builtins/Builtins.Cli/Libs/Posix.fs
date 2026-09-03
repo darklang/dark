@@ -3,11 +3,9 @@
 /// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Builtins.Cli.Libs.Posix
 
-open System
-open System.Runtime.InteropServices
-
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
@@ -18,591 +16,12 @@ module Blob = LibExecution.Blob
 open Builtin.Shortcuts
 
 
-// =====================================================================
-// libc via P/Invoke
-// =====================================================================
-module Libc =
-  // F# generates implicit failwith calls inside extern/P/Invoke stubs.
-  // The project bans the built-in failwith, so we shadow it here.
-  let private failwith (s : string) : 'a = raise (System.Exception(s))
+// The libc bridge lives behind the checked host boundary: LibExecution.HostLibc.
+module HostLibc = LibExecution.HostLibc
+module HostTypes = LibExecution.HostTypes
+module Host = LibExecution.Host
+module PermissionCheck = LibExecution.PermissionCheck
 
-  // -- Filesystem ---------------------------------------------------
-  [<DllImport("libc", EntryPoint = "mkdir", SetLastError = true)>]
-  extern int private mkdir_raw(string path, int mode)
-
-  [<DllImport("libc", EntryPoint = "rmdir", SetLastError = true)>]
-  extern int private rmdir_raw(string path)
-
-  [<DllImport("libc", EntryPoint = "unlink", SetLastError = true)>]
-  extern int private unlink_raw(string path)
-
-  [<DllImport("libc", EntryPoint = "stat", SetLastError = true)>]
-  extern int private stat_raw(string path, IntPtr buf)
-
-  // glibc only began exporting `stat` and `lstat` as ordinary symbols in
-  // 2.33. Before that they were header inlines over `__xstat`/`__lxstat`,
-  // which take a leading struct-version argument. A P/Invoke to "stat" throws
-  // EntryPointNotFoundException on any older system, so we need both and pick
-  // at runtime.
-  //
-  // This matters more than it looks: it's not an exotic-platform problem. The
-  // release build targets glibc 2.29 precisely so it runs on older distros,
-  // and those are exactly the ones without `stat`. Verified failing on Ubuntu
-  // 20.04 (glibc 2.31) with the AOT binary; the R2R build has the same bug.
-  // It goes unnoticed because dev machines and CI runners are all 2.33+.
-  [<DllImport("libc", EntryPoint = "__xstat", SetLastError = true)>]
-  extern int private xstat_raw(int version, string path, IntPtr buf)
-
-  [<DllImport("libc", EntryPoint = "rename", SetLastError = true)>]
-  extern int private rename_raw(string oldpath, string newpath)
-
-  [<DllImport("libc", EntryPoint = "chmod", SetLastError = true)>]
-  extern int private chmod_raw(string path, int mode)
-
-  [<DllImport("libc", EntryPoint = "symlink", SetLastError = true)>]
-  extern int private symlink_raw(string target, string linkpath)
-
-  [<DllImport("libc", EntryPoint = "readlink", SetLastError = true)>]
-  extern int private readlink_raw(string path, byte[] buf, int bufsiz)
-
-  [<DllImport("libc", EntryPoint = "mkstemp", SetLastError = true)>]
-  extern int private mkstemp_raw(byte[] template)
-
-  [<DllImport("libc", EntryPoint = "mkdtemp", SetLastError = true)>]
-  extern IntPtr private mkdtemp_raw(byte[] template)
-
-  [<DllImport("libc", EntryPoint = "fnmatch")>]
-  extern int private fnmatch_raw(string pattern, string str, int flags)
-
-  [<DllImport("libc", EntryPoint = "flock", SetLastError = true)>]
-  extern int private flock_raw(int fd, int operation)
-
-  [<DllImport("libc", EntryPoint = "getpwuid")>]
-  extern IntPtr private getpwuid_raw(uint32 uid)
-
-  [<DllImport("libc", EntryPoint = "chdir", SetLastError = true)>]
-  extern int private chdir_raw(string path)
-
-  [<DllImport("libc", EntryPoint = "setenv", SetLastError = true)>]
-  extern int private setenv_raw(string name, string value, int overwrite)
-
-  [<DllImport("libc", EntryPoint = "unsetenv", SetLastError = true)>]
-  extern int private unsetenv_raw(string name)
-
-  [<DllImport("libc", EntryPoint = "getcwd", SetLastError = true)>]
-  extern IntPtr private getcwd_raw(IntPtr buf, int size)
-
-  [<DllImport("libc", EntryPoint = "uname", SetLastError = true)>]
-  extern int private uname_raw(IntPtr buf)
-
-  [<DllImport("libc", EntryPoint = "getpid")>]
-  extern int private getpid_raw()
-
-  [<DllImport("libc", EntryPoint = "getuid")>]
-  extern uint32 private getuid_raw()
-
-  [<DllImport("libc", EntryPoint = "sysconf")>]
-  extern int64 private sysconf_raw(int name)
-
-  [<DllImport("libc", EntryPoint = "strerror")>]
-  extern IntPtr private strerror_raw(int errnum)
-
-  [<DllImport("libc", EntryPoint = "opendir", SetLastError = true)>]
-  extern IntPtr private opendir_raw(string path)
-
-  [<DllImport("libc", EntryPoint = "readdir", SetLastError = true)>]
-  extern IntPtr private readdir_raw(IntPtr dirp)
-
-  [<DllImport("libc", EntryPoint = "closedir")>]
-  extern int private closedir_raw(IntPtr dirp)
-
-  [<DllImport("libc", EntryPoint = "getenv")>]
-  extern IntPtr private getenv_raw(string name)
-
-  [<DllImport("libc", EntryPoint = "utimes", SetLastError = true)>]
-  extern int private utimes_raw(string path, IntPtr times)
-
-  // -- Process ------------------------------------------------------
-  [<DllImport("libc", EntryPoint = "kill", SetLastError = true)>]
-  extern int private kill_raw(int pid, int signal)
-
-  // -- File I/O -----------------------------------------------------
-  [<DllImport("libc", EntryPoint = "open", SetLastError = true)>]
-  extern int private open_raw(string path, int flags, int mode)
-
-  [<DllImport("libc", EntryPoint = "read", SetLastError = true)>]
-  extern int private read_raw(int fd, byte[] buf, int count)
-
-  [<DllImport("libc", EntryPoint = "lseek", SetLastError = true)>]
-  extern int64 private lseek_raw(int fd, int64 offset, int whence)
-
-  [<DllImport("libc", EntryPoint = "ioctl", SetLastError = true)>]
-  extern int private ioctl_raw(int fd, uint64 request, IntPtr argument)
-
-  [<DllImport("libc", EntryPoint = "write", SetLastError = true)>]
-  extern int private write_raw(int fd, byte[] buf, int count)
-
-  [<DllImport("libc", EntryPoint = "close", SetLastError = true)>]
-  extern int private close_raw(int fd)
-
-
-  // -- Platform detection ---------------------------------------------
-  let private isMac = RuntimeInformation.IsOSPlatform OSPlatform.OSX
-  let private isArm64 = RuntimeInformation.ProcessArchitecture = Architecture.Arm64
-  let private isX64 = RuntimeInformation.ProcessArchitecture = Architecture.X64
-  /// 32-bit ARM (armv7). Distinct from Arm64 in more than pointer width: off_t
-  /// and time_t are 32 bits here, so struct stat's size and mtime fields are
-  /// half the width they are everywhere else.
-  let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
-
-  do
-    if not isMac && not isArm64 && not isX64 && not isArm32 then
-      raise (
-        System.PlatformNotSupportedException(
-          $"Posix builtins: unsupported architecture {RuntimeInformation.ProcessArchitecture} on Linux. "
-          + "Struct offsets are only known for x86_64, aarch64 and armv7."
-        )
-      )
-
-  // -- Open flags (platform-specific) --------------------------------
-  let O_RDONLY = 0
-  let O_WRONLY = 1
-  let O_RDWR = 2
-
-  let O_CREAT = if isMac then 0x200 else 0x40 // Linux
-
-  let O_TRUNC = if isMac then 0x400 else 0x200 // Linux
-
-  let O_APPEND = if isMac then 0x8 else 0x400 // Linux
-
-  let SEEK_SET = 0
-  let SEEK_CUR = 1
-  let SEEK_END = 2
-
-
-  // -- Wrappers -----------------------------------------------------
-
-  let lastError () : int * string =
-    let errno = Marshal.GetLastPInvokeError()
-    let ptr = strerror_raw (errno)
-    let msg =
-      if ptr = IntPtr.Zero then $"errno {errno}" else Marshal.PtrToStringAnsi ptr
-    (errno, msg)
-
-  let getcwd () : Result<string, int * string> =
-    let buf = Marshal.AllocHGlobal(4096)
-    try
-      let ptr = getcwd_raw (buf, 4096)
-      if ptr = IntPtr.Zero then
-        Error(lastError ())
-      else
-        Ok(Marshal.PtrToStringAnsi ptr)
-    finally
-      Marshal.FreeHGlobal buf
-
-  let chdir (path : string) : Result<unit, int * string> =
-    if chdir_raw (path) < 0 then Error(lastError ()) else Ok()
-
-  let setenv (name : string) (value : string) : Result<unit, int * string> =
-    if setenv_raw (name, value, 1) < 0 then Error(lastError ()) else Ok()
-
-  let unsetenv (name : string) : Result<unit, int * string> =
-    if unsetenv_raw (name) < 0 then Error(lastError ()) else Ok()
-
-  let mkdir (path : string) (mode : int) : Result<unit, int * string> =
-    if mkdir_raw (path, mode) < 0 then Error(lastError ()) else Ok()
-
-  let rmdir (path : string) : Result<unit, int * string> =
-    if rmdir_raw (path) < 0 then Error(lastError ()) else Ok()
-
-  let unlink (path : string) : Result<unit, int * string> =
-    if unlink_raw (path) < 0 then Error(lastError ()) else Ok()
-
-  let rename (oldpath : string) (newpath : string) : Result<unit, int * string> =
-    if rename_raw (oldpath, newpath) < 0 then Error(lastError ()) else Ok()
-
-  let chmod (path : string) (mode : int) : Result<unit, int * string> =
-    if chmod_raw (path, mode) < 0 then Error(lastError ()) else Ok()
-
-  /// Update atime and mtime to now via utimes(path, NULL).
-  let utimesNow (path : string) : Result<unit, int * string> =
-    if utimes_raw (path, IntPtr.Zero) < 0 then Error(lastError ()) else Ok()
-
-  let symlink (target : string) (linkpath : string) : Result<unit, int * string> =
-    if symlink_raw (target, linkpath) < 0 then Error(lastError ()) else Ok()
-
-  let readlink (path : string) : Result<string, int * string> =
-    let buf = Array.zeroCreate<byte> 4096
-    let n = readlink_raw (path, buf, 4096)
-    if n < 0 then
-      Error(lastError ())
-    else
-      Ok(System.Text.Encoding.UTF8.GetString(buf, 0, n))
-
-  let mkstemp (prefix : string) : Result<int * string, int * string> =
-    let template = prefix + "XXXXXX"
-    let buf = System.Text.Encoding.UTF8.GetBytes(template + "\000")
-    let fd = mkstemp_raw (buf)
-    if fd < 0 then
-      Error(lastError ())
-    else
-      let path = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length - 1)
-      Ok(fd, path)
-
-  let mkdtemp (prefix : string) : Result<string, int * string> =
-    let template = prefix + "XXXXXX"
-    let buf = System.Text.Encoding.UTF8.GetBytes(template + "\000")
-    let result = mkdtemp_raw (buf)
-    if result = IntPtr.Zero then
-      Error(lastError ())
-    else
-      let path = System.Text.Encoding.UTF8.GetString(buf, 0, buf.Length - 1)
-      Ok path
-
-  let openFile
-    (path : string)
-    (flags : int)
-    (mode : int)
-    : Result<int, int * string> =
-    let fd = open_raw (path, flags, mode)
-    if fd < 0 then Error(lastError ()) else Ok fd
-
-  /// The struct-version argument __xstat expects, per architecture. Measured
-  /// from _STAT_VER in each target's glibc headers rather than guessed:
-  /// x86_64 is 1, aarch64 is 0, armv7 is 3. macOS never uses this path.
-  let private statVer =
-    if isX64 then 1
-    elif isArm64 then 0
-    else 3 // armv7
-
-  /// Whether libc exports `stat` directly (glibc 2.33+), or we have to go
-  /// through `__xstat`. Resolved once, on first use: the check itself is a
-  /// P/Invoke that throws when the symbol is absent.
-  let private useXstat =
-    lazy
-      (if isMac then
-         false
-       else
-         // Probe with a real buffer and a real path. Passing NULL would work
-         // only for as long as the path stays nonexistent, and libc writing
-         // to NULL is a segfault rather than an error return. We only care
-         // whether the *symbol* resolves, so the result is discarded.
-         let buf = Marshal.AllocHGlobal(256)
-
-         try
-           try
-             stat_raw ("/", buf) |> ignore<int>
-             false
-           with :? EntryPointNotFoundException ->
-             true
-         finally
-           Marshal.FreeHGlobal buf)
-
-  /// stat(2), routed through whichever entry point this libc actually has.
-  let private stat_compat (path : string) (buf : IntPtr) : int =
-    if useXstat.Force() then
-      xstat_raw (statVer, path, buf)
-    else
-      stat_raw (path, buf)
-
-  /// Calls stat() and extracts (mode, size, mtimeSec) from the struct.
-  /// Offsets are platform-specific (Linux vs macOS struct layouts differ).
-  let stat (path : string) : Result<int * int64 * int64, int * string> =
-    let buf = Marshal.AllocHGlobal(256)
-    try
-      if stat_compat path buf < 0 then
-        Error(lastError ())
-      else
-        // struct stat field offsets differ across OS and architecture:
-        //   macOS (all):   st_mode at 4 (int16), st_size at 96, st_mtime at 48
-        //   Linux x86_64:  st_mode at 24, st_size at 48, st_mtime at 88
-        //   Linux aarch64: st_mode at 16, st_size at 48, st_mtime at 88
-        //   Linux armv7:   st_mode at 16, st_size at 44, st_mtime at 64
-        // armv7 is the odd one: off_t and time_t are 32 bits, so size and
-        // mtime are Int32 reads. Reading them as Int64 there gets garbage from
-        // the adjacent field. Offsets measured against glibc 2.31 armhf.
-        let mode =
-          if isMac then
-            int (Marshal.ReadInt16(buf, 4)) &&& 0xFFFF
-          elif isArm64 || isArm32 then
-            Marshal.ReadInt32(buf, 16)
-          else // x86_64 Linux (guarded by startup check)
-            Marshal.ReadInt32(buf, 24)
-        let size =
-          if isMac then Marshal.ReadInt64(buf, 96)
-          elif isArm32 then int64 (Marshal.ReadInt32(buf, 44))
-          else Marshal.ReadInt64(buf, 48)
-        let mtimeSec =
-          if isMac then Marshal.ReadInt64(buf, 48)
-          elif isArm32 then int64 (Marshal.ReadInt32(buf, 64))
-          else Marshal.ReadInt64(buf, 88)
-        Ok(mode, size, mtimeSec)
-    finally
-      Marshal.FreeHGlobal buf
-
-  /// Calls uname() and returns (sysname, nodename, machine).
-  let uname () : Result<string * string * string, int * string> =
-    let fieldSize = if isMac then 256 else 65
-    let bufSize = fieldSize * 6 // 5 fields + extra
-    let buf = Marshal.AllocHGlobal(bufSize)
-    try
-      if uname_raw (buf) < 0 then
-        Error(lastError ())
-      else
-        let sysname = Marshal.PtrToStringAnsi(IntPtr.Add(buf, 0))
-        let nodename = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize))
-        let machine = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize * 4))
-        Ok(sysname, nodename, machine)
-    finally
-      Marshal.FreeHGlobal buf
-
-  let getpid () : int = getpid_raw ()
-
-  let getuid () : uint32 = getuid_raw ()
-
-  let cpuCount () : int64 =
-    let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
-    sysconf_raw (scNprocessorsOnl)
-
-  /// fnmatch returns true if the string matches the pattern.
-  let fnmatch (pattern : string) (str : string) (flags : int) : bool =
-    fnmatch_raw (pattern, str, flags) = 0
-
-  let FNM_PATHNAME = if isMac then 2 else 1 // Linux
-
-  /// flock operations
-  let LOCK_EX = 2
-  let LOCK_UN = 8
-
-  let flock (fd : int) (operation : int) : Result<unit, int * string> =
-    if flock_raw (fd, operation) < 0 then Error(lastError ()) else Ok()
-
-  /// Get username from uid via getpwuid
-  let getUserName (uid : uint32) : Option<string> =
-    let ptr = getpwuid_raw (uid)
-    if ptr = IntPtr.Zero then
-      None
-    else
-      // First field of struct passwd is char *pw_name
-      let namePtr = Marshal.ReadIntPtr(ptr, 0)
-      if namePtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi namePtr)
-
-  /// Get home directory for the current user via getpwuid(getuid()).
-  /// Returns pw_dir from the passwd db. The $HOME fallback is in Cli.Env.home().
-  let getHomeDir () : Option<string> =
-    let uid = getuid_raw ()
-    let ptr = getpwuid_raw (uid)
-    if ptr = IntPtr.Zero then
-      None
-    else
-      let dirOffset = if isMac then 48 else 32
-      let dirPtr = Marshal.ReadIntPtr(ptr, dirOffset)
-      if dirPtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi dirPtr)
-
-  /// Get the owner username of a file (stat + getpwuid).
-  let fileOwner (path : string) : Result<string, int * string> =
-    let buf = Marshal.AllocHGlobal(256)
-    try
-      if stat_compat path buf < 0 then
-        Error(lastError ())
-      else
-        // struct stat st_uid offset:
-        //   macOS: 16, Linux x86_64: 28, Linux aarch64: 24, Linux armv7: 24
-        let uid =
-          if isMac then
-            uint32 (Marshal.ReadInt32(buf, 16))
-          elif isArm64 || isArm32 then
-            uint32 (Marshal.ReadInt32(buf, 24))
-          else // x86_64 Linux (guarded by startup check)
-            uint32 (Marshal.ReadInt32(buf, 28))
-        match getUserName uid with
-        | Some name -> Ok name
-        | None -> Ok(string uid)
-    finally
-      Marshal.FreeHGlobal buf
-
-  let getenv (name : string) : Option<string> =
-    let ptr = getenv_raw (name)
-    if ptr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi ptr)
-
-  let kill (pid : int) (signal : int) : Result<unit, int * string> =
-    if kill_raw (pid, signal) < 0 then Error(lastError ()) else Ok()
-
-  let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
-    if count < 0 then
-      Error(22, "Invalid argument") // EINVAL
-    else
-      let buf = Array.zeroCreate<byte> count
-      let n = read_raw (fd, buf, count)
-      if n < 0 then Error(lastError ()) else Ok(buf[0 .. n - 1])
-
-  let fdSeek
-    (fd : int)
-    (offset : int64)
-    (whence : int)
-    : Result<int64, int * string> =
-    let position = lseek_raw (fd, offset, whence)
-    if position < 0L then Error(lastError ()) else Ok position
-
-  /// Read one terminal file descriptor's window size as (columns, rows).
-  ///
-  /// Disabled on macOS. Darwin's ioctl is variadic, but this P/Invoke declares
-  /// a fixed third argument. On Apple arm64, those signatures use different
-  /// calling conventions, so ioctl may receive an invalid output pointer and
-  /// corrupt memory. The caller uses its terminal-size fallback instead.
-  let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
-    if OperatingSystem.IsWindows() || isMac then
-      None
-    else
-      let request = 0x5413UL // TIOCGWINSZ on Linux
-
-      let buffer = Marshal.AllocHGlobal 8
-      try
-        if ioctl_raw (fd, request, buffer) = 0 then
-          let rows = uint16 (Marshal.ReadInt16(buffer, 0))
-          let columns = uint16 (Marshal.ReadInt16(buffer, 2))
-          if rows > 0us && columns > 0us then
-            Some(int64 columns, int64 rows)
-          else
-            None
-        else
-          None
-      finally
-        Marshal.FreeHGlobal buffer
-
-  let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
-    let mutable offset = 0
-    let mutable error = None
-    while offset < data.Length && error.IsNone do
-      let slice = if offset = 0 then data else data[offset..]
-      let n = write_raw (fd, slice, data.Length - offset)
-      if n < 0 then error <- Some(lastError ())
-      elif n = 0 then error <- Some(0, "write returned 0")
-      else offset <- offset + n
-    match error with
-    | Some e -> Error e
-    | None -> Ok offset
-
-  let fdClose (fd : int) : Result<unit, int * string> =
-    if close_raw (fd) < 0 then Error(lastError ()) else Ok()
-
-  /// Spawn a child process, capture stdout+stderr, wait for exit.
-  /// Uses .NET Process.Start (which uses posix_spawn internally)
-  /// because raw fork() is unsafe in managed runtimes.
-  let spawnAndWait
-    (program : string)
-    (args : List<string>)
-    : Result<int * string * string, int * string> =
-    try
-      let psi = System.Diagnostics.ProcessStartInfo()
-      psi.FileName <- program
-      for arg in args do
-        psi.ArgumentList.Add(arg)
-      psi.UseShellExecute <- false
-      psi.RedirectStandardOutput <- true
-      psi.RedirectStandardError <- true
-      psi.CreateNoWindow <- true
-
-      use p = System.Diagnostics.Process.Start(psi)
-      // Read both streams concurrently to avoid deadlock when pipe buffers fill
-      let stdoutTask = p.StandardOutput.ReadToEndAsync()
-      let stderrTask = p.StandardError.ReadToEndAsync()
-      let stdout = stdoutTask.Result
-      let stderr = stderrTask.Result
-      p.WaitForExit()
-      Ok(p.ExitCode, stdout, stderr)
-    with e ->
-      Error(-1, e.Message)
-
-  /// Run a child process on THIS terminal: stdin, stdout and stderr are inherited
-  /// rather than redirected, and only the exit code comes back.
-  ///
-  /// That is the whole point. `spawnAndWait` captures the streams, which is right for
-  /// a tool whose output you want, and useless for one that draws: an editor with a
-  /// redirected stdout paints into a pipe and reads keys from nowhere. Nothing to
-  /// capture, nothing to deadlock on.
-  let spawnInheritingStdio
-    (program : string)
-    (args : List<string>)
-    : Result<int, int * string> =
-    try
-      let psi = System.Diagnostics.ProcessStartInfo()
-      psi.FileName <- program
-      for arg in args do
-        psi.ArgumentList.Add(arg)
-      psi.UseShellExecute <- false
-      psi.RedirectStandardOutput <- false
-      psi.RedirectStandardError <- false
-      psi.RedirectStandardInput <- false
-
-      use p = System.Diagnostics.Process.Start(psi)
-      p.WaitForExit()
-      Ok p.ExitCode
-    with e ->
-      Error(-1, e.Message)
-
-  /// Like spawnAndWait but kills the process if it exceeds timeoutMs.
-  let spawnAndWaitWithTimeout
-    (program : string)
-    (args : List<string>)
-    (timeoutMs : int)
-    : Result<int * string * string, int * string> =
-    try
-      let psi = System.Diagnostics.ProcessStartInfo()
-      psi.FileName <- program
-      for arg in args do
-        psi.ArgumentList.Add(arg)
-      psi.UseShellExecute <- false
-      psi.RedirectStandardOutput <- true
-      psi.RedirectStandardError <- true
-      psi.CreateNoWindow <- true
-
-      use p = System.Diagnostics.Process.Start(psi)
-      let stdoutTask = p.StandardOutput.ReadToEndAsync()
-      let stderrTask = p.StandardError.ReadToEndAsync()
-      if p.WaitForExit(timeoutMs) then
-        let stdout = stdoutTask.Result
-        let stderr = stderrTask.Result
-        Ok(p.ExitCode, stdout, stderr)
-      else
-        p.Kill()
-        p.WaitForExit()
-        Error(110, "Process timed out") // ETIMEDOUT
-    with e ->
-      Error(-1, e.Message)
-
-  /// List directory entries (wraps opendir/readdir/closedir loop).
-  /// Returns filenames only, not "." or "..".
-  let listDir (path : string) : Result<List<string>, int * string> =
-    let dirp = opendir_raw (path)
-    if dirp = IntPtr.Zero then
-      Error(lastError ())
-    else
-      let entries = System.Collections.Generic.List<string>()
-      let mutable keepGoing = true
-      let mutable error = None
-      while keepGoing do
-        Marshal.SetLastPInvokeError(0)
-        let entryPtr = readdir_raw (dirp)
-        if entryPtr = IntPtr.Zero then
-          let errno = Marshal.GetLastPInvokeError()
-          if errno <> 0 then error <- Some(lastError ())
-          keepGoing <- false
-        else
-          // struct dirent: d_name offset varies by platform
-          let nameOffset = if isMac then 21 else 19 // Linux
-          let namePtr = IntPtr.Add(entryPtr, nameOffset)
-          let name = Marshal.PtrToStringAnsi namePtr
-          if name <> "." && name <> ".." then entries.Add(name)
-      closedir_raw (dirp) |> ignore<int>
-      match error with
-      | Some e -> Error e
-      | None -> Ok(Seq.toList entries)
-
-
-// =====================================================================
-// Builtin functions exposed to Dark
-// =====================================================================
 let private posixErrorTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Posix.error ())
 
@@ -610,14 +29,79 @@ let private posixErrorTypeRef () = TCustomType(NR.ok (posixErrorTypeName ()), []
 
 let private posixErrorKT () = KTCustomType(posixErrorTypeName (), [])
 
-let private dPosixError (errno : int, msg : string) : Dval =
+/// A failure is the libc (errno, message) pair (errno -1 for a .NET-level
+/// failure), mirroring the Stdlib PosixError type.
+let private dPosixError (failure : Host.Failure) : Dval =
   let tn = posixErrorTypeName ()
   DRecord(
     tn,
     tn,
     [],
-    Map [ "errno", Dval.int (bigint errno); "message", DString msg ]
+    Map
+      [ "errno", Dval.int (bigint failure.errno)
+        "message", DString failure.message ]
   )
+
+/// Map one host outcome to `Result<kt, PosixError>`; `ok` shapes the success.
+let private asResult
+  (kt : KnownType)
+  (outcome : Ply<Result<Host.Response, Host.Failure>>)
+  (ok : Host.Response -> Dval)
+  : Ply<Dval> =
+  uply {
+    match! outcome with
+    | Ok response -> return Dval.resultOk kt (posixErrorKT ()) (ok response)
+    | Error e -> return Dval.resultError kt (posixErrorKT ()) (dPosixError e)
+  }
+
+/// Run one posix operation through the checked host boundary and map it to
+/// `Result<kt, PosixError>`.
+let private posixResult
+  (kt : KnownType)
+  (state : ExecutionState)
+  (vm : VMState)
+  (op : HostTypes.PosixOp)
+  (ok : Host.Response -> Dval)
+  : Ply<Dval> =
+  asResult kt (PermissionCheck.performHost state vm (Host.Operation.Posix op)) ok
+
+/// Run one posix lookup whose failure is simply absence: `Option<String>`.
+let private posixOption
+  (state : ExecutionState)
+  (vm : VMState)
+  (op : HostTypes.PosixOp)
+  (text : Host.Response -> Option<string>)
+  : Ply<Dval> =
+  uply {
+    match! PermissionCheck.performHost state vm (Host.Operation.Posix op) with
+    | Ok response ->
+      match text response with
+      | Some v -> return Dval.optionSome KTString (DString v)
+      | None -> return Dval.optionNone KTString
+    | Error _ -> return Dval.optionNone KTString
+  }
+
+let private unitOk (_ : Host.Response) : Dval = DUnit
+
+let private pathOk (response : Host.Response) : Dval =
+  DString(Host.expectPath response)
+
+let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
+
+let private fileReadEffect = set [ Effect.FileRead ]
+let private fileWriteEffect = set [ Effect.FileWrite ]
+
+/// Raw descriptors, pids and spawns: the operation names a number, not a
+/// resource, so it is granted whole or not at all. Host facts (uname, pid,
+/// uid, cpu count) are effect-free, and an answer that is a path (cwd, home,
+/// a file's owner) is a read of that path, checked at the boundary.
+let private nativeEffects = set [ Effect.Native ]
+
+let private processOutcomeKT = KTTuple(VT.int, VT.string, [ VT.string ])
+
+let private processOutcomeOk (response : Host.Response) : Dval =
+  let exitCode, stdout, stderr = Host.expectProcessOutcome response
+  DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "posixGetcwd" 0
@@ -627,15 +111,12 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current working directory via libc getcwd()"
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          match Libc.getcwd () with
-          | Ok cwd -> Dval.resultOk KTString (posixErrorKT ()) (DString cwd) |> Ply
-          | Error e ->
-            Dval.resultError KTString (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DUnit |] ->
+          posixResult KTString state vm HostTypes.PosixOp.Getcwd pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
 
 
@@ -646,15 +127,12 @@ let fns () : List<BuiltInFn> =
       description = "Changes the current working directory via libc chdir()"
       fn =
         (function
-        | _, _, _, [| DString path |] ->
-          match Libc.chdir path with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.Chdir path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.exec
+      callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -667,16 +145,12 @@ let fns () : List<BuiltInFn> =
       description = "Sets an environment variable via libc setenv()"
       fn =
         (function
-        | state, _, _, [| DString name; DString value |] ->
-          LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
-          match Libc.setenv name value with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString name; DString value |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.Setenv(name, value)) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.envWrite
+      callEffects = set [ Effect.EnvWrite ]
       deprecated = NotDeprecated }
 
 
@@ -687,16 +161,12 @@ let fns () : List<BuiltInFn> =
       description = "Removes an environment variable via libc unsetenv()"
       fn =
         (function
-        | state, _, _, [| DString name |] ->
-          LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
-          match Libc.unsetenv name with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString name |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.Unsetenv name) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.envWrite
+      callEffects = set [ Effect.EnvWrite ]
       deprecated = NotDeprecated }
 
 
@@ -710,15 +180,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString path; DInt mode |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.mkdir path (intToInt32 vm mode) with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+          let op = HostTypes.PosixOp.Mkdir(path, intToInt32 vm mode)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -729,16 +196,12 @@ let fns () : List<BuiltInFn> =
       description = "Removes an empty directory via libc rmdir()"
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.rmdir path with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.Rmdir path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -749,16 +212,12 @@ let fns () : List<BuiltInFn> =
       description = "Removes a file via libc unlink()"
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.unlink path with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.Unlink path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -771,16 +230,13 @@ let fns () : List<BuiltInFn> =
       description = "Renames/moves a file or directory via libc rename()"
       fn =
         (function
-        | state, _, _, [| DString oldpath; DString newpath |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps oldpath
-          match Libc.rename oldpath newpath with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString oldpath; DString newpath |] ->
+          let op = HostTypes.PosixOp.Rename(oldpath, newpath)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -794,15 +250,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString path; DInt mode |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.chmod path (intToInt32 vm mode) with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+          let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -813,16 +266,12 @@ let fns () : List<BuiltInFn> =
       description = "Updates atime and mtime to now via libc utimes(path, NULL)"
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.utimesNow path with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTUnit state vm (HostTypes.PosixOp.UtimesNow path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -835,16 +284,16 @@ let fns () : List<BuiltInFn> =
       description = "Creates a symbolic link via libc symlink()"
       fn =
         (function
-        | state, _, _, [| DString target; DString linkpath |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps target
-          match Libc.symlink target linkpath with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString target; DString linkpath |] ->
+          // The target is data stored in the link, not a path opened by this
+          // operation; the boundary checks a write at linkpath. Any later
+          // access to the link is rejected if it leaves the authorized tree.
+          let op = HostTypes.PosixOp.Symlink(target, linkpath)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -855,17 +304,12 @@ let fns () : List<BuiltInFn> =
       description = "Reads the target of a symbolic link via libc readlink()"
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.readlink path with
-          | Ok target ->
-            Dval.resultOk KTString (posixErrorKT ()) (DString target) |> Ply
-          | Error e ->
-            Dval.resultError KTString (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTString state vm (HostTypes.PosixOp.Readlink path) pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -882,20 +326,19 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
       fn =
         (function
-        | state, _, _, [| DString prefix |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
-          let resultOk =
-            Dval.resultOk (KTTuple(VT.int, VT.string, [])) (posixErrorKT ())
-          let resultError =
-            Dval.resultError (KTTuple(VT.int, VT.string, [])) (posixErrorKT ())
-          match Libc.mkstemp prefix with
-          | Ok(fd, path) ->
-            resultOk (DTuple(Dval.int (bigint fd), DString path, [])) |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+        | state, vm, _, [| DString prefix |] ->
+          posixResult
+            (KTTuple(VT.int, VT.string, []))
+            state
+            vm
+            (HostTypes.PosixOp.Mkstemp prefix)
+            (fun response ->
+              let fd, path = Host.expectFdPath response
+              DTuple(Dval.int (bigint fd), DString path, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = Set.union fileWriteEffect nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -911,16 +354,12 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp directory via libc mkdtemp(). Returns the path."
       fn =
         (function
-        | state, _, _, [| DString prefix |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
-          match Libc.mkdtemp prefix with
-          | Ok path -> Dval.resultOk KTString (posixErrorKT ()) (DString path) |> Ply
-          | Error e ->
-            Dval.resultError KTString (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString prefix |] ->
+          posixResult KTString state vm (HostTypes.PosixOp.Mkdtemp prefix) pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileWriteEffect
       deprecated = NotDeprecated }
 
 
@@ -932,21 +371,19 @@ let fns () : List<BuiltInFn> =
         "Lists entries in a directory via libc opendir/readdir/closedir. Excludes '.' and '..'."
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          let resultOk =
-            Dval.resultOk (KTList(ValueType.Known KTString)) (posixErrorKT ())
-          let resultError =
-            Dval.resultError (KTList(ValueType.Known KTString)) (posixErrorKT ())
-          match Libc.listDir path with
-          | Ok entries ->
-            let dvals = entries |> List.map DString
-            resultOk (DList(ValueType.Known KTString, dvals)) |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult
+            (KTList(ValueType.Known KTString))
+            state
+            vm
+            (HostTypes.PosixOp.ListDir path)
+            (fun response ->
+              let entries = Host.expectEntries response
+              DList(ValueType.Known KTString, List.map DString entries))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -957,15 +394,12 @@ let fns () : List<BuiltInFn> =
       description = "Gets an environment variable via libc getenv()"
       fn =
         (function
-        | state, _, _, [| DString name |] ->
-          LibExecution.CapabilityCheck.requireEnvRead state.grantedCaps name
-          match Libc.getenv name with
-          | Some v -> Dval.optionSome KTString (DString v) |> Ply
-          | None -> Dval.optionNone KTString |> Ply
+        | state, vm, _, [| DString name |] ->
+          posixOption state vm (HostTypes.PosixOp.Getenv name) Host.expectEnvValue
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.envRead
+      callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
 
 
@@ -973,7 +407,11 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "program" TString "Path to the executable"
-          Param.make "args" (TList TString) "Arguments to pass" ]
+          Param.make "args" (TList TString) "Arguments to pass"
+          Param.make
+            "timeoutMs"
+            (TypeReference.option TInt)
+            "Kill the child and fail with ETIMEDOUT after this many milliseconds; None waits" ]
       returnType =
         TypeReference.result
           (TTuple(TInt, TString, [ TString ]))
@@ -982,34 +420,27 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
       fn =
         (function
-        | state, _, _, [| DString program; DList(_, args) |] ->
-          let resultOk =
-            Dval.resultOk
-              (KTTuple(VT.int, VT.string, [ VT.string ]))
-              (posixErrorKT ())
-          let resultError =
-            Dval.resultError
-              (KTTuple(VT.int, VT.string, [ VT.string ]))
-              (posixErrorKT ())
+        | state, vm, _, [| DString program; DList(_, args); timeout |] ->
           let argStrs =
             args
             |> List.map (fun d ->
               match d with
               | DString s -> s
               | _ -> incorrectArgs ())
-          // precise check: this exact program + args must be covered (gate only checked exec presence).
-          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
-          match Libc.spawnAndWait program argStrs with
-          | Ok(exitCode, stdout, stderr) ->
-            resultOk (
-              DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
-            )
-            |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+          let timeoutMs =
+            match timeout with
+            | DEnum(_, _, _, "Some", [ DInt ms ]) -> Some(intToInt32 vm ms)
+            | DEnum(_, _, _, "None", []) -> None
+            | _ -> incorrectArgs ()
+          let op = Host.Operation.ProcessRun(program, argStrs, timeoutMs)
+          asResult
+            processOutcomeKT
+            (PermissionCheck.performHost state vm op)
+            processOutcomeOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.exec
+      callEffects = set [ Effect.Process ]
       deprecated = NotDeprecated }
 
 
@@ -1025,70 +456,21 @@ let fns () : List<BuiltInFn> =
         + "their output would leave them painting into a pipe."
       fn =
         (function
-        | state, _, _, [| DString program; DList(_, args) |] ->
-          let resultOk = Dval.resultOk KTInt (posixErrorKT ())
-          let resultError = Dval.resultError KTInt (posixErrorKT ())
+        | state, vm, _, [| DString program; DList(_, args) |] ->
           let argStrs =
             args
             |> List.map (fun d ->
               match d with
               | DString s -> s
               | _ -> incorrectArgs ())
-          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
-          match Libc.spawnInheritingStdio program argStrs with
-          | Ok exitCode -> resultOk (Dval.int (bigint exitCode)) |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+          let op = Host.Operation.ProcessRunInteractive(program, argStrs)
+          asResult KTInt (PermissionCheck.performHost state vm op) (fun response ->
+            let (exitCode, _, _) = Host.expectProcessOutcome response
+            Dval.int (bigint exitCode))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.exec
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixSpawnAndWaitWithTimeout" 0
-      typeParams = []
-      parameters =
-        [ Param.make "program" TString "Path to the executable"
-          Param.make "args" (TList TString) "Arguments to pass"
-          Param.make "timeoutMs" TInt "Timeout in milliseconds" ]
-      returnType =
-        TypeReference.result
-          (TTuple(TInt, TString, [ TString ]))
-          (posixErrorTypeRef ())
-      description =
-        "Spawns a child process with a timeout. Returns (exitCode, stdout, stderr) or Error on timeout."
-      fn =
-        (function
-        | state, vm, _, [| DString program; DList(_, args); DInt timeoutMs |] ->
-          let resultOk =
-            Dval.resultOk
-              (KTTuple(VT.int, VT.string, [ VT.string ]))
-              (posixErrorKT ())
-          let resultError =
-            Dval.resultError
-              (KTTuple(VT.int, VT.string, [ VT.string ]))
-              (posixErrorKT ())
-          let argStrs =
-            args
-            |> List.map (fun d ->
-              match d with
-              | DString s -> s
-              | _ -> incorrectArgs ())
-          // precise check: this exact program + args must be covered (gate only checked exec presence).
-          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
-          match
-            Libc.spawnAndWaitWithTimeout program argStrs (intToInt32 vm timeoutMs)
-          with
-          | Ok(exitCode, stdout, stderr) ->
-            resultOk (
-              DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
-            )
-            |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.exec
+      callEffects = set [ Effect.Process ]
       deprecated = NotDeprecated }
 
 
@@ -1104,15 +486,13 @@ let fns () : List<BuiltInFn> =
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, vm, _, [| DInt pid; DInt signal |] ->
-          match Libc.kill (intToInt32 vm pid) (intToInt32 vm signal) with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DInt pid; DInt signal |] ->
+          let op = HostTypes.PosixOp.Kill(intToInt32 vm pid, intToInt32 vm signal)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.exec
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1126,16 +506,14 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt count |] ->
-          let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
-          let resultError = Dval.resultError KTBlob (posixErrorKT ())
-          match Libc.fdRead (intToInt32 vm fd) (intToInt32 vm count) with
-          | Ok bytes -> resultOk (Blob.newEphemeral bytes) |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+        | state, vm, _, [| DInt fd; DInt count |] ->
+          let op = HostTypes.PosixOp.FdRead(intToInt32 vm fd, intToInt32 vm count)
+          posixResult KTBlob state vm op (fun response ->
+            Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1153,21 +531,19 @@ let fns () : List<BuiltInFn> =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | _, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
-          let resultOk = Dval.resultOk KTInt (posixErrorKT ())
-          let resultError = Dval.resultError KTInt (posixErrorKT ())
-          match
-            Libc.fdSeek
-              (intToInt32 vm fd)
-              (intToInt64 vm offset)
-              (intToInt32 vm whence)
-          with
-          | Ok position -> resultOk (Dval.int (bigint position)) |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+        | state, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
+          let op =
+            HostTypes.PosixOp.FdSeek(
+              intToInt32 vm fd,
+              intToInt64 vm offset,
+              intToInt32 vm whence
+            )
+          posixResult KTInt state vm op (fun response ->
+            Dval.int (bigint (Host.expectOffset response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1183,16 +559,15 @@ let fns () : List<BuiltInFn> =
         | state, vm, _, [| DInt fd; DBlob ref |] ->
           uply {
             let! bytes = Blob.readBytes state ref
-            match Libc.fdWrite (intToInt32 vm fd) bytes with
-            | Ok n ->
-              return Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint n))
-            | Error e ->
-              return Dval.resultError KTInt (posixErrorKT ()) (dPosixError e)
+            let op = HostTypes.PosixOp.FdWrite(intToInt32 vm fd, bytes)
+            return!
+              posixResult KTInt state vm op (fun response ->
+                Dval.int (bigint (Host.expectWritten response)))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1203,15 +578,13 @@ let fns () : List<BuiltInFn> =
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, vm, _, [| DInt fd |] ->
-          match Libc.fdClose (intToInt32 vm fd) with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DInt fd |] ->
+          let op = HostTypes.PosixOp.FdClose(intToInt32 vm fd)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1226,106 +599,45 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString path; DInt flags; DInt mode |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.openFile path (intToInt32 vm flags) (intToInt32 vm mode) with
-          | Ok fd ->
-            Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint fd)) |> Ply
-          | Error e ->
-            Dval.resultError KTInt (posixErrorKT ()) (dPosixError e) |> Ply
+          let op =
+            HostTypes.PosixOp.Open(path, intToInt32 vm flags, intToInt32 vm mode)
+          posixResult KTInt state vm op (fun response ->
+            Dval.int (bigint (Host.expectFd response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = Set.union fileEffects nativeEffects
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixFlagRdonly" 0
+    { name = fn "posixOpenFlag" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters =
+        [ Param.make
+            "flag"
+            TString
+            "One of rdonly, wronly, rdwr, creat, trunc, append" ]
       returnType = TInt
-      description = "Returns the O_RDONLY flag for open()"
+      description = "Returns the platform-specific value of one open() flag, by name"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_RDONLY) |> Ply
+        | _, _, _, [| DString flag |] ->
+          let value =
+            match flag with
+            | "rdonly" -> HostLibc.O_RDONLY
+            | "wronly" -> HostLibc.O_WRONLY
+            | "rdwr" -> HostLibc.O_RDWR
+            | "creat" -> HostLibc.O_CREAT
+            | "trunc" -> HostLibc.O_TRUNC
+            | "append" -> HostLibc.O_APPEND
+            | other ->
+              RuntimeError.UncaughtException($"unknown open() flag `{other}`", [])
+              |> raiseUntargetedRTE
+          Dval.int (bigint value) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixFlagWronly" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the O_WRONLY flag for open()"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_WRONLY) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixFlagRdwr" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the O_RDWR flag for open()"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_RDWR) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixFlagCreat" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the O_CREAT flag for open() (platform-aware)"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_CREAT) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixFlagTrunc" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the O_TRUNC flag for open() (platform-aware)"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_TRUNC) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixFlagAppend" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the O_APPEND flag for open() (platform-aware)"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint Libc.O_APPEND) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1337,27 +649,23 @@ let fns () : List<BuiltInFn> =
       description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
-        | state, _, _, [| DString path |] ->
-          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          let resultOk =
-            Dval.resultOk (KTTuple(VT.int, VT.int, [ VT.int ])) (posixErrorKT ())
-          let resultError =
-            Dval.resultError (KTTuple(VT.int, VT.int, [ VT.int ])) (posixErrorKT ())
-          match Libc.stat path with
-          | Ok(mode, size, mtimeSec) ->
-            resultOk (
+        | state, vm, _, [| DString path |] ->
+          posixResult
+            (KTTuple(VT.int, VT.int, [ VT.int ]))
+            state
+            vm
+            (HostTypes.PosixOp.Stat path)
+            (fun response ->
+              let mode, size, mtimeSec = Host.expectStatInfo response
               DTuple(
                 Dval.int (bigint mode),
                 Dval.int (bigint size),
                 [ Dval.int (bigint mtimeSec) ]
-              )
-            )
-            |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+              ))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = fileReadEffect
       deprecated = NotDeprecated }
 
 
@@ -1372,23 +680,20 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          let resultOk =
-            Dval.resultOk
-              (KTTuple(VT.string, VT.string, [ VT.string ]))
-              (posixErrorKT ())
-          let resultError =
-            Dval.resultError
-              (KTTuple(VT.string, VT.string, [ VT.string ]))
-              (posixErrorKT ())
-          match Libc.uname () with
+          let kt = KTTuple(VT.string, VT.string, [ VT.string ])
+          match HostLibc.uname () with
           | Ok(sysname, nodename, machine) ->
-            resultOk (DTuple(DString sysname, DString nodename, [ DString machine ]))
+            DTuple(DString sysname, DString nodename, [ DString machine ])
+            |> Dval.resultOk kt (posixErrorKT ())
             |> Ply
-          | Error e -> resultError (dPosixError e) |> Ply
+          | Error e ->
+            dPosixError (Host.failureOfErrno e)
+            |> Dval.resultError kt (posixErrorKT ())
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1399,11 +704,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current process ID via libc getpid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (Libc.getpid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.getpid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1414,11 +719,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current user ID via libc getuid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (Libc.getuid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.getuid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1430,15 +735,13 @@ let fns () : List<BuiltInFn> =
         "Returns the login name of the current user via getuid() + getpwuid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          let uid = Libc.getuid ()
-          match Libc.getUserName (uint32 uid) with
-          | Some name -> Dval.optionSome KTString (DString name) |> Ply
-          | None -> Dval.optionNone KTString |> Ply
+        | state, vm, _, [| DUnit |] ->
+          let op = HostTypes.PosixOp.UserName(uint32 (HostLibc.getuid ()))
+          posixOption state vm op Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1449,11 +752,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of online CPUs via sysconf()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (Libc.cpuCount ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.cpuCount ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1465,14 +768,12 @@ let fns () : List<BuiltInFn> =
         "Returns the home directory of the current user via getpwuid(getuid())"
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          match Libc.getHomeDir () with
-          | Some dir -> Dval.optionSome KTString (DString dir) |> Ply
-          | None -> Dval.optionNone KTString |> Ply
+        | state, vm, _, [| DUnit |] ->
+          posixOption state vm HostTypes.PosixOp.HomeDir Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated }
 
 
@@ -1487,12 +788,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString pattern; DString str; DBool pathMode |] ->
-          let flags = if pathMode then Libc.FNM_PATHNAME else 0
-          DBool(Libc.fnmatch pattern str flags) |> Ply
+          let flags = if pathMode then HostLibc.FNM_PATHNAME else 0
+          DBool(HostLibc.fnmatch pattern str flags) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1505,16 +806,14 @@ let fns () : List<BuiltInFn> =
       description = "Locks or unlocks a file via libc flock()"
       fn =
         (function
-        | _, vm, _, [| DInt fd; DBool exclusive |] ->
-          let op = if exclusive then Libc.LOCK_EX else Libc.LOCK_UN
-          match Libc.flock (intToInt32 vm fd) op with
-          | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
-          | Error e ->
-            Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DInt fd; DBool exclusive |] ->
+          let lockOp = if exclusive then HostLibc.LOCK_EX else HostLibc.LOCK_UN
+          let op = HostTypes.PosixOp.Flock(intToInt32 vm fd, lockOp)
+          posixResult KTUnit state vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = nativeEffects
       deprecated = NotDeprecated }
 
 
@@ -1525,15 +824,13 @@ let fns () : List<BuiltInFn> =
       description = "Returns the owner username of a file via stat() + getpwuid()"
       fn =
         (function
-        | _, _, _, [| DString path |] ->
-          match Libc.fileOwner path with
-          | Ok name -> Dval.resultOk KTString (posixErrorKT ()) (DString name) |> Ply
-          | Error e ->
-            Dval.resultError KTString (posixErrorKT ()) (dPosixError e) |> Ply
+        | state, vm, _, [| DString path |] ->
+          posixResult KTString state vm (HostTypes.PosixOp.FileOwner path) (fun r ->
+            DString(Host.expectText r))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.FileRead ]
       deprecated = NotDeprecated } ]
 
 

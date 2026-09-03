@@ -531,6 +531,17 @@ module FnDeclaration =
       name: FnIdentifier
       typeParams: List<(Range * String)>
       parameters: List<Parameter>
+      /// The effect row on the return colon, if one was written. Like
+      /// `typeParams`, these are names as written with their positions; they
+      /// become `Permissions.Effect` values in WrittenTypesToProgramTypes,
+      /// which is where an unknown name is reported. At runtime the row is the
+      /// author's ceiling on the body and everything it calls: it can only
+      /// take away, never grant.
+      ///
+      ///   `: String`              None       no row, no promise
+      ///   `:{} String`            Some []    effect-free: every host effect inside is denied
+      ///   `:{Http, Clock} String` Some [...] only these; anything else inside is denied
+      effects: Option<List<(Range * String)>>
       returnType: TypeReference.TypeReference
       body: Expr
       description: String

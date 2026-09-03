@@ -261,7 +261,13 @@ let displayTree
         if entityType == EntityType.Module then ""
         else Query.deprecationMarker depSets hash
 
-      Stdlib.printLine $"{fullPrefix}{icon}{name}{mark}"
+      let requirements =
+        if entityType == EntityType.Function then
+          "  " ++ Stdlib.Cli.UI.Colors.dimText (Permissions.Command.requirementBadge hash)
+        else
+          ""
+
+      Stdlib.printLine $"{fullPrefix}{icon}{name}{mark}{requirements}"
 
       // Recursively display submodules
       if entityType == EntityType.Module && remainingDepth > 1 then

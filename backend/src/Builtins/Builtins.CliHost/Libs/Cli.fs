@@ -9,6 +9,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -36,6 +37,8 @@ module NRslv = LibParser.NameResolver
 module HashStabilization = LibDB.HashStabilization
 module AstTransformer = LibDB.AstTransformer
 module PackageLocation = LibDB.PackageLocation
+module PolicyToDT = LibExecution.PermissionsToDarkTypes
+module PolicyStore = LibDB.PolicyStore
 
 
 /// Load all DBs from the global toplevel set.
@@ -183,7 +186,7 @@ let private declarationsToModule
     // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
     // The resolver looks up packages on `state.branchId` (threaded through WT2PT),
     // so WIP on this branch resolves without wrapping the pm.
-    let pm0 = LibDB.PackageManager.pt
+    let pm0 = LibDB.PackageManager.ptForAccount state.accountID
     let! fns1 =
       lowerFns pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types1 =
@@ -338,20 +341,14 @@ let parseCliScript
       return Ok m
   }
 
-/// Parse a single expression (the `eval` path) with the hand-written parser,
-/// lowering `WT → PT`. Reuses the script lowering so `let x = … in x` and short
-/// statement sequences also work; a bare expression is just `exprs`.
+/// Parse a single expression (the `eval` path): the script lowering with no
+/// module, so `let x = … in x` and short statement sequences also work; a
+/// bare expression is just `exprs`.
 let parseCliExpr
   (state : RT.ExecutionState)
   (expression : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
-  uply {
-    match P.parseFor Validation.Script expression with
-    | Error diagnostics -> return Error diagnostics
-    | Ok validated ->
-      let! m = declarationsToModule state "" "" validated
-      return Ok m
-  }
+  parseCliScript state "" "" expression
 
 
 module ExecutionError =
@@ -362,10 +359,51 @@ module ExecutionError =
 
   type Unhandled = { message : string; metadata : List<string * string> }
 
+  let permissionDeniedTypeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.Cli.permissionDenied ())
+
+  /// Details for a run stopped by a policy denial: the runtime error and the
+  /// resource, suggested rule, and call stack needed to show it or retry.
+  type PermissionDenied =
+    {
+      error : RT.RuntimeError.Error
+      /// What was attempted, e.g. "reading `/etc/hosts`".
+      resource : string
+      /// The exact `permissions allow` rule that would cover it, when one
+      /// exists and the denying layer was the instance policy — the only
+      /// layer that rule edits.
+      rule : Option<string>
+      /// The rendered call stack, for the CLI to print if the denial stands.
+      callStack : string
+    }
+
   type ExecutionError =
     | Parse of ParseError.ParseError
     | Runtime of RT.RuntimeError.Error
+    | Denied of PermissionDenied
     | Unhandled of Unhandled
+
+  /// A runtime error is a `Denied` when the run recorded an instance-layer
+  /// denial: Dark cannot catch runtime errors, so the last denial recorded
+  /// under the guest state is the one that ended the run. Any other layer's
+  /// denial stays a plain `Runtime` error, since no `permissions allow` rule
+  /// would change it.
+  let classify
+    (denied : ResizeArray<RT.PermissionDenialRecord>)
+    (rte : RT.RuntimeError.Error)
+    : ExecutionError =
+    if denied.Count = 0 then
+      Runtime rte
+    else
+      let last = denied[denied.Count - 1]
+      match last.layer with
+      | LibExecution.Permissions.Layer.Instance ->
+        Denied
+          { error = rte
+            resource = last.resource
+            rule = last.suggestion
+            callStack = "" }
+      | _ -> Runtime rte
 
   /// Capture an exception's message and metadata for the `Unhandled` case.
   /// Metadata values are `obj`; we accept the lossy `string v` here (rather than
@@ -384,14 +422,68 @@ module ExecutionError =
     let fields = [ "message", DString u.message; "metadata", metadataDval ]
     DRecord(typeName, typeName, [], Map fields)
 
+  let private permissionDeniedToDT (d : PermissionDenied) : Dval =
+    let typeName = permissionDeniedTypeName ()
+    let fields =
+      [ "error", RT2DT.RuntimeError.toDT d.error
+        "resource", DString d.resource
+        "rule", (d.rule |> Option.map DString |> Dval.option KTString)
+        "callStack", DString d.callStack ]
+    DRecord(typeName, typeName, [], Map fields)
+
   let toDT (err : ExecutionError) : Dval =
     let typeName = fqTypeName ()
     let (caseName, fields) =
       match err with
       | Parse pe -> "Parse", [ ParseError.toDT pe ]
       | Runtime rte -> "Runtime", [ RT2DT.RuntimeError.toDT rte ]
+      | Denied d -> "Denied", [ permissionDeniedToDT d ]
       | Unhandled u -> "Unhandled", [ unhandledToDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
+
+
+/// Parse guest source (`run`/`eval`): the first diagnostic, rendered against
+/// `source`, becomes the `ParseError` the caller reports.
+let private parseGuest
+  (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
+  (source : string)
+  : Ply<Result<Utils.CliScript.PTCliScriptModule, ParseError.ParseError>> =
+  uply {
+    match! parse with
+    | Ok m -> return Ok m
+    | Error diagnostics ->
+      let message =
+        match diagnostics with
+        | d :: _ -> P.renderDiagnostic source d
+        | [] -> "Parse error"
+      return Error(ParseError.Message message)
+  }
+
+/// Run a guest entry point (`run`/`eval`), turning an escaping exception into
+/// the builtin's error result. Runtime errors raised via `raiseUntargetedRTE`
+/// (e.g. `NoExpressionsToExecute`) escape as `RuntimeErrorException` rather
+/// than returning through the normal `Error(rte, _)` channel, so they are
+/// classified `Runtime`, not `Unhandled`.
+let private guestTry
+  (resultError : Dval -> Dval)
+  (toError : RT.RuntimeError.Error -> ExecutionError.ExecutionError)
+  (body : unit -> Ply<Dval>)
+  : Ply<Dval> =
+  uply {
+    try
+      let! result = body ()
+      return result
+    with
+    | RuntimeErrorException(_, rte) ->
+      return resultError (ExecutionError.toDT (toError rte))
+    | e ->
+      return
+        resultError (
+          ExecutionError.toDT (
+            ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+          )
+        )
+  }
 
 
 let pmRT = LibDB.PackageManager.rt
@@ -504,6 +596,13 @@ let createBranchState
   { state with allowHarmful = allowHarmful }
 
 
+/// The script's (or expression's) own compiled fns, by hash: the root the
+/// invoker explicitly asked to run (see [PolicyStore.guestState]).
+let private ownFns (mod' : Utils.CliScript.PTCliScriptModule) : List<RT.Hash> =
+  List.append mod'.fns mod'.submodules.fns
+  |> List.map (fun (fn : PT.PackageFn.PackageFn) -> PT2RT.Hash.toRT fn.hash)
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
@@ -520,14 +619,36 @@ let fns () : List<BuiltInFn> =
           Param.make
             "sandbox"
             TBool
-            "Run the script body with NO capabilities (a deny-all sandbox for untrusted scripts), instead of the host's configured grant" ]
-      returnType = TypeReference.result TInt (ExecutionError.typeRef ())
+            "Run the script body under a deny-all policy instead of the configured instance policy"
+          Param.make
+            "warnPermissions"
+            TBool
+            "Warn-only permission mode: record caller-policy violations instead of denying them, while the instance policy remains mandatory"
+          Param.make
+            "sessionAllow"
+            (TList(TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])))
+            ("Rules the interactive user allowed for this run only; they widen "
+             + "the instance layer in memory and are never saved") ]
+      returnType =
+        // Ok = (exitCode, violations); a violation is (resource, unmet aspect, via — the
+        // package fn / lambda the access happened in, when known). Empty list = stayed
+        // inside the grant (always empty unless warnPermissions).
+        let violationT = TTuple(TString, TString, [ TypeReference.option TString ])
+        TypeReference.result
+          (TTuple(TInt, TList violationT, []))
+          (ExecutionError.typeRef ())
       description =
-        "Parses Dark code as a script, and and executes it, returning an exit code"
+        "Parses Dark code as a script, and and executes it, returning an exit code "
+        + "and (in warn-permissions mode) caller-policy violations"
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let resultOk = Dval.resultOk KTInt errType
-        let resultError = Dval.resultError KTInt errType
+        let optStrVT =
+          VT.known (KTCustomType(Dval.optionType (), [ VT.known KTString ]))
+        let violationKT = KTTuple(VT.string, VT.string, [ optStrVT ])
+        let okKT =
+          KTTuple(VT.known KTInt, VT.known (KTList(VT.known violationKT)), [])
+        let resultOk = Dval.resultOk okKT errType
+        let resultError = Dval.resultError okKT errType
         (function
         | exeState,
           _,
@@ -538,7 +659,9 @@ let fns () : List<BuiltInFn> =
              DString code
              DList(_vtTODO, scriptArgs)
              DBool allowHarmful
-             DBool sandbox |] ->
+             DBool sandbox
+             DBool warnPermissions
+             DList(_, sessionAllowDvals) |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -546,90 +669,141 @@ let fns () : List<BuiltInFn> =
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             let exeState = { exeState with accountID = accountID }
             // Use branch-specific state for parsing so name resolution uses the right branch.
-            // Parsing keeps the host's caps — name resolution / package loading needs
-            // cli-host effects to boot (the noCaps-breaks-bootstrap case). Only the script
-            // *body* is sandboxed below (`runCaps` on `exeState`).
+            // Parsing keeps the host's access (`run` and `eval` alike): it is
+            // host-side name resolution over the package store, done by the
+            // trusted CLI on the user's behalf before any guest code runs, so it
+            // must not depend on what the operator granted the guest. With a
+            // deny-all instance policy (a deleted policy file) the script must
+            // still parse and then have its body denied with an actionable
+            // message, not fail opaquely at parse. Only the script *body* runs
+            // under the guest state built below.
             let branchState = createBranchState exeState branchId allowHarmful
+            let sessionAllow = sessionAllowDvals |> List.map PolicyToDT.Rule.fromDT
+            // Denials raised under the guest state land here; a run that ends
+            // on one is reported as `Denied` so the CLI can offer the rule.
+            let denied = ResizeArray<RT.PermissionDenialRecord>()
 
-            try
-              // A parse failure surfaces a precise diagnostic as a `ParseError`
-              // No module for the script's own declarations. A module named after
-              // the file put the whole path into every name the runtime prints
-              // back (`CliScript.rundir/tmp/x.dark.Celsius`), and it buys nothing:
-              // one script runs per process, and two that declare the same thing
-              // share a hash anyway. The filename reaches traces via `RunScript`.
-              let! parseResult = parseCliScript branchState "CliScript" "" code
-              let! parsedScript =
-                match parseResult with
-                | Ok m -> Ply(Ok m)
-                | Error diags ->
-                  let pe =
-                    match diags with
-                    | d :: _ -> ParseError.Message(P.renderDiagnostic code d)
-                    | [] -> ParseError.Message "Parse error"
-                  Ply(Error pe)
+            return!
+              guestTry resultError (ExecutionError.classify denied) (fun () ->
+                uply {
+                  // No module for the script's own declarations. A module named
+                  // after the file put the whole path into every name the
+                  // runtime prints back (`CliScript.rundir/tmp/x.dark.Celsius`),
+                  // and it buys nothing: one script runs per process, and two
+                  // that declare the same thing share a hash anyway. The
+                  // filename reaches traces via `RunScript`.
+                  let! parsedScript =
+                    parseGuest (parseCliScript branchState "CliScript" "" code) code
 
-              let! dbs = loadDBs ()
+                  let! dbs = loadDBs ()
 
-              match parsedScript with
-              | Ok mod' ->
-                // `dark run` RESPECTS the host's configured grant by default (`hostCaps`: allCaps until
-                // an instance grant is configured, then that grant) — the same posture as `eval`, so the
-                // grant you set is the grant scripts obey. `--sandbox` drops to NO capabilities for
-                // running untrusted scripts (any effectful builtin then raises).
-                // TODO product decision, revisit: this favors "run my own script" over "run an untrusted
-                // script" (sandbox is opt-IN). If `dark run <url>` / piping untrusted code becomes common,
-                // a deny-all default + `--trust`/`--apply-host-caps` opt-in may be safer. See also the
-                // trust-boundary TODO in `LanguageTools.Capabilities.all`.
-                let runCaps =
-                  if sandbox then
-                    LibExecution.Capabilities.noCaps
-                  else
-                    LibDB.CapabilityGrants.hostCaps ()
-                let exeState = { exeState with grantedCaps = runCaps }
-                match!
-                  execute
-                    exeState
-                    branchId
-                    mod'
-                    scriptArgs
-                    dbs
-                    (RunScript(filename, code))
-                with
-                | Ok(DInt i) -> return resultOk (DInt i)
-                | Ok(DInt64 i) -> return resultOk (Dval.int (bigint i))
-                | Ok DUnit -> return resultOk (Dval.int (bigint 0))
-                | Ok result ->
-                  let rte =
-                    RuntimeError.CLIs.NonIntReturned result |> RuntimeError.CLI
-                  return
-                    resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
-                | Error(e, callStack) ->
-                  let! csString = Exe.callStackString exeState callStack
-                  print $"Error when executing Script. Call-stack:\n{csString}\n"
-                  return resultError (ExecutionError.toDT (ExecutionError.Runtime e))
-              | Error pe ->
-                return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
-            // Runtime errors raised via `raiseUntargetedRTE` (e.g.
-            // `NoExpressionsToExecute`) escape as `RuntimeErrorException`
-            // rather than returning through the normal `Error(rte, _)`
-            // channel. Catch them explicitly so they're classified as
-            // `Runtime`, not `Unhandled`.
-            with
-            | RuntimeErrorException(_, rte) ->
-              return resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
-            | e ->
-              return
-                resultError (
-                  ExecutionError.toDT (
-                    ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
-                  )
-                )
+                  match parsedScript with
+                  | Ok mod' ->
+                    // `dark run` and `eval` start from the host's configured
+                    // deny-by-default policy. Missing or corrupt state remains
+                    // locked down (see PolicyStore.instancePolicy).
+                    // `--warn-permissions` may relax the run and package policies, but the
+                    // instance policy remains a hard maximum.
+                    let permissionSink =
+                      if warnPermissions then
+                        Some(ResizeArray<RT.PermissionViolation>())
+                      else
+                        None
+                    let runPolicy =
+                      if sandbox then
+                        LibExecution.Permissions.Policy.denyAll
+                      else
+                        LibExecution.Permissions.Policy.allowAll
+                    // Kept for diagnostics: the call-stack printer runs Dark
+                    // code (name lookups) that the guest policy may deny.
+                    let hostState = exeState
+                    let guest =
+                      PolicyStore.guestState
+                        accountID
+                        runPolicy
+                        sessionAllow
+                        (ownFns mod')
+                        exeState
+                    let exeState =
+                      { guest with
+                          permissionWarnings = permissionSink
+                          deniedRequests = denied }
+                    let! execResult =
+                      execute
+                        exeState
+                        branchId
+                        mod'
+                        scriptArgs
+                        dbs
+                        (RunScript(filename, code))
+                    let! violations =
+                      match permissionSink with
+                      | None -> Ply []
+                      | Some sink ->
+                        sink
+                        |> List.ofSeq
+                        |> Ply.List.mapSequentially
+                          (fun (v : RT.PermissionViolation) ->
+                            uply {
+                              let! via =
+                                match v.via with
+                                | Some ep ->
+                                  uply {
+                                    let! s = Exe.executionPointToString exeState ep
+                                    return Dval.optionSome KTString (DString s)
+                                  }
+                                | None -> Ply(Dval.optionNone KTString)
+                              return
+                                DTuple(
+                                  DString v.resource,
+                                  DString v.needed,
+                                  [ via ]
+                                )
+                            })
+                    let ok (exitCode : Dval) =
+                      resultOk (
+                        DTuple(
+                          exitCode,
+                          DList(VT.known violationKT, violations),
+                          []
+                        )
+                      )
+                    match execResult with
+                    | Ok(DInt i) -> return ok (DInt i)
+                    | Ok(DInt64 i) -> return ok (Dval.int (bigint i))
+                    | Ok DUnit -> return ok (Dval.int (bigint 0))
+                    | Ok result ->
+                      let rte =
+                        RuntimeError.CLIs.NonIntReturned result |> RuntimeError.CLI
+                      return
+                        resultError (
+                          ExecutionError.toDT (ExecutionError.Runtime rte)
+                        )
+                    | Error(e, callStack) ->
+                      let! csString = Exe.callStackString hostState callStack
+                      match ExecutionError.classify denied e with
+                      | ExecutionError.Denied d ->
+                        // The CLI may offer to allow and retry; the stack is printed
+                        // only if the denial stands.
+                        return
+                          resultError (
+                            ExecutionError.toDT (
+                              ExecutionError.Denied { d with callStack = csString }
+                            )
+                          )
+                      | other ->
+                        print
+                          $"Error when executing Script. Call-stack:\n{csString}\n"
+                        return resultError (ExecutionError.toDT other)
+                  | Error pe ->
+                    return
+                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+                })
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
 
@@ -678,80 +852,96 @@ let fns () : List<BuiltInFn> =
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            // `eval` runs the expression under the HOST's capabilities — `allCaps` until an instance
-            // grant is configured, then whatever that grant allows (the gate denies uncovered builtins).
-            let exeState =
-              { exeState with
-                  accountID = accountID
-                  grantedCaps = LibDB.CapabilityGrants.hostCaps () }
-            // Use branch-specific state for parsing so name resolution uses the right branch
+            let exeState = { exeState with accountID = accountID }
+            // Branch-specific state for parsing, under the host's access — see
+            // the note in `cliParseAndExecuteScript`.
             let branchState = createBranchState exeState branchId allowHarmful
+            let denied = ResizeArray<RT.PermissionDenialRecord>()
 
-            try
-              // Parsing can raise (e.g. deep VM failures); keep it inside the try
-              // so its exceptions hit the Unhandled net. `eval` is single-expression
-              // only; parse failures surface a precise diagnostic (no fallback).
-              let! parseResult = parseCliExpr branchState expression
-              let! parsedScript =
-                match parseResult with
-                | Ok m -> Ply(Ok m)
-                | Error diags ->
-                  let pe =
-                    match diags with
-                    | d :: _ -> ParseError.Message(P.renderDiagnostic expression d)
-                    | [] -> ParseError.Message "Parse error"
-                  Ply(Error pe)
+            return!
+              guestTry resultError (ExecutionError.classify denied) (fun () ->
+                uply {
+                  // Parsing can raise (e.g. deep VM failures); keep it inside
+                  // guestTry so its exceptions hit the Unhandled net. `eval` is
+                  // single-expression only; parse failures surface a precise
+                  // diagnostic (no fallback).
+                  let! parsedScript =
+                    parseGuest (parseCliExpr branchState expression) expression
 
-              let! dbs = loadDBs ()
+                  let! dbs = loadDBs ()
 
-              match parsedScript with
-              | Ok mod' ->
-                match!
-                  execute exeState branchId mod' [] dbs (EvalExpression expression)
-                with
-                | Ok result ->
-                  match result with
-                  | DUnit -> return okNone ()
-                  | DString s -> return okSome s
-                  | _ ->
-                    // Width and color are the caller's to decide: they are facts about the process
-                    // this output is headed for, and asking here would mean reaching into another
-                    // builtin's terminal code. `Cli.Terminal` owns both and answers them in Dark.
-                    let currentModule =
-                      currentModule
-                      |> List.choose (fun d ->
-                        match d with
-                        | DString s -> Some s
-                        | _ -> None)
-                    let! asString =
-                      Exe.dvalToReprForTerminal
+                  match parsedScript with
+                  | Ok mod' ->
+                    // The expression runs under the host's configured
+                    // deny-by-default policy; missing or corrupt policy state
+                    // remains locked down.
+                    let hostState = exeState
+                    let exeState =
+                      PolicyStore.guestState
+                        accountID
+                        LibExecution.Permissions.Policy.allowAll
+                        []
+                        (ownFns mod')
                         exeState
-                        (intToInt32 vm width)
-                        color
-                        currentModule
-                        result
-                    return okSome asString
-                | Error(e, callStack) ->
-                  let! csString = Exe.callStackString exeState callStack
-                  print $"Error when executing expression. Call-stack:\n{csString}\n"
-                  return resultError (ExecutionError.toDT (ExecutionError.Runtime e))
-              | Error pe ->
-                return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
-            with
-            | RuntimeErrorException(_, rte) ->
-              return resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
-            | e ->
-              return
-                resultError (
-                  ExecutionError.toDT (
-                    ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
-                  )
-                )
+                    let exeState = { exeState with deniedRequests = denied }
+                    match!
+                      execute
+                        exeState
+                        branchId
+                        mod'
+                        []
+                        dbs
+                        (EvalExpression expression)
+                    with
+                    | Ok result ->
+                      match result with
+                      | DUnit -> return okNone ()
+                      | DString s -> return okSome s
+                      | _ ->
+                        // Width and color are the caller's to decide: they are
+                        // facts about the process this output is headed for, and
+                        // asking here would mean reaching into another builtin's
+                        // terminal code. `Cli.Terminal` owns both and answers
+                        // them in Dark.
+                        let currentModule =
+                          currentModule
+                          |> List.choose (fun d ->
+                            match d with
+                            | DString s -> Some s
+                            | _ -> None)
+                        let! asString =
+                          Exe.dvalToReprForTerminal
+                            exeState
+                            (intToInt32 vm width)
+                            color
+                            currentModule
+                            result
+                        return okSome asString
+                    | Error(e, callStack) ->
+                      let! csString = Exe.callStackString hostState callStack
+                      match ExecutionError.classify denied e with
+                      | ExecutionError.Denied d ->
+                        // The CLI may offer to allow and retry; the stack is printed
+                        // only if the denial stands.
+                        return
+                          resultError (
+                            ExecutionError.toDT (
+                              ExecutionError.Denied { d with callStack = csString }
+                            )
+                          )
+                      | other ->
+                        print
+                          $"Error when executing expression. Call-stack:\n{csString}\n"
+                        return resultError (ExecutionError.toDT other)
+                  | Error pe ->
+                    return
+                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+                })
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
 
@@ -762,15 +952,14 @@ let fns () : List<BuiltInFn> =
 /// fns (so nested `eval`/`run` dispatches recursively) plus every
 /// `Builtins.*` library the CLI surface depends on.
 ///
-/// `defaultConfig` has SSRF guards on (loopback / RFC1918 / metadata
-/// blocked, scheme restricted). For local-dev cases that need to hit
-/// private targets, swap in `Builtins.Http.Client.Libs.HttpClient.looseConfig`.
+/// Guest HTTP runs under `HostHttp`'s default guest configuration: SSRF
+/// guards on (loopback / RFC1918 / metadata blocked). A host that must reach
+/// private targets replaces it with `LibExecution.HostHttp.setGuestConfig`.
 let builtinsToUse () : RT.Builtins =
   let ptPM = LibDB.PackageManager.pt
   LibExecution.Builtin.combine
     [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins
-        Builtins.Http.Client.Libs.HttpClient.defaultConfig
+      Builtins.Http.Client.Builtin.builtins ()
       Builtins.Language.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins ()

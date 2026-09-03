@@ -25,12 +25,16 @@ module Modes =
 
 // -- Open flags ---------------------------------------------------
 module OpenFlags =
-  let rdonly () : Int = Builtin.posixFlagRdonly ()
-  let wronly () : Int = Builtin.posixFlagWronly ()
-  let rdwr () : Int = Builtin.posixFlagRdwr ()
-  let creat () : Int = Builtin.posixFlagCreat ()
-  let trunc () : Int = Builtin.posixFlagTrunc ()
-  let append () : Int = Builtin.posixFlagAppend ()
+  /// The platform-specific value of one open() flag: "rdonly", "wronly",
+  /// "rdwr", "creat", "trunc" or "append".
+  let flag (name: String) : Int = Builtin.posixOpenFlag name
+
+  let rdonly () : Int = flag "rdonly"
+  let wronly () : Int = flag "wronly"
+  let rdwr () : Int = flag "rdwr"
+  let creat () : Int = flag "creat"
+  let trunc () : Int = flag "trunc"
+  let append () : Int = flag "append"
 
 
 /// Open a file. Returns a file descriptor.

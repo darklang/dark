@@ -1,0 +1,701 @@
+module Darklang.Cli.Permissions.Command
+
+type AccessReportFacts =
+  { hash: String
+    effects: List<LanguageTools.Permissions.Effect>
+    complete: Bool
+    ceiling: Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>>
+    bundled: Bool
+    packagePolicy: Stdlib.Option.Option<LanguageTools.Permissions.Policy>
+    pinnedNames: List<String>
+    instancePolicy: LanguageTools.Permissions.Policy }
+
+// Builtin wrappers.
+// Each policy builtin has exactly this one Dark caller (tests/builtin).
+
+let currentPolicy () : LanguageTools.Permissions.Policy =
+  Builtin.pmPolicyGetInstance ()
+
+let writePolicy (policy: LanguageTools.Permissions.Policy) : Unit =
+  Builtin.pmPolicySetInstance policy
+
+/// The transitive permission requirements and whether analysis was complete.
+/// Incomplete analysis returns the effects found with `false`; fetch once and
+/// pass the result around because this walks the function's closure.
+let permissionRequirementsForHash
+  (hash: String)
+  : (List<LanguageTools.Permissions.Effect> * Bool) =
+  Builtin.pmFnPermissionRequirements hash
+
+/// Drop the approval of one immutable version and the dependencies no other
+/// approved root still needs. `unpin` does not do this; the pin and the
+/// approval are separate records.
+let revokeHash
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (hash: String)
+  : Unit =
+  Builtin.pmPolicyRevokePackage accountID hash
+
+let approvedHashes (accountID: Stdlib.Option.Option<Uuid>) : List<String> =
+  Builtin.pmPolicyListPackages accountID
+
+/// Whether this immutable function is bundled first-party code, plus the
+/// account's consumer policy when it has one.
+let packageAccess
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (hash: String)
+  : (Bool * Stdlib.Option.Option<LanguageTools.Permissions.Policy>) =
+  Builtin.pmPolicyPackageAccess accountID hash
+
+/// The rules the consumer wrote when approving <param hash> as a root; None
+/// for a derived approval.
+let explicitApprovalFor
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (hash: String)
+  : Stdlib.Option.Option<LanguageTools.Permissions.Policy> =
+  Builtin.pmPolicyExplicitApproval accountID hash
+
+/// Whether existing approvals were recorded under different approval-analysis
+/// semantics than this host's — a re-review signal (enforcement stays
+/// fail-closed regardless).
+let approvalsStale () : Bool =
+  Builtin.pmPolicyApprovalsStale ()
+
+/// Every (logical name, pinned version) pair for this account.
+let pins (accountID: Stdlib.Option.Option<Uuid>) : List<(String * String)> =
+  Builtin.pmPolicyPins accountID
+
+/// Approve an immutable closure and move its logical-name pin atomically.
+/// The builtin compares the contract before storing approval; changed
+/// contracts return diffs for explicit review. `rules` optionally narrows the
+/// consumer's policy; None approves the analyzed effect set.
+let pinFor
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (name: String)
+  (hash: String)
+  (rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>)
+  (acknowledgeIncomplete: Bool)
+  (acknowledgeContractChange: Bool)
+  : Stdlib.Result.Result<Unit, LanguageTools.Permissions.PinFailure> =
+  Builtin.pmPolicyPinFunction
+    accountID
+    name
+    hash
+    rules
+    acknowledgeIncomplete
+    acknowledgeContractChange
+
+let unpinFor
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (name: String)
+  : Unit =
+  Builtin.pmPolicyUnpinFunction accountID name
+
+
+// Requirements display.
+
+let shortVersion (hash: String) : String =
+  Stdlib.String.slice hash 0 8
+
+let requirementSummary (requirements: List<LanguageTools.Permissions.Effect>) : String =
+  if Stdlib.List.isEmpty requirements then "effect-free"
+  else
+    Stdlib.String.join
+      (requirements |> Stdlib.List.map LanguageTools.Permissions.effectName)
+      ", "
+
+/// One line for a `permissionRequirementsForHash` result. When the analysis
+/// could not follow everything (the function runs code it is given, e.g. the
+/// callback in `List.map`), the effects it did find are shown and the
+/// unknown remainder is named as its callbacks.
+let describeRequirements
+  (requirements: (List<LanguageTools.Permissions.Effect> * Bool))
+  : String =
+  match requirements with
+  | (effects, true) -> Command.requirementSummary effects
+  | ([], false) -> "depends on its callbacks"
+  | (effects, false) -> Command.requirementSummary effects ++ ", plus its callbacks"
+
+let requirementDisplay (hash: String) : String =
+  Command.describeRequirements (Command.permissionRequirementsForHash hash)
+
+/// The bracketed requirements badge listings show next to a function,
+/// e.g. `[file-read]`; callers colour it for their view.
+let requirementBadge (hash: LanguageTools.ProgramTypes.Hash) : String =
+  "[" ++ Command.requirementDisplay (LanguageTools.ProgramTypes.hashToString hash) ++ "]"
+
+/// The author's `:{…}` ceiling for a function, when it declares one.
+let ceilingForHash
+  (hash: String)
+  : Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>> =
+  match LanguageTools.PackageManager.Function.get (LanguageTools.ProgramTypes.Hash.Hash hash) with
+  | Some fn -> fn.permissionCeiling
+  | None -> Stdlib.Option.Option.None
+
+/// The per-function permission facts, as `show` and the package viewers
+/// print them: the requirements the body needs, the ceiling the author
+/// declared, and a warning when the two disagree — a ceiling narrower than a
+/// complete requirement set means those calls are denied at runtime.
+let policyLinesForHash (hash: String) : List<String> =
+  let (effects, complete) = Command.permissionRequirementsForHash hash
+  let requirementsLine =
+    $"permission requirements: {Command.describeRequirements (effects, complete)}"
+  match Command.ceilingForHash hash with
+  | None -> [ requirementsLine ]
+  | Some ceiling ->
+    let row = LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some ceiling)
+    let exceeding =
+      effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.``member`` ceiling e))
+    let warning =
+      if complete && Stdlib.Bool.not (Stdlib.List.isEmpty exceeding) then
+        [ "  warning: the body requires "
+          ++ Command.requirementSummary exceeding
+          ++ ", which the ceiling denies at runtime" ]
+      else []
+    Stdlib.List.append [ requirementsLine, $"function ceiling: {row}" ] warning
+
+/// A policy as rule lines; an empty policy is spelled out as `deny all`.
+let policyLines (policy: LanguageTools.Permissions.Policy) : List<String> =
+  match LanguageTools.Permissions.render policy with
+  | [] -> [ "deny all" ]
+  | rules -> rules
+
+/// The instance policy as `permissions list` prints it.
+let instancePolicyLines () : List<String> =
+  Command.policyLines (Command.currentPolicy ())
+
+let indentedPolicyLines
+  (policy: LanguageTools.Permissions.Policy)
+  : List<String> =
+  Command.policyLines policy |> Stdlib.List.map (fun line -> "    " ++ line)
+
+/// Pure rendering for the layered access explanation. Kept separate from the
+/// host reads so its wording and security distinctions have executable tests.
+let renderAccessReport (facts: Command.AccessReportFacts) : List<String> =
+  let requirements = Command.describeRequirements (facts.effects, facts.complete)
+  let analysis =
+    if facts.complete then "complete"
+    else "incomplete: it runs code it is given, whose effects are not known here"
+  let ceilingText =
+    match facts.ceiling with
+    | None -> "not declared (inherits caller limits)"
+    | Some names ->
+      LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some names)
+  let approvalText =
+    match facts.packagePolicy with
+    | Some _ -> "approved for this account (rules below)"
+    | None ->
+      if facts.bundled then "not required (bundled Darklang code)"
+      else "not approved for dependency use"
+  let pinText =
+    if Stdlib.List.isEmpty facts.pinnedNames then "none"
+    else Stdlib.String.join facts.pinnedNames ", "
+  let packageLines =
+    match facts.packagePolicy with
+    | Some policy ->
+      Stdlib.List.append
+        [ "  package approval policy:" ]
+        (Command.indentedPolicyLines policy)
+    | None -> []
+  let instanceLines =
+    Stdlib.List.append
+      [ "  instance policy:" ]
+      (Command.indentedPolicyLines facts.instancePolicy)
+  let effective =
+    if facts.bundled then
+      "checked per operation: instance ∩ run ∩ function ceiling"
+    else
+      match facts.packagePolicy with
+      | Some _ ->
+        "checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
+      | None ->
+        "blocked as a dependency; explicitly chosen entry points are treated as roots"
+  Stdlib.List.flatten
+    [ [ "access"
+        $"  version: {Command.shortVersion facts.hash}"
+        $"  requires: {requirements}"
+        $"  analysis: {analysis}"
+        $"  author ceiling: {ceilingText}"
+        $"  consumer approval: {approvalText}"
+        $"  pinned as: {pinText}" ]
+      packageLines
+      instanceLines
+      [ "  run policy: selected when invoked (`--sandbox` denies all)"
+        $"  effective: {effective}"
+        "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ] ]
+
+/// A layered explanation of one immutable function's authority. Requirements
+/// say what its reachable code may request; actual authorization remains the
+/// runtime intersection shown here, with exact paths/URLs decided per call.
+let accessReportLines
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (hash: String)
+  : List<String> =
+  let (effects, complete) = Command.permissionRequirementsForHash hash
+  let (bundled, packagePolicy) = Command.packageAccess accountID hash
+  let pinnedNames =
+    Command.pins accountID
+    |> Stdlib.List.filter (fun pair ->
+      let (_name, pinnedHash) = pair in pinnedHash == hash)
+    |> Stdlib.List.map Stdlib.Tuple2.first
+  Command.renderAccessReport
+    (Command.AccessReportFacts
+      { hash = hash
+        effects = effects
+        complete = complete
+        ceiling = Command.ceilingForHash hash
+        bundled = bundled
+        packagePolicy = packagePolicy
+        pinnedNames = pinnedNames
+        instancePolicy = Command.currentPolicy () })
+
+
+// Instance policy edits.
+
+let invalidRule (args: List<String>) : String =
+  "invalid permission rule: " ++ Stdlib.String.join args " "
+
+/// External shells have already grouped quoted arguments, while the
+/// interactive CLI's general command splitter leaves quote fragments in the
+/// list. Re-tokenize only the latter; direct argv remains lossless for an
+/// argument that itself contains spaces.
+let parseRuleArgs
+  (args: List<String>)
+  : Stdlib.Option.Option<List<LanguageTools.Permissions.Rule>> =
+  let hasQuotedFragment =
+    args
+    |> Stdlib.List.any (fun arg ->
+      Stdlib.String.startsWith arg "'" || Stdlib.String.startsWith arg "\"")
+  if hasQuotedFragment then
+    LanguageTools.Permissions.parseRuleText (Stdlib.String.join args " ")
+  else
+    LanguageTools.Permissions.parseRule args
+
+/// Read-modify-write the instance policy and report. <param edit> returns the
+/// next policy, or the message for input that did not parse.
+let editPolicy
+  (edit: LanguageTools.Permissions.Policy -> Stdlib.Result.Result<LanguageTools.Permissions.Policy, String>)
+  (success: String)
+  : Unit =
+  match edit (Command.currentPolicy ()) with
+  | Ok next ->
+    Command.writePolicy next
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success success)
+  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+
+let addRules
+  (denied: Bool)
+  (args: List<String>)
+  (current: LanguageTools.Permissions.Policy)
+  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
+  match Command.parseRuleArgs args with
+  | None -> Stdlib.Result.Result.Error(Command.invalidRule args)
+  | Some rules ->
+    if denied then
+      Stdlib.Result.Result.Ok(
+        { current with deny = Stdlib.List.append current.deny rules })
+    else
+      Stdlib.Result.Result.Ok(
+        { current with allow = Stdlib.List.append current.allow rules })
+
+let removeRules
+  (args: List<String>)
+  (current: LanguageTools.Permissions.Policy)
+  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
+  match Command.parseRuleArgs args with
+  | None -> Stdlib.Result.Result.Error(Command.invalidRule args)
+  | Some rules ->
+    let keep (rule: LanguageTools.Permissions.Rule) : Bool =
+      Stdlib.Bool.not (Stdlib.List.member rules rule)
+    Stdlib.Result.Result.Ok(
+      { current with
+          allow = current.allow |> Stdlib.List.filter keep
+          deny = current.deny |> Stdlib.List.filter keep })
+
+/// `set a; deny b; c` replaces the whole policy.
+let replacePolicy
+  (specs: List<String>)
+  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
+  let specs =
+    (Stdlib.String.split (Stdlib.String.join specs " ") ";")
+    |> Stdlib.List.map Stdlib.String.trim
+    |> Stdlib.List.filter (fun spec -> spec != "")
+  match LanguageTools.Permissions.parse specs with
+  | Ok policy -> Stdlib.Result.Result.Ok policy
+  | Error bad -> Stdlib.Result.Result.Error $"invalid permission rule: {bad}"
+
+
+// Named consumer approvals.
+// The user-facing surface for account-scoped package approvals and version
+// pins (docs/effects.md). Hashes stay internal; output shows short version
+// identifiers only.
+
+/// Resolve a logical name to its latest published version on this branch.
+let latestVersion
+  (branchId: Uuid)
+  (name: String)
+  : Stdlib.Option.Option<String> =
+  let location = LanguageTools.ProgramTypes.parsePackageLocation name
+  match LanguageTools.PackageManager.Function.find branchId location with
+  | Some hash ->
+    Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString hash)
+  | None -> Stdlib.Option.Option.None
+
+/// The version <param name> is pinned to for this account, if any.
+let pinnedVersion
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (name: String)
+  : Stdlib.Option.Option<String> =
+  (Command.pins accountID)
+  |> Stdlib.List.findFirst (fun pair -> let (pinned, _hash) = pair in pinned == name)
+  |> Stdlib.Option.map (fun pair -> let (_pinned, hash) = pair in hash)
+
+/// `requirements`/`show` accept a logical name (resolved to its latest version)
+/// or a raw hash for diagnostics.
+let resolveVersionArg
+  (state: Cli.AppState)
+  (arg: String)
+  : Stdlib.Option.Option<String> =
+  if Stdlib.String.contains arg "." then
+    Command.latestVersion state.currentBranchId arg
+  else
+    // A raw hash must name a stored version; otherwise the analysis would
+    // report an unknown version as merely "incomplete".
+    match
+      LanguageTools.PackageManager.Function.get
+        (LanguageTools.ProgramTypes.Hash.Hash arg)
+    with
+    | Some _ -> Stdlib.Option.Option.Some arg
+    | None -> Stdlib.Option.Option.None
+
+let stdinIsInteractive () : Bool =
+  (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).inputIsTerminal
+
+/// Print a version's requirements, warning when analysis is incomplete.
+/// Returns completeness so callers can acknowledge a possibly short list.
+let showVersionRequirements (heading: String) (hash: String) : Bool =
+  let requirements = Command.permissionRequirementsForHash hash
+  let (_effects, complete) = requirements
+  Stdlib.printLine heading
+  Stdlib.printLine
+    $"  permission requirements: {Command.describeRequirements requirements}"
+  if Stdlib.Bool.not complete then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.warning
+        "  this function runs code it is given (a callback), and those effects are not known here, so the list above may be short. The instance and run policies still bound whatever it does.")
+  else
+    ()
+  complete
+
+/// The rules given after a name on `approve`/`update`, `;`-separated like
+/// `set`. Ok None when there are none.
+let parseApprovalRules
+  (specs: List<String>)
+  : Stdlib.Result.Result<Stdlib.Option.Option<LanguageTools.Permissions.Policy>, String> =
+  if Stdlib.List.isEmpty specs then Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+  else
+    match Command.replacePolicy specs with
+    | Ok policy -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some policy)
+    | Error message -> Stdlib.Result.Result.Error message
+
+/// Lines describing the policy a version is approved under, for the prompt.
+let describeApprovalRules
+  (rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>)
+  : List<String> =
+  match rules with
+  | None -> []
+  | Some policy ->
+    Stdlib.List.append
+      [ "  approved under these rules (the package and everything it calls):" ]
+      (Command.indentedPolicyLines policy)
+
+let pinFailureText (failure: LanguageTools.Permissions.PinFailure) : String =
+  match failure with
+  | Refused message -> Stdlib.Cli.UI.Colors.error message
+  | ContractChanged diffs ->
+    Stdlib.Cli.UI.Colors.warning
+      ("the permission contract changed — review required:\n"
+       ++ (diffs |> Stdlib.List.map (fun diff -> $"    {diff}") |> Stdlib.String.join "\n"))
+
+/// Pin <param hash> to <param name> and report: <param accepted> on success,
+/// the refusal (then <param kept>) when it cannot be approved. Some diffs when
+/// the pin operation wants a second review of a changed contract and
+/// <param acknowledgeContractChange> was false; the caller shows them and
+/// asks.
+let pinReporting
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (name: String)
+  (hash: String)
+  (rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>)
+  (acknowledgeIncomplete: Bool)
+  (acknowledgeContractChange: Bool)
+  (accepted: String)
+  (kept: String)
+  : Stdlib.Option.Option<List<String>> =
+  match
+    Command.pinFor
+      accountID
+      name
+      hash
+      rules
+      acknowledgeIncomplete
+      acknowledgeContractChange
+  with
+  | Ok _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success accepted)
+    Stdlib.Option.Option.None
+  | Error(Refused message) ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+    if kept != "" then Stdlib.printLine kept else ()
+    Stdlib.Option.Option.None
+  | Error(ContractChanged diffs) -> Stdlib.Option.Option.Some diffs
+
+let approveNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Unit =
+  match Command.parseApprovalRules specs with
+  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+  | Ok rules ->
+    match Command.latestVersion state.currentBranchId name with
+    | None ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {name}")
+    | Some hash ->
+      let complete =
+        Command.showVersionRequirements $"{name} {Command.shortVersion hash}" hash
+      Stdlib.printLines (Command.describeApprovalRules rules)
+      // Interactively confirm; a non-interactive explicit `approve` is itself
+      // the consent (the trusted command was invoked with this exact name).
+      let accepted =
+        if Command.stdinIsInteractive () then
+          Stdlib.Cli.UI.Prompt.confirm "Approve this version and pin the name to it?"
+        else
+          true
+      if accepted then
+        // An explicit `permissions approve <name>` showed the requirements and
+        // named this exact version; that is the contract review, so a changed
+        // contract is acknowledged up front and no second review can be asked.
+        let _ =
+          Command.pinReporting
+            state.accountID
+            name
+            hash
+            rules
+            (Stdlib.Bool.not complete)
+            true
+            $"✓ approved {name} {Command.shortVersion hash}; the name follows this version"
+            ""
+        ()
+      else
+        Stdlib.printLine "not approved"
+
+/// Review a newer version: only an explicit yes accepts it; otherwise the pin
+/// is kept. A changed contract requires a second confirmation. Updates always
+/// prompt, including non-interactive runs.
+let updateNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Unit =
+  let accountID = state.accountID
+  match Command.parseApprovalRules specs with
+  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+  | Ok givenRules ->
+    match Command.pinnedVersion accountID name with
+    | None ->
+      Stdlib.printLine
+        $"{name} is not pinned; run `permissions approve {name}` first"
+    | Some pinned ->
+      match Command.latestVersion state.currentBranchId name with
+      | None ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {name}")
+      | Some latest ->
+        if latest == pinned then
+          Stdlib.printLine $"{name} is up to date ({Command.shortVersion pinned})"
+        else
+          // Rules given now win; otherwise the rules the consumer wrote when
+          // approving carry over, and a derived effect set is recomputed from
+          // the new version. Provenance is stored with the approval, so an
+          // explicit `clock` is never mistaken for a derived one.
+          let rules =
+            match givenRules with
+            | Some _ -> givenRules
+            | None -> Command.explicitApprovalFor accountID pinned
+          let complete =
+            Command.showVersionRequirements
+              $"{name}: {Command.shortVersion pinned} → {Command.shortVersion latest}"
+              latest
+          Stdlib.printLines (Command.describeApprovalRules rules)
+          let acknowledgeIncomplete = Stdlib.Bool.not complete
+          let kept = $"keeping {Command.shortVersion pinned}"
+          let accepted = $"✓ {name} now follows {Command.shortVersion latest}"
+          let pin (acknowledgeContractChange: Bool) : Stdlib.Option.Option<List<String>> =
+            Command.pinReporting
+              accountID
+              name
+              latest
+              rules
+              acknowledgeIncomplete
+              acknowledgeContractChange
+              accepted
+              kept
+          if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.confirm "Accept the new version?") then
+            Stdlib.printLine kept
+          else
+            match pin false with
+            | None -> ()
+            | Some diffs ->
+              Stdlib.printLine
+                (Command.pinFailureText
+                  (LanguageTools.Permissions.PinFailure.ContractChanged diffs))
+              // The differences were shown; accepting them is the review.
+              if Stdlib.Cli.UI.Prompt.confirm "Accept the new version and its changed permission contract?" then
+                let _ = pin true
+                ()
+              else
+                Stdlib.printLine kept
+
+/// Run <param show> against the version <param target> names, or report an
+/// unknown function.
+let withVersion
+  (state: Cli.AppState)
+  (target: String)
+  (show: String -> List<String>)
+  : Unit =
+  match Command.resolveVersionArg state target with
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {target}")
+  | Some hash -> Stdlib.printLines (show hash)
+
+let printListOrNone (items: List<String>) : Unit =
+  if Stdlib.List.isEmpty items then Stdlib.printLine "none"
+  else Stdlib.printLines items
+
+
+/// Every subcommand with the usage it prints when its argument is missing;
+/// None for the ones that take no argument. Drives `execute`'s
+/// missing-argument arm and `complete`.
+val subcommands =
+  [ ("list", Stdlib.Option.Option.None)
+    ("allow", Stdlib.Option.Option.Some "allow <rule>")
+    ("deny", Stdlib.Option.Option.Some "deny <rule>")
+    ("remove", Stdlib.Option.Option.Some "remove <rule>")
+    // `set` with nothing would otherwise replace the policy with deny-all;
+    // that is what `clear` is for.
+    ("set", Stdlib.Option.Option.Some "set <rule>;… (or `clear`)")
+    ("clear", Stdlib.Option.Option.None)
+    ("approve", Stdlib.Option.Option.Some "approve <fn> [rule,…]")
+    ("update", Stdlib.Option.Option.Some "update <fn> [rule,…]")
+    ("unpin", Stdlib.Option.Option.Some "unpin <fn>")
+    ("pins", Stdlib.Option.Option.None)
+    ("requirements", Stdlib.Option.Option.Some "requirements <fn|hash>")
+    ("show", Stdlib.Option.Option.Some "show <fn|hash>")
+    ("approvals", Stdlib.Option.Option.None)
+    ("revoke-package", Stdlib.Option.Option.Some "revoke-package <hash>") ]
+
+/// The usage line for a subcommand given without its argument, if it needs one.
+let usageOf (subcommand: String) : Stdlib.Option.Option<String> =
+  Command.subcommands
+  |> Stdlib.List.findFirst (fun (name, _usage) -> name == subcommand)
+  |> Stdlib.Option.andThen (fun (_name, usage) -> usage)
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | []
+  | [ "list" ] -> Stdlib.printLines (Command.instancePolicyLines ())
+  | [ "help" ] -> Stdlib.printLine (Command.help state)
+  // Before the `<subcommand> :: args` arms: a subcommand given with no
+  // argument must report usage, not run with an empty argument list (`set`
+  // with nothing would replace the policy with deny-all).
+  | [ subcommand ] when Stdlib.Option.isSome (Command.usageOf subcommand) ->
+    let usage = Stdlib.Option.withDefault (Command.usageOf subcommand) ""
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"missing argument; usage: permissions {usage}")
+  | "allow" :: rule ->
+    Command.editPolicy
+      (fun current -> Command.addRules false rule current)
+      "✓ policy updated"
+  | "deny" :: rule ->
+    Command.editPolicy
+      (fun current -> Command.addRules true rule current)
+      "✓ policy updated"
+  | "remove" :: rule ->
+    Command.editPolicy
+      (fun current -> Command.removeRules rule current)
+      "✓ rule removed"
+  | [ "clear" ] ->
+    Command.editPolicy
+      (fun _ -> Stdlib.Result.Result.Ok(LanguageTools.Permissions.empty ()))
+      "✓ policy is now deny-all"
+  | "set" :: specs ->
+    Command.editPolicy (fun _ -> Command.replacePolicy specs) "✓ policy replaced"
+  | "approve" :: name :: rules -> Command.approveNamed state name rules
+  | "update" :: name :: rules -> Command.updateNamed state name rules
+  | [ "unpin", name ] ->
+    Command.unpinFor state.accountID name
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {name} is no longer pinned")
+  | [ "pins" ] ->
+    Command.printListOrNone
+      ((Command.pins state.accountID)
+       |> Stdlib.List.map (fun pair ->
+         let (name, hash) = pair in $"{name}  {Command.shortVersion hash}"))
+  | [ "requirements", target ] ->
+    Command.withVersion state target (fun hash ->
+      [ Command.requirementDisplay hash ])
+  | [ "show", target ] ->
+    Command.withVersion state target (fun hash ->
+      Command.accessReportLines state.accountID hash)
+  | [ "revoke-package", hash ] ->
+    Command.revokeHash state.accountID hash
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ package approval revoked")
+  | [ "approvals" ] ->
+    Command.printListOrNone (Command.approvedHashes state.accountID)
+    if Command.approvalsStale () then
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.warning
+          "! approval analysis changed since these were approved; re-review with `permissions approve <fn>`")
+    else
+      ()
+  | _ ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        ("unknown permissions command: " ++ Stdlib.String.join args " "))
+    Stdlib.printLine (Command.help state)
+  state
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  Command.subcommands
+  |> Stdlib.List.map (fun (name, _usage) -> Cli.Completion.simple name)
+
+let help (_state: Cli.AppState) : String =
+  [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"
+    "                   | set <rule>;… | clear"
+    "                   | approve <fn> [rule,…] | update <fn> [rule,…] | unpin <fn> | pins"
+    "                   | requirements <fn|hash> | show <fn|hash>"
+    "                   | approvals | revoke-package <hash>"
+    ""
+    "The instance policy is local and deny-by-default. Every actual host operation"
+    "must be allowed by the instance, run and package layers."
+    ""
+    "Named approvals (account-scoped):"
+    "  approve <fn>   review the latest version's permission requirements, approve it,"
+    "                 and pin the name to it. Rules after the name confine the"
+    "                 function and everything it calls to those resources, e.g."
+    "                 approve MyApp.fetch http GET 'https://api.example.com'"
+    "  update <fn>    review a newer version: y accepts, anything else keeps the pin;"
+    "                 a changed permission contract asks again. Rules given on"
+    "                 approve carry over unless new ones are given"
+    "  unpin <fn>     stop pinning; the name follows the latest version again"
+    "  approvals      the approved versions (hashes); revoke-package drops one and"
+    "                 the dependencies nothing else needs"
+    ""
+    "Rules:"
+    "  <effect>                         e.g. clock, random, stdout, http, process,"
+    "                                   package-read, trace-write (all of an effect)"
+    "  http <METHOD> [URL]              exact URL or explicit *"
+    "  http-server <PORT|*>"
+    "  file read|write|read+write [ROOT]"
+    "  env read|write|read+write [NAME]"
+    "  db read|write|read+write [NAME]"
+    "  process <ABSOLUTE-EXECUTABLE|*> [ARG…]"
+    "  native                           builtins that can reach anything (SQLite SQL, raw"
+    "                                   descriptors, process handles); no narrower form exists"
+    "  all"
+    "  deny <rule> (in `set`)           an explicit deny; deny beats allow" ]
+  |> Stdlib.String.join "\n"
