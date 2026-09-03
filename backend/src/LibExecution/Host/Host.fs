@@ -750,7 +750,9 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ProcessRunInteractive(program, args) ->
     resolveProcess program args (fun program args ->
       attempt (fun () ->
-        Ok(Response.ProcessOutcome(HostProcess.runInteractive program args, "", ""))))
+        Ok(
+          Response.ProcessOutcome(HostProcess.runInteractive program args, "", "")
+        )))
   | Operation.ProcessSpawn(program, args) ->
     resolveProcess program args (fun program args ->
       produce (fun () -> Response.ProcessHandle(HostProcess.spawn program args)))
