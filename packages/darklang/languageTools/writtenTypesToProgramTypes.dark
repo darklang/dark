@@ -41,13 +41,8 @@ let locationPlaceholderHash
   ProgramTypes.Hash.Hash $"{owner}.{modulesPart}.{name}"
 
 
-let stabilizePackageOps
-  (ops: List<ProgramTypes.PackageOp>)
-  : List<ProgramTypes.PackageOp> =
-  Builtin.pmStabilizeHashes ops
-
 /// The reference <param ops> bind at <param location>. Use it after
-/// <fn stabilizePackageOps>: a parsed item's own `hash` field is still the
+/// <fn PackageManager.stabilizeHashes>: a parsed item's own `hash` field is still the
 /// parser's placeholder, and only the stabilized `SetName` op carries the
 /// real content hash. None when no op binds that location.
 let referenceBoundAt

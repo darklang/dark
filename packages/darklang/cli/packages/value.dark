@@ -103,7 +103,7 @@ let createValueInline
 
           // Create ops: AddValue and SetName, with stabilized hashes.
           let ops =
-            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+            LanguageTools.PackageManager.stabilizeHashes
               [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
                 LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash) ]
           // The stabilized hash is what propagation must use; the parser's

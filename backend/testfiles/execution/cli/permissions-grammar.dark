@@ -129,8 +129,8 @@ module PermissionsGrammar =
     [ Darklang.LanguageTools.Permissions.Rule.HttpServer(
         Darklang.LanguageTools.Permissions.Scope.Only 8080) ]
 
-  ([ "stdin"; "stdout"; "clock"; "random"
-     "package-read"; "package-write"; "trace-read"; "trace-write" ]
+  ([ "stdin", "stdout", "clock", "random"
+     "package-read", "package-write", "trace-read", "trace-write" ]
    |> Stdlib.List.all (fun name ->
      (Darklang.LanguageTools.Permissions.parseRuleText name)
      == (Darklang.LanguageTools.Permissions.effectOfName name

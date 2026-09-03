@@ -18,7 +18,8 @@ module AuthoringDuplicates =
                   typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
                   description = "" } ]
           returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
-          description = "" }
+          description = ""
+          permissionCeiling = Stdlib.Option.Option.None }
     [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn
       Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
         Darklang.LanguageTools.ProgramTypes.PackageLocation

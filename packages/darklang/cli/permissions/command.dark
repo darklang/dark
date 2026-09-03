@@ -625,8 +625,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "approve" :: name :: rules -> Command.approveNamed state name rules
   | "update" :: name :: rules -> Command.updateNamed state name rules
   | [ "unpin", name ] ->
-    Command.unpinFor state.accountID name
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {name} is no longer pinned")
+    // Pins are keyed by the name as it was approved, so an unmatched name
+    // removes nothing; say so rather than report a release that did not happen.
+    let pinnedNames =
+      Command.pins state.accountID
+      |> Stdlib.List.map (fun pair -> let (pinned, _hash) = pair in pinned)
+    if Stdlib.List.member_v0 pinnedNames name then
+      Command.unpinFor state.accountID name
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {name} is no longer pinned")
+    else
+      Stdlib.printLine (
+        Stdlib.Cli.UI.Colors.error
+          $"{name} is not pinned; `permissions pins` lists the pinned names")
   | [ "pins" ] ->
     Command.printListOrNone
       ((Command.pins state.accountID)

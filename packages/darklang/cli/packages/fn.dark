@@ -129,7 +129,7 @@ let createFnInline
 
           // Create ops: AddFn and SetName, with stabilized hashes.
           let ops =
-            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+            LanguageTools.PackageManager.stabilizeHashes
               [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
                 LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
 

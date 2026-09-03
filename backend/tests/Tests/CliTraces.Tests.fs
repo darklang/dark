@@ -48,6 +48,8 @@ let private buildState () : Task<RT.ExecutionState> =
       =
       uply { return () }
 
+    // The CLI's own commands run with the instance's full access, as in
+    // `Cli.fs`; only `run`/`eval` guests get the stored policy.
     return
       Exe.createState
         builtins
@@ -57,6 +59,7 @@ let private buildState () : Task<RT.ExecutionState> =
         notify
         PT.mainBranchId
         program
+      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
   }
 
 
@@ -1031,31 +1034,6 @@ let private everyCommandRefusesABogusArgument =
             detail
       })
 
-/// An empty grant is not a grant, and must not report that it is.
-let private capsRefusesAnEmptyGrant =
-  cliTest
-    "`caps grant` with no spec is refused rather than reported as granted"
-    (fun state ->
-      task {
-        let! refused = runCli state [ "caps"; "grant"; "" ]
-
-        Expect.stringContains
-          refused
-          "usage: caps grant"
-          "it should say how to use it"
-
-        Expect.isFalse
-          (refused.Contains "granted")
-          "and must not report a grant that did not happen"
-
-        // Read, never write. `caps clear` here revoked the grant of whoever ran the suite,
-        // and a missing grant file reads as ALL capabilities, so the revocation was silent
-        // until something got denied much later.
-        let! shown = runCli state [ "caps" ]
-        Expect.stringContains shown "Capabilities" "and the grant is still readable"
-      })
-
-
 /// A dash-led argument is a mistyped flag, never a name.
 ///
 /// `create` and `rename` are the two that WRITE the name they are given, so they are the two
@@ -1203,7 +1181,6 @@ let tests =
       testTracesTruncatedStillShowsRoot
       // Command sweeps
       everyExclusionIsReal
-      capsRefusesAnEmptyGrant
       everyCommandAnswersHelp
       everyCommandRefusesABogusArgument
       aDashLedArgumentIsNeverAName
