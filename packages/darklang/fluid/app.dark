@@ -50,7 +50,7 @@ let discoveredSpecs (branchId: Uuid) : List<Spec> =
 
 /// Built-in specs (prims + PT), then whatever the user has declared on this branch.
 let registryFor (branchId: Uuid) : Registry =
-  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), discoveredSpecs branchId ])
+  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), discoveredSpecs branchId ])
 
 let defaultRegistry () : Registry = registryFor Darklang.SCM.Branch.mainBranchId
 
@@ -61,7 +61,7 @@ let fnTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
   match Darklang.LanguageTools.PackageManager.Function.find branchId location with
   | Some hash ->
     match Darklang.LanguageTools.PackageManager.Function.get hash with
-    | Some fn -> Stdlib.Result.Result.Ok((Slot.Filled(PT.toDoc fn.body), Target.FnBody(fn, location)))
+    | Some fn -> Stdlib.Result.Result.Ok((Slot.Filled(PT.Fn.toDoc location.name fn), Target.FnBody(fn, location)))
     | None -> Stdlib.Result.Result.Error $"no function with that hash: {name}"
   | None -> Stdlib.Result.Result.Error $"no function named {name}"
 
@@ -95,13 +95,13 @@ let saveFnBody
   : Stdlib.Result.Result<String, String> =
   match root with
   | Filled n ->
-    match PT.fromDoc n with
-    | Ok body ->
+    match PT.Fn.fromDoc fn n with
+    | Ok((_name, updated)) ->
       let branchId = Darklang.SCM.Branch.mainBranchId
       let ctx =
         { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
             preferredLocation = Stdlib.Option.Option.Some location }
-      let source = Darklang.PrettyPrinter.ProgramTypes.packageFn ctx { fn with body = body }
+      let source = Darklang.PrettyPrinter.ProgramTypes.packageFn ctx updated
       let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
       match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
       | Ok _ -> Stdlib.Result.Result.Ok location.name

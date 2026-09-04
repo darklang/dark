@@ -263,6 +263,55 @@ let allText (segments: List<Darklang.LanguageTools.ProgramTypes.StringSegment>) 
   else
     Stdlib.Option.Option.None
 
+/// Replace `EArg i` with the i-th parameter name and `ESelf` with the function name, as `EVariable`s, so
+/// a function body edits with the names a person reads and writes. On save the body is printed with those
+/// names and the parser re-lowers them to `EArg`/`ESelf` in context, so nothing is lost. Only used by the
+/// function shell; a free-standing expression has no args or self.
+let namedArgs (paramNames: List<String>) (selfName: String) (e: Expr) : Expr =
+  let go (x: Expr) : Expr = namedArgs paramNames selfName x
+  let goSeg (seg: StringSegment) : StringSegment =
+    match seg with
+    | StringText t -> StringSegment.StringText t
+    | StringInterpolation ie -> StringSegment.StringInterpolation(go ie)
+  let goPipe (pe: PipeExpr) : PipeExpr =
+    match pe with
+    | EPipeVariable(id, n, es) -> PipeExpr.EPipeVariable(id, n, es |> Stdlib.List.map (fun a -> go a))
+    | EPipeLambda(id, ps, b) -> PipeExpr.EPipeLambda(id, ps, go b)
+    | EPipeInfix(id, op, ie) -> PipeExpr.EPipeInfix(id, op, go ie)
+    | EPipeFnCall(id, nr, ta, es) -> PipeExpr.EPipeFnCall(id, nr, ta, es |> Stdlib.List.map (fun a -> go a))
+    | EPipeEnum(id, tnr, c, es) -> PipeExpr.EPipeEnum(id, tnr, c, es |> Stdlib.List.map (fun a -> go a))
+  let goCase (c: MatchCase) : MatchCase =
+    Darklang.LanguageTools.ProgramTypes.MatchCase
+      { pat = c.pat
+        whenCondition = (match c.whenCondition with | Some w -> Stdlib.Option.Option.Some(go w) | None -> Stdlib.Option.Option.None)
+        rhs = go c.rhs }
+  match e with
+  | EArg(id, i) ->
+    match Stdlib.List.getAt paramNames i with
+    | Some nm -> Expr.EVariable(id, nm)
+    | None -> e
+  | ESelf id -> Expr.EVariable(id, selfName)
+  | EList(id, es) -> Expr.EList(id, es |> Stdlib.List.map (fun x -> go x))
+  | EDict(id, ps) -> Expr.EDict(id, ps |> Stdlib.List.map (fun kv -> let (k, v) = kv
+                                                                     (go k, go v)))
+  | ETuple(id, a, b, rest) -> Expr.ETuple(id, go a, go b, rest |> Stdlib.List.map (fun x -> go x))
+  | ERecord(id, tn, ta, fs) -> Expr.ERecord(id, tn, ta, fs |> Stdlib.List.map (fun nv -> let (n, v) = nv
+                                                                                         (n, go v)))
+  | ERecordUpdate(id, r, us) -> Expr.ERecordUpdate(id, go r, us |> Stdlib.List.map (fun nv -> let (n, v) = nv
+                                                                                             (n, go v)))
+  | EEnum(id, tn, ta, c, fs) -> Expr.EEnum(id, tn, ta, c, fs |> Stdlib.List.map (fun x -> go x))
+  | ELet(id, p, v, b) -> Expr.ELet(id, p, go v, go b)
+  | ERecordFieldAccess(id, r, f) -> Expr.ERecordFieldAccess(id, go r, f)
+  | EIf(id, c, t, el) -> Expr.EIf(id, go c, go t, (match el with | Some x -> Stdlib.Option.Option.Some(go x) | None -> Stdlib.Option.Option.None))
+  | EMatch(id, a, cs) -> Expr.EMatch(id, go a, cs |> Stdlib.List.map (fun c -> goCase c))
+  | EPipe(id, first, steps) -> Expr.EPipe(id, go first, steps |> Stdlib.List.map (fun st -> goPipe st))
+  | EInfix(id, op, l, r) -> Expr.EInfix(id, op, go l, go r)
+  | ELambda(id, ps, b) -> Expr.ELambda(id, ps, go b)
+  | EApply(id, f, ta, args) -> Expr.EApply(id, go f, ta, args |> Stdlib.List.map (fun x -> go x))
+  | EString(id, segs) -> Expr.EString(id, segs |> Stdlib.List.map (fun sg -> goSeg sg))
+  | EStatement(id, a, b) -> Expr.EStatement(id, go a, go b)
+  | _ -> e
+
 let toDoc (e: Expr) : Node =
   match e with
   | EUnit _ -> Node.make (exprKind "EUnit") []
@@ -1500,3 +1549,113 @@ module Types =
           simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
           simpleType "TFn" [ Piece.Punct "(", Piece.EachWith("args", [], [ Piece.Space, Piece.Punct "->", Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Space, Piece.Slot "ret", Piece.Punct ")" ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
           simpleType "TCustomType" [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Space ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
+
+
+// ============================================================================
+// The function shell: a whole PackageFn as one document (name, typed params,
+// return type, body), so `dark edit <fn>` edits the signature, not just the body.
+// ============================================================================
+
+module Fn =
+  type PackageFn = Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+  type Parameter = Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+
+  val fnType = "Darklang.Fluid.PT.Fn.Function"
+  val paramType = "Darklang.Fluid.PT.Fn.Param"
+
+  let fnKind () : Kind = Kind.named fnType
+  let paramKind () : Kind = Kind.named paramType
+  let paramExpect () : Expect = Expect.ofKind (paramKind ()) "param"
+
+  let paramToDoc (p: Parameter) : Node =
+    Node.make (paramKind ()) [ PT.text "name" p.name, PT.one "type" (Types.toDoc p.typ) ]
+
+  /// A function as a document. `name` is seeded from the item's location; `_hash`, typeParams and
+  /// description are carried opaquely so a save can rebuild the whole PackageFn.
+  let toDoc (name: String) (fn: PackageFn) : Node =
+    Node.make
+      (fnKind ())
+      [ PT.text "name" name
+        PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString fn.hash)
+        PT.text "_desc" fn.description
+        PT.many "params" (fn.parameters |> Stdlib.List.map (fun p -> paramToDoc p)) (paramExpect ())
+        PT.one "ret" (Types.toDoc fn.returnType)
+        PT.one "body" (PT.toDoc (PT.namedArgs (fn.parameters |> Stdlib.List.map (fun p -> p.name)) name fn.body)) ]
+
+  let paramFromDoc (n: Node) : Stdlib.Result.Result<Parameter, String> =
+    match Types.slotType n "type" with
+    | Ok t ->
+      Stdlib.Result.Result.Ok(
+        Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+          { name = PT.textOf n "name"; typ = t; description = "" })
+    | Error e -> Stdlib.Result.Result.Error e
+
+  /// Rebuild a PackageFn from `orig` (for the fields the document doesn't edit) plus the document's
+  /// params, return type and body. Returns the (possibly changed) name alongside.
+  let fromDoc (orig: PackageFn) (n: Node) : Stdlib.Result.Result<(String * PackageFn), String> =
+    let params =
+      Node.items n "params"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled c -> paramFromDoc c
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+    let ret =
+      match Node.slot n "ret" with
+      | Some(Filled c) -> Types.fromDoc c
+      | _ -> Stdlib.Result.Result.Error "the return type is a hole"
+    let body =
+      match Node.slot n "body" with
+      | Some(Filled c) -> PT.fromDoc c
+      | _ -> Stdlib.Result.Result.Error "the body is a hole"
+    match (params, ret, body) with
+    | (Ok ps, Ok r, Ok b) ->
+      Stdlib.Result.Result.Ok(
+        (PT.textOf n "name", { orig with parameters = ps; returnType = r; body = b }))
+    | (Error e, _, _) -> Stdlib.Result.Result.Error e
+    | (_, Error e, _) -> Stdlib.Result.Result.Error e
+    | (_, _, Error e) -> Stdlib.Result.Result.Error e
+
+  // --- Specs ---
+
+  let paramSpec () : Spec =
+    { (Spec.simple
+        (paramKind ())
+        [ Piece.Punct "("
+          Piece.Text("name", Layout.Style.Name)
+          Piece.Punct ":"
+          Piece.Space
+          Piece.Slot "type"
+          Piece.Punct ")" ]
+        (Node.make (paramKind ()) [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
+        summary = PT.exprSummary }
+
+  /// The whole function, laid out the way it reads as source: `let name (params) : ret =` then the body,
+  /// indented on its own lines (vertical bias).
+  let fnSpec () : Spec =
+    { (Spec.simple
+        (fnKind ())
+        [ Piece.Group
+            [ Piece.Keyword "let"
+              Piece.Space
+              Piece.Text("name", Layout.Style.Name)
+              Piece.EachWith("params", [ Piece.Space ], [])
+              Piece.Space
+              Piece.Punct ":"
+              Piece.Space
+              Piece.Slot "ret"
+              Piece.Space
+              Piece.Punct "=" ]
+          Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ]
+        (Node.make
+          (fnKind ())
+          [ PT.text "name" "unnamed"
+            PT.text "_hash" ""
+            PT.text "_desc" ""
+            ("params", Field.Many([], paramExpect ()))
+            ("ret", Field.One(Slot.Empty(Types.typeExpect "return")))
+            ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
+        summary = (fun n -> "let " ++ (PT.textOf n "name")) }
+
+  let specs () : List<Spec> = [ fnSpec (), paramSpec () ]

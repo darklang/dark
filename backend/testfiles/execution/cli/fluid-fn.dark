@@ -1,0 +1,63 @@
+// The function shell: a whole PackageFn edits as one document -- name, typed params, return type, body.
+// A constructed PackageFn is used so the test needs no package store.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs ()
+          Darklang.Fluid.PT.specs ()
+          Darklang.Fluid.PT.Types.specs ()
+          Darklang.Fluid.PT.Fn.specs () ])
+
+  let param (name: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = name; typ = t; description = "" }
+
+  // let inc (n: Int) : Int = n + 1   -- body references the param as EArg 0
+  let inc () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "deadbeef"
+        body =
+          Darklang.LanguageTools.ProgramTypes.Expr.EInfix(
+            1L,
+            Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus,
+            Darklang.LanguageTools.ProgramTypes.Expr.EArg(2L, 0),
+            Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 1))
+        typeParams = []
+        parameters = [ param "n" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        description = "" }
+
+  let doc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "inc" (inc ()))
+
+  let render () : String = Darklang.Fluid.Debug.render (reg ()) 70 (doc ())
+
+
+module Rendering =
+  // The whole signature is on screen, and the param reference in the body reads as its name, not earg0.
+  (Fixtures.render ()) = "let inc (n: Int) : Int =\n  n + 1"
+
+
+module RoundTrip =
+  // Lowering the document back gives a PackageFn with the same shape; the body keeps the param name (the
+  // parser re-lowers it to EArg on save).
+  let shape () : (String * Int) =
+    match Fixtures.doc () with
+    | Filled n ->
+      match Darklang.Fluid.PT.Fn.fromDoc (Fixtures.inc ()) n with
+      | Ok((name, fn)) -> (name, Stdlib.List.length fn.parameters)
+      | Error _ -> ("err", -1)
+    | _ -> ("not-a-node", -1)
+
+  (Fixtures.doc () |> fun _ -> RoundTrip.shape ()) = ("inc", 1)
+
+
+module Editing =
+  // Start from an empty function hole and build a signature: params complete their types, the return type
+  // completes, the body edits.
+  let fnHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.Fn.Function") "fn")
+
+  // A param node's type slot completes like any type hole.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.paramToDoc (Fixtures.param "x" Darklang.LanguageTools.ProgramTypes.TypeReference.TString)))) =
+    "(x: String)"
