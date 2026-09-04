@@ -6,11 +6,17 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module RT = LibExecution.RuntimeTypes
-module Cap = LibExecution.Capabilities
+module Effects = LibExecution.Effects
+module PT = LibExecution.ProgramTypes
 module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RTE = RT.RuntimeError
 module Dval = LibExecution.Dval
+
+let private allowAllAccess =
+  Some(
+    LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
+  )
 
 module E = TestValues.Expressions
 module PM = TestValues.PM
@@ -437,6 +443,9 @@ module Infix =
 
 
 module Lambdas =
+  let private fullAccess =
+    LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
+
   module Identity =
     let unapplied =
       tCheckVM
@@ -447,6 +456,7 @@ module Lambdas =
             { exprId = E.Lambdas.Identity.id
               closedRegisters = []
               argsSoFar = []
+              access = fullAccess
               typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
@@ -466,6 +476,7 @@ module Lambdas =
             { exprId = E.Lambdas.Add.id
               closedRegisters = []
               argsSoFar = []
+              access = fullAccess
               typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
@@ -480,6 +491,7 @@ module Lambdas =
             { exprId = E.Lambdas.Add.id
               closedRegisters = []
               argsSoFar = [ RT.DInt64 1L ]
+              access = fullAccess
               typeSymbolTable = RT.TST.empty }
         ))
 
@@ -499,6 +511,7 @@ module Lambdas =
             { exprId = E.Lambdas.AddTuple.id
               closedRegisters = []
               argsSoFar = []
+              access = fullAccess
               typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
@@ -521,6 +534,7 @@ module Lambdas =
             { exprId = E.Lambdas.AddToClosedVars.id
               closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
               argsSoFar = []
+              access = fullAccess
               typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
@@ -599,6 +613,7 @@ module Fns =
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
               typeSymbolTable = RT.TST.empty
               typeArgs = []
+              access = allowAllAccess
               argsSoFar = [] }
         ))
 
@@ -611,6 +626,7 @@ module Fns =
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
               typeSymbolTable = RT.TST.empty
               typeArgs = []
+              access = allowAllAccess
               argsSoFar = [ RT.DInt64 1 ] }
         ))
 
@@ -638,6 +654,7 @@ module Fns =
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
+                access = allowAllAccess
                 argsSoFar = [] }
           ))
 
@@ -650,6 +667,7 @@ module Fns =
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
+                access = allowAllAccess
                 argsSoFar = [ RT.DInt64 1 ] }
           ))
 
@@ -670,6 +688,7 @@ module Fns =
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
+                access = allowAllAccess
                 argsSoFar = [] }
           ))
 
@@ -738,54 +757,337 @@ module Statement =
   let tests = testList "Statement" [ simple; nested; shouldError ]
 
 
-module CapsGate =
-  // the call-site gate ENFORCES — a builtin whose capability isn't granted raises at runtime.
-  // `timeNowMs` needs `clock`; under noCaps it's denied, under allCaps (the default) it runs. Proves
-  // "blockers work" end-to-end through the interpreter.
+module PermissionsGate =
+  // The gate enforces the active permission policies.
   let clockCall () =
     eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
     |> PT2RT.Expr.toRT Map.empty 0 None
 
-  let denied =
-    testTask "an effectful builtin is DENIED when its capability isn't granted" {
-      let! exeState = executionStateFor TestValues.pm false Map.empty
-      let restricted : RT.ExecutionState = { exeState with grantedCaps = Cap.noCaps }
-      let! actual = LibExecution.Execution.executeExpr restricted (clockCall ())
-      match actual with
-      | Ok _ -> Expect.equal 1 2 "expected a capability-denied RTE, got success"
-      | Error(RTE.Error.UncaughtException(msg, _), _) ->
+  // The gate denies before this raw descriptor reaches the builtin body.
+  let nativeCall () =
+    eApply (eBuiltinFn "posixFdClose" 0) [] [ PT.EInt(gid (), -1I) ]
+    |> PT2RT.Expr.toRT Map.empty 0 None
+
+  let private denyAllAccess =
+    LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
+
+  let private denyAll (state : RT.ExecutionState) : RT.ExecutionState =
+    { state with access = denyAllAccess }
+
+  /// Check that a denial names the permission layer and requested resource.
+  let private expectDenied (names : List<string>) (actual : RT.ExecutionResult) =
+    match actual with
+    | Error(RTE.Error.UncaughtException(msg, _), _) ->
+      Expect.stringContains msg "permission denied" "the gate denied the operation"
+      for name in names do
+        Expect.stringContains msg name $"the denial names `{name}`"
+    | other -> Expect.equal 1 2 $"expected a permission denial, got {other}"
+
+  /// An allowed call may fail later; it must not fail at the permission gate.
+  let private expectNotDenied (actual : RT.ExecutionResult) =
+    match actual with
+    | Error(RTE.Error.UncaughtException(msg, _), _) ->
+      Expect.isFalse (msg.Contains "permission denied") "the gate must not deny"
+    | _ -> ()
+
+  let private dummyVM () =
+    RT.VMState.createWithoutTLID
+      { registerCount = 1; instructions = [ RT.LoadVal(0, RT.DUnit) ]; resultIn = 0 }
+
+  /// Host-only builtins must reject guest calls at the admin boundary.
+  let private expectHostOnly
+    (name : string)
+    (args : RT.Dval[])
+    : System.Threading.Tasks.Task<unit> =
+    task {
+      let! (exeState : RT.ExecutionState) =
+        executionStateFor TestValues.pm false Map.empty
+      let builtin = exeState.fns.builtIn[RT.FQFnName.builtin name 0]
+      try
+        let! _ = builtin.fn (struct (exeState, dummyVM (), [], args)) |> Ply.toTask
+        Expect.equal 1 2 "expected a policy-admin denial"
+      with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
         Expect.stringContains
-          msg
-          "capability denied"
-          "the gate denied the ungranted builtin"
-        Expect.stringContains msg "clock" "the error names the missing domain"
-      | Error(other, _) ->
-        Expect.equal
-          1
-          2
-          $"expected UncaughtException(capability denied), got {other}"
+          message
+          "trusted `dark permissions` command"
+          "the admin boundary is explained"
+    }
+
+  let denied =
+    testTask "an effectful builtin is denied by a deny-all policy" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let! actual =
+        LibExecution.Execution.executeExpr (denyAll exeState) (clockCall ())
+      expectDenied [ "clock" ] actual
     }
 
   let allowed =
-    testTask
-      "the gate does NOT deny when the capability IS granted (allCaps default)" {
-      let! exeState = executionStateFor TestValues.pm false Map.empty // allCaps
+    testTask "the gate permits an effect under an allow-all policy" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty // allow-all access
       let! actual = LibExecution.Execution.executeExpr exeState (clockCall ())
-      // We only assert the GATE was transparent — the builtin reaches `fn.fn`. (Its result may not
-      // typecheck headless without the OS package type; that's downstream of the gate, not a denial.)
-      match actual with
-      | Ok _ -> ()
-      | Error(RTE.Error.UncaughtException(msg, _), _) ->
-        Expect.isFalse
-          (msg.Contains "capability denied")
-          "under allCaps the gate must NOT deny — it got past the gate"
-      | Error _ -> () // any other RTE means it ran past the gate — fine
+      expectNotDenied actual
     }
 
-  // NOTE: the path-scoped file/env/db enforcement (gate refines the need to the concrete target) is
-  // covered at the unit level by `scopedGrantsEnforcedByRefine` in Capabilities.Tests — the Cli file
-  // builtins aren't registered in this test execution state, so it can't be exercised end-to-end here.
-  let tests = testList "CapsGate" [ denied; allowed ]
+  let nativeDenied =
+    testTask "a native builtin is denied by restricted execution" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let! actual =
+        LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
+      expectDenied [ "posixFdClose" ] actual
+    }
+
+  let nativeAllowedByAllowAll =
+    testTask "allow-all explicitly permits a native builtin" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let! actual = LibExecution.Execution.executeExpr exeState (nativeCall ())
+      expectNotDenied actual
+    }
+
+  let newRunPolicyDenies =
+    testTask "the run policy attenuates an allow-all instance" {
+      let! (exeState : RT.ExecutionState) =
+        executionStateFor TestValues.pm false Map.empty
+      let access =
+        exeState.access
+        |> LibExecution.Permissions.Access.restrict
+          LibExecution.Permissions.Layer.Run
+          LibExecution.Permissions.Policy.denyAll
+      let restricted : RT.ExecutionState = { exeState with access = access }
+      let! actual = LibExecution.Execution.executeExpr restricted (clockCall ())
+      expectDenied [ "run policy" ] actual
+    }
+
+  let private clockEffects = Set.singleton Effects.Effect.Clock
+
+  let private ceilingFn
+    (hash : string)
+    (ceiling : Option<Set<Effects.Effect>>)
+    (body : PT.Expr)
+    : PT.PackageFn.PackageFn =
+    { hash = PT.Hash hash
+      typeParams = []
+      parameters =
+        NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
+      returnType = PT.TInt
+      body = body
+      description = ""
+      permissionCeiling = ceiling }
+
+  let private clockBody = eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
+
+  let private pmWith (fns : List<PT.PackageFn.PackageFn>) : PT.PackageManager =
+    let byHash = fns |> List.map (fun fn -> fn.hash, fn) |> Map.ofList
+    { TestValues.pm with
+        getFn =
+          fun hash ->
+            match Map.tryFind hash byHash with
+            | Some fn -> Ply(Some fn)
+            | None -> TestValues.pm.getFn hash }
+
+  let private runPackageFnWith
+    (configure : RT.ExecutionState -> RT.ExecutionState)
+    (pm : PT.PackageManager)
+    (hash : string)
+    : System.Threading.Tasks.Task<RT.ExecutionResult> =
+    task {
+      let! exeState = executionStateFor pm false Map.empty // instance grants all
+      return!
+        LibExecution.Execution.executeFunction
+          (configure exeState)
+          (RT.FQFnName.fqPackage hash)
+          []
+          (NEList.singleton RT.DUnit)
+    }
+
+  let private runPackageFn = runPackageFnWith (fun state -> state)
+
+  /// Deny one package by hash while every other package stays allow-all.
+  let private denyPackage (hash : string) (state : RT.ExecutionState) =
+    { state with
+        packagePolicy =
+          fun id ->
+            if id = RT.Hash hash then
+              LibExecution.Permissions.Policy.denyAll
+            else
+              LibExecution.Permissions.Policy.allowAll }
+
+  let packagePolicyDenies =
+    testTask "a package policy attenuates instance and run access" {
+      let hash = "permissions-package-denied"
+      let fn = ceilingFn hash None clockBody
+      let! actual = runPackageFnWith (denyPackage hash) (pmWith [ fn ]) hash
+      expectDenied [ "package policy" ] actual
+    }
+
+  let escapedLambdaKeepsAccess =
+    testTask "a returned lambda keeps its creator's package access" {
+      let producerHash = "permissions-lambda-producer"
+      let runnerHash = "permissions-lambda-runner"
+      let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
+      let producer =
+        { ceilingFn producerHash None lambdaBody with
+            returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+      let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
+      let runnerBody = eApply returnedLambda [] [ eUnit () ]
+      let runner = ceilingFn runnerHash None runnerBody
+      let! actual =
+        runPackageFnWith
+          (denyPackage producerHash)
+          (pmWith [ producer; runner ])
+          runnerHash
+      // The closure kept its creator's package access.
+      expectDenied [ "package policy" ] actual
+    }
+
+  let functionCeilingDenies =
+    testTask "a function ceiling attenuates an otherwise-permitted instance" {
+      let hash = "permissions-ceiling-denied"
+      let fn = ceilingFn hash (Some Set.empty) clockBody
+      let! actual = runPackageFn (pmWith [ fn ]) hash
+      expectDenied [ "function policy"; "clock" ] actual
+    }
+
+  let functionCeilingAllows =
+    testTask "a function ceiling can permit an instance-granted effect" {
+      let hash = "permissions-ceiling-allowed"
+      let fn = ceilingFn hash (Some clockEffects) clockBody
+      let! actual = runPackageFn (pmWith [ fn ]) hash
+      expectNotDenied actual
+    }
+
+  let callerCeilingAttenuates =
+    testTask "a caller ceiling continues to constrain its callees" {
+      let calleeHash = "permissions-ceiling-callee"
+      let callerHash = "permissions-ceiling-caller"
+      let callee = ceilingFn calleeHash (Some clockEffects) clockBody
+      let callerBody = eApply (ePackageFn calleeHash) [] [ eUnit () ]
+      let caller = ceilingFn callerHash (Some Set.empty) callerBody
+      let! actual = runPackageFn (pmWith [ caller; callee ]) callerHash
+      // The caller's ceiling constrains the callee.
+      expectDenied [ "function policy" ] actual
+    }
+
+  let escapedLambdaKeepsCeiling =
+    testTask "a returned lambda keeps its creator's function ceiling" {
+      let producerHash = "permissions-ceiling-lambda-producer"
+      let runnerHash = "permissions-ceiling-lambda-runner"
+      let lambdaBody = eLambda (gid ()) [ lpVar "unit" ] clockBody
+      let producer =
+        { ceilingFn producerHash (Some Set.empty) lambdaBody with
+            returnType = PT.TFn(NEList.singleton PT.TUnit, PT.TInt) }
+      let returnedLambda = eApply (ePackageFn producerHash) [] [ eUnit () ]
+      let runnerBody = eApply returnedLambda [] [ eUnit () ]
+      let runner = ceilingFn runnerHash None runnerBody
+      let! actual = runPackageFn (pmWith [ producer; runner ]) runnerHash
+      // The escaped closure retains its creator's ceiling.
+      expectDenied [ "function policy" ] actual
+    }
+
+  let guestCannotChangePolicies =
+    testTask "guest code cannot change stored policies" {
+      do! expectHostOnly "pmPolicySetInstance" [| RT.DUnit |]
+    }
+
+  let guestCannotApprovePackages =
+    testTask "guest code cannot change package approvals" {
+      do!
+        expectHostOnly
+          "pmPolicyPinFunction"
+          [| LibExecution.Dval.optionNone RT.KTUuid
+             RT.DString "loc"
+             RT.DString "unknown"
+             RT.DBool false
+             RT.DBool false |]
+    }
+
+  let guestFileApiCannotReachPolicyStore =
+    testTask "guest filesystem access cannot reach host policy state" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let vm = dummyVM ()
+      match LibDB.LocalFile.path "policies.bin" with
+      | Error message -> Expect.equal 1 2 message
+      | Ok policyPath ->
+        let assertDenied (path : string) (explanation : string) : unit =
+          try
+            LibExecution.PermissionCheck.requireFileWrite exeState vm path
+            Expect.equal 1 2 "expected the protected-path denial"
+          with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+            Expect.stringContains message "protected host policy state" explanation
+        assertDenied
+          policyPath
+          "instance allow-all cannot authorize writing its own policy"
+        policyPath
+        |> System.IO.Path.GetDirectoryName
+        |> System.IO.Path.GetDirectoryName
+        |> fun darklangDirectory ->
+            assertDenied
+              darklangDirectory
+              "an ancestor cannot be renamed to edit policy under another spelling"
+    }
+
+  let evaluatedNamedFnInContainerCannotWidenReentry =
+    testTask "a named fn captures access before being nested in a container" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let expr =
+        eList [ eBuiltinFn "timeNowMs" 0 ] |> PT2RT.Expr.toRT Map.empty 0 None
+      let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
+      match produced with
+      | Ok(RT.DList(_, [ RT.DApplicable(RT.AppNamedFn namedFn) ])) ->
+        Expect.isSome
+          namedFn.access
+          "evaluating the function reference captures before list construction"
+        let! actual =
+          LibExecution.Execution.executeApplicable
+            exeState
+            (RT.AppNamedFn namedFn)
+            (NEList.singleton RT.DUnit)
+          |> Ply.toTask
+        // The nested callback kept the restricted creator access.
+        expectDenied [] actual
+      | other ->
+        Expect.equal 1 2 $"expected a one-element function list, got {other}"
+    }
+
+  let partiallyAppliedNamedFnCapturesAccess =
+    testTask "a partial application captures access before escaping" {
+      // Direct calls need no stamp; partial applications retain the caller's.
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let expr =
+        eApply (eBuiltinFn "int64Add" 0) [] [ eInt64 1L ]
+        |> PT2RT.Expr.toRT Map.empty 0 None
+      let! produced = LibExecution.Execution.executeExpr (denyAll exeState) expr
+      match produced with
+      | Ok(RT.DApplicable(RT.AppNamedFn namedFn)) ->
+        match namedFn.access with
+        | None -> Expect.equal 1 2 "the partial application must carry a capture"
+        | Some access ->
+          Expect.isFalse
+            (LibExecution.Permissions.Access.allows
+              LibExecution.Permissions.Request.clock
+              access)
+            "the capture is the restricted applying frame's access"
+      | other -> Expect.equal 1 2 $"expected a partial application, got {other}"
+    }
+
+  let tests =
+    testList
+      "PermissionsGate"
+      [ denied
+        allowed
+        nativeDenied
+        nativeAllowedByAllowAll
+        newRunPolicyDenies
+        packagePolicyDenies
+        escapedLambdaKeepsAccess
+        evaluatedNamedFnInContainerCannotWidenReentry
+        partiallyAppliedNamedFnCapturesAccess
+        functionCeilingDenies
+        functionCeilingAllows
+        callerCeilingAttenuates
+        escapedLambdaKeepsCeiling
+        guestCannotChangePolicies
+        guestCannotApprovePackages
+        guestFileApiCannotReachPolicyStore ]
 
 
 /// The synchronous unifier must never disagree with the computation-expression one.
@@ -1098,7 +1400,7 @@ let tests =
   testList
     "Interpreter"
     [ Basic.tests
-      CapsGate.tests
+      PermissionsGate.tests
       List.tests
       Let.tests
       String.tests

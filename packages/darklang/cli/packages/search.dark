@@ -355,7 +355,11 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 let mark = Query.deprecationMarker depSets item.entity.hash
                 let ctx = contextFor state.currentBranchId item
                 let sigBody = Signatures.formatFn ctx item.entity
-                let line = $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText sigBody}{mark}"
+                let badge =
+                  Stdlib.Cli.UI.Colors.dimText
+                    (Permissions.Command.requirementBadge item.entity.hash)
+                let line =
+                  $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText sigBody}{mark} {badge}"
                 withOptionalDoc parsed.withDocs line item.entity.description)
             | "value" ->
               renderSection "value" queryText resultCap results.values (fun item ->

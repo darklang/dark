@@ -31,7 +31,7 @@ let private fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "print" 0
@@ -47,7 +47,7 @@ let private fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () : Builtins = Builtin.make [] fns

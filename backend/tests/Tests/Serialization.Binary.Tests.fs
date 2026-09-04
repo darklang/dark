@@ -137,6 +137,61 @@ module RT =
         dvalEquals dval deserialized)
       (List.map (fun x -> x, true) (Values.RuntimeTypes.dvals ()))
 
+  let closureAccessIsStripped =
+    test "serialized closures lose runtime access" {
+      let value =
+        RT.DApplicable(
+          RT.AppLambda
+            { exprId = 1UL
+              closedRegisters = []
+              typeSymbolTable = RT.TST.empty
+              access =
+                LibExecution.Permissions.Access.start
+                  LibExecution.Permissions.Policy.allowAll
+              argsSoFar = [] }
+        )
+      let decoded =
+        value |> BS.RT.Dval.serialize "closure" |> BS.RT.Dval.deserialize "closure"
+      match decoded with
+      | RT.DApplicable(RT.AppLambda lambda) ->
+        Expect.isFalse
+          (LibExecution.Permissions.Access.allows
+            LibExecution.Permissions.Request.clock
+            lambda.access)
+          "serialization must not preserve authority"
+      | _ -> failtest "expected a lambda"
+    }
+
+  let namedFnAccessIsStripped =
+    test "serialized named-fn references lose runtime access" {
+      let value =
+        RT.DApplicable(
+          RT.AppNamedFn
+            { name = RT.FQFnName.fqBuiltin "timeNowMs" 0
+              typeSymbolTable = RT.TST.empty
+              typeArgs = []
+              access =
+                Some(
+                  LibExecution.Permissions.Access.start
+                    LibExecution.Permissions.Policy.allowAll
+                )
+              argsSoFar = [] }
+        )
+      let decoded =
+        value |> BS.RT.Dval.serialize "namedFn" |> BS.RT.Dval.deserialize "namedFn"
+      match decoded with
+      | RT.DApplicable(RT.AppNamedFn namedFn) ->
+        match namedFn.access with
+        | None -> failtest "decoded named fn must carry deny-all access, not None"
+        | Some access ->
+          Expect.isFalse
+            (LibExecution.Permissions.Access.allows
+              LibExecution.Permissions.Request.clock
+              access)
+            "serialization must not preserve authority"
+      | _ -> failtest "expected a named fn"
+    }
+
   let instructionsTests =
     Roundtripping.testRoundtripMany
       "instrs"
@@ -185,7 +240,8 @@ module RT =
             { name = RT.FQFnName.Builtin { name = "someFn"; version = 0 }
               typeSymbolTable = RT.TST.empty
               typeArgs = []
-              argsSoFar = [] }
+              argsSoFar = []
+              access = None }
         )
       expectRefusedOnRead
         "a lambda"
@@ -212,7 +268,8 @@ module ConsistentSerializationTests =
         prefix = "toplevels-binary"
         suffix = ".bin" } ]
 
-  let nameFor (f : Format) (version : string) = $"{f.prefix}-{version}{f.suffix}"
+  let nameFor (f : Format) (version : string) (idx : int) =
+    $"{f.prefix}-{version}-{idx}{f.suffix}"
 
 
   /// Generates timestamped test files for binary serialization. These files are used
@@ -224,30 +281,28 @@ module ConsistentSerializationTests =
   let generateTestFiles () : unit =
     formats
     |> List.iter (fun f ->
-      List.iter
-        (fun tl ->
-          let output = f.serializer tl
-          File.writefileBytes Config.Serialization (nameFor f "latest") output)
-        Values.ProgramTypes.toplevels)
+      Values.ProgramTypes.toplevels
+      |> List.iteri (fun i tl ->
+        let output = f.serializer tl
+        File.writefileBytes Config.Serialization (nameFor f "latest" i) output))
 
 
-  // TODO: restore the on-disk golden-file comparison once the
-  // FormatV0 wire format settles. The PR's hand-roll rewrite (and
-  // the DvalReprInternalHash.toHashV2 change) made the previous
-  // ~600 binary snapshot fixtures stale — they were deleted rather
-  // than re-generated, so the regression net only catches in-process
-  // roundtrip mismatches today. To bring goldens back: rebuild with
-  // `DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y` to regenerate,
-  // re-enable the per-file `Expect.equal`, then commit.
+  // Each serialized toplevel must match its committed fixture. Regenerate
+  // intentionally changed fixtures with DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y.
   let testTestFiles =
     formats
     |> List.map (fun f ->
-      test "check test files are correct" {
+      test "binary serialization matches the committed golden files" {
         Values.ProgramTypes.toplevels
-        |> List.iter (fun tl ->
+        |> List.iteri (fun i tl ->
           let serialized = f.serializer tl
-          let deserialized = f.deserializer serialized
-          Expect.equal deserialized tl "roundtrip should work")
+          Expect.equal (f.deserializer serialized) tl "roundtrip should work"
+          let golden =
+            File.readfileBytes Config.Serialization (nameFor f "latest" i)
+          Expect.equal
+            serialized
+            golden
+            $"toplevel {i} matches its committed golden (regenerate if this change is intended)")
       })
 
 
@@ -281,6 +336,8 @@ let tests =
           RT.dvalTests
           RT.instructionsTests
           RT.dictWithDbKeyRejectedOnRead
-          RT.dictWithLambdaKeyRejectedOnRead ]
+          RT.dictWithLambdaKeyRejectedOnRead
+          RT.closureAccessIsStripped
+          RT.namedFnAccessIsStripped ]
 
       testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]

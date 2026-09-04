@@ -43,8 +43,7 @@ let mutable private sessionVars : List<string * RT.Dval> = []
 let private builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins
-        Builtins.Http.Client.Libs.HttpClient.defaultConfig
+      Builtins.Http.Client.Builtin.builtins ()
       Output.builtins ()
       // live getter: lookups see snapshot + REPL-declared items
       PmLookup.builtins (fun () -> pm) ]
@@ -61,6 +60,7 @@ let private buildState () : RT.ExecutionState =
     RT.consoleNotifier
     PT.mainBranchId
     program
+  |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
 
 let private getState () : RT.ExecutionState =
   match stateOpt with

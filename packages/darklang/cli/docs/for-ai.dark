@@ -80,9 +80,40 @@ $EDITOR instead, which is the shape for a human, not for you.
 - User enum construction uses `TypeName.Case`; match cases are bare.
 - Nested constructor patterns can use `Some (Ok x)`.
 - A tuple payload needs double parentheses: `Some ((a, b))`.
+- A function may declare a permission ceiling as an effect row on the return
+  colon: `let fetch (url: String) :{Http, Clock} String = ...`. It only
+  restricts (`:{}` means effect-free); names are effect cases like `FileRead`.
 
-Effectful code may need `caps grant-for-fn <fn>` or `caps grant-all`. Pass a
-non-main branch on every call: `dark --branch feature ...`.
+Host permissions are managed with the `permissions` command (alias `perms`).
+The instance policy is local, machine-wide, and deny-by-default. A fresh
+installation permits package/local-store access, stdio, clock, and randomness;
+rules allow (or deny) additional effects and resources:
+
+  permissions list
+  permissions allow clock
+  permissions allow http GET https://api.stripe.com/v1
+  permissions allow file write /srv/app/data     # roots are absolute; ~ is not expanded
+  permissions deny http POST https://api.stripe.com/v1
+  permissions allow native             # SQLite SQL, raw fds, process handles: cannot be
+                                       # scoped, so it is granted whole or not at all
+  permissions requirements <fn|hash>   # complete transitive permission requirements
+  permissions show <fn|hash>           # requirements, approvals, and effective policies
+
+Consumer approvals are local to the logged-in account on this installation.
+The instance policy remains machine-wide, while each account gets its own
+package approvals and logical-function pins. The normal workflow uses the
+logical function name; immutable hashes stay behind the approval:
+
+  permissions approve Darklang.Vendor.Package.function
+  permissions update Darklang.Vendor.Package.function
+  permissions pins                      # name  shorthash
+  permissions unpin Darklang.Vendor.Package.function
+  permissions approvals                 # approved hashes; revoke-package <hash> drops one
+
+Approval computes the function's inferred transitive needs; changing the code
+changes its hash and requires a new decision, without changing the user's
+logical name. `unpin` only releases the name; the version's approval stays
+until `revoke-package`.
 
 ## Targeted help
 

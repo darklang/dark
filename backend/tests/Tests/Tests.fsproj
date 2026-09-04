@@ -31,6 +31,7 @@
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
+    <Compile Include="HostBoundary.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
     <Compile Include="LibParser.RoundTrip.Tests.fs" />
     <Compile Include="LibParser.Tests.fs" />
@@ -38,7 +39,6 @@
     <Compile Include="Terminal.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
-    <Compile Include="UnguardedOrigins.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="BranchOps.Tests.fs" />
 
@@ -63,7 +63,10 @@
     <Compile Include="SyncE2E.Tests.fs" />
     <Compile Include="Releases.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
-    <Compile Include="Capabilities.Tests.fs" />
+    <Compile Include="Permissions.Tests.fs" />
+    <Compile Include="PackagePermissions.Tests.fs" />
+    <Compile Include="PolicyStore.Tests.fs" />
+    <Compile Include="Host.Tests.fs" />
 
     <Compile Include="Tests.fs" />
   </ItemGroup>

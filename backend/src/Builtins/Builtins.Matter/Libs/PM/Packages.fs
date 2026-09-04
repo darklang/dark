@@ -20,6 +20,7 @@ module Builtins.Matter.Libs.PM.Packages
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module D = LibExecution.DvalDecoder
@@ -69,7 +70,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -103,7 +104,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -126,7 +127,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -158,7 +159,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -185,7 +186,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -216,7 +217,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -254,7 +255,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.Native ]
       deprecated = NotDeprecated }
 
 
@@ -286,7 +287,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -311,7 +312,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -358,6 +359,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     { name = rtName
                       typeSymbolTable = TST.empty
                       typeArgs = []
+                      // Do not capture the resolver's access here. The code
+                      // that calls or receives this reference supplies its
+                      // own frame access (for example, an HTTP server).
+                      access = None
                       argsSoFar = [] }
                   return
                     Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
@@ -368,7 +373,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -394,7 +399,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -419,7 +424,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -482,7 +487,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -559,7 +564,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -594,7 +599,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -619,7 +624,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -644,7 +649,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -669,7 +674,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -712,7 +717,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -775,16 +780,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             match result with
             | Ok(Some(propagationResult, ops)) ->
-              let! _ = LibDB.Inserts.insertAndApplyOps branchId None ops
+              match! LibDB.Inserts.insertUntrustedOps branchId None ops with
+              | Error reason ->
+                return Dval.resultError tupleKT KTString (DString reason)
+              | Ok _ ->
 
-              let repointsDval =
-                propagationResult.repoints
-                |> List.map PT2DT.PropagateRepoint.toDT
-                |> Dval.list (PT2DT.PropagateRepoint.knownType ())
+                let repointsDval =
+                  propagationResult.repoints
+                  |> List.map PT2DT.PropagateRepoint.toDT
+                  |> Dval.list (PT2DT.PropagateRepoint.knownType ())
 
-              let resultTuple =
-                DTuple(DUuid propagationResult.propagationId, repointsDval, [])
-              return Dval.resultOk tupleKT KTString resultTuple
+                let resultTuple =
+                  DTuple(DUuid propagationResult.propagationId, repointsDval, [])
+                return Dval.resultOk tupleKT KTString resultTuple
             | Ok None ->
               // No dependents found - return empty result with empty UUID
               let resultTuple =
@@ -800,7 +808,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -903,16 +911,24 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   repoints
                 )
 
-              let! _ = LibDB.Inserts.insertAndApplyOps branchId None [ revertOp ]
+              match! LibDB.Inserts.insertUntrustedOps branchId None [ revertOp ] with
+              | Error reason ->
+                return Dval.resultError tupleKT KTString (DString reason)
+              | Ok _ ->
 
-              let resultTuple =
-                DTuple(DUuid revertId, PT2DT.Hash.toDT restoredHash, [])
-              return Dval.resultOk tupleKT KTString resultTuple
+                let resultTuple =
+                  DTuple(DUuid revertId, PT2DT.Hash.toDT restoredHash, [])
+                return Dval.resultOk tupleKT KTString resultTuple
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects =
+        set
+          [ Effect.PackageRead
+            Effect.PackageWrite
+            // Generates a revert id via Guid.NewGuid (non-deterministic).
+            Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -948,7 +964,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -1002,7 +1018,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

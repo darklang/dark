@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module VT = LibExecution.ValueType
 
@@ -89,7 +90,7 @@ let private getDimension
 
 /// Read the kernel's current terminal window size without a process spawn.
 let private tryUnixTerminalSize () : (int64 * int64) option =
-  [ 1; 0; 2 ] |> List.tryPick Posix.Libc.tryTerminalWindowSize
+  [ 1; 0; 2 ] |> List.tryPick LibExecution.HostLibc.tryTerminalWindowSize
 
 
 /// Return the current terminal size.
@@ -119,7 +120,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -143,7 +144,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -158,7 +159,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -180,7 +181,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -197,7 +198,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -219,7 +220,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -236,7 +237,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -255,7 +256,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -272,7 +273,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -294,7 +295,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -315,7 +316,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -336,7 +337,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

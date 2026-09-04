@@ -11,6 +11,7 @@ open System.Threading.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
@@ -178,6 +179,16 @@ let private executeHandler
   }
 
 
+/// The per-request state, built outside `handleRequest`'s task: a record copy of
+/// `ExecutionState` inside the resumable block keeps the Release compiler from
+/// reducing the state machine (FS3511).
+let private perRequestStateFor
+  (exeState : ExecutionState)
+  (tracer : Tracing.T)
+  : ExecutionState =
+  { exeState with tracing = tracer.executionTracing }
+
+
 /// Process a single request: parse → dispatch → write response. Errors
 /// surface as 500s; full detail goes to `logRequest` rather than the wire.
 let private handleRequest
@@ -190,7 +201,7 @@ let private handleRequest
   (ctx : HttpListenerContext)
   : Task<unit> =
   task {
-    let started = System.DateTime.UtcNow
+    let started = if logRequests then Some System.DateTime.UtcNow else None
     // Ephemeral blobs carry their bytes inline (lifetime is GC), so there's no
     // shared blob store for concurrent requests to race over.
     try
@@ -223,7 +234,7 @@ let private handleRequest
               "(http request)"
           let tracer =
             Tracing.createCliTracer traceID traceDesc "request" requestDval
-          let perRequestState = { exeState with tracing = tracer.executionTracing }
+          let perRequestState = perRequestStateFor exeState tracer
 
           let! result = executeHandler perRequestState handler requestDval
           let! response = Http.Response.toHttpResponse perRequestState result
@@ -252,11 +263,13 @@ let private handleRequest
         ctx.Response.ContentLength64 <- int64 errorBytes.Length
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
-      if logRequests then
+      match started with
+      | Some started ->
         try
           logRequest ctx ctx.Response.StatusCode started
         with _ ->
           ()
+      | None -> ()
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()
@@ -275,36 +288,7 @@ let private handleRequest
 // See `notes/merge-readiness-report.md` for the dotnet-trace numbers.
 
 
-/// Bind a listener to <param port>, or say why not in one human sentence.
-///
-/// Separate from `runListener` so the bind is the CALLER's to report: inside the serve task, a failure comes
-/// back out of `listenerTask.Wait()` wrapped in an AggregateException — a stack trace where a sentence
-/// belongs — and only after the caller has already announced "Listening on {port}", which by then is a lie.
-let bindListener (port : int64) : Result<HttpListener, string> =
-  let listener = new HttpListener()
-  listener.Prefixes.Add($"http://*:{port}/")
-  try
-    listener.Start()
-    Ok listener
-  with :? HttpListenerException as e ->
-    // "Port's taken" has a different number on every platform — 98 EADDRINUSE on Linux, 48 on BSD/macOS,
-    // 183 ERROR_ALREADY_EXISTS / 32 ERROR_SHARING_VIOLATION on Windows — and .NET surfaces the native errno
-    // here. Match the message too: the codes are what the platform calls it, the message is what it means,
-    // and getting this wrong just means falling back to the raw text (which is what shipped before).
-    let inUse =
-      List.contains e.ErrorCode [ 98; 48; 183; 32 ]
-      || e.Message.Contains("Address already in use")
-      || e.Message.Contains("address already in use")
-    if inUse then
-      Error(
-        $"port {port} is already in use — something else is listening there. "
-        + "Stop it, or serve on another port."
-      )
-    else
-      Error $"couldn't listen on port {port}: {e.Message}"
-
-
-/// Serve requests off an ALREADY-BOUND listener (see `bindListener`), until cancelled.
+/// Serve requests off an already-bound listener, until cancelled.
 let runListener
   (exeState : ExecutionState)
   (listener : HttpListener)
@@ -433,6 +417,25 @@ let fns () : List<BuiltInFn> =
              DBool logRequests
              DApplicable onListening |] ->
           uply {
+            // The router and its callbacks are guest code, so use a guest
+            // state rather than the trusted CLI state. Use it for both the
+            // bind check and handler calls; the instance policy remains the
+            // hard maximum. A named package router is the approval root;
+            // lambda handlers have no package root of their own.
+            let ownFns =
+              match handler with
+              | AppNamedFn named ->
+                match named.name with
+                | FQFnName.Package hash -> [ hash ]
+                | FQFnName.Builtin _ -> []
+              | AppLambda _ -> []
+            let exeState =
+              LibDB.PolicyStore.guestState
+                exeState.accountID
+                LibExecution.Permissions.Policy.allowAll
+                []
+                ownFns
+                exeState
             // maxBodyBytes is a comparison threshold; a negative limit would
             // reject every request (treated as over-limit), so reject it. 0 is
             // valid (allow no body).
@@ -451,15 +454,38 @@ let fns () : List<BuiltInFn> =
               RuntimeError.Ints.OutOfRange
               |> RuntimeError.Int
               |> raiseRTE vm.threadID
+
+            // The builtin is invoked by trusted CLI code but performs these
+            // ambient effects on behalf of the child guest state. Check the
+            // child's access explicitly; the ordinary builtin gate sees the
+            // broader outer VM. Clock and stdout are only used when request
+            // logging is enabled.
+            if logRequests then
+              LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
+                exeState
+                vm
+                exeState.access
+                (set [ Effect.Clock; Effect.Stdout ])
+                "httpServerServe"
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
 
-            // Bind BEFORE announcing, so the caller's onListening banner is only printed once it's actually
-            // bound. A bind failure (e.g. the port is taken) comes back as a clean Error the caller can print
-            // itself, instead of a runtime-error wrapper with a stack.
-            match bindListener port with
-            | Error msg -> return Dval.resultError KTUnit KTString (DString msg)
-            | Ok listener ->
+            // Bind through the checked host boundary using the guest access,
+            // so the instance policy applies instead of the trusted CLI's.
+            let! bound =
+              LibExecution.PermissionCheck.performHostWithAccess
+                exeState
+                vm
+                exeState.access
+                (LibExecution.Host.Operation.HttpServerBind(int port))
+            match bound with
+            | Error failure ->
+              return Dval.resultError KTUnit KTString (DString failure.message)
+            | Ok response ->
+              use listener =
+                response
+                |> LibExecution.Host.expectHttpServerHandle
+                |> LibExecution.Host.takeHttpServerListener
               let! _ =
                 Execution.executeApplicable
                   exeState
@@ -497,7 +523,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.httpServer
+      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
       deprecated = NotDeprecated } ]
 
 

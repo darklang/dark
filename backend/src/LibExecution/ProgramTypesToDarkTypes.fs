@@ -8,6 +8,7 @@ module PT = ProgramTypes
 module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
+module Effects2DT = LibExecution.EffectsToDarkTypes
 
 /// Probe for remaining stack before recursing into persisted input.
 ///
@@ -1396,7 +1397,11 @@ module PackageFn =
            p.parameters |> NEList.toList |> List.map Parameter.toDT
          ))
         ("returnType", TypeReference.toDT p.returnType)
-        ("description", DString p.description) ]
+        ("description", DString p.description)
+        ("permissionCeiling",
+         p.permissionCeiling
+         |> Option.map Effects2DT.toDT
+         |> Dval.option (Effects2DT.knownType ())) ]
 
     DRecord(typeName (), typeName (), [], Map fields)
 
@@ -1413,7 +1418,11 @@ module PackageFn =
           |> D.list Parameter.fromDT
           |> NEList.ofListUnsafe "PackageFn.fromDT" []
         returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-        description = fields |> D.field "description" |> D.string }
+        description = fields |> D.field "description" |> D.string
+        permissionCeiling =
+          fields
+          |> D.field "permissionCeiling"
+          |> C2DT.Option.fromDT Effects2DT.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
 

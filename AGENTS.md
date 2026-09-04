@@ -166,6 +166,8 @@ Logs go to `rundir/logs/fsharp-tests.log`.
 
     backend/src/          # F# source
       LibExecution/       # execution engine
+        Host/             #   the checked host boundary: the only code that may
+                          #   touch the OS (enforced by tests/hostBoundary)
       LibParser/          # parser
       LibDB/              # package DB, branches, SCM ops, user DB, SQLite
                           # plumbing (LibDB.Sqlite), tracing recorder
@@ -206,6 +208,8 @@ traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.C
 `CliHost` (eval, script entry), `Cli` (file, terminal, other side effects), `Time`,
 `Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for
 the rebuild.
+
+A builtin that touches a scoped OS resource goes through the host boundary, not directly to `System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and execution in `Host.fs`, and call `PermissionCheck.performHost state vm op`. If a resource cannot be scoped honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
 
 Return structured Dark values (enums, records), not pre-rendered strings or string tags.
 Dark-side code formats for display. Don't build `"superseded-by:<hash>"` in F# for a Dark
@@ -289,6 +293,15 @@ footer at the command that prints everything.
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 
+**Permissions are runtime authorization, not OS isolation.** Host effects cross
+`Host.perform` and are checked against policy; this does not confine a compromised
+runtime or limit resources. OS sandboxing remains future work in `docs/permissions-todos.md`.
+
+**Instance policy.** First run seeds `~/.darklang/policy/policies.bin` with a safe
+default: package loading, computation, local storage, and printing work, while
+filesystem, network, process, and environment access are denied. Missing or corrupt
+policy data fails closed. `permissions allow all` is available for development.
+
 **`run-in-docker` ignores stdin unless something's on it.** Fd 0 is forwarded through a `cat`
 that needs an EOF, and an agent harness hands you a socket that never gives one, which used to
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
@@ -300,6 +313,13 @@ not a constant; `val` is evaluated once. If the body doesn't depend on anything,
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.
+
+**Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval treats opaque `EValue` bodies as incomplete.
+
+**Compiled function references are serialized code.** `EFnName` becomes a serialized
+`DApplicable(AppNamedFn …)` in package instructions. Keep code constants distinct from
+captured values when changing applicable decoding; attenuating code references can lock
+down the entire CLI.
 
 ## Interactive CLI testing
 

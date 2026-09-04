@@ -30,6 +30,7 @@ let main (args : string array) : int =
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
         Tests.Builtin.tests
+        Tests.HostBoundary.tests
         Tests.DvalReprInternalQueryable.tests
         Tests.LibParserRoundTrip.tests
         Tests.LibParser.tests
@@ -41,7 +42,6 @@ let main (args : string array) : int =
 
         // package manager
         Tests.Propagation.tests
-        Tests.UnguardedOrigins.tests
         Tests.Hashing.tests
         Tests.BranchOps.tests
 
@@ -71,7 +71,10 @@ let main (args : string array) : int =
         Tests.SyncE2E.tests
         Tests.Releases.tests
         Tests.Stream.tests
-        Tests.Capabilities.tests ]
+        Tests.Permissions.tests
+        Tests.PackagePermissions.tests
+        Tests.PolicyStore.tests
+        Tests.Host.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token

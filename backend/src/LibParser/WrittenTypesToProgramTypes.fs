@@ -1141,7 +1141,17 @@ module PackageFn =
           returnType = returnType
           description = fn.description
           body = body
-          typeParams = allTypeParams }
+          typeParams = allTypeParams
+          permissionCeiling =
+            // Names were validated by the parser; an unknown one already
+            // produced a diagnostic, so it is simply not part of the ceiling.
+            fn.effects
+            |> Option.map (fun names ->
+              names
+              |> List.choose (fun name ->
+                LibExecution.Effects.all
+                |> List.tryFind (fun effect -> $"%A{effect}" = name))
+              |> Set.ofList) }
     }
 
 

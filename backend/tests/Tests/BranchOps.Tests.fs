@@ -644,10 +644,51 @@ let testRebaseConflictCrossKind =
   }
 
 
+let placeholderHashGuardBlocksUnstabilizedOps =
+  test "guest package writes cannot store the parser's placeholder hashes" {
+    // Placeholder and empty hashes must be rejected before storage.
+    let placeholder = PT.Hash "Test.BranchOps.y"
+    let fn = { makeFn (eVar "x") with hash = placeholder }
+    let unstabilized =
+      [ PT.PackageOp.AddFn fn
+        PT.PackageOp.SetName(loc "y", PT.PackageFn placeholder) ]
+    Expect.isSome
+      (Inserts.placeholderHashViolation unstabilized)
+      "a placeholder hash is rejected"
+    Expect.isSome
+      (Inserts.placeholderHashViolation
+        [ PT.PackageOp.AddFn { fn with hash = PT.Hash "" } ])
+      "an empty hash is rejected"
+    let real = makeFn (eVar "x")
+    let stabilized =
+      [ PT.PackageOp.AddFn real
+        PT.PackageOp.SetName(loc "y", PT.PackageFn real.hash) ]
+    Expect.isNone
+      (Inserts.placeholderHashViolation stabilized)
+      "hex content hashes pass"
+  }
+
+let reservedOwnerGuardBlocksBundledOwner =
+  test "guest package writes cannot bind a name under the reserved bundled owner" {
+    let fn = makeFn (eVar "x")
+    let forge : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ "X" ]; name = "y" }
+    let forgeOps =
+      [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(forge, PT.PackageFn fn.hash) ]
+    Expect.isSome
+      (Inserts.reservedOwnerViolation forgeOps)
+      "binding under owner Darklang is rejected, so bundled trust can't be forged"
+    let okOps =
+      [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(loc "ok", PT.PackageFn fn.hash) ]
+    Expect.isNone (Inserts.reservedOwnerViolation okOps) "a normal owner is allowed"
+  }
+
 let tests =
   testList
     "BranchOps"
     [ testBranchOpsEmitted
+      placeholderHashGuardBlocksUnstabilizedOps
+      reservedOwnerGuardBlocksBundledOwner
       testBranchOpsSerialization
       testBranchOpsDeserialization
       testGhostFunctionCrossBranch

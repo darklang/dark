@@ -261,6 +261,8 @@ let buildCliState () : Task<RT.ExecutionState> =
         notify
         PT.mainBranchId
         program
+      // The harness runs the outer CLI as trusted host code.
+      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
   }
 
 /// Invoke `dark <args>` in-process against the active store; return trimmed stdout. Redirects `Console.Out`

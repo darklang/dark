@@ -41,6 +41,51 @@ let locationPlaceholderHash
   ProgramTypes.Hash.Hash $"{owner}.{modulesPart}.{name}"
 
 
+/// The reference <param ops> bind at <param location>. Use it after
+/// <fn PackageManager.stabilizeHashes>: a parsed item's own `hash` field is still the
+/// parser's placeholder, and only the stabilized `SetName` op carries the
+/// real content hash. None when no op binds that location.
+let referenceBoundAt
+  (ops: List<ProgramTypes.PackageOp>)
+  (location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<ProgramTypes.Reference> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(loc, reference) ->
+      if loc == location then Stdlib.Option.Option.Some reference
+      else Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+/// The function hash bound at <param location>; see <fn referenceBoundAt>.
+let fnHashBoundAt
+  (ops: List<ProgramTypes.PackageOp>)
+  (location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<ProgramTypes.Hash> =
+  match referenceBoundAt ops location with
+  | Some(PackageFn hash) -> Stdlib.Option.Option.Some hash
+  | _ -> Stdlib.Option.Option.None
+
+/// The type hash bound at <param location>; see <fn referenceBoundAt>.
+let typeHashBoundAt
+  (ops: List<ProgramTypes.PackageOp>)
+  (location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<ProgramTypes.Hash> =
+  match referenceBoundAt ops location with
+  | Some(PackageType hash) -> Stdlib.Option.Option.Some hash
+  | _ -> Stdlib.Option.Option.None
+
+/// The value hash bound at <param location>; see <fn referenceBoundAt>.
+let valueHashBoundAt
+  (ops: List<ProgramTypes.PackageOp>)
+  (location: ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<ProgramTypes.Hash> =
+  match referenceBoundAt ops location with
+  | Some(PackageValue hash) -> Stdlib.Option.Option.Some hash
+  | _ -> Stdlib.Option.Option.None
+
+
 // Option and Result constructors can be bare. Other enum constructors require
 // `Type.Case` until expected-type inference is supported.
 let optionOrResultTypeName
@@ -1412,6 +1457,12 @@ module FunctionDeclaration =
         parameters = params
         returnType = rtyp
         description = fn.description
+        permissionCeiling =
+          fn.effects
+          |> Stdlib.Option.map (fun names ->
+            names
+            |> Stdlib.List.filterMap (fun (_range, case) ->
+              LanguageTools.Permissions.effectOfCase case))
         body = body },
       unresolvedNames)
 

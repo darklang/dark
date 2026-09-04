@@ -7,6 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Fumble
 open LibDB.Sqlite
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module BinarySer = LibSerialization.Binary.Serialization
@@ -139,7 +140,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "tracesList" 0
@@ -179,7 +180,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -235,7 +236,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -291,7 +292,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -343,7 +344,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -396,7 +397,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -513,7 +514,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -571,7 +572,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -606,7 +607,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 
@@ -653,7 +654,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
 
@@ -680,7 +681,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
 
@@ -714,7 +715,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
 
@@ -772,7 +773,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated } ]
 
 

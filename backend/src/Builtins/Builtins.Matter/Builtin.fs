@@ -30,7 +30,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Merge.builtins ()
       Libs.PM.Dependencies.builtins ()
       Libs.PM.Seed.builtins
-      Libs.PM.Caps.builtins
+      Libs.PM.Permissions.builtins
       Libs.PM.Store.builtins ()
 
       // Traces (reader surface)

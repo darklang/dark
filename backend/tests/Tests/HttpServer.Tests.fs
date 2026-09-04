@@ -42,6 +42,28 @@ type Test =
     expectedResponse : byte array }
 
 
+// Bind test listeners through the production host boundary; test setup is trusted.
+let private bindListener (port : int) : Task<System.Net.HttpListener> =
+  task {
+    let access =
+      LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
+    let! outcome =
+      LibExecution.Host.perform
+        LibExecution.Permissions.NoRelax
+        access
+        (LibExecution.Host.Operation.HttpServerBind port)
+    match outcome with
+    | LibExecution.Host.Outcome.Success response ->
+      return
+        response
+        |> LibExecution.Host.expectHttpServerHandle
+        |> LibExecution.Host.takeHttpServerListener
+    | other ->
+      return
+        Exception.raiseInternal "could not bind test listener" [ "outcome", other ]
+  }
+
+
 let newline = byte '\n'
 
 /// Take a byte array and split it by newline, returning a list of lists. The
@@ -414,10 +436,7 @@ let private runFixture (test : Test) : Task<unit> =
     let port = allocateFreePort ()
     let cts = new CancellationTokenSource()
 
-    let listener =
-      match HttpServer.bindListener (int64 port) with
-      | Ok l -> l
-      | Error msg -> Exception.raiseInternal msg [ "port", port ]
+    let! listener = bindListener port
 
     let listenerTask =
       HttpServer.runListener
@@ -473,10 +492,7 @@ let private concurrentEphemeralBlobRequests =
     let port = allocateFreePort ()
     let cts = new CancellationTokenSource()
 
-    let listener =
-      match HttpServer.bindListener (int64 port) with
-      | Ok l -> l
-      | Error msg -> Exception.raiseInternal msg [ "port", port ]
+    let! listener = bindListener port
 
     let listenerTask =
       HttpServer.runListener

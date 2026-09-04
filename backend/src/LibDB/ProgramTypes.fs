@@ -148,6 +148,28 @@ module Fn =
   let get = getItem "package_functions" "hash" BS.PT.PackageFn.deserialize
   let getLocations = getItemLocations "fn"
 
+  /// Active function hashes bound under `owner` across all branches. The CLI
+  /// uses this to skip consumer approval for bundled Darklang functions; the
+  /// instance policy, run policy, and function ceilings still apply.
+  /// This returns only membership data. A hash set keeps checking bundled
+  /// function hashes fast, even when the set contains thousands of entries.
+  let hashesOwnedBy
+    (owner : string)
+    : Ply<System.Collections.Generic.HashSet<string>> =
+    uply {
+      let! hashes =
+        Sql.query
+          """
+          SELECT DISTINCT item_hash
+          FROM locations
+          WHERE owner = @owner AND item_type = 'fn' AND unlisted_at IS NULL
+          """
+        |> Sql.parameters [ "owner", Sql.string owner ]
+        |> Sql.executeAsync (fun read -> read.string "item_hash")
+      return System.Collections.Generic.HashSet<string>(hashes)
+    }
+
+
 
 /// Split a search query into lowercase tokens for name/doc matching.
 let private tokenizeQuery (s : string) : List<string> =

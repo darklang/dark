@@ -700,12 +700,26 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    { hash : FQFnName.Package
+    {
+      hash : FQFnName.Package
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
-      description : string }
+      description : string
+
+      /// The author's ceiling on what this function and everything it calls
+      /// may do at runtime, from the `:{…}` row on the declaration. It only
+      /// restricts; granting stays with the instance, run and package layers.
+      ///
+      ///   None            no row was written: no function layer is added
+      ///   Some Set.empty  `:{}`: effect-free, every host effect inside is denied
+      ///   Some {Http; …}  `:{Http, …}`: only these; anything else inside is denied
+      ///
+      /// Part of the content hash and of the upgrade contract, so changing the
+      /// row is a new version that `permissions update` asks about.
+      permissionCeiling : Option<Set<Effects.Effect>>
+    }
 
 
 /// Operations on packages

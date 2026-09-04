@@ -10,7 +10,7 @@ let readZshrc () : Result.Result<String, String> =
 /// Overwrite what's in the .zshrc file
 let overwriteZshrc (content: String) : Result.Result<Unit, String> =
   (FileSystem.overwriteFile "$HOME/.zshrc" (Stdlib.String.toBlob content))
-  |> Result.map (fun _ -> ())
+  |> Result.mapError FileSystem.FileError.toString
 
 
 /// Apply changes to .zshrc

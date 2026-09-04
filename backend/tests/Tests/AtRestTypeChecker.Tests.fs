@@ -32,7 +32,8 @@ let private fn
     parameters = parameters
     returnType = returnType
     body = body
-    description = "" }
+    description = ""
+    permissionCeiling = None }
 
 let private oneArgFn
   (parameterType : PT.TypeReference)

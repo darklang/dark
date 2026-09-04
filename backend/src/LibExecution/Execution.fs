@@ -39,7 +39,7 @@ let createState
     notify = notify
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
-    packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
+    packageFnCallCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     branchId = branchId
     program = program
@@ -55,12 +55,58 @@ let createState
 
     allowHarmful = false
 
-    // The base default is permissive — `createState` is RT-level and can't read the on-disk grant, so
-    // the gate is a no-op here. The CLI host narrows it per entry point (`eval`/host → the configured
-    // grant; `dark run` → NONE) before executing user code; tests run permissive.
-    grantedCaps = LibExecution.Capabilities.allCaps
+    // Fail-safe default: deny all host effects. An embedder that forgets to
+    // install a policy gets a confined execution, not an unrestricted one. The
+    // CLI host seeds `dark run`/`eval` from `PolicyStore`; trusted internal
+    // callers and tests opt into permissive explicitly with
+    // `setInstancePolicy Policy.allowAll`.
+    access = LibExecution.Permissions.Access.denyAll
+
+    packagePolicy = fun _ -> LibExecution.Permissions.Policy.allowAll
+
+    canManagePolicies = false
+
+    canUsePrivateNetworkHttp = false
+
+    // Deny-all by default: only a host that knows its bundled set opts fns in.
+    isBundledPackageFn = fun _ -> false
+
+    permissionWarnings = None
+
+    deniedRequests = ResizeArray()
 
     accountID = None }
+
+/// Set the operator-owned maximum before starting a run.
+let setInstancePolicy
+  (policy : LibExecution.Permissions.Policy)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with access = LibExecution.Permissions.Access.start policy }
+
+/// Add a run restriction. Repeated calls only narrow access.
+let restrictRun
+  (policy : LibExecution.Permissions.Policy)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with
+      access =
+        state.access
+        |> LibExecution.Permissions.Access.restrict
+          LibExecution.Permissions.Layer.Run
+          policy }
+
+/// Install consumer approvals by immutable package-function hash. A package
+/// the lookup does not know is denied. The interpreter memoizes the result
+/// per function, so the lookup itself need not be cheap.
+let setPackagePolicies
+  (lookup : RT.Hash -> Option<LibExecution.Permissions.Policy>)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with
+      packagePolicy =
+        fun hash ->
+          lookup hash |> Option.defaultValue LibExecution.Permissions.Policy.denyAll }
 
 
 let rec callStackForFrame
@@ -385,15 +431,6 @@ let executeFunction
   : Task<RT.ExecutionResult> =
   let resultReg, rc = 0, 1
 
-  let fnInstr, fnReg, rc =
-    let namedFn : RT.ApplicableNamedFn =
-      { name = name
-        typeSymbolTable = RT.TST.empty
-        typeArgs = typeArgs
-        argsSoFar = [] }
-    let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
-    RT.LoadVal(rc, applicable), rc, rc + 1
-
   let argInstrs, argRegs, rc =
     args
     |> NEList.fold
@@ -401,12 +438,24 @@ let executeFunction
         instrs @ [ RT.LoadVal(rc, arg) ], argRegs @ [ rc ], rc + 1)
       ([], [], rc)
 
+  // Load the function immediately before `Apply`, like a compiled direct call.
+  let fnInstr, fnReg, rc =
+    let namedFn : RT.ApplicableNamedFn =
+      { name = name
+        typeSymbolTable = RT.TST.empty
+        typeArgs = typeArgs
+        // Host-initiated: runs under the run-level access the state carries.
+        access = None
+        argsSoFar = [] }
+    let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
+    RT.LoadVal(rc, applicable), rc, rc + 1
+
   let applyInstr =
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
   let instrs : RT.Instructions =
     { registerCount = rc
-      instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
+      instructions = argInstrs @ [ fnInstr; applyInstr ]
       resultIn = 0 }
   executeExpr exeState instrs
 

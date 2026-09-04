@@ -54,7 +54,14 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
       let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
       let args = if Stdlib.List.isEmpty params then "()" else Stdlib.String.join params " -> "
       let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
-      BodyItem { name = f.location.name; kind = "fn"; isModule = false; desc = sig_ })
+      let effects =
+        Permissions.Command.requirementDisplay
+          (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+      BodyItem
+        { name = f.location.name
+          kind = "fn"
+          isModule = false
+          desc = sig_ ++ "  [" ++ effects ++ "]" })
   Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
 
 /// How many uncommitted *items* there are - the same number the Changes list shows.

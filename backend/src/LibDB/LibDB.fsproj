@@ -42,14 +42,15 @@
     <Compile Include="Propagation.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="EphemeralPackages.fs" />
+    <Compile Include="LocalFile.fs" />
+    <Compile Include="PolicyStore.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="Conflicts.fs" />
     <Compile Include="ChangeSummary.fs" />
     <Compile Include="Resolutions.fs" />
     <Compile Include="Seed.fs" />
-    <Compile Include="CapabilityGrants.fs" />
-    <Compile Include="PackageCaps.fs" />
+    <Compile Include="PackagePermissions.fs" />
 
     <Compile Include="Releases.fs" />
 

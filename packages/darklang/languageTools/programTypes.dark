@@ -435,7 +435,18 @@ module PackageFn =
       typeParams: List<String>
       parameters: List<Parameter>
       returnType: TypeReference
-      description: String }
+      description: String
+      /// The author's ceiling on what this function and everything it calls
+      /// may do at runtime, from the `:{…}` row on the declaration. It only
+      /// restricts; granting stays with the instance, run and package layers.
+      ///
+      ///   None          no row was written: no function layer is added
+      ///   Some []       `:{}`: effect-free, every host effect inside is denied
+      ///   Some [Http, …] `:{Http, …}`: only these; anything else inside is denied
+      ///
+      /// Part of the content hash and of the upgrade contract, so changing the
+      /// row is a new version that `permissions update` asks about.
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>> }
 
 
 

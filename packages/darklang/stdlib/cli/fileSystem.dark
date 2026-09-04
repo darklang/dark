@@ -48,13 +48,13 @@ let isDirectory (path: String) : Bool =
 
 
 /// Delete the file at <param path>.
-let deleteFile (path: String) : Result.Result<Unit, String> =
+let deleteFile (path: String) : Result.Result<Unit, FileError> =
   Builtin.fileDelete path
 
 
 /// Append <param content> to the file at <param path>, creating the file if
 /// it isn't there.
-let appendToFile (path: String) (content: String) : Result.Result<Unit, String> =
+let appendToFile (path: String) (content: String) : Result.Result<Unit, FileError> =
   Builtin.fileAppendText path content
 
 
@@ -109,7 +109,7 @@ let readFile (path: String) : Result.Result<Blob, FileError> =
 /// Write <param content> to <param path>, replacing whatever's there. The
 /// parent directory has to exist already; <fn writeFile> is this plus the
 /// mkdir.
-let overwriteFile (path: String) (content: Blob) : Result.Result<Unit, String> =
+let overwriteFile (path: String) (content: Blob) : Result.Result<Unit, FileError> =
   Builtin.fileWrite content path
 
 
@@ -140,4 +140,6 @@ let writeFile (path: String) (content: Blob) : Result.Result<Unit, String> =
 
   match mkdirResult with
   | Error e -> Stdlib.Result.Result.Error e
-  | Ok _ -> overwriteFile path content
+  | Ok _ ->
+    (overwriteFile path content)
+    |> Stdlib.Result.mapError FileError.toString

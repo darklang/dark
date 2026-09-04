@@ -104,6 +104,7 @@ let partialEvaluate
       { name = fnName
         typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
+        access = None
         argsSoFar = [] }
     instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))
 

@@ -6,6 +6,7 @@ open System
 open Prelude
 
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
@@ -387,7 +388,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdin
+      callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
 
 
@@ -404,7 +405,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdin
+      callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
 
 
@@ -422,7 +423,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
 
 
@@ -447,7 +448,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdin
+      callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
 
 
@@ -466,7 +467,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdin
+      callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated } ]
 
 

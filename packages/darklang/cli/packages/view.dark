@@ -230,8 +230,8 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
             preferredLocation = Stdlib.Option.Option.Some name }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-      let capsBadge =
-        Caps.Command.badgeForHash
+      let permissionLines =
+        Permissions.Command.policyLinesForHash
           (LanguageTools.ProgramTypes.hashToString item.entity.hash)
 
       Stdlib.List.flatten [
@@ -240,7 +240,8 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           item.entity.hash
           LanguageTools.ProgramTypes.ItemKind.Fn
         sourceRows highlighted
-        [ Stdlib.Cli.UI.Colors.dimText $"capabilities: {capsBadge}" ]
+        [ "" ]
+        permissionLines |> Stdlib.List.map Stdlib.Cli.UI.Colors.dimText
       ]
 
   | Value name ->

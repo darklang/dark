@@ -24,7 +24,7 @@ open LibDB.Sqlite
 
 /// THE version coordinate (see the module doc). A store is stamped with this Release; older code refuses
 /// to open a store stamped NEWER, and cross-instance sync uses this same integer as its wire-format version.
-let currentRelease : int = 4
+let currentRelease : int = 5
 
 
 /// One forward step that ARRIVES at Release `n` (apply it to move a store from `n-1` to `n`).
@@ -110,7 +110,14 @@ let releases : Release list =
         + " CREATE INDEX IF NOT EXISTS idx_package_ops_propagation_id"
         + "   ON package_ops(propagation_id) WHERE propagation_id IS NOT NULL"
       reserialize = None
-      clearForRebuild = false } ]
+      clearForRebuild = false }
+    // Release 5 — effect/permission system. Package-function serialization gained
+    // `permissionCeiling`, named-function Dvals gained a captured-access flag,
+    // and canonical hashing changed, so pre-5 `op_blob`s embed a stale binary
+    // format (now rejected) and stale hashes that can't be cheaply migrated.
+    // Clean break: the package dataset is cleared and rebuilds from source (dev)
+    // or re-pulls from a same-Release peer.
+    { n = 5; sql = ""; reserialize = None; clearForRebuild = true } ]
 
 
 // ── The pure planning half (unit-tested; takes the registry explicitly so tests inject their own) ──
