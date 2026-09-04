@@ -872,6 +872,29 @@ let backspace (st: State) : State =
             { st1 with caret = { caret with offset = 0 } }
           else
             commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset - 1 }
+      | Some(Empty _) ->
+        // Backspace on an empty list/tuple element removes it (down to the last one) and steps to the
+        // previous element -- the natural way to undo one comma/Enter too many.
+        match caret.part with
+        | InItem(slot, i) ->
+          match nodeAtPath st.root caret.node with
+          | Some n ->
+            match Node.field n slot with
+            | Some(Many(items, _)) ->
+              if (Stdlib.List.length items) > 1 then
+                let st1 = commit st [ Edit.RemoveItem(caret.node, slot, i) ] caret
+                let newI = if i > 0 then i - 1 else 0
+                let itemPath = Path.item caret.node slot newI
+                let caret2 =
+                  match slotAtPath st1.root itemPath with
+                  | Some(Filled child) -> lastEditable itemPath child
+                  | _ -> Caret.inItem caret.node slot newI 0
+                { st1 with caret = caret2 }
+              else
+                st
+            | _ -> st
+          | None -> st
+        | _ -> st
       | _ -> st
 
 

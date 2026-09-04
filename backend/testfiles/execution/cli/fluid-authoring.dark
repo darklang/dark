@@ -66,6 +66,13 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module BackspaceRemovesItem =
+  // Backspace on an empty element removes it (one comma too many, undone), down to the last one.
+  (Fixtures.screen [ "[", "1", ",", "<BS>" ]) = "[1~]"
+  (Fixtures.screen [ "[", "1", ",", "2", ",", "<BS>" ]) = "[1, 2~]"
+  (Fixtures.screen [ "[", "<BS>" ]) = "[~⟨item⟩]"
+
+
 module CommaAddsItem =
   // Comma adds/advances the next list or tuple element -- the natural key inside `[1, 2]` and `(1, 2)`.
   (Fixtures.program [ "[", "1", ",", "2", ",", "3", "<Esc>" ]) = "[1, 2, 3]"
