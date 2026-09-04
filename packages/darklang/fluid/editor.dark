@@ -28,6 +28,8 @@ type State =
     /// The completion menu for the current caret, computed once per keystroke (a store search is
     /// expensive and was being run several times a frame). Read this everywhere; refresh it after a key.
     menu: List<Candidate>
+    /// The menu was dismissed with Escape and stays hidden until the next edit. `candidates` returns [].
+    menuDismissed: Bool
     /// The command palette (NAV): open?, the filter typed so far, which action is highlighted.
     paletteOpen: Bool
     paletteFilter: String
@@ -70,6 +72,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       future = []
       completionIndex = 0
       menu = []
+      menuDismissed = false
       paletteOpen = false
       paletteFilter = ""
       paletteIndex = 0
@@ -126,7 +129,8 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
       caret = caret
       message = ""
       completionIndex = 0
-      lastTyped = Stdlib.Option.Option.None }
+      lastTyped = Stdlib.Option.Option.None
+      menuDismissed = false }
 
 /// Apply typing edits, coalescing consecutive characters in the SAME text run into one undo step. The
 /// first character of a run snapshots; the rest edit the same snapshot, so Ctrl-Z undoes the whole word,
@@ -140,7 +144,8 @@ let commitRun (st: State) (runKey: String) (edits: List<Edit>) (caret: Caret) : 
       caret = caret
       message = ""
       completionIndex = 0
-      lastTyped = Stdlib.Option.Option.Some runKey }
+      lastTyped = Stdlib.Option.Option.Some runKey
+      menuDismissed = false }
 
 
 // --- Where the caret can go ---
@@ -304,7 +309,15 @@ let moveRight (st: State) : State =
     match textLen with
     | Some n -> caret.offset < n
     | None -> false
-  if canAdvance then
+  // At the end of a partial that exactly matches a candidate, moving right accepts it (commit-on-move-off,
+  // like classic Fluid) rather than sliding the caret past an unresolved name.
+  let atPartialEnd =
+    match slotUnder st with
+    | Some(Partial(typed, _)) -> caret.offset >= (Stdlib.String.length typed)
+    | _ -> false
+  if atPartialEnd && (Stdlib.Option.isSome (exactCandidate st)) then
+    commitCandidate st
+  elif canAdvance then
     { st with caret = { caret with offset = caret.offset + 1 } }
   else
     let cells = Layout.taggedCells (layout st)
@@ -888,11 +901,21 @@ let computeCandidates (st: State) : List<Candidate> =
   | Some(Empty e) -> candidatePool st e ""
   | _ -> []
 
-/// The cached completion menu. Cheap; refreshed once per key.
-let candidates (st: State) : List<Candidate> = st.menu
+/// The cached completion menu. Cheap; refreshed once per key. Empty while dismissed with Escape.
+let candidates (st: State) : List<Candidate> =
+  if st.menuDismissed then [] else st.menu
 
 /// Recompute the menu for the state as it now stands. Call after every key.
 let refreshMenu (st: State) : State = { st with menu = computeCandidates st }
+
+/// The candidate whose label exactly matches the partial's text (case-insensitive), if any. Used for
+/// commit-on-move-off: arrowing away from a fully-typed name accepts it.
+let exactCandidate (st: State) : Stdlib.Option.Option<Candidate> =
+  match slotUnder st with
+  | Some(Partial(typed, _)) ->
+    let t = Stdlib.String.toLowercase typed
+    candidates st |> Stdlib.List.findFirst (fun c -> (Stdlib.String.toLowercase c.label) == t)
+  | _ -> Stdlib.Option.Option.None
 
 /// Is the caret on a partial (text typed but not resolved)? Tab commits a candidate only here; on a
 /// fresh hole Tab still means "next hole".
@@ -1029,8 +1052,14 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   let settled = resolvePartial st |> Stdlib.Option.withDefault st
   match kp.key with
   | Escape ->
-    let here = navPath settled
-    handled { settled with mode = Mode.Nav; caret = navCaretFor settled.root here }
+    // Escape dismisses a live menu first (staying in INSERT), so you can wave off completions without
+    // leaving the field; a second Escape settles and leaves to NAV. But if what you typed is exactly a
+    // candidate, there's nothing to wave off -- settle it and leave in one Escape.
+    if (onPartial st) && completing && (Stdlib.Option.isNone (exactCandidate st)) then
+      handled { st with menuDismissed = true }
+    else
+      let here = navPath settled
+      handled { settled with mode = Mode.Nav; caret = navCaretFor settled.root here }
   | LeftArrow -> handled (moveLeft st)
   | RightArrow -> handled (moveRight st)
   | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))

@@ -66,5 +66,17 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module MenuKeys =
+  // Escape dismisses a live menu (you stay in INSERT with the partial), a second Escape leaves to NAV.
+  (Fixtures.screen [ "l", "e", "<Esc>" ]) = "le~"
+  (Fixtures.screen [ "l", "e", "<Esc>", "<Esc>" ]) = "~le"
+
+  // Right-arrow off an exact-match partial accepts it (commit-on-move-off): `let` then Right builds let.
+  (Fixtures.screen [ "l", "e", "t", "<Right>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Escape on a fresh empty hole (a preview menu, nothing typed) goes straight to NAV.
+  (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.hole ()) 60 [ "<Esc>" ]) = "nav"
+
+
 module Lambda =
   (Fixtures.program [ "f", "u", "n", " ", "a", " ", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
