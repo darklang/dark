@@ -66,6 +66,14 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module EnterAddsItem =
+  // Enter inside a list adds a sibling and moves to it: a list grows, a match gains arms.
+  (Fixtures.screen [ "[", "1", "<Enter>", "2", "<Enter>" ]) = "[1, 2, ~⟨item⟩]"
+  (Fixtures.program [ "[", "1", "<Enter>", "2", "<Esc>" ]) = "[1, 2]"
+  (Fixtures.program [ "m", "a", "<Enter>", "x", "<Tab>", "0", "<Tab>", "\"", "z", "<Enter>", "1", "<Tab>", "\"", "o", "<Esc>" ]) =
+    "match x with\n| 0 -> \"z\"\n| 1 -> \"o\""
+
+
 module MenuQuality =
   // The obvious choice tops the menu, and a short query does NOT dump the package store: `le` is just the
   // `let` keyword, `ma` just `match`. A dotted qualifier still searches.

@@ -1037,6 +1037,57 @@ let cycleCandidate (st: State) (delta: Int) : State =
   else { st with completionIndex = Stdlib.Int.remainder (st.completionIndex + delta + n) n |> Stdlib.Result.withDefault 0 }
 
 
+/// The list the caret is inside, as (node holding the list, slot, index of the current item). Used by
+/// Enter-to-add: from a match arm's body it finds the `cases` list; from a list element it finds the list.
+let enclosingListItem (c: Caret) : Stdlib.Option.Option<(Path * String * Int)> =
+  match c.part with
+  | InItem(slot, i) -> Stdlib.Option.Option.Some((c.node, slot, i))
+  | _ ->
+    // The last `Item` step in the caret's node path is the nearest enclosing list element.
+    let (_, found) =
+      Stdlib.List.fold c.node ((0, Stdlib.Option.Option.None)) (fun acc step ->
+        let (idx, best) = acc
+        match step with
+        | Item(slot, i) -> (idx + 1, Stdlib.Option.Option.Some((idx, slot, i)))
+        | Into _ -> (idx + 1, best))
+    match found with
+    | Some((atIdx, slot, i)) ->
+      let parentPath = Stdlib.List.take c.node atIdx
+      Stdlib.Option.Option.Some((parentPath, slot, i))
+    | None -> Stdlib.Option.Option.None
+
+/// A fresh element for a list whose items expect `each`: a hole when items are filled by typing/picking
+/// (expressions, types), or a filled template when they're structural (a match arm, a record field).
+let newItemForEach (st: State) (each: Expect) : Slot =
+  match Registry.forExpect st.reg each with
+  | Some spec ->
+    if (Stdlib.Bool.not (Stdlib.List.isEmpty spec.holeRules)) || (Stdlib.Bool.not (Stdlib.List.isEmpty spec.completions)) then
+      Slot.Empty each
+    else
+      Slot.Filled spec.empty
+  | None -> Slot.Empty each
+
+/// Enter inside a list adds a sibling element after the current one and moves to it. This is how you grow
+/// a match (a new arm), a list, a record, a set of parameters -- without leaving the keyboard row.
+let addSibling (st: State) : Stdlib.Option.Option<State> =
+  match enclosingListItem st.caret with
+  | Some((parentPath, slot, i)) ->
+    match nodeAtPath st.root parentPath with
+    | Some n ->
+      match Node.field n slot with
+      | Some(Many(_, each)) ->
+        let item = newItemForEach st each
+        let st1 = commit st [ Edit.InsertItem(parentPath, slot, i + 1, item) ] st.caret
+        let caret =
+          match item with
+          | Filled child -> firstEditable (Path.item parentPath slot (i + 1)) child
+          | _ -> Caret.inItem parentPath slot (i + 1) 0
+        Stdlib.Option.Option.Some { st1 with caret = caret }
+      | _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
 // --- Keys ---
 
 let isPrintable (kp: Stdlib.Cli.UI.Widget.KeyPress) : Bool =
@@ -1065,11 +1116,16 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))
   | DownArrow -> if completing then handled (cycleCandidate st 1) else handled (moveVertical st 1)
   | Enter ->
+    // Accept the highlighted candidate; else add a sibling in the enclosing list (a new match arm, list
+    // element, record field); else settle a partial.
     if completing then handled (commitCandidate st)
     else
-      match resolvePartial st with
-      | Some resolved -> handled resolved
-      | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+      match addSibling st with
+      | Some added -> handled added
+      | None ->
+        match resolvePartial st with
+        | Some resolved -> handled resolved
+        | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
     // Commit on Tab only when a partial is being typed; a fresh hole's menu is a preview and Tab still
