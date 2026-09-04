@@ -741,6 +741,23 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
 /// these, so a rule keyed on the first character still fires and the rest follow.
+/// The glyph rendered immediately to the right of the caret, if any. Used to skip past a closing
+/// delimiter you re-type: the layout draws `]`/`)`/`}`/`"` as punctuation, so this reads it back.
+let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    match Stdlib.List.getAt rows row with
+    | Some r ->
+      Layout.rowText r
+      |> Stdlib.String.toList
+      |> Stdlib.List.getAt col
+      |> Stdlib.Option.map (fun ch -> Stdlib.Char.toString ch)
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+val closingDelimiters = [ "]", ")", "}", "\"" ]
+
 let typeOne (st: State) (c: String) : State =
   let caret = st.caret
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
@@ -749,7 +766,12 @@ let typeOne (st: State) (c: String) : State =
     match caret.part with
     | InText slot -> slot == "body"
     | _ -> false
-  if (c == ",") && (Stdlib.Bool.not inStringBody) then
+  // Re-typing a closing delimiter that's already drawn to the right steps past it instead of dropping a
+  // stray literal: with the caret at `[1~]`, another `]` moves out of the list, matching how you'd close
+  // a bracket you can already see.
+  if (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
+    moveRight st
+  elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     match addSibling st with
     | Some added -> added
     | None -> typeOneRaw st c

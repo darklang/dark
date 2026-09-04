@@ -141,3 +141,15 @@ module FieldAccess =
   // A qualified name keeps building as one word: the `.` only splits off a field after a bare lowercase
   // name, so `List.map` stays a single reference being typed, not `List` with a field `map`.
   (Fixtures.screen [ "L", "i", "s", "t", ".", "m", "a", "p" ]) = "List.map~"
+
+
+module ClosingDelimiter =
+  // Re-typing a closing delimiter that's already on screen doesn't drop a stray literal: with the list
+  // closed as `[1]`, another `]` is a no-op rather than `[1]]`. The list still lowers cleanly.
+  (Fixtures.screen [ "[", "1", "]" ]) = "[1~]"
+  (Fixtures.program [ "[", "1", "]" ]) = "[1]"
+  (Fixtures.screen [ "[", "1", "2", "3", "]" ]) = "[123~]"
+
+  // Same for a string's closing quote: typing `"` at the end of the body doesn't add a second quote.
+  (Fixtures.screen [ "\"", "a", "b", "\"" ]) = "\"ab~\""
+  (Fixtures.program [ "\"", "a", "b", "\"" ]) = "\"ab\""
