@@ -743,6 +743,21 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// these, so a rule keyed on the first character still fires and the rest follow.
 let typeOne (st: State) (c: String) : State =
   let caret = st.caret
+  // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
+  // you're typing inside a string, where it's a literal comma.
+  let inStringBody =
+    match caret.part with
+    | InText slot -> slot == "body"
+    | _ -> false
+  if (c == ",") && (Stdlib.Bool.not inStringBody) then
+    match addSibling st with
+    | Some added -> added
+    | None -> typeOneRaw st c
+  else
+    typeOneRaw st c
+
+let typeOneRaw (st: State) (c: String) : State =
+  let caret = st.caret
   match caret.part with
   | InText slot ->
     match nodeAtPath st.root caret.node with
@@ -1075,14 +1090,19 @@ let addSibling (st: State) : Stdlib.Option.Option<State> =
     match nodeAtPath st.root parentPath with
     | Some n ->
       match Node.field n slot with
-      | Some(Many(_, each)) ->
-        let item = newItemForEach st each
-        let st1 = commit st [ Edit.InsertItem(parentPath, slot, i + 1, item) ] st.caret
-        let caret =
-          match item with
-          | Filled child -> firstEditable (Path.item parentPath slot (i + 1)) child
-          | _ -> Caret.inItem parentPath slot (i + 1) 0
-        Stdlib.Option.Option.Some { st1 with caret = caret }
+      | Some(Many(items, each)) ->
+        // If the next element is already an empty hole (e.g. a tuple's second slot), move to it rather
+        // than inserting a new one. Otherwise add a sibling after this one.
+        match Stdlib.List.getAt items (i + 1) with
+        | Some(Empty _) -> Stdlib.Option.Option.Some { st with caret = Caret.inItem parentPath slot (i + 1) 0 }
+        | _ ->
+          let item = newItemForEach st each
+          let st1 = commit st [ Edit.InsertItem(parentPath, slot, i + 1, item) ] st.caret
+          let caret =
+            match item with
+            | Filled child -> firstEditable (Path.item parentPath slot (i + 1)) child
+            | _ -> Caret.inItem parentPath slot (i + 1) 0
+          Stdlib.Option.Option.Some { st1 with caret = caret }
       | _ -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None

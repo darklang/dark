@@ -66,6 +66,16 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module CommaAddsItem =
+  // Comma adds/advances the next list or tuple element -- the natural key inside `[1, 2]` and `(1, 2)`.
+  (Fixtures.program [ "[", "1", ",", "2", ",", "3", "<Esc>" ]) = "[1, 2, 3]"
+  (Fixtures.program [ "(", "1", ",", "2", "<Esc>" ]) = "(1, 2)"
+  // A tuple's second slot already exists, so comma jumps to it rather than inserting a third.
+  (Fixtures.screen [ "(", "1", ",", "2" ]) = "(1, 2~)"
+  // Inside a string a comma is literal.
+  (Fixtures.screen [ "\"", "a", ",", "b" ]) = "\"a,b~\""
+
+
 module EnterAddsItem =
   // Enter inside a list adds a sibling and moves to it: a list grows, a match gains arms.
   (Fixtures.screen [ "[", "1", "<Enter>", "2", "<Enter>" ]) = "[1, 2, ~⟨item⟩]"
