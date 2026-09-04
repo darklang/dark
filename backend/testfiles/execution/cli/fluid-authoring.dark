@@ -153,3 +153,15 @@ module ClosingDelimiter =
   // Same for a string's closing quote: typing `"` at the end of the body doesn't add a second quote.
   (Fixtures.screen [ "\"", "a", "b", "\"" ]) = "\"ab~\""
   (Fixtures.program [ "\"", "a", "b", "\"" ]) = "\"ab\""
+
+
+module DeleteOperator =
+  // Deleting an infix operator (backspace over it) merges compatible operands into one leaf: two ints
+  // join into one number, the caret at the seam; two names concatenate.
+  (Fixtures.program [ "1", "2", "+", "3", "4", "<Left>", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "1234"
+  (Fixtures.screen [ "1", "2", "+", "3", "4", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "12~34"
+  (Fixtures.program [ "a", "+", "b", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "ab"
+
+  // Incompatible operands don't merge into a bogus literal: `1` with a half-typed name stays `1` (the
+  // right is dropped), not the invalid int `1t`.
+  (Fixtures.program [ "1", "+", "t", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "1"

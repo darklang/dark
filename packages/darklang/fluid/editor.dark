@@ -892,19 +892,101 @@ let typeChar (st: State) (c: String) : State =
     Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g -> typeOne acc (Stdlib.Char.toString g))
 
 
+/// The text slot a leaf carries its content in, if it's the kind we can merge by concatenation: an int's
+/// digits, a variable's name. Anything else (or a non-leaf) returns None and won't be merged.
+let mergeSlotOf (n: Node) : Stdlib.Option.Option<String> =
+  match n.kind.case with
+  | Some "EInt" -> Stdlib.Option.Option.Some "digits"
+  | Some "EInt64" -> Stdlib.Option.Option.Some "digits"
+  | Some "EVariable" -> Stdlib.Option.Option.Some "name"
+  | _ -> Stdlib.Option.Option.None
+
+/// A mergeable operand contributes (kind, slot-name, text): a filled int/variable by its content, a
+/// partial (a name still being typed) by its text with no committed kind. A hole or anything else, None.
+let operandMerge (s: Slot) : Stdlib.Option.Option<(Stdlib.Option.Option<Kind> * Stdlib.Option.Option<String> * String)> =
+  match s with
+  | Filled n ->
+    match mergeSlotOf n with
+    | Some sn ->
+      Stdlib.Option.Option.Some((Stdlib.Option.Option.Some n.kind, mergeSlotOf n, Node.text n sn |> Stdlib.Option.withDefault ""))
+    | None -> Stdlib.Option.Option.None
+  | Partial(t, _) -> Stdlib.Option.Option.Some((Stdlib.Option.Option.None, Stdlib.Option.Option.None, t))
+  | Empty _ -> Stdlib.Option.Option.None
+
+/// Whether concatenated text is a valid literal of this kind: an int must stay all digits, a variable a
+/// well-formed identifier. Guards against merging `1` with a half-typed name into a bogus int `1t`.
+let mergedTextValid (k: Kind) (t: String) : Bool =
+  if t == "" then
+    false
+  else
+    let chars = Stdlib.String.toList t
+    match k.case with
+    | Some "EInt" -> chars |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c)
+    | Some "EInt64" -> chars |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c)
+    | Some "EVariable" ->
+      let firstOk =
+        match Stdlib.List.head chars with
+        | Some c -> (Stdlib.Char.isLetter c) || ((Stdlib.Char.toString c) == "_")
+        | None -> false
+      firstOk
+      && (chars |> Stdlib.List.all (fun c -> (Stdlib.Char.isAlphanumeric c) || ((Stdlib.Char.toString c) == "_")))
+    | _ -> false
+
+/// Deleting the operator collapses an infix. Compatible operands merge into one leaf (`12 + 34` -> `1234`,
+/// `foo + bar` -> `foobar`, the join under the caret); incompatible ones don't (`true + false` -> `true`,
+/// dropping the right); a hole on either side just leaves the other operand.
+let collapseInfix (st: State) (p: Path) (n: Node) : State =
+  let leftSlot = Node.slot n "left" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
+  let rightSlot = Node.slot n "right" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "right"))
+  // Keep one of the original operand slots (hole and all), landing the caret where you'd keep typing.
+  let keep (s: Slot) (atEnd: Bool) : State =
+    let st1 = commit st [ Edit.Replace(p, s) ] st.caret
+    let caret =
+      match Slot.node s with
+      | Some child -> if atEnd then lastEditable p child else firstEditable p child
+      | None -> Caret.inSlot p "" 0
+    { st1 with caret = caret }
+  match (operandMerge leftSlot, operandMerge rightSlot) with
+  | (Some((lk, lsn, lt)), Some((rk, rsn, rt))) ->
+    // The kind comes from whichever side has one; two partials with no kind can't form a leaf, and two
+    // filled leaves of different kinds (an int and a bool) aren't mergeable either.
+    let kind = if Stdlib.Option.isSome lk then lk else rk
+    let sn = if Stdlib.Option.isSome lsn then lsn else rsn
+    let kindsAgree =
+      match (lk, rk) with
+      | (Some a, Some b) -> a.case == b.case
+      | _ -> true
+    match (kind, sn) with
+    | (Some k, Some slotName) ->
+      let joined = lt ++ rt
+      if kindsAgree && (mergedTextValid k joined) then
+        let merged = Node.make k [ (slotName, Field.Text joined) ]
+        let st1 = commit st [ Edit.Replace(p, Slot.Filled merged) ] st.caret
+        { st1 with caret = Caret.inText p slotName (Stdlib.String.length lt) }
+      else
+        keep leftSlot true
+    | _ -> keep leftSlot true
+  | (Some _, None) -> keep leftSlot true
+  | (None, Some _) -> keep rightSlot false
+  | (None, None) -> keep leftSlot false
+
 let backspace (st: State) : State =
   let caret = st.caret
   match caret.part with
   | InText slot ->
-    if caret.offset <= 0 then
-      st
-    else
-      match nodeAtPath st.root caret.node with
-      | Some n ->
-        let old = Node.text n slot |> Stdlib.Option.withDefault ""
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let old = Node.text n slot |> Stdlib.Option.withDefault ""
+      // Backspacing a single-character infix operator deletes the operator, collapsing the infix onto its
+      // operands rather than leaving `12  34` with no operator. Fires wherever the caret sits in the op.
+      if (slot == "op") && (n.kind.case == Stdlib.Option.Option.Some "EInfix") && ((Stdlib.String.length old) <= 1) then
+        collapseInfix st caret.node n
+      elif caret.offset <= 0 then
+        st
+      else
         let updated = TextEdit.removeBefore old caret.offset
         commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset - 1 }
-      | None -> st
+    | None -> st
   | OnNode -> st
   | _ ->
     match Caret.slotPath caret with
