@@ -25,6 +25,9 @@ type State =
     future: List<Snapshot>
     /// Which candidate is selected when the caret is on a partial with completions.
     completionIndex: Int
+    /// The completion menu for the current caret, computed once per keystroke (a store search is
+    /// expensive and was being run several times a frame). Read this everywhere; refresh it after a key.
+    menu: List<Candidate>
     /// The command palette (NAV): open?, the filter typed so far, which action is highlighted.
     paletteOpen: Bool
     paletteFilter: String
@@ -66,12 +69,14 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       history = []
       future = []
       completionIndex = 0
+      menu = []
       paletteOpen = false
       paletteFilter = ""
       paletteIndex = 0
       clipboard = Stdlib.Option.Option.None
       lastTyped = Stdlib.Option.Option.None
       message = "" }
+  |> fun s -> { s with menu = computeCandidates s }
 
 let layout (st: State) : List<Layout.Row> =
   Project.render st.reg st.width st.root
@@ -873,15 +878,21 @@ let candidatePool (st: State) (e: Expect) (typed: String) : List<Candidate> =
     | None ->
       rankCompletions typed (st.reg.specs |> Stdlib.List.map (fun s -> s.completions) |> Stdlib.List.flatten)
 
-/// The candidates to show under the caret. A partial filters by what's typed; a fresh empty hole shows
-/// its options immediately (this is the "menu appears the moment you land on a hole" behaviour), so most
-/// holes need no typing at all.
-let candidates (st: State) : List<Candidate> =
+/// Compute the candidate menu for the current caret. A partial filters by what's typed; a fresh empty
+/// hole shows its options immediately. This can run a package-store search, so it is computed once per
+/// keystroke (see `refreshMenu`) and everything else reads the cached `menu`.
+let computeCandidates (st: State) : List<Candidate> =
   match slotUnder st with
   | Some(Partial(typed, was)) ->
     candidatePool st (Slot.expect was |> Stdlib.Option.withDefault (Expect.any "")) typed
   | Some(Empty e) -> candidatePool st e ""
   | _ -> []
+
+/// The cached completion menu. Cheap; refreshed once per key.
+let candidates (st: State) : List<Candidate> = st.menu
+
+/// Recompute the menu for the state as it now stands. Call after every key.
+let refreshMenu (st: State) : State = { st with menu = computeCandidates st }
 
 /// Is the caret on a partial (text typed but not resolved)? Tab commits a candidate only here; on a
 /// fresh hole Tab still means "next hole".
@@ -1169,7 +1180,16 @@ let expectHint (st: State) : String =
     | Some n -> crumbName n
     | None -> ""
 
+/// Refresh the cached menu on whatever state an outcome carries, so the next frame's menu is current.
+let withRefreshedMenu (o: Outcome) : Outcome =
+  match o with
+  | Handled s -> Stdlib.Cli.UI.Widget.Outcome.Handled(refreshMenu s)
+  | Emitted(s, m) -> Stdlib.Cli.UI.Widget.Outcome.Emitted(refreshMenu s, m)
+  | Ignored -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+
 let onKey (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
-  match st.mode with
-  | Insert -> onKeyInsert st kp
-  | Nav -> onKeyNav st kp
+  let raw =
+    match st.mode with
+    | Insert -> onKeyInsert st kp
+    | Nav -> onKeyNav st kp
+  withRefreshedMenu raw
