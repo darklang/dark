@@ -1685,3 +1685,167 @@ module Fn =
         summary = (fun n -> "let " ++ (PT.textOf n "name")) }
 
   let specs () : List<Spec> = [ fnSpec (), paramSpec () ]
+
+
+// ============================================================================
+// The type-declaration shell: a whole PackageType as one document -- name, type
+// params, and a record / enum / alias definition. Reuses PT.Types for every type.
+// ============================================================================
+
+module TypeDecl =
+  type PackageType = Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+  type Def = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition
+  type RecordField = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+  type EnumCase = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
+  type EnumField = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+
+  val ns = "Darklang.Fluid.PT.TypeDecl"
+  let k (case: String) : Kind = Kind.ofCase ns case
+  let defExpect () : Expect = Expect.ofKind (Kind.named (ns ++ ".Def")) "definition"
+  let fieldExpect () : Expect = Expect.ofKind (k "RecordField") "field"
+  let caseExpect2 () : Expect = Expect.ofKind (k "EnumCase") "case"
+  let paramExpect () : Expect = Expect.ofKind (k "TypeParam") "type param"
+
+  // --- to the document ---
+
+  let paramToDoc (name: String) : Node = Node.make (k "TypeParam") [ PT.text "name" name ]
+
+  let recordFieldToDoc (f: RecordField) : Node =
+    Node.make (k "RecordField") [ PT.text "name" f.name, PT.one "type" (Types.toDoc f.typ) ]
+
+  let enumCaseToDoc (c: EnumCase) : Node =
+    Node.make
+      (k "EnumCase")
+      [ PT.text "name" c.name
+        PT.many "fields" (c.fields |> Stdlib.List.map (fun ef -> Types.toDoc ef.typ)) (Types.typeExpect "field") ]
+
+  let defToDoc (d: Def) : Node =
+    match d with
+    | Alias t -> Node.make (k "Alias") [ PT.one "type" (Types.toDoc t) ]
+    | Record fields ->
+      Node.make (k "Record") [ PT.many "fields" (fields |> Stdlib.List.map (fun f -> recordFieldToDoc f)) (fieldExpect ()) ]
+    | Enum cases ->
+      Node.make (k "Enum") [ PT.many "cases" (cases |> Stdlib.List.map (fun c -> enumCaseToDoc c)) (caseExpect2 ()) ]
+
+  let toDoc (name: String) (pt: PackageType) : Node =
+    Node.make
+      (k "Type")
+      [ PT.text "name" name
+        PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString pt.hash)
+        PT.text "_desc" pt.description
+        PT.many "params" (pt.declaration.typeParams |> Stdlib.List.map (fun p -> paramToDoc p)) (paramExpect ())
+        PT.one "def" (defToDoc pt.declaration.definition) ]
+
+  // --- back to the program ---
+
+  let typeItems (n: Node) (name: String) : Stdlib.Result.Result<List<Darklang.LanguageTools.ProgramTypes.TypeReference>, String> =
+    Node.items n name
+    |> Stdlib.List.map (fun s ->
+      match s with
+      | Filled c -> Types.fromDoc c
+      | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+      | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+    |> Stdlib.Result.collect
+
+  let recordFieldFromDoc (n: Node) : Stdlib.Result.Result<RecordField, String> =
+    match Types.slotType n "type" with
+    | Ok t ->
+      Stdlib.Result.Result.Ok(
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField { name = PT.textOf n "name"; typ = t; description = "" })
+    | Error e -> Stdlib.Result.Result.Error e
+
+  let enumCaseFromDoc (n: Node) : Stdlib.Result.Result<EnumCase, String> =
+    match typeItems n "fields" with
+    | Ok ts ->
+      let efs =
+        ts |> Stdlib.List.map (fun t ->
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = t; label = Stdlib.Option.Option.None; description = "" })
+      Stdlib.Result.Result.Ok(
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = PT.textOf n "name"; fields = efs; description = "" })
+    | Error e -> Stdlib.Result.Result.Error e
+
+  let defFromDoc (n: Node) : Stdlib.Result.Result<Def, String> =
+    match n.kind.case with
+    | Some "Alias" ->
+      match Types.slotType n "type" with
+      | Ok t -> Stdlib.Result.Result.Ok(Def.Alias t)
+      | Error e -> Stdlib.Result.Result.Error e
+    | Some "Record" ->
+      Node.items n "fields"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled c -> recordFieldFromDoc c
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+      |> Stdlib.Result.map (fun fs -> Def.Record fs)
+    | Some "Enum" ->
+      Node.items n "cases"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled c -> enumCaseFromDoc c
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+      |> Stdlib.Result.map (fun cs -> Def.Enum cs)
+    | _ -> Stdlib.Result.Result.Error("not a type definition: " ++ (Kind.toString n.kind))
+
+  /// Rebuild a PackageType from `orig` plus the document's params and definition. Returns the name too.
+  let fromDoc (orig: PackageType) (n: Node) : Stdlib.Result.Result<(String * PackageType), String> =
+    let params =
+      Node.items n "params"
+      |> Stdlib.List.filterMap (fun s -> Slot.node s)
+      |> Stdlib.List.map (fun c -> PT.textOf c "name")
+    let def =
+      match Node.slot n "def" with
+      | Some(Filled c) -> defFromDoc c
+      | _ -> Stdlib.Result.Result.Error "the definition is a hole"
+    match def with
+    | Ok d ->
+      let decl =
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = params; definition = d }
+      Stdlib.Result.Result.Ok((PT.textOf n "name", { orig with declaration = decl }))
+    | Error e -> Stdlib.Result.Result.Error e
+
+  // --- specs ---
+
+  let simpleT (case: String) (pieces: List<Piece>) (empty: Node) : Spec =
+    { (Spec.simple (k case) pieces empty) with summary = PT.exprSummary }
+
+  let specs () : List<Spec> =
+    [ simpleT
+        "Type"
+        [ Piece.Group
+            [ Piece.Keyword "type"
+              Piece.Space
+              Piece.Text("name", Layout.Style.Name)
+              Piece.EachWrapped("params", "<", [ Piece.Punct ",", Piece.Space ], ">")
+              Piece.Space
+              Piece.Punct "=" ]
+          Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
+        (Node.make (k "Type") [ PT.text "name" "Unnamed", PT.text "_hash" "", PT.text "_desc" "", ("params", Field.Many([], paramExpect ())), ("def", Field.One(Slot.Empty(defExpect ()))) ])
+      simpleT "TypeParam" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
+      // definition: a hole here offers record / enum / alias
+      { (Spec.simple (Kind.named (ns ++ ".Def")) [ Piece.Dim "?definition" ] (Node.make (k "Record") [ ("fields", Field.Many([], fieldExpect ())) ])) with
+          completions =
+            [ Spec.candidate "record" "{ fields }" (Node.make (k "Record") [ ("fields", Field.Many([ Slot.Empty(fieldExpect ()) ], fieldExpect ())) ])
+              Spec.candidate "enum" "| cases" (Node.make (k "Enum") [ ("cases", Field.Many([ Slot.Empty(caseExpect2 ()) ], caseExpect2 ())) ])
+              Spec.candidate "alias" "= a type" (Node.make (k "Alias") [ ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ]) ]
+          summary = PT.exprSummary }
+      simpleT
+        "Record"
+        [ Piece.Group [ Piece.Punct "{", Piece.Nest(2, [ Piece.HardLine, Piece.Each("fields", [ Piece.HardLine ]) ]), Piece.HardLine, Piece.Punct "}" ] ]
+        (Node.make (k "Record") [ ("fields", Field.Many([ Slot.Empty(fieldExpect ()) ], fieldExpect ())) ])
+      simpleT
+        "Enum"
+        [ Piece.EachWith("cases", [ Piece.Punct "|", Piece.Space ], [ Piece.HardLine ]) ]
+        (Node.make (k "Enum") [ ("cases", Field.Many([ Slot.Empty(caseExpect2 ()) ], caseExpect2 ())) ])
+      simpleT "Alias" [ Piece.Slot "type" ] (Node.make (k "Alias") [ ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+      simpleT
+        "RecordField"
+        [ Piece.Text("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
+        (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+      simpleT
+        "EnumCase"
+        [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of ", [ Piece.Space, Piece.Punct "*", Piece.Space ], "") ]
+        (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], Types.typeExpect "field")) ]) ]

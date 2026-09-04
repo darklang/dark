@@ -1,0 +1,80 @@
+// Fluid edits type declarations too: a PackageType (record / enum / alias) is one document. Uses a
+// constructed PackageType so the test needs no store.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs (), Darklang.Fluid.PT.Fn.specs (), Darklang.Fluid.PT.TypeDecl.specs () ])
+
+  let field (nm: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField { name = nm; typ = t; description = "" }
+
+  let ef (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = t; label = Stdlib.Option.Option.None; description = "" }
+
+  let ecase (nm: String) (fs: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField>) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = nm; fields = fs; description = "" }
+
+  let mk (def: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition) : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+        declaration = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = []; definition = def }
+        description = "" }
+
+  let show (nm: String) (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc nm pt))
+
+  let rt (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : Bool =
+    match Darklang.Fluid.PT.TypeDecl.fromDoc pt (Darklang.Fluid.PT.TypeDecl.toDoc "X" pt) with
+    | Ok((_n, p2)) -> p2.declaration == pt.declaration
+    | Error _ -> false
+
+  let colorRec () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record [ field "r" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, field "g" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ])
+
+  let shapeEnum () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum [ ecase "Circle" [ ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], ecase "Point" [] ])
+
+  let namesAlias () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TString))
+
+
+module Rendering =
+  // A record lays out one field per line (vertical bias).
+  (Fixtures.show "Color" (Fixtures.colorRec ())) = "type Color =\n  {\n    r: Int\n    g: Int\n  }"
+
+  // An enum lays out one case per line, fields after `of`.
+  (Fixtures.show "Shape" (Fixtures.shapeEnum ())) = "type Shape =\n  | Circle of Int\n  | Point"
+
+  // An alias is just the aliased type.
+  (Fixtures.show "Names" (Fixtures.namesAlias ())) = "type Names =\n  List<String>"
+
+
+module RoundTrips =
+  (Fixtures.rt (Fixtures.colorRec ())) = true
+  (Fixtures.rt (Fixtures.shapeEnum ())) = true
+  (Fixtures.rt (Fixtures.namesAlias ())) = true
+
+
+module Editing =
+  // Change a record field's type through the document, and the declaration reflects it.
+  let editedField () : String =
+    let root = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Color" (Fixtures.colorRec ()))
+    let newType = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Types.toDoc Darklang.LanguageTools.ProgramTypes.TypeReference.TString)
+    let path = [ Darklang.Fluid.Step.Into "def", Darklang.Fluid.Step.Item("fields", 1) ]
+    let edited = Darklang.Fluid.Edit.apply root (Darklang.Fluid.Edit.SetSlot(path, "type", newType))
+    match edited with
+    | Filled n ->
+      match Darklang.Fluid.PT.TypeDecl.fromDoc (Fixtures.colorRec ()) n with
+      | Ok((_nm, p2)) -> Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Color" p2))
+      | Error e -> "ERR " ++ e
+    | _ -> "no"
+
+  (Fixtures.colorRec () |> fun _ -> Editing.editedField ()) = "type Color =\n  {\n    r: Int\n    g: String\n  }"
+
+  // A definition hole offers record / enum / alias.
+  let defHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.TypeDecl.Def") "definition")
+
+  (Darklang.Fluid.Test.run (Fixtures.reg ()) (Editing.defHole ()) 60 [ "e", "n", "u", "m", "<Enter>" ]) = "| ~⟨case⟩"

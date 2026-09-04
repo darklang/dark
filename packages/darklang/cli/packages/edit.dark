@@ -117,6 +117,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // and values still go to $EDITOR because Fluid doesn't edit them yet.
   match (location, wantsText) with
   | (Function _fnLoc, false) -> Darklang.Fluid.App.editFn state name
+  | (Type _typeLoc, false) -> Darklang.Fluid.App.editType state name
   | _ ->
 
   match Packages.View.rawSource branchId location with

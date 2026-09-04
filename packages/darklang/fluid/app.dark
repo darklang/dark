@@ -12,6 +12,10 @@ type Target =
   | FnBody of
     fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn *
     location: Darklang.LanguageTools.ProgramTypes.PackageLocation
+  /// A package type's declaration: the original type and its location.
+  | TypeDef of
+    typ: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType *
+    location: Darklang.LanguageTools.ProgramTypes.PackageLocation
 
 type State =
   { editor: Editor.State
@@ -50,7 +54,7 @@ let discoveredSpecs (branchId: Uuid) : List<Spec> =
 
 /// Built-in specs (prims + PT), then whatever the user has declared on this branch.
 let registryFor (branchId: Uuid) : Registry =
-  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), discoveredSpecs branchId ])
+  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), PT.TypeDecl.specs (), discoveredSpecs branchId ])
 
 let defaultRegistry () : Registry = registryFor Darklang.SCM.Branch.mainBranchId
 
@@ -85,6 +89,44 @@ let editFn (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.AppSt
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
     cliState
+
+let typeTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
+  let branchId = Darklang.SCM.Branch.mainBranchId
+  let location = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+  match Darklang.LanguageTools.PackageManager.Type.find branchId location with
+  | Some hash ->
+    match Darklang.LanguageTools.PackageManager.Type.get hash with
+    | Some pt -> Stdlib.Result.Result.Ok((Slot.Filled(PT.TypeDecl.toDoc location.name pt), Target.TypeDef(pt, location)))
+    | None -> Stdlib.Result.Result.Error $"no type with that hash: {name}"
+  | None -> Stdlib.Result.Result.Error $"no type named {name}"
+
+let editType (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.AppState =
+  match typeTarget name with
+  | Ok((root, target)) -> launchTarget cliState $"fluid: {name}" root target
+  | Error err ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
+    cliState
+
+let saveType
+  (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (root: Slot)
+  : Stdlib.Result.Result<String, String> =
+  match root with
+  | Filled n ->
+    match PT.TypeDecl.fromDoc pt n with
+    | Ok((_name, updated)) ->
+      let branchId = Darklang.SCM.Branch.mainBranchId
+      let ctx =
+        { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
+            preferredLocation = Stdlib.Option.Option.Some location }
+      let source = Darklang.PrettyPrinter.ProgramTypes.packageType ctx updated
+      let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
+      match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
+      | Ok _ -> Stdlib.Result.Result.Ok location.name
+      | Error err -> Stdlib.Result.Result.Error err
+    | Error err -> Stdlib.Result.Result.Error err
+  | _ -> Stdlib.Result.Result.Error "nothing to save"
 
 /// Reconstruct a package function's source with the edited body and apply it in place, through the same
 /// ops path `dark module` uses (`ModuleCommand.applySource`, which does not print). Returns how it went.
@@ -187,6 +229,10 @@ let onKey
       | Scratch -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = "nothing to save this to (try `fluid fn <name>`)" })
       | FnBody(fn, location) ->
         match saveFnBody fn location root with
+        | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
+        | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
+      | TypeDef(pt, location) ->
+        match saveType pt location root with
         | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
         | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
   | Ignored ->
