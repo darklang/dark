@@ -50,7 +50,7 @@ let discoveredSpecs (branchId: Uuid) : List<Spec> =
 
 /// Built-in specs (prims + PT), then whatever the user has declared on this branch.
 let registryFor (branchId: Uuid) : Registry =
-  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), discoveredSpecs branchId ])
+  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), discoveredSpecs branchId ])
 
 let defaultRegistry () : Registry = registryFor Darklang.SCM.Branch.mainBranchId
 

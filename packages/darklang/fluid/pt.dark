@@ -1295,3 +1295,208 @@ module Test =
       | Error err -> "ERR " ++ err
     | Empty e -> "ERR hole: " ++ e.label
     | Partial(t, _) -> "ERR unresolved: " ++ t
+
+
+// ============================================================================
+// TypeReference: editing types, so signatures and declarations become editable
+// (Fluid is for all Darklang code, not only data values).
+// ============================================================================
+
+module Types =
+  type TypeReference = Darklang.LanguageTools.ProgramTypes.TypeReference
+
+  val typeRefType = "Darklang.LanguageTools.ProgramTypes.TypeReference"
+
+  let typeKind (case: String) : Kind = Kind.ofCase typeRefType case
+  let typeExpect (label: String) : Expect = Expect.ofKind (Kind.named typeRefType) label
+
+  // The nullary built-in types: constructor case name paired with how it's written.
+  let prims () : List<(String * String)> =
+    [ ("TUnit", "Unit"), ("TBool", "Bool"), ("TInt8", "Int8"), ("TUInt8", "UInt8")
+      ("TInt16", "Int16"), ("TUInt16", "UInt16"), ("TInt32", "Int32"), ("TUInt32", "UInt32")
+      ("TInt64", "Int64"), ("TUInt64", "UInt64"), ("TInt128", "Int128"), ("TUInt128", "UInt128")
+      ("TInt", "Int"), ("TFloat", "Float"), ("TChar", "Char"), ("TString", "String")
+      ("TDateTime", "DateTime"), ("TUuid", "Uuid"), ("TBlob", "Blob") ]
+
+  let primNode (case: String) : Node = Node.make (typeKind case) []
+
+  let toDoc (t: TypeReference) : Node =
+    match t with
+    | TVariable name -> Node.make (typeKind "TVariable") [ PT.text "name" name ]
+    | TUnit -> primNode "TUnit"
+    | TBool -> primNode "TBool"
+    | TInt8 -> primNode "TInt8"
+    | TUInt8 -> primNode "TUInt8"
+    | TInt16 -> primNode "TInt16"
+    | TUInt16 -> primNode "TUInt16"
+    | TInt32 -> primNode "TInt32"
+    | TUInt32 -> primNode "TUInt32"
+    | TInt64 -> primNode "TInt64"
+    | TUInt64 -> primNode "TUInt64"
+    | TInt128 -> primNode "TInt128"
+    | TUInt128 -> primNode "TUInt128"
+    | TInt -> primNode "TInt"
+    | TFloat -> primNode "TFloat"
+    | TChar -> primNode "TChar"
+    | TString -> primNode "TString"
+    | TDateTime -> primNode "TDateTime"
+    | TUuid -> primNode "TUuid"
+    | TBlob -> primNode "TBlob"
+    | TList inner -> Node.make (typeKind "TList") [ PT.one "arg" (toDoc inner) ]
+    | TStream inner -> Node.make (typeKind "TStream") [ PT.one "arg" (toDoc inner) ]
+    | TDB inner -> Node.make (typeKind "TDB") [ PT.one "arg" (toDoc inner) ]
+    | TDict(k, v) -> Node.make (typeKind "TDict") [ PT.one "key" (toDoc k), PT.one "value" (toDoc v) ]
+    | TTuple(a, b, rest) ->
+      Node.make (typeKind "TTuple") [ PT.many "items" ((Stdlib.List.flatten [ [ a, b ], rest ]) |> Stdlib.List.map (fun x -> toDoc x)) (typeExpect "type") ]
+    | TFn(args, ret) ->
+      Node.make (typeKind "TFn") [ PT.many "args" (args |> Stdlib.List.map (fun x -> toDoc x)) (typeExpect "arg"), PT.one "ret" (toDoc ret) ]
+    | TCustomType(nr, targs) ->
+      Node.make
+        (typeKind "TCustomType")
+        [ PT.text "name" (PT.typeNameOf nr), PT.text "_hash" (PT.typeHashOf nr)
+          PT.many "args" (targs |> Stdlib.List.map (fun x -> toDoc x)) (typeExpect "type arg") ]
+
+  let itemTypes (n: Node) (name: String) : Stdlib.Result.Result<List<TypeReference>, String> =
+    Node.items n name
+    |> Stdlib.List.map (fun s ->
+      match s with
+      | Filled c -> fromDoc c
+      | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+      | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+    |> Stdlib.Result.collect
+
+  let slotType (n: Node) (name: String) : Stdlib.Result.Result<TypeReference, String> =
+    match Node.slot n name with
+    | Some(Filled c) -> fromDoc c
+    | Some(Empty e) -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+    | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+    | None -> Stdlib.Result.Result.Error("missing " ++ name)
+
+  let fromDoc (n: Node) : Stdlib.Result.Result<TypeReference, String> =
+    let ok (t: TypeReference) : Stdlib.Result.Result<TypeReference, String> = Stdlib.Result.Result.Ok t
+    match n.kind.case with
+    | Some "TVariable" -> ok (TypeReference.TVariable(PT.textOf n "name"))
+    | Some "TUnit" -> ok TypeReference.TUnit
+    | Some "TBool" -> ok TypeReference.TBool
+    | Some "TInt8" -> ok TypeReference.TInt8
+    | Some "TUInt8" -> ok TypeReference.TUInt8
+    | Some "TInt16" -> ok TypeReference.TInt16
+    | Some "TUInt16" -> ok TypeReference.TUInt16
+    | Some "TInt32" -> ok TypeReference.TInt32
+    | Some "TUInt32" -> ok TypeReference.TUInt32
+    | Some "TInt64" -> ok TypeReference.TInt64
+    | Some "TUInt64" -> ok TypeReference.TUInt64
+    | Some "TInt128" -> ok TypeReference.TInt128
+    | Some "TUInt128" -> ok TypeReference.TUInt128
+    | Some "TInt" -> ok TypeReference.TInt
+    | Some "TFloat" -> ok TypeReference.TFloat
+    | Some "TChar" -> ok TypeReference.TChar
+    | Some "TString" -> ok TypeReference.TString
+    | Some "TDateTime" -> ok TypeReference.TDateTime
+    | Some "TUuid" -> ok TypeReference.TUuid
+    | Some "TBlob" -> ok TypeReference.TBlob
+    | Some "TList" -> slotType n "arg" |> Stdlib.Result.map (fun t -> TypeReference.TList t)
+    | Some "TStream" -> slotType n "arg" |> Stdlib.Result.map (fun t -> TypeReference.TStream t)
+    | Some "TDB" -> slotType n "arg" |> Stdlib.Result.map (fun t -> TypeReference.TDB t)
+    | Some "TDict" ->
+      match (slotType n "key", slotType n "value") with
+      | (Ok k, Ok v) -> ok (TypeReference.TDict(k, v))
+      | (Error e, _) -> Stdlib.Result.Result.Error e
+      | (_, Error e) -> Stdlib.Result.Result.Error e
+    | Some "TTuple" ->
+      match itemTypes n "items" with
+      | Ok(a :: b :: rest) -> ok (TypeReference.TTuple(a, b, rest))
+      | Ok _ -> Stdlib.Result.Result.Error "a tuple type needs two members"
+      | Error e -> Stdlib.Result.Result.Error e
+    | Some "TFn" ->
+      match (itemTypes n "args", slotType n "ret") with
+      | (Ok args, Ok ret) -> ok (TypeReference.TFn(args, ret))
+      | (Error e, _) -> Stdlib.Result.Result.Error e
+      | (_, Error e) -> Stdlib.Result.Result.Error e
+    | Some "TCustomType" ->
+      match (PT.typeNameResolution (PT.textOf n "name") (PT.textOf n "_hash"), itemTypes n "args") with
+      | (Ok nr, Ok targs) -> ok (TypeReference.TCustomType(nr, targs))
+      | (Error e, _) -> Stdlib.Result.Result.Error e
+      | (_, Error e) -> Stdlib.Result.Result.Error e
+    | _ -> Stdlib.Result.Result.Error("not a type: " ++ (Kind.toString n.kind))
+
+  // --- Specs ---
+
+  let simpleType (case: String) (pieces: List<Piece>) (empty: Node) : Spec =
+    { (Spec.simple (typeKind case) pieces empty) with summary = PT.exprSummary }
+
+  let primSpecs () : List<Spec> =
+    prims ()
+    |> Stdlib.List.map (fun pair ->
+      let (case, written) = pair
+      simpleType case [ Piece.Label written ] (primNode case))
+
+  /// A completion candidate for each built-in type, the containers (with holes), and any custom types
+  /// whose name matches. This is what a type hole offers the moment you land on it.
+  let completeType (e: Expect) (typed: String) : List<Candidate> =
+    if (Stdlib.String.length typed) < 2 then
+      []
+    else
+      let query =
+        Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = []
+            text = Stdlib.String.split typed "." |> Stdlib.List.last |> Stdlib.Option.withDefault typed
+            searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+            entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
+            exactMatch = false }
+      (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
+      |> Stdlib.List.take 8
+      |> Stdlib.List.map (fun item ->
+        let name = PT.locationName item.location
+        let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
+        Spec.candidate (PT.displayName name) "type" (Node.make (typeKind "TCustomType") [ PT.text "name" name, PT.text "_hash" hash, ("args", Field.Many([], typeExpect "type arg")) ]))
+
+  let typeVarFromLetter (c: String) (e: Expect) : Node = Node.make (typeKind "TVariable") [ PT.text "name" c ]
+
+  let resolveTypePartial (typed: String) : Stdlib.Option.Option<Node> =
+    // A lowercase identifier is a type variable (`a`, `key`); anything else stays a partial.
+    if PT.isIdentifier typed && (Stdlib.String.toLowercase typed) == typed then
+      Stdlib.Option.Option.Some(Node.make (typeKind "TVariable") [ PT.text "name" typed ])
+    else
+      Stdlib.Option.Option.None
+
+  let primCandidates () : List<Candidate> =
+    prims () |> Stdlib.List.map (fun pair ->
+      let (case, written) = pair
+      Spec.candidate written "type" (primNode case))
+
+  let containerCandidates () : List<Candidate> =
+    [ Spec.candidate "List" "List<_>" (Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+      Spec.candidate "Dict" "Dict<_, _>" (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
+      Spec.candidate "Tuple" "(_ * _)" (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
+      Spec.candidate "Fn" "(_ -> _)" (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ]) ]
+
+  let typeTypeSpec () : Spec =
+    Spec
+      { kind = Kind.named typeRefType
+        pieces = [ Piece.Dim "?type" ]
+        holeRules =
+          [ HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ]) }
+            HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
+        wrapRules = []
+        completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
+        complete = completeType
+        resolve = resolveTypePartial
+        binders = Spec.noBinders
+        scopeCandidate = Stdlib.Option.Option.None
+        actions = []
+        empty = primNode "TInt"
+        summary = PT.exprSummary }
+
+  let specs () : List<Spec> =
+    Stdlib.List.flatten
+      [ [ typeTypeSpec () ]
+        primSpecs ()
+        [ simpleType "TVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ])
+          simpleType "TList" [ Piece.Keyword "List", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TStream" [ Piece.Keyword "Stream", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TStream") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TDB" [ Piece.Keyword "DB", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TDB") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TDict" [ Piece.Keyword "Dict", Piece.Punct "<", Piece.Slot "key", Piece.Punct ",", Piece.Space, Piece.Slot "value", Piece.Punct ">" ] (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
+          simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
+          simpleType "TFn" [ Piece.Punct "(", Piece.EachWith("args", [], [ Piece.Space, Piece.Punct "->", Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Space, Piece.Slot "ret", Piece.Punct ")" ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
+          simpleType "TCustomType" [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Space ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]

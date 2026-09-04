@@ -723,22 +723,29 @@ let labelMatches (typed: String) (label: String) : Bool =
 
 /// The candidate pool for a hole expecting `e`, given the text typed so far. Fixed completions are
 /// prefix-filtered here; computed ones (`complete`) match themselves.
+/// Prefix-match, then bring an exact-name match to the front so "Int" beats "Int8"; everything else keeps
+/// its declared order (enum cases, keywords), which is meaningful. A partition, not a sort, so ties are
+/// never reshuffled.
+let rankCompletions (typed: String) (cs: List<Candidate>) : List<Candidate> =
+  let t = Stdlib.String.toLowercase typed
+  let matched = cs |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+  let exact = matched |> Stdlib.List.filter (fun c -> (Stdlib.String.toLowercase c.label) == t)
+  let rest = matched |> Stdlib.List.filter (fun c -> (Stdlib.String.toLowercase c.label) != t)
+  Stdlib.List.append exact rest
+
 let candidatePool (st: State) (e: Expect) (typed: String) : List<Candidate> =
   let scoped = scopeCandidates st e typed
   match Registry.forExpect st.reg e with
   | Some spec ->
     Stdlib.List.flatten
       [ scoped
-        spec.completions |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+        rankCompletions typed spec.completions
         spec.complete e typed ]
   | None ->
     match e.kind with
     | Some _ -> []
     | None ->
-      st.reg.specs
-      |> Stdlib.List.map (fun s -> s.completions)
-      |> Stdlib.List.flatten
-      |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+      rankCompletions typed (st.reg.specs |> Stdlib.List.map (fun s -> s.completions) |> Stdlib.List.flatten)
 
 /// The candidates to show under the caret. A partial filters by what's typed; a fresh empty hole shows
 /// its options immediately (this is the "menu appears the moment you land on a hole" behaviour), so most

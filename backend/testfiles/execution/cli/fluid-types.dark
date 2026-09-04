@@ -1,0 +1,47 @@
+// Fluid edits types too, not just expressions: TypeReference round-trips through the document, and a type
+// hole builds real types from keystrokes with completion.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.Types.typeExpect "type")
+
+  let rt (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Bool =
+    match Darklang.Fluid.PT.Types.fromDoc (Darklang.Fluid.PT.Types.toDoc t) with
+    | Ok t2 -> t2 == t
+    | Error _ -> false
+
+  let render (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Types.toDoc t))
+
+  let edit (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
+
+
+module RoundTrips =
+  (Fixtures.rt Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) = true
+  (Fixtures.rt Darklang.LanguageTools.ProgramTypes.TypeReference.TString) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(Darklang.LanguageTools.ProgramTypes.TypeReference.TString, Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, [ Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a")) = true
+
+
+module Rendering =
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)) = "List<Int>"
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(Darklang.LanguageTools.ProgramTypes.TypeReference.TString, Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))) = "Dict<String, Int>"
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = "(Int -> Bool)"
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, []))) = "(Int * String)"
+
+
+module Editing =
+  // A type name completes exact-first: "Int" gives Int, not Int8.
+  (Fixtures.edit [ "I", "n", "t", "<Enter>" ]) = "~Int"
+  // `[` builds a List with a hole for the element; then the element completes.
+  (Fixtures.edit [ "[", "S", "t", "r", "i", "n", "g", "<Enter>" ]) = "List<~String>"
+  // Containers come from completion and nest.
+  (Fixtures.edit [ "L", "i", "s", "t", "<Enter>", "I", "n", "t", "<Enter>" ]) = "List<~Int>"
+  // A lowercase identifier with no match resolves to a type variable.
+  (Fixtures.edit [ "a", "<Esc>" ]) = "~a"
