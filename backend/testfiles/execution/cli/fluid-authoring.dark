@@ -66,6 +66,19 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module MenuQuality =
+  // The obvious choice tops the menu, and a short query does NOT dump the package store: `le` is just the
+  // `let` keyword, `ma` just `match`. A dotted qualifier still searches.
+  let menu (keys: List<String>) : List<String> =
+    let s = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60) keys
+    Darklang.Fluid.Editor.candidates s |> Stdlib.List.map (fun c -> c.label)
+
+  (MenuQuality.menu [ "l", "e" ]) = [ "let" ]
+  (MenuQuality.menu [ "m", "a" ]) = [ "match" ]
+  // The first candidate for a dotted function query is the exact name.
+  ((MenuQuality.menu [ "L", "i", "s", "t", ".", "m", "a", "p" ]) |> Stdlib.List.head) = (Stdlib.Option.Option.Some "Stdlib.List.map")
+
+
 module MenuKeys =
   // Escape dismisses a live menu (you stay in INSERT with the partial), a second Escape leaves to NAV.
   (Fixtures.screen [ "l", "e", "<Esc>" ]) = "le~"

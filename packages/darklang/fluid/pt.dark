@@ -797,7 +797,7 @@ let pipeCallNode (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) (
     [ text "name" name, text "_hash" hash
       ("args", Field.Many(rest |> Stdlib.List.map (fun p -> Slot.Empty(exprExpect p.name)), exprExpect "arg")) ]
 
-val maxSearchCandidates = 8
+val maxSearchCandidates = 5
 
 /// The store's search wants a module path and a name, and matches the name by substring inside that
 /// module; a fuzzy fallback at the root is wide and capped, so `List.ma` at the root never reaches
@@ -842,10 +842,15 @@ let dedupe
 let paramSummary (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
   fn.parameters |> Stdlib.List.map (fun p -> p.name) |> Stdlib.String.join " "
 
-/// Package functions and values whose names match, as calls with placeholder arguments. Two characters
-/// before we go to the store: one is too many hits to be useful.
+/// Only hit the store once the query is specific enough to be useful: 3+ characters, or a dotted
+/// qualifier (`List.m`). Below that, a two-letter query matches a hundred names and buries the keyword or
+/// in-scope name you actually want.
+let shouldSearch (typed: String) : Bool =
+  (Stdlib.String.length typed) >= 3 || (Stdlib.String.contains typed ".")
+
+/// Package functions and values whose names match, as calls with placeholder arguments.
 let completeExpr (e: Expect) (typed: String) : List<Candidate> =
-  if (Stdlib.String.length typed) < 2 then
+  if Stdlib.Bool.not (shouldSearch typed) then
     []
   else
     let results = searchFor typed
@@ -857,7 +862,7 @@ let completeExpr (e: Expect) (typed: String) : List<Candidate> =
         Spec.candidate (displayName name) (paramSummary item.entity) (applyNode item.entity name))
     let values =
       ranked typed results.values
-      |> Stdlib.List.take 4
+      |> Stdlib.List.take 3
       |> Stdlib.List.map (fun item ->
         let name = locationName item.location
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
@@ -865,7 +870,7 @@ let completeExpr (e: Expect) (typed: String) : List<Candidate> =
     Stdlib.List.append fns values
 
 let completePipeStep (e: Expect) (typed: String) : List<Candidate> =
-  if (Stdlib.String.length typed) < 2 then
+  if Stdlib.Bool.not (shouldSearch typed) then
     []
   else
     ranked typed (searchFor typed).fns
@@ -1509,7 +1514,7 @@ module Types =
   /// A completion candidate for each built-in type, the containers (with holes), and any custom types
   /// whose name matches. This is what a type hole offers the moment you land on it.
   let completeType (e: Expect) (typed: String) : List<Candidate> =
-    if (Stdlib.String.length typed) < 2 then
+    if Stdlib.Bool.not (PT.shouldSearch typed) then
       []
     else
       let query =
@@ -1520,7 +1525,7 @@ module Types =
             entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
             exactMatch = false }
       (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
-      |> Stdlib.List.take 8
+      |> Stdlib.List.take 5
       |> Stdlib.List.map (fun item ->
         let name = PT.locationName item.location
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
