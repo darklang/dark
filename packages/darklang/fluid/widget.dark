@@ -116,7 +116,7 @@ let palette
   if Stdlib.Bool.not st.paletteOpen then
     []
   else
-    let actions = Editor.paletteActions st
+    let actions = Editor.visibleActions st
     let selected = Stdlib.Int.clamp st.paletteIndex 0 (Stdlib.Int.max 0 ((Stdlib.List.length actions) - 1))
     let rows =
       actions
@@ -124,7 +124,8 @@ let palette
     let widest =
       rows |> Stdlib.List.fold 24 (fun acc r -> Stdlib.Int.max acc (Stdlib.Cli.Tui.Text.styledWidth r))
     let boxW = Stdlib.Int.min (region.cols - 2) (widest + 2)
-    let title = " actions "
+    // The prompt shows the filter so it reads like a command palette.
+    let title = " : " ++ st.paletteFilter
     let top = 1
     let left = 2
     let header = Stdlib.Cli.UI.Layout.at region top left (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.purpleBg (Stdlib.Cli.Tui.Text.fitToWidth title boxW))

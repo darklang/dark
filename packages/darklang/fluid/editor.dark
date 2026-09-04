@@ -25,8 +25,9 @@ type State =
     future: List<Snapshot>
     /// Which candidate is selected when the caret is on a partial with completions.
     completionIndex: Int
-    /// The command palette (NAV): open?, which action is highlighted.
+    /// The command palette (NAV): open?, the filter typed so far, which action is highlighted.
     paletteOpen: Bool
+    paletteFilter: String
     paletteIndex: Int
     /// The last node yanked (NAV `y`), to put elsewhere (NAV `p`). A whole subtree, not text.
     clipboard: Stdlib.Option.Option<Node>
@@ -66,6 +67,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       future = []
       completionIndex = 0
       paletteOpen = false
+      paletteFilter = ""
       paletteIndex = 0
       clipboard = Stdlib.Option.Option.None
       lastTyped = Stdlib.Option.Option.None
@@ -428,25 +430,74 @@ let paletteActions (st: State) : List<Action> =
       match spec with
       | Some sp -> sp.actions |> Stdlib.List.filter (fun a -> a.applies n)
       | None -> []
-    Stdlib.List.append
-      (fromSpec (Registry.findExact st.reg n.kind))
-      (fromSpec (Registry.findTypeLevel st.reg n.kind))
+    Stdlib.List.flatten
+      [ fromSpec (Registry.findExact st.reg n.kind)
+        fromSpec (Registry.findTypeLevel st.reg n.kind)
+        unwrapActions n (navPath st) ]
   | None -> []
+
+/// The palette actions matching the current filter.
+let visibleActions (st: State) : List<Action> =
+  let f = Stdlib.String.toLowercase st.paletteFilter
+  if f == "" then paletteActions st
+  else paletteActions st |> Stdlib.List.filter (fun a -> Stdlib.String.contains (Stdlib.String.toLowercase a.name) f)
+
+/// Generic conversions the kernel can offer on any node, without a per-kind spec: replace the node with
+/// one of its child sub-nodes of the same type ("unwrap"). Keeps a branch of an `if`, an operand of a
+/// `+`, an element of a list.
+let unwrapActions (n: Node) (path: Path) : List<Action> =
+  let childOfType (child: Node) : Bool = child.kind.typ == n.kind.typ
+  let fromField (name: String) (fld: Field) : List<Action> =
+    match fld with
+    | One(Filled child) ->
+      if childOfType child then
+        [ Action
+            { name = "unwrap to " ++ name
+              key = Stdlib.Option.Option.None
+              doc = "replace this with its " ++ name
+              applies = (fun _ -> true)
+              run = (fun _ -> Slot.Filled child) } ]
+      else
+        []
+    | Many(items, _) ->
+      items
+      |> Stdlib.List.indexedMap (fun i s -> (i, s))
+      |> Stdlib.List.filterMap (fun pair ->
+        let (i, s) = pair
+        match s with
+        | Filled child ->
+          if childOfType child then
+            Stdlib.Option.Option.Some(
+              Action
+                { name = "unwrap to " ++ name ++ "[" ++ (Stdlib.Int.toString i) ++ "]"
+                  key = Stdlib.Option.Option.None
+                  doc = "replace this with that element"
+                  applies = (fun _ -> true)
+                  run = (fun _ -> Slot.Filled child) })
+          else
+            Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None)
+    | _ -> []
+  n.fields
+  |> Stdlib.List.map (fun f ->
+    let (name, fld) = f
+    fromField name fld)
+  |> Stdlib.List.flatten
 
 let openPalette (st: State) : State =
   if Stdlib.List.isEmpty (paletteActions st) then { st with message = "no actions here" }
-  else { st with paletteOpen = true; paletteIndex = 0 }
+  else { st with paletteOpen = true; paletteFilter = ""; paletteIndex = 0 }
 
 let closePalette (st: State) : State = { st with paletteOpen = false; paletteIndex = 0 }
 
 let movePalette (st: State) (delta: Int) : State =
-  let n = Stdlib.List.length (paletteActions st)
+  let n = Stdlib.List.length (visibleActions st)
   if n == 0 then st
   else { st with paletteIndex = Stdlib.Int.clamp (st.paletteIndex + delta) 0 (n - 1) }
 
 /// Run the highlighted action: replace the current node's slot with what the action returns.
 let runPaletteAction (st: State) : State =
-  let actions = paletteActions st
+  let actions = visibleActions st
   match Stdlib.List.getAt actions st.paletteIndex with
   | Some action ->
     match nodeAtPath st.root (navPath st) with
@@ -990,11 +1041,25 @@ let onKeyPalette (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | UpArrow -> handled (movePalette st (-1))
   | DownArrow -> handled (movePalette st 1)
   | Enter -> handled (runPaletteAction st)
+  | Backspace ->
+    let f = st.paletteFilter
+    let trimmed = if (Stdlib.String.length f) > 0 then Stdlib.String.slice f 0 ((Stdlib.String.length f) - 1) else f
+    handled { st with paletteFilter = trimmed; paletteIndex = 0 }
   | _ ->
-    let ch = kp.char |> Stdlib.Option.withDefault ""
-    if ch == "k" then handled (movePalette st (-1))
-    elif ch == "j" then handled (movePalette st 1)
-    else handled st
+    // Type to filter. Ctrl-J/Ctrl-K move so j/k can be part of an action name being typed.
+    if kp.modifiers.ctrl then
+      match kp.key with
+      | J -> handled (movePalette st 1)
+      | K -> handled (movePalette st (-1))
+      | _ -> handled st
+    else
+      match kp.char with
+      | Some c ->
+        if (Stdlib.String.length c) >= 1 && (Stdlib.Bool.not kp.modifiers.alt) then
+          handled { st with paletteFilter = st.paletteFilter ++ c; paletteIndex = 0 }
+        else
+          handled st
+      | None -> handled st
 
 let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   let handled (s: State) : Outcome = Stdlib.Cli.UI.Widget.Outcome.Handled s

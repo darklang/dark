@@ -129,9 +129,9 @@ module Editing =
   (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "fun acc -> ~⟨body⟩"
 
   // The palette (`:` in NAV) offers structural actions on the node under the caret.
-  (Fixtures.run [ "4", "2", "<Esc>", ":", "j", "<Enter>" ]) = "match ~42 with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "m", "a", "t", "c", "h", "<Enter>" ]) = "match ~42 with\n| ⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n42"
-  (Fixtures.run [ "4", "2", "<Esc>", ":", "j", "j", "j", "<Enter>" ]) = "~42\n|> ⟨step⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "~42\n|> ⟨step⟩"
   // Esc closes the palette without changing anything.
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Esc>" ]) = "~42"
 

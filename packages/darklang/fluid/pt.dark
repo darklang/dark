@@ -1029,6 +1029,31 @@ let wrapInPipe (n: Node) : Slot =
       [ ("first", Field.One(Slot.Filled n))
         ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
 
+/// `if c then t else e`  ->  `match c with | true -> t | false -> e`. Keeps the condition as the
+/// scrutinee and the two branches as the arm bodies, so nothing typed is lost.
+let ifToMatch (n: Node) : Slot =
+  let boolCase (b: String) (bodySlot: Stdlib.Option.Option<Slot>) : Node =
+    let body = match bodySlot with | Some s -> s | None -> Slot.Empty(exprExpect "rhs")
+    Node.make
+      (Kind.named matchCaseType)
+      [ ("pat", Field.One(Slot.Filled(Node.make (matchPatKind "MPBool") [ text "value" b ])))
+        ("when", Field.Many([], exprExpect "when"))
+        ("rhs", Field.One body) ]
+  let condSlot = Node.slot n "cond" |> Stdlib.Option.withDefault (Slot.Empty(exprExpect "arg"))
+  let thenSlot = Node.slot n "then"
+  let elseSlot = Node.slot n "else"
+  Slot.Filled(
+    Node.make
+      (exprKind "EMatch")
+      [ ("arg", Field.One condSlot)
+        ("cases",
+         Field.Many(
+           [ Slot.Filled(boolCase "true" thenSlot), Slot.Filled(boolCase "false" elseSlot) ],
+           caseExpect ())) ])
+
+let ifActions () : List<Action> =
+  [ Action { name = "convert to match"; key = Stdlib.Option.Option.None; doc = "match on the condition"; applies = anyExpr; run = ifToMatch } ]
+
 let exprActions () : List<Action> =
   [ Action { name = "wrap in let"; key = Stdlib.Option.Option.None; doc = "let ... = ...  above this"; applies = anyExpr; run = wrapInLet }
     Action { name = "wrap in match"; key = Stdlib.Option.Option.None; doc = "match on this"; applies = anyExpr; run = wrapInMatch }
@@ -1295,6 +1320,7 @@ let baseSpecs () : List<Spec> =
         Piece.Keyword "else"
         Piece.Nest(2, [ Piece.HardLine, Piece.Slot "else" ]) ]
       (emptyIf ())
+    |> fun sp -> { sp with actions = ifActions () }
     simpleExpr
       "EInfix"
       [ Piece.Group [ Piece.Slot "left", Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.Slot "right" ] ]
