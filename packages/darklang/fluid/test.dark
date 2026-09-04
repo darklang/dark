@@ -30,6 +30,7 @@ let keyOf (s: String) : Stdlib.Cli.UI.Widget.KeyPress =
   | "<Enter>" -> named Stdlib.Cli.Stdin.Key.Key.Enter false false
   | "<C-z>" -> named Stdlib.Cli.Stdin.Key.Key.Z true false
   | "<C-y>" -> named Stdlib.Cli.Stdin.Key.Key.Y true false
+  | "<C-r>" -> named Stdlib.Cli.Stdin.Key.Key.R true false
   | "<C-s>" -> named Stdlib.Cli.Stdin.Key.Key.S true false
   | _ -> printable s
 

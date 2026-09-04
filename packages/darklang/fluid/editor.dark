@@ -30,6 +30,9 @@ type State =
     paletteIndex: Int
     /// The last node yanked (NAV `y`), to put elsewhere (NAV `p`). A whole subtree, not text.
     clipboard: Stdlib.Option.Option<Node>
+    /// The text run currently being typed into, so a run of characters is ONE undo step rather than one
+    /// per keystroke. `None` outside a typing run; any structural edit or Esc clears it.
+    lastTyped: Stdlib.Option.Option<String>
     message: String }
 
 /// What the editor tells its parent.
@@ -65,6 +68,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       paletteOpen = false
       paletteIndex = 0
       clipboard = Stdlib.Option.Option.None
+      lastTyped = Stdlib.Option.Option.None
       message = "" }
 
 let layout (st: State) : List<Layout.Row> =
@@ -90,6 +94,7 @@ let undo (st: State) : State =
         caret = snap.caret
         history = rest
         future = Stdlib.List.push st.future now
+        lastTyped = Stdlib.Option.Option.None
         message = "" }
 
 let redo (st: State) : State =
@@ -102,12 +107,33 @@ let redo (st: State) : State =
         caret = snap.caret
         future = rest
         history = Stdlib.List.push st.history now
+        lastTyped = Stdlib.Option.Option.None
         message = "" }
 
-/// Apply edits as one undoable step, then put the caret where the edit says.
+/// Apply edits as one undoable step, then put the caret where the edit says. A structural edit, so it
+/// always takes a snapshot and ends any typing run.
 let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
   let st1 = remember st
-  { st1 with root = Edit.applyAll st1.root edits; caret = caret; message = ""; completionIndex = 0 }
+  { st1 with
+      root = Edit.applyAll st1.root edits
+      caret = caret
+      message = ""
+      completionIndex = 0
+      lastTyped = Stdlib.Option.Option.None }
+
+/// Apply typing edits, coalescing consecutive characters in the SAME text run into one undo step. The
+/// first character of a run snapshots; the rest edit the same snapshot, so Ctrl-Z undoes the whole word,
+/// not one letter. `runKey` identifies the run (a path plus slot); a different run, or any structural
+/// edit, starts a new undo step.
+let commitRun (st: State) (runKey: String) (edits: List<Edit>) (caret: Caret) : State =
+  let continuing = st.lastTyped == (Stdlib.Option.Option.Some runKey)
+  let base = if continuing then st else remember st
+  { base with
+      root = Edit.applyAll base.root edits
+      caret = caret
+      message = ""
+      completionIndex = 0
+      lastTyped = Stdlib.Option.Option.Some runKey }
 
 
 // --- Where the caret can go ---
@@ -516,6 +542,19 @@ let enterInsert (st: State) : State =
   | None -> st
 
 /// Expect for a slot we are about to clear: what the parent said, or the kind that was there.
+/// A readable name for a type of node: "expression", "type", "pattern", else the last name segment.
+let friendlyType (k: Kind) : String =
+  match k.typ with
+  | Prim p -> p
+  | Named name ->
+    let last = Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+    if last == "Expr" then "expression"
+    elif last == "TypeReference" then "type"
+    elif last == "MatchPattern" then "pattern"
+    elif last == "LetPattern" then "pattern"
+    elif last == "PipeExpr" then "pipe step"
+    else last
+
 let expectForSlot (st: State) (path: Path) : Expect =
   match slotAtPath st.root path with
   | Some s ->
@@ -536,14 +575,30 @@ let expectForSlot (st: State) (path: Path) : Expect =
       | None ->
         match s with
         | Filled n ->
+          // The TYPE, not the specific case, so a change can become anything of that type -- not another
+          // node of the same constructor.
+          let typeLevel = Kind { typ = n.kind.typ; case = Stdlib.Option.Option.None }
           let label =
             match Path.last path with
             | Some(Into slot) -> slot
             | Some(Item(slot, _)) -> slot
-            | None -> Kind.toString n.kind
-          Expect.ofKind n.kind label
+            | None -> friendlyType n.kind
+          Expect.ofKind typeLevel label
         | _ -> Expect.any "?"
   | None -> Expect.any "?"
+
+/// Change the current node: clear it to a hole of the same expectation and drop into INSERT with the
+/// menu open, so you immediately retype or pick a different kind. Undo restores the old node. This is the
+/// general "make this something else" move; it works on any node -- an expression, a type, a pattern.
+let changeNode (st: State) : State =
+  let here = navPath st
+  match slotAtPath st.root here with
+  | Some(Filled _) ->
+    let e = expectForSlot st here
+    let st1 = commit st [ Edit.Replace(here, Slot.Empty e) ] st.caret
+    { st1 with mode = Mode.Insert; caret = navCaretFor st1.root here }
+  | Some(Partial(_, _)) -> { st with mode = Mode.Insert }
+  | _ -> st
 
 /// Clear the current node back to a hole.
 let clearNode (st: State) : State =
@@ -630,7 +685,7 @@ let typeOne (st: State) (c: String) : State =
       | Some rule ->
         if isOperatorChar c then
           let updated = TextEdit.insertAt old caret.offset c
-          commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else
           let next = Caret.inSlot caret.node rule.nextSlot 0
           typeOne { st with caret = next } c
@@ -646,7 +701,7 @@ let typeOne (st: State) (c: String) : State =
             { st1 with caret = Caret.inText caret.node rule.opSlot 1 }
         | None ->
           let updated = TextEdit.insertAt old caret.offset c
-          commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
     | None -> st
   | OnNode -> st
   | _ ->
@@ -660,7 +715,7 @@ let typeOne (st: State) (c: String) : State =
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] caret
           { st1 with caret = (if afterChar then landAfterFill sp n else firstEditable sp n) }
         | None ->
-          let st1 = commit st [ Edit.Replace(sp, Slot.Partial(c, Slot.Empty e)) ] caret
+          let st1 = commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(c, Slot.Empty e)) ] caret
           { st1 with caret = { caret with offset = Stdlib.String.length c } }
       | Some(Partial(text, was)) ->
         let atEnd = caret.offset >= (Stdlib.String.length text)
@@ -668,7 +723,7 @@ let typeOne (st: State) (c: String) : State =
         | Some resolved -> typeOne resolved c
         | None ->
           let updated = TextEdit.insertAt text caret.offset c
-          commit st [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
       | Some(Filled n) ->
         // The caret says slot but a node is there: treat as typing over it.
         let st1 = commit st [ Edit.Replace(sp, Slot.Partial(c, Slot.Filled n)) ] caret
@@ -695,7 +750,7 @@ let backspace (st: State) : State =
       | Some n ->
         let old = Node.text n slot |> Stdlib.Option.withDefault ""
         let updated = TextEdit.removeBefore old caret.offset
-        commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset - 1 }
+        commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset - 1 }
       | None -> st
   | OnNode -> st
   | _ ->
@@ -712,7 +767,7 @@ let backspace (st: State) : State =
             let st1 = commit st [ Edit.Replace(sp, was) ] caret
             { st1 with caret = { caret with offset = 0 } }
           else
-            commit st [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset - 1 }
+            commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset - 1 }
       | _ -> st
 
 
@@ -971,6 +1026,7 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     elif ch == ":" then handled (openPalette st)
     elif ch == "y" then handled (yankNode st)
     elif ch == "p" then handled (putNode st)
+    elif ch == "c" then handled (changeNode st)
     else Stdlib.Cli.UI.Widget.Outcome.Ignored
 
 // --- Context (breadcrumb + expected-type hint, for the chrome) ---

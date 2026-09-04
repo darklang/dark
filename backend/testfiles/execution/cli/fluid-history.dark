@@ -1,0 +1,43 @@
+// Changing a node's kind, and an undo history that reads the way a person expects: a typed word is one
+// step, a structural edit is one step, and redo brings it back.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  let run (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
+
+
+module Change =
+  // NAV `c` clears the node to a typed hole and drops into INSERT with the menu, so you retype it as
+  // anything of the same type -- here an Int becomes an expression hole.
+  (Fixtures.run [ "5", "<Esc>", "c" ]) = "~⟨expression⟩"
+
+  // ... and you build the replacement immediately.
+  (Fixtures.run [ "5", "<Esc>", "c", "9" ]) = "9~"
+
+  (Fixtures.run [ "5", "<Esc>", "c", "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+
+
+module Undo =
+  // The change and the retype are separate steps: one undo drops the 9, another restores the original 5.
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u" ]) = "~⟨expression⟩"
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "u" ]) = "~5"
+
+
+module Coalesce =
+  // Typing into a text run is ONE undo step, not one per character: undoing a string body clears the
+  // whole word back to the empty string, and a second undo removes the string itself.
+  (Fixtures.run [ "\"", "a", "b", "c" ]) = "\"abc~\""
+  (Fixtures.run [ "\"", "a", "b", "c", "<Esc>", "u" ]) = "\"~body\""
+  (Fixtures.run [ "\"", "a", "b", "c", "<Esc>", "u", "u" ]) = "~⟨expr⟩"
+
+
+module Redo =
+  // Redo reapplies what undo took back.
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "<C-r>" ]) = "~9"
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "u", "<C-r>", "<C-r>" ]) = "~9"

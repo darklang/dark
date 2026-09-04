@@ -133,7 +133,7 @@ let helpFor (st: State) : String =
   | Insert -> " type to edit  Tab next hole  Esc nav  ^S save"
   | Nav ->
     if st.editor.paletteOpen then " j/k move  Enter run  Esc close"
-    else " j/k nav  h/l out/in  i edit  x clear  y/p copy/put  : actions  u undo  q quit"
+    else " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy  : actions  u undo  q quit"
 
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let base_ = Stdlib.Cli.UI.Chrome.frame st.title (modeBadge st) (helpFor st)
