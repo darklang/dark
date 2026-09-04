@@ -66,6 +66,14 @@ module Operators =
   (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
 
 
+module BuildConstructs =
+  // The trigger chars build literals and constructs directly (adapted from classic Fluid).
+  (Fixtures.screen [ "[" ]) = "[~⟨item⟩]"
+  (Fixtures.screen [ "(" ]) = "(~⟨item⟩, ⟨item⟩)"
+  (Fixtures.screen [ "\\", "x" ]) = "fun x~ -> ⟨body⟩"
+  (Fixtures.program [ "\\", "x", " ", "x", "+", "1", "<Esc>" ]) = "(fun x -> x + 1)"
+
+
 module BackspaceRemovesItem =
   // Backspace on an empty element removes it (one comma too many, undone), down to the last one.
   (Fixtures.screen [ "[", "1", ",", "<BS>" ]) = "[1~]"

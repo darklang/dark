@@ -1085,7 +1085,8 @@ let exprTypeSpec () : Spec =
         [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar intFromDigit }
           HoleRule { onChar = "\""; fill = HoleFill.WithChar stringFromQuote }
           HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket }
-          HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen } ]
+          HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen }
+          HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
