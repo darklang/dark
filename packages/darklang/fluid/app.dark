@@ -16,6 +16,10 @@ type Target =
   | TypeDef of
     typ: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType *
     location: Darklang.LanguageTools.ProgramTypes.PackageLocation
+  /// A package value's body.
+  | ValueDef of
+    value: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue *
+    location: Darklang.LanguageTools.ProgramTypes.PackageLocation
 
 type State =
   { editor: Editor.State
@@ -54,7 +58,7 @@ let discoveredSpecs (branchId: Uuid) : List<Spec> =
 
 /// Built-in specs (prims + PT), then whatever the user has declared on this branch.
 let registryFor (branchId: Uuid) : Registry =
-  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), PT.TypeDecl.specs (), discoveredSpecs branchId ])
+  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), PT.TypeDecl.specs (), PT.Value.specs (), discoveredSpecs branchId ])
 
 let defaultRegistry () : Registry = registryFor Darklang.SCM.Branch.mainBranchId
 
@@ -106,6 +110,44 @@ let editType (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.App
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
     cliState
+
+let valueTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
+  let branchId = Darklang.SCM.Branch.mainBranchId
+  let location = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+  match Darklang.LanguageTools.PackageManager.Value.find branchId location with
+  | Some hash ->
+    match Darklang.LanguageTools.PackageManager.Value.get hash with
+    | Some pv -> Stdlib.Result.Result.Ok((Slot.Filled(PT.Value.toDoc location.name pv), Target.ValueDef(pv, location)))
+    | None -> Stdlib.Result.Result.Error $"no value with that hash: {name}"
+  | None -> Stdlib.Result.Result.Error $"no value named {name}"
+
+let editValue (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.AppState =
+  match valueTarget name with
+  | Ok((root, target)) -> launchTarget cliState $"fluid: {name}" root target
+  | Error err ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
+    cliState
+
+let saveValue
+  (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (root: Slot)
+  : Stdlib.Result.Result<String, String> =
+  match root with
+  | Filled n ->
+    match PT.Value.fromDoc pv n with
+    | Ok((_name, updated)) ->
+      let branchId = Darklang.SCM.Branch.mainBranchId
+      let ctx =
+        { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
+            preferredLocation = Stdlib.Option.Option.Some location }
+      let source = Darklang.PrettyPrinter.ProgramTypes.packageValue ctx updated
+      let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
+      match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
+      | Ok _ -> Stdlib.Result.Result.Ok location.name
+      | Error err -> Stdlib.Result.Result.Error err
+    | Error err -> Stdlib.Result.Result.Error err
+  | _ -> Stdlib.Result.Result.Error "nothing to save"
 
 let saveType
   (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType)
@@ -170,12 +212,21 @@ let modeBadge (st: State) : String =
   | Insert -> "INSERT"
   | Nav -> "NAV"
 
+/// The footer keys, chosen for exactly where the caret is: the completion menu, the palette, a hole, or a
+/// node. Most-relevant first, so a glance tells you what the next keystroke can be.
 let helpFor (st: State) : String =
   match st.editor.mode with
-  | Insert -> " type to edit  Tab next hole  Esc nav  ^S save"
+  | Insert ->
+    if Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.candidates st.editor)) then
+      " Enter accept  Tab next  Up/Down choose  type filter  Esc nav"
+    else
+      " type to edit  Tab/Shift-Tab holes  Esc nav  ^S save"
   | Nav ->
-    if st.editor.paletteOpen then " j/k move  Enter run  Esc close"
-    else " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy  : actions  u undo  q quit"
+    if st.editor.paletteOpen then " type filter  Up/Down move  Enter run  Esc close"
+    else
+      let hasActions = Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.paletteActions st.editor))
+      let actionsKey = if hasActions then "  : actions" else ""
+      " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy" ++ actionsKey ++ "  u undo  q quit"
 
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let base_ = Stdlib.Cli.UI.Chrome.frame st.title (modeBadge st) (helpFor st)
@@ -251,6 +302,10 @@ let onKey
         | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
       | TypeDef(pt, location) ->
         match saveType pt location root with
+        | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
+        | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
+      | ValueDef(pv, location) ->
+        match saveValue pv location root with
         | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
         | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
   | Ignored ->

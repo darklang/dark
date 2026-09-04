@@ -1849,3 +1849,43 @@ module TypeDecl =
         "EnumCase"
         [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of ", [ Piece.Space, Piece.Punct "*", Piece.Space ], "") ]
         (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], Types.typeExpect "field")) ]) ]
+
+
+// ============================================================================
+// The value shell: a PackageValue as one document (name + body Expr).
+// ============================================================================
+
+module Value =
+  type PackageValue = Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+
+  val valType = "Darklang.Fluid.PT.Value.Value"
+  let valKind () : Kind = Kind.named valType
+
+  let toDoc (name: String) (pv: PackageValue) : Node =
+    Node.make
+      (valKind ())
+      [ PT.text "name" name
+        PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString pv.hash)
+        PT.text "_desc" pv.description
+        PT.one "body" (PT.toDoc pv.body) ]
+
+  let fromDoc (orig: PackageValue) (n: Node) : Stdlib.Result.Result<(String * PackageValue), String> =
+    match Node.slot n "body" with
+    | Some(Filled c) ->
+      match PT.fromDoc c with
+      | Ok body -> Stdlib.Result.Result.Ok((PT.textOf n "name", { orig with body = body }))
+      | Error e -> Stdlib.Result.Result.Error e
+    | _ -> Stdlib.Result.Result.Error "the value's body is a hole"
+
+  let specs () : List<Spec> =
+    [ { (Spec.simple
+          (valKind ())
+          [ Piece.Group
+              [ Piece.Keyword "val"
+                Piece.Space
+                Piece.Text("name", Layout.Style.Name)
+                Piece.Space
+                Piece.Punct "="
+                Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ] ]
+          (Node.make (valKind ()) [ PT.text "name" "unnamed", PT.text "_hash" "", PT.text "_desc" "", ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
+          summary = (fun n -> "val " ++ (PT.textOf n "name")) } ]

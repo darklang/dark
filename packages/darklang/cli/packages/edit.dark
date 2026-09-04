@@ -118,6 +118,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match (location, wantsText) with
   | (Function _fnLoc, false) -> Darklang.Fluid.App.editFn state name
   | (Type _typeLoc, false) -> Darklang.Fluid.App.editType state name
+  | (Value _valueLoc, false) -> Darklang.Fluid.App.editValue state name
   | _ ->
 
   match Packages.View.rawSource branchId location with

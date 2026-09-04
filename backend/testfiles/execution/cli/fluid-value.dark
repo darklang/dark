@@ -1,0 +1,38 @@
+// Fluid edits package values too: a PackageValue (name + body expression) as one document.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Value.specs () ])
+
+  let mk (body: Darklang.LanguageTools.ProgramTypes.Expr) : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "cafe"; body = body; description = "" }
+
+  let strVal () : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk (Darklang.LanguageTools.ProgramTypes.Expr.EString(1L, [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "hello" ]))
+
+  let listVal () : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk (Darklang.LanguageTools.ProgramTypes.Expr.EList(1L, [ Darklang.LanguageTools.ProgramTypes.Expr.EInt(2L, 1), Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 2) ]))
+
+  let show (nm: String) (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Value.toDoc nm pv))
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  // Compare printed forms: a round trip regenerates node ids, so structural `==` would differ on ids.
+  let rt (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue) : Bool =
+    match Darklang.Fluid.PT.Value.fromDoc pv (Darklang.Fluid.PT.Value.toDoc "x" pv) with
+    | Ok((_n, p2)) ->
+      (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) p2.body) == (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) pv.body)
+    | Error _ -> false
+
+
+module Rendering =
+  (Fixtures.show "greeting" (Fixtures.strVal ())) = "val greeting =\n  \"hello\""
+  (Fixtures.show "nums" (Fixtures.listVal ())) = "val nums =\n  [1, 2]"
+
+
+module RoundTrips =
+  (Fixtures.rt (Fixtures.strVal ())) = true
+  (Fixtures.rt (Fixtures.listVal ())) = true
