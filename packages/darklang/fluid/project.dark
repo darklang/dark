@@ -8,6 +8,19 @@ module Darklang.Fluid.Project
 val holeOpen = "⟨"
 val holeClose = "⟩"
 
+/// A hole that wants a TYPE is drawn with angle brackets, like a generic: `<Int>`. A hole that wants a
+/// value or expression keeps the round brackets: `⟨cond⟩`. The glyph tells you, at a glance, whether to
+/// type a value or a type.
+val typeTypeName = "Darklang.LanguageTools.ProgramTypes.TypeReference"
+
+let wantsType (e: Expect) : Bool =
+  match e.kind with
+  | Some k ->
+    match k.typ with
+    | Named n -> n == typeTypeName
+    | Prim _ -> false
+  | None -> false
+
 let tagFor (path: Path) (part: Part) : Layout.Tag =
   Layout.Tag { node = path; part = part }
 
@@ -22,7 +35,8 @@ let slot
   : Layout.Doc =
   match s with
   | Empty e ->
-    Layout.tagged (tagFor parent part) Layout.Style.Hole (holeOpen ++ e.label ++ holeClose)
+    let (o, c) = if wantsType e then ("<", ">") else (holeOpen, holeClose)
+    Layout.tagged (tagFor parent part) Layout.Style.Hole (o ++ e.label ++ c)
   | Partial(text, _) ->
     let shown = if text == "" then "…" else text
     Layout.tagged (tagFor parent part) Layout.Style.Partial shown

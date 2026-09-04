@@ -36,6 +36,11 @@ module Rendering =
   (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, []))) = "(Int * String)"
 
 
+module Glyphs =
+  // A blank that wants a TYPE is drawn with angle brackets, so you know to type a type, not a value.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 40 (Fixtures.hole ())) = "<type>"
+
+
 module Editing =
   // A type name completes exact-first: "Int" gives Int, not Int8.
   (Fixtures.edit [ "I", "n", "t", "<Enter>" ]) = "~Int"

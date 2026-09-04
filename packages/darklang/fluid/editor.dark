@@ -1133,13 +1133,15 @@ let expectHint (st: State) : String =
   | Some(Empty e) ->
     let what =
       match e.kind with
-      | Some k -> kindLabel k
+      | Some k -> friendlyType k
       | None -> "value"
-    "expects " ++ what ++ " (" ++ e.label ++ ")"
+    // Drop a redundant "(label)" when the label just repeats the type.
+    if (e.label == what) || (e.label == "") then "expects " ++ what
+    else "expects " ++ what ++ " (" ++ e.label ++ ")"
   | Some(Partial(typed, was)) ->
     let what =
       match Slot.expect was |> Stdlib.Option.andThen (fun e -> e.kind) with
-      | Some k -> kindLabel k
+      | Some k -> friendlyType k
       | None -> "value"
     "typing " ++ what
   | _ ->

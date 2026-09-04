@@ -184,7 +184,7 @@ let inspector
     | Some(Partial(_, _)) -> true
     | _ -> false
   let headerRows =
-    if inHole then [ (head "ON") ++ "  " ++ node, (dim "expects") ++ " " ++ expecting, "" ]
+    if inHole then [ (dim expecting), "" ]
     else [ (head "ON") ++ "  " ++ node, "" ]
   let rows =
     Stdlib.List.flatten [ headerRows, [ head "ACTIONS  :" ], actionLines, candLines ]
