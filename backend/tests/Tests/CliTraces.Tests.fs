@@ -944,6 +944,7 @@ let private notSweepable =
       "install-status"
       "serve"
       "outliner"
+      "fluid"
       "views"
       "text-editor"
       "apps"

@@ -1,0 +1,1297 @@
+/// ProgramTypes as a Fluid document: `Expr` (and the patterns it contains) to `Node` and back.
+///
+/// Every Expr case gets a node kind under the Expr type, so one type-level spec owns "a hole expecting an
+/// expression" (its hole rules and completions) and each case has its own pieces. What this file does not
+/// handle yet goes through `Opaque`: the pretty-printed source held as text, parsed again on the way back,
+/// so nothing is dropped while the coverage grows.
+module Darklang.Fluid.PT
+
+type Expr = Darklang.LanguageTools.ProgramTypes.Expr
+type LetPattern = Darklang.LanguageTools.ProgramTypes.LetPattern
+
+type MatchPattern = Darklang.LanguageTools.ProgramTypes.MatchPattern
+type PipeExpr = Darklang.LanguageTools.ProgramTypes.PipeExpr
+type MatchCase = Darklang.LanguageTools.ProgramTypes.MatchCase
+type StringSegment = Darklang.LanguageTools.ProgramTypes.StringSegment
+
+val exprType = "Darklang.LanguageTools.ProgramTypes.Expr"
+val letPatType = "Darklang.LanguageTools.ProgramTypes.LetPattern"
+val matchPatType = "Darklang.LanguageTools.ProgramTypes.MatchPattern"
+val pipeExprType = "Darklang.LanguageTools.ProgramTypes.PipeExpr"
+val matchCaseType = "Darklang.LanguageTools.ProgramTypes.MatchCase"
+val recordFieldType = "Darklang.Fluid.PT.RecordField"
+val dictPairType = "Darklang.Fluid.PT.DictPair"
+val segmentType = "Darklang.LanguageTools.ProgramTypes.StringSegment"
+
+let exprKind (case: String) : Kind = Kind.ofCase exprType case
+let letPatKind (case: String) : Kind = Kind.ofCase letPatType case
+let matchPatKind (case: String) : Kind = Kind.ofCase matchPatType case
+let pipeKind (case: String) : Kind = Kind.ofCase pipeExprType case
+let segmentKind (case: String) : Kind = Kind.ofCase segmentType case
+
+/// A hole that takes any expression.
+let exprExpect (label: String) : Expect = Expect.ofKind (Kind.named exprType) label
+
+let letPatExpect (label: String) : Expect = Expect.ofKind (Kind.named letPatType) label
+let matchPatExpect (label: String) : Expect = Expect.ofKind (Kind.named matchPatType) label
+let pipeExpect (label: String) : Expect = Expect.ofKind (Kind.named pipeExprType) label
+let caseExpect () : Expect = Expect.ofKind (Kind.named matchCaseType) "case"
+let fieldExpect () : Expect = Expect.ofKind (Kind.named recordFieldType) "field"
+let pairExpect () : Expect = Expect.ofKind (Kind.named dictPairType) "pair"
+let segmentExpect () : Expect = Expect.ofKind (Kind.named segmentType) "segment"
+
+let gid () : Int64 = Stdlib.Int64.random 0L 922337203685477580L
+
+let text (name: String) (value: String) : (String * Field) = (name, Field.Text value)
+let one (name: String) (n: Node) : (String * Field) = (name, Field.One(Slot.Filled n))
+let many (name: String) (ns: List<Node>) (each: Expect) : (String * Field) =
+  (name, Field.Many(ns |> Stdlib.List.map (fun n -> Slot.Filled n), each))
+
+let printerContext () : Darklang.PrettyPrinter.ProgramTypes.Context =
+  Darklang.PrettyPrinter.ProgramTypes.Context.forBranch Darklang.SCM.Branch.mainBranchId
+
+/// Source text of something this file cannot yet take apart.
+let opaque (e: Expr) : Node =
+  Node.make (exprKind "Opaque") [ text "source" (Darklang.PrettyPrinter.ProgramTypes.expr (printerContext ()) e) ]
+
+let nameOf
+  (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+  : String =
+  match nr.resolved with
+  | Ok r ->
+    match r.location with
+    | Some loc -> Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+    | None -> Stdlib.String.join nr.originalName "."
+  | Error _ -> Stdlib.String.join nr.originalName "."
+
+let hashOf
+  (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+  : String =
+  match nr.resolved with
+  | Ok r ->
+    match r.name with
+    | Package h -> Darklang.LanguageTools.ProgramTypes.hashToString h
+    | Builtin b -> "builtin:" ++ b.name ++ "_v" ++ (Stdlib.Int32.toString b.version)
+  | Error _ -> ""
+
+let typeNameOf
+  (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  : String =
+  match nr.resolved with
+  | Ok r ->
+    match r.location with
+    | Some loc -> Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+    | None -> Stdlib.String.join nr.originalName "."
+  | Error _ -> Stdlib.String.join nr.originalName "."
+
+let typeHashOf
+  (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  : String =
+  match nr.resolved with
+  | Ok r ->
+    match r.name with
+    | Package h -> Darklang.LanguageTools.ProgramTypes.hashToString h
+  | Error _ -> ""
+
+let typeNameResolution
+  (name: String)
+  (hash: String)
+  : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>, String> =
+  if hash == "" then
+    Stdlib.Result.Result.Error("unresolved type name: " ++ name)
+  else
+    Stdlib.Result.Result.Ok(
+      Darklang.LanguageTools.ProgramTypes.NameResolution
+        { originalName = Stdlib.String.split name "."
+          resolved =
+            Stdlib.Result.Result.Ok(
+              Darklang.LanguageTools.ProgramTypes.ResolvedName
+                { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(Darklang.LanguageTools.ProgramTypes.Hash.Hash hash)
+                  location = Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.parsePackageLocation name) }) })
+
+let fnNameResolution
+  (name: String)
+  (hash: String)
+  : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName>, String> =
+  if hash == "" then
+    Stdlib.Result.Result.Error("unresolved function name: " ++ name)
+  elif Stdlib.String.startsWith hash "builtin:" then
+    Stdlib.Result.Result.Error("builtin names are not round-tripped yet: " ++ name)
+  else
+    Stdlib.Result.Result.Ok(
+      Darklang.LanguageTools.ProgramTypes.NameResolution
+        { originalName = Stdlib.String.split name "."
+          resolved =
+            Stdlib.Result.Result.Ok(
+              Darklang.LanguageTools.ProgramTypes.ResolvedName
+                { name = Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName.Package(Darklang.LanguageTools.ProgramTypes.Hash.Hash hash)
+                  location = Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.parsePackageLocation name) }) })
+
+let infixText (i: Darklang.LanguageTools.ProgramTypes.Infix) : String =
+  Darklang.PrettyPrinter.ProgramTypes.infix i
+
+let infixOfText (s: String) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =
+  let fn (n: Darklang.LanguageTools.ProgramTypes.InfixFnName) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =
+    Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall n)
+  match s with
+  | "+" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus
+  | "-" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus
+  | "*" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply
+  | "/" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide
+  | "%" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo
+  | "^" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower
+  | ">" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan
+  | ">=" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+  | "<" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan
+  | "<=" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+  | "==" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals
+  | "!=" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
+  | "++" -> fn Darklang.LanguageTools.ProgramTypes.InfixFnName.StringConcat
+  | "&&" -> Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpAnd)
+  | "||" -> Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpOr)
+  | _ -> Stdlib.Option.Option.None
+
+
+// --- To the document ---
+
+let letPatToDoc (p: LetPattern) : Node =
+  match p with
+  | LPUnit _ -> Node.make (letPatKind "LPUnit") []
+  | LPWildcard _ -> Node.make (letPatKind "LPWildcard") []
+  | LPVariable(_, name) -> Node.make (letPatKind "LPVariable") [ text "name" name ]
+  | LPTuple(_, a, b, rest) ->
+    Node.make
+      (letPatKind "LPTuple")
+      [ many "items" (Stdlib.List.map (Stdlib.List.flatten [ [ a, b ], rest ]) (fun x -> letPatToDoc x)) (letPatExpect "pattern") ]
+
+/// Patterns this file can take apart. A match with any other pattern goes opaque as a whole.
+let matchPatSupported (p: MatchPattern) : Bool =
+  match p with
+  | MPVariable(_, _) -> true
+  | MPUnit _ -> true
+  | MPBool(_, _) -> true
+  | MPInt(_, _) -> true
+  | MPInt64(_, _) -> true
+  | MPFloat(_, _, _, _) -> true
+  | MPChar(_, _) -> true
+  | MPString(_, _) -> true
+  | MPList(_, items) -> items |> Stdlib.List.all (fun x -> matchPatSupported x)
+  | MPListCons(_, h, t) -> (matchPatSupported h) && (matchPatSupported t)
+  | MPTuple(_, a, b, rest) -> Stdlib.List.flatten [ [ a, b ], rest ] |> Stdlib.List.all (fun x -> matchPatSupported x)
+  | MPEnum(_, _, fields) -> fields |> Stdlib.List.all (fun x -> matchPatSupported x)
+  | MPOr(_, alts) -> alts |> Stdlib.List.all (fun x -> matchPatSupported x)
+  | _ -> false
+
+let matchPatToDoc (p: MatchPattern) : Node =
+  let pats (ps: List<MatchPattern>) : List<Node> = ps |> Stdlib.List.map (fun x -> matchPatToDoc x)
+  match p with
+  | MPVariable(_, name) -> Node.make (matchPatKind "MPVariable") [ text "name" name ]
+  | MPUnit _ -> Node.make (matchPatKind "MPUnit") []
+  | MPBool(_, b) -> Node.make (matchPatKind "MPBool") [ text "value" (if b then "true" else "false") ]
+  | MPInt(_, i) -> Node.make (matchPatKind "MPInt") [ text "digits" (Stdlib.Int.toString i) ]
+  | MPInt64(_, i) -> Node.make (matchPatKind "MPInt64") [ text "digits" (Stdlib.Int64.toString i) ]
+  | MPFloat(_, sign, whole, fraction) ->
+    let signed =
+      match sign with
+      | Negative -> "-" ++ whole
+      | Positive -> whole
+    Node.make (matchPatKind "MPFloat") [ text "whole" signed, text "fraction" fraction ]
+  | MPChar(_, c) -> Node.make (matchPatKind "MPChar") [ text "char" c ]
+  | MPString(_, str) -> Node.make (matchPatKind "MPString") [ text "body" str ]
+  | MPList(_, items) -> Node.make (matchPatKind "MPList") [ many "items" (pats items) (matchPatExpect "pattern") ]
+  | MPListCons(_, h, t) ->
+    Node.make (matchPatKind "MPListCons") [ one "head" (matchPatToDoc h), one "tail" (matchPatToDoc t) ]
+  | MPTuple(_, a, b, rest) ->
+    Node.make (matchPatKind "MPTuple") [ many "items" (pats (Stdlib.List.flatten [ [ a, b ], rest ])) (matchPatExpect "pattern") ]
+  | MPEnum(_, caseName, fields) ->
+    Node.make (matchPatKind "MPEnum") [ text "case" caseName, many "fields" (pats fields) (matchPatExpect "field") ]
+  | MPOr(_, alts) -> Node.make (matchPatKind "MPOr") [ many "alts" (pats alts) (matchPatExpect "pattern") ]
+  | _ -> Node.make (matchPatKind "MPUnit") []
+
+let caseToDoc (c: MatchCase) : Node =
+  let whenItems =
+    match c.whenCondition with
+    | Some w -> [ toDoc w ]
+    | None -> []
+  Node.make
+    (Kind.named matchCaseType)
+    [ one "pat" (matchPatToDoc c.pat), many "when" whenItems (exprExpect "when"), one "rhs" (toDoc c.rhs) ]
+
+let recordFieldToDoc (f: (String * Expr)) : Node =
+  let (name, value) = f
+  Node.make (Kind.named recordFieldType) [ text "name" name, one "value" (toDoc value) ]
+
+let pairToDoc (p: (Expr * Expr)) : Node =
+  let (key, value) = p
+  Node.make (Kind.named dictPairType) [ one "key" (toDoc key), one "value" (toDoc value) ]
+
+let segmentToDoc (seg: StringSegment) : Node =
+  match seg with
+  | StringText t -> Node.make (segmentKind "StringText") [ text "text" t ]
+  | StringInterpolation e -> Node.make (segmentKind "StringInterpolation") [ one "expr" (toDoc e) ]
+
+let pipeSupported (p: PipeExpr) : Bool =
+  match p with
+  | EPipeFnCall(_, _, typeArgs, _) -> Stdlib.List.isEmpty typeArgs
+  | _ -> true
+
+let pipeToDoc (p: PipeExpr) : Node =
+  let args (es: List<Expr>) : (String * Field) = many "args" (es |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "arg")
+  match p with
+  | EPipeVariable(_, name, es) -> Node.make (pipeKind "EPipeVariable") [ text "name" name, args es ]
+  | EPipeLambda(_, params, body) ->
+    Node.make
+      (pipeKind "EPipeLambda")
+      [ many "params" (params |> Stdlib.List.map (fun x -> letPatToDoc x)) (letPatExpect "param"), one "body" (toDoc body) ]
+  | EPipeInfix(_, op, e) -> Node.make (pipeKind "EPipeInfix") [ text "op" (infixText op), one "expr" (toDoc e) ]
+  | EPipeFnCall(_, nr, _, es) -> Node.make (pipeKind "EPipeFnCall") [ text "name" (nameOf nr), text "_hash" (hashOf nr), args es ]
+  | EPipeEnum(_, tnr, caseName, es) ->
+    Node.make
+      (pipeKind "EPipeEnum")
+      [ text "type" (typeNameOf tnr), text "_typeHash" (typeHashOf tnr), text "case" caseName
+        many "fields" (es |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "field") ]
+
+let allText (segments: List<Darklang.LanguageTools.ProgramTypes.StringSegment>) : Stdlib.Option.Option<String> =
+  let parts =
+    segments
+    |> Stdlib.List.map (fun seg ->
+      match seg with
+      | StringText t -> Stdlib.Option.Option.Some t
+      | StringInterpolation _ -> Stdlib.Option.Option.None)
+  if parts |> Stdlib.List.all (fun p -> Stdlib.Option.isSome p) then
+    Stdlib.Option.Option.Some(parts |> Stdlib.List.filterMap (fun p -> p) |> Stdlib.String.join "")
+  else
+    Stdlib.Option.Option.None
+
+let toDoc (e: Expr) : Node =
+  match e with
+  | EUnit _ -> Node.make (exprKind "EUnit") []
+  | EBool(_, b) -> Node.make (exprKind "EBool") [ text "value" (if b then "true" else "false") ]
+  | EInt(_, i) -> Node.make (exprKind "EInt") [ text "digits" (Stdlib.Int.toString i) ]
+  | EInt64(_, i) -> Node.make (exprKind "EInt64") [ text "digits" (Stdlib.Int64.toString i) ]
+  | EFloat(_, sign, whole, fraction) ->
+    let signed =
+      match sign with
+      | Negative -> "-" ++ whole
+      | Positive -> whole
+    Node.make (exprKind "EFloat") [ text "whole" signed, text "fraction" fraction ]
+  | EChar(_, c) -> Node.make (exprKind "EChar") [ text "char" c ]
+  | EString(_, segments) ->
+    match allText segments with
+    | Some body -> Node.make (exprKind "EString") [ text "body" body ]
+    | None ->
+      Node.make (exprKind "EStringI") [ many "segments" (segments |> Stdlib.List.map (fun x -> segmentToDoc x)) (segmentExpect ()) ]
+  | EList(_, items) ->
+    Node.make (exprKind "EList") [ many "items" (Stdlib.List.map items (fun x -> toDoc x)) (exprExpect "item") ]
+  | ETuple(_, a, b, rest) ->
+    Node.make
+      (exprKind "ETuple")
+      [ many "items" (Stdlib.List.map (Stdlib.List.flatten [ [ a, b ], rest ]) (fun x -> toDoc x)) (exprExpect "item") ]
+  | EVariable(_, name) -> Node.make (exprKind "EVariable") [ text "name" name ]
+  | ELet(_, pat, value, body) ->
+    Node.make (exprKind "ELet") [ one "pat" (letPatToDoc pat), one "value" (toDoc value), one "body" (toDoc body) ]
+  | EIf(_, cond, thenExpr, elseExpr) ->
+    let elseSlot =
+      match elseExpr with
+      | Some x -> Slot.Filled(toDoc x)
+      | None -> Slot.Empty(Expect.optionalOf (exprExpect "else"))
+    Node.make
+      (exprKind "EIf")
+      [ one "cond" (toDoc cond), one "then" (toDoc thenExpr), ("else", Field.One elseSlot) ]
+  | EInfix(_, op, left, right) ->
+    Node.make (exprKind "EInfix") [ one "left" (toDoc left), text "op" (infixText op), one "right" (toDoc right) ]
+  | ELambda(_, params, body) ->
+    Node.make
+      (exprKind "ELambda")
+      [ many "params" (Stdlib.List.map params (fun p -> letPatToDoc p)) (letPatExpect "param")
+        one "body" (toDoc body) ]
+  | EApply(_, fn, typeArgs, args) ->
+    if Stdlib.List.isEmpty typeArgs then
+      Node.make
+        (exprKind "EApply")
+        [ one "fn" (toDoc fn), many "args" (Stdlib.List.map args (fun a -> toDoc a)) (exprExpect "arg") ]
+    else
+      opaque e
+  | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (nameOf nr), text "_hash" (hashOf nr) ]
+  | EStatement(_, first, next) ->
+    Node.make (exprKind "EStatement") [ one "first" (toDoc first), one "next" (toDoc next) ]
+  | EMatch(_, arg, cases) ->
+    if cases |> Stdlib.List.all (fun c -> matchPatSupported c.pat) then
+      Node.make
+        (exprKind "EMatch")
+        [ one "arg" (toDoc arg), many "cases" (cases |> Stdlib.List.map (fun c -> caseToDoc c)) (caseExpect ()) ]
+    else
+      opaque e
+  | EPipe(_, first, steps) ->
+    if steps |> Stdlib.List.all (fun p -> pipeSupported p) then
+      Node.make
+        (exprKind "EPipe")
+        [ one "first" (toDoc first), many "steps" (steps |> Stdlib.List.map (fun p -> pipeToDoc p)) (pipeExpect "step") ]
+    else
+      opaque e
+  | ERecord(_, tnr, typeArgs, fields) ->
+    if Stdlib.List.isEmpty typeArgs then
+      Node.make
+        (exprKind "ERecord")
+        [ text "type" (typeNameOf tnr), text "_typeHash" (typeHashOf tnr)
+          many "fields" (fields |> Stdlib.List.map (fun f -> recordFieldToDoc f)) (fieldExpect ()) ]
+    else
+      opaque e
+  | ERecordUpdate(_, record, updates) ->
+    Node.make
+      (exprKind "ERecordUpdate")
+      [ one "record" (toDoc record), many "updates" (updates |> Stdlib.List.map (fun f -> recordFieldToDoc f)) (fieldExpect ()) ]
+  | EEnum(_, tnr, typeArgs, caseName, fields) ->
+    if Stdlib.List.isEmpty typeArgs then
+      Node.make
+        (exprKind "EEnum")
+        [ text "type" (typeNameOf tnr), text "_typeHash" (typeHashOf tnr), text "case" caseName
+          many "fields" (fields |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "field") ]
+    else
+      opaque e
+  | EDict(_, pairs) ->
+    Node.make (exprKind "EDict") [ many "pairs" (pairs |> Stdlib.List.map (fun p -> pairToDoc p)) (pairExpect ()) ]
+  | ERecordFieldAccess(_, record, field) ->
+    Node.make (exprKind "ERecordFieldAccess") [ one "record" (toDoc record), text "field" field ]
+  | EValue(_, nr) ->
+    let name =
+      match nr.resolved with
+      | Ok r ->
+        match r.location with
+        | Some loc -> Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+        | None -> Stdlib.String.join nr.originalName "."
+      | Error _ -> Stdlib.String.join nr.originalName "."
+    let hash =
+      match nr.resolved with
+      | Ok r ->
+        match r.name with
+        | Package h -> Darklang.LanguageTools.ProgramTypes.hashToString h
+        | Builtin b -> "builtin:" ++ b.name
+      | Error _ -> ""
+    Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]
+  | _ -> opaque e
+
+
+// --- Back to the program ---
+
+let slotExpr (n: Node) (name: String) : Stdlib.Result.Result<Expr, String> =
+  match Node.slot n name with
+  | Some(Filled child) -> fromDoc child
+  | Some(Empty e) -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+  | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+  | None -> Stdlib.Result.Result.Error("missing slot " ++ name)
+
+let itemExprs (n: Node) (name: String) : Stdlib.Result.Result<List<Expr>, String> =
+  Node.items n name
+  |> Stdlib.List.map (fun s ->
+    match s with
+    | Filled child -> fromDoc child
+    | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+    | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+  |> Stdlib.Result.collect
+
+let textOf (n: Node) (name: String) : String =
+  Node.text n name |> Stdlib.Option.withDefault ""
+
+let letPatFromDoc (n: Node) : Stdlib.Result.Result<LetPattern, String> =
+  match n.kind.case with
+  | Some "LPUnit" -> Stdlib.Result.Result.Ok(LetPattern.LPUnit(gid ()))
+  | Some "LPWildcard" -> Stdlib.Result.Result.Ok(LetPattern.LPWildcard(gid ()))
+  | Some "LPVariable" -> Stdlib.Result.Result.Ok(LetPattern.LPVariable(gid (), textOf n "name"))
+  | Some "LPTuple" ->
+    let items =
+      Node.items n "items"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled child -> letPatFromDoc child
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+    match items with
+    | Ok(a :: b :: rest) -> Stdlib.Result.Result.Ok(LetPattern.LPTuple(gid (), a, b, rest))
+    | Ok _ -> Stdlib.Result.Result.Error "a tuple pattern needs two items"
+    | Error err -> Stdlib.Result.Result.Error err
+  | _ -> Stdlib.Result.Result.Error("not a let pattern: " ++ (Kind.toString n.kind))
+
+let letPatSlot (n: Node) (name: String) : Stdlib.Result.Result<LetPattern, String> =
+  match Node.slot n name with
+  | Some(Filled child) -> letPatFromDoc child
+  | Some(Empty e) -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+  | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+  | None -> Stdlib.Result.Result.Error("missing slot " ++ name)
+
+let slotResults (items: List<Slot>) (f: Node -> Stdlib.Result.Result<'a, String>) : Stdlib.Result.Result<List<'a>, String> =
+  items
+  |> Stdlib.List.map (fun s ->
+    match s with
+    | Filled child -> f child
+    | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+    | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+  |> Stdlib.Result.collect
+
+let matchPatFromDoc (n: Node) : Stdlib.Result.Result<MatchPattern, String> =
+  let ok (p: MatchPattern) : Stdlib.Result.Result<MatchPattern, String> = Stdlib.Result.Result.Ok p
+  let items (name: String) : Stdlib.Result.Result<List<MatchPattern>, String> =
+    slotResults (Node.items n name) (fun c -> matchPatFromDoc c)
+  match n.kind.case with
+  | Some "MPVariable" -> ok (MatchPattern.MPVariable(gid (), textOf n "name"))
+  | Some "MPUnit" -> ok (MatchPattern.MPUnit(gid ()))
+  | Some "MPBool" -> ok (MatchPattern.MPBool(gid (), (textOf n "value") == "true"))
+  | Some "MPInt" ->
+    match Stdlib.Int.parse (textOf n "digits") with
+    | Ok i -> ok (MatchPattern.MPInt(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int: " ++ (textOf n "digits"))
+  | Some "MPInt64" ->
+    match Stdlib.Int64.parse (textOf n "digits") with
+    | Ok i -> ok (MatchPattern.MPInt64(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int64: " ++ (textOf n "digits"))
+  | Some "MPFloat" ->
+    let whole = textOf n "whole"
+    let (sign, digits) =
+      if Stdlib.String.startsWith whole "-" then
+        (Darklang.LanguageTools.Sign.Negative, Stdlib.String.dropFirst whole 1)
+      else
+        (Darklang.LanguageTools.Sign.Positive, whole)
+    ok (MatchPattern.MPFloat(gid (), sign, digits, textOf n "fraction"))
+  | Some "MPChar" -> ok (MatchPattern.MPChar(gid (), textOf n "char"))
+  | Some "MPString" -> ok (MatchPattern.MPString(gid (), textOf n "body"))
+  | Some "MPList" -> items "items" |> Stdlib.Result.map (fun ps -> MatchPattern.MPList(gid (), ps))
+  | Some "MPListCons" ->
+    match (Node.slot n "head", Node.slot n "tail") with
+    | (Some(Filled h), Some(Filled t)) ->
+      match (matchPatFromDoc h, matchPatFromDoc t) with
+      | (Ok hp, Ok tp) -> ok (MatchPattern.MPListCons(gid (), hp, tp))
+      | (Error err, _) -> Stdlib.Result.Result.Error err
+      | (_, Error err) -> Stdlib.Result.Result.Error err
+    | _ -> Stdlib.Result.Result.Error "hole: list pattern"
+  | Some "MPTuple" ->
+    match items "items" with
+    | Ok(a :: b :: rest) -> ok (MatchPattern.MPTuple(gid (), a, b, rest))
+    | Ok _ -> Stdlib.Result.Result.Error "a tuple pattern needs two items"
+    | Error err -> Stdlib.Result.Result.Error err
+  | Some "MPEnum" -> items "fields" |> Stdlib.Result.map (fun ps -> MatchPattern.MPEnum(gid (), textOf n "case", ps))
+  | Some "MPOr" -> items "alts" |> Stdlib.Result.map (fun ps -> MatchPattern.MPOr(gid (), ps))
+  | _ -> Stdlib.Result.Result.Error("not a match pattern: " ++ (Kind.toString n.kind))
+
+let caseFromDoc (n: Node) : Stdlib.Result.Result<MatchCase, String> =
+  let pat =
+    match Node.slot n "pat" with
+    | Some(Filled p) -> matchPatFromDoc p
+    | Some(Empty e) -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+    | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+    | None -> Stdlib.Result.Result.Error "missing pattern"
+  let whenCond =
+    match Node.items n "when" with
+    | [] -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+    | [ Filled w ] -> fromDoc w |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x)
+    | _ -> Stdlib.Result.Result.Error "hole: when"
+  match (pat, whenCond, slotExpr n "rhs") with
+  | (Ok p, Ok w, Ok r) -> Stdlib.Result.Result.Ok(MatchCase { pat = p; whenCondition = w; rhs = r })
+  | (Error err, _, _) -> Stdlib.Result.Result.Error err
+  | (_, Error err, _) -> Stdlib.Result.Result.Error err
+  | (_, _, Error err) -> Stdlib.Result.Result.Error err
+
+let recordFieldFromDoc (n: Node) : Stdlib.Result.Result<(String * Expr), String> =
+  slotExpr n "value" |> Stdlib.Result.map (fun v -> (textOf n "name", v))
+
+let pairFromDoc (n: Node) : Stdlib.Result.Result<(Expr * Expr), String> =
+  match (slotExpr n "key", slotExpr n "value") with
+  | (Ok k, Ok v) -> Stdlib.Result.Result.Ok((k, v))
+  | (Error err, _) -> Stdlib.Result.Result.Error err
+  | (_, Error err) -> Stdlib.Result.Result.Error err
+
+let segmentFromDoc (n: Node) : Stdlib.Result.Result<StringSegment, String> =
+  match n.kind.case with
+  | Some "StringText" -> Stdlib.Result.Result.Ok(StringSegment.StringText(textOf n "text"))
+  | Some "StringInterpolation" -> slotExpr n "expr" |> Stdlib.Result.map (fun e -> StringSegment.StringInterpolation e)
+  | _ -> Stdlib.Result.Result.Error "not a string segment"
+
+let pipeFromDoc (n: Node) : Stdlib.Result.Result<PipeExpr, String> =
+  match n.kind.case with
+  | Some "EPipeVariable" -> itemExprs n "args" |> Stdlib.Result.map (fun es -> PipeExpr.EPipeVariable(gid (), textOf n "name", es))
+  | Some "EPipeLambda" ->
+    match (slotResults (Node.items n "params") (fun c -> letPatFromDoc c), slotExpr n "body") with
+    | (Ok ps, Ok b) -> Stdlib.Result.Result.Ok(PipeExpr.EPipeLambda(gid (), ps, b))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EPipeInfix" ->
+    match infixOfText (textOf n "op") with
+    | None -> Stdlib.Result.Result.Error("not an operator: " ++ (textOf n "op"))
+    | Some op -> slotExpr n "expr" |> Stdlib.Result.map (fun e -> PipeExpr.EPipeInfix(gid (), op, e))
+  | Some "EPipeFnCall" ->
+    match (fnNameResolution (textOf n "name") (textOf n "_hash"), itemExprs n "args") with
+    | (Ok nr, Ok es) -> Stdlib.Result.Result.Ok(PipeExpr.EPipeFnCall(gid (), nr, [], es))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EPipeEnum" ->
+    match (typeNameResolution (textOf n "type") (textOf n "_typeHash"), itemExprs n "fields") with
+    | (Ok tnr, Ok es) -> Stdlib.Result.Result.Ok(PipeExpr.EPipeEnum(gid (), tnr, textOf n "case", es))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | _ -> Stdlib.Result.Result.Error("not a pipe step: " ++ (Kind.toString n.kind))
+
+let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
+  let ok (e: Expr) : Stdlib.Result.Result<Expr, String> = Stdlib.Result.Result.Ok e
+  match n.kind.case with
+  | Some "EUnit" -> ok (Expr.EUnit(gid ()))
+  | Some "EBool" -> ok (Expr.EBool(gid (), (textOf n "value") == "true"))
+  | Some "EInt" ->
+    match Stdlib.Int.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int: " ++ (textOf n "digits"))
+  | Some "EInt64" ->
+    match Stdlib.Int64.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt64(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int64: " ++ (textOf n "digits"))
+  | Some "EFloat" ->
+    let whole = textOf n "whole"
+    let (sign, digits) =
+      if Stdlib.String.startsWith whole "-" then
+        (Darklang.LanguageTools.Sign.Negative, Stdlib.String.dropFirst whole 1)
+      else
+        (Darklang.LanguageTools.Sign.Positive, whole)
+    ok (Expr.EFloat(gid (), sign, digits, textOf n "fraction"))
+  | Some "EChar" -> ok (Expr.EChar(gid (), textOf n "char"))
+  | Some "EString" ->
+    ok (Expr.EString(gid (), [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText(textOf n "body") ]))
+  | Some "EList" ->
+    match itemExprs n "items" with
+    | Ok items -> ok (Expr.EList(gid (), items))
+    | Error err -> Stdlib.Result.Result.Error err
+  | Some "ETuple" ->
+    match itemExprs n "items" with
+    | Ok(a :: b :: rest) -> ok (Expr.ETuple(gid (), a, b, rest))
+    | Ok _ -> Stdlib.Result.Result.Error "a tuple needs two items"
+    | Error err -> Stdlib.Result.Result.Error err
+  | Some "EVariable" -> ok (Expr.EVariable(gid (), textOf n "name"))
+  | Some "ELet" ->
+    match (letPatSlot n "pat", slotExpr n "value", slotExpr n "body") with
+    | (Ok p, Ok v, Ok b) -> ok (Expr.ELet(gid (), p, v, b))
+    | (Error err, _, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, _, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EIf" ->
+    let elseResult =
+      match Node.slot n "else" with
+      | Some(Empty _) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+      | Some(Filled child) -> fromDoc child |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x)
+      | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+      | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+    match (slotExpr n "cond", slotExpr n "then", elseResult) with
+    | (Ok c, Ok t, Ok el) -> ok (Expr.EIf(gid (), c, t, el))
+    | (Error err, _, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, _, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EInfix" ->
+    match infixOfText (textOf n "op") with
+    | None -> Stdlib.Result.Result.Error("not an operator: " ++ (textOf n "op"))
+    | Some op ->
+      match (slotExpr n "left", slotExpr n "right") with
+      | (Ok l, Ok r) -> ok (Expr.EInfix(gid (), op, l, r))
+      | (Error err, _) -> Stdlib.Result.Result.Error err
+      | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "ELambda" ->
+    let params =
+      Node.items n "params"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled child -> letPatFromDoc child
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+    match (params, slotExpr n "body") with
+    | (Ok ps, Ok b) -> ok (Expr.ELambda(gid (), ps, b))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EApply" ->
+    match (slotExpr n "fn", itemExprs n "args") with
+    | (Ok f, Ok args) -> ok (Expr.EApply(gid (), f, [], args))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EFnName" ->
+    // Resolved names come back by hash; a name typed in the editor and not yet resolved is an error here,
+    // until completion (which knows the hash) is wired to package search.
+    fnNameResolution (textOf n "name") (textOf n "_hash") |> Stdlib.Result.map (fun nr -> Expr.EFnName(gid (), nr))
+  | Some "EStatement" ->
+    match (slotExpr n "first", slotExpr n "next") with
+    | (Ok a, Ok b) -> ok (Expr.EStatement(gid (), a, b))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EStringI" ->
+    slotResults (Node.items n "segments") (fun c -> segmentFromDoc c)
+    |> Stdlib.Result.map (fun segs -> Expr.EString(gid (), segs))
+  | Some "EMatch" ->
+    match (slotExpr n "arg", slotResults (Node.items n "cases") (fun c -> caseFromDoc c)) with
+    | (Ok a, Ok cs) -> ok (Expr.EMatch(gid (), a, cs))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EPipe" ->
+    match (slotExpr n "first", slotResults (Node.items n "steps") (fun c -> pipeFromDoc c)) with
+    | (Ok f, Ok steps) -> ok (Expr.EPipe(gid (), f, steps))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "ERecord" ->
+    match (typeNameResolution (textOf n "type") (textOf n "_typeHash"), slotResults (Node.items n "fields") (fun c -> recordFieldFromDoc c)) with
+    | (Ok tnr, Ok fields) -> ok (Expr.ERecord(gid (), tnr, [], fields))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "ERecordUpdate" ->
+    match (slotExpr n "record", slotResults (Node.items n "updates") (fun c -> recordFieldFromDoc c)) with
+    | (Ok r, Ok updates) -> ok (Expr.ERecordUpdate(gid (), r, updates))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EEnum" ->
+    match (typeNameResolution (textOf n "type") (textOf n "_typeHash"), itemExprs n "fields") with
+    | (Ok tnr, Ok fields) -> ok (Expr.EEnum(gid (), tnr, [], textOf n "case", fields))
+    | (Error err, _) -> Stdlib.Result.Result.Error err
+    | (_, Error err) -> Stdlib.Result.Result.Error err
+  | Some "EDict" ->
+    slotResults (Node.items n "pairs") (fun c -> pairFromDoc c) |> Stdlib.Result.map (fun pairs -> Expr.EDict(gid (), pairs))
+  | Some "ERecordFieldAccess" ->
+    slotExpr n "record" |> Stdlib.Result.map (fun r -> Expr.ERecordFieldAccess(gid (), r, textOf n "field"))
+  | Some "EValue" ->
+    let hash = textOf n "_hash"
+    if hash == "" || (Stdlib.String.startsWith hash "builtin:") then
+      Stdlib.Result.Result.Error("unresolved value name: " ++ (textOf n "name"))
+    else
+      let nr =
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = Stdlib.String.split (textOf n "name") "."
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQValueName.FQValueName.Package(Darklang.LanguageTools.ProgramTypes.Hash.Hash hash)
+                    location = Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.parsePackageLocation (textOf n "name")) }) }
+      ok (Expr.EValue(gid (), nr))
+  | Some "Opaque" -> Darklang.LanguageTools.Parser.Parse.parsePTExpr (textOf n "source")
+  | _ -> Stdlib.Result.Result.Error("not an expression node: " ++ (Kind.toString n.kind))
+
+
+// --- Specs ---
+
+let intFromDigit (c: String) (e: Expect) : Node = Node.make (exprKind "EInt") [ text "digits" c ]
+
+let stringFromQuote (c: String) (e: Expect) : Node = Node.make (exprKind "EString") [ text "body" "" ]
+
+let listFromBracket (c: String) (e: Expect) : Node =
+  Node.make (exprKind "EList") [ ("items", Field.Many([ Slot.Empty(exprExpect "item") ], exprExpect "item")) ]
+
+let tupleFromParen (c: String) (e: Expect) : Node =
+  Node.make
+    (exprKind "ETuple")
+    [ ("items", Field.Many([ Slot.Empty(exprExpect "item"), Slot.Empty(exprExpect "item") ], exprExpect "item")) ]
+
+let emptyLet () : Node =
+  Node.make
+    (exprKind "ELet")
+    [ ("pat", Field.One(Slot.Empty(letPatExpect "name")))
+      ("value", Field.One(Slot.Empty(exprExpect "value")))
+      ("body", Field.One(Slot.Empty(exprExpect "body"))) ]
+
+let emptyIf () : Node =
+  Node.make
+    (exprKind "EIf")
+    [ ("cond", Field.One(Slot.Empty(exprExpect "cond")))
+      ("then", Field.One(Slot.Empty(exprExpect "then")))
+      ("else", Field.One(Slot.Empty(Expect.optionalOf (exprExpect "else")))) ]
+
+let emptyLambda () : Node =
+  Node.make
+    (exprKind "ELambda")
+    [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param"))
+      ("body", Field.One(Slot.Empty(exprExpect "body"))) ]
+
+/// `left` then an operator character: `left <op> ⟨right⟩`.
+let wrapInfix (left: Node) (c: String) : Node =
+  Node.make
+    (exprKind "EInfix")
+    [ ("left", Field.One(Slot.Filled left)), text "op" c, ("right", Field.One(Slot.Empty(exprExpect "right"))) ]
+
+/// `left` then `|`: `left |> ⟨step⟩`.
+let wrapPipe (left: Node) (c: String) : Node =
+  Node.make
+    (exprKind "EPipe")
+    [ ("first", Field.One(Slot.Filled left))
+      ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ]
+
+// --- Completion from the package tree ---
+
+let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : String =
+  Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+
+/// "Stdlib.List.map" for Darklang.Stdlib.List.map: the way people write it.
+let displayName (name: String) : String =
+  if Stdlib.String.startsWith name "Darklang.Stdlib." then Stdlib.String.dropFirst name 9
+  elif Stdlib.String.startsWith name "Darklang." then Stdlib.String.dropFirst name 9
+  else name
+
+let fnNameNode (name: String) (hash: String) : Node =
+  Node.make (exprKind "EFnName") [ text "name" name, text "_hash" hash ]
+
+/// A call with one hole per parameter, labelled by the parameter's name.
+let applyNode (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) (name: String) : Node =
+  let hash = Darklang.LanguageTools.ProgramTypes.hashToString fn.hash
+  match fn.parameters with
+  | [] -> fnNameNode name hash
+  | params ->
+    Node.make
+      (exprKind "EApply")
+      [ ("fn", Field.One(Slot.Filled(fnNameNode name hash)))
+        ("args", Field.Many(params |> Stdlib.List.map (fun p -> Slot.Empty(exprExpect p.name)), exprExpect "arg")) ]
+
+/// The same call as a pipe step: the first parameter is what's piped in, so one hole fewer.
+let pipeCallNode (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) (name: String) : Node =
+  let hash = Darklang.LanguageTools.ProgramTypes.hashToString fn.hash
+  let rest = Stdlib.List.drop fn.parameters 1
+  Node.make
+    (pipeKind "EPipeFnCall")
+    [ text "name" name, text "_hash" hash
+      ("args", Field.Many(rest |> Stdlib.List.map (fun p -> Slot.Empty(exprExpect p.name)), exprExpect "arg")) ]
+
+val maxSearchCandidates = 8
+
+/// The store's search wants a module path and a name, and matches the name by substring inside that
+/// module; a fuzzy fallback at the root is wide and capped, so `List.ma` at the root never reaches
+/// `List.map`. So: split what was typed into module segments and a last segment, search under a few
+/// roots (as written, under Darklang, under Darklang.Stdlib), and let `ranked` sort the union.
+let searchRoots () : List<List<String>> = [ [], [ "Darklang" ], [ "Darklang", "Stdlib" ] ]
+
+let searchFor (typed: String) : Darklang.LanguageTools.ProgramTypes.Search.SearchResults =
+  let segments = Stdlib.String.split typed "."
+  let lastSegment = Stdlib.List.last segments |> Stdlib.Option.withDefault typed
+  let modules = Stdlib.List.dropLast segments
+  let one (root: List<String>) : Darklang.LanguageTools.ProgramTypes.Search.SearchResults =
+    let query =
+      Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = Stdlib.List.append root modules
+          text = lastSegment
+          searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes =
+            [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Fn
+              Darklang.LanguageTools.ProgramTypes.Search.EntityType.Value ]
+          exactMatch = false }
+    Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query
+  let all = searchRoots () |> Stdlib.List.map (fun root -> one root)
+  Darklang.LanguageTools.ProgramTypes.Search.SearchResults
+    { submodules = []
+      types = []
+      values = all |> Stdlib.List.map (fun r -> r.values) |> Stdlib.List.flatten
+      fns = all |> Stdlib.List.map (fun r -> r.fns) |> Stdlib.List.flatten }
+
+/// Drop duplicates (the same hash under two roots), keeping the first.
+let dedupe
+  (items: List<Darklang.LanguageTools.ProgramTypes.LocatedItem<'a>>)
+  : List<Darklang.LanguageTools.ProgramTypes.LocatedItem<'a>> =
+  let (_, kept) =
+    Stdlib.List.fold items (([], [])) (fun acc item ->
+      let (seen, out) = acc
+      let name = locationName item.location
+      if Stdlib.List.member seen name then (seen, out)
+      else (Stdlib.List.push seen name, Stdlib.List.push out item))
+  Stdlib.List.reverse kept
+
+let paramSummary (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
+  fn.parameters |> Stdlib.List.map (fun p -> p.name) |> Stdlib.String.join " "
+
+/// Package functions and values whose names match, as calls with placeholder arguments. Two characters
+/// before we go to the store: one is too many hits to be useful.
+let completeExpr (e: Expect) (typed: String) : List<Candidate> =
+  if (Stdlib.String.length typed) < 2 then
+    []
+  else
+    let results = searchFor typed
+    let fns =
+      ranked typed results.fns
+      |> Stdlib.List.take maxSearchCandidates
+      |> Stdlib.List.map (fun item ->
+        let name = locationName item.location
+        Spec.candidate (displayName name) (paramSummary item.entity) (applyNode item.entity name))
+    let values =
+      ranked typed results.values
+      |> Stdlib.List.take 4
+      |> Stdlib.List.map (fun item ->
+        let name = locationName item.location
+        let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
+        Spec.candidate (displayName name) "value" (Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]))
+    Stdlib.List.append fns values
+
+let completePipeStep (e: Expect) (typed: String) : List<Candidate> =
+  if (Stdlib.String.length typed) < 2 then
+    []
+  else
+    ranked typed (searchFor typed).fns
+    |> Stdlib.List.take maxSearchCandidates
+    |> Stdlib.List.map (fun item ->
+      let name = locationName item.location
+      Spec.candidate (displayName name) (paramSummary item.entity) (pipeCallNode item.entity name))
+
+/// An identifier typed into an expression hole is a variable once the user types past it.
+let isIdentifier (t: String) : Bool =
+  (Stdlib.String.length t) > 0
+  && (TextEdit.isLetterString (Stdlib.String.first t 1) || (Stdlib.String.first t 1) == "_")
+  && (Stdlib.String.toList t
+      |> Stdlib.List.all (fun ch -> (Stdlib.Char.isAlphanumeric ch) || ((Stdlib.Char.toString ch) == "_")))
+
+let resolveExprPartial (typed: String) : Stdlib.Option.Option<Node> =
+  if isIdentifier typed then
+    Stdlib.Option.Option.Some(Node.make (exprKind "EVariable") [ text "name" typed ])
+  else
+    Stdlib.Option.Option.None
+
+/// Rank search hits for what was typed: a name that ends with it first, then one that contains it, then
+/// one whose last segment starts with the last typed segment. Anything else is dropped; the store's
+/// fuzzy search is wider than completion wants.
+let rankFor (typed: String) (name: String) : Stdlib.Option.Option<Int> =
+  let t = Stdlib.String.toLowercase typed
+  let n = Stdlib.String.toLowercase name
+  let lastOf (x: String) : String = Stdlib.String.split x "." |> Stdlib.List.last |> Stdlib.Option.withDefault x
+  if Stdlib.String.endsWith n t then Stdlib.Option.Option.Some 0
+  elif Stdlib.String.startsWith (lastOf n) (lastOf t) && (Stdlib.String.contains n t) then Stdlib.Option.Option.Some 1
+  elif Stdlib.String.startsWith (lastOf n) (lastOf t) then Stdlib.Option.Option.Some 2
+  elif Stdlib.String.contains n t then Stdlib.Option.Option.Some 3
+  else Stdlib.Option.Option.None
+
+let ranked
+  (typed: String)
+  (items: List<Darklang.LanguageTools.ProgramTypes.LocatedItem<'a>>)
+  : List<Darklang.LanguageTools.ProgramTypes.LocatedItem<'a>> =
+  items
+  |> Stdlib.List.filterMap (fun item ->
+    let name = displayName (locationName item.location)
+    rankFor typed name |> Stdlib.Option.map (fun r -> ((r, Stdlib.String.length name), item)))
+  |> Stdlib.List.sortBy (fun pair ->
+    let (key, _) = pair
+    key)
+  |> Stdlib.List.map (fun pair ->
+    let (_, item) = pair
+    item)
+  |> dedupe
+
+let emptyPipeLambda () : Node =
+  Node.make
+    (pipeKind "EPipeLambda")
+    [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param"))
+      ("body", Field.One(Slot.Empty(exprExpect "body"))) ]
+
+/// The type-level spec for a pipe step: what a hole after `|>` accepts.
+let pipeTypeSpec () : Spec =
+  Spec
+    { kind = Kind.named pipeExprType
+      pieces = [ Piece.Dim "?step" ]
+      holeRules = []
+      wrapRules = []
+      completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
+      complete = completePipeStep
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = emptyPipeLambda ()
+      summary = exprSummary }
+
+// --- Binders (for scope-aware completion) ---
+
+let letPatNames (n: Node) : List<String> =
+  match n.kind.case with
+  | Some "LPVariable" -> [ textOf n "name" ]
+  | Some "LPTuple" ->
+    Node.items n "items"
+    |> Stdlib.List.filterMap (fun s -> Slot.node s)
+    |> Stdlib.List.map (fun c -> letPatNames c)
+    |> Stdlib.List.flatten
+  | _ -> []
+
+let matchPatNames (n: Node) : List<String> =
+  let itemNames (name: String) : List<String> =
+    Node.items n name
+    |> Stdlib.List.filterMap (fun s -> Slot.node s)
+    |> Stdlib.List.map (fun c -> matchPatNames c)
+    |> Stdlib.List.flatten
+  let slotNames (name: String) : List<String> =
+    match Node.slot n name with
+    | Some(Filled c) -> matchPatNames c
+    | _ -> []
+  match n.kind.case with
+  | Some "MPVariable" -> [ textOf n "name" ]
+  | Some "MPList" -> itemNames "items"
+  | Some "MPTuple" -> itemNames "items"
+  | Some "MPEnum" -> itemNames "fields"
+  | Some "MPListCons" -> Stdlib.List.append (slotNames "head") (slotNames "tail")
+  | Some "MPOr" -> itemNames "alts"
+  | _ -> []
+
+let namesFromSlot (n: Node) (slot: String) (extract: Node -> List<String>) : List<String> =
+  match Node.slot n slot with
+  | Some(Filled c) -> extract c
+  | _ -> []
+
+let namesFromItems (n: Node) (slot: String) (extract: Node -> List<String>) : List<String> =
+  Node.items n slot
+  |> Stdlib.List.filterMap (fun s -> Slot.node s)
+  |> Stdlib.List.map (fun c -> extract c)
+  |> Stdlib.List.flatten
+
+let letBinders (n: Node) : List<(List<String> * List<String>)> =
+  [ (namesFromSlot n "pat" letPatNames, [ "body" ]) ]
+
+let lambdaBinders (n: Node) : List<(List<String> * List<String>)> =
+  [ (namesFromItems n "params" letPatNames, [ "body" ]) ]
+
+let caseBinders (n: Node) : List<(List<String> * List<String>)> =
+  [ (namesFromSlot n "pat" matchPatNames, [ "rhs", "when" ]) ]
+
+let variableNode (name: String) : Node = Node.make (exprKind "EVariable") [ text "name" name ]
+
+// --- Actions (palette) ---
+
+let anyExpr (n: Node) : Bool = true
+
+/// Wrap the node as the scrutinee of a match with one empty case.
+let wrapInMatch (n: Node) : Slot =
+  Slot.Filled(
+    Node.make
+      (exprKind "EMatch")
+      [ ("arg", Field.One(Slot.Filled n))
+        ("cases", Field.Many([ Slot.Filled(emptyCase ()) ], caseExpect ())) ])
+
+/// Wrap the node as the condition of an if.
+let wrapInIf (n: Node) : Slot =
+  Slot.Filled(
+    Node.make
+      (exprKind "EIf")
+      [ ("cond", Field.One(Slot.Filled n))
+        ("then", Field.One(Slot.Empty(exprExpect "then")))
+        ("else", Field.One(Slot.Empty(Expect.optionalOf (exprExpect "else")))) ])
+
+/// Put a let above the node: `let ⟨name⟩ = ⟨value⟩` and the node as the body.
+let wrapInLet (n: Node) : Slot =
+  Slot.Filled(
+    Node.make
+      (exprKind "ELet")
+      [ ("pat", Field.One(Slot.Empty(letPatExpect "name")))
+        ("value", Field.One(Slot.Empty(exprExpect "value")))
+        ("body", Field.One(Slot.Filled n)) ])
+
+/// Pipe the node into a new step: `node |> ⟨step⟩`.
+let wrapInPipe (n: Node) : Slot =
+  Slot.Filled(
+    Node.make
+      (exprKind "EPipe")
+      [ ("first", Field.One(Slot.Filled n))
+        ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
+
+let exprActions () : List<Action> =
+  [ Action { name = "wrap in let"; key = Stdlib.Option.Option.None; doc = "let ... = ...  above this"; applies = anyExpr; run = wrapInLet }
+    Action { name = "wrap in match"; key = Stdlib.Option.Option.None; doc = "match on this"; applies = anyExpr; run = wrapInMatch }
+    Action { name = "wrap in if"; key = Stdlib.Option.Option.None; doc = "if this then ... else ..."; applies = anyExpr; run = wrapInIf }
+    Action { name = "pipe into"; key = Stdlib.Option.Option.None; doc = "this |> ..."; applies = anyExpr; run = wrapInPipe } ]
+
+let exprSummary (n: Node) : String =
+  match n.kind.case with
+  | Some c -> c
+  | None -> "expr"
+
+let simpleExpr (case: String) (pieces: List<Piece>) (empty: Node) : Spec =
+  { (Spec.simple (exprKind case) pieces empty) with summary = exprSummary }
+
+let simpleLetPat (case: String) (pieces: List<Piece>) (empty: Node) : Spec =
+  { (Spec.simple (letPatKind case) pieces empty) with summary = exprSummary }
+
+/// The type-level spec: owns holes that expect an expression.
+let exprTypeSpec () : Spec =
+  Spec
+    { kind = Kind.named exprType
+      pieces = [ Piece.Dim "?expr" ]
+      holeRules =
+        [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar intFromDigit }
+          HoleRule { onChar = "\""; fill = HoleFill.WithChar stringFromQuote }
+          HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket }
+          HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen } ]
+      wrapRules =
+        [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
+          WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
+      completions =
+        [ Spec.candidate "let" "bind a name" (emptyLet ())
+          Spec.candidate "if" "conditional" (emptyIf ())
+          Spec.candidate "match" "pattern match" (emptyMatch ())
+          Spec.candidate "fun" "lambda" (emptyLambda ())
+          Spec.candidate "true" "Bool" (Node.make (exprKind "EBool") [ text "value" "true" ])
+          Spec.candidate "false" "Bool" (Node.make (exprKind "EBool") [ text "value" "false" ])
+          Spec.candidate "()" "Unit" (Node.make (exprKind "EUnit") []) ]
+      complete = completeExpr
+      resolve = resolveExprPartial
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.Some variableNode
+      actions = exprActions ()
+      empty = Node.make (exprKind "EUnit") []
+      summary = exprSummary }
+
+let letPatTypeSpec () : Spec =
+  Spec
+    { kind = Kind.named letPatType
+      pieces = [ Piece.Dim "?pattern" ]
+      holeRules =
+        [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar letPatVarFromLetter }
+          HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) } ]
+      wrapRules = []
+      completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
+      complete = Spec.noCompletions
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = Node.make (letPatKind "LPWildcard") []
+      summary = exprSummary }
+
+let letPatVarFromLetter (c: String) (e: Expect) : Node =
+  Node.make (letPatKind "LPVariable") [ text "name" c ]
+
+let simpleOf (kind: Kind) (pieces: List<Piece>) (empty: Node) : Spec =
+  { (Spec.simple kind pieces empty) with summary = exprSummary }
+
+let matchPatVarFromLetter (c: String) (e: Expect) : Node =
+  Node.make (matchPatKind "MPVariable") [ text "name" c ]
+
+let matchPatIntFromDigit (c: String) (e: Expect) : Node =
+  Node.make (matchPatKind "MPInt") [ text "digits" c ]
+
+let emptyCase () : Node =
+  Node.make
+    (Kind.named matchCaseType)
+    [ ("pat", Field.One(Slot.Empty(matchPatExpect "pattern")))
+      ("when", Field.Many([], exprExpect "when"))
+      ("rhs", Field.One(Slot.Empty(exprExpect "rhs"))) ]
+
+let emptyMatch () : Node =
+  Node.make
+    (exprKind "EMatch")
+    [ ("arg", Field.One(Slot.Empty(exprExpect "arg")))
+      ("cases", Field.Many([ Slot.Filled(emptyCase ()) ], caseExpect ())) ]
+
+let matchPatTypeSpec () : Spec =
+  Spec
+    { kind = Kind.named matchPatType
+      pieces = [ Piece.Dim "?pattern" ]
+      holeRules =
+        [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar matchPatVarFromLetter }
+          HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar matchPatIntFromDigit }
+          HoleRule { onChar = "\""; fill = HoleFill.Node(Node.make (matchPatKind "MPString") [ text "body" "" ]) }
+          HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
+          HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
+      wrapRules = []
+      completions =
+        [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
+          Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
+          Spec.candidate "()" "unit" (Node.make (matchPatKind "MPUnit") []) ]
+      complete = Spec.noCompletions
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = Node.make (matchPatKind "MPVariable") [ text "name" "_" ]
+      summary = exprSummary }
+
+let caseSpec () : Spec =
+  simpleOf
+    (Kind.named matchCaseType)
+    [ Piece.Slot "pat"
+      Piece.EachWrapped("when", " when ", [], "")
+      Piece.Space
+      Piece.Punct "->"
+      Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "rhs" ]) ] ]
+    (emptyCase ())
+  |> fun sp -> Spec.withBinders sp caseBinders
+
+let listSepPieces () : List<Piece> = [ Piece.Punct ",", Piece.Line ]
+
+let bracketedPieces (openP: String) (slot: String) (closeP: String) : List<Piece> =
+  [ Piece.Group
+      [ Piece.Punct openP
+        Piece.Nest(2, [ Piece.SoftLine, Piece.Each(slot, listSepPieces ()) ])
+        Piece.SoftLine
+        Piece.Punct closeP ] ]
+
+let moreSpecs () : List<Spec> =
+  [ matchPatTypeSpec ()
+    pipeTypeSpec ()
+    caseSpec ()
+    simpleOf (matchPatKind "MPVariable") [ Piece.Text("name", Layout.Style.Name) ] (Node.make (matchPatKind "MPVariable") [ text "name" "" ])
+    simpleOf (matchPatKind "MPUnit") [ Piece.Label "()" ] (Node.make (matchPatKind "MPUnit") [])
+    simpleOf (matchPatKind "MPBool") [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
+    simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ])
+    simpleOf (matchPatKind "MPInt64") [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (matchPatKind "MPInt64") [ text "digits" "" ])
+    simpleOf (matchPatKind "MPFloat") [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ] (Node.make (matchPatKind "MPFloat") [ text "whole" "", text "fraction" "" ])
+    simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.Text("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
+    simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.Text("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
+    simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
+    simpleOf (matchPatKind "MPListCons") [ Piece.Slot "head", Piece.Space, Piece.Punct "::", Piece.Space, Piece.Slot "tail" ] (Node.make (matchPatKind "MPListCons") [ ("head", Field.One(Slot.Empty(matchPatExpect "head"))), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ])
+    simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
+    simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ])
+    simpleOf (matchPatKind "MPOr") [ Piece.Group [ Piece.Each("alts", [ Piece.Space, Piece.Punct "|", Piece.Line ]) ] ] (Node.make (matchPatKind "MPOr") [ ("alts", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
+    simpleExpr
+      "EMatch"
+      [ Piece.Keyword "match"
+        Piece.Space
+        Piece.Slot "arg"
+        Piece.Space
+        Piece.Keyword "with"
+        Piece.HardLine
+        Piece.EachWith("cases", [ Piece.Punct "|", Piece.Space ], [ Piece.HardLine ]) ]
+      (emptyMatch ())
+    simpleExpr
+      "EPipe"
+      [ Piece.Slot "first", Piece.HardLine, Piece.EachWith("steps", [ Piece.Punct "|>", Piece.Space ], [ Piece.HardLine ]) ]
+      (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
+    simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Each("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.EachWrapped("args", " ", [ Piece.Line ], "") ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
+    |> fun sp -> Spec.withBinders sp lambdaBinders
+    simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
+    simpleOf (pipeKind "EPipeEnum") [ Piece.Text("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
+    simpleOf (Kind.named recordFieldType) [ Piece.Text("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+    simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+    simpleExpr
+      "ERecord"
+      [ Piece.Group
+          [ Piece.Text("type", Layout.Style.Name)
+            Piece.Space
+            Piece.Punct "{"
+            Piece.Nest(2, [ Piece.HardLine, Piece.Each("fields", [ Piece.Punct ";", Piece.HardLine ]) ])
+            Piece.HardLine
+            Piece.Punct "}" ] ]
+      (Node.make (exprKind "ERecord") [ text "type" "", text "_typeHash" "", ("fields", Field.Many([], fieldExpect ())) ])
+    simpleExpr
+      "ERecordUpdate"
+      [ Piece.Group
+          [ Piece.Punct "{"
+            Piece.Space
+            Piece.Slot "record"
+            Piece.Space
+            Piece.Keyword "with"
+            Piece.Nest(2, [ Piece.HardLine, Piece.Each("updates", [ Piece.Punct ";", Piece.HardLine ]) ])
+            Piece.HardLine
+            Piece.Punct "}" ] ]
+      (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ])
+    simpleExpr
+      "EEnum"
+      [ Piece.Text("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]
+      (Node.make (exprKind "EEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
+    simpleExpr
+      "EDict"
+      [ Piece.Group
+          [ Piece.Keyword "Dict"
+            Piece.Space
+            Piece.Punct "{"
+            Piece.Nest(2, [ Piece.HardLine, Piece.Each("pairs", [ Piece.Punct ";", Piece.HardLine ]) ])
+            Piece.HardLine
+            Piece.Punct "}" ] ]
+      (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
+    simpleExpr "ERecordFieldAccess" [ Piece.Slot "record", Piece.Punct ".", Piece.Text("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
+    simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
+    simpleExpr "EStringI" [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
+    simpleOf (segmentKind "StringText") [ Piece.Text("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])
+    simpleOf (segmentKind "StringInterpolation") [ Piece.Punct "{", Piece.Slot "expr", Piece.Punct "}" ] (Node.make (segmentKind "StringInterpolation") [ ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]) ]
+
+let baseSpecs () : List<Spec> =
+  [ exprTypeSpec ()
+    letPatTypeSpec ()
+    simpleExpr "EUnit" [ Piece.Label "()" ] (Node.make (exprKind "EUnit") [])
+    simpleExpr "EBool" [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (exprKind "EBool") [ text "value" "false" ])
+    simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ])
+    simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ])
+    simpleExpr
+      "EFloat"
+      [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
+      (Node.make (exprKind "EFloat") [ text "whole" "", text "fraction" "" ])
+    simpleExpr "EChar" [ Piece.Punct "'", Piece.Text("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
+    simpleExpr "EString" [ Piece.Punct "\"", Piece.Text("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
+    simpleExpr
+      "EList"
+      [ Piece.Group
+          [ Piece.Punct "["
+            Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+            Piece.SoftLine
+            Piece.Punct "]" ] ]
+      (listFromBracket "[" (exprExpect "item"))
+    simpleExpr
+      "ETuple"
+      [ Piece.Group
+          [ Piece.Punct "("
+            Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+            Piece.SoftLine
+            Piece.Punct ")" ] ]
+      (tupleFromParen "(" (exprExpect "item"))
+    simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ])
+    simpleExpr
+      "ELet"
+      [ Piece.Keyword "let"
+        Piece.Space
+        Piece.Slot "pat"
+        Piece.Space
+        Piece.Punct "="
+        Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "value" ]) ]
+        Piece.HardLine
+        Piece.Slot "body" ]
+      (emptyLet ())
+    |> fun sp -> Spec.withBinders sp letBinders
+    simpleExpr
+      "EIf"
+      [ Piece.Keyword "if"
+        Piece.Space
+        Piece.Slot "cond"
+        Piece.Space
+        Piece.Keyword "then"
+        Piece.Nest(2, [ Piece.HardLine, Piece.Slot "then" ])
+        Piece.HardLine
+        Piece.Keyword "else"
+        Piece.Nest(2, [ Piece.HardLine, Piece.Slot "else" ]) ]
+      (emptyIf ())
+    simpleExpr
+      "EInfix"
+      [ Piece.Group [ Piece.Slot "left", Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.Slot "right" ] ]
+      (Node.make
+        (exprKind "EInfix")
+        [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ])
+    simpleExpr
+      "ELambda"
+      [ Piece.Group
+          [ Piece.Keyword "fun"
+            Piece.Space
+            Piece.Each("params", [ Piece.Space ])
+            Piece.Space
+            Piece.Punct "->"
+            Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ]
+      (emptyLambda ())
+    |> fun sp -> Spec.withBinders sp lambdaBinders
+    simpleExpr
+      "EApply"
+      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.Line, Piece.Each("args", [ Piece.Line ]) ]) ] ]
+      (Node.make
+        (exprKind "EApply")
+        [ ("fn", Field.One(Slot.Empty(exprExpect "fn"))), ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
+    simpleExpr "EFnName" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
+    simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ])
+    simpleExpr "Opaque" [ Piece.Text("source", Layout.Style.Dim) ] (Node.make (exprKind "Opaque") [ text "source" "" ])
+    simpleLetPat "LPUnit" [ Piece.Label "()" ] (Node.make (letPatKind "LPUnit") [])
+    simpleLetPat "LPWildcard" [ Piece.Label "_" ] (Node.make (letPatKind "LPWildcard") [])
+    simpleLetPat "LPVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (letPatKind "LPVariable") [ text "name" "" ])
+    simpleExpr
+      "LPTuple"
+      [ Piece.Group [ Piece.Punct "(", Piece.Each("items", [ Piece.Punct ",", Piece.Line ]), Piece.Punct ")" ] ]
+      (Node.make (letPatKind "LPTuple") [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]) ]
+
+
+let specs () : List<Spec> = Stdlib.List.append (baseSpecs ()) (moreSpecs ())
+
+
+module Test =
+  /// Drive keys from `root`, then the program that results, printed; or the first thing missing.
+  let program (reg: Registry) (root: Slot) (keys: List<String>) : String =
+    let final = Fluid.Test.drive (Editor.init reg root 60) keys
+    match final.root with
+    | Filled n ->
+      match fromDoc n with
+      | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (printerContext ()) e
+      | Error err -> "ERR " ++ err
+    | Empty e -> "ERR hole: " ++ e.label
+    | Partial(t, _) -> "ERR unresolved: " ++ t

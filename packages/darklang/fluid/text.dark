@@ -1,0 +1,35 @@
+/// Grapheme-indexed string edits. Offsets everywhere in Fluid count graphemes, because that is what a
+/// Dark `Char` is and what Left/Right should step over.
+module Darklang.Fluid.TextEdit
+
+let insertAt (s: String) (offset: Int) (piece: String) : String =
+  let n = Stdlib.String.length s
+  let at = Stdlib.Int.clamp offset 0 n
+  (Stdlib.String.slice s 0 at) ++ piece ++ (Stdlib.String.dropFirst s at)
+
+/// Remove the grapheme before `offset`.
+let removeBefore (s: String) (offset: Int) : String =
+  if offset <= 0 then
+    s
+  else
+    let n = Stdlib.String.length s
+    let at = Stdlib.Int.clamp offset 0 n
+    (Stdlib.String.slice s 0 (at - 1)) ++ (Stdlib.String.dropFirst s at)
+
+/// Remove the grapheme at `offset`.
+let removeAt (s: String) (offset: Int) : String =
+  let n = Stdlib.String.length s
+  if offset < 0 || offset >= n then
+    s
+  else
+    (Stdlib.String.slice s 0 offset) ++ (Stdlib.String.dropFirst s (offset + 1))
+
+let isDigitString (c: String) : Bool =
+  match Stdlib.String.toList c with
+  | [ ch ] -> Stdlib.Char.isDigit ch
+  | _ -> false
+
+let isLetterString (c: String) : Bool =
+  match Stdlib.String.toList c with
+  | [ ch ] -> Stdlib.Char.isLetter ch
+  | _ -> false

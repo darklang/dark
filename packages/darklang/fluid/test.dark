@@ -1,0 +1,62 @@
+/// A key-script DSL for driving the kernel in tests, and the `~` rendering to check it against.
+///
+///   Fluid.Test.run reg root [ "4", "2", "<Tab>", "\"", "h", "i", "<Esc>" ]
+///
+/// Each entry is one printable grapheme, or a named key in angle brackets: <Tab> <S-Tab> <BS> <Left>
+/// <Right> <Up> <Down> <Esc> <Enter> <C-z> <C-y> <C-s>. Names, not scan codes, so a test reads like what
+/// a person did.
+module Darklang.Fluid.Test
+
+let mods (ctrl: Bool) (shift: Bool) : Stdlib.Cli.Stdin.Modifiers.Modifiers =
+  Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = ctrl; shift = shift }
+
+let named (key: Stdlib.Cli.Stdin.Key.Key) (ctrl: Bool) (shift: Bool) : Stdlib.Cli.UI.Widget.KeyPress =
+  Stdlib.Cli.UI.Widget.press key (mods ctrl shift) Stdlib.Option.Option.None
+
+let printable (c: String) : Stdlib.Cli.UI.Widget.KeyPress =
+  // The kernel dispatches printable keys by `char`; the `key` is informational.
+  Stdlib.Cli.UI.Widget.press Stdlib.Cli.Stdin.Key.Key.NoName (mods false false) (Stdlib.Option.Option.Some c)
+
+let keyOf (s: String) : Stdlib.Cli.UI.Widget.KeyPress =
+  match s with
+  | "<Tab>" -> named Stdlib.Cli.Stdin.Key.Key.Tab false false
+  | "<S-Tab>" -> named Stdlib.Cli.Stdin.Key.Key.Tab false true
+  | "<BS>" -> named Stdlib.Cli.Stdin.Key.Key.Backspace false false
+  | "<Left>" -> named Stdlib.Cli.Stdin.Key.Key.LeftArrow false false
+  | "<Right>" -> named Stdlib.Cli.Stdin.Key.Key.RightArrow false false
+  | "<Up>" -> named Stdlib.Cli.Stdin.Key.Key.UpArrow false false
+  | "<Down>" -> named Stdlib.Cli.Stdin.Key.Key.DownArrow false false
+  | "<Esc>" -> named Stdlib.Cli.Stdin.Key.Key.Escape false false
+  | "<Enter>" -> named Stdlib.Cli.Stdin.Key.Key.Enter false false
+  | "<C-z>" -> named Stdlib.Cli.Stdin.Key.Key.Z true false
+  | "<C-y>" -> named Stdlib.Cli.Stdin.Key.Key.Y true false
+  | "<C-s>" -> named Stdlib.Cli.Stdin.Key.Key.S true false
+  | _ -> printable s
+
+/// Feed keys; the last state, whatever the outcomes said.
+let drive (st: Editor.State) (keys: List<String>) : Editor.State =
+  Stdlib.List.fold keys st (fun acc k ->
+    match Editor.onKey acc (keyOf k) with
+    | Handled s -> s
+    | Emitted(s, _) -> s
+    | Ignored -> acc)
+
+/// The layout with `~` at the caret, after the keys.
+let run (reg: Registry) (root: Slot) (width: Int) (keys: List<String>) : String =
+  let st = Editor.init reg root width
+  let final = drive st keys
+  Debug.withCaret final.reg final.width final.root final.caret
+
+/// Same, starting in INSERT with the caret given.
+let runFrom (reg: Registry) (root: Slot) (width: Int) (caret: Caret) (keys: List<String>) : String =
+  let st0 = Editor.init reg root width
+  let st = { st0 with caret = caret; mode = Editor.Mode.Insert }
+  let final = drive st keys
+  Debug.withCaret final.reg final.width final.root final.caret
+
+/// The mode after the keys, for the tests that are about it.
+let modeAfter (reg: Registry) (root: Slot) (width: Int) (keys: List<String>) : String =
+  let final = drive (Editor.init reg root width) keys
+  match final.mode with
+  | Insert -> "insert"
+  | Nav -> "nav"

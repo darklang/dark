@@ -1,0 +1,151 @@
+// ProgramTypes through Fluid: parse -> toDoc -> fromDoc prints the same program, and editing an
+// expression hole builds real expressions.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.append (Darklang.Fluid.Prims.specs ()) (Darklang.Fluid.PT.specs ()))
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  /// The program after a trip through the document, as the printer writes it; or the failure.
+  let roundTrip (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+      | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e2
+      | Error err -> "ERR " ++ err
+    | Error err -> "PARSE ERR " ++ err
+
+  /// What the printer writes for the original, so the two sides compare like for like.
+  let printed (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e
+    | Error err -> "PARSE ERR " ++ err
+
+  let render (src: String) (width: Int) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (reg ()) width (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "PARSE ERR " ++ err
+
+  let exprHole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  let run (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (exprHole ()) 60 keys
+
+
+module RoundTrips =
+  (Fixtures.roundTrip "42") = (Fixtures.printed "42")
+  (Fixtures.roundTrip "\"hi\"") = (Fixtures.printed "\"hi\"")
+  (Fixtures.roundTrip "[1, 2, 3]") = (Fixtures.printed "[1, 2, 3]")
+  (Fixtures.roundTrip "(1, \"a\", true)") = (Fixtures.printed "(1, \"a\", true)")
+  (Fixtures.roundTrip "let x = 1 + 2\nx * 3") = (Fixtures.printed "let x = 1 + 2\nx * 3")
+  (Fixtures.roundTrip "if x > 2 then [x, 3] else (1, \"two\")") = (Fixtures.printed "if x > 2 then [x, 3] else (1, \"two\")")
+  (Fixtures.roundTrip "if x then 1") = (Fixtures.printed "if x then 1")
+  (Fixtures.roundTrip "fun a b -> a ++ b") = (Fixtures.printed "fun a b -> a ++ b")
+  (Fixtures.roundTrip "let (a, b) = (1, 2)\na") = (Fixtures.printed "let (a, b) = (1, 2)\na")
+  (Fixtures.roundTrip "3.25") = (Fixtures.printed "3.25")
+  (Fixtures.roundTrip "-3.25") = (Fixtures.printed "-3.25")
+
+  (Fixtures.roundTrip "match x with\n| 1 -> \"one\"\n| _ -> \"other\"") = (Fixtures.printed "match x with\n| 1 -> \"one\"\n| _ -> \"other\"")
+  (Fixtures.roundTrip "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3") =
+    (Fixtures.printed "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3")
+  (Fixtures.roundTrip "$\"a {b} c\"") = (Fixtures.printed "$\"a {b} c\"")
+  (Fixtures.roundTrip "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length") =
+    (Fixtures.printed "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length")
+  (Fixtures.roundTrip "Stdlib.Option.Option.Some 5") = (Fixtures.printed "Stdlib.Option.Option.Some 5")
+  (Fixtures.roundTrip "Dict { a = 1; b = 2 }") = (Fixtures.printed "Dict { a = 1; b = 2 }")
+  (Fixtures.roundTrip "r.field") = (Fixtures.printed "r.field")
+  (Fixtures.roundTrip "Stdlib.List.length [ 1 ]") = (Fixtures.printed "Stdlib.List.length [ 1 ]")
+
+
+module Vertical =
+  // A list of scalars stays on one line; it's readable and compact.
+  (Fixtures.render "[1, 2, 3]" 60) = "[1, 2, 3]"
+
+  // A record literal is laid out vertically (its fields break unconditionally), and because a tall child
+  // forces its container to break, a list of records goes vertical too.
+  (Fixtures.render "Stdlib.Option.Option.Some 5" 60) = "Darklang.Stdlib.Option.Option.Some(5)"
+
+
+module Rendering =
+  (Fixtures.render "let x = 1 + 2\nif x > 2 then [x, 3] else (1, \"two\")" 60) =
+    "let x = 1 + 2\nif x > 2 then\n  [x, 3]\nelse\n  (1, \"two\")"
+
+  // An `if` without `else` shows the optional hole, dimly labelled.
+  (Fixtures.render "if x then 1" 60) = "if x then\n  1\nelse\n  ⟨else⟩"
+
+
+module Editing =
+  (Fixtures.run [ "4", "2" ]) = "42~"
+  (Fixtures.run [ "\"", "h", "i" ]) = "\"hi~\""
+  (Fixtures.run [ "[", "1" ]) = "[1~]"
+  (Fixtures.run [ "(", "1", "<Tab>", "2" ]) = "(1, 2~)"
+
+  // Keywords come from completion: `let` then Enter makes a let with the caret on the name.
+  (Fixtures.run [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Letters into a pattern hole start a variable; Tab moves to the value.
+  (Fixtures.run [ "l", "e", "<Enter>", "x", "y", "<Tab>", "7" ]) = "let xy = 7~\n⟨body⟩"
+
+  (Fixtures.run [ "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+
+  (Fixtures.run [ "f", "u", "<Enter>", "a", "<Tab>", "1" ]) = "fun a -> 1~"
+
+  // An operator after an expression wraps it; more operator characters extend the operator; the first
+  // other character moves on to the right-hand hole.
+  (Fixtures.run [ "1", "+" ]) = "1 +~ ⟨right⟩"
+  (Fixtures.run [ "1", "+", "2" ]) = "1 + 2~"
+  (Fixtures.run [ "1", "=", "=", "2" ]) = "1 == 2~"
+  (Fixtures.run [ "1", "+", "2", "*", "3" ]) = "1 + 2 * 3~"
+  (Fixtures.run [ "\"", "a", "<Right>", "+", "+", "\"", "b" ]) = "\"a\" ++ \"b~\""
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "1", "+", "2", "*", "3" ]) = "1 + 2 * 3"
+
+  // `|` after an expression starts a pipe with a hole for the first step.
+  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+
+  // Multi-grapheme input (a paste) moves the caret past all of it.
+  (Fixtures.run [ "hello" ]) = "hello~"
+  (Fixtures.run [ "\"", "hello", " world" ]) = "\"hello world~\""
+
+  // An identifier becomes a variable when you type past it; a pipe step completes from the package
+  // tree, with the piped argument left out of the placeholders.
+  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.len", "<Enter>" ]) =
+    "xs |> Stdlib.List.length"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.map", "<Enter>", "fu", "<Enter>", "x", "<Tab>", "x", "+", "1" ]) =
+    "xs |> Stdlib.List.map (fun x -> x + 1)"
+  // A trailing identifier resolves when you leave it (Esc, or save).
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "x", "+", "y" ]) = "ERR unresolved: y"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "x", "+", "y", "<Esc>" ]) = "x + y"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "le", "<Enter>", "n", "<Tab>", "1", "<Tab>", "n", "<Enter>" ]) =
+    "let n = 1\nn"
+
+  // Names bound by an enclosing let, lambda, or match arm are offered in scope and complete.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "sum", "<Tab>", "1", "<Tab>", "su", "<Enter>" ]) =
+    "let sum = 1\nsum"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "fu", "<Enter>", "acc", "<Tab>", "acc", "+", "1", "<Esc>" ]) =
+    "(fun acc -> acc + 1)"
+  // A pasted identifier (many graphemes at once) becomes a variable, same as typing it.
+  (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "fun acc -> ~⟨body⟩"
+
+  // The palette (`:` in NAV) offers structural actions on the node under the caret.
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "j", "<Enter>" ]) = "match ~42 with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n42"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "j", "j", "j", "<Enter>" ]) = "~42\n|> ⟨step⟩"
+  // Esc closes the palette without changing anything.
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "<Esc>" ]) = "~42"
+
+  // NAV `y` yanks the node under the caret; `p` puts that subtree into another slot.
+  (Fixtures.run [ "(", "7", "<Tab>", "<Esc>", "k", "y", "j", "p" ]) = "(7, ~7)"
+
+  // `match` comes with one case; letters into the pattern hole start a variable, `[` a list pattern.
+  (Fixtures.run [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.run [ "m", "a", "<Enter>", "x", "<Tab>", "[", "<Tab>", "0" ]) = "match x with\n| [⟨pattern⟩] -> 0~"
+
+  // A finished edit is a real expression.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "x", "<Tab>", "7", "<Tab>", "[", "1" ]) =
+    "let x = 7\n[1]"
+
+  // ... and an unfinished one says what is missing.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "x" ]) =
+    "ERR hole: value"

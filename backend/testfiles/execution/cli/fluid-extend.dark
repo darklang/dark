@@ -1,0 +1,43 @@
+// Extensibility: the registry shadows a built-in spec with a later one (how a discovered user Spec
+// wins), and the source printer that `fluid generate` uses is faithful. Store-backed discovery itself
+// is exercised by eval, not here, because a testfile has no package store to declare into.
+
+module Shadowing =
+  let colorKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Color"
+
+  let builtinSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple (colorKind ()) [ Darklang.Fluid.Piece.Keyword "BUILTIN" ] (Darklang.Fluid.Node.make (colorKind ()) [])
+
+  let customSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple (colorKind ()) [ Darklang.Fluid.Piece.Keyword "CUSTOM" ] (Darklang.Fluid.Node.make (colorKind ()) [])
+
+  // Later specs win: this is what lets a discovered user spec (merged last) replace the built-in.
+  let chosen () : String =
+    let reg = Darklang.Fluid.Registry.ofList [ builtinSpec (), customSpec () ]
+    match Darklang.Fluid.Registry.find reg (colorKind ()) with
+    | Some s ->
+      match Stdlib.List.head s.pieces with
+      | Some(Keyword k) -> k
+      | _ -> "?"
+    | None -> "none"
+
+  (chosen ()) = "CUSTOM"
+
+
+module SourcePrinter =
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Slot "r")) = "Darklang.Fluid.Piece.Slot \"r\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Punct "{")) = "Darklang.Fluid.Piece.Punct \"{\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Text("name", Darklang.Fluid.Layout.Style.Literal))) =
+    "Darklang.Fluid.Piece.Text(\"name\", Darklang.Fluid.Layout.Style.Literal)"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Each("items", [ Darklang.Fluid.Piece.Punct "," ]))) =
+    "Darklang.Fluid.Piece.Each(\"items\", [ Darklang.Fluid.Piece.Punct \",\" ])"
+
+  // The generated module is a `val` (no type annotation, which Dark values reject) that starts from the
+  // derived spec and overrides pieces.
+  let generated () : String =
+    Darklang.Fluid.Derive.generateModule "Acme.Color" [ Darklang.Fluid.Piece.Keyword "rgb", Darklang.Fluid.Piece.Slot "r" ]
+
+  (Stdlib.String.contains (generated ()) "val ColorEditor =") = true
+  (Stdlib.String.contains (generated ()) "Darklang.Fluid.Derive.specForName") = true
+  (Stdlib.String.contains (generated ()) "Darklang.Fluid.Piece.Slot \"r\"") = true
+  (Stdlib.String.contains (generated ()) " : Darklang.Fluid.Spec") = false

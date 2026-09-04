@@ -1,0 +1,205 @@
+/// How a kind of node is edited: described once, as data plus named functions.
+///
+/// Classic Fluid knew about each node kind in four places (tokenizer, caret mapping both ways, typing
+/// rules, landing spots), which is why nobody could ever add a kind from outside. Here a `Spec` is the one
+/// place. The kernel reads it to project the node, to know which parts take a caret, to decide what typing
+/// into one of its holes creates, and to offer actions on it.
+///
+/// Specs are ordinary package values. The registry is the curated defaults plus every value of type `Spec`
+/// found in the package tree, so swapping the editor for `Acme.Color` is declaring one `val`.
+///
+/// Functions in a spec must be named package functions, not lambdas: a spec sits in the widget's retained
+/// state between keystrokes, and Dark keeps only named-fn references there.
+module Darklang.Fluid
+
+/// A piece of a node's projection. The kernel interprets these, tagging every editable run with the
+/// node's path so the caret can find it again after layout.
+type Piece =
+  /// The node's text field `slot`, editable. Shown as its name, dimmed, when empty.
+  | Text of slot: String * style: Layout.Style
+  /// Punctuation nobody can put a caret in.
+  | Punct of String
+  | Keyword of String
+  /// The node's own name (a type name, an enum case): not editable text, but it anchors the node, so a
+  /// NAV caret on a node with nothing else to show lands here.
+  | Label of String
+  | Dim of String
+  /// Project the single child slot `slot` here.
+  | Slot of String
+  /// Project every item of list `slot`, with `sep` between items.
+  | Each of slot: String * sep: List<Piece>
+  /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
+  /// hole item still shows what it is.
+  | EachWith of slot: String * before: List<Piece> * sep: List<Piece>
+  /// `Each`, between `openP` and `closeP`, and nothing at all when the list is empty (`<T>` type args,
+  /// `(a, b)` enum fields).
+  | EachWrapped of slot: String * openP: String * sep: List<Piece> * closeP: String
+  /// One line if it fits, otherwise break every Line/SoftLine directly inside.
+  | Group of List<Piece>
+  /// Indent by `n` after each break inside.
+  | Nest of Int * List<Piece>
+  /// A space when flat, a newline when the group breaks.
+  | Line
+  /// Always a newline.
+  | HardLine
+  /// Nothing when flat, a newline when the group breaks.
+  | SoftLine
+  | Space
+
+/// A completion candidate for a hole or partial. Data only: the node is prebuilt.
+type Validity =
+  | Valid
+  | Invalid of reason: String
+
+type Candidate =
+  { label: String
+    detail: String
+    valid: Validity
+    node: Node }
+
+/// What typing a character into a hole creates.
+type HoleFill =
+  /// This node, as is. The caret goes to its first editable part.
+  | Node of Node
+  /// A named function of the character and the hole's expectation. The caret goes after the character.
+  | WithChar of (String -> Expect -> Node)
+
+/// `onChar` is a literal grapheme, or `<digit>` / `<letter>`.
+type HoleRule =
+  { onChar: String
+    fill: HoleFill }
+
+/// Typing `onChar` at the END of a node's text wraps that node: `1` then `+` becomes `1 + ⟨right⟩`.
+/// `wrap` builds the new node around the old one. The caret lands in the new node's `opSlot` text, so
+/// more operator characters extend it (`=` then `=`), and the first non-operator character moves on to
+/// `nextSlot` and types there.
+type WrapRule =
+  { onChar: String
+    wrap: Node -> String -> Node
+    opSlot: String
+    nextSlot: String }
+
+/// An action offered on a node (the palette). `run` returns what replaces the node's slot.
+type Action =
+  { name: String
+    key: Stdlib.Option.Option<String>
+    doc: String
+    applies: Node -> Bool
+    run: Node -> Slot }
+
+/// As much of this is plain data as possible, so a spec can be derived from a type declaration at runtime,
+/// generated as source, or written by hand, and so it can sit in retained state. The two functions left
+/// (`complete`, `summary`) must be named package fns.
+type Spec =
+  { kind: Kind
+    /// Projection order and shape. Static: a node's variable parts are `Each` over its lists.
+    pieces: List<Piece>
+    /// Applied when typing into a hole that expects this kind (or this type, for a type-level spec).
+    holeRules: List<HoleRule>
+    /// Applied when typing at the end of a node of this type (type-level spec only).
+    wrapRules: List<WrapRule>
+    /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
+    completions: List<Candidate>
+    /// Computed candidates, given the typed text: names in scope, package search.
+    complete: Expect -> String -> List<Candidate>
+    /// What a partial becomes when the user types past it or leaves it without picking a candidate: an
+    /// identifier becomes a variable, say. `None` keeps the partial. Type-level specs only.
+    resolve: String -> Stdlib.Option.Option<Node>
+    /// The names this node binds, and which of its slots they are visible in. `let` binds its pattern's
+    /// names in `body`; a lambda binds its params in `body`; a match case binds its pattern in `rhs` and
+    /// `when`. The kernel walks these down the path to the caret to know what is in scope.
+    binders: Node -> List<(List<String> * List<String>)>
+    /// Turn an in-scope name into a node (a variable reference). Set on the type-level spec of a kind
+    /// whose holes should offer the names in scope. `None` means "this kind has no notion of variables".
+    scopeCandidate: Stdlib.Option.Option<String -> Node>
+    actions: List<Action>
+    /// The node with every slot a hole.
+    empty: Node
+    /// One line, for breadcrumbs and collapsed display.
+    summary: Node -> String }
+
+
+module Spec =
+  let noRules () : List<HoleRule> = []
+
+  let noCompletions (e: Expect) (typed: String) : List<Candidate> = []
+
+  let noResolve (typed: String) : Stdlib.Option.Option<Node> = Stdlib.Option.Option.None
+
+  let noBinders (n: Node) : List<(List<String> * List<String>)> = []
+
+  let noActions () : List<Action> = []
+
+  let summaryByKind (n: Node) : String = Kind.toString n.kind
+
+  /// A spec with only pieces and empty; the rest defaulted.
+  let simple (kind: Kind) (pieces: List<Piece>) (empty: Node) : Spec =
+    Spec
+      { kind = kind
+        pieces = pieces
+        holeRules = []
+        wrapRules = []
+        completions = []
+        complete = noCompletions
+        resolve = noResolve
+        binders = noBinders
+        scopeCandidate = Stdlib.Option.Option.None
+        actions = []
+        empty = empty
+        summary = summaryByKind }
+
+  let withRules (spec: Spec) (rules: List<HoleRule>) : Spec = { spec with holeRules = rules }
+
+  let withCompletions (spec: Spec) (cs: List<Candidate>) : Spec = { spec with completions = cs }
+
+  let withWrapRules (spec: Spec) (rules: List<WrapRule>) : Spec = { spec with wrapRules = rules }
+
+  let withBinders (spec: Spec) (f: Node -> List<(List<String> * List<String>)>) : Spec =
+    { spec with binders = f }
+
+  let withScopeCandidate (spec: Spec) (f: String -> Node) : Spec =
+    { spec with scopeCandidate = Stdlib.Option.Option.Some f }
+
+  let candidate (label: String) (detail: String) (node: Node) : Candidate =
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node }
+
+
+/// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec
+/// (case None), which is how one spec can own every case of a type, or supply hole rules and completion
+/// for holes that expect "any Expr".
+type Registry = { specs: List<Spec> }
+
+module Registry =
+  let empty () : Registry = Registry { specs = [] }
+
+  let ofList (specs: List<Spec>) : Registry = Registry { specs = specs }
+
+  /// Later specs shadow earlier ones with the same kind.
+  let add (reg: Registry) (spec: Spec) : Registry =
+    Registry { specs = Stdlib.List.append reg.specs [ spec ] }
+
+  let addAll (reg: Registry) (specs: List<Spec>) : Registry =
+    Registry { specs = Stdlib.List.append reg.specs specs }
+
+  let findExact (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
+    reg.specs
+    |> Stdlib.List.reverse
+    |> Stdlib.List.findFirst (fun s -> s.kind == kind)
+
+  let findTypeLevel (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
+    let typeLevel = Kind { typ = kind.typ; case = Stdlib.Option.Option.None }
+    reg.specs
+    |> Stdlib.List.reverse
+    |> Stdlib.List.findFirst (fun s -> s.kind == typeLevel)
+
+  /// Exact, then type-level.
+  let find (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
+    match findExact reg kind with
+    | Some s -> Stdlib.Option.Option.Some s
+    | None -> findTypeLevel reg kind
+
+  /// The spec to ask about a hole: by the expected kind, exact then type-level.
+  let forExpect (reg: Registry) (e: Expect) : Stdlib.Option.Option<Spec> =
+    match e.kind with
+    | Some k -> find reg k
+    | None -> Stdlib.Option.Option.None

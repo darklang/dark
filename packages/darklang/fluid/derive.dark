@@ -1,0 +1,306 @@
+/// Specs for any type, from its declaration. This is what makes "your own type" editable with no code:
+/// a record becomes `Name { f = ⟨f⟩; ... }`, an enum a case picker on the hole and then `Case(⟨a⟩, ⟨b⟩)`,
+/// with the leaves handled by `Prims`. It is also the fallback the registry reaches for when a named
+/// kind has no registered spec, and the thing `fluid generate` writes out as source for people to edit.
+module Darklang.Fluid.Derive
+
+type TypeReference = Darklang.LanguageTools.ProgramTypes.TypeReference
+
+/// The expectation for a slot of this type.
+let expectFor (t: TypeReference) (label: String) : Expect =
+  let withKind (k: Kind) : Expect =
+    Expect { kind = Stdlib.Option.Option.Some k; typ = Stdlib.Option.Option.Some t; label = label; optional = false }
+  match t with
+  | TInt -> withKind (Prims.intKind ())
+  | TInt8 -> withKind (Prims.intKind ())
+  | TUInt8 -> withKind (Prims.intKind ())
+  | TInt16 -> withKind (Prims.intKind ())
+  | TUInt16 -> withKind (Prims.intKind ())
+  | TInt32 -> withKind (Prims.intKind ())
+  | TUInt32 -> withKind (Prims.intKind ())
+  | TInt64 -> withKind (Prims.intKind ())
+  | TUInt64 -> withKind (Prims.intKind ())
+  | TInt128 -> withKind (Prims.intKind ())
+  | TUInt128 -> withKind (Prims.intKind ())
+  | TString -> withKind (Prims.stringKind ())
+  | TChar -> withKind (Prims.stringKind ())
+  | TBool -> withKind (Prims.boolKind ())
+  | TFloat -> withKind (Prims.floatKind ())
+  | TUnit -> withKind (Prims.unitKind ())
+  | TList _ -> withKind (Prims.listKind ())
+  | TCustomType(nr, _) ->
+    match typeNameOf nr with
+    | Some name -> withKind (Kind.named name)
+    | None -> Expect.ofType t label
+  | _ -> Expect.ofType t label
+
+/// "Owner.Module.Name" for a resolved type name, or the name as written when it isn't resolved.
+let typeNameOf
+  (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  : Stdlib.Option.Option<String> =
+  match nr.resolved with
+  | Ok r ->
+    match r.location with
+    | Some loc ->
+      Stdlib.Option.Option.Some(
+        Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) ".")
+    | None ->
+      if Stdlib.List.isEmpty nr.originalName then Stdlib.Option.Option.None
+      else Stdlib.Option.Option.Some(Stdlib.String.join nr.originalName ".")
+  | Error _ ->
+    if Stdlib.List.isEmpty nr.originalName then Stdlib.Option.Option.None
+    else Stdlib.Option.Option.Some(Stdlib.String.join nr.originalName ".")
+
+/// The short name to show: the last segment.
+let shortName (typeName: String) : String =
+  Stdlib.String.split typeName "." |> Stdlib.List.last |> Stdlib.Option.withDefault typeName
+
+
+// --- Records ---
+
+let recordSummary (n: Node) : String = (shortName (Kind.typeName n.kind)) ++ " {...}"
+
+let recordEmpty
+  (typeName: String)
+  (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>)
+  : Node =
+  Node.make
+    (Kind.named typeName)
+    (fields |> Stdlib.List.map (fun f -> (f.name, Field.One(Slot.Empty(expectFor f.typ f.name)))))
+
+let recordPieces
+  (typeName: String)
+  (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>)
+  : List<Piece> =
+  // A record with more than one field lays out one field per line, always (a HardLine breaks the group
+  // unconditionally); a single-field record stays on one line. The vertical bias: structure you can scan
+  // down a column beats structure packed onto a line.
+  let break_ = if (Stdlib.List.length fields) > 1 then Piece.HardLine else Piece.Line
+  let fieldPieces =
+    fields
+    |> Stdlib.List.indexedMap (fun i f ->
+      let sep = if i == 0 then [] else [ Piece.Punct ";", break_ ]
+      Stdlib.List.append sep [ Piece.Dim (f.name ++ " = "), Piece.Slot f.name ])
+    |> Stdlib.List.flatten
+  [ Piece.Group
+      [ Piece.Label (shortName typeName)
+        Piece.Space
+        Piece.Punct "{"
+        Piece.Nest(2, Stdlib.List.append [ break_ ] fieldPieces)
+        break_
+        Piece.Punct "}" ] ]
+
+let recordSpec
+  (typeName: String)
+  (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>)
+  : Spec =
+  let empty = recordEmpty typeName fields
+  Spec
+    { kind = Kind.named typeName
+      pieces = recordPieces typeName fields
+      holeRules = [ HoleRule { onChar = "{"; fill = HoleFill.Node empty } ]
+      wrapRules = []
+      completions = [ Spec.candidate (shortName typeName) "record" empty ]
+      complete = Spec.noCompletions
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = empty
+      summary = recordSummary }
+
+
+// --- Enums ---
+
+let enumFieldSlot (i: Int) (f: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField) : String =
+  match f.label with
+  | Some l -> l
+  | None -> "f" ++ (Stdlib.Int.toString i)
+
+let caseSummary (n: Node) : String =
+  match n.kind.case with
+  | Some c -> c
+  | None -> Kind.toString n.kind
+
+let caseEmpty
+  (typeName: String)
+  (c: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
+  : Node =
+  Node.make
+    (Kind.ofCase typeName c.name)
+    (c.fields
+     |> Stdlib.List.indexedMap (fun i f ->
+       let slotName = enumFieldSlot i f
+       (slotName, Field.One(Slot.Empty(expectFor f.typ slotName)))))
+
+let casePieces
+  (c: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
+  : List<Piece> =
+  match c.fields with
+  | [] -> [ Piece.Label c.name ]
+  | fields ->
+    let slots =
+      fields
+      |> Stdlib.List.indexedMap (fun i f ->
+        let sep = if i == 0 then [] else [ Piece.Punct ",", Piece.Line ]
+        Stdlib.List.append sep [ Piece.Slot(enumFieldSlot i f) ])
+      |> Stdlib.List.flatten
+    [ Piece.Group
+        [ Piece.Label c.name
+          Piece.Punct "("
+          Piece.Nest(2, Stdlib.List.append [ Piece.SoftLine ] slots)
+          Piece.SoftLine
+          Piece.Punct ")" ] ]
+
+let caseSpec
+  (typeName: String)
+  (c: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
+  : Spec =
+  let empty = caseEmpty typeName c
+  Spec
+    { kind = Kind.ofCase typeName c.name
+      pieces = casePieces c
+      holeRules = []
+      wrapRules = []
+      completions = []
+      complete = Spec.noCompletions
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = empty
+      summary = caseSummary }
+
+/// The type-level spec: owns the hole. Its completions are the cases.
+let enumTypeSpec
+  (typeName: String)
+  (cases: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase>)
+  : Spec =
+  let candidates =
+    cases
+    |> Stdlib.List.map (fun c ->
+      let arity = Stdlib.List.length c.fields
+      let detail =
+        if arity == 0 then shortName typeName
+        else (shortName typeName) ++ ", " ++ (Stdlib.Int.toString arity) ++ " field(s)"
+      Spec.candidate c.name detail (caseEmpty typeName c))
+  let empty =
+    match cases with
+    | first :: _ -> caseEmpty typeName first
+    | [] -> Node.make (Kind.named typeName) []
+  Spec
+    { kind = Kind.named typeName
+      pieces = [ Piece.Dim ("?" ++ (shortName typeName)) ]
+      holeRules = []
+      wrapRules = []
+      completions = candidates
+      complete = Spec.noCompletions
+      resolve = Spec.noResolve
+      binders = Spec.noBinders
+      scopeCandidate = Stdlib.Option.Option.None
+      actions = []
+      empty = empty
+      summary = caseSummary }
+
+
+// --- Entry point ---
+
+let specsFor
+  (typeName: String)
+  (decl: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : List<Spec> =
+  match decl.definition with
+  | Record fields -> [ recordSpec typeName fields ]
+  | Enum cases -> Stdlib.List.append [ enumTypeSpec typeName cases ] (cases |> Stdlib.List.map (fun c -> caseSpec typeName c))
+  | Alias _ -> []
+
+
+// --- Runtime lookup + source generation (for `fluid generate`) ---
+
+/// Look a type up on the branch and derive its specs. Empty if the type isn't found.
+let specsForName (branchId: Uuid) (typeName: String) : List<Spec> =
+  let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation typeName
+  match Darklang.LanguageTools.PackageManager.Type.find branchId loc with
+  | Some hash ->
+    match Darklang.LanguageTools.PackageManager.Type.get hash with
+    | Some pt -> specsFor typeName pt.declaration
+    | None -> []
+  | None -> []
+
+/// The one spec that owns a type's own holes (the record spec, or the enum's type-level spec), for
+/// `fluid generate` to build on. A labelled fallback if the type isn't found.
+let specForName (branchId: Uuid) (typeName: String) : Spec =
+  match specsForName branchId typeName |> Stdlib.List.head with
+  | Some spec -> spec
+  | None ->
+    Spec.simple (Kind.named typeName) [ Piece.Dim ("?" ++ (shortName typeName)) ] (Node.make (Kind.named typeName) [])
+
+let quoted (s: String) : String =
+  let escaped =
+    s
+    |> fun x -> Stdlib.String.replaceAll x "\\" "\\\\"
+    |> fun x -> Stdlib.String.replaceAll x "\"" "\\\""
+  "\"" ++ escaped ++ "\""
+
+let styleSource (style: Layout.Style) : String =
+  let name =
+    match style with
+    | Plain -> "Plain"
+    | Keyword -> "Keyword"
+    | Punct -> "Punct"
+    | Literal -> "Literal"
+    | Name -> "Name"
+    | Hole -> "Hole"
+    | Partial -> "Partial"
+    | Dim -> "Dim"
+    | Error -> "Error"
+  "Darklang.Fluid.Layout.Style." ++ name
+
+let pieceSource (p: Piece) : String =
+  let listSource (ps: List<Piece>) : String =
+    "[ " ++ (ps |> Stdlib.List.map (fun x -> pieceSource x) |> Stdlib.String.join ", ") ++ " ]"
+  match p with
+  | Text(slot, style) ->
+    "Darklang.Fluid.Piece.Text(" ++ (quoted slot) ++ ", " ++ (styleSource style) ++ ")"
+  | Punct str -> "Darklang.Fluid.Piece.Punct " ++ (quoted str)
+  | Keyword str -> "Darklang.Fluid.Piece.Keyword " ++ (quoted str)
+  | Dim str -> "Darklang.Fluid.Piece.Dim " ++ (quoted str)
+  | Label str -> "Darklang.Fluid.Piece.Label " ++ (quoted str)
+  | Slot slot -> "Darklang.Fluid.Piece.Slot " ++ (quoted slot)
+  | Space -> "Darklang.Fluid.Piece.Space"
+  | Line -> "Darklang.Fluid.Piece.Line"
+  | HardLine -> "Darklang.Fluid.Piece.HardLine"
+  | SoftLine -> "Darklang.Fluid.Piece.SoftLine"
+  | Each(slot, sep) ->
+    "Darklang.Fluid.Piece.Each(" ++ (quoted slot) ++ ", " ++ (listSource sep) ++ ")"
+  | EachWith(slot, before, sep) ->
+    "Darklang.Fluid.Piece.EachWith("
+    ++ (quoted slot) ++ ", " ++ (listSource before) ++ ", " ++ (listSource sep) ++ ")"
+  | EachWrapped(slot, openP, sep, closeP) ->
+    "Darklang.Fluid.Piece.EachWrapped("
+    ++ (quoted slot) ++ ", " ++ (quoted openP) ++ ", " ++ (listSource sep) ++ ", " ++ (quoted closeP) ++ ")"
+  | Group ps -> "Darklang.Fluid.Piece.Group " ++ (listSource ps)
+  | Nest(n, ps) ->
+    "Darklang.Fluid.Piece.Nest(" ++ (Stdlib.Int.toString n) ++ ", " ++ (listSource ps) ++ ")"
+
+/// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
+/// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the
+/// rest. Discovery (any Spec value, by type) picks it up with no further wiring.
+let generateModule (typeName: String) (pieces: List<Piece>) : String =
+  let short = shortName typeName
+  let piecesText =
+    pieces
+    |> Stdlib.List.map (fun p -> "          " ++ (pieceSource p))
+    |> Stdlib.String.join "\n"
+  [ "/// A Fluid editor for " ++ typeName ++ ", generated from its type declaration."
+    "/// Edit `pieces` to change how it is laid out; the rest is derived at load time."
+    "///"
+    "/// Declaring this value is all it takes: Fluid discovers every value of type"
+    "/// `Darklang.Fluid.Spec` by type and uses it in place of the built-in editor."
+    "val " ++ short ++ "Editor ="
+    "  { (Darklang.Fluid.Derive.specForName Darklang.SCM.Branch.mainBranchId " ++ (quoted typeName) ++ ") with"
+    "      pieces ="
+    "        [" 
+    piecesText
+    "        ] }" ]
+  |> Stdlib.String.join "\n"

@@ -1,0 +1,27 @@
+/// Text renderings of a document, for tests and for looking at things.
+///
+/// `withCaret` is the notation the tests speak: the layout as plain text, with `~` where the caret is.
+/// Holes come out as `⟨label⟩` because that is what the projector draws.
+module Darklang.Fluid.Debug
+
+let render (reg: Registry) (width: Int) (root: Slot) : String =
+  Layout.toText (Project.render reg width root)
+
+/// Insert `mark` at column `col` of row `row` (grapheme-wise, which is right for tests; wide glyphs in
+/// test fixtures are your own problem).
+let insertAt (rows: List<String>) (row: Int) (col: Int) (mark: String) : List<String> =
+  rows
+  |> Stdlib.List.indexedMap (fun r line ->
+    if r == row then
+      let before = Stdlib.String.slice line 0 col
+      let after = Stdlib.String.dropFirst line col
+      before ++ mark ++ after
+    else
+      line)
+
+let withCaret (reg: Registry) (width: Int) (root: Slot) (caret: Caret) : String =
+  let rows = Project.render reg width root
+  let lines = rows |> Stdlib.List.map (fun r -> Layout.rowText r)
+  match Layout.locate rows caret.node caret.part caret.offset with
+  | Some((row, col)) -> insertAt lines row col "~" |> Stdlib.String.join "\n"
+  | None -> (Stdlib.String.join lines "\n") ++ "\n(caret not found: " ++ (Caret.toString caret) ++ ")"

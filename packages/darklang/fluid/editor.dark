@@ -1,0 +1,1025 @@
+/// The editing kernel: a document, a caret, and what every key does. Pure; no terminal anywhere.
+///
+/// Two levels. INSERT is the text-like one: the caret sits inside a text run, on a hole, or in a partial,
+/// and printable keys type. NAV is the node one: the caret is on a whole node and hjkl walk the tree.
+/// Esc goes from INSERT to NAV; from NAV it asks the parent to leave. Nothing here decides colours or
+/// draws; `view` in the widget does that from `layout`.
+module Darklang.Fluid.Editor
+
+type Mode =
+  | Insert
+  | Nav
+
+type Snapshot =
+  { root: Slot
+    caret: Caret }
+
+type State =
+  { reg: Registry
+    root: Slot
+    caret: Caret
+    mode: Mode
+    /// Layout width the caret is resolved against. The widget sets it from the region on every view.
+    width: Int
+    history: List<Snapshot>
+    future: List<Snapshot>
+    /// Which candidate is selected when the caret is on a partial with completions.
+    completionIndex: Int
+    /// The command palette (NAV): open?, which action is highlighted.
+    paletteOpen: Bool
+    paletteIndex: Int
+    /// The last node yanked (NAV `y`), to put elsewhere (NAV `p`). A whole subtree, not text.
+    clipboard: Stdlib.Option.Option<Node>
+    message: String }
+
+/// What the editor tells its parent.
+type Msg =
+  /// Esc at NAV level: the user wants out.
+  | Back
+  /// Ctrl-S: the document as it is.
+  | Save of Slot
+
+val historyLimit = 100
+
+type Outcome = Stdlib.Cli.UI.Widget.Outcome<State, Msg>
+
+
+// --- Construction ---
+
+let init (reg: Registry) (root: Slot) (width: Int) : State =
+  let caret =
+    match root with
+    | Empty _ -> Caret.inSlot [] "" 0
+    | _ -> Caret.onNode []
+  State
+    { reg = reg
+      root = root
+      caret = caret
+      mode = (match root with
+              | Empty _ -> Mode.Insert
+              | _ -> Mode.Nav)
+      width = width
+      history = []
+      future = []
+      completionIndex = 0
+      paletteOpen = false
+      paletteIndex = 0
+      clipboard = Stdlib.Option.Option.None
+      message = "" }
+
+let layout (st: State) : List<Layout.Row> =
+  Project.render st.reg st.width st.root
+
+let withWidth (st: State) (width: Int) : State = { st with width = width }
+
+
+// --- History ---
+
+let remember (st: State) : State =
+  let snap = Snapshot { root = st.root; caret = st.caret }
+  let kept = Stdlib.List.take (Stdlib.List.push st.history snap) historyLimit
+  { st with history = kept; future = [] }
+
+let undo (st: State) : State =
+  match st.history with
+  | [] -> { st with message = "nothing to undo" }
+  | snap :: rest ->
+    let now = Snapshot { root = st.root; caret = st.caret }
+    { st with
+        root = snap.root
+        caret = snap.caret
+        history = rest
+        future = Stdlib.List.push st.future now
+        message = "" }
+
+let redo (st: State) : State =
+  match st.future with
+  | [] -> { st with message = "nothing to redo" }
+  | snap :: rest ->
+    let now = Snapshot { root = st.root; caret = st.caret }
+    { st with
+        root = snap.root
+        caret = snap.caret
+        future = rest
+        history = Stdlib.List.push st.history now
+        message = "" }
+
+/// Apply edits as one undoable step, then put the caret where the edit says.
+let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
+  let st1 = remember st
+  { st1 with root = Edit.applyAll st1.root edits; caret = caret; message = ""; completionIndex = 0 }
+
+
+// --- Where the caret can go ---
+
+/// The first place a caret can be put in a node: its first text run or hole, depth first. `OnNode` when
+/// the node has nothing editable at all (a keyword, `()`).
+let firstEditable (path: Path) (n: Node) : Caret =
+  let inSlot (slotCaret: Caret) (childPath: Path) (s: Slot) : Stdlib.Option.Option<Caret> =
+    match s with
+    | Empty _ -> Stdlib.Option.Option.Some slotCaret
+    | Partial(text, _) -> Stdlib.Option.Option.Some { slotCaret with offset = Stdlib.String.length text }
+    | Filled child ->
+      let c = firstEditable childPath child
+      match c.part with
+      | OnNode -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.Some c
+  let found =
+    n.fields
+    |> Stdlib.List.filterMap (fun f ->
+      let (name, fld) = f
+      match fld with
+      | Text t ->
+        if Stdlib.String.startsWith name "_" then Stdlib.Option.Option.None
+        else Stdlib.Option.Option.Some(Caret.inText path name 0)
+      | One s -> inSlot (Caret.inSlot path name 0) (Path.child path name) s
+      | Many(items, _) ->
+        items
+        |> Stdlib.List.indexedMap (fun i s -> inSlot (Caret.inItem path name i 0) (Path.item path name i) s)
+        |> Stdlib.List.filterMap (fun x -> x)
+        |> Stdlib.List.head)
+    |> Stdlib.List.head
+  match found with
+  | Some c -> c
+  | None -> Caret.onNode path
+
+/// Same, but the last: end of the last text run.
+let lastEditable (path: Path) (n: Node) : Caret =
+  let inSlot (slotCaret: Caret) (childPath: Path) (s: Slot) : Stdlib.Option.Option<Caret> =
+    match s with
+    | Empty _ -> Stdlib.Option.Option.Some slotCaret
+    | Partial(text, _) -> Stdlib.Option.Option.Some { slotCaret with offset = Stdlib.String.length text }
+    | Filled child ->
+      let c = lastEditable childPath child
+      match c.part with
+      | OnNode -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.Some c
+  let found =
+    n.fields
+    |> Stdlib.List.reverse
+    |> Stdlib.List.filterMap (fun f ->
+      let (name, fld) = f
+      match fld with
+      | Text t ->
+        if Stdlib.String.startsWith name "_" then Stdlib.Option.Option.None
+        else Stdlib.Option.Option.Some(Caret.inText path name (Stdlib.String.length t))
+      | One s -> inSlot (Caret.inSlot path name 0) (Path.child path name) s
+      | Many(items, _) ->
+        items
+        |> Stdlib.List.indexedMap (fun i s -> inSlot (Caret.inItem path name i 0) (Path.item path name i) s)
+        |> Stdlib.List.filterMap (fun x -> x)
+        |> Stdlib.List.last)
+    |> Stdlib.List.head
+  match found with
+  | Some c -> c
+  | None -> Caret.onNode path
+
+/// Where the caret goes after a typed character created `n`: at the END of its first text run (the
+/// character just typed is in it), or on its first hole.
+let landAfterFill (path: Path) (n: Node) : Caret =
+  let c = firstEditable path n
+  match c.part with
+  | InText slot ->
+    let len =
+      nodeAtPath (Slot.Filled n) (Stdlib.List.drop c.node (Stdlib.List.length path))
+      |> Stdlib.Option.andThen (fun inner -> Node.text inner slot)
+      |> Stdlib.Option.map (fun t -> Stdlib.String.length t)
+      |> Stdlib.Option.withDefault 0
+    { c with offset = len }
+  | _ -> c
+
+/// The text under the caret, if it is in a text run or partial.
+let textUnder (st: State) : Stdlib.Option.Option<String> =
+  match st.caret.part with
+  | InText slot ->
+    match nodeAtPath st.root st.caret.node with
+    | Some n -> Node.text n slot
+    | None -> Stdlib.Option.Option.None
+  | _ ->
+    match Caret.slotPath st.caret with
+    | Some sp ->
+      match slotAtPath st.root sp with
+      | Some(Partial(text, _)) -> Stdlib.Option.Option.Some text
+      | _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
+/// The slot the caret is on (hole or partial), if any.
+let slotUnder (st: State) : Stdlib.Option.Option<Slot> =
+  match Caret.slotPath st.caret with
+  | Some sp -> slotAtPath st.root sp
+  | None -> Stdlib.Option.Option.None
+
+let sameTag (t: Layout.Tag) (c: Caret) : Bool =
+  Layout.tagMatches t c.node c.part
+
+/// Caret for landing on a tagged cell from the left (offset 0) or the right (end of text).
+let caretForCell (c: Layout.Cell) (atEnd: Bool) : Stdlib.Option.Option<Caret> =
+  match c.tag with
+  | Some t ->
+    let offset =
+      if atEnd then
+        (match c.style with
+         | Hole -> 0
+         | Dim -> 0
+         | _ -> Stdlib.String.length c.text)
+      else
+        0
+    Stdlib.Option.Option.Some(Caret { node = t.node; part = t.part; offset = offset })
+  | None -> Stdlib.Option.Option.None
+
+
+// --- Motion ---
+
+/// Index of the caret's cell in the reading-order list of tagged cells.
+let caretCellIndex (cells: List<(Int * Int * Layout.Cell)>) (caret: Caret) : Stdlib.Option.Option<Int> =
+  cells
+  |> Stdlib.List.indexedMap (fun i rc -> (i, rc))
+  |> Stdlib.List.findFirst (fun irc ->
+    let (_, rc) = irc
+    let (_, _, c) = rc
+    match c.tag with
+    | Some t -> sameTag t caret
+    | None -> false)
+  |> Stdlib.Option.map (fun irc ->
+    let (i, _) = irc
+    i)
+
+let moveLeft (st: State) : State =
+  let textLen = textUnder st |> Stdlib.Option.map (fun t -> Stdlib.String.length t)
+  let caret = st.caret
+  if caret.offset > 0 && (Stdlib.Option.isSome textLen) then
+    { st with caret = { caret with offset = caret.offset - 1 } }
+  else
+    let cells = Layout.taggedCells (layout st)
+    match caretCellIndex cells caret with
+    | Some i ->
+      if i == 0 then
+        st
+      else
+        match Stdlib.List.getAt cells (i - 1) with
+        | Some((_, _, c)) ->
+          match caretForCell c true with
+          | Some nc -> { st with caret = nc }
+          | None -> st
+        | None -> st
+    | None -> st
+
+let moveRight (st: State) : State =
+  let caret = st.caret
+  let textLen = textUnder st |> Stdlib.Option.map (fun t -> Stdlib.String.length t)
+  let canAdvance =
+    match textLen with
+    | Some n -> caret.offset < n
+    | None -> false
+  if canAdvance then
+    { st with caret = { caret with offset = caret.offset + 1 } }
+  else
+    let cells = Layout.taggedCells (layout st)
+    match caretCellIndex cells caret with
+    | Some i ->
+      match Stdlib.List.getAt cells (i + 1) with
+      | Some((_, _, c)) ->
+        match caretForCell c false with
+        | Some nc -> { st with caret = nc }
+        | None -> st
+      | None -> st
+    | None -> st
+
+/// Up or down one row, keeping the column where we can.
+let moveVertical (st: State) (delta: Int) : State =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | None -> st
+  | Some((row, col)) ->
+    let target = row + delta
+    if target < 0 || target >= (Stdlib.List.length rows) then
+      st
+    else
+      match Layout.cellAt rows target col with
+      | Some((t, offset)) ->
+        { st with caret = Caret { node = t.node; part = t.part; offset = offset } }
+      | None ->
+        // Nothing editable under that column: take the nearest tagged cell on the row, preferring left.
+        let onRow =
+          Layout.taggedCells rows
+          |> Stdlib.List.filter (fun rc ->
+            let (r, _, _) = rc
+            r == target)
+        let leftOf =
+          onRow
+          |> Stdlib.List.filter (fun rc ->
+            let (_, c0, _) = rc
+            c0 <= col)
+          |> Stdlib.List.last
+        let pick =
+          match leftOf with
+          | Some x -> Stdlib.Option.Option.Some x
+          | None -> Stdlib.List.head onRow
+        match pick with
+        | Some((_, c0, c)) ->
+          match caretForCell c (c0 <= col) with
+          | Some nc -> { st with caret = nc }
+          | None -> st
+        | None -> st
+
+/// Holes in reading order.
+let holeCarets (st: State) : List<Caret> =
+  Layout.taggedCells (layout st)
+  |> Stdlib.List.filterMap (fun rc ->
+    let (_, _, c) = rc
+    match c.style with
+    | Hole -> caretForCell c false
+    | _ -> Stdlib.Option.Option.None)
+
+let nextHole (st: State) : State =
+  let cells = Layout.taggedCells (layout st)
+  let here = caretCellIndex cells st.caret |> Stdlib.Option.withDefault (-1)
+  let after =
+    cells
+    |> Stdlib.List.indexedMap (fun i rc -> (i, rc))
+    |> Stdlib.List.filter (fun irc ->
+      let (i, rc) = irc
+      let (_, _, c) = rc
+      i > here && c.style == Layout.Style.Hole)
+    |> Stdlib.List.head
+  let pick =
+    match after with
+    | Some x -> Stdlib.Option.Option.Some x
+    | None ->
+      // Wrap around.
+      cells
+      |> Stdlib.List.indexedMap (fun i rc -> (i, rc))
+      |> Stdlib.List.filter (fun irc ->
+        let (_, rc) = irc
+        let (_, _, c) = rc
+        c.style == Layout.Style.Hole)
+      |> Stdlib.List.head
+  match pick with
+  | Some((_, (_, _, c))) ->
+    match caretForCell c false with
+    | Some nc -> { st with caret = nc; mode = Mode.Insert }
+    | None -> st
+  | None -> { st with message = "no holes" }
+
+let prevHole (st: State) : State =
+  let cells = Layout.taggedCells (layout st)
+  let total = Stdlib.List.length cells
+  let here = caretCellIndex cells st.caret |> Stdlib.Option.withDefault total
+  let before =
+    cells
+    |> Stdlib.List.indexedMap (fun i rc -> (i, rc))
+    |> Stdlib.List.filter (fun irc ->
+      let (i, rc) = irc
+      let (_, _, c) = rc
+      i < here && c.style == Layout.Style.Hole)
+    |> Stdlib.List.last
+  let pick =
+    match before with
+    | Some x -> Stdlib.Option.Option.Some x
+    | None ->
+      cells
+      |> Stdlib.List.indexedMap (fun i rc -> (i, rc))
+      |> Stdlib.List.filter (fun irc ->
+        let (_, rc) = irc
+        let (_, _, c) = rc
+        c.style == Layout.Style.Hole)
+      |> Stdlib.List.last
+  match pick with
+  | Some((_, (_, _, c))) ->
+    match caretForCell c false with
+    | Some nc -> { st with caret = nc; mode = Mode.Insert }
+    | None -> st
+  | None -> { st with message = "no holes" }
+
+
+// --- Actions (the palette) ---
+
+/// Actions applicable to the node the NAV caret is on: from that kind's own spec and its type-level spec.
+let paletteActions (st: State) : List<Action> =
+  match nodeAtPath st.root (navPath st) with
+  | Some n ->
+    let fromSpec (spec: Stdlib.Option.Option<Spec>) : List<Action> =
+      match spec with
+      | Some sp -> sp.actions |> Stdlib.List.filter (fun a -> a.applies n)
+      | None -> []
+    Stdlib.List.append
+      (fromSpec (Registry.findExact st.reg n.kind))
+      (fromSpec (Registry.findTypeLevel st.reg n.kind))
+  | None -> []
+
+let openPalette (st: State) : State =
+  if Stdlib.List.isEmpty (paletteActions st) then { st with message = "no actions here" }
+  else { st with paletteOpen = true; paletteIndex = 0 }
+
+let closePalette (st: State) : State = { st with paletteOpen = false; paletteIndex = 0 }
+
+let movePalette (st: State) (delta: Int) : State =
+  let n = Stdlib.List.length (paletteActions st)
+  if n == 0 then st
+  else { st with paletteIndex = Stdlib.Int.clamp (st.paletteIndex + delta) 0 (n - 1) }
+
+/// Run the highlighted action: replace the current node's slot with what the action returns.
+let runPaletteAction (st: State) : State =
+  let actions = paletteActions st
+  match Stdlib.List.getAt actions st.paletteIndex with
+  | Some action ->
+    match nodeAtPath st.root (navPath st) with
+    | Some n ->
+      let here = navPath st
+      let st1 = commit { st with paletteOpen = false } [ Edit.Replace(here, action.run n) ] st.caret
+      { st1 with caret = navCaretFor st1.root here; message = action.name }
+    | None -> closePalette st
+  | None -> closePalette st
+
+
+// --- NAV: walking nodes ---
+
+/// Every node path in pre-order, holes included as leaves (so NAV can land on them).
+let nodePaths (root: Slot) : List<Path> =
+  let walk (path: Path) (s: Slot) : List<Path> =
+    match s with
+    | Filled n ->
+      let below =
+        n.fields
+        |> Stdlib.List.map (fun f ->
+          let (name, fld) = f
+          match fld with
+          | Text _ -> []
+          | One child -> walk (Path.child path name) child
+          | Many(items, _) ->
+            items
+            |> Stdlib.List.indexedMap (fun i child -> walk (Path.item path name i) child)
+            |> Stdlib.List.flatten)
+        |> Stdlib.List.flatten
+      Stdlib.List.append [ path ] below
+    | _ -> [ path ]
+  walk [] root
+
+/// The NAV caret for a path: OnNode when there is a node, on the hole/partial otherwise.
+let navCaretFor (root: Slot) (path: Path) : Caret =
+  match slotAtPath root path with
+  | Some(Filled _) -> Caret.onNode path
+  | _ ->
+    match Path.parent path with
+    | Some parentPath ->
+      match Path.last path with
+      | Some(Into slot) -> Caret.inSlot parentPath slot 0
+      | Some(Item(slot, i)) -> Caret.inItem parentPath slot i 0
+      | None -> Caret.onNode path
+    | None -> Caret.inSlot [] "" 0
+
+/// The path NAV considers "current": the node, or the slot the caret is on.
+let navPath (st: State) : Path =
+  match Caret.slotPath st.caret with
+  | Some sp -> sp
+  | None -> st.caret.node
+
+let navBy (st: State) (delta: Int) : State =
+  let paths = nodePaths st.root
+  let here = navPath st
+  let idx =
+    paths
+    |> Stdlib.List.indexedMap (fun i p -> (i, p))
+    |> Stdlib.List.findFirst (fun ip ->
+      let (_, p) = ip
+      p == here)
+    |> Stdlib.Option.map (fun ip ->
+      let (i, _) = ip
+      i)
+    |> Stdlib.Option.withDefault 0
+  let target = Stdlib.Int.clamp (idx + delta) 0 ((Stdlib.List.length paths) - 1)
+  match Stdlib.List.getAt paths target with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None -> st
+
+let navParent (st: State) : State =
+  match Path.parent (navPath st) with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None -> st
+
+let navChild (st: State) : State =
+  let here = navPath st
+  let firstChild =
+    nodePaths st.root
+    |> Stdlib.List.findFirst (fun p ->
+      (Stdlib.List.length p) == ((Stdlib.List.length here) + 1) && Path.isPrefixOf here p)
+  match firstChild with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None -> st
+
+/// Enter INSERT at the first editable part of the current node.
+let enterInsert (st: State) : State =
+  let here = navPath st
+  match slotAtPath st.root here with
+  | Some(Filled n) -> { st with mode = Mode.Insert; caret = firstEditable here n }
+  | Some _ -> { st with mode = Mode.Insert; caret = navCaretFor st.root here }
+  | None -> st
+
+/// Expect for a slot we are about to clear: what the parent said, or the kind that was there.
+let expectForSlot (st: State) (path: Path) : Expect =
+  match slotAtPath st.root path with
+  | Some s ->
+    match Slot.expect s with
+    | Some e -> e
+    | None ->
+      let fromParent =
+        match Path.parent path with
+        | Some pp ->
+          match Path.last path with
+          | Some(Item(slot, _)) ->
+            nodeAtPath st.root pp
+            |> Stdlib.Option.andThen (fun n -> Node.itemExpect n slot)
+          | _ -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+      match fromParent with
+      | Some e -> e
+      | None ->
+        match s with
+        | Filled n ->
+          let label =
+            match Path.last path with
+            | Some(Into slot) -> slot
+            | Some(Item(slot, _)) -> slot
+            | None -> Kind.toString n.kind
+          Expect.ofKind n.kind label
+        | _ -> Expect.any "?"
+  | None -> Expect.any "?"
+
+/// Clear the current node back to a hole.
+let clearNode (st: State) : State =
+  let here = navPath st
+  match slotAtPath st.root here with
+  | Some(Filled _) ->
+    let e = expectForSlot st here
+    let st1 = commit st [ Edit.Replace(here, Slot.Empty e) ] (navCaretFor st.root here)
+    { st1 with caret = navCaretFor st1.root here }
+  | Some(Partial(_, was)) ->
+    let st1 = commit st [ Edit.Replace(here, was) ] st.caret
+    { st1 with caret = navCaretFor st1.root here }
+  | _ -> st
+
+
+/// Copy the node under the caret into the clipboard (a whole subtree).
+let yankNode (st: State) : State =
+  match nodeAtPath st.root (navPath st) with
+  | Some n -> { st with clipboard = Stdlib.Option.Option.Some n; message = "yanked " ++ (Kind.toString n.kind) }
+  | None -> { st with message = "nothing to yank" }
+
+/// Put the clipboard node into the slot under the caret (a hole, a partial, or over a node).
+let putNode (st: State) : State =
+  match st.clipboard with
+  | None -> { st with message = "clipboard is empty" }
+  | Some n ->
+    let here = navPath st
+    let st1 = commit st [ Edit.Replace(here, Slot.Filled n) ] st.caret
+    { st1 with caret = navCaretFor st1.root here; message = "put " ++ (Kind.toString n.kind) }
+
+
+// --- INSERT: typing ---
+
+val operatorChars = [ "+", "-", "*", "/", "%", "^", ">", "<", "=", "!", "&", "|" ]
+
+let isOperatorChar (c: String) : Bool = Stdlib.List.member operatorChars c
+
+let charClassMatches (onChar: String) (c: String) : Bool =
+  if onChar == c then true
+  elif onChar == "<digit>" then TextEdit.isDigitString c
+  elif onChar == "<letter>" then TextEdit.isLetterString c
+  elif onChar == "<operator>" then isOperatorChar c
+  else false
+
+let ruleMatches (rule: HoleRule) (c: String) : Bool = charClassMatches rule.onChar c
+
+/// The wrap rule for typing `c` at the end of node `n`, if its type-level spec has one.
+let wrapRuleFor (reg: Registry) (n: Node) (c: String) : Stdlib.Option.Option<WrapRule> =
+  match Registry.findTypeLevel reg n.kind with
+  | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches r.onChar c)
+  | None -> Stdlib.Option.Option.None
+
+/// Is the caret in the operator slot of a node made by a wrap rule?
+let inOpSlot (reg: Registry) (n: Node) (slot: String) : Stdlib.Option.Option<WrapRule> =
+  match Registry.findTypeLevel reg n.kind with
+  | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> r.opSlot == slot)
+  | None -> Stdlib.Option.Option.None
+
+/// What typing `c` into a hole with expectation `e` creates, if a spec says: the node, and whether the
+/// caret goes after the typed character (true) or to the node's first editable part (false).
+let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Node * Bool)> =
+  match Registry.forExpect reg e with
+  | Some spec ->
+    spec.holeRules
+    |> Stdlib.List.findFirst (fun r -> ruleMatches r c)
+    |> Stdlib.Option.map (fun r ->
+      match r.fill with
+      | Node n -> (n, false)
+      | WithChar f -> (f c e, true))
+  | None -> Stdlib.Option.Option.None
+
+/// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
+/// these, so a rule keyed on the first character still fires and the rest follow.
+let typeOne (st: State) (c: String) : State =
+  let caret = st.caret
+  match caret.part with
+  | InText slot ->
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let old = Node.text n slot |> Stdlib.Option.withDefault ""
+      let atEnd = caret.offset >= (Stdlib.String.length old)
+      // In an operator slot, a non-operator character moves on to the next slot and types there.
+      match inOpSlot st.reg n slot with
+      | Some rule ->
+        if isOperatorChar c then
+          let updated = TextEdit.insertAt old caret.offset c
+          commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+        else
+          let next = Caret.inSlot caret.node rule.nextSlot 0
+          typeOne { st with caret = next } c
+      | None ->
+        // At the end of a node's text, an operator wraps the node (`1` then `+` gives `1 + ⟨right⟩`).
+        match (if atEnd then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
+        | Some rule ->
+          let wrapped = rule.wrap n c
+          let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
+          if rule.opSlot == "" then
+            { st1 with caret = landAfterCommit caret.node wrapped }
+          else
+            { st1 with caret = Caret.inText caret.node rule.opSlot 1 }
+        | None ->
+          let updated = TextEdit.insertAt old caret.offset c
+          commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+    | None -> st
+  | OnNode -> st
+  | _ ->
+    match Caret.slotPath caret with
+    | None -> st
+    | Some sp ->
+      match slotAtPath st.root sp with
+      | Some(Empty e) ->
+        match holeFill st.reg e c with
+        | Some((n, afterChar)) ->
+          let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] caret
+          { st1 with caret = (if afterChar then landAfterFill sp n else firstEditable sp n) }
+        | None ->
+          let st1 = commit st [ Edit.Replace(sp, Slot.Partial(c, Slot.Empty e)) ] caret
+          { st1 with caret = { caret with offset = Stdlib.String.length c } }
+      | Some(Partial(text, was)) ->
+        let atEnd = caret.offset >= (Stdlib.String.length text)
+        match (if atEnd && (Stdlib.Bool.not (isIdentChar c)) then resolvePartial st else Stdlib.Option.Option.None) with
+        | Some resolved -> typeOne resolved c
+        | None ->
+          let updated = TextEdit.insertAt text caret.offset c
+          commit st [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+      | Some(Filled n) ->
+        // The caret says slot but a node is there: treat as typing over it.
+        let st1 = commit st [ Edit.Replace(sp, Slot.Partial(c, Slot.Filled n)) ] caret
+        { st1 with caret = { caret with offset = Stdlib.String.length c } }
+      | None -> st
+
+/// Type `c`, which may be one grapheme or many (a paste). Multi-grapheme input is applied one grapheme at
+/// a time, so hole rules and wrap rules that look at a single character behave the same as live typing.
+let typeChar (st: State) (c: String) : State =
+  if (Stdlib.String.length c) <= 1 then
+    typeOne st c
+  else
+    Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g -> typeOne acc (Stdlib.Char.toString g))
+
+
+let backspace (st: State) : State =
+  let caret = st.caret
+  match caret.part with
+  | InText slot ->
+    if caret.offset <= 0 then
+      st
+    else
+      match nodeAtPath st.root caret.node with
+      | Some n ->
+        let old = Node.text n slot |> Stdlib.Option.withDefault ""
+        let updated = TextEdit.removeBefore old caret.offset
+        commit st [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset - 1 }
+      | None -> st
+  | OnNode -> st
+  | _ ->
+    match Caret.slotPath caret with
+    | None -> st
+    | Some sp ->
+      match slotAtPath st.root sp with
+      | Some(Partial(text, was)) ->
+        if caret.offset <= 0 then
+          st
+        else
+          let updated = TextEdit.removeBefore text caret.offset
+          if updated == "" then
+            let st1 = commit st [ Edit.Replace(sp, was) ] caret
+            { st1 with caret = { caret with offset = 0 } }
+          else
+            commit st [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset - 1 }
+      | _ -> st
+
+
+// --- Completion ---
+
+let labelMatches (typed: String) (label: String) : Bool =
+  Stdlib.String.startsWith (Stdlib.String.toLowercase label) (Stdlib.String.toLowercase typed)
+
+/// The candidate pool for a hole expecting `e`, given the text typed so far. Fixed completions are
+/// prefix-filtered here; computed ones (`complete`) match themselves.
+let candidatePool (st: State) (e: Expect) (typed: String) : List<Candidate> =
+  let scoped = scopeCandidates st e typed
+  match Registry.forExpect st.reg e with
+  | Some spec ->
+    Stdlib.List.flatten
+      [ scoped
+        spec.completions |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+        spec.complete e typed ]
+  | None ->
+    match e.kind with
+    | Some _ -> []
+    | None ->
+      st.reg.specs
+      |> Stdlib.List.map (fun s -> s.completions)
+      |> Stdlib.List.flatten
+      |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+
+/// The candidates to show under the caret. A partial filters by what's typed; a fresh empty hole shows
+/// its options immediately (this is the "menu appears the moment you land on a hole" behaviour), so most
+/// holes need no typing at all.
+let candidates (st: State) : List<Candidate> =
+  match slotUnder st with
+  | Some(Partial(typed, was)) ->
+    candidatePool st (Slot.expect was |> Stdlib.Option.withDefault (Expect.any "")) typed
+  | Some(Empty e) -> candidatePool st e ""
+  | _ -> []
+
+/// Is the caret on a partial (text typed but not resolved)? Tab commits a candidate only here; on a
+/// fresh hole Tab still means "next hole".
+let onPartial (st: State) : Bool =
+  match slotUnder st with
+  | Some(Partial(_, _)) -> true
+  | _ -> false
+
+/// The binder names in scope at the caret: walk from the root along the caret's node path, and at each
+/// ancestor collect the names it binds that are visible in the slot we descend into.
+let scopeNames (st: State) : List<String> =
+  let step (acc: (Slot * List<String>)) (stp: Step) : (Slot * List<String>) =
+    let (node, names) = acc
+    match node with
+    | Filled n ->
+      let slot =
+        match stp with
+        | Into s -> s
+        | Item(s, _) -> s
+      let bound =
+        match Registry.find st.reg n.kind with
+        | Some spec ->
+          spec.binders n
+          |> Stdlib.List.filter (fun group ->
+            let (_, slots) = group
+            Stdlib.List.member slots slot)
+          |> Stdlib.List.map (fun group ->
+            let (vars, _) = group
+            vars)
+          |> Stdlib.List.flatten
+        | None -> []
+      match Node.slotAt n stp with
+      | Some child -> (child, Stdlib.List.append names bound)
+      | None -> (node, Stdlib.List.append names bound)
+    | _ -> (node, names)
+  // Walk to the slot the caret is on (one deeper than the node) when it is on a hole/partial, so a
+  // binder that is visible in that slot is collected; otherwise walk to the node the caret is in.
+  let targetPath =
+    match Caret.slotPath st.caret with
+    | Some sp -> sp
+    | None -> st.caret.node
+  let (_, names) = Stdlib.List.fold targetPath ((st.root, [])) step
+  names |> Stdlib.List.filter (fun x -> x != "_")
+
+/// Variable candidates for the hole under the caret: the in-scope names matching the typed prefix,
+/// turned into nodes by the expected kind's `scopeCandidate`. Empty when the kind has no variables.
+let scopeCandidates (st: State) (e: Expect) (typed: String) : List<Candidate> =
+  match Registry.forExpect st.reg e with
+  | Some spec ->
+    match spec.scopeCandidate with
+    | Some make ->
+      scopeNames st
+      |> Stdlib.List.filter (fun name -> labelMatches typed name)
+      |> Stdlib.List.uniqueBy (fun name -> name)
+      |> Stdlib.List.map (fun name -> Spec.candidate name "in scope" (make name))
+    | None -> []
+  | None -> []
+
+let selectedCandidate (st: State) : Stdlib.Option.Option<Candidate> =
+  let cs = candidates st
+  match cs with
+  | [] -> Stdlib.Option.Option.None
+  | _ -> Stdlib.List.getAt cs (Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1))
+
+/// After committing a candidate: its first hole if it has one, else the end of its text.
+let landAfterCommit (path: Path) (n: Node) : Caret =
+  match holes (Slot.Filled n) with
+  | (holePath, _) :: _ ->
+    let full = Stdlib.List.append path holePath
+    match Path.parent full with
+    | Some parentPath ->
+      match Path.last full with
+      | Some(Into slot) -> Caret.inSlot parentPath slot 0
+      | Some(Item(slot, i)) -> Caret.inItem parentPath slot i 0
+      | None -> lastEditable path n
+    | None -> lastEditable path n
+  | [] -> lastEditable path n
+
+/// Characters that continue an identifier or a qualified name. A pasted string counts when every
+/// grapheme in it does.
+let isIdentChar (c: String) : Bool =
+  Stdlib.String.toList c
+  |> Stdlib.List.all (fun ch ->
+    (Stdlib.Char.isAlphanumeric ch) || ((Stdlib.Char.toString ch) == "_") || ((Stdlib.Char.toString ch) == "."))
+
+/// Turn the partial under the caret into what its spec says it resolves to, if anything. The caret goes
+/// to the end of the new node's text.
+let resolvePartial (st: State) : Stdlib.Option.Option<State> =
+  match Caret.slotPath st.caret with
+  | None -> Stdlib.Option.Option.None
+  | Some sp ->
+    match slotAtPath st.root sp with
+    | Some(Partial(typed, was)) ->
+      let e = Slot.expect was |> Stdlib.Option.withDefault (Expect.any "")
+      match Registry.forExpect st.reg e with
+      | Some spec ->
+        match spec.resolve typed with
+        | Some n ->
+          let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] st.caret
+          Stdlib.Option.Option.Some { st1 with caret = lastEditable sp n }
+        | None -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+/// Replace the partial under the caret with the selected candidate.
+let commitCandidate (st: State) : State =
+  match Caret.slotPath st.caret with
+  | Some sp ->
+    match selectedCandidate st with
+    | Some c ->
+      let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+      { st1 with caret = landAfterCommit sp c.node }
+    | None -> st
+  | None -> st
+
+let cycleCandidate (st: State) (delta: Int) : State =
+  let n = Stdlib.List.length (candidates st)
+  if n == 0 then st
+  else { st with completionIndex = Stdlib.Int.remainder (st.completionIndex + delta + n) n |> Stdlib.Result.withDefault 0 }
+
+
+// --- Keys ---
+
+let isPrintable (kp: Stdlib.Cli.UI.Widget.KeyPress) : Bool =
+  match kp.char with
+  | Some c -> (Stdlib.String.length c) >= 1 && (Stdlib.Bool.not kp.modifiers.ctrl) && (Stdlib.Bool.not kp.modifiers.alt)
+  | None -> false
+
+let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+  let handled (s: State) : Outcome = Stdlib.Cli.UI.Widget.Outcome.Handled s
+  let completing = Stdlib.Bool.not (Stdlib.List.isEmpty (candidates st))
+  // Leaving a partial (Esc, save) resolves it if it can be resolved, so `x + y` then Esc is an
+  // expression, not an expression with an unresolved tail.
+  let settled = resolvePartial st |> Stdlib.Option.withDefault st
+  match kp.key with
+  | Escape ->
+    let here = navPath settled
+    handled { settled with mode = Mode.Nav; caret = navCaretFor settled.root here }
+  | LeftArrow -> handled (moveLeft st)
+  | RightArrow -> handled (moveRight st)
+  | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))
+  | DownArrow -> if completing then handled (cycleCandidate st 1) else handled (moveVertical st 1)
+  | Enter ->
+    if completing then handled (commitCandidate st)
+    else
+      match resolvePartial st with
+      | Some resolved -> handled resolved
+      | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+  | Tab ->
+    if kp.modifiers.shift then handled (prevHole st)
+    // Commit on Tab only when a partial is being typed; a fresh hole's menu is a preview and Tab still
+    // means "next hole".
+    elif completing && (onPartial st) then handled (commitCandidate st)
+    else
+      match resolvePartial st with
+      | Some resolved -> handled (nextHole resolved)
+      | None -> handled (nextHole st)
+  | Backspace -> handled (backspace st)
+  | _ ->
+    if kp.modifiers.ctrl then
+      match kp.key with
+      | Z -> handled (undo st)
+      | Y -> handled (redo st)
+      | S -> Stdlib.Cli.UI.Widget.Outcome.Emitted({ settled with message = "" }, Msg.Save settled.root)
+      | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+    elif isPrintable kp then
+      match kp.char with
+      | Some c -> handled (typeChar st c)
+      | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+    else
+      Stdlib.Cli.UI.Widget.Outcome.Ignored
+
+let onKeyPalette (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+  let handled (s: State) : Outcome = Stdlib.Cli.UI.Widget.Outcome.Handled s
+  match kp.key with
+  | Escape -> handled (closePalette st)
+  | UpArrow -> handled (movePalette st (-1))
+  | DownArrow -> handled (movePalette st 1)
+  | Enter -> handled (runPaletteAction st)
+  | _ ->
+    let ch = kp.char |> Stdlib.Option.withDefault ""
+    if ch == "k" then handled (movePalette st (-1))
+    elif ch == "j" then handled (movePalette st 1)
+    else handled st
+
+let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+  let handled (s: State) : Outcome = Stdlib.Cli.UI.Widget.Outcome.Handled s
+  let ch = kp.char |> Stdlib.Option.withDefault ""
+  if st.paletteOpen then
+    onKeyPalette st kp
+  else
+  match kp.key with
+  | Escape -> Stdlib.Cli.UI.Widget.Outcome.Emitted(st, Msg.Back)
+  | Enter -> handled (enterInsert st)
+  | Tab -> if kp.modifiers.shift then handled (prevHole st) else handled (nextHole st)
+  | DownArrow -> handled (navBy st 1)
+  | UpArrow -> handled (navBy st (-1))
+  | LeftArrow -> handled (navParent st)
+  | RightArrow -> handled (navChild st)
+  | _ ->
+    if kp.modifiers.ctrl then
+      match kp.key with
+      | S -> Stdlib.Cli.UI.Widget.Outcome.Emitted(st, Msg.Save st.root)
+      | R -> handled (redo st)
+      | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+    elif ch == "j" then handled (navBy st 1)
+    elif ch == "k" then handled (navBy st (-1))
+    elif ch == "h" then handled (navParent st)
+    elif ch == "l" then handled (navChild st)
+    elif ch == "i" then handled (enterInsert st)
+    elif ch == "x" then handled (clearNode st)
+    elif ch == "u" then handled (undo st)
+    elif ch == ":" then handled (openPalette st)
+    elif ch == "y" then handled (yankNode st)
+    elif ch == "p" then handled (putNode st)
+    else Stdlib.Cli.UI.Widget.Outcome.Ignored
+
+// --- Context (breadcrumb + expected-type hint, for the chrome) ---
+
+/// A short name for a node: its kind's case, or the last segment of its type.
+let crumbName (n: Node) : String =
+  match n.kind.case with
+  | Some c -> c
+  | None ->
+    match n.kind.typ with
+    | Named name -> Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+    | Prim p -> p
+
+/// The trail of node names from the root to the caret's node.
+let breadcrumb (st: State) : String =
+  let step (acc: (Slot * List<String>)) (stp: Step) : (Slot * List<String>) =
+    let (node, names) = acc
+    match node with
+    | Filled n ->
+      match Node.slotAt n stp with
+      | Some child -> (child, Stdlib.List.append names [ crumbName n ])
+      | None -> (node, names)
+    | _ -> (node, names)
+  let (endNode, names) = Stdlib.List.fold st.caret.node ((st.root, [])) step
+  let full =
+    match endNode with
+    | Filled n -> Stdlib.List.append names [ crumbName n ]
+    | _ -> names
+  Stdlib.String.join full " > "
+
+let kindLabel (k: Kind) : String =
+  match k.typ with
+  | Named name -> Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+  | Prim p -> p
+
+/// What the caret is on, in a few words: the type a hole expects, or the kind of the node.
+let expectHint (st: State) : String =
+  match slotUnder st with
+  | Some(Empty e) ->
+    let what =
+      match e.kind with
+      | Some k -> kindLabel k
+      | None -> "value"
+    "expects " ++ what ++ " (" ++ e.label ++ ")"
+  | Some(Partial(typed, was)) ->
+    let what =
+      match Slot.expect was |> Stdlib.Option.andThen (fun e -> e.kind) with
+      | Some k -> kindLabel k
+      | None -> "value"
+    "typing " ++ what
+  | _ ->
+    match nodeAtPath st.root st.caret.node with
+    | Some n -> crumbName n
+    | None -> ""
+
+let onKey (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+  match st.mode with
+  | Insert -> onKeyInsert st kp
+  | Nav -> onKeyNav st kp

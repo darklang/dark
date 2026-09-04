@@ -1,0 +1,92 @@
+// A small deterministic fuzzer for the editor kernel. It drives pseudo-random key sequences into an
+// expression hole and asserts two things across many seeds: the editor never throws, and whatever it
+// produces is either a complete expression that lowers to PT or an incomplete document that says what is
+// missing (never a crash, never a half-value). This is what lets me stop hand-driving tmux for the
+// common cases.
+
+module Fuzz =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.append (Darklang.Fluid.Prims.specs ()) (Darklang.Fluid.PT.specs ()))
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  // A cheap LCG over Dark's arbitrary-precision Int, taken mod a prime so it stays bounded.
+  let step (seed: Int) : Int =
+    (seed * 1103515245 + 12345) % 2147483647
+
+  // The key alphabet the fuzzer draws from: enough to build and break real programs.
+  let alphabet () : List<String> =
+    [ "1", "2", "x", "y", "l", "e", "f", "u", "m", "a"
+      "(", "[", "\"", "+", "*", "|", " ", "."
+      "<Tab>", "<S-Tab>", "<Enter>", "<Esc>", "<BS>", "<Left>", "<Right>", "<Up>", "<Down>" ]
+
+  // A deterministic key sequence of length `n` from `seed`.
+  let keysFrom (seed: Int) (n: Int) : List<String> =
+    let alpha = alphabet ()
+    let count = Stdlib.List.length alpha
+    let grow (acc: (Int * List<String>)) (_i: Int) : (Int * List<String>) =
+      let (s, ks) = acc
+      let s2 = step s
+      let idx = s2 % count
+      let k = Stdlib.List.getAt alpha idx |> Stdlib.Option.withDefault "1"
+      (s2, Stdlib.List.push ks k)
+    let (_, keys) = Stdlib.List.fold (Stdlib.List.range 1 n) ((seed, [])) grow
+    Stdlib.List.reverse keys
+
+  // Drive one sequence; return a tag describing the outcome. Any thrown exception fails the test at the
+  // point it happens, which is exactly what we want to catch.
+  let outcome (seed: Int) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (hole ()) 50) (keysFrom seed 14)
+    // Render must not throw.
+    let rendered = Darklang.Fluid.Debug.withCaret st.reg st.width st.root st.caret
+    let renderedOk = (Stdlib.String.length rendered) >= 0
+    // Lowering must give a definite answer, not throw.
+    let lowered =
+      match st.root with
+      | Filled n ->
+        match Darklang.Fluid.PT.fromDoc n with
+        | Ok _ -> "ok"
+        | Error _ -> "incomplete"
+      | Empty _ -> "empty"
+      | Partial(_, _) -> "partial"
+    if renderedOk then lowered else "render-failed"
+
+  // Every seed produces one of the expected tags. If any drive threw, the whole run errors instead.
+  let runAll () : Bool =
+    Stdlib.List.range 1 60
+    |> Stdlib.List.map (fun seed -> outcome seed)
+    |> Stdlib.List.all (fun tag ->
+      (tag == "ok") || (tag == "incomplete") || (tag == "empty") || (tag == "partial"))
+
+
+module Properties =
+  // 60 pseudo-random 14-key sessions, none of which crash the editor or its lowering.
+  (Fuzz.runAll ()) = true
+
+  // A stronger, deterministic property on real programs: for a spread of expressions, the document
+  // round-trips (toDoc then fromDoc, printed) to what the printer produces directly.
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let roundTrips (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+      | Ok e2 ->
+        (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e2)
+          == (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e)
+      | Error _ -> false
+    | Error _ -> false
+
+  let corpus () : List<String> =
+    [ "1", "\"hi\"", "true", "[1, 2, 3]", "(1, 2)", "x + y * 2"
+      "let a = 1\nlet b = 2\na + b"
+      "if x then 1 else 2"
+      "fun a b -> a + b"
+      "match x with\n| 0 -> \"zero\"\n| _ -> \"other\""
+      "xs |> Stdlib.List.map (fun x -> x + 1)"
+      "Stdlib.Option.Option.Some 5"
+      "r.field"
+      "$\"a {b} c\"" ]
+
+  (Fuzz.reg () |> fun _ -> Properties.corpus () |> Stdlib.List.all (fun s -> Properties.roundTrips s)) = true

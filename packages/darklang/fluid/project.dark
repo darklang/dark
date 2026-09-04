@@ -1,0 +1,137 @@
+/// From a document and a registry to a tagged layout.
+///
+/// The one place that turns `Piece`s into `Layout.Doc`. Holes and partials are drawn here, generically, so
+/// no spec ever has to know what a hole looks like; a spec only says where its slots go.
+module Darklang.Fluid.Project
+
+/// How a hole is drawn: its label between these.
+val holeOpen = "⟨"
+val holeClose = "⟩"
+
+let tagFor (path: Path) (part: Part) : Layout.Tag =
+  Layout.Tag { node = path; part = part }
+
+/// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
+/// node refers to it; `childPath` is where a node inside it lives.
+let slot
+  (reg: Registry)
+  (parent: Path)
+  (part: Part)
+  (childPath: Path)
+  (s: Slot)
+  : Layout.Doc =
+  match s with
+  | Empty e ->
+    Layout.tagged (tagFor parent part) Layout.Style.Hole (holeOpen ++ e.label ++ holeClose)
+  | Partial(text, _) ->
+    let shown = if text == "" then "…" else text
+    Layout.tagged (tagFor parent part) Layout.Style.Partial shown
+  | Filled n -> node reg childPath n
+
+/// Interpret one piece for the node at `path`.
+let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
+  match p with
+  | Text(slotName, style) ->
+    let tag = tagFor path (Part.InText slotName)
+    match Node.text n slotName with
+    | Some t ->
+      if t == "" then
+        Layout.tagged tag Layout.Style.Dim slotName
+      else
+        Layout.tagged tag style t
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
+  | Punct s -> Layout.punct s
+  | Keyword s -> Layout.keyword s
+  | Label s -> Layout.tagged (tagFor path Part.OnNode) Layout.Style.Keyword s
+  | Dim s -> Layout.dim s
+
+  | Slot slotName ->
+    match Node.slot n slotName with
+    | Some s -> slot reg path (Part.InSlot slotName) (Path.child path slotName) s
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
+  | Each(slotName, sep) ->
+    let sepDoc = pieces reg path n sep
+    let items =
+      Node.items n slotName
+      |> Stdlib.List.indexedMap (fun i s ->
+        slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s)
+    Layout.join items sepDoc
+
+  | EachWith(slotName, before, sep) ->
+    let sepDoc = pieces reg path n sep
+    let beforeDoc = pieces reg path n before
+    let items =
+      Node.items n slotName
+      |> Stdlib.List.indexedMap (fun i s ->
+        Layout.concat beforeDoc (slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s))
+    Layout.join items sepDoc
+
+  | EachWrapped(slotName, openP, sep, closeP) ->
+    match Node.items n slotName with
+    | [] -> Layout.Doc.Empty
+    | items ->
+      let sepDoc = pieces reg path n sep
+      let docs =
+        items
+        |> Stdlib.List.indexedMap (fun i s ->
+          slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s)
+      Layout.group
+        (Layout.concatAll
+          [ Layout.punct openP
+            Layout.nest 2 (Layout.concat Layout.Doc.SoftLine (Layout.join docs sepDoc))
+            Layout.Doc.SoftLine
+            Layout.punct closeP ])
+
+  | Group ps -> Layout.group (pieces reg path n ps)
+  | Nest(k, ps) -> Layout.nest k (pieces reg path n ps)
+  | Line -> Layout.Doc.Line
+  | HardLine -> Layout.Doc.HardLine
+  | SoftLine -> Layout.Doc.SoftLine
+  | Space -> Layout.space ()
+
+let pieces (reg: Registry) (path: Path) (n: Node) (ps: List<Piece>) : Layout.Doc =
+  ps |> Stdlib.List.map (fun p -> piece reg path n p) |> Layout.concatAll
+
+/// When no spec claims a kind: `Kind { f = ...; g = ... }`, so an unspecced node is visible, not lost.
+let fallbackPieces (n: Node) : List<Piece> =
+  let fieldPieces =
+    n.fields
+    |> Stdlib.List.map (fun f ->
+      let (name, fld) = f
+      match fld with
+      | Text _ -> [ Piece.Dim (name ++ " = "), Piece.Text(name, Layout.Style.Plain) ]
+      | One _ -> [ Piece.Dim (name ++ " = "), Piece.Slot name ]
+      | Many(_, _) ->
+        [ Piece.Dim (name ++ " = ["), Piece.Each(name, [ Piece.Punct ",", Piece.Line ]), Piece.Punct "]" ])
+  let joined =
+    fieldPieces
+    |> Stdlib.List.fold [] (fun acc ps ->
+      match acc with
+      | [] -> ps
+      | _ -> Stdlib.List.flatten [ acc, [ Piece.Punct ";", Piece.Line ], ps ])
+  [ Piece.Group
+      [ Piece.Label (Kind.toString n.kind)
+        Piece.Space
+        Piece.Punct "{"
+        Piece.Nest(2, Stdlib.List.append [ Piece.Line ] joined)
+        Piece.Line
+        Piece.Punct "}" ] ]
+
+/// Project one node at `path`.
+let node (reg: Registry) (path: Path) (n: Node) : Layout.Doc =
+  let ps =
+    match Registry.find reg n.kind with
+    | Some spec -> spec.pieces
+    | None -> fallbackPieces n
+  pieces reg path n ps
+
+/// Project the whole document. The root slot, when it is a hole or partial, is tagged as
+/// `InSlot ""` on the (absent) node at `[]`, which is also what `Caret.slotPath` treats as the root.
+let root (reg: Registry) (r: Slot) : Layout.Doc =
+  slot reg [] (Part.InSlot "") [] r
+
+/// Project and lay out.
+let render (reg: Registry) (width: Int) (r: Slot) : List<Layout.Row> =
+  Layout.render width (root reg r)

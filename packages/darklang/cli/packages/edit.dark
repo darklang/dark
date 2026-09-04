@@ -52,12 +52,13 @@ let applyFile
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
 
+  let positional = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
   let named =
-    match args with
+    match positional with
     | [ name ] -> Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.None))
     | [ name, file ] ->
       Stdlib.Result.Result.Ok((name, Stdlib.Option.Option.Some file))
-    | _ -> Stdlib.Result.Result.Error "usage: dark edit <name> [file]"
+    | _ -> Stdlib.Result.Result.Error "usage: dark edit <name> [file] [--text]"
 
   match named with
   | Error e ->
@@ -89,6 +90,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | Some loc ->
 
+  let wantsText = Stdlib.List.member args "--text"
+
   match fileArg with
   // No editor and no terminal: the shape a script or an agent uses.
   | Some file -> applyFile state loc file
@@ -109,6 +112,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     state
   | Available ->
+
+  // A function opens in the structural editor (Fluid) by default; `--text` forces $EDITOR, and types
+  // and values still go to $EDITOR because Fluid doesn't edit them yet.
+  match (location, wantsText) with
+  | (Function _fnLoc, false) -> Darklang.Fluid.App.editFn state name
+  | _ ->
 
   match Packages.View.rawSource branchId location with
   | Error e ->
