@@ -151,5 +151,47 @@ let statusLine
   let line = (Stdlib.Cli.UI.Colors.colorize theme.breadcrumb crumb) ++ (Stdlib.String.repeat " " gap) ++ hintStyled
   Stdlib.Cli.UI.Layout.at region 0 0 line
 
+/// The right-hand context panel: what the caret is on, what it expects, the actions available here (with
+/// how to reach them), and the keys for the current mode. Makes each keystroke legible -- you can see
+/// what's possible without remembering it.
+let inspector
+  (theme: Theme.Theme)
+  (st: Editor.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let dim (s: String) : String = Stdlib.Cli.UI.Colors.colorize theme.dim s
+  let head (s: String) : String = Stdlib.Cli.UI.Colors.colorize (theme.dim ++ Stdlib.Cli.UI.Colors.bold) s
+  let node =
+    match Darklang.Fluid.nodeAtPath st.root st.caret.node with
+    | Some n -> Editor.crumbName n
+    | None -> "-"
+  let expecting = Editor.expectHint st
+  let actions = Editor.visibleActions st
+  let actionLines =
+    if Stdlib.List.isEmpty actions then [ dim "  (none here)" ]
+    else actions |> Stdlib.List.take 7 |> Stdlib.List.map (fun a -> "  " ++ (Stdlib.Cli.UI.Colors.colorize theme.keyword "•") ++ " " ++ a.name)
+  let cands = Editor.candidates st
+  let candLines =
+    if Stdlib.List.isEmpty cands then []
+    else
+      Stdlib.List.flatten
+        [ [ "", head "COMPLETE" ]
+          cands |> Stdlib.List.take 6 |> Stdlib.List.map (fun c -> "  " ++ c.label ++ "  " ++ (dim c.detail)) ]
+  // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
+  let inHole =
+    match Editor.slotUnder st with
+    | Some(Empty _) -> true
+    | Some(Partial(_, _)) -> true
+    | _ -> false
+  let headerRows =
+    if inHole then [ (head "ON") ++ "  " ++ node, (dim "expects") ++ " " ++ expecting, "" ]
+    else [ (head "ON") ++ "  " ++ node, "" ]
+  let rows =
+    Stdlib.List.flatten [ headerRows, [ head "ACTIONS  :" ], actionLines, candLines ]
+  rows
+  |> Stdlib.List.indexedMap (fun i line ->
+    if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])
+  |> Stdlib.List.flatten
+
 let onKey (st: Editor.State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Editor.Outcome =
   Editor.onKey st kp

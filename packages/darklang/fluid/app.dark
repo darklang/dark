@@ -187,18 +187,36 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
     if st.editor.message == "" then toned
     else Stdlib.Cli.UI.Chrome.withMessage toned st.editor.message
   let full = Stdlib.Cli.UI.Chrome.bodyRegion size
-  // Reserve the top body row for a context line (breadcrumb + what the caret is on); the document gets
-  // the rest.
-  let statusRegion = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left; rows = 1; cols = full.cols }
+  // Use the screen: a framed edit pane on the left with the document padded inside it, and a context
+  // panel on the right. The inspector is dropped on a narrow terminal so the code always has room.
+  let showInspector = full.cols >= 72
+  let inspW = if showInspector then Stdlib.Int.min 34 (Stdlib.Int.divide full.cols 3) else 0
+  let mainCols = full.cols - inspW
+  let mainArea = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left; rows = full.rows; cols = mainCols }
+  let inspArea = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left + mainCols; rows = full.rows; cols = inspW }
+  // The document sits inside the box, with a blank column and row of breathing room.
+  let boxInner = Stdlib.Cli.UI.Box.inner mainArea
   let region =
-    Stdlib.Cli.UI.Layout.Region { top = full.top + 1; left = full.left; rows = Stdlib.Int.max 1 (full.rows - 1); cols = full.cols }
-  let statusSpans = Widget.statusLine st.theme st.editor statusRegion
-  let body =
+    Stdlib.Cli.UI.Layout.Region
+      { top = boxInner.top + 1
+        left = boxInner.left + 2
+        rows = Stdlib.Int.max 1 (boxInner.rows - 1)
+        cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
+  let paneTitle = "fluid  ·  " ++ (Editor.breadcrumb st.editor)
+  let mainSpans =
     Stdlib.List.flatten
-      [ statusSpans
+      [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true
         Widget.view st.theme st.editor region st.scroll
         Widget.popover st.theme st.editor region st.scroll
         Widget.palette st.theme st.editor region ]
+  let inspSpans =
+    if showInspector then
+      Stdlib.List.append
+        (Stdlib.Cli.UI.Box.draw inspArea "context" false)
+        (Widget.inspector st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea))
+    else
+      []
+  let body = Stdlib.List.append mainSpans inspSpans
   let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
   match st.editor.mode with
   | Insert ->
