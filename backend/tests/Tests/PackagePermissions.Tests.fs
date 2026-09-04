@@ -24,11 +24,27 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     description = ""
     permissionCeiling = None }
 
+/// A `List<Int> -> (Int -> Int) -> List<Int>` fn: the shape that hands its own
+/// callback parameter to something else.
+let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
+  { hash = PT.Hash hash
+    body = body
+    typeParams = []
+    parameters =
+      NEList.ofList
+        { name = "xs"; typ = PT.TList PT.TInt; description = "" }
+        [ { name = "f"
+            typ = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
+            description = "" } ]
+    returnType = PT.TList PT.TInt
+    description = ""
+    permissionCeiling = None }
+
 /// A closure of in-memory fns, each body analyzed once, as
 /// `PackagePermissions.loadClosure` produces.
 let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
   fns
-  |> List.map (fun fn -> fn.hash, (fn, LibExecution.CallGraph.analyze fn.body))
+  |> List.map (fun fn -> fn.hash, (fn, LibExecution.CallGraph.analyzeFn fn))
   |> Map.ofList
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
@@ -38,6 +54,10 @@ let private testEffects : PackagePermissions.CallEffectsFor =
     match name with
     | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
     | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
+    // `listMap` is classified and has no host effects. `None` would mean that
+    // the builtin is unclassified and make the test incomplete for the wrong
+    // reason.
+    | "listMap" -> Some Set.empty
     | _ -> None
 
 let private callBuiltin (name : string) : PT.Expr =
@@ -54,7 +74,17 @@ let private reviewUniverse =
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn
       "caller"
-      (eStatement (callBuiltin "fileRead") (eApply (ePackageFn "v1") [] [ eUnit () ])) ]
+      (eStatement (callBuiltin "fileRead") (eApply (ePackageFn "v1") [] [ eUnit () ]))
+    // `Stdlib.List.map`'s shape: hands its own callback to a builtin, so on its
+    // own it can say nothing about what runs there.
+    higherOrderFn "map-like" (eApply (eBuiltinFn "listMap" 0) [] [ eArg 0; eArg 1 ])
+    // A root that uses it, supplying the callback itself.
+    unitFn
+      "uses-map-like"
+      (eApply
+        (ePackageFn "map-like")
+        []
+        [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "timeNowMs") ]) ]
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
@@ -126,6 +156,83 @@ let packageValuesMakeAnalysisIncomplete =
     Expect.isEmpty
       result.requiredEffects
       "unknown effects are not invented, but the result is not effect-free"
+  }
+
+let passedCallbacksMakeAnalysisIncomplete =
+  test "handing a callback parameter to another fn is not effect-free" {
+    // `listMap` calls the supplied function, even though this body has no
+    // direct call expression for `f`.
+    let root = PT.Hash "passes-callback-along"
+    let fn =
+      higherOrderFn
+        "passes-callback-along"
+        // `xs` and `f` are parameters, so they lower to `EArg` positions;
+        // position 1 is the function-typed one.
+        (eApply (eBuiltinFn "listMap" 0) [] [ eArg 0; eArg 1 ])
+    let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
+    Expect.isFalse
+      result.complete
+      "a callback the caller supplies is not knowable here"
+    Expect.isEmpty
+      result.requiredEffects
+      "unknown effects are not invented, but the result is not effect-free"
+  }
+
+let unusedNonCallbackParamsStayComplete =
+  test "an ordinary parameter does not make analysis incomplete" {
+    // The guard is the parameter's declared type, not merely being a variable,
+    // so ordinary data arguments must not poison every caller's analysis.
+    let root = PT.Hash "ordinary-args"
+    let fn = unitFn "ordinary-args" (eApply (eBuiltinFn "timeNowMs" 0) [] [ eArg 0 ])
+    let result = Requirements.forFunction testEffects (closureOf [ fn ]) root
+    Expect.isTrue result.complete "a non-function parameter is knowable"
+    Expect.equal
+      result.requiredEffects
+      (Set.singleton Effect.Effect.Clock)
+      "the builtin's own effects are still reported"
+  }
+
+let dependencyCallbacksDoNotMakeCallersIncomplete =
+  test "a dependency's escaping callback does not spread to its caller" {
+    // The helper's callback is supplied by its caller. The caller's lambda is
+    // analyzed here, so the helper's uncertainty must not spread upward.
+    let helper =
+      higherOrderFn
+        "escaping-helper"
+        (eApply (eBuiltinFn "listMap" 0) [] [ eArg 0; eArg 1 ])
+    let caller =
+      unitFn
+        "passes-a-literal-lambda"
+        (eApply
+          (ePackageFn "escaping-helper")
+          []
+          [ eArg 0; eLambda (gid ()) [ lpVar "x" ] (callBuiltin "timeNowMs") ])
+    let result =
+      Requirements.forFunction
+        testEffects
+        (closureOf [ helper; caller ])
+        (PT.Hash "passes-a-literal-lambda")
+
+    Expect.isTrue
+      result.complete
+      "the caller supplied the callback, so nothing here is unknown"
+    Expect.equal
+      result.requiredEffects
+      (Set.singleton Effect.Effect.Clock)
+      "the lambda it passed is read in full"
+  }
+
+let reviewApprovesACallerOfACallbackTakingDependency =
+  testTask "a caller of a callback-taking dependency needs no acknowledgement" {
+    // The dependency is incomplete as a root of its own; the caller is not,
+    // because it passed the lambda. Judging completeness member by member
+    // refused this and told the user to acknowledge a lower bound, while the
+    // function's own badge said `complete` -- and it hit every caller of
+    // `List.map`, which is most of the package tree.
+    let! reviewed = review None "uses-map-like" false false
+    match reviewed with
+    | Ok(PackagePermissions.Review.Approvable _) -> ()
+    | other -> failtest $"expected an approvable review, got {other}"
   }
 
 let reviewAcceptsAnUnchangedContract =
@@ -226,6 +333,10 @@ let tests =
     [ missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete
+      passedCallbacksMakeAnalysisIncomplete
+      unusedNonCallbackParamsStayComplete
+      dependencyCallbacksDoNotMakeCallersIncomplete
+      reviewApprovesACallerOfACallbackTakingDependency
       reviewAcceptsAnUnchangedContract
       reviewApprovesTheRootUnderExplicitRules
       reviewRefusesRulesThatCannotCoverTheRequirements

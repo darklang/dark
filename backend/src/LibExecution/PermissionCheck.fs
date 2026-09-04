@@ -43,7 +43,9 @@ let private denialMessage
     | Permission.Layer.Instance, None -> "Configure the instance policy."
     | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
     | Permission.Layer.Package _, _ ->
-      "Approve this immutable package in the trusted host."
+      // Approval is by logical name, not by the policy id printed above: the
+      // id names the immutable version, and the name is what a person has.
+      "To approve: `permissions approve <fn>`, naming the function that needs it."
     | Permission.Layer.Function _, _ ->
       "The function's declared ceiling does not allow this operation."
   $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"

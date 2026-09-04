@@ -38,7 +38,7 @@ let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
           match! loadFn h with
           | None -> ()
           | Some fn ->
-            let calls = Calls.analyze fn.body
+            let calls = Calls.analyzeFn fn
             loaded[h] <- (fn, calls)
             for callee in calls.names do
               match callee with
@@ -219,8 +219,17 @@ let reviewVersion
     match! analyzeClosure loadFn callEffectsFor hash with
     | None -> return Error $"cannot approve unknown package-function hash: {hash}"
     | Some candidate ->
+      // Check completeness for the approved root, not each dependency. A
+      // dependency may pass on a callback supplied by its caller; that is only
+      // incomplete when the dependency itself is the root being approved.
       let incomplete =
-        candidate.members |> List.tryFind (fun (_, result) -> not result.complete)
+        if candidate.rootRequirements.complete then
+          None
+        else
+          // Name a member when one is to blame; otherwise the root itself is.
+          match candidate.members |> List.tryFind (fun (_, r) -> not r.complete) with
+          | Some found -> Some found
+          | None -> Some(hash, candidate.rootRequirements)
       let uncovered =
         match explicitPolicy with
         | Some policy -> uncoveredEffects policy candidate.rootRequirements

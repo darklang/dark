@@ -65,6 +65,24 @@ let approvalsStale () : Bool =
 let pins (accountID: Stdlib.Option.Option<Uuid>) : List<(String * String)> =
   Builtin.pmPolicyPins accountID
 
+/// The approved hashes, each labelled with the pinned name pointing at it when
+/// there is one. A hash with no name is a dependency approved inside another
+/// root's closure.
+let namedApprovals (accountID: Stdlib.Option.Option<Uuid>) : List<String> =
+  let pinned = Command.pins accountID
+  Command.approvedHashes accountID
+  |> Stdlib.List.map (fun hash ->
+    let named =
+      pinned
+      |> Stdlib.List.filterMap (fun pair ->
+        let (name, pinnedHash) = pair
+        if pinnedHash == hash then Stdlib.Option.Option.Some name
+        else Stdlib.Option.Option.None)
+      |> Stdlib.List.head
+    match named with
+    | Some name -> $"{hash}  {name}"
+    | None -> hash)
+
 /// Approve an immutable closure and move its logical-name pin atomically.
 /// The builtin compares the contract before storing approval; changed
 /// contracts return diffs for explicit review. `rules` optionally narrows the
@@ -387,6 +405,19 @@ let showVersionRequirements (heading: String) (hash: String) : Bool =
     ()
   complete
 
+/// Take `--yes`/`-y` out of the arguments, reporting whether it was there.
+///
+/// An unattended run must pass this explicitly. Detecting a non-interactive
+/// stdin is not enough on its own: CI gives each step a pty, so
+/// `stdinIsInteractive` answers yes there and the confirmation then blocks on
+/// a terminal nobody types into, forever. It is stripped before the rules are
+/// parsed, so it is never mistaken for a permission rule.
+let takeYesFlag (args: List<String>) : (Bool * List<String>) =
+  let isYesFlag (a: String) : Bool = (a == "--yes") || (a == "-y")
+  let yes = args |> Stdlib.List.any isYesFlag
+  let rest = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (isYesFlag a))
+  (yes, rest)
+
 /// The rules given after a name on `approve`/`update`, `;`-separated like
 /// `set`. Ok None when there are none.
 let parseApprovalRules
@@ -450,7 +481,12 @@ let pinReporting
     Stdlib.Option.Option.None
   | Error(ContractChanged diffs) -> Stdlib.Option.Option.Some diffs
 
-let approveNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Unit =
+let approveNamed
+  (state: Cli.AppState)
+  (acceptWithoutPrompt: Bool)
+  (name: String)
+  (specs: List<String>)
+  : Unit =
   match Command.parseApprovalRules specs with
   | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
   | Ok rules ->
@@ -462,9 +498,12 @@ let approveNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Un
         Command.showVersionRequirements $"{name} {Command.shortVersion hash}" hash
       Stdlib.printLines (Command.describeApprovalRules rules)
       // Interactively confirm; a non-interactive explicit `approve` is itself
-      // the consent (the trusted command was invoked with this exact name).
+      // the consent (the trusted command was invoked with this exact name),
+      // and `--yes` says so outright for a run that has a terminal but nobody
+      // at it.
       let accepted =
-        if Command.stdinIsInteractive () then
+        if acceptWithoutPrompt then true
+        else if Command.stdinIsInteractive () then
           Stdlib.Cli.UI.Prompt.confirm "Approve this version and pin the name to it?"
         else
           true
@@ -488,8 +527,14 @@ let approveNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Un
 
 /// Review a newer version: only an explicit yes accepts it; otherwise the pin
 /// is kept. A changed contract requires a second confirmation. Updates always
-/// prompt, including non-interactive runs.
-let updateNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Unit =
+/// prompt, including non-interactive runs, unless `--yes` was given, which is
+/// itself the explicit yes and covers a changed contract too.
+let updateNamed
+  (state: Cli.AppState)
+  (acceptWithoutPrompt: Bool)
+  (name: String)
+  (specs: List<String>)
+  : Unit =
   let accountID = state.accountID
   match Command.parseApprovalRules specs with
   | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
@@ -532,7 +577,10 @@ let updateNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Uni
               acknowledgeContractChange
               accepted
               kept
-          if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.confirm "Accept the new version?") then
+          let acceptNew =
+            acceptWithoutPrompt
+            || (Stdlib.Cli.UI.Prompt.confirm "Accept the new version?")
+          if Stdlib.Bool.not acceptNew then
             Stdlib.printLine kept
           else
             match pin false with
@@ -542,7 +590,11 @@ let updateNamed (state: Cli.AppState) (name: String) (specs: List<String>) : Uni
                 (Command.pinFailureText
                   (LanguageTools.Permissions.PinFailure.ContractChanged diffs))
               // The differences were shown; accepting them is the review.
-              if Stdlib.Cli.UI.Prompt.confirm "Accept the new version and its changed permission contract?" then
+              let acceptChanged =
+                acceptWithoutPrompt
+                || (Stdlib.Cli.UI.Prompt.confirm
+                      "Accept the new version and its changed permission contract?")
+              if acceptChanged then
                 let _ = pin true
                 ()
               else
@@ -622,8 +674,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "✓ policy is now deny-all"
   | "set" :: specs ->
     Command.editPolicy (fun _ -> Command.replacePolicy specs) "✓ policy replaced"
-  | "approve" :: name :: rules -> Command.approveNamed state name rules
-  | "update" :: name :: rules -> Command.updateNamed state name rules
+  | "approve" :: rest ->
+    match Command.takeYesFlag rest with
+    | (acceptWithoutPrompt, name :: rules) ->
+      Command.approveNamed state acceptWithoutPrompt name rules
+    | (_, []) ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error "approve needs a function name")
+  | "update" :: rest ->
+    match Command.takeYesFlag rest with
+    | (acceptWithoutPrompt, name :: rules) ->
+      Command.updateNamed state acceptWithoutPrompt name rules
+    | (_, []) ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
   | [ "unpin", name ] ->
     // Pins are keyed by the name as it was approved, so an unmatched name
     // removes nothing; say so rather than report a release that did not happen.
@@ -652,7 +715,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Command.revokeHash state.accountID hash
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ package approval revoked")
   | [ "approvals" ] ->
-    Command.printListOrNone (Command.approvedHashes state.accountID)
+    // Name the ones a pin points at. The rest are dependencies approved as
+    // part of some root's closure and have no name of their own, but a page of
+    // bare hashes gave no way to tell those two apart.
+    Command.printListOrNone (Command.namedApprovals state.accountID)
     if Command.approvalsStale () then
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.warning
@@ -684,6 +750,8 @@ let help (_state: Cli.AppState) : String =
     "must be allowed by the instance, run and package layers."
     ""
     "Named approvals (account-scoped):"
+    "  --yes, -y      skip the confirmation; required for an unattended run,"
+    "                 which must not rely on being detected as non-interactive"
     "  approve <fn>   review the latest version's permission requirements, approve it,"
     "                 and pin the name to it. Rules after the name confine the"
     "                 function and everything it calls to those resources, e.g."
