@@ -34,6 +34,10 @@ type Piece =
   /// A single child slot rendered as an operator operand: parenthesised by precedence against the parent
   /// operator (`(1 + 2) * 3`, but `1 + 2 * 3`). `isRight` picks the associativity tie-break side.
   | OperandSlot of slot: String * isRight: Bool
+  /// A single child slot that must be parenthesised when it is a construct that would swallow what
+  /// follows it (an if/match/let/lambda/pipe). For a position with a trailing keyword -- the condition
+  /// before `then`, the scrutinee before `with` -- so `if (match ...) then` reads right.
+  | ParenLowSlot of slot: String
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>

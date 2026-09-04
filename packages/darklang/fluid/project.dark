@@ -176,6 +176,17 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
       parenIf needs d
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | ParenLowSlot slotName ->
+    match Node.slot n slotName with
+    | Some s ->
+      let d = slot reg path (Part.InSlot slotName) (Path.child path slotName) s
+      let needs =
+        match Slot.node s with
+        | Some child -> (nodePower child) == 0
+        | None -> false
+      parenIf needs d
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
   | Group ps -> Layout.group (pieces reg path n ps)
   | Nest(k, ps) -> Layout.nest k (pieces reg path n ps)
   | Line -> Layout.Doc.Line

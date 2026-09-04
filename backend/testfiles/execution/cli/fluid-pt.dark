@@ -82,6 +82,12 @@ module Parens =
   // A compound argument (a lambda) is parenthesised, and the fn name is shortened.
   (Parens.show "Stdlib.List.map xs (fun x -> x + 1)") = "Stdlib.List.map xs (fun x -> x + 1)"
 
+  // A swallowing construct in a keyword position (a match as an if condition, an if as a match
+  // scrutinee) is parenthesised so the trailing keyword can't run onto it -- better than the printer.
+  (Parens.show "if (match x with\n| _ -> b) then 1 else 2") = "if (match x with\n| _ -> b) then\n  1\nelse\n  2"
+  // A plain condition needs no parens.
+  (Parens.show "if a then 1 else 2") = "if a then\n  1\nelse\n  2"
+
 
 module Rendering =
   (Fixtures.render "let x = 1 + 2\nif x > 2 then [x, 3] else (1, \"two\")" 60) =

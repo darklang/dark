@@ -1211,7 +1211,7 @@ let moreSpecs () : List<Spec> =
       "EMatch"
       [ Piece.Keyword "match"
         Piece.Space
-        Piece.Slot "arg"
+        Piece.ParenLowSlot "arg"
         Piece.Space
         Piece.Keyword "with"
         Piece.HardLine
@@ -1317,7 +1317,7 @@ let baseSpecs () : List<Spec> =
       "EIf"
       [ Piece.Keyword "if"
         Piece.Space
-        Piece.Slot "cond"
+        Piece.ParenLowSlot "cond"
         Piece.Space
         Piece.Keyword "then"
         Piece.Nest(2, [ Piece.HardLine, Piece.Slot "then" ])
