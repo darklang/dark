@@ -731,6 +731,12 @@ let typeOne (st: State) (c: String) : State =
     | Some n ->
       let old = Node.text n slot |> Stdlib.Option.withDefault ""
       let atEnd = caret.offset >= (Stdlib.String.length old)
+      // Space at the end of a completed leaf means "done here" -> advance to the next hole, so you can type
+      // `let x <space> 1 <space> body` close to writing it as text. A STRING body (slot "body") keeps its
+      // spaces; everything else (names, digits, float parts) treats space as "next".
+      if (c == " ") && (slot != "body") && atEnd && (Stdlib.Bool.not (old == "")) then
+        nextHole st
+      else
       // In an operator slot, a non-operator character moves on to the next slot and types there.
       match inOpSlot st.reg n slot with
       | Some rule ->
@@ -770,9 +776,23 @@ let typeOne (st: State) (c: String) : State =
           { st1 with caret = { caret with offset = Stdlib.String.length c } }
       | Some(Partial(text, was)) ->
         let atEnd = caret.offset >= (Stdlib.String.length text)
-        match (if atEnd && (Stdlib.Bool.not (isIdentChar c)) then resolvePartial st else Stdlib.Option.Option.None) with
-        | Some resolved -> typeOne resolved c
-        | None ->
+        // Space accepts the menu: it commits the highlighted candidate (so `let ` builds the let
+        // construct, not a variable named "let") and is swallowed. With no candidate it settles the
+        // partial to a variable. This is the single biggest "why did typing let make a variable" fix.
+        if atEnd && (c == " ") then
+          // Space with a menu commits the top candidate (a keyword builds its construct); with no menu it
+          // finalises the name as a variable AND advances to the next hole, so `if b 1 2` walks the holes.
+          if Stdlib.Bool.not (Stdlib.List.isEmpty (candidates st)) then commitCandidate st
+          else nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
+        elif atEnd && (Stdlib.Bool.not (isIdentChar c)) then
+          // An operator or other punctuation ends the name: settle to a variable, then apply the char
+          // (so `x+` wraps x in an infix).
+          match resolvePartial st with
+          | Some resolved -> typeOne resolved c
+          | None ->
+            let updated = TextEdit.insertAt text caret.offset c
+            commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+        else
           let updated = TextEdit.insertAt text caret.offset c
           commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
       | Some(Filled n) ->

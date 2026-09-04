@@ -1,0 +1,62 @@
+// How it feels to WRITE code in Fluid, pinned down. Each case is a key sequence a person would actually
+// press, checked against what ends up on screen and, where it completes, the program it lowers to. This
+// is the "does authoring feel right" coverage -- the flows a person tries first.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // What's on screen (with the caret) after the keys.
+  let screen (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
+
+  // The program the keys build, printed; or the first thing missing.
+  let program (keys: List<String>) : String = Darklang.Fluid.PT.Test.program (reg ()) (hole ()) keys
+
+
+module KeywordsCommitOnSpace =
+  // Typing a keyword and a space builds the CONSTRUCT, not a variable named after the keyword. This is the
+  // fix for "why did typing `let` make a variable".
+  (Fixtures.screen [ "l", "e", "t", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "i", "f", " " ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " " ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "t", "r", "u", "e", " " ]) = "true~"
+
+  // A prefix commits too: `le<space>` is `let`.
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module WriteALetNaturally =
+  // Typed almost like text: `let x <space> 1 <space> x`. Space in a name/number field means "done, next
+  // hole"; so you land on the value, then the body, without pressing Tab.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " " ]) = "let x = 1\n~⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module WriteALetStructurally =
+  // The other way: pick `let` from the menu, then Tab between the holes.
+  (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module StringsKeepSpaces =
+  // A string body is text: spaces are literal, not "next hole".
+  (Fixtures.screen [ "\"", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "\"hi there~\""
+  (Fixtures.program [ "\"", "h", "i", " ", "t", "h", "e", "r", "e", "<Esc>" ]) = "\"hi there\""
+
+
+module IfAndMatch =
+  (Fixtures.program [ "i", "f", " ", "b", " ", "1", " ", "2", "<Esc>" ]) = "if b then 1 else 2"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", " ", "0", " " ]) = "match n with\n| 0 -> ~⟨rhs⟩"
+
+
+module Operators =
+  // An operator ends a name and wraps it: `x + 1`.
+  (Fixtures.program [ "x", "+", "1", "<Esc>" ]) = "x + 1"
+  (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
+
+
+module Lambda =
+  (Fixtures.program [ "f", "u", "n", " ", "a", " ", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
