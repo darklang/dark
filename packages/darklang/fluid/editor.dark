@@ -773,9 +773,20 @@ let typeOneRaw (st: State) (c: String) : State =
       // In an operator slot, a non-operator character moves on to the next slot and types there.
       match inOpSlot st.reg n slot with
       | Some rule ->
-        if isOperatorChar c then
+        if (charClassMatches rule.onChar c) && atEnd && (rule.opSlot == rule.nextSlot) then
+          // Re-typing the trigger while sitting in the op-slot itself starts another wrap: with the caret
+          // at the end of the `a` in `r.a`, another `.` makes `(r.a).b`, not a field named `a.b`.
+          let wrapped = rule.wrap n c
+          let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
+          let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
+          { st1 with caret = Caret.inText caret.node rule.opSlot opLen }
+        else if isOperatorChar c then
           let updated = TextEdit.insertAt old caret.offset c
           commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+        else if rule.opSlot == rule.nextSlot then
+          // The op-slot IS the destination (a field name after `.`): type into it normally.
+          let updated = TextEdit.insertAt old caret.offset c
+          commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else
           let next = Caret.inSlot caret.node rule.nextSlot 0
           typeOne { st with caret = next } c
@@ -788,7 +799,8 @@ let typeOneRaw (st: State) (c: String) : State =
           if rule.opSlot == "" then
             { st1 with caret = landAfterCommit caret.node wrapped }
           else
-            { st1 with caret = Caret.inText caret.node rule.opSlot 1 }
+            let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
+            { st1 with caret = Caret.inText caret.node rule.opSlot opLen }
         | None ->
           let updated = TextEdit.insertAt old caret.offset c
           commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
@@ -812,11 +824,26 @@ let typeOneRaw (st: State) (c: String) : State =
         // Space accepts the menu: it commits the highlighted candidate (so `let ` builds the let
         // construct, not a variable named "let") and is swallowed. With no candidate it settles the
         // partial to a variable. This is the single biggest "why did typing let make a variable" fix.
+        // A `.` after a bare lowercase name is a field access, not part of a qualified name: settle the
+        // name to a variable, then apply the `.` (which wraps it). `Stdlib.List` keeps building as one
+        // partial because it isn't a bare lowercase word.
+        let dotOnName =
+          (c == ".") && atEnd
+          && (Stdlib.String.length text) > 0
+          && (TextEdit.isLetterString (Stdlib.String.first text 1))
+          && (Stdlib.Bool.not (Stdlib.String.contains text "."))
+          && ((Stdlib.String.toLowercase text) == text)
         if atEnd && (c == " ") then
           // Space with a menu commits the top candidate (a keyword builds its construct); with no menu it
           // finalises the name as a variable AND advances to the next hole, so `if b 1 2` walks the holes.
           if Stdlib.Bool.not (Stdlib.List.isEmpty (candidates st)) then commitCandidate st
           else nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
+        elif dotOnName then
+          match resolvePartial st with
+          | Some resolved -> typeOne resolved c
+          | None ->
+            let updated = TextEdit.insertAt text caret.offset c
+            commitRun st ((Path.toString sp) ++ "|partial") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         elif atEnd && (Stdlib.Bool.not (isIdentChar c)) then
           // An operator or other punctuation ends the name: settle to a variable, then apply the char
           // (so `x+` wraps x in an infix).

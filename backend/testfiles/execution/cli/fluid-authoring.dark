@@ -126,3 +126,18 @@ module MenuKeys =
 
 module Lambda =
   (Fixtures.program [ "f", "u", "n", " ", "a", " ", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
+
+
+module FieldAccess =
+  // A `.` after a bare name is a field access, not part of the name: `r.x` lowers to a field access, and
+  // the caret lands in the field blank so you keep typing the name.
+  (Fixtures.program [ "r", ".", "x", "<Esc>" ]) = "r.x"
+  (Fixtures.screen [ "r", "." ]) = "r.~field"
+
+  // Chaining: another `.` while sitting in a field name wraps again, so it nests as `(r.a).b` and prints
+  // `r.a.b` -- not a single field named `a.b`.
+  (Fixtures.program [ "r", ".", "a", ".", "b", "<Esc>" ]) = "r.a.b"
+
+  // A qualified name keeps building as one word: the `.` only splits off a field after a bare lowercase
+  // name, so `List.map` stays a single reference being typed, not `List` with a field `map`.
+  (Fixtures.screen [ "L", "i", "s", "t", ".", "m", "a", "p" ]) = "List.map~"

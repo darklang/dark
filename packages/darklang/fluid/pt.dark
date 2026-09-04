@@ -750,6 +750,10 @@ let emptyLambda () : Node =
     [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param"))
       ("body", Field.One(Slot.Empty(exprExpect "body"))) ]
 
+/// `left` then `.`: `left.⟨field⟩`, a field access with the caret in the (empty) field name.
+let wrapFieldAccess (left: Node) (c: String) : Node =
+  Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Filled left)), text "field" "" ]
+
 /// `left` then an operator character: `left <op> ⟨right⟩`.
 let wrapInfix (left: Node) (c: String) : Node =
   Node.make
@@ -1089,6 +1093,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
+          WrapRule { onChar = "."; wrap = wrapFieldAccess; opSlot = "field"; nextSlot = "field" }
           WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
       completions =
         [ Spec.candidate "let" "bind a name" (emptyLet ())
