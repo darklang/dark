@@ -41,6 +41,14 @@ module WriteALetStructurally =
   (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Esc>" ]) = "let x = 1\nx"
 
 
+module TypeThenTab =
+  // The mental model of "type the keyword, Tab to accept, then Tab through the holes". Tab on a partial
+  // commits the highlighted candidate; a prefix works too.
+  (Fixtures.screen [ "l", "e", "t", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "l", "e", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", "<Tab>", "x", "<Tab>", "1", "<Tab>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
 module StringsKeepSpaces =
   // A string body is text: spaces are literal, not "next hole".
   (Fixtures.screen [ "\"", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "\"hi there~\""
