@@ -67,6 +67,22 @@ module Vertical =
   (Fixtures.render "Stdlib.Option.Option.Some 5" 60) = "Darklang.Stdlib.Option.Option.Some(5)"
 
 
+module Parens =
+  // Nesting is precedence-aware and matches the pretty-printer: arguments and operands get exactly the
+  // parentheses they need, no more.
+  let show (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error _ -> "parse err"
+
+  (Parens.show "1 + 2 * 3") = "1 + 2 * 3"
+  (Parens.show "(1 + 2) * 3") = "(1 + 2) * 3"
+  (Parens.show "f (g x) (a + b)") = "f (g x) (a + b)"
+  (Parens.show "a && (b || c)") = "a && (b || c)"
+  // A compound argument (a lambda) is parenthesised, and the fn name is shortened.
+  (Parens.show "Stdlib.List.map xs (fun x -> x + 1)") = "Stdlib.List.map xs (fun x -> x + 1)"
+
+
 module Rendering =
   (Fixtures.render "let x = 1 + 2\nif x > 2 then [x, 3] else (1, \"two\")" 60) =
     "let x = 1 + 2\nif x > 2 then\n  [x, 3]\nelse\n  (1, \"two\")"

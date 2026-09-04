@@ -28,6 +28,12 @@ type Piece =
   | Slot of String
   /// Project every item of list `slot`, with `sep` between items.
   | Each of slot: String * sep: List<Piece>
+  /// Like `Each`, but each item is parenthesised when it needs it as a function argument (a call, an
+  /// operator expression, a lambda) -- so `f (g x) (a + b)` reads right. For EApply / pipe-call args.
+  | ArgSlots of slot: String * sep: List<Piece>
+  /// A single child slot rendered as an operator operand: parenthesised by precedence against the parent
+  /// operator (`(1 + 2) * 3`, but `1 + 2 * 3`). `isRight` picks the associativity tie-break side.
+  | OperandSlot of slot: String * isRight: Bool
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>

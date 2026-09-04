@@ -24,6 +24,59 @@ let wantsType (e: Expect) : Bool =
 let tagFor (path: Path) (part: Part) : Layout.Tag =
   Layout.Tag { node = path; part = part }
 
+// --- Precedence-aware parenthesisation (mirrors PrettyPrinter.ProgramTypes) ---
+
+/// (binding power, right-associative) for an operator, by its written form.
+let infixPowerOf (op: String) : (Int * Bool) =
+  match op with
+  | "||" -> (1, false)
+  | "&&" -> (2, false)
+  | "==" -> (3, false)
+  | "!=" -> (3, false)
+  | "<" -> (3, false)
+  | ">" -> (3, false)
+  | "<=" -> (3, false)
+  | ">=" -> (3, false)
+  | "+" -> (5, false)
+  | "-" -> (5, false)
+  | "++" -> (5, false)
+  | "*" -> (6, false)
+  | "/" -> (6, false)
+  | "%" -> (6, false)
+  | "^" -> (7, true)
+  | _ -> (5, false)
+
+/// How tightly a node binds. 0 for constructs that swallow what follows (if/match/let/lambda/pipe),
+/// the operator's power for an infix, 100 for everything self-delimiting.
+let nodePower (n: Node) : Int =
+  match n.kind.case with
+  | Some "EInfix" ->
+    let (p, _) = infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
+    p
+  | Some "EIf" -> 0
+  | Some "EMatch" -> 0
+  | Some "ELet" -> 0
+  | Some "ELambda" -> 0
+  | Some "EPipe" -> 0
+  | Some "EStatement" -> 0
+  | _ -> 100
+
+/// Does a node need parens as a function argument? Application binds tightest, so anything not
+/// self-delimiting (a call, an operator expr, an if, a lambda) must be wrapped.
+let argNeedsParens (n: Node) : Bool =
+  match n.kind.case with
+  | Some "EApply" -> true
+  | _ -> (nodePower n) < 100
+
+let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Bool) (isRight: Bool) : Bool =
+  let p = nodePower operand
+  if p < parentPower then true
+  else if p == parentPower then (if parentRightAssoc then Stdlib.Bool.not isRight else isRight)
+  else false
+
+let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
+  if cond then Layout.concatAll [ Layout.punct "(", d, Layout.punct ")" ] else d
+
 /// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
 /// node refers to it; `childPath` is where a node inside it lives.
 let slot
@@ -97,6 +150,31 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
             Layout.nest 2 (Layout.concat Layout.Doc.SoftLine (Layout.join docs sepDoc))
             Layout.Doc.SoftLine
             Layout.punct closeP ])
+
+  | ArgSlots(slotName, sep) ->
+    let sepDoc = pieces reg path n sep
+    let docs =
+      Node.items n slotName
+      |> Stdlib.List.indexedMap (fun i s ->
+        let d = slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s
+        let needs =
+          match Slot.node s with
+          | Some child -> argNeedsParens child
+          | None -> false
+        parenIf needs d)
+    Layout.join docs sepDoc
+
+  | OperandSlot(slotName, isRight) ->
+    match Node.slot n slotName with
+    | Some s ->
+      let (pp, pra) = infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
+      let d = slot reg path (Part.InSlot slotName) (Path.child path slotName) s
+      let needs =
+        match Slot.node s with
+        | Some child -> operandNeedsParens child pp pra isRight
+        | None -> false
+      parenIf needs d
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | Group ps -> Layout.group (pieces reg path n ps)
   | Nest(k, ps) -> Layout.nest k (pieces reg path n ps)

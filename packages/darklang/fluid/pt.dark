@@ -238,7 +238,7 @@ let pipeSupported (p: PipeExpr) : Bool =
 let pipeToDoc (p: PipeExpr) : Node =
   let args (es: List<Expr>) : (String * Field) = many "args" (es |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "arg")
   match p with
-  | EPipeVariable(_, name, es) -> Node.make (pipeKind "EPipeVariable") [ text "name" name, args es ]
+  | EPipeVariable(_, name, es) -> Node.make (pipeKind "EPipeVariable") [ text "name" (displayName name), args es ]
   | EPipeLambda(_, params, body) ->
     Node.make
       (pipeKind "EPipeLambda")
@@ -361,7 +361,7 @@ let toDoc (e: Expr) : Node =
         [ one "fn" (toDoc fn), many "args" (Stdlib.List.map args (fun a -> toDoc a)) (exprExpect "arg") ]
     else
       opaque e
-  | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (nameOf nr), text "_hash" (hashOf nr) ]
+  | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (displayName (nameOf nr)), text "_hash" (hashOf nr) ]
   | EStatement(_, first, next) ->
     Node.make (exprKind "EStatement") [ one "first" (toDoc first), one "next" (toDoc next) ]
   | EMatch(_, arg, cases) ->
@@ -775,7 +775,7 @@ let displayName (name: String) : String =
   else name
 
 let fnNameNode (name: String) (hash: String) : Node =
-  Node.make (exprKind "EFnName") [ text "name" name, text "_hash" hash ]
+  Node.make (exprKind "EFnName") [ text "name" (displayName name), text "_hash" hash ]
 
 /// A call with one hole per parameter, labelled by the parameter's name.
 let applyNode (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) (name: String) : Node =
@@ -1221,8 +1221,8 @@ let moreSpecs () : List<Spec> =
       "EPipe"
       [ Piece.Slot "first", Piece.HardLine, Piece.EachWith("steps", [ Piece.Punct "|>", Piece.Space ], [ Piece.HardLine ]) ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
-    simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Each("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
-    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.EachWrapped("args", " ", [ Piece.Line ], "") ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
     simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
@@ -1328,7 +1328,7 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> { sp with actions = ifActions () }
     simpleExpr
       "EInfix"
-      [ Piece.Group [ Piece.Slot "left", Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.Slot "right" ] ]
+      [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
       (Node.make
         (exprKind "EInfix")
         [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ])
@@ -1345,7 +1345,7 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleExpr
       "EApply"
-      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.Line, Piece.Each("args", [ Piece.Line ]) ]) ] ]
+      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
       (Node.make
         (exprKind "EApply")
         [ ("fn", Field.One(Slot.Empty(exprExpect "fn"))), ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
