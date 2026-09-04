@@ -7,6 +7,14 @@ type UpdatedItem =
     kind: LanguageTools.ProgramTypes.ItemKind }
 
 
+/// The one wrapper for parsing package source to WrittenTypes. Both `execute` and `applySource` go
+/// through it so the builtin has a single caller (builtin-wrapper discipline).
+let parsePackageToWT
+  (source: String)
+  : Stdlib.Result.Result<LanguageTools.WrittenTypes.ParsedFile, List<(LanguageTools.Parser.Range * String)>> =
+  Builtin.parserParsePackageToWrittenTypes source
+
+
 let sfDeclToModuleDecl
   (decl: LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
   : LanguageTools.WrittenTypes.ModuleDeclaration.Declaration =
@@ -116,7 +124,7 @@ let applySource
   (modulePath: String)
   (source: String)
   : Stdlib.Result.Result<Int, String> =
-  match Builtin.parserParsePackageToWrittenTypes source with
+  match parsePackageToWT source with
   | Error _diagnostics -> Stdlib.Result.Result.Error "could not parse the reconstructed source"
   | Ok(SourceFile sourceFile) ->
     let declarations =
@@ -194,7 +202,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Package input is declaration scope at its root. In particular, `val x`
     // declares a package value while `let x` is diagnosed directly instead of
     // being consumed as a script binding and failing later at EOF.
-    match Builtin.parserParsePackageToWrittenTypes source with
+    match parsePackageToWT source with
     | Error diagnostics ->
       let _ = Errors.reportParseErrors diagnostics
       state

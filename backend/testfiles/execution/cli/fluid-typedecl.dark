@@ -42,7 +42,7 @@ module Fixtures =
 
 module Rendering =
   // A record lays out one field per line (vertical bias).
-  (Fixtures.show "Color" (Fixtures.colorRec ())) = "type Color =\n  {\n    r: Int\n    g: Int\n  }"
+  (Fixtures.show "Color" (Fixtures.colorRec ())) = "type Color =\n  { r: Int\n    g: Int }"
 
   // An enum lays out one case per line, fields after `of`.
   (Fixtures.show "Shape" (Fixtures.shapeEnum ())) = "type Shape =\n  | Circle of Int\n  | Point"
@@ -71,7 +71,7 @@ module Editing =
       | Error e -> "ERR " ++ e
     | _ -> "no"
 
-  (Fixtures.colorRec () |> fun _ -> Editing.editedField ()) = "type Color =\n  {\n    r: Int\n    g: String\n  }"
+  (Fixtures.colorRec () |> fun _ -> Editing.editedField ()) = "type Color =\n  { r: Int\n    g: String }"
 
   // A definition hole offers record / enum / alias.
   let defHole () : Darklang.Fluid.Slot =

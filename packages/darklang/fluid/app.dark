@@ -203,7 +203,7 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       title = title
       scroll = 0
       target = target
-      theme = Theme.default ()
+      theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
       bodyRows = Stdlib.Int.max 1 (size.height - 3) }
 
 let initial (title: String) (root: Slot) : State =
