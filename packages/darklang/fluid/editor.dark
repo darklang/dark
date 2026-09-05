@@ -835,7 +835,7 @@ let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
-val closingDelimiters = [ "]", ")", "}", "\"" ]
+val closingDelimiters = [ "]", ")", "}", "\"", "'" ]
 
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
 /// already on screen: `=` between a let's name and value, `:` before a record value or a type annotation.
@@ -913,7 +913,7 @@ let typeOne (st: State) (c: String) : State =
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
     // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
     let target =
-      if c == "\"" then
+      if (c == "\"") || (c == "'") then
         Stdlib.Option.Option.Some caret.node
       else
         match enclosingListItem caret with

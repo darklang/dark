@@ -369,3 +369,13 @@ module SpaceCommitDisambiguation =
   // A single-candidate keyword prefix still commits (`le` -> let), and an exact match always does.
   (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+
+
+module CharLiterals =
+  // `'` builds a character literal and drops into it; the closing quote is drawn and stepping past it is
+  // a no-op. Works in expressions and patterns.
+  (Fixtures.screen [ "'" ]) = "'~char'"
+  (Fixtures.screen [ "'", "a" ]) = "'a~'"
+  (Fixtures.program [ "'", "a", "<Esc>" ]) = "'a'"
+  (Fixtures.program [ "'", "a", "'", "<Esc>" ]) = "'a'"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "'", "x", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 'x' -> 0"

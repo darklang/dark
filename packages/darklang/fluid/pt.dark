@@ -1097,6 +1097,7 @@ let exprTypeSpec () : Spec =
           // `-` on an empty hole starts a negative number: the digits accumulate (and `.` still makes it a
           // float), so `-5` and `-5.5` are literals, not an unresolvable partial.
           HoleRule { onChar = "-"; fill = HoleFill.WithChar intFromDigit }
+          HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (exprKind "EChar") [ text "char" "" ]) }
           HoleRule { onChar = "\""; fill = HoleFill.WithChar stringFromQuote }
           HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket }
           HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen }
@@ -1177,6 +1178,7 @@ let matchPatTypeSpec () : Spec =
         [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar matchPatVarFromLetter }
           HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar matchPatIntFromDigit }
           HoleRule { onChar = "-"; fill = HoleFill.WithChar matchPatIntFromDigit }
+          HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (matchPatKind "MPChar") [ text "char" "" ]) }
           HoleRule { onChar = "\""; fill = HoleFill.Node(Node.make (matchPatKind "MPString") [ text "body" "" ]) }
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
