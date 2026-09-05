@@ -499,3 +499,13 @@ module EnterAddsArmAfterBoundVar =
   // variable from the menu -- so a match over a constructor with a bound field types straight through.
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>" ]) = "match n with\n| Ok(v) -> v\n| ~⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>", "E", "r", "r", "o", "r", "(", "e", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+
+module TabAdvancesAfterBoundVar =
+  // Tab after an in-scope variable finalises it and moves to the next hole, rather than committing it in
+  // place (which used to swallow the next keystrokes). So a match whose scrutinee is a bound variable
+  // types straight through, even nested in a let.
+  (Fixtures.program [ "l", "e", "t", " ", "r", " ", "1", " ", "m", "a", "<Enter>", "r", "<Tab>", "0", "<Tab>", "\"", "z", "<Enter>", "1", "<Tab>", "\"", "o", "<Esc>", "<Esc>" ]) =
+    "let r = 1\nmatch r with\n| 0 -> \"z\"\n| 1 -> \"o\""
+  // Tab on a construct/fn still lands in its first hole to fill (not skipped past).
+  (Fixtures.screen [ "l", "e", "t", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"

@@ -1929,9 +1929,15 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
-    // Commit on Tab only when a partial is being typed; a fresh hole's menu is a preview and Tab still
-    // means "next hole".
-    elif completing && (onPartial st) then handled (commitCandidate st)
+    // Tab commits a partial that's being typed, then advances -- UNLESS the commit landed on a fresh hole
+    // (a construct like `let`, or a function's argument holes), where you want to fill it, not skip past.
+    // So `let<Tab>` sits at the name, but `r<Tab>` (an in-scope variable) finalises and moves to the next
+    // hole rather than swallowing what you type next into the same slot.
+    elif completing && (onPartial st) then
+      let committed = commitCandidate st
+      match slotUnder committed with
+      | Some(Empty _) -> handled committed
+      | _ -> handled (nextHole committed)
     else
       match resolvePartial st with
       | Some resolved -> handled (nextHole resolved)
