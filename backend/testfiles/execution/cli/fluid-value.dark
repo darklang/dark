@@ -29,10 +29,43 @@ module Fixtures =
 
 
 module Rendering =
-  (Fixtures.show "greeting" (Fixtures.strVal ())) = "val greeting =\n  \"hello\""
-  (Fixtures.show "nums" (Fixtures.listVal ())) = "val nums =\n  [1, 2]"
+  // One line, the way the printer writes it: packageValue is `val {name} = {body}`, and the body wraps on
+  // its own if it needs to. This used to hard-break after the `=`.
+  (Fixtures.show "greeting" (Fixtures.strVal ())) = "val greeting = \"hello\""
+  (Fixtures.show "nums" (Fixtures.listVal ())) = "val nums = [1, 2]"
 
 
 module RoundTrips =
   (Fixtures.rt (Fixtures.strVal ())) = true
   (Fixtures.rt (Fixtures.listVal ())) = true
+
+
+module MatchesThePrinter =
+  // The printer writes `val name = body` on ONE line: packageValue interpolates the body straight in and
+  // lets the body's own layout wrap. Fluid hard-broke after the `=`, so every value in the store showed on
+  // two lines where the printer uses one. (A FUNCTION does break before its body -- that difference is the
+  // printer's own, and Fluid follows it.)
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Value.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Value.get hash with
+      | None -> "missing"
+      | Some pv ->
+        let printed =
+          Darklang.PrettyPrinter.ProgramTypes.packageValue (Darklang.Fluid.PT.printerContext ()) pv
+          |> Stdlib.String.split "\n"
+          |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+          |> Stdlib.String.join "\n"
+        let screen =
+          Darklang.Fluid.Debug.render
+            (Darklang.Fluid.App.defaultRegistry ())
+            80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Value.toDoc loc.name pv))
+        if screen == printed then "same" else "DIFF: " ++ screen
+
+  (MatchesThePrinter.verdict "Darklang.SCM.Branch.mainBranchId") = "same"
+  (MatchesThePrinter.verdict "Darklang.PrettyPrinter.ProgramTypes.Context.forMain") = "same"
+  (MatchesThePrinter.verdict "Darklang.Fluid.PT.exprType") = "same"

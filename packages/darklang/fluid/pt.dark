@@ -1994,6 +1994,11 @@ module Value =
                 Piece.Text("name", Layout.Style.Name)
                 Piece.Space
                 Piece.Punct "="
-                Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ] ]
+                // The printer writes `val name = body` on ONE line -- it interpolates the body straight in
+                // and lets the body's own layout wrap. Fluid hard-broke after the `=`, so every value in
+                // the store displayed on two lines where the printer uses one. (A FUNCTION does break
+                // before its body; that difference is the printer's, and Fluid follows it.)
+                Piece.Space
+                Piece.Slot "body" ] ]
           (Node.make (valKind ()) [ PT.text "name" "unnamed", PT.text "_hash" "", PT.text "_desc" "", ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
           summary = (fun n -> "val " ++ (PT.textOf n "name")) } ]
