@@ -311,6 +311,33 @@ let moveLeft (st: State) : State =
 
 let moveRight (st: State) : State =
   let caret = st.caret
+  match caret.part with
+  | AfterNode ->
+    // Right from just-after a node advances to the next editable cell beyond the whole construct.
+    let cells = Layout.taggedCells (layout st)
+    let lastIdx =
+      cells
+      |> Stdlib.List.indexedMap (fun i rcc -> (i, rcc))
+      |> Stdlib.List.filter (fun irc ->
+        let (_, rcc) = irc
+        let (_, _, c) = rcc
+        match c.tag with
+        | Some t -> Path.isPrefixOf caret.node t.node
+        | None -> false)
+      |> Stdlib.List.last
+      |> Stdlib.Option.map (fun irc ->
+        let (i, _) = irc
+        i)
+    match lastIdx with
+    | Some i ->
+      match Stdlib.List.getAt cells (i + 1) with
+      | Some((_, _, c)) ->
+        match caretForCell c false with
+        | Some nc -> { st with caret = nc }
+        | None -> st
+      | None -> st
+    | None -> st
+  | _ ->
   let textLen = textUnder st |> Stdlib.Option.map (fun t -> Stdlib.String.length t)
   let canAdvance =
     match textLen with
@@ -847,6 +874,16 @@ let typeOneRaw (st: State) (c: String) : State =
           commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
     | None -> st
   | OnNode -> st
+  | AfterNode ->
+    // Typing just after a closed construct starts a new element in the enclosing list, so `[[1]` then `2`
+    // grows the outer list without an explicit comma. Operators and `.` are left for a later pass (they
+    // should wrap the construct, not add a sibling), so they're inert here for now.
+    if (isOperatorChar c) || (c == ".") then
+      st
+    else
+      match addSibling st with
+      | Some added -> typeOne added c
+      | None -> st
   | _ ->
     match Caret.slotPath caret with
     | None -> st

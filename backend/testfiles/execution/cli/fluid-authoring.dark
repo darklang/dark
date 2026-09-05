@@ -205,3 +205,14 @@ module NestedLists =
 
   // Left from just-after the inner list steps back into its end (undoing the step-past).
   (Fixtures.screen [ "[", "[", "1", "]", ",", "2", "<Left>" ]) = "[[1], ~2]"
+
+
+module AfterNodeMotion =
+  // Typing a new element right after a closed construct grows the enclosing list without an explicit
+  // comma: `[` `[` `1` `]` `2` -> `[[1], 2]`, and a fresh `[` starts another sub-list.
+  (Fixtures.program [ "[", "[", "1", "]", "2", "<Esc>" ]) = "[[1], 2]"
+  (Fixtures.screen [ "[", "[", "1", "]", "2" ]) = "[[1], 2~]"
+  (Fixtures.program [ "[", "[", "1", "]", "[", "2", "]", "<Esc>" ]) = "[[1], [2]]"
+
+  // Right and Left move across the boundary: Left re-enters the element just typed.
+  (Fixtures.screen [ "[", "[", "1", "]", "2", "<Left>" ]) = "[[1], ~2]"
