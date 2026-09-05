@@ -864,8 +864,92 @@ let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
       | _ -> p
   climbUp path
 
+/// The enclosing interpolated string and the segment index the caret is under, if any. Handles both being
+/// directly in a text segment and being down inside an interpolation's expression.
+let enclosingStringSeg (root: Slot) (path: Path) : Stdlib.Option.Option<(Path * Int)> =
+  let (_, found) =
+    Stdlib.List.fold path ((0, Stdlib.Option.Option.None)) (fun acc step ->
+      let (idx, best) = acc
+      match step with
+      | Item("segments", i) ->
+        let prefix = Stdlib.List.take path idx
+        match nodeAtPath root prefix with
+        | Some n ->
+          if n.kind.case == Stdlib.Option.Option.Some "EStringI" then (idx + 1, Stdlib.Option.Option.Some((prefix, i)))
+          else (idx + 1, best)
+        | None -> (idx + 1, best)
+      | _ -> (idx + 1, best))
+  found
+
+/// String-interpolation editing: `{` in a text segment splits it and drops an interpolation between the
+/// halves; `}` inside an interpolation steps to the text after it; `"` in a text segment ends the whole
+/// string (a leading `"` right after `$` is swallowed). Returns None when the caret isn't in a string.
+let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
+  let caret = st.caret
+  match enclosingStringSeg st.root caret.node with
+  | None -> Stdlib.Option.Option.None
+  | Some((ePath, i)) ->
+    match nodeAtPath st.root ePath with
+    | None -> Stdlib.Option.Option.None
+    | Some eNode ->
+      let segType =
+        Node.itemExpect eNode "segments"
+        |> Stdlib.Option.andThen (fun e -> e.kind)
+        |> Stdlib.Option.map (fun k -> Kind.typeName k)
+        |> Stdlib.Option.withDefault "Darklang.LanguageTools.ProgramTypes.StringSegment"
+      let exprTy = Kind.typeName eNode.kind
+      // Directly in this segment's text? (as opposed to nested in an interpolation's expression)
+      let directText =
+        match caret.part with
+        | InText slot -> (slot == "text") && (Path.last caret.node == Stdlib.Option.Option.Some(Step.Item("segments", i)))
+        | _ -> false
+      let segNode = Stdlib.List.getAt (Node.items eNode "segments") i |> Stdlib.Option.andThen (fun s -> Slot.node s)
+      let isText =
+        match segNode with
+        | Some sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText"
+        | None -> false
+      if (c == "\"") && directText then
+        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
+        let onlySeg = (Stdlib.List.length (Node.items eNode "segments")) == 1
+        if (text == "") && onlySeg && (caret.offset == 0) then
+          Stdlib.Option.Option.Some st
+        else
+          Stdlib.Option.Option.Some { st with caret = Caret.afterNode ePath }
+      elif (c == "{") && directText then
+        let segPath = Path.item ePath "segments" i
+        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
+        let before = Stdlib.String.slice text 0 caret.offset
+        let after = Stdlib.String.dropFirst text caret.offset
+        let interp =
+          Node.make (Kind.ofCase segType "StringInterpolation") [ ("expr", Field.One(Slot.Empty(Expect.ofKind (Kind.named exprTy) "expr"))) ]
+        let tail = Node.make (Kind.ofCase segType "StringText") [ ("text", Field.Text after) ]
+        let st1 =
+          commit
+            st
+            [ Edit.SetText(segPath, "text", before)
+              Edit.InsertItem(ePath, "segments", i + 1, Slot.Filled interp)
+              Edit.InsertItem(ePath, "segments", i + 2, Slot.Filled tail) ]
+            caret
+        Stdlib.Option.Option.Some { st1 with caret = Caret.inSlot (Path.item ePath "segments" (i + 1)) "expr" 0 }
+      elif (c == "}") && (Stdlib.Bool.not directText) && (Stdlib.Bool.not isText) then
+        // Inside an interpolation's expression: step to the text segment after it.
+        let nextIsText =
+          Stdlib.List.getAt (Node.items eNode "segments") (i + 1)
+          |> Stdlib.Option.andThen (fun s -> Slot.node s)
+          |> Stdlib.Option.map (fun sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText")
+          |> Stdlib.Option.withDefault false
+        if nextIsText then
+          Stdlib.Option.Option.Some { st with caret = Caret.inText (Path.item ePath "segments" (i + 1)) "text" 0 }
+        else
+          Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+
 let typeOne (st: State) (c: String) : State =
   let caret = st.caret
+  match handleStringI st c with
+  | Some handled -> handled
+  | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
   // you're typing inside a string, where it's a literal comma.
   let inStringBody =
@@ -1053,7 +1137,7 @@ let typeOneRaw (st: State) (c: String) : State =
         let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
         let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled fnode) ] caret
         { st1 with caret = Caret.inText caret.node "fraction" 0 }
-      elif (c == " ") && (slot != "body") && atEnd && (Stdlib.Bool.not (old == "")) then
+      elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (Stdlib.Bool.not (old == "")) then
         nextHole st
       else
       // In an operator slot, a non-operator character moves on to the next slot and types there.

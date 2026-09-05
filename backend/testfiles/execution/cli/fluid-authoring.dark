@@ -464,3 +464,16 @@ module NavAndHistory =
   (Fixtures.screen [ "5", "<C-z>", "<C-y>" ]) = "5~"
   (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>" ]) = "[12, ~34]"
   (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>", "<C-y>" ]) = "[12~34]"
+
+
+module StringInterpolation =
+  // `$` starts an interpolated string; text fills a segment (spaces literal); `{` splits the text and
+  // drops in an interpolation, `}` steps to the text after it, `"` ends the whole string.
+  (Fixtures.screen [ "$", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "$\"hi there~\""
+  (Fixtures.screen [ "$", "a", "{" ]) = "$\"a{~⟨expr⟩}text\""
+  (Fixtures.screen [ "$", "a", "{", "x", "}", "b" ]) = "$\"a{x}b~\""
+  (Fixtures.program [ "$", "a", "{", "1", "}", "b", "<Esc>" ]) = "$\"a{1}b\""
+  // An interpolation is a full expression: operators and all.
+  (Fixtures.program [ "$", "n", "=", "{", "1", "+", "2", "}", "<Esc>" ]) = "$\"n={1 + 2}\""
+  // An all-text interpolated string is just a string.
+  (Fixtures.program [ "$", "h", "i", "<Esc>" ]) = "\"hi\""

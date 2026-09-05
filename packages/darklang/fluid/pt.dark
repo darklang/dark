@@ -722,6 +722,13 @@ let intFromDigit (c: String) (e: Expect) : Node = Node.make (exprKind "EInt") [ 
 
 let stringFromQuote (c: String) (e: Expect) : Node = Node.make (exprKind "EString") [ text "body" "" ]
 
+/// `$` starts an interpolated string: an EStringI with one empty text segment to type into. Editor.dark
+/// handles the segment transitions (`{` splits in an interpolation, `"` ends the string).
+let stringInterpFromDollar (c: String) (e: Expect) : Node =
+  Node.make
+    (exprKind "EStringI")
+    [ ("segments", Field.Many([ Slot.Filled(Node.make (segmentKind "StringText") [ text "text" "" ]) ], segmentExpect ())) ]
+
 let listFromBracket (c: String) (e: Expect) : Node =
   Node.make (exprKind "EList") [ ("items", Field.Many([ Slot.Empty(exprExpect "item") ], exprExpect "item")) ]
 
@@ -1106,6 +1113,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "-"; fill = HoleFill.WithChar intFromDigit }
           HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (exprKind "EChar") [ text "char" "" ]) }
           HoleRule { onChar = "\""; fill = HoleFill.WithChar stringFromQuote }
+          HoleRule { onChar = "$"; fill = HoleFill.WithChar stringInterpFromDollar }
           HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket }
           HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen }
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
