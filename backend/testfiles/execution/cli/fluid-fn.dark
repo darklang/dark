@@ -61,3 +61,46 @@ module Editing =
   // A param node's type slot completes like any type hole.
   (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.paramToDoc (Fixtures.param "x" Darklang.LanguageTools.ProgramTypes.TypeReference.TString)))) =
     "(x: String)"
+
+
+module SaveFidelity =
+  // The save path is: fromDoc, print with the pretty-printer, apply that SOURCE. So anything fromDoc
+  // fails to rebuild is silently rewritten out of the store -- that is exactly how the enum-field labels
+  // were lost. This checks the whole path against REAL package functions, as a property rather than a
+  // fixed string, so it stays honest as the stdlib changes: printing what fromDoc returns must equal
+  // printing the original.
+  let stripDocs (s: String) : String =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+    |> Stdlib.String.join "\n"
+
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        let ctx = Darklang.Fluid.PT.printerContext ()
+        let printed = SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+        (match Darklang.Fluid.PT.Fn.fromDoc fn (Darklang.Fluid.PT.Fn.toDoc loc.name fn) with
+         | Error _ -> "refuses"
+         | Ok(pair) ->
+           let (_n, updated) = pair
+           if (SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx updated)) == printed then "same"
+           else "LOSES SOMETHING")
+
+  // Generic signatures, higher-order params and multi-arm bodies all survive the trip.
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.map") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.map") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.andThen") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.withDefault") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.map2") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.List.head") = "same"
+
+  // A body that calls a builtin can't be rebuilt yet, and the right answer to that is a REFUSAL. It
+  // reaches the person as "not saved: ..." rather than a function quietly rewritten without its body.
+  (SaveFidelity.verdict "Darklang.Stdlib.List.length") = "refuses"
+  (SaveFidelity.verdict "Darklang.Stdlib.Bool.not") = "refuses"

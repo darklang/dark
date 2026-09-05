@@ -169,3 +169,39 @@ module EnumFieldLabelsSurvive =
          |> Stdlib.String.join ","
        | _ -> "not an enum")
     | Error e -> "ERR " ++ e)) = "key,value,-"
+
+
+module SaveFidelity =
+  // The same property for TYPES, against real package types. This is the regression guard for the
+  // enum-field labels: `| TDict of key: X * value: Y` used to come back as `| TDict of X * Y`, and
+  // saveType would have written that to the store.
+  let stripDocs (s: String) : String =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+    |> Stdlib.String.join "\n"
+
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Type.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      | None -> "missing"
+      | Some pt ->
+        let ctx = Darklang.Fluid.PT.printerContext ()
+        let printed = SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageType ctx pt)
+        (match Darklang.Fluid.PT.TypeDecl.fromDoc pt (Darklang.Fluid.PT.TypeDecl.toDoc loc.name pt) with
+         | Error _ -> "refuses"
+         | Ok(pair) ->
+           let (_n, updated) = pair
+           if (SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageType ctx updated)) == printed then "same"
+           else "LOSES SOMETHING")
+
+  // TypeReference is the one that caught it: it has labelled fields (`key:`, `value:`, `typeArgs:`).
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.TypeReference") = "same"
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.Expr") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.Option") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.Result") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Cli.Tui.Size") = "same"
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.NameResolution") = "same"
