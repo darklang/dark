@@ -970,7 +970,58 @@ let collapseInfix (st: State) (p: Path) (n: Node) : State =
   | (None, Some _) -> keep rightSlot false
   | (None, None) -> keep leftSlot false
 
+/// When you delete a construct keyword, it collapses to this slot: a let/lambda to its body, an if to its
+/// then-branch, a match to its scrutinee. Each is an expression hole carrying the right expectation, so
+/// the collapse lands on a clean blank rather than a fabricated one.
+let constructTargetSlot (n: Node) : Stdlib.Option.Option<Slot> =
+  match n.kind.case with
+  | Some "ELet" -> Node.slot n "body"
+  | Some "ELambda" -> Node.slot n "body"
+  | Some "EIf" -> Node.slot n "then"
+  | Some "EMatch" -> Node.slot n "arg"
+  | _ -> Stdlib.Option.Option.None
+
+/// Nothing has been typed anywhere in this node: every slot is a hole (or a structural child that is itself
+/// all holes, like a fresh match arm), and no text has been entered. Hash slots (`_hash`) don't count.
+let allHolesEmpty (n: Node) : Bool =
+  n.fields
+  |> Stdlib.List.all (fun f ->
+    let (name, fld) = f
+    let slotHollow (s: Slot) : Bool =
+      match s with
+      | Empty _ -> true
+      | Partial(_, _) -> false
+      | Filled child -> allHolesEmpty child
+    match fld with
+    | Text t -> (t == "") || (Stdlib.String.startsWith name "_")
+    | One s -> slotHollow s
+    | Many(items, _) -> items |> Stdlib.List.all (fun s -> slotHollow s))
+
+/// Backspace at the very start of an untouched construct deletes it: an empty `let`/`if`/`match`/lambda
+/// collapses to a blank expression hole, so a keyword typed by mistake is one keystroke to undo. Only
+/// fires from the construct's first hole and only when nothing is filled in, so real work is never lost.
+let tryCollapseConstruct (st: State) : Stdlib.Option.Option<State> =
+  let caret = st.caret
+  if caret.offset != 0 then
+    Stdlib.Option.Option.None
+  else
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      match constructTargetSlot n with
+      | Some target ->
+        let fe = firstEditable caret.node n
+        if (fe.part == caret.part) && (allHolesEmpty n) then
+          let st1 = commit st [ Edit.Replace(caret.node, target) ] caret
+          Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
 let backspace (st: State) : State =
+  match tryCollapseConstruct st with
+  | Some collapsed -> collapsed
+  | None ->
   let caret = st.caret
   match caret.part with
   | InText slot ->

@@ -165,3 +165,19 @@ module DeleteOperator =
   // Incompatible operands don't merge into a bogus literal: `1` with a half-typed name stays `1` (the
   // right is dropped), not the invalid int `1t`.
   (Fixtures.program [ "1", "+", "t", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "1"
+
+
+module DeleteKeyword =
+  // Backspace at the start of an untouched construct deletes it: a keyword typed by mistake is one
+  // keystroke to undo. let/lambda collapse to their body, if to its then-branch, match to its scrutinee --
+  // each a clean blank expression hole.
+  (Fixtures.screen [ "l", "e", "t", " ", "<BS>" ]) = "~⟨body⟩"
+  (Fixtures.screen [ "i", "f", " ", "<BS>" ]) = "~⟨then⟩"
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "<BS>" ]) = "~⟨arg⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "<BS>" ]) = "~⟨body⟩"
+
+  // Only when nothing's filled in: with a name typed, backspace edits the name rather than nuking the let.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~name = ⟨value⟩\n⟨body⟩"
+
+  // Collapse nests: an empty `if` in a let body collapses to a hole, and you keep typing the body.
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "i", "f", " ", "<BS>", "x", "<Esc>" ]) = "let x = 1\nx"
