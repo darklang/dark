@@ -127,3 +127,45 @@ module MatchesThePrinter =
   ((MatchesThePrinter.longCase ())
    |> Stdlib.String.split "\n"
    |> Stdlib.List.all (fun l -> (Stdlib.String.trim l) != "")) = true
+
+
+module EnumFieldLabelsSurvive =
+  // `| TDict of key: X * value: Y` -- the labels are part of the declaration, and they used to be dropped
+  // on the way INTO the document and rebuilt as None on the way out. saveType prints what fromDoc returns
+  // and applies it as source, so saving a labelled type through Fluid erased its labels. Checked here the
+  // way it was proved: render, and then the save round-trip.
+  let efl (label: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = t; label = Stdlib.Option.Option.Some label; description = "" }
+
+  let dictish () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    MatchesThePrinter.mkP
+      []
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase
+            "TDict"
+            [ EnumFieldLabelsSurvive.efl "key" Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+              EnumFieldLabelsSurvive.efl "value" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+          Fixtures.ecase "TUnit" []
+          Fixtures.ecase "TList" [ Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TString ] ])
+
+  // Labelled fields show their label; an unlabelled one shows no stray colon; a nullary case shows no `of`.
+  (Fixtures.show "T" (EnumFieldLabelsSurvive.dictish ())) =
+    "type T =\n  | TDict of key: String * value: Int\n  | TUnit\n  | TList of String"
+
+  // The round-trip keeps them, which is what the save path depends on.
+  (Fixtures.rt (EnumFieldLabelsSurvive.dictish ())) = true
+
+  ((match Darklang.Fluid.PT.TypeDecl.fromDoc
+            (EnumFieldLabelsSurvive.dictish ())
+            (Darklang.Fluid.PT.TypeDecl.toDoc "T" (EnumFieldLabelsSurvive.dictish ())) with
+    | Ok(pair) ->
+      let (_n, updated) = pair
+      (match updated.declaration.definition with
+       | Enum cases ->
+         cases
+         |> Stdlib.List.map (fun c -> c.fields |> Stdlib.List.map (fun f -> f.label |> Stdlib.Option.withDefault "-"))
+         |> Stdlib.List.flatten
+         |> Stdlib.String.join ","
+       | _ -> "not an enum")
+    | Error e -> "ERR " ++ e)) = "key,value,-"

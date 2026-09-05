@@ -1767,6 +1767,8 @@ module TypeDecl =
   let defExpect () : Expect = Expect.ofKind (Kind.named (ns ++ ".Def")) "definition"
   let fieldExpect () : Expect = Expect.ofKind (k "RecordField") "field"
   let caseExpect2 () : Expect = Expect.ofKind (k "EnumCase") "case"
+  let efExpect () : Expect = Expect.ofKind (k "EnumField") "field"
+  let efLabelExpect () : Expect = Expect.ofKind (k "EnumFieldLabel") "label"
   let paramExpect () : Expect = Expect.ofKind (k "TypeParam") "type param"
 
   // --- to the document ---
@@ -1776,11 +1778,23 @@ module TypeDecl =
   let recordFieldToDoc (f: RecordField) : Node =
     Node.make (k "RecordField") [ PT.text "name" f.name, PT.one "type" (Types.toDoc f.typ) ]
 
+  /// An enum field is a type, optionally LABELLED (`| TDict of key: X * value: Y`). The label used to be
+  /// dropped on the way into the document and rebuilt as None on the way out, and since saveType prints
+  /// the rebuilt declaration and applies it as source, saving a labelled type silently erased its labels.
+  /// Pieces have no conditional, so the label is a list of nought-or-one: `Each` already draws nothing for
+  /// an empty one.
+  let enumFieldToDoc (ef: EnumField) : Node =
+    let labels =
+      match ef.label with
+      | Some l -> [ Node.make (k "EnumFieldLabel") [ PT.text "name" l ] ]
+      | None -> []
+    Node.make (k "EnumField") [ PT.many "label" labels (efLabelExpect ()), PT.one "type" (Types.toDoc ef.typ) ]
+
   let enumCaseToDoc (c: EnumCase) : Node =
     Node.make
       (k "EnumCase")
       [ PT.text "name" c.name
-        PT.many "fields" (c.fields |> Stdlib.List.map (fun ef -> Types.toDoc ef.typ)) (Types.typeExpect "field") ]
+        PT.many "fields" (c.fields |> Stdlib.List.map (fun ef -> enumFieldToDoc ef)) (efExpect ()) ]
 
   let defToDoc (d: Def) : Node =
     match d with
@@ -1817,14 +1831,31 @@ module TypeDecl =
         Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField { name = PT.textOf n "name"; typ = t; description = "" })
     | Error e -> Stdlib.Result.Result.Error e
 
-  let enumCaseFromDoc (n: Node) : Stdlib.Result.Result<EnumCase, String> =
-    match typeItems n "fields" with
-    | Ok ts ->
-      let efs =
-        ts |> Stdlib.List.map (fun t ->
-          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = t; label = Stdlib.Option.Option.None; description = "" })
+  let enumFieldFromDoc (n: Node) : Stdlib.Result.Result<EnumField, String> =
+    match Types.slotType n "type" with
+    | Ok t ->
+      let label =
+        Node.items n "label"
+        |> Stdlib.List.head
+        |> Stdlib.Option.andThen (fun s -> Slot.node s)
+        |> Stdlib.Option.map (fun ln -> PT.textOf ln "name")
       Stdlib.Result.Result.Ok(
-        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = PT.textOf n "name"; fields = efs; description = "" })
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = t; label = label; description = "" })
+    | Error e -> Stdlib.Result.Result.Error e
+
+  let enumCaseFromDoc (n: Node) : Stdlib.Result.Result<EnumCase, String> =
+    let efs =
+      Node.items n "fields"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled c -> enumFieldFromDoc c
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+    match efs with
+    | Ok fields ->
+      Stdlib.Result.Result.Ok(
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = PT.textOf n "name"; fields = fields; description = "" })
     | Error e -> Stdlib.Result.Result.Error e
 
   let defFromDoc (n: Node) : Stdlib.Result.Result<Def, String> =
@@ -1917,7 +1948,15 @@ module TypeDecl =
       simpleT
         "EnumCase"
         [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
-        (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], Types.typeExpect "field")) ]) ]
+        (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ])
+      simpleT
+        "EnumField"
+        [ Piece.Each("label", []), Piece.Slot "type" ]
+        (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+      simpleT
+        "EnumFieldLabel"
+        [ Piece.Text("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
+        (Node.make (k "EnumFieldLabel") [ PT.text "name" "" ]) ]
 
 
 // ============================================================================
