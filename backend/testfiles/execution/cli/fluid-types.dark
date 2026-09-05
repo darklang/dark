@@ -48,5 +48,29 @@ module Editing =
   (Fixtures.edit [ "[", "S", "t", "r", "i", "n", "g", "<Enter>" ]) = "List<~String>"
   // Containers come from completion and nest.
   (Fixtures.edit [ "L", "i", "s", "t", "<Enter>", "I", "n", "t", "<Enter>" ]) = "List<~Int>"
-  // A lowercase identifier with no match resolves to a type variable.
-  (Fixtures.edit [ "a", "<Esc>" ]) = "~a"
+  // A lowercase identifier with no match resolves to a type variable, drawn with its quote.
+  (Fixtures.edit [ "a", "<Esc>" ]) = "'~a"
+
+
+module TypeVariablesCarryTheirQuote =
+  // A type variable is WRITTEN with its quote: both pretty-printers emit `"'" ++ varName`. Fluid drew a
+  // bare `a`, so a generic signature on screen -- `List<a>` for Stdlib.List.length -- wasn't the signature
+  // the printer would write, and wasn't valid to read back either.
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a")) = "'a"
+  (Fixtures.render
+    (Darklang.LanguageTools.ProgramTypes.TypeReference.TList(Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a"))) = "List<'a>"
+
+  // And now that the screen says `'a`, that is what people type. The quote opens the variable and the
+  // letters land in its name; typing the bare letter still works and settles to the same thing.
+  (Fixtures.edit [ "'", "a" ]) = "'a~"
+  (Fixtures.edit [ "L", "i", "s", "t", " ", "'", "a" ]) = "List<'a~>"
+
+  // Both spellings resolve to a real TVariable, not a partial nothing can lower.
+  ((match Darklang.Fluid.Test.drive
+            (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60)
+            [ "'", "a" ] with
+    | st ->
+      (match st.root with
+       | Filled n -> n.kind.case |> Stdlib.Option.withDefault "?"
+       | Partial(t, _) -> "partial " ++ t
+       | Empty _ -> "empty"))) = "TVariable"

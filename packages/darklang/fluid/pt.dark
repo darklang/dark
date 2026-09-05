@@ -1576,9 +1576,12 @@ module Types =
   let typeVarFromLetter (c: String) (e: Expect) : Node = Node.make (typeKind "TVariable") [ PT.text "name" c ]
 
   let resolveTypePartial (typed: String) : Stdlib.Option.Option<Node> =
-    // A lowercase identifier is a type variable (`a`, `key`); anything else stays a partial.
-    if PT.isIdentifier typed && (Stdlib.String.toLowercase typed) == typed then
-      Stdlib.Option.Option.Some(Node.make (typeKind "TVariable") [ PT.text "name" typed ])
+    // A lowercase identifier is a type variable (`a`, `key`); anything else stays a partial. A leading
+    // quote is how the language writes one, so `'a` resolves to the same thing as `a` rather than sitting
+    // there as a partial nothing can lower.
+    let bare = if Stdlib.String.startsWith typed "'" then Stdlib.String.dropFirst typed 1 else typed
+    if PT.isIdentifier bare && (Stdlib.String.toLowercase bare) == bare then
+      Stdlib.Option.Option.Some(Node.make (typeKind "TVariable") [ PT.text "name" bare ])
     else
       Stdlib.Option.Option.None
 
@@ -1598,7 +1601,10 @@ module Types =
       { kind = Kind.named typeRefType
         pieces = [ Piece.Dim "?type" ]
         holeRules =
-          [ HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ]) }
+          // A type variable is written `'a`, and now that the screen SAYS `'a`, that is what people type.
+          // The quote opens the variable and the letters go in its name; the piece draws the quote back.
+          [ HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (typeKind "TVariable") [ PT.text "name" "" ]) }
+            HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ]) }
             HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
         wrapRules = []
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
@@ -1614,7 +1620,10 @@ module Types =
     Stdlib.List.flatten
       [ [ typeTypeSpec () ]
         primSpecs ()
-        [ simpleType "TVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ])
+        [ // A type variable is written with its quote: the pretty-printer emits `'a` (programTypes.dark and
+          // runtimeTypes.dark both do `"'" ++ varName`), and Fluid drew a bare `a`, so a generic signature on
+          // screen wasn't the signature the printer would write.
+          simpleType "TVariable" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ])
           simpleType "TList" [ Piece.Keyword "List", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
           simpleType "TStream" [ Piece.Keyword "Stream", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TStream") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
           simpleType "TDB" [ Piece.Keyword "DB", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TDB") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
