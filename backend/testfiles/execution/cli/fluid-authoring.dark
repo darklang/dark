@@ -483,3 +483,12 @@ module StringInterpNesting =
   // An interpolated string nests like any expression: inside a list, and with a filled trailing text.
   (Fixtures.program [ "[", "$", "a", "{", "1", "}", "b", "<Esc>", "<Esc>" ]) = "[$\"a{1}b\"]"
   (Fixtures.program [ "$", "a", "{", "1", "+", "2", "}", "!", "<Esc>" ]) = "$\"a{1 + 2}!\""
+
+
+module StringInterpCollapse =
+  // Backspacing an empty interpolation folds it back into the surrounding text, so an interpolation opened
+  // by mistake undoes cleanly.
+  (Fixtures.screen [ "$", "a", "{", "<BS>" ]) = "$\"a~\""
+  (Fixtures.program [ "$", "a", "{", "<BS>", "b", "<Esc>" ]) = "\"ab\""
+  // Delete the interpolated value, then backspace again, and the interpolation folds away too.
+  (Fixtures.screen [ "$", "a", "{", "x", "<BS>", "<BS>" ]) = "$\"a~\""

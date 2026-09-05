@@ -1504,7 +1504,54 @@ let tryCollapseBinary (st: State) : Stdlib.Option.Option<State> =
       | _ -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
+/// Backspace in an empty `${}` interpolation removes it and merges the text segments on either side back
+/// into one, so an interpolation you opened by mistake folds back into plain text.
+let tryCollapseInterp (st: State) : Stdlib.Option.Option<State> =
+  let caret = st.caret
+  let inEmptyExpr =
+    (caret.offset == 0)
+    && (match caret.part with
+        | InSlot s -> s == "expr"
+        | _ -> false)
+  if Stdlib.Bool.not inEmptyExpr then
+    Stdlib.Option.Option.None
+  else
+    match enclosingStringSeg st.root caret.node with
+    | None -> Stdlib.Option.Option.None
+    | Some((ePath, i)) ->
+      if i < 1 then
+        Stdlib.Option.Option.None
+      else
+        match nodeAtPath st.root ePath with
+        | Some eNode ->
+          let segs = Node.items eNode "segments"
+          let segAt (j: Int) : Stdlib.Option.Option<Node> =
+            Stdlib.List.getAt segs j |> Stdlib.Option.andThen (fun s -> Slot.node s)
+          let isText (j: Int) : Bool =
+            match segAt j with
+            | Some n -> n.kind.case == Stdlib.Option.Option.Some "StringText"
+            | None -> false
+          // Only fold when both neighbours are text segments (the shape a split leaves behind).
+          if (isText (i - 1)) && (isText (i + 1)) then
+            let before = segAt (i - 1) |> Stdlib.Option.andThen (fun n -> Node.text n "text") |> Stdlib.Option.withDefault ""
+            let after = segAt (i + 1) |> Stdlib.Option.andThen (fun n -> Node.text n "text") |> Stdlib.Option.withDefault ""
+            let prevPath = Path.item ePath "segments" (i - 1)
+            let st1 =
+              commit
+                st
+                [ Edit.SetText(prevPath, "text", before ++ after)
+                  Edit.RemoveItem(ePath, "segments", i + 1)
+                  Edit.RemoveItem(ePath, "segments", i) ]
+                caret
+            Stdlib.Option.Option.Some { st1 with caret = Caret.inText prevPath "text" (Stdlib.String.length before); mode = Mode.Insert }
+          else
+            Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+
 let backspace (st: State) : State =
+  match tryCollapseInterp st with
+  | Some collapsed -> collapsed
+  | None ->
   match tryCollapseConstruct st with
   | Some collapsed -> collapsed
   | None ->
