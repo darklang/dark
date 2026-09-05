@@ -891,6 +891,16 @@ let typeOne (st: State) (c: String) : State =
   // Re-typing a closing delimiter that's already drawn to the right steps past it instead of dropping a
   // stray literal: with the caret at `[1~]`, another `]` moves out of the list, matching how you'd close
   // a bracket you can already see.
+  // The second `:` of `::` is already drawn by the cons the first `:` built, so swallow it (a fresh cons
+  // tail never legitimately starts with `:`).
+  let inFreshConsTail =
+    (c == ":")
+    && (match caret.part with
+        | InSlot s -> s == "tail"
+        | _ -> false)
+    && (match nodeAtPath st.root caret.node with
+        | Some n -> n.kind.case == Stdlib.Option.Option.Some "MPListCons"
+        | None -> false)
   // A `|` while already in a pipe step starts the NEXT stage (rather than nesting a pipe in the step), so
   // `x |> f |> g` chains flat. The `>` that follows is swallowed by inFreshPipeStep.
   let inPipeSteps =
@@ -922,6 +932,8 @@ let typeOne (st: State) (c: String) : State =
       { st1 with caret = Caret.afterNode caret.node }
     | None -> st
   elif inFreshPipeStep then
+    st
+  elif inFreshConsTail then
     st
   elif inPipeSteps then
     // A second `|` on a FRESH pipe (one empty step, made by the first `|`) means the user is typing `||`,

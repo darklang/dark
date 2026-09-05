@@ -401,3 +401,12 @@ module OrOperator =
 
   // The pipe still works: `|` then `>` chains stages.
   (Fixtures.screen [ "a", "|", ">", "b", "|", ">", "c" ]) = "a\n|> b\n|> c~"
+
+
+module ConsPatterns =
+  // `::` makes a cons pattern: the first `:` wraps the head and draws `::`, the second `:` is swallowed,
+  // and the caret lands in the tail. `::` is right-associative, so `a :: b :: c` nests right and prints
+  // without parens.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t" ]) = "match n with\n| h :: t~ -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| h :: t -> 0"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "a", ":", ":", "b", ":", ":", "c", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| a :: b :: c -> 0"

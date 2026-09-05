@@ -774,6 +774,13 @@ let wrapMatchOr (pat: Node) (c: String) : Node =
     (matchPatKind "MPOr")
     [ ("alts", Field.Many([ Slot.Filled pat, Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]
 
+/// `::` makes a cons pattern: the current pattern is the head, a fresh hole the tail. `::` is
+/// right-associative, so `a :: b :: c` nests to the right, which is what typing it left-to-right builds.
+let wrapListCons (head: Node) (c: String) : Node =
+  Node.make
+    (matchPatKind "MPListCons")
+    [ ("head", Field.One(Slot.Filled head)), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ]
+
 // --- Completion from the package tree ---
 
 let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : String =
@@ -1182,7 +1189,9 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "\""; fill = HoleFill.Node(Node.make (matchPatKind "MPString") [ text "body" "" ]) }
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
-      wrapRules = [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" } ]
+      wrapRules =
+        [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
+          WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
       completions =
         [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
