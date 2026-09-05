@@ -348,3 +348,15 @@ module NegativeLiterals =
 
   // Minus between two operands is still subtraction, not a negative literal.
   (Fixtures.program [ "5", "-", "3", "<Esc>" ]) = "5 - 3"
+
+
+module Pipes =
+  // `|>` builds a pipe: `|` wraps into the pipe (drawing `|>`) and the `>` completing the arrow is
+  // swallowed, so the stage is `f`, not `>f`. Another `|` starts the next stage, chaining flat and
+  // stacking one stage per line.
+  (Fixtures.screen [ "x", "|", ">", "f" ]) = "x\n|> f~"
+  (Fixtures.screen [ "x", "|", ">", "f", "|", ">", "g" ]) = "x\n|> f\n|> g~"
+
+  // `>` between operands is still greater-than, unaffected by the pipe's arrow-swallow.
+  (Fixtures.program [ "1", ">", "2", "<Esc>" ]) = "1 > 2"
+  (Fixtures.program [ "1", ">", "=", "2", "<Esc>" ]) = "1 >= 2"

@@ -872,10 +872,43 @@ let typeOne (st: State) (c: String) : State =
     match caret.part with
     | InText slot -> slot == "body"
     | _ -> false
+  // `|` on an expression builds a pipe, which draws `|>` already; the `>` completing the arrow lands in
+  // the fresh step, so swallow it. Only at the very start of an empty pipe step, where a real `>` never
+  // begins a stage anyway.
+  let inFreshPipeStep =
+    (c == ">") && (caret.offset == 0)
+    && (match caret.part with
+        | InItem(s, _) -> s == "steps"
+        | _ -> false)
+    && (match nodeAtPath st.root caret.node with
+        | Some n -> n.kind.case == Stdlib.Option.Option.Some "EPipe"
+        | None -> false)
+    && (match Caret.slotPath caret with
+        | Some sp -> (match slotAtPath st.root sp with
+                      | Some(Empty _) -> true
+                      | _ -> false)
+        | None -> false)
   // Re-typing a closing delimiter that's already drawn to the right steps past it instead of dropping a
   // stray literal: with the caret at `[1~]`, another `]` moves out of the list, matching how you'd close
   // a bracket you can already see.
-  if (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
+  // A `|` while already in a pipe step starts the NEXT stage (rather than nesting a pipe in the step), so
+  // `x |> f |> g` chains flat. The `>` that follows is swallowed by inFreshPipeStep.
+  let inPipeSteps =
+    (c == "|")
+    && (match caret.part with
+        | InItem(s, _) -> s == "steps"
+        | _ -> false)
+    && (match nodeAtPath st.root caret.node with
+        | Some n -> n.kind.case == Stdlib.Option.Option.Some "EPipe"
+        | None -> false)
+  if inFreshPipeStep then
+    st
+  elif inPipeSteps then
+    let settled = resolvePartial st |> Stdlib.Option.withDefault st
+    match addSibling settled with
+    | Some added -> added
+    | None -> typeOneRaw st c
+  elif (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
     // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
