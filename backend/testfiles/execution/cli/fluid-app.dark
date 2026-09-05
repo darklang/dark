@@ -116,3 +116,24 @@ module TextEditGuard =
   (TextEditGuard.verdict "if b then () else ()") = "ok"
   (TextEditGuard.verdict "let _ = 1\n2") = "ok"
   (TextEditGuard.verdict "fun x -> x") = "ok"
+
+
+module TextModeReadiness =
+  // Entering text mode on a document that can't be printed yet (a half-typed name) must say why -- it used
+  // to hand back an empty string, which would open a blank buffer over real work and then apply it.
+  let srcOf (keys: List<String>) : String =
+    let ed =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")) 60)
+        keys
+    match Darklang.Fluid.App.docToSourceResult ed.root with
+    | Ok s -> "ok:" ++ s
+    | Error _ -> "error"
+
+  // A bare half-typed name, and a let whose body is still an unsettled name.
+  (TextModeReadiness.srcOf [ "l", "e" ]) = "error"
+  (TextModeReadiness.srcOf [ "l", "e", "t", " ", "x", " ", "1", " ", "y" ]) = "error"
+
+  // A complete document prints; an untouched hole is simply an empty buffer.
+  (TextModeReadiness.srcOf [ "1", "+", "2" ]) = "ok:1 + 2"
+  (TextModeReadiness.srcOf []) = "ok:"

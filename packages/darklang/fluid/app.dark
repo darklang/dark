@@ -316,14 +316,23 @@ let afterKey (st: State) (editor: Editor.State) : State =
   let row = Widget.caretRow editor
   { st with editor = editor; scroll = Widget.scrollFor row st.bodyRows st.scroll }
 
-/// The current document as Dark source, for dropping into text editing. Empty if it can't be lowered yet.
-let docToSource (root: Slot) : String =
+/// The current document as Dark source, or why it can't be printed yet (a half-typed name, a hole). An
+/// empty document is fine -- that's just an empty buffer to type into.
+let docToSourceResult (root: Slot) : Stdlib.Result.Result<String, String> =
   match root with
   | Filled n ->
     match Darklang.Fluid.PT.fromDoc n with
-    | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e
-    | Error _ -> ""
-  | _ -> ""
+    | Ok e -> Stdlib.Result.Result.Ok(Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> Stdlib.Result.Result.Error err
+  | Empty _ -> Stdlib.Result.Result.Ok ""
+  | Partial(t, _) -> Stdlib.Result.Result.Error $"finish typing `{t}` first"
+
+/// The current document as Dark source; empty when it can't be printed. For callers that have a document
+/// they know is complete.
+let docToSource (root: Slot) : String =
+  match docToSourceResult root with
+  | Ok src -> src
+  | Error _ -> ""
 
 /// Does the document contain a node of any of these kind-cases, anywhere?
 let docContainsCase (root: Slot) (cases: List<String>) : Bool =
@@ -419,10 +428,17 @@ let onKey
   match st.textMode with
   | Some((buf, caret)) -> textModeKey st buf caret key modifiers keyChar
   | None ->
-  // Ctrl-E drops into plain-text editing of the current expression.
+  // Ctrl-E drops into plain-text editing of the current expression. Settle what's being typed first, so a
+  // half-finished name doesn't make the document unprintable; if it still can't print, say why rather than
+  // opening an empty buffer over the top of real work.
   if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
-    let src = docToSource st.editor.root
-    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src)) }
+    let settled = Editor.resolvePartial st.editor |> Stdlib.Option.withDefault st.editor
+    match docToSourceResult settled.root with
+    | Ok src ->
+      Darklang.Cli.Component.Step.Stay
+        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src)) }
+    | Error err ->
+      Darklang.Cli.Component.Step.Stay { st with editor = { settled with message = $"can't edit as text: {err}" } }
   else
   match Widget.onKey st.editor kp with
   | Handled e -> Darklang.Cli.Component.Step.Stay(afterKey st e)
