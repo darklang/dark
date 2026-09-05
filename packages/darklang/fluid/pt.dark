@@ -767,6 +767,13 @@ let wrapPipe (left: Node) (c: String) : Node =
     [ ("first", Field.One(Slot.Filled left))
       ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ]
 
+/// `|` between patterns makes an or-pattern: the current pattern becomes the first alternative and a fresh
+/// hole the next, so `0 | 1 | 2` types straight through.
+let wrapMatchOr (pat: Node) (c: String) : Node =
+  Node.make
+    (matchPatKind "MPOr")
+    [ ("alts", Field.Many([ Slot.Filled pat, Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]
+
 // --- Completion from the package tree ---
 
 let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : String =
@@ -1169,7 +1176,7 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "\""; fill = HoleFill.Node(Node.make (matchPatKind "MPString") [ text "body" "" ]) }
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
-      wrapRules = []
+      wrapRules = [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" } ]
       completions =
         [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
