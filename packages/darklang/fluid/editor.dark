@@ -1180,8 +1180,11 @@ let typeOneRaw (st: State) (c: String) : State =
             let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
             { st1 with caret = Caret.inText targetPath rule.opSlot opLen }
         | None ->
-          let updated = TextEdit.insertAt old caret.offset c
-          commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          if (isDigitsOnly n slot) && (Stdlib.Bool.not (TextEdit.isDigitString c)) then
+            { st with message = $"`{c}` isn't part of a number" }
+          else
+            let updated = TextEdit.insertAt old caret.offset c
+            commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
     | None -> st
   | OnNode -> st
   | AfterNode ->
@@ -1316,6 +1319,23 @@ let mergeSlotOf (n: Node) : Stdlib.Option.Option<String> =
   | Some "EInt64" -> Stdlib.Option.Option.Some "digits"
   | Some "EVariable" -> Stdlib.Option.Option.Some "name"
   | _ -> Stdlib.Option.Option.None
+
+/// Text slots that hold only digits: a number's digits, a float's two halves. Typing anything else into
+/// one was simply appended, so `1 + 2x` made an int whose digits read "2x" and `1 :: rest` one reading
+/// "1::rest" -- documents that can never lower, with nothing said at the time you broke them. Operators
+/// and `.` never reach here; they wrap the node instead.
+/// CLEANUP: this is a list of kinds in the kernel, and it belongs in the spec as a per-slot character
+/// class next to holeRules. It sits here because mergeSlotOf already knows the same kinds.
+let isDigitsOnly (n: Node) (slot: String) : Bool =
+  let numeric =
+    match n.kind.case with
+    | Some "EInt" -> true
+    | Some "EInt64" -> true
+    | Some "EFloat" -> true
+    | Some "MPInt" -> true
+    | Some "MPFloat" -> true
+    | _ -> false
+  numeric && ((slot == "digits") || (slot == "whole") || (slot == "fraction"))
 
 /// A mergeable operand contributes (kind, slot-name, text): a filled int/variable by its content, a
 /// partial (a name still being typed) by its text with no committed kind. A hole or anything else, None.

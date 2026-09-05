@@ -584,3 +584,28 @@ module EnterNeedsSomethingTyped =
   // Typed-then-Enter still commits, which is the whole point of the menu.
   (Fixtures.screen [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module NumbersStayNumbers =
+  // A number's text slot took any character you typed, so `1 + 2x` made an int whose digits read "2x",
+  // and `1 :: rest` -- cons is a PATTERN in this language, never an expression -- made one reading
+  // "1::rest". Both are documents that can never lower, and nothing said so at the time. A non-digit is
+  // refused now, with a message. Operators and `.` never reach this path; they wrap the node.
+  (Fixtures.screen [ "1", "+", "2", "x" ]) = "1 + 2~"
+  (Fixtures.program [ "1", "+", "2", "x", "<Esc>", "<Esc>" ]) = "1 + 2"
+  (Fixtures.screen [ "1", " ", ":", ":", "r" ]) = "1~"
+  // What a number legitimately holds still works: a fraction, a sign, and operators after it.
+  (Fixtures.program [ "1", ".", "5", "+", "2", ".", "2", "5", "<Esc>", "<Esc>" ]) = "1.5 + 2.25"
+  (Fixtures.program [ "-", "5", "+", "3", "<Esc>", "<Esc>" ]) = "-5 + 3"
+  (Fixtures.program [ "1", "2", "*", "3", "<Esc>", "<Esc>" ]) = "12 * 3"
+  // Pattern-side numbers are the same slots, and a match over one still types through.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) = "match n with\n| 0 -> 1"
+
+
+module LambdaParams =
+  // A lambda takes many params, and Enter or a comma adds the next one; space means "done here" and goes
+  // to the body, which is what the common one-param lambda wants.
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "<Enter>" ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "fun a -> ~⟨body⟩"
+  (Fixtures.program [ "f", "u", "n", " ", "a", "<Enter>", "b", "<Tab>", "a", "+", "b", "<Esc>", "<Esc>" ]) = "(fun a b -> a + b)"
