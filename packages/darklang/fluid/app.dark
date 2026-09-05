@@ -28,7 +28,10 @@ type State =
     target: Target
     theme: Theme.Theme
     /// Rows the body had at the last key, so scrolling can be computed outside `view`.
-    bodyRows: Int }
+    bodyRows: Int
+    /// When Some, we've dropped into plain-text editing: the pretty-printed source and the caret offset
+    /// into it. Confirm re-parses it back into the structural editor; cancel discards it.
+    textMode: Stdlib.Option.Option<(String * Int)> }
 
 /// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
 /// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
@@ -204,7 +207,8 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       scroll = 0
       target = target
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
-      bodyRows = Stdlib.Int.max 1 (size.height - 3) }
+      bodyRows = Stdlib.Int.max 1 (size.height - 3)
+      textMode = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
   initialFor title root Target.Scratch
@@ -222,15 +226,41 @@ let helpFor (st: State) : String =
     if Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.candidates st.editor)) then
       " Enter accept  Tab next  Up/Down choose  type filter  Esc nav"
     else
-      " type to edit  Tab/Shift-Tab holes  Esc nav  ^S save"
+      " type to edit  Tab/Shift-Tab holes  ^E text  Esc nav  ^S save"
   | Nav ->
     if st.editor.paletteOpen then " type filter  Up/Down move  Enter run  Esc close"
     else
       let hasActions = Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.paletteActions st.editor))
       let actionsKey = if hasActions then "  : actions" else ""
-      " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy" ++ actionsKey ++ "  u undo  q quit"
+      " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy  ^E text" ++ actionsKey ++ "  u undo  q quit"
 
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
+  match st.textMode with
+  | Some((buf, caret)) ->
+    let msg = st.editor.message
+    let base_ = Stdlib.Cli.UI.Chrome.frame st.title "TEXT" " Ctrl-S apply  Esc cancel"
+    let framed = if msg == "" then base_ else Stdlib.Cli.UI.Chrome.withMessage base_ msg
+    let full = Stdlib.Cli.UI.Chrome.bodyRegion size
+    let boxInner = Stdlib.Cli.UI.Box.inner full
+    let region =
+      Stdlib.Cli.UI.Layout.Region
+        { top = boxInner.top + 1
+          left = boxInner.left + 2
+          rows = Stdlib.Int.max 1 (boxInner.rows - 1)
+          cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
+    let lines = Stdlib.String.split buf "\n"
+    let textSpans =
+      lines
+      |> Stdlib.List.indexedMap (fun i line -> Stdlib.Cli.UI.Layout.at region i 0 line)
+      |> Stdlib.List.flatten
+    let body = Stdlib.List.flatten [ Stdlib.Cli.UI.Box.draw full "fluid · text" true, textSpans ]
+    let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
+    let before = Stdlib.String.slice buf 0 caret
+    let bls = Stdlib.String.split before "\n"
+    let crow = (Stdlib.List.length bls) - 1
+    let ccol = Stdlib.List.last bls |> Stdlib.Option.map (fun s -> Stdlib.String.length s) |> Stdlib.Option.withDefault 0
+    { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(region.top + crow - 1, region.left + ccol - 1) }
+  | None ->
   let base_ = Stdlib.Cli.UI.Chrome.frame st.title (modeBadge st) (helpFor st)
   let toned =
     match st.editor.mode with
@@ -286,6 +316,56 @@ let afterKey (st: State) (editor: Editor.State) : State =
   let row = Widget.caretRow editor
   { st with editor = editor; scroll = Widget.scrollFor row st.bodyRows st.scroll }
 
+/// The current document as Dark source, for dropping into text editing. Empty if it can't be lowered yet.
+let docToSource (root: Slot) : String =
+  match root with
+  | Filled n ->
+    match Darklang.Fluid.PT.fromDoc n with
+    | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e
+    | Error _ -> ""
+  | _ -> ""
+
+/// Parse edited text back into a document, or the parse error.
+let sourceToDoc (src: String) : Stdlib.Result.Result<Slot, String> =
+  match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+  | Ok e -> Stdlib.Result.Result.Ok(Slot.Filled(Darklang.Fluid.PT.toDoc e))
+  | Error err -> Stdlib.Result.Result.Error err
+
+/// Keys while in plain-text editing: type/backspace/newline edit the buffer; Ctrl-S re-parses it back into
+/// the structural editor (staying in text mode with a message if it doesn't parse); Escape discards it.
+let textModeKey (st: State) (buf: String) (caret: Int) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Darklang.Cli.Component.Step<State> =
+  let stay (b: String) (c: Int) : Darklang.Cli.Component.Step<State> =
+    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((b, c)) }
+  let len = Stdlib.String.length buf
+  match key with
+  | Escape ->
+    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.None; editor = { st.editor with message = "text edit cancelled" } }
+  | LeftArrow -> stay buf (Stdlib.Int.max 0 (caret - 1))
+  | RightArrow -> stay buf (Stdlib.Int.min len (caret + 1))
+  | Backspace ->
+    if caret <= 0 then stay buf caret
+    else stay ((Stdlib.String.slice buf 0 (caret - 1)) ++ (Stdlib.String.dropFirst buf caret)) (caret - 1)
+  | Enter ->
+    stay ((Stdlib.String.slice buf 0 caret) ++ "\n" ++ (Stdlib.String.dropFirst buf caret)) (caret + 1)
+  | _ ->
+    if modifiers.ctrl then
+      match key with
+      | S ->
+        match sourceToDoc buf with
+        | Ok root ->
+          let width = st.editor.width
+          Darklang.Cli.Component.Step.Stay
+            { st with
+                textMode = Stdlib.Option.Option.None
+                editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
+        | Error err ->
+          Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = $"parse error: {err}" } }
+      | _ -> Darklang.Cli.Component.Step.Stay st
+    else
+      match keyChar with
+      | Some c -> stay ((Stdlib.String.slice buf 0 caret) ++ c ++ (Stdlib.String.dropFirst buf caret)) (caret + (Stdlib.String.length c))
+      | None -> Darklang.Cli.Component.Step.Stay st
+
 let onKey
   (st: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
@@ -293,6 +373,14 @@ let onKey
   (keyChar: Stdlib.Option.Option<String>)
   : Darklang.Cli.Component.Step<State> =
   let kp = Stdlib.Cli.UI.Widget.press key modifiers keyChar
+  match st.textMode with
+  | Some((buf, caret)) -> textModeKey st buf caret key modifiers keyChar
+  | None ->
+  // Ctrl-E drops into plain-text editing of the current expression.
+  if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
+    let src = docToSource st.editor.root
+    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src)) }
+  else
   match Widget.onKey st.editor kp with
   | Handled e -> Darklang.Cli.Component.Step.Stay(afterKey st e)
   | Emitted(e, msg) ->

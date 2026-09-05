@@ -19,7 +19,8 @@ module Fixtures =
         scroll = 0
         target = Darklang.Fluid.App.Target.Scratch
         theme = Darklang.Fluid.Theme.default ()
-        bodyRows = 20 }
+        bodyRows = 20
+        textMode = Stdlib.Option.Option.None }
 
   let docOf (src: String) : Darklang.Fluid.Slot =
     match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
@@ -76,3 +77,17 @@ module CompletionOverflow =
   // masquerade as the whole set. A short list shows no such line.
   (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e", "t", " ", "x", " ", "1", " " ]) "more") = true
   (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "more") = false
+
+
+module TextMode =
+  // Ctrl-E drops to plain text: the current document prints to source, and edited source parses back.
+  // The round-trip (source -> doc -> source) is stable, which is what makes the switch safe.
+  (Darklang.Fluid.App.docToSource (Fixtures.docOf "1 + 2 * 3")) = "1 + 2 * 3"
+  (Darklang.Fluid.App.docToSource (Fixtures.docOf "if b then 1 else 2")) = "if b then 1 else 2"
+  ((match Darklang.Fluid.App.sourceToDoc "[1, 2, 3]" with
+    | Ok s -> Darklang.Fluid.App.docToSource s
+    | Error e -> "err: " ++ e)) = "[1, 2, 3]"
+  // A multi-line construct survives the trip too.
+  ((match Darklang.Fluid.App.sourceToDoc "let x = 1\nx" with
+    | Ok s -> Darklang.Fluid.App.docToSource s
+    | Error e -> "err: " ++ e)) = "let x = 1\nx"
