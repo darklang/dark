@@ -252,3 +252,16 @@ module FieldTargetParens =
   (Fixtures.screen [ "r", ".", "a", ".", "b" ]) = "r.a.b~"
   (Fixtures.screen [ "[", "1", "]", ".", "x" ]) = "([1]).x~"
   (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
+
+
+module MultiCharOperators =
+  // Two-character operators build by typing both characters: the second appends in the operator slot.
+  (Fixtures.program [ "1", "<", "=", "2", "<Esc>" ]) = "1 <= 2"
+  (Fixtures.program [ "1", ">", "=", "2", "<Esc>" ]) = "1 >= 2"
+  (Fixtures.program [ "a", "!", "=", "b", "<Esc>" ]) = "a != b"
+  (Fixtures.program [ "a", "b", "+", "+", "c", "d", "<Esc>" ]) = "ab ++ cd"
+  (Fixtures.program [ "x", "&", "&", "y", "<Esc>" ]) = "x && y"
+
+  // A one-letter operand that prefixes a keyword (t/true) keeps a live menu, so the first Esc dismisses
+  // the menu and the second settles it as a variable -- `s + t` is two variables, not `s + true`.
+  (Fixtures.program [ "s", "+", "t", "<Esc>", "<Esc>" ]) = "s + t"
