@@ -695,3 +695,25 @@ module PunctuationTheEditorAlreadyDrew =
   (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", "1", "<Esc>", "<Esc>" ]) = "(fun x -> -1)"
   // A comma on an empty item still MEANS something -- another item -- so it is not swallowed.
   (Fixtures.program [ "[", "1", ",", " ", "2", ",", " ", "3", "<Esc>", "<Esc>" ]) = "[1, 2, 3]"
+
+
+module NavKeyRuns =
+  // The terminal reader coalesces fast typing and KEY REPEAT into one press carrying the whole run, and
+  // NAV compared `char` against a single character -- so holding `j` to move down the document, or
+  // pressing it three times quickly, did nothing at all. Found by driving the type editor live, where
+  // `jjj` left the caret on the root; in-process, one key at a time, it had always worked.
+  // INSERT already decomposed a run in typeChar; this is the same thing for navigation.
+  let breadcrumbAfter (keys: List<String>) : String =
+    let root =
+      match Darklang.LanguageTools.Parser.Parse.parsePTExpr "let x = 1\nx" with
+      | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")
+    Darklang.Fluid.Editor.breadcrumb (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) root 70) keys)
+
+  // A run and its keys pressed one at a time land in the same place -- the same property the fast-typing
+  // fix pinned for INSERT.
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jj" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "j" ])
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jjj" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "j", "j" ])
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jl" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "l" ])
+  // And it actually moves, rather than both being the root.
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jjj" ]) = "ELet > EVariable"

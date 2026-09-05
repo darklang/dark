@@ -2350,9 +2350,31 @@ let withRefreshedMenu (o: Outcome) : Outcome =
   | Emitted(s, m) -> Stdlib.Cli.UI.Widget.Outcome.Emitted(refreshMenu s, m)
   | Ignored -> Stdlib.Cli.UI.Widget.Outcome.Ignored
 
+/// A run of NAV keys, applied one at a time. The terminal reader coalesces fast typing and key-repeat
+/// into ONE press carrying the whole run, and NAV compares `char` against a single character -- so holding
+/// `j` to move down the document, or pressing it three times quickly, did nothing at all. INSERT already
+/// decomposes a run in `typeChar`; this is the same thing for navigation.
+let onKeyNavRun (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) (run: String) : Outcome =
+  let step (acc: (State * Outcome)) (g: Char) : (State * Outcome) =
+    let (s, o) = acc
+    match o with
+    | Emitted(_, _) -> acc
+    | _ ->
+      let one = Stdlib.Cli.UI.Widget.press kp.key kp.modifiers (Stdlib.Option.Option.Some(Stdlib.Char.toString g))
+      match onKeyNav s one with
+      | Handled s2 -> (s2, Stdlib.Cli.UI.Widget.Outcome.Handled s2)
+      | Emitted(s2, m) -> (s2, Stdlib.Cli.UI.Widget.Outcome.Emitted(s2, m))
+      | Ignored -> acc
+  let (_, out) = Stdlib.List.fold (Stdlib.String.toList run) (st, Stdlib.Cli.UI.Widget.Outcome.Ignored) step
+  out
+
 let onKey (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   let raw =
     match st.mode with
     | Insert -> onKeyInsert st kp
-    | Nav -> onKeyNav st kp
+    | Nav ->
+      match kp.char with
+      | Some run ->
+        if (Stdlib.String.length run) > 1 then onKeyNavRun st kp run else onKeyNav st kp
+      | None -> onKeyNav st kp
   withRefreshedMenu raw
