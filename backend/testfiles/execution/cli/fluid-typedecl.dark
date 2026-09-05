@@ -78,3 +78,52 @@ module Editing =
     Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.TypeDecl.Def") "definition")
 
   (Darklang.Fluid.Test.run (Fixtures.reg ()) (Editing.defHole ()) 60 [ "e", "n", "u", "m", "<Enter>" ]) = "| ~⟨case⟩"
+
+
+module MatchesThePrinter =
+  // Checked against the pretty-printer on real package types, which is where all three of these came from.
+  let mkP (params: List<String>) (def: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition) : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+        declaration =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = params; definition = def }
+        description = "" }
+
+  // A declaration's own type params carry their quote: the printer writes `type Option<'v>` and Fluid drew
+  // `type Option<v>`. (The CASES were already right -- those are TypeReferences.)
+  (Fixtures.show "Option"
+    (MatchesThePrinter.mkP
+      [ "v" ]
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase "Some" [ Fixtures.ef (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "v") ]
+          Fixtures.ecase "None" [] ]))) = "type Option<'v> =\n  | Some of 'v\n  | None"
+
+  // An enum case's field list breaks the way the printer breaks it: `of` with no trailing space, one
+  // field per line, and no line holding nothing but indentation. It used to keep every field on one long
+  // line and leave both kinds of trailing whitespace behind.
+  let deep () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+          Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+            Darklang.LanguageTools.ProgramTypes.TypeReference.TString,
+            Darklang.LanguageTools.ProgramTypes.TypeReference.TString))))
+
+  let longCase () : String =
+    Fixtures.show "Big"
+      (MatchesThePrinter.mkP
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+          [ Fixtures.ecase
+              "Pair"
+              [ Fixtures.ef (MatchesThePrinter.deep ()), Fixtures.ef (MatchesThePrinter.deep ()) ] ]))
+
+  (MatchesThePrinter.longCase ()) =
+    "type Big =\n  | Pair of\n    List<List<List<Dict<String, String>>>> *\n    List<List<List<Dict<String, String>>>>"
+
+  // Said again as properties, because the two things that were wrong are both invisible in a diff:
+  // a trailing space anywhere, and a line that is only indentation.
+  (Stdlib.String.contains (MatchesThePrinter.longCase ()) " \n") = false
+  ((MatchesThePrinter.longCase ())
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.all (fun l -> (Stdlib.String.trim l) != "")) = true

@@ -1637,7 +1637,7 @@ module Types =
           simpleType "TDict" [ Piece.Keyword "Dict", Piece.Punct "<", Piece.Slot "key", Piece.Punct ",", Piece.Space, Piece.Slot "value", Piece.Punct ">" ] (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
           simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
           simpleType "TFn" [ Piece.Punct "(", Piece.EachWith("args", [], [ Piece.Space, Piece.Punct "->", Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Space, Piece.Slot "ret", Piece.Punct ")" ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
-          simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Space ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
+          simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Line ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
 
 
 // ============================================================================
@@ -1887,7 +1887,9 @@ module TypeDecl =
               Piece.Punct "=" ]
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
         (Node.make (k "Type") [ PT.text "name" "Unnamed", PT.text "_hash" "", PT.text "_desc" "", ("params", Field.Many([], paramExpect ())), ("def", Field.One(Slot.Empty(defExpect ()))) ])
-      simpleT "TypeParam" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
+      // A declaration's own type params carry the quote too: the printer writes `type Option<'v>`, and
+      // Fluid drew `type Option<v>`. The CASES were already right, because those are TypeReferences.
+      simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
       // definition: a hole here offers record / enum / alias
       { (Spec.simple (Kind.named (ns ++ ".Def")) [ Piece.Dim "?definition" ] (Node.make (k "Record") [ ("fields", Field.Many([], fieldExpect ())) ])) with
           completions =
@@ -1914,7 +1916,7 @@ module TypeDecl =
         (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
       simpleT
         "EnumCase"
-        [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of ", [ Piece.Space, Piece.Punct "*", Piece.Space ], "") ]
+        [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
         (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], Types.typeExpect "field")) ]) ]
 
 
