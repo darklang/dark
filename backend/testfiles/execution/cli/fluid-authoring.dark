@@ -477,3 +477,9 @@ module StringInterpolation =
   (Fixtures.program [ "$", "n", "=", "{", "1", "+", "2", "}", "<Esc>" ]) = "$\"n={1 + 2}\""
   // An all-text interpolated string is just a string.
   (Fixtures.program [ "$", "h", "i", "<Esc>" ]) = "\"hi\""
+
+
+module StringInterpNesting =
+  // An interpolated string nests like any expression: inside a list, and with a filled trailing text.
+  (Fixtures.program [ "[", "$", "a", "{", "1", "}", "b", "<Esc>", "<Esc>" ]) = "[$\"a{1}b\"]"
+  (Fixtures.program [ "$", "a", "{", "1", "+", "2", "}", "!", "<Esc>" ]) = "$\"a{1 + 2}!\""
