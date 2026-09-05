@@ -935,6 +935,28 @@ let mergedTextValid (k: Kind) (t: String) : Bool =
 /// Deleting the operator collapses an infix. Compatible operands merge into one leaf (`12 + 34` -> `1234`,
 /// `foo + bar` -> `foobar`, the join under the caret); incompatible ones don't (`true + false` -> `true`,
 /// dropping the right); a hole on either side just leaves the other operand.
+/// Two operand slots joined into one leaf, with the caret offset at the seam, when they're compatible:
+/// `12`/`34` -> `1234` at 2, `foo`/`bar` -> `foobar`. None when they don't fuse -- differing kinds (an
+/// int and a bool), two kindless partials, or text that wouldn't parse as the target (`1` and `t`).
+let mergeSlots (a: Slot) (b: Slot) : Stdlib.Option.Option<(Node * Int)> =
+  match (operandMerge a, operandMerge b) with
+  | (Some((ak, asn, at_)), Some((bk, bsn, bt))) ->
+    let kind = if Stdlib.Option.isSome ak then ak else bk
+    let sn = if Stdlib.Option.isSome asn then asn else bsn
+    let kindsAgree =
+      match (ak, bk) with
+      | (Some x, Some y) -> x.case == y.case
+      | _ -> true
+    match (kind, sn) with
+    | (Some k, Some slotName) ->
+      let joined = at_ ++ bt
+      if kindsAgree && (mergedTextValid k joined) then
+        Stdlib.Option.Option.Some((Node.make k [ (slotName, Field.Text joined) ], Stdlib.String.length at_))
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
 let collapseInfix (st: State) (p: Path) (n: Node) : State =
   let leftSlot = Node.slot n "left" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
   let rightSlot = Node.slot n "right" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "right"))
@@ -946,29 +968,19 @@ let collapseInfix (st: State) (p: Path) (n: Node) : State =
       | Some child -> if atEnd then lastEditable p child else firstEditable p child
       | None -> Caret.inSlot p "" 0
     { st1 with caret = caret }
-  match (operandMerge leftSlot, operandMerge rightSlot) with
-  | (Some((lk, lsn, lt)), Some((rk, rsn, rt))) ->
-    // The kind comes from whichever side has one; two partials with no kind can't form a leaf, and two
-    // filled leaves of different kinds (an int and a bool) aren't mergeable either.
-    let kind = if Stdlib.Option.isSome lk then lk else rk
-    let sn = if Stdlib.Option.isSome lsn then lsn else rsn
-    let kindsAgree =
-      match (lk, rk) with
-      | (Some a, Some b) -> a.case == b.case
-      | _ -> true
-    match (kind, sn) with
-    | (Some k, Some slotName) ->
-      let joined = lt ++ rt
-      if kindsAgree && (mergedTextValid k joined) then
-        let merged = Node.make k [ (slotName, Field.Text joined) ]
-        let st1 = commit st [ Edit.Replace(p, Slot.Filled merged) ] st.caret
-        { st1 with caret = Caret.inText p slotName (Stdlib.String.length lt) }
-      else
-        keep leftSlot true
-    | _ -> keep leftSlot true
-  | (Some _, None) -> keep leftSlot true
-  | (None, Some _) -> keep rightSlot false
-  | (None, None) -> keep leftSlot false
+  let present (s: Slot) : Bool =
+    match s with
+    | Empty _ -> false
+    | _ -> true
+  match mergeSlots leftSlot rightSlot with
+  | Some((merged, off)) ->
+    let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
+    let st1 = commit st [ Edit.Replace(p, Slot.Filled merged) ] st.caret
+    { st1 with caret = Caret.inText p sn off }
+  | None ->
+    if present leftSlot then keep leftSlot true
+    elif present rightSlot then keep rightSlot false
+    else keep leftSlot false
 
 /// When you delete a construct keyword, it collapses to this slot: a let/lambda to its body, an if to its
 /// then-branch, a match to its scrutinee. Each is an expression hole carrying the right expectation, so
@@ -1018,9 +1030,57 @@ let tryCollapseConstruct (st: State) : Stdlib.Option.Option<State> =
       | None -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
+/// Backspace at the start of a list/tuple element deletes the separator before it, merging the two
+/// adjacent elements when they're compatible: `[12, 34]` -> `[1234]`, the caret at the seam. The same
+/// rule as deleting an infix operator (mergeSlots), so incompatible neighbours stay separate.
+let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
+  let caret = st.caret
+  if caret.offset != 0 then
+    Stdlib.Option.Option.None
+  else
+    match Path.last caret.node with
+    | Some(Item(slot, i)) ->
+      if i <= 0 then
+        Stdlib.Option.Option.None
+      else
+        match Path.parent caret.node with
+        | Some parentPath ->
+          match nodeAtPath st.root parentPath with
+          | Some parent ->
+            // Only list literals merge this way. A tuple can't drop below two elements, and args / match
+            // arms / record fields aren't text to concatenate.
+            match (if parent.kind.case == Stdlib.Option.Option.Some "EList" then Node.field parent slot else Stdlib.Option.Option.None) with
+            | Some(Many(items, _)) ->
+              // Only from the very start of item i, and only if it and its neighbour actually fuse.
+              let atStart =
+                match nodeAtPath st.root caret.node with
+                | Some itemNode -> (firstEditable caret.node itemNode).part == caret.part
+                | None -> false
+              match (Stdlib.List.getAt items (i - 1), Stdlib.List.getAt items i) with
+              | (Some prev, Some cur) ->
+                if Stdlib.Bool.not atStart then
+                  Stdlib.Option.Option.None
+                else
+                  match mergeSlots prev cur with
+                  | Some((merged, off)) ->
+                    let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
+                    let prevPath = Path.item parentPath slot (i - 1)
+                    let st1 =
+                      commit st [ Edit.Replace(prevPath, Slot.Filled merged), Edit.RemoveItem(parentPath, slot, i) ] caret
+                    Stdlib.Option.Option.Some { st1 with caret = Caret.inText prevPath sn off }
+                  | None -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
 let backspace (st: State) : State =
   match tryCollapseConstruct st with
   | Some collapsed -> collapsed
+  | None ->
+  match tryMergeListItems st with
+  | Some merged -> merged
   | None ->
   let caret = st.caret
   match caret.part with

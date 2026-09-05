@@ -181,3 +181,15 @@ module DeleteKeyword =
 
   // Collapse nests: an empty `if` in a let body collapses to a hole, and you keep typing the body.
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "i", "f", " ", "<BS>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module DeleteSeparator =
+  // Backspace at the start of a list element deletes the separator, merging it with the one before when
+  // they're compatible -- the same rule as deleting an infix operator. Two ints join, the caret at the seam.
+  (Fixtures.program [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "[1234]"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>" ]) = "[12~34]"
+  // Only the two neighbours merge; the rest of the list is untouched.
+  (Fixtures.program [ "[", "1", ",", "2", ",", "3", "<Left>", "<BS>", "<Esc>" ]) = "[1, 23]"
+
+  // A tuple can't drop below two elements, so its separator doesn't merge: `(12, 34)` stays put.
+  (Fixtures.program [ "(", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "(12, 34)"
