@@ -835,6 +835,24 @@ let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+/// The first non-space glyph drawn to the LEFT of the caret on its row, if any. The mirror of
+/// `nextNonSpaceGlyph`, for a separator you type after the editor has already drawn it AND moved you past
+/// it: in `let x = 1`, typing the `=` once the caret is in the value hole.
+let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    match Stdlib.List.getAt rows row with
+    | Some r ->
+      Layout.rowText r
+      |> Stdlib.String.toList
+      |> Stdlib.List.take col
+      |> Stdlib.List.map (fun ch -> Stdlib.Char.toString ch)
+      |> Stdlib.List.filter (fun g -> g != " ")
+      |> Stdlib.List.last
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
 val closingDelimiters = [ "]", ")", "}", "\"", "'" ]
 
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
@@ -1098,6 +1116,19 @@ let typeOne (st: State) (c: String) : State =
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
     // still starts an operator as before.
     nextHole st
+  elif
+    (Stdlib.List.member separatorAdvance c)
+    && (Stdlib.Bool.not inStringBody)
+    && (match slotUnder st with
+        | Some(Empty _) -> true
+        | _ -> false)
+    && (prevNonSpaceGlyph st == Stdlib.Option.Option.Some c)
+  then
+    // The same separator, on the other side of the caret. `let x <space>` settles the name and leaves you
+    // in the VALUE, past the `=` the editor drew -- so typing the `=` of `let x = 1`, which is what anyone
+    // writes, landed it in the value and gave `let x = =`. Swallow it: you typed punctuation that is
+    // already there. Guarded on an empty hole, so `a == b` still builds its operator.
+    st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     match addSibling st with
     | Some added -> added
@@ -1268,14 +1299,22 @@ let typeOneRaw (st: State) (c: String) : State =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
             && ((Stdlib.Option.isSome (exactCandidate st)) || ((Stdlib.List.length cands) == 1))
           if commitMenu then
-            // Committing a leaf (an in-scope variable, a bool) is "done here" -> advance to the next hole,
-            // so `let b = a <space> body` reaches the body. Committing a construct/fn lands in its own hole
-            // to fill, so stay there (a keyword like `let` sits at its name).
+            // Committing a leaf (an in-scope variable, a bool) finishes it and leaves the caret JUST AFTER
+            // it, not at the next hole. That matters because the next keystroke is what says which you
+            // meant: an operator wraps what you just settled (`if total <space> > 0`), a name means "on to
+            // the next thing" and the AfterNode rule steps to the next hole and types it there (so
+            // `let b = a <space> b` still reaches the body), and another space advances. Jumping straight
+            // to the next hole made `if total > 0` and `let n = a + b` untypeable with the spacing anyone
+            // actually uses: the operator landed in the THEN branch.
+            // Committing a construct or a function lands in its own first hole to fill, so it stays there.
             let committed = commitCandidate st
             match slotUnder committed with
             | Some(Empty _) -> committed
-            | _ -> nextHole committed
-          else nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
+            | _ -> { committed with caret = Caret.afterNode sp }
+          else
+            match resolvePartial st with
+            | Some resolved -> { resolved with caret = Caret.afterNode sp }
+            | None -> nextHole st
         elif dotOnName then
           match resolvePartial st with
           | Some resolved -> typeOne resolved c
@@ -1975,6 +2014,11 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | Home -> handled (moveLineStart st)
   | End -> handled (moveLineEnd st)
   | Enter ->
+    // Just after a finished value, Enter means what space means: on to the next hole. Since space started
+    // landing the caret there rather than jumping, Enter at that spot did NOTHING, and a key that does
+    // nothing is the thing to avoid.
+    if st.caret.part == Part.AfterNode then handled (nextHole st)
+    else
     // In a sequence (list element, match arm, record field), Enter settles what you typed and starts the
     // next item -- even with a menu up, so a bound variable that matches the rhs doesn't hijack Enter into
     // just accepting the completion. On a standalone hole, Enter accepts the menu (so `le<Enter>` builds

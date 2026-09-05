@@ -579,8 +579,10 @@ module EnterNeedsSomethingTyped =
   // list of everything that could go there, and accepting its first entry meant a bare Enter built a
   // `let`, and Enter on a fresh match arm gave it the pattern `true`.
   (Fixtures.screen [ "<Enter>" ]) = "~⟨expression⟩"
+  // After `match s <space>` the caret sits just after the scrutinee, and Enter there means "on to the
+  // next hole" -- it lands in the first arm's pattern rather than accepting `true` from the menu.
   (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "s", " ", "<Enter>" ]) =
-    "match s with\n| ⟨pattern⟩ -> ⟨rhs⟩\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+    "match s with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
   // Typed-then-Enter still commits, which is the whole point of the menu.
   (Fixtures.screen [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
@@ -623,3 +625,26 @@ module NamesStayNames =
   (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "2", "<Esc>", "<Esc>" ]) = "user.name2"
   (Fixtures.program [ "m", "y", "_", "v", "a", "r", " ", "<Esc>", "<Esc>" ]) = "my_var"
   (Fixtures.program [ "l", "e", "t", " ", "m", "y", "_", "x", " ", "1", " ", "m", "y", "_", "x", "<Esc>", "<Esc>" ]) = "let my_x = 1\nmy_x"
+
+
+module SpaceLandsAfterTheValue =
+  // Space used to settle what you typed and JUMP to the next hole, which made the spacing everyone
+  // actually uses unusable inside a construct: `if total > 0` put the `>` in the THEN branch, and
+  // `let total = items |> f` put the pipe in the let's BODY. Space now leaves the caret just after the
+  // value it settled, and the next key says what you meant -- an operator wraps it, a name moves on.
+  (Fixtures.screen [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " " ]) =
+    "if total > 0 then\n  ~⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.program [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " ", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
+    "if total > 0 then 1 else 2"
+  (Fixtures.program [ "l", "e", "t", " ", "n", " ", "a", " ", "+", " ", "b", " ", "n", "<Esc>", "<Esc>" ]) = "let n = a + b\nn"
+
+  // The `=` in `let x = 1` is drawn by the editor, and space moves you PAST it into the value. Typing it
+  // anyway -- which is what anyone writes -- used to make it the value: `let x = =`. It's swallowed now.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "=", " ", "1" ]) = "let x = 1~\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "=", " ", "1", " ", "x", "<Esc>", "<Esc>" ]) = "let x = 1\nx"
+  // Guarded on an empty hole, so an operator that really is being typed still builds.
+  (Fixtures.program [ "a", " ", "=", "=", " ", "b", "<Esc>", "<Esc>" ]) = "a == b"
+
+  // And a name after a settled value still moves on, which is what the earlier bound-variable fix wanted.
+  (Fixtures.program [ "l", "e", "t", " ", "a", " ", "1", " ", "l", "e", "t", " ", "b", " ", "a", " ", "b", "<Esc>", "<Esc>" ]) =
+    "let a = 1\nlet b = a\nb"
