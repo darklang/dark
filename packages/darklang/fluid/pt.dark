@@ -1135,7 +1135,13 @@ let simpleOf (kind: Kind) (pieces: List<Piece>) (empty: Node) : Spec =
   { (Spec.simple kind pieces empty) with summary = exprSummary }
 
 let matchPatVarFromLetter (c: String) (e: Expect) : Node =
-  Node.make (matchPatKind "MPVariable") [ text "name" c ]
+  // A capitalised first letter is a constructor pattern (matches the `Ok` case), a lowercase one binds a
+  // variable (`x` matches anything). Getting this right is the difference between matching a case and
+  // shadowing everything with a binding named after it.
+  if (Stdlib.String.toUppercase c) == c then
+    Node.make (matchPatKind "MPEnum") [ text "case" c, ("fields", Field.Many([], matchPatExpect "field")) ]
+  else
+    Node.make (matchPatKind "MPVariable") [ text "name" c ]
 
 let matchPatIntFromDigit (c: String) (e: Expect) : Node =
   Node.make (matchPatKind "MPInt") [ text "digits" c ]

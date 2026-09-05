@@ -883,10 +883,20 @@ let typeOneRaw (st: State) (c: String) : State =
     | Some n ->
       let old = Node.text n slot |> Stdlib.Option.withDefault ""
       let atEnd = caret.offset >= (Stdlib.String.length old)
+      // `(` after a constructor pattern's case name opens its fields and drops into the first one, so
+      // `Ok(x)` types straight through; the closing paren draws itself.
+      let openFields =
+        (c == "(") && atEnd && (n.kind.case == Stdlib.Option.Option.Some "MPEnum") && (slot == "case")
+        && (Stdlib.List.isEmpty (Node.items n "fields"))
+        && (Stdlib.Option.isSome (Node.itemExpect n "fields"))
       // Space at the end of a completed leaf means "done here" -> advance to the next hole, so you can type
       // `let x <space> 1 <space> body` close to writing it as text. A STRING body (slot "body") keeps its
       // spaces; everything else (names, digits, float parts) treats space as "next".
-      if (c == " ") && (slot != "body") && atEnd && (Stdlib.Bool.not (old == "")) then
+      if openFields then
+        let each = Node.itemExpect n "fields" |> Stdlib.Option.withDefault (Expect.any "field")
+        let st1 = commit st [ Edit.InsertItem(caret.node, "fields", 0, Slot.Empty each) ] caret
+        { st1 with caret = Caret.inItem caret.node "fields" 0 0 }
+      elif (c == " ") && (slot != "body") && atEnd && (Stdlib.Bool.not (old == "")) then
         nextHole st
       else
       // In an operator slot, a non-operator character moves on to the next slot and types there.

@@ -287,3 +287,23 @@ module Precedence =
 
   // Mid-type, the caret lands in the new outer operator after reassociation.
   (Fixtures.screen [ "1", "*", "2", "+" ]) = "1 * 2 +~ ⟨right⟩"
+
+
+module MatchPatterns =
+  // Patterns edit like expressions. A lowercase name binds a variable; a Capitalised one is a constructor
+  // (matching the case, not shadowing everything with a binding named after it).
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "x", "<Tab>", "1", "<Esc>" ]) = "match n with\n| x -> 1"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "N", "o", "n", "e", "<Tab>", "0", "<Esc>" ]) = "match n with\n| None -> 0"
+
+  // `(` after a constructor opens its fields and drops into the first; comma adds more; the close draws
+  // itself. A bound field is usable in the arm's body.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x" ]) = "match n with\n| Ok(x~) -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(x) -> x"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "S", "o", "m", "e", "(", "a", ",", "b", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Some(a, b) -> 1"
+
+  // Constructor fields nest, like any other pattern.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "S", "o", "m", "e", "(", "y", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Ok(Some(y)) -> 1"
+
+  // Literal patterns: int, string, bool, tuple.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "0" ]) = "match n with\n| 0~ -> ⟨rhs⟩"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "(", "a", ",", "b" ]) = "match n with\n| (a, b~) -> ⟨rhs⟩"
