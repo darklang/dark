@@ -91,3 +91,28 @@ module TextMode =
   ((match Darklang.Fluid.App.sourceToDoc "let x = 1\nx" with
     | Ok s -> Darklang.Fluid.App.docToSource s
     | Error e -> "err: " ++ e)) = "let x = 1\nx"
+
+
+module TextEditGuard =
+  // parsePTExpr fills gaps rather than failing, so applying garbage would silently mangle the expression.
+  // The guard catches placeholders the parser invented (a `()` or `_` the text never mentioned).
+  let verdict (src: String) : String =
+    match Darklang.Fluid.App.sourceToDoc src with
+    | Ok s ->
+      (match Darklang.Fluid.App.textEditProblem src s with
+       | Some _ -> "reject"
+       | None -> "ok")
+    | Error _ -> "reject"
+
+  (TextEditGuard.verdict "let =") = "reject"
+  (TextEditGuard.verdict "((((") = "reject"
+  (TextEditGuard.verdict "if if if") = "reject"
+
+  // Valid code is accepted, including code that legitimately contains unit or a wildcard, and a lambda
+  // (which the printer parenthesises) -- no false positives.
+  (TextEditGuard.verdict "1 + 2") = "ok"
+  (TextEditGuard.verdict "let x = 1\nx") = "ok"
+  (TextEditGuard.verdict "()") = "ok"
+  (TextEditGuard.verdict "if b then () else ()") = "ok"
+  (TextEditGuard.verdict "let _ = 1\n2") = "ok"
+  (TextEditGuard.verdict "fun x -> x") = "ok"

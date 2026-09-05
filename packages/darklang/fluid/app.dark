@@ -325,6 +325,44 @@ let docToSource (root: Slot) : String =
     | Error _ -> ""
   | _ -> ""
 
+/// Does the document contain a node of any of these kind-cases, anywhere?
+let docContainsCase (root: Slot) (cases: List<String>) : Bool =
+  match Darklang.Fluid.Slot.node root with
+  | None -> false
+  | Some n ->
+    let here =
+      match n.kind.case with
+      | Some c -> Stdlib.List.member cases c
+      | None -> false
+    if here then
+      true
+    else
+      n.fields
+      |> Stdlib.List.findFirst (fun f ->
+        let (_, fld) = f
+        match fld with
+        | Text _ -> false
+        | One s -> docContainsCase s cases
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.findFirst (fun s -> docContainsCase s cases)
+          |> Stdlib.Option.isSome)
+      |> Stdlib.Option.isSome
+
+/// `parsePTExpr` is error-tolerant: it fills gaps with `()` and `_` rather than failing, so `let =`
+/// silently becomes `let _ = ()`. That would quietly mangle your expression on apply. This catches the
+/// invented placeholders -- a unit or wildcard in the result that the text you typed never mentioned.
+/// It's a guard on the observed failure, not a real validity check; that wants parser-level errors.
+let textEditProblem (src: String) (root: Slot) : Stdlib.Option.Option<String> =
+  if docContainsCase root [ "Opaque" ] then
+    Stdlib.Option.Option.Some "that text didn't parse cleanly"
+  elif (docContainsCase root [ "EUnit", "MPUnit" ]) && (Stdlib.Bool.not (Stdlib.String.contains src "()")) then
+    Stdlib.Option.Option.Some "that text didn't parse cleanly (it filled in `()`)"
+  elif (docContainsCase root [ "LPWildcard", "MPWildcard" ]) && (Stdlib.Bool.not (Stdlib.String.contains src "_")) then
+    Stdlib.Option.Option.Some "that text didn't parse cleanly (it filled in `_`)"
+  else
+    Stdlib.Option.Option.None
+
 /// Parse edited text back into a document, or the parse error.
 let sourceToDoc (src: String) : Stdlib.Result.Result<Slot, String> =
   match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
@@ -353,11 +391,16 @@ let textModeKey (st: State) (buf: String) (caret: Int) (key: Stdlib.Cli.Stdin.Ke
       | S ->
         match sourceToDoc buf with
         | Ok root ->
-          let width = st.editor.width
-          Darklang.Cli.Component.Step.Stay
-            { st with
-                textMode = Stdlib.Option.Option.None
-                editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
+          match textEditProblem buf root with
+          | Some problem ->
+            // Stay in text mode with the text intact, rather than applying something invented.
+            Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = problem } }
+          | None ->
+            let width = st.editor.width
+            Darklang.Cli.Component.Step.Stay
+              { st with
+                  textMode = Stdlib.Option.Option.None
+                  editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
         | Error err ->
           Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = $"parse error: {err}" } }
       | _ -> Darklang.Cli.Component.Step.Stay st
