@@ -379,3 +379,14 @@ module CharLiterals =
   (Fixtures.program [ "'", "a", "<Esc>" ]) = "'a'"
   (Fixtures.program [ "'", "a", "'", "<Esc>" ]) = "'a'"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "'", "x", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 'x' -> 0"
+
+
+module UnitLiteral =
+  // `(` opens a tuple, but an immediate `)` is the unit literal `()`, not a one-element tuple. A tuple
+  // with content still closes as a tuple.
+  (Fixtures.screen [ "(", ")" ]) = "()~"
+  (Fixtures.program [ "(", ")", "<Esc>" ]) = "()"
+  (Fixtures.program [ "(", "1", ",", "2", ")", "<Esc>" ]) = "(1, 2)"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "(", ")", "<Tab>", "0", "<Esc>" ]) = "match n with\n| () -> 0"
+  // Unit as a let value, then space advances to the body.
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "(", ")", " ", "x", "<Esc>" ]) = "let x = ()\nx"

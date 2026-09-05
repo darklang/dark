@@ -901,7 +901,27 @@ let typeOne (st: State) (c: String) : State =
     && (match nodeAtPath st.root caret.node with
         | Some n -> n.kind.case == Stdlib.Option.Option.Some "EPipe"
         | None -> false)
-  if inFreshPipeStep then
+  // `)` while sitting in an untouched tuple is the unit literal `()`, not a one-element tuple: `(` opens a
+  // tuple and an immediate `)` collapses it to unit.
+  let emptyTupleToUnit =
+    (c == ")")
+    && (match caret.part with
+        | InItem(s, _) -> s == "items"
+        | _ -> false)
+    && (match nodeAtPath st.root caret.node with
+        | Some n ->
+          ((n.kind.case == Stdlib.Option.Option.Some "ETuple") || (n.kind.case == Stdlib.Option.Option.Some "MPTuple"))
+          && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
+        | None -> false)
+  if emptyTupleToUnit then
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let unitCase = if n.kind.case == Stdlib.Option.Option.Some "MPTuple" then "MPUnit" else "EUnit"
+      let unit = Node.make (Kind.ofCase (Kind.typeName n.kind) unitCase) []
+      let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled unit) ] caret
+      { st1 with caret = Caret.afterNode caret.node }
+    | None -> st
+  elif inFreshPipeStep then
     st
   elif inPipeSteps then
     let settled = resolvePartial st |> Stdlib.Option.withDefault st
@@ -1014,6 +1034,10 @@ let typeOneRaw (st: State) (c: String) : State =
     | None -> st
   | OnNode -> st
   | AfterNode ->
+    // Space from just-after a node advances to the next hole (so `let x () <space>` reaches the body).
+    if c == " " then
+      nextHole st
+    else
     // Just after a closed construct: an operator or `.` wraps the WHOLE construct (`[1]` then `+` gives
     // `[1] + ⟨right⟩`, `[1].` a field access on the list); anything that starts a new element grows the
     // enclosing list without an explicit comma (`[[1]` then `2` -> `[[1], 2]`).
