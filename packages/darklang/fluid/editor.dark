@@ -968,16 +968,23 @@ let typeOne (st: State) (c: String) : State =
             | Some(Empty _) -> true
             | _ -> false)
       if fresh then
+        // Unwrap the accidental pipe back to its operand, then wrap with `||` at the node precedence says
+        // it should take (left-associative), so `x || y || z` is `(x || y) || z` and prints without parens.
         let firstSlot = Node.slot pn "first" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
-        // The right operand expects an expression (same kind the pipe itself sits in), so a typed literal
-        // resolves the way an ordinary infix operand does -- not the pipe-step expectation.
-        let rightExpect = Expect.ofKind (Kind.named (Kind.typeName pn.kind)) "right"
-        let infix =
-          Node.make
-            (Kind.ofCase (Kind.typeName pn.kind) "EInfix")
-            [ ("left", Field.One firstSlot), ("op", Field.Text "||"), ("right", Field.One(Slot.Empty rightExpect)) ]
-        let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled infix) ] caret
-        { st1 with caret = Caret.inText caret.node "op" 2 }
+        let target = reassocTarget st.root caret.node "||"
+        let st0 = commit st [ Edit.Replace(caret.node, firstSlot) ] caret
+        match nodeAtPath st0.root target with
+        | Some targetNode ->
+          // The right operand expects an expression (same kind the pipe sits in), so a typed literal
+          // resolves the way an ordinary infix operand does.
+          let rightExpect = Expect.ofKind (Kind.named (Kind.typeName pn.kind)) "right"
+          let infix =
+            Node.make
+              (Kind.ofCase (Kind.typeName pn.kind) "EInfix")
+              [ ("left", Field.One(Slot.Filled targetNode)), ("op", Field.Text "||"), ("right", Field.One(Slot.Empty rightExpect)) ]
+          let st1 = commit st0 [ Edit.Replace(target, Slot.Filled infix) ] st0.caret
+          { st1 with caret = Caret.inText target "op" 2 }
+        | None -> st0
       else
         let settled = resolvePartial st |> Stdlib.Option.withDefault st
         match addSibling settled with

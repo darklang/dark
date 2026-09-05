@@ -434,3 +434,9 @@ module LeafBackspaceRevertsToHole =
   (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~fraction"
   // An operand emptied inside an infix becomes a clean hole, not a zombie.
   (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨expression⟩"
+
+
+module OrChainAssociates =
+  // Chained `||` associates left, like the arithmetic operators, so it prints without parens.
+  (Fixtures.program [ "x", "|", "|", "y", "|", "|", "z", "<Esc>", "<Esc>" ]) = "x || y || z"
+  (Fixtures.screen [ "x", "|", "|", "y" ]) = "x || y~"
