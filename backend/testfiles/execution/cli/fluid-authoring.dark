@@ -450,3 +450,17 @@ module BinaryCollapse =
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<BS>", "<BS>" ]) = "match n with\n| h~ -> ⟨rhs⟩"
   // A filled operand is edited, not collapsed.
   (Fixtures.program [ "1", "+", "2", "3", "<BS>", "<Esc>" ]) = "1 + 2"
+
+
+module NavAndHistory =
+  // NAV: Escape settles on the node you were editing; h goes to the parent, x clears the current node to
+  // a hole. So you can select the whole expression and blank it, or just one operand.
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "x" ]) = "1 + ~⟨right⟩"
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "h" ]) = "~1 + 2"
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "h", "x" ]) = "~⟨expression⟩"
+
+  // Undo and redo: a typed value, an edit, and a structural merge all step back and forward cleanly.
+  (Fixtures.screen [ "5", "<C-z>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "5", "<C-z>", "<C-y>" ]) = "5~"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>" ]) = "[12, ~34]"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>", "<C-y>" ]) = "[12~34]"
