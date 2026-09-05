@@ -156,3 +156,24 @@ module TextModeScope =
     let spliced =
       Darklang.Fluid.Editor.commit ed [ Darklang.Fluid.Edit.Replace(TextModeScope.thenPath (), replacement) ] ed.caret
     Darklang.Fluid.App.docToSource spliced.root)) = "if b then [1, 2, 9] else 3"
+
+
+module TextPaneWindow =
+  // The text pane draws a window on the buffer: `Layout.at` silently drops rows past the bottom, so a
+  // buffer taller than the pane used to hide its own tail while the caret walked off-screen. `textTop`
+  // picks which line sits at the top.
+  let linesOf (n: Int) : List<String> =
+    Stdlib.List.range 1 n |> Stdlib.List.map (fun i -> Stdlib.Int.toString i)
+
+  // A buffer that fits never scrolls, wherever the caret is.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 5) 0 10) = 0
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 5) 4 10) = 0
+
+  // A taller buffer: the top of it is visible on entry, and the caret at the end scrolls exactly far
+  // enough to show the last line -- never past it, which would draw blank rows under the tail.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 0 10) = 0
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 13 10) = 4
+
+  // Mid-buffer, the window keeps a couple of lines of lookahead below the caret.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 9 10) = 2
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 7 10) = 0

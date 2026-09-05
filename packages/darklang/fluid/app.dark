@@ -235,6 +235,15 @@ let helpFor (st: State) : String =
       let actionsKey = if hasActions then "  : actions" else ""
       " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy  ^E text" ++ actionsKey ++ "  u undo  q quit"
 
+/// Which buffer line sits at the top of the text pane. The pane shows `rows` lines, so a taller buffer
+/// needs a window; this picks the smallest scroll that keeps the caret row visible with a couple of lines
+/// of lookahead below it, and never scrolls past the end of the buffer.
+let textTop (lines: List<String>) (crow: Int) (rows: Int) : Int =
+  let maxTop = Stdlib.Int.max 0 ((Stdlib.List.length lines) - rows)
+  let want = Stdlib.Int.max 0 (crow - rows + 3)
+  Stdlib.Int.min want maxTop
+
+
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   match st.textMode with
   | Some((buf, caret, _path)) ->
@@ -250,17 +259,28 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
           rows = Stdlib.Int.max 1 (boxInner.rows - 1)
           cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
     let lines = Stdlib.String.split buf "\n"
-    let textSpans =
-      lines
-      |> Stdlib.List.indexedMap (fun i line -> Stdlib.Cli.UI.Layout.at region i 0 line)
-      |> Stdlib.List.flatten
-    let body = Stdlib.List.flatten [ Stdlib.Cli.UI.Box.draw full "fluid · text" true, textSpans ]
-    let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
     let before = Stdlib.String.slice buf 0 caret
     let bls = Stdlib.String.split before "\n"
     let crow = (Stdlib.List.length bls) - 1
     let ccol = Stdlib.List.last bls |> Stdlib.Option.map (fun s -> Stdlib.String.length s) |> Stdlib.Option.withDefault 0
-    { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(region.top + crow - 1, region.left + ccol - 1) }
+    // The pane is a window on the buffer, not the whole of it. Rows past the bottom are dropped by
+    // `Layout.at`, so a tall expression used to hide its own tail while the caret walked off-screen and
+    // typed into lines nobody could see. Scroll the window to keep the caret row in it.
+    let top = textTop lines crow region.rows
+    let textSpans =
+      lines
+      |> Stdlib.List.drop top
+      |> Stdlib.List.take region.rows
+      |> Stdlib.List.indexedMap (fun i line -> Stdlib.Cli.UI.Layout.at region i 0 line)
+      |> Stdlib.List.flatten
+    let total = Stdlib.List.length lines
+    let paneTitle =
+      if total > region.rows then
+        $"fluid · text  {Stdlib.Int.toString (crow + 1)}/{Stdlib.Int.toString total}"
+      else "fluid · text"
+    let body = Stdlib.List.flatten [ Stdlib.Cli.UI.Box.draw full paneTitle true, textSpans ]
+    let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
+    { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(region.top + (crow - top) - 1, region.left + ccol - 1) }
   | None ->
   let base_ = Stdlib.Cli.UI.Chrome.frame st.title (modeBadge st) (helpFor st)
   let toned =
@@ -385,11 +405,40 @@ let textModeKey (st: State) (buf: String) (caret: Int) (path: Path) (key: Stdlib
   let stay (b: String) (c: Int) : Darklang.Cli.Component.Step<State> =
     Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((b, c, path)) }
   let len = Stdlib.String.length buf
+  // A multi-line buffer needs vertical and line-wise motion. Without it the caret could only walk one
+  // character at a time, so anything the printer wrapped over several lines was unusable.
+  let lineStartOf (c: Int) : Int =
+    let bls = Stdlib.String.split (Stdlib.String.slice buf 0 c) "\n"
+    let col =
+      Stdlib.List.last bls |> Stdlib.Option.map (fun s -> Stdlib.String.length s) |> Stdlib.Option.withDefault 0
+    c - col
+  let lineEndOf (c: Int) : Int =
+    match Stdlib.String.indexOf (Stdlib.String.dropFirst buf c) "\n" with
+    | Some i -> c + i
+    | None -> len
+  // Moving up or down keeps the column where it can, and lands at the end of a shorter line otherwise.
+  let vertical (down: Bool) : Darklang.Cli.Component.Step<State> =
+    let ls = lineStartOf caret
+    let col = caret - ls
+    if down then
+      let le = lineEndOf caret
+      if le >= len then stay buf len
+      else
+        let nextStart = le + 1
+        stay buf (Stdlib.Int.min (lineEndOf nextStart) (nextStart + col))
+    else if ls == 0 then stay buf 0
+    else
+      let prevStart = lineStartOf (ls - 1)
+      stay buf (Stdlib.Int.min (ls - 1) (prevStart + col))
   match key with
   | Escape ->
     Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.None; editor = { st.editor with message = "text edit cancelled" } }
   | LeftArrow -> stay buf (Stdlib.Int.max 0 (caret - 1))
   | RightArrow -> stay buf (Stdlib.Int.min len (caret + 1))
+  | UpArrow -> vertical false
+  | DownArrow -> vertical true
+  | Home -> stay buf (lineStartOf caret)
+  | End -> stay buf (lineEndOf caret)
   | Backspace ->
     if caret <= 0 then stay buf caret
     else stay ((Stdlib.String.slice buf 0 (caret - 1)) ++ (Stdlib.String.dropFirst buf caret)) (caret - 1)
@@ -453,7 +502,7 @@ let onKey
     match docToSourceResult scoped with
     | Ok src ->
       Darklang.Cli.Component.Step.Stay
-        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src, scope)) }
+        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, 0, scope)) }
     | Error err ->
       Darklang.Cli.Component.Step.Stay { st with editor = { settled with message = $"can't edit as text: {err}" } }
   else
