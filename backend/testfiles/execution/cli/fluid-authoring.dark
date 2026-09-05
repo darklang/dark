@@ -327,3 +327,13 @@ module OrPatterns =
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|" ]) = "match n with\n| 0 | ~⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|", "1", "<Tab>", "9", "<Esc>" ]) = "match n with\n| 0 | 1 -> 9"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|", "1", "|", "2", "<Tab>", "9", "<Esc>" ]) = "match n with\n| 0 | 1 | 2 -> 9"
+
+
+module SeparatorAdvance =
+  // Typing a separator that's already drawn ahead skips to the next hole rather than into the name: `=`
+  // after a let's binding jumps to the value, so `let x=1` types like text.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "=" ]) = "let x = ~⟨value⟩\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", "=", "1", " ", "x", "<Esc>" ]) = "let x = 1\nx"
+
+  // In an expression hole there's no `=` drawn ahead, so `=` still starts an operator: `1 == 2`.
+  (Fixtures.program [ "1", "=", "=", "2", "<Esc>" ]) = "1 == 2"

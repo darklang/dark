@@ -818,7 +818,28 @@ let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+/// The first non-space glyph drawn to the right of the caret on its row, if any. Used to skip past a
+/// separator you re-type (the `=` between a let's name and value, a record/annotation `:`).
+let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    match Stdlib.List.getAt rows row with
+    | Some r ->
+      Layout.rowText r
+      |> Stdlib.String.toList
+      |> Stdlib.List.drop col
+      |> Stdlib.List.map (fun ch -> Stdlib.Char.toString ch)
+      |> Stdlib.List.filter (fun g -> g != " ")
+      |> Stdlib.List.head
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
 val closingDelimiters = [ "]", ")", "}", "\"" ]
+
+/// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
+/// already on screen: `=` between a let's name and value, `:` before a record value or a type annotation.
+val separatorAdvance = [ "=", ":" ]
 
 /// Which node an infix operator typed at `path` should wrap, so precedence associates the way it reads.
 /// A looser operator takes the tighter subtree as its left: `+` after `1 * 2` wraps the whole `1 * 2`,
@@ -868,6 +889,11 @@ let typeOne (st: State) (c: String) : State =
     match target with
     | Some p -> { st with caret = Caret.afterNode p }
     | None -> moveRight st
+  elif (Stdlib.List.member separatorAdvance c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyph st == Stdlib.Option.Option.Some c) then
+    // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
+    // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
+    // still starts an operator as before.
+    nextHole st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     match addSibling st with
     | Some added -> added
