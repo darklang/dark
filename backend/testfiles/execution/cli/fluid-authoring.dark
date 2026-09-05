@@ -410,3 +410,13 @@ module ConsPatterns =
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t" ]) = "match n with\n| h :: t~ -> ⟨rhs⟩"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| h :: t -> 0"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "a", ":", ":", "b", ":", ":", "c", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| a :: b :: c -> 0"
+
+
+module EmptyList =
+  // `[` opens a list, an immediate `]` closes it empty. An empty collection carries a caret anchor, so
+  // the caret sits between the brackets (no "caret not found"). A list with content still closes normally.
+  (Fixtures.screen [ "[", "]" ]) = "[~]"
+  (Fixtures.program [ "[", "]", "<Esc>" ]) = "[]"
+  (Fixtures.program [ "[", "1", ",", "2", "]", "<Esc>" ]) = "[1, 2]"
+  // Empty list as a cons tail: `1 :: []`.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ":", ":", "[", "]", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| 1 :: [] -> 0"

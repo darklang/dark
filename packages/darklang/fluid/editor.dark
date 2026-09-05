@@ -923,12 +923,32 @@ let typeOne (st: State) (c: String) : State =
           ((n.kind.case == Stdlib.Option.Option.Some "ETuple") || (n.kind.case == Stdlib.Option.Option.Some "MPTuple"))
           && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
         | None -> false)
+  // `]` in a list holding just one empty item is the empty list `[]`: `[` opens a list and an immediate
+  // `]` closes it empty. (Empty collections now carry a caret anchor, so the caret is findable.)
+  let emptyListToNil =
+    (c == "]")
+    && (match caret.part with
+        | InItem(s, _) -> s == "items"
+        | _ -> false)
+    && (match nodeAtPath st.root caret.node with
+        | Some n ->
+          ((n.kind.case == Stdlib.Option.Option.Some "EList") || (n.kind.case == Stdlib.Option.Option.Some "MPList"))
+          && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
+        | None -> false)
   if emptyTupleToUnit then
     match nodeAtPath st.root caret.node with
     | Some n ->
       let unitCase = if n.kind.case == Stdlib.Option.Option.Some "MPTuple" then "MPUnit" else "EUnit"
       let unit = Node.make (Kind.ofCase (Kind.typeName n.kind) unitCase) []
       let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled unit) ] caret
+      { st1 with caret = Caret.afterNode caret.node }
+    | None -> st
+  elif emptyListToNil then
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let each = Node.itemExpect n "items" |> Stdlib.Option.withDefault (Expect.any "item")
+      let emptied = Node.make n.kind [ ("items", Field.Many([], each)) ]
+      let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled emptied) ] caret
       { st1 with caret = Caret.afterNode caret.node }
     | None -> st
   elif inFreshPipeStep then

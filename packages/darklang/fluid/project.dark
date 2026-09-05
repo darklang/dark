@@ -119,12 +119,18 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | Each(slotName, sep) ->
-    let sepDoc = pieces reg path n sep
-    let items =
-      Node.items n slotName
-      |> Stdlib.List.indexedMap (fun i s ->
-        slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s)
-    Layout.join items sepDoc
+    match Node.items n slotName with
+    | [] ->
+      // An empty collection (`[]`, `()`) has nothing to tag, so a caret on the node can't be located.
+      // Emit a zero-width tagged anchor so the caret has somewhere to sit between the brackets.
+      Layout.tagged (tagFor path Part.OnNode) Layout.Style.Dim ""
+    | items ->
+      let sepDoc = pieces reg path n sep
+      let docs =
+        items
+        |> Stdlib.List.indexedMap (fun i s ->
+          slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s)
+      Layout.join docs sepDoc
 
   | EachWith(slotName, before, sep) ->
     let sepDoc = pieces reg path n sep
