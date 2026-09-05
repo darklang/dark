@@ -8,7 +8,9 @@ module Fixtures =
         [ Darklang.Fluid.Prims.specs ()
           Darklang.Fluid.PT.specs ()
           Darklang.Fluid.PT.Types.specs ()
-          Darklang.Fluid.PT.Fn.specs () ])
+          Darklang.Fluid.PT.Fn.specs ()
+          // A function's type params are TypeDecl's TypeParam node, so its specs belong here too.
+          Darklang.Fluid.PT.TypeDecl.specs () ])
 
   let param (name: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter =
     Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = name; typ = t; description = "" }
@@ -35,7 +37,7 @@ module Fixtures =
 
 module Rendering =
   // The whole signature is on screen, and the param reference in the body reads as its name, not earg0.
-  (Fixtures.render ()) = "let inc (n: Int) : Int =\n  n + 1"
+  (Fixtures.render ()) = "let inc (n: Int): Int =\n  n + 1"
 
 
 module RoundTrip =
@@ -104,3 +106,32 @@ module SaveFidelity =
   // reaches the person as "not saved: ..." rather than a function quietly rewritten without its body.
   (SaveFidelity.verdict "Darklang.Stdlib.List.length") = "refuses"
   (SaveFidelity.verdict "Darklang.Stdlib.Bool.not") = "refuses"
+
+
+module TypeParamsAreOnScreen =
+  // A generic function is written `let map<'a, 'b> (...)`. The type params were carried opaquely on the
+  // original record, so they survived a save but were INVISIBLE while you edited -- the signature on
+  // screen wasn't the signature. They're drawn now, and read back, so editing one is possible at all.
+  // (The node is TypeDecl's TypeParam: a declaration and a function spell a type param the same way, and
+  // one spec means the two can't drift apart.)
+  let generic () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { (Fixtures.inc ()) with
+        typeParams = [ "a", "b" ]
+        parameters = [ Fixtures.param "n" (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a") ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "b" }
+
+  (Darklang.Fluid.Debug.render
+    (Fixtures.reg ())
+    70
+    (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "conv" (TypeParamsAreOnScreen.generic ())))) =
+    "let conv<'a, 'b> (n: 'a): 'b =\n  n + 1"
+
+  // No params, no angle brackets -- an empty list draws nothing rather than an empty `<>`.
+  (Fixtures.render ()) = "let inc (n: Int): Int =\n  n + 1"
+
+  // And they come back out, so a save can't drop them.
+  ((match Darklang.Fluid.PT.Fn.fromDoc
+            (TypeParamsAreOnScreen.generic ())
+            (Darklang.Fluid.PT.Fn.toDoc "conv" (TypeParamsAreOnScreen.generic ())) with
+    | Ok(pair) -> let (_n, u) = pair in Stdlib.String.join u.typeParams ","
+    | Error e -> "ERR " ++ e)) = "a,b"

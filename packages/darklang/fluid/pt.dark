@@ -1667,6 +1667,11 @@ module Fn =
       [ PT.text "name" name
         PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString fn.hash)
         PT.text "_desc" fn.description
+        // A generic function is written `let map<'a, 'b> (...)`, and Fluid drew `let map (...)` -- the
+        // params were carried opaquely on the original record, so they survived a save but were invisible
+        // while you edited. The node is TypeDecl's TypeParam, deliberately: a declaration and a function
+        // spell a type param the same way, and one spec means they can't drift apart.
+        PT.many "typeParams" (fn.typeParams |> Stdlib.List.map (fun tp -> TypeDecl.paramToDoc tp)) (TypeDecl.paramExpect ())
         PT.many "params" (fn.parameters |> Stdlib.List.map (fun p -> paramToDoc p)) (paramExpect ())
         PT.one "ret" (Types.toDoc fn.returnType)
         PT.one "body" (PT.toDoc (PT.namedArgs (fn.parameters |> Stdlib.List.map (fun p -> p.name)) name fn.body)) ]
@@ -1698,13 +1703,22 @@ module Fn =
       match Node.slot n "body" with
       | Some(Filled c) -> PT.fromDoc c
       | _ -> Stdlib.Result.Result.Error "the body is a hole"
-    match (params, ret, body) with
-    | (Ok ps, Ok r, Ok b) ->
+    let tps =
+      Node.items n "typeParams"
+      |> Stdlib.List.map (fun s ->
+        match s with
+        | Filled c -> Stdlib.Result.Result.Ok(PT.textOf c "name")
+        | Empty e -> Stdlib.Result.Result.Error("hole: " ++ e.label)
+        | Partial(t, _) -> Stdlib.Result.Result.Error("unresolved: " ++ t))
+      |> Stdlib.Result.collect
+    match (params, ret, body, tps) with
+    | (Ok ps, Ok r, Ok b, Ok tp) ->
       Stdlib.Result.Result.Ok(
-        (PT.textOf n "name", { orig with parameters = ps; returnType = r; body = b }))
-    | (Error e, _, _) -> Stdlib.Result.Result.Error e
-    | (_, Error e, _) -> Stdlib.Result.Result.Error e
-    | (_, _, Error e) -> Stdlib.Result.Result.Error e
+        (PT.textOf n "name", { orig with typeParams = tp; parameters = ps; returnType = r; body = b }))
+    | (Error e, _, _, _) -> Stdlib.Result.Result.Error e
+    | (_, Error e, _, _) -> Stdlib.Result.Result.Error e
+    | (_, _, Error e, _) -> Stdlib.Result.Result.Error e
+    | (_, _, _, Error e) -> Stdlib.Result.Result.Error e
 
   // --- Specs ---
 
@@ -1729,8 +1743,9 @@ module Fn =
             [ Piece.Keyword "let"
               Piece.Space
               Piece.Text("name", Layout.Style.Name)
+              Piece.EachWrapped("typeParams", "<", [ Piece.Punct ",", Piece.Space ], ">")
               Piece.EachWith("params", [ Piece.Space ], [])
-              Piece.Space
+              // No space before the colon: the printer writes `(list: List<'a>): Int`.
               Piece.Punct ":"
               Piece.Space
               Piece.Slot "ret"
