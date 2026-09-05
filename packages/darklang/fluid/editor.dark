@@ -402,6 +402,34 @@ let moveVertical (st: State) (delta: Int) : State =
           | None -> st
         | None -> st
 
+/// The tagged cells on the caret's current row, in reading order.
+let cellsOnCaretRow (st: State) : List<(Int * Int * Layout.Cell)> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, _)) ->
+    Layout.taggedCells rows
+    |> Stdlib.List.filter (fun rc ->
+      let (r, _, _) = rc
+      r == row)
+  | None -> []
+
+/// Home / End: jump to the first / last editable position on the current line.
+let moveLineStart (st: State) : State =
+  match Stdlib.List.head (cellsOnCaretRow st) with
+  | Some((_, _, c)) ->
+    match caretForCell c false with
+    | Some nc -> { st with caret = nc }
+    | None -> st
+  | None -> st
+
+let moveLineEnd (st: State) : State =
+  match Stdlib.List.last (cellsOnCaretRow st) with
+  | Some((_, _, c)) ->
+    match caretForCell c true with
+    | Some nc -> { st with caret = nc }
+    | None -> st
+  | None -> st
+
 /// Holes in reading order.
 let holeCarets (st: State) : List<Caret> =
   Layout.taggedCells (layout st)
@@ -1471,6 +1499,8 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | RightArrow -> handled (moveRight st)
   | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))
   | DownArrow -> if completing then handled (cycleCandidate st 1) else handled (moveVertical st 1)
+  | Home -> handled (moveLineStart st)
+  | End -> handled (moveLineEnd st)
   | Enter ->
     // Accept the highlighted candidate; else add a sibling in the enclosing list (a new match arm, list
     // element, record field); else settle a partial.

@@ -228,3 +228,17 @@ module AfterNodeWrap =
 
   // A tuple wraps the same way once closed: `(1, 2)` then `+` `3` -> `(1, 2) + 3`.
   (Fixtures.program [ "(", "1", ",", "2", ")", "+", "3", "<Esc>" ]) = "(1, 2) + 3"
+
+
+module CaretMotion =
+  // Home and End jump to the start and end of the current line.
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>" ]) = "~1 + (2 + 3)"
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>", "<End>" ]) = "1 + (2 + 3~)"
+
+  // On a multiline construct they act per visual line: Home from the body goes to the body's start, not
+  // the let's.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "x", "<Home>" ]) = "let x = 1\n~x"
+
+  // Up and Down move between the lines of a let: down from the value lands on the body.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", "<Down>" ]) = "let x = 1\n~⟨body⟩"
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "y", "<Up>" ]) = "let ~x = 1\ny"
