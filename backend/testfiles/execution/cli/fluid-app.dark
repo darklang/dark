@@ -137,3 +137,22 @@ module TextModeReadiness =
   // A complete document prints; an untouched hole is simply an empty buffer.
   (TextModeReadiness.srcOf [ "1", "+", "2" ]) = "ok:1 + 2"
   (TextModeReadiness.srcOf []) = "ok:"
+
+
+module TextModeScope =
+  // Ctrl-E from NAV edits just the SELECTED node: printing is scoped to its path, and applying splices the
+  // re-parsed node back there, leaving the rest of the expression alone.
+  let thenPath () : Darklang.Fluid.Path = [ Darklang.Fluid.Step.Into "then" ]
+
+  (match Darklang.Fluid.slotAtPath (Fixtures.docOf "if b then [1, 2] else 3") (TextModeScope.thenPath ()) with
+   | Some s -> Darklang.Fluid.App.docToSource s
+   | None -> "none") = "[1, 2]"
+
+  ((let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "if b then [1, 2] else 3") 60
+    let replacement =
+      match Darklang.Fluid.App.sourceToDoc "[1, 2, 9]" with
+      | Ok s -> s
+      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "x")
+    let spliced =
+      Darklang.Fluid.Editor.commit ed [ Darklang.Fluid.Edit.Replace(TextModeScope.thenPath (), replacement) ] ed.caret
+    Darklang.Fluid.App.docToSource spliced.root)) = "if b then [1, 2, 9] else 3"

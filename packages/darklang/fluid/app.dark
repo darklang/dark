@@ -29,9 +29,10 @@ type State =
     theme: Theme.Theme
     /// Rows the body had at the last key, so scrolling can be computed outside `view`.
     bodyRows: Int
-    /// When Some, we've dropped into plain-text editing: the pretty-printed source and the caret offset
-    /// into it. Confirm re-parses it back into the structural editor; cancel discards it.
-    textMode: Stdlib.Option.Option<(String * Int)> }
+    /// When Some, we've dropped into plain-text editing: the pretty-printed source, the caret offset into
+    /// it, and the path it came from (the selected node in NAV, the whole document otherwise). Confirm
+    /// re-parses and splices it back at that path; cancel discards it.
+    textMode: Stdlib.Option.Option<(String * Int * Path)> }
 
 /// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
 /// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
@@ -236,7 +237,7 @@ let helpFor (st: State) : String =
 
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   match st.textMode with
-  | Some((buf, caret)) ->
+  | Some((buf, caret, _path)) ->
     let msg = st.editor.message
     let base_ = Stdlib.Cli.UI.Chrome.frame st.title "TEXT" " Ctrl-S apply  Esc cancel"
     let framed = if msg == "" then base_ else Stdlib.Cli.UI.Chrome.withMessage base_ msg
@@ -380,9 +381,9 @@ let sourceToDoc (src: String) : Stdlib.Result.Result<Slot, String> =
 
 /// Keys while in plain-text editing: type/backspace/newline edit the buffer; Ctrl-S re-parses it back into
 /// the structural editor (staying in text mode with a message if it doesn't parse); Escape discards it.
-let textModeKey (st: State) (buf: String) (caret: Int) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Darklang.Cli.Component.Step<State> =
+let textModeKey (st: State) (buf: String) (caret: Int) (path: Path) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Darklang.Cli.Component.Step<State> =
   let stay (b: String) (c: Int) : Darklang.Cli.Component.Step<State> =
-    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((b, c)) }
+    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((b, c, path)) }
   let len = Stdlib.String.length buf
   match key with
   | Escape ->
@@ -406,10 +407,19 @@ let textModeKey (st: State) (buf: String) (caret: Int) (key: Stdlib.Cli.Stdin.Ke
             Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = problem } }
           | None ->
             let width = st.editor.width
-            Darklang.Cli.Component.Step.Stay
-              { st with
-                  textMode = Stdlib.Option.Option.None
-                  editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
+            match path with
+            | [] ->
+              Darklang.Cli.Component.Step.Stay
+                { st with
+                    textMode = Stdlib.Option.Option.None
+                    editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
+            | _ ->
+              // Splice the re-parsed node back where it came from, leaving the rest of the document alone.
+              let spliced = Editor.commit st.editor [ Edit.Replace(path, root) ] st.editor.caret
+              Darklang.Cli.Component.Step.Stay
+                { st with
+                    textMode = Stdlib.Option.Option.None
+                    editor = { spliced with caret = Editor.navCaretFor spliced.root path; message = "back to structure" } }
         | Error err ->
           Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = $"parse error: {err}" } }
       | _ -> Darklang.Cli.Component.Step.Stay st
@@ -426,17 +436,24 @@ let onKey
   : Darklang.Cli.Component.Step<State> =
   let kp = Stdlib.Cli.UI.Widget.press key modifiers keyChar
   match st.textMode with
-  | Some((buf, caret)) -> textModeKey st buf caret key modifiers keyChar
+  | Some((buf, caret, path)) -> textModeKey st buf caret path key modifiers keyChar
   | None ->
   // Ctrl-E drops into plain-text editing of the current expression. Settle what's being typed first, so a
   // half-finished name doesn't make the document unprintable; if it still can't print, say why rather than
   // opening an empty buffer over the top of real work.
   if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
     let settled = Editor.resolvePartial st.editor |> Stdlib.Option.withDefault st.editor
-    match docToSourceResult settled.root with
+    // From NAV, edit just the selected node; otherwise the whole document. Editing one branch of a big
+    // expression as text beats editing all of it.
+    let scope =
+      match settled.mode with
+      | Nav -> Editor.navPath settled
+      | Insert -> []
+    let scoped = Darklang.Fluid.slotAtPath settled.root scope |> Stdlib.Option.withDefault settled.root
+    match docToSourceResult scoped with
     | Ok src ->
       Darklang.Cli.Component.Step.Stay
-        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src)) }
+        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, Stdlib.String.length src, scope)) }
     | Error err ->
       Darklang.Cli.Component.Step.Stay { st with editor = { settled with message = $"can't edit as text: {err}" } }
   else
