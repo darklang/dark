@@ -492,3 +492,10 @@ module StringInterpCollapse =
   (Fixtures.program [ "$", "a", "{", "<BS>", "b", "<Esc>" ]) = "\"ab\""
   // Delete the interpolated value, then backspace again, and the interpolation folds away too.
   (Fixtures.screen [ "$", "a", "{", "x", "<BS>", "<BS>" ]) = "$\"a~\""
+
+
+module EnterAddsArmAfterBoundVar =
+  // Enter after an arm whose rhs is a bound variable adds the next arm, rather than just re-accepting the
+  // variable from the menu -- so a match over a constructor with a bound field types straight through.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>" ]) = "match n with\n| Ok(v) -> v\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>", "E", "r", "r", "o", "r", "(", "e", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(v) -> v\n| Error(e) -> 0"

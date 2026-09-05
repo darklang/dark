@@ -1894,16 +1894,39 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | Home -> handled (moveLineStart st)
   | End -> handled (moveLineEnd st)
   | Enter ->
-    // Accept the highlighted candidate; else add a sibling in the enclosing list (a new match arm, list
-    // element, record field); else settle a partial.
-    if completing then handled (commitCandidate st)
-    else
-      match addSibling st with
-      | Some added -> handled added
-      | None ->
-        match resolvePartial st with
-        | Some resolved -> handled resolved
-        | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+    // In a sequence (list element, match arm, record field), Enter settles what you typed and starts the
+    // next item -- even with a menu up, so a bound variable that matches the rhs doesn't hijack Enter into
+    // just accepting the completion. On a standalone hole, Enter accepts the menu (so `le<Enter>` builds
+    // let). A keyword/single-candidate is still committed on the way (so a construct can be built here too).
+    match enclosingListItem st.caret with
+    | Some _ ->
+      if completing then
+        // A menu is up. If what you typed IS a candidate (an in-scope variable), you're done: commit it
+        // and start the next item. If the menu offers something else to accept (a store function like
+        // `List.len` -> `Stdlib.List.length`), accept it and stay.
+        let committed = commitCandidate st
+        if Stdlib.Option.isSome (exactCandidate st) then
+          match addSibling committed with
+          | Some added -> handled added
+          | None -> handled committed
+        else
+          handled committed
+      else
+        match addSibling st with
+        | Some added -> handled added
+        | None ->
+          match resolvePartial st with
+          | Some resolved -> handled resolved
+          | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+    | None ->
+      if completing then handled (commitCandidate st)
+      else
+        match addSibling st with
+        | Some added -> handled added
+        | None ->
+          match resolvePartial st with
+          | Some resolved -> handled resolved
+          | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
     // Commit on Tab only when a partial is being typed; a fresh hole's menu is a preview and Tab still
