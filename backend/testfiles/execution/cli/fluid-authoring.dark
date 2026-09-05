@@ -337,3 +337,14 @@ module SeparatorAdvance =
 
   // In an expression hole there's no `=` drawn ahead, so `=` still starts an operator: `1 == 2`.
   (Fixtures.program [ "1", "=", "=", "2", "<Esc>" ]) = "1 == 2"
+
+
+module NegativeLiterals =
+  // `-` on an empty hole starts a negative number literal (not an unresolvable partial): the digits
+  // accumulate and `.` still turns it into a float. Works in expressions and in patterns.
+  (Fixtures.program [ "-", "5", "<Esc>" ]) = "-5"
+  (Fixtures.program [ "-", "5", ".", "5", "<Esc>" ]) = "-5.5"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "-", "1", "<Tab>", "0", "<Esc>" ]) = "match n with\n| -1 -> 0"
+
+  // Minus between two operands is still subtraction, not a negative literal.
+  (Fixtures.program [ "5", "-", "3", "<Esc>" ]) = "5 - 3"
