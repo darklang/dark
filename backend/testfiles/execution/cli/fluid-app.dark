@@ -48,3 +48,22 @@ module Smoke =
 
   // ... and it degrades on a narrow screen (inspector dropped, no crash).
   ((Fixtures.drawnRows "if x > 2 then 1 else 2" [] (Fixtures.narrow ())) > 3) = true
+
+
+module InspectorLabels =
+  // The inspector's sections read as one consistent uppercase list. On an empty hole it leads with an
+  // EXPECTS header; the ACTIONS header carries no stray colon.
+  let screenText (src: String) (keys: List<String>) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    let v = Darklang.Fluid.App.view (Fixtures.stateOf ed) (Fixtures.size ())
+    v.rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "EXPECTS") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS  :") = false
+
+  // Typing a prefix shows the COMPLETE header with the menu, and the header for a partial is TYPING.
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "COMPLETE") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "TYPING") = true

@@ -193,10 +193,16 @@ let inspector
     | Some(Partial(_, _)) -> true
     | _ -> false
   let headerRows =
-    if inHole then [ (dim expecting), "" ]
+    if inHole then
+      // Present "expects X" / "typing X" as an uppercase header + value, matching the ON / ACTIONS /
+      // COMPLETE sections so the panel reads as one consistent list rather than a stray sentence.
+      let words = Stdlib.String.split expecting " "
+      let ehead = Stdlib.List.head words |> Stdlib.Option.withDefault "" |> Stdlib.String.toUppercase
+      let eval = words |> Stdlib.List.drop 1 |> Stdlib.String.join " "
+      [ (head ehead) ++ "  " ++ eval, "" ]
     else [ (head "ON") ++ "  " ++ node, "" ]
   let rows =
-    Stdlib.List.flatten [ headerRows, [ head "ACTIONS  :" ], actionLines, candLines ]
+    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines, candLines ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])
