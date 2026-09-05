@@ -853,10 +853,9 @@ let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
-/// The KEYWORD drawn immediately before the caret, if the thing immediately before the caret is one.
-/// Cells carry their style, so this asks the layout rather than guessing from the text: `f` in `f x` is a
-/// name and never matches, while the `then` in `if c then <hole>` does.
-let prevKeyword (st: State) : Stdlib.Option.Option<String> =
+/// The cell drawn immediately before the caret, ignoring blanks, punctuation and the caret's own text.
+/// Cells carry their style, so callers can ask what KIND of thing was drawn rather than guess from text.
+let prevDrawn (st: State) : Stdlib.Option.Option<Layout.Cell> =
   let rows = layout st
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
@@ -900,8 +899,53 @@ let prevKeyword (st: State) : Stdlib.Option.Option<String> =
           | None -> Stdlib.Option.Option.None)
         |> Stdlib.List.head
     cell
+  | None -> Stdlib.Option.Option.None
+
+/// The keyword drawn immediately before the caret: `then` in `if c then <hole>`. A NAME never matches,
+/// which is what keeps `Stdlib.List.map f f` from eating its second argument.
+let prevKeyword (st: State) : Stdlib.Option.Option<String> =
+  prevDrawn st
+  |> Stdlib.Option.andThen (fun c ->
+    if c.style == Layout.Style.Keyword then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
+    else Stdlib.Option.Option.None)
+
+/// The punctuation drawn immediately before the caret, as one token: the `->` of a lambda or a match arm,
+/// the `|` before a pattern. `prevDrawn` skips punctuation to find a keyword, so this walks the raw row.
+let prevPunct (st: State) : Stdlib.Option.Option<String> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    let mine (c: Layout.Cell) : Bool =
+      match c.tag with
+      | Some t -> Layout.tagMatches t st.caret.node st.caret.part
+      | None -> false
+    let lastOfRow (r: Layout.Row) (upto: Int) : Stdlib.Option.Option<Layout.Cell> =
+      let step (acc: (Int * Stdlib.Option.Option<Layout.Cell>)) (c: Layout.Cell) : (Int * Stdlib.Option.Option<Layout.Cell>) =
+        let (x, best) = acc
+        let ends = x + c.width
+        if (ends <= upto) && ((Stdlib.String.trim c.text) != "") && (Stdlib.Bool.not (mine c)) then
+          (ends, Stdlib.Option.Option.Some c)
+        else (ends, best)
+      let (_, cell) = Stdlib.List.fold r (0, Stdlib.Option.Option.None) step
+      cell
+    let onRow =
+      match Stdlib.List.getAt rows row with
+      | Some r -> lastOfRow r col
+      | None -> Stdlib.Option.Option.None
+    let cell =
+      match onRow with
+      | Some c -> Stdlib.Option.Option.Some c
+      | None ->
+        Stdlib.List.range 0 (row - 1)
+        |> Stdlib.List.reverse
+        |> Stdlib.List.filterMap (fun i ->
+          match Stdlib.List.getAt rows i with
+          | Some r -> lastOfRow r 100000
+          | None -> Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+    cell
     |> Stdlib.Option.andThen (fun c ->
-      if c.style == Layout.Style.Keyword then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
+      if c.style == Layout.Style.Punct then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
       else Stdlib.Option.Option.None)
   | None -> Stdlib.Option.Option.None
 
@@ -1180,6 +1224,39 @@ let typeOne (st: State) (c: String) : State =
     // in the VALUE, past the `=` the editor drew -- so typing the `=` of `let x = 1`, which is what anyone
     // writes, landed it in the value and gave `let x = =`. Swallow it: you typed punctuation that is
     // already there. Guarded on an empty hole, so `a == b` still builds its operator.
+    st
+  elif
+    (c == ">")
+    && (Stdlib.Bool.not inStringBody)
+    && (match nodeAtPath st.root caret.node with
+        | Some n ->
+          (match mergeSlotOf n with
+           | Some sn -> (Node.text n sn |> Stdlib.Option.withDefault "") == "-"
+           | None -> false)
+        | None -> false)
+  then
+    // The `->` of a lambda or a match arm is drawn FOR you, and typing it starts a negative number on the
+    // hole and then wraps it in an operator: `fun x -> x` came out as `ERR not an Int: -`. A minus sign
+    // with no digits after it is never a number, and `- >` is not an expression in any reading, so this
+    // can only be the arrow that is already there. Put the hole back.
+    (match nodeAtPath st.root caret.node with
+     | Some n ->
+       let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) "expression"
+       let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
+       { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
+     | None -> st)
+  elif
+    (Stdlib.Bool.not inStringBody)
+    && (c != ",")
+    && (match slotUnder st with
+        // Only punctuation that can't START anything here. `[` and `(` open a list and a tuple, `-` opens
+        // a negative number, `,` adds another item -- those all MEAN something on an empty hole and must
+        // go through. A match arm's `|` means nothing there, so re-typing the one already drawn is just
+        // the reflex that re-types a let's `=` or an `if`'s `then`.
+        | Some(Empty e) -> Stdlib.Option.isNone (holeFill st.reg e c)
+        | _ -> false)
+    && (prevPunct st == Stdlib.Option.Option.Some c)
+  then
     st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     match addSibling st with

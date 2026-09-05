@@ -671,3 +671,27 @@ module KeywordsTheEditorAlreadyDrew =
   // And a pattern variable that isn't a keyword is untouched.
   (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "x", " ", "x", "<Esc>", "<Esc>" ]) =
     "match n with\n| x -> x"
+
+
+module PunctuationTheEditorAlreadyDrew =
+  // The same reflex as the keywords, one level down: `->` and `|` are drawn for you too.
+  // `fun x -> x + 1` came out as `ERR not an Int: -`, because the `-` started a NEGATIVE NUMBER on the
+  // body hole and the `>` then wrapped it in an operator.
+  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", ">", " ", "x", " ", "+", " ", "1", "<Esc>", "<Esc>" ]) =
+    "(fun x -> x + 1)"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "-", ">", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "O", "k", "(", "v", ")", " ", "-", ">", " ", "v", "<Esc>", "<Esc>" ]) =
+    "match n with\n| Ok(v) -> v"
+  // An arm's leading `|`, typed although it is already there.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "|", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+
+  // What a `-` and a `>` legitimately mean is untouched: a negative literal, a subtraction, a comparison,
+  // and a negative number as a lambda's whole body.
+  (Fixtures.program [ "[", "1", ",", " ", "-", "2", "<Esc>", "<Esc>" ]) = "[1, -2]"
+  (Fixtures.program [ "a", " ", "-", " ", "b", "<Esc>", "<Esc>" ]) = "a - b"
+  (Fixtures.program [ "a", " ", ">", " ", "b", "<Esc>", "<Esc>" ]) = "a > b"
+  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", "1", "<Esc>", "<Esc>" ]) = "(fun x -> -1)"
+  // A comma on an empty item still MEANS something -- another item -- so it is not swallowed.
+  (Fixtures.program [ "[", "1", ",", " ", "2", ",", " ", "3", "<Esc>", "<Esc>" ]) = "[1, 2, 3]"
