@@ -216,3 +216,15 @@ module AfterNodeMotion =
 
   // Right and Left move across the boundary: Left re-enters the element just typed.
   (Fixtures.screen [ "[", "[", "1", "]", "2", "<Left>" ]) = "[[1], ~2]"
+
+
+module AfterNodeWrap =
+  // An operator or `.` right after a closed construct wraps the WHOLE construct, not a piece of it:
+  // `[1]` then `+` `2` is `[1] + 2` (infix on the list), and `[1]` then `.` `x` a field access on it.
+  (Fixtures.program [ "[", "1", "]", "+", "2", "<Esc>" ]) = "[1] + 2"
+  (Fixtures.screen [ "[", "1", "]", "+" ]) = "[1] +~ ⟨right⟩"
+  (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
+  (Fixtures.screen [ "[", "1", "]", "." ]) = "[1].~field"
+
+  // A tuple wraps the same way once closed: `(1, 2)` then `+` `3` -> `(1, 2) + 3`.
+  (Fixtures.program [ "(", "1", ",", "2", ")", "+", "3", "<Esc>" ]) = "(1, 2) + 3"

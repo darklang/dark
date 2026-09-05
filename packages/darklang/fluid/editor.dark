@@ -875,15 +875,30 @@ let typeOneRaw (st: State) (c: String) : State =
     | None -> st
   | OnNode -> st
   | AfterNode ->
-    // Typing just after a closed construct starts a new element in the enclosing list, so `[[1]` then `2`
-    // grows the outer list without an explicit comma. Operators and `.` are left for a later pass (they
-    // should wrap the construct, not add a sibling), so they're inert here for now.
-    if (isOperatorChar c) || (c == ".") then
-      st
-    else
-      match addSibling st with
-      | Some added -> typeOne added c
-      | None -> st
+    // Just after a closed construct: an operator or `.` wraps the WHOLE construct (`[1]` then `+` gives
+    // `[1] + ⟨right⟩`, `[1].` a field access on the list); anything that starts a new element grows the
+    // enclosing list without an explicit comma (`[[1]` then `2` -> `[[1], 2]`).
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      match wrapRuleFor st.reg n c with
+      | Some rule ->
+        let wrapped = rule.wrap n c
+        let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
+        let caretNew =
+          if rule.opSlot == "" then
+            landAfterCommit caret.node wrapped
+          else
+            let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
+            Caret.inText caret.node rule.opSlot opLen
+        { st1 with caret = caretNew }
+      | None ->
+        if (isOperatorChar c) || (c == ".") then
+          st
+        else
+          match addSibling st with
+          | Some added -> typeOne added c
+          | None -> st
+    | None -> st
   | _ ->
     match Caret.slotPath caret with
     | None -> st
