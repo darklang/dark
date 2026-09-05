@@ -794,10 +794,17 @@ let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : St
   Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
 
 /// "Stdlib.List.map" for Darklang.Stdlib.List.map: the way people write it.
+/// How a name is written on screen. This defers to the pretty-printer's own shortening rather than
+/// stripping a prefix by hand, because the two answers were drifting: Fluid drew
+/// `Darklang.Stdlib.Option.Option<'a>` for a parameter the printer writes as `Option<'a>`, long enough to
+/// break the line mid-type. Same function, same answer.
+/// The empty module path is what Context.forBranch uses, so this matches the context Fluid prints with.
+/// CLEANUP: the fn editor KNOWS which module it is showing, and Context.forModule exists for exactly
+/// that -- names inside `Stdlib.Option.map` should be spelled the way someone standing in that module
+/// would say them.
 let displayName (name: String) : String =
-  if Stdlib.String.startsWith name "Darklang.Stdlib." then Stdlib.String.dropFirst name 9
-  elif Stdlib.String.startsWith name "Darklang." then Stdlib.String.dropFirst name 9
-  else name
+  let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+  Darklang.PrettyPrinter.shortenName [] loc.owner loc.modules loc.name
 
 let fnNameNode (name: String) (hash: String) : Node =
   Node.make (exprKind "EFnName") [ text "name" (displayName name), text "_hash" hash ]
@@ -1264,11 +1271,11 @@ let moreSpecs () : List<Spec> =
       [ Piece.Slot "first", Piece.HardLine, Piece.EachWith("steps", [ Piece.Punct "|>", Piece.Space ], [ Piece.HardLine ]) ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
-    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
     simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
-    simpleOf (pipeKind "EPipeEnum") [ Piece.Text("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
+    simpleOf (pipeKind "EPipeEnum") [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
     simpleOf (Kind.named recordFieldType) [ Piece.Text("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
     simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
     simpleExpr
@@ -1295,7 +1302,7 @@ let moreSpecs () : List<Spec> =
       (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ])
     simpleExpr
       "EEnum"
-      [ Piece.Text("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]
+      [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]
       (Node.make (exprKind "EEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
     simpleExpr
       "EDict"
@@ -1630,7 +1637,7 @@ module Types =
           simpleType "TDict" [ Piece.Keyword "Dict", Piece.Punct "<", Piece.Slot "key", Piece.Punct ",", Piece.Space, Piece.Slot "value", Piece.Punct ">" ] (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
           simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
           simpleType "TFn" [ Piece.Punct "(", Piece.EachWith("args", [], [ Piece.Space, Piece.Punct "->", Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Space, Piece.Slot "ret", Piece.Punct ")" ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
-          simpleType "TCustomType" [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Space ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
+          simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Space ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
 
 
 // ============================================================================

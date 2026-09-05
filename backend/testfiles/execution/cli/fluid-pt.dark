@@ -64,7 +64,7 @@ module Vertical =
 
   // A record literal is laid out vertically (its fields break unconditionally), and because a tall child
   // forces its container to break, a list of records goes vertical too.
-  (Fixtures.render "Stdlib.Option.Option.Some 5" 60) = "Darklang.Stdlib.Option.Option.Some(5)"
+  (Fixtures.render "Stdlib.Option.Option.Some 5" 60) = "Option.Some(5)"
 
 
 module Parens =
@@ -171,3 +171,36 @@ module Editing =
   // ... and an unfinished one says what is missing.
   (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "x" ]) =
     "ERR hole: value"
+
+
+module NamesReadTheWayThePrinterWritesThem =
+  // Fluid drew fully-qualified names where the printer shortens: `Darklang.Stdlib.Option.Option<'a>` for a
+  // parameter the printer writes `Option<'a>`, long enough to break the line mid-type. displayName defers
+  // to the pretty-printer's own shortenName now, so there is one answer rather than two.
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Option.Option") = "Option"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Result.Result") = "Result"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.List.length") = "Stdlib.List.length"
+
+  // The shortening is on the way to the SCREEN, not into the document: the full name is the thing's
+  // identity, and storing the short one made `Result.Ok` come back as `Result..Ok`. So both have to hold:
+  // the screen is short, and the round-trip is unchanged.
+  let screen (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "ERR " ++ err
+
+  let roundTrip (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      (match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+       | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e2
+       | Error err -> "ERR " ++ err)
+    | Error err -> "ERR " ++ err
+
+  (NamesReadTheWayThePrinterWritesThem.screen "Ok(1)") = "Result.Ok(1)"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "Ok(1)") = "Result.Ok(1)"
+  (NamesReadTheWayThePrinterWritesThem.screen "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
+  (NamesReadTheWayThePrinterWritesThem.screen "nums |> Stdlib.List.filter f") = "nums\n|> Stdlib.List.filter f"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "nums |> Stdlib.List.filter f") = "nums |> Stdlib.List.filter f"

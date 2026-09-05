@@ -21,6 +21,10 @@ type Piece =
   /// inside delimiters that already show where you are: an empty string used to read as `"body"`, an
   /// empty char as `'char'`, and a string's trailing segment put a dim `text` inside the quotes.
   | QuietText of slot: String * style: Layout.Style
+  /// A text slot holding a fully-qualified NAME, drawn the way the pretty-printer would write it here.
+  /// The document keeps the full name -- that is the thing's identity, and shortening what is STORED
+  /// makes `Result.Ok` come back as `Result..Ok` -- so the shortening happens on the way to the screen.
+  | NameText of slot: String * style: Layout.Style
   /// Punctuation nobody can put a caret in.
   | Punct of String
   | Keyword of String

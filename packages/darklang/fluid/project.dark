@@ -108,6 +108,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
         Layout.tagged tag style t
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | NameText(slotName, style) ->
+    let tag = tagFor path (Part.InText slotName)
+    match Node.text n slotName with
+    | Some t ->
+      if t == "" then Layout.tagged tag Layout.Style.Dim slotName
+      else Layout.tagged tag style (Darklang.Fluid.PT.displayName t)
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
   | QuietText(slotName, style) ->
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
