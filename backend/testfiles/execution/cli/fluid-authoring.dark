@@ -518,3 +518,37 @@ module SpaceAdvancesAfterBoundVar =
     "let a = 1\nlet b = a\nb"
   // A construct committed on space still lands in its own first hole (a keyword sits at its name).
   (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module TypingFast =
+  // Fast typing (and a paste) arrives as ONE key press: the terminal reader coalesces the run and reports
+  // the whole text at once. The completion menu is a cache refreshed per key press, so folding a run
+  // without refreshing left every character after the first deciding on the menu computed BEFORE the run.
+  // Typing `Stdlib.List.filter ` quickly used to commit the empty hole's only candidate -- a lambda --
+  // and throw the name away, while typing it slowly worked. A run must behave exactly like typing it.
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun g -> Stdlib.Char.toString g)
+
+  (Fixtures.screen [ "nums |Stdlib.List.filter " ]) = "nums\n|> Darklang.Stdlib.List.filter ~⟨f⟩"
+  (Fixtures.screen (TypingFast.chars "nums |Stdlib.List.filter ")) = "nums\n|> Darklang.Stdlib.List.filter ~⟨f⟩"
+
+  // The general property, on a couple of shapes: a run and its characters land in the same place.
+  (Fixtures.screen [ "let nums [1, 2, 3]" ]) = (Fixtures.screen (TypingFast.chars "let nums [1, 2, 3]"))
+  (Fixtures.screen [ "abc " ]) = (Fixtures.screen (TypingFast.chars "abc "))
+
+
+module SpaceInAnEmptyHole =
+  // A space in an empty hole is leading whitespace: nothing typed to commit, nothing to advance past. It
+  // used to become the hole's text, so a list typed the way people write one came out as `[1,  2]` -- the
+  // comma made the hole and the space landed in it.
+  (Fixtures.screen [ "[", "1", ",", " ", "2" ]) = "[1, 2~]"
+  (Fixtures.program [ "[", "1", ",", " ", "2", "<Esc>", "<Esc>" ]) = "[1, 2]"
+  (Fixtures.screen [ " ", "1" ]) = "1~"
+
+
+module TypingAfterAClosedValue =
+  // Just after a closed value that isn't in a sequence there is nothing to grow, so a name means "on to
+  // the next thing": step to the next hole and type it there. Dropping the keys is what must not happen --
+  // `let xs = [1] xs` used to eat the whole name with the screen never changing.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s" ]) = "let xs = [1]\nxs~"
+  (Fixtures.program [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s", "<Esc>", "<Esc>" ]) = "let xs = [1]\nxs"

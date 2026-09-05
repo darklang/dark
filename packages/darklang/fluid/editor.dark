@@ -1207,7 +1207,15 @@ let typeOneRaw (st: State) (c: String) : State =
         else
           match addSibling st with
           | Some added -> typeOne added c
-          | None -> st
+          | None ->
+            // The node isn't in a sequence, so there's nothing to grow. Typing a name just after a
+            // finished value means "on to the next thing", so step to the next hole and type it there.
+            // Anything but that drops the keystroke silently, which is how `let xs = [1] xs` ate the
+            // whole name with the screen never changing.
+            let moved = nextHole st
+            if moved.caret == st.caret then
+              { st with message = "nowhere to type here -- Esc for nav" }
+            else typeOne moved c
     | None -> st
   | _ ->
     match Caret.slotPath caret with
@@ -1215,6 +1223,11 @@ let typeOneRaw (st: State) (c: String) : State =
     | Some sp ->
       match slotAtPath st.root sp with
       | Some(Empty e) ->
+        // A space in an empty hole is leading whitespace: there is nothing typed to commit and nothing
+        // to advance past, so swallow it. Without this, typing `[1, 2]` by hand gave the second item the
+        // text " 2" -- the comma made the hole, and the space people naturally type after it landed in it.
+        if c == " " then st
+        else
         match holeFill st.reg e c with
         | Some((n, afterChar)) ->
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] caret
@@ -1282,7 +1295,13 @@ let typeChar (st: State) (c: String) : State =
   if (Stdlib.String.length c) <= 1 then
     typeOne st c
   else
-    Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g -> typeOne acc (Stdlib.Char.toString g))
+    // A run of characters arrives as ONE key press: the reader coalesces fast typing (and pastes) into a
+    // single event. The completion menu is a cache refreshed once per key press, so folding the run
+    // without refreshing leaves every character after the first deciding on a menu computed for the state
+    // BEFORE the run. That is how typing `Stdlib.List.filter ` quickly committed the empty hole's only
+    // candidate (`fun`, a lambda) and threw the whole name away, while typing it slowly worked.
+    // Refresh between characters so a run behaves exactly like typing it.
+    Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g -> refreshMenu (typeOne acc (Stdlib.Char.toString g)))
 
 
 /// The text slot a leaf carries its content in, if it's the kind we can merge by concatenation: an int's
