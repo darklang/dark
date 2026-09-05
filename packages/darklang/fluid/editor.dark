@@ -1066,9 +1066,14 @@ let typeOneRaw (st: State) (c: String) : State =
           && (Stdlib.Bool.not (Stdlib.String.contains text "."))
           && ((Stdlib.String.toLowercase text) == text)
         if atEnd && (c == " ") then
-          // Space with a menu commits the top candidate (a keyword builds its construct); with no menu it
-          // finalises the name as a variable AND advances to the next hole, so `if b 1 2` walks the holes.
-          if Stdlib.Bool.not (Stdlib.List.isEmpty (candidates st)) then commitCandidate st
+          // Space commits the menu only when it's unambiguous -- exactly one candidate (a keyword prefix
+          // like `le`->let) or an exact match (`let`). A loose prefix with several candidates (`f` ->
+          // fun/false) finalises what you typed as a variable and advances instead, so `f ` stays `f`.
+          let cands = candidates st
+          let commitMenu =
+            (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
+            && ((Stdlib.Option.isSome (exactCandidate st)) || ((Stdlib.List.length cands) == 1))
+          if commitMenu then commitCandidate st
           else nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
         elif dotOnName then
           match resolvePartial st with

@@ -360,3 +360,12 @@ module Pipes =
   // `>` between operands is still greater-than, unaffected by the pipe's arrow-swallow.
   (Fixtures.program [ "1", ">", "2", "<Esc>" ]) = "1 > 2"
   (Fixtures.program [ "1", ">", "=", "2", "<Esc>" ]) = "1 >= 2"
+
+
+module SpaceCommitDisambiguation =
+  // Space commits the menu only when it's unambiguous. A loose prefix that matches several candidates
+  // finalises what you typed, so `f ` stays the variable `f` -- it does NOT jump to `fun` (or `false`).
+  (Fixtures.screen [ "f", " " ]) = "f~"
+  // A single-candidate keyword prefix still commits (`le` -> let), and an exact match always does.
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
