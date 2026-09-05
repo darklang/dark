@@ -509,3 +509,12 @@ module TabAdvancesAfterBoundVar =
     "let r = 1\nmatch r with\n| 0 -> \"z\"\n| 1 -> \"o\""
   // Tab on a construct/fn still lands in its first hole to fill (not skipped past).
   (Fixtures.screen [ "l", "e", "t", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module SpaceAdvancesAfterBoundVar =
+  // Space after committing an in-scope variable advances to the next hole (it's "done here"), so a nested
+  // let that references an earlier binding types straight through: `let a = 1  let b = a  b`.
+  (Fixtures.program [ "l", "e", "t", " ", "a", " ", "1", " ", "l", "e", "t", " ", "b", " ", "a", " ", "b", "<Esc>", "<Esc>" ]) =
+    "let a = 1\nlet b = a\nb"
+  // A construct committed on space still lands in its own first hole (a keyword sits at its name).
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"

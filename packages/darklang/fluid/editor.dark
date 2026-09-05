@@ -1244,7 +1244,14 @@ let typeOneRaw (st: State) (c: String) : State =
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
             && ((Stdlib.Option.isSome (exactCandidate st)) || ((Stdlib.List.length cands) == 1))
-          if commitMenu then commitCandidate st
+          if commitMenu then
+            // Committing a leaf (an in-scope variable, a bool) is "done here" -> advance to the next hole,
+            // so `let b = a <space> body` reaches the body. Committing a construct/fn lands in its own hole
+            // to fill, so stay there (a keyword like `let` sits at its name).
+            let committed = commitCandidate st
+            match slotUnder committed with
+            | Some(Empty _) -> committed
+            | _ -> nextHole committed
           else nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
         elif dotOnName then
           match resolvePartial st with
