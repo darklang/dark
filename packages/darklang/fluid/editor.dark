@@ -939,7 +939,11 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
           |> Stdlib.Option.map (fun sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText")
           |> Stdlib.Option.withDefault false
         if nextIsText then
-          Stdlib.Option.Option.Some { st with caret = Caret.inText (Path.item ePath "segments" (i + 1)) "text" 0 }
+          // Stepping out settles what was typed inside the interpolation. Without this, `$"hi {name}"`
+          // left `name` an unresolved partial the caret had already left behind, and the whole document
+          // refused to lower -- while the same string without the closing `}` lowered fine.
+          let settled = resolvePartial st |> Stdlib.Option.withDefault st
+          Stdlib.Option.Option.Some { settled with caret = Caret.inText (Path.item ePath "segments" (i + 1)) "text" 0 }
         else
           Stdlib.Option.Option.None
       else
@@ -1926,7 +1930,10 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // let). A keyword/single-candidate is still committed on the way (so a construct can be built here too).
     match enclosingListItem st.caret with
     | Some _ ->
-      if completing then
+      // Only a menu you opened by TYPING is Enter's to accept. On an untouched hole the menu is just the
+      // list of everything that could go here, and committing its first entry meant a bare Enter built a
+      // `let`, or gave a match arm the pattern `true`.
+      if completing && (onPartial st) then
         // A menu is up. If what you typed IS a candidate (an in-scope variable), you're done: commit it
         // and start the next item. If the menu offers something else to accept (a store function like
         // `List.len` -> `Stdlib.List.length`), accept it and stay.
@@ -1945,7 +1952,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           | Some resolved -> handled resolved
           | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
     | None ->
-      if completing then handled (commitCandidate st)
+      if completing && (onPartial st) then handled (commitCandidate st)
       else
         match addSibling st with
         | Some added -> handled added

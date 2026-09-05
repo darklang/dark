@@ -375,7 +375,7 @@ module SpaceCommitDisambiguation =
 module CharLiterals =
   // `'` builds a character literal and drops into it; the closing quote is drawn and stepping past it is
   // a no-op. Works in expressions and patterns.
-  (Fixtures.screen [ "'" ]) = "'~char'"
+  (Fixtures.screen [ "'" ]) = "'~'"
   (Fixtures.screen [ "'", "a" ]) = "'a~'"
   (Fixtures.program [ "'", "a", "<Esc>" ]) = "'a'"
   (Fixtures.program [ "'", "a", "'", "<Esc>" ]) = "'a'"
@@ -470,7 +470,7 @@ module StringInterpolation =
   // `$` starts an interpolated string; text fills a segment (spaces literal); `{` splits the text and
   // drops in an interpolation, `}` steps to the text after it, `"` ends the whole string.
   (Fixtures.screen [ "$", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "$\"hi there~\""
-  (Fixtures.screen [ "$", "a", "{" ]) = "$\"a{~⟨expr⟩}text\""
+  (Fixtures.screen [ "$", "a", "{" ]) = "$\"a{~⟨expr⟩}\""
   (Fixtures.screen [ "$", "a", "{", "x", "}", "b" ]) = "$\"a{x}b~\""
   (Fixtures.program [ "$", "a", "{", "1", "}", "b", "<Esc>" ]) = "$\"a{1}b\""
   // An interpolation is a full expression: operators and all.
@@ -552,3 +552,35 @@ module TypingAfterAClosedValue =
   // `let xs = [1] xs` used to eat the whole name with the screen never changing.
   (Fixtures.screen [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s" ]) = "let xs = [1]\nxs~"
   (Fixtures.program [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s", "<Esc>", "<Esc>" ]) = "let xs = [1]\nxs"
+
+
+module QuotedLiteralsReadAsThemselves =
+  // An empty text slot normally shows its NAME, dimmed, as a hint -- right for a `⟨name⟩` hole, wrong
+  // inside quotes, where a dim word reads as the content: an empty string showed `"body"`, an empty char
+  // `'char'`, and a string's trailing segment put a `text` inside the quotes. Delimiters already say
+  // where you are, so an empty one draws nothing.
+  (Fixtures.screen [ "\"" ]) = "\"~\""
+  (Fixtures.screen [ "'" ]) = "'~'"
+  (Fixtures.screen [ "$", "\"" ]) = "$\"~\""
+  (Fixtures.screen [ "$", "\"", "{" ]) = "$\"{~⟨expr⟩}\""
+
+
+module StringInterpCloses =
+  // Stepping out of an interpolation with `}` settles what you typed inside it. It used to leave the name
+  // an unresolved partial that the caret had already left behind, so `$"hi {name}"` refused to lower --
+  // while the same string WITHOUT the closing `}` lowered fine.
+  (Fixtures.screen [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}" ]) = "$\"hi {name}~\""
+  (Fixtures.program [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}", "<Esc>", "<Esc>" ]) = "$\"hi {name}\""
+  (Fixtures.program [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}", "!", "<Esc>", "<Esc>" ]) = "$\"hi {name}!\""
+
+
+module EnterNeedsSomethingTyped =
+  // Enter accepts the menu only when you OPENED it by typing. On an untouched hole the menu is just the
+  // list of everything that could go there, and accepting its first entry meant a bare Enter built a
+  // `let`, and Enter on a fresh match arm gave it the pattern `true`.
+  (Fixtures.screen [ "<Enter>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "s", " ", "<Enter>" ]) =
+    "match s with\n| ⟨pattern⟩ -> ⟨rhs⟩\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  // Typed-then-Enter still commits, which is the whole point of the menu.
+  (Fixtures.screen [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"

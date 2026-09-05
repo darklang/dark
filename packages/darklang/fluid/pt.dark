@@ -1242,8 +1242,8 @@ let moreSpecs () : List<Spec> =
     simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ])
     simpleOf (matchPatKind "MPInt64") [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (matchPatKind "MPInt64") [ text "digits" "" ])
     simpleOf (matchPatKind "MPFloat") [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ] (Node.make (matchPatKind "MPFloat") [ text "whole" "", text "fraction" "" ])
-    simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.Text("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
-    simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.Text("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
+    simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
+    simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
     simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
     simpleOf (matchPatKind "MPListCons") [ Piece.Slot "head", Piece.Space, Piece.Punct "::", Piece.Space, Piece.Slot "tail" ] (Node.make (matchPatKind "MPListCons") [ ("head", Field.One(Slot.Empty(matchPatExpect "head"))), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ])
     simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
@@ -1310,7 +1310,7 @@ let moreSpecs () : List<Spec> =
     simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.Text("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     simpleExpr "EStringI" [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
-    simpleOf (segmentKind "StringText") [ Piece.Text("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])
+    simpleOf (segmentKind "StringText") [ Piece.QuietText("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])
     simpleOf (segmentKind "StringInterpolation") [ Piece.Punct "{", Piece.Slot "expr", Piece.Punct "}" ] (Node.make (segmentKind "StringInterpolation") [ ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]) ]
 
 let baseSpecs () : List<Spec> =
@@ -1324,8 +1324,8 @@ let baseSpecs () : List<Spec> =
       "EFloat"
       [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
       (Node.make (exprKind "EFloat") [ text "whole" "", text "fraction" "" ])
-    simpleExpr "EChar" [ Piece.Punct "'", Piece.Text("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
-    simpleExpr "EString" [ Piece.Punct "\"", Piece.Text("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
+    simpleExpr "EChar" [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
+    simpleExpr "EString" [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
     simpleExpr
       "EList"
       [ Piece.Group

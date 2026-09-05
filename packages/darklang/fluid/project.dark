@@ -108,6 +108,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
         Layout.tagged tag style t
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | QuietText(slotName, style) ->
+    let tag = tagFor path (Part.InText slotName)
+    match Node.text n slotName with
+    | Some t ->
+      // Empty draws a zero-width tagged cell: nothing to read, but the caret still has somewhere to land.
+      if t == "" then Layout.tagged tag style "" else Layout.tagged tag style t
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
   | Punct s -> Layout.punct s
   | Keyword s -> Layout.keyword s
   | Label s -> Layout.tagged (tagFor path Part.OnNode) Layout.Style.Keyword s

@@ -83,7 +83,7 @@ let specs () : List<Spec> =
         summary = intSummary }
     Spec
       { kind = stringKind ()
-        pieces = [ Piece.Punct "\"", Piece.Text("body", Layout.Style.Literal), Piece.Punct "\"" ]
+        pieces = [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ]
         holeRules = [ HoleRule { onChar = "\""; fill = HoleFill.Node(stringNode "") } ]
         wrapRules = []
         completions = []

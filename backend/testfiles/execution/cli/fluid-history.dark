@@ -33,7 +33,7 @@ module Coalesce =
   // Typing into a text run is ONE undo step, not one per character: undoing a string body clears the
   // whole word back to the empty string, and a second undo removes the string itself.
   (Fixtures.run [ "\"", "a", "b", "c" ]) = "\"abc~\""
-  (Fixtures.run [ "\"", "a", "b", "c", "<Esc>", "u" ]) = "\"~body\""
+  (Fixtures.run [ "\"", "a", "b", "c", "<Esc>", "u" ]) = "\"~\""
   (Fixtures.run [ "\"", "a", "b", "c", "<Esc>", "u", "u" ]) = "~⟨expr⟩"
 
 
