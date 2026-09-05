@@ -924,9 +924,33 @@ let typeOne (st: State) (c: String) : State =
   elif inFreshPipeStep then
     st
   elif inPipeSteps then
-    let settled = resolvePartial st |> Stdlib.Option.withDefault st
-    match addSibling settled with
-    | Some added -> added
+    // A second `|` on a FRESH pipe (one empty step, made by the first `|`) means the user is typing `||`,
+    // the OR operator, not a pipe. Convert the pipe back into an infix. On a pipe with real stages, `|`
+    // just starts the next stage.
+    match nodeAtPath st.root caret.node with
+    | Some pn ->
+      let steps = Node.items pn "steps"
+      let fresh =
+        ((Stdlib.List.length steps) == 1)
+        && (match Stdlib.List.head steps with
+            | Some(Empty _) -> true
+            | _ -> false)
+      if fresh then
+        let firstSlot = Node.slot pn "first" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
+        // The right operand expects an expression (same kind the pipe itself sits in), so a typed literal
+        // resolves the way an ordinary infix operand does -- not the pipe-step expectation.
+        let rightExpect = Expect.ofKind (Kind.named (Kind.typeName pn.kind)) "right"
+        let infix =
+          Node.make
+            (Kind.ofCase (Kind.typeName pn.kind) "EInfix")
+            [ ("left", Field.One firstSlot), ("op", Field.Text "||"), ("right", Field.One(Slot.Empty rightExpect)) ]
+        let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled infix) ] caret
+        { st1 with caret = Caret.inText caret.node "op" 2 }
+      else
+        let settled = resolvePartial st |> Stdlib.Option.withDefault st
+        match addSibling settled with
+        | Some added -> added
+        | None -> typeOneRaw st c
     | None -> typeOneRaw st c
   elif (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret

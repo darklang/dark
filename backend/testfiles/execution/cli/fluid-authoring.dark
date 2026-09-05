@@ -390,3 +390,14 @@ module UnitLiteral =
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "(", ")", "<Tab>", "0", "<Esc>" ]) = "match n with\n| () -> 0"
   // Unit as a let value, then space advances to the body.
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "(", ")", " ", "x", "<Esc>" ]) = "let x = ()\nx"
+
+
+module OrOperator =
+  // `||` is the boolean OR, not a pipe: `|` opens a pipe (drawing `|>`), but a second `|` on that fresh
+  // pipe converts it to `||`. (A `>` after the first `|` is the pipe; `|` is or.)
+  (Fixtures.screen [ "x", "|", "|", "y" ]) = "x || y~"
+  (Fixtures.program [ "t", "r", "u", "e", "|", "|", "f", "a", "l", "s", "e", "<Esc>" ]) = "true || false"
+  (Fixtures.program [ "1", "|", "|", "2", "<Esc>" ]) = "1 || 2"
+
+  // The pipe still works: `|` then `>` chains stages.
+  (Fixtures.screen [ "a", "|", ">", "b", "|", ">", "c" ]) = "a\n|> b\n|> c~"
