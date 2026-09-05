@@ -256,10 +256,9 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         rows = Stdlib.Int.max 1 (boxInner.rows - 1)
         cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
   let paneTitle = "fluid · " ++ (Editor.breadcrumb st.editor)
-  // The completion menu lives in the inspector when it's showing; only when the inspector is hidden
-  // (narrow terminal) does a floating popover appear over the code. Avoids the two showing at once.
-  let popoverSpans =
-    if showInspector then [] else Widget.popover st.theme st.editor region st.scroll
+  // Completions live at the caret, always: a floating popover under (or over) the cursor, so the menu is
+  // where your eyes already are rather than off in a side panel. The inspector no longer lists them.
+  let popoverSpans = Widget.popover st.theme st.editor region st.scroll
   let mainSpans =
     Stdlib.List.flatten
       [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true

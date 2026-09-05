@@ -94,18 +94,32 @@ let popover
       let col0 = Stdlib.Int.max 0 (screenCol - region.left)
       let shown = Stdlib.List.take cs maxPopoverRows
       let selected = Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1)
+      let extra = (Stdlib.List.length cs) - (Stdlib.List.length shown)
+      // A trailing "+N more" row when the list overflows, so a long menu doesn't look like the whole set.
+      let moreText = if extra > 0 then " +" ++ (Stdlib.Int.toString extra) ++ " more" else ""
+      let labelWidth (c: Editor.Candidate) : Int = Stdlib.String.displayWidth (c.label ++ "  " ++ c.detail)
       let widest =
-        shown |> Stdlib.List.fold 0 (fun acc c -> Stdlib.Int.max acc (Stdlib.String.displayWidth (c.label ++ "  " ++ c.detail)))
+        shown
+        |> Stdlib.List.fold (Stdlib.String.displayWidth moreText) (fun acc c -> Stdlib.Int.max acc (labelWidth c))
+      let bodyRows = (Stdlib.List.length shown) + (if extra > 0 then 1 else 0)
       // Below the caret when there is room, above otherwise.
-      let below = row0 + 1 + (Stdlib.List.length shown) <= region.rows
-      let startRow = if below then row0 + 1 else row0 - (Stdlib.List.length shown)
-      shown
-      |> Stdlib.List.indexedMap (fun i c ->
-        let line =
-          Stdlib.Cli.Tui.Text.fitToWidth (" " ++ c.label ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText c.detail)) (widest + 2)
-        let style = if i == selected then theme.menuSelected else theme.menu
-        Stdlib.Cli.UI.Layout.at region (startRow + i) col0 (Stdlib.Cli.UI.Colors.colorize style line))
-      |> Stdlib.List.flatten
+      let below = row0 + 1 + bodyRows <= region.rows
+      let startRow = if below then row0 + 1 else row0 - bodyRows
+      let candSpans =
+        shown
+        |> Stdlib.List.indexedMap (fun i c ->
+          let line =
+            Stdlib.Cli.Tui.Text.fitToWidth (" " ++ c.label ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText c.detail)) (widest + 2)
+          let style = if i == selected then theme.menuSelected else theme.menu
+          Stdlib.Cli.UI.Layout.at region (startRow + i) col0 (Stdlib.Cli.UI.Colors.colorize style line))
+        |> Stdlib.List.flatten
+      let moreSpan =
+        if extra > 0 then
+          let line = Stdlib.Cli.Tui.Text.fitToWidth (" " ++ (Stdlib.Cli.UI.Colors.dimText moreText)) (widest + 2)
+          Stdlib.Cli.UI.Layout.at region (startRow + (Stdlib.List.length shown)) col0 (Stdlib.Cli.UI.Colors.colorize theme.menu line)
+        else
+          []
+      Stdlib.List.append candSpans moreSpan
 
 /// The command palette overlay, a small centered list of the actions on the current node.
 let palette
@@ -170,30 +184,7 @@ let inspector
   let actionLines =
     if Stdlib.List.isEmpty actions then [ dim "  (none here)" ]
     else actions |> Stdlib.List.take 7 |> Stdlib.List.map (fun a -> "  " ++ (Stdlib.Cli.UI.Colors.colorize theme.keyword "•") ++ " " ++ a.name)
-  let cands = Editor.candidates st
-  let shown = 6
-  let selected = Stdlib.Int.clamp st.completionIndex 0 (Stdlib.Int.max 0 ((Stdlib.List.length cands) - 1))
-  // When the list is capped, say how many more there are so it's clear that typing more will narrow it,
-  // rather than looking like the whole set.
-  let moreLine =
-    let extra = (Stdlib.List.length cands) - shown
-    if extra > 0 then [ dim ("   +" ++ (Stdlib.Int.toString extra) ++ " more (keep typing)") ]
-    else []
-  let candLines =
-    if Stdlib.List.isEmpty cands then []
-    else
-      Stdlib.List.flatten
-        [ [ "", head "COMPLETE" ]
-          cands
-          |> Stdlib.List.take shown
-          |> Stdlib.List.indexedMap (fun i c ->
-            // The highlighted candidate is marked with a caret and reverse video, so arrow-selection is
-            // visible right where the completions are listed.
-            if i == selected then
-              Stdlib.Cli.UI.Colors.colorize theme.menuSelected (" > " ++ c.label ++ "  " ++ c.detail)
-            else
-              "   " ++ c.label ++ "  " ++ (dim c.detail))
-          moreLine ]
+  // Completions are shown at the caret (a popover), not here, so the panel never lists them twice.
   // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
   let inHole =
     match Editor.slotUnder st with
@@ -210,7 +201,7 @@ let inspector
       [ (head ehead) ++ "  " ++ eval, "" ]
     else [ (head "ON") ++ "  " ++ node, "" ]
   let rows =
-    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines, candLines ]
+    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])

@@ -64,9 +64,11 @@ module InspectorLabels =
   (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS") = true
   (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS  :") = false
 
-  // Typing a prefix shows the COMPLETE header with the menu, and the header for a partial is TYPING.
-  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "COMPLETE") = true
+  // Completions live at the caret now, so the panel does NOT carry a COMPLETE section; while typing, its
+  // header reads TYPING and the candidate itself shows in the popover (its label is on screen).
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "COMPLETE") = false
   (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "TYPING") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "let") = true
 
 
 module CompletionOverflow =
