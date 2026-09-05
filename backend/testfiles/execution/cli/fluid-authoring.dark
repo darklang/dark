@@ -307,3 +307,15 @@ module MatchPatterns =
   // Literal patterns: int, string, bool, tuple.
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "0" ]) = "match n with\n| 0~ -> ⟨rhs⟩"
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "(", "a", ",", "b" ]) = "match n with\n| (a, b~) -> ⟨rhs⟩"
+
+
+module FloatLiterals =
+  // A `.` after an integer's digits makes a float and drops into the fraction -- it does NOT wrap the
+  // number in a field access. (This is the counterpart to `.` after a NAME, which is a field access.)
+  (Fixtures.program [ "1", ".", "5", "<Esc>" ]) = "1.5"
+  (Fixtures.program [ "3", ".", "1", "4", "<Esc>" ]) = "3.14"
+  (Fixtures.screen [ "1", "." ]) = "1.~fraction"
+  // Same in a pattern.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ".", "5", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 1.5 -> 0"
+  // A `.` after a name is still a field access, unaffected.
+  (Fixtures.program [ "r", ".", "x", "<Esc>" ]) = "r.x"
