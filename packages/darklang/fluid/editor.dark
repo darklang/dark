@@ -1385,12 +1385,24 @@ let backspace (st: State) : State =
       let old = Node.text n slot |> Stdlib.Option.withDefault ""
       // Backspacing a single-character infix operator deletes the operator, collapsing the infix onto its
       // operands rather than leaving `12  34` with no operator. Fires wherever the caret sits in the op.
+      let updated = TextEdit.removeBefore old caret.offset
+      // A single-text leaf (an int, string, char, variable) whose only editable content is this slot goes
+      // back to a hole when its last character is deleted, instead of lingering as a zombie empty node.
+      let onlyEditable =
+        n.fields
+        |> Stdlib.List.all (fun f ->
+          let (name, _) = f
+          (name == slot) || (Stdlib.String.startsWith name "_"))
       if (slot == "op") && (n.kind.case == Stdlib.Option.Option.Some "EInfix") && ((Stdlib.String.length old) <= 1) then
         collapseInfix st caret.node n
+      elif (caret.offset > 0) && (updated == "") && onlyEditable then
+        let label = if Stdlib.String.contains (Kind.typeName n.kind) "Pattern" then "pattern" else "expression"
+        let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) label
+        let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
+        { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
       elif caret.offset <= 0 then
         st
       else
-        let updated = TextEdit.removeBefore old caret.offset
         commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset - 1 }
     | None -> st
   | OnNode -> st

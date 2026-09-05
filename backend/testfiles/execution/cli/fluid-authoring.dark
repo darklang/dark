@@ -176,8 +176,9 @@ module DeleteKeyword =
   (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "<BS>" ]) = "~⟨arg⟩"
   (Fixtures.screen [ "f", "u", "n", " ", "<BS>" ]) = "~⟨body⟩"
 
-  // Only when nothing's filled in: with a name typed, backspace edits the name rather than nuking the let.
-  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~name = ⟨value⟩\n⟨body⟩"
+  // Backspacing the name doesn't nuke the let -- the value and body stand; the emptied name just returns
+  // to a hole (like any single-value leaf), so you can retype it.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨pattern⟩ = ⟨value⟩\n⟨body⟩"
 
   // Collapse nests: an empty `if` in a let body collapses to a hole, and you keep typing the body.
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "i", "f", " ", "<BS>", "x", "<Esc>" ]) = "let x = 1\nx"
@@ -420,3 +421,16 @@ module EmptyList =
   (Fixtures.program [ "[", "1", ",", "2", "]", "<Esc>" ]) = "[1, 2]"
   // Empty list as a cons tail: `1 :: []`.
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ":", ":", "[", "]", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| 1 :: [] -> 0"
+
+
+module LeafBackspaceRevertsToHole =
+  // Deleting the last character of a single-value leaf (int, string, char) returns it to a hole, not a
+  // zombie empty node -- so you can immediately type something else. (Variables already did this.)
+  (Fixtures.screen [ "2", "<BS>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "\"", "a", "<BS>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "2", "<BS>", "5" ]) = "5~"
+  // A multi-character leaf just loses one character; a float keeps its other part.
+  (Fixtures.screen [ "1", "2", "<BS>" ]) = "1~"
+  (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~fraction"
+  // An operand emptied inside an infix becomes a clean hole, not a zombie.
+  (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨expression⟩"
