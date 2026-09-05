@@ -609,3 +609,17 @@ module LambdaParams =
   (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
   (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "fun a -> ~⟨body⟩"
   (Fixtures.program [ "f", "u", "n", " ", "a", "<Enter>", "b", "<Tab>", "a", "+", "b", "<Esc>", "<Esc>" ]) = "(fun a b -> a + b)"
+
+
+module NamesStayNames =
+  // A name slot took any character too. Typing `Ok(1` in an expression -- reaching for an enum
+  // constructor, which expressions don't support yet -- grew a variable literally named "Ok(1", which
+  // lowers to something no parser would take. Two paths insert into a slot (a field name after `.` goes
+  // through the wrap path, not the plain one), and both refuse now.
+  (Fixtures.screen [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(" ]) = "user.name~"
+  (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(", "<Esc>", "<Esc>" ]) = "user.name"
+  (Fixtures.screen [ "O", "k", "(", "1" ]) = "Ok1~"
+  // Digits and underscores are part of a name, so they still go in.
+  (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "2", "<Esc>", "<Esc>" ]) = "user.name2"
+  (Fixtures.program [ "m", "y", "_", "v", "a", "r", " ", "<Esc>", "<Esc>" ]) = "my_var"
+  (Fixtures.program [ "l", "e", "t", " ", "m", "y", "_", "x", " ", "1", " ", "m", "y", "_", "x", "<Esc>", "<Esc>" ]) = "let my_x = 1\nmy_x"

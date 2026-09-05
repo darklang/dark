@@ -1159,8 +1159,11 @@ let typeOneRaw (st: State) (c: String) : State =
           commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else if rule.opSlot == rule.nextSlot then
           // The op-slot IS the destination (a field name after `.`): type into it normally.
-          let updated = TextEdit.insertAt old caret.offset c
-          commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          match textSlotRejection n slot c with
+          | Some msg -> { st with message = msg }
+          | None ->
+            let updated = TextEdit.insertAt old caret.offset c
+            commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else
           let next = Caret.inSlot caret.node rule.nextSlot 0
           typeOne { st with caret = next } c
@@ -1180,9 +1183,9 @@ let typeOneRaw (st: State) (c: String) : State =
             let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
             { st1 with caret = Caret.inText targetPath rule.opSlot opLen }
         | None ->
-          if (isDigitsOnly n slot) && (Stdlib.Bool.not (TextEdit.isDigitString c)) then
-            { st with message = $"`{c}` isn't part of a number" }
-          else
+          match textSlotRejection n slot c with
+          | Some msg -> { st with message = msg }
+          | None ->
             let updated = TextEdit.insertAt old caret.offset c
             commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
     | None -> st
@@ -1336,6 +1339,34 @@ let isDigitsOnly (n: Node) (slot: String) : Bool =
     | Some "MPFloat" -> true
     | _ -> false
   numeric && ((slot == "digits") || (slot == "whole") || (slot == "fraction"))
+
+/// Text slots that hold an IDENTIFIER: a variable or binding name, a field name. They took any character
+/// too, so typing `Ok(1` in an expression grew a variable literally named "Ok(1", which lowers to
+/// something no parser would take. (Enum constructors in expressions are a real gap, not this fix:
+/// building one needs the case's TYPE, which the case name alone doesn't give.)
+/// CLEANUP: same note as isDigitsOnly -- this wants to be a per-slot character class in the spec.
+let isIdentifierSlot (n: Node) (slot: String) : Bool =
+  match n.kind.case with
+  | Some "EVariable" -> slot == "name"
+  | Some "LPVariable" -> slot == "name"
+  | Some "MPVariable" -> slot == "name"
+  | Some "ERecordFieldAccess" -> slot == "field"
+  | _ -> false
+
+let isIdentifierChar (c: String) : Bool =
+  (TextEdit.isLetterString c) || (TextEdit.isDigitString c) || (c == "_")
+
+/// Why a text slot can't hold `c`, if it can't. There is more than one place that inserts into a slot --
+/// a field name after `.` goes through the wrap path, not the plain one -- so the rule lives here and both
+/// call it. A live check caught exactly that: `user.name(` was still accepted after the plain path was
+/// guarded.
+let textSlotRejection (n: Node) (slot: String) (c: String) : Stdlib.Option.Option<String> =
+  if (isDigitsOnly n slot) && (Stdlib.Bool.not (TextEdit.isDigitString c)) then
+    Stdlib.Option.Option.Some $"`{c}` isn't part of a number"
+  elif (isIdentifierSlot n slot) && (Stdlib.Bool.not (isIdentifierChar c)) then
+    Stdlib.Option.Option.Some $"`{c}` isn't part of a name"
+  else
+    Stdlib.Option.Option.None
 
 /// A mergeable operand contributes (kind, slot-name, text): a filled int/variable by its content, a
 /// partial (a name still being typed) by its text with no committed kind. A hole or anything else, None.
