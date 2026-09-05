@@ -67,3 +67,10 @@ module InspectorLabels =
   // Typing a prefix shows the COMPLETE header with the menu, and the header for a partial is TYPING.
   (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "COMPLETE") = true
   (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "TYPING") = true
+
+
+module CompletionOverflow =
+  // When the completion list is capped, the panel says how many more there are, so a long list doesn't
+  // masquerade as the whole set. A short list shows no such line.
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e", "t", " ", "x", " ", "1", " " ]) "more") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "more") = false

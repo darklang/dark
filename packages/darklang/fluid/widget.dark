@@ -171,21 +171,29 @@ let inspector
     if Stdlib.List.isEmpty actions then [ dim "  (none here)" ]
     else actions |> Stdlib.List.take 7 |> Stdlib.List.map (fun a -> "  " ++ (Stdlib.Cli.UI.Colors.colorize theme.keyword "•") ++ " " ++ a.name)
   let cands = Editor.candidates st
+  let shown = 6
   let selected = Stdlib.Int.clamp st.completionIndex 0 (Stdlib.Int.max 0 ((Stdlib.List.length cands) - 1))
+  // When the list is capped, say how many more there are so it's clear that typing more will narrow it,
+  // rather than looking like the whole set.
+  let moreLine =
+    let extra = (Stdlib.List.length cands) - shown
+    if extra > 0 then [ dim ("   +" ++ (Stdlib.Int.toString extra) ++ " more (keep typing)") ]
+    else []
   let candLines =
     if Stdlib.List.isEmpty cands then []
     else
       Stdlib.List.flatten
         [ [ "", head "COMPLETE" ]
           cands
-          |> Stdlib.List.take 6
+          |> Stdlib.List.take shown
           |> Stdlib.List.indexedMap (fun i c ->
             // The highlighted candidate is marked with a caret and reverse video, so arrow-selection is
             // visible right where the completions are listed.
             if i == selected then
               Stdlib.Cli.UI.Colors.colorize theme.menuSelected (" > " ++ c.label ++ "  " ++ c.detail)
             else
-              "   " ++ c.label ++ "  " ++ (dim c.detail)) ]
+              "   " ++ c.label ++ "  " ++ (dim c.detail))
+          moreLine ]
   // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
   let inHole =
     match Editor.slotUnder st with
