@@ -1271,7 +1271,7 @@ let moreSpecs () : List<Spec> =
             Piece.HardLine
             Piece.Punct "}" ] ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
-    simpleExpr "ERecordFieldAccess" [ Piece.Slot "record", Piece.Punct ".", Piece.Text("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
+    simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.Text("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     simpleExpr "EStringI" [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
     simpleOf (segmentKind "StringText") [ Piece.Text("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])

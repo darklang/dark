@@ -224,7 +224,7 @@ module AfterNodeWrap =
   (Fixtures.program [ "[", "1", "]", "+", "2", "<Esc>" ]) = "[1] + 2"
   (Fixtures.screen [ "[", "1", "]", "+" ]) = "[1] +~ ⟨right⟩"
   (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
-  (Fixtures.screen [ "[", "1", "]", "." ]) = "[1].~field"
+  (Fixtures.screen [ "[", "1", "]", "." ]) = "([1]).~field"
 
   // A tuple wraps the same way once closed: `(1, 2)` then `+` `3` -> `(1, 2) + 3`.
   (Fixtures.program [ "(", "1", ",", "2", ")", "+", "3", "<Esc>" ]) = "(1, 2) + 3"
@@ -242,3 +242,13 @@ module CaretMotion =
   // Up and Down move between the lines of a let: down from the value lands on the body.
   (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", "<Down>" ]) = "let x = 1\n~⟨body⟩"
   (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "y", "<Up>" ]) = "let ~x = 1\ny"
+
+
+module FieldTargetParens =
+  // On screen, a field-access target is parenthesised exactly when the pretty-printer would: a plain
+  // variable or a field-access chain reads bare, anything else (a list, a call) is wrapped -- so the
+  // display and the lowered form agree.
+  (Fixtures.screen [ "r", ".", "x" ]) = "r.x~"
+  (Fixtures.screen [ "r", ".", "a", ".", "b" ]) = "r.a.b~"
+  (Fixtures.screen [ "[", "1", "]", ".", "x" ]) = "([1]).x~"
+  (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"

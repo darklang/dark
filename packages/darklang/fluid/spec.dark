@@ -38,6 +38,9 @@ type Piece =
   /// follows it (an if/match/let/lambda/pipe). For a position with a trailing keyword -- the condition
   /// before `then`, the scrutinee before `with` -- so `if (match ...) then` reads right.
   | ParenLowSlot of slot: String
+  /// A single child slot rendered as a field-access target: parenthesised unless it's a plain variable or
+  /// another field access, matching the pretty-printer (`r.x`, `r.a.b`, but `([1]).x`, `(f x).y`).
+  | FieldTargetSlot of slot: String
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>

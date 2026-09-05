@@ -187,6 +187,23 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
       parenIf needs d
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | FieldTargetSlot slotName ->
+    match Node.slot n slotName with
+    | Some s ->
+      let d = slot reg path (Part.InSlot slotName) (Path.child path slotName) s
+      // Matches the printer: a variable or a field-access chain reads bare (`r.x`, `r.a.b`); anything
+      // else -- a list, a call, an operator expression -- is parenthesised (`([1]).x`).
+      let needs =
+        match Slot.node s with
+        | Some child ->
+          match child.kind.case with
+          | Some "EVariable" -> false
+          | Some "ERecordFieldAccess" -> false
+          | _ -> true
+        | None -> false
+      parenIf needs d
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
   | Group ps -> Layout.group (pieces reg path n ps)
   | Nest(k, ps) -> Layout.nest k (pieces reg path n ps)
   | Line -> Layout.Doc.Line
