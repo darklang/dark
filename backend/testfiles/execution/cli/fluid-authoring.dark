@@ -232,8 +232,8 @@ module AfterNodeWrap =
 
 module CaretMotion =
   // Home and End jump to the start and end of the current line.
-  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>" ]) = "~1 + (2 + 3)"
-  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>", "<End>" ]) = "1 + (2 + 3~)"
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>" ]) = "~1 + 2 + 3"
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>", "<End>" ]) = "1 + 2 + 3~"
 
   // On a multiline construct they act per visual line: Home from the body goes to the body's start, not
   // the let's.
@@ -265,3 +265,25 @@ module MultiCharOperators =
   // A one-letter operand that prefixes a keyword (t/true) keeps a live menu, so the first Esc dismisses
   // the menu and the second settles it as a variable -- `s + t` is two variables, not `s + true`.
   (Fixtures.program [ "s", "+", "t", "<Esc>", "<Esc>" ]) = "s + t"
+
+
+module Precedence =
+  // Typing operators associates the way the expression reads: a looser operator typed after a tighter one
+  // takes the whole tighter subtree as its left, so the structure (and the parens the printer keeps)
+  // match natural precedence. These print WITHOUT parens only because the tree is actually right.
+  (Fixtures.program [ "1", "*", "2", "+", "3", "<Esc>" ]) = "1 * 2 + 3"
+  (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
+  (Fixtures.program [ "1", "*", "2", "*", "3", "+", "4", "<Esc>" ]) = "1 * 2 * 3 + 4"
+
+  // Same-precedence operators chain left-associatively.
+  (Fixtures.program [ "1", "-", "2", "+", "3", "<Esc>" ]) = "1 - 2 + 3"
+  (Fixtures.program [ "1", "+", "2", "+", "3", "<Esc>" ]) = "1 + 2 + 3"
+
+  // `^` is right-associative, so it stays right-nested.
+  (Fixtures.program [ "2", "^", "3", "^", "2", "<Esc>" ]) = "2 ^ 3 ^ 2"
+
+  // A comparison is looser than arithmetic, so it takes the whole sum.
+  (Fixtures.program [ "1", "+", "2", "=", "=", "3", "<Esc>" ]) = "1 + 2 == 3"
+
+  // Mid-type, the caret lands in the new outer operator after reassociation.
+  (Fixtures.screen [ "1", "*", "2", "+" ]) = "1 * 2 +~ ⟨right⟩"

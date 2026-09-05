@@ -820,6 +820,29 @@ let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> =
 
 val closingDelimiters = [ "]", ")", "}", "\"" ]
 
+/// Which node an infix operator typed at `path` should wrap, so precedence associates the way it reads.
+/// A looser operator takes the tighter subtree as its left: `+` after `1 * 2` wraps the whole `1 * 2`,
+/// while `*` after `1 + 2` wraps just the `2`. Walks up the right spine while the ancestor infix binds at
+/// least as tightly (strictly tighter for a right-associative new operator, so `2 ^ 3 ^ 2` stays right).
+let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
+  let (newPow, newRight) = Project.infixPowerOf newOp
+  let climbUp (p: Path) : Path =
+    match Path.parent p with
+    | None -> p
+    | Some parent ->
+      match Path.last p with
+      | Some(Into "right") ->
+        match nodeAtPath root parent with
+        | Some pn ->
+          if pn.kind.case == Stdlib.Option.Option.Some "EInfix" then
+            let (pPow, _) = Project.infixPowerOf (Node.text pn "op" |> Stdlib.Option.withDefault "+")
+            let climb = if newRight then pPow > newPow else pPow >= newPow
+            if climb then climbUp parent else p
+          else p
+        | None -> p
+      | _ -> p
+  climbUp path
+
 let typeOne (st: State) (c: String) : State =
   let caret = st.caret
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
@@ -890,13 +913,17 @@ let typeOneRaw (st: State) (c: String) : State =
         // At the end of a node's text, an operator wraps the node (`1` then `+` gives `1 + ⟨right⟩`).
         match (if atEnd then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
         | Some rule ->
-          let wrapped = rule.wrap n c
-          let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
+          // An infix operator wraps the node precedence says it should, not always the one under the caret,
+          // so `1 * 2 + 3` associates as `(1 * 2) + 3`. Other wraps (`.`, `|`) always take the node here.
+          let targetPath = if rule.opSlot == "op" then reassocTarget st.root caret.node c else caret.node
+          let target = nodeAtPath st.root targetPath |> Stdlib.Option.withDefault n
+          let wrapped = rule.wrap target c
+          let st1 = commit st [ Edit.Replace(targetPath, Slot.Filled wrapped) ] caret
           if rule.opSlot == "" then
-            { st1 with caret = landAfterCommit caret.node wrapped }
+            { st1 with caret = landAfterCommit targetPath wrapped }
           else
             let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
-            { st1 with caret = Caret.inText caret.node rule.opSlot opLen }
+            { st1 with caret = Caret.inText targetPath rule.opSlot opLen }
         | None ->
           let updated = TextEdit.insertAt old caret.offset c
           commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
