@@ -193,3 +193,15 @@ module DeleteSeparator =
 
   // A tuple can't drop below two elements, so its separator doesn't merge: `(12, 34)` stays put.
   (Fixtures.program [ "(", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "(12, 34)"
+
+
+module NestedLists =
+  // Stepping past a closing delimiter now lands the caret AFTER the whole construct, in the enclosing
+  // scope, so a nested list types naturally: `[` `[` `1` `]` `,` `2` -> `[[1], 2]`. The comma after the
+  // inner `]` adds to the OUTER list, not the one just closed.
+  (Fixtures.program [ "[", "[", "1", "]", ",", "2", "<Esc>" ]) = "[[1], 2]"
+  (Fixtures.screen [ "[", "[", "1", "]", "," ]) = "[[1], ~⟨item⟩]"
+  (Fixtures.program [ "[", "[", "1", "]", ",", "[", "2", "]", "<Esc>" ]) = "[[1], [2]]"
+
+  // Left from just-after the inner list steps back into its end (undoing the step-past).
+  (Fixtures.screen [ "[", "[", "1", "]", ",", "2", "<Left>" ]) = "[[1], ~2]"

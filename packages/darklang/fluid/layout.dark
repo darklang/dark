@@ -257,6 +257,24 @@ let tagMatches (t: Tag) (node: Path) (part: Part) : Bool =
 
 /// Row and column of a caret, or None if nothing displays that (node, part).
 let locate (rows: List<Row>) (node: Path) (part: Part) (offset: Int) : Stdlib.Option.Option<(Int * Int)> =
+  match part with
+  | AfterNode ->
+    // Just past the last cell belonging to this node's subtree.
+    rows
+    |> Stdlib.List.indexedMap (fun r row ->
+      let (_, out) =
+        Stdlib.List.fold row ((0, Stdlib.Option.Option.None)) (fun acc c ->
+          let (col, best) = acc
+          let nextCol = col + c.width
+          match c.tag with
+          | Some t ->
+            if Path.isPrefixOf node t.node then (nextCol, Stdlib.Option.Option.Some((r, nextCol)))
+            else (nextCol, best)
+          | None -> (nextCol, best))
+      out)
+    |> Stdlib.List.filterMap (fun x -> x)
+    |> Stdlib.List.last
+  | _ ->
   rows
   |> Stdlib.List.indexedMap (fun r row ->
     row

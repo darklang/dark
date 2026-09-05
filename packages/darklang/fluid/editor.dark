@@ -285,6 +285,13 @@ let caretCellIndex (cells: List<(Int * Int * Layout.Cell)>) (caret: Caret) : Std
 let moveLeft (st: State) : State =
   let textLen = textUnder st |> Stdlib.Option.map (fun t -> Stdlib.String.length t)
   let caret = st.caret
+  match caret.part with
+  | AfterNode ->
+    // Left from just-after a node steps back into its end, undoing a step-past.
+    match nodeAtPath st.root caret.node with
+    | Some n -> { st with caret = lastEditable caret.node n }
+    | None -> st
+  | _ ->
   if caret.offset > 0 && (Stdlib.Option.isSome textLen) then
     { st with caret = { caret with offset = caret.offset - 1 } }
   else
@@ -770,7 +777,19 @@ let typeOne (st: State) (c: String) : State =
   // stray literal: with the caret at `[1~]`, another `]` moves out of the list, matching how you'd close
   // a bracket you can already see.
   if (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
-    moveRight st
+    // Step past the closer by landing after the whole construct it closes: a string is the node the caret
+    // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
+    // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
+    let target =
+      if c == "\"" then
+        Stdlib.Option.Option.Some caret.node
+      else
+        match enclosingListItem caret with
+        | Some((parentPath, _, _)) -> Stdlib.Option.Option.Some parentPath
+        | None -> Stdlib.Option.Option.None
+    match target with
+    | Some p -> { st with caret = Caret.afterNode p }
+    | None -> moveRight st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     match addSibling st with
     | Some added -> added
