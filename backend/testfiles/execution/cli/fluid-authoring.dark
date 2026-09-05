@@ -440,3 +440,13 @@ module OrChainAssociates =
   // Chained `||` associates left, like the arithmetic operators, so it prints without parens.
   (Fixtures.program [ "x", "|", "|", "y", "|", "|", "z", "<Esc>", "<Esc>" ]) = "x || y || z"
   (Fixtures.screen [ "x", "|", "|", "y" ]) = "x || y~"
+
+
+module BinaryCollapse =
+  // Deleting the right operand (back to a hole), then backspacing again, undoes the operator: an infix
+  // collapses to its left, a fresh pipe to what was piped, a cons to its head.
+  (Fixtures.program [ "1", "+", "2", "<BS>", "<BS>", "<Esc>" ]) = "1"
+  (Fixtures.screen [ "a", "|", ">", "b", "<BS>", "<BS>" ]) = "a~"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<BS>", "<BS>" ]) = "match n with\n| h~ -> ⟨rhs⟩"
+  // A filled operand is edited, not collapsed.
+  (Fixtures.program [ "1", "+", "2", "3", "<BS>", "<Esc>" ]) = "1 + 2"

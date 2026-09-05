@@ -1377,8 +1377,54 @@ let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
         | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 
+/// Backspace on the empty trailing hole of a binary construct collapses it to its primary operand: an
+/// infix `1 + ⟨⟩` back to `1`, a cons `h :: ⟨⟩` to `h`, a fresh pipe `a |> ⟨⟩` to `a`. So deleting the
+/// right operand then pressing backspace again undoes the operator, rather than stranding an empty hole.
+let tryCollapseBinary (st: State) : Stdlib.Option.Option<State> =
+  let caret = st.caret
+  if caret.offset != 0 then
+    Stdlib.Option.Option.None
+  else
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let onEmptySlot (slotName: String) : Bool =
+        (match caret.part with
+         | InSlot s -> s == slotName
+         | _ -> false)
+        && (Node.slot n slotName |> Stdlib.Option.map (fun s -> Slot.isEmpty s) |> Stdlib.Option.withDefault false)
+      let collapseTo (keep: String) : Stdlib.Option.Option<State> =
+        match Node.slot n keep with
+        | Some keepSlot ->
+          let st1 = commit st [ Edit.Replace(caret.node, keepSlot) ] caret
+          let caret2 =
+            match Slot.node keepSlot with
+            | Some kn -> lastEditable caret.node kn
+            | None -> navCaretFor st1.root caret.node
+          Stdlib.Option.Option.Some { st1 with caret = caret2; mode = Mode.Insert }
+        | None -> Stdlib.Option.Option.None
+      match n.kind.case with
+      | Some "EInfix" -> if onEmptySlot "right" then collapseTo "left" else Stdlib.Option.Option.None
+      | Some "MPListCons" -> if onEmptySlot "tail" then collapseTo "head" else Stdlib.Option.Option.None
+      | Some "EPipe" ->
+        // A pipe with a single empty stage collapses to what was being piped.
+        let steps = Node.items n "steps"
+        let onEmptyStep =
+          (match caret.part with
+           | InItem(s, _) -> s == "steps"
+           | _ -> false)
+          && ((Stdlib.List.length steps) == 1)
+          && (match Stdlib.List.head steps with
+              | Some(Empty _) -> true
+              | _ -> false)
+        if onEmptyStep then collapseTo "first" else Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
 let backspace (st: State) : State =
   match tryCollapseConstruct st with
+  | Some collapsed -> collapsed
+  | None ->
+  match tryCollapseBinary st with
   | Some collapsed -> collapsed
   | None ->
   match tryMergeListItems st with
