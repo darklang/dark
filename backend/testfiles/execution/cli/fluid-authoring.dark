@@ -648,3 +648,26 @@ module SpaceLandsAfterTheValue =
   // And a name after a settled value still moves on, which is what the earlier bound-variable fix wanted.
   (Fixtures.program [ "l", "e", "t", " ", "a", " ", "1", " ", "l", "e", "t", " ", "b", " ", "a", " ", "b", "<Esc>", "<Esc>" ]) =
     "let a = 1\nlet b = a\nb"
+
+
+module KeywordsTheEditorAlreadyDrew =
+  // `if`, `then`, `else`, `with` are drawn FOR you, and anyone with muscle memory types them anyway --
+  // the same reflex that made `let x = 1` come out as `let x = =`. They were landing in the branch holes
+  // as variables named `then` and `else`, and in a match arm as the pattern `with`. Typing the keyword
+  // that is already there now throws it away and leaves you in the hole, where the branch itself goes.
+  (Fixtures.program [ "i", "f", " ", "r", " ", ">", " ", "0", " ", "t", "h", "e", "n", " ", "1", " ", "e", "l", "s", "e", " ", "2", "<Esc>", "<Esc>" ]) =
+    "if r > 0 then 1 else 2"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+
+  // Two arms, still typed straight through, no Tab anywhere.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "\"", "z", "\"", " ", "1", " ", "\"", "o", "\"", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> \"z\"\n| 1 -> \"o\""
+
+  // The check asks the LAYOUT whether the thing before the caret was drawn as a keyword, so an ordinary
+  // name never matches: a second argument that repeats the function's name still goes in.
+  (Fixtures.program [ "S", "t", "d", "l", "i", "b", ".", "L", "i", "s", "t", ".", "m", "a", "p", " ", "f", " ", "f", "<Esc>", "<Esc>" ]) =
+    "Stdlib.List.map f f"
+  // And a pattern variable that isn't a keyword is untouched.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "x", " ", "x", "<Esc>", "<Esc>" ]) =
+    "match n with\n| x -> x"

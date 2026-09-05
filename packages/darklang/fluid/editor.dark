@@ -853,6 +853,58 @@ let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+/// The KEYWORD drawn immediately before the caret, if the thing immediately before the caret is one.
+/// Cells carry their style, so this asks the layout rather than guessing from the text: `f` in `f x` is a
+/// name and never matches, while the `then` in `if c then <hole>` does.
+let prevKeyword (st: State) : Stdlib.Option.Option<String> =
+  let rows = layout st
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    // The last non-blank cell before the caret ANYWHERE above it, not just on its row: a construct puts
+    // its keyword at the end of one line and the hole on the next (`if c then` / `  <then>`), which is
+    // exactly the case this is for.
+    // Cells belonging to the caret's OWN slot don't count: the text being typed sits between the keyword
+    // and the caret, and it is the thing we are asking about.
+    let mine (c: Layout.Cell) : Bool =
+      match c.tag with
+      | Some t -> Layout.tagMatches t st.caret.node st.caret.part
+      | None -> false
+    let lastOfRow (r: Layout.Row) (upto: Int) : Stdlib.Option.Option<Layout.Cell> =
+      let step (acc: (Int * Stdlib.Option.Option<Layout.Cell>)) (c: Layout.Cell) : (Int * Stdlib.Option.Option<Layout.Cell>) =
+        let (x, best) = acc
+        let ends = x + c.width
+        // Punctuation doesn't stop the search: a match arm draws `| ` between the `with` and the pattern
+        // hole. A NAME does stop it, which is what keeps `Stdlib.List.map f f` from eating its second arg.
+        if (ends <= upto)
+           && ((Stdlib.String.trim c.text) != "")
+           && (Stdlib.Bool.not (mine c))
+           && (c.style != Layout.Style.Punct)
+        then
+          (ends, Stdlib.Option.Option.Some c)
+        else (ends, best)
+      let (_, cell) = Stdlib.List.fold r (0, Stdlib.Option.Option.None) step
+      cell
+    let onRow =
+      match Stdlib.List.getAt rows row with
+      | Some r -> lastOfRow r col
+      | None -> Stdlib.Option.Option.None
+    let cell =
+      match onRow with
+      | Some c -> Stdlib.Option.Option.Some c
+      | None ->
+        Stdlib.List.range 0 (row - 1)
+        |> Stdlib.List.reverse
+        |> Stdlib.List.filterMap (fun i ->
+          match Stdlib.List.getAt rows i with
+          | Some r -> lastOfRow r 100000
+          | None -> Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+    cell
+    |> Stdlib.Option.andThen (fun c ->
+      if c.style == Layout.Style.Keyword then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
+      else Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
+
 val closingDelimiters = [ "]", ")", "}", "\"", "'" ]
 
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
@@ -1172,6 +1224,13 @@ let typeOneRaw (st: State) (c: String) : State =
         let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
         let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled fnode) ] caret
         { st1 with caret = Caret.inText caret.node "fraction" 0 }
+      elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (prevKeyword st == Stdlib.Option.Option.Some old) then
+        // The keyword the editor already drew, typed again -- but in a slot that becomes a NODE as soon as
+        // you press a letter, so there was no partial to throw away. A pattern hole does that: `match n
+        // with` gave the first arm the pattern `with`. Put the hole back and stay in it.
+        let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) "pattern"
+        let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
+        { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
       elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (Stdlib.Bool.not (old == "")) then
         nextHole st
       else
@@ -1290,7 +1349,14 @@ let typeOneRaw (st: State) (c: String) : State =
           && (TextEdit.isLetterString (Stdlib.String.first text 1))
           && (Stdlib.Bool.not (Stdlib.String.contains text "."))
           && ((Stdlib.String.toLowercase text) == text)
-        if atEnd && (c == " ") then
+        if atEnd && (c == " ") && (prevKeyword st == Stdlib.Option.Option.Some text) then
+          // You typed the keyword the editor had already drawn. `if x > 0 then 1 else 2` is written with
+          // its `then` and `else` by anyone with muscle memory, and they were landing in the branch holes
+          // as variables named `then` and `else`. Same shape as re-typing the `=` of a let. Throw it away
+          // and stay in the hole, which is where the branch itself goes.
+          let st1 = commit st [ Edit.Replace(sp, was) ] caret
+          { st1 with caret = { caret with offset = 0 } }
+        elif atEnd && (c == " ") then
           // Space commits the menu only when it's unambiguous -- exactly one candidate (a keyword prefix
           // like `le`->let) or an exact match (`let`). A loose prefix with several candidates (`f` ->
           // fun/false) finalises what you typed as a variable and advances instead, so `f ` stays `f`.
