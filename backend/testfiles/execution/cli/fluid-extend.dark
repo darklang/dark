@@ -316,3 +316,26 @@ module GeneratedEnumEditors =
    |> Stdlib.List.isEmpty) = false
   ((Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option" "Nope").pieces) =
     [ Darklang.Fluid.Piece.Dim "?Nope" ]
+
+  // ...and the rest of the vocabulary. This match had no fallback and knew fifteen of the twenty-four
+  // pieces, so it was a crash waiting for the first spec that used one of the others -- and "specs are
+  // DATA, which is why they can be derived, generated and stored" is only true if all of them can be
+  // written back out. Derived specs only ever use the fifteen, which is why nothing had hit it.
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Table("rows", [ "name", "qty" ]))) =
+    "Darklang.Fluid.Piece.Table(\"rows\", [ \"name\", \"qty\" ])"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.ParenLowSlot "cond")) =
+    "Darklang.Fluid.Piece.ParenLowSlot \"cond\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.OperandSlot("right", true))) =
+    "Darklang.Fluid.Piece.OperandSlot(\"right\", true)"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.FieldTargetSlot "record")) =
+    "Darklang.Fluid.Piece.FieldTargetSlot \"record\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.ArgSlots("args", [ Darklang.Fluid.Piece.Line ]))) =
+    "Darklang.Fluid.Piece.ArgSlots(\"args\", [ Darklang.Fluid.Piece.Line ])"
+
+  // The two that carry a PREDICATE cannot be printed, because a function has no source. Saying so is the
+  // honest answer: what comes out will not compile until a person writes the predicate back, which beats
+  // emitting something that looks right and means something else.
+  (Stdlib.String.contains
+    (Darklang.Fluid.Derive.pieceSource
+      (Darklang.Fluid.Piece.ParenIfSlot("ret", Darklang.Fluid.PT.Types.isFnType)))
+    "predicate is a function") = true

@@ -289,6 +289,30 @@ let pieceSource (p: Piece) : String =
   | Group ps -> "Darklang.Fluid.Piece.Group " ++ (listSource ps)
   | Nest(n, ps) ->
     "Darklang.Fluid.Piece.Nest(" ++ (Stdlib.Int.toString n) ++ ", " ++ (listSource ps) ++ ")"
+  // The rest of the vocabulary. This match had no fallback and knew fifteen of the twenty-four pieces, so
+  // it was a crash waiting for the first spec that used one of the others. Derived specs only ever use the
+  // fifteen, which is why nothing had hit it.
+  | QuietText(slot, style) ->
+    "Darklang.Fluid.Piece.QuietText(" ++ (quoted slot) ++ ", " ++ (styleSource style) ++ ")"
+  | NameText(slot, style) ->
+    "Darklang.Fluid.Piece.NameText(" ++ (quoted slot) ++ ", " ++ (styleSource style) ++ ")"
+  | Table(slot, columns) ->
+    let cols = columns |> Stdlib.List.map (fun c -> quoted c) |> Stdlib.String.join ", "
+    "Darklang.Fluid.Piece.Table(" ++ (quoted slot) ++ ", [ " ++ cols ++ " ])"
+  | ArgSlots(slot, sep) ->
+    "Darklang.Fluid.Piece.ArgSlots(" ++ (quoted slot) ++ ", " ++ (listSource sep) ++ ")"
+  | OperandSlot(slot, isRight) ->
+    "Darklang.Fluid.Piece.OperandSlot("
+    ++ (quoted slot) ++ ", " ++ (if isRight then "true" else "false") ++ ")"
+  | ParenLowSlot slot -> "Darklang.Fluid.Piece.ParenLowSlot " ++ (quoted slot)
+  | FieldTargetSlot slot -> "Darklang.Fluid.Piece.FieldTargetSlot " ++ (quoted slot)
+  // These two carry a PREDICATE, and a function has no source to print. Saying so in the output is the
+  // honest answer: the generated module will not compile until a person writes the predicate back, which
+  // is better than emitting something that looks right and means something else.
+  | ParenIfSlot(slot, _) ->
+    "(* a ParenIfSlot on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
+  | ParenIfEach(slot, _, _) ->
+    "(* a ParenIfEach on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
 
 /// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
 /// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the
