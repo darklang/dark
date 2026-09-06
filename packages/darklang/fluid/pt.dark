@@ -194,6 +194,100 @@ let builtinFromHash (hash: String) : Stdlib.Option.Option<(String * Int32)> =
     | None -> Stdlib.Option.Option.None
 
 
+/// A doc comment with its inline markers unwrapped: `<param fn>` reads as `fn`.
+///
+/// Split on `<` and put back every piece that isn't one of the known markers, so a type written in a
+/// description -- `List<'a>` -- comes through untouched.
+let stripDocMarkup (s: String) : String =
+  let tags = [ "param ", "var ", "fn ", "type ", "const ", "arg " ]
+
+  Stdlib.String.split s "<"
+  |> Stdlib.List.indexedMap (fun i part ->
+    if i == 0 then
+      part
+    else
+      match tags |> Stdlib.List.findFirst (fun t -> Stdlib.String.startsWith part t) with
+      | Some t ->
+        let rest = Stdlib.String.dropFirst part (Stdlib.String.length t)
+
+        (match Stdlib.String.indexOf rest ">" with
+         | Some j -> (Stdlib.String.slice rest 0 j) ++ (Stdlib.String.dropFirst rest (j + 1))
+         | None -> rest)
+      | None -> "<" ++ part)
+  |> Stdlib.String.join ""
+
+
+/// The declaration and doc comment behind a type hash, for `nodeDocs`.
+let typeDocs (hash: String) (shown: String) : Stdlib.Option.Option<(String * String * String)> =
+  match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash hash) with
+  | Some t ->
+    Stdlib.Option.Option.Some(
+      (shown,
+       Stdlib.Pretty.render 40 (Darklang.PrettyPrinter.ProgramTypes.customTypeDoc (printerContext ()) t.declaration),
+       stripDocMarkup t.description))
+  | None -> Stdlib.Option.Option.None
+
+
+/// What a node's hash points at: the name to show, its signature, and its doc comment.
+///
+/// Every package item carries a description and nothing in the editor has ever shown one. This is where
+/// they surface. It goes through the HASH the document already stores, not through the name, so the
+/// answer is the thing itself and cannot be a near-miss: a shortened name could match two items, a hash
+/// matches one.
+///
+/// Only nodes that carry a hash have an answer, which is the honest boundary -- there is no inference
+/// here, just a lookup.
+let nodeDocs (n: Node) : Stdlib.Option.Option<(String * String * String)> =
+  let ctx = printerContext ()
+
+  match n.kind.case with
+  // Standing on a call is standing on the function, as far as "what is this" goes, and the call is where
+  // the caret usually is.
+  | Some "EApply" ->
+    (match Node.slot n "fn" with
+     | Some(Filled c) -> nodeDocs c
+     | _ -> Stdlib.Option.Option.None)
+
+  | Some "EFnName" ->
+    let hash = textOf n "_hash"
+
+    (match builtinFromHash hash with
+     | Some(pair) ->
+       let (bname, version) = pair
+
+       (match
+         Darklang.LanguageTools.allBuiltinFns ()
+         |> Stdlib.List.filter (fun f -> f.name.name == bname && f.name.version == version)
+         |> Stdlib.List.head
+        with
+        | Some f ->
+          let params =
+            f.parameters
+            |> Stdlib.List.map (fun p ->
+              "(" ++ p.name ++ ": " ++ (Darklang.PrettyPrinter.RuntimeTypes.typeReference Darklang.SCM.Branch.mainBranchId p.``type``) ++ ")")
+            |> Stdlib.String.join " "
+          let ret = Darklang.PrettyPrinter.RuntimeTypes.typeReference Darklang.SCM.Branch.mainBranchId f.returnType
+          Stdlib.Option.Option.Some(("Builtin." ++ bname, params ++ " -> " ++ ret, stripDocMarkup f.description))
+        | None -> Stdlib.Option.Option.None)
+     | None ->
+       (match Darklang.LanguageTools.PackageManager.Function.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash hash) with
+        | Some fn ->
+          Stdlib.Option.Option.Some(
+            (textOf n "name",
+             Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature ctx fn,
+             stripDocMarkup fn.description))
+        | None -> Stdlib.Option.Option.None))
+
+  | Some "EValue" ->
+    (match Darklang.LanguageTools.PackageManager.Value.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash (textOf n "_hash")) with
+     | Some v -> Stdlib.Option.Option.Some((textOf n "name", "", stripDocMarkup v.description))
+     | None -> Stdlib.Option.Option.None)
+
+  | Some "ERecord" -> typeDocs (textOf n "_typeHash") (displayName (textOf n "type"))
+  | Some "EEnum" -> typeDocs (textOf n "_typeHash") (displayName (textOf n "type"))
+  | _ -> Stdlib.Option.Option.None
+
+
 let fnNameResolution
   (name: String)
   (hash: String)

@@ -738,3 +738,39 @@ module SingleSegmentNamesKeepTheirShape =
 
   (Fixtures.render "Colour.Red" 60) = "Colour.Red"
   (Fixtures.render "Foo { a = 1L }" 60) = "Foo {\n  a = 1L\n}"
+
+
+module DocCommentsAreReadable =
+  // Every package item carries a description and nothing in the editor had ever shown one. The panel does
+  // now, through the HASH the document already stores rather than through the name: a shortened name can
+  // match two items, a hash matches one. Only nodes that carry a hash have an answer, which is the honest
+  // boundary -- there is no inference here, just a lookup.
+  let docs (src: String) : (String * String * String) =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      (match Darklang.Fluid.PT.nodeDocs (Darklang.Fluid.PT.toDoc e) with
+       | Some t -> t
+       | None -> ("none", "", ""))
+    | Error _ -> ("parse err", "", "")
+
+  // Standing on a CALL is standing on the function, which is where the caret usually is.
+  ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.first) = "Stdlib.List.map"
+  ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.second) =
+    "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>"
+  (Stdlib.String.startsWith ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.third) "Calls fn on every val in list") = true
+
+  // A record's type declaration, behind `_typeHash`.
+  ((DocCommentsAreReadable.docs "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }") |> Stdlib.Tuple3.first) = "Stdlib.Cli.Tui.Size"
+  ((DocCommentsAreReadable.docs "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }") |> Stdlib.Tuple3.third) =
+    "Current terminal viewport dimensions."
+
+  // A node with no hash has nothing to say, and says nothing.
+  ((DocCommentsAreReadable.docs "1L + 2L") |> Stdlib.Tuple3.first) = "none"
+
+  // The inline markers come out as the words they wrap...
+  (Darklang.Fluid.PT.stripDocMarkup "Calls <param fn> on every <var val>, see <fn filterMap>") =
+    "Calls fn on every val, see filterMap"
+
+  // ...and a type written in a description is not a marker, so it survives.
+  (Darklang.Fluid.PT.stripDocMarkup "returns a List<'a> of things") = "returns a List<'a> of things"
+  (Darklang.Fluid.PT.stripDocMarkup "") = ""

@@ -214,13 +214,16 @@ let inspector
   : List<Stdlib.Cli.UI.Layout.Span> =
   inspectorWith theme st region []
 
-/// The panel, plus whatever `v` last evaluated. Passed in rather than computed here: running the code is
-/// an action someone asked for, not something a render should set off.
+/// The panel, plus whatever the app has to add: the DOCS behind the node's hash, and whatever `v` last
+/// evaluated. Passed in rather than computed here, for two different reasons. Running the code is an
+/// action someone asked for, not something a render should set off. And docs are a fact about DARKLANG
+/// packages -- this widget draws whatever language the registry describes, so it must not know what a
+/// package is.
 let inspectorWith
   (theme: Theme.Theme)
   (st: Editor.State)
   (region: Stdlib.Cli.UI.Layout.Region)
-  (valueRows: List<String>)
+  (extraRows: List<String>)
   : List<Stdlib.Cli.UI.Layout.Span> =
   let dim (s: String) : String = Stdlib.Cli.UI.Colors.colorize theme.dim s
   let head (s: String) : String = Stdlib.Cli.UI.Colors.colorize (theme.dim ++ Stdlib.Cli.UI.Colors.bold) s
@@ -300,7 +303,7 @@ let inspectorWith
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
   let rows =
-    Stdlib.List.flatten [ headerRows, valueRows, [ head "ACTIONS" ], actionLines, keyRows ]
+    Stdlib.List.flatten [ headerRows, extraRows, [ head "ACTIONS" ], actionLines, keyRows ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])

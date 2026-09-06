@@ -441,6 +441,39 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         Widget.palette st.theme st.editor region ]
   let inspSpans =
     if showInspector then
+      // What the node under the caret IS, when it carries a hash: its signature and its doc comment. Every
+      // package item stores a description and nothing in the editor has ever shown one, so this is where
+      // they finally surface. It is a lookup by hash, not a guess from a name, and it only appears for the
+      // nodes that carry one.
+      let docWidth = Stdlib.Int.max 8 ((Stdlib.Cli.UI.Box.inner inspArea).cols - 2)
+      let docRows =
+        match Darklang.Fluid.nodeAtPath st.editor.root st.editor.caret.node with
+        | Some n ->
+          (match PT.nodeDocs n with
+           | Some(t) ->
+             let (dname, dsig, ddoc) = t
+             let sigRows =
+               if dsig == "" then
+                 []
+               else
+                 Stdlib.String.split dsig "\n"
+                 |> Stdlib.List.map (fun l -> Stdlib.Cli.Tui.Text.wrapAtWords l docWidth)
+                 |> Stdlib.List.flatten
+                 |> Stdlib.List.take 4
+                 |> Stdlib.List.map (fun l -> "  " ++ (Stdlib.Cli.UI.Colors.colorize st.theme.dim l))
+             let docLines =
+               if ddoc == "" then
+                 []
+               else
+                 Stdlib.List.append [ "" ] (Stdlib.Cli.Tui.Text.wrapAtWords ddoc docWidth |> Stdlib.List.take 6 |> Stdlib.List.map (fun l -> "  " ++ l))
+             Stdlib.List.flatten
+               [ [ Stdlib.Cli.UI.Colors.colorize (st.theme.dim ++ Stdlib.Cli.UI.Colors.bold) "DOCS" ]
+                 [ "  " ++ dname ]
+                 sigRows
+                 docLines
+                 [ "" ] ]
+           | None -> [])
+        | None -> []
       // What `v` last evaluated, and only if it is still about the node you are on -- a value that quietly
       // belonged to something else would be worse than no value at all.
       let valueRows =
@@ -472,7 +505,7 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         | None -> []
       Stdlib.List.append
         (Stdlib.Cli.UI.Box.draw inspArea "context" false)
-        (Widget.inspectorWith st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea) valueRows)
+        (Widget.inspectorWith st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea) (Stdlib.List.append docRows valueRows))
     else
       []
   let body = Stdlib.List.append mainSpans inspSpans
