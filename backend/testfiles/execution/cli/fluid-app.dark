@@ -20,6 +20,7 @@ module Fixtures =
         target = Darklang.Fluid.App.Target.Scratch
         theme = Darklang.Fluid.Theme.default ()
         bodyRows = 20
+        inspectorOpen = false
         textMode = Stdlib.Option.Option.None }
 
   let docOf (src: String) : Darklang.Fluid.Slot =
@@ -56,7 +57,8 @@ module InspectorLabels =
   // EXPECTS header; the ACTIONS header carries no stray colon.
   let screenText (src: String) (keys: List<String>) : String =
     let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
-    let v = Darklang.Fluid.App.view (Fixtures.stateOf ed) (Fixtures.size ())
+    // These are about what the PANEL says, and the panel is on demand now, so open it.
+    let v = Darklang.Fluid.App.view { (Fixtures.stateOf ed) with inspectorOpen = true } (Fixtures.size ())
     v.rows
     |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
     |> Stdlib.String.join "\n"
@@ -177,3 +179,35 @@ module TextPaneWindow =
   // Mid-buffer, the window keeps a couple of lines of lookahead below the caret.
   (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 9 10) = 2
   (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 7 10) = 0
+
+
+module PanelOnDemand =
+  // Redesign step 2: the code is the hero and gets the full width. The always-on context rail is now
+  // opened with `?`, and what it said constantly moved to where it is actually needed -- completions to
+  // the caret popover (step 1), and "what does this hole expect" to the status line.
+  let stateWith (open_: Bool) (editor: Darklang.Fluid.Editor.State) : Darklang.Fluid.App.State =
+    { (Fixtures.stateOf editor) with inspectorOpen = open_ }
+
+  let screenOf (open_: Bool) (src: String) (keys: List<String>) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    (Darklang.Fluid.App.view (PanelOnDemand.stateWith open_ ed) (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // Closed by default: no rail, and no ACTIONS header taking a third of the width.
+  (Stdlib.String.contains (PanelOnDemand.screenOf false "if x > 2 then [1, 2] else 3" []) "context") = false
+  (Stdlib.String.contains (PanelOnDemand.screenOf false "if x > 2 then [1, 2] else 3" []) "ACTIONS") = false
+  // Open on request, with the actions AND the full keymap, which is what lets the status line be short.
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "context") = true
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "ACTIONS") = true
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "KEYS") = true
+
+  // The status line says what the panel used to: what this hole wants, or what you are typing.
+  (Darklang.Fluid.App.statusOf
+    (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "") 60) []))) = " expects expr ·"
+  (Darklang.Fluid.App.statusOf
+    (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "") 60) [ "l", "e" ]))) = " typing le ·"
+
+  // The footer has to FIT: it used to run past the right edge and read `q qu`.
+  ((Stdlib.String.length (Darklang.Fluid.App.helpFor
+     (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "if x > 2 then 1 else 2") 60) [ "<Esc>" ])))) < 80) = true

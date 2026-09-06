@@ -200,8 +200,34 @@ let inspector
       let eval = words |> Stdlib.List.drop 1 |> Stdlib.String.join " "
       [ (head ehead) ++ "  " ++ eval, "" ]
     else [ (head "ON") ++ "  " ++ node, "" ]
+  // The panel is also the help: the status line carries only the keys you reach for constantly, and the
+  // rest live here, which is what makes trimming that line honest rather than a loss.
+  let keyRows =
+    match st.mode with
+    | Nav ->
+      [ ""
+        head "KEYS"
+        dim "  j/k    next/prev"
+        dim "  h/l    out/in"
+        dim "  i c    edit / change"
+        dim "  x      clear"
+        dim "  y p    copy / paste"
+        dim "  u ^r   undo / redo"
+        dim "  :      actions"
+        dim "  ^E     edit as text"
+        dim "  ^S     save"
+        dim "  q      quit" ]
+    | Insert ->
+      [ ""
+        head "KEYS"
+        dim "  Tab    next hole"
+        dim "  S-Tab  previous hole"
+        dim "  Enter  accept / next item"
+        dim "  ^E     edit as text"
+        dim "  ^S     save"
+        dim "  Esc    back to nav" ]
   let rows =
-    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines ]
+    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines, keyRows ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])

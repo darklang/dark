@@ -29,6 +29,10 @@ type State =
     theme: Theme.Theme
     /// Rows the body had at the last key, so scrolling can be computed outside `view`.
     bodyRows: Int
+    /// The context panel, off by default. The redesign's bet: the code is the hero and deserves the full
+    /// width, with the panel there when you ask for it. What it used to show always is now either at the
+    /// caret (completions) or in the status line (what's expected here).
+    inspectorOpen: Bool
     /// When Some, we've dropped into plain-text editing: the pretty-printed source, the caret offset into
     /// it, and the path it came from (the selected node in NAV, the whole document otherwise). Confirm
     /// re-parses and splices it back at that path; cancel discards it.
@@ -209,6 +213,7 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       target = target
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
       bodyRows = Stdlib.Int.max 1 (size.height - 3)
+      inspectorOpen = false
       textMode = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
@@ -221,19 +226,30 @@ let modeBadge (st: State) : String =
 
 /// The footer keys, chosen for exactly where the caret is: the completion menu, the palette, a hole, or a
 /// node. Most-relevant first, so a glance tells you what the next keystroke can be.
+/// What the always-on panel used to say, in one line: what this hole expects, or what you are on. The
+/// breadcrumb is already in the pane title, so it isn't repeated here.
+let statusOf (st: State) : String =
+  match Editor.slotUnder st.editor with
+  | Some(Empty e) -> " expects " ++ e.label ++ " ·"
+  | Some(Partial(t, _)) -> " typing " ++ t ++ " ·"
+  | _ -> ""
+
 let helpFor (st: State) : String =
   match st.editor.mode with
   | Insert ->
     if Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.candidates st.editor)) then
-      " Enter accept  Tab next  Up/Down choose  type filter  Esc nav"
+      (statusOf st) ++ " Enter accept  Tab next  Up/Down choose  Esc nav"
     else
-      " type to edit  Tab/Shift-Tab holes  ^E text  Esc nav  ^S save"
+      (statusOf st) ++ " type to edit  Tab/Shift-Tab holes  ^E text  Esc nav  ^S save"
   | Nav ->
     if st.editor.paletteOpen then " type filter  Up/Down move  Enter run  Esc close"
     else
       let hasActions = Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.paletteActions st.editor))
       let actionsKey = if hasActions then "  : actions" else ""
-      " j/k nav  h/l in/out  i edit  c change  x clear  y/p copy  ^E text" ++ actionsKey ++ "  u undo  q quit"
+      let panelKey = if st.inspectorOpen then "  ? hide" else "  ? panel"
+      // Only the keys reached for constantly. The rest are in the panel, which `?` opens -- the status
+      // line used to run past the right edge and read `q qu`.
+      (statusOf st) ++ " j/k nav  h/l in/out  i edit  c change  x clear" ++ actionsKey ++ panelKey ++ "  q quit"
 
 /// Which buffer line sits at the top of the text pane. The pane shows `rows` lines, so a taller buffer
 /// needs a window; this picks the smallest scroll that keeps the caret row visible with a couple of lines
@@ -293,7 +309,7 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let full = Stdlib.Cli.UI.Chrome.bodyRegion size
   // Use the screen: a framed edit pane on the left with the document padded inside it, and a context
   // panel on the right. The inspector is dropped on a narrow terminal so the code always has room.
-  let showInspector = full.cols >= 72
+  let showInspector = st.inspectorOpen && (full.cols >= 72)
   let inspW = if showInspector then Stdlib.Int.min 34 (Stdlib.Int.divide full.cols 3) else 0
   let mainCols = full.cols - inspW
   let mainArea = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left; rows = full.rows; cols = mainCols }
@@ -490,7 +506,10 @@ let onKey
   // Ctrl-E drops into plain-text editing of the current expression. Settle what's being typed first, so a
   // half-finished name doesn't make the document unprintable; if it still can't print, say why rather than
   // opening an empty buffer over the top of real work.
-  if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
+  if (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
+    // NAV only: in INSERT a `?` is a character you are typing.
+    Darklang.Cli.Component.Step.Stay { st with inspectorOpen = Stdlib.Bool.not st.inspectorOpen }
+  elif modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
     let settled = Editor.resolvePartial st.editor |> Stdlib.Option.withDefault st.editor
     // From NAV, edit just the selected node; otherwise the whole document. Editing one branch of a big
     // expression as text beats editing all of it.
