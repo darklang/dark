@@ -26,32 +26,26 @@ let tagFor (path: Path) (part: Part) : Layout.Tag =
 
 // --- Precedence-aware parenthesisation ---
 //
-// The numbers and the rules are the PRINTER's, not a copy of them: `infixPowerOfText`,
-// `operandNeedsParensAt` and `argNeedsParensAt` all live in PrettyPrinter.ProgramTypes, keyed and stated
-// so both consumers can use them. Fluid's job here is only to say what a DOCUMENT NODE's power is; the
-// deciding is shared. Two hand-written copies of the same language fact drift -- the name shorteners
-// already had -- and an editor that disagrees with the printer about parentheses is worse than either.
+// None of this is Fluid's. The table, the two named powers, the swallowing-construct list and both
+// parenthesisation rules live in `LanguageTools.Precedence`, and both the printer and the editor read
+// them from there. Fluid's job is only to hand the shared rules the two things it can see on a document
+// node: which constructor it is, and what an infix's operator text says.
+//
+// It used to reach through `PrettyPrinter.ProgramTypes` for all of this, which worked but had the arrow
+// pointing the wrong way -- an editor asking a printer what `*` binds like -- and it still carried its
+// own copy of the swallowing-construct list. Two hand-written readings of one language fact drift; the
+// name shorteners already had.
 
 /// (binding power, right-associative) for an operator, by its written form.
 let infixPowerOf (op: String) : (Int * Bool) =
-  Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText op
+  Darklang.LanguageTools.Precedence.infixPowerOfText op
 
-/// How tightly a node binds: the operator's power for an infix, and otherwise the printer's two named
-/// powers -- 0 for the constructs that swallow what follows them, 100 for everything self-delimiting.
-/// This mapping stays here because it reads a Fluid node; the printer's `exprPower` reads an Expr. They
-/// are two readings of the same list, which is the residue this slice does not remove.
+/// How tightly a node binds. The constructor name and the operator text are all the shared rule needs,
+/// so there is no per-consumer list here any more.
 let nodePower (n: Node) : Int =
-  match n.kind.case with
-  | Some "EInfix" ->
-    let (p, _) = infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
-    p
-  | Some "EIf" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | Some "EMatch" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | Some "ELet" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | Some "ELambda" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | Some "EPipe" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | Some "EStatement" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
-  | _ -> Darklang.PrettyPrinter.ProgramTypes.selfDelimitingPower
+  Darklang.LanguageTools.Precedence.powerOfCase
+    (n.kind.case |> Stdlib.Option.withDefault "")
+    (Node.text n "op" |> Stdlib.Option.withDefault "+")
 
 /// Does a node need parens as a function argument? Fluid's lambda draws itself BARE -- unlike the
 /// printer's, which brackets itself -- so this passes `selfParenthesises = false` and gets its parens
@@ -59,10 +53,10 @@ let nodePower (n: Node) : Int =
 /// parameter of the shared rule rather than baked into it.
 let argNeedsParens (n: Node) : Bool =
   let isApplication = n.kind.case == Stdlib.Option.Option.Some "EApply"
-  Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt (nodePower n) isApplication false
+  Darklang.LanguageTools.Precedence.argNeedsParensAt (nodePower n) isApplication false
 
 let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Bool) (isRight: Bool) : Bool =
-  Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight
+  Darklang.LanguageTools.Precedence.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight
 
 let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
   // No nest here, deliberately. The printer's `parens` nests by 1, and copying that put the extra column

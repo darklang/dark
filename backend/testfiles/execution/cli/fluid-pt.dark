@@ -213,42 +213,46 @@ module PrecedenceIsShared =
   // Fluid used to carry its own copy of the printer's precedence: the same operator table, the same two
   // named powers, and the same two rules for when an operand or an argument needs parens. Two hand-written
   // copies of one language fact drift -- the name shorteners already had -- and an editor that disagrees
-  // with the printer about parentheses is worse than either. The numbers and the rules are the printer's
-  // now, and Fluid only says what a DOCUMENT NODE's power is.
+  // with the printer about parentheses is worse than either.
+  //
+  // It all lives in `LanguageTools.Precedence` now, including the operator SPELLINGS, because binding
+  // power is keyed by the written form and the two cannot be separated. The printer and the editor are
+  // both consumers. Before, the editor asked the PRINTER what `*` binds like, which worked but had the
+  // arrow the wrong way round, and the editor still kept its own copy of the swallowing-construct list.
   let ops () : List<String> =
     [ "||", "&&", "==", "!=", "<", ">", "<=", ">=", "+", "-", "++", "*", "/", "%", "^" ]
 
   // The editor's answer IS the printer's answer, for every operator it can draw.
   (PrecedenceIsShared.ops ()
    |> Stdlib.List.all (fun op ->
-     (Darklang.Fluid.Project.infixPowerOf op) == (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText op))) = true
+     (Darklang.Fluid.Project.infixPowerOf op) == (Darklang.LanguageTools.Precedence.infixPowerOfText op))) = true
 
   // And the table itself is unchanged, stated once so a careless edit to it has to be deliberate.
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "||") = (1, false)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "&&") = (2, false)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "==") = (3, false)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "+") = (5, false)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "*") = (6, false)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "^") = (7, true)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "||") = (1, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "&&") = (2, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "==") = (3, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "+") = (5, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "*") = (6, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "^") = (7, true)
 
   // The enum path goes through the same table, so `infixPower` and the editor cannot disagree.
-  (Darklang.PrettyPrinter.ProgramTypes.infixPower
+  (Darklang.LanguageTools.Precedence.infixPower
     (Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower)) = (7, true)
-  (Darklang.PrettyPrinter.ProgramTypes.infixPower
+  (Darklang.LanguageTools.Precedence.infixPower
     (Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpOr)) = (1, false)
 
   // The operand rule, stated over powers alone: looser always parenthesises, equal depends on the side.
-  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 6 false false) = true
-  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 6 5 false false) = false
-  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 5 false true) = true
-  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 5 false false) = false
-  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 7 7 true false) = true
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 6 false false) = true
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 6 5 false false) = false
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 5 false true) = true
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 5 false false) = false
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 7 7 true false) = true
 
   // The argument rule takes "does this form bracket itself" as an ANSWER rather than baking it in: the
   // printer's lambda does, Fluid's draws bare and gets its parens from the rule. Same result either way.
-  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 0 false true) = false
-  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 0 false false) = true
-  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 100 true false) = true
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 0 false true) = false
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 0 false false) = true
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 100 true false) = true
 
   // What the whole thing is for: the editor and the printer put parentheses in the same places.
   let sameParens (src: String) : Bool =
@@ -268,6 +272,43 @@ module PrecedenceIsShared =
   (PrecedenceIsShared.sameParens "a || b && c") = true
   (PrecedenceIsShared.sameParens "f (g x) (a + b)") = true
   (PrecedenceIsShared.sameParens "(if a then 1 else 2) + 3") = true
+
+  // The swallowing constructs were a LIST written twice -- once as `exprPower`'s arms over an Expr, once
+  // as `nodePower`'s arms over a document node -- with nothing making them agree. One list now, read by
+  // constructor name, which is the part the two shapes share.
+  (Darklang.LanguageTools.Precedence.swallowingCases)
+    = [ "EIf", "EMatch", "ELet", "ELambda", "EPipe", "EStatement" ]
+
+  // Both readings of it: from a real Expr, and from the name alone.
+  let power (src: String) : Int =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.LanguageTools.Precedence.exprPower e
+    | Error _ -> -1
+
+  (PrecedenceIsShared.power "if a then 1 else 2") = 0
+  (PrecedenceIsShared.power "fun x -> x") = 0
+  (PrecedenceIsShared.power "let x = 1\nx") = 0
+  (PrecedenceIsShared.power "1 + 2") = 5
+  (PrecedenceIsShared.power "1 * 2") = 6
+  (PrecedenceIsShared.power "f x") = 100
+  (PrecedenceIsShared.power "1") = 100
+
+  // And the editor's reading of the same programs, off a document node rather than an Expr.
+  let nodePower (src: String) : Int =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Project.nodePower (Darklang.Fluid.PT.toDoc e)
+    | Error _ -> -1
+
+  ((PrecedenceIsShared.nodePower "if a then 1 else 2") == (PrecedenceIsShared.power "if a then 1 else 2")) = true
+  ((PrecedenceIsShared.nodePower "fun x -> x") == (PrecedenceIsShared.power "fun x -> x")) = true
+  ((PrecedenceIsShared.nodePower "1 * 2") == (PrecedenceIsShared.power "1 * 2")) = true
+  ((PrecedenceIsShared.nodePower "f x") == (PrecedenceIsShared.power "f x")) = true
+
+  // The spellings moved with the table, since binding power is keyed by the written form.
+  (Darklang.LanguageTools.Precedence.infix
+    (Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.StringConcat)) = "++"
+  (Darklang.LanguageTools.Precedence.infix
+    (Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpAnd)) = "&&"
 
 
 module RecordsCanBeBuilt =

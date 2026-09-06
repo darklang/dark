@@ -229,7 +229,7 @@ let fnNameResolution
                   location = Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.parsePackageLocation name) }) })
 
 let infixText (i: Darklang.LanguageTools.ProgramTypes.Infix) : String =
-  Darklang.PrettyPrinter.ProgramTypes.infix i
+  Darklang.LanguageTools.Precedence.infix i
 
 let infixOfText (s: String) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =
   let fn (n: Darklang.LanguageTools.ProgramTypes.InfixFnName) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =

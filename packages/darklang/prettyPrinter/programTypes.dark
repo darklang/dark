@@ -524,32 +524,17 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     |> Stdlib.String.join " | "
 
 
+// How an operator is written, and how tightly it binds, are one fact and they now live together in
+// `LanguageTools.Precedence`. These stay as the names the printer and its callers already use.
+
 let binaryOperation (b: LanguageTools.ProgramTypes.BinaryOperation) : String =
-  match b with
-  // CLEANUP consider surrounding with spaces
-  | BinOpAnd -> "&&"
-  | BinOpOr -> "||"
+  LanguageTools.Precedence.binaryOperation b
 
 let infixFnName (i: LanguageTools.ProgramTypes.InfixFnName) : String =
-  match i with
-  | ArithmeticPlus -> "+"
-  | ArithmeticMinus -> "-"
-  | ArithmeticMultiply -> "*"
-  | ArithmeticDivide -> "/"
-  | ArithmeticModulo -> "%"
-  | ArithmeticPower -> "^"
-  | ComparisonGreaterThan -> ">"
-  | ComparisonGreaterThanOrEqual -> ">="
-  | ComparisonLessThan -> "<"
-  | ComparisonLessThanOrEqual -> "<="
-  | ComparisonEquals -> "=="
-  | ComparisonNotEquals -> "!="
-  | StringConcat -> "++"
+  LanguageTools.Precedence.infixFnName i
 
 let infix (i: LanguageTools.ProgramTypes.Infix) : String =
-  match i with
-  | InfixFnCall i -> infixFnName i
-  | BinOp b -> binaryOperation b
+  LanguageTools.Precedence.infix i
 
 let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
@@ -630,131 +615,43 @@ let docOfText (s: String) : Stdlib.Pretty.Doc =
   |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
 
 
-/// Binding power of an infix operator, and whether it associates right.
-///
-/// Mirrors `infixBindingPower` in `LibParser/Parser.fs`, loosest to tightest:
-///   1 `||`  2 `&&`  3 comparisons  4 `@` (right)  5 `+ - ++`  6 `* / %`  7 `^` (right)
-/// If that table moves, this has to move with it, or the printer starts emitting parens that change
-/// what the parser builds.
-/// (binding power, right-associative) for an infix operator BY ITS WRITTEN FORM.
-///
-/// This is the one table. Keying it by the written form is what lets the structural editor share it:
-/// while you are typing, an operator IS its text and has no `Infix` value yet. The printer reaches it
-/// through `infix`, which is already the single place an operator's spelling lives.
-/// CLEANUP: precedence is a fact about the LANGUAGE, not about printing it, so this and `infix` both
-/// belong in languageTools with the printer and the editor as consumers. It sits here because that is
-/// where the spelling already was, and moving both is a bigger change than sharing them.
+// --- Precedence ---
+//
+// The table, the two named powers, and the parenthesisation rules all live in `LanguageTools.Precedence`
+// now. Precedence is a fact about the language, not about printing it, and while it lived here the
+// structural editor had to ask the PRINTER what `*` binds like. These are the Expr-shaped adapters the
+// printer's own arms call.
+
 let infixPowerOfText (op: String) : (Int * Bool) =
-  match op with
-  | "||" -> (1, false)
-  | "&&" -> (2, false)
-  | "==" -> (3, false)
-  | "!=" -> (3, false)
-  | "<" -> (3, false)
-  | ">" -> (3, false)
-  | "<=" -> (3, false)
-  | ">=" -> (3, false)
-  | "+" -> (5, false)
-  | "-" -> (5, false)
-  | "++" -> (5, false)
-  | "*" -> (6, false)
-  | "/" -> (6, false)
-  | "%" -> (6, false)
-  | "^" -> (7, true)
-  // An operator nobody has spelled out yet: assume it binds like `+`, which is what the editor has always
-  // done for an operator half-typed.
-  | _ -> (5, false)
+  LanguageTools.Precedence.infixPowerOfText op
 
 let infixPower (i: LanguageTools.ProgramTypes.Infix) : (Int * Bool) =
-  infixPowerOfText (infix i)
+  LanguageTools.Precedence.infixPower i
 
-
-/// The two powers that aren't an operator's, named so both consumers say the same thing.
-val selfDelimitingPower = 100
-
-val swallowingPower = 0
-
-
-/// Whether an operand of an infix needs parenthesising, given the powers alone.
-///
-/// Looser than its parent always does. At equal power it depends on the side: `a - b - c` groups left, so
-/// a right operand of the same power needs parens to mean anything else; `2 ^ 3 ^ 2` groups right, so the
-/// left one does. Stated over Ints so the editor can use it on a document node and the printer on an Expr.
 let operandNeedsParensAt
   (operandPower: Int)
   (parentPower: Int)
   (parentIsRightAssoc: Bool)
   (isRightOperand: Bool)
   : Bool =
-  if operandPower < parentPower then
-    true
-  else if operandPower == parentPower then
-    if parentIsRightAssoc then Stdlib.Bool.not isRightOperand else isRightOperand
-  else
-    false
+  LanguageTools.Precedence.operandNeedsParensAt operandPower parentPower parentIsRightAssoc isRightOperand
 
-
-/// Whether an argument in an application needs parenthesising, given its power.
-///
-/// `selfParenthesises` is for a form that already brackets itself, so wrapping it again would give
-/// `((fun x -> ...))`. The printer's lambda does; the editor's draws bare and relies on this, which is
-/// why that has to be the caller's answer rather than baked in here.
 let argNeedsParensAt (argPower: Int) (isApplication: Bool) (selfParenthesises: Bool) : Bool =
-  if isApplication then true
-  elif selfParenthesises then false
-  else argPower < selfDelimitingPower
+  LanguageTools.Precedence.argNeedsParensAt argPower isApplication selfParenthesises
 
-
-/// How tightly an expression binds, for deciding whether it needs parentheses inside a larger one.
-///
-/// 0 is for the constructs that swallow whatever follows them -- an `if`, a `match`, a lambda -- which
-/// always need wrapping when they appear inside something else. 100 is everything self-delimiting: a
-/// literal, a variable, a record, an application. Application binds tighter than any operator, so
-/// `factorial n * 2L` needs no parens around the call, which is the main thing the old printer got
-/// wrong by bracketing every operand unconditionally.
 let exprPower (e: LanguageTools.ProgramTypes.Expr) : Int =
-  match e with
-  | EInfix(_, op, _, _) ->
-    let (p, _) = infixPower op
-    p
-  | EIf(_, _, _, _) -> swallowingPower
-  | EMatch(_, _, _) -> swallowingPower
-  | ELet(_, _, _, _) -> swallowingPower
-  | ELambda(_, _, _) -> swallowingPower
-  | EPipe(_, _, _) -> swallowingPower
-  | EStatement(_, _, _) -> swallowingPower
-  | _ -> selfDelimitingPower
+  LanguageTools.Precedence.exprPower e
 
-
-/// Whether an operand of an infix expression has to be parenthesised.
-///
-/// Looser than its parent always does. At equal power it depends on the side: `a - b - c` groups left,
-/// so a right operand of the same power needs parens to mean anything else; `2 ^ 3 ^ 2` groups right,
-/// so the left one does.
 let infixOperandNeedsParens
   (operand: LanguageTools.ProgramTypes.Expr)
   (parentPower: Int)
   (parentIsRightAssoc: Bool)
   (isRightOperand: Bool)
   : Bool =
-  operandNeedsParensAt (exprPower operand) parentPower parentIsRightAssoc isRightOperand
+  LanguageTools.Precedence.infixOperandNeedsParens operand parentPower parentIsRightAssoc isRightOperand
 
-
-/// Whether an argument in an application has to be parenthesised.
-///
-/// Application is left-associative and binds tightest, so anything that isn't self-delimiting has to be
-/// wrapped or it would be read as further arguments: `f (g x)`, `f (a + b)`, `f (fun x -> x)`.
 let applyArgNeedsParens (arg: LanguageTools.ProgramTypes.Expr) : Bool =
-  let selfParenthesises =
-    match arg with
-    // A lambda prints its own parentheses here.
-    | ELambda(_, _, _) -> true
-    | _ -> false
-  let isApplication =
-    match arg with
-    | EApply(_, _, _, _) -> true
-    | _ -> false
-  argNeedsParensAt (exprPower arg) isApplication selfParenthesises
+  LanguageTools.Precedence.applyArgNeedsParens arg
 
 
 /// `opening parts... closing`, on one line if it fits and one part per line if it doesn't.
