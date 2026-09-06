@@ -135,3 +135,33 @@ module TypeParamsAreOnScreen =
             (Darklang.Fluid.PT.Fn.toDoc "conv" (TypeParamsAreOnScreen.generic ())) with
     | Ok(pair) -> let (_n, u) = pair in Stdlib.String.join u.typeParams ","
     | Error e -> "ERR " ++ e)) = "a,b"
+
+
+module MatchesThePrinterExactly =
+  // Stdlib.Option.map is the function that started the printer comparison: it drew as
+  // `let map (option: Darklang.Stdlib.Option.Option<` -- broken mid-type -- `>) (fn: ('a -> 'b))`.
+  // Name shortening, type params, the return-type colon and now the function-type brackets have each
+  // closed a gap, and it is worth pinning the whole signature end to end rather than the pieces.
+  let printedVsDrawn (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        let printed =
+          Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) fn
+          |> Stdlib.String.split "\n"
+          |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+          |> Stdlib.String.join "\n"
+        let drawn =
+          Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc loc.name fn))
+        if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.map") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.andThen") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.length") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.head") = "same"

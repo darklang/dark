@@ -1690,6 +1690,10 @@ module Types =
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
         Spec.candidate (PT.displayName name) "type" (Node.make (typeKind "TCustomType") [ PT.text "name" name, PT.text "_hash" hash, ("args", Field.Many([], typeExpect "type arg")) ]))
 
+  /// Is this node a function type? The printer brackets one only when it is nested inside another, so
+  /// this is the test the TFn spec hands to ParenIf.
+  let isFnType (n: Node) : Bool = n.kind.case == Stdlib.Option.Option.Some "TFn"
+
   let typeVarFromLetter (c: String) (e: Expect) : Node = Node.make (typeKind "TVariable") [ PT.text "name" c ]
 
   let resolveTypePartial (typed: String) : Stdlib.Option.Option<Node> =
@@ -1746,7 +1750,9 @@ module Types =
           simpleType "TDB" [ Piece.Keyword "DB", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TDB") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
           simpleType "TDict" [ Piece.Keyword "Dict", Piece.Punct "<", Piece.Slot "key", Piece.Punct ",", Piece.Space, Piece.Slot "value", Piece.Punct ">" ] (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
           simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
-          simpleType "TFn" [ Piece.Punct "(", Piece.EachWith("args", [], [ Piece.Space, Piece.Punct "->", Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Space, Piece.Slot "ret", Piece.Punct ")" ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
+          // Written bare, with brackets only where one function type is nested in another -- which is what the
+          // printer does, and what `(fn: 'a -> 'b)` should read as.
+          simpleType "TFn" [ Piece.ParenIfEach("args", [ Piece.Space, Piece.Punct "->", Piece.Space ], isFnType), Piece.Space, Piece.Punct "->", Piece.Space, Piece.ParenIfSlot("ret", isFnType) ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
           simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Line ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
 
 

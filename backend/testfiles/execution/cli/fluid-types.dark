@@ -32,7 +32,8 @@ module RoundTrips =
 module Rendering =
   (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)) = "List<Int>"
   (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(Darklang.LanguageTools.ProgramTypes.TypeReference.TString, Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))) = "Dict<String, Int>"
-  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = "(Int -> Bool)"
+  // Bare, like the printer: a function type is bracketed only when nested inside another one.
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = "Int -> Bool"
   (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, []))) = "(Int * String)"
 
 
@@ -74,3 +75,29 @@ module TypeVariablesCarryTheirQuote =
        | Filled n -> n.kind.case |> Stdlib.Option.withDefault "?"
        | Partial(t, _) -> "partial " ++ t
        | Empty _ -> "empty"))) = "TVariable"
+
+
+module FunctionTypeParens =
+  // Fluid always bracketed a function type, so a parameter read `(fn: ('a -> 'b))`. The printer's brackets
+  // are CONTEXTUAL -- a function type is written bare and gets them only when nested inside another one --
+  // and that is a fact about the CHILD, so the spec now hands ParenIf the test rather than the piece
+  // deciding for itself. It is the general form of OperandSlot, ParenLowSlot and FieldTargetSlot, which
+  // could move onto it later.
+  let tv (n: String) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable n
+
+  let fn (args: List<Darklang.LanguageTools.ProgramTypes.TypeReference>) (ret: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(args, ret)
+
+  // Bare on its own, bracketed when nested -- each one checked against the printer.
+  (Fixtures.render (FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b"))) = "'a -> 'b"
+  (Fixtures.render
+    (FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.fn [ FunctionTypeParens.tv "b" ] (FunctionTypeParens.tv "c")))) =
+    "'a -> ('b -> 'c)"
+  (Fixtures.render
+    (FunctionTypeParens.fn [ FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b") ] (FunctionTypeParens.tv "c"))) =
+    "('a -> 'b) -> 'c"
+  // And a function type inside something that isn't one needs nothing.
+  (Fixtures.render
+    (Darklang.LanguageTools.ProgramTypes.TypeReference.TList(FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b")))) =
+    "List<'a -> 'b>"

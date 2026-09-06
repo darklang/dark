@@ -25,6 +25,13 @@ type Piece =
   /// The document keeps the full name -- that is the thing's identity, and shortening what is STORED
   /// makes `Result.Ok` come back as `Result..Ok` -- so the shortening happens on the way to the screen.
   | NameText of slot: String * style: Layout.Style
+  /// A child slot, parenthesised only when `needsParens` says so. The general form of the specific
+  /// parenthesising pieces above: a function type is written bare and gets brackets only when it is
+  /// NESTED in another function type, which is a fact about the CHILD, so the spec supplies the test.
+  /// (A named package function, like every other function a spec carries.)
+  | ParenIfSlot of slot: String * needsParens: (Node -> Bool)
+  /// `Each`, with the same conditional parenthesising applied to every item.
+  | ParenIfEach of slot: String * sep: List<Piece> * needsParens: (Node -> Bool)
   /// A list of records drawn as a GRID: one row per item, one column per named field, with a header and
   /// every column as wide as its widest cell. This is the one piece whose drawing isn't a line of text --
   /// a column's width depends on its SIBLINGS, which no Wadler combinator can express, so it is measured

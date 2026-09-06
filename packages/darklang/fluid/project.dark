@@ -149,6 +149,30 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | Some s -> slot reg path (Part.InSlot slotName) (Path.child path slotName) s
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | ParenIfSlot(slotName, needsParens) ->
+    match Node.slot n slotName with
+    | Some s ->
+      let d = slot reg path (Part.InSlot slotName) (Path.child path slotName) s
+      let wrap =
+        match s with
+        | Filled c -> needsParens c
+        | _ -> false
+      parenIf wrap d
+    | None -> Layout.Doc.Empty
+
+  | ParenIfEach(slotName, sep, needsParens) ->
+    let sepDoc = pieces reg path n sep
+    let docs =
+      Node.items n slotName
+      |> Stdlib.List.indexedMap (fun i s ->
+        let d = slot reg path (Part.InItem(slotName, i)) (Path.item path slotName i) s
+        let wrap =
+          match s with
+          | Filled c -> needsParens c
+          | _ -> false
+        parenIf wrap d)
+    Layout.join docs sepDoc
+
   | Table(slotName, columns) ->
     match Node.items n slotName with
     | [] -> Layout.tagged (tagFor path Part.OnNode) Layout.Style.Dim ""
