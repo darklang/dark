@@ -235,6 +235,82 @@ let localPolicyPathsRejectTraversal =
     Expect.isError (LocalFile.path "nested/policies.bin") "nested path"
   }
 
+/// Protect the store's ancestors from entry moves. An exact-path guard allowed
+/// a writable parent to be renamed, modified elsewhere, and renamed back.
+/// Sequencing plus `packageDbPathForTesting` isolates the process-global path.
+let packageStoreAncestorsAreProtected =
+  testSequenced
+  <| testTask "renaming or removing an ancestor of the package store is refused" {
+    let root =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-store-{System.Guid.NewGuid()}"
+      )
+    let rundir = System.IO.Path.Combine(root, "rundir")
+    let other = System.IO.Path.Combine(root, "other")
+    System.IO.Directory.CreateDirectory rundir |> ignore<System.IO.DirectoryInfo>
+    System.IO.Directory.CreateDirectory other |> ignore<System.IO.DirectoryInfo>
+    let db = System.IO.Path.Combine(rundir, "data.db")
+    System.IO.File.WriteAllText(db, "placeholder")
+    let restorePackageDbPath = LibExecution.HostSecurity.packageDbPathForTesting db
+    // Everything under `root` is writable: the attack needs no more than that.
+    let access =
+      Permission.Access.start (
+        Permission.Policy.create
+          [ Permission.Rule.File(Permission.AccessKind.Write, only root) ]
+          []
+      )
+    let perform op = LibExecution.Host.perform Permission.NoRelax access op
+    let expectRefused (label : string) (outcome : HT.Outcome) =
+      match outcome with
+      | HT.Outcome.Rejected message ->
+        Expect.stringContains message "package store" $"{label}: names the store"
+      | other -> failtest $"{label}: expected the guard to refuse, got {other}"
+    let expectSuccess (label : string) (outcome : HT.Outcome) =
+      match outcome with
+      | HT.Outcome.Success _ -> ()
+      | other -> failtest $"{label}: expected success, got {other}"
+    try
+      // Step 1 of the attack: move the store's parent.
+      let! moved =
+        perform (HT.Operation.Posix(HT.PosixOp.Rename(rundir, other + "2")))
+      expectRefused "rename the store's parent" moved
+      Expect.isTrue (System.IO.File.Exists db) "the store did not move"
+      // A rename whose DESTINATION is an ancestor is refused on that endpoint.
+      let! onto = perform (HT.Operation.Posix(HT.PosixOp.Rename(other, rundir)))
+      expectRefused "rename onto the store's parent" onto
+      // Removing the parent is refused too.
+      let! removed = perform (HT.Operation.Posix(HT.PosixOp.Rmdir rundir))
+      expectRefused "rmdir the store's parent" removed
+      // Any ancestor, not just the immediate parent.
+      let! rootMoved =
+        perform (HT.Operation.Posix(HT.PosixOp.Rename(root, root + "-moved")))
+      expectRefused "rename a higher ancestor" rootMoved
+      // The over-deny controls: siblings, and files beside the store in its
+      // own directory, are still ordinary writable paths.
+      let! sibling =
+        perform (HT.Operation.Posix(HT.PosixOp.Rename(other, other + "-renamed")))
+      expectSuccess "rename an unrelated sibling directory" sibling
+      let! beside =
+        perform (
+          HT.Operation.FileWrite(
+            System.IO.Path.Combine(rundir, "notes.txt"),
+            [| 1uy |]
+          )
+        )
+      expectSuccess "write a file beside the store" beside
+      // An existing store directory must reach the OS (EEXIST), not the guard.
+      let! mkdirExisting =
+        perform (HT.Operation.Posix(HT.PosixOp.Mkdir(rundir, 0o755)))
+      match mkdirExisting with
+      | HT.Outcome.Rejected message ->
+        failtest $"mkdir of the store's existing directory hit the guard: {message}"
+      | _ -> ()
+    finally
+      restorePackageDbPath.Dispose()
+      System.IO.Directory.Delete(root, true)
+  }
+
 let tests =
   testList
     "host"
@@ -243,4 +319,5 @@ let tests =
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
       libcWalkRefusesALinkMetAtOperationTime
-      localPolicyPathsRejectTraversal ]
+      localPolicyPathsRejectTraversal
+      packageStoreAncestorsAreProtected ]

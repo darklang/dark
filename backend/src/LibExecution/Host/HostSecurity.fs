@@ -190,6 +190,14 @@ let setPackageDbPath (path : string) : unit =
       full
   packageDbPath <- Some canonical
 
+/// Temporarily override the package-store path for an isolated test.
+/// The caller must also prevent other tests from running concurrently.
+let packageDbPathForTesting (path : string) : System.IDisposable =
+  let previous = packageDbPath
+  setPackageDbPath path
+  { new System.IDisposable with
+      member _.Dispose() = packageDbPath <- previous }
+
 /// True for the package store or one of its SQLite side-files
 /// (`-wal`/`-shm`/`-journal`). Fails safe: an unresolvable path is treated as
 /// protected.
@@ -205,5 +213,26 @@ let isPackageDbPath (path : string) : bool =
       |> List.exists (fun suffix ->
         full.Equals(dbPath + suffix, comparison)
         || canonical.Equals(dbPath + suffix, comparison))
+    with _ ->
+      true
+
+
+/// True when mutating `path` could move, replace, or delete the package store:
+/// the store or a side-file, or any ANCESTOR directory of it. The same rule
+/// as `canAffectPolicyPath`, for the same reason -- with only the exact path
+/// protected, a guest holding write access to a directory that contains the
+/// store could rename that directory, rewrite `data.db` under the new name,
+/// and rename it back; the running CLI then trusts what it wrote, since the
+/// bundled-trust exemption is read from the store's own rows. `Host.fs`
+/// applies it to the operations that move or remove an entry; a read or a
+/// `mkdir` of an ancestor cannot displace the store. Fails safe.
+let canAffectPackageDbPath (path : string) : bool =
+  match packageDbPath with
+  | None -> false
+  | Some dbPath ->
+    try
+      let full = Path.GetFullPath path
+      let resolved = FilePath.canonicalAncestors full
+      isPackageDbPath path || sameOrChild full dbPath || sameOrChild resolved dbPath
     with _ ->
       true

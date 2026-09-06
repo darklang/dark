@@ -437,6 +437,24 @@ let private guardedEntry
   | Some message -> Error message
   | None -> resolve path
 
+/// For an operation that moves or removes a directory ENTRY -- rename, rmdir,
+/// unlink, delete -- refuse an ancestor of the package store: moving the
+/// directory that contains the store carries the store with it, to a path the
+/// exact-match guard does not know. Only these operations get the ancestor
+/// rule. A `mkdir` or `chmod` naming an existing ancestor cannot displace the
+/// store, and refusing them would break `mkdir -p` under every ancestor, as
+/// the policy directory's broader rule already does under `$HOME`.
+let private mutatingEntry
+  (rawPath : string)
+  (proceed : unit -> Result<Resolved, string>)
+  : Result<Resolved, string> =
+  let path = normalizeFilePath rawPath
+  if HostSecurity.canAffectPackageDbPath path then
+    Error
+      $"permission denied: mutating `{path}` could move or replace the host-owned package store"
+  else
+    proceed ()
+
 let private resolveFile
   (access : Permission.AccessKind)
   (rawPath : string)
@@ -564,16 +582,21 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
       (produce (fun () -> Response.EnvValue(HostLibc.getenv name)))
   | HostTypes.PosixOp.Mkdir(path, mode) ->
     libcPath write path (fun path -> HostLibc.mkdir path mode |> unitOk)
-  | HostTypes.PosixOp.Rmdir path -> libcPath write path (HostLibc.rmdir >> unitOk)
-  | HostTypes.PosixOp.Unlink path -> libcEntry write path (HostLibc.unlink >> unitOk)
+  | HostTypes.PosixOp.Rmdir path ->
+    mutatingEntry path (fun () -> libcPath write path (HostLibc.rmdir >> unitOk))
+  | HostTypes.PosixOp.Unlink path ->
+    mutatingEntry path (fun () -> libcEntry write path (HostLibc.unlink >> unitOk))
   | HostTypes.PosixOp.Rename(oldPath, newPath) ->
     // Rename mutates both directory entries without following either final
-    // symlink. Each endpoint therefore needs a write rule.
-    guardedEntry true oldPath (fun oldPath ->
-      guardedEntry true newPath (fun newPath ->
-        withChecks
-          [ fileCheck write oldPath; fileCheck write newPath ]
-          (attempt (fun () -> HostLibc.rename oldPath newPath |> unitOk))))
+    // symlink. Each endpoint therefore needs a write rule, and neither may be
+    // an ancestor of the package store.
+    mutatingEntry oldPath (fun () ->
+      mutatingEntry newPath (fun () ->
+        guardedEntry true oldPath (fun oldPath ->
+          guardedEntry true newPath (fun newPath ->
+            withChecks
+              [ fileCheck write oldPath; fileCheck write newPath ]
+              (attempt (fun () -> HostLibc.rename oldPath newPath |> unitOk))))))
   | HostTypes.PosixOp.Chmod(path, mode) ->
     libcPath write path (fun path -> HostLibc.chmod path mode |> unitOk)
   | HostTypes.PosixOp.UtimesNow path ->
@@ -654,11 +677,12 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.FileAppendText(path, content) ->
     unitFile path (fun path -> HostLibc.appendAllText path content)
   | Operation.FileDelete path ->
-    if HostLibc.isPosix then
-      resolveFile Permission.AccessKind.Write path (fun path ->
-        attempt (fun () -> HostLibc.unlink path |> unitOk))
-    else
-      unitFile path System.IO.File.Delete
+    mutatingEntry path (fun () ->
+      if HostLibc.isPosix then
+        resolveFile Permission.AccessKind.Write path (fun path ->
+          attempt (fun () -> HostLibc.unlink path |> unitOk))
+      else
+        unitFile path System.IO.File.Delete)
   | Operation.FileStat path ->
     resolveFile read path (fun path ->
       if HostLibc.isPosix then
