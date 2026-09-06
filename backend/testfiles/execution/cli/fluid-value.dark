@@ -54,11 +54,9 @@ module MatchesThePrinter =
       match Darklang.LanguageTools.PackageManager.Value.get hash with
       | None -> "missing"
       | Some pv ->
+        // The doc comment is drawn now, so nothing is stripped before comparing.
         let printed =
           Darklang.PrettyPrinter.ProgramTypes.packageValue (Darklang.Fluid.PT.printerContext ()) pv
-          |> Stdlib.String.split "\n"
-          |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
-          |> Stdlib.String.join "\n"
         let screen =
           Darklang.Fluid.Debug.render
             (Darklang.Fluid.App.defaultRegistry ())

@@ -47,6 +47,48 @@ let one (name: String) (n: Node) : (String * Field) = (name, Field.One(Slot.Fill
 let many (name: String) (ns: List<Node>) (each: Expect) : (String * Field) =
   (name, Field.Many(ns |> Stdlib.List.map (fun n -> Slot.Filled n), each))
 
+// --- Doc comments ---
+//
+// A description is carried as a LIST of lines rather than one text field, for the same reason an enum
+// field's label is: an empty list draws nothing, so `Piece.Each` over it needs no conditional. The lines
+// are ordinary nodes, so the doc comment is editable like everything else -- it was carried opaquely and
+// drawn nowhere, which meant opening a real function silently dropped what it said about itself.
+
+val docLineType = "Darklang.Fluid.PT.DocLine"
+
+let docLineKind () : Kind = Kind.named docLineType
+
+let docExpect () : Expect = Expect.ofKind (docLineKind ()) "doc line"
+
+let docLines (description: String) : List<Node> =
+  if description == "" then
+    []
+  else
+    description
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun l -> Node.make (docLineKind ()) [ ("text", Field.Text l) ])
+
+/// The description a document's `doc` lines spell, ready to go back on a PackageFn / PackageType.
+let docText (n: Node) : String =
+  Node.items n "doc"
+  |> Stdlib.List.map (fun s ->
+    match s with
+    | Filled c -> Node.text c "text" |> Stdlib.Option.withDefault ""
+    | _ -> "")
+  |> Stdlib.String.join "\n"
+
+let docField (description: String) : (String * Field) =
+  ("doc", Field.Many(docLines description |> Stdlib.List.map (fun n -> Slot.Filled n), docExpect ()))
+
+let emptyDocField () : (String * Field) = ("doc", Field.Many([], docExpect ()))
+
+let docLineSpec () : Spec =
+  Spec.simple
+    (docLineKind ())
+    [ Piece.Punct "///", Piece.Space, Piece.Text("text", Layout.Style.Dim), Piece.HardLine ]
+    (Node.make (docLineKind ()) [ ("text", Field.Text "") ])
+
+
 let printerContext () : Darklang.PrettyPrinter.ProgramTypes.Context =
   Darklang.PrettyPrinter.ProgramTypes.Context.forBranch Darklang.SCM.Branch.mainBranchId
 
@@ -1523,7 +1565,10 @@ let baseSpecs () : List<Spec> =
       (Node.make (letPatKind "LPTuple") [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]) ]
 
 
-let specs () : List<Spec> = Stdlib.List.append (baseSpecs ()) (moreSpecs ())
+// The doc-line spec lives with the expressions rather than with the function shell, because a function, a
+// type and a value all draw the same lines and no one of them owns it.
+let specs () : List<Spec> =
+  Stdlib.List.flatten [ baseSpecs (), moreSpecs (), [ docLineSpec () ] ]
 
 
 module Test =
@@ -1806,7 +1851,7 @@ module Fn =
       (fnKind ())
       [ PT.text "name" name
         PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString fn.hash)
-        PT.text "_desc" fn.description
+        PT.docField fn.description
         // A generic function is written `let map<'a, 'b> (...)`, and Fluid drew `let map (...)` -- the
         // params were carried opaquely on the original record, so they survived a save but were invisible
         // while you edited. The node is TypeDecl's TypeParam, deliberately: a declaration and a function
@@ -1854,7 +1899,13 @@ module Fn =
     match (params, ret, body, tps) with
     | (Ok ps, Ok r, Ok b, Ok tp) ->
       Stdlib.Result.Result.Ok(
-        (PT.textOf n "name", { orig with typeParams = tp; parameters = ps; returnType = r; body = b }))
+        (PT.textOf n "name",
+         { orig with
+             typeParams = tp
+             parameters = ps
+             returnType = r
+             body = b
+             description = PT.docText n }))
     | (Error e, _, _, _) -> Stdlib.Result.Result.Error e
     | (_, Error e, _, _) -> Stdlib.Result.Result.Error e
     | (_, _, Error e, _) -> Stdlib.Result.Result.Error e
@@ -1879,7 +1930,10 @@ module Fn =
   let fnSpec () : Spec =
     { (Spec.simple
         (fnKind ())
-        [ Piece.Group
+        // The doc comment sits OUTSIDE the signature's group: each line ends in a HardLine, and inside the
+        // group they would be flattened along with it.
+        [ Piece.Each("doc", [])
+          Piece.Group
             [ Piece.Keyword "let"
               Piece.Space
               Piece.Text("name", Layout.Style.Name)
@@ -1905,7 +1959,7 @@ module Fn =
           (fnKind ())
           [ PT.text "name" "unnamed"
             PT.text "_hash" ""
-            PT.text "_desc" ""
+            PT.emptyDocField ()
             ("params", Field.Many([], paramExpect ()))
             ("ret", Field.One(Slot.Empty(Types.typeExpect "return")))
             ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
@@ -1973,7 +2027,7 @@ module TypeDecl =
       (k "Type")
       [ PT.text "name" name
         PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString pt.hash)
-        PT.text "_desc" pt.description
+        PT.docField pt.description
         PT.many "params" (pt.declaration.typeParams |> Stdlib.List.map (fun p -> paramToDoc p)) (paramExpect ())
         PT.one "def" (defToDoc pt.declaration.definition) ]
 
@@ -2062,7 +2116,8 @@ module TypeDecl =
     | Ok d ->
       let decl =
         Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = params; definition = d }
-      Stdlib.Result.Result.Ok((PT.textOf n "name", { orig with declaration = decl }))
+      Stdlib.Result.Result.Ok(
+        (PT.textOf n "name", { orig with declaration = decl; description = PT.docText n }))
     | Error e -> Stdlib.Result.Result.Error e
 
   // --- specs ---
@@ -2073,7 +2128,8 @@ module TypeDecl =
   let specs () : List<Spec> =
     [ simpleT
         "Type"
-        [ Piece.Group
+        [ Piece.Each("doc", [])
+          Piece.Group
             [ Piece.Keyword "type"
               Piece.Space
               Piece.Text("name", Layout.Style.Name)
@@ -2081,7 +2137,7 @@ module TypeDecl =
               Piece.Space
               Piece.Punct "=" ]
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
-        (Node.make (k "Type") [ PT.text "name" "Unnamed", PT.text "_hash" "", PT.text "_desc" "", ("params", Field.Many([], paramExpect ())), ("def", Field.One(Slot.Empty(defExpect ()))) ])
+        (Node.make (k "Type") [ PT.text "name" "Unnamed", PT.text "_hash" "", PT.emptyDocField (), ("params", Field.Many([], paramExpect ())), ("def", Field.One(Slot.Empty(defExpect ()))) ])
       // A declaration's own type params carry the quote too: the printer writes `type Option<'v>`, and
       // Fluid drew `type Option<v>`. The CASES were already right, because those are TypeReferences.
       simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
@@ -2140,21 +2196,23 @@ module Value =
       (valKind ())
       [ PT.text "name" name
         PT.text "_hash" (Darklang.LanguageTools.ProgramTypes.hashToString pv.hash)
-        PT.text "_desc" pv.description
+        PT.docField pv.description
         PT.one "body" (PT.toDoc pv.body) ]
 
   let fromDoc (orig: PackageValue) (n: Node) : Stdlib.Result.Result<(String * PackageValue), String> =
     match Node.slot n "body" with
     | Some(Filled c) ->
       match PT.fromDoc c with
-      | Ok body -> Stdlib.Result.Result.Ok((PT.textOf n "name", { orig with body = body }))
+      | Ok body ->
+        Stdlib.Result.Result.Ok((PT.textOf n "name", { orig with body = body; description = PT.docText n }))
       | Error e -> Stdlib.Result.Result.Error e
     | _ -> Stdlib.Result.Result.Error "the value's body is a hole"
 
   let specs () : List<Spec> =
     [ { (Spec.simple
           (valKind ())
-          [ Piece.Group
+          [ Piece.Each("doc", [])
+            Piece.Group
               [ Piece.Keyword "val"
                 Piece.Space
                 Piece.Text("name", Layout.Style.Name)
@@ -2166,5 +2224,5 @@ module Value =
                 // before its body; that difference is the printer's, and Fluid follows it.)
                 Piece.Space
                 Piece.Slot "body" ] ]
-          (Node.make (valKind ()) [ PT.text "name" "unnamed", PT.text "_hash" "", PT.text "_desc" "", ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
+          (Node.make (valKind ()) [ PT.text "name" "unnamed", PT.text "_hash" "", PT.emptyDocField (), ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
           summary = (fun n -> "val " ++ (PT.textOf n "name")) } ]

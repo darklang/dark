@@ -151,11 +151,10 @@ module MatchesThePrinterExactly =
       match Darklang.LanguageTools.PackageManager.Function.get hash with
       | None -> "missing"
       | Some fn ->
+        // No stripping of `///` any more: Fluid draws the doc comment too, so the comparison is the whole
+        // printed function against the whole drawn one.
         let printed =
           Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) fn
-          |> Stdlib.String.split "\n"
-          |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
-          |> Stdlib.String.join "\n"
         let drawn =
           Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80
             (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc loc.name fn))
@@ -180,3 +179,64 @@ module MatchesThePrinterExactly =
   // type check. Two stale value types in ProgramTypesToDarkTypes. Any function with a lambda in it is a
   // regression test for that; this is the one that found it.
   (MatchesThePrinterExactly.printedVsDrawn "Darklang.Cli.commandOptions") = "same"
+
+
+module DocCommentsAreShown =
+  // A description was carried opaquely and drawn NOWHERE. Open a real function and everything it said
+  // about itself vanished off the screen, and a save wrote back whatever the store already had. The lines
+  // are ordinary nodes now, so they draw, they can be edited, and what you edit is what gets saved.
+  //
+  // Carried as a LIST of lines rather than one text field, for the same reason an enum field's label is:
+  // an empty list draws nothing, so `Piece.Each` over it needs no conditional.
+  let described (d: String) : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc () with description = d }
+
+  let show (d: String) : String =
+    Darklang.Fluid.Debug.render (Fixtures.reg ()) 70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "inc" (DocCommentsAreShown.described d)))
+
+  // No description: nothing drawn, not even a bare `///` on a line of its own.
+  (DocCommentsAreShown.show "") = "let inc (n: Int): Int =\n  n + 1"
+
+  // One line, and the printer's exact spelling: `/// ` then the text.
+  (DocCommentsAreShown.show "adds one") = "/// adds one\nlet inc (n: Int): Int =\n  n + 1"
+
+  // Several lines stay several lines.
+  (DocCommentsAreShown.show "adds one\nto the number given") =
+    "/// adds one\n/// to the number given\nlet inc (n: Int): Int =\n  n + 1"
+
+  // And it survives the way back: the description a save writes is the one the lines spell, so editing a
+  // doc line is editing the doc comment.
+  let saved (d: String) : String =
+    match
+      Darklang.Fluid.PT.Fn.fromDoc
+        (Fixtures.inc ())
+        (Darklang.Fluid.PT.Fn.toDoc "inc" (DocCommentsAreShown.described d)) with
+    | Ok(pair) ->
+      let (_n, f) = pair
+      f.description
+    | Error e -> "failed: " ++ e
+
+  (DocCommentsAreShown.saved "adds one") = "adds one"
+  (DocCommentsAreShown.saved "adds one\nto the number given") = "adds one\nto the number given"
+  (DocCommentsAreShown.saved "") = ""
+
+  // The whole point, against a real function: the printer's output INCLUDING its doc comment, compared
+  // without stripping `///` first, which every other parity check in this file still does.
+  let realWithDocs (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        let printed = Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) fn
+        let drawn =
+          Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc loc.name fn))
+        if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.Option.map") = "same"
+  (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.List.length") = "same"
+  (DocCommentsAreShown.realWithDocs "Darklang.Cli.commandOptions") = "same"
