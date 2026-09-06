@@ -265,3 +265,47 @@ module PrecedenceIsShared =
   (PrecedenceIsShared.sameParens "a || b && c") = true
   (PrecedenceIsShared.sameParens "f (g x) (a + b)") = true
   (PrecedenceIsShared.sameParens "(if a then 1 else 2) + 3") = true
+
+
+module RecordsCanBeBuilt =
+  // Record literals had no build path: ERecord needs a resolved type HASH -- typeNameResolution refuses an
+  // empty one -- so you cannot get there by typing punctuation the way a list or a tuple does. The type
+  // has to be RESOLVED first, which makes COMPLETION the build path rather than a `{` trigger. That pays
+  // for itself: the search hands back the declaration, so the shell arrives with the real field names in
+  // it and the caret in the first value.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // The candidate names the type and summarises its fields, so the menu says what you are about to get.
+  ((Darklang.Fluid.PT.recordCandidates "Size" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label))
+   |> Stdlib.Option.withDefault "none") = "Stdlib.Cli.Tui.Size"
+  ((Darklang.Fluid.PT.recordCandidates "Size" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.detail))
+   |> Stdlib.Option.withDefault "none") = "{ width, height }"
+
+  // A capitalised name is a TYPE in this language, so a record leads the menu there. Without this, `Size`
+  // offered `Stdlib.Dict.size` first and Enter built a call.
+  ((Darklang.Fluid.PT.completeExpr (Darklang.Fluid.PT.exprExpect "e") "Size"
+    |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label)) |> Stdlib.Option.withDefault "none") = "Stdlib.Cli.Tui.Size"
+
+  // The shell, with the declaration's field names and the caret in the first value.
+  (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60
+    [ "S", "i", "z", "e", "<Enter>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+
+  // Filled in and lowered, which is the whole point: this is a real ERecord with a resolved type.
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]) =
+    "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+
+  // An existing record still round-trips through the document unchanged.
+  ((match Darklang.LanguageTools.Parser.Parse.parsePTExpr "Stdlib.Cli.Tui.Size { width = 80; height = 24 }" with
+    | Ok e ->
+      (match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+       | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e2
+       | Error err -> "ERR " ++ err)
+    | Error err -> "parse ERR " ++ err)) = "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+
+  // And the type reads the way the printer writes it, not fully qualified.
+  (Stdlib.String.contains
+    (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60 [ "S", "i", "z", "e", "<Enter>" ])
+    "Darklang.Stdlib") = false

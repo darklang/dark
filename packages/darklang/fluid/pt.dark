@@ -881,6 +881,49 @@ let shouldSearch (typed: String) : Bool =
   (Stdlib.String.length typed) >= 3 || (Stdlib.String.contains typed ".")
 
 /// Package functions and values whose names match, as calls with placeholder arguments.
+/// Record literals, completed from the TYPE you are naming.
+///
+/// `ERecord` needs a resolved type hash -- `typeNameResolution` refuses an empty one -- so a record can't
+/// be built by typing punctuation the way a list or a tuple can; the type has to be RESOLVED first. That
+/// makes completion the natural build path rather than a `{` trigger, and it pays for itself: the search
+/// hands back the declaration, so the shell arrives with the real field NAMES already in it and the caret
+/// in the first value. Typing `Size` and pressing space gives `Size { width = <>; height = <> }`.
+let recordCandidates (typed: String) : List<Candidate> =
+  if Stdlib.Bool.not (shouldSearch typed) then
+    []
+  else
+    let query =
+      Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = Stdlib.String.split typed "." |> Stdlib.List.last |> Stdlib.Option.withDefault typed
+          searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
+          exactMatch = false }
+    // Ranked the same way function candidates are, so `Size` offers Size before it offers Stamp.
+    ranked typed (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
+    |> Stdlib.List.filterMap (fun item ->
+      match item.entity.declaration.definition with
+      | Record fields ->
+        let name = locationName item.location
+        let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
+        let fieldSlots =
+          fields
+          |> Stdlib.List.map (fun f ->
+            Slot.Filled(
+              Node.make
+                (Kind.named recordFieldType)
+                [ text "name" f.name, ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
+        let summary = Stdlib.String.join (fields |> Stdlib.List.map (fun f -> f.name)) ", "
+        Stdlib.Option.Option.Some(
+          Spec.candidate
+            (displayName name)
+            ("{ " ++ summary ++ " }")
+            (Node.make
+              (exprKind "ERecord")
+              [ text "type" name, text "_typeHash" hash, ("fields", Field.Many(fieldSlots, fieldExpect ())) ]))
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.take 3
+
 let completeExpr (e: Expect) (typed: String) : List<Candidate> =
   if Stdlib.Bool.not (shouldSearch typed) then
     []
@@ -899,7 +942,16 @@ let completeExpr (e: Expect) (typed: String) : List<Candidate> =
         let name = locationName item.location
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
         Spec.candidate (displayName name) "value" (Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]))
-    Stdlib.List.append fns values
+    // A capitalised name is a TYPE in this language and a lowercase one is a function, so a record goes to
+    // the top of the menu exactly when what you typed looks like a type. Without this, `Size` offered
+    // `Stdlib.Dict.size` first and Enter built a call.
+    let records = recordCandidates typed
+    let looksLikeAType =
+      match Stdlib.String.first typed 1 with
+      | "" -> false
+      | firstChar -> (Stdlib.String.toUppercase firstChar) == firstChar && (TextEdit.isLetterString firstChar)
+    if looksLikeAType then Stdlib.List.flatten [ records, fns, values ]
+    else Stdlib.List.flatten [ fns, values, records ]
 
 let completePipeStep (e: Expect) (typed: String) : List<Candidate> =
   if Stdlib.Bool.not (shouldSearch typed) then
@@ -1281,7 +1333,7 @@ let moreSpecs () : List<Spec> =
     simpleExpr
       "ERecord"
       [ Piece.Group
-          [ Piece.Text("type", Layout.Style.Name)
+          [ Piece.NameText("type", Layout.Style.Name)
             Piece.Space
             Piece.Punct "{"
             Piece.Nest(2, [ Piece.HardLine, Piece.Each("fields", [ Piece.Punct ";", Piece.HardLine ]) ])
