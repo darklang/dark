@@ -894,6 +894,10 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   elif onChar == "<digit>" then TextEdit.isDigitString c
   elif onChar == "<letter>" then TextEdit.isLetterString c
   elif onChar == "<operator>" then isOperatorChar syn c
+  // Enter is not a character anyone types into text, but it IS a thing a spec should be able to claim:
+  // in Darklang a newline after a finished expression starts the next statement. Named like the other
+  // classes so the rule stays in the spec rather than in the kernel.
+  elif onChar == "<newline>" then c == "\n"
   else false
 
 let ruleMatches (syn: Syntax) (rule: HoleRule) (c: String) : Bool = charClassMatches syn rule.onChar c
@@ -2380,6 +2384,52 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+/// The whole expression that ENDS where the caret is.
+///
+/// Climbs while the parent is the same KIND of thing, still ends here, and is not one of the constructs
+/// that swallow what follows them. So at the end of the `2` in `1 + 2` the answer is the infix, and at the
+/// end of a `let`'s body it is the body rather than the let -- a statement written after a let belongs
+/// INSIDE it, which is what the language means too.
+let statementTarget (st: State) (p: Path) : Path =
+  match nodeAtPath st.root p with
+  | Some child ->
+    (match Path.parent p with
+     | Some parentPath ->
+       (match nodeAtPath st.root parentPath with
+        | Some parent ->
+          if Stdlib.Bool.not (Kind.sameType parent.kind child.kind) then
+            p
+          else if (Project.nodePower parent) == Darklang.LanguageTools.Precedence.swallowingPower then
+            p
+          else if (lastNodePathUnder st.root parentPath) == (lastNodePathUnder st.root p) then
+            statementTarget st parentPath
+          else
+            p
+        | None -> p)
+     | None -> p)
+  | None -> p
+
+/// Enter at the end of a finished expression: whatever the spec says a NEWLINE does there.
+///
+/// Only when nothing is left unfinished. While a hole remains anywhere, Enter's job is to take you to it,
+/// and a key that quietly did two different things depending on the document would be worse than one that
+/// does nothing.
+let sequenceHere (st: State) : Stdlib.Option.Option<State> =
+  if Stdlib.Bool.not (Stdlib.List.isEmpty (blanks st.root)) then
+    Stdlib.Option.Option.None
+  else
+    let targetPath = statementTarget st st.caret.node
+
+    match nodeAtPath st.root targetPath with
+    | Some target ->
+      (match wrapRuleFor st.reg target "\n" with
+       | Some rule ->
+         let wrapped = rule.wrap target "\n"
+         let st1 = commit st [ Edit.Replace(targetPath, Slot.Filled wrapped) ] st.caret
+         Stdlib.Option.Option.Some { st1 with caret = landAfterCommit targetPath wrapped }
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
 /// Typing that character at the end of a finished item starts the next one.
 /// Is the caret at the END of item `i` of this list? Starting the NEXT item is meaningless anywhere else,
 /// and the difference matters: `|` on a match arm's PATTERN is an or-pattern, and that spec's own wrap rule
@@ -2547,7 +2597,10 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // Just after a finished value, Enter means what space means: on to the next hole. Since space started
     // landing the caret there rather than jumping, Enter at that spot did NOTHING, and a key that does
     // nothing is the thing to avoid.
-    if st.caret.part == Part.AfterNode then handled (nextHole st)
+    if st.caret.part == Part.AfterNode then
+      match sequenceHere settled with
+      | Some seq -> handled seq
+      | None -> handled (nextHole st)
     else
     // In a sequence (list element, match arm, record field), Enter settles what you typed and starts the
     // next item -- even with a menu up, so a bound variable that matches the rhs doesn't hijack Enter into
@@ -2585,14 +2638,20 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         // "unresolved: Red".
         match addSibling settled with
         | Some added -> handled added
-        | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
+        | None ->
+          match sequenceHere settled with
+          | Some seq -> handled seq
+          | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
     | None ->
       if completing && (onPartial st) then handled (commitCandidate st)
       else
         // Same rule outside a list: settle first.
         match addSibling settled with
         | Some added -> handled added
-        | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
+        | None ->
+          match sequenceHere settled with
+          | Some seq -> handled seq
+          | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
     // Tab commits a partial that's being typed, then advances -- UNLESS the commit landed on a fresh hole

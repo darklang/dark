@@ -717,3 +717,30 @@ module NavKeyRuns =
   (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jl" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "l" ])
   // And it actually moves, rather than both being the root.
   (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jjj" ]) = "ELet > EVariable"
+
+
+module EnterStartsTheNextStatement =
+  // Enter at the end of a finished expression starts the next one. It used to do NOTHING there -- no hole
+  // to go to, no list to grow -- so the most ordinary thing you do after writing a line had no key.
+  //
+  // It is a WRAP RULE on the expression spec, keyed on `<newline>`, not kernel behaviour: "a newline
+  // sequences two things" is a fact about Darklang, and a language whose newline means something else says
+  // so in its own spec. `<newline>` sits alongside `<digit>`, `<letter>` and `<operator>` as a class the
+  // kernel resolves for a rule that asked for it.
+  (Fixtures.screen [ "1", "+", "2", "<Enter>" ]) = "1 + 2\n~⟨next⟩"
+  (Fixtures.program [ "1", "<Enter>", "2", "<Esc>" ]) = "1\n2"
+  (Fixtures.program [ "1", "<Enter>", "2", "<Enter>", "3", "<Esc>" ]) = "1\n2\n3"
+
+  // The WHOLE expression that ends there, not the last thing in it: `1 + 2` then Enter is one statement
+  // and a hole, never `1 + (2; ...)`.
+  (Fixtures.program [ "1", "+", "2", "<Enter>", "3", "<Esc>" ]) = "1 + 2\n3"
+
+  // While anything is still unfinished, Enter's job is to take you to it. A key that quietly did two
+  // different things depending on the document would be worse than one that does nothing.
+  (Fixtures.screen [ "S", "t", "d", "l", "i", "b", ".", "p", "r", "i", "n", "t", "L", "i", "n", "e", "<Enter>" ]) =
+    "Stdlib.printLine ~⟨str⟩"
+
+  // At the end of a `let`'s BODY the statement goes inside the let, because that is where the language
+  // puts it too. The climb stops at a construct that swallows what follows it.
+  (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Enter>", "<Enter>", "2", "<Esc>" ]) =
+    "let x = 1\nx\n2"

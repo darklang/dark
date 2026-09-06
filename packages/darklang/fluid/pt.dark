@@ -1471,6 +1471,13 @@ let exprActions () : List<Action> =
     Action { name = "wrap in if"; key = Stdlib.Option.Option.None; doc = "if this then ... else ..."; applies = anyExpr; run = wrapInIf }
     Action { name = "pipe into"; key = Stdlib.Option.Option.Some ">"; doc = "this |> ..."; applies = anyExpr; run = wrapInPipe } ]
 
+/// `expr` becomes `expr; ⟨next⟩` -- the first thing, then a hole for what follows it.
+let wrapStatement (n: Node) (c: String) : Node =
+  Node.make
+    (exprKind "EStatement")
+    [ ("first", Field.One(Slot.Filled n))
+      ("next", Field.One(Slot.Empty(exprExpect "next"))) ]
+
 let exprSummary (n: Node) : String =
   match n.kind.case with
   | Some c -> c
@@ -1501,6 +1508,11 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
+          // Enter after a finished expression starts the next STATEMENT, which is what a newline means
+          // between two expressions in this language. A wrap rule and not kernel behaviour, because
+          // "a newline sequences two things" is a fact about Darklang: a DSL whose newline means
+          // something else says so here.
+          WrapRule { onChar = "<newline>"; wrap = wrapStatement; opSlot = ""; nextSlot = "next" }
           WrapRule { onChar = "."; wrap = wrapFieldAccess; opSlot = "field"; nextSlot = "field" }
           WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
       completions =
