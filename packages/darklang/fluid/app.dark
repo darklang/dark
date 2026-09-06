@@ -47,6 +47,14 @@ type State =
     /// re-parses and splices it back at that path; cancel discards it.
     textMode: Stdlib.Option.Option<(String * Int * Path)>
 
+    /// The document as it was when it was last SAVED (or opened). Leaving compares against this, so
+    /// closing an editor with unfinished work in it asks first.
+    savedRoot: Slot
+
+    /// Set when leaving was refused because of unsaved work, so the next press goes through. Cleared by
+    /// `afterKey`, which every other key funnels through, so it never survives more than one keystroke.
+    confirmingExit: Bool
+
     /// A file handed to `$EDITOR`, waiting to be read back. Set when the editor is launched and cleared by
     /// `refresh` when the CLI hands the terminal back -- the read cannot happen in `view`, which has to be
     /// a pure function of state for frame diffing to be sound.
@@ -369,6 +377,8 @@ let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : 
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None
+      savedRoot = root
+      confirmingExit = false
       pendingEdit = Stdlib.Option.Option.None }
 
 /// The module the document being edited lives in, so names on screen read the way they read in the
@@ -396,6 +406,8 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None
+      savedRoot = root
+      confirmingExit = false
       pendingEdit = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
@@ -597,10 +609,31 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
 let afterKey (st: State) (editor: Editor.State) : State =
   let row = Widget.caretRow editor
   let col = Widget.caretCol editor
+
   { st with
       editor = editor
       scroll = Widget.scrollFor row st.bodyRows st.scroll
-      hscroll = Widget.scrollFor col st.bodyCols st.hscroll }
+      hscroll = Widget.scrollFor col st.bodyCols st.hscroll
+      // Any key at all cancels a pending "press again to discard".
+      confirmingExit = false }
+
+/// Is there work here that has not been saved?
+///
+/// Compared against the document as of the last save rather than counted off the undo stack, so undoing
+/// back to where you started reads as clean, which is the truth.
+let hasUnsavedWork (st: State) (editor: Editor.State) : Bool = editor.root != st.savedRoot
+
+/// Leaving. `q` and Escape both end up here, and both used to end the editor outright, so a stray Escape
+/// in NAV threw away everything typed since the last save with nothing said. The first press says what is
+/// at stake and the second goes through: the one place in this editor where a key deliberately does
+/// nothing the first time.
+let wantsExit (st: State) (editor: Editor.State) : Darklang.Cli.Component.Step<State> =
+  if st.confirmingExit || (Stdlib.Bool.not (hasUnsavedWork st editor)) then
+    Darklang.Cli.Component.Step.Exit(afterKey st editor)
+  else
+    Darklang.Cli.Component.Step.Stay
+      { (afterKey st { editor with message = "unsaved: ^S to save, or press again to discard" }) with
+          confirmingExit = true }
 
 /// The current document as Dark source, or why it can't be printed yet (a half-typed name, a hole). An
 /// empty document is fine -- that's just an empty buffer to type into.
@@ -830,7 +863,7 @@ let onKey
   | Handled e -> Darklang.Cli.Component.Step.Stay(afterKey st e)
   | Emitted(e, msg) ->
     match msg with
-    | Back -> Darklang.Cli.Component.Step.Exit(afterKey st e)
+    | Back -> wantsExit st e
     // Repaint, not Stay, on every branch that actually SAVES. Applying an edit propagates it, and
     // propagation reports what it repointed -- "Propagated to 39 dependents:" and a grouped list -- which
     // it should, at a prompt. It lands on the terminal the editor is holding, so the editor takes the
@@ -842,21 +875,27 @@ let onKey
       | Scratch -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = "nothing to save this to (try `fluid fn <name>`)" })
       | FnBody(fn, location) ->
         match saveFnBody fn location root with
-        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Ok name ->
+          Darklang.Cli.Component.Step.Repaint
+            { (afterKey st { e with message = $"saved {name}" }) with savedRoot = root }
         | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
       | TypeDef(pt, location) ->
         match saveType pt location root with
-        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Ok name ->
+          Darklang.Cli.Component.Step.Repaint
+            { (afterKey st { e with message = $"saved {name}" }) with savedRoot = root }
         | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
       | ValueDef(pv, location) ->
         match saveValue pv location root with
-        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Ok name ->
+          Darklang.Cli.Component.Step.Repaint
+            { (afterKey st { e with message = $"saved {name}" }) with savedRoot = root }
         | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
   | Ignored ->
     let ch = keyChar |> Stdlib.Option.withDefault ""
     match st.editor.mode with
     | Nav ->
-      if ch == "q" then Darklang.Cli.Component.Step.Exit st
+      if ch == "q" then wantsExit st st.editor
       else Darklang.Cli.Component.Step.Stay st
     | Insert -> Darklang.Cli.Component.Step.Stay st
 

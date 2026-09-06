@@ -25,6 +25,8 @@ module Fixtures =
         inspectorOpen = false
         evaluated = Stdlib.Option.Option.None
         textMode = Stdlib.Option.Option.None
+        savedRoot = editor.root
+        confirmingExit = false
         pendingEdit = Stdlib.Option.Option.None }
 
   let docOf (src: String) : Darklang.Fluid.Slot =
@@ -474,3 +476,71 @@ module EvaluatingReclaimsTheScreen =
     | _ -> "other"
 
   (EvaluatingReclaimsTheScreen.panelStep ()) = "stay"
+
+
+
+module LeavingAsksAboutUnsavedWork =
+  // `q` and Escape both ended the editor outright, so a stray Escape in NAV threw away everything typed
+  // since the last save and said nothing about it. There is no confirmation anywhere else in this editor
+  // and there should not be, but throwing away work silently is the one thing worth a keystroke.
+  //
+  // Dirtiness is the document COMPARED against the document as of the last save, not a count off the undo
+  // stack, so undoing back to where you started reads as clean.
+  let stateWith (src: String) (saved: String) : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60
+    { (Fixtures.stateOf { ed with mode = Darklang.Fluid.Editor.Mode.Nav }) with
+        savedRoot = Fixtures.docOf saved }
+
+  let quitStep (st: Darklang.Fluid.App.State) : String =
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "q")
+    with
+    | Exit _ -> "exit"
+    | Stay _ -> "stay"
+    | Repaint _ -> "repaint"
+    | _ -> "other"
+
+  // Nothing changed since the last save: `q` goes straight out.
+  (LeavingAsksAboutUnsavedWork.quitStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 2")) = "exit"
+
+  // Changed: the first press stays and says so.
+  (LeavingAsksAboutUnsavedWork.quitStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3")) = "stay"
+
+  // ...and the second goes through, because the first set the flag.
+  (LeavingAsksAboutUnsavedWork.quitStep
+    { (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3") with confirmingExit = true }) = "exit"
+
+  // Escape in NAV is the same door, which is the case that made this worth doing.
+  let escapeStep (st: Darklang.Fluid.App.State) : String =
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.Escape
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        Stdlib.Option.Option.None
+    with
+    | Exit _ -> "exit"
+    | Stay _ -> "stay"
+    | Repaint _ -> "repaint"
+    | _ -> "other"
+
+  (LeavingAsksAboutUnsavedWork.escapeStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3")) = "stay"
+  (LeavingAsksAboutUnsavedWork.escapeStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 2")) = "exit"
+
+  // Any other key cancels the pending confirm, so it never survives more than one keystroke.
+  let afterAMove () : Bool =
+    match
+      Darklang.Fluid.App.onKey
+        { (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3") with confirmingExit = true }
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "k")
+    with
+    | Stay next -> next.confirmingExit
+    | _ -> true
+
+  (LeavingAsksAboutUnsavedWork.afterAMove ()) = false
