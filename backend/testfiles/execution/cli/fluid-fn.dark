@@ -363,3 +363,45 @@ module MakingOneIsEditingOne =
   // "unresolved: Int" while the screen read `(n: Int): Int`.
   (MakingOneIsEditingOne.lowered [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>" ]) =
     "ERR the body is a hole"
+
+
+module ANewFunctionPrintsUnderItsName =
+  // Saving reconstructs source with the printer and hands it to `applySource`, and the printer names a
+  // definition from its HASH. A function being CREATED has no hash and is in no store, so that lookup
+  // found nothing and fell back to `<hash:>`: `let <hash:> (n: Int): Int =`, which does not parse. The
+  // save came back "could not parse the reconstructed source", after a screen that read correctly.
+  //
+  // `preferredLocation` is the caller saying which location it is showing this under, and it is a better
+  // answer than a debug affordance. It now fills in when the hash resolves to nothing -- which for a
+  // stored item never happens, since a stored item has a location by construction.
+  let unstored () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { (Fixtures.inc ()) with hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "" }
+
+  let loc () : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+    Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Stachu.Scratch.triple"
+
+  let printed (preferred: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageLocation>) : String =
+    let ctx =
+      { (Darklang.PrettyPrinter.ProgramTypes.Context.forBranch Darklang.SCM.Branch.mainBranchId) with
+          preferredLocation = preferred }
+
+    Darklang.PrettyPrinter.ProgramTypes.packageFn ctx (ANewFunctionPrintsUnderItsName.unstored ())
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault ""
+
+  (ANewFunctionPrintsUnderItsName.printed (Stdlib.Option.Option.Some(ANewFunctionPrintsUnderItsName.loc ()))) =
+    "let triple (n: Int): Int ="
+
+  // With nothing to go on it still says so, rather than inventing a name.
+  (ANewFunctionPrintsUnderItsName.printed Stdlib.Option.Option.None) = "let <hash:> (n: Int): Int ="
+
+  // And a STORED function is unaffected: its hash has a location, so the fallback never runs.
+  ((match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.List.map") with
+    | Some h ->
+      (match Darklang.LanguageTools.PackageManager.Function.get h with
+       | Some fn ->
+         Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature (Darklang.Fluid.PT.printerContext ()) fn
+       | None -> "no fn")
+    | None -> "not found")) = "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>"

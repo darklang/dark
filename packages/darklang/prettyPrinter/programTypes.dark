@@ -119,7 +119,15 @@ module FQTypeName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Type.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
@@ -163,7 +171,15 @@ module FQValueName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Value.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
@@ -210,7 +226,15 @@ module FQFnName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Function.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
