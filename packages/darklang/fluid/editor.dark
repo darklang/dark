@@ -1154,6 +1154,10 @@ let typeOne (st: State) (c: String) : State =
   match handleStringI st c with
   | Some handled -> handled
   | None ->
+  // The lead punctuation typed again, in the fresh empty item it just made: the operator was meant.
+  match leadPunctRevision st c with
+  | Some revised -> revised
+  | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
   // you're typing inside a string, where it's a literal comma.
   let inStringBody =
@@ -1421,6 +1425,12 @@ let typeOneRaw (st: State) (c: String) : State =
           let next = Caret.inSlot caret.node rule.nextSlot 0
           typeOne { st with caret = next } c
       | None ->
+        // The character a spec draws BEFORE EACH ITEM of a list starts the next item: `|` at the end of a
+        // match arm's rhs is a new arm, which is how anyone writing the source would type it. Asked of the
+        // projection rather than hard-coded, so a DSL that separates its items some other way gets it too.
+        match (if atEnd then leadPunctSibling st c else Stdlib.Option.Option.None) with
+        | Some st1 -> st1
+        | None ->
         // At the end of a node's text, an operator wraps the node (`1` then `+` gives `1 + ⟨right⟩`).
         match (if atEnd then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
         | Some rule ->
@@ -2194,6 +2204,119 @@ let newItemForEach (st: State) (each: Expect) : Slot =
       Slot.Filled spec.empty
   | None -> Slot.Empty each
 
+/// Does `parent`'s spec draw `slot`'s items each led by `c`? The `|` of a match's cases is the case in
+/// hand; the answer comes from the spec's own pieces, so nothing here knows what a match is.
+let leadPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option<String> =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<String> =
+    match spec with
+    | Some sp -> Project.itemLeadPunct sp.pieces slot
+    | None -> Stdlib.Option.Option.None
+  match fromSpec (Registry.findExact st.reg parent.kind) with
+  | Some p -> Stdlib.Option.Option.Some p
+  | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
+
+let leadsItemsWith (st: State) (parent: Node) (slot: String) (c: String) : Bool =
+  (leadPunctOf st parent slot) == Stdlib.Option.Option.Some c
+
+/// Is every leaf of this node still a hole? A freshly added list item is; one you have typed into isn't.
+let isAllHoles (n: Node) : Bool =
+  let slotEmpty (s: Slot) : Bool =
+    match s with
+    | Empty _ -> true
+    | Partial(_, _) -> false
+    | Filled c -> isAllHoles c
+  n.fields
+  |> Stdlib.List.all (fun f ->
+    let (name, fld) = f
+    match fld with
+    | Text t -> t == ""
+    | One s -> slotEmpty s
+    | Many(items, _) -> items |> Stdlib.List.all (fun s -> slotEmpty s))
+
+/// The last node in an item's subtree, in reading order -- where the caret was when the lead punct that
+/// made the next item was typed.
+let lastNodePathUnder (root: Slot) (itemPath: Path) : Stdlib.Option.Option<Path> =
+  match slotAtPath root itemPath with
+  | Some s ->
+    nodePaths s
+    |> Stdlib.List.map (fun p -> Stdlib.List.append itemPath p)
+    |> Stdlib.List.last
+  | None -> Stdlib.Option.Option.None
+
+/// Typing a list's lead punctuation AGAIN, in the fresh empty item it just made, means the OPERATOR was
+/// meant after all: `2` then `|` then `|` inside a match is `2 || ⟨right⟩` in the arm you were in, not an
+/// arm with an empty pattern. Stateless, and it needs to be: the lead punct is never valid at the START of
+/// an empty item, and an item still made entirely of holes is one nothing has been typed into.
+let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
+  match enclosingListItem st.caret with
+  | Some((parentPath, slot, i)) ->
+    match nodeAtPath st.root parentPath with
+    | Some parent ->
+      let items = Node.items parent slot
+      let fresh =
+        match Stdlib.List.getAt items i with
+        | Some(Filled n) -> isAllHoles n
+        | Some(Empty _) -> true
+        | _ -> false
+      let lead = leadPunctOf st parent slot |> Stdlib.Option.withDefault ""
+      // The typed character either REPEATS the lead punct (`||`) or continues it into another operator
+      // (`|>`). Anything else is someone typing a pattern, and the new item is exactly what they wanted.
+      let meansOperator =
+        (lead != "") && (isOperatorChar st.reg.syntax lead)
+        && ((c == lead) || (isOperatorChar st.reg.syntax c))
+      if (i > 0) && fresh && (i == ((Stdlib.List.length items) - 1)) && meansOperator then
+        match lastNodePathUnder st.root (Path.item parentPath slot (i - 1)) with
+        | Some p ->
+          // Precedence picks WHICH node the operator takes, the same way typing it normally would, so
+          // `1 + 2` then the doubled punct is `(1 + 2) || _` rather than `1 + (2 || _)`.
+          let targetPath = reassocTarget st.root p (c ++ c)
+          match nodeAtPath st.root targetPath with
+          | Some target ->
+            // Repeating it is an infix (`||`); continuing it is whatever rule the LEAD punct has of its own
+            // (`|` builds a pipe, and the `>` that follows is swallowed in the fresh step as it always was).
+            let wanted = if c == lead then "<operator>" else lead
+            let rules =
+              match Registry.findTypeLevel st.reg target.kind with
+              | Some spec -> spec.wrapRules
+              | None -> []
+            match rules |> Stdlib.List.findFirst (fun r -> r.onChar == wanted) with
+            | Some rule ->
+              let wrapped = rule.wrap target (if c == lead then c ++ c else lead)
+              let st1 =
+                commit
+                  st
+                  [ Edit.Replace(targetPath, Slot.Filled wrapped), Edit.RemoveItem(parentPath, slot, i) ]
+                  st.caret
+              if rule.opSlot == "" then
+                Stdlib.Option.Option.Some(typeOne { st1 with caret = landAfterCommit targetPath wrapped } c)
+              else
+                let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
+                Stdlib.Option.Option.Some { st1 with caret = Caret.inText targetPath rule.opSlot opLen }
+            | None -> Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+/// Typing that character at the end of a finished item starts the next one.
+let leadPunctSibling (st: State) (c: String) : Stdlib.Option.Option<State> =
+  match enclosingListItem st.caret with
+  | Some((parentPath, slot, i)) ->
+    match nodeAtPath st.root parentPath with
+    | Some parent ->
+      // Only at the END of the item. The lead punct starts the NEXT one, which is meaningless anywhere
+      // else, and the difference matters: `|` on a match arm's PATTERN is an or-pattern (`0 | 1`), and
+      // that spec's own wrap rule has to keep winning there. The caret is at the end when the node it is
+      // on is the last one in the item's subtree.
+      let atItemEnd =
+        (lastNodePathUnder st.root (Path.item parentPath slot i)) == Stdlib.Option.Option.Some st.caret.node
+      if atItemEnd && (leadsItemsWith st parent slot c) then addSibling st else Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
 /// Enter inside a list adds a sibling element after the current one and moves to it. This is how you grow
 /// a match (a new arm), a list, a record, a set of parameters -- without leaving the keyboard row.
 let addSibling (st: State) : Stdlib.Option.Option<State> =
@@ -2269,7 +2392,15 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         // and start the next item. If the menu offers something else to accept (a store function like
         // `List.len` -> `Stdlib.List.length`), accept it and stay.
         let committed = commitCandidate st
-        if Stdlib.Option.isSome (exactCandidate st) then
+        // ...but only if what was committed has nothing left to fill. A candidate WITH holes leaves the
+        // caret INSIDE itself, and "start the next item" then meant the new node's own list: `fun` in a
+        // function argument committed the lambda, landed in its first parameter, and added a SECOND
+        // parameter, so `List.map (fun ⟨param⟩ ⟨param⟩ -> ⟨body⟩)` was what you got for typing `fun`.
+        let leavesHoles =
+          match selectedCandidate st with
+          | Some c -> Stdlib.Bool.not (Stdlib.List.isEmpty (holes (Slot.Filled c.node)))
+          | None -> false
+        if (Stdlib.Option.isSome (exactCandidate st)) && (Stdlib.Bool.not leavesHoles) then
           match addSibling committed with
           | Some added -> handled added
           | None -> handled committed

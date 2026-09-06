@@ -377,3 +377,81 @@ module NewShapesCompose =
   (Darklang.Fluid.Test.run (NewShapesCompose.reg ()) (NewShapesCompose.hole ()) 70
     [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "u", "u" ]) =
     "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+
+
+module BarStartsTheNextArm =
+  // `|` at the end of a match arm's rhs starts the next arm, which is how anyone writing the source would
+  // type it. It used to build a PIPE, so the natural keystroke gave you `2 |> ⟨step⟩` inside the arm.
+  //
+  // Which character does this is not written down here: the kernel asks the SPEC what it draws before each
+  // item of the field (`EachWith("cases", [ Punct "|", Space ], ...)`), so a DSL that separates its items
+  // some other way gets the same behaviour without touching the kernel.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  /// `match x with | 1 -> 2`, then whatever else you type.
+  let arm (extra: List<String>) : String =
+    Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+      (Stdlib.List.append [ "ma", "<Enter>", "x", "<Tab>", "1", "<Tab>", "2" ] extra)
+
+  (BarStartsTheNextArm.arm []) = "match x with\n| 1 -> 2~"
+  (BarStartsTheNextArm.arm [ "|" ]) = "match x with\n| 1 -> 2\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.arm [ "|", "3" ]) = "match x with\n| 1 -> 2\n| 3~ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.arm [ "|", "3", "<Tab>", "4", "|", "5", "<Tab>", "6" ]) =
+    "match x with\n| 1 -> 2\n| 3 -> 4\n| 5 -> 6~"
+
+  // The half that makes stealing `|` safe. Typing it AGAIN, in the fresh empty arm it just made, means the
+  // operator was meant after all -- and the arm goes away rather than being left behind as an empty one.
+  // Stateless: `|` is never valid at the start of an empty pattern, and an arm still made entirely of
+  // holes is one nothing has been typed into.
+  (BarStartsTheNextArm.arm [ "|", "|" ]) = "match x with\n| 1 -> 2 ||~ ⟨right⟩"
+  (BarStartsTheNextArm.arm [ "|", "|", "b" ]) = "match x with\n| 1 -> 2 || b~"
+
+  // The same for CONTINUING it into another operator rather than repeating it: `|` then `>` is the pipe it
+  // always was, in the arm, not an arm whose pattern starts with `>`.
+  (BarStartsTheNextArm.arm [ "|", ">" ]) = "match x with\n| 1 ->\n  2\n  |> ~⟨step⟩"
+  (BarStartsTheNextArm.arm [ "|", ">", "f" ]) = "match x with\n| 1 ->\n  2\n  |> f~"
+
+  // Outside a list drawn that way, `|` is untouched: it still builds a pipe, and `||` still builds an
+  // infix.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60 [ "a", "|" ]) =
+    "a\n|> ~⟨step⟩"
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "a", "|", "|", "b" ]) = "a || b~"
+
+  // `|` on a match arm's PATTERN is still an or-pattern. The rule only fires at the END of an item --
+  // starting the next one is meaningless anywhere else -- so the pattern spec's own `|` keeps winning.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "ma", "<Enter>", "n", "<Tab>", "0", "|" ]) = "match n with\n| 0 | ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "ma", "<Enter>", "n", "<Tab>", "0", "|", "1", "|", "2" ]) = "match n with\n| 0 | 1 | 2~ -> ⟨rhs⟩"
+
+  // And a list whose items are separated rather than led keeps its own key: `,` still adds an element.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "[", "1", ",", "2" ]) = "[1, 2~]"
+
+
+module EnterDoesNotGrowWhatItJustMade =
+  // Enter in a sequence does two jobs: settle what you typed, and start the next item. When the candidate
+  // it settles has holes OF ITS OWN the caret is already inside it, so "the next item" meant that node's
+  // own list -- `fun` in a function argument committed the lambda, landed in its first parameter, and
+  // added a SECOND one. `List.map (fun ⟨param⟩ ⟨param⟩ -> ⟨body⟩)` for typing `fun`.
+  //
+  // Found by writing an ordinary pipe in the terminal. `\` builds the same lambda through the hole rule
+  // rather than the menu and gave one parameter, which is what pinned the blame on Enter.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (EnterDoesNotGrowWhatItJustMade.reg ()) (EnterDoesNotGrowWhatItJustMade.hole ()) 80 keys
+
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "fun", "<Enter>" ]) =
+    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+
+  // The same lambda through the hole rule instead of the menu: it always did the right thing.
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "\\" ]) =
+    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+
+  // The half of Enter this must not lose: a candidate with nothing left to fill still commits AND starts
+  // the next item, so a list grows as you type it.
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "true", "<Enter>" ]) = "[true, ~⟨item⟩]"
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "<Enter>" ]) = "[1, ~⟨item⟩]"

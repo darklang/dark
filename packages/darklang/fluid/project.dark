@@ -85,6 +85,29 @@ let tableColumnsFor (ps: List<Piece>) (slotName: String) : List<String> =
     | _ -> [])
   |> Stdlib.List.flatten
 
+/// The punctuation a spec draws BEFORE EACH ITEM of `slotName`, if it draws one -- the `|` of a match's
+/// cases. Typing that character after a finished item should start the next item, and the only thing that
+/// knows a field is written that way is the spec that writes it. Asking the projection means a DSL that
+/// separates its items some other way gets the same behaviour for free.
+let itemLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | EachWith(s, before, _) ->
+      if s == slotName then
+        before
+        |> Stdlib.List.filterMap (fun b ->
+          match b with
+          | Punct t -> Stdlib.Option.Option.Some t
+          | _ -> Stdlib.Option.Option.None)
+      else
+        []
+    | Group inner -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
+    | Nest(_, inner) -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.head
+
 /// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
 /// means "same column, next row" rather than "the next node in reading order", and the only thing that
 /// knows a slot is a grid is the spec that draws it.
