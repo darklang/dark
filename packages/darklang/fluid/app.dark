@@ -573,7 +573,10 @@ let evaluateSelection (st: State) : State =
     | Insert -> []
   let scoped = Darklang.Fluid.slotAtPath settled.root scope |> Stdlib.Option.withDefault settled.root
   match docToSourceResult scoped with
-  | Error err -> { st with evaluated = Stdlib.Option.Option.Some((scope, "can't print that yet: " ++ err)) }
+  // "can't EVALUATE that", not "can't print that": `v` on a return type answered `can't print that yet:
+  // not an expression node: ...TypeReference.TInt`, which blames the printer for the fact that a type is
+  // not something you can run.
+  | Error err -> { st with evaluated = Stdlib.Option.Option.Some((scope, "can't evaluate that: " ++ err)) }
   | Ok src ->
     if (Stdlib.String.trim src) == "" then
       { st with evaluated = Stdlib.Option.Option.Some((scope, "nothing to evaluate")) }
@@ -713,7 +716,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   | other ->
     let word = Stdlib.List.head other |> Stdlib.Option.withDefault ""
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: unknown argument \"{word}\"")
-    Stdlib.printLine "Try: fluid, fluid expr <source>, fluid fn|type|value <name>, fluid generate <Type>, fluid demo."
+    Stdlib.printLine "Try: fluid, fluid expr <source>, fluid fn|type|value <name>, fluid generate <Type>, fluid demo, fluid demo table."
     cliState
 
 let help (_state: Darklang.Cli.AppState) : String =
