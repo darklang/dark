@@ -320,19 +320,40 @@ let private withParent
       close_raw dirFd |> ignore<int>
       result
 
+/// The root directory itself, for the operations that read it. `withParent`
+/// is a walk to a parent plus a final name, which the root does not have;
+/// listing, stat and chdir on `/` all failed with "no final component" and
+/// `pathExists "/"` answered false. Entry-creating operations keep the
+/// requirement: there is nothing to create AT the root.
+let private withRoot
+  (action : int -> Result<'a, int * string>)
+  : Result<'a, int * string> =
+  let fd = open_raw ("/", O_RDONLY ||| O_DIRECTORY, 0)
+  if fd < 0 then
+    failed ()
+  else
+    let result = action fd
+    close_raw fd |> ignore<int>
+    result
+
+let private isRoot (path : string) : bool = (components path).Length = 0
+
 /// Open the final component itself as a directory (listing, chdir).
 let private withDirectory
   (path : string)
   (action : int -> Result<'a, int * string>)
   : Result<'a, int * string> =
-  withParent path (fun dirFd name ->
-    let fd = openat_raw (dirFd, name, O_RDONLY ||| O_DIRECTORY ||| O_NOFOLLOW, 0)
-    if fd < 0 then
-      failed ()
-    else
-      let result = action fd
-      close_raw fd |> ignore<int>
-      result)
+  if isRoot path then
+    withRoot action
+  else
+    withParent path (fun dirFd name ->
+      let fd = openat_raw (dirFd, name, O_RDONLY ||| O_DIRECTORY ||| O_NOFOLLOW, 0)
+      if fd < 0 then
+        failed ()
+      else
+        let result = action fd
+        close_raw fd |> ignore<int>
+        result)
 
 let private unitResult (rc : int) : Result<unit, int * string> =
   if rc < 0 then failed () else Ok()
@@ -462,10 +483,15 @@ let private fstatat_compat
   else
     fstatat_raw (dirfd, name, buf, flags)
 
-/// Walk to the parent and stat the entry into `buf`.
+/// Walk to the parent and stat the entry into `buf`. The root is stat'd as
+/// "." relative to its own descriptor, which is portable (`AT_EMPTY_PATH` is
+/// Linux-only) and names no parent.
 let private statInto (path : string) (buf : IntPtr) : Result<unit, int * string> =
-  withParent path (fun d n ->
-    unitResult (fstatat_compat d n buf AT_SYMLINK_NOFOLLOW))
+  if isRoot path then
+    withRoot (fun fd -> unitResult (fstatat_compat fd "." buf 0))
+  else
+    withParent path (fun d n ->
+      unitResult (fstatat_compat d n buf AT_SYMLINK_NOFOLLOW))
 
 let private modeFromStatBuffer (buf : IntPtr) : int =
   if isMac then

@@ -311,6 +311,37 @@ let packageStoreAncestorsAreProtected =
       System.IO.Directory.Delete(root, true)
   }
 
+/// The root directory is a directory. The libc walk hands every operation a
+/// parent descriptor plus a final name, which `/` does not have, so listing
+/// and stat on it failed with "no final component" and `pathExists "/"` was
+/// false. Creating an entry AT the root is still refused, since there is
+/// nothing to name.
+let rootDirectoryIsReadable =
+  testTask "listing and stat work on the filesystem root" {
+    if LibExecution.HostLibc.isPosix then
+      let access = Permission.Access.start Permission.Policy.allowAll
+      let perform op = LibExecution.Host.perform Permission.NoRelax access op
+      let! listed = perform (HT.Operation.DirectoryList "/")
+      match listed with
+      | HT.Outcome.Success _ -> ()
+      | other -> failtest $"listing / failed: {other}"
+      let! stat = perform (HT.Operation.FileStat "/")
+      match stat with
+      | HT.Outcome.Success(HT.Response.Stat(exists, isDirectory)) ->
+        Expect.isTrue exists "/ exists"
+        Expect.isTrue isDirectory "/ is a directory"
+      | other -> failtest $"stat of / failed: {other}"
+      // Creating AT the root is refused before libc is reached: `/` is an
+      // ancestor of the policy directory, so the boundary's guard answers.
+      // Either refusal is fine; a success would mean the root case leaked
+      // into an entry-creating operation.
+      let! created = perform (HT.Operation.Posix(HT.PosixOp.Mkdir("/", 0o755)))
+      match created with
+      | HT.Outcome.Failed _
+      | HT.Outcome.Rejected _ -> ()
+      | other -> failtest $"mkdir of / must not succeed, got {other}"
+  }
+
 let tests =
   testList
     "host"
@@ -320,4 +351,5 @@ let tests =
       readlinkMayInspectTheFinalSymlink
       libcWalkRefusesALinkMetAtOperationTime
       localPolicyPathsRejectTraversal
-      packageStoreAncestorsAreProtected ]
+      packageStoreAncestorsAreProtected
+      rootDirectoryIsReadable ]
