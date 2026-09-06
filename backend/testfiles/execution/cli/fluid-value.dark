@@ -67,3 +67,27 @@ module MatchesThePrinter =
   (MatchesThePrinter.verdict "Darklang.SCM.Branch.mainBranchId") = "same"
   (MatchesThePrinter.verdict "Darklang.PrettyPrinter.ProgramTypes.Context.forMain") = "same"
   (MatchesThePrinter.verdict "Darklang.Fluid.PT.exprType") = "same"
+
+
+module BuiltinValuesRoundTrip =
+  // A value whose body is a builtin reference could not be lowered either, and the document had dropped the
+  // version on the way in, so there was nothing to rebuild from. `v` on one reported "can't print that yet:
+  // unresolved value name: Builtin.scmMainBranchId".
+  let verdict (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Value.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Value.get hash with
+      | None -> "missing"
+      | Some pv ->
+        match Darklang.Fluid.PT.Value.fromDoc pv (Darklang.Fluid.PT.Value.toDoc loc.name pv) with
+        | Error e -> "refuses: " ++ e
+        | Ok(pair) ->
+          let (_n, v2) = pair
+          let ctx = Darklang.Fluid.PT.printerContext ()
+          if (Darklang.PrettyPrinter.ProgramTypes.packageValue ctx pv)
+             == (Darklang.PrettyPrinter.ProgramTypes.packageValue ctx v2) then "same"
+          else "CHANGED"
+
+  (BuiltinValuesRoundTrip.verdict "Darklang.SCM.Branch.mainBranchId") = "same"

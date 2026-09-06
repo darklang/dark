@@ -151,6 +151,23 @@ let typeNameResolution
                 { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(Darklang.LanguageTools.ProgramTypes.Hash.Hash hash)
                   location = Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.parsePackageLocation name) }) })
 
+/// `builtin:listLength_v0` back into its parts. The `_v` suffix is written by the two `toDoc` sides, and
+/// a builtin name never contains one, so splitting on the LAST is unambiguous.
+let builtinFromHash (hash: String) : Stdlib.Option.Option<(String * Int32)> =
+  if Stdlib.Bool.not (Stdlib.String.startsWith hash "builtin:") then
+    Stdlib.Option.Option.None
+  else
+    let body = Stdlib.String.dropFirst hash 8
+    match Stdlib.String.lastIndexOf body "_v" with
+    | Some i ->
+      let name = Stdlib.String.slice body 0 i
+      let versionText = Stdlib.String.dropFirst body (i + 2)
+      (match Stdlib.Int32.parse versionText with
+       | Ok v -> Stdlib.Option.Option.Some((name, v))
+       | Error _ -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+
 let fnNameResolution
   (name: String)
   (hash: String)
@@ -158,7 +175,23 @@ let fnNameResolution
   if hash == "" then
     Stdlib.Result.Result.Error("unresolved function name: " ++ name)
   elif Stdlib.String.startsWith hash "builtin:" then
-    Stdlib.Result.Result.Error("builtin names are not round-tripped yet: " ++ name)
+    // A builtin resolves to itself, with no package location -- which is what the printer expects when it
+    // writes `Builtin.listLength`. This used to refuse, so every stdlib wrapper (`let length list =
+    // Builtin.listLength list`) was a function Fluid could draw and could not save.
+    (match builtinFromHash hash with
+     | Some(pair) ->
+       let (bname, version) = pair
+       Stdlib.Result.Result.Ok(
+         Darklang.LanguageTools.ProgramTypes.NameResolution
+           { originalName = Stdlib.String.split name "."
+             resolved =
+               Stdlib.Result.Result.Ok(
+                 Darklang.LanguageTools.ProgramTypes.ResolvedName
+                   { name =
+                       Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
+                         Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin { name = bname; version = version })
+                     location = Stdlib.Option.Option.None }) })
+     | None -> Stdlib.Result.Result.Error("builtin name without a version: " ++ name))
   else
     Stdlib.Result.Result.Ok(
       Darklang.LanguageTools.ProgramTypes.NameResolution
@@ -457,7 +490,9 @@ let toDoc (e: Expr) : Node =
       | Ok r ->
         match r.name with
         | Package h -> Darklang.LanguageTools.ProgramTypes.hashToString h
-        | Builtin b -> "builtin:" ++ b.name
+        // The VERSION goes in too. It was dropped here and kept for functions, so a builtin value could
+        // not be rebuilt even in principle.
+        | Builtin b -> "builtin:" ++ b.name ++ "_v" ++ (Stdlib.Int32.toString b.version)
       | Error _ -> ""
     Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]
   | _ -> opaque e
@@ -742,8 +777,25 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
     slotExpr n "record" |> Stdlib.Result.map (fun r -> Expr.ERecordFieldAccess(gid (), r, textOf n "field"))
   | Some "EValue" ->
     let hash = textOf n "_hash"
-    if hash == "" || (Stdlib.String.startsWith hash "builtin:") then
+    if hash == "" then
       Stdlib.Result.Result.Error("unresolved value name: " ++ (textOf n "name"))
+    elif Stdlib.String.startsWith hash "builtin:" then
+      (match builtinFromHash hash with
+       | Some(pair) ->
+         let (bname, version) = pair
+         ok (
+           Expr.EValue(
+             gid (),
+             Darklang.LanguageTools.ProgramTypes.NameResolution
+               { originalName = Stdlib.String.split (textOf n "name") "."
+                 resolved =
+                   Stdlib.Result.Result.Ok(
+                     Darklang.LanguageTools.ProgramTypes.ResolvedName
+                       { name =
+                           Darklang.LanguageTools.ProgramTypes.FQValueName.FQValueName.Builtin(
+                             Darklang.LanguageTools.ProgramTypes.FQValueName.Builtin { name = bname; version = version })
+                         location = Stdlib.Option.Option.None }) }))
+       | None -> Stdlib.Result.Result.Error("builtin name without a version: " ++ (textOf n "name")))
     else
       let nr =
         Darklang.LanguageTools.ProgramTypes.NameResolution

@@ -102,10 +102,11 @@ module SaveFidelity =
   (SaveFidelity.verdict "Darklang.Stdlib.Result.map2") = "same"
   (SaveFidelity.verdict "Darklang.Stdlib.List.head") = "same"
 
-  // A body that calls a builtin can't be rebuilt yet, and the right answer to that is a REFUSAL. It
-  // reaches the person as "not saved: ..." rather than a function quietly rewritten without its body.
-  (SaveFidelity.verdict "Darklang.Stdlib.List.length") = "refuses"
-  (SaveFidelity.verdict "Darklang.Stdlib.Bool.not") = "refuses"
+  // A body that calls a builtin used to REFUSE, and refusing was the right answer while the name could
+  // not be rebuilt -- better "not saved" than a function quietly rewritten without its body. The name can
+  // be rebuilt now, so these come back whole, and the pin says the new truth rather than being deleted.
+  (SaveFidelity.verdict "Darklang.Stdlib.List.length") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Bool.not") = "same"
 
 
 module TypeParamsAreOnScreen =
@@ -240,3 +241,37 @@ module DocCommentsAreShown =
   (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.Option.map") = "same"
   (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.List.length") = "same"
   (DocCommentsAreShown.realWithDocs "Darklang.Cli.commandOptions") = "same"
+
+
+module BuiltinNamesRoundTrip =
+  // `let length (list: List<'a>) : Int = Builtin.listLength list` is the shape of every stdlib wrapper, and
+  // lowering one REFUSED: "builtin names are not round-tripped yet". Fluid could draw those functions and
+  // could not save them. The doc already carried `builtin:listLength_v0`; nothing parsed it back.
+  let verdict (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        match Darklang.Fluid.PT.Fn.fromDoc fn (Darklang.Fluid.PT.Fn.toDoc loc.name fn) with
+        | Error e -> "refuses: " ++ e
+        | Ok(pair) ->
+          let (_n, f2) = pair
+          let ctx = Darklang.Fluid.PT.printerContext ()
+          if (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+             == (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx f2) then "same"
+          else "CHANGED"
+
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.List.length") = "same"
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.String.length") = "same"
+
+  // A package function is unaffected -- this is about the builtin branch, not a change to the rest.
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.Option.map") = "same"
+
+  // The hash the document carries, parsed back into a name and a version. The version is what the VALUE
+  // side dropped, so a builtin value could not be rebuilt even in principle.
+  (Darklang.Fluid.PT.builtinFromHash "builtin:listLength_v0") = Stdlib.Option.Option.Some(("listLength", 0l))
+  (Darklang.Fluid.PT.builtinFromHash "builtin:intAdd_v2") = Stdlib.Option.Option.Some(("intAdd", 2l))
+  (Darklang.Fluid.PT.builtinFromHash "abc123") = Stdlib.Option.Option.None
