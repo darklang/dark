@@ -93,6 +93,15 @@ type Validity =
   | Valid
   | Invalid of reason: String
 
+/// A name a node brings into scope, and the type it was DECLARED with, when it was declared with one.
+///
+/// A function's parameters carry a type; a `let` and a lambda parameter do not. The type is a document
+/// node rather than a `TypeReference` so this stays a fact about the tree, which is the only thing the
+/// kernel is allowed to know about.
+type Binding =
+  { name: String
+    typ: Stdlib.Option.Option<Node> }
+
 type Candidate =
   { label: String
     detail: String
@@ -150,7 +159,17 @@ type Spec =
     /// The names this node binds, and which of its slots they are visible in. `let` binds its pattern's
     /// names in `body`; a lambda binds its params in `body`; a match case binds its pattern in `rhs` and
     /// `when`. The kernel walks these down the path to the caret to know what is in scope.
-    binders: Node -> List<(List<String> * List<String>)>
+    binders: Node -> List<(List<Binding> * List<String>)>
+    /// Candidates this node SUGGESTS inside the slots named, given what is in scope where it sits.
+    ///
+    /// Where `binders` says what a node adds to scope, this says what fits below it. A `match` knows its
+    /// scrutinee, and if scope says that scrutinee has a type, that type's cases are exactly what a
+    /// pattern hole wants -- which is the most ordinary thing you do with an enum you just declared, and
+    /// was the last thing "your own type, your own editor" could not do.
+    ///
+    /// The kernel walks these on the way down, the same walk it does for binders, and drops anything whose
+    /// kind the hole did not ask for.
+    offers: List<Binding> -> Node -> List<(List<Candidate> * List<String>)>
     /// Turn an in-scope name into a node (a variable reference). Set on the type-level spec of a kind
     /// whose holes should offer the names in scope. `None` means "this kind has no notion of variables".
     scopeCandidate: Stdlib.Option.Option<String -> Node>
@@ -168,7 +187,12 @@ module Spec =
 
   let noResolve (typed: String) : Stdlib.Option.Option<Node> = Stdlib.Option.Option.None
 
-  let noBinders (n: Node) : List<(List<String> * List<String>)> = []
+  let noBinders (n: Node) : List<(List<Binding> * List<String>)> = []
+
+  let noOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> = []
+
+  /// A name with no declared type, which is what a `let` or a lambda parameter gives you.
+  let bound (name: String) : Binding = Binding { name = name; typ = Stdlib.Option.Option.None }
 
   let noActions () : List<Action> = []
 
@@ -185,6 +209,7 @@ module Spec =
         complete = noCompletions
         resolve = noResolve
         binders = noBinders
+        offers = noOffers
         scopeCandidate = Stdlib.Option.Option.None
         actions = []
         empty = empty
@@ -196,8 +221,11 @@ module Spec =
 
   let withWrapRules (spec: Spec) (rules: List<WrapRule>) : Spec = { spec with wrapRules = rules }
 
-  let withBinders (spec: Spec) (f: Node -> List<(List<String> * List<String>)>) : Spec =
+  let withBinders (spec: Spec) (f: Node -> List<(List<Binding> * List<String>)>) : Spec =
     { spec with binders = f }
+
+  let withOffers (spec: Spec) (f: List<Binding> -> Node -> List<(List<Candidate> * List<String>)>) : Spec =
+    { spec with offers = f }
 
   let withScopeCandidate (spec: Spec) (f: String -> Node) : Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }

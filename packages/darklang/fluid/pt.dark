@@ -1336,6 +1336,7 @@ let pipeTypeSpec () : Spec =
       complete = completePipeStep
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = emptyPipeLambda ()
@@ -1383,14 +1384,16 @@ let namesFromItems (n: Node) (slot: String) (extract: Node -> List<String>) : Li
   |> Stdlib.List.map (fun c -> extract c)
   |> Stdlib.List.flatten
 
-let letBinders (n: Node) : List<(List<String> * List<String>)> =
-  [ (namesFromSlot n "pat" letPatNames, [ "body" ]) ]
+// A `let`, a lambda parameter and a match pattern all bind a NAME and declare no type, so they bind
+// `Spec.bound`. A function's parameters are the ones that carry a declared type; see `Fn.fnBinders`.
+let letBinders (n: Node) : List<(List<Binding> * List<String>)> =
+  [ (namesFromSlot n "pat" letPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "body" ]) ]
 
-let lambdaBinders (n: Node) : List<(List<String> * List<String>)> =
-  [ (namesFromItems n "params" letPatNames, [ "body" ]) ]
+let lambdaBinders (n: Node) : List<(List<Binding> * List<String>)> =
+  [ (namesFromItems n "params" letPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "body" ]) ]
 
-let caseBinders (n: Node) : List<(List<String> * List<String>)> =
-  [ (namesFromSlot n "pat" matchPatNames, [ "rhs", "when" ]) ]
+let caseBinders (n: Node) : List<(List<Binding> * List<String>)> =
+  [ (namesFromSlot n "pat" matchPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "rhs", "when" ]) ]
 
 let variableNode (name: String) : Node = Node.make (exprKind "EVariable") [ text "name" name ]
 
@@ -1478,6 +1481,66 @@ let wrapStatement (n: Node) (c: String) : Node =
     [ ("first", Field.One(Slot.Filled n))
       ("next", Field.One(Slot.Empty(exprExpect "next"))) ]
 
+/// The cases of the enum the scrutinee is declared to be, as patterns.
+///
+/// This is the one thing "your own type, your own editor" could not do: you declare an enum, you match on
+/// it, and the pattern hole offered `true` / `false` / `()` because nothing carried the scrutinee's type
+/// to it. The `match` knows its scrutinee is a variable; SCOPE knows that variable was declared with a
+/// type; the store knows that type's cases. All three are here now.
+///
+/// An MPEnum carries only a case NAME, no type, so a wrong guess can only produce a worse menu -- never a
+/// wrong program. That is what makes reading the declared type good enough, without inference.
+let matchOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
+  let scrutineeName =
+    match Node.slot n "arg" with
+    | Some(Filled a) ->
+      if a.kind.case == Stdlib.Option.Option.Some "EVariable" then
+        Stdlib.Option.Option.Some(textOf a "name")
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let typeHash =
+    match scrutineeName with
+    | Some nm ->
+      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
+       | Some b ->
+         (match b.typ with
+          | Some t ->
+            if t.kind == Types.typeKind "TCustomType" then
+              Stdlib.Option.Option.Some(textOf t "_hash")
+            else
+              Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+  match typeHash with
+  | Some h ->
+    if h == "" then
+      []
+    else
+      (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+       | Some t ->
+         (match t.declaration.definition with
+          | Enum cases ->
+            let cands =
+              cases
+              |> Stdlib.List.map (fun c ->
+                let fieldSlots = c.fields |> Stdlib.List.map (fun _ -> Slot.Empty(matchPatExpect "field"))
+
+                Spec.candidate
+                  c.name
+                  "case"
+                  (Node.make
+                    (matchPatKind "MPEnum")
+                    [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
+
+            [ (cands, [ "cases" ]) ]
+          | _ -> [])
+       | None -> [])
+  | None -> []
+
 let exprSummary (n: Node) : String =
   match n.kind.case with
   | Some c -> c
@@ -1526,6 +1589,7 @@ let exprTypeSpec () : Spec =
       complete = completeExpr
       resolve = resolveExprPartial
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.Some variableNode
       actions = exprActions ()
       empty = Node.make (exprKind "EUnit") []
@@ -1543,6 +1607,7 @@ let letPatTypeSpec () : Spec =
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = Node.make (letPatKind "LPWildcard") []
@@ -1601,6 +1666,7 @@ let matchPatTypeSpec () : Spec =
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = Node.make (matchPatKind "MPVariable") [ text "name" "_" ]
@@ -1643,16 +1709,18 @@ let moreSpecs () : List<Spec> =
     simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
     simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ])
     simpleOf (matchPatKind "MPOr") [ Piece.Group [ Piece.Each("alts", [ Piece.Space, Piece.Punct "|", Piece.Line ]) ] ] (Node.make (matchPatKind "MPOr") [ ("alts", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
-    simpleExpr
-      "EMatch"
-      [ Piece.Keyword "match"
+    Spec.withOffers
+      (simpleExpr
+        "EMatch"
+        [ Piece.Keyword "match"
         Piece.Space
         Piece.ParenLowSlot "arg"
         Piece.Space
         Piece.Keyword "with"
         Piece.HardLine
         Piece.EachWith("cases", [ Piece.Punct "|", Piece.Space ], [ Piece.HardLine ]) ]
-      (emptyMatch ())
+        (emptyMatch ()))
+      matchOffers
     simpleExpr
       "EPipe"
       [ Piece.Slot "first", Piece.HardLine, Piece.EachWith("steps", [ Piece.Punct "|>", Piece.Space ], [ Piece.HardLine ]) ]
@@ -2022,6 +2090,7 @@ module Types =
         complete = completeType
         resolve = resolveTypePartial
         binders = Spec.noBinders
+        offers = Spec.noOffers
         scopeCandidate = Stdlib.Option.Option.None
         actions = []
         empty = primNode "TInt"
@@ -2246,6 +2315,35 @@ module Fn =
         "params"
         (Field.Many([ Slot.Filled(Node.make (unitParamKind ()) []) ], paramExpect ())))
 
+  /// A function's parameters are in scope in its body.
+  ///
+  /// They were in scope NOWHERE: `scopeNames` walks each ancestor's `binders`, and the function shell had
+  /// none, so writing a body offered no completion for the arguments you had just declared. Typing them
+  /// worked only because a lowercase identifier resolves to a variable whatever it is.
+  /// Each parameter's name AND the type it was declared with -- the only binder in the language that
+  /// declares one, and the reason `Binding` carries a type at all.
+  let fnBinders (n: Node) : List<(List<Binding> * List<String>)> =
+    let bindings =
+      Node.items n "params"
+      |> Stdlib.List.filterMap (fun s ->
+        match s with
+        | Filled c ->
+          let name = PT.textOf c "name"
+
+          if name == "" then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some(
+              Binding
+                { name = name
+                  typ =
+                    match Node.slot c "type" with
+                    | Some(Filled t) -> Stdlib.Option.Option.Some t
+                    | _ -> Stdlib.Option.Option.None })
+        | _ -> Stdlib.Option.Option.None)
+
+    [ (bindings, [ "body" ]) ]
+
   let fnActions () : List<Action> =
     [ Action
         { name = "add a parameter"
@@ -2292,6 +2390,7 @@ module Fn =
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ]
         (emptyDocFor "unnamed")) with
         actions = fnActions ()
+        binders = fnBinders
         summary = (fun n -> "let " ++ (PT.textOf n "name")) }
 
   let specs () : List<Spec> = [ fnSpec (), paramSpec (), unitParamSpec () ]

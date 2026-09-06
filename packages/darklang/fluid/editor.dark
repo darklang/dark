@@ -2068,10 +2068,23 @@ let rankCompletions (typed: String) (cs: List<Candidate>) : List<Candidate> =
 
 let candidatePool (st: State) (e: Expect) (typed: String) : List<Candidate> =
   let scoped = scopeCandidates st e typed
+  // What an ancestor suggests here, filtered to the kind this hole actually asked for: an offer travels
+  // down a whole subtree, and a match's cases have no business in the arm's right-hand side.
+  let offered =
+    offeredCandidates st
+    |> Stdlib.List.filter (fun c ->
+      match e.kind with
+      // By TYPE, not by exact kind: a hole that expects "a match pattern" expects any CASE of one, and the
+      // offered nodes are cases. Comparing exactly dropped every one of them silently.
+      | Some k -> Kind.sameType c.node.kind k
+      | None -> true)
+    |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+
   match Registry.forExpect st.reg e with
   | Some spec ->
     Stdlib.List.flatten
-      [ scoped
+      [ offered
+        scoped
         rankCompletions typed spec.completions
         spec.complete e typed ]
   | None ->
@@ -2113,10 +2126,13 @@ let onPartial (st: State) : Bool =
   | Some(Partial(_, _)) -> true
   | _ -> false
 
-/// The binder names in scope at the caret: walk from the root along the caret's node path, and at each
-/// ancestor collect the names it binds that are visible in the slot we descend into.
-let scopeNames (st: State) : List<String> =
-  let step (acc: (Slot * List<String>)) (stp: Step) : (Slot * List<String>) =
+/// What is in scope at the caret: walk from the root along the caret's node path, and at each ancestor
+/// collect the bindings it makes that are visible in the slot we descend into.
+///
+/// Carries the declared TYPE alongside each name, when the binder declared one, because that is what lets
+/// a `match` know what its scrutinee is.
+let scopeBindings (st: State) : List<Binding> =
+  let step (acc: (Slot * List<Binding>)) (stp: Step) : (Slot * List<Binding>) =
     let (node, names) = acc
     match node with
     | Filled n ->
@@ -2136,6 +2152,7 @@ let scopeNames (st: State) : List<String> =
             vars)
           |> Stdlib.List.flatten
         | None -> []
+
       match Node.slotAt n stp with
       | Some child -> (child, Stdlib.List.append names bound)
       | None -> (node, Stdlib.List.append names bound)
@@ -2147,7 +2164,64 @@ let scopeNames (st: State) : List<String> =
     | Some sp -> sp
     | None -> st.caret.node
   let (_, names) = Stdlib.List.fold targetPath ((st.root, [])) step
-  names |> Stdlib.List.filter (fun x -> x != "_")
+  names |> Stdlib.List.filter (fun b -> b.name != "_")
+
+let scopeNames (st: State) : List<String> =
+  scopeBindings st |> Stdlib.List.map (fun b -> b.name)
+
+/// The candidates the ANCESTORS offer into the slot the caret is in: the same walk as `scopeBindings`,
+/// asking each node what it suggests below it given what it can see.
+///
+/// Kept separate from the binding walk because an offer needs the scope as it stood WHERE THE OFFERING
+/// NODE SITS -- a match's scrutinee is typed by something above the match, not by the match's own arms.
+let offeredCandidates (st: State) : List<Candidate> =
+  let step (acc: (Slot * List<Binding> * List<Candidate>)) (stp: Step) : (Slot * List<Binding> * List<Candidate>) =
+    let (node, scope, offered) = acc
+
+    match node with
+    | Filled n ->
+      let slot =
+        match stp with
+        | Into s -> s
+        | Item(s, _) -> s
+
+      let spec = Registry.find st.reg n.kind
+
+      let visible (groups: List<(List<'a> * List<String>)>) : List<'a> =
+        groups
+        |> Stdlib.List.filter (fun g ->
+          let (_, slots) = g
+          Stdlib.List.member slots slot)
+        |> Stdlib.List.map (fun g ->
+          let (xs, _) = g
+          xs)
+        |> Stdlib.List.flatten
+
+      let bound =
+        match spec with
+        | Some sp -> visible (sp.binders n)
+        | None -> []
+
+      let here =
+        match spec with
+        | Some sp -> visible (sp.offers scope n)
+        | None -> []
+
+      let nextScope = Stdlib.List.append scope bound
+      let nextOffered = Stdlib.List.append offered here
+
+      (match Node.slotAt n stp with
+       | Some child -> (child, nextScope, nextOffered)
+       | None -> (node, nextScope, nextOffered))
+    | _ -> (node, scope, offered)
+
+  let targetPath =
+    match Caret.slotPath st.caret with
+    | Some sp -> sp
+    | None -> st.caret.node
+
+  let (_, _, offered) = Stdlib.List.fold targetPath ((st.root, [], [])) step
+  offered
 
 /// Variable candidates for the hole under the caret: the in-scope names matching the typed prefix,
 /// turned into nodes by the expected kind's `scopeCandidate`. Empty when the kind has no variables.

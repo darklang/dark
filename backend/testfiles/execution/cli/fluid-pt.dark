@@ -794,3 +794,70 @@ module EscapedStringsSurviveTheDocument =
   (Fixtures.roundTrip "\"a\\tb\"") = "\"a\\tb\""
   (Fixtures.roundTrip "\"quote \\\" inside\"") = "\"quote \\\" inside\""
   (Fixtures.roundTrip "\"back \\\\ slash\"") = "\"back \\\\ slash\""
+
+
+module AMatchOffersItsScrutineesCases =
+  // Declare an enum, match on it, and the pattern hole offered `true` / `false` / `()`. The cases of the
+  // type you are matching are exactly what belongs there, and it was the last thing "your own type, your
+  // own editor" could not do.
+  //
+  // Three facts, in three places, none of which could reach the fourth: the `match` knows its scrutinee is
+  // a variable, SCOPE knows that variable was declared with a type, the store knows that type's cases, and
+  // the pattern hole knew none of it. `binders` carries the declared type now, and a new `offers` hook
+  // lets a node suggest candidates into the slots below it -- the mirror of `binders`, which says what a
+  // node ADDS to scope.
+  //
+  // An MPEnum carries only a case NAME, no type, so reading the declared type is good enough: a wrong
+  // guess can produce a worse menu and never a wrong program. That is what makes this safe without
+  // inference.
+  let optionType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Option.Option"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "Option" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let fnDoc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "describe"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "o")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "o"; typ = t; description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            description = "" }))
+
+  // Clear the body, build `match o with`, and look at the pattern hole.
+  let keys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "<Tab>" ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (AMatchOffersItsScrutineesCases.fnDoc t) 70)
+        (AMatchOffersItsScrutineesCases.keys ())
+
+    Darklang.Fluid.Editor.candidates st
+    |> Stdlib.List.take 4
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join ", "
+
+  // The type's cases lead, and the generic patterns still follow them.
+  (AMatchOffersItsScrutineesCases.menu (AMatchOffersItsScrutineesCases.optionType ())) = "Some, None, true, false"
+
+  // A parameter with no custom type offers nothing extra, so this is about the DECLARATION and not about
+  // being inside a match.
+  (AMatchOffersItsScrutineesCases.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) =
+    "true, false, ()"

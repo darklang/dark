@@ -104,6 +104,7 @@ let recordSpec
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = empty
@@ -166,6 +167,7 @@ let caseSpec
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = empty
@@ -197,6 +199,7 @@ let enumTypeSpec
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
+      offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
       actions = []
       empty = empty
