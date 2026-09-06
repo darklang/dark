@@ -45,7 +45,10 @@ let rec subExprs (expr : Expr) : List<Expr> =
   | EStatement(_, first, next) -> [ first; next ]
 
   | EList(_, items) -> items
-  | EDict(_, pairs) -> List.map snd pairs
+  // Keys are expressions too. Visiting only the values hid a call made in a
+  // key from the permission analysis, which then reported the fn complete and
+  // effect-free.
+  | EDict(_, pairs) -> pairs |> List.collect (fun (key, value) -> [ key; value ])
   | ETuple(_, first, second, rest) -> first :: second :: rest
   | EEnum(_, _, _, _, fields) -> fields
   | ERecord(_, _, _, fields) -> List.map snd fields

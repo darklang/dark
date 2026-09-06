@@ -19,7 +19,8 @@ type Analysis =
 /// Bump whenever completeness or reachability semantics change. Approval
 /// fingerprints include this so an analyzer fix cannot silently bless an old,
 /// narrower review.
-let analysisVersion = 2
+/// Version 3 traverses dictionary keys; skipping them hid calls from analysis.
+let analysisVersion = 3
 
 module private Analysis =
   let empty : Analysis = { names = []; complete = true; escapesOwnCallback = false }

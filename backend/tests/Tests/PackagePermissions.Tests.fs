@@ -327,10 +327,29 @@ let reviewRejectsAnIncompleteClosure =
     Expect.isError unknown "an unknown hash cannot be approved"
   }
 
+/// A call in a dictionary KEY. `subExprs` visited only the values, so this
+/// analyzed as complete and effect-free, and could be approved as such.
+let dictionaryKeysAreAnalyzed =
+  test "a call in a dictionary key is part of the analysis" {
+    let fn =
+      unitFn
+        "dict-key-effect"
+        (eDictOf [ (eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ], eInt64 1L) ])
+    let names = (LibExecution.CallGraph.analyzeFn fn).names
+    Expect.isTrue
+      (names
+       |> List.exists (fun name ->
+         match name with
+         | PT.FQFnName.Builtin b -> b.name = "timeNowMs"
+         | _ -> false))
+      "the clock call in the key is reachable"
+  }
+
 let tests =
   testList
     "packagePermissions"
-    [ missingCodeIsIncomplete
+    [ dictionaryKeysAreAnalyzed
+      missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete
       passedCallbacksMakeAnalysisIncomplete
