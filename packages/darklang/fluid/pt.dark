@@ -1626,6 +1626,11 @@ let specs () : List<Spec> =
 module Test =
   /// Drive keys from `root`, then the program that results, printed; or the first thing missing.
   let program (reg: Registry) (root: Slot) (keys: List<String>) : String =
+    // The same guard `Test.run` has. This drives the editor directly, so without it a mistyped key token
+    // is TYPED and the pin quietly tests something else.
+    match Fluid.Test.unknownKeys keys with
+    | _ :: _ -> "UNKNOWN TEST KEY: " ++ (Stdlib.String.join (Fluid.Test.unknownKeys keys) ", ")
+    | [] ->
     let final = Fluid.Test.drive (Editor.init reg root 60) keys
     match final.root with
     | Filled n ->

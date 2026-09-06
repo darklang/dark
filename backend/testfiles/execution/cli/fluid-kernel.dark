@@ -144,3 +144,26 @@ module YankAndPut =
 
   // And it says so when there is nothing to put.
   (YankAndPut.msg [ "p" ]) = "clipboard is empty"
+
+
+module UnknownTestKeysAreLoud =
+  // `keyOf` falls through to `printable` for anything it does not recognise, so a mistyped key token gets
+  // TYPED. `<Backspace>` -- the token is `<BS>` -- went in as fourteen characters, one of which is `<` and
+  // starts an operator. The script still ran, still produced output, and an expectation written from that
+  // output would still pass, so a pin could look like it exercised Backspace while exercising nothing of
+  // the sort. Found by writing exactly that probe and believing it for a minute.
+  // The known token does what Backspace does, which in NAV is NOTHING -- it is an INSERT key, and the
+  // caret is on a node here. (I wrote this pin expecting it to clear the 255, twice, before probing.)
+  (Fixtures.run [ "j", "<BS>" ]) = "Acme.Color { r = ~255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // ...and where it does delete, it deletes. `<End>` is end of the caret's LINE, and this fixture renders
+  // on one, so it lands at the end of the whole thing and takes out the tags list's empty item.
+  (Fixtures.run [ "j", "i", "<End>", "<BS>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm~\"] }"
+
+  // The mistyped one refuses instead of typing fourteen characters into the document.
+  (Fixtures.run [ "j", "<Backspace>" ]) = "UNKNOWN TEST KEY: <Backspace>"
+
+  // Only ANGLE-BRACKETED things are treated as key tokens, so ordinary text still types.
+  (Darklang.Fluid.Test.unknownKeys [ "a", "<Tab>", "1" ]) = []
+  (Darklang.Fluid.Test.unknownKeys [ "<Nope>", "<Tab>", "<Alsonope>" ]) = [ "<Nope>", "<Alsonope>" ]
