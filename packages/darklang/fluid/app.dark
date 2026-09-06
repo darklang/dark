@@ -29,6 +29,10 @@ type State =
     theme: Theme.Theme
     /// Rows the body had at the last key, so scrolling can be computed outside `view`.
     bodyRows: Int
+    /// The last thing `v` evaluated: the node it was asked about, and what came back. Kept rather than
+    /// recomputed, because evaluating is RUNNING THE CODE -- doing that on every keystroke would fire
+    /// whatever effects the expression has while you are still typing it.
+    evaluated: Stdlib.Option.Option<(Path * String)>
     /// The context panel, off by default. The redesign's bet: the code is the hero and deserves the full
     /// width, with the panel there when you ask for it. What it used to show always is now either at the
     /// caret (completions) or in the status line (what's expected here).
@@ -214,6 +218,7 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
       bodyRows = Stdlib.Int.max 1 (size.height - 3)
       inspectorOpen = false
+      evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
@@ -247,9 +252,10 @@ let helpFor (st: State) : String =
       let hasActions = Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.paletteActions st.editor))
       let actionsKey = if hasActions then "  : actions" else ""
       let panelKey = if st.inspectorOpen then "  ? hide" else "  ? panel"
+      let evalKey = "  v value"
       // Only the keys reached for constantly. The rest are in the panel, which `?` opens -- the status
       // line used to run past the right edge and read `q qu`.
-      (statusOf st) ++ " j/k nav  h/l in/out  i edit  c change  x clear" ++ actionsKey ++ panelKey ++ "  q quit"
+      (statusOf st) ++ " j/k nav  h/l in/out  i edit  c change" ++ actionsKey ++ evalKey ++ panelKey ++ "  q quit"
 
 /// Which buffer line sits at the top of the text pane. The pane shows `rows` lines, so a taller buffer
 /// needs a window; this picks the smallest scroll that keeps the caret row visible with a couple of lines
@@ -334,9 +340,21 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         Widget.palette st.theme st.editor region ]
   let inspSpans =
     if showInspector then
+      // What `v` last evaluated, and only if it is still about the node you are on -- a value that quietly
+      // belonged to something else would be worse than no value at all.
+      let valueRows =
+        match st.evaluated with
+        | Some((path, answer)) ->
+          if path == (Editor.navPath st.editor) then
+            Stdlib.List.flatten
+              [ [ Stdlib.Cli.UI.Colors.colorize (st.theme.dim ++ Stdlib.Cli.UI.Colors.bold) "VALUE" ]
+                (Stdlib.String.split answer "\n" |> Stdlib.List.take 6 |> Stdlib.List.map (fun l -> "  " ++ l))
+                [ "" ] ]
+          else []
+        | None -> []
       Stdlib.List.append
         (Stdlib.Cli.UI.Box.draw inspArea "context" false)
-        (Widget.inspector st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea))
+        (Widget.inspectorWith st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea) valueRows)
     else
       []
   let body = Stdlib.List.append mainSpans inspSpans
@@ -493,6 +511,30 @@ let textModeKey (st: State) (buf: String) (caret: Int) (path: Path) (key: Stdlib
       | Some c -> stay ((Stdlib.String.slice buf 0 caret) ++ c ++ (Stdlib.String.dropFirst buf caret)) (caret + (Stdlib.String.length c))
       | None -> Darklang.Cli.Component.Step.Stay st
 
+/// Evaluate the selected node and keep the answer. The whole document when nothing is selected, so `v` on
+/// a scratch expression tells you what it comes to.
+let evaluateSelection (st: State) : State =
+  let settled = Editor.resolvePartial st.editor |> Stdlib.Option.withDefault st.editor
+  let scope =
+    match settled.mode with
+    | Nav -> Editor.navPath settled
+    | Insert -> []
+  let scoped = Darklang.Fluid.slotAtPath settled.root scope |> Stdlib.Option.withDefault settled.root
+  match docToSourceResult scoped with
+  | Error err -> { st with evaluated = Stdlib.Option.Option.Some((scope, "can't print that yet: " ++ err)) }
+  | Ok src ->
+    if (Stdlib.String.trim src) == "" then
+      { st with evaluated = Stdlib.Option.Option.Some((scope, "nothing to evaluate")) }
+    else
+      // allowHarmful stays FALSE: this runs while someone is editing, and an editor should not be a way to
+      // set off the dangerous things by accident.
+      let answer =
+        match Darklang.Cli.Eval.evaluateRaw Stdlib.Option.Option.None Darklang.SCM.Branch.mainBranchId src [] false with
+        | Ok(Some printed) -> printed
+        | Ok None -> "(no value)"
+        | Error e -> "error: " ++ (Darklang.Cli.ExecutionError.toString Darklang.SCM.Branch.mainBranchId e)
+      { st with evaluated = Stdlib.Option.Option.Some((scope, answer)) }
+
 let onKey
   (st: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
@@ -506,7 +548,10 @@ let onKey
   // Ctrl-E drops into plain-text editing of the current expression. Settle what's being typed first, so a
   // half-finished name doesn't make the document unprintable; if it still can't print, say why rather than
   // opening an empty buffer over the top of real work.
-  if (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
+  if (keyChar == Stdlib.Option.Option.Some "v") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
+    // Evaluating is an ACTION, not a live readout: `v` asks, and the answer stays until you ask again.
+    Darklang.Cli.Component.Step.Stay { (evaluateSelection st) with inspectorOpen = true }
+  elif (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
     // NAV only: in INSERT a `?` is a character you are typing.
     Darklang.Cli.Component.Step.Stay { st with inspectorOpen = Stdlib.Bool.not st.inspectorOpen }
   elif modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then

@@ -173,6 +173,16 @@ let inspector
   (st: Editor.State)
   (region: Stdlib.Cli.UI.Layout.Region)
   : List<Stdlib.Cli.UI.Layout.Span> =
+  inspectorWith theme st region []
+
+/// The panel, plus whatever `v` last evaluated. Passed in rather than computed here: running the code is
+/// an action someone asked for, not something a render should set off.
+let inspectorWith
+  (theme: Theme.Theme)
+  (st: Editor.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (valueRows: List<String>)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   let dim (s: String) : String = Stdlib.Cli.UI.Colors.colorize theme.dim s
   let head (s: String) : String = Stdlib.Cli.UI.Colors.colorize (theme.dim ++ Stdlib.Cli.UI.Colors.bold) s
   let node =
@@ -214,6 +224,7 @@ let inspector
         dim "  y p    copy / paste"
         dim "  u ^r   undo / redo"
         dim "  :      actions"
+        dim "  v      evaluate this"
         dim "  ^E     edit as text"
         dim "  ^S     save"
         dim "  q      quit" ]
@@ -227,7 +238,7 @@ let inspector
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
   let rows =
-    Stdlib.List.flatten [ headerRows, [ head "ACTIONS" ], actionLines, keyRows ]
+    Stdlib.List.flatten [ headerRows, valueRows, [ head "ACTIONS" ], actionLines, keyRows ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])

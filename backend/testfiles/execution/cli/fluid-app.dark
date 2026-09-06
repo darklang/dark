@@ -21,6 +21,7 @@ module Fixtures =
         theme = Darklang.Fluid.Theme.default ()
         bodyRows = 20
         inspectorOpen = false
+        evaluated = Stdlib.Option.Option.None
         textMode = Stdlib.Option.Option.None }
 
   let docOf (src: String) : Darklang.Fluid.Slot =
@@ -211,3 +212,48 @@ module PanelOnDemand =
   // The footer has to FIT: it used to run past the right edge and read `q qu`.
   ((Stdlib.String.length (Darklang.Fluid.App.helpFor
      (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "if x > 2 then 1 else 2") 60) [ "<Esc>" ])))) < 80) = true
+
+
+module ValueOnDemand =
+  // Redesign step 4: the VALUE of what you have selected. `v` asks and the answer stays; it is not a live
+  // readout, because evaluating is RUNNING THE CODE, and doing that on every keystroke would fire whatever
+  // effects an expression has while you are still typing it. allowHarmful stays false for the same reason.
+  //
+  // The evaluation ITSELF cannot be pinned here: it goes through Cli.Eval, whose `cliEvaluateExpression`
+  // is a CliHost builtin, and testfiles run with the cloud builtins -- asking for it gives
+  // `FnNotFound (Builtin "cliEvaluateExpression")`. So the behaviour was checked by hand in the editor
+  // (`1 + 2 * 3` -> 7, the `2 * 3` inside it -> 6, `x + 1` -> the free-variable error) and what is pinned
+  // here is everything around it that the harness CAN reach: where the answer is kept, and how the panel
+  // decides to show it.
+  let withValue (src: String) (keys: List<String>) (answer: String) (at: Darklang.Fluid.Path) : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    { (Fixtures.stateOf ed) with
+        inspectorOpen = true
+        evaluated = Stdlib.Option.Option.Some((at, answer)) }
+
+  let screenOf (st: Darklang.Fluid.App.State) : String =
+    (Darklang.Fluid.App.view st (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // An answer about the node you are ON is shown, under a VALUE heading.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "VALUE") = true
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "7") = true
+
+  // An answer about a DIFFERENT node is not: a value that quietly belonged to something else would be
+  // worse than no value at all.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf
+      (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "6" [ Darklang.Fluid.Step.Into "right" ])) "VALUE") = false
+
+  // Nothing asked, nothing shown.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf { (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" []) with evaluated = Stdlib.Option.Option.None })
+    "VALUE") = false
+
+  // And the key is advertised in the status line. (Not asserted on the PANEL: it truncates to the height
+  // of its region, so which of its rows are on screen depends on the size of the terminal.)
+  (Stdlib.String.contains
+    (Darklang.Fluid.App.helpFor (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "v value") = true
