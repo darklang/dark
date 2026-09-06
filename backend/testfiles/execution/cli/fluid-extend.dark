@@ -56,7 +56,10 @@ module SyntaxIsTheLanguages =
     Darklang.Fluid.Syntax
       { operatorChars = [ "@", ">", "<", "=", "!" ]
         closingDelimiters = [ "]", ")", "}", "\"", "'" ]
-        separators = [ ":" ] }
+        separators = [ ":" ]
+        stringDelimiter = "\""
+        interpolationOpen = "["
+        interpolationClose = "]" }
 
   let custom () : Darklang.Fluid.Registry =
     Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())
@@ -73,6 +76,19 @@ module SyntaxIsTheLanguages =
   (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.custom ()).syntax "@") = true
   (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ()) 60
     [ "1", " ", "@", " ", "2" ]) = "1 @ 2~"
+
+  // Interpolation is spelled by the language too. `{` and `}` were written into the kernel's string
+  // handling, so a language interpolating with something else could not say so; this registry uses
+  // brackets, and typing `{` in a string is then just a brace.
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "{", "b" ]) = "$\"a{b~}\""
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "[", "b" ]) = "$\"a{b~}\""
+
+  // The sharp end of it: in that language `{` is an ordinary brace in a string, because nothing in the
+  // kernel believes in `{` any more.
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "{", "b" ]) = "$\"a{b~\""
 
   // To be clear about the scope: this is what the EDITOR treats as punctuation. Lowering to Darklang's
   // ProgramTypes still needs Darklang's operators -- a language of its own brings its own specs too.

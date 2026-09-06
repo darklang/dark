@@ -1110,14 +1110,14 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
         match segNode with
         | Some sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText"
         | None -> false
-      if (c == "\"") && directText then
+      if (c == st.reg.syntax.stringDelimiter) && directText then
         let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
         let onlySeg = (Stdlib.List.length (Node.items eNode "segments")) == 1
         if (text == "") && onlySeg && (caret.offset == 0) then
           Stdlib.Option.Option.Some st
         else
           Stdlib.Option.Option.Some { st with caret = Caret.afterNode ePath }
-      elif (c == "{") && directText then
+      elif (c == st.reg.syntax.interpolationOpen) && directText then
         let segPath = Path.item ePath "segments" i
         let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
         let before = Stdlib.String.slice text 0 caret.offset
@@ -1133,7 +1133,7 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
               Edit.InsertItem(ePath, "segments", i + 2, Slot.Filled tail) ]
             caret
         Stdlib.Option.Option.Some { st1 with caret = Caret.inSlot (Path.item ePath "segments" (i + 1)) "expr" 0 }
-      elif (c == "}") && (Stdlib.Bool.not directText) && (Stdlib.Bool.not isText) then
+      elif (c == st.reg.syntax.interpolationClose) && (Stdlib.Bool.not directText) && (Stdlib.Bool.not isText) then
         // Inside an interpolation's expression: step to the text segment after it.
         let nextIsText =
           Stdlib.List.getAt (Node.items eNode "segments") (i + 1)

@@ -214,7 +214,17 @@ type Syntax =
     closingDelimiters: List<String>
     /// Punctuation drawn between a name and what follows it, which typing skips over rather than
     /// inserting: a let's `=`, an annotation's `:`.
-    separators: List<String> }
+    separators: List<String>
+
+    /// A string literal's own closer, typed INSIDE the string to step out of it. Separate from
+    /// `closingDelimiters` because those are all closers you can type past, and a `'` typed inside a
+    /// string is a literal apostrophe rather than the end of anything.
+    stringDelimiter: String
+
+    /// What opens and closes an interpolation inside a string. These were spelled `{` and `}` in the
+    /// kernel, so a language whose strings interpolate with something else could not say so.
+    interpolationOpen: String
+    interpolationClose: String }
 
 module Syntax =
   /// How Darklang spells itself.
@@ -222,7 +232,10 @@ module Syntax =
     Syntax
       { operatorChars = [ "+", "-", "*", "/", "%", "^", ">", "<", "=", "!", "&", "|" ]
         closingDelimiters = [ "]", ")", "}", "\"", "'" ]
-        separators = [ "=", ":" ] }
+        separators = [ "=", ":" ]
+        stringDelimiter = "\""
+        interpolationOpen = "{"
+        interpolationClose = "}" }
 
 type Registry = { specs: List<Spec>; syntax: Syntax }
 
