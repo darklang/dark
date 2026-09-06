@@ -475,3 +475,24 @@ module EnterDoesNotGrowWhatItJustMade =
   // the next item, so a list grows as you type it.
   (EnterDoesNotGrowWhatItJustMade.run [ "[", "true", "<Enter>" ]) = "[true, ~⟨item⟩]"
   (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "<Enter>" ]) = "[1, ~⟨item⟩]"
+
+
+module SeparatorsComeFromTheSpec =
+  // `,` was written into the kernel, in two places, so it was the `,` of a list and nothing else. The
+  // character that separates a list's items is something the SPEC draws -- `,` between list elements, `;`
+  // between a record's fields -- so the kernel asks the projection, the way it already asks what is drawn
+  // BEFORE each item for `|`. A DSL whose lists are separated by `;` gets the key it actually writes.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (SeparatorsComeFromTheSpec.reg ()) (SeparatorsComeFromTheSpec.hole ()) 70 keys
+
+  // A record types the way the source reads: `;` goes on to the next FIELD.
+  (SeparatorsComeFromTheSpec.run [ "S", "i", "z", "e", "<Enter>", "8", "0", ";", "2", "4" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = 24~\n}"
+
+  // ...because a record's fields come from its TYPE. A separator between items that already exist and are
+  // not finished means "on to the next one", not "put another one here" -- there is no third field to add.
+  // A list is the other way round, and there the next item has nothing left to fill, so it inserts.
+  (SeparatorsComeFromTheSpec.run [ "[", "1", ",", "2", ",", "3" ]) = "[1, 2, 3~]"
+  (SeparatorsComeFromTheSpec.run [ "(", "1", ",", "2" ]) = "(1, 2~)"

@@ -108,6 +108,30 @@ let itemLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<St
   |> Stdlib.List.flatten
   |> Stdlib.List.head
 
+/// The punctuation a spec draws BETWEEN the items of `slotName`, if it draws one -- the `,` of a list, the
+/// `;` of a record's fields. Typing it after a finished item should start the next one, and only the spec
+/// knows which character that is: `,` was written into the kernel twice, so a DSL separating its items with
+/// `;` could not have this at all.
+let itemSepPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
+  let firstPunct (sep: List<Piece>) : List<String> =
+    sep
+    |> Stdlib.List.filterMap (fun b ->
+      match b with
+      | Punct t -> Stdlib.Option.Option.Some t
+      | _ -> Stdlib.Option.Option.None)
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Each(s, sep) -> if s == slotName then firstPunct sep else []
+    | EachWith(s, _, sep) -> if s == slotName then firstPunct sep else []
+    | EachWrapped(s, _, sep, _) -> if s == slotName then firstPunct sep else []
+    | ArgSlots(s, sep) -> if s == slotName then firstPunct sep else []
+    | Group inner -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
+    | Nest(_, inner) -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.head
+
 /// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
 /// means "same column, next row" rather than "the next node in reading order", and the only thing that
 /// knows a slot is a grid is the spec that draws it.

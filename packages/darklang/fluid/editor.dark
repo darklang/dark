@@ -1170,6 +1170,11 @@ let typeOne (st: State) (c: String) : State =
   match leadPunctSibling st c with
   | Some added -> added
   | None ->
+  // ...and the one it draws BETWEEN them. Lead first: if a spec somehow drew the same character in both
+  // places, starting the next item where the character is WRITTEN is the one that matches what you typed.
+  match sepPunctSibling st c with
+  | Some added -> added
+  | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
   // you're typing inside a string, where it's a literal comma.
   let inStringBody =
@@ -1361,6 +1366,9 @@ let typeOne (st: State) (c: String) : State =
   then
     st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
+    // The FALLBACK for `,`, kept deliberately. `sepPunctSibling` above handles every list whose spec says
+    // what separates its items, and it only fires at the END of an item; this catches the rest of what the
+    // hardcoded comma used to do, so nothing that worked stops working.
     match addSibling st with
     | Some added -> added
     | None -> typeOneRaw st c
@@ -2359,6 +2367,56 @@ let atEndOfItem (st: State) (parentPath: Path) (slot: String) (i: Int) : Bool =
            | _ -> false)
         | None -> false)
   | _ -> false
+
+/// The character a spec draws BETWEEN the items of this list, if it draws one.
+let sepPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option<String> =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<String> =
+    match spec with
+    | Some sp -> Project.itemSepPunct sp.pieces slot
+    | None -> Stdlib.Option.Option.None
+  match fromSpec (Registry.findExact st.reg parent.kind) with
+  | Some p -> Stdlib.Option.Option.Some p
+  | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
+
+/// Typing the separator a spec draws BETWEEN a list's items, at the end of a finished item, starts the
+/// next one. Same shape as the lead-punct rule and tried the same way, from the inside out.
+///
+/// `,` was written into the kernel, in two places, so this was the `,` of a list and nothing else. Asking
+/// the projection means a DSL whose lists are separated by `;` gets the key it actually writes.
+let sepPunctSibling (st: State) (c: String) : Stdlib.Option.Option<State> =
+  enclosingListItems st.caret
+  |> Stdlib.List.filter (fun entry ->
+    let (parentPath, slot, i) = entry
+    match nodeAtPath st.root parentPath with
+    | Some parent ->
+      ((sepPunctOf st parent slot) == Stdlib.Option.Option.Some c) && (atEndOfItem st parentPath slot i)
+    | None -> false)
+  |> Stdlib.List.head
+  |> Stdlib.Option.andThen (fun entry ->
+    let (parentPath, slot, i) = entry
+    // A separator typed between items that ALREADY EXIST and are not finished means "on to the next one",
+    // not "put another one here". A record's fields come from its type: typing `80` then `;` in
+    // `Size { width = ⟨w⟩; height = ⟨h⟩ }` means the height, and inserting a third field between them is
+    // not something the type allows. A list is the other way round -- `[1, 2]` and a `,` after the `1` is a
+    // new element -- and there the next item has nothing left to fill, so this does not fire.
+    let nextHasHole =
+      match nodeAtPath st.root parentPath with
+      | Some parent ->
+        (match Stdlib.List.getAt (Node.items parent slot) (i + 1) with
+         | Some(Filled child) ->
+           Stdlib.Bool.not (Stdlib.List.isEmpty (holes (Slot.Filled child)))
+         | _ -> false)
+      | None -> false
+    if nextHasHole then
+      match slotAtPath st.root (Path.item parentPath slot (i + 1)) with
+      | Some(Filled child) ->
+        // To the next HOLE in it, not its first editable text: a record field's first editable is its NAME,
+        // which is already written, so `;` landed the caret in `height` and typing put digits in the name.
+        Stdlib.Option.Option.Some
+          { st with caret = landAfterCommit (Path.item parentPath slot (i + 1)) child }
+      | _ -> addSiblingAt st parentPath slot i
+    else
+      addSiblingAt st parentPath slot i)
 
 /// Typing the character a spec draws before each of a list's items, at the end of a finished item, starts
 /// the next item.
