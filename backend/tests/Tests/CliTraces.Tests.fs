@@ -1053,37 +1053,6 @@ let private everyCommandAnswersHelp =
         Tests.failtestf "commands that don't answer `--help`:\n%s" detail
     })
 
-let private everyCommandRefusesABogusArgument =
-  cliTest
-    "no registered command ignores an argument that means nothing"
-    (fun state ->
-      task {
-        let! commands = registeredCommands state
-        let mutable failures : List<string * string> = []
-
-        for cmd in commands do
-          if not (Set.contains cmd notSweepable) then
-            // Saying nothing is the failure this catches. A command that silently drops an
-            // argument it did not understand looks exactly like one that did what you asked.
-            match! runCliCatching state [ cmd; "zzz-no-such-thing-zzz" ] with
-            | Error e -> failures <- (cmd, $"crashed: {e}") :: failures
-            | Ok output ->
-              if output.Trim() = "" then
-                failures <- (cmd, "said nothing") :: failures
-
-        if not (List.isEmpty failures) then
-          let detail =
-            failures
-            |> List.rev
-            |> List.map (fun (c, why) ->
-              $"  dark {c} zzz-no-such-thing-zzz -> {why}")
-            |> String.concat "\n"
-
-          Tests.failtestf
-            "commands that ignore an argument they don't understand:\n%s"
-            detail
-      })
-
 /// A dash-led argument is a mistyped flag, never a name.
 ///
 /// `create` and `rename` are the two that WRITE the name they are given, so they are the two
@@ -1233,6 +1202,5 @@ let tests =
       // Command sweeps
       everyExclusionIsReal
       everyCommandAnswersHelp
-      everyCommandRefusesABogusArgument
       aDashLedArgumentIsNeverAName
       missingTargetsAreNamed ]

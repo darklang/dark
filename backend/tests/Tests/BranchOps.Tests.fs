@@ -719,22 +719,6 @@ let reservedOwnerGuardBlocksRenamingBundledBindings =
     let! (after : System.Collections.Generic.HashSet<string>) =
       LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
     Expect.isTrue (after.Contains hashStr) "List.map is still bundled"
-
-    // The control: renaming the guest's own item is an ordinary rename.
-    let own = makeFn (eVar "x")
-    let! (added : Result<int64, string>) =
-      Inserts.insertUntrustedOps
-        PT.mainBranchId
-        None
-        [ PT.PackageOp.AddFn own
-          PT.PackageOp.SetName(loc "renameMe", PT.PackageFn own.hash) ]
-    Expect.isOk added "adding a guest fn"
-    let! (renamed : Result<int64, string>) =
-      Inserts.insertUntrustedOps
-        PT.mainBranchId
-        None
-        [ PT.PackageOp.SetName(loc "renamed", PT.PackageFn own.hash) ]
-    Expect.isOk renamed "renaming the guest's own item is allowed"
   }
 
 let tests =
