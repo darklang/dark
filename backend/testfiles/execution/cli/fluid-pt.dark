@@ -524,3 +524,53 @@ module TuplePatternsAreVisible =
   (TuplePatternsAreVisible.show "let x = 1\nx") = "let x = 1\nx"
   (TuplePatternsAreVisible.show "let _ = 1\n2") = "let _ = 1\n2"
   (TuplePatternsAreVisible.show "let () = 1\n2") = "let () = 1\n2"
+
+
+module EveryNodeHasASpec =
+  // The property behind the LPTuple bug, rather than another example of it. A node whose kind the registry
+  // cannot find a spec for is drawn by the fallback, not by its own rules -- which is how a tuple
+  // destructuring came out as `?pattern`, a render that means "this slot is missing" about a slot that was
+  // there.
+  //
+  // Checked against 250 real functions, 250 types and 250 values as a probe: zero. That sweep is too slow
+  // for the suite, so this pins the same property over parsed sources that reach the awkward corners.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let missing (src: String) : List<String> =
+    let reg = Darklang.Fluid.App.defaultRegistry ()
+    let root = EveryNodeHasASpec.docOf src
+    Darklang.Fluid.Editor.nodePaths root
+    |> Stdlib.List.filterMap (fun p ->
+      match Darklang.Fluid.slotAtPath root p with
+      | Some(Filled n) ->
+        (match Darklang.Fluid.Registry.findExact reg n.kind with
+         | Some _ -> Stdlib.Option.Option.None
+         | None ->
+           (match Darklang.Fluid.Registry.findTypeLevel reg n.kind with
+            | Some _ -> Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.Some(Darklang.Fluid.Kind.toString n.kind)))
+      | _ -> Stdlib.Option.Option.None)
+
+  // The one that was broken, and its neighbours.
+  (EveryNodeHasASpec.missing "let (a, b) = t\na") = []
+  (EveryNodeHasASpec.missing "let (a, (b, c)) = t\na") = []
+  (EveryNodeHasASpec.missing "let _ = 1\n2") = []
+  (EveryNodeHasASpec.missing "let () = 1\n2") = []
+
+  // A spread of everything else the editor draws, so a spec registered under the wrong kind shows up here
+  // rather than as a `?` on someone's screen.
+  (EveryNodeHasASpec.missing "match x with\n| Ok(v) -> v\n| Error(e) -> \"e\"") = []
+  (EveryNodeHasASpec.missing "match x with\n| [a, b] -> a\n| _ -> 0") = []
+  (EveryNodeHasASpec.missing "match x with\n| (a, b) -> a") = []
+  (EveryNodeHasASpec.missing "if b then [1, 2] else 3") = []
+  (EveryNodeHasASpec.missing "fun x -> x + 1") = []
+  (EveryNodeHasASpec.missing "$\"a{b}c\"") = []
+  (EveryNodeHasASpec.missing "r.x.y") = []
+  (EveryNodeHasASpec.missing "xs |> List.map (fun x -> x)") = []
+  (EveryNodeHasASpec.missing "Stdlib.Cli.Tui.Size { width = 1; height = 2 }") = []
+  (EveryNodeHasASpec.missing "{ s with x = 1 }") = []
+  (EveryNodeHasASpec.missing "(1, \"a\", 'c')") = []
+  (EveryNodeHasASpec.missing "Dict { a = 1 }") = []
