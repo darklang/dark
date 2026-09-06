@@ -650,8 +650,14 @@ let navPath (st: State) : Path =
 
 /// Inside a grid, the same COLUMN one row along -- the path with its row index moved and everything after
 /// it kept. Reading order would walk sideways along the row instead, which is not what Down means in a
-/// table. Returns None when the caret isn't in one, or when there is no such row.
-let tableRowTarget (st: State) (delta: Int) : Stdlib.Option.Option<Path> =
+/// table.
+///
+/// The two Nones are different answers and the caller has to tell them apart, which is why this is nested
+/// rather than flat. Outer None: the caret is not in a table, so reading order is right. Inner None: the
+/// caret IS in one and there is no row that way, so nothing happens. Flattened, Down on the last row fell
+/// through to reading order and walked sideways into the next COLUMN -- which is what `l` means, so two
+/// keys did one thing and one of them lied about its direction.
+let tableRowTarget (st: State) (delta: Int) : Stdlib.Option.Option<Stdlib.Option.Option<Path>> =
   let here = navPath st
   let len = Stdlib.List.length here
   // The innermost enclosing table wins, so a grid inside a grid still moves the row you are in.
@@ -671,8 +677,9 @@ let tableRowTarget (st: State) (delta: Int) : Stdlib.Option.Option<Path> =
               let count = Stdlib.List.length (Node.items parent slotName)
               if (target >= 0) && (target < count) then
                 Stdlib.Option.Option.Some(
-                  Stdlib.List.flatten [ prefix, [ Step.Item(slotName, target) ], rest ])
-              else Stdlib.Option.Option.None
+                  Stdlib.Option.Option.Some(
+                    Stdlib.List.flatten [ prefix, [ Step.Item(slotName, target) ], rest ]))
+              else Stdlib.Option.Option.Some(Stdlib.Option.Option.None)
             else Stdlib.Option.Option.None
           | None -> Stdlib.Option.Option.None)
        | None -> Stdlib.Option.Option.None)
@@ -708,10 +715,8 @@ let tableColumnTarget (st: State) (delta: Int) : Stdlib.Option.Option<Path> =
      | _ -> Stdlib.Option.Option.None)
   | _ -> Stdlib.Option.Option.None
 
-let navBy (st: State) (delta: Int) : State =
-  match tableRowTarget st delta with
-  | Some p -> { st with caret = navCaretFor st.root p }
-  | None ->
+/// Reading order, one node along.
+let navByReadingOrder (st: State) (delta: Int) : State =
   let paths = nodePaths st.root
   let here = navPath st
   let idx =
@@ -728,6 +733,20 @@ let navBy (st: State) (delta: Int) : State =
   match Stdlib.List.getAt paths target with
   | Some p -> { st with caret = navCaretFor st.root p }
   | None -> st
+
+let navBy (st: State) (delta: Int) : State =
+  match tableRowTarget st delta with
+  | Some(Some p) -> { st with caret = navCaretFor st.root p }
+
+  // Off the end of a table. The two directions are deliberately not symmetric, and the existing pins had
+  // already settled it for `h`/`l`: BACKWARDS at an edge steps out, so you are never stuck; FORWARDS at an
+  // edge sticks, so nothing runs off the end. `l` off the last column already stuck and `k` off the first
+  // row already stepped out; `j` off the LAST row was the one that did neither -- it fell through to
+  // reading order, which walks sideways into the next COLUMN. That is what `l` means, so two keys did one
+  // thing and one of them lied about its direction.
+  | Some None -> if delta > 0 then st else navByReadingOrder st delta
+
+  | None -> navByReadingOrder st delta
 
 let navParent (st: State) : State =
   match tableColumnTarget st (-1) with

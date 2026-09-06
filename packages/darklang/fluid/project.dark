@@ -241,15 +241,18 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | [] -> Layout.tagged (tagFor path Part.OnNode) Layout.Style.Dim ""
     | items ->
       // The cell for one item and one column: the item is a record node, the column is a field in it.
-      let cellOf (i: Int) (s: Slot) (col: String) : Layout.Doc =
+      let cellOf (i: Int) (s: Slot) (col: String) (c: Int) : Layout.Doc =
         let itemPath = Path.item path slotName i
         match s with
         | Filled itemNode ->
           (match Node.slot itemNode col with
            | Some childSlot -> slot reg itemPath (Part.InSlot col) (Path.child itemPath col) childSlot
            | None -> Layout.Doc.Empty)
-        | _ -> slot reg path (Part.InItem(slotName, i)) itemPath s
-      let rows = items |> Stdlib.List.indexedMap (fun i s -> columns |> Stdlib.List.map (fun col -> cellOf i s col))
+        // A row that is itself a hole has no cells to put in the columns. Its placeholder is drawn ONCE,
+        // in the first column: drawn per column it repeated `â¨rowâ©` across the whole width, and every column
+        // was then measured against a placeholder that is not a cell. Clearing a row made the table jump.
+        | _ -> if c == 0 then slot reg path (Part.InItem(slotName, i)) itemPath s else Layout.Doc.Empty
+      let rows = items |> Stdlib.List.indexedMap (fun i s -> columns |> Stdlib.List.indexedMap (fun c col -> cellOf i s col c))
       // A column is as wide as its widest cell, header included. This is the measuring pass that a Wadler
       // group cannot do for you: a group knows its own width and nothing about its siblings.
       let widths =

@@ -387,3 +387,70 @@ module TableDemoIsReachable =
   (TableDemoIsReachable.at [ "<Esc>", "j" ]) = "rows[0]"
   (TableDemoIsReachable.at [ "<Esc>", "j", "l" ]) = "rows[0].item"
   (TableDemoIsReachable.at [ "<Esc>", "j", "l", "j" ]) = "rows[1].item"
+
+
+module ATableBehavesLikeATable =
+  // The grid piece: `Piece.Table(itemsSlot, columns)`, a spec's whole projection. These are the three
+  // things the extensibility audit said a table needs and a Wadler document cannot give you -- columns
+  // measured across siblings, a caret that moves in two dimensions, headers drawn once.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.demoRegistry ()
+  let at (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (ATableBehavesLikeATable.reg ()) (Darklang.Fluid.App.demoGrid ()) 90) keys
+    Darklang.Fluid.Path.toString (Darklang.Fluid.Editor.navPath st)
+  let draw (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (ATableBehavesLikeATable.reg ()) (Darklang.Fluid.App.demoGrid ()) 90) keys
+    Darklang.Fluid.Debug.render st.reg st.width st.root
+
+  // Down is the same COLUMN, next row. Reading order would walk sideways along the row.
+  (ATableBehavesLikeATable.at [ "l", "l" ]) = "rows[0].item"
+  (ATableBehavesLikeATable.at [ "l", "l", "j" ]) = "rows[1].item"
+  (ATableBehavesLikeATable.at [ "l", "l", "l" ]) = "rows[0].qty"
+  (ATableBehavesLikeATable.at [ "l", "l", "l", "j" ]) = "rows[1].qty"
+
+  // Forwards off the last row STICKS. It used to fall through to reading order, which walks sideways into
+  // the next column -- which is what `l` means, so two keys did one thing and one of them lied about its
+  // direction. `l` off the last column already stuck; this makes `j` agree with it.
+  (ATableBehavesLikeATable.at [ "l", "l", "j", "j", "j" ]) = "rows[2].item"
+
+  // Backwards off the first row still steps OUT, which is the deliberate escape the earlier pins settled
+  // for `h` from the first column. The two directions are not symmetric on purpose: nothing runs off the
+  // end, and you are never stuck.
+  (ATableBehavesLikeATable.at [ "l", "l", "k" ]) = "rows[0]"
+  (ATableBehavesLikeATable.at [ "l", "l", "h" ]) = "rows[0]"
+
+  // A row that is itself a hole draws its placeholder ONCE. Per column it repeated across the width and
+  // every column was measured against a placeholder that is not a cell, so clearing a row made the table
+  // jump sideways.
+  (ATableBehavesLikeATable.draw [ "l", "x" ]) =
+    "item                  qty  note\n⟨row⟩                      \n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\""
+
+
+module TypingIntoATextCell =
+  // Filling a text cell is the most ordinary thing there is to do to a table, and it needed a `"` first --
+  // a key nobody would guess -- with a bare word left sitting as an unresolvable partial. A slot that
+  // expects a STRING now takes typing as a string.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.demoRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TypingIntoATextCell.reg ()) (Darklang.Fluid.App.demoGrid ()) 90 keys
+
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "c", "b", "o", "l", "t" ]) "\"bolt~\"") = true
+
+  // The quote still opens one, for a string that starts with punctuation.
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "c", "\"", "b", "o", "l", "t" ]) "\"bolt~\"") = true
+
+  // A slot that expects an Int still takes digits as an Int, so this is about the expectation and not
+  // about the keystroke.
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "l", "c", "7" ]) "7~") = true
+
+
+module ExpressionHolesAreUnchanged =
+  // The string rule fires on the prim String KIND. A Darklang expression hole expects an Expr, so a letter
+  // there still starts a variable and a digit still starts an int.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (ExpressionHolesAreUnchanged.reg ()) (ExpressionHolesAreUnchanged.hole ()) 60 keys
+
+  (ExpressionHolesAreUnchanged.run [ "x" ]) = "x~"
+  (ExpressionHolesAreUnchanged.run [ "4" ]) = "4~"
+  (ExpressionHolesAreUnchanged.run [ "\"", "h", "i" ]) = "\"hi~\""

@@ -26,6 +26,15 @@ let stringNode (body: String) : Node =
 let stringSummary (n: Node) : String =
   "\"" ++ (Node.text n "body" |> Stdlib.Option.withDefault "") ++ "\""
 
+/// Typing into a slot that expects a STRING types a string. The quote is still how you open one that
+/// starts with punctuation, but requiring it everywhere meant that filling a text cell in a grid -- the
+/// most ordinary thing there is to do to a table -- began with a key nobody would guess, and a bare word
+/// sat there as an unresolvable partial instead.
+///
+/// This only fires where a slot expects the prim String KIND. A Darklang expression hole expects an Expr,
+/// so a letter there still starts a variable.
+let stringFromChar (c: String) (e: Expect) : Node = stringNode c
+
 // --- Bool ---
 
 let boolNode (b: Bool) : Node =
@@ -84,7 +93,10 @@ let specs () : List<Spec> =
     Spec
       { kind = stringKind ()
         pieces = [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ]
-        holeRules = [ HoleRule { onChar = "\""; fill = HoleFill.Node(stringNode "") } ]
+        holeRules =
+          [ HoleRule { onChar = "\""; fill = HoleFill.Node(stringNode "") }
+            HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar stringFromChar }
+            HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar stringFromChar } ]
         wrapRules = []
         completions = []
         complete = Spec.noCompletions
