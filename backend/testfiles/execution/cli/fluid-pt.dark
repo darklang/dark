@@ -496,3 +496,31 @@ module SeparatorsComeFromTheSpec =
   // A list is the other way round, and there the next item has nothing left to fill, so it inserts.
   (SeparatorsComeFromTheSpec.run [ "[", "1", ",", "2", ",", "3" ]) = "[1, 2, 3~]"
   (SeparatorsComeFromTheSpec.run [ "(", "1", ",", "2" ]) = "(1, 2~)"
+
+
+module TuplePatternsAreVisible =
+  // `let (a, b) = t` drew as `let ?pattern = t`. The LPTuple spec was registered with `simpleExpr` rather
+  // than `simpleLetPat`, so it lived under the EXPRESSION kind and was never found for a LetPattern node.
+  // The three lines above it in the spec list use `simpleLetPat` and read the same at a glance.
+  //
+  // Nothing was lost -- the pattern is carried whole, so it lowered back correctly the entire time -- but a
+  // destructuring you cannot see or edit is its own kind of bad in an editor. Found by opening the largest
+  // real function in the store and walking to the bottom of it; no pin and no fuzz seed builds one, because
+  // nothing constructs a tuple let-pattern by typing.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 70 (TuplePatternsAreVisible.docOf src)
+
+  (TuplePatternsAreVisible.show "let (a, b) = t\na") = "let (a, b) = t\na"
+  (TuplePatternsAreVisible.show "let (a, b, c) = t\na") = "let (a, b, c) = t\na"
+  (TuplePatternsAreVisible.show "let (a, (b, c)) = t\na") = "let (a, (b, c)) = t\na"
+  (TuplePatternsAreVisible.show "let (a, _) = t\na") = "let (a, _) = t\na"
+
+  // The other three let-patterns, which were always fine, so the fix cannot have moved them.
+  (TuplePatternsAreVisible.show "let x = 1\nx") = "let x = 1\nx"
+  (TuplePatternsAreVisible.show "let _ = 1\n2") = "let _ = 1\n2"
+  (TuplePatternsAreVisible.show "let () = 1\n2") = "let () = 1\n2"

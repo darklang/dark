@@ -1611,7 +1611,11 @@ let baseSpecs () : List<Spec> =
     simpleLetPat "LPUnit" [ Piece.Label "()" ] (Node.make (letPatKind "LPUnit") [])
     simpleLetPat "LPWildcard" [ Piece.Label "_" ] (Node.make (letPatKind "LPWildcard") [])
     simpleLetPat "LPVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (letPatKind "LPVariable") [ text "name" "" ])
-    simpleExpr
+    // `simpleLetPat`, not `simpleExpr`. Registered under the EXPRESSION kind, this spec was never found
+    // for a LetPattern node, so `let (a, b) = t` drew as `let ?pattern = t`: a tuple destructuring you
+    // could not see or edit. The pattern survived a save (it is carried whole), so nothing was lost -- it
+    // was invisible, which is its own kind of bad in an editor.
+    simpleLetPat
       "LPTuple"
       [ Piece.Group [ Piece.Punct "(", Piece.Each("items", [ Piece.Punct ",", Piece.Line ]), Piece.Punct ")" ] ]
       (Node.make (letPatKind "LPTuple") [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]) ]
