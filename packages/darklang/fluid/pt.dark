@@ -889,7 +889,7 @@ let shouldSearch (typed: String) : Bool =
 /// hands back the declaration, so the shell arrives with the real field NAMES already in it and the caret
 /// in the first value. Typing `Size` and pressing space gives `Size { width = <>; height = <> }`.
 let recordCandidates (typed: String) : List<Candidate> =
-  if Stdlib.Bool.not (shouldSearch typed) then
+  if (Stdlib.Bool.not (shouldSearch typed)) || (Stdlib.Bool.not (looksLikeATypeName typed)) then
     []
   else
     let query =
@@ -924,9 +924,74 @@ let recordCandidates (typed: String) : List<Candidate> =
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.take 3
 
-let completeExpr (e: Expect) (typed: String) : List<Candidate> =
-  if Stdlib.Bool.not (shouldSearch typed) then
+/// Does what you have typed look like a TYPE rather than a function? In this language a type and an enum
+/// case are capitalised and a function is not, which is the cheap test that keeps the searches below off
+/// the common path.
+/// It is the LAST segment that says which: `Stdlib.Cli.Tui.Size` names a type, `Stdlib.List.length` names
+/// a function, and both start with a capital.
+let looksLikeATypeName (typed: String) : Bool =
+  let lastSegment = Stdlib.String.split typed "." |> Stdlib.List.last |> Stdlib.Option.withDefault typed
+  match Stdlib.String.first lastSegment 1 with
+  | "" -> false
+  | firstChar -> (Stdlib.String.toUppercase firstChar) == firstChar && (TextEdit.isLetterString firstChar)
+
+/// Enum constructors, completed from the CASE you are naming: `Ok` offers `Result.Ok`.
+///
+/// Same wall as records -- EEnum carries a type name and hash, so the case has to be resolved to the type
+/// that declares it. Unlike a record, the search cannot do the matching: you type a CASE name, and the
+/// store indexes types by their own name. So this reads the enum declarations and matches the cases
+/// itself, which is why it is gated on the name looking like a type: a lowercase query never pays for it.
+let enumCandidates (typed: String) : List<Candidate> =
+  // Two characters is enough for a CASE, because `Ok` is two characters and is the one everybody types.
+  // The general search wants three, to keep a stray keystroke from scanning the store; a capitalised
+  // two-letter word is specific enough to be worth it.
+  if ((Stdlib.String.length typed) < 2) || (Stdlib.Bool.not (looksLikeATypeName typed)) then
     []
+  else
+    let wanted = Stdlib.String.toLowercase typed
+    let query =
+      Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = ""
+          searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
+          exactMatch = false }
+    (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
+    |> Stdlib.List.map (fun item ->
+      match item.entity.declaration.definition with
+      | Enum cases ->
+        let name = locationName item.location
+        let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
+        cases
+        |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith (Stdlib.String.toLowercase c.name) wanted)
+        |> Stdlib.List.map (fun c ->
+          // A case's fields become holes, the way a record's do, so `Ok` lands you inside `Result.Ok(<>)`.
+          let fieldSlots = c.fields |> Stdlib.List.map (fun _f -> Slot.Empty(exprExpect "field"))
+          let detail =
+            if Stdlib.List.isEmpty c.fields then "case"
+            else "case of " ++ (Stdlib.Int.toString (Stdlib.List.length c.fields))
+          Spec.candidate
+            ((displayName name) ++ "." ++ c.name)
+            detail
+            (Node.make
+              (exprKind "EEnum")
+              [ text "type" name, text "_typeHash" hash, text "case" c.name
+                ("fields", Field.Many(fieldSlots, exprExpect "field")) ]))
+      | _ -> [])
+    |> Stdlib.List.flatten
+    // Shortest first, so `Ok` offers `Result.Ok` before anything that merely starts with it.
+    |> Stdlib.List.sortBy (fun c -> Stdlib.String.length c.label)
+    |> Stdlib.List.take 4
+
+let completeExpr (e: Expect) (typed: String) : List<Candidate> =
+  // A capitalised last segment goes down the TYPE path -- records and constructors -- even at two
+  // characters, because `Ok` is two characters. The general function search still runs alongside it once
+  // there are three, so nothing is lost; below three, a lowercase name waits rather than scan the store.
+  let typeish = looksLikeATypeName typed
+  let typeCandidates =
+    if typeish then Stdlib.List.flatten [ recordCandidates typed, enumCandidates typed ] else []
+  if Stdlib.Bool.not (shouldSearch typed) then
+    typeCandidates
   else
     let results = searchFor typed
     let fns =
@@ -942,16 +1007,9 @@ let completeExpr (e: Expect) (typed: String) : List<Candidate> =
         let name = locationName item.location
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
         Spec.candidate (displayName name) "value" (Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]))
-    // A capitalised name is a TYPE in this language and a lowercase one is a function, so a record goes to
-    // the top of the menu exactly when what you typed looks like a type. Without this, `Size` offered
-    // `Stdlib.Dict.size` first and Enter built a call.
-    let records = recordCandidates typed
-    let looksLikeAType =
-      match Stdlib.String.first typed 1 with
-      | "" -> false
-      | firstChar -> (Stdlib.String.toUppercase firstChar) == firstChar && (TextEdit.isLetterString firstChar)
-    if looksLikeAType then Stdlib.List.flatten [ records, fns, values ]
-    else Stdlib.List.flatten [ fns, values, records ]
+    // A record or a constructor leads when what you typed looks like one; otherwise functions do.
+    if typeish then Stdlib.List.flatten [ typeCandidates, fns, values ]
+    else Stdlib.List.flatten [ fns, values ]
 
 let completePipeStep (e: Expect) (typed: String) : List<Candidate> =
   if Stdlib.Bool.not (shouldSearch typed) then

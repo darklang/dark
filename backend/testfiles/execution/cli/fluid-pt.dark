@@ -309,3 +309,37 @@ module RecordsCanBeBuilt =
   (Stdlib.String.contains
     (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60 [ "S", "i", "z", "e", "<Enter>" ])
     "Darklang.Stdlib") = false
+
+
+module EnumConstructorsCanBeBuilt =
+  // The gap found in t86: `Ok(1)` and `None` in an EXPRESSION had no build path, so an uppercase name
+  // became a variable -- `None` lowered to a variable named None, which prints fine and fails at
+  // resolution. Same wall as records (EEnum carries a type name and hash), and the same answer, except
+  // the search cannot do the matching: you type a CASE name and the store indexes types by their own
+  // name, so the enum declarations are read and the cases matched here.
+  ((Darklang.Fluid.PT.enumCandidates "Ok" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label))
+   |> Stdlib.Option.withDefault "none") = "Result.Ok"
+  ((Darklang.Fluid.PT.enumCandidates "Ok" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.detail))
+   |> Stdlib.Option.withDefault "none") = "case of 1"
+
+  // A case's fields become holes, so `Ok` lands you inside the constructor; a nullary case has none.
+  (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60 [ "O", "k", "<Enter>" ]) =
+    "Result.Ok(~⟨field⟩)"
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "O", "k", "<Enter>", "1", "<Esc>", "<Esc>" ]) = "Result.Ok(1)"
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "N", "o", "n", "e", "<Enter>", "<Esc>", "<Esc>" ]) = "Option.None"
+
+  // Two characters is enough for a case, because `Ok` is two. The general search still wants three.
+  ((Darklang.Fluid.PT.completeExpr (Darklang.Fluid.PT.exprExpect "e") "Ok"
+    |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label)) |> Stdlib.Option.withDefault "none") = "Result.Ok"
+
+  // It is the LAST segment that says type or function: `Stdlib.List.length` starts with a capital too,
+  // and routing it down the type path lost its function candidates entirely.
+  (Darklang.Fluid.PT.looksLikeATypeName "Stdlib.Cli.Tui.Size") = true
+  (Darklang.Fluid.PT.looksLikeATypeName "Stdlib.List.length") = false
+  (Darklang.Fluid.PT.looksLikeATypeName "Ok") = true
+  (Darklang.Fluid.PT.looksLikeATypeName "nums") = false
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "S", "t", "d", "l", "i", "b", ".", "L", "i", "s", "t", ".", "l", "e", "n", "g", "t", "h", " ", "n", "u", "m", "s", "<Esc>", "<Esc>" ]) =
+    "Stdlib.List.length nums"
