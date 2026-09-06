@@ -233,16 +233,23 @@ let inspectorWith
   let actionLines =
     if Stdlib.List.isEmpty actions then [ dim "  (none here)" ]
     else
-      actions
-      |> Stdlib.List.take 7
-      |> Stdlib.List.map (fun a ->
-        // A bound action shows its key instead of the bullet: the panel is the help, so a key that exists
-        // and isn't written here may as well not exist.
-        let lead =
-          match a.key with
-          | Some k -> Stdlib.Cli.UI.Colors.colorize theme.keyword k
-          | None -> Stdlib.Cli.UI.Colors.colorize theme.keyword "•"
-        "  " ++ lead ++ " " ++ a.name)
+      let shown =
+        actions
+        |> Stdlib.List.take 7
+        |> Stdlib.List.map (fun a ->
+          // A bound action shows its key instead of the bullet: the panel is the help, so a key that
+          // exists and isn't written here may as well not exist.
+          let lead =
+            match a.key with
+            | Some k -> Stdlib.Cli.UI.Colors.colorize theme.keyword k
+            | None -> Stdlib.Cli.UI.Colors.colorize theme.keyword "•"
+          "  " ++ lead ++ " " ++ a.name)
+      // Seven actions with nothing after them read as all of them. `:` opens the full list.
+      let hidden = (Stdlib.List.length actions) - 7
+      if hidden > 0 then
+        Stdlib.List.append shown [ dim ("  +" ++ (Stdlib.Int.toString hidden) ++ " more, : for all") ]
+      else
+        shown
   // Completions are shown at the caret (a popover), not here, so the panel never lists them twice.
   // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
   let inHole =

@@ -359,9 +359,26 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         match st.evaluated with
         | Some((path, answer)) ->
           if path == (Editor.navPath st.editor) then
+            // WRAPPED to the panel, not cut by it. The panel is a fixed width, so a long answer -- and an
+            // error message is usually the longest thing here -- was sliced mid-word with nothing to say
+            // it had been: `can't print that yet: unr`. An error you cannot read is worse than no error.
+            let wrapWidth = Stdlib.Int.max 8 ((Stdlib.Cli.UI.Box.inner inspArea).cols - 2)
+            let wrapped =
+              Stdlib.String.split answer "\n"
+              |> Stdlib.List.map (fun l -> Stdlib.Cli.Tui.Text.wrapAtWords l wrapWidth)
+              |> Stdlib.List.flatten
+            // ...and say when there is more, the way the completion popover does. Six rows of a longer
+            // answer with nothing after them reads as the whole answer.
+            let hidden = (Stdlib.List.length wrapped) - 6
+            let more =
+              if hidden > 0 then
+                [ Stdlib.Cli.UI.Colors.colorize st.theme.dim ("  +" ++ (Stdlib.Int.toString hidden) ++ " more") ]
+              else
+                []
             Stdlib.List.flatten
               [ [ Stdlib.Cli.UI.Colors.colorize (st.theme.dim ++ Stdlib.Cli.UI.Colors.bold) "VALUE" ]
-                (Stdlib.String.split answer "\n" |> Stdlib.List.take 6 |> Stdlib.List.map (fun l -> "  " ++ l))
+                (wrapped |> Stdlib.List.take 6 |> Stdlib.List.map (fun l -> "  " ++ l))
+                more
                 [ "" ] ]
           else []
         | None -> []
