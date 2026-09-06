@@ -414,9 +414,11 @@ let private closuresOfOtherRoots
   |> Seq.collect (fun (_, approval) -> Set.toSeq approval.closure)
   |> Set.ofSeq
 
-/// Remove one root's approval, its unshared dependency policies, and pins to
-/// that root. Shared dependencies remain available to other approved roots.
-let revokeRootInStore
+/// Drop a root's approval record and the dependency policies no other root
+/// still needs. Pins are NOT touched: this is the cleanup a re-approval
+/// performs before installing the new closure, and a pin belongs to a name,
+/// not to the closure.
+let private dropRootInStore
   (accountID : Option<Guid>)
   (rootHash : string)
   (store : Store)
@@ -424,21 +426,36 @@ let revokeRootInStore
   let rootKey = scopedKey accountID rootHash
   match Map.tryFind rootKey store.approvedRoots with
   | None -> store
-  | Some revoked ->
+  | Some dropped ->
     let stillNeeded = closuresOfOtherRoots accountID rootKey store
     let packages =
-      Set.difference revoked.closure stillNeeded
+      Set.difference dropped.closure stillNeeded
       |> Set.fold
         (fun pkgs h -> Map.remove (scopedKey accountID h) pkgs)
         store.packages
-    let functionPins =
-      store.functionPins
-      |> Map.filterWithIndex (fun (key : ScopedKey) pinned ->
-        not (fst key = accountID && pinned = rootHash))
     { store with
         packages = packages
-        functionPins = functionPins
         approvedRoots = Map.remove rootKey store.approvedRoots }
+
+/// Revoke: drop the root and ALSO unpin every name pointing at it, since a
+/// revoked version must not stay callable under any name.
+///
+/// Re-approval must not reuse this. Content addressing makes one hash the
+/// target of several names -- the same body under two owners, a trivially
+/// equal helper -- and approving `Acme.b -> H` after `Acme.a -> H` used to
+/// run this whole function first, unpinning `Acme.a` and restoring only the
+/// name being approved. `dropRootInStore` is the re-approval half.
+let revokeRootInStore
+  (accountID : Option<Guid>)
+  (rootHash : string)
+  (store : Store)
+  : Store =
+  let store = dropRootInStore accountID rootHash store
+  { store with
+      functionPins =
+        store.functionPins
+        |> Map.filterWithIndex (fun (key : ScopedKey) pinned ->
+          not (fst key = accountID && pinned = rootHash)) }
 
 /// Revoke one approved root, dependency-aware. See [revokeRootInStore].
 let revokePackageRoot (accountID : Option<Guid>) (rootHash : string) : unit =
@@ -454,7 +471,9 @@ let recordApprovalInStore
   (explicitPolicy : Option<P.Policy>)
   (store : Store)
   : Store =
-  let store = revokeRootInStore accountID rootHash store
+  // Only the stale dependencies and the old record go; see `revokeRootInStore`
+  // for why the pins must stay.
+  let store = dropRootInStore accountID rootHash store
   // A separately approved root keeps its own policy; another root's closure
   // must not replace or widen it.
   let ownedByAnotherRoot (hash : string) : bool =

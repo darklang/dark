@@ -368,6 +368,39 @@ let approvingADependencyKeepsItsOwnRootApproval =
       "C's written rules are remembered as its provenance"
   }
 
+let reapprovingASharedHashKeepsTheOtherNamesPinned =
+  test "approving a second name for the same hash keeps the first name's pin" {
+    // Content addressing makes one hash the target of several names. The
+    // re-approval cleanup used to be the revocation routine, which unpins
+    // every name pointing at the hash and then restored only the one being
+    // approved: after `Acme.a -> H` and `Acme.b -> H` only `Acme.b` was left.
+    let accountID : Option<System.Guid> = None
+    let approve location store =
+      match
+        PolicyStore.recordApprovalAndMovePinInStore
+          accountID
+          "H"
+          [ "H", Permission.Policy.allowAll ]
+          "effects-v1"
+          None
+          location
+          None
+          "H"
+          store
+      with
+      | Ok store -> store
+      | Error e -> failtest $"approval of {location} was rejected: {e}"
+    let store = PolicyStore.empty |> approve "Acme.a" |> approve "Acme.b"
+    let pin name = Map.tryFind (accountID, name) store.functionPins
+    Expect.equal (pin "Acme.a") (Some "H") "the first name is still pinned"
+    Expect.equal (pin "Acme.b") (Some "H") "the second name is pinned"
+    // An explicit revocation is the operation that unpins, and it takes
+    // every name with it.
+    let revoked = PolicyStore.revokeRootInStore accountID "H" store
+    Expect.isEmpty revoked.functionPins "revoking the hash unpins every name"
+    Expect.isEmpty revoked.approvedRoots "and drops the approval"
+  }
+
 let instanceEditsAddAndRemoveInOnePass =
   test "an instance-policy edit removes first, then adds, in one pass" {
     let clock = Permission.Rule.Effect LibExecution.Effects.Effect.Clock
@@ -468,6 +501,7 @@ let tests =
     "policyStore"
     [ policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
+      reapprovingASharedHashKeepsTheOtherNamesPinned
       instanceEditsAddAndRemoveInOnePass
       policyStoreRejectsOlderFormat
       seedClassifiesTheFileFailClosed
