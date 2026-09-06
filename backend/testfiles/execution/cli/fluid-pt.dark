@@ -204,3 +204,64 @@ module NamesReadTheWayThePrinterWritesThem =
   (NamesReadTheWayThePrinterWritesThem.roundTrip "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
   (NamesReadTheWayThePrinterWritesThem.screen "nums |> Stdlib.List.filter f") = "nums\n|> Stdlib.List.filter f"
   (NamesReadTheWayThePrinterWritesThem.roundTrip "nums |> Stdlib.List.filter f") = "nums |> Stdlib.List.filter f"
+
+
+module PrecedenceIsShared =
+  // Fluid used to carry its own copy of the printer's precedence: the same operator table, the same two
+  // named powers, and the same two rules for when an operand or an argument needs parens. Two hand-written
+  // copies of one language fact drift -- the name shorteners already had -- and an editor that disagrees
+  // with the printer about parentheses is worse than either. The numbers and the rules are the printer's
+  // now, and Fluid only says what a DOCUMENT NODE's power is.
+  let ops () : List<String> =
+    [ "||", "&&", "==", "!=", "<", ">", "<=", ">=", "+", "-", "++", "*", "/", "%", "^" ]
+
+  // The editor's answer IS the printer's answer, for every operator it can draw.
+  (PrecedenceIsShared.ops ()
+   |> Stdlib.List.all (fun op ->
+     (Darklang.Fluid.Project.infixPowerOf op) == (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText op))) = true
+
+  // And the table itself is unchanged, stated once so a careless edit to it has to be deliberate.
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "||") = (1, false)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "&&") = (2, false)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "==") = (3, false)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "+") = (5, false)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "*") = (6, false)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText "^") = (7, true)
+
+  // The enum path goes through the same table, so `infixPower` and the editor cannot disagree.
+  (Darklang.PrettyPrinter.ProgramTypes.infixPower
+    (Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower)) = (7, true)
+  (Darklang.PrettyPrinter.ProgramTypes.infixPower
+    (Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpOr)) = (1, false)
+
+  // The operand rule, stated over powers alone: looser always parenthesises, equal depends on the side.
+  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 6 false false) = true
+  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 6 5 false false) = false
+  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 5 false true) = true
+  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 5 5 false false) = false
+  (Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt 7 7 true false) = true
+
+  // The argument rule takes "does this form bracket itself" as an ANSWER rather than baking it in: the
+  // printer's lambda does, Fluid's draws bare and gets its parens from the rule. Same result either way.
+  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 0 false true) = false
+  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 0 false false) = true
+  (Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt 100 true false) = true
+
+  // What the whole thing is for: the editor and the printer put parentheses in the same places.
+  let sameParens (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let strip (s: String) : String =
+        s |> Stdlib.String.toList |> Stdlib.List.filter (fun c -> (Stdlib.Char.toString c) != "\n" && (Stdlib.Char.toString c) != " ")
+          |> Stdlib.List.map (fun c -> Stdlib.Char.toString c) |> Stdlib.String.join ""
+      (strip (Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e))
+      == (strip (Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))))
+    | Error _ -> false
+
+  (PrecedenceIsShared.sameParens "1 + 2 * 3") = true
+  (PrecedenceIsShared.sameParens "(1 + 2) * 3") = true
+  (PrecedenceIsShared.sameParens "a - b - c") = true
+  (PrecedenceIsShared.sameParens "2 ^ 3 ^ 2") = true
+  (PrecedenceIsShared.sameParens "a || b && c") = true
+  (PrecedenceIsShared.sameParens "f (g x) (a + b)") = true
+  (PrecedenceIsShared.sameParens "(if a then 1 else 2) + 3") = true

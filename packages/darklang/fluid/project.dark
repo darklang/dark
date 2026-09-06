@@ -24,55 +24,45 @@ let wantsType (e: Expect) : Bool =
 let tagFor (path: Path) (part: Part) : Layout.Tag =
   Layout.Tag { node = path; part = part }
 
-// --- Precedence-aware parenthesisation (mirrors PrettyPrinter.ProgramTypes) ---
+// --- Precedence-aware parenthesisation ---
+//
+// The numbers and the rules are the PRINTER's, not a copy of them: `infixPowerOfText`,
+// `operandNeedsParensAt` and `argNeedsParensAt` all live in PrettyPrinter.ProgramTypes, keyed and stated
+// so both consumers can use them. Fluid's job here is only to say what a DOCUMENT NODE's power is; the
+// deciding is shared. Two hand-written copies of the same language fact drift -- the name shorteners
+// already had -- and an editor that disagrees with the printer about parentheses is worse than either.
 
 /// (binding power, right-associative) for an operator, by its written form.
 let infixPowerOf (op: String) : (Int * Bool) =
-  match op with
-  | "||" -> (1, false)
-  | "&&" -> (2, false)
-  | "==" -> (3, false)
-  | "!=" -> (3, false)
-  | "<" -> (3, false)
-  | ">" -> (3, false)
-  | "<=" -> (3, false)
-  | ">=" -> (3, false)
-  | "+" -> (5, false)
-  | "-" -> (5, false)
-  | "++" -> (5, false)
-  | "*" -> (6, false)
-  | "/" -> (6, false)
-  | "%" -> (6, false)
-  | "^" -> (7, true)
-  | _ -> (5, false)
+  Darklang.PrettyPrinter.ProgramTypes.infixPowerOfText op
 
-/// How tightly a node binds. 0 for constructs that swallow what follows (if/match/let/lambda/pipe),
-/// the operator's power for an infix, 100 for everything self-delimiting.
+/// How tightly a node binds: the operator's power for an infix, and otherwise the printer's two named
+/// powers -- 0 for the constructs that swallow what follows them, 100 for everything self-delimiting.
+/// This mapping stays here because it reads a Fluid node; the printer's `exprPower` reads an Expr. They
+/// are two readings of the same list, which is the residue this slice does not remove.
 let nodePower (n: Node) : Int =
   match n.kind.case with
   | Some "EInfix" ->
     let (p, _) = infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
     p
-  | Some "EIf" -> 0
-  | Some "EMatch" -> 0
-  | Some "ELet" -> 0
-  | Some "ELambda" -> 0
-  | Some "EPipe" -> 0
-  | Some "EStatement" -> 0
-  | _ -> 100
+  | Some "EIf" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | Some "EMatch" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | Some "ELet" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | Some "ELambda" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | Some "EPipe" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | Some "EStatement" -> Darklang.PrettyPrinter.ProgramTypes.swallowingPower
+  | _ -> Darklang.PrettyPrinter.ProgramTypes.selfDelimitingPower
 
-/// Does a node need parens as a function argument? Application binds tightest, so anything not
-/// self-delimiting (a call, an operator expr, an if, a lambda) must be wrapped.
+/// Does a node need parens as a function argument? Fluid's lambda draws itself BARE -- unlike the
+/// printer's, which brackets itself -- so this passes `selfParenthesises = false` and gets its parens
+/// from the rule. Same visible result, arrived at from the other side, which is exactly why that is a
+/// parameter of the shared rule rather than baked into it.
 let argNeedsParens (n: Node) : Bool =
-  match n.kind.case with
-  | Some "EApply" -> true
-  | _ -> (nodePower n) < 100
+  let isApplication = n.kind.case == Stdlib.Option.Option.Some "EApply"
+  Darklang.PrettyPrinter.ProgramTypes.argNeedsParensAt (nodePower n) isApplication false
 
 let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Bool) (isRight: Bool) : Bool =
-  let p = nodePower operand
-  if p < parentPower then true
-  else if p == parentPower then (if parentRightAssoc then Stdlib.Bool.not isRight else isRight)
-  else false
+  Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight
 
 let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
   if cond then Layout.concatAll [ Layout.punct "(", d, Layout.punct ")" ] else d
