@@ -372,6 +372,47 @@ let holes (root: Slot) : List<Path * Expect> =
       |> Stdlib.List.flatten
   walk [] root
 
+/// Somewhere the caret should go next, in reading order.
+type Blank =
+  /// An empty slot: `â¨bodyâ©`.
+  | AtSlot of Path
+  /// A text field with nothing in it: the name of a parameter that has just been added.
+  | AtText of Path * String
+
+/// Everything unfinished, in reading order, INCLUDING empty text.
+///
+/// `holes` deliberately skips text, because "is this program complete" is a different question from
+/// "where does the caret go next". A parameter with no name is not a hole in the tree -- there is a node
+/// there, with a text field -- but it is the next thing you have to type. Landing off `holes` walked
+/// straight past it to the type.
+///
+/// Text fields whose name starts with `_` are skipped: a hash is carried opaquely and is not something
+/// anyone types.
+let blanks (root: Slot) : List<Blank> =
+  let walk (path: Path) (s: Slot) : List<Blank> =
+    match s with
+    | Empty e -> if e.optional then [] else [ Blank.AtSlot path ]
+    | Partial(_, _) -> []
+    | Filled n ->
+      n.fields
+      |> Stdlib.List.map (fun f ->
+        let (name, fld) = f
+
+        match fld with
+        | Text t ->
+          if (t == "") && (Stdlib.Bool.not (Stdlib.String.startsWith name "_")) then
+            [ Blank.AtText(path, name) ]
+          else
+            []
+        | One child -> walk (Path.child path name) child
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.indexedMap (fun i child -> walk (Path.item path name i) child)
+          |> Stdlib.List.flatten)
+      |> Stdlib.List.flatten
+
+  walk [] root
+
 /// True when nothing is missing or unresolved.
 let isComplete (root: Slot) : Bool =
   let walk (s: Slot) : Bool =

@@ -153,10 +153,14 @@ module Editing =
   // A pasted identifier (many graphemes at once) becomes a variable, same as typing it.
   (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "fun acc -> ~⟨body⟩"
 
-  // The palette (`:` in NAV) offers structural actions on the node under the caret.
-  (Fixtures.run [ "4", "2", "<Esc>", ":", "m", "a", "t", "c", "h", "<Enter>" ]) = "match ~42 with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  // The palette (`:` in NAV) offers structural actions on the node under the caret. An action that leaves
+  // a HOLE lands the caret in it and starts typing: it just made a blank only you can fill, and leaving
+  // the caret on the node you were already on meant the next keystroke went nowhere. "wrap in let" was
+  // already doing this by accident, through `lastEditable`; the other two were not, so the three
+  // disagreed about where you end up.
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "m", "a", "t", "c", "h", "<Enter>" ]) = "match 42 with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n42"
-  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "~42\n|> ⟨step⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "42\n|> ~⟨step⟩"
   // Esc closes the palette without changing anything.
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Esc>" ]) = "~42"
 

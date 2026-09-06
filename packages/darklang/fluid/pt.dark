@@ -2184,6 +2184,70 @@ module Fn =
     { (Spec.simple (unitParamKind ()) [ Piece.Label "()" ] (Node.make (unitParamKind ()) [])) with
         summary = PT.exprSummary }
 
+  /// A parameter with nothing filled in: `(⟨name⟩: ⟨type⟩)`. The name is an empty text slot, which is a
+  /// hole, so Tab stops there before the type.
+  let blankParam () : Slot =
+    Slot.Filled(
+      Node.make
+        (paramKind ())
+        [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+
+  /// A function that does not exist yet: a name, `()` for its parameters, and a hole for the return type
+  /// and the body. Shared with the spec's `empty` so a blank function has one shape, whether it came from
+  /// the palette or from `dark fn <name>` with nothing after it.
+  ///
+  /// `()` and not an empty list, because a function with NO parameter list is not a function -- `let f:
+  /// Int = 3` is a value. So the blank shape is one you could save as it stands, and `(` turns it into a
+  /// real parameter.
+  let emptyDocFor (name: String) : Node =
+    Node.make
+      (fnKind ())
+      [ PT.text "name" name
+        PT.text "_hash" ""
+        PT.emptyDocField ()
+        ("params", Field.Many([ Slot.Filled(Node.make (unitParamKind ()) []) ], paramExpect ()))
+        ("ret", Field.One(Slot.Empty(Types.typeExpect "return")))
+        ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ]
+
+  /// Is this the `()` that stands for "no parameters"?
+  let isUnitParam (s: Slot) : Bool =
+    match s with
+    | Filled c -> c.kind == unitParamKind ()
+    | _ -> false
+
+  /// Add a parameter. A lone `()` is REPLACED rather than appended to: `()` means the function takes
+  /// nothing, so `() (x: Int)` is not a shape the language has.
+  let addParam (n: Node) : Slot =
+    let existing = Node.items n "params"
+    let kept =
+      if ((Stdlib.List.length existing) == 1) && (existing |> Stdlib.List.all isUnitParam) then
+        []
+      else
+        existing
+    Slot.Filled(Node.setField n "params" (Field.Many(Stdlib.List.append kept [ blankParam () ], paramExpect ())))
+
+  /// Back to `()`, for a function that turns out to take nothing.
+  let clearParams (n: Node) : Slot =
+    Slot.Filled(
+      Node.setField
+        n
+        "params"
+        (Field.Many([ Slot.Filled(Node.make (unitParamKind ()) []) ], paramExpect ())))
+
+  let fnActions () : List<Action> =
+    [ Action
+        { name = "add a parameter"
+          key = Stdlib.Option.Option.Some "("
+          doc = "one more (name: Type)"
+          applies = (fun _ -> true)
+          run = addParam }
+      Action
+        { name = "takes nothing"
+          key = Stdlib.Option.Option.None
+          doc = "back to ()"
+          applies = (fun _ -> true)
+          run = clearParams } ]
+
   /// The whole function, laid out the way it reads as source: `let name (params) : ret =` then the body,
   /// indented on its own lines (vertical bias).
   let fnSpec () : Spec =
@@ -2214,14 +2278,8 @@ module Fn =
                   Piece.Space
                   Piece.Punct "=" ]) ]
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ]
-        (Node.make
-          (fnKind ())
-          [ PT.text "name" "unnamed"
-            PT.text "_hash" ""
-            PT.emptyDocField ()
-            ("params", Field.Many([], paramExpect ()))
-            ("ret", Field.One(Slot.Empty(Types.typeExpect "return")))
-            ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
+        (emptyDocFor "unnamed")) with
+        actions = fnActions ()
         summary = (fun n -> "let " ++ (PT.textOf n "name")) }
 
   let specs () : List<Spec> = [ fnSpec (), paramSpec (), unitParamSpec () ]
@@ -2384,6 +2442,40 @@ module TypeDecl =
   let simpleT (case: String) (pieces: List<Piece>) (empty: Node) : Spec =
     { (Spec.simple (k case) pieces empty) with summary = PT.exprSummary }
 
+  /// A type that does not exist yet: the name you gave and a hole for the definition. Shared with the
+  /// spec's `empty`, so a blank type has one shape whether it came from the palette or from
+  /// `dark type <name>` with nothing after it.
+  let emptyDocFor (name: String) : Node =
+    Node.make
+      (k "Type")
+      [ PT.text "name" name
+        PT.text "_hash" ""
+        PT.emptyDocField ()
+        ("params", Field.Many([], paramExpect ()))
+        ("def", Field.One(Slot.Empty(defExpect ()))) ]
+
+  /// Typing a name into a case hole makes that case, and into a field hole makes that field.
+  ///
+  /// A case and a field are NAMES. There is no menu of them to match against, so nothing settled what you
+  /// typed and it sat there as a partial that draws exactly like the real thing and refuses to lower:
+  /// "not saved: unresolved: Red", under a screen reading `| Red`. `resolve` is the spec's own answer to
+  /// "what does this text mean here", and for these two kinds it had none.
+  let resolveCase (typed: String) : Stdlib.Option.Option<Node> =
+    if PT.isIdentifier typed then
+      Stdlib.Option.Option.Some(
+        Node.make (k "EnumCase") [ PT.text "name" typed, ("fields", Field.Many([], efExpect ())) ])
+    else
+      Stdlib.Option.Option.None
+
+  let resolveField (typed: String) : Stdlib.Option.Option<Node> =
+    if PT.isIdentifier typed then
+      Stdlib.Option.Option.Some(
+        Node.make
+          (k "RecordField")
+          [ PT.text "name" typed, ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+    else
+      Stdlib.Option.Option.None
+
   let specs () : List<Spec> =
     [ simpleT
         "Type"
@@ -2396,7 +2488,7 @@ module TypeDecl =
               Piece.Space
               Piece.Punct "=" ]
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
-        (Node.make (k "Type") [ PT.text "name" "Unnamed", PT.text "_hash" "", PT.emptyDocField (), ("params", Field.Many([], paramExpect ())), ("def", Field.One(Slot.Empty(defExpect ()))) ])
+        (emptyDocFor "Unnamed")
       // A declaration's own type params carry the quote too: the printer writes `type Option<'v>`, and
       // Fluid drew `type Option<v>`. The CASES were already right, because those are TypeReferences.
       simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
@@ -2420,14 +2512,16 @@ module TypeDecl =
         [ Piece.EachWith("cases", [ Piece.Punct "|", Piece.Space ], [ Piece.HardLine ]) ]
         (Node.make (k "Enum") [ ("cases", Field.Many([ Slot.Empty(caseExpect2 ()) ], caseExpect2 ())) ])
       simpleT "Alias" [ Piece.Slot "type" ] (Node.make (k "Alias") [ ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
-      simpleT
-        "RecordField"
-        [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
-        (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
-      simpleT
-        "EnumCase"
-        [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
-        (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ])
+      { (simpleT
+          "RecordField"
+          [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
+          (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
+          resolve = resolveField }
+      { (simpleT
+          "EnumCase"
+          [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
+          (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ])) with
+          resolve = resolveCase }
       simpleT
         "EnumField"
         // A function type in an enum case gets brackets: the case's fields are a `*` product, and
@@ -2449,6 +2543,17 @@ module Value =
 
   val valType = "Darklang.Fluid.PT.Value.Value"
   let valKind () : Kind = Kind.named valType
+
+  /// A value that does not exist yet: the name you gave and a hole for the body. Shared with the spec's
+  /// `empty`, so a blank value has one shape whether it came from the palette or from `dark val <name>`
+  /// with nothing after it.
+  let emptyDocFor (name: String) : Node =
+    Node.make
+      (valKind ())
+      [ PT.text "name" name
+        PT.text "_hash" ""
+        PT.emptyDocField ()
+        ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ]
 
   let toDoc (name: String) (pv: PackageValue) : Node =
     Node.make
@@ -2483,5 +2588,5 @@ module Value =
                 // before its body; that difference is the printer's, and Fluid follows it.)
                 Piece.Space
                 Piece.Slot "body" ] ]
-          (Node.make (valKind ()) [ PT.text "name" "unnamed", PT.text "_hash" "", PT.emptyDocField (), ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
+          (emptyDocFor "unnamed")) with
           summary = (fun n -> "val " ++ (PT.textOf n "name")) } ]

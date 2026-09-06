@@ -113,8 +113,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | Available ->
 
-  // A function opens in the structural editor (Fluid) by default; `--text` forces $EDITOR, and types
-  // and values still go to $EDITOR because Fluid doesn't edit them yet.
+  // Functions, types and values all open in the structural editor by default; `--text` forces $EDITOR.
+  // Creating one lands in the same editor: `dark fn <name>` with nothing after it opens a blank function,
+  // so making something and changing it are the same door.
   match (location, wantsText) with
   | (Function _fnLoc, false) -> Darklang.Fluid.App.editFn state name
   | (Type _typeLoc, false) -> Darklang.Fluid.App.editType state name

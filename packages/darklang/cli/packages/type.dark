@@ -12,7 +12,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then
-      // No inline definition provided - show error
+      // No definition: open the structural editor on an empty type with this name. Same door as
+      // `dark edit <name>`, which has opened the editor on an existing type for a while; creating one
+      // was the half that still made you type source onto a command line.
+      match
+        (Stdlib.Cli.Tui.TerminalSupport.current (),
+         Location.parseRelativeTo state.packageData.currentLocation location)
+      with
+      | (Available, Ok loc) -> Darklang.Fluid.App.createType state loc
+      | _ ->
       [
         (Stdlib.Cli.UI.Colors.error "Error: Inline type definition required")
         ""

@@ -582,8 +582,23 @@ let applyAction (st: State) (action: Action) : State =
   match nodeAtPath st.root (navPath st) with
   | Some n ->
     let here = navPath st
-    let st1 = commit { st with paletteOpen = false } [ Edit.Replace(here, action.run n) ] st.caret
-    { st1 with caret = navCaretFor st1.root here; message = action.name }
+    let replacement = action.run n
+    let st1 = commit { st with paletteOpen = false } [ Edit.Replace(here, replacement) ] st.caret
+
+    // If the action left a HOLE, go to it and start typing. An action that adds something -- a parameter,
+    // a let above this, a match around it -- has just made a blank that only you can fill, and leaving the
+    // caret on the node you were already on meant the next keystroke went nowhere. This is the same
+    // landing rule the kernel already used after filling a hole or wrapping a node; actions were the one
+    // path that did not.
+    //
+    // An action that leaves no hole -- unwrap, convert to match -- keeps the caret where it was, in NAV.
+    match replacement with
+    | Filled c when Stdlib.Bool.not (Stdlib.List.isEmpty (holes (Slot.Filled c))) ->
+      { st1 with
+          caret = landAfterCommit here c
+          mode = Mode.Insert
+          message = action.name }
+    | _ -> { st1 with caret = navCaretFor st1.root here; message = action.name }
   | None -> closePalette st
 
 /// The action a SPEC binds to `ch` on the node the caret is on, if any.
@@ -2152,8 +2167,11 @@ let selectedCandidate (st: State) : Stdlib.Option.Option<Candidate> =
 
 /// After committing a candidate: its first hole if it has one, else the end of its text.
 let landAfterCommit (path: Path) (n: Node) : Caret =
-  match holes (Slot.Filled n) with
-  | (holePath, _) :: _ ->
+  // `blanks`, not `holes`: an empty TEXT field is the next thing to type too, and landing off `holes`
+  // walked past a parameter with no name straight into its type.
+  match blanks (Slot.Filled n) with
+  | AtText(textPath, slotName) :: _ -> Caret.inText (Stdlib.List.append path textPath) slotName 0
+  | AtSlot holePath :: _ ->
     let full = Stdlib.List.append path holePath
     match Path.parent full with
     | Some parentPath ->
@@ -2186,7 +2204,18 @@ let resolvePartial (st: State) : Stdlib.Option.Option<State> =
         | Some n ->
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] st.caret
           Stdlib.Option.Option.Some { st1 with caret = lastEditable sp n }
-        | None -> Stdlib.Option.Option.None
+        | None ->
+          // What you typed IS one of the options, so settling takes it. A spec's `resolve` is for the
+          // things no menu can list -- a variable name, a type variable -- and it said no to `Int`,
+          // because `Int` is a CANDIDATE. So Escape left a partial that draws exactly like a resolved
+          // type and then refused to lower: "not saved: unresolved: Int", under a screen reading
+          // `(n: Int): Int`. The menu already treats an exact match as nothing to wave off; this is the
+          // same rule one step later, where it decides what you actually get.
+          match exactCandidate st with
+          | Some c ->
+            let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+            Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }
+          | None -> Stdlib.Option.Option.None
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 
@@ -2549,21 +2578,21 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         else
           handled committed
       else
-        match addSibling st with
+        // SETTLE what you typed, then start the next item. This added the sibling first and only fell back
+        // to settling when there was nothing to add, so in a list whose items are TYPED rather than picked
+        // -- an enum's cases, a record's fields -- every item but the last stayed a partial. It drew
+        // exactly like the real thing, and `type Colour = | Red | Green | Blue` then refused to save with
+        // "unresolved: Red".
+        match addSibling settled with
         | Some added -> handled added
-        | None ->
-          match resolvePartial st with
-          | Some resolved -> handled resolved
-          | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+        | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
     | None ->
       if completing && (onPartial st) then handled (commitCandidate st)
       else
-        match addSibling st with
+        // Same rule outside a list: settle first.
+        match addSibling settled with
         | Some added -> handled added
-        | None ->
-          match resolvePartial st with
-          | Some resolved -> handled resolved
-          | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+        | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
     // Tab commits a partial that's being typed, then advances -- UNLESS the commit landed on a fresh hole

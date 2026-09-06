@@ -313,3 +313,53 @@ module NullaryFunctionsDrawTheirParens =
     | _ -> ("not-a-node", "")
 
   (NullaryFunctionsDrawTheirParens.lowered ()) = ("_", "Unit")
+
+
+module MakingOneIsEditingOne =
+  // `dark edit <name>` opened the structural editor; `dark fn <name>` made you type a whole definition
+  // onto a command line. Creating and changing are the same act, so they are the same door now: with no
+  // definition, `dark fn` opens this shell and saving CREATES the function, through the same
+  // `applySource` an edit goes through.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let blankDoc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "triple")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (MakingOneIsEditingOne.reg ()) (MakingOneIsEditingOne.blankDoc ()) 70 keys
+
+  // `()` and not an empty parameter list: a function with no parameter list at all is not a function,
+  // `let f: Int = 3` is a value. So the blank shape is one you could save as it stands.
+  (MakingOneIsEditingOne.run []) = "~let triple (): <return> =\n  ⟨body⟩"
+
+  // `(` adds a parameter and lands on its NAME. A lone `()` is replaced rather than appended to, because
+  // `() (x: Int)` is not a shape the language has.
+  (MakingOneIsEditingOne.run [ "(" ]) = "let triple (~name: <type>): <return> =\n  ⟨body⟩"
+  (MakingOneIsEditingOne.run [ "(", "n" ]) = "let triple (n~: <type>): <return> =\n  ⟨body⟩"
+
+  // The whole function, typed from nothing.
+  (MakingOneIsEditingOne.run
+    [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "n", "*", "3" ]) =
+    "let triple (n: Int): Int =\n  n * 3~"
+
+  // And it lowers to the function it looks like. This is the pin that matters: everything above is a
+  // drawing, and this is the program.
+  let lowered (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (MakingOneIsEditingOne.reg ()) (MakingOneIsEditingOne.blankDoc ()) 70) keys
+    match st.root with
+    | Filled node ->
+      (match Darklang.Fluid.PT.Fn.fromDoc (Fixtures.inc ()) node with
+       | Ok((_, fn)) ->
+         Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature (Darklang.Fluid.PT.printerContext ()) fn
+       | Error e -> "ERR " ++ e)
+    | _ -> "not a node"
+
+  (MakingOneIsEditingOne.lowered
+    [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "n", "*", "3", "<Esc>" ]) =
+    "(n: Int) -> Int"
+
+  // Escape settles what you typed when it is exactly one of the options. `Int` is a CANDIDATE, not
+  // something a spec's `resolve` invents, so settling used to leave a partial that draws exactly like a
+  // resolved type and then refuses to lower: "not saved: unresolved: Int", under a screen reading
+  // `(n: Int): Int`.
+  // The complaint that comes back names the BODY, not the types: both `Int`s settled. Before, this said
+  // "unresolved: Int" while the screen read `(n: Int): Int`.
+  (MakingOneIsEditingOne.lowered [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>" ]) =
+    "ERR the body is a hole"

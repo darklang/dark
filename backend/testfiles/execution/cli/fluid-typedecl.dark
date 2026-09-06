@@ -401,3 +401,40 @@ module NamesReadFromWhereYouStand =
 
   (NamesReadFromWhereYouStand.exprType ()) =
     "/// Expressions - the main part of the language.\ntype Expr =\n  | EUnit of ID\n  | EBool of ID * Bool"
+
+
+module MakingATypeIsEditingOne =
+  // The same door for a type: `dark type <name>` with no definition opens this shell, and saving creates
+  // it. The definition hole offers record / enum / alias.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let blankDoc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.emptyDocFor "Colour")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (MakingATypeIsEditingOne.reg ()) (MakingATypeIsEditingOne.blankDoc ()) 70 keys
+
+  (MakingATypeIsEditingOne.run []) = "~type Colour =\n  ⟨definition⟩"
+
+  (MakingATypeIsEditingOne.run [ "<Tab>", "e", "n", "u", "m", "<Enter>", "R", "e", "d", "<Enter>", "G", "r", "e", "e", "n", "<Esc>" ]) =
+    "type Colour =\n  | Red\n  | ~Green"
+
+  // A case and a field are NAMES: no menu lists them, so the spec has to say what typed text means here.
+  // Without that they sat as partials that draw like the real thing and refuse to lower.
+  //
+  // And Enter SETTLES the item before starting the next one. It used to add the sibling first, so every
+  // case but the last stayed a partial and `| Red | Green | Blue` would not save.
+  let lowered (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (MakingATypeIsEditingOne.reg ()) (MakingATypeIsEditingOne.blankDoc ()) 70) keys
+    match st.root with
+    | Filled node ->
+      (match Darklang.Fluid.PT.TypeDecl.fromDoc (Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit))) node with
+       | Ok((_, pt)) ->
+         Fixtures.show "X" pt
+       | Error e -> "ERR " ++ e)
+    | _ -> "not a node"
+
+  (MakingATypeIsEditingOne.lowered
+    [ "<Tab>", "e", "n", "u", "m", "<Enter>", "R", "e", "d", "<Enter>", "G", "r", "e", "e", "n", "<Esc>" ]) =
+    "type X =\n  | Red\n  | Green"
+
+  (MakingATypeIsEditingOne.lowered
+    [ "<Tab>", "r", "e", "c", "o", "r", "d", "<Enter>", "n", "a", "m", "e", "<Tab>", "S", "t", "r", "i", "n", "g", "<Esc>" ]) =
+    "type X =\n  { name: String }"

@@ -62,7 +62,7 @@ module Registry =
       ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
-      ("fluid", "Structured editor (WIP)", [], Darklang.Fluid.App.execute, Darklang.Fluid.App.help, Darklang.Fluid.App.complete)
+      ("fluid", "Edit code as a tree (experimental)", [], Darklang.Fluid.App.execute, Darklang.Fluid.App.help, Darklang.Fluid.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
       ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
       ("review", "Review branch changesets", [], SCM.Review.App.execute, SCM.Review.App.help, SCM.Review.App.complete)
@@ -160,8 +160,11 @@ module Registry =
     state
 
   // Command groups organized by category (shared between compact and detailed views)
+  // `edit` and `fluid` were in the command table and in no GROUP, so `dark help` listed neither. They
+  // belong next to the commands that MAKE things, because `dark fn <name>` with nothing after it now
+  // opens the same editor `dark edit <name>` does.
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "let", "fn", "type", "module", "hash", "db", "deprecate", "delete" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "let", "fn", "type", "module", "edit", "fluid", "hash", "db", "deprecate", "delete" ])
       ("SCM",
        [ "status", "commits", "commit", "discard", "show", "ops", "branch", "rebase", "merge", "review" ])
       ("Execution", [ "run", "eval", "scripts" ])

@@ -151,6 +151,24 @@ let fnTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
     | None -> Stdlib.Result.Result.Error $"no function with that hash: {name}"
   | None -> Stdlib.Result.Result.Error $"no function named {name}"
 
+/// A function that does not exist yet, as a document to fill in.
+///
+/// There is no separate create path: saving reconstructs source and hands it to the same `applySource`
+/// that an edit uses, and that adds a declaration to a module exactly the way `dark module` does. So a new
+/// function and a changed one go through one route, and `dark fn <name>` with nothing after it can open
+/// the editor instead of asking you to type a definition onto a command line.
+let newFnTarget (location: Darklang.LanguageTools.ProgramTypes.PackageLocation) : (Slot * Target) =
+  let blank =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash ""
+        body = Darklang.LanguageTools.ProgramTypes.Expr.EUnit 0L
+        typeParams = []
+        parameters = []
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+        description = "" }
+
+  (Slot.Filled(PT.Fn.emptyDocFor location.name), Target.FnBody(blank, location))
+
 let launchTarget (cliState: Darklang.Cli.AppState) (title: String) (root: Slot) (target: Target) : Darklang.Cli.AppState =
   match Stdlib.Cli.Tui.TerminalSupport.current () with
   | Available -> Darklang.Cli.Component.launch cliState component (initialFor title root target)
@@ -186,6 +204,54 @@ let editFn (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.AppSt
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
     cliState
+
+/// The same for a type and a value. Three kinds, one door: `dark <kind> <name>` with nothing after it
+/// opens the editor, and `dark edit <name>` opens the same editor on what is already there.
+let newTypeTarget (location: Darklang.LanguageTools.ProgramTypes.PackageLocation) : (Slot * Target) =
+  let blank =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash ""
+        declaration =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams = []
+              definition = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit) }
+        description = "" }
+
+  (Slot.Filled(PT.TypeDecl.emptyDocFor location.name), Target.TypeDef(blank, location))
+
+let newValueTarget (location: Darklang.LanguageTools.ProgramTypes.PackageLocation) : (Slot * Target) =
+  let blank =
+    Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash ""
+        body = Darklang.LanguageTools.ProgramTypes.Expr.EUnit 0L
+        description = "" }
+
+  (Slot.Filled(PT.Value.emptyDocFor location.name), Target.ValueDef(blank, location))
+
+/// Open a function that does not exist yet. `dark fn <name>` with no definition lands here.
+let createFn
+  (cliState: Darklang.Cli.AppState)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Darklang.Cli.AppState =
+  let (root, target) = newFnTarget location
+  let full = Stdlib.String.join (Stdlib.List.flatten [ [ location.owner ], location.modules, [ location.name ] ]) "."
+  launchTarget cliState $"fluid: {full} (new)" root target
+
+let createType
+  (cliState: Darklang.Cli.AppState)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Darklang.Cli.AppState =
+  let (root, target) = newTypeTarget location
+  let full = Stdlib.String.join (Stdlib.List.flatten [ [ location.owner ], location.modules, [ location.name ] ]) "."
+  launchTarget cliState $"fluid: {full} (new)" root target
+
+let createValue
+  (cliState: Darklang.Cli.AppState)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Darklang.Cli.AppState =
+  let (root, target) = newValueTarget location
+  let full = Stdlib.String.join (Stdlib.List.flatten [ [ location.owner ], location.modules, [ location.name ] ]) "."
+  launchTarget cliState $"fluid: {full} (new)" root target
 
 let typeTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
   let branchId = Darklang.SCM.Branch.mainBranchId
