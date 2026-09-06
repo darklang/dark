@@ -165,3 +165,11 @@ module MatchesThePrinterExactly =
   (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.andThen") = "same"
   (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.length") = "same"
   (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.head") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.String.join") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.withDefault") = "same"
+
+  // A signature too long for the line puts ONE PARAMETER PER LINE, the way the printer does. The
+  // parameters are separated by a Line rather than a hard space; with a hard space the list could not
+  // break at all, so the only thing left that could was a type INSIDE a parameter, and `Result.map2` came
+  // out with `Result<` split across three lines mid-parameter. Same bug as the type arguments, a level up.
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Result.map2") = "same"

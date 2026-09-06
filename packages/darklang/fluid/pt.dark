@@ -1860,13 +1860,22 @@ module Fn =
               Piece.Space
               Piece.Text("name", Layout.Style.Name)
               Piece.EachWrapped("typeParams", "<", [ Piece.Punct ",", Piece.Space ], ">")
-              Piece.EachWith("params", [ Piece.Space ], [])
-              // No space before the colon: the printer writes `(list: List<'a>): Int`.
-              Piece.Punct ":"
-              Piece.Space
-              Piece.Slot "ret"
-              Piece.Space
-              Piece.Punct "=" ]
+              // The parameters are separated by a LINE, not a hard space, so a signature that doesn't fit
+              // puts one parameter per line the way the printer does. With a hard space the list could not
+              // break at all, and the only thing left that could was a type INSIDE a parameter -- so
+              // `Result.map2` came out with `Result<` split across three lines mid-parameter. Same bug as
+              // the type arguments, one level up.
+              Piece.Nest(
+                2,
+                [ Piece.EachWith("params", [ Piece.Line ], [])
+                  // Nothing before the colon when it fits, a newline when it doesn't: the printer writes
+                  // `(list: List<'a>): Int` on one line and `  : Result<'c, 'e> =` on its own.
+                  Piece.SoftLine
+                  Piece.Punct ":"
+                  Piece.Space
+                  Piece.Slot "ret"
+                  Piece.Space
+                  Piece.Punct "=" ]) ]
           Piece.Nest(2, [ Piece.HardLine, Piece.Slot "body" ]) ]
         (Node.make
           (fnKind ())

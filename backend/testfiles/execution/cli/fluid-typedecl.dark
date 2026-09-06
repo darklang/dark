@@ -205,3 +205,27 @@ module SaveFidelity =
   (SaveFidelity.verdict "Darklang.Stdlib.Result.Result") = "same"
   (SaveFidelity.verdict "Darklang.Stdlib.Cli.Tui.Size") = "same"
   (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.NameResolution") = "same"
+
+
+module FieldsFitWhenTheyFit =
+  // An enum case's fields get their OWN group inside the case's, exactly as the printer nests them: the
+  // outer decides whether the case fits after its `of`, and the inner then decides, at the new indent,
+  // whether the fields fit on one line. Sharing one group broke them together, so
+  // `| EFloat of ID * Sign * String * String` -- which fits perfectly well once indented -- came out one
+  // field per line.
+  let show (fields: List<Darklang.LanguageTools.ProgramTypes.TypeReference>) : String =
+    Fixtures.show "T"
+      (MatchesThePrinter.mkP
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+          [ Fixtures.ecase "Case" (fields |> Stdlib.List.map (fun t -> Fixtures.ef t)) ]))
+
+  // Short enough after the break: the head breaks, the fields stay together.
+  (FieldsFitWhenTheyFit.show
+    [ Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]) = "type T =\n  | Case of String * Int * Bool"
+
+  // Still one per line when they genuinely do not fit.
+  (Stdlib.String.contains
+    (FieldsFitWhenTheyFit.show [ MatchesThePrinter.deep (), MatchesThePrinter.deep () ]) " *\n") = true

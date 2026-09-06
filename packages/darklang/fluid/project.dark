@@ -257,10 +257,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
         // rather than a bracket -- an enum case's ` of `. It wants a Line (a space that can become a
         // break), not a SoftLine: with the bracket shape, a case broke as `| TTuple of ` with a trailing
         // space, and then a line holding nothing but indentation where the closing SoftLine fired.
+        // TWO groups, like the printer. The outer one decides whether the whole case fits after its `of`;
+        // the inner one then decides, at the new indent, whether the FIELDS fit on one line. With a single
+        // group they broke together, so `| EFloat of ID * Sign * String * String` -- which fits perfectly
+        // well once indented -- came out one field per line.
         Layout.group
           (Layout.concatAll
             [ Layout.punct openP
-              Layout.nest 2 (Layout.concat Layout.Doc.Line (Layout.join docs sepDoc)) ])
+              Layout.nest 2 (Layout.concat Layout.Doc.Line (Layout.group (Layout.join docs sepDoc))) ])
       else
         Layout.group
           (Layout.concatAll
