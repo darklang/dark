@@ -17,17 +17,37 @@ let underNavCaret (st: Editor.State) (c: Layout.Cell) : Bool =
     | Some t -> Layout.tagMatches t st.caret.node st.caret.part
     | None -> false
 
-let renderCell (theme: Theme.Theme) (st: Editor.State) (c: Layout.Cell) : String =
+let renderCell (theme: Theme.Theme) (c: Layout.Cell) (selected: Bool) : String =
   let sgr = Theme.styleColor theme c.style
-  let selected = underNavCaret st c
   let opening = if selected then theme.selection ++ sgr else sgr
   if opening == "" then
     c.text
   else
     opening ++ c.text ++ Stdlib.Cli.UI.Colors.reset
 
+/// The selection is a RANGE on each row, not a set of cells.
+///
+/// Only text carries a tag -- punctuation, keywords and the spaces between them do not -- so asking each
+/// cell "are you under the caret" and reversing the ones that said yes highlighted a node's names and
+/// literals and left its `let`, its `=` and its `match` plain. On a leaf that is invisible. On a
+/// fifteen-line `let` it was forty scattered words in reverse video instead of a block you could see.
+/// Everything between the first and last selected cell on a row is selected, which is what selecting a
+/// subtree means.
 let renderRow (theme: Theme.Theme) (st: Editor.State) (row: Layout.Row) : String =
-  row |> Stdlib.List.map (fun c -> renderCell theme st c) |> Stdlib.String.join ""
+  let flags = row |> Stdlib.List.map (fun c -> underNavCaret st c)
+
+  match Stdlib.List.findFirstIndex flags (fun b -> b) with
+  | None -> row |> Stdlib.List.map (fun c -> renderCell theme c false) |> Stdlib.String.join ""
+  | Some first ->
+    let n = Stdlib.List.length flags
+    let fromEnd =
+      Stdlib.List.findFirstIndex (Stdlib.List.reverse flags) (fun b -> b)
+      |> Stdlib.Option.withDefault 0
+    let last = n - 1 - fromEnd
+
+    row
+    |> Stdlib.List.indexedMap (fun i c -> renderCell theme c ((i >= first) && (i <= last)))
+    |> Stdlib.String.join ""
 
 /// The first visible row, so the caret's row is on screen.
 let scrollFor (caretRow: Int) (height: Int) (scroll: Int) : Int =

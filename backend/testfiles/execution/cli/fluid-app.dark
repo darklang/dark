@@ -363,3 +363,59 @@ module TextEditKeepsHistory =
   // ...and undo peels the text edit rather than finding an empty history.
   (Darklang.Fluid.App.docToSource
     (Darklang.Fluid.Editor.undo (TextEditKeepsHistory.applied ()).editor).root) = "1 + 2"
+
+
+module TheNavSelectionIsARange =
+  // In NAV the current node is shown in reverse video. Only TEXT carries a tag, though -- punctuation,
+  // keywords and the spaces between them do not -- so asking each cell "are you under the caret" and
+  // reversing the ones that said yes highlighted a node's names and literals and left its `(`, its `->`
+  // and the spaces plain. On a leaf that is invisible. On a fifteen-line `let` it was forty scattered
+  // words in reverse video instead of a block you could see, which is a thing that only exists through a
+  // terminal.
+  //
+  // A marker theme rather than real SGR, so the pin says which cells are selected and nothing about
+  // colour: `<` opens a selected run and `>` closes any styled run.
+  let theme () : Darklang.Fluid.Theme.Theme =
+    { (Darklang.Fluid.Theme.mono ()) with
+        plain = ""
+        keyword = ""
+        punct = ""
+        literal = ""
+        name = ""
+        label = ""
+        hole = ""
+        partial = ""
+        dim = ""
+        error = ""
+        selection = "<" }
+
+  let ed (src: String) (keys: List<String>) : Darklang.Fluid.Editor.State =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)) 80)
+        keys
+    | Error _ ->
+      Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")) 80
+
+  let marked (src: String) (keys: List<String>) : String =
+    let st = TheNavSelectionIsARange.ed src keys
+    Darklang.Fluid.Widget.rowsFor st
+    |> Stdlib.List.map (fun r ->
+      Stdlib.String.replaceAll
+        (Darklang.Fluid.Widget.renderRow (TheNavSelectionIsARange.theme ()) st r)
+        Stdlib.Cli.UI.Colors.reset
+        ">")
+    |> Stdlib.String.join "\n"
+
+  // The whole call: the spaces, the paren and the `->` inside it are all part of the selection now.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" []) =
+    "<Stdlib.List.map>< ><xs>< ><(><fun>< ><a>< ><->>< ><a>)"
+
+  // A leaf is still just itself.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" [ "l" ]) =
+    "<Stdlib.List.map> xs (fun a -> a)"
+
+  // INSERT has the terminal's own cursor, so nothing is reversed.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" [ "i" ]) =
+    "Stdlib.List.map xs (fun a -> a)"
