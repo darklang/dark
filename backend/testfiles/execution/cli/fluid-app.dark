@@ -17,9 +17,11 @@ module Fixtures =
       { editor = editor
         title = "fluid: test"
         scroll = 0
+        hscroll = 0
         target = Darklang.Fluid.App.Target.Scratch
         theme = Darklang.Fluid.Theme.default ()
         bodyRows = 20
+        bodyCols = 100
         inspectorOpen = false
         evaluated = Stdlib.Option.Option.None
         textMode = Stdlib.Option.Option.None }
@@ -275,3 +277,52 @@ module NewShapesSurviveTextMode =
   (NewShapesSurviveTextMode.roundTrip "Result.Ok(1)") = "Result.Ok(1)"
   (NewShapesSurviveTextMode.roundTrip "match r with\n| Ok(v) -> v\n| Error(e) -> 0") =
     "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+
+module LongLinesScrollSideways =
+  // A projection can hold a line that no width will break -- a doc comment is one long token, and the
+  // printer doesn't wrap it either -- and the pane used to cut it at the border with nothing to say it
+  // had. The pane moves sideways now, the same way it already moved down: `scrollFor` decides both, from
+  // the caret's row and the caret's column.
+  let ed () : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "\"0123456789abcdefghijklmnopqrstuvwxyz\"") 200
+
+  let row0 () : Darklang.Fluid.Layout.Row =
+    Darklang.Fluid.Widget.rowsFor (LongLinesScrollSideways.ed ()) |> Stdlib.List.head |> Stdlib.Option.withDefault []
+
+  let clip (cols: Int) (h: Int) : String =
+    Darklang.Stdlib.Cli.Tui.Text.stripSgr
+      (Darklang.Fluid.Widget.clipRow
+        (Darklang.Fluid.Theme.mono ())
+        (LongLinesScrollSideways.ed ())
+        cols
+        h
+        (LongLinesScrollSideways.row0 ()))
+
+  // Wide enough: untouched, and no markers invented.
+  (LongLinesScrollSideways.clip 100 0) = "\"0123456789abcdefghijklmnopqrstuvwxyz\""
+
+  // Too narrow: cut on the right, and the `>` takes the place of the column it hides rather than pushing
+  // the line over -- the caret is positioned from the same arithmetic, so a marker that shifted the text
+  // would put the cursor one column off.
+  (LongLinesScrollSideways.clip 10 0) = "\"01234567>"
+
+  // Scrolled into the middle: cut on both sides, still exactly ten columns wide.
+  (LongLinesScrollSideways.clip 10 5) = "<56789abc>"
+
+  // Scrolled past where the line ends: cut on the left only, and no `>` invented for a line that stops.
+  (LongLinesScrollSideways.clip 10 30) = "<uvwxyz\""
+
+  // The two row operations underneath, said directly. A cell straddling the cut is SPLIT and keeps its
+  // tag, so scrolling never changes what the document is, only which part of it you are looking at.
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 3 (LongLinesScrollSideways.row0 ())))
+    = "23456789abcdefghijklmnopqrstuvwxyz\""
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.takeCols 4 (LongLinesScrollSideways.row0 ()))) = "\"012"
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 0 (LongLinesScrollSideways.row0 ())))
+    = "\"0123456789abcdefghijklmnopqrstuvwxyz\""
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 99 (LongLinesScrollSideways.row0 ()))) = ""
+
+  // The caret's column is what the scroll follows, so a caret past the right edge pulls the window along.
+  (Darklang.Fluid.Widget.scrollFor 40 10 0) = 31
+  (Darklang.Fluid.Widget.scrollFor 3 10 31) = 3
+  (Darklang.Fluid.Widget.scrollFor 5 10 0) = 0

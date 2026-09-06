@@ -25,10 +25,15 @@ type State =
   { editor: Editor.State
     title: String
     scroll: Int
+    /// The leftmost column on screen. A projection can hold a line no width will break -- a doc comment
+    /// is one long token -- so the pane moves sideways rather than cutting at the border with no sign.
+    hscroll: Int
     target: Target
     theme: Theme.Theme
     /// Rows the body had at the last key, so scrolling can be computed outside `view`.
     bodyRows: Int
+    /// Columns it had, for the same reason, so horizontal scrolling is decided the same way.
+    bodyCols: Int
     /// The last thing `v` evaluated: the node it was asked about, and what came back. Kept rather than
     /// recomputed, because evaluating is RUNNING THE CODE -- doing that on every keystroke would fire
     /// whatever effects the expression has while you are still typing it.
@@ -214,9 +219,11 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
     { editor = Editor.init (defaultRegistry ()) root width
       title = title
       scroll = 0
+      hscroll = 0
       target = target
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
       bodyRows = Stdlib.Int.max 1 (size.height - 3)
+      bodyCols = Stdlib.Int.max 1 (size.width - 6)
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None }
@@ -331,11 +338,11 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let paneTitle = "fluid · " ++ (Editor.breadcrumb st.editor)
   // Completions live at the caret, always: a floating popover under (or over) the cursor, so the menu is
   // where your eyes already are rather than off in a side panel. The inspector no longer lists them.
-  let popoverSpans = Widget.popover st.theme st.editor region st.scroll
+  let popoverSpans = Widget.popover st.theme st.editor region st.scroll st.hscroll
   let mainSpans =
     Stdlib.List.flatten
       [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true
-        Widget.view st.theme st.editor region st.scroll
+        Widget.view st.theme st.editor region st.scroll st.hscroll
         popoverSpans
         Widget.palette st.theme st.editor region ]
   let inspSpans =
@@ -361,7 +368,7 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
   match st.editor.mode with
   | Insert ->
-    match Widget.caretScreenPos st.editor region st.scroll with
+    match Widget.caretScreenPos st.editor region st.scroll st.hscroll with
     | Some((row, col)) ->
       { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(row - 1, col - 1) }
     | None -> v
@@ -369,7 +376,11 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
 
 let afterKey (st: State) (editor: Editor.State) : State =
   let row = Widget.caretRow editor
-  { st with editor = editor; scroll = Widget.scrollFor row st.bodyRows st.scroll }
+  let col = Widget.caretCol editor
+  { st with
+      editor = editor
+      scroll = Widget.scrollFor row st.bodyRows st.scroll
+      hscroll = Widget.scrollFor col st.bodyCols st.hscroll }
 
 /// The current document as Dark source, or why it can't be printed yet (a half-typed name, a hole). An
 /// empty document is fine -- that's just an empty buffer to type into.

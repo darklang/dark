@@ -254,6 +254,56 @@ let rowText (row: Row) : String =
 let toText (rows: List<Row>) : String =
   rows |> Stdlib.List.map (fun r -> rowText r) |> Stdlib.String.join "\n"
 
+/// Total display width of a row.
+let rowWidth (row: Row) : Int = Stdlib.List.fold row 0 (fun acc c -> acc + c.width)
+
+/// The grapheme index in `s` at (or just left of) display column `col`.
+let graphemeAtWidth (s: String) (col: Int) : Int =
+  let n = Stdlib.String.length s
+  Stdlib.List.range 0 n
+  |> Stdlib.List.filter (fun k -> (Stdlib.String.displayWidth (Stdlib.String.slice s 0 k)) <= col)
+  |> Stdlib.List.last
+  |> Stdlib.Option.withDefault 0
+
+/// A row with its first `n` display columns removed. A cell straddling the cut is SPLIT and keeps its
+/// tag, so the caret is still findable inside what remains -- horizontal scrolling must not change what
+/// the document is, only which part of it you are looking at.
+let dropCols (n: Int) (row: Row) : Row =
+  if n <= 0 then
+    row
+  else
+    let (_, kept) =
+      Stdlib.List.fold row ((n, [])) (fun acc c ->
+        let (left, out) = acc
+        if left <= 0 then
+          (0, Stdlib.List.push out c)
+        elif c.width <= left then
+          (left - c.width, out)
+        else
+          let idx = graphemeAtWidth c.text left
+          let tail = Stdlib.String.slice c.text idx (Stdlib.String.length c.text)
+          (0, Stdlib.List.push out (Cell { text = tail; style = c.style; tag = c.tag; width = Stdlib.String.displayWidth tail })))
+    Stdlib.List.reverse kept
+
+/// A row cut down to its first `n` display columns, splitting the straddling cell the same way.
+let takeCols (n: Int) (row: Row) : Row =
+  if n <= 0 then
+    []
+  else
+    let (_, kept) =
+      Stdlib.List.fold row ((n, [])) (fun acc c ->
+        let (left, out) = acc
+        if left <= 0 then
+          (0, out)
+        elif c.width <= left then
+          (left - c.width, Stdlib.List.push out c)
+        else
+          let idx = graphemeAtWidth c.text left
+          let head = Stdlib.String.slice c.text 0 idx
+          (0, Stdlib.List.push out (Cell { text = head; style = c.style; tag = c.tag; width = Stdlib.String.displayWidth head })))
+    Stdlib.List.reverse kept
+
+
 /// Column where cell `idx` of `row` starts.
 let colOfCell (row: Row) (idx: Int) : Int =
   Stdlib.List.take row idx
