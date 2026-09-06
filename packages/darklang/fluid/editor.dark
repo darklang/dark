@@ -1562,7 +1562,14 @@ let typeChar (st: State) (c: String) : State =
     // BEFORE the run. That is how typing `Stdlib.List.filter ` quickly committed the empty hole's only
     // candidate (`fun`, a lambda) and threw the whole name away, while typing it slowly worked.
     // Refresh between characters so a run behaves exactly like typing it.
-    Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g -> refreshMenu (typeOne acc (Stdlib.Char.toString g)))
+    // ...but only before a character that READS it. A space is the one, in the commit-on-space branch of
+    // typeOne; every other character just goes into the text. Refreshing before all of them cost a package
+    // search each -- ~70ms, measured -- and discarded all but the last. The end-of-keypress refresh in
+    // withRefreshedMenu still happens either way, so what the popover shows is unchanged.
+    Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g ->
+      let ch = Stdlib.Char.toString g
+      let ready = if ch == " " then refreshMenu acc else acc
+      typeOne ready ch)
 
 
 /// The text slot a leaf carries its content in, if it's the kind we can merge by concatenation: an int's
