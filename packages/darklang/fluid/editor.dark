@@ -1158,6 +1158,16 @@ let typeOne (st: State) (c: String) : State =
   match leadPunctRevision st c with
   | Some revised -> revised
   | None ->
+  // The character a spec draws BEFORE EACH ITEM of a list starts the next item: `|` at the end of a match
+  // arm's rhs is a new arm, which is how anyone writing the source would type it. Asked of the projection
+  // rather than hard-coded, so a DSL that separates its items some other way gets it too.
+  //
+  // Up here rather than in the text branch below, because the caret is not always in text at the end of an
+  // item: type a string and the closing quote leaves you AFTER the node, and `| 0 -> "zero"` then `|` built
+  // a pipe.
+  match leadPunctSibling st c with
+  | Some added -> added
+  | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
   // you're typing inside a string, where it's a literal comma.
   let inStringBody =
@@ -1425,12 +1435,6 @@ let typeOneRaw (st: State) (c: String) : State =
           let next = Caret.inSlot caret.node rule.nextSlot 0
           typeOne { st with caret = next } c
       | None ->
-        // The character a spec draws BEFORE EACH ITEM of a list starts the next item: `|` at the end of a
-        // match arm's rhs is a new arm, which is how anyone writing the source would type it. Asked of the
-        // projection rather than hard-coded, so a DSL that separates its items some other way gets it too.
-        match (if atEnd then leadPunctSibling st c else Stdlib.Option.Option.None) with
-        | Some st1 -> st1
-        | None ->
         // At the end of a node's text, an operator wraps the node (`1` then `+` gives `1 + ⟨right⟩`).
         match (if atEnd then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
         | Some rule ->
@@ -2193,6 +2197,24 @@ let enclosingListItem (c: Caret) : Stdlib.Option.Option<(Path * String * Int)> =
       Stdlib.Option.Option.Some((parentPath, slot, i))
     | None -> Stdlib.Option.Option.None
 
+/// EVERY enclosing list item, nearest first. A node can be inside several: a field of a case of an enum,
+/// where the fields are one list and the cases another. Which one a keystroke means depends on what the
+/// spec draws, so the answer has to be all of them.
+let enclosingListItems (c: Caret) : List<(Path * String * Int)> =
+  let fromPath =
+    let (_, found) =
+      Stdlib.List.fold c.node ((0, [])) (fun acc step ->
+        let (idx, out) = acc
+        match step with
+        | Item(slot, i) -> (idx + 1, Stdlib.List.push out ((Stdlib.List.take c.node idx, slot, i)))
+        | Into _ -> (idx + 1, out))
+    // `push` prepends, so this is already nearest-first.
+    found
+  match c.part with
+  | InItem(slot, i) -> Stdlib.List.append [ ((c.node, slot, i)) ] fromPath
+  | _ -> fromPath
+
+
 /// A fresh element for a list whose items expect `each`: a hole when items are filled by typing/picking
 /// (expressions, types), or a filled template when they're structural (a match arm, a record field).
 let newItemForEach (st: State) (each: Expect) : Slot =
@@ -2301,27 +2323,64 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
   | None -> Stdlib.Option.Option.None
 
 /// Typing that character at the end of a finished item starts the next one.
+/// Is the caret at the END of item `i` of this list? Starting the NEXT item is meaningless anywhere else,
+/// and the difference matters: `|` on a match arm's PATTERN is an or-pattern, and that spec's own wrap rule
+/// has to keep winning there.
+///
+/// "At the end" has four shapes, which is how the first version of this shipped broken -- it knew about
+/// one. Type `2` and the caret is IN the number's text; type `"zero"` and the closing quote leaves it AFTER
+/// the node; type `[1]` and it leaves you after the LIST, while the item's last node is the `1` inside it;
+/// type a name you have not settled and it is a PARTIAL, whose caret is in the slot rather than any text.
+let atEndOfItem (st: State) (parentPath: Path) (slot: String) (i: Int) : Bool =
+  let lastPath = lastNodePathUnder st.root (Path.item parentPath slot i)
+  let onLastNode = lastPath == Stdlib.Option.Option.Some st.caret.node
+  // Being AFTER a container is being after everything in it.
+  let afterLastNode =
+    match lastPath with
+    | Some p -> Path.isPrefixOf st.caret.node p
+    | None -> false
+  match st.caret.part with
+  | AfterNode -> afterLastNode
+  | InText textSlot ->
+    onLastNode
+    && (match nodeAtPath st.root st.caret.node with
+        | Some n -> st.caret.offset >= (Stdlib.String.length (Node.text n textSlot |> Stdlib.Option.withDefault ""))
+        | None -> false)
+  // An empty hole is `InSlot` too, and typing the lead punct there must NOT add an item: there is nothing
+  // in this one yet. The difference is whether anything has been typed.
+  | InSlot _ ->
+    onLastNode
+    && (match Caret.slotPath st.caret with
+        | Some sp ->
+          (match slotAtPath st.root sp with
+           | Some(Partial(typed, _)) -> st.caret.offset >= (Stdlib.String.length typed)
+           | _ -> false)
+        | None -> false)
+  | _ -> false
+
+/// Typing the character a spec draws before each of a list's items, at the end of a finished item, starts
+/// the next item.
+///
+/// Tried from the INSIDE OUT, because a node sits inside several lists at once: at the end of an enum
+/// case's last field, the nearest list is that case's FIELDS, and the one that draws a `|` is the enum's
+/// CASES one further out. Looking only at the nearest meant `|` there went in as a literal character.
 let leadPunctSibling (st: State) (c: String) : Stdlib.Option.Option<State> =
-  match enclosingListItem st.caret with
-  | Some((parentPath, slot, i)) ->
+  enclosingListItems st.caret
+  |> Stdlib.List.filter (fun entry ->
+    let (parentPath, slot, i) = entry
     match nodeAtPath st.root parentPath with
-    | Some parent ->
-      // Only at the END of the item. The lead punct starts the NEXT one, which is meaningless anywhere
-      // else, and the difference matters: `|` on a match arm's PATTERN is an or-pattern (`0 | 1`), and
-      // that spec's own wrap rule has to keep winning there. The caret is at the end when the node it is
-      // on is the last one in the item's subtree.
-      let atItemEnd =
-        (lastNodePathUnder st.root (Path.item parentPath slot i)) == Stdlib.Option.Option.Some st.caret.node
-      if atItemEnd && (leadsItemsWith st parent slot c) then addSibling st else Stdlib.Option.Option.None
-    | None -> Stdlib.Option.Option.None
-  | None -> Stdlib.Option.Option.None
+    | Some parent -> (leadsItemsWith st parent slot c) && (atEndOfItem st parentPath slot i)
+    | None -> false)
+  |> Stdlib.List.head
+  |> Stdlib.Option.andThen (fun entry ->
+    let (parentPath, slot, i) = entry
+    addSiblingAt st parentPath slot i)
 
 
 /// Enter inside a list adds a sibling element after the current one and moves to it. This is how you grow
 /// a match (a new arm), a list, a record, a set of parameters -- without leaving the keyboard row.
-let addSibling (st: State) : Stdlib.Option.Option<State> =
-  match enclosingListItem st.caret with
-  | Some((parentPath, slot, i)) ->
+/// Add an element after item `i` of `parentPath`'s `slot`, and move to it.
+let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib.Option.Option<State> =
     match nodeAtPath st.root parentPath with
     | Some n ->
       match Node.field n slot with
@@ -2340,6 +2399,10 @@ let addSibling (st: State) : Stdlib.Option.Option<State> =
           Stdlib.Option.Option.Some { st1 with caret = caret }
       | _ -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
+
+let addSibling (st: State) : Stdlib.Option.Option<State> =
+  match enclosingListItem st.caret with
+  | Some((parentPath, slot, i)) -> addSiblingAt st parentPath slot i
   | None -> Stdlib.Option.Option.None
 
 

@@ -309,3 +309,38 @@ module ContainersCanBreak =
   (ContainersCanBreak.real "Darklang.Cli.Registry.CommandHandler") = "same"
   (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.Expr") = "same"
   (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.MatchPattern") = "same"
+
+
+module BarAddsACase =
+  // The same rule as `|` in a match, one level out, and the reason it needed generalising: at the end of an
+  // enum case's last FIELD, the nearest enclosing list is that case's fields -- drawn with
+  // `EachWrapped(" of", ...)`, which leads its items with nothing -- while the list that draws a `|` is the
+  // enum's CASES, one further out. Looking only at the nearest list meant `|` there went in as a literal
+  // character: `| Circle of Int|`. The enclosing lists are tried from the inside out now.
+  let caseFieldType () : Darklang.Fluid.Path =
+    [ Darklang.Fluid.Step.Into "def"
+      Darklang.Fluid.Step.Item("cases", 0)
+      Darklang.Fluid.Step.Item("fields", 0)
+      Darklang.Fluid.Step.Into "type" ]
+
+  /// The caret sitting just after `Int` in `| Circle of Int`.
+  let atEndOfFirstCase () : Darklang.Fluid.Editor.State =
+    let st =
+      Darklang.Fluid.Editor.init
+        (Fixtures.reg ())
+        (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Shape" (Fixtures.shapeEnum ())))
+        60
+    { st with caret = Darklang.Fluid.Caret.afterNode (BarAddsACase.caseFieldType ()) }
+
+  let shown (st: Darklang.Fluid.Editor.State) : String =
+    Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 st.root
+
+  // `|` adds a CASE, after the one the caret is in.
+  (BarAddsACase.shown (Darklang.Fluid.Editor.typeOne (BarAddsACase.atEndOfFirstCase ()) "|")) =
+    "type Shape =\n  | Circle of Int\n  | name\n  | Point"
+
+  // Enter is unchanged and still means the NEAREST list, which from inside a case is its fields. The two
+  // keys doing different things here is the point: `|` is what you write between cases, `*` between fields.
+  ((match Darklang.Fluid.Editor.addSibling (BarAddsACase.atEndOfFirstCase ()) with
+    | Some s -> BarAddsACase.shown s
+    | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
