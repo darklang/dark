@@ -188,19 +188,47 @@ module Spec =
 /// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec
 /// (case None), which is how one spec can own every case of a type, or supply hole rules and completion
 /// for holes that expect "any Expr".
-type Registry = { specs: List<Spec> }
+/// The characters a language spells its punctuation with.
+///
+/// These used to be fixed lists in the kernel, which is the first wall someone writing their own syntax
+/// hits: `pieces` let you restyle how an `if` LOOKS, but there was no way to say that in YOUR language
+/// `;` separates a name from its value, or that `»` closes a group. They belong to the language rather
+/// than to any one node, so they sit on the registry rather than on a spec.
+type Syntax =
+  { /// Characters that begin or extend an infix operator. `<operator>` in a hole or wrap rule means one
+    /// of these.
+    operatorChars: List<String>
+    /// Closers you can type past when the editor has already drawn them.
+    closingDelimiters: List<String>
+    /// Punctuation drawn between a name and what follows it, which typing skips over rather than
+    /// inserting: a let's `=`, an annotation's `:`.
+    separators: List<String> }
+
+module Syntax =
+  /// How Darklang spells itself.
+  let darklang () : Syntax =
+    Syntax
+      { operatorChars = [ "+", "-", "*", "/", "%", "^", ">", "<", "=", "!", "&", "|" ]
+        closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+        separators = [ "=", ":" ] }
+
+type Registry = { specs: List<Spec>; syntax: Syntax }
 
 module Registry =
-  let empty () : Registry = Registry { specs = [] }
+  let empty () : Registry = Registry { specs = []; syntax = Syntax.darklang () }
 
-  let ofList (specs: List<Spec>) : Registry = Registry { specs = specs }
+  let ofList (specs: List<Spec>) : Registry = Registry { specs = specs; syntax = Syntax.darklang () }
+
+  /// The same specs, spelled with different punctuation.
+  let withSyntax (reg: Registry) (syntax: Syntax) : Registry =
+    Registry { specs = reg.specs; syntax = syntax }
 
   /// Later specs shadow earlier ones with the same kind.
   let add (reg: Registry) (spec: Spec) : Registry =
-    Registry { specs = Stdlib.List.append reg.specs [ spec ] }
+    { reg with specs = Stdlib.List.append reg.specs [ spec ] }
 
   let addAll (reg: Registry) (specs: List<Spec>) : Registry =
-    Registry { specs = Stdlib.List.append reg.specs specs }
+    { reg with specs = Stdlib.List.append reg.specs specs }
 
   let findExact (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
     reg.specs

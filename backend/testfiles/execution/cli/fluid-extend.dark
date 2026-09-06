@@ -41,3 +41,40 @@ module SourcePrinter =
   (Stdlib.String.contains (generated ()) "Darklang.Fluid.Derive.specForName") = true
   (Stdlib.String.contains (generated ()) "Darklang.Fluid.Piece.Slot \"r\"") = true
   (Stdlib.String.contains (generated ()) " : Darklang.Fluid.Spec") = false
+
+
+module SyntaxIsTheLanguages =
+  // The characters a language spells its punctuation with used to be fixed lists in the kernel, which is
+  // the first wall someone writing their own syntax hits: `pieces` let you restyle how an `if` LOOKS, but
+  // there was no way to say that in YOUR language `@` is an operator or `;` separates a name from its
+  // value. They belong to the language, so they sit on the REGISTRY, and a registry can be re-spelled.
+  let base_ () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let mine () : Darklang.Fluid.Syntax =
+    Darklang.Fluid.Syntax
+      { operatorChars = [ "@", ">", "<", "=", "!" ]
+        closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+        separators = [ ":" ] }
+
+  let custom () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // Darklang's own spelling is the default, and nothing about it changed.
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.base_ ()).syntax "+") = true
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.hole ()) 60
+    [ "1", " ", "+", " ", "2" ]) = "1 + 2~"
+
+  // A registry told a different alphabet edits by it: `@` wraps into an infix, `+` no longer does.
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.custom ()).syntax "+") = false
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.custom ()).syntax "@") = true
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ()) 60
+    [ "1", " ", "@", " ", "2" ]) = "1 @ 2~"
+
+  // To be clear about the scope: this is what the EDITOR treats as punctuation. Lowering to Darklang's
+  // ProgramTypes still needs Darklang's operators -- a language of its own brings its own specs too.
+  (Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())).specs
+    == (SyntaxIsTheLanguages.base_ ()).specs = true

@@ -763,23 +763,23 @@ let putNode (st: State) : State =
 
 // --- INSERT: typing ---
 
-val operatorChars = [ "+", "-", "*", "/", "%", "^", ">", "<", "=", "!", "&", "|" ]
+/// The language's punctuation comes from the REGISTRY now, not from a list in here, so someone spelling
+/// their own syntax can say what an operator is without editing the kernel.
+let isOperatorChar (syn: Syntax) (c: String) : Bool = Stdlib.List.member syn.operatorChars c
 
-let isOperatorChar (c: String) : Bool = Stdlib.List.member operatorChars c
-
-let charClassMatches (onChar: String) (c: String) : Bool =
+let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   if onChar == c then true
   elif onChar == "<digit>" then TextEdit.isDigitString c
   elif onChar == "<letter>" then TextEdit.isLetterString c
-  elif onChar == "<operator>" then isOperatorChar c
+  elif onChar == "<operator>" then isOperatorChar syn c
   else false
 
-let ruleMatches (rule: HoleRule) (c: String) : Bool = charClassMatches rule.onChar c
+let ruleMatches (syn: Syntax) (rule: HoleRule) (c: String) : Bool = charClassMatches syn rule.onChar c
 
 /// The wrap rule for typing `c` at the end of node `n`, if its type-level spec has one.
 let wrapRuleFor (reg: Registry) (n: Node) (c: String) : Stdlib.Option.Option<WrapRule> =
   match Registry.findTypeLevel reg n.kind with
-  | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches r.onChar c)
+  | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches reg.syntax r.onChar c)
   | None -> Stdlib.Option.Option.None
 
 /// Is the caret in the operator slot of a node made by a wrap rule?
@@ -794,7 +794,7 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
   match Registry.forExpect reg e with
   | Some spec ->
     spec.holeRules
-    |> Stdlib.List.findFirst (fun r -> ruleMatches r c)
+    |> Stdlib.List.findFirst (fun r -> ruleMatches reg.syntax r c)
     |> Stdlib.Option.map (fun r ->
       match r.fill with
       | Node n -> (n, false)
@@ -949,11 +949,11 @@ let prevPunct (st: State) : Stdlib.Option.Option<String> =
       else Stdlib.Option.Option.None)
   | None -> Stdlib.Option.Option.None
 
-val closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+
 
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
 /// already on screen: `=` between a let's name and value, `:` before a record value or a type annotation.
-val separatorAdvance = [ "=", ":" ]
+
 
 /// Which node an infix operator typed at `path` should wrap, so precedence associates the way it reads.
 /// A looser operator takes the tighter subtree as its left: `+` after `1 * 2` wraps the whole `1 * 2`,
@@ -1193,7 +1193,7 @@ let typeOne (st: State) (c: String) : State =
         | Some added -> added
         | None -> typeOneRaw st c
     | None -> typeOneRaw st c
-  elif (Stdlib.List.member closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
+  elif (Stdlib.List.member st.reg.syntax.closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
     // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
@@ -1207,13 +1207,13 @@ let typeOne (st: State) (c: String) : State =
     match target with
     | Some p -> { st with caret = Caret.afterNode p }
     | None -> moveRight st
-  elif (Stdlib.List.member separatorAdvance c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyph st == Stdlib.Option.Option.Some c) then
+  elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyph st == Stdlib.Option.Option.Some c) then
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
     // still starts an operator as before.
     nextHole st
   elif
-    (Stdlib.List.member separatorAdvance c)
+    (Stdlib.List.member st.reg.syntax.separators c)
     && (Stdlib.Bool.not inStringBody)
     && (match slotUnder st with
         | Some(Empty _) -> true
@@ -1314,14 +1314,14 @@ let typeOneRaw (st: State) (c: String) : State =
       // In an operator slot, a non-operator character moves on to the next slot and types there.
       match inOpSlot st.reg n slot with
       | Some rule ->
-        if (charClassMatches rule.onChar c) && atEnd && (rule.opSlot == rule.nextSlot) then
+        if (charClassMatches st.reg.syntax rule.onChar c) && atEnd && (rule.opSlot == rule.nextSlot) then
           // Re-typing the trigger while sitting in the op-slot itself starts another wrap: with the caret
           // at the end of the `a` in `r.a`, another `.` makes `(r.a).b`, not a field named `a.b`.
           let wrapped = rule.wrap n c
           let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
           let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
           { st1 with caret = Caret.inText caret.node rule.opSlot opLen }
-        else if isOperatorChar c then
+        else if isOperatorChar st.reg.syntax c then
           let updated = TextEdit.insertAt old caret.offset c
           commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else if rule.opSlot == rule.nextSlot then
@@ -1379,7 +1379,7 @@ let typeOneRaw (st: State) (c: String) : State =
             Caret.inText caret.node rule.opSlot opLen
         { st1 with caret = caretNew }
       | None ->
-        if (isOperatorChar c) || (c == ".") then
+        if (isOperatorChar st.reg.syntax c) || (c == ".") then
           st
         else
           match addSibling st with
