@@ -521,7 +521,10 @@ let toDoc (e: Expr) : Node =
         // not be rebuilt even in principle.
         | Builtin b -> "builtin:" ++ b.name ++ "_v" ++ (Stdlib.Int32.toString b.version)
       | Error _ -> ""
-    Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]
+    // Shortened, the way a function name is. This drew the FULL name while `EFnName` next to it drew the
+    // short one, so `Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow` had one of each in
+    // the same call. Exactly the drift t88 was about: two paths to the same decision, one of them missed.
+    Node.make (exprKind "EValue") [ text "name" (displayName name), text "_hash" hash ]
   | _ -> opaque e
 
 

@@ -91,3 +91,26 @@ module BuiltinValuesRoundTrip =
           else "CHANGED"
 
   (BuiltinValuesRoundTrip.verdict "Darklang.SCM.Branch.mainBranchId") = "same"
+
+
+module ValueNamesAreShortened =
+  // `EFnName` shortened its name in `toDoc` and `EValue` did not, so one call could carry both forms:
+  // `Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow`. Precisely the drift t88 was
+  // about -- two paths to the same decision, one of them missed -- and t88's fix did not reach this path.
+  //
+  // Found by counting rather than sampling: 50 of 250 real functions drew tokens the printer does not
+  // write, and my two known causes explained only 19 of them.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (ValueNamesAreShortened.docOf src)
+
+  // A value reference and a function reference in the same expression, both short.
+  (ValueNamesAreShortened.show "Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow \"x\"") =
+    "Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow \"x\""
+
+  // And what the printer writes for the same program, which is the point of shortening at all.
+  (ValueNamesAreShortened.show "Stdlib.Cli.UI.Colors.yellow") = "Stdlib.Cli.UI.Colors.yellow"
