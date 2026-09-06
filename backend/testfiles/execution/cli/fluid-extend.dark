@@ -355,3 +355,35 @@ module TableDemoIsReachable =
    |> Stdlib.String.split "\n"
    |> Stdlib.List.map (fun l -> Stdlib.String.indexOf l "  " |> Stdlib.Option.withDefault -1)
    |> Stdlib.List.all (fun i -> i > 0)) = true
+
+  // A grid you can only LOOK at is a picture. Adding a row is the operation a table is for, and it comes
+  // out as holes with the columns re-measured around them. Enter twice because Enter in NAV means "edit",
+  // the same as `i`; the second one grows the list.
+  let rowsAfter (keys: List<String>) : Int =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80)
+        keys
+    match st.root with
+    | Filled n -> Stdlib.List.length (Darklang.Fluid.Node.items n "rows")
+    | _ -> -1
+
+  (TableDemoIsReachable.rowsAfter [ "<Esc>" ]) = 3
+  (TableDemoIsReachable.rowsAfter [ "<Esc>", "j", "<Enter>", "<Enter>" ]) = 4
+
+  (Darklang.Fluid.Test.run (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80
+    [ "<Esc>", "j", "<Enter>", "<Enter>" ]) =
+    "item                  qty    note\n\"widget\"              3      \"in stock\"\n~⟨item⟩                ⟨qty⟩  ⟨note⟩\n\"a much longer name\"  12     \"back order\"\n\"nut\"                 100    \"\""
+
+  // And the caret PATH is what says motion works -- the render cannot tell the grid, row 0 and cell 0
+  // apart, because the caret marker sits at the same column for all three.
+  let at (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80)
+        keys
+    Darklang.Fluid.Path.toString st.caret.node
+
+  (TableDemoIsReachable.at [ "<Esc>", "j" ]) = "rows[0]"
+  (TableDemoIsReachable.at [ "<Esc>", "j", "l" ]) = "rows[0].item"
+  (TableDemoIsReachable.at [ "<Esc>", "j", "l", "j" ]) = "rows[1].item"

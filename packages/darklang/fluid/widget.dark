@@ -293,7 +293,9 @@ let inspectorWith
         head "KEYS"
         dim "  Tab    next hole"
         dim "  S-Tab  previous hole"
-        dim "  Enter  accept / next item"
+        // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
+        // record field, a new row in a grid -- and that is the operation you reach for most in a table.
+        dim "  Enter  accept / add an item"
         dim "  ^E     edit as text"
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
