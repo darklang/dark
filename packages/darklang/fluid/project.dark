@@ -183,7 +183,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     match Node.text n slotName with
     | Some t ->
       if t == "" then Layout.tagged tag Layout.Style.Hole slotName
-      else Layout.tagged tag style (Darklang.Fluid.PT.displayName t)
+      else Layout.tagged tag style (Darklang.Fluid.PT.displayNameIn reg.currentModule t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | FieldText(slotName, style) ->

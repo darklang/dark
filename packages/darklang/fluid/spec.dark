@@ -246,16 +246,30 @@ module Syntax =
         interpolationOpen = "{"
         interpolationClose = "}" }
 
-type Registry = { specs: List<Spec>; syntax: Syntax }
+/// The specs in play, the punctuation they are spelled with, and WHERE the document being edited sits.
+///
+/// `currentModule` is the module path of the thing on screen. Names are written the way someone standing
+/// in that module would say them, which is what the pretty-printer does and what the source you are
+/// looking at says. Empty means "nowhere in particular", and everything comes out fully qualified.
+type Registry =
+  { specs: List<Spec>
+    syntax: Syntax
+    currentModule: List<String> }
 
 module Registry =
-  let empty () : Registry = Registry { specs = []; syntax = Syntax.darklang () }
+  let empty () : Registry =
+    Registry { specs = []; syntax = Syntax.darklang (); currentModule = [] }
 
-  let ofList (specs: List<Spec>) : Registry = Registry { specs = specs; syntax = Syntax.darklang () }
+  let ofList (specs: List<Spec>) : Registry =
+    Registry { specs = specs; syntax = Syntax.darklang (); currentModule = [] }
 
   /// The same specs, spelled with different punctuation.
   let withSyntax (reg: Registry) (syntax: Syntax) : Registry =
-    Registry { specs = reg.specs; syntax = syntax }
+    { reg with syntax = syntax }
+
+  /// The same specs, reading as if you were standing in `path`.
+  let inModule (reg: Registry) (path: List<String>) : Registry =
+    { reg with currentModule = path }
 
   /// Later specs shadow earlier ones with the same kind.
   let add (reg: Registry) (spec: Spec) : Registry =

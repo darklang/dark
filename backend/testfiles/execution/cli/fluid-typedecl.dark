@@ -344,3 +344,60 @@ module BarAddsACase =
   ((match Darklang.Fluid.Editor.addSibling (BarAddsACase.atEndOfFirstCase ()) with
     | Some s -> BarAddsACase.shown s
     | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
+
+
+module NamesReadFromWhereYouStand =
+  // Editing `ProgramTypes.Expr` drew `| EUnit of Darklang.LanguageTools.ID`, which is not how the source
+  // says it and not how the printer prints it when it is standing in that module: `| EUnit of ID`. The
+  // prefix you would already have said out loud is noise, and on this type it was enough noise to break
+  // lines that fit.
+  //
+  // The registry carries the module the document lives in, and every editor target already knows its own
+  // location, so there is nothing to look up. The document still STORES the full name -- that is the
+  // identity -- and the shortening happens on the way to the screen.
+  let reg (path: List<String>) : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.inModule (Darklang.Fluid.App.defaultRegistry ()) path
+
+  let drawn (path: List<String>) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)" with
+    | Ok e -> Darklang.Fluid.Debug.render (NamesReadFromWhereYouStand.reg path) 90 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  // From nowhere in particular, the whole path.
+  (NamesReadFromWhereYouStand.drawn []) = "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)"
+
+  // Standing in the module it lives in, just the type and the case.
+  (NamesReadFromWhereYouStand.drawn [ "Darklang", "LanguageTools", "ProgramTypes" ]) = "Expr.EUnit(1L)"
+
+  // And one level out, one segment more. The prefix you would already have said is what gets dropped,
+  // which is the printer's rule and not a second one written here.
+  (NamesReadFromWhereYouStand.drawn [ "Darklang", "LanguageTools" ]) = "ProgramTypes.Expr.EUnit(1L)"
+
+  // The helper agrees with the printer's own shortener, which is the whole point of not writing a second
+  // one: same answers from both sides.
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools", "ProgramTypes" ] "Darklang.LanguageTools.ID") = "ID"
+  (Darklang.Fluid.PT.displayNameIn [] "Darklang.LanguageTools.ID") = "Darklang.LanguageTools.ID"
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools" ] "Darklang.LanguageTools.ID") = "ID"
+
+  // And a bare name is still left alone, whatever module you are standing in.
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools" ] "Colour") = "Colour"
+
+  // A type declaration seen from inside its own module: the thing this is for.
+  let exprType () : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.LanguageTools.ProgramTypes.Expr"
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      (match Darklang.LanguageTools.PackageManager.Type.get h with
+       | Some t ->
+         Darklang.Fluid.Debug.render
+           (NamesReadFromWhereYouStand.reg [ "Darklang", "LanguageTools", "ProgramTypes" ])
+           90
+           (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Expr" t))
+         |> Stdlib.String.split "\n"
+         |> Stdlib.List.take 4
+         |> Stdlib.String.join "\n"
+       | None -> "no type")
+    | None -> "not found"
+
+  (NamesReadFromWhereYouStand.exprType ()) =
+    "/// Expressions - the main part of the language.\ntype Expr =\n  | EUnit of ID\n  | EBool of ID * Bool"

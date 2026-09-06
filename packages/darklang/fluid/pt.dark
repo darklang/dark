@@ -1042,7 +1042,10 @@ let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : St
 /// CLEANUP: the fn editor KNOWS which module it is showing, and Context.forModule exists for exactly
 /// that -- names inside `Stdlib.Option.map` should be spelled the way someone standing in that module
 /// would say them.
-let displayName (name: String) : String =
+/// How a name is written on screen from inside `currentModule`: the prefix you would already have said
+/// out loud is dropped, which is what the printer does and what the source reads like. Standing in
+/// `Darklang.LanguageTools.ProgramTypes`, `Darklang.LanguageTools.ID` is just `ID`.
+let displayNameIn (currentModule: List<String>) (name: String) : String =
   let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
 
   // A name with no dots in it has nothing to shorten, and must not be sent through the shortener:
@@ -1053,7 +1056,11 @@ let displayName (name: String) : String =
   if loc.name == "" then
     name
   else
-    Darklang.PrettyPrinter.shortenName [] loc.owner loc.modules loc.name
+    Darklang.PrettyPrinter.shortenName currentModule loc.owner loc.modules loc.name
+
+/// From nowhere in particular, so everything is fully qualified. For the callers that STORE a shortened
+/// name in the document rather than drawing one.
+let displayName (name: String) : String = displayNameIn [] name
 
 let fnNameNode (name: String) (hash: String) : Node =
   Node.make (exprKind "EFnName") [ text "name" (displayName name), text "_hash" hash ]

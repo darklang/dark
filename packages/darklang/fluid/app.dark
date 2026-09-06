@@ -305,11 +305,21 @@ let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : 
       textMode = Stdlib.Option.Option.None
       pendingEdit = Stdlib.Option.Option.None }
 
+/// The module the document being edited lives in, so names on screen read the way they read in the
+/// source: standing in `Darklang.LanguageTools.ProgramTypes`, `Darklang.LanguageTools.ID` is `ID`. Every
+/// target already carries its location, so there is nothing to look up.
+let moduleOf (target: Target) : List<String> =
+  match target with
+  | Scratch -> []
+  | FnBody(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
+  | TypeDef(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
+  | ValueDef(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
+
 let initialFor (title: String) (root: Slot) (target: Target) : State =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
   let width = Stdlib.Int.max 20 (size.width - 2)
   State
-    { editor = Editor.init (defaultRegistry ()) root width
+    { editor = Editor.init (Registry.inModule (defaultRegistry ()) (moduleOf target)) root width
       title = title
       scroll = 0
       hscroll = 0
