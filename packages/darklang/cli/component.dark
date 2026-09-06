@@ -22,6 +22,13 @@ module Darklang.Cli.Component
 type Step<'s> =
   /// Keep going with this state.
   | Stay of 's
+  /// Keep going, and repaint the whole surface instead of diffing against the retained one.
+  ///
+  /// For a step that let something ELSE write to this terminal while the page still owns it. Evaluating a
+  /// user's expression is the case this exists for: the code can print, and the interpreter prints a call
+  /// stack on an error, and either one scrolls the screen out from under a renderer that thinks it knows
+  /// what is on it. Same reasoning as a resume, without leaving the page.
+  | Repaint of 's
   /// Keep going, and persist first (`save` is called with the new state).
   | Save of 's
   /// Leave the app. Nothing is persisted, so a component that wants "save on exit" says `Save` first.
@@ -115,6 +122,11 @@ let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
           match c.onKey session.state key modifiers keyChar with
           | Stay next ->
             (Cli.SubAppAction.Continue, toSubApp c (present c session next))
+          | Repaint next ->
+            let state = c.refresh session.state next
+            let terminal =
+              Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view state size)
+            (Cli.SubAppAction.Continue, toSubApp c (Session { state = state; terminal = terminal }))
           | Save next ->
             (Cli.SubAppAction.Save, toSubApp c (present c session next))
           | Exit next ->

@@ -736,7 +736,11 @@ let onKey
   // opening an empty buffer over the top of real work.
   if (keyChar == Stdlib.Option.Option.Some "v") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
     // Evaluating is an ACTION, not a live readout: `v` asks, and the answer stays until you ask again.
-    Darklang.Cli.Component.Step.Stay { (evaluateSelection st) with inspectorOpen = true }
+    // Repaint, not Stay: running the expression can PRINT. The code itself may, and the interpreter prints
+    // a call stack when it fails, and either one scrolls the editor out from under the renderer -- which
+    // then diffs against a screen that has moved and leaves two stale rows at the top. The surface is not
+    // ours any more once something else has written to it.
+    Darklang.Cli.Component.Step.Repaint { (evaluateSelection st) with inspectorOpen = true }
   elif (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
     // NAV only: in INSERT a `?` is a character you are typing.
     Darklang.Cli.Component.Step.Stay { st with inspectorOpen = Stdlib.Bool.not st.inspectorOpen }
