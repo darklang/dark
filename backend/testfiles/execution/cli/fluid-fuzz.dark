@@ -16,10 +16,15 @@ module Fuzz =
     (seed * 1103515245 + 12345) % 2147483647
 
   // The key alphabet the fuzzer draws from: enough to build and break real programs.
+  //
+  // Widened once the kernel stopped believing in characters on its own. `,` and `;` separate a list's and
+  // a record's items, `|` leads a match's arms, `>` completes a pipe and is an action key, `{` and `}`
+  // open and close an interpolation, `$` starts one. None of those were in here, so the fuzzer had never
+  // touched the rules that read them.
   let alphabet () : List<String> =
-    [ "1", "2", "x", "y", "l", "e", "f", "u", "m", "a"
-      "(", "[", "\"", "+", "*", "|", " ", "."
-      "<Tab>", "<S-Tab>", "<Enter>", "<Esc>", "<BS>", "<Left>", "<Right>", "<Up>", "<Down>" ]
+    [ "1", "2", "x", "y", "l", "e", "f", "u", "m", "a", "S", "i", "z"
+      "(", "[", "\"", "+", "*", "|", " ", ".", ";", ",", ">", "{", "}", "'", "$", "-", ":"
+      "<Tab>", "<S-Tab>", "<Enter>", "<Esc>", "<BS>", "<Left>", "<Right>", "<Up>", "<Down>", "<Home>", "<End>" ]
 
   // A deterministic key sequence of length `n` from `seed`.
   let keysFrom (seed: Int) (n: Int) : List<String> =
@@ -37,7 +42,7 @@ module Fuzz =
   // Drive one sequence; return a tag describing the outcome. Any thrown exception fails the test at the
   // point it happens, which is exactly what we want to catch.
   let outcome (seed: Int) : String =
-    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (hole ()) 50) (keysFrom seed 14)
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (hole ()) 50) (keysFrom seed 24)
     // Render must not throw.
     let rendered = Darklang.Fluid.Debug.withCaret st.reg st.width st.root st.caret
     let renderedOk = (Stdlib.String.length rendered) >= 0
@@ -61,7 +66,9 @@ module Fuzz =
 
 
 module Properties =
-  // 60 pseudo-random 14-key sessions, none of which crash the editor or its lowering.
+  // 60 pseudo-random 24-key sessions, none of which crash the editor or its lowering. A 400-seed,
+  // 40-key run over this same alphabet came back with nothing but the four expected tags, which is what
+  // says the numbers here can stay small enough to keep the suite quick.
   (Fuzz.runAll ()) = true
 
   // A stronger, deterministic property on real programs: for a spread of expressions, the document
