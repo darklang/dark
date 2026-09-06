@@ -124,6 +124,53 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | Some s -> slot reg path (Part.InSlot slotName) (Path.child path slotName) s
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | Table(slotName, columns) ->
+    match Node.items n slotName with
+    | [] -> Layout.tagged (tagFor path Part.OnNode) Layout.Style.Dim ""
+    | items ->
+      // The cell for one item and one column: the item is a record node, the column is a field in it.
+      let cellOf (i: Int) (s: Slot) (col: String) : Layout.Doc =
+        let itemPath = Path.item path slotName i
+        match s with
+        | Filled itemNode ->
+          (match Node.slot itemNode col with
+           | Some childSlot -> slot reg itemPath (Part.InSlot col) (Path.child itemPath col) childSlot
+           | None -> Layout.Doc.Empty)
+        | _ -> slot reg path (Part.InItem(slotName, i)) itemPath s
+      let rows = items |> Stdlib.List.indexedMap (fun i s -> columns |> Stdlib.List.map (fun col -> cellOf i s col))
+      // A column is as wide as its widest cell, header included. This is the measuring pass that a Wadler
+      // group cannot do for you: a group knows its own width and nothing about its siblings.
+      let widths =
+        columns
+        |> Stdlib.List.indexedMap (fun c col ->
+          let cellWidths = rows |> Stdlib.List.filterMap (fun r -> Stdlib.List.getAt r c |> Stdlib.Option.map (fun d -> Layout.flatWidth d))
+          Stdlib.List.fold cellWidths (Stdlib.String.displayWidth col) (fun a b -> Stdlib.Int.max a b))
+      let lastCol = (Stdlib.List.length columns) - 1
+      // The last column isn't padded: padding it would leave trailing spaces on every row.
+      let pad (d: Layout.Doc) (w: Int) (c: Int) : Layout.Doc =
+        if c >= lastCol then d
+        else
+          let gap = Stdlib.Int.max 0 (w - (Layout.flatWidth d))
+          Layout.concat d (Layout.text (Stdlib.String.repeat " " gap))
+      let sep = Layout.text "  "
+      let headerDoc =
+        columns
+        |> Stdlib.List.indexedMap (fun c col ->
+          let w = Stdlib.List.getAt widths c |> Stdlib.Option.withDefault 0
+          if c >= lastCol then Layout.styledText Layout.Style.Dim col
+          else
+            Layout.concat
+              (Layout.styledText Layout.Style.Dim col)
+              (Layout.text (Stdlib.String.repeat " " (Stdlib.Int.max 0 (w - (Stdlib.String.displayWidth col))))))
+        |> (fun ds -> Layout.join ds sep)
+      let rowDocs =
+        rows
+        |> Stdlib.List.map (fun r ->
+          r
+          |> Stdlib.List.indexedMap (fun c d -> pad d (Stdlib.List.getAt widths c |> Stdlib.Option.withDefault 0) c)
+          |> (fun ds -> Layout.join ds sep))
+      Layout.join (Stdlib.List.append [ headerDoc ] rowDocs) Layout.Doc.HardLine
+
   | Each(slotName, sep) ->
     match Node.items n slotName with
     | [] ->

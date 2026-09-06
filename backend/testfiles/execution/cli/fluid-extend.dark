@@ -78,3 +78,68 @@ module SyntaxIsTheLanguages =
   // ProgramTypes still needs Darklang's operators -- a language of its own brings its own specs too.
   (Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())).specs
     == (SyntaxIsTheLanguages.base_ ()).specs = true
+
+
+module TableProjection =
+  // A list of records seen as a GRID rather than as a line of text. Every other Piece draws a line and
+  // composes into a Wadler document; a table cannot, because a column's width depends on its SIBLINGS and
+  // a group only ever knows its own. So Piece.Table measures every cell first, then pads -- and the cells
+  // stay tagged, which is what keeps this an EDITOR rather than a picture of one.
+  let rowKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Demo.Row"
+  let gridKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Demo.Grid"
+
+  let rowSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple
+      (TableProjection.rowKind ())
+      [ Darklang.Fluid.Piece.Slot "name", Darklang.Fluid.Piece.Space, Darklang.Fluid.Piece.Slot "qty" ]
+      (Darklang.Fluid.Node.make (TableProjection.rowKind ())
+        [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.stringKind ()) "s")))
+          ("qty", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.intKind ()) "n"))) ])
+
+  let gridSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple
+      (TableProjection.gridKind ())
+      [ Darklang.Fluid.Piece.Table("rows", [ "name", "qty" ]) ]
+      (Darklang.Fluid.Node.make (TableProjection.gridKind ())
+        [ ("rows", Darklang.Fluid.Field.Many([], Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ])
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ TableProjection.rowSpec (), TableProjection.gridSpec () ] ])
+
+  let row (nm: String) (q: String) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make (TableProjection.rowKind ())
+        [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.stringNode nm)))
+          ("qty", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode q))) ])
+
+  let grid () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make (TableProjection.gridKind ())
+        [ ("rows",
+           Darklang.Fluid.Field.Many(
+             [ TableProjection.row "widget" "3", TableProjection.row "a much longer name" "12", TableProjection.row "nut" "100" ],
+             Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ])
+
+  // A header, and every column as wide as its widest cell.
+  (Darklang.Fluid.Debug.render (TableProjection.reg ()) 80 (TableProjection.grid ())) =
+    "name                  qty\n\"widget\"              3\n\"a much longer name\"  12\n\"nut\"                 100"
+
+  // The last column isn't padded, so no row ends in spaces.
+  ((Darklang.Fluid.Debug.render (TableProjection.reg ()) 80 (TableProjection.grid ()))
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.all (fun l -> (Stdlib.String.trim l) == l)) = true
+
+  // An empty grid draws a caret anchor rather than nothing at all.
+  (Darklang.Fluid.Debug.render (TableProjection.reg ()) 80
+    (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Node.make (TableProjection.gridKind ())
+      [ ("rows", Darklang.Fluid.Field.Many([], Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ]))) = ""
+
+  // And it is editable: navigate into a cell and change it, and the column re-measures.
+  ((Darklang.Fluid.Editor.breadcrumb
+     (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+       [ "<Esc>", "j", "j", "j" ]))) = "Grid > Row > Int"
+  ((Darklang.Fluid.Debug.render (TableProjection.reg ()) 80
+     (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+       [ "<Esc>", "j", "j", "j", "c", "9" ]).root)) =
+    "name                  qty\n\"widget\"              9\n\"a much longer name\"  12\n\"nut\"                 100"

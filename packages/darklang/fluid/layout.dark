@@ -130,6 +130,22 @@ let widthOf (d: Doc) : Int =
   | Tagged(_, _, s) -> Stdlib.String.displayWidth s
   | _ -> 0
 
+/// How wide a whole Doc is with nothing broken. `widthOf` measures ONE node; this measures a tree, which
+/// is what a table needs: a column's width is the widest cell in it, and you cannot know that until every
+/// cell has been measured. A Wadler group decides its own width and never its siblings', so alignment
+/// across rows has to be computed outside the normal render.
+let flatWidth (d: Doc) : Int =
+  match d with
+  | Empty -> 0
+  | Text(_, s) -> Stdlib.String.displayWidth s
+  | Tagged(_, _, s) -> Stdlib.String.displayWidth s
+  | Line -> 1
+  | SoftLine -> 0
+  | HardLine -> 0
+  | Concat(a, b) -> (flatWidth a) + (flatWidth b)
+  | Nest(_, inner) -> flatWidth inner
+  | Group inner -> flatWidth inner
+
 /// Would the rest of this line fit in `room` columns? Same logic as `Stdlib.Pretty.fits`.
 let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
   if room < 0 then

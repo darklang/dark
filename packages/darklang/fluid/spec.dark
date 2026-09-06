@@ -25,6 +25,11 @@ type Piece =
   /// The document keeps the full name -- that is the thing's identity, and shortening what is STORED
   /// makes `Result.Ok` come back as `Result..Ok` -- so the shortening happens on the way to the screen.
   | NameText of slot: String * style: Layout.Style
+  /// A list of records drawn as a GRID: one row per item, one column per named field, with a header and
+  /// every column as wide as its widest cell. This is the one piece whose drawing isn't a line of text --
+  /// a column's width depends on its SIBLINGS, which no Wadler combinator can express, so it is measured
+  /// and padded before it is emitted. Cells stay tagged, so the caret still lands in them.
+  | Table of slot: String * columns: List<String>
   /// Punctuation nobody can put a caret in.
   | Punct of String
   | Keyword of String
