@@ -89,12 +89,25 @@ module FilePath =
   /// means.
   let canonical (path : string) : string = resolve true 0 path
 
+let mutable private policyDirectoryOverride : string option = None
+
 let policyDirectory () : Result<string, string> =
-  let home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-  if String.IsNullOrWhiteSpace home then
-    Error "The current user's profile directory could not be resolved"
-  else
-    Ok(Path.GetFullPath(Path.Combine(home, ".darklang", "policy")))
+  match policyDirectoryOverride with
+  | Some directory -> Ok directory
+  | None ->
+    let home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+    if String.IsNullOrWhiteSpace home then
+      Error "The current user's profile directory could not be resolved"
+    else
+      Ok(Path.GetFullPath(Path.Combine(home, ".darklang", "policy")))
+
+/// Temporarily override the policy directory for an isolated test.
+/// The caller must also prevent other tests from running concurrently.
+let policyDirectoryForTesting (path : string) : System.IDisposable =
+  let previous = policyDirectoryOverride
+  policyDirectoryOverride <- Some(Path.GetFullPath path)
+  { new System.IDisposable with
+      member _.Dispose() = policyDirectoryOverride <- previous }
 
 /// The policy directory as written and as it resolves through links (a
 /// symlinked home, for instance). A guest path is compared against both, so

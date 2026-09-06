@@ -363,6 +363,56 @@ let private testListTypes =
       Expect.stringContains output "Option" "Option type"
     })
 
+/// A bottom-up `mkdir -p` must not name an existing common ancestor of its
+/// target and the protected policy directory.
+let private testMkdirRecursiveUnderPolicyAncestor =
+  cliTest "mkdir -p under an ancestor of the policy directory" (fun state ->
+    task {
+      let root =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-mkdirp-test-{System.Guid.NewGuid()}"
+        )
+      let policy = System.IO.Path.Combine(root, "policy")
+      let target = System.IO.Path.Combine(root, "work", "a", "b")
+      System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
+      let restorePolicyDirectory =
+        LibExecution.HostSecurity.policyDirectoryForTesting policy
+      let! found =
+        LibDB.ProgramTypes.Fn.find
+          [ PT.mainBranchId ]
+          { owner = "Darklang"
+            modules = [ "Stdlib"; "Cli"; "Dir" ]
+            name = "createRecursive" }
+        |> Ply.toTask
+      let hash =
+        match found with
+        | Some(PT.Hash h) -> h
+        | None -> Tests.failtestf "Stdlib.Cli.Dir.createRecursive not found"
+      let createRecursive () =
+        Exe.executeFunction
+          state
+          (RT.FQFnName.fqPackage hash)
+          []
+          (NEList.singleton (RT.DString target))
+      let expectOk (label : string) (result : RT.ExecutionResult) =
+        match result with
+        | Ok(RT.DEnum(_, _, _, "Ok", _)) -> ()
+        | other -> Tests.failtestf "%s: expected Ok, got %A" label other
+      try
+        let! first = createRecursive ()
+        expectOk "mkdir -p of missing levels beside the policy directory" first
+        Expect.isTrue
+          (System.IO.Directory.Exists target)
+          "missing levels were created"
+        let! again = createRecursive ()
+        expectOk "mkdir -p on an existing directory" again
+      finally
+        restorePolicyDirectory.Dispose()
+        if System.IO.Directory.Exists root then
+          System.IO.Directory.Delete(root, true)
+    })
+
 let private testHelpForRun =
   cliTest "help run" (fun state ->
     task {
@@ -1146,6 +1196,7 @@ let tests =
       testStatusCommand
       testRunCases
       testEvalCases
+      testMkdirRecursiveUnderPolicyAncestor
       testScriptDeclIdentity
       testRteNamesPackageDecls
       testRteNamesScriptDecls
