@@ -249,8 +249,79 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
   |> Option.map (fun (PT.Hash h) ->
     $"cannot store package ops with the placeholder hash \"{h}\"; stabilize them first (WrittenTypesToProgramTypes.stabilizePackageOps)")
 
+/// The bindings a batch would UNLIST, not just the ones it declares.
+///
+/// `reservedOwnerViolation` checks the destination of a `SetName`. But a
+/// standalone `SetName` -- one whose hash is not added in the same batch -- is
+/// a rename, and playback (`PackageOpPlayback.applySetName`) deprecates every
+/// live binding of that hash on the branch, whatever its owner. So a guest
+/// with package-write could bind a bundled hash to `Guest.borrowed` and take
+/// `Darklang.Stdlib.X` off the branch with it, and with it the hash's bundled
+/// membership. `RevertPropagation` unlists each repoint's `toRef` hash the same
+/// way. Both are checked here against the branch's live bindings, mirroring
+/// playback's `branch_id = @branch` filter exactly. `None` means nothing
+/// protected would be touched.
+let reservedOwnerMutation
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Task<Option<string>> =
+  task {
+    // Same classification as `PackageOpPlayback.collectAddedHashes`: a
+    // SetName for a hash added in this batch names a new item; any other is a
+    // rename.
+    let addedHashes =
+      ops
+      |> List.choose (fun op ->
+        match op with
+        | PT.PackageOp.AddType t -> Some t.hash
+        | PT.PackageOp.AddValue v -> Some v.hash
+        | PT.PackageOp.AddFn f -> Some f.hash
+        | _ -> None)
+      |> Set.ofList
+    let unlistedHashes =
+      ops
+      |> List.collect (fun op ->
+        match op with
+        | PT.PackageOp.SetName(_, target) when
+          not (Set.contains target.hash addedHashes)
+          ->
+          [ target.hash ]
+        | PT.PackageOp.RevertPropagation(_, _, _, _, repoints) ->
+          repoints |> List.map (fun r -> r.toRef.hash)
+        | _ -> [])
+      |> List.distinct
+    let mutable violation = None
+    for hash in unlistedHashes do
+      if violation.IsNone then
+        let (PT.Hash hashStr) = hash
+        let! protectedBindings =
+          Sql.query
+            """
+            SELECT owner, modules, name
+            FROM locations
+            WHERE item_hash = @item_hash
+              AND branch_id = @branch_id
+              AND unlisted_at IS NULL
+            """
+          |> Sql.parameters
+            [ "item_hash", Sql.string hashStr; "branch_id", Sql.uuid branchId ]
+          |> Sql.executeAsync (fun read ->
+            read.string "owner", read.string "modules", read.string "name")
+        match
+          protectedBindings
+          |> List.tryFind (fun (owner, _, _) -> Set.contains owner reservedOwners)
+        with
+        | Some(owner, modules, name) ->
+          violation <-
+            Some
+              $"this operation would unlist {owner}.{modules}.{name}: names under the reserved owner \"{owner}\" are the bundled standard library and cannot be moved by package writes"
+        | None -> ()
+    return violation
+  }
+
 /// Safely insert package operations submitted by running Dark code. Rejects
-/// protected `Darklang` bindings and unstabilized hashes before insertion.
+/// protected `Darklang` bindings -- declared or unlisted as a side effect --
+/// and unstabilized hashes before insertion.
 let insertUntrustedOps
   (branchId : PT.BranchId)
   (commitHash : Option<string>)
@@ -261,8 +332,11 @@ let insertUntrustedOps
     | Some reason, _
     | None, Some reason -> return Error reason
     | None, None ->
-      let! count = insertAndApplyOps branchId commitHash ops
-      return Ok count
+      match! reservedOwnerMutation branchId ops with
+      | Some reason -> return Error reason
+      | None ->
+        let! count = insertAndApplyOps branchId commitHash ops
+        return Ok count
   }
 
 

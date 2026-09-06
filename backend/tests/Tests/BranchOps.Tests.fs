@@ -683,12 +683,67 @@ let reservedOwnerGuardBlocksBundledOwner =
     Expect.isNone (Inserts.reservedOwnerViolation okOps) "a normal owner is allowed"
   }
 
+/// A standalone SetName is a rename, and playback unlists every binding of the
+/// hash on the branch regardless of owner. The destination-only owner check
+/// let a guest bind a bundled hash to its own name and take the standard
+/// library's binding -- and the hash's bundled membership -- off the branch.
+let reservedOwnerGuardBlocksRenamingBundledBindings =
+  testTask "a guest rename cannot unlist a bundled binding of the same hash" {
+    let! (found : Option<PT.Hash>) =
+      LibDB.ProgramTypes.Fn.find
+        [ PT.mainBranchId ]
+        { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
+      |> Ply.toTask
+    let hash =
+      match found with
+      | Some h -> h
+      | None -> failtest "Darklang.Stdlib.List.map not found in the test store"
+    let (PT.Hash hashStr) = hash
+    let! (before : System.Collections.Generic.HashSet<string>) =
+      LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    Expect.isTrue (before.Contains hashStr) "List.map is bundled to begin with"
+
+    let! (attempt : Result<int64, string>) =
+      Inserts.insertUntrustedOps
+        PT.mainBranchId
+        None
+        [ PT.PackageOp.SetName(loc "borrowed", PT.PackageFn hash) ]
+    match attempt with
+    | Error reason ->
+      Expect.stringContains
+        reason
+        "Darklang.Stdlib.List.map"
+        "the refusal names the binding"
+    | Ok inserted -> failtest $"the rename was accepted ({inserted} ops inserted)"
+
+    let! (after : System.Collections.Generic.HashSet<string>) =
+      LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    Expect.isTrue (after.Contains hashStr) "List.map is still bundled"
+
+    // The control: renaming the guest's own item is an ordinary rename.
+    let own = makeFn (eVar "x")
+    let! (added : Result<int64, string>) =
+      Inserts.insertUntrustedOps
+        PT.mainBranchId
+        None
+        [ PT.PackageOp.AddFn own
+          PT.PackageOp.SetName(loc "renameMe", PT.PackageFn own.hash) ]
+    Expect.isOk added "adding a guest fn"
+    let! (renamed : Result<int64, string>) =
+      Inserts.insertUntrustedOps
+        PT.mainBranchId
+        None
+        [ PT.PackageOp.SetName(loc "renamed", PT.PackageFn own.hash) ]
+    Expect.isOk renamed "renaming the guest's own item is allowed"
+  }
+
 let tests =
   testList
     "BranchOps"
     [ testBranchOpsEmitted
       placeholderHashGuardBlocksUnstabilizedOps
       reservedOwnerGuardBlocksBundledOwner
+      reservedOwnerGuardBlocksRenamingBundledBindings
       testBranchOpsSerialization
       testBranchOpsDeserialization
       testGhostFunctionCrossBranch
