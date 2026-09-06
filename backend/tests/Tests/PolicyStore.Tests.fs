@@ -368,6 +368,24 @@ let approvingADependencyKeepsItsOwnRootApproval =
       "C's written rules are remembered as its provenance"
   }
 
+let instanceEditsAddAndRemoveInOnePass =
+  test "an instance-policy edit removes first, then adds, in one pass" {
+    let clock = Permission.Rule.Effect LibExecution.Effects.Effect.Clock
+    let random = Permission.Rule.Effect LibExecution.Effects.Effect.Random
+    let stdout = Permission.Rule.Effect LibExecution.Effects.Effect.Stdout
+    let policy = Permission.Policy.create [ clock; random ] [ stdout ]
+    let edited =
+      PolicyStore.applyInstanceEdit [ stdout ] [ clock ] [ random; stdout ] policy
+    let allow, deny = Permission.Policy.rules edited
+    Expect.equal allow [ clock; stdout ] "random removed, stdout appended to allow"
+    Expect.equal
+      deny
+      [ clock ]
+      "stdout removed from deny before being added to allow"
+    let cleared = PolicyStore.applyInstanceEdit [] [] [ clock; stdout ] edited
+    Expect.equal (Permission.Policy.rules cleared) ([], []) "removal hits both lists"
+  }
+
 let approvalAndPinAreOneTransaction =
   test "a stale pin review cannot leave the rejected version approved" {
     let accountID : Option<System.Guid> = None
@@ -450,6 +468,7 @@ let tests =
     "policyStore"
     [ policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
+      instanceEditsAddAndRemoveInOnePass
       policyStoreRejectsOlderFormat
       seedClassifiesTheFileFailClosed
       revokingOneRootKeepsSharedDependencies

@@ -379,6 +379,29 @@ let functionPins (accountID : Option<Guid>) : Map<string, string> =
 let setInstancePolicy (policy : P.Policy) : unit =
   set (fun store -> { store with instance = policy })
 
+/// Apply one instance-policy edit, removing rules before adding new ones.
+let applyInstanceEdit
+  (allow : List<P.Rule>)
+  (deny : List<P.Rule>)
+  (remove : List<P.Rule>)
+  (policy : P.Policy)
+  =
+  let keep (rule : P.Rule) : bool = not (List.contains rule remove)
+  let currentAllow, currentDeny = P.Policy.rules policy
+  P.Policy.create
+    ((currentAllow |> List.filter keep) @ allow)
+    ((currentDeny |> List.filter keep) @ deny)
+
+/// Atomically edit the instance policy. `set` performs the read, change, and
+/// write under the store lock so concurrent edits cannot overwrite each other.
+let editInstancePolicy
+  (allow : List<P.Rule>)
+  (deny : List<P.Rule>)
+  (remove : List<P.Rule>)
+  : unit =
+  set (fun store ->
+    { store with instance = applyInstanceEdit allow deny remove store.instance })
+
 /// Every hash some approved root of `accountID` other than `except` still
 /// covers.
 let private closuresOfOtherRoots

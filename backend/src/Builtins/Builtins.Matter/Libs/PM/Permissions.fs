@@ -22,6 +22,9 @@ open Builtin.Shortcuts
 let private policyType : TypeReference =
   TCustomType(NR.ok (PolicyToDT.Policy.typeName ()), [])
 
+let private ruleType : TypeReference =
+  TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), [])
+
 let private policyAdminError () =
   RuntimeError.UncaughtException(
     "permission denied: policy changes require the trusted `dark permissions` command",
@@ -128,6 +131,23 @@ let fns : List<BuiltInFn> =
         | [| policy |] ->
           uply {
             PolicyToDT.Policy.fromDT policy |> PolicyStore.setInstancePolicy
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPolicyEditInstance"
+      [ Param.make "allow" (TList ruleType) "Rules to add to the allow list"
+        Param.make "deny" (TList ruleType) "Rules to add to the deny list"
+        Param.make "remove" (TList ruleType) "Rules to remove from both lists" ]
+      TUnit
+      "Atomically edit instance-policy rules. Removals apply first. Host-only."
+      (fun _ args ->
+        match args with
+        | [| DList(_, allow); DList(_, deny); DList(_, remove) |] ->
+          uply {
+            let rules = List.map PolicyToDT.Rule.fromDT
+            PolicyStore.editInstancePolicy (rules allow) (rules deny) (rules remove)
             return DUnit
           }
         | _ -> incorrectArgs ())

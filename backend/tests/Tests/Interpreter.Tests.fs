@@ -986,6 +986,7 @@ module PermissionsGate =
   let guestCannotChangePolicies =
     testTask "guest code cannot change stored policies" {
       do! expectHostOnly "pmPolicySetInstance" [| RT.DUnit |]
+      do! expectHostOnly "pmPolicyEditInstance" [| RT.DUnit |]
     }
 
   let guestCannotApprovePackages =

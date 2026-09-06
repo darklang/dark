@@ -19,6 +19,14 @@ let currentPolicy () : LanguageTools.Permissions.Policy =
 let writePolicy (policy: LanguageTools.Permissions.Policy) : Unit =
   Builtin.pmPolicySetInstance policy
 
+/// Atomically edit the instance policy. Removals apply before additions.
+let editInstancePolicy
+  (allow: List<LanguageTools.Permissions.Rule>)
+  (deny: List<LanguageTools.Permissions.Rule>)
+  (remove: List<LanguageTools.Permissions.Rule>)
+  : Unit =
+  Builtin.pmPolicyEditInstance allow deny remove
+
 /// The transitive permission requirements and whether analysis was complete.
 /// Incomplete analysis returns the effects found with `false`; fetch once and
 /// pass the result around because this walks the function's closure.
@@ -301,34 +309,17 @@ let editPolicy
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success success)
   | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
 
-let addRules
-  (denied: Bool)
+/// Parse rule arguments and pass them to <param edit>, or report invalid input.
+let editRules
   (args: List<String>)
-  (current: LanguageTools.Permissions.Policy)
-  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
+  (edit: List<LanguageTools.Permissions.Rule> -> Unit)
+  (success: String)
+  : Unit =
   match Command.parseRuleArgs args with
-  | None -> Stdlib.Result.Result.Error(Command.invalidRule args)
+  | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Command.invalidRule args))
   | Some rules ->
-    if denied then
-      Stdlib.Result.Result.Ok(
-        { current with deny = Stdlib.List.append current.deny rules })
-    else
-      Stdlib.Result.Result.Ok(
-        { current with allow = Stdlib.List.append current.allow rules })
-
-let removeRules
-  (args: List<String>)
-  (current: LanguageTools.Permissions.Policy)
-  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
-  match Command.parseRuleArgs args with
-  | None -> Stdlib.Result.Result.Error(Command.invalidRule args)
-  | Some rules ->
-    let keep (rule: LanguageTools.Permissions.Rule) : Bool =
-      Stdlib.Bool.not (Stdlib.List.member rules rule)
-    Stdlib.Result.Result.Ok(
-      { current with
-          allow = current.allow |> Stdlib.List.filter keep
-          deny = current.deny |> Stdlib.List.filter keep })
+    edit rules
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success success)
 
 /// `set a; deny b; c` replaces the whole policy.
 let replacePolicy
@@ -657,16 +648,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error $"missing argument; usage: permissions {usage}")
   | "allow" :: rule ->
-    Command.editPolicy
-      (fun current -> Command.addRules false rule current)
+    Command.editRules
+      rule
+      (fun rules -> Command.editInstancePolicy rules [] [])
       "✓ policy updated"
   | "deny" :: rule ->
-    Command.editPolicy
-      (fun current -> Command.addRules true rule current)
+    Command.editRules
+      rule
+      (fun rules -> Command.editInstancePolicy [] rules [])
       "✓ policy updated"
   | "remove" :: rule ->
-    Command.editPolicy
-      (fun current -> Command.removeRules rule current)
+    Command.editRules
+      rule
+      (fun rules -> Command.editInstancePolicy [] [] rules)
       "✓ rule removed"
   | [ "clear" ] ->
     Command.editPolicy
