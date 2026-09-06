@@ -247,6 +247,13 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
         // (The classic prompt is only reachable via DARK_CLASSIC=1 at launch.)
         { state with isExiting = true }
+    | RunProgram(program, args) ->
+      // Down, run, back up. No page stack: the program is not a page, and when it exits this page is still
+      // the one the user is on. `onResume` builds a fresh session and repaints, because whatever ran on top
+      // owned the surface and the retained view no longer describes the screen.
+      newApp.onTerminate ()
+      let _exit = Stdlib.Cli.Process.runInteractive program args
+      { state with currentPage = Page.SubApp (newApp.onResume ()) }
     | LaunchCommand cmd ->
       // Release this app's surface before the replacement command takes ownership, and push this page so the
       // launched page's exit returns here.

@@ -24,7 +24,8 @@ module Fixtures =
         bodyCols = 100
         inspectorOpen = false
         evaluated = Stdlib.Option.Option.None
-        textMode = Stdlib.Option.Option.None }
+        textMode = Stdlib.Option.Option.None
+        pendingEdit = Stdlib.Option.Option.None }
 
   let docOf (src: String) : Darklang.Fluid.Slot =
     match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
@@ -326,3 +327,39 @@ module LongLinesScrollSideways =
   (Darklang.Fluid.Widget.scrollFor 40 10 0) = 31
   (Darklang.Fluid.Widget.scrollFor 3 10 31) = 3
   (Darklang.Fluid.Widget.scrollFor 5 10 0) = 0
+
+
+module TextEditKeepsHistory =
+  // Applying a WHOLE-document text edit used to build a FRESH editor, which threw the undo history away:
+  // everything typed before a trip through text mode was unreachable afterwards, and `u` answered "nothing
+  // to undo". Splicing a sub-node always kept history, because that branch committed an edit instead.
+  //
+  // They are the same operation -- the whole document is the root path -- so there is one branch now.
+  // Found by writing a program in the terminal, taking it through text mode, and pressing undo.
+  let typed () : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Test.drive
+      (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")) 60)
+      [ "1", "+", "2" ]
+
+  let applied () : Darklang.Fluid.App.State =
+    let st = { (Fixtures.stateOf (TextEditKeepsHistory.typed ())) with
+                 textMode = Stdlib.Option.Option.Some(("1 + 9", 0, [])) }
+    match
+      Darklang.Fluid.App.textModeKey
+        st
+        "1 + 9"
+        0
+        []
+        Darklang.Stdlib.Cli.Stdin.Key.Key.S
+        (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = true; shift = false; alt = false })
+        Stdlib.Option.Option.None with
+    | Stay s -> s
+    | _ -> st
+
+  // Ctrl-S applies the edited text, and leaves text mode.
+  (Darklang.Fluid.App.docToSource (TextEditKeepsHistory.applied ()).editor.root) = "1 + 9"
+  ((TextEditKeepsHistory.applied ()).textMode == Stdlib.Option.Option.None) = true
+
+  // ...and undo peels the text edit rather than finding an empty history.
+  (Darklang.Fluid.App.docToSource
+    (Darklang.Fluid.Editor.undo (TextEditKeepsHistory.applied ()).editor).root) = "1 + 2"

@@ -15,6 +15,10 @@ type SubAppAction =
   | LaunchCommand of String
   /// Drop to the classic prompt, pushing this page so `quit` there returns here instead of leaving the CLI.
   | LaunchPrompt
+  /// Hand the terminal to an external PROGRAM -- not a CLI command -- and come straight back to this page
+  /// when it exits. `$EDITOR` over a file the page is holding is the case this exists for: the program
+  /// needs the real terminal, so the page's surface comes down first and is rebuilt after.
+  | RunProgram of String * List<String>
 
 type SubApp =
   { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)

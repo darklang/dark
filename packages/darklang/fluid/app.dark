@@ -45,7 +45,12 @@ type State =
     /// When Some, we've dropped into plain-text editing: the pretty-printed source, the caret offset into
     /// it, and the path it came from (the selected node in NAV, the whole document otherwise). Confirm
     /// re-parses and splices it back at that path; cancel discards it.
-    textMode: Stdlib.Option.Option<(String * Int * Path)> }
+    textMode: Stdlib.Option.Option<(String * Int * Path)>
+
+    /// A file handed to `$EDITOR`, waiting to be read back. Set when the editor is launched and cleared by
+    /// `refresh` when the CLI hands the terminal back -- the read cannot happen in `view`, which has to be
+    /// a pure function of state for frame diffing to be sound.
+    pendingEdit: Stdlib.Option.Option<String> }
 
 /// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
 /// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
@@ -226,7 +231,8 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       bodyCols = Stdlib.Int.max 1 (size.width - 6)
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
-      textMode = Stdlib.Option.Option.None }
+      textMode = Stdlib.Option.Option.None
+      pendingEdit = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
   initialFor title root Target.Scratch
@@ -277,7 +283,7 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   match st.textMode with
   | Some((buf, caret, _path)) ->
     let msg = st.editor.message
-    let base_ = Stdlib.Cli.UI.Chrome.frame st.title "TEXT" " Ctrl-S apply  Esc cancel"
+    let base_ = Stdlib.Cli.UI.Chrome.frame st.title "TEXT" " Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel"
     let framed = if msg == "" then base_ else Stdlib.Cli.UI.Chrome.withMessage base_ msg
     let full = Stdlib.Cli.UI.Chrome.bodyRegion size
     let boxInner = Stdlib.Cli.UI.Box.inner full
@@ -500,22 +506,40 @@ let textModeKey (st: State) (buf: String) (caret: Int) (path: Path) (key: Stdlib
             // Stay in text mode with the text intact, rather than applying something invented.
             Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = problem } }
           | None ->
-            let width = st.editor.width
-            match path with
-            | [] ->
-              Darklang.Cli.Component.Step.Stay
-                { st with
-                    textMode = Stdlib.Option.Option.None
-                    editor = { (Editor.init st.editor.reg root width) with message = "back to structure" } }
-            | _ ->
-              // Splice the re-parsed node back where it came from, leaving the rest of the document alone.
-              let spliced = Editor.commit st.editor [ Edit.Replace(path, root) ] st.editor.caret
-              Darklang.Cli.Component.Step.Stay
-                { st with
-                    textMode = Stdlib.Option.Option.None
-                    editor = { spliced with caret = Editor.navCaretFor spliced.root path; message = "back to structure" } }
+            // Splice the re-parsed node back where it came from, leaving the rest of the document alone.
+            // The WHOLE document is the same operation at the root path, and it used to be a separate
+            // branch that built a FRESH editor -- which threw the undo history away. Everything typed
+            // before a trip through text mode was unreachable afterwards: `u` said "nothing to undo".
+            let spliced = Editor.commit st.editor [ Edit.Replace(path, root) ] st.editor.caret
+            Darklang.Cli.Component.Step.Stay
+              { st with
+                  textMode = Stdlib.Option.Option.None
+                  editor = { spliced with caret = Editor.navCaretFor spliced.root path; message = "back to structure" } }
         | Error err ->
           Darklang.Cli.Component.Step.Stay { st with editor = { st.editor with message = $"parse error: {err}" } }
+      | O ->
+        // Hand the buffer to `$EDITOR`. Text mode is the escape hatch from structure editing; this is the
+        // escape hatch from text mode, for anything a one-line-at-a-time buffer is the wrong tool for.
+        // `Step.Launch` already means "hand off to a foreground command and come back here", so the editor
+        // gets the real terminal rather than a pipe, and the file is read back on resume.
+        match Stdlib.Cli.File.createTemp () with
+        | Error e ->
+          Darklang.Cli.Component.Step.Stay
+            { st with editor = { st.editor with message = $"could not make a temp file: {e.message}" } }
+        | Ok tmp ->
+          match Stdlib.Cli.File.writeText tmp buf with
+          | Error e ->
+            Darklang.Cli.Component.Step.Stay
+              { st with editor = { st.editor with message = $"could not write {tmp}: {e.message}" } }
+          | Ok _ ->
+            // `Step.Launch` would have been wrong: it looks its string up in the CLI's COMMAND TABLE, so
+            // `vi /tmp/x` is a command named `vi /tmp/x` that does not exist. `RunProgram` spawns a real
+            // program with the real terminal.
+            let editor = Stdlib.Cli.Env.get "EDITOR" |> Stdlib.Option.withDefault "vi"
+            Darklang.Cli.Component.Step.RunProgram(
+              { st with pendingEdit = Stdlib.Option.Option.Some tmp },
+              editor,
+              [ tmp ])
       | _ -> Darklang.Cli.Component.Step.Stay st
     else
       match keyChar with
@@ -609,7 +633,28 @@ let onKey
       else Darklang.Cli.Component.Step.Stay st
     | Insert -> Darklang.Cli.Component.Step.Stay st
 
-val component = Darklang.Cli.Component.stateless view onKey
+/// After a transition, and after the CLI hands the terminal back from a launched command. The one thing
+/// Fluid derives outside `view`: what `$EDITOR` left in the file it was given.
+let refresh (prev: State) (next: State) : State =
+  match next.pendingEdit with
+  | None -> next
+  | Some path ->
+    let cleared = { next with pendingEdit = Stdlib.Option.Option.None }
+    match Stdlib.Cli.File.readText path with
+    | Error e -> { cleared with editor = { cleared.editor with message = $"could not read {path}: {e.message}" } }
+    | Ok text ->
+      match cleared.textMode with
+      | Some((_buf, _caret, p)) ->
+        // The caret goes to the start rather than being guessed at: the text came from another program and
+        // the old offset means nothing in it.
+        { cleared with
+            textMode = Stdlib.Option.Option.Some((Stdlib.String.trimEnd text, 0, p))
+            editor = { cleared.editor with message = "back from $EDITOR" } }
+      | None -> cleared
+
+val component =
+  Darklang.Cli.Component.Component
+    { view = view; onKey = onKey; save = Darklang.Cli.Component.noSave; refresh = refresh }
 
 
 // --- Command ---

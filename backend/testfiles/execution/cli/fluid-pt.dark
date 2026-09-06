@@ -426,6 +426,26 @@ module BarStartsTheNextArm =
   (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
     [ "ma", "<Enter>", "n", "<Tab>", "0", "|", "1", "|", "2" ]) = "match n with\n| 0 | 1 | 2~ -> ⟨rhs⟩"
 
+  // THE RHS IS NOT ALWAYS A TEXT NODE WITH THE CARET INSIDE IT, which is how the first version of this
+  // shipped broken. Type a string and the closing quote leaves the caret AFTER the node; type a list and it
+  // leaves you after the LIST, while the last node in the arm is the `1` inside it. The rule lived in the
+  // text branch of the typing path, so `| 1 -> 2` made an arm and `| 1 -> "zero"` made a pipe. Every pin
+  // above ends its arm with a number, which is why they all passed. Found by writing an ordinary program in
+  // the terminal.
+  let armEnding (rhs: String) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+      (Stdlib.List.flatten [ [ "ma", "<Enter>", "x", "<Tab>", "1", "<Tab>", rhs ], extra ])
+
+  (BarStartsTheNextArm.armEnding "\"zero\"" [ "|" ]) = "match x with\n| 1 -> \"zero\"\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.armEnding "[1]" [ "|" ]) = "match x with\n| 1 -> [1]\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  // An arm often ends in a name typed but not yet settled -- a PARTIAL, whose caret is in the SLOT rather
+  // than in any text. An empty hole looks the same, and there the lead punct must not add an arm: there is
+  // nothing in this one yet. The difference is whether anything has been typed.
+  (BarStartsTheNextArm.armEnding "foo" [ "|" ]) = "match x with\n| 1 -> foo\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // The revision still works from there: the operator applies to the string, not to a new arm.
+  (BarStartsTheNextArm.armEnding "\"zero\"" [ "|", "|" ]) = "match x with\n| 1 -> \"zero\" ||~ ⟨right⟩"
+
   // And a list whose items are separated rather than led keeps its own key: `,` still adds an element.
   (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
     [ "[", "1", ",", "2" ]) = "[1, 2~]"

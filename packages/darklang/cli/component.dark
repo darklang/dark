@@ -30,6 +30,9 @@ type Step<'s> =
   | Launch of 's * String
   /// Drop to the classic prompt, pushing this page so `quit` there comes back here.
   | ToPrompt of 's
+  /// Run an external PROGRAM on this terminal and come straight back. Not a CLI command: `Launch` looks its
+  /// string up in the command table, which is the wrong thing entirely for `$EDITOR`.
+  | RunProgram of 's * String * List<String>
 
 type Component<'s> =
   { /// The complete view at a given terminal size. Must be pure: the renderer may call it to diff frames,
@@ -120,6 +123,8 @@ let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
             (Cli.SubAppAction.LaunchCommand command, toSubApp c (handOff session next))
           | ToPrompt next ->
             (Cli.SubAppAction.LaunchPrompt, toSubApp c (handOff session next))
+          | RunProgram(next, program, args) ->
+            (Cli.SubAppAction.RunProgram(program, args), toSubApp c (handOff session next))
       // The session presents on launch and on every state transition, so the returned SubApp carries the
       // matching renderer history. Nothing is drawn here.
       onDisplay = fun () -> ()
@@ -134,12 +139,16 @@ let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
           ()
       onResume =
         fun () ->
+          // A resume IS a transition, and the world moved while something else had the terminal: a command
+          // launched with `Step.Launch` is usually launched BECAUSE it changes something (an editor over a
+          // file the page is holding). So derived state is recomputed here, the same way it is after a key.
+          let resumedState = c.refresh session.state session.state
           // Whatever ran on top tore the surface down, so the retained view is stale: start over and
           // repaint from scratch rather than diffing against it.
           let terminal =
-            Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view session.state size)
+            Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view resumedState size)
 
-          toSubApp c (Session { state = session.state; terminal = terminal }) }
+          toSubApp c (Session { state = resumedState; terminal = terminal }) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.
