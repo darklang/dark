@@ -893,3 +893,38 @@ module OfferedCasesCanBePicked =
   // Without a case to offer, Enter still starts the next arm, which is the behaviour the guard exists for.
   (OfferedCasesCanBePicked.run Darklang.LanguageTools.ProgramTypes.TypeReference.TInt [ "<Enter>" ]) =
     "let describe (o: Int): String =\n  match o with\n  | ⟨pattern⟩ -> ⟨rhs⟩\n  | ~⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module TypeCompletionIsRanked =
+  // Function and record candidates have been ranked since the fix that stopped `Size` offering
+  // `Stdlib.Dict.size` first. Types were not: the store's order was the store's, so typing `Colour`
+  // offered `Darklang.Fluid.Layout.Style` above the type actually called Colour.
+  //
+  // Ranking also FILTERS, which is the bigger half: something the store returned and the ranker cannot
+  // score at all does not belong in a menu you are reading while you type.
+  let labels (typed: String) : List<String> =
+    Darklang.Fluid.PT.Types.completeType (Darklang.Fluid.PT.Types.typeExpect "t") typed
+    |> Stdlib.List.map (fun c -> c.label)
+
+  // An exact name leads, and a name that does not match at all is gone rather than ranked last.
+  (Stdlib.List.head (TypeCompletionIsRanked.labels "Option") |> Stdlib.Option.withDefault "none") = "Option"
+  (Stdlib.List.member (TypeCompletionIsRanked.labels "Option") "Darklang.Fluid.Layout.Style") = false
+
+  // A prefix still finds things, so this narrowed the menu without narrowing what you can reach.
+  (Stdlib.List.isEmpty (TypeCompletionIsRanked.labels "Optio")) = false
+
+
+module EnterInAnArmAddsAnArm =
+  // Two rules could claim Enter at the end of a match arm's right-hand side: "start the next item in the
+  // list you are in" and "start the next statement". The list wins, because the rhs IS a list item, and
+  // `sequenceHere` is only reached when there is no sibling to add. Pinned because the sequencing rule
+  // landed after this one and the precedence between them is not obvious from either.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (Darklang.Fluid.App.defaultRegistry ()) (EnterInAnArmAddsAnArm.hole ()) 60 keys
+
+  (EnterInAnArmAddsAnArm.run [ "m", "a", "<Enter>", "n", "<Tab>", "1", "<Tab>", "2", "<Enter>" ]) =
+    "match n with\n| 1 -> 2\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (EnterInAnArmAddsAnArm.run
+    [ "m", "a", "<Enter>", "n", "<Tab>", "1", "<Tab>", "2", "<Enter>", "3", "<Tab>", "4", "<Enter>" ]) =
+    "match n with\n| 1 -> 2\n| 3 -> 4\n| ~⟨pattern⟩ -> ⟨rhs⟩"

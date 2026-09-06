@@ -2041,7 +2041,10 @@ module Types =
             searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
             entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
             exactMatch = false }
-      (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
+      // RANKED, like function and record candidates already are. The store's order is the store's, so
+      // typing `Colour` offered `Darklang.Fluid.Layout.Style` above `Stachu.Scratch.Colour` -- the exact
+      // name, second. Same shape as the fix that stopped `Size` offering `Stdlib.Dict.size` first.
+      PT.ranked typed (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
       |> Stdlib.List.take 5
       |> Stdlib.List.map (fun item ->
         let name = PT.locationName item.location
