@@ -65,6 +65,7 @@
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Permissions.Tests.fs" />
     <Compile Include="PackagePermissions.Tests.fs" />
+    <Compile Include="PermissionEscape.Tests.fs" />
     <Compile Include="PolicyStore.Tests.fs" />
     <Compile Include="Host.Tests.fs" />
 

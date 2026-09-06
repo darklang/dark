@@ -146,10 +146,13 @@ let custom
 
 
 // ENVIRONMENT-BASED MODEL SELECTION
+//
+// These must remain functions: provider selection belongs to the caller's
+// environment, not the machine that built the package seed.
 
-/// Get the balanced model based on environment variable
-/// Set DARKLANG_LLM_PROVIDER to "openai", "ollama", or "anthropic" (default)
-val balanced =
+/// The balanced model for the configured provider.
+/// Set DARKLANG_LLM_PROVIDER to "openai", "ollama", or "anthropic" (default).
+let balanced () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.balanced
   | Some "ollama" -> Local.balanced
@@ -157,8 +160,8 @@ val balanced =
   | _ -> Anthropic.balanced
 
 
-/// Get the fast model based on environment variable
-val fast =
+/// The fast model for the configured provider.
+let fast () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.fast
   | Some "ollama" -> Local.balanced
@@ -166,8 +169,8 @@ val fast =
   | _ -> Anthropic.fast
 
 
-/// Get the smart model based on environment variable
-val smart =
+/// The most capable model for the configured provider.
+let smart () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.smart
   | Some "ollama" -> Local.llama3_70b

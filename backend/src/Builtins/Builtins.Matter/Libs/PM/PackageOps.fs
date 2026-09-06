@@ -89,7 +89,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
+        | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
@@ -117,13 +117,63 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   // Evaluate values whose runtime form is still missing.
                   // New values start with NULL `rt_dval`; doing this now lets
                   // later operations use them without restarting the CLI.
-                  let! _ =
+                  // These bodies just arrived from guest code, so evaluating
+                  // them is bounded by the instance policy and by this caller's
+                  // access — otherwise `val x = <denied effect>` performs the
+                  // effect that `eval <denied effect>` refuses.
+                  let! evaluated =
                     LibDB.Seed.evaluateAllValues
+                      (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                        exeState.accountID
+                        vm.activeAccess)
                       branchId
                       exeState.builtins
                       LibDB.PackageManager.rt
 
-                  return resultOk (Dval.int (bigint insertedCount))
+                  // Report only failures from this call; evaluation also sweeps
+                  // unrelated pending values. Match locations as well as hashes,
+                  // because refresh may resolve a name and recompute its hash
+                  // while its location remains stable.
+                  let addedValueHashes =
+                    ops
+                    |> List.choose (fun op ->
+                      match op with
+                      | PT.PackageOp.AddValue value -> Some value.hash
+                      | _ -> None)
+                    |> Set.ofList
+
+                  let addedValueLocations =
+                    ops
+                    |> List.choose (fun op ->
+                      match op with
+                      | PT.PackageOp.SetName(location, PT.PackageValue _) ->
+                        Some(LibDB.PackageLocation.toFQN location)
+                      | _ -> None)
+                    |> Set.ofList
+
+                  let ownFailures =
+                    match evaluated with
+                    | Ok() -> []
+                    | Error errors ->
+                      errors
+                      |> List.filter (fun e ->
+                        let byHash =
+                          match e.hash with
+                          | Some hash -> Set.contains hash addedValueHashes
+                          | None -> false
+                        byHash || Set.contains e.location addedValueLocations)
+
+                  match ownFailures with
+                  | [] -> return resultOk (Dval.int (bigint insertedCount))
+                  | failures ->
+                    return
+                      resultError (
+                        Dval.string (
+                          failures
+                          |> List.map LibDB.Seed.ValueEvaluationError.toString
+                          |> String.concat "\n"
+                        )
+                      )
             with ex ->
               return resultError (Dval.string ex.Message)
           }

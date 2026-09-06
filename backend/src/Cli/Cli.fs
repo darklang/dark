@@ -245,6 +245,9 @@ let main (args : string[]) =
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
       (LibDB.Seed.growIfNeeded
+        // Bounded by the operator's instance policy. The store can hold values
+        // that arrived by import or sync, and this is where they first run.
+        LibDB.Seed.EvaluationAuthority.underInstancePolicy
         (fun () -> builtinsLazy.Force())
         cliPackageManager
         (fun msg -> System.Console.Error.WriteLine msg))

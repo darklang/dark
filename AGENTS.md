@@ -314,6 +314,11 @@ not a constant; `val` is evaluated once. If the body doesn't depend on anything,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.
 
+**Package `val`s must not depend on the host.** They are evaluated once and stored;
+trusted seed builds can therefore hide permission failures and freeze build-machine
+state. Use a function for environment-dependent work. `PermissionEscape.Tests` checks
+shipped values under guest policy.
+
 **Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval treats opaque `EValue` bodies as incomplete.
 
 **Compiled function references are serialized code.** `EFnName` becomes a serialized
