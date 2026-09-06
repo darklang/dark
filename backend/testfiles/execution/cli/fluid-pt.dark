@@ -774,3 +774,19 @@ module DocCommentsAreReadable =
   // ...and a type written in a description is not a marker, so it survives.
   (Darklang.Fluid.PT.stripDocMarkup "returns a List<'a> of things") = "returns a List<'a> of things"
   (Darklang.Fluid.PT.stripDocMarkup "") = ""
+
+
+module EscapedStringsSurviveTheDocument =
+  // The escaping bug is a DRAWING bug and only a drawing bug. A string's body is stored decoded, so
+  // `"a\nb"` draws as two rows, which is wrong and is the last token-level difference between what Fluid
+  // draws and what the printer writes. What it does NOT do is change the program: the document holds the
+  // real character, `fromDoc` hands back the same `EString`, and the printer escapes it again on the way
+  // to source.
+  //
+  // Worth pinning because it is the difference between "looks wrong" and "eats your code", and I had been
+  // treating it as the second. Checked end to end as well, by editing a function containing `"\n"` in the
+  // editor and saving it: the newline came back out of the package store escaped.
+  (Fixtures.roundTrip "Stdlib.String.split s \"\\n\"") = "Stdlib.String.split s \"\\n\""
+  (Fixtures.roundTrip "\"a\\tb\"") = "\"a\\tb\""
+  (Fixtures.roundTrip "\"quote \\\" inside\"") = "\"quote \\\" inside\""
+  (Fixtures.roundTrip "\"back \\\\ slash\"") = "\"back \\\\ slash\""

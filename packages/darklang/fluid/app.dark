@@ -765,21 +765,27 @@ let onKey
   | Emitted(e, msg) ->
     match msg with
     | Back -> Darklang.Cli.Component.Step.Exit(afterKey st e)
+    // Repaint, not Stay, on every branch that actually SAVES. Applying an edit propagates it, and
+    // propagation reports what it repointed -- "Propagated to 39 dependents:" and a grouped list -- which
+    // it should, at a prompt. It lands on the terminal the editor is holding, so the editor takes the
+    // screen back afterwards. Same as `v`, and for the same reason: the surface stopped being ours the
+    // moment something else wrote to it.
     | Save root ->
       match st.target with
+      // Nothing ran, so nothing wrote to the screen.
       | Scratch -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = "nothing to save this to (try `fluid fn <name>`)" })
       | FnBody(fn, location) ->
         match saveFnBody fn location root with
-        | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
-        | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
+        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
       | TypeDef(pt, location) ->
         match saveType pt location root with
-        | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
-        | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
+        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
       | ValueDef(pv, location) ->
         match saveValue pv location root with
-        | Ok name -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"saved {name}" })
-        | Error err -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = $"not saved: {err}" })
+        | Ok name -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"saved {name}" })
+        | Error err -> Darklang.Cli.Component.Step.Repaint(afterKey st { e with message = $"not saved: {err}" })
   | Ignored ->
     let ch = keyChar |> Stdlib.Option.withDefault ""
     match st.editor.mode with
