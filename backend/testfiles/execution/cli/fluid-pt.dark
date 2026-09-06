@@ -686,3 +686,55 @@ module ReservedFieldNamesKeepTheirBackticks =
 
   // An ordinary field is untouched, so this is a rule about the unusual names and not a new decoration.
   (Fixtures.render "p.name" 40) = "p.name"
+
+
+module RecordUpdatesCanBeBuilt =
+  // `{ r with x = 1 }` could be drawn and lowered but never TYPED: the record literal is built by
+  // completion (it needs a resolved type hash), and nothing claimed `{`. So `{` in an expression hole now
+  // means the one record form that needs nothing resolved, and it reads in source order.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String = Darklang.Fluid.Test.run (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ()) 60 keys
+
+  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with\n  name = ⟨value⟩\n}"
+
+  // Tab walks record, then the field NAME, then the value.
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with\n  ~name = ⟨value⟩\n}"
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9" ]) =
+    "{ r with\n  width = 99~\n}"
+
+  // `;` adds the next update, the way it adds the next field of a literal.
+  (Darklang.Fluid.PT.Test.program (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ())
+    [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9", ";", "h", "e", "i", "g", "h", "t", "<Tab>", "1", "<Esc>", "<Esc>" ]) =
+    "{ r with width = 99; height = 1 }"
+
+
+module AnEmptyTextSlotIsAHole =
+  // Tab walks the cells the LAYOUT styles as holes, and an empty text slot drew as dim decoration, so Tab
+  // stepped over an unnamed record field straight to its value: `{ r with name = ... }` could be built and
+  // the field could not be named. `;` landed on that same slot, because adding a sibling lands
+  // structurally rather than off the layout. Two answers to "is this unfinished", and the layout's was
+  // wrong. An empty text slot is a hole, everywhere.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // The record literal's field names come from the declaration, so they are filled and Tab passes them by
+  // on its way to the values -- the rule is about EMPTY text, not about text.
+  (Darklang.Fluid.Test.run (AnEmptyTextSlotIsAHole.reg ()) (AnEmptyTextSlotIsAHole.hole ()) 60
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+
+
+module SingleSegmentNamesKeepTheirShape =
+  // `parsePackageLocation "Colour"` reads a bare name as an OWNER with an empty name, and shortening
+  // owner="Colour"/name="" hands back `Colour.`. So a type declared in the module you are standing in, or
+  // one you have typed and not resolved, grew a trailing dot: `Colour.Red` drew as `Colour..Red` and
+  // `Foo { a = 1 }` drew as `Foo. { a = 1 }`. A name with no module path has nothing to shorten.
+  (Darklang.Fluid.PT.displayName "Colour") = "Colour"
+  (Darklang.Fluid.PT.displayName "Foo") = "Foo"
+  (Darklang.Fluid.PT.displayName "") = ""
+  (Darklang.Fluid.PT.displayName "A.B") = "A.B"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Option.Option") = "Option"
+
+  (Fixtures.render "Colour.Red" 60) = "Colour.Red"
+  (Fixtures.render "Foo { a = 1L }" 60) = "Foo {\n  a = 1L\n}"

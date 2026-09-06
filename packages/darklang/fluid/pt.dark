@@ -859,6 +859,23 @@ let stringInterpFromDollar (c: String) (e: Expect) : Node =
 let listFromBracket (c: String) (e: Expect) : Node =
   Node.make (exprKind "EList") [ ("items", Field.Many([ Slot.Empty(exprExpect "item") ], exprExpect "item")) ]
 
+/// `{` in an expression hole: a record UPDATE, `{ r with name = value }`.
+///
+/// The record LITERAL cannot be reached by punctuation at all -- `ERecord` needs a resolved type hash, so
+/// it is built by completion on the type name -- which leaves `{` free for the one record form that needs
+/// nothing resolved. It reads in source order: `{`, then the record, then the fields.
+let recordUpdateFromBrace (c: String) (e: Expect) : Node =
+  Node.make
+    (exprKind "ERecordUpdate")
+    [ ("record", Field.One(Slot.Empty(exprExpect "record")))
+      ("updates",
+       Field.Many(
+         [ Slot.Filled(
+             Node.make
+               (Kind.named recordFieldType)
+               [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]) ],
+         fieldExpect ())) ]
+
 let tupleFromParen (c: String) (e: Expect) : Node =
   Node.make
     (exprKind "ETuple")
@@ -933,7 +950,16 @@ let locationName (loc: Darklang.LanguageTools.ProgramTypes.PackageLocation) : St
 /// would say them.
 let displayName (name: String) : String =
   let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
-  Darklang.PrettyPrinter.shortenName [] loc.owner loc.modules loc.name
+
+  // A name with no dots in it has nothing to shorten, and must not be sent through the shortener:
+  // `parsePackageLocation "Colour"` reads a bare name as an OWNER with an empty name, and shortening
+  // owner="Colour"/name="" hands back `Colour.`. So `Colour.Red` drew as `Colour..Red` and a record
+  // literal `Foo { a = 1 }` drew as `Foo. { ... }`. That is what any type declared in the module you are
+  // standing in looks like, and what a type you have just typed and not resolved looks like.
+  if loc.name == "" then
+    name
+  else
+    Darklang.PrettyPrinter.shortenName [] loc.owner loc.modules loc.name
 
 let fnNameNode (name: String) (hash: String) : Node =
   Node.make (exprKind "EFnName") [ text "name" (displayName name), text "_hash" hash ]
@@ -1370,6 +1396,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "$"; fill = HoleFill.WithChar stringInterpFromDollar }
           HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket }
           HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen }
+          HoleRule { onChar = "{"; fill = HoleFill.WithChar recordUpdateFromBrace }
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }

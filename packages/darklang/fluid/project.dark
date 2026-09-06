@@ -162,12 +162,18 @@ let slot
 /// Interpret one piece for the node at `path`.
 let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
   match p with
+  // An EMPTY text slot is a hole, and is styled as one. It draws its own name as the placeholder rather
+  // than `â¨nameâ©` -- there is text to type here, not a slot to fill -- but it is the same kind of unfinished
+  // thing, and Tab walks the cells that are styled `Hole`. While these were Dim, Tab stepped straight over
+  // an unnamed record field to its value, so `{ r with name = ... }` could be built but the field could
+  // not be named. `;` landed on it, because adding a sibling lands structurally; Tab did not, because Tab
+  // reads the layout. One of the two was wrong and it was Tab's view of what counts.
   | Text(slotName, style) ->
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
       if t == "" then
-        Layout.tagged tag Layout.Style.Dim slotName
+        Layout.tagged tag Layout.Style.Hole slotName
       else
         Layout.tagged tag style t
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
@@ -176,7 +182,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
-      if t == "" then Layout.tagged tag Layout.Style.Dim slotName
+      if t == "" then Layout.tagged tag Layout.Style.Hole slotName
       else Layout.tagged tag style (Darklang.Fluid.PT.displayName t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
@@ -184,7 +190,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
-      if t == "" then Layout.tagged tag Layout.Style.Dim slotName
+      if t == "" then Layout.tagged tag Layout.Style.Hole slotName
       else Layout.tagged tag style (Darklang.PrettyPrinter.formatFieldName t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
