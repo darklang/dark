@@ -509,40 +509,6 @@ module Access =
     else
       Access(constraints @ restrictions)
 
-  /// The instance layer is the operator's hard maximum. If *any* layer that
-  /// denies is the instance, report that denial — never an inner one — so
-  /// audit/warn mode (which may relax only caller-owned layers) can never
-  /// proceed past an instance denial that an inner caller-owned denial would
-  /// otherwise mask. Otherwise report the first (innermost) denial. Runs on
-  /// every gated builtin call, so it allocates nothing on the allowed path.
-  let check (request : Request) (Access restrictions) : Decision =
-    let restrictions : List<Restriction> = restrictions
-    match restrictions with
-    | [ only ] when Policy.isAllowAll only.policy -> Decision.Allowed
-    | _ ->
-      let mutable first = ValueNone
-      let mutable remaining = restrictions
-      while not (List.isEmpty remaining) do
-        match remaining with
-        | [] -> ()
-        | restriction :: rest ->
-          remaining <- rest
-          match Policy.denial request restriction.policy with
-          | None -> ()
-          | Some reason ->
-            let denial : Denial = { layer = restriction.layer; reason = reason }
-            if restriction.layer = Layer.Instance then
-              first <- ValueSome denial
-              remaining <- []
-            elif first.IsNone then
-              first <- ValueSome denial
-      match first with
-      | ValueNone -> Decision.Allowed
-      | ValueSome denial -> Decision.Denied denial
-
-  let allows (request : Request) (access : Access) : bool =
-    check request access = Decision.Allowed
-
   /// Which layers `Relax` may waive: only the ones the invoker owns.
   let private isCallerOwned (layer : Layer) : bool =
     match layer with
@@ -550,6 +516,74 @@ module Access =
     | Layer.Package _ -> true
     | Layer.Instance
     | Layer.Function _ -> false
+
+  [<RequireQualifiedAccess; Struct>]
+  type private CheckMode =
+    | Enforce
+    | Audit of
+      resource : (unit -> string) *
+      record : (string -> Layer -> PolicyDenial -> unit)
+
+  /// The one traversal behind `check` and `decide`.
+  ///
+  /// An instance denial always wins because it is the operator's hard maximum.
+  /// Otherwise, inspect every denial in order: record and waive caller-owned
+  /// layers under `Relax`, and retain the first denial that cannot be waived
+  /// while continuing to look for an instance denial. A waived package denial
+  /// therefore cannot hide a function ceiling behind it.
+  ///
+  /// Runs on every gated builtin call, so it allocates nothing on the allowed
+  /// path: a lone allow-all instance policy returns before the traversal, and
+  /// `resource` is only rendered for a recorded waiver.
+  let private findEffectiveDenial
+    (mode : CheckMode)
+    (request : Request)
+    (Access restrictions)
+    : Option<Denial> =
+    match restrictions with
+    | [ only ] when Policy.isAllowAll only.policy -> None
+    | _ ->
+      let mutable instance = ValueNone
+      let mutable standing = ValueNone
+      let mutable remaining = restrictions
+      while ValueOption.isNone instance && not (List.isEmpty remaining) do
+        match remaining with
+        | [] -> ()
+        | restriction :: rest ->
+          remaining <- rest
+          match Policy.denial request restriction.policy with
+          | None -> ()
+          | Some reason ->
+            if restriction.layer = Layer.Instance then
+              instance <- ValueSome { layer = restriction.layer; reason = reason }
+            else
+              let waived =
+                match mode with
+                | CheckMode.Audit(resource, record) when
+                  isCallerOwned restriction.layer
+                  ->
+                  record (resource ()) restriction.layer reason
+                  true
+                | _ -> false
+              if not waived && standing.IsNone then
+                standing <- ValueSome { layer = restriction.layer; reason = reason }
+      match instance with
+      | ValueSome denial -> Some denial
+      | ValueNone ->
+        match standing with
+        | ValueSome denial -> Some denial
+        | ValueNone -> None
+
+  /// Report the first (innermost) denial, with the instance denial taking
+  /// precedence over any inner one. See `findEffectiveDenial`.
+  let check (request : Request) (access : Access) : Decision =
+    match findEffectiveDenial CheckMode.Enforce request access with
+    | None -> Decision.Allowed
+    | Some denial -> Decision.Denied denial
+
+  let allows (request : Request) (access : Access) : bool =
+    check request access = Decision.Allowed
+
 
   /// Check and apply audit mode in one place: a denial from a caller-owned
   /// layer is recorded (with the resource description, rendered only then)
@@ -561,11 +595,8 @@ module Access =
     (request : Request)
     (access : Access)
     : Option<Denial> =
-    match check request access with
-    | Decision.Allowed -> None
-    | Decision.Denied denial ->
+    let mode =
       match relax with
-      | Relax record when isCallerOwned denial.layer ->
-        record (resource ()) denial.layer denial.reason
-        None
-      | _ -> Some denial
+      | NoRelax -> CheckMode.Enforce
+      | Relax record -> CheckMode.Audit(resource, record)
+    findEffectiveDenial mode request access

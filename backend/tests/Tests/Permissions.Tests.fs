@@ -156,6 +156,89 @@ let warnModeNeverRelaxesTheAuthorsCeiling =
       "only the waived denials were recorded"
   }
 
+let warnModeCannotHideTheCeilingBehindAWaivableDenial =
+  test
+    "audit mode waives layer by layer; a ceiling behind a waived denial still denies" {
+    // `decide` used to waive the single denial `check` reported. With the
+    // package layer innermost, that was the package denial, and the author's
+    // ceiling behind it was never consulted. The cases below cover the
+    // combinations and both orderings, since `restrict` prepends and which
+    // layer is met first is exactly what used to decide the outcome.
+    let deny = Permission.Policy.denyAll
+    let clock = Permission.Request.clock
+    let ceiling = Permission.Layer.Function "f"
+    let pkg = Permission.Layer.Package "p"
+    let decideWith (recorded : ResizeArray<Permission.Layer>) access =
+      Permission.Access.decide
+        (Permission.Relax(fun _ layer _ -> recorded.Add layer))
+        (fun () -> "clock")
+        clock
+        access
+      |> Option.map (fun d -> d.layer)
+    let allowAll = Permission.Access.start Permission.Policy.allowAll
+
+    // The reported case: package innermost, ceiling behind it.
+    let recorded = ResizeArray()
+    let pkgThenCeiling =
+      allowAll
+      |> Permission.Access.restrict ceiling deny
+      |> Permission.Access.restrict pkg deny
+    Expect.equal
+      (decideWith recorded pkgThenCeiling)
+      (Some ceiling)
+      "the ceiling stands even though the package denial in front of it was waived"
+    Expect.equal (List.ofSeq recorded) [ pkg ] "the package waiver was recorded"
+
+    // The other order: ceiling innermost.
+    let recorded = ResizeArray()
+    let ceilingThenPkg =
+      allowAll
+      |> Permission.Access.restrict pkg deny
+      |> Permission.Access.restrict ceiling deny
+    Expect.equal
+      (decideWith recorded ceilingThenPkg)
+      (Some ceiling)
+      "ceiling first: stands"
+    Expect.equal
+      (List.ofSeq recorded)
+      [ pkg ]
+      "the package denial behind the ceiling is still recorded for the audit"
+
+    // Only waivable layers: everything is waived, and everything is recorded.
+    let recorded = ResizeArray()
+    let runAndPkg =
+      allowAll
+      |> Permission.Access.restrict Permission.Layer.Run deny
+      |> Permission.Access.restrict pkg deny
+    Expect.isNone
+      (decideWith recorded runAndPkg)
+      "run and package denials are both waived"
+    Expect.equal
+      (List.ofSeq recorded)
+      [ pkg; Permission.Layer.Run ]
+      "both waivers recorded, in traversal order"
+
+    // The instance still outranks everything, waived or not.
+    let recorded = ResizeArray()
+    let underInstance =
+      Permission.Access.start deny
+      |> Permission.Access.restrict ceiling deny
+      |> Permission.Access.restrict pkg deny
+    Expect.equal
+      (decideWith recorded underInstance)
+      (Some Permission.Layer.Instance)
+      "the instance denial is reported over the ceiling and the package"
+
+    // Without relaxation nothing changes: the first denial is the answer.
+    match Permission.Access.check clock pkgThenCeiling with
+    | Permission.Decision.Denied denial ->
+      Expect.equal
+        denial.layer
+        pkg
+        "enforced mode still reports the innermost denial"
+    | Permission.Decision.Allowed -> failtest "should be denied"
+  }
+
 let httpRulesKeepDimensionsCoupled =
   test "HTTP method, origin, port, and path remain coupled" {
     let policy =
@@ -422,6 +505,7 @@ let tests =
       accessOnlyNarrows
       instanceDenialWinsOverInnerDenial
       warnModeNeverRelaxesTheAuthorsCeiling
+      warnModeCannotHideTheCeilingBehindAWaivableDenial
       httpRulesKeepDimensionsCoupled
       httpQueryIsPartOfTheOperation
       invalidRequestsFailClosed
