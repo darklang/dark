@@ -134,7 +134,14 @@ let palette
     let selected = Stdlib.Int.clamp st.paletteIndex 0 (Stdlib.Int.max 0 ((Stdlib.List.length actions) - 1))
     let rows =
       actions
-      |> Stdlib.List.map (fun a -> " " ++ a.name ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText a.doc))
+      |> Stdlib.List.map (fun a ->
+        // An action bound to a key says so, so you learn the key by using the palette and then stop
+        // needing the palette.
+        let binding =
+          match a.key with
+          | Some k -> "  " ++ (Stdlib.Cli.UI.Colors.dimText ("[" ++ k ++ "]"))
+          | None -> ""
+        " " ++ a.name ++ binding ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText a.doc))
     let widest =
       rows |> Stdlib.List.fold 24 (fun acc r -> Stdlib.Int.max acc (Stdlib.Cli.Tui.Text.styledWidth r))
     let boxW = Stdlib.Int.min (region.cols - 2) (widest + 2)
@@ -193,7 +200,17 @@ let inspectorWith
   let actions = Editor.visibleActions st
   let actionLines =
     if Stdlib.List.isEmpty actions then [ dim "  (none here)" ]
-    else actions |> Stdlib.List.take 7 |> Stdlib.List.map (fun a -> "  " ++ (Stdlib.Cli.UI.Colors.colorize theme.keyword "•") ++ " " ++ a.name)
+    else
+      actions
+      |> Stdlib.List.take 7
+      |> Stdlib.List.map (fun a ->
+        // A bound action shows its key instead of the bullet: the panel is the help, so a key that exists
+        // and isn't written here may as well not exist.
+        let lead =
+          match a.key with
+          | Some k -> Stdlib.Cli.UI.Colors.colorize theme.keyword k
+          | None -> Stdlib.Cli.UI.Colors.colorize theme.keyword "•"
+        "  " ++ lead ++ " " ++ a.name)
   // Completions are shown at the caret (a popover), not here, so the panel never lists them twice.
   // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
   let inHole =

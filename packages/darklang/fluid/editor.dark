@@ -576,16 +576,33 @@ let movePalette (st: State) (delta: Int) : State =
   else { st with paletteIndex = Stdlib.Int.clamp (st.paletteIndex + delta) 0 (n - 1) }
 
 /// Run the highlighted action: replace the current node's slot with what the action returns.
+/// Run one action on the node the NAV caret is on. Shared by the palette and by an action's own key, so
+/// the two can't drift: whatever the palette does when you pick an action, the key does too.
+let applyAction (st: State) (action: Action) : State =
+  match nodeAtPath st.root (navPath st) with
+  | Some n ->
+    let here = navPath st
+    let st1 = commit { st with paletteOpen = false } [ Edit.Replace(here, action.run n) ] st.caret
+    { st1 with caret = navCaretFor st1.root here; message = action.name }
+  | None -> closePalette st
+
+/// The action a SPEC binds to `ch` on the node the caret is on, if any.
+///
+/// `Action.key` has been in the spec vocabulary since the palette was written and the kernel never read
+/// it: a spec could say which key it wanted and nothing happened. This is the whole point of the keymap
+/// being data -- someone writing their own kind, or a DSL on top, binds keys on their own nodes without
+/// touching the kernel's dispatch. Only `:` is reserved, because the palette is the escape hatch that
+/// lists everything and has to keep working whatever a spec has bound.
+let actionForKey (st: State) (ch: String) : Stdlib.Option.Option<Action> =
+  if ch == "" || ch == ":" then
+    Stdlib.Option.Option.None
+  else
+    paletteActions st
+    |> Stdlib.List.findFirst (fun a -> a.key == Stdlib.Option.Option.Some ch)
+
 let runPaletteAction (st: State) : State =
-  let actions = visibleActions st
-  match Stdlib.List.getAt actions st.paletteIndex with
-  | Some action ->
-    match nodeAtPath st.root (navPath st) with
-    | Some n ->
-      let here = navPath st
-      let st1 = commit { st with paletteOpen = false } [ Edit.Replace(here, action.run n) ] st.caret
-      { st1 with caret = navCaretFor st1.root here; message = action.name }
-    | None -> closePalette st
+  match Stdlib.List.getAt (visibleActions st) st.paletteIndex with
+  | Some action -> applyAction st action
   | None -> closePalette st
 
 
@@ -2351,18 +2368,24 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       | S -> Stdlib.Cli.UI.Widget.Outcome.Emitted(st, Msg.Save st.root)
       | R -> handled (redo st)
       | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
-    elif ch == "j" then handled (navBy st 1)
-    elif ch == "k" then handled (navBy st (-1))
-    elif ch == "h" then handled (navParent st)
-    elif ch == "l" then handled (navChild st)
-    elif ch == "i" then handled (enterInsert st)
-    elif ch == "x" then handled (clearNode st)
-    elif ch == "u" then handled (undo st)
-    elif ch == ":" then handled (openPalette st)
-    elif ch == "y" then handled (yankNode st)
-    elif ch == "p" then handled (putNode st)
-    elif ch == "c" then handled (changeNode st)
-    else Stdlib.Cli.UI.Widget.Outcome.Ignored
+    else
+      // A spec's own key bindings are consulted BEFORE the kernel's, so a kind can rebind anything except
+      // the palette. The kernel's keys are the fallback, not the law.
+      match actionForKey st ch with
+      | Some a -> handled (applyAction st a)
+      | None ->
+        if ch == "j" then handled (navBy st 1)
+        elif ch == "k" then handled (navBy st (-1))
+        elif ch == "h" then handled (navParent st)
+        elif ch == "l" then handled (navChild st)
+        elif ch == "i" then handled (enterInsert st)
+        elif ch == "x" then handled (clearNode st)
+        elif ch == "u" then handled (undo st)
+        elif ch == ":" then handled (openPalette st)
+        elif ch == "y" then handled (yankNode st)
+        elif ch == "p" then handled (putNode st)
+        elif ch == "c" then handled (changeNode st)
+        else Stdlib.Cli.UI.Widget.Outcome.Ignored
 
 // --- Context (breadcrumb + expected-type hint, for the chrome) ---
 

@@ -179,3 +179,72 @@ module TableMotion =
   // `k` from the top row has no row above it, so it falls back to ordinary motion and steps out to the
   // row rather than sticking. Same shape as `h` from the first column.
   (TableMotion.at [ "<Esc>", "j", "l", "k" ]) = "rows[0]"
+
+
+module SpecKeys =
+  // `Action.key` was in the spec vocabulary from the day the palette was written, and the kernel never
+  // read it: a spec could say which key it wanted and nothing happened. A kind binds its own keys now,
+  // and its bindings are consulted BEFORE the kernel's, so a DSL can rebind a key on its OWN nodes
+  // without touching the kernel's dispatch. Only `:` is reserved, because the palette is the escape hatch
+  // that lists everything and has to keep working whatever a spec has bound.
+  let shout (n: Darklang.Fluid.Node) : Darklang.Fluid.Slot = TableProjection.row "SHOUTED" "1"
+
+  let always (n: Darklang.Fluid.Node) : Bool = true
+
+  let rowSpec () : Darklang.Fluid.Spec =
+    { TableProjection.rowSpec () with
+        actions =
+          [ Darklang.Fluid.Action
+              { name = "shout"
+                key = Stdlib.Option.Option.Some "s"
+                doc = "replace this row"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+            // Deliberately over the kernel's own `x` (clear), to say which one wins.
+            Darklang.Fluid.Action
+              { name = "shout instead of clearing"
+                key = Stdlib.Option.Option.Some "x"
+                doc = "over a kernel key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+            // And over the palette key, which must NOT win.
+            Darklang.Fluid.Action
+              { name = "shout instead of the palette"
+                key = Stdlib.Option.Option.Some ":"
+                doc = "over the reserved key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout } ] }
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ SpecKeys.rowSpec (), TableProjection.gridSpec () ] ])
+
+  let after (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 keys
+
+  let kernel (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TableProjection.reg ()) (TableProjection.grid ()) 80 keys
+
+  // A key the kernel doesn't use runs the spec's action.
+  (Stdlib.String.contains (SpecKeys.after [ "<Esc>", "j", "s" ]) "SHOUTED") = true
+
+  // A key the kernel DOES use runs the spec's action instead of the kernel's.
+  (Stdlib.String.contains (SpecKeys.after [ "<Esc>", "j", "x" ]) "SHOUTED") = true
+
+  // Same keystrokes without the binding: the kernel's `x` clears the row, and nothing shouts.
+  (Stdlib.String.contains (SpecKeys.kernel [ "<Esc>", "j", "x" ]) "SHOUTED") = false
+
+  // `:` is reserved: it opens the palette however hard a spec tries to take it.
+  ((Darklang.Fluid.Test.drive
+     (Darklang.Fluid.Editor.init (SpecKeys.reg ()) (TableProjection.grid ()) 80)
+     [ "<Esc>", "j", ":" ]).paletteOpen) = true
+  (Stdlib.String.contains
+    (Darklang.Fluid.Debug.render (SpecKeys.reg ()) 80
+      (Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (SpecKeys.reg ()) (TableProjection.grid ()) 80)
+        [ "<Esc>", "j", ":" ]).root) "SHOUTED") = false
+
+  // An action with no key is still only reachable through the palette, which is what the built-in wrap
+  // actions still are.
+  (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j", "z" ])
+    = (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j" ])

@@ -1198,14 +1198,17 @@ let ifToMatch (n: Node) : Slot =
            [ Slot.Filled(boolCase "true" thenSlot), Slot.Filled(boolCase "false" elseSlot) ],
            caseExpect ())) ])
 
+// Two of these carry a key now that the kernel reads `Action.key`. Both are on keys NAV had free, and
+// both are the kind of thing you reach for often enough that the palette is friction: `m` turns the `if`
+// you are on into a `match`, `>` pipes what you are on into something else.
 let ifActions () : List<Action> =
-  [ Action { name = "convert to match"; key = Stdlib.Option.Option.None; doc = "match on the condition"; applies = anyExpr; run = ifToMatch } ]
+  [ Action { name = "convert to match"; key = Stdlib.Option.Option.Some "m"; doc = "match on the condition"; applies = anyExpr; run = ifToMatch } ]
 
 let exprActions () : List<Action> =
   [ Action { name = "wrap in let"; key = Stdlib.Option.Option.None; doc = "let ... = ...  above this"; applies = anyExpr; run = wrapInLet }
     Action { name = "wrap in match"; key = Stdlib.Option.Option.None; doc = "match on this"; applies = anyExpr; run = wrapInMatch }
     Action { name = "wrap in if"; key = Stdlib.Option.Option.None; doc = "if this then ... else ..."; applies = anyExpr; run = wrapInIf }
-    Action { name = "pipe into"; key = Stdlib.Option.Option.None; doc = "this |> ..."; applies = anyExpr; run = wrapInPipe } ]
+    Action { name = "pipe into"; key = Stdlib.Option.Option.Some ">"; doc = "this |> ..."; applies = anyExpr; run = wrapInPipe } ]
 
 let exprSummary (n: Node) : String =
   match n.kind.case with
