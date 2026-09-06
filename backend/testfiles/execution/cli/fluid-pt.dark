@@ -928,3 +928,77 @@ module EnterInAnArmAddsAnArm =
   (EnterInAnArmAddsAnArm.run
     [ "m", "a", "<Enter>", "n", "<Tab>", "1", "<Tab>", "2", "<Enter>", "3", "<Tab>", "4", "<Enter>" ]) =
     "match n with\n| 1 -> 2\n| 3 -> 4\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module FieldAccessOffersTheFields =
+  // Typing `r.` left you spelling the field name from memory. Same three facts as a match's cases, one
+  // node over: the access knows its target is a variable, scope knows what that variable was declared as,
+  // and the store knows that type's fields.
+  //
+  // A field name is TEXT on the node rather than a hole in the tree, which is why this needed the other
+  // half of the mechanism: a text slot can have candidates, they carry a whole replacement node, and
+  // committing replaces the node. That is also what would let `So<Tab>` finish a pattern case one day.
+  let sizeType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Cli.Tui.Size"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "Size" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let doc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "area"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "s")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "s"; typ = t; description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+            description = "" }))
+
+  // Clear the body, type `s.`, and look.
+  let keys () : List<String> = [ "<Esc>", "j", "j", "j", "j", "c", "s", "." ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (FieldAccessOffersTheFields.doc t) 70)
+        (Stdlib.List.append (FieldAccessOffersTheFields.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join ", "
+
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (FieldAccessOffersTheFields.doc t)
+      70
+      (Stdlib.List.append (FieldAccessOffersTheFields.keys ()) extra)
+
+  (FieldAccessOffersTheFields.menu (FieldAccessOffersTheFields.sizeType ()) []) = "width, height"
+
+  // Typing filters it, the way every other menu here works.
+  (FieldAccessOffersTheFields.menu (FieldAccessOffersTheFields.sizeType ()) [ "h" ]) = "height"
+
+  // Enter takes the highlighted one...
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Enter>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
+
+  // ...including after typing, where the name you get is the FULL one and not what you typed.
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "h", "<Enter>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
+
+  // A target with no record type offers nothing, and `.` still starts a field access to type by hand.
+  (FieldAccessOffersTheFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""

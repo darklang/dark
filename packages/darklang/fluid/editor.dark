@@ -2101,7 +2101,19 @@ let computeCandidates (st: State) : List<Candidate> =
   | Some(Partial(typed, was)) ->
     candidatePool st (Slot.expect was |> Stdlib.Option.withDefault (Expect.any "")) typed
   | Some(Empty e) -> candidatePool st e ""
-  | _ -> []
+  | _ ->
+    // A TEXT slot can have candidates too: the fields of the record you just typed a `.` after. There is
+    // no `Expect` to ask, because a text slot is not a hole in the tree -- the node is already there and
+    // only its text is unfinished -- so the pool is whatever an `offers` named for this slot produced,
+    // filtered by what has been typed so far.
+    match (st.caret.part, nodeAtPath st.root st.caret.node) with
+    | (InText slotName, Some n) ->
+      let typed = Node.text n slotName |> Stdlib.Option.withDefault ""
+
+      offeredCandidates st
+      |> Stdlib.List.filter (fun c -> Kind.sameType c.node.kind n.kind)
+      |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
+    | _ -> []
 
 /// The cached completion menu. Cheap; refreshed once per key. Empty while dismissed with Escape.
 let candidates (st: State) : List<Candidate> =
@@ -2220,8 +2232,27 @@ let offeredCandidates (st: State) : List<Candidate> =
     | Some sp -> sp
     | None -> st.caret.node
 
-  let (_, _, offered) = Stdlib.List.fold targetPath ((st.root, [], [])) step
-  offered
+  let (here, scope, offered) = Stdlib.List.fold targetPath ((st.root, [], [])) step
+
+  // ...and the node the caret is IN, when it is in one of its text slots. The fold only ever asks
+  // ANCESTORS, because a slot hole is reached by descending into it; a text slot is not descended into,
+  // so `r.` -- where the field name is text on the node the caret is already on -- would never be asked.
+  match (st.caret.part, here) with
+  | (InText slotName, Filled n) ->
+    (match Registry.find st.reg n.kind with
+     | Some spec ->
+       Stdlib.List.append
+         offered
+         (spec.offers scope n
+          |> Stdlib.List.filter (fun g ->
+            let (_, slots) = g
+            Stdlib.List.member slots slotName)
+          |> Stdlib.List.map (fun g ->
+            let (cs, _) = g
+            cs)
+          |> Stdlib.List.flatten)
+     | None -> offered)
+  | _ -> offered
 
 /// Variable candidates for the hole under the caret: the in-scope names matching the typed prefix,
 /// turned into nodes by the expected kind's `scopeCandidate`. Empty when the kind has no variables.
@@ -2306,7 +2337,18 @@ let commitCandidate (st: State) : State =
       let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
       { st1 with caret = landAfterCommit sp c.node }
     | None -> st
-  | None -> st
+  // In a text slot there is no slot path -- the node is already there. The candidate replaces the NODE,
+  // which is why an offer for a text slot carries a whole replacement rather than a string.
+  | None ->
+    match st.caret.part with
+    | InText _ ->
+      (match selectedCandidate st with
+       | Some c ->
+         let sp = st.caret.node
+         let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+         { st1 with caret = landAfterCommit sp c.node }
+       | None -> st)
+    | _ -> st
 
 let cycleCandidate (st: State) (delta: Int) : State =
   let n = Stdlib.List.length (candidates st)
@@ -2680,20 +2722,23 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // next item -- even with a menu up, so a bound variable that matches the rhs doesn't hijack Enter into
     // just accepting the completion. On a standalone hole, Enter accepts the menu (so `le<Enter>` builds
     // let). A keyword/single-candidate is still committed on the way (so a construct can be built here too).
+    // A candidate the DOCUMENT implied -- the cases of the enum this match is on, the fields of the record
+    // you typed a `.` after -- is a specific answer, and Enter takes it wherever you are. Everything below
+    // is about the GENERIC menu, which on a fresh hole is mostly "everything that could go here" and whose
+    // first entry Enter must NOT take; these are not that. Showing you the cases and not letting you pick
+    // one is worse than not showing them.
+    if completing
+       && (Stdlib.Bool.not (onPartial st))
+       && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false) then
+      handled (commitCandidate st)
+    else
+
     match enclosingListItem st.caret with
     | Some _ ->
       // Only a menu you opened by TYPING is Enter's to accept. On an untouched hole the menu is just the
       // list of everything that could go here, and committing its first entry meant a bare Enter built a
       // `let`, or gave a match arm the pattern `true`.
-      // A candidate the DOCUMENT implied -- the cases of the enum this match is on -- is a specific answer
-      // and Enter takes it. The guard below is about the generic menu, where Enter's job is to start the
-      // next item; these are not that, and showing you the cases without letting you pick one is worse
-      // than not showing them.
-      if completing
-         && (Stdlib.Bool.not (onPartial st))
-         && ((selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false)) then
-        handled (commitCandidate st)
-      else if completing && (onPartial st) then
+      if completing && (onPartial st) then
         // A menu is up. If what you typed IS a candidate (an in-scope variable), you're done: commit it
         // and start the next item. If the menu offers something else to accept (a store function like
         // `List.len` -> `Stdlib.List.length`), accept it and stay.

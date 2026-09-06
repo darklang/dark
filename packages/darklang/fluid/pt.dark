@@ -1541,6 +1541,64 @@ let matchOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<
        | None -> [])
   | None -> []
 
+/// The fields of the record the target is declared to be, as whole field accesses.
+///
+/// Same three facts as a match's cases, one node over: the access knows its target is a variable, scope
+/// knows what that variable was declared as, and the store knows that type's fields. Typing `r.` used to
+/// leave you spelling the field name from memory.
+///
+/// A field name is TEXT on this node rather than a hole in the tree, so each candidate carries the whole
+/// access with the name filled in, and committing replaces the node.
+let fieldAccessOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
+  let targetName =
+    match Node.slot n "record" with
+    | Some(Filled r) ->
+      if r.kind.case == Stdlib.Option.Option.Some "EVariable" then
+        Stdlib.Option.Option.Some(textOf r "name")
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let typeHash =
+    match targetName with
+    | Some nm ->
+      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
+       | Some b ->
+         (match b.typ with
+          | Some t ->
+            if t.kind == Types.typeKind "TCustomType" then
+              Stdlib.Option.Option.Some(textOf t "_hash")
+            else
+              Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+  match typeHash with
+  | Some h ->
+    if h == "" then
+      []
+    else
+      (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+       | Some t ->
+         (match t.declaration.definition with
+          | Record fields ->
+            let cands =
+              fields
+              |> Stdlib.List.map (fun f ->
+                Spec.contextCandidate
+                  f.name
+                  "field"
+                  (Node.make
+                    (exprKind "ERecordFieldAccess")
+                    [ ("record", Node.field n "record" |> Stdlib.Option.withDefault (Field.One(Slot.Empty(exprExpect "record"))))
+                      text "field" f.name ]))
+
+            [ (cands, [ "field" ]) ]
+          | _ -> [])
+       | None -> [])
+  | None -> []
+
 let exprSummary (n: Node) : String =
   match n.kind.case with
   | Some c -> c
@@ -1769,7 +1827,9 @@ let moreSpecs () : List<Spec> =
             Piece.HardLine
             Piece.Punct "}" ] ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
-    simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
+    Spec.withOffers
+      (simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ]))
+      fieldAccessOffers
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
     // would put a newline and an indent into the string's value.
