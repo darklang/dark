@@ -1328,13 +1328,21 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// termination) are the only unbounded paths. Becomes load-bearing
   /// if anyone adds a "buffer N elements ahead" or "merge multiple
   /// streams" combinator.
+  /// Every closure that may run guest code takes the DRAINER's access: a
+  /// transform's callback is deferred work, and when it finally runs it runs
+  /// inside whatever function is pulling. The closure intersects that with the
+  /// access captured when the transform was built, so neither side widens the
+  /// other. Native IO sources ignore it.
   | FromIO of
-    next : (unit -> Ply<Option<Dval>>) *
+    next : (Permissions.Access -> Ply<Option<Dval>>) *
     elemType : ValueType *
     disposer : (unit -> unit) option *
     nextChunk : (int -> Ply<Option<byte[]>>) option
-  | Mapped of src : StreamImpl * fn : (Dval -> Ply<Dval>) * elemType : ValueType
-  | Filtered of src : StreamImpl * pred : (Dval -> Ply<bool>)
+  | Mapped of
+    src : StreamImpl *
+    fn : (Permissions.Access -> Dval -> Ply<Dval>) *
+    elemType : ValueType
+  | Filtered of src : StreamImpl * pred : (Permissions.Access -> Dval -> Ply<bool>)
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
   | Concat of streams : StreamImpl list ref
 

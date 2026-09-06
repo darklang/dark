@@ -1008,15 +1008,14 @@ let private invokeBuiltin
     }
 
 
-/// The access a partially applied fn reference leaves the `Apply` with. A
-/// reference loaded straight into its own `Apply` is unstamped (see
-/// `LoadVal`); a partial application is the one way it escapes from there, so
-/// it takes the access it was applied under, exactly as a value-position load
-/// would have. An already-captured reference keeps its capture.
+/// The access a partially applied fn reference leaves the `Apply` with: the
+/// access it was applied under. `ctx.access` is already the applying frame
+/// narrowed by whatever the reference had captured, so this can only narrow.
+///
+/// Like a lambda, a partial application must not retain broader access than
+/// the frame that created it.
 let inline private captureAccess (ctx : ApplyContext) : Option<Permissions.Access> =
-  match ctx.applicable.access with
-  | Some _ as captured -> captured
-  | None -> Some ctx.access
+  Some ctx.access
 
 
 /// Run a builtin call without entering the interpreter's computation expression.
@@ -1558,13 +1557,13 @@ let private packageFnCallData
 let private packagePolicyMemo
   (exeState : ExecutionState)
   (callData : PackageFnCallData)
-  (fn : PackageFn.PackageFn)
+  (hash : Hash)
   : PackagePolicyMemo =
   let memo = callData.policy
   if System.Object.ReferenceEquals(memo.owner, exeState.packagePolicy) then
     memo
   else
-    let policy = exeState.packagePolicy fn.hash
+    let policy = exeState.packagePolicy hash
     let memo =
       { owner = box exeState.packagePolicy
         policy = policy
@@ -1572,6 +1571,28 @@ let private packagePolicyMemo
     callData.policy <- memo
     memo
 
+
+/// Access established on entry to a package fn: applying access narrowed by
+/// the consumer's approval and the fn's own ceiling.
+///
+/// Keep this shared by the frame path and both thin-wrapper elisions: eliding
+/// a frame must not elide its package policy or ceiling.
+let private packageEntryAccess
+  (exeState : ExecutionState)
+  (callData : PackageFnCallData)
+  (hash : Hash)
+  (applying : Permissions.Access)
+  : Permissions.Access =
+  let memo = packagePolicyMemo exeState callData hash
+  let access =
+    if memo.isAllowAll then
+      applying
+    else
+      applying |> Permissions.Access.restrict callData.packageLayer memo.policy
+  match callData.ceiling with
+  | ValueNone -> access
+  | ValueSome(struct (layer, policy)) ->
+    access |> Permissions.Access.restrict layer policy
 
 /// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right
 /// -- in which case build the frame to run it in.
@@ -1642,18 +1663,7 @@ let private completePackage
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
-      let access =
-        // Apply the consumer policy when it is narrower than allow-all.
-        let memo = packagePolicyMemo exeState callData fn
-        if memo.isAllowAll then
-          ctx.access
-        else
-          ctx.access |> Permissions.Access.restrict callData.packageLayer memo.policy
-      let access =
-        match callData.ceiling with
-        | ValueNone -> access
-        | ValueSome(struct (layer, policy)) ->
-          access |> Permissions.Access.restrict layer policy
+      let access = packageEntryAccess exeState callData fn.hash ctx.access
       takeFrame
         vm
         fn.body.registerCount
@@ -1836,7 +1846,23 @@ let private callPackageResolved
     // the gap between the two counters is what elision saves.
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
-    let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+    // Entering the wrapper, frame or not: its package approval and ceiling
+    // apply to the builtin it forwards to, and to any callback that builtin
+    // applies. This also caches the call data, which is what lets the early
+    // elision in the `Apply` handler do the same without fetching the fn.
+    let callData = packageFnCallData exeState fn
+    let entryAccess = packageEntryAccess exeState callData fn.hash ctx.access
+    // The elided builtin reads `vm.activeAccess`, and nothing else on this
+    // path writes it.
+    vm.activeAccess <- entryAccess
+    let call =
+      callBuiltinResolved
+        exeState
+        vm
+        currentFrame
+        { ctx with access = entryAccess }
+        biFn
+        []
     // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
     match Ply.trySync call with
     | ValueSome dv -> Ply(Completed dv)
@@ -2106,8 +2132,10 @@ let private applyInstruction
       |> raiseRTE vm.threadID
     else
       registers[putResultIn] <-
-        // Materialised only here: a partial application has to retain its arguments.
-        { appLambda with argsSoFar = ArgSeq.toList allArgs }
+        // Materialised only here: a partial application has to retain its
+        // arguments -- and, like a named-fn partial, the access it was applied
+        // under (`access` is the frame's narrowed by the lambda's capture).
+        { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
         |> AppLambda
         |> DApplicable
 
@@ -2202,14 +2230,26 @@ let private applyInstruction
         // Same guards as the elision in `callPackageResolved`: no explicit type args, nothing
         // applied already, every parameter supplied. Signature equality is what put the fn in the
         // cache, so the builtin's parameter count is the package fn's.
+        // Only with the wrapper's call data in hand: its package approval and
+        // ceiling are applied below, and they live on the call data the first
+        // (long-way) call cached. Without it, go the long way, which caches it.
         let earlyWrapper =
           if List.isEmpty typeArgs && List.isEmpty applicable.argsSoFar then
-            thinWrapperCachedFor exeState pkg
+            match thinWrapperCachedFor exeState pkg with
+            | ValueSome biFn ->
+              let mutable callData = Unchecked.defaultof<PackageFnCallData>
+              if exeState.packageFnCallCache.TryGetValue(pkg, &callData) then
+                ValueSome(struct (biFn, callData))
+              else
+                ValueNone
+            | ValueNone -> ValueNone
           else
             ValueNone
 
         match earlyWrapper with
-        | ValueSome biFn when NEList.length newArgRegs = List.length biFn.parameters ->
+        | ValueSome(struct (biFn, callData)) when
+          NEList.length newArgRegs = List.length biFn.parameters
+          ->
           // Counted, since a package call happened. The late elision in `callPackageResolved` does
           // the same; this path was added afterwards and missed it, so `packageCalls` under-reported
           // every forwarder that reached the cache.
@@ -2233,15 +2273,21 @@ let private applyInstruction
 
           | ValueNone ->
 
+            // Entering the wrapper without a frame: its package approval and
+            // ceiling still apply (see `packageEntryAccess`).
+            let entryAccess = packageEntryAccess exeState callData pkg access
             let ctx : ApplyContext =
               { applicable = applicable
                 typeArgs = typeArgs
                 args = ArgSeq.ofNE registers newArgRegs
                 tst = tst
-                access = access
+                access = entryAccess
                 putResultIn = putResultIn
                 returnPc = currentFrame.programCounter + 1 }
 
+            // The builtin pushes no frame; its effect check and callbacks read
+            // `vm.activeAccess`, so the elided entry must update it explicitly.
+            vm.activeAccess <- entryAccess
             let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
 
             match Ply.trySync call with
@@ -3330,9 +3376,23 @@ let private executeInnerTask
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
 
-let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  vm.callFrames[vm.currentFrameID].access <- exeState.access
-  vm.activeAccess <- exeState.access
+/// Run `vm` with its root frame under `access`.
+///
+/// Which access seeds the root frame is the whole of the callback question. A
+/// borrowed VM applying a callback for a builtin has no parent frame of its
+/// own, so unless the *invoking* frame's access is handed across here, the
+/// callback starts from the run's base access and the ceiling or package
+/// approval of the function that called the builtin never reaches it -- `f ()`
+/// inside a `:{}` function was denied while `List.map [()] f` ran the clock.
+/// Builtin callers pass their current `vm.activeAccess`; host-initiated runs
+/// pass the state's own access through `execute`.
+let executeUnder
+  (exeState : ExecutionState)
+  (access : Permissions.Access)
+  (vm : VMState)
+  : Ply<Dval> =
+  vm.callFrames[vm.currentFrameID].access <- access
+  vm.activeAccess <- access
   match executeSync exeState vm with
   | SyncDone dv -> Ply dv
   | bailed ->
@@ -3345,3 +3405,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       // The task already started; awaiting `running` continues it. Calling `executeInner` here would
       // start a second run of the same VM.
       uply { return! running }
+
+/// Host-initiated: a run that begins from the state's own access.
+let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+  executeUnder exeState exeState.access vm

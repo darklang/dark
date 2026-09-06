@@ -319,6 +319,19 @@ trusted seed builds can therefore hide permission failures and freeze build-mach
 state. Use a function for environment-dependent work. `PermissionEscape.Tests` checks
 shipped values under guest policy.
 
+**A forwarding wrapper has no frame.** `let map list fn = Builtin.listMap list fn`
+is elided on both the first call and the cached `Apply` path. Both must establish
+`vm.activeAccess`, the wrapper's package policy and its ceiling. A wrapper is thin only
+when its signature exactly matches the builtin; `sameType` even compares type-variable
+names, so tests must use the builtin's `'a` and `'b`. All paths share
+`Interpreter.packageEntryAccess`.
+
+**A permission test must make the value in one frame and run it in another.** Deferred
+values keep their producer's restrictions and intersect them with the runner's. A broad
+driver must call the producer and pass the value into a separate restricted runner;
+otherwise the producer inherits the restriction and the test proves nothing. Load partial-
+application references in the driver's value position so they are stamped broad first.
+
 **Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval treats opaque `EValue` bodies as incomplete.
 
 **Compiled function references are serialized code.** `EFnName` becomes a serialized

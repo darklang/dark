@@ -151,9 +151,23 @@ Frames receive their `Access` when created. Named function values and closures
 capture it when evaluated, before they can be placed in containers, returned,
 or handed to a builtin; later invocation intersects it with the invoking
 frame, so neither side can widen the other. Callbacks reached through those
-values inherit the guarantee, because they run through the same
-`Exe.executeApplicable`: a **stream** transform (`streamMap`/`streamFilter`)
-and an **HTTP server handler** both invoke a captured applicable. **Tasks**
+values inherit the guarantee because `Exe.executeApplicable` takes the access
+the builtin was applied under (`vm.activeAccess`) and seeds the callback's VM
+from it, so a callback is bounded by the calling function's ceiling and
+package approval exactly as a direct application is. A builtin that runs a
+callable later -- a **stream** transform (`streamMap`/`streamFilter`) or an
+`streamUnfold` step -- reads that access into a local when it is handed the
+callable, and on every pull intersects it with the access of the function
+that is DRAINING, which the drain builtins pass down: deferred work keeps the
+restrictions of the frame that built it and runs under those of the frame that
+runs it. A **partial application** captures the access it was applied under,
+exactly as a lambda created in that frame would; keeping its reference's
+earlier capture let a value escape a `:{}` function wider than the function
+itself. An **HTTP server** builds a child guest state and
+intersects its access with the frame that called `serve`, so the bind check,
+the request handlers and `onListening` all carry the caller's ceiling,
+package approval and any port restriction; from `dark serve` the caller is
+allow-all and the intersection changes nothing. **Tasks**
 are not a runtime value, so there is no deferred task to lose access on.
 Materializing a package `val` does the same walk recursively: every uncaptured
 named function nested in its records, collections, closures, or partial

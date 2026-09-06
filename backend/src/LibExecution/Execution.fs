@@ -316,6 +316,7 @@ let private vmForApply (argCount : int) : RT.VMState =
 /// Apply the callable already loaded into `vm`'s registers.
 let private runLoaded
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (vm : RT.VMState)
   : Ply<RT.ExecutionResult> =
   // `Ply`, and asked synchronously first. A lambda that does not await -- which is nearly all of
@@ -328,7 +329,7 @@ let private runLoaded
   // common one that takes the synchronous success path and calls none of them. They are spelled out
   // where they are used instead: `succeeded` is three lines, and the other two are cold.
   try
-    let running = Interpreter.execute exeState vm
+    let running = Interpreter.executeUnder exeState access vm
 
     match Ply.trySync running with
     | ValueSome result ->
@@ -365,14 +366,25 @@ let private runLoaded
 
 
 /// Use this when calling a Darklang callback from within a builtin.
+///
+/// `access` is the access the BUILTIN was applied under -- `vm.activeAccess`
+/// of the VM that called it -- and it bounds the callback exactly as the
+/// interpreter bounds a direct application: invoking frame, narrowed by
+/// whatever the callable captured. Without it the callback ran from the base
+/// access, outside the calling function's ceiling and package approval (see
+/// `Interpreter.executeUnder`). A builtin that stores the callable to run
+/// later (a stream transform) must read `vm.activeAccess` into a local at the
+/// time it is handed the callable, not inside the deferred closure: the field
+/// is mutable and by then belongs to whatever the VM is doing.
 let executeApplicable
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : Ply<RT.ExecutionResult> =
   let vm = vmForApply (NEList.length args)
   loadApplyRegisters vm applicable args
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 /// Re-raise an error a lambda raised, keeping the frames it raised it in.
@@ -393,6 +405,7 @@ let raiseFromApplied
 /// One argument, without the `NEList` holding it. See `executeApplicable2`.
 let executeApplicable1
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg : RT.Dval)
   : Ply<RT.ExecutionResult> =
@@ -400,7 +413,7 @@ let executeApplicable1
   let registers = vm.callFrames[vm.currentFrameID].registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 /// Two arguments, without the `NEList` holding them.
@@ -411,6 +424,7 @@ let executeApplicable1
 /// interpreter's own.
 let executeApplicable2
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg1 : RT.Dval)
   (arg2 : RT.Dval)
@@ -420,7 +434,7 @@ let executeApplicable2
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg1
   registers[3] <- arg2
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 let executeFunction

@@ -183,7 +183,12 @@ let private streamToBlob () : List<Result> =
         let collected = new System.IO.MemoryStream()
         let rec drain () : Ply<unit> =
           uply {
-            let! chunk = Stream.readChunk 65536 stream
+            let! chunk =
+              Stream.readChunk
+                (LibExecution.Permissions.Access.start
+                  LibExecution.Permissions.Policy.allowAll)
+                65536
+                stream
             match chunk with
             | Some bs ->
               collected.Write(bs, 0, bs.Length)

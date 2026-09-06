@@ -163,8 +163,14 @@ let private executeHandler
   task {
     // `executeApplicable` returns a `Ply` now, so that a lambda which does not await costs no
     // builder; this caller is a `task`, so it needs the conversion.
+    // This detached handler has no invoking VM. Run it under the server's child
+    // state, which already includes the access of the frame that called `serve`.
     let! result =
-      Execution.executeApplicable exeState handler (NEList.singleton arg)
+      Execution.executeApplicable
+        exeState
+        exeState.access
+        handler
+        (NEList.singleton arg)
       |> Ply.toTask
     match result with
     | Ok dval -> return dval
@@ -422,6 +428,11 @@ let fns () : List<BuiltInFn> =
             // bind check and handler calls; the instance policy remains the
             // hard maximum. A named package router is the approval root;
             // lambda handlers have no package root of their own.
+            //
+            // `guestState` replaces access, so intersect the child with the
+            // invoking frame. Guest code can call `serve` directly; its ceiling,
+            // package approval and resource restrictions must reach the bind,
+            // logging and callback checks.
             let ownFns =
               match handler with
               | AppNamedFn named ->
@@ -430,12 +441,17 @@ let fns () : List<BuiltInFn> =
                 | FQFnName.Builtin _ -> []
               | AppLambda _ -> []
             let exeState =
-              LibDB.PolicyStore.guestState
-                exeState.accountID
-                LibExecution.Permissions.Policy.allowAll
-                []
-                ownFns
-                exeState
+              let guest =
+                LibDB.PolicyStore.guestState
+                  exeState.accountID
+                  LibExecution.Permissions.Policy.allowAll
+                  []
+                  ownFns
+                  exeState
+              { guest with
+                  access =
+                    guest.access
+                    |> LibExecution.Permissions.Access.constrainBy vm.activeAccess }
             // maxBodyBytes is a comparison threshold; a negative limit would
             // reject every request (treated as over-limit), so reject it. 0 is
             // valid (allow no body).
@@ -455,11 +471,11 @@ let fns () : List<BuiltInFn> =
               |> RuntimeError.Int
               |> raiseRTE vm.threadID
 
-            // The builtin is invoked by trusted CLI code but performs these
-            // ambient effects on behalf of the child guest state. Check the
-            // child's access explicitly; the ordinary builtin gate sees the
-            // broader outer VM. Clock and stdout are only used when request
-            // logging is enabled.
+            // These ambient effects are performed on behalf of the child
+            // guest state, so check its access (already narrowed by the
+            // invoker's, above) rather than only the ordinary builtin gate,
+            // which from `dark serve` sees the broader outer VM. Clock and
+            // stdout are only used when request logging is enabled.
             if logRequests then
               LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
                 exeState
@@ -489,6 +505,7 @@ let fns () : List<BuiltInFn> =
               let! _ =
                 Execution.executeApplicable
                   exeState
+                  exeState.access
                   onListening
                   (NEList.singleton DUnit)
 

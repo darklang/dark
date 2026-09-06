@@ -639,7 +639,12 @@ module StreamDvalTests =
       use ms = new System.IO.MemoryStream()
       let mutable keepGoing = true
       while keepGoing do
-        let! pulled = Stream.readNext s |> Ply.toTask
+        let! pulled =
+          Stream.readNext
+            (LibExecution.Permissions.Access.start
+              LibExecution.Permissions.Policy.allowAll)
+            s
+          |> Ply.toTask
         match pulled with
         | Some(RT.DUInt8 b) -> ms.WriteByte b
         | Some _ -> Exception.raiseInternal "expected DUInt8" []
@@ -721,7 +726,12 @@ module StreamDvalTests =
             | _ -> failtest "expected DStream"
             Expect.isTrue disposerRan.Value "disposer runs on explicit close"
             // Subsequent pulls yield None.
-            let! after = Stream.readNext s |> Ply.toTask
+            let! after =
+              Stream.readNext
+                (LibExecution.Permissions.Access.start
+                  LibExecution.Permissions.Policy.allowAll)
+                s
+              |> Ply.toTask
             Expect.equal after None "closed stream yields None"
         } ]
 
