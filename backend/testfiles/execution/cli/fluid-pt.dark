@@ -343,3 +343,37 @@ module EnumConstructorsCanBeBuilt =
   (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
     [ "S", "t", "d", "l", "i", "b", ".", "L", "i", "s", "t", ".", "l", "e", "n", "g", "t", "h", " ", "n", "u", "m", "s", "<Esc>", "<Esc>" ]) =
     "Stdlib.List.length nums"
+
+
+module NewShapesCompose =
+  // Records and constructors have to work WITH everything that was already there, not just on their own.
+  // These are the compositions checked by hand after building them; nothing here found a bug, which is
+  // worth having written down as much as a fix would be.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // A record bound in a let, and then used.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "l", "e", "t", " ", "s", " ", "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Tab>"
+      "s", ".", "w", "i", "d", "t", "h", " ", "<Esc>", "<Esc>" ]) =
+    "let s = Stdlib.Cli.Tui.Size { width = 80; height = 24 }\ns.width"
+
+  // Constructor PATTERNS and constructor VALUES in the same program: the pattern side has worked since the
+  // uppercase-means-a-case fix, and the expression side since the completion one.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "m", "a", "t", "c", "h", " ", "r", " ", "w", "i", "t", "h", " ", "O", "k", "(", "v", "<Tab>", "v"
+      "<Enter>", "E", "r", "r", "o", "r", "(", "e", "<Tab>", "0", "<Esc>", "<Esc>" ]) =
+    "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+  // They nest: a record inside a list, and a record inside a constructor.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "[", "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]) =
+    "[Stdlib.Cli.Tui.Size { width = 80; height = 24 }]"
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "O", "k", "<Enter>", "S", "i", "z", "e", "<Enter>", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
+    "Result.Ok(Stdlib.Cli.Tui.Size { width = 1; height = 2 })"
+
+  // Undo peels a record field the way it peels anything else.
+  (Darklang.Fluid.Test.run (NewShapesCompose.reg ()) (NewShapesCompose.hole ()) 70
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "u", "u" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"

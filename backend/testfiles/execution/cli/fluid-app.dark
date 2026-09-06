@@ -257,3 +257,21 @@ module ValueOnDemand =
   // of its region, so which of its rows are on screen depends on the size of the terminal.)
   (Stdlib.String.contains
     (Darklang.Fluid.App.helpFor (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "v value") = true
+
+
+module NewShapesSurviveTextMode =
+  // Ctrl-E prints the selection and re-parses what you edited, so anything Fluid can BUILD it must also be
+  // able to print and read back. Records and constructors were the newest things it can build.
+  let roundTrip (src: String) : String =
+    match Darklang.Fluid.App.sourceToDoc src with
+    | Ok back ->
+      (match Darklang.Fluid.App.docToSourceResult back with
+       | Ok again -> again
+       | Error e -> "print ERR " ++ e)
+    | Error e -> "parse ERR " ++ e
+
+  (NewShapesSurviveTextMode.roundTrip "Stdlib.Cli.Tui.Size { width = 80; height = 24 }") =
+    "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+  (NewShapesSurviveTextMode.roundTrip "Result.Ok(1)") = "Result.Ok(1)"
+  (NewShapesSurviveTextMode.roundTrip "match r with\n| Ok(v) -> v\n| Error(e) -> 0") =
+    "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
