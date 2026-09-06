@@ -82,6 +82,32 @@ let docField (description: String) : (String * Field) =
 
 let emptyDocField () : (String * Field) = ("doc", Field.Many([], docExpect ()))
 
+// --- The optional else ---
+//
+// An `if` without an else is valid (`EIf(_, _, _, None)`), and drawing its else slot as a hole invented a
+// branch the program does not have: `if b then 1` came out as `if b then 1 else ⟨else⟩`.
+//
+// `Field.One(Slot.Empty _)` cannot say which of two things it means -- "there is no else" or "there is an
+// else, not yet written" -- and those need different renderings. A Many field of ZERO OR ONE says exactly
+// that: a parsed else-less `if` carries zero and draws nothing, while a freshly typed one carries one
+// empty branch, so `else ⟨else⟩` is still there to Tab into. Same shape as a doc comment, for the same
+// reason.
+
+val elseBranchType = "Darklang.Fluid.PT.ElseBranch"
+
+let elseBranchKind () : Kind = Kind.named elseBranchType
+
+let elseExpect () : Expect = Expect.ofKind (elseBranchKind ()) "else"
+
+let elseBranch (inner: Slot) : Node =
+  Node.make (elseBranchKind ()) [ ("expr", Field.One inner) ]
+
+let elseBranchSpec () : Spec =
+  Spec.simple
+    (elseBranchKind ())
+    [ Piece.HardLine, Piece.Keyword "else", Piece.Nest(2, [ Piece.HardLine, Piece.Slot "expr" ]) ]
+    (elseBranch (Slot.Empty(exprExpect "else")))
+
 let docLineSpec () : Spec =
   Spec.simple
     (docLineKind ())
@@ -415,13 +441,14 @@ let toDoc (e: Expr) : Node =
   | ELet(_, pat, value, body) ->
     Node.make (exprKind "ELet") [ one "pat" (letPatToDoc pat), one "value" (toDoc value), one "body" (toDoc body) ]
   | EIf(_, cond, thenExpr, elseExpr) ->
-    let elseSlot =
+    // Zero branches when the program has none, so nothing is drawn for it.
+    let elseItems =
       match elseExpr with
-      | Some x -> Slot.Filled(toDoc x)
-      | None -> Slot.Empty(Expect.optionalOf (exprExpect "else"))
+      | Some x -> [ Slot.Filled(elseBranch (Slot.Filled(toDoc x))) ]
+      | None -> []
     Node.make
       (exprKind "EIf")
-      [ one "cond" (toDoc cond), one "then" (toDoc thenExpr), ("else", Field.One elseSlot) ]
+      [ one "cond" (toDoc cond), one "then" (toDoc thenExpr), ("else", Field.Many(elseItems, elseExpect ())) ]
   | EInfix(_, op, left, right) ->
     Node.make (exprKind "EInfix") [ one "left" (toDoc left), text "op" (infixText op), one "right" (toDoc right) ]
   | ELambda(_, params, body) ->
@@ -697,12 +724,15 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
     | (_, Error err, _) -> Stdlib.Result.Result.Error err
     | (_, _, Error err) -> Stdlib.Result.Result.Error err
   | Some "EIf" ->
+    // No branch, or a branch nobody wrote into, is None either way.
     let elseResult =
-      match Node.slot n "else" with
-      | Some(Empty _) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
-      | Some(Filled child) -> fromDoc child |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x)
-      | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
-      | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+      match Stdlib.List.head (Node.items n "else") with
+      | Some(Filled branch) ->
+        (match Node.slot branch "expr" with
+         | Some(Filled child) -> fromDoc child |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x)
+         | Some(Partial(t, _)) -> Stdlib.Result.Result.Error("unresolved: " ++ t)
+         | _ -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None)
+      | _ -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
     match (slotExpr n "cond", slotExpr n "then", elseResult) with
     | (Ok c, Ok t, Ok el) -> ok (Expr.EIf(gid (), c, t, el))
     | (Error err, _, _) -> Stdlib.Result.Result.Error err
@@ -843,7 +873,9 @@ let emptyIf () : Node =
     (exprKind "EIf")
     [ ("cond", Field.One(Slot.Empty(exprExpect "cond")))
       ("then", Field.One(Slot.Empty(exprExpect "then")))
-      ("else", Field.One(Slot.Empty(Expect.optionalOf (exprExpect "else")))) ]
+      // ONE empty branch, not zero: a fresh `if` still draws `else ⟨else⟩` to Tab into. Settle without
+      // filling it and lowering reads it as None, so it saves else-less and reopens drawing nothing.
+      ("else", Field.Many([ Slot.Filled(elseBranch (Slot.Empty(exprExpect "else"))) ], elseExpect ())) ]
 
 let emptyLambda () : Node =
   Node.make
@@ -1251,7 +1283,7 @@ let wrapInIf (n: Node) : Slot =
       (exprKind "EIf")
       [ ("cond", Field.One(Slot.Filled n))
         ("then", Field.One(Slot.Empty(exprExpect "then")))
-        ("else", Field.One(Slot.Empty(Expect.optionalOf (exprExpect "else")))) ])
+        ("else", Field.Many([ Slot.Filled(elseBranch (Slot.Empty(exprExpect "else"))) ], elseExpect ())) ])
 
 /// Put a let above the node: `let ⟨name⟩ = ⟨value⟩` and the node as the body.
 let wrapInLet (n: Node) : Slot =
@@ -1282,7 +1314,12 @@ let ifToMatch (n: Node) : Slot =
         ("rhs", Field.One body) ]
   let condSlot = Node.slot n "cond" |> Stdlib.Option.withDefault (Slot.Empty(exprExpect "arg"))
   let thenSlot = Node.slot n "then"
-  let elseSlot = Node.slot n "else"
+  // The else is a branch NODE now, so the false arm's body is what is inside it -- and an `if` with no
+  // else converts to a match whose false arm is a hole, which is what it was before.
+  let elseSlot =
+    match Stdlib.List.head (Node.items n "else") with
+    | Some(Filled branch) -> Node.slot branch "expr"
+    | _ -> Stdlib.Option.Option.None
   Slot.Filled(
     Node.make
       (exprKind "EMatch")
@@ -1577,9 +1614,8 @@ let baseSpecs () : List<Spec> =
         Piece.Space
         Piece.Keyword "then"
         Piece.Nest(2, [ Piece.HardLine, Piece.Slot "then" ])
-        Piece.HardLine
-        Piece.Keyword "else"
-        Piece.Nest(2, [ Piece.HardLine, Piece.Slot "else" ]) ]
+        // Zero or one branch, each drawing its own `else` keyword. Nothing here when there is none.
+        Piece.Each("else", []) ]
       (emptyIf ())
     |> fun sp -> { sp with actions = ifActions () }
     simpleExpr
@@ -1624,7 +1660,7 @@ let baseSpecs () : List<Spec> =
 // The doc-line spec lives with the expressions rather than with the function shell, because a function, a
 // type and a value all draw the same lines and no one of them owns it.
 let specs () : List<Spec> =
-  Stdlib.List.flatten [ baseSpecs (), moreSpecs (), [ docLineSpec () ] ]
+  Stdlib.List.flatten [ baseSpecs (), moreSpecs (), [ docLineSpec (), elseBranchSpec () ] ]
 
 
 module Test =

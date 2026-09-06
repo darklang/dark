@@ -93,8 +93,11 @@ module Rendering =
   (Fixtures.render "let x = 1 + 2\nif x > 2 then [x, 3] else (1, \"two\")" 60) =
     "let x = 1 + 2\nif x > 2 then\n  [x, 3]\nelse\n  (1, \"two\")"
 
-  // An `if` without `else` shows the optional hole, dimly labelled.
-  (Fixtures.render "if x then 1" 60) = "if x then\n  1\nelse\n  ⟨else⟩"
+  // An `if` without `else` draws no else at all. It used to show the hole, dimly labelled, which invented
+  // a branch the program does not have -- and this pin recorded that as the intended behaviour, which is a
+  // pin doing its job: the choice was deliberate, and changing it had to be deliberate too. A FRESHLY
+  // TYPED if still offers the hole; see TheElseIsOptional for both halves.
+  (Fixtures.render "if x then 1" 60) = "if x then\n  1"
 
 
 module Editing =
@@ -574,3 +577,48 @@ module EveryNodeHasASpec =
   (EveryNodeHasASpec.missing "{ s with x = 1 }") = []
   (EveryNodeHasASpec.missing "(1, \"a\", 'c')") = []
   (EveryNodeHasASpec.missing "Dict { a = 1 }") = []
+
+
+module TheElseIsOptional =
+  // An `if` without an else is valid Darklang (`EIf(_, _, _, None)`), and Fluid drew one anyway:
+  // `if b then 1` came out as `if b then 1 else ⟨else⟩`. It lowered back correctly the whole time, so
+  // nothing was lost -- but someone reading the screen saw an unfinished branch that is not in the program.
+  //
+  // The fix is the DATA MODEL, not a rendering rule, and it took two wrong designs to see that.
+  // `Field.One(Slot.Empty _)` cannot say which of two things it means -- "there is no else" or "there is an
+  // else, not yet written" -- and they need different renderings. A Many field of ZERO OR ONE says exactly
+  // that. (The first wrong idea was calling it an unavoidable UX trade-off; the second was a `WhenFilled`
+  // piece, which would have hidden a fresh if's else hole, because it can only see filled-or-empty too.)
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (TheElseIsOptional.reg ()) 70 (TheElseIsOptional.docOf src)
+  let back (src: String) : String =
+    match TheElseIsOptional.docOf src with
+    | Filled n ->
+      (match Darklang.Fluid.PT.fromDoc n with
+       | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e
+       | Error err -> "ERR " ++ err)
+    | _ -> "not filled"
+
+  // A PARSED else-less if draws no else, and still lowers to one.
+  (TheElseIsOptional.show "if b then 1") = "if b then\n  1"
+  (TheElseIsOptional.back "if b then 1") = "if b then 1"
+
+  // One WITH an else is unchanged.
+  (TheElseIsOptional.show "if b then 1 else 2") = "if b then\n  1\nelse\n  2"
+  (TheElseIsOptional.back "if b then 1 else 2") = "if b then 1 else 2"
+
+  // A FRESHLY TYPED if still offers the else to Tab into, which is the half a rendering rule would lose.
+  (Darklang.Fluid.Test.run (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ()) 60
+    [ "if", "<Enter>", "b", "<Tab>", "1" ]) = "if b then\n  1~\nelse\n  ⟨else⟩"
+  (Darklang.Fluid.Test.run (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ()) 60
+    [ "if", "<Enter>", "b", "<Tab>", "1", "<Tab>", "2" ]) = "if b then\n  1\nelse\n  2~"
+
+  // ...and settling without filling it saves an else-less if, so the two directions agree.
+  (Darklang.Fluid.PT.Test.program (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ())
+    [ "if", "<Enter>", "b", "<Tab>", "1", "<Esc>" ]) = "if b then 1"
