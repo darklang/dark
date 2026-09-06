@@ -40,6 +40,11 @@ type Doc =
   | Concat of Doc * Doc
   | Nest of Int * Doc
   | Group of Doc
+  /// Laid out FLAT whatever the width. Wadler has no such combinator because Wadler lays out text whose
+  /// MEANING doesn't depend on where the breaks fall. Inside a string literal it does: the expressions in
+  /// `$"a {f x} b"` broke like any other call, and the newline and its indentation landed INSIDE the
+  /// string, so the drawing was a different program from the one being drawn.
+  | Forced of Doc
 
 type Mode =
   | Flat
@@ -84,6 +89,8 @@ let concatLine (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
 let nest (n: Int) (d: Doc) : Doc = Doc.Nest(n, d)
 
 let group (d: Doc) : Doc = Doc.Group d
+
+let forced (d: Doc) : Doc = Doc.Forced d
 
 let hsep (ds: List<Doc>) : Doc =
   match ds with
@@ -145,6 +152,7 @@ let flatWidth (d: Doc) : Int =
   | Concat(a, b) -> (flatWidth a) + (flatWidth b)
   | Nest(_, inner) -> flatWidth inner
   | Group inner -> flatWidth inner
+  | Forced inner -> flatWidth inner
 
 /// Would the rest of this line fit in `room` columns? Same logic as `Stdlib.Pretty.fits`.
 let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
@@ -174,6 +182,7 @@ let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
         fits room (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
       | Nest(j, x) -> fits room (Stdlib.List.push rest ((i + j, m, x)))
       | Group x -> fits room (Stdlib.List.push rest ((i, m, x)))
+      | Forced x -> fits room (Stdlib.List.push rest ((i, Mode.Flat, x)))
 
 
 // --- Rendering ---
@@ -230,11 +239,22 @@ let renderLoop (width: Int) (acc: Acc) (items: List<(Int * Mode * Doc)>) : Acc =
     | Nest(j, x) -> renderLoop width acc (Stdlib.List.push rest ((i + j, m, x)))
 
     | Group x ->
-      let flat = Stdlib.List.push rest ((i, Mode.Flat, x))
-      if fits (width - acc.col) flat then
-        renderLoop width acc flat
-      else
-        renderLoop width acc (Stdlib.List.push rest ((i, Mode.Break, x)))
+      match m with
+      // Already flat: stay flat. Wadler's `flatten` is recursive, and re-deciding here let a group inside
+      // a Forced one break anyway -- which is how `$"a {f x} b"` still broke after Forced was added.
+      // Under an ordinary Group this changes nothing: the enclosing `fits` already measured the whole
+      // flat content, so the inner test could only agree.
+      | Flat -> renderLoop width acc (Stdlib.List.push rest ((i, Mode.Flat, x)))
+      | Break ->
+        let flat = Stdlib.List.push rest ((i, Mode.Flat, x))
+        if fits (width - acc.col) flat then
+          renderLoop width acc flat
+        else
+          renderLoop width acc (Stdlib.List.push rest ((i, Mode.Break, x)))
+
+    // No `fits` test: it goes flat whether it fits or not. Overflowing the width is the lesser harm --
+    // the row is too long, but it still says what the program says.
+    | Forced x -> renderLoop width acc (Stdlib.List.push rest ((i, Mode.Flat, x)))
 
 
 /// Lay out `doc` for `width` columns. Rows of cells, top to bottom.

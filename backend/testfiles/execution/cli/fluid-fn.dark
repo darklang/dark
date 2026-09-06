@@ -275,3 +275,41 @@ module BuiltinNamesRoundTrip =
   (Darklang.Fluid.PT.builtinFromHash "builtin:listLength_v0") = Stdlib.Option.Option.Some(("listLength", 0l))
   (Darklang.Fluid.PT.builtinFromHash "builtin:intAdd_v2") = Stdlib.Option.Option.Some(("intAdd", 2l))
   (Darklang.Fluid.PT.builtinFromHash "abc123") = Stdlib.Option.Option.None
+
+
+module NullaryFunctionsDrawTheirParens =
+  // `()` in a declaration parses as ONE parameter named `_` of type Unit. Drawn through the general
+  // `(name: Type)` shape it came out `(_: Unit)`, which the parser then rejects -- so a nullary function
+  // drew as source that would not save back. The printer already special-cased this shape and Fluid did
+  // not, so the `()` is a case of the param kind with its own spec.
+  let nullary () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "deadbeef"
+        body = Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 1)
+        typeParams = []
+        parameters = [ Fixtures.param "_" Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        description = "" }
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "initState" (NullaryFunctionsDrawTheirParens.nullary ()))
+
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (NullaryFunctionsDrawTheirParens.doc ())) =
+    "let initState (): Int =\n  1"
+
+  // And it lowers back to the `_`/Unit parameter the rest of the toolchain stores, so the `()` is a
+  // drawing of that parameter and not a different program.
+  let lowered () : (String * String) =
+    match NullaryFunctionsDrawTheirParens.doc () with
+    | Filled n ->
+      match Darklang.Fluid.PT.Fn.fromDoc (NullaryFunctionsDrawTheirParens.nullary ()) n with
+      | Ok((_, fn)) ->
+        match Stdlib.List.head fn.parameters with
+        | Some p ->
+          (p.name,
+           Darklang.PrettyPrinter.ProgramTypes.typeReference (Darklang.Fluid.PT.printerContext ()) p.typ)
+        | None -> ("no-params", "")
+      | Error e -> ("err", e)
+    | _ -> ("not-a-node", "")
+
+  (NullaryFunctionsDrawTheirParens.lowered ()) = ("_", "Unit")

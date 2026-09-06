@@ -622,3 +622,26 @@ module TheElseIsOptional =
   // ...and settling without filling it saves an else-less if, so the two directions agree.
   (Darklang.Fluid.PT.Test.program (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ())
     [ "if", "<Enter>", "b", "<Tab>", "1", "<Esc>" ]) = "if b then 1"
+
+
+module AStringLiteralIsNeverBroken =
+  // Everything between the quotes of a `$"..."` is part of a string LITERAL, so breaking it puts a newline
+  // and its indentation into the string's VALUE, not just into the shape of the line. The pieces inside
+  // are wrapped in `Piece.Flat` and the layout stays flat there whatever the width.
+  (Fixtures.render "$\"a {Stdlib.String.toUppercase someLongVariableName} b\"" 30) =
+    "$\"a {Stdlib.String.toUppercase someLongVariableName} b\""
+
+  // The same call outside the quotes, at the same width, does break -- so the pin above is about the
+  // string and not about the call happening to fit.
+  (Fixtures.render "Stdlib.String.toUppercase someLongVariableName" 30) =
+    "Stdlib.String.toUppercase\n  someLongVariableName"
+
+
+module ReservedFieldNamesKeepTheirBackticks =
+  // A field named `type` has to be written ``type`` or it lexes as the keyword. The printer has done this
+  // since it started emitting source you could parse back; Fluid drew the stored text, so `p.``type``
+  // came out as `p.type`, which is a different program. Both sides now ask `formatFieldName`.
+  (Fixtures.render "p.``type``" 40) = "p.``type``"
+
+  // An ordinary field is untouched, so this is a rule about the unusual names and not a new decoration.
+  (Fixtures.render "p.name" 40) = "p.name"

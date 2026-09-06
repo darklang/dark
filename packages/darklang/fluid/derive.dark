@@ -287,11 +287,14 @@ let pieceSource (p: Piece) : String =
     "Darklang.Fluid.Piece.EachWrapped("
     ++ (quoted slot) ++ ", " ++ (quoted openP) ++ ", " ++ (listSource sep) ++ ", " ++ (quoted closeP) ++ ")"
   | Group ps -> "Darklang.Fluid.Piece.Group " ++ (listSource ps)
+  | Flat ps -> "Darklang.Fluid.Piece.Flat " ++ (listSource ps)
   | Nest(n, ps) ->
     "Darklang.Fluid.Piece.Nest(" ++ (Stdlib.Int.toString n) ++ ", " ++ (listSource ps) ++ ")"
   // The rest of the vocabulary. This match had no fallback and knew fifteen of the twenty-four pieces, so
   // it was a crash waiting for the first spec that used one of the others. Derived specs only ever use the
   // fifteen, which is why nothing had hit it.
+  | FieldText(slot, style) ->
+    "Darklang.Fluid.Piece.FieldText(" ++ (quoted slot) ++ ", " ++ (styleSource style) ++ ")"
   | QuietText(slot, style) ->
     "Darklang.Fluid.Piece.QuietText(" ++ (quoted slot) ++ ", " ++ (styleSource style) ++ ")"
   | NameText(slot, style) ->

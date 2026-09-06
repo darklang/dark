@@ -81,6 +81,7 @@ let tableColumnsFor (ps: List<Piece>) (slotName: String) : List<String> =
     match p with
     | Table(s, cols) -> if s == slotName then cols else []
     | Group inner -> tableColumnsFor inner slotName
+    | Flat inner -> tableColumnsFor inner slotName
     | Nest(_, inner) -> tableColumnsFor inner slotName
     | _ -> [])
   |> Stdlib.List.flatten
@@ -103,6 +104,7 @@ let itemLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<St
       else
         []
     | Group inner -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
+    | Flat inner -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
     | Nest(_, inner) -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
     | _ -> [])
   |> Stdlib.List.flatten
@@ -127,6 +129,7 @@ let itemSepPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<Str
     | EachWrapped(s, _, sep, _) -> if s == slotName then firstPunct sep else []
     | ArgSlots(s, sep) -> if s == slotName then firstPunct sep else []
     | Group inner -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
+    | Flat inner -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
     | Nest(_, inner) -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
     | _ -> [])
   |> Stdlib.List.flatten
@@ -141,6 +144,7 @@ let tableSlots (ps: List<Piece>) : List<String> =
     match p with
     | Table(slotName, _) -> [ slotName ]
     | Group inner -> tableSlots inner
+    | Flat inner -> tableSlots inner
     | Nest(_, inner) -> tableSlots inner
     | _ -> [])
   |> Stdlib.List.flatten
@@ -180,6 +184,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | Some t ->
       if t == "" then Layout.tagged tag Layout.Style.Dim slotName
       else Layout.tagged tag style (Darklang.Fluid.PT.displayName t)
+    | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
+
+  | FieldText(slotName, style) ->
+    let tag = tagFor path (Part.InText slotName)
+    match Node.text n slotName with
+    | Some t ->
+      if t == "" then Layout.tagged tag Layout.Style.Dim slotName
+      else Layout.tagged tag style (Darklang.PrettyPrinter.formatFieldName t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | QuietText(slotName, style) ->
@@ -378,6 +390,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | Group ps -> Layout.group (pieces reg path n ps)
+  | Flat ps -> Layout.forced (pieces reg path n ps)
   | Nest(k, ps) -> Layout.nest k (pieces reg path n ps)
   | Line -> Layout.Doc.Line
   | HardLine -> Layout.Doc.HardLine

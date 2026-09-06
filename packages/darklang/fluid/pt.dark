@@ -1523,7 +1523,7 @@ let moreSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
     simpleOf (pipeKind "EPipeEnum") [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
-    simpleOf (Kind.named recordFieldType) [ Piece.Text("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+    simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
     simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
     simpleExpr
       "ERecord"
@@ -1561,9 +1561,11 @@ let moreSpecs () : List<Spec> =
             Piece.HardLine
             Piece.Punct "}" ] ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
-    simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.Text("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
+    simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ])
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
-    simpleExpr "EStringI" [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
+    // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
+    // would put a newline and an indent into the string's value.
+    simpleExpr "EStringI" [ Piece.Flat [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
     simpleOf (segmentKind "StringText") [ Piece.QuietText("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])
     simpleOf (segmentKind "StringInterpolation") [ Piece.Punct "{", Piece.Slot "expr", Piece.Punct "}" ] (Node.make (segmentKind "StringInterpolation") [ ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]) ]
 
@@ -1939,10 +1941,27 @@ module Fn =
 
   let fnKind () : Kind = Kind.named fnType
   let paramKind () : Kind = Kind.named paramType
+
+  /// A nullary function's one parameter. It is a CASE of the param kind, not a type of its own, so a param
+  /// hole still finds the ordinary `(name: Type)` spec at the type level and nothing about holes changes.
+  let unitParamKind () : Kind = Kind.ofCase paramType "Unit"
+
   let paramExpect () : Expect = Expect.ofKind (paramKind ()) "param"
 
+  /// `()` in a declaration parses as ONE parameter named `_` of type Unit. Drawn through the general
+  /// `(name: Type)` shape that came out as `(_: Unit)`, which the parser then rejects -- so a nullary
+  /// function drew as source you could not save back. The printer already special-cases this exact shape
+  /// (see `parameterDoc`); Fluid did not. Two paths to the same decision, one of them missed, again.
   let paramToDoc (p: Parameter) : Node =
-    Node.make (paramKind ()) [ PT.text "name" p.name, PT.one "type" (Types.toDoc p.typ) ]
+    let isUnitPlaceholder =
+      match p.typ with
+      | TUnit -> p.name == "_"
+      | _ -> false
+
+    if isUnitPlaceholder then
+      Node.make (unitParamKind ()) []
+    else
+      Node.make (paramKind ()) [ PT.text "name" p.name, PT.one "type" (Types.toDoc p.typ) ]
 
   /// A function as a document. `name` is seeded from the item's location; `_hash`, typeParams and
   /// description are carried opaquely so a save can rebuild the whole PackageFn.
@@ -1962,12 +1981,19 @@ module Fn =
         PT.one "body" (PT.toDoc (PT.namedArgs (fn.parameters |> Stdlib.List.map (fun p -> p.name)) name fn.body)) ]
 
   let paramFromDoc (n: Node) : Stdlib.Result.Result<Parameter, String> =
-    match Types.slotType n "type" with
-    | Ok t ->
+    if n.kind == unitParamKind () then
       Stdlib.Result.Result.Ok(
         Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
-          { name = PT.textOf n "name"; typ = t; description = "" })
-    | Error e -> Stdlib.Result.Result.Error e
+          { name = "_"
+            typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+            description = "" })
+    else
+      match Types.slotType n "type" with
+      | Ok t ->
+        Stdlib.Result.Result.Ok(
+          Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+            { name = PT.textOf n "name"; typ = t; description = "" })
+      | Error e -> Stdlib.Result.Result.Error e
 
   /// Rebuild a PackageFn from `orig` (for the fields the document doesn't edit) plus the document's
   /// params, return type and body. Returns the (possibly changed) name alongside.
@@ -2025,6 +2051,11 @@ module Fn =
         (Node.make (paramKind ()) [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
         summary = PT.exprSummary }
 
+  /// The empty parameter list, drawn as it is written and parsed. No fields, like `EUnit` one level down.
+  let unitParamSpec () : Spec =
+    { (Spec.simple (unitParamKind ()) [ Piece.Label "()" ] (Node.make (unitParamKind ()) [])) with
+        summary = PT.exprSummary }
+
   /// The whole function, laid out the way it reads as source: `let name (params) : ret =` then the body,
   /// indented on its own lines (vertical bias).
   let fnSpec () : Spec =
@@ -2065,7 +2096,7 @@ module Fn =
             ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ])) with
         summary = (fun n -> "let " ++ (PT.textOf n "name")) }
 
-  let specs () : List<Spec> = [ fnSpec (), paramSpec () ]
+  let specs () : List<Spec> = [ fnSpec (), paramSpec (), unitParamSpec () ]
 
 
 // ============================================================================
@@ -2263,7 +2294,7 @@ module TypeDecl =
       simpleT "Alias" [ Piece.Slot "type" ] (Node.make (k "Alias") [ ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
       simpleT
         "RecordField"
-        [ Piece.Text("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
+        [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
         (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
       simpleT
         "EnumCase"
@@ -2277,7 +2308,7 @@ module TypeDecl =
         (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
       simpleT
         "EnumFieldLabel"
-        [ Piece.Text("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
+        [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
         (Node.make (k "EnumFieldLabel") [ PT.text "name" "" ]) ]
 
 

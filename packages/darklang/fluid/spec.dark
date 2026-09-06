@@ -21,6 +21,12 @@ type Piece =
   /// inside delimiters that already show where you are: an empty string used to read as `"body"`, an
   /// empty char as `'char'`, and a string's trailing segment put a dim `text` inside the quotes.
   | QuietText of slot: String * style: Layout.Style
+  /// A text slot holding a RECORD FIELD name, drawn the way source has to spell it: backticks around a
+  /// name that isn't a bare identifier, so a field literally called `type` reads as ``type`` and not as
+  /// the keyword. The printer has had this since it started emitting source you could parse back; Fluid
+  /// drew the raw text, so `p.``type``` came out `p.type`. Both go through `formatFieldName`, so there is
+  /// one answer to "how is this name written" rather than two.
+  | FieldText of slot: String * style: Layout.Style
   /// A text slot holding a fully-qualified NAME, drawn the way the pretty-printer would write it here.
   /// The document keeps the full name -- that is the thing's identity, and shortening what is STORED
   /// makes `Result.Ok` come back as `Result..Ok` -- so the shortening happens on the way to the screen.
@@ -69,6 +75,9 @@ type Piece =
   | EachWrapped of slot: String * openP: String * sep: List<Piece> * closeP: String
   /// One line if it fits, otherwise break every Line/SoftLine directly inside.
   | Group of List<Piece>
+  /// One line WHATEVER the width. For content where a break would change the meaning and not just the
+  /// shape: the expressions inside an interpolated string, which are part of a string literal.
+  | Flat of List<Piece>
   /// Indent by `n` after each break inside.
   | Nest of Int * List<Piece>
   /// A space when flat, a newline when the group breaks.
