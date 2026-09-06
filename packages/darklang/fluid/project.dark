@@ -69,6 +69,31 @@ let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
 
 /// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
 /// node refers to it; `childPath` is where a node inside it lives.
+/// The COLUMNS a table draws for `slotName`, if this spec draws it as one. Column-wise motion needs the
+/// order, and the Table piece is the only thing that has it.
+let tableColumnsFor (ps: List<Piece>) (slotName: String) : List<String> =
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Table(s, cols) -> if s == slotName then cols else []
+    | Group inner -> tableColumnsFor inner slotName
+    | Nest(_, inner) -> tableColumnsFor inner slotName
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+/// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
+/// means "same column, next row" rather than "the next node in reading order", and the only thing that
+/// knows a slot is a grid is the spec that draws it.
+let tableSlots (ps: List<Piece>) : List<String> =
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Table(slotName, _) -> [ slotName ]
+    | Group inner -> tableSlots inner
+    | Nest(_, inner) -> tableSlots inner
+    | _ -> [])
+  |> Stdlib.List.flatten
+
 let slot
   (reg: Registry)
   (parent: Path)

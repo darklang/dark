@@ -631,7 +631,70 @@ let navPath (st: State) : Path =
   | Some sp -> sp
   | None -> st.caret.node
 
+/// Inside a grid, the same COLUMN one row along -- the path with its row index moved and everything after
+/// it kept. Reading order would walk sideways along the row instead, which is not what Down means in a
+/// table. Returns None when the caret isn't in one, or when there is no such row.
+let tableRowTarget (st: State) (delta: Int) : Stdlib.Option.Option<Path> =
+  let here = navPath st
+  let len = Stdlib.List.length here
+  // The innermost enclosing table wins, so a grid inside a grid still moves the row you are in.
+  Stdlib.List.range 0 (len - 1)
+  |> Stdlib.List.reverse
+  |> Stdlib.List.filterMap (fun k ->
+    match Stdlib.List.getAt here k with
+    | Some(Item(slotName, i)) ->
+      let prefix = Stdlib.List.take here k
+      let rest = Stdlib.List.drop here (k + 1)
+      (match nodeAtPath st.root prefix with
+       | Some parent ->
+         (match Registry.findTypeLevel st.reg parent.kind with
+          | Some spec ->
+            if Stdlib.List.member (Project.tableSlots spec.pieces) slotName then
+              let target = i + delta
+              let count = Stdlib.List.length (Node.items parent slotName)
+              if (target >= 0) && (target < count) then
+                Stdlib.Option.Option.Some(
+                  Stdlib.List.flatten [ prefix, [ Step.Item(slotName, target) ], rest ])
+              else Stdlib.Option.Option.None
+            else Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+/// Inside a grid, the next or previous COLUMN of the row you are on. `l` on a ROW still descends into its
+/// first cell; this is what `l` means once you are IN one, and `h` from the first column still steps out
+/// to the row, so you are never stuck.
+let tableColumnTarget (st: State) (delta: Int) : Stdlib.Option.Option<Path> =
+  let here = navPath st
+  match Stdlib.List.last here with
+  | Some(Into colName) ->
+    let rowPath = Stdlib.List.take here ((Stdlib.List.length here) - 1)
+    (match Stdlib.List.last rowPath with
+     | Some(Item(slotName, _)) ->
+       let gridPath = Stdlib.List.take rowPath ((Stdlib.List.length rowPath) - 1)
+       (match nodeAtPath st.root gridPath with
+        | Some grid ->
+          (match Registry.findTypeLevel st.reg grid.kind with
+           | Some spec ->
+             let cols = Project.tableColumnsFor spec.pieces slotName
+             (match Stdlib.List.findFirstIndex cols (fun c -> c == colName) with
+              | Some idx ->
+                let target = idx + delta
+                if (target >= 0) && (target < (Stdlib.List.length cols)) then
+                  Stdlib.List.getAt cols target
+                  |> Stdlib.Option.map (fun c -> Stdlib.List.append rowPath [ Step.Into c ])
+                else Stdlib.Option.Option.None
+              | None -> Stdlib.Option.Option.None)
+           | None -> Stdlib.Option.Option.None)
+        | None -> Stdlib.Option.Option.None)
+     | _ -> Stdlib.Option.Option.None)
+  | _ -> Stdlib.Option.Option.None
+
 let navBy (st: State) (delta: Int) : State =
+  match tableRowTarget st delta with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None ->
   let paths = nodePaths st.root
   let here = navPath st
   let idx =
@@ -650,11 +713,17 @@ let navBy (st: State) (delta: Int) : State =
   | None -> st
 
 let navParent (st: State) : State =
+  match tableColumnTarget st (-1) with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None ->
   match Path.parent (navPath st) with
   | Some p -> { st with caret = navCaretFor st.root p }
   | None -> st
 
 let navChild (st: State) : State =
+  match tableColumnTarget st 1 with
+  | Some p -> { st with caret = navCaretFor st.root p }
+  | None ->
   let here = navPath st
   let firstChild =
     nodePaths st.root

@@ -135,11 +135,47 @@ module TableProjection =
     (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Node.make (TableProjection.gridKind ())
       [ ("rows", Darklang.Fluid.Field.Many([], Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ]))) = ""
 
-  // And it is editable: navigate into a cell and change it, and the column re-measures.
+  // And it is editable: navigate into a cell and change it, and the column re-measures. `j` reaches a row
+  // and `l` goes into it -- `jjj` used to land in a cell by reading order, before rows moved row-wise.
   ((Darklang.Fluid.Editor.breadcrumb
      (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
-       [ "<Esc>", "j", "j", "j" ]))) = "Grid > Row > Int"
+       [ "<Esc>", "j", "l", "l" ]))) = "Grid > Row > Int"
   ((Darklang.Fluid.Debug.render (TableProjection.reg ()) 80
      (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
-       [ "<Esc>", "j", "j", "j", "c", "9" ]).root)) =
+       [ "<Esc>", "j", "l", "l", "c", "9" ]).root)) =
     "name                  qty\n\"widget\"              9\n\"a much longer name\"  12\n\"nut\"                 100"
+
+
+module TableMotion =
+  // A grid you can only walk in reading order isn't a grid. Inside a table, j/k move down and up a COLUMN
+  // -- same field, next row -- and l/h move across the columns of a row. Reading order would walk sideways
+  // along the row and then into the next one, which is what Down did before.
+  let at (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+        keys
+    Darklang.Fluid.Path.toString st.caret.node
+
+  // On a row, j and k move rows.
+  (TableMotion.at [ "<Esc>", "j" ]) = "rows[0]"
+  (TableMotion.at [ "<Esc>", "j", "j" ]) = "rows[1]"
+
+  // In a cell, j is the SAME COLUMN one row down -- the whole point.
+  (TableMotion.at [ "<Esc>", "j", "l" ]) = "rows[0].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j" ]) = "rows[1].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j", "j" ]) = "rows[2].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j", "k" ]) = "rows[0].name"
+
+  // l and h cross the columns, and h from the first column still steps out to the row, so you are never
+  // stuck in the grid.
+  (TableMotion.at [ "<Esc>", "j", "l", "l" ]) = "rows[0].qty"
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "h" ]) = "rows[0].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "h" ]) = "rows[0]"
+
+  // Column and row motion compose, and neither runs off the end.
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "j" ]) = "rows[1].qty"
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "l" ]) = "rows[0].qty"
+  // `k` from the top row has no row above it, so it falls back to ordinary motion and steps out to the
+  // row rather than sticking. Same shape as `h` from the first column.
+  (TableMotion.at [ "<Esc>", "j", "l", "k" ]) = "rows[0]"
