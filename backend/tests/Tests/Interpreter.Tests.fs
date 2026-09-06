@@ -1480,20 +1480,45 @@ module PermissionsGate =
     Set.ofList
       [ Effects.Effect.Clock; Effects.Effect.Stdout; Effects.Effect.HttpServer ]
 
+  /// `serve` builds its child state from the real policy store, so on a machine
+  /// whose instance policy denies the bind (CI's seeded default) the instance
+  /// layer would answer before the ceiling is consulted. Run the body against a
+  /// temporary store holding an allow-all instance policy. The override is
+  /// process-global, so the tests using it are sequenced.
+  let private withAllowAllInstanceStore
+    (f : unit -> System.Threading.Tasks.Task<unit>)
+    =
+    task {
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-policy-{System.Guid.NewGuid()}"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+      let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+      try
+        LibDB.PolicyStore.setInstancePolicy LibExecution.Permissions.Policy.allowAll
+        do! f ()
+      finally
+        restore.Dispose()
+        System.IO.Directory.Delete(dir, true)
+    }
+
   let serveBindKeepsInvokingCeiling =
     testTask "an HTTP bind from a fn whose ceiling excludes HttpServer is denied" {
       do!
-        withOccupiedPort (fun port ->
-          task {
-            let hash = "permissions-serve-ceiling-denied"
-            let fn =
-              servingFn
-                hash
-                (Set.remove Effects.Effect.HttpServer serveEffects)
-                port
-            let! actual = runPackageFn (pmWith [ fn ]) hash
-            expectDenied [ "function policy" ] actual
-          })
+        withAllowAllInstanceStore (fun () ->
+          withOccupiedPort (fun port ->
+            task {
+              let hash = "permissions-serve-ceiling-denied"
+              let fn =
+                servingFn
+                  hash
+                  (Set.remove Effects.Effect.HttpServer serveEffects)
+                  port
+              let! actual = runPackageFn (pmWith [ fn ]) hash
+              expectDenied [ "function policy" ] actual
+            }))
     }
 
   let serveBindAllowedByPermittingCeiling =
@@ -1502,18 +1527,19 @@ module PermissionsGate =
       // `Error "in use"` from the OS -- a value, not a denial -- which is the
       // proof that the permitted case reached the host boundary.
       do!
-        withOccupiedPort (fun port ->
-          task {
-            let hash = "permissions-serve-ceiling-allowed"
-            let fn = servingFn hash serveEffects port
-            let! actual = runPackageFn (pmWith [ fn ]) hash
-            expectNotDenied actual
-            match actual with
-            | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString message ])) ->
-              Expect.stringContains message "in use" "the OS answered the bind"
-            | other ->
-              Expect.equal 1 2 $"expected the OS's in-use error, got {other}"
-          })
+        withAllowAllInstanceStore (fun () ->
+          withOccupiedPort (fun port ->
+            task {
+              let hash = "permissions-serve-ceiling-allowed"
+              let fn = servingFn hash serveEffects port
+              let! actual = runPackageFn (pmWith [ fn ]) hash
+              expectNotDenied actual
+              match actual with
+              | Ok(RT.DEnum(_, _, _, "Error", [ RT.DString message ])) ->
+                Expect.stringContains message "in use" "the OS answered the bind"
+              | other ->
+                Expect.equal 1 2 $"expected the OS's in-use error, got {other}"
+            }))
     }
 
   let streamCallbackKeepsCeiling =
@@ -1567,8 +1593,11 @@ module PermissionsGate =
         elidedWrapperKeepsItsOwnCeiling
         elidedWrapperKeepsItsOwnPackagePolicy
         streamCallbackKeepsCeiling
-        serveBindKeepsInvokingCeiling
-        serveBindAllowedByPermittingCeiling
+        testSequenced (
+          testList
+            "http bind"
+            [ serveBindKeepsInvokingCeiling; serveBindAllowedByPermittingCeiling ]
+        )
         testList "deferred execution matrix" deferredExecutionMatrix
         guestCannotChangePolicies
         guestCannotApprovePackages
