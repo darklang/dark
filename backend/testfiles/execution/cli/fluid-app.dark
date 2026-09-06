@@ -544,3 +544,42 @@ module LeavingAsksAboutUnsavedWork =
     | _ -> true
 
   (LeavingAsksAboutUnsavedWork.afterAMove ()) = false
+
+
+module TextModeWorksOnAShell =
+  // Text mode edits an EXPRESSION, and `dark edit <fn>` opens on the function SHELL, which is not one.
+  // So `^E` -- which the status line advertises -- answered "can't edit as text: not an expression node:
+  // Darklang.Fluid.PT.Fn.Function" at exactly the moment you arrive, which is when you want it. It falls
+  // through to the nearest expression inside the selection now: the body, for a function or a value.
+  let fnDoc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc "inc" (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+        { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+          body = Darklang.LanguageTools.ProgramTypes.Expr.EInt(1L, 42)
+          typeParams = []
+          parameters = []
+          returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+          description = "" }))
+
+  let ctrlE (root: Darklang.Fluid.Slot) : String =
+    let ed = Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) root 70
+    let st = { (Fixtures.stateOf { ed with mode = Darklang.Fluid.Editor.Mode.Nav }) with savedRoot = root }
+
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.E
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = true; alt = false; shift = false })
+        Stdlib.Option.Option.None
+    with
+    | Stay next ->
+      (match next.textMode with
+       | Some((src, _, at)) -> (Darklang.Fluid.Path.toString at) ++ " => " ++ src
+       | None -> "no text mode: " ++ next.editor.message)
+    | _ -> "other"
+
+  // On the shell: the body, at the body's path.
+  (TextModeWorksOnAShell.ctrlE (TextModeWorksOnAShell.fnDoc ())) = "body => 42"
+
+  // On an expression it is still that expression, at the root.
+  (TextModeWorksOnAShell.ctrlE (Fixtures.docOf "1 + 2")) = " => 1 + 2"

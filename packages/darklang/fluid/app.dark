@@ -852,12 +852,37 @@ let onKey
       | Nav -> Editor.navPath settled
       | Insert -> []
     let scoped = Darklang.Fluid.slotAtPath settled.root scope |> Stdlib.Option.withDefault settled.root
-    match docToSourceResult scoped with
-    | Ok src ->
+
+    // Text mode edits an EXPRESSION, and `dark edit <fn>` opens on the function SHELL, which is not one.
+    // So the escape hatch the status line advertises did not work at the moment you arrive, which is when
+    // you want it. Fall through to the nearest expression inside the selection -- the body, for a function
+    // or a value -- rather than refusing. A type declaration still has none, and still says so.
+    let target =
+      match docToSourceResult scoped with
+      | Ok src -> Stdlib.Option.Option.Some((src, scope))
+      | Error _ ->
+        Editor.nodePaths settled.root
+        |> Stdlib.List.filter (fun p -> (Darklang.Fluid.Path.isPrefixOf scope p) && p != scope)
+        |> Stdlib.List.filterMap (fun p ->
+          match Darklang.Fluid.slotAtPath settled.root p with
+          | Some inner ->
+            (match docToSourceResult inner with
+             | Ok src -> Stdlib.Option.Option.Some((src, p))
+             | Error _ -> Stdlib.Option.Option.None)
+          | None -> Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+
+    match target with
+    | Some(pair) ->
+      let (src, at) = pair
+
       Darklang.Cli.Component.Step.Stay
-        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, 0, scope)) }
-    | Error err ->
-      Darklang.Cli.Component.Step.Stay { st with editor = { settled with message = $"can't edit as text: {err}" } }
+        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, 0, at)) }
+    | None ->
+      match docToSourceResult scoped with
+      | Error err ->
+        Darklang.Cli.Component.Step.Stay { st with editor = { settled with message = $"can't edit as text: {err}" } }
+      | Ok _ -> Darklang.Cli.Component.Step.Stay st
   else
   match Widget.onKey st.editor kp with
   | Handled e -> Darklang.Cli.Component.Step.Stay(afterKey st e)
