@@ -681,7 +681,7 @@ module PipeExpr =
           args
           |> NEList.toList
           |> List.map LetPattern.toDT
-          |> Dval.list (KTTuple(VT.int64, VT.string, []))
+          |> Dval.list (LetPattern.knownType ())
         "EPipeLambda", [ DInt64(int64 id); variables; exprToDT body ]
 
       | PT.EPipeInfix(id, infix, expr) ->
@@ -906,7 +906,7 @@ module Expr =
       | PT.ELambda(id, pats, body) ->
         let variables =
           DList(
-            VT.tuple VT.int64 VT.string [],
+            VT.known (LetPattern.knownType ()),
             pats |> NEList.toList |> List.map LetPattern.toDT
           )
         "ELambda", [ DInt64(int64 id); variables; toDT body ]

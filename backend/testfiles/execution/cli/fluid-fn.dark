@@ -173,3 +173,10 @@ module MatchesThePrinterExactly =
   // break at all, so the only thing left that could was a type INSIDE a parameter, and `Result.map2` came
   // out with `Result<` split across three lines mid-parameter. Same bug as the type arguments, a level up.
   (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Result.map2") = "same"
+
+  // This one used to CRASH rather than differ, and the fault was not Fluid's: a lambda's parameter list
+  // came out of the package store tagged `List<(Int64 * String)>` -- the shape lambda parameters had
+  // before they became LetPatterns -- so putting the very same list back into an ELambda failed the enum
+  // type check. Two stale value types in ProgramTypesToDarkTypes. Any function with a lambda in it is a
+  // regression test for that; this is the one that found it.
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Cli.commandOptions") = "same"

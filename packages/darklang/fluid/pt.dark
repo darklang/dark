@@ -1737,6 +1737,17 @@ module Types =
         empty = primNode "TInt"
         summary = PT.exprSummary }
 
+  /// `Name<...>`: the argument list breaks exactly the way the printer's `wrapExprs` does -- brackets on
+  /// their own lines, arguments at a two-space indent. Written out here rather than reused from
+  /// EachWrapped because these containers have NAMED slots rather than a list of them.
+  let angled (name: String) (inner: List<Piece>) : List<Piece> =
+    [ Piece.Keyword name
+      Piece.Group
+        [ Piece.Punct "<"
+          Piece.Nest(2, Stdlib.List.append [ Piece.SoftLine ] inner)
+          Piece.SoftLine
+          Piece.Punct ">" ] ]
+
   let specs () : List<Spec> =
     Stdlib.List.flatten
       [ [ typeTypeSpec () ]
@@ -1745,14 +1756,24 @@ module Types =
           // runtimeTypes.dark both do `"'" ++ varName`), and Fluid drew a bare `a`, so a generic signature on
           // screen wasn't the signature the printer would write.
           simpleType "TVariable" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ])
-          simpleType "TList" [ Piece.Keyword "List", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
-          simpleType "TStream" [ Piece.Keyword "Stream", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TStream") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
-          simpleType "TDB" [ Piece.Keyword "DB", Piece.Punct "<", Piece.Slot "arg", Piece.Punct ">" ] (Node.make (typeKind "TDB") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
-          simpleType "TDict" [ Piece.Keyword "Dict", Piece.Punct "<", Piece.Slot "key", Piece.Punct ",", Piece.Space, Piece.Slot "value", Piece.Punct ">" ] (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
-          simpleType "TTuple" [ Piece.Punct "(", Piece.Each("items", [ Piece.Space, Piece.Punct "*", Piece.Space ]), Piece.Punct ")" ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
+          // `List<...>`, `Stream<...>`, `DB<...>` and `Dict<..., ...>` used to be written with hard brackets
+          // and a hard space, so nothing in them could break: a long element type ran off the end of the
+          // line instead of going to its own, and `List<(A * B)>` inside an enum case overflowed the width
+          // where the printer breaks it. The generic `TCustomType` had already been fixed; these four were
+          // spelled separately and kept the old shape.
+          simpleType "TList" (angled "List" [ Piece.Slot "arg" ]) (Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TStream" (angled "Stream" [ Piece.Slot "arg" ]) (Node.make (typeKind "TStream") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TDB" (angled "DB" [ Piece.Slot "arg" ]) (Node.make (typeKind "TDB") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ])
+          simpleType "TDict" (angled "Dict" [ Piece.Slot "key", Piece.Punct ",", Piece.Line, Piece.Slot "value" ]) (Node.make (typeKind "TDict") [ ("key", Field.One(Slot.Empty(typeExpect "key"))), ("value", Field.One(Slot.Empty(typeExpect "value"))) ])
+          // A tuple breaks after the star, not around it, and the continuation lines up one column in --
+          // under the opening paren -- because the printer nests by 1 inside its `parens`.
+          simpleType "TTuple" [ Piece.Group [ Piece.Punct "(", Piece.Nest(1, [ Piece.ParenIfEach("items", [ Piece.Space, Piece.Punct "*", Piece.Line ], isFnType) ]), Piece.Punct ")" ] ] (Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ])
           // Written bare, with brackets only where one function type is nested in another -- which is what the
           // printer does, and what `(fn: 'a -> 'b)` should read as.
-          simpleType "TFn" [ Piece.ParenIfEach("args", [ Piece.Space, Piece.Punct "->", Piece.Space ], isFnType), Piece.Space, Piece.Punct "->", Piece.Space, Piece.ParenIfSlot("ret", isFnType) ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
+          // An arrow chain breaks AFTER each arrow, all the arrows together, which is the printer's single
+          // group over `join parts (" ->" ++ line)`. With hard spaces it could not break at all, and a
+          // record field holding a four-argument function ran off the end of the line.
+          simpleType "TFn" [ Piece.Group [ Piece.ParenIfEach("args", [ Piece.Space, Piece.Punct "->", Piece.Line ], isFnType), Piece.Space, Piece.Punct "->", Piece.Line, Piece.ParenIfSlot("ret", isFnType) ] ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
           simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Line ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
 
 
@@ -2091,7 +2112,9 @@ module TypeDecl =
         (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ])
       simpleT
         "EnumField"
-        [ Piece.Each("label", []), Piece.Slot "type" ]
+        // A function type in an enum case gets brackets: the case's fields are a `*` product, and
+        // `| WithChar of String -> Expect -> Node` reads as one arrow chain rather than one field.
+        [ Piece.Each("label", []), Piece.ParenIfSlot("type", Types.isFnType) ]
         (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
       simpleT
         "EnumFieldLabel"

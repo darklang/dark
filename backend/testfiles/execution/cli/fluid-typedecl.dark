@@ -229,3 +229,83 @@ module FieldsFitWhenTheyFit =
   // Still one per line when they genuinely do not fit.
   (Stdlib.String.contains
     (FieldsFitWhenTheyFit.show [ MatchesThePrinter.deep (), MatchesThePrinter.deep () ]) " *\n") = true
+
+
+module ContainersCanBreak =
+  // `List<...>`, `Stream<...>`, `DB<...>`, `Dict<..., ...>` and an arrow chain were each written with hard
+  // brackets and hard spaces, so nothing inside them could break: a long element type ran off the end of
+  // the line instead of onto its own, and `List<(A * B)>` inside an enum case overflowed the width where
+  // the printer breaks it. The generic `TCustomType` had been fixed long before -- these four containers
+  // and TFn were spelled separately and kept the old shape.
+  //
+  // Asserted against the printer rather than as literal text: the point is that the two agree, and the
+  // exact break positions are the printer's business.
+  // Compared from the second line down: a fixture's hash is made up, so the printer heads it
+  // `type <hash:beef> =` where Fluid writes the name it was opened with. The BODY is what is under test.
+  let body (s: String) : String =
+    SaveFidelity.stripDocs s |> Stdlib.String.split "\n" |> Stdlib.List.drop 1 |> Stdlib.String.join "\n"
+
+  let vsPrinter (nm: String) (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : String =
+    let printed =
+      ContainersCanBreak.body
+        (Darklang.PrettyPrinter.ProgramTypes.packageType (Darklang.Fluid.PT.printerContext ()) pt)
+    let drawn =
+      ContainersCanBreak.body
+        (Darklang.Fluid.Debug.render (Fixtures.reg ()) 80
+          (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc nm pt)))
+    if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  // A tuple inside a list, far too wide for the line: the list brackets go onto their own lines and the
+  // tuple breaks after its star, one column in under the opening paren.
+  let listOfPairs () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+          Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
+            MatchesThePrinter.deep (),
+            MatchesThePrinter.deep (),
+            []))))
+
+  (ContainersCanBreak.vsPrinter "Pairs" (ContainersCanBreak.listOfPairs ())) = "same"
+
+  // A dictionary whose two type arguments do not fit together.
+  let wideDict () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+          MatchesThePrinter.deep (),
+          MatchesThePrinter.deep ())))
+
+  (ContainersCanBreak.vsPrinter "Wide" (ContainersCanBreak.wideDict ())) = "same"
+
+  // An arrow chain breaks after each arrow, all of them together.
+  let longFn () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+        [ Fixtures.field
+            "run"
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ MatchesThePrinter.deep (), MatchesThePrinter.deep (), MatchesThePrinter.deep () ],
+              MatchesThePrinter.deep ())) ])
+
+  (ContainersCanBreak.vsPrinter "Handler" (ContainersCanBreak.longFn ())) = "same"
+
+  // Short ones stay on one line, which is the half of this that a break-everything fix would lose.
+  (Fixtures.show "Names" (Fixtures.namesAlias ())) = "type Names =\n  List<String>"
+
+  // And the same thing said against real package types, which is where all of these came from: a record
+  // of callbacks, a generic component, and the big Expr enum with its `List<(Expr * Expr)>` case.
+  let real (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      | None -> "missing"
+      | Some pt -> ContainersCanBreak.vsPrinter loc.name pt
+
+  (ContainersCanBreak.real "Darklang.Cli.SubApp") = "same"
+  (ContainersCanBreak.real "Darklang.Cli.Component.Component") = "same"
+  (ContainersCanBreak.real "Darklang.Cli.Registry.CommandHandler") = "same"
+  (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.Expr") = "same"
+  (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.MatchPattern") = "same"

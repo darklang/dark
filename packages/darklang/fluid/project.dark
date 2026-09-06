@@ -65,6 +65,10 @@ let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Boo
   Darklang.PrettyPrinter.ProgramTypes.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight
 
 let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
+  // No nest here, deliberately. The printer's `parens` nests by 1, and copying that put the extra column
+  // on EXPRESSIONS too -- a match inside an `if` condition came out with every arm indented one space.
+  // Where the extra column is actually wanted (a tuple's continuation lining up under its opening paren)
+  // the spec says so itself, with a Nest(1) around the items.
   if cond then Layout.concatAll [ Layout.punct "(", d, Layout.punct ")" ] else d
 
 /// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
