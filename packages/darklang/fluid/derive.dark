@@ -227,6 +227,13 @@ let specsForName (branchId: Uuid) (typeName: String) : List<Spec> =
     | None -> []
   | None -> []
 
+/// The spec for one CASE of an enum, for a generated module to build on. Same fallback shape.
+let specForCase (branchId: Uuid) (typeName: String) (caseName: String) : Spec =
+  let wanted = Kind.ofCase typeName caseName
+  match specsForName branchId typeName |> Stdlib.List.findFirst (fun sp -> sp.kind == wanted) with
+  | Some spec -> spec
+  | None -> Spec.simple wanted [ Piece.Dim ("?" ++ caseName) ] (Node.make wanted [])
+
 /// The one spec that owns a type's own holes (the record spec, or the enum's type-level spec), for
 /// `fluid generate` to build on. A labelled fallback if the type isn't found.
 let specForName (branchId: Uuid) (typeName: String) : Spec =
@@ -286,21 +293,55 @@ let pieceSource (p: Piece) : String =
 /// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
 /// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the
 /// rest. Discovery (any Spec value, by type) picks it up with no further wiring.
-let generateModule (typeName: String) (pieces: List<Piece>) : String =
-  let short = shortName typeName
+let generateOne (name: String) (from: String) (pieces: List<Piece>) : String =
   let piecesText =
     pieces
     |> Stdlib.List.map (fun p -> "          " ++ (pieceSource p))
     |> Stdlib.String.join "\n"
-  [ "/// A Fluid editor for " ++ typeName ++ ", generated from its type declaration."
-    "/// Edit `pieces` to change how it is laid out; the rest is derived at load time."
-    "///"
-    "/// Declaring this value is all it takes: Fluid discovers every value of type"
-    "/// `Darklang.Fluid.Spec` by type and uses it in place of the built-in editor."
-    "val " ++ short ++ "Editor ="
-    "  { (Darklang.Fluid.Derive.specForName Darklang.SCM.Branch.mainBranchId " ++ (quoted typeName) ++ ") with"
+  [ "val " ++ name ++ " ="
+    "  { (" ++ from ++ ") with"
     "      pieces ="
-    "        [" 
+    "        ["
     piecesText
     "        ] }" ]
   |> Stdlib.String.join "\n"
+
+let generateModule (typeName: String) (pieces: List<Piece>) : String =
+  let short = shortName typeName
+  generateOne
+    (short ++ "Editor")
+    ("Darklang.Fluid.Derive.specForName Darklang.SCM.Branch.mainBranchId " ++ (quoted typeName))
+    pieces
+
+/// Every editor a type needs, as source. A RECORD is one value. An ENUM is one per case plus the
+/// type-level one that owns the hole -- `fluid generate` used to emit only the head of the derived list,
+/// which for an enum is the type-level spec whose pieces are the `?Name` placeholder. So generating an
+/// editor for `Option` handed you a stub, and editing it changed nothing you could see, while the derived
+/// per-case layouts it was meant to start from went unmentioned.
+let generateModuleFor (branchId: Uuid) (typeName: String) : String =
+  let short = shortName typeName
+  let header =
+    [ "/// A Fluid editor for " ++ typeName ++ ", generated from its type declaration."
+      "/// Edit `pieces` to change how it is laid out; the rest is derived at load time."
+      "///"
+      "/// Declaring these values is all it takes: Fluid discovers every value of type"
+      "/// `Darklang.Fluid.Spec` by type and uses it in place of the built-in editor." ]
+    |> Stdlib.String.join "\n"
+  let vals =
+    specsForName branchId typeName
+    |> Stdlib.List.map (fun sp ->
+      match sp.kind.case with
+      | Some caseName ->
+        generateOne
+          (short ++ caseName ++ "Editor")
+          ("Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "
+           ++ (quoted typeName) ++ " " ++ (quoted caseName))
+          sp.pieces
+      | None ->
+        generateOne
+          (short ++ "Editor")
+          ("Darklang.Fluid.Derive.specForName Darklang.SCM.Branch.mainBranchId " ++ (quoted typeName))
+          sp.pieces)
+  match vals with
+  | [] -> header ++ "\n" ++ (generateModule typeName [ Piece.Dim ("?" ++ short) ])
+  | _ -> header ++ "\n" ++ (Stdlib.String.join vals "\n\n")

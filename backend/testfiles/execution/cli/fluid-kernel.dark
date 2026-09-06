@@ -116,3 +116,31 @@ module Nav =
   (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.color ()) 80 [ "<Tab>", "<Esc>" ]) = "nav"
 
   (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.color ()) 80 [ "<Tab>" ]) = "insert"
+
+
+module YankAndPut =
+  // `y` copies the node under the caret, `p` puts it over whatever the caret is on -- a hole, a partial, or
+  // another node. This had NO coverage at all until now, which is worth saying plainly: a whole editing
+  // feature was reachable only by driving the thing by hand, and what it printed was the fully qualified
+  // type name (`yanked Darklang.LanguageTools.ProgramTypes.Expr.EInt` for copying a `1`).
+  (Fixtures.run [ "j", "y", "j", "p" ]) =
+    "Acme.Color { r = 255; g = ~255; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // A put is one edit, so undo takes the hole back.
+  (Fixtures.run [ "j", "y", "j", "p", "u" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // Yanking again replaces what's held: copy the `255`, walk to the tag, copy THAT instead, and the put
+  // is the tag.
+  (Fixtures.run [ "j", "y", "j", "j", "j", "y", "j", "p" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", \"~warm\"] }"
+
+  let msg (keys: List<String>) : String =
+    (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.color ()) 80) keys).message
+
+  // The message names the kind the SHORT way, the way the breadcrumb does.
+  (YankAndPut.msg [ "j", "y" ]) = "yanked Int"
+  (YankAndPut.msg [ "j", "y", "j", "p" ]) = "put Int"
+
+  // And it says so when there is nothing to put.
+  (YankAndPut.msg [ "p" ]) = "clipboard is empty"

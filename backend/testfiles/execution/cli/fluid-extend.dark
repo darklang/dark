@@ -248,3 +248,55 @@ module SpecKeys =
   // actions still are.
   (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j", "z" ])
     = (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j" ])
+
+
+module GeneratedEnumEditors =
+  // `fluid generate` on an ENUM handed you a stub. `Derive.specsFor` already derives an enum properly --
+  // the type-level spec that owns the hole, PLUS one spec per case with real layout pieces -- and the
+  // command took `List.head` of that list, which for an enum is the type-level one whose pieces are the
+  // `?Name` placeholder. So the generated module's editable part changed nothing you could see, while the
+  // per-case layouts it was meant to start from went unmentioned.
+  //
+  // Records were fine, which is why this went unnoticed: the audit graded "your own type, your own editor"
+  // on `Size`, and Size is a record.
+  let src () : String =
+    Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option"
+
+  // One editor per case, named for the case, each starting from that case's own derived spec.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionSomeEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionNoneEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "Darklang.Fluid.Derive.specForCase") = true
+
+  // ...alongside the type-level one, which is the thing that owns the hole.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionEditor =") = true
+
+  // And the case editors carry the case's REAL pieces, not the placeholder.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "Darklang.Fluid.Piece.Label \"Some\"") = true
+
+  // A RECORD is still one value, unchanged.
+  let recordSrc () : String =
+    Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Cli.Tui.Size"
+
+  (Stdlib.String.contains (GeneratedEnumEditors.recordSrc ()) "val SizeEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.recordSrc ()) "Darklang.Fluid.Derive.specForCase") = false
+
+  // WHAT IT EMITS IS VALID DARK. The generated module is source someone pastes into their packages, so the
+  // thing worth checking is not the shape of the string but that the parser accepts it -- for an enum,
+  // several `val`s in one module, which is what discovery expects.
+  let parses (name: String) : String =
+    let src = Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId name
+    let indented =
+      Stdlib.String.split src "\n" |> Stdlib.List.map (fun l -> "  " ++ l) |> Stdlib.String.join "\n"
+    match Darklang.LanguageTools.Parser.Parse.parsePTSourceFileWithOps ("module Probe.Generated =\n" ++ indented) with
+    | Ok _ -> "parses"
+    | Error e -> "PARSE FAILED: " ++ e
+
+  (GeneratedEnumEditors.parses "Darklang.Stdlib.Cli.Tui.Size") = "parses"
+  (GeneratedEnumEditors.parses "Darklang.Stdlib.Option.Option") = "parses"
+  (GeneratedEnumEditors.parses "Darklang.LanguageTools.ProgramTypes.LetPattern") = "parses"
+
+  // `specForCase` finds the case's spec, and says so plainly when there isn't one.
+  ((Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option" "Some").pieces
+   |> Stdlib.List.isEmpty) = false
+  ((Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option" "Nope").pieces) =
+    [ Darklang.Fluid.Piece.Dim "?Nope" ]

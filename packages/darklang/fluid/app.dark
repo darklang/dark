@@ -680,13 +680,14 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     // Emit an editable editor module for a type, derived from its declaration. Print it so a person can
     // redirect it or pipe it into `dark module`; it needs no other wiring, discovery finds it by type.
     let branchId = Darklang.SCM.Branch.mainBranchId
-    let pieces = (Derive.specForName branchId typeName).pieces
-    match pieces with
+    // An ENUM needs one editor per case, not just the type-level one that owns the hole. Asking for the
+    // head of the derived list gave you `Piece.Dim "?Option"` and nothing to edit.
+    match Derive.specsForName branchId typeName with
     | [] ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: no type named {typeName}")
       cliState
     | _ ->
-      Stdlib.printLine (Derive.generateModule typeName pieces)
+      Stdlib.printLine (Derive.generateModuleFor branchId typeName)
       cliState
   | [ "render" ] ->
     // Without a terminal: the example value, laid out at 80 columns, as text.

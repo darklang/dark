@@ -834,7 +834,9 @@ let clearNode (st: State) : State =
 /// Copy the node under the caret into the clipboard (a whole subtree).
 let yankNode (st: State) : State =
   match nodeAtPath st.root (navPath st) with
-  | Some n -> { st with clipboard = Stdlib.Option.Option.Some n; message = "yanked " ++ (Kind.toString n.kind) }
+  // The SHORT name, the one the breadcrumb uses. `Kind.toString` is the fully qualified type, so a yank
+  // said "yanked Darklang.LanguageTools.ProgramTypes.Expr.EInt" for copying a `1`.
+  | Some n -> { st with clipboard = Stdlib.Option.Option.Some n; message = "yanked " ++ (crumbName n) }
   | None -> { st with message = "nothing to yank" }
 
 /// Put the clipboard node into the slot under the caret (a hole, a partial, or over a node).
@@ -844,7 +846,7 @@ let putNode (st: State) : State =
   | Some n ->
     let here = navPath st
     let st1 = commit st [ Edit.Replace(here, Slot.Filled n) ] st.caret
-    { st1 with caret = navCaretFor st1.root here; message = "put " ++ (Kind.toString n.kind) }
+    { st1 with caret = navCaretFor st1.root here; message = "put " ++ (crumbName n) }
 
 
 // --- INSERT: typing ---
