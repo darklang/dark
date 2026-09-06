@@ -69,6 +69,60 @@ let demoDocument () : Slot =
            [ Slot.Filled(Prims.stringNode "warm"), Slot.Empty(Expect.any "tag") ],
            Expect.any "tag")) ])
 
+// --- The table demo ---
+//
+// `Piece.Table` renders a list of records as a GRID: every other piece draws a line and composes into a
+// Wadler document, and a table cannot, because a column's width depends on its SIBLINGS and a group only
+// ever knows its own. It was reachable only from the tests, which is a poor place to keep the answer to
+// "can a table be seen as a table". `fluid demo table` opens one.
+
+val demoRowType = "Demo.Row"
+val demoGridType = "Demo.Grid"
+
+let demoRowKind () : Kind = Kind.named demoRowType
+let demoGridKind () : Kind = Kind.named demoGridType
+
+let demoRowSpec () : Spec =
+  Spec.simple
+    (demoRowKind ())
+    [ Piece.Slot "item", Piece.Space, Piece.Slot "qty", Piece.Space, Piece.Slot "note" ]
+    (Node.make
+      (demoRowKind ())
+      [ ("item", Field.One(Slot.Empty(Expect.ofKind (Prims.stringKind ()) "item")))
+        ("qty", Field.One(Slot.Empty(Expect.ofKind (Prims.intKind ()) "qty")))
+        ("note", Field.One(Slot.Empty(Expect.ofKind (Prims.stringKind ()) "note"))) ])
+
+let demoGridSpec () : Spec =
+  Spec.simple
+    (demoGridKind ())
+    [ Piece.Table("rows", [ "item", "qty", "note" ]) ]
+    (Node.make
+      (demoGridKind ())
+      [ ("rows", Field.Many([], Expect.ofKind (demoRowKind ()) "row")) ])
+
+let demoRegistry () : Registry =
+  Registry.ofList
+    (Stdlib.List.flatten [ Prims.specs (), [ demoRowSpec (), demoGridSpec () ] ])
+
+let demoRow (item: String) (qty: String) (note: String) : Slot =
+  Slot.Filled(
+    Node.make
+      (demoRowKind ())
+      [ ("item", Field.One(Slot.Filled(Prims.stringNode item)))
+        ("qty", Field.One(Slot.Filled(Prims.intNode qty)))
+        ("note", Field.One(Slot.Filled(Prims.stringNode note))) ])
+
+let demoGrid () : Slot =
+  Slot.Filled(
+    Node.make
+      (demoGridKind ())
+      [ ("rows",
+         Field.Many(
+           [ demoRow "widget" "3" "in stock"
+             demoRow "a much longer name" "12" "back order"
+             demoRow "nut" "100" "" ],
+           Expect.ofKind (demoRowKind ()) "row")) ])
+
 /// Specs a person has declared: any package value of type `Darklang.Fluid.Spec`, found by type. This is
 /// how you swap or add an editor for a type -- declare one `val` of type Spec anywhere and it is picked
 /// up here, shadowing the built-in for that kind (discovered specs are merged last, and `Registry.find`
@@ -103,6 +157,21 @@ let launchTarget (cliState: Darklang.Cli.AppState) (title: String) (root: Slot) 
   | Unavailable reason ->
     Stdlib.printLine $"fluid needs a terminal: {reason}"
     Stdlib.printLine (Debug.render (defaultRegistry ()) 80 root)
+    cliState
+
+/// Launch a document that brings its OWN specs (a grid, a language of its own).
+let launchInRegistry
+  (cliState: Darklang.Cli.AppState)
+  (reg: Registry)
+  (title: String)
+  (root: Slot)
+  : Darklang.Cli.AppState =
+  match Stdlib.Cli.Tui.TerminalSupport.current () with
+  | Available ->
+    Darklang.Cli.Component.launch cliState component (initialWith reg title root Target.Scratch)
+  | Unavailable reason ->
+    Stdlib.printLine $"fluid needs a terminal: {reason}"
+    Stdlib.printLine (Debug.render reg 80 root)
     cliState
 
 let launchWith (cliState: Darklang.Cli.AppState) (title: String) (root: Slot) : Darklang.Cli.AppState =
@@ -216,6 +285,25 @@ let saveFnBody
       | Error err -> Stdlib.Result.Result.Error err
     | Error err -> Stdlib.Result.Result.Error err
   | _ -> Stdlib.Result.Result.Error "nothing to save"
+
+/// The state for a document edited with a GIVEN registry, rather than the one the branch derives. A
+/// projection that is not Darklang's -- a grid, a DSL -- brings its own specs, so it needs a way in.
+let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : State =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+  let width = Stdlib.Int.max 20 (size.width - 2)
+  State
+    { editor = Editor.init reg root width
+      title = title
+      scroll = 0
+      hscroll = 0
+      target = target
+      theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
+      bodyRows = Stdlib.Int.max 1 (size.height - 3)
+      bodyCols = Stdlib.Int.max 1 (size.width - 6)
+      inspectorOpen = false
+      evaluated = Stdlib.Option.Option.None
+      textMode = Stdlib.Option.Option.None
+      pendingEdit = Stdlib.Option.Option.None }
 
 let initialFor (title: String) (root: Slot) (target: Target) : State =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
@@ -685,6 +773,8 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   // is a value you type (a number, a string, `let`, `if`...), not a type.
   | [] -> launchWith cliState "scratch expression" (Slot.Empty(PT.exprExpect "expression"))
   | [ "demo" ] -> launchWith cliState "example Color value" (demoDocument ())
+  | [ "demo", "table" ] ->
+    launchInRegistry cliState (demoRegistry ()) "example grid" (demoGrid ())
   | [ "expr" ] -> launchWith cliState "scratch expression" (Slot.Empty(PT.exprExpect "expression"))
   | "expr" :: rest ->
     let src = Stdlib.String.join rest " "
@@ -732,6 +822,7 @@ let help (_state: Darklang.Cli.AppState) : String =
     "  fluid value <name>     a package value: its body expression"
     "  fluid generate <Type>  print an editable editor module for one of your types"
     "  fluid demo             a worked example (a Color value)"
+    "  fluid demo table       a list of records seen as a GRID, not as a line of text"
     ""
     "In a VALUE or expression, a blank wants an expression -- a number, a string, a call."
     "In a TYPE, a blank wants a type -- Int, List<String>, and so on."

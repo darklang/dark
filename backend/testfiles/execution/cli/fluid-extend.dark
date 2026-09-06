@@ -339,3 +339,19 @@ module GeneratedEnumEditors =
     (Darklang.Fluid.Derive.pieceSource
       (Darklang.Fluid.Piece.ParenIfSlot("ret", Darklang.Fluid.PT.Types.isFnType)))
     "predicate is a function") = true
+
+
+module TableDemoIsReachable =
+  // `Piece.Table` renders a list of records as a GRID rather than as a line of text, and it was reachable
+  // only from the tests -- a poor place to keep the answer to "can a table be seen as a table". `fluid demo
+  // table` opens one, which also meant giving the app a way to launch a document that brings its OWN specs
+  // (`initialWith` / `launchInRegistry`): a projection that is not Darklang's has a registry of its own.
+  (Darklang.Fluid.Debug.render (Darklang.Fluid.App.demoRegistry ()) 80 (Darklang.Fluid.App.demoGrid ())) =
+    "item                  qty  note\n\"widget\"              3    \"in stock\"\n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\""
+
+  // Every column as wide as its widest cell, which is the thing a Wadler group cannot do: a column's width
+  // depends on its SIBLINGS, and a group only ever knows its own.
+  ((Darklang.Fluid.Debug.render (Darklang.Fluid.App.demoRegistry ()) 80 (Darklang.Fluid.App.demoGrid ()))
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.map (fun l -> Stdlib.String.indexOf l "  " |> Stdlib.Option.withDefault -1)
+   |> Stdlib.List.all (fun i -> i > 0)) = true
