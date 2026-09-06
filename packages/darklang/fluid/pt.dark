@@ -1529,7 +1529,7 @@ let matchOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<
               |> Stdlib.List.map (fun c ->
                 let fieldSlots = c.fields |> Stdlib.List.map (fun _ -> Slot.Empty(matchPatExpect "field"))
 
-                Spec.candidate
+                Spec.contextCandidate
                   c.name
                   "case"
                   (Node.make

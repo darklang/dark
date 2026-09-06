@@ -861,3 +861,35 @@ module AMatchOffersItsScrutineesCases =
   // being inside a match.
   (AMatchOffersItsScrutineesCases.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) =
     "true, false, ()"
+
+
+module OfferedCasesCanBePicked =
+  // Showing the cases without letting you pick one is worse than not showing them. On an untouched hole
+  // Enter means "start the next item" -- otherwise a bare Enter built a `let` -- and that guard is about
+  // the GENERIC menu, which is mostly "everything that could go here". A candidate that came from the
+  // document is not that, so `Candidate.fromContext` marks it and Enter takes it.
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (AMatchOffersItsScrutineesCases.fnDoc t)
+      70
+      (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) keys)
+
+  // Enter on the pattern hole takes the highlighted case, with a hole per field and the caret in the
+  // first one.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ()) [ "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+
+  // Arrowing to another case and taking that one. A case with no fields leaves nothing to fill, so the
+  // caret sits at its end rather than jumping on.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ()) [ "<Down>", "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | None~ -> ⟨rhs⟩"
+
+  // Then the arm's body, and it lowers to the match it looks like.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ())
+    [ "<Enter>", "v", "<Tab>", "\"", "y", "e", "s", "<Esc>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(v) -> \"~yes\""
+
+  // Without a case to offer, Enter still starts the next arm, which is the behaviour the guard exists for.
+  (OfferedCasesCanBePicked.run Darklang.LanguageTools.ProgramTypes.TypeReference.TInt [ "<Enter>" ]) =
+    "let describe (o: Int): String =\n  match o with\n  | ⟨pattern⟩ -> ⟨rhs⟩\n  | ~⟨pattern⟩ -> ⟨rhs⟩"

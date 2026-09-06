@@ -2685,7 +2685,15 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       // Only a menu you opened by TYPING is Enter's to accept. On an untouched hole the menu is just the
       // list of everything that could go here, and committing its first entry meant a bare Enter built a
       // `let`, or gave a match arm the pattern `true`.
-      if completing && (onPartial st) then
+      // A candidate the DOCUMENT implied -- the cases of the enum this match is on -- is a specific answer
+      // and Enter takes it. The guard below is about the generic menu, where Enter's job is to start the
+      // next item; these are not that, and showing you the cases without letting you pick one is worse
+      // than not showing them.
+      if completing
+         && (Stdlib.Bool.not (onPartial st))
+         && ((selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false)) then
+        handled (commitCandidate st)
+      else if completing && (onPartial st) then
         // A menu is up. If what you typed IS a candidate (an in-scope variable), you're done: commit it
         // and start the next item. If the menu offers something else to accept (a store function like
         // `List.len` -> `Stdlib.List.length`), accept it and stay.

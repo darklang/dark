@@ -106,7 +106,14 @@ type Candidate =
   { label: String
     detail: String
     valid: Validity
-    node: Node }
+    node: Node
+    /// Did this come from the DOCUMENT rather than from the spec's fixed list?
+    ///
+    /// On an untouched hole the menu is mostly "everything that could go here", and Enter there means
+    /// "start the next item" rather than "take the first entry" -- otherwise a bare Enter built a `let`.
+    /// A candidate that came from `offers` is not that: the cases of the enum you are actually matching
+    /// are a specific answer to a specific document, and Enter takes it.
+    fromContext: Bool }
 
 /// What typing a character into a hole creates.
 type HoleFill =
@@ -231,7 +238,11 @@ module Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }
 
   let candidate (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false }
+
+  /// A candidate the document itself implied -- see `Candidate.fromContext`.
+  let contextCandidate (label: String) (detail: String) (node: Node) : Candidate =
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = true }
 
 
 /// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec
