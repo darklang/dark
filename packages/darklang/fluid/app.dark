@@ -373,11 +373,49 @@ let saveFnBody
     | Error err -> Stdlib.Result.Result.Error err
   | _ -> Stdlib.Result.Result.Error "nothing to save"
 
+/// The three regions the editor draws into: the framed code pane, the context panel, and the document
+/// inside the pane. The panel is dropped on a narrow terminal so the code always has room, and an
+/// `inspArea` of no width is how the caller knows that happened.
+///
+/// One computation, because there were three. The scroller kept its own guesses at the document's
+/// height and width: `size.height - 3`, where the frame, the box and the padding take six between
+/// them, so the last three lines of every document sat off screen while the scroller believed they
+/// were visible; and a width that had never heard of the panel, which takes a third of the screen.
+/// A 35-line function was editable to line 32 and no further.
+let panes
+  (size: Stdlib.Cli.Tui.Size)
+  (inspectorOpen: Bool)
+  : (Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region) =
+  let full = Stdlib.Cli.UI.Chrome.bodyRegion size
+  let inspW =
+    if inspectorOpen && (full.cols >= 72) then
+      Stdlib.Int.min 34 (Stdlib.Int.divide full.cols 3)
+    else
+      0
+  let mainCols = full.cols - inspW
+  let mainArea =
+    Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left; rows = full.rows; cols = mainCols }
+
+  let inspArea =
+    Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left + mainCols; rows = full.rows; cols = inspW }
+
+  // The document sits inside the box, with a blank column and row of breathing room.
+  let boxInner = Stdlib.Cli.UI.Box.inner mainArea
+  let doc =
+    Stdlib.Cli.UI.Layout.Region
+      { top = boxInner.top + 1
+        left = boxInner.left + 2
+        rows = Stdlib.Int.max 1 (boxInner.rows - 1)
+        cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
+
+  (mainArea, inspArea, doc)
+
 /// The state for a document edited with a GIVEN registry, rather than the one the branch derives. A
 /// projection that is not Darklang's -- a grid, a DSL -- brings its own specs, so it needs a way in.
 let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : State =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
-  let width = Stdlib.Int.max 20 (size.width - 2)
+  let (_main, _insp, docArea) = panes size false
+  let width = Stdlib.Int.max 20 docArea.cols
   State
     { editor = Editor.init reg root width
       title = title
@@ -385,8 +423,8 @@ let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : 
       hscroll = 0
       target = target
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
-      bodyRows = Stdlib.Int.max 1 (size.height - 3)
-      bodyCols = Stdlib.Int.max 1 (size.width - 6)
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None
@@ -406,7 +444,8 @@ let moduleOf (target: Target) : List<String> =
 
 let initialFor (title: String) (root: Slot) (target: Target) : State =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
-  let width = Stdlib.Int.max 20 (size.width - 2)
+  let (_main, _insp, docArea) = panes size false
+  let width = Stdlib.Int.max 20 docArea.cols
   State
     { editor = Editor.init (Registry.inModule (defaultRegistry ()) (moduleOf target)) root width
       title = title
@@ -414,8 +453,8 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       hscroll = 0
       target = target
       theme = (if Darklang.Cli.Terminal.colorEnabled () then Theme.default () else Theme.mono ())
-      bodyRows = Stdlib.Int.max 1 (size.height - 3)
-      bodyCols = Stdlib.Int.max 1 (size.width - 6)
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
       inspectorOpen = false
       evaluated = Stdlib.Option.Option.None
       textMode = Stdlib.Option.Option.None
@@ -514,22 +553,10 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let framed =
     if st.editor.message == "" then toned
     else Stdlib.Cli.UI.Chrome.withMessage toned st.editor.message
-  let full = Stdlib.Cli.UI.Chrome.bodyRegion size
   // Use the screen: a framed edit pane on the left with the document padded inside it, and a context
-  // panel on the right. The inspector is dropped on a narrow terminal so the code always has room.
-  let showInspector = st.inspectorOpen && (full.cols >= 72)
-  let inspW = if showInspector then Stdlib.Int.min 34 (Stdlib.Int.divide full.cols 3) else 0
-  let mainCols = full.cols - inspW
-  let mainArea = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left; rows = full.rows; cols = mainCols }
-  let inspArea = Stdlib.Cli.UI.Layout.Region { top = full.top; left = full.left + mainCols; rows = full.rows; cols = inspW }
-  // The document sits inside the box, with a blank column and row of breathing room.
-  let boxInner = Stdlib.Cli.UI.Box.inner mainArea
-  let region =
-    Stdlib.Cli.UI.Layout.Region
-      { top = boxInner.top + 1
-        left = boxInner.left + 2
-        rows = Stdlib.Int.max 1 (boxInner.rows - 1)
-        cols = Stdlib.Int.max 1 (boxInner.cols - 3) }
+  // panel on the right. Same arithmetic the scroller uses, because it is the same question.
+  let (mainArea, inspArea, region) = panes size st.inspectorOpen
+  let showInspector = inspArea.cols > 0
   let paneTitle = "fluid · " ++ (Editor.breadcrumb st.editor)
   // Completions live at the caret, always: a floating popover under (or over) the cursor, so the menu is
   // where your eyes already are rather than off in a side panel. The inspector no longer lists them.
@@ -620,13 +647,18 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   | Nav -> v
 
 let afterKey (st: State) (editor: Editor.State) : State =
+  // Measured now rather than at startup: the panel opens and closes and the terminal gets resized, and
+  // a window remembered from `initial` is wrong the moment either happens.
+  let (_main, _insp, docArea) = panes (Stdlib.Cli.Tui.TerminalSession.currentSize ()) st.inspectorOpen
   let row = Widget.caretRow editor
   let col = Widget.caretCol editor
 
   { st with
       editor = editor
-      scroll = Widget.scrollFor row st.bodyRows st.scroll
-      hscroll = Widget.scrollFor col st.bodyCols st.hscroll
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
+      scroll = Widget.scrollFor row docArea.rows st.scroll
+      hscroll = Widget.scrollFor col docArea.cols st.hscroll
       // Any key at all cancels a pending "press again to discard".
       confirmingExit = false }
 

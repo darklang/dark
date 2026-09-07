@@ -603,3 +603,59 @@ module ThePanelNamesTheKind =
 
   // A hole leads with EXPECTS instead, and gets no kind line -- there is no node there to name.
   (Stdlib.String.contains (InspectorLabels.screenText "" []) "Darklang.LanguageTools") = false
+
+
+module TheScrollerMeasuresWhatIsDrawn =
+  // The scroller kept its own guess at the pane's size: `size.height - 3`, where the frame, the box and
+  // the padding take six between them. So on any document taller than the screen the last three lines
+  // sat off screen while the scroller believed they were visible, and no key would bring them back. Its
+  // width was guessed too, by something that had never heard of the context panel.
+  //
+  // Both numbers come from `App.panes` now, which is the same call `App.view` lays the pane out with.
+  let docArea (size: Darklang.Stdlib.Cli.Tui.Size) (open_: Bool) : Darklang.Stdlib.Cli.UI.Layout.Region =
+    let (_main, _insp, d) = Darklang.Fluid.App.panes size open_
+    d
+
+  let inspCols (size: Darklang.Stdlib.Cli.Tui.Size) (open_: Bool) : Int =
+    let (_main, i, _doc) = Darklang.Fluid.App.panes size open_
+    i.cols
+
+  // 26 rows of terminal is 20 rows of document, not the 23 the scroller used to assume.
+  (TheScrollerMeasuresWhatIsDrawn.docArea (Fixtures.size ()) false).rows = 20
+
+  // Opening the panel takes a third of the width off the document.
+  (TheScrollerMeasuresWhatIsDrawn.docArea (Fixtures.size ()) false).cols = 105
+  (TheScrollerMeasuresWhatIsDrawn.docArea (Fixtures.size ()) true).cols = 71
+
+  // On a narrow terminal the panel is dropped, so the document keeps the whole screen.
+  (TheScrollerMeasuresWhatIsDrawn.inspCols (Fixtures.narrow ()) true) = 0
+
+  // Forty items, one per line: 42 rows of document against 20 of pane.
+  let tall () : String =
+    "[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 ]"
+
+  let screenAt (scroll: Int) : String =
+    let ed =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf (TheScrollerMeasuresWhatIsDrawn.tall ())) 60)
+        []
+
+    (Darklang.Fluid.App.view { (Fixtures.stateOf ed) with scroll = scroll } (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // What gets painted stops where `docArea` says it does. The `[` takes a row of its own, so item 19 is
+  // the last one on screen and item 20 is not.
+  (Stdlib.String.contains (TheScrollerMeasuresWhatIsDrawn.screenAt 0) "19,") = true
+  (Stdlib.String.contains (TheScrollerMeasuresWhatIsDrawn.screenAt 0) "20,") = false
+
+  // The last item is genuinely off screen at the top of the document...
+  (Stdlib.String.contains (TheScrollerMeasuresWhatIsDrawn.screenAt 0) "40") = false
+
+  // ... and asking the scroller where to go for the document's last row brings it back. Under the old
+  // height it stopped three rows short, and no key could reach the end of a long function.
+  let lastRowScroll () : Int =
+    Darklang.Fluid.Widget.scrollFor 41 (TheScrollerMeasuresWhatIsDrawn.docArea (Fixtures.size ()) false).rows 0
+
+  (TheScrollerMeasuresWhatIsDrawn.lastRowScroll ()) = 22
+  (Stdlib.String.contains (TheScrollerMeasuresWhatIsDrawn.screenAt (TheScrollerMeasuresWhatIsDrawn.lastRowScroll ())) "40") = true
