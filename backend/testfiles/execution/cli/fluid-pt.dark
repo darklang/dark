@@ -1679,3 +1679,22 @@ module EveryDrawingIsTheProgram =
   ((Stdlib.List.length (EveryDrawingIsTheProgram.sample ())) > 400) = true
 
   (EveryDrawingIsTheProgram.firstFailure ()) = ""
+
+
+module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
+  // A name and a chain of fields need no parentheses; anything else does, because the `.` would otherwise
+  // bind to the last part of it. Pinned because it is the one place a whole-function comparison against
+  // the printer shows Fluid and the printer disagreeing on real code, and Fluid is the one that is right.
+  //
+  // The printer's own rule is the same and its `ERecordFieldAccess` case says so, but its no-parens list
+  // is `EVariable` and `ERecordFieldAccess` and a stored function's PARAMETERS are `EArg`. So it writes
+  // `(state).promptTerminal` where the source says `state.promptTerminal`. There is a
+  // `// TODO: only sometimes need to wrap exprPart in parens` sitting on the line above.
+  //
+  // Not fixed here: that is printer output for every stored function that reads a parameter's field, and
+  // this loop cannot run the whole suite to see what else moves.
+  (Fixtures.render "r.x" 60) = "r.x"
+  (Fixtures.render "r.a.b" 60) = "r.a.b"
+  (Fixtures.render "([1]).x" 60) = "([1]).x"
+  (Fixtures.render "(f x).y" 60) = "(f x).y"
+  (Fixtures.render "(if c then a else b).z" 60) = "(if c then a else b).z"
