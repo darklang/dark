@@ -1102,3 +1102,27 @@ module SpacingDoesNotChangeAssociation =
 
   // The tighter operator still does NOT climb, spaced or not: `*` after `1 + 2` takes just the `2`.
   (Fixtures.screen (Fixtures.chars "1 + 2 * 3")) = "1 + 2 * 3~"
+
+
+module AnOperatorReassociatesWhenItIsFinished =
+  // `a == b && c` parsed as `a == (b && c)`. An operator is typed one character at a time, and the wrap
+  // that places it happens on the FIRST one: `&&` starts life as `&`, which `infixPowerOfText` scores as
+  // the default 5 rather than the 2 that `&&` actually has. So it never climbed past the `==`.
+  //
+  // The second character is the first moment the real power is known, so that is when it decides again.
+  // The tree already exists by then, so it ROTATES rather than re-wraps: `a == (b && r)` becomes
+  // `(a == b) && r`, repeated while the parent still binds at least as tightly -- the same test
+  // `reassocTarget` makes on the way in.
+  //
+  // These render without parentheses, which is the proof: the printer parenthesises by precedence, so a
+  // wrongly-nested tree would show them.
+  (Fixtures.screen (Fixtures.chars "a==b&&c")) = "a == b && c~"
+  (Fixtures.screen (Fixtures.chars "a == b && c")) = "a == b && c~"
+  (Fixtures.screen (Fixtures.chars "a&&b||c")) = "a && b || c~"
+  (Fixtures.screen (Fixtures.chars "a+b<=c")) = "a + b <= c~"
+  (Fixtures.screen (Fixtures.chars "a<b==c")) = "a < b == c~"
+
+  // Single-character operators were never affected, and right-associativity still holds: `^` groups to
+  // the right, so the rotation must NOT fire there.
+  (Fixtures.screen (Fixtures.chars "1 + 2 * 3")) = "1 + 2 * 3~"
+  (Fixtures.screen (Fixtures.chars "2^3^2")) = "2 ^ 3 ^ 2~"

@@ -1055,6 +1055,45 @@ let soloTupleAncestor (st: State) (from: Path) : Stdlib.Option.Option<Path> =
         soloTupleAncestor st parent
     | _ -> soloTupleAncestor st parent
 
+/// Re-associate an infix whose operator has just GROWN, and return where its op slot now lives.
+///
+/// An operator is typed one character at a time, and the wrap that placed it happened on the FIRST one.
+/// `&&` starts as `&`, which `infixPowerOfText` scores as the default 5 rather than the 2 that `&&`
+/// actually has, so it did not climb past the `==` next to it and `a == b && c` came out as
+/// `a == (b && c)`. Same for `||`.
+///
+/// Deciding again once the operator is complete means rotating rather than re-wrapping, because the tree
+/// already exists: `a == (b && r)` becomes `(a == b) && r`. Standard left rotation, repeated while the
+/// parent still binds at least as tightly, which is the same test `reassocTarget` makes on the way in.
+let reassocGrown (st: State) (opPath: Path) : (State * Path) =
+  match (Path.parent opPath, nodeAtPath st.root opPath) with
+  | (Some parentPath, Some n) ->
+    (match (Path.last opPath, nodeAtPath st.root parentPath) with
+     | (Some(Into "right"), Some pn) ->
+       let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+
+       if (isInfix n) && (isInfix pn) then
+         let (newPow, newRight) = Project.infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
+         let (pPow, _) = Project.infixPowerOf (Node.text pn "op" |> Stdlib.Option.withDefault "+")
+         let climb = if newRight then pPow > newPow else pPow >= newPow
+
+         match (Node.slot n "left", isInfix n) with
+         | (Some myLeft, true) ->
+           if climb then
+             // The parent keeps everything to ITS left and adopts our left as its right; we take the
+             // parent as our own left. Nothing else in the document moves.
+             let newLeft = Node.setField pn "right" (Field.One myLeft)
+             let rotated = Node.setField n "left" (Field.One(Slot.Filled newLeft))
+             let st1 = commit st [ Edit.Replace(parentPath, Slot.Filled rotated) ] st.caret
+             reassocGrown st1 parentPath
+           else
+             (st, opPath)
+         | _ -> (st, opPath)
+       else
+         (st, opPath)
+     | _ -> (st, opPath))
+  | _ -> (st, opPath)
+
 /// Where to leave the caret after settling a node in slot `sp`, with nothing left unfilled in it.
 ///
 /// Landing AFTER the node is for the case where the next keystroke says what you meant: an operator
@@ -1697,7 +1736,11 @@ let typeOneRaw (st: State) (c: String) : State =
              | None -> st)
         else if isOperatorChar st.reg.syntax c then
           let updated = TextEdit.insertAt old caret.offset c
-          commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          let grown =
+            commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
+          // The operator is only now complete, so this is the first moment its real power is known.
+          let (settled, opPath) = reassocGrown grown caret.node
+          { settled with caret = Caret.inText opPath slot (Stdlib.String.length updated) }
         else if rule.opSlot == rule.nextSlot then
           // The op-slot IS the destination (a field name after `.`): type into it normally.
           match textSlotRejection st.reg n slot c (TextEdit.insertAt old caret.offset c) with
