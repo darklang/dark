@@ -1057,3 +1057,27 @@ module AnOperatorWaitsForItsOperand =
     "let n = 1 + 2\nn"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "if s.width > 20 1 ") [ "<Tab>", "0", "<Esc>", "<Esc>" ])) =
     "if s.width > 20 then 1 else 0"
+
+
+module AParenAroundOneThingIsAGroup =
+  // `(` opens a TUPLE, so `(1 + 2)` came out as `(1 + 2, ⟨item⟩)` and `(fun x -> x)` could not be typed
+  // at all -- the closing paren did nothing and the lambda sat in a two-tuple.
+  //
+  // Both are how the PRINTER writes things: a precedence group, and the parenthesised lambda in
+  // `Stdlib.List.filter (fun x -> ...)`. Someone reading printed code and typing it back got a different
+  // program, which is the same faithfulness question the enum constructors had. Darklang has no
+  // one-tuples, so a `)` closing a tuple that holds one thing can only mean a group.
+  //
+  // Sits beside the two collapses already here: `()` is unit, `[]` is nil, `(x)` is x.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(1 + 2)") [ "<Esc>", "<Esc>" ])) = "1 + 2"
+  (Fixtures.screen (Fixtures.chars "(fun x -> x)")) = "(fun x -> x~)"
+  (Fixtures.screen (Fixtures.chars "let items = [1] items |> Stdlib.List.filter (fun x -> x)")) =
+    "let items = [1]\nitems |> Stdlib.List.filter (fun x -> x~)"
+
+  // The two it must NOT collapse. A comma means a tuple was meant, and an immediate `)` is still unit.
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "()")) = "()~"
+
+  // The caret has to be in the FILLED item, which is what tells `(1 + 2` + `)` from `(1, ` + `)`: in the
+  // second the comma was deliberate and the caret sits in the hole, so it stays a tuple.
+  (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"

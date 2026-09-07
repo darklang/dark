@@ -1020,6 +1020,41 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
       | WithChar f -> (f c e, true))
   | None -> Stdlib.Option.Option.None
 
+/// The nearest enclosing tuple that holds exactly ONE thing, with the caret inside that thing.
+///
+/// `(` opens a tuple, so a `)` has to be able to say "that was a grouping paren" -- Darklang has no
+/// one-tuples, and `(1 + 2)` and `(fun x -> ...)` are both how the PRINTER writes things. Typing them
+/// back gave `(1 + 2, <item>)`.
+///
+/// It climbs, because the tuple is an ANCESTOR by then: `(` leaves the caret on the empty item and the
+/// first character sends it down into whatever that built. `emptyTupleToUnit` can read the caret's own
+/// node only because nothing has been typed there yet.
+///
+/// The caret has to be in the FILLED item, which is what separates `(1 + 2` then `)` from `(1, ` then
+/// `)`. In the second the comma was deliberate and the caret sits in the empty item: a tuple with a hole
+/// left in it, not a group.
+let soloTupleAncestor (st: State) (from: Path) : Stdlib.Option.Option<Path> =
+  match Path.parent from with
+  | None -> Stdlib.Option.Option.None
+  | Some parent ->
+    match (Path.last from, nodeAtPath st.root parent) with
+    | (Some(Item(slot, i)), Some pn) ->
+      let isTuple =
+        (pn.kind.case == Stdlib.Option.Option.Some "ETuple")
+        || (pn.kind.case == Stdlib.Option.Option.Some "MPTuple")
+      let items = Node.items pn "items"
+      let filled = items |> Stdlib.List.filter (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl))
+      let caretItemFilled =
+        match Stdlib.List.getAt items i with
+        | Some sl -> Stdlib.Bool.not (Slot.isEmpty sl)
+        | None -> false
+
+      if isTuple && (slot == "items") && caretItemFilled && ((Stdlib.List.length filled) == 1) then
+        Stdlib.Option.Option.Some parent
+      else
+        soloTupleAncestor st parent
+    | _ -> soloTupleAncestor st parent
+
 /// Where to leave the caret after settling a node in slot `sp`, with nothing left unfilled in it.
 ///
 /// Landing AFTER the node is for the case where the next keystroke says what you meant: an operator
@@ -1399,6 +1434,19 @@ let typeOne (st: State) (c: String) : State =
           ((n.kind.case == Stdlib.Option.Option.Some "ETuple") || (n.kind.case == Stdlib.Option.Option.Some "MPTuple"))
           && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
         | None -> false)
+  // `)` in a tuple holding ONE thing is a grouping paren, not a one-element tuple -- Darklang has no
+  // one-tuples. `(` opens a tuple, so `(1 + 2)` came out as `(1 + 2, ⟨item⟩)` and `(fun x -> x)` could
+  // not be typed at all. That matters because both are how the PRINTER writes things: a precedence group,
+  // and the parenthesised lambda in `Stdlib.List.filter (fun x -> ...)`. The printer's output has to be
+  // typeable.
+  //
+  // Only when the caret is in the filled item, which is what separates `(1 + 2` + `)` from `(1, ` + `)`.
+  // In the second the comma was typed deliberately and the caret sits in the empty item, so it is a tuple
+  // with a hole left in it, not a group.
+  // A `)` collapses an enclosing ONE-ITEM tuple to that item (see `soloTupleAncestor`).
+  let soloTuple = if c == ")" then soloTupleAncestor st caret.node else Stdlib.Option.Option.None
+
+
   // `]` in a list holding just one empty item is the empty list `[]`: `[` opens a list and an immediate
   // `]` closes it empty. (Empty collections now carry a caret anchor, so the caret is findable.)
   let emptyListToNil =
@@ -1418,6 +1466,18 @@ let typeOne (st: State) (c: String) : State =
       let unit = Node.make (Kind.ofCase (Kind.typeName n.kind) unitCase) []
       let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled unit) ] caret
       { st1 with caret = Caret.afterNode caret.node }
+    | None -> st
+  elif Stdlib.Option.isSome soloTuple then
+    match soloTuple with
+    | Some tuplePath ->
+      (match nodeAtPath st.root tuplePath with
+       | Some tn ->
+         (match Node.items tn "items" |> Stdlib.List.findFirst (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl)) with
+          | Some kept ->
+            let st1 = commit st [ Edit.Replace(tuplePath, kept) ] caret
+            { st1 with caret = Caret.afterNode tuplePath }
+          | None -> st)
+       | None -> st)
     | None -> st
   elif emptyListToNil then
     match nodeAtPath st.root caret.node with
