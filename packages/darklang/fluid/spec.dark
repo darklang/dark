@@ -137,6 +137,16 @@ type WrapRule =
     opSlot: String
     nextSlot: String }
 
+/// What a TEXT slot is allowed to hold.
+///
+/// `Chars` is a per-character class, in the same vocabulary hole and wrap rules use. `OneOf` is a whole
+/// word: the text has to stay a prefix of one of them, which is how a keyword slot stays a keyword while
+/// you type it a letter at a time. A per-character class cannot say that, and a bool's `value` is the
+/// case that proves it.
+type TextClass =
+  | Chars of String
+  | OneOf of List<String>
+
 /// An action offered on a node (the palette). `run` returns what replaces the node's slot.
 type Action =
   { name: String
@@ -156,6 +166,12 @@ type Spec =
     holeRules: List<HoleRule>
     /// Applied when typing at the end of a node of this type (type-level spec only).
     wrapRules: List<WrapRule>
+    /// What each TEXT slot accepts, as (slot, class) pairs. A slot not named here takes anything.
+    ///
+    /// This was two lists of PT kinds in the kernel, one for the digit slots and one for the name slots,
+    /// and both carried a note saying they belonged here. A kernel that knows what an `EFloat`'s `whole`
+    /// is made of is a kernel that only edits Darklang.
+    textClasses: List<(String * TextClass)>
     /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
     completions: List<Candidate>
     /// Computed candidates, given the typed text: names in scope, package search.
@@ -212,6 +228,7 @@ module Spec =
         pieces = pieces
         holeRules = []
         wrapRules = []
+        textClasses = []
         completions = []
         complete = noCompletions
         resolve = noResolve
@@ -226,7 +243,11 @@ module Spec =
 
   let withCompletions (spec: Spec) (cs: List<Candidate>) : Spec = { spec with completions = cs }
 
+  /// A spec with character rules of its OWN, consulted before the type's.
   let withWrapRules (spec: Spec) (rules: List<WrapRule>) : Spec = { spec with wrapRules = rules }
+
+  /// A spec that says what its text slots are made of.
+  let withTextClasses (spec: Spec) (cs: List<(String * TextClass)>) : Spec = { spec with textClasses = cs }
 
   let withBinders (spec: Spec) (f: Node -> List<(List<Binding> * List<String>)>) : Spec =
     { spec with binders = f }
@@ -234,8 +255,6 @@ module Spec =
   let withOffers (spec: Spec) (f: List<Binding> -> Node -> List<(List<Candidate> * List<String>)>) : Spec =
     { spec with offers = f }
 
-  /// A spec with character rules of its OWN, consulted before the type's.
-  let withWrapRules (spec: Spec) (rules: List<WrapRule>) : Spec = { spec with wrapRules = rules }
 
   let withScopeCandidate (spec: Spec) (f: String -> Node) : Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }

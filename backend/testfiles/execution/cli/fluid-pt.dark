@@ -1341,3 +1341,60 @@ module AnIntegerCanBeMadeAnInt64 =
 
   // And `L` is a letter everywhere else: it starts a name, it does not convert anything.
   (Fixtures.run [ "x", "L" ]) = "xL~"
+
+
+module ATextSlotSaysWhatItHolds =
+  // The kernel used to carry two lists of PT kinds to decide what a text slot accepts: which kinds have
+  // digit slots, and which have name slots. Both had a note on them saying they belonged in the spec.
+  // The kernel named twenty-four kinds across thirty-six lines; these two were nine of the lines and
+  // three of the names.
+  //
+  // Moving them turned up the case they could not express. `EBool`'s `value` was in NEITHER list, so it
+  // took any character at all: `true` then a letter gave `trueL`, and `fromDoc` read that as
+  // `value == "true"`, i.e. `false`, without a word. A per-character class cannot say "true or false", so
+  // the classes are `Chars` for the character-at-a-time slots and `OneOf` for a keyword, prefix-wise.
+
+  let msg (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.exprHole ()) 60)
+        keys
+
+    st.message
+
+  // Digits still take digits and nothing else, with the message they always had.
+  (Fixtures.run [ "1", "2", "x" ]) = "12~"
+  (ATextSlotSaysWhatItHolds.msg [ "1", "2", "x" ]) = "`x` isn't part of a number"
+
+  // Names still take name characters, on the field-after-`.` path as well as the plain one.
+  (Fixtures.run [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(" ]) = "user.name~"
+  (ATextSlotSaysWhatItHolds.msg [ "x", "(" ]) = "`(` isn't part of a name"
+
+  // A float's two halves are digits too, which is one spec declaring two slots.
+  (Fixtures.run [ "1", ".", "5", "z" ]) = "1.5~"
+
+  // The new one: a bool stays a bool. `true` then a letter is turned away rather than accepted and
+  // quietly lowered to `false`.
+  (Fixtures.run [ "t", "r", "u", "e", "<Enter>", "L" ]) = "true~"
+  (ATextSlotSaysWhatItHolds.msg [ "t", "r", "u", "e", "<Enter>", "L" ]) = "`L` doesn't make true or false"
+
+  // Prefix-wise, so you can still type one a letter at a time: backspace `true` away and write `false`.
+  (Fixtures.run
+    [ "t", "r", "u", "e", "<Enter>", "<Esc>", "i", "<End>", "<BS>", "<BS>", "<BS>", "<BS>", "f", "a", "l", "s", "e" ]) =
+    "false~"
+
+  // ... and a letter in FRONT of `true` is not a prefix of anything, so it is turned away too.
+  (Fixtures.run [ "t", "r", "u", "e", "<Enter>", "<Esc>", "i", "<Home>", "f" ]) = "~true"
+
+  // The other half: a bool that is not one says so on the way out, the way a bad int always has. This
+  // node can no longer be built by typing; it could be, and the answer was `false`.
+  (match
+    Darklang.Fluid.PT.fromDoc
+      (Darklang.Fluid.Node.make (Darklang.Fluid.PT.exprKind "EBool") [ Darklang.Fluid.PT.text "value" "trueL" ])
+   with
+   | Ok _ -> "lowered anyway"
+   | Error err -> err) = "not a Bool: trueL"
+
+  // Bools that ARE bools still lower.
+  (Fixtures.roundTrip "true") = (Fixtures.printed "true")
+  (Fixtures.roundTrip "false") = (Fixtures.printed "false")

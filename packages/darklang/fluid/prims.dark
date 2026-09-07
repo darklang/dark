@@ -82,6 +82,7 @@ let specs () : List<Spec> =
         pieces = [ Piece.Text("digits", Layout.Style.Literal) ]
         holeRules = [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar intFromDigit } ]
         wrapRules = []
+        textClasses = []
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve
@@ -99,6 +100,7 @@ let specs () : List<Spec> =
             HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar stringFromChar }
             HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar stringFromChar } ]
         wrapRules = []
+        textClasses = []
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve
@@ -126,6 +128,7 @@ let specs () : List<Spec> =
         pieces = listPieces ()
         holeRules = [ HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket } ]
         wrapRules = []
+        textClasses = []
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve

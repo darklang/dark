@@ -100,6 +100,7 @@ let recordSpec
       pieces = recordPieces typeName fields
       holeRules = [ HoleRule { onChar = "{"; fill = HoleFill.Node empty } ]
       wrapRules = []
+      textClasses = []
       completions = [ Spec.candidate (shortName typeName) "record" empty ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -163,6 +164,7 @@ let caseSpec
       pieces = casePieces c
       holeRules = []
       wrapRules = []
+      textClasses = []
       completions = []
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -195,6 +197,7 @@ let enumTypeSpec
       pieces = [ Piece.Dim ("?" ++ (shortName typeName)) ]
       holeRules = []
       wrapRules = []
+      textClasses = []
       completions = candidates
       complete = Spec.noCompletions
       resolve = Spec.noResolve

@@ -784,7 +784,13 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
   let ok (e: Expr) : Stdlib.Result.Result<Expr, String> = Stdlib.Result.Result.Ok e
   match n.kind.case with
   | Some "EUnit" -> ok (Expr.EUnit(gid ()))
-  | Some "EBool" -> ok (Expr.EBool(gid (), (textOf n "value") == "true"))
+  | Some "EBool" ->
+    (match textOf n "value" with
+     | "true" -> ok (Expr.EBool(gid (), true))
+     | "false" -> ok (Expr.EBool(gid (), false))
+     // Anything else silently became `false` here, which is the worst answer: the document said one
+     // thing and the program said another. A bad int has always said so.
+     | other -> Stdlib.Result.Result.Error("not a Bool: " ++ other))
   | Some "EInt" ->
     match Stdlib.Int.parse (textOf n "digits") with
     | Ok i -> ok (Expr.EInt(gid (), i))
@@ -1342,6 +1348,7 @@ let pipeTypeSpec () : Spec =
       pieces = [ Piece.Dim "?step" ]
       holeRules = []
       wrapRules = []
+      textClasses = []
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
       resolve = Spec.noResolve
@@ -1692,6 +1699,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "("; fill = HoleFill.WithChar tupleFromParen }
           HoleRule { onChar = "{"; fill = HoleFill.WithChar recordUpdateFromBrace }
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
+      textClasses = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
@@ -1726,6 +1734,7 @@ let letPatTypeSpec () : Spec =
         [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar letPatVarFromLetter }
           HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) } ]
       wrapRules = []
+      textClasses = []
       completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -1779,6 +1788,7 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "\""; fill = HoleFill.Node(Node.make (matchPatKind "MPString") [ text "body" "" ]) }
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
+      textClasses = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
@@ -1819,12 +1829,18 @@ let moreSpecs () : List<Spec> =
   [ matchPatTypeSpec ()
     pipeTypeSpec ()
     caseSpec ()
-    simpleOf (matchPatKind "MPVariable") [ Piece.Text("name", Layout.Style.Name) ] (Node.make (matchPatKind "MPVariable") [ text "name" "" ])
+    Spec.withTextClasses
+      (simpleOf (matchPatKind "MPVariable") [ Piece.Text("name", Layout.Style.Name) ] (Node.make (matchPatKind "MPVariable") [ text "name" "" ]))
+      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
     simpleOf (matchPatKind "MPUnit") [ Piece.Label "()" ] (Node.make (matchPatKind "MPUnit") [])
     simpleOf (matchPatKind "MPBool") [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
-    simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ])
+    Spec.withTextClasses
+      (simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleOf (matchPatKind "MPInt64") [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (matchPatKind "MPInt64") [ text "digits" "" ])
-    simpleOf (matchPatKind "MPFloat") [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ] (Node.make (matchPatKind "MPFloat") [ text "whole" "", text "fraction" "" ])
+    Spec.withTextClasses
+      (simpleOf (matchPatKind "MPFloat") [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ] (Node.make (matchPatKind "MPFloat") [ text "whole" "", text "fraction" "" ]))
+      [ ("whole", Darklang.Fluid.TextClass.Chars "<digit>"), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
     simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
     simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
@@ -1897,7 +1913,9 @@ let moreSpecs () : List<Spec> =
             Piece.Punct "}" ] ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
     Spec.withOffers
-      (simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ]))
+      (Spec.withTextClasses
+        (simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ]))
+        [ ("field", Darklang.Fluid.TextClass.Chars "<identifier>") ])
       fieldAccessOffers
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
@@ -1910,15 +1928,23 @@ let baseSpecs () : List<Spec> =
   [ exprTypeSpec ()
     letPatTypeSpec ()
     simpleExpr "EUnit" [ Piece.Label "()" ] (Node.make (exprKind "EUnit") [])
-    simpleExpr "EBool" [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (exprKind "EBool") [ text "value" "false" ])
-    Spec.withWrapRules
-      (simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ]))
-      [ WrapRule { onChar = "L"; wrap = intToInt64; opSlot = ""; nextSlot = "" } ]
-    simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ])
-    simpleExpr
-      "EFloat"
-      [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
-      (Node.make (exprKind "EFloat") [ text "whole" "", text "fraction" "" ])
+    Spec.withTextClasses
+      (simpleExpr "EBool" [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (exprKind "EBool") [ text "value" "false" ]))
+      [ ("value", Darklang.Fluid.TextClass.OneOf [ "true", "false" ]) ]
+    Spec.withTextClasses
+      (Spec.withWrapRules
+        (simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ]))
+        [ WrapRule { onChar = "L"; wrap = intToInt64; opSlot = ""; nextSlot = "" } ])
+      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
+    Spec.withTextClasses
+      (simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
+    Spec.withTextClasses
+      (simpleExpr
+        "EFloat"
+        [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
+        (Node.make (exprKind "EFloat") [ text "whole" "", text "fraction" "" ]))
+      [ ("whole", Darklang.Fluid.TextClass.Chars "<digit>"), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleExpr "EChar" [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
     simpleExpr "EString" [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
     simpleExpr
@@ -1937,7 +1963,9 @@ let baseSpecs () : List<Spec> =
             Piece.SoftLine
             Piece.Punct ")" ] ]
       (tupleFromParen "(" (exprExpect "item"))
-    simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ])
+    Spec.withTextClasses
+      (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
+      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
     simpleExpr
       "ELet"
       [ Piece.Keyword "let"
@@ -1990,7 +2018,9 @@ let baseSpecs () : List<Spec> =
     simpleExpr "Opaque" [ Piece.Text("source", Layout.Style.Dim) ] (Node.make (exprKind "Opaque") [ text "source" "" ])
     simpleLetPat "LPUnit" [ Piece.Label "()" ] (Node.make (letPatKind "LPUnit") [])
     simpleLetPat "LPWildcard" [ Piece.Label "_" ] (Node.make (letPatKind "LPWildcard") [])
-    simpleLetPat "LPVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (letPatKind "LPVariable") [ text "name" "" ])
+    Spec.withTextClasses
+      (simpleLetPat "LPVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (letPatKind "LPVariable") [ text "name" "" ]))
+      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
     // `simpleLetPat`, not `simpleExpr`. Registered under the EXPRESSION kind, this spec was never found
     // for a LetPattern node, so `let (a, b) = t` drew as `let ?pattern = t`: a tuple destructuring you
     // could not see or edit. The pattern survived a save (it is carried whole), so nothing was lost -- it
@@ -2220,6 +2250,7 @@ module Types =
             HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ]) }
             HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
         wrapRules = []
+        textClasses = []
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
         resolve = resolveTypePartial

@@ -914,6 +914,7 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   if onChar == c then true
   elif onChar == "<digit>" then TextEdit.isDigitString c
   elif onChar == "<letter>" then TextEdit.isLetterString c
+  elif onChar == "<identifier>" then isIdentifierChar c
   elif onChar == "<operator>" then isOperatorChar syn c
   // Enter is not a character anyone types into text, but it IS a thing a spec should be able to claim:
   // in Darklang a newline after a finished expression starts the next statement. Named like the other
@@ -1529,7 +1530,7 @@ let typeOneRaw (st: State) (c: String) : State =
           else
             // No name to wrap yet, so there is nothing for the operator to attach to and it is not part
             // of a name either. Say so, the way every other rejected character does.
-            (match textSlotRejection n slot c with
+            (match textSlotRejection st.reg n slot c (TextEdit.insertAt old caret.offset c) with
              | Some msg -> { st with message = msg }
              | None -> st)
         else if isOperatorChar st.reg.syntax c then
@@ -1537,7 +1538,7 @@ let typeOneRaw (st: State) (c: String) : State =
           commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
         else if rule.opSlot == rule.nextSlot then
           // The op-slot IS the destination (a field name after `.`): type into it normally.
-          match textSlotRejection n slot c with
+          match textSlotRejection st.reg n slot c (TextEdit.insertAt old caret.offset c) with
           | Some msg -> { st with message = msg }
           | None ->
             let updated = TextEdit.insertAt old caret.offset c
@@ -1551,7 +1552,7 @@ let typeOneRaw (st: State) (c: String) : State =
         // An infix operator wraps the node precedence says it should, not always the one under the caret.
         | Some rule -> applyWrap st caret n rule c
         | None ->
-          match textSlotRejection n slot c with
+          match textSlotRejection st.reg n slot c (TextEdit.insertAt old caret.offset c) with
           | Some msg -> { st with message = msg }
           | None ->
             let updated = TextEdit.insertAt old caret.offset c
@@ -1713,50 +1714,54 @@ let mergeSlotOf (n: Node) : Stdlib.Option.Option<String> =
   | Some "EVariable" -> Stdlib.Option.Option.Some "name"
   | _ -> Stdlib.Option.Option.None
 
-/// Text slots that hold only digits: a number's digits, a float's two halves. Typing anything else into
-/// one was simply appended, so `1 + 2x` made an int whose digits read "2x" and `1 :: rest` one reading
-/// "1::rest" -- documents that can never lower, with nothing said at the time you broke them. Operators
-/// and `.` never reach here; they wrap the node instead.
-/// CLEANUP: this is a list of kinds in the kernel, and it belongs in the spec as a per-slot character
-/// class next to holeRules. It sits here because mergeSlotOf already knows the same kinds.
-let isDigitsOnly (n: Node) (slot: String) : Bool =
-  let numeric =
-    match n.kind.case with
-    | Some "EInt" -> true
-    | Some "EInt64" -> true
-    | Some "EFloat" -> true
-    | Some "MPInt" -> true
-    | Some "MPFloat" -> true
-    | _ -> false
-  numeric && ((slot == "digits") || (slot == "whole") || (slot == "fraction"))
-
-/// Text slots that hold an IDENTIFIER: a variable or binding name, a field name. They took any character
-/// too, so typing `Ok(1` in an expression grew a variable literally named "Ok(1", which lowers to
-/// something no parser would take. (Enum constructors in expressions are a real gap, not this fix:
-/// building one needs the case's TYPE, which the case name alone doesn't give.)
-/// CLEANUP: same note as isDigitsOnly -- this wants to be a per-slot character class in the spec.
-let isIdentifierSlot (n: Node) (slot: String) : Bool =
-  match n.kind.case with
-  | Some "EVariable" -> slot == "name"
-  | Some "LPVariable" -> slot == "name"
-  | Some "MPVariable" -> slot == "name"
-  | Some "ERecordFieldAccess" -> slot == "field"
-  | _ -> false
-
 let isIdentifierChar (c: String) : Bool =
   (TextEdit.isLetterString c) || (TextEdit.isDigitString c) || (c == "_")
+
+/// What a class is called when a character is turned away from it.
+let classDescription (cls: String) : String =
+  if cls == "<digit>" then "a number"
+  elif cls == "<identifier>" then "a name"
+  elif cls == "<letter>" then "a word"
+  else cls
 
 /// Why a text slot can't hold `c`, if it can't. There is more than one place that inserts into a slot --
 /// a field name after `.` goes through the wrap path, not the plain one -- so the rule lives here and both
 /// call it. A live check caught exactly that: `user.name(` was still accepted after the plain path was
 /// guarded.
-let textSlotRejection (n: Node) (slot: String) (c: String) : Stdlib.Option.Option<String> =
-  if (isDigitsOnly n slot) && (Stdlib.Bool.not (TextEdit.isDigitString c)) then
-    Stdlib.Option.Option.Some $"`{c}` isn't part of a number"
-  elif (isIdentifierSlot n slot) && (Stdlib.Bool.not (isIdentifierChar c)) then
-    Stdlib.Option.Option.Some $"`{c}` isn't part of a name"
-  else
-    Stdlib.Option.Option.None
+///
+/// The kernel used to carry two lists of PT kinds to answer this: which kinds have digit slots, and which
+/// have name slots. It reads the spec now. `next` is the text the slot WOULD hold, which a per-character
+/// class does not need and a keyword slot does.
+let textSlotRejection (reg: Registry) (n: Node) (slot: String) (c: String) (next: String) : Stdlib.Option.Option<String> =
+  let cls =
+    match Registry.findExact reg n.kind with
+    | Some spec ->
+      spec.textClasses
+      |> Stdlib.List.findFirst (fun pair ->
+        let (s, _) = pair
+        s == slot)
+      |> Stdlib.Option.map (fun pair ->
+        let (_, k) = pair
+        k)
+    | None -> Stdlib.Option.Option.None
+
+  match cls with
+  | Some(Chars klass) ->
+    if charClassMatches reg.syntax klass c then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some $"`{c}` isn't part of {classDescription klass}"
+
+  // A keyword slot stays a keyword the whole way in: `t`, `tr`, `tru`, `true` are all prefixes, `trueL`
+  // is not. Typing a letter after `true` used to be accepted, and `fromDoc` then read the result as
+  // `false` without a word.
+  | Some(OneOf words) ->
+    if words |> Stdlib.List.any (fun w -> Stdlib.String.startsWith w next) then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some $"`{c}` doesn't make {Stdlib.String.join words " or "}"
+
+  | None -> Stdlib.Option.Option.None
 
 /// A mergeable operand contributes (kind, slot-name, text): a filled int/variable by its content, a
 /// partial (a name still being typed) by its text with no committed kind. A hole or anything else, None.
