@@ -874,13 +874,29 @@ let yankNode (st: State) : State =
   | None -> { st with message = "nothing to yank" }
 
 /// Put the clipboard node into the slot under the caret (a hole, a partial, or over a node).
+///
+/// REFUSED when the slot wants a different kind of thing. Put replaced whatever was there without asking,
+/// so yanking a string and putting it on a pipe STEP gave `|> ""` -- a pipe step that is a string
+/// literal, which is not a shape the language has. An editor whose whole promise is that you cannot build
+/// something ill-formed by editing has to check this, and it is the same test a hole applies to a
+/// candidate: by kind TYPE, so any case of the right thing fits.
 let putNode (st: State) : State =
   match st.clipboard with
   | None -> { st with message = "clipboard is empty" }
   | Some n ->
     let here = navPath st
-    let st1 = commit st [ Edit.Replace(here, Slot.Filled n) ] st.caret
-    { st1 with caret = navCaretFor st1.root here; message = "put " ++ (crumbName n) }
+    let e = expectForSlot st here
+
+    let fits =
+      match e.kind with
+      | Some k -> Kind.sameType n.kind k
+      | None -> true
+
+    if fits then
+      let st1 = commit st [ Edit.Replace(here, Slot.Filled n) ] st.caret
+      { st1 with caret = navCaretFor st1.root here; message = "put " ++ (crumbName n) }
+    else
+      { st with message = "can't put " ++ (crumbName n) ++ " into " ++ e.label }
 
 
 // --- INSERT: typing ---

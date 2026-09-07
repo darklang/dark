@@ -1081,3 +1081,33 @@ module AnOfferNamesAPathNotASlot =
   // And the offer still reaches the case NAME, which is a text slot on the node the pattern landed on
   // rather than a hole below it.
   (AnOfferNamesAPathNotASlot.menu [ "S" ]) = "Some"
+
+
+module PutChecksWhatTheSlotWants =
+  // Put replaced whatever was under the caret without asking. Yank a string, land on a pipe STEP, put:
+  // `|> ""`, a pipe step that is a string literal. Not a shape the language has, and not a shape typing
+  // can reach -- an editor whose promise is that you cannot build something ill-formed by editing has to
+  // check the one path that skipped the check.
+  //
+  // Same test a hole applies to a candidate: by kind TYPE, so any case of the right thing fits.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")
+
+  let after (src: String) (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (PutChecksWhatTheSlotWants.docOf src) 70)
+        keys
+
+    st.message ++ " || " ++ (Darklang.Fluid.Debug.render st.reg st.width st.root)
+
+  // An expression is not a pipe step, in either direction.
+  (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "y", "j", "p" ]) =
+    "can't put EString into step || \"a\"\n|> f"
+  (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "j", "y", "k", "p" ]) =
+    "can't put EPipeVariable into first || \"a\"\n|> f"
+
+  // An expression onto an expression is still just a put.
+  (PutChecksWhatTheSlotWants.after "1 + 2" [ "<Esc>", "j", "y", "j", "p" ]) = "put EInt || 1 + 1"
