@@ -1204,3 +1204,41 @@ module ChangingAnUpdateFieldOffersToo =
     "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
   (ChangingAnUpdateFieldOffersToo.run [ "h", "<Tab>" ]) =
     "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    height = ~⟨height⟩\n  }"
+
+
+module ARecordLiteralOffersItsFields =
+  // The fourth and easiest of the four: a record LITERAL knows its own type, because the hash is on the
+  // node. No scope to consult, no variable to resolve.
+  //
+  // And the one that made the "already taken" rule obvious: offering a field the record already sets is
+  // noise -- you cannot add it, and picking it gives you the field twice. Changing a field still offers
+  // its own name, because `c` cleared it first.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // Build `Stdlib.Cli.Tui.Size { width = 80; height = 24 }` by completion, then leave INSERT.
+  let built () : List<String> = [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ARecordLiteralOffersItsFields.hole ()) 70)
+        (Stdlib.List.append (ARecordLiteralOffersItsFields.built ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordLiteralOffersItsFields.hole ())
+      70
+      (Stdlib.List.append (ARecordLiteralOffersItsFields.built ()) extra)
+
+  // `c` on the first field clears it, and only the field that is now missing is offered.
+  (ARecordLiteralOffersItsFields.menu [ "h", "h", "j", "c" ]) = "width"
+
+  // Picking it puts the field back, with a value hole labelled for it.
+  (ARecordLiteralOffersItsFields.run [ "h", "h", "j", "c", "<Enter>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = 24\n}"
+
+  // Adding a THIRD field to a record that has both offers nothing, which is the truth: `Size` has two.
+  (ARecordLiteralOffersItsFields.menu [ "h", "l", "l", "i", "<End>", ";" ]) = ""
