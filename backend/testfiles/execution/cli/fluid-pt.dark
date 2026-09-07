@@ -1441,3 +1441,45 @@ module TheMergePathAsksTheSameQuestion =
   // character in it that is not a digit, and a digits-only class rejected the whole literal.
   (Fixtures.run [ "-", "5" ]) = "-5~"
   (Fixtures.run [ "1", "2", "-", "3" ]) = "12 - 3~"
+
+
+module ADrawingSaysWhatTheDocumentSays =
+  // A lambda as a pipe step drew without parentheses, so `xs |> (fun a -> a) |> g` appeared as
+  // `xs |> fun a -> a |> g`. Read that back and the `|> g` is inside the lambda: a drawing that means a
+  // different program from the one it is drawing. The printer has always written the parens, and says
+  // why over its own case -- a bare lambda swallows the pipe stages after it.
+  //
+  // Checked by reading the drawing back rather than by comparing it to anything: parse what was drawn,
+  // print both, and a faithful drawing gives the same program.
+
+  let faithful (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let drawn =
+        Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+
+      (match Darklang.LanguageTools.Parser.Parse.parsePTExpr drawn with
+       | Ok e2 ->
+         (Darklang.PrettyPrinter.ProgramTypes.expr (Fixtures.ctx ()) e2)
+           == (Darklang.PrettyPrinter.ProgramTypes.expr (Fixtures.ctx ()) e)
+       | Error _ -> false)
+    | Error _ -> false
+
+  // The one that was wrong, and the shape that made it wrong: a step after the lambda.
+  (ADrawingSaysWhatTheDocumentSays.faithful "xs |> (fun a -> a) |> g") = true
+  (Fixtures.render "xs |> (fun a -> a) |> g" 60) = "xs |> (fun a -> a) |> g"
+  (Fixtures.render "xs |> (fun a -> a)" 60) = "xs |> (fun a -> a)"
+
+  // The other kinds of pipe step were already faithful, and are the reason this is a lambda fix rather
+  // than a parentheses-everywhere fix. A variable applied to arguments reads back correctly without
+  // them, which is why Fluid draws `xs |> f y` where the printer writes `xs |> (f y)`.
+  (ADrawingSaysWhatTheDocumentSays.faithful "xs |> f y |> g") = true
+  (ADrawingSaysWhatTheDocumentSays.faithful "xs |> (+) 1 |> g") = true
+  (Fixtures.render "xs |> (+) 1 |> g" 60) = "xs |> (+) 1 |> g"
+
+  // A lambda handed to a function rather than piped into was never the problem: it is an argument, and
+  // arguments are already parenthesised where they need to be.
+  (ADrawingSaysWhatTheDocumentSays.faithful "xs |> Stdlib.List.map (fun a -> a) |> Stdlib.List.length") = true
+
+  // And inside a let, where the pipe now stays on one line.
+  (ADrawingSaysWhatTheDocumentSays.faithful "let a = xs |> (fun q -> q) |> g\na") = true
