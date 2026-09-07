@@ -2,10 +2,49 @@
 // CLEANUP could the impl here just be a `... --depth=1 --plain` call of 'tree'?
 module Darklang.Cli.Packages.Listing
 
+/// Every version this name has been bound to, oldest first: main's history, continuing into the
+/// branch's own edits. Only interesting when there is more than one, which is why the caller only
+/// prints it then.
+let versionsOf
+  (modulePath: List<String>)
+  (name: String)
+  : List<String> =
+  match modulePath with
+  | [] -> []
+  | owner :: modules ->
+    SCM.Propagation.authoringOrder (
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner; modules = modules; name = name })
+
+
+/// Print the `--versions` rows under one name: each version's short hash, oldest first, the
+/// live one tagged. Nothing is printed for a single-version name. What `--versions` is for is
+/// explained once, in `help`.
+let printVersionLines
+  (modulePath: List<String>)
+  (name: String)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Unit =
+  let live = LanguageTools.ProgramTypes.hashToString hash
+
+  match versionsOf modulePath name with
+  | [] -> ()
+  | [ _single ] -> ()
+  | versions ->
+    versions
+    |> Stdlib.List.iter (fun v ->
+      let tag = if v == live then "  (live)" else ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          $"      {Stdlib.String.slice v 0 8}{tag}"))
+
+
 let listModule
   (branchId: Uuid)
   (location: PackageLocation)
   (includeDeprecated: Bool)
+  (showVersions: Bool)
   : Unit =
   let modulePath =
     match location with
@@ -23,7 +62,6 @@ let listModule
   let values = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
   let fns = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
 
-  // Display module path
   let locationStr = Packages.formatLocation location
   Stdlib.printLine $"Contents of {locationStr}:"
   Stdlib.printLine ""
@@ -41,7 +79,13 @@ let listModule
       items
       |> Stdlib.List.iter (fun (name, hash) ->
         let mark = Query.deprecationMarker depSets hash
-        Stdlib.printLine $"  {name}{mark}")
+        Stdlib.printLine $"  {name}{mark}"
+
+        // A listing names what a name MEANS, which is one version; `--versions` adds what it
+        // has meant.
+        if showVersions then
+          printVersionLines modulePath name hash)
+
       Stdlib.printLine ""
 
   printSection "type" types
@@ -51,25 +95,26 @@ let listModule
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
-  let includeDeprecated =
-    Stdlib.List.member args "--include-deprecated"
+  let includeDeprecated = Stdlib.List.member args "--include-deprecated"
+  let showVersions = Stdlib.List.member args "--versions"
+
   let positional =
-    args |> Stdlib.List.filter (fun a -> a != "--include-deprecated")
+    args
+    |> Stdlib.List.filter (fun a ->
+      (a != "--include-deprecated") && (a != "--versions"))
   match positional with
   | [] ->
-    // No args - list current location
-    listModule branchId state.packageData.currentLocation includeDeprecated
+    listModule branchId state.packageData.currentLocation includeDeprecated showVersions
     state
   | [pathArg] ->
-    // Navigate to the path and list
     match Traversal.traverse branchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot list: {errorMsg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot list {pathArg}: {errorMsg}")
       state
     | Ok newLocation ->
       match newLocation with
       | Module _ ->
-        listModule branchId newLocation includeDeprecated
+        listModule branchId newLocation includeDeprecated showVersions
         state
       | Type _ | Value _ | Function _ ->
         let locationStr = Packages.formatLocation newLocation
@@ -95,18 +140,24 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : String =
   [
-    "Usage: ls [path] [--include-deprecated]"
+    "Usage: ls [path] [--include-deprecated] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
     "Shows modules, types, values, and functions grouped by category."
     "Deprecated items with no live callers are hidden by default; pass"
     "--include-deprecated to show them. Visible deprecated items are marked ⚠."
     ""
+    "A listing names what a name MEANS, which is one version. --versions is how"
+    "you ask what it has meant: every version under that name, oldest first, the"
+    "live one marked. On a branch the sequence continues past the fork, so this"
+    "is where a branch's own superseded versions are addressable by name."
+    ""
     "Examples:"
     "  ls                         - List current location"
     "  ls /                       - List root packages"
     "  ls Darklang                - List Darklang package contents"
     "  ls .. --include-deprecated - Include deprecated items"
+    "  ls Darklang.Stdlib.List --versions   - every version of each name"
     ""
     "See also: `tree` for multi-level view, `view` for detailed view"
   ] |> Stdlib.String.join "\n"

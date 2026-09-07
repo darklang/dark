@@ -12,7 +12,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then
-      // No inline definition provided - show error
       [
         (Stdlib.Cli.UI.Colors.error "Error: Inline type definition required")
         ""
@@ -37,7 +36,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       state
     else
-      // Parse and create type immediately
       createTypeInline
         state.packageData.currentLocation
         location
@@ -51,18 +49,14 @@ let createTypeInline
   (definition: String)
   (state: Cli.AppState)
   : Cli.AppState =
-  // Parse location relative to current position
   match Location.parseRelativeTo currentLocation locationStr with
   | Ok location ->
-    // Build full source code for parsing
     let fullSource = $"type {location.name} = {definition}"
 
-    // Parse the type definition
     match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
-      let hasParseError =
-        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+      let hasParseError = Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
       let found =
         if hasParseError then
           Stdlib.Option.Option.None
@@ -75,67 +69,23 @@ let createTypeInline
 
       match found with
       | Some(Type writtenType) ->
-        // Convert to ProgramTypes.PackageType
-        let pm = LanguageTools.PackageManager.pm ()
-
-        let ctx =
-          LanguageTools.NameResolver.NRContext
-            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-              pm = pm
-              branchId = state.currentBranchId
-              owner = location.owner
-              currentModule = location.modules }
-
-        let (packageType, unresolvedNames) =
-          LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
-            ctx
-            writtenType
-
-        // Check for unresolved names
-        if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+        Packages.saveAuthored
           state
-        // no unresolved names - keep going
-        else
-          // Check if this is an update (has previous versions)
-          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
-          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+          location
+          LanguageTools.ProgramTypes.ItemKind.Type
+          "type"
+          state
+          (fun ctx ->
+            let (packageType, unresolvedNames) =
+              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+                ctx
+                writtenType
 
-          // Create ops: AddType and SetName, with stabilized hashes.
-          let ops =
-            LanguageTools.PackageManager.stabilizeHashes
+            let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
-          // The stabilized hash is what propagation must use; the parser's
-          // placeholder names nothing stored.
-          let finalHash =
-            LanguageTools.WrittenTypesToProgramTypes.typeHashBoundAt ops location
-            |> Stdlib.Option.withDefault packageType.hash
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
 
-          match SCM.PackageOps.addAuthored state.currentBranchId ops with
-          | Ok report ->
-            AtRestCheck.printSaveReport state.currentBranchId report
-
-            // Show success message
-            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-            let action = if isUpdate then "Updated" else "Created"
-
-            Stdlib.printLine ""
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} type: {fullPath}")
-
-            // Auto-propagate if this is an update
-            if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Type
-
-            Stdlib.printLine ""
-            state
-
-          | Error msg ->
-            [ ""
-              (Stdlib.Cli.UI.Colors.error $"✗ Failed to add type: {msg}")
-              "" ]
-            |> Stdlib.printLines
-
-            state
+            (ops, packageType.hash, unresolvedNames))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the
@@ -172,6 +122,7 @@ let help (_state: Cli.AppState) : String =
     "Create or update a type"
     ""
     "Usage: type <location> <definition>"
+    "       type <location> <source-file>"
     ""
     "When updating an existing type, dependents are automatically updated"
     "to use the new version."
@@ -189,7 +140,7 @@ let help (_state: Cli.AppState) : String =
     "  # Type alias:"
     "  type UserId = Uuid"
     ""
-    "  # Multi-line definition via stdin (run from shell, not the REPL — '-' reads stdin):"
+    "  # Multi-line definition via stdin (run from shell, not the REPL -- '-' reads stdin):"
     "  ./scripts/run-cli type User - <<'EOF'"
     "  {"
     "    name: String"
@@ -206,11 +157,7 @@ let help (_state: Cli.AppState) : String =
   ] |> Stdlib.String.join "\n"
 
 
-/// CLEANUP could offer useful completions:
-/// - when on the LHS of the =,
-///   - help in the same way that nav-like commands do
-/// - when on the RHS of the =,
-///   - probably nothing,
-///   - but _could_ offer some suggested impls via AI...
+/// CLEANUP could offer useful completions: nav-style help on the LHS of the `=`;
+/// probably nothing on the RHS.
 let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> =
   []

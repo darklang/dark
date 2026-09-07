@@ -45,7 +45,9 @@ let formatLocation (location: PackageLocation) : String =
 /// The `=` separating name from definition arrives either as its own argument or
 /// attached to the front; both come off, leading ones only, since the `=` in
 /// `(x: Int64) : Int64 = x` is the body's. A lone `-` reads stdin, so the separate
-/// argument has to go first.
+/// argument has to go first. A lone argument naming a file that exists reads the
+/// file, the way `module` does; a definition is never one token, so the two cannot
+/// be confused.
 let definitionFromArgs (args: List<String>) : String =
   let withoutSeparator =
     match args with
@@ -54,6 +56,10 @@ let definitionFromArgs (args: List<String>) : String =
 
   match withoutSeparator with
   | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
+  | [ path ] when Stdlib.Cli.File.exists path ->
+    match Stdlib.Cli.File.readText path with
+    | Ok source -> source
+    | Error _ -> path
   | parts ->
     let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
 
@@ -61,3 +67,117 @@ let definitionFromArgs (args: List<String>) : String =
       Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
     else
       joined
+
+
+/// The "changed under you" heads-up, computed BEFORE an edit lands (afterwards the live
+/// binding is already the new version): when the version being replaced was authored by a
+/// colleague, one line naming them, the commit it arrived in, and how long ago it landed
+/// here. None for your own versions and unattributed ones.
+let peerHeadsUpLine
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  match SCM.PackageOps.peerAuthoredCurrent location with
+  | Some((author, message, mins)) ->
+    let who =
+      if Stdlib.String.startsWith author "inst-" then
+        Stdlib.String.slice author 0 13
+      else
+        author
+
+    let mins = if mins < 1L then 1L else mins
+
+    let age =
+      if mins < 120L then
+        (Stdlib.Int64.toString mins) ++ "m"
+      else if mins < 2880L then
+        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 60L)) ++ "h"
+      else
+        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 1440L)) ++ "d"
+
+    let subject = if message == "" then "no message" else message
+
+    Stdlib.Option.Option.Some(
+      Stdlib.Cli.UI.Colors.hint
+        $"  note: {who} changed this {age} ago ({subject}); your edit replaces their version"
+    )
+  | None -> Stdlib.Option.Option.None
+
+
+/// Shared tail of the fn/type/val authoring flow: build the name-resolution
+/// context, convert the written declaration, check unresolved names, take the
+/// previous hashes, save, report, and repoint dependents. `kindWord` fills the
+/// output lines ("function" | "type" | "value"); `failState` is what a failed
+/// save returns (fn sets the exit code, type/val historically don't).
+let saveAuthored
+  (state: Cli.AppState)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (kindWord: String)
+  (failState: Cli.AppState)
+  (convert:
+    LanguageTools.NameResolver.NRContext
+      -> (List<LanguageTools.ProgramTypes.PackageOp>
+          * LanguageTools.ProgramTypes.Hash
+          * List<LanguageTools.Parser.Range
+              * List<String>
+              * LanguageTools.ProgramTypes.NameResolutionError>))
+  : Cli.AppState =
+  let pm = LanguageTools.PackageManager.pm ()
+
+  let ctx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+        pm = pm
+        branchId = state.currentBranchId
+        owner = location.owner
+        currentModule = location.modules }
+
+  let (ops, hash, unresolvedNames) = convert ctx
+
+  if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+    state
+  else
+    let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location kind
+    let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+
+    // Read BEFORE the save: after it, the live binding IS the new version.
+    let peerHeadsUp =
+      if isUpdate then peerHeadsUpLine location
+      else Stdlib.Option.Option.None
+
+    match SCM.PackageOps.addAuthored state.currentBranchId ops with
+    | Ok report ->
+      AtRestCheck.printSaveReport state.currentBranchId report
+
+      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+      let action = if isUpdate then "Updated" else "Created"
+
+      Stdlib.printLine ""
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
+
+      match peerHeadsUp with
+      | Some line -> Stdlib.printLine line
+      | None -> ()
+
+      // Repoint dependents NOW, into the draft, so you can run them against this change before
+      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
+      if isUpdate then
+        Propagate.repointNow state.currentBranchId location previousHashes hash kind
+
+      // A fn's transitive permission requirements, named at the save so the author
+      // learns what a caller must be allowed BEFORE anyone runs it and gets denied.
+      match kind with
+      | Fn ->
+        Fn.printFunctionPermissionSummary (LanguageTools.ProgramTypes.hashToString hash)
+      | _ -> ()
+
+      Stdlib.printLine ""
+      state
+
+    | Error msg ->
+      [ ""
+        (Stdlib.Cli.UI.Colors.error $"✗ Failed to add {kindWord}: {msg}")
+        "" ]
+      |> Stdlib.printLines
+
+      failState

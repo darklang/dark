@@ -1,0 +1,55 @@
+module Darklang.Cli.Docs.Relay
+
+let content () : String =
+  """# Running your own sync server (the relay)
+
+Syncing is OPTIONAL and opt-in: an instance is complete without one, and
+connecting is one `dark sync setup`. The relay is the sync server: a dumb
+store-and-forward for the op log that holds ops and hands them back out. It never folds or runs what it hosts, so pushing code to it
+cannot change what it serves, and the worst a bad relay can do is withhold.
+Losing one loses availability, not history -- every client holds the full log
+it has seen, and the next push repopulates a wiped relay.
+
+## Standing one up
+
+    DARK_MATTER_WRITE_SECRET=<secret> dark serve Darklang.Matter.router --port 9090
+
+The write secret comes from the ENVIRONMENT, never the package store (the
+store is served as public HTML). With no secret set, the relay fails closed:
+reads work, every write is refused. Give the relay its own rundir; a relay is
+an instance like any other, just one nobody authors on.
+
+Clients connect with:
+
+    dark sync setup        asks for the url and the secret, no echo
+
+## Checking it works
+
+    curl https://<relay>/ping                      answers
+    curl https://<relay>/sync/head                 op count, as JSON
+    curl -X POST https://<relay>/sync/push         401 without the secret
+
+The 401 from another machine is the smoke test worth doing once: it proves
+the secret is required from the outside, not just missing locally.
+
+## Two things not to do to a relay
+
+  - Don't run client commands (`dark status`, `dark fn`, ...) against its
+    rundir: they grow projections the relay never uses and make its store a
+    working copy instead of a ledger.
+  - Don't hand the write secret to anything that syncs: the secret lives in
+    the environment on the relay and in local config on clients, and Dark
+    code can read neither.
+
+## What can go wrong, and what it costs
+
+    "push needs the relay's write secret"    run `dark sync setup` again
+    a network error mid-sync                 nothing is lost; push and pull
+                                             are idempotent, run `dark sync`
+    a conflict after pull                    not data loss -- both versions
+                                             are kept; `dark conflicts`
+    "store was written by a newer build"     upgrade dark; the store is fine
+
+Reads are public by design. If that's wrong for your relay, put it behind
+something that terminates auth; the relay itself only gates writes and
+branch reads."""

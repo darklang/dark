@@ -187,6 +187,7 @@ type ParsedArgs =
     withDocs: Bool
     shallow: Bool
     includeDeprecated: Bool
+    asJson: Bool
     parseErrors: List<FlagParser.ParseError> }
 
 
@@ -202,7 +203,8 @@ val argSpec =
           ("--exact", [])
           ("--shallow", [])
           ("--with-docs", [])
-          ("--include-deprecated", []) ]
+          ("--include-deprecated", [])
+          ("--json", []) ]
       valueFlags = [] }
 
 
@@ -233,11 +235,62 @@ let parseArgs (args: List<String>) : ParsedArgs =
       withDocs = FlagParser.hasFlag p "--with-docs"
       shallow = FlagParser.hasFlag p "--shallow"
       includeDeprecated = FlagParser.hasFlag p "--include-deprecated"
+      asJson = FlagParser.hasFlag p "--json"
       parseErrors = p.errors }
 
 
 val usage =
   "Usage: search <query> [--batch] [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+
+
+// The --json rendering. Typed results for the command an agent runs most; the signatures are the
+// same rendering the human view shows, minus color.
+let jsonOutput
+  (branchId: Uuid)
+  (queryText: String)
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : String =
+  let fnRows =
+    results.fns
+    |> Stdlib.List.map (fun item ->
+      let ctx = contextFor branchId item
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "fn")
+          ("signature", Stdlib.AltJson.Json.String(Signatures.formatFn ctx item.entity)) ])
+
+  let typeRows =
+    results.types
+    |> Stdlib.List.map (fun item ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "type")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
+  let valueRows =
+    results.values
+    |> Stdlib.List.map (fun item ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "value")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
+  let moduleRows =
+    results.submodules
+    |> Stdlib.List.map (fun modulePath ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(Stdlib.String.join modulePath "."))
+          ("kind", Stdlib.AltJson.Json.String "module")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
+  Stdlib.AltJson.format (
+    Stdlib.AltJson.Json.Object
+      [ ("query", Stdlib.AltJson.Json.String queryText)
+        ("results",
+         Stdlib.AltJson.Json.Array(
+           Stdlib.List.flatten [ fnRows, typeRows, valueRows, moduleRows ]
+         )) ]
+  )
 
 
 // Execute one query. `execute` below fans batch arguments out through this
@@ -294,7 +347,6 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               entityTypes = parsed.entityTypes
               exactMatch = parsed.exactMatch }
 
-        // Execute search, then apply deprecation visibility filter
         let rawResults = LanguageTools.PackageManager.Search.search state.currentBranchId query
         let depSets = Query.loadDeprecationSets state.currentBranchId
         let results = Query.filterDeprecated rawResults depSets parsed.includeDeprecated
@@ -312,7 +364,9 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           + (Stdlib.List.length results.fns)
           + submodulesCount
 
-        if totalResults == 0 then
+        if parsed.asJson then
+          Stdlib.printLine (jsonOutput state.currentBranchId queryText results)
+        else if totalResults == 0 then
           Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No results found for: {queryText}")
           Stdlib.printLine ""
         else
@@ -392,7 +446,6 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 ()
             | _ -> ())
 
-          // show hint about --with-docs if results have descriptions but weren't shown
           if (Stdlib.Bool.not parsed.withDocs) && (Stdlib.Bool.not parsed.batch) then
             Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  (add --with-docs to show doc comments)")
           else
@@ -457,6 +510,7 @@ let help (state: Cli.AppState) : String =
     "  --shallow              Search only direct descendants (default: all descendants)"
     "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
+    "  --json                 The results, typed, for an agent"
     ""
     "Examples:"
     "  search                      # Launch interactive search mode"

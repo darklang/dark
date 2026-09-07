@@ -97,11 +97,11 @@ let updatedItems
   ops
   |> Stdlib.List.filterMap (fun op ->
     match op with
-    | SetName (location, PackageType hash) ->
+    | SetName(location, PackageType hash, _) ->
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Type
-    | SetName (location, PackageValue hash) ->
+    | SetName(location, PackageValue hash, _) ->
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Value
-    | SetName (location, PackageFn hash) ->
+    | SetName(location, PackageFn hash, _) ->
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Fn
     | _ -> Stdlib.Option.Option.None)
 
@@ -124,7 +124,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match input with
   | Error message ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
-    state
+    { state with exitCode = 1 }
   | Ok((modulePath, source)) ->
     // Package input is declaration scope at its root. In particular, `val x`
     // declares a package value while `let x` is diagnosed directly instead of
@@ -132,7 +132,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match Builtin.parserParsePackageToWrittenTypes source with
     | Error diagnostics ->
       let _ = Errors.reportParseErrors diagnostics
-      state
+      // Nothing was saved: an agent's authoring loop branches on the exit.
+      { state with exitCode = 1 }
     | Ok(SourceFile sourceFile) ->
       let declarations =
         let moduleDecls =
@@ -143,14 +144,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       if Stdlib.List.isEmpty declarations then
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Package source contains no declarations")
-        state
+        { state with exitCode = 1 }
       else if Stdlib.Bool.not (Stdlib.List.isEmpty duplicateNames) then
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.error "Package source contains duplicate declaration names:")
         duplicateNames
         |> Stdlib.List.iter (fun name ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  - {name}"))
-        state
+        { state with exitCode = 1 }
       else
         // Resolve a synthetic item path below the requested module so the
         // module path follows the same rules as `fn`, `type`, and `val`.
@@ -212,13 +213,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
             | Ok report ->
+              // main's at-rest type check reports on every save; keep it ahead of propagation
+              // so a type error is on screen before anything follows the change.
               AtRestCheck.printSaveReport branchId report
 
-              let propagationUpdates =
-                updates
-                |> Stdlib.List.map (fun update ->
-                  (update.location, update.hash, update.kind))
-              Propagate.autoPropagateUpdates branchId propagationUpdates
+              updates
+              |> Stdlib.List.iter (fun update ->
+                Propagate.autoPropagateAfterUpdate
+                  branchId
+                  update.location
+                  update.hash
+                  update.kind)
 
               // Counted from the ops that were recorded, not from the declarations
               // that were parsed, so the number is what happened rather than what
@@ -227,7 +232,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 ops
                 |> Stdlib.List.filterMap (fun op ->
                   match op with
-                  | SetName(location, _) -> Stdlib.Option.Option.Some location.name
+                  // Three fields, and a two-field pattern silently matches nothing rather than
+                  // failing to compile.
+                  | SetName(location, _, _) -> Stdlib.Option.Option.Some location.name
                   | _ -> Stdlib.Option.Option.None)
 
               let count = Stdlib.List.length definedNames
@@ -240,18 +247,30 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success
                   $"✓ Defined {Stdlib.Int.toString count} {what} in {modulePath}")
-              // What each new function requires, while the author is looking.
-              ops
-              |> Stdlib.List.filterMap (fun op ->
-                match op with
-                | SetName(location, PackageFn hash) ->
-                  let fullPath =
-                    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-                  Stdlib.Option.Option.Some(
-                    Stdlib.Cli.UI.Colors.hint
-                      $"  {fullPath}  {Permissions.Command.requirementBadge hash}")
-                | _ -> Stdlib.Option.Option.None)
-              |> Stdlib.printLines
+
+              // Name what did not, so a rejected declaration is something you find out now rather than
+              // the next time you call it.
+              // `declarationName` returns an Option, so unwrap with filterMap before comparing:
+              // `List.member` against a list of Options silently never matches, which would report
+              // every declaration as missing.
+              let missing =
+                declarations
+                |> Stdlib.List.filterMap (fun d ->
+                  declarationName (Stdlib.Tuple2.second d))
+                |> Stdlib.List.filter (fun n ->
+                  Stdlib.Bool.not (Stdlib.List.member definedNames n))
+
+              if Stdlib.List.isEmpty missing then
+                ()
+              else
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.error
+                    $"""not defined: {Stdlib.String.join missing ", "}""")
+
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.hint
+                    "  the rest of the module was defined; fix these and run it again.")
+
               state
 
 

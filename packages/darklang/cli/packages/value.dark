@@ -12,7 +12,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then
-      // No inline definition provided - show error
       [
         (Stdlib.Cli.UI.Colors.error "Error: Inline value expression required")
         ""
@@ -38,7 +37,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       state
     else
-      // Parse and create value immediately
       createValueInline
         state.packageData.currentLocation
         location
@@ -52,18 +50,15 @@ let createValueInline
   (expression: String)
   (state: Cli.AppState)
   : Cli.AppState =
-  // Parse location relative to current position
   match Location.parseRelativeTo currentLocation locationStr with
   | Ok location ->
-    // Build full source code for parsing
     let fullSource = $"val {location.name} = {expression}"
 
     // Parse the value definition with the unified (ranged) parser
     match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
-      let hasParseError =
-        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+      let hasParseError = Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
       let found =
         if hasParseError then
           Stdlib.Option.Option.None
@@ -76,67 +71,23 @@ let createValueInline
 
       match found with
       | Some(Value writtenValue) ->
-        // Convert to ProgramTypes.PackageValue
-        let pm = LanguageTools.PackageManager.pm ()
-
-        let ctx =
-          LanguageTools.NameResolver.NRContext
-            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-              pm = pm
-              branchId = state.currentBranchId
-              owner = location.owner
-              currentModule = location.modules }
-
-        let (packageValue, unresolvedNames) =
-          LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
-            ctx
-            writtenValue
-
-        // Check for unresolved names
-        if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+        Packages.saveAuthored
           state
-        // no unresolved names - keep going
-        else
-          // Check if this is an update (has previous versions)
-          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Value
-          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+          location
+          LanguageTools.ProgramTypes.ItemKind.Value
+          "value"
+          state
+          (fun ctx ->
+            let (packageValue, unresolvedNames) =
+              LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
+                ctx
+                writtenValue
 
-          // Create ops: AddValue and SetName, with stabilized hashes.
-          let ops =
-            LanguageTools.PackageManager.stabilizeHashes
+            let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash) ]
-          // The stabilized hash is what propagation must use; the parser's
-          // placeholder names nothing stored.
-          let finalHash =
-            LanguageTools.WrittenTypesToProgramTypes.valueHashBoundAt ops location
-            |> Stdlib.Option.withDefault packageValue.hash
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
 
-          match SCM.PackageOps.addAuthored state.currentBranchId ops with
-          | Ok report ->
-            AtRestCheck.printSaveReport state.currentBranchId report
-
-            // Show success message
-            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-            let action = if isUpdate then "Updated" else "Created"
-
-            Stdlib.printLine ""
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} value: {fullPath}")
-
-            // Auto-propagate if this is an update
-            if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Value
-
-            Stdlib.printLine ""
-            state
-
-          | Error msg ->
-            [ ""
-              (Stdlib.Cli.UI.Colors.error $"✗ Failed to add value: {msg}")
-              "" ]
-            |> Stdlib.printLines
-
-            state
+            (ops, packageValue.hash, unresolvedNames))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the
@@ -189,7 +140,7 @@ let help (_state: Cli.AppState) : String =
     "  # Type alias:"
     "  val userId = Uuid.parse \"123e4567-e89b-12d3-a456-426614174000\""
     ""
-    "  # Multi-line expression via stdin (run from shell, not the REPL — '-' reads stdin):"
+    "  # Multi-line expression via stdin (run from shell, not the REPL -- '-' reads stdin):"
     "  ./scripts/run-cli val primes - <<'EOF'"
     "  ["
     "    2"

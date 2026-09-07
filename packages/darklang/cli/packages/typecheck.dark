@@ -15,13 +15,14 @@ type ParsedArgs =
   { outputFilter: OutputFilter
     parseErrors: List<FlagParser.ParseError>
     positionals: List<String>
+    asJson: Bool
     conflictingFilters: Bool }
 
-val usage = "Usage: typecheck [--failed] [--incomplete] [--all]"
+val usage = "Usage: typecheck [--failed] [--incomplete] [--all] [--json]"
 
 val argSpec =
   FlagParser.Spec
-    { flags = [ ("--failed", []), ("--incomplete", []), ("--all", []) ]
+    { flags = [ ("--failed", []), ("--incomplete", []), ("--all", []), ("--json", []) ]
       valueFlags = [] }
 
 let parseArgs (args: List<String>) : ParsedArgs =
@@ -39,6 +40,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
               showAll || incompleteOnly || Stdlib.Bool.not hasSpecificFilter }
       parseErrors = parsed.errors
       positionals = parsed.positionals
+      asJson = FlagParser.hasFlag parsed "--json"
       conflictingFilters = showAll && hasSpecificFilter }
 
 let fullPath (location: LanguageTools.ProgramTypes.PackageLocation) : String =
@@ -117,6 +119,54 @@ let printItem
         (AtRestCheck.issueLines branchId item.blockers)
       |> Stdlib.printLines
 
+// The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
+// question-answering command takes --json, and an agent auditing a branch after a batch of
+// edits is this command's main consumer. Items are filtered the same way the human view is.
+let jsonReport
+  (branchId: Uuid)
+  (outputFilter: OutputFilter)
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  (totals: Counts)
+  (total: Int)
+  : String =
+  let verdictWord (v: LanguageTools.AtRestTypeChecker.Verdict) : String =
+    match v with
+    | Checked -> "checked"
+    | Failed -> "failed"
+    | Incomplete -> "incomplete"
+
+  let wanted (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
+    match item.verdict with
+    | Checked -> outputFilter.showChecked
+    | Failed -> outputFilter.showFailed
+    | Incomplete -> outputFilter.showIncomplete
+
+  let items =
+    report.items
+    |> Stdlib.List.filter wanted
+    |> Stdlib.List.sortBy (fun item -> itemLabel branchId item.item)
+    |> Stdlib.List.map (fun item ->
+      let issues =
+        Stdlib.List.append
+          (AtRestCheck.issueLines branchId item.diagnostics)
+          (AtRestCheck.issueLines branchId item.blockers)
+        |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
+
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(itemLabel branchId item.item))
+          ("verdict", Stdlib.AltJson.Json.String(verdictWord item.verdict))
+          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
+
+  Stdlib.AltJson.format (
+    Stdlib.AltJson.Json.Object
+      [ ("verdict", Stdlib.AltJson.Json.String(verdictWord report.verdict))
+        ("checked", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.checkedCount))
+        ("failed", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.failedCount))
+        ("incomplete", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.incompleteCount))
+        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat total))
+        ("items", Stdlib.AltJson.Json.Array items) ]
+  )
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let parsed = parseArgs args
   if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
@@ -141,6 +191,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let report = AtRestCheck.checkBranch state.currentBranchId
     let totals = counts report.items
     let total = Stdlib.List.length report.items
+
+    if parsed.asJson then
+      Stdlib.printLine
+        (jsonReport state.currentBranchId parsed.outputFilter report totals total)
+      state
+    else
+
     let checkedCount = Stdlib.Int.toString totals.checkedCount
     let failedCount = Stdlib.Int.toString totals.failedCount
     let incompleteCount = Stdlib.Int.toString totals.incompleteCount
@@ -177,6 +234,7 @@ let help (_state: Cli.AppState) : String =
     "  --failed      List only declarations with definite type errors"
     "  --incomplete  List only declarations the checker could not fully prove"
     "  --all         List checked, failed, and incomplete declarations"
+    "  --json        The same report, typed, for an agent"
     ""
     "Without a filter, failed and incomplete declarations are listed."
     "--failed and --incomplete may be combined; --all is mutually exclusive." ]

@@ -135,11 +135,13 @@ let hashListToDict
     Stdlib.Dict.setOverridingDuplicates acc key true)
 
 
-/// Build the deprecation sets for a branch. One builtin call (two DB queries
-/// sharing work on the backend); cache per invocation by calling once at the
-/// entry point of ls/tree/search.
-let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
-  let (all, hidden) = Builtin.pmGetDeprecationSets branchId
+/// The deprecation sets.
+///
+/// <param branchId> is accepted and NOT consulted: deprecations are main-only today (a Deprecate
+/// authored on a branch never folds), so the sets are the same on every branch. The parameter stays
+/// so call sites already say which branch they mean when that changes.
+let loadDeprecationSets (_branchId: Uuid) : DeprecationSets =
+  let (all, hidden) = Builtin.pmGetDeprecationSets ()
   DeprecationSets
     { allDeprecated = hashListToDict all
       hidden = hashListToDict hidden }
@@ -194,10 +196,13 @@ let deprecationMarker
   if isDeprecated sets hash then " ⚠" else ""
 
 
-/// Forward dependencies of an item: the hashes it references (each with its kind), scoped to the branch.
-/// Wraps the builtin so callers (the `deps` command, the workbench item page) go through one place.
+/// Forward dependencies of an item: the hashes it references, each with its kind.
+///
+/// Wraps `SCM.Deps.dependenciesOf` so the CLI's callers go through one place.
+///
+/// Takes no branch: `package_dependencies` is content-addressed, one row set per item hash, and a branch's
+/// items fold their content in precisely so their edges are recorded.
 let getDependencies
-  (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.Hash * String)> =
-  Builtin.depsGetDependencies branchId hash
+  SCM.Deps.dependenciesOf hash

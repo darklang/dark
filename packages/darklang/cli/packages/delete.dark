@@ -50,7 +50,7 @@ let countLiveDependents
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   : Int =
-  let deps = Cli.Deps.getDependents branchId [ (targetLoc, targetKind) ]
+  let deps = SCM.Deps.dependentsOf [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
   |> Stdlib.List.filter (fun entry ->
@@ -87,12 +87,31 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (help state)
     state
   | (Some itemTypeStr, targetOpt) ->
+    // `delete <name>` with no kind: the store knows what kind lives at a name, so asking is
+    // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
+    // does), and keep the explicit form for a hash or a collision.
+    let (itemTypeStr, targetOpt) =
+      match (Propagate.itemKindFromString itemTypeStr, targetOpt) with
+      | (None, None) ->
+        let inferred =
+          [ LanguageTools.ProgramTypes.ItemKind.Fn
+            LanguageTools.ProgramTypes.ItemKind.Type
+            LanguageTools.ProgramTypes.ItemKind.Value ]
+          |> Stdlib.List.filterMap (fun k ->
+            Deprecate.resolveTarget branchId state.packageData.currentLocation k itemTypeStr
+            |> Stdlib.Option.map (fun _ -> k))
+
+        (match inferred with
+         | [ k ] -> (SCM.Deps.kindString k, Stdlib.Option.Option.Some itemTypeStr)
+         | _ -> (itemTypeStr, targetOpt))
+      | _ -> (itemTypeStr, targetOpt)
+
     match Propagate.itemKindFromString itemTypeStr with
     | None ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error
-          $"Error: '{itemTypeStr}' is not a valid item kind. Expected fn, type, or value.")
-      Stdlib.printLine "Usage: delete <fn|type|value> <name-or-hash> [options]"
+          $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value> <name-or-hash>`.")
+      Stdlib.printLine "Usage: delete [fn|type|value] <name-or-hash> [options]"
       state
     | Some itemKind ->
       match targetOpt with
