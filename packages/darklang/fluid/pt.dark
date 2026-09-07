@@ -1493,8 +1493,42 @@ let namesFromItems (n: Node) (slot: String) (extract: Node -> List<String>) : Li
 
 // A `let`, a lambda parameter and a match pattern all bind a NAME and declare no type, so they bind
 // `Spec.bound`. A function's parameters are the ones that carry a declared type; see `Fn.fnBinders`.
+/// The type of a value the document already knows the type of, as a type NODE, for a binder to carry.
+///
+/// A record literal is the case that matters: it stores the hash of the type it is. Nothing else here
+/// infers -- a call's return type, an arm's type, a variable's own binding are all still unknown -- but a
+/// literal knows what it is, and a binder that drops that is throwing away something already written down.
+let declaredTypeOfValue (v: Node) : Stdlib.Option.Option<Node> =
+  match v.kind.case with
+  | Some "ERecord" ->
+    (match textOf v "_typeHash" with
+     | "" -> Stdlib.Option.Option.None
+     | h ->
+       Stdlib.Option.Option.Some(
+         Node.make
+           (Types.typeKind "TCustomType")
+           [ text "name" (textOf v "type"), text "_hash" h, ("args", Field.Many([], Types.typeExpect "type arg")) ]))
+  | _ -> Stdlib.Option.Option.None
+
+/// A `let` binds its pattern's names in the body, and carries the value's type when the value has one.
+///
+/// Without that a let-bound name had NO type, so `let cfg = Size { ... }` then `cfg.` offered nothing --
+/// the fields of the record you had just written, which the document knew and the binder did not pass on.
+/// Only when the pattern binds exactly one name: a tuple pattern binds several and the value's type does
+/// not say which is which.
 let letBinders (n: Node) : List<(List<Binding> * List<String>)> =
-  [ (namesFromSlot n "pat" letPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "body" ]) ]
+  let names = namesFromSlot n "pat" letPatNames
+  let valueType =
+    match Node.slot n "value" with
+    | Some(Filled v) -> declaredTypeOfValue v
+    | _ -> Stdlib.Option.Option.None
+
+  let binds =
+    match (names, valueType) with
+    | ([ nm ], Some t) -> [ Binding { name = nm; typ = Stdlib.Option.Option.Some t } ]
+    | _ -> names |> Stdlib.List.map (fun nm -> Spec.bound nm)
+
+  [ (binds, [ "body" ]) ]
 
 let lambdaBinders (n: Node) : List<(List<Binding> * List<String>)> =
   [ (namesFromItems n "params" letPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "body" ]) ]

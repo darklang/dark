@@ -807,3 +807,46 @@ module ARecordLiteralCanBeTyped =
 
   // A name on its own is still a variable. The `{` is what changes what it is.
   (Fixtures.program [ "Z", "o", "r", "k", "<Esc>", "<Esc>" ]) = "Zork"
+
+
+module ALetCarriesItsValuesType =
+  // Found by building an ordinary thing in a terminal: a record, bound to a name, then a field of it.
+  //
+  //     let cfg = Size { width = 80; height = 24 }
+  //     cfg.        <- offered nothing
+  //
+  // A let-bound name had no type at all. `Spec.bound` sets `typ = None`, so the field offers -- which ask
+  // what the target is DECLARED to be -- had nothing to ask about. The document knew: the value is a
+  // record literal and a record literal stores the hash of the type it is. The binder was dropping
+  // something already written down.
+  //
+  // Only when the pattern binds exactly one name. A tuple pattern binds several and the value's type does
+  // not say which is which.
+  let menu (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60) keys
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let built (extra: List<String>) : List<String> =
+    Stdlib.List.append [ "let", "<Enter>", "cfg", "<Tab>", "Size", "<Enter>", "80", "<Tab>", "24", "<Tab>" ] extra
+
+  (ALetCarriesItsValuesType.menu (ALetCarriesItsValuesType.built [ "cfg", "." ])) = "width, height"
+
+  (Fixtures.screen (ALetCarriesItsValuesType.built [ "cfg", ".", "w", "<Enter>" ])) =
+    "let cfg =\n  Stdlib.Cli.Tui.Size {\n    width = 80;\n    height = 24\n  }\ncfg.width~"
+
+  // It stops where the document stops knowing. A let bound to an int has no fields to offer, and nothing
+  // here infers one.
+  (ALetCarriesItsValuesType.menu [ "let", "<Enter>", "a", "<Tab>", "1", "<Tab>", "a", "." ]) = ""
+
+
+module SpaceCommitsOnlyWhatIsUnambiguous =
+  // `recordCandidates` claimed in a comment that typing `Size` and pressing SPACE builds the record. It
+  // does not and never has, and the comment is fixed. Pinned here because a comment can say anything and
+  // this cannot.
+  //
+  // Space commits the menu only when it is unambiguous: one candidate, or an exact match on the label.
+  // `Size` is a loose prefix over three types whose labels are all longer, so space finalises what was
+  // typed and moves on. Enter and Tab commit the top candidate, which is what actually builds the record.
+  (Fixtures.screen [ "S", "i", "z", "e", " " ]) = "Size~"
+  (Fixtures.screen [ "S", "i", "z", "e", "<Tab>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
