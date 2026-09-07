@@ -850,3 +850,32 @@ module SpaceCommitsOnlyWhatIsUnambiguous =
   (Fixtures.screen [ "S", "i", "z", "e", " " ]) = "Size~"
   (Fixtures.screen [ "S", "i", "z", "e", "<Tab>" ]) =
     "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+
+
+module APipeTakesTheWholeExpression =
+  // `x * 2` then `|>` piped the `2` and left `x * (2 |> _)`. A pipe binds looser than every operator
+  // there is, so it takes the whole product, the same way the parser reads `x * 2 |> f`.
+  //
+  // Found by typing a realistic pipeline into the TUI, which is where it shows: the drawing was
+  // `x * (2 |> ⟨step⟩)`, and the parenthesised `2` is the only thing on screen that says so.
+  //
+  // The infix climb was already there and already right (`+` after `1 * 2` takes the product, `*` after
+  // `1 + 2` takes just the `2`). `applyWrap` reached for it only when the rule had an `op` slot, and the
+  // pipe rule has none, so the pipe never asked. It now asks what the rule BUILDS: a construct that
+  // swallows what follows it takes the whole expression that ends at the caret. Same answer Enter gets,
+  // from the same function, and a DSL that adds its own swallowing construct gets it without the kernel
+  // being told about that construct.
+  let pipeTo () : List<String> =
+    [ "|", ">", "S", "t", "d", "l", "i", "b", ".", "p", "r", "i", "n", "t", "L", "i", "n", "e", "<Esc>" ]
+
+  (Fixtures.program (Stdlib.List.append [ "x", "*", "2" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
+    "x * 2 |> Stdlib.printLine"
+
+  (Fixtures.program (Stdlib.List.append [ "1", "+", "2", "*", "3" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
+    "1 + 2 * 3 |> Stdlib.printLine"
+
+  // The climb stops at the first construct that swallows what follows it, so a pipe written inside a
+  // lambda body stays inside the lambda rather than reaching out to whatever encloses it.
+  (Fixtures.program
+    (Stdlib.List.append [ "f", "u", "n", " ", "x", " ", "x", "*", "2" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
+    "(fun x -> x * 2 |> Stdlib.printLine)"

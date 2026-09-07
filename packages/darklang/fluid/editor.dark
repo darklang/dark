@@ -928,10 +928,24 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
 
 let ruleMatches (syn: Syntax) (rule: HoleRule) (c: String) : Bool = charClassMatches syn rule.onChar c
 
-/// Apply a wrap rule to the node the caret is on -- or the one precedence picks, for an infix, so
-/// `1 * 2 + 3` associates as `(1 * 2) + 3`.
+/// Apply a wrap rule to the node the caret is on -- or the one precedence picks, so `1 * 2 + 3`
+/// associates as `(1 * 2) + 3` and `1 * 2` then `|>` pipes the product rather than the `2`.
+///
+/// Two different climbs, because there are two kinds of wrapping construct. An infix has a power and
+/// walks up the right spine past whatever binds tighter. A construct that SWALLOWS what follows it (a
+/// pipe, a statement) binds looser than every operator there is, so it takes the whole expression that
+/// ends at the caret, which is what `statementTarget` already worked out for Enter.
+///
+/// Asking the rule what it builds, rather than naming the pipe here, is the point: a DSL that adds its
+/// own swallowing construct gets the same reach without the kernel hearing about it.
 let applyWrap (st: State) (caret: Caret) (n: Node) (rule: WrapRule) (c: String) : State =
-  let targetPath = if rule.opSlot == "op" then reassocTarget st.root caret.node c else caret.node
+  let targetPath =
+    if rule.opSlot == "op" then
+      reassocTarget st.root caret.node c
+    else if (Project.nodePower (rule.wrap n c)) == Darklang.LanguageTools.Precedence.swallowingPower then
+      statementTarget st caret.node
+    else
+      caret.node
   let target = nodeAtPath st.root targetPath |> Stdlib.Option.withDefault n
   let wrapped = rule.wrap target c
   let st1 = commit st [ Edit.Replace(targetPath, Slot.Filled wrapped) ] caret
