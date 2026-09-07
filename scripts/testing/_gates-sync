@@ -1,0 +1,644 @@
+#!/usr/bin/env bash
+# _gates-sync: sync setup, the relay surface, and clients under fire
+#
+# Sourced by scripts/testing/gates -- not run directly. Each gate is one self-contained bash
+# function (helpers and all), and the runner gives every invocation its own process, so a
+# gate's `set -e`, traps and exits stay its own.
+# shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
+
+# --- setup: `dark sync setup`, driven end to end ------------------------------------------------
+# Setup asks questions, so no other test reaches it; it also writes GLOBAL config (identity,
+# relay, write secret), which is why it gets its own rundir. `script` rather than `expect`: for
+# a command that just asks a list of questions there is nothing to react to. The relay is
+# deliberately unreachable: what matters is that setup stores what it was told and reports the
+# failed push instead of losing it.
+gate_setup() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/setup-test
+  SECRET=setup-test-secret-not-a-real-one
+
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  # Answers all at once. Fine when none of them is secret.
+  run_setup() {
+    printf '%b' "$1" \
+      | DARK_CONFIG_RUNDIR="$PWD/$WORK" timeout 120 script -qec "$PWD/$CLI sync setup" /dev/null 2>&1 \
+      | sed 's/\x1b\[[0-9;]*m//g'
+  }
+
+  # One answer at a time, paced so each arrives at its OWN prompt.
+  #
+  # This matters for the no-echo check and is not fussiness: pipe all three at once and the tty echoes
+  # the whole buffer back while echo is still on for the earlier reads, so the secret appears in the
+  # output having never been echoed BY the secret prompt. That reads as a leak and is not one. A person
+  # types the secret after the prompt, by which point `readSecret` has turned echo off.
+  run_setup_typed() {
+    { echo "$1"; sleep 2; echo "$2"; sleep 2; echo "$3"; sleep 2; } \
+      | DARK_CONFIG_RUNDIR="$PWD/$WORK" timeout 120 script -qec "$PWD/$CLI sync setup" /dev/null 2>&1 \
+      | sed 's/\x1b\[[0-9;]*m//g'
+  }
+
+  # 1. A fresh instance: name, relay, secret.
+  first=$(run_setup_typed "first-run" "http://localhost:1" "$SECRET")
+
+  grep -q 'identity: first-run' <<<"$first" || fail "setup did not store the name it was given"
+  grep -q 'relay:    http://localhost:1' <<<"$first" || fail "setup did not store the relay"
+  grep -q 'write secret stored' <<<"$first" || fail "setup did not store the secret"
+  grep -q 'Set up\.' <<<"$first" || fail "setup did not finish"
+
+  # The point of asking rather than taking it as an argument: it must never reach the screen.
+  grep -q "$SECRET" <<<"$first" && fail "the write secret was ECHOED to the terminal"
+
+  # An unreachable relay is reported and the configuration is kept, rather than the whole thing failing.
+  grep -q 'failed' <<<"$first" || fail "setup did not report the failed push"
+
+  # 2. Re-run, pressing Enter at every prompt. This is the path that could silently wipe a stored secret.
+  again=$(run_setup "\n\n\n")
+
+  grep -q 'identity: first-run' <<<"$again" || fail "re-run lost the identity on Enter"
+  grep -q 'relay:    http://localhost:1' <<<"$again" || fail "re-run lost the relay on Enter"
+  grep -q 'keeping the stored write secret' <<<"$again" || fail "re-run did not keep the stored secret"
+
+  # 3. A secret too short to survive the leak guard is refused, and the old one is left alone.
+  short=$(run_setup_typed "" "" "short")
+  grep -q 'too short' <<<"$short" || fail "a short secret was accepted"
+  grep -q 'keeping the stored write secret' <<<"$(run_setup "\n\n\n")" \
+    || fail "the refused short secret replaced the stored one"
+
+  rm -rf "$WORK"
+  echo "dark sync setup: asks, stores, never echoes the secret, and keeps it on Enter."
+}
+
+# --- relay-routes: the relay's HTTP surface, given input a person would not send ----------------
+# The one network-facing thing in the repo. Two assertions: nothing may leak an interpreter
+# error to a caller, and a page that says "not found" must ANSWER 404. `/nope` is deliberately
+# not asserted: the DarkPackages API composed onto the same server has a `/:location` catch-all
+# that legitimately answers an empty result.
+gate_relay_routes() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/relay-routes-test
+  PORT=${PORT:-9095}
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+
+  # The secret deliberately CONTAINS "Bearer " and a space -- the two shapes a naive header parser breaks
+  # on, by stripping every occurrence of "Bearer " anywhere in the value and by splitting the credential on
+  # the first space.
+  SECRET='relay-test-Bearer secret'
+
+  DARK_CONFIG_RUNDIR="$PWD/$WORK" DARK_MATTER_WRITE_SECRET="$SECRET" \
+    "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
+    > "$WORK/serve.log" 2>&1 &
+  SRV=$!
+  trap 'kill $SRV 2>/dev/null' EXIT
+
+  # Every check below is a curl, and a relay that never bound answers all of them the same way. Without
+  # this the whole gate reports a wall of connection failures rather than the one fact that explains them.
+  up=false
+  for _ in $(seq 1 40); do
+    [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && { up=true; break; }
+    sleep 1
+  done
+  [[ "$up" == "true" ]] || { echo "the relay never came up on $PORT (see $WORK/serve.log)" >&2; exit 2; }
+
+  U="http://localhost:$PORT"
+  failures=0
+  BODY=$(mktemp)
+
+  # Asserts the status, and that the body carries no interpreter error whatever the status.
+  check() {
+    local want="$1" what="$2"; shift 2
+    local got
+    got=$(curl -s -o "$BODY" -w '%{http_code}' --max-time 15 "$@" 2>/dev/null || echo 000)
+
+    if grep -qE "Encountered a Runtime Error|No matching case found|but got [A-Za-z]+|Call stack" "$BODY"; then
+      echo "  LEAKED an interpreter error: $what"
+      failures=$((failures + 1))
+      return
+    fi
+
+    if [[ "$want" != "any" && "$got" != "$want" ]]; then
+      echo "  $what: wanted $want, got $got"
+      failures=$((failures + 1))
+      return
+    fi
+    echo "  ok   $got  $what"
+  }
+
+  # Pages that exist.
+  check 200 "the landing page"        "$U/"
+  check 200 "/owners"                 "$U/owners"
+  check 200 "/stats"                  "$U/stats"
+  check 200 "a real module"           "$U/m?name=Darklang.Stdlib.List"
+  check 200 "a real item"             "$U/p?name=Darklang.Stdlib.List.map"
+  check 200 "a search with hits"      "$U/search?q=map"
+
+  # Pages that do not. The body has always said so; the status has not.
+  check 404 "an item that is not there"   "$U/p?name=No.Such.Thing"
+  check 404 "a module that is not there"  "$U/m?name=Nope"
+
+  # Missing and hostile parameters. The status is not the point here -- not crashing is.
+  check any "/p with no name"         "$U/p"
+  check any "/m with no name"         "$U/m"
+  check any "/search with no q"       "$U/search"
+  check any "a script tag in q"       --get --data-urlencode 'q=<script>alert(1)</script>' "$U/search"
+  check any "an attribute break in q" --get --data-urlencode 'q=" onmouseover="x' "$U/search"
+
+  # The sync protocol. Reads are open; writes need the secret, so these are 401 rather than parsed.
+  check 200 "/sync/head"                  "$U/sync/head"
+  check any "/sync/pull with no params"   "$U/sync/pull"
+  # 400, not "any": read as zero, a bad cursor answered 200 with the WHOLE log and a cursor of 0, so a
+  # client whose stored cursor had gone bad re-pulled everything and was told it had synced incrementally.
+  check 400 "/sync/pull sinceSeq=abc"     "$U/sync/pull?sinceSeq=abc"
+  check any "/sync/pull sinceSeq=-1"      "$U/sync/pull?sinceSeq=-1"
+  check any "/sync/pull sinceSeq enormous" "$U/sync/pull?sinceSeq=99999999999999999999"
+  check 401 "/sync/push unauthenticated"  -X POST --data '{"nope":1}' "$U/sync/push"
+  check 401 "/branch/push unauthenticated" -X POST --data 'zzz' "$U/branch/push"
+  check 401 "/branch/list unauthenticated" "$U/branch/list"
+
+  # Authentication, by header SHAPE. 400 here means the secret was accepted and only the body was rejected,
+  # which is the whole point: these all carry the right secret and must not come back 401.
+  check 400 "Bearer, exact casing"     -X POST --data 'zzz' -H "Authorization: Bearer $SECRET" "$U/sync/push"
+  check 400 "bearer, lowercase scheme" -X POST --data 'zzz' -H "authorization: bearer $SECRET" "$U/sync/push"
+  check 400 "BEARER, upper scheme"     -X POST --data 'zzz' -H "AUTHORIZATION: BEARER $SECRET" "$U/sync/push"
+  check 400 "no scheme, bare secret"   -X POST --data 'zzz' -H "Authorization: $SECRET" "$U/sync/push"
+  check 200 "/branch/list with the secret" -H "Authorization: Bearer $SECRET" "$U/branch/list?owner=x"
+
+  # ...and the shapes that must STILL be refused.
+  check 401 "a wrong secret"           -X POST --data 'zzz' -H "Authorization: Bearer nope" "$U/sync/push"
+  check 401 "Bearer with no credential" -X POST --data 'zzz' -H "Authorization: Bearer" "$U/sync/push"
+
+  # XSS: the two shapes that matter, checked in the response rather than assumed from the code.
+  curl -s --max-time 15 --get --data-urlencode 'q=<script>alert(1)</script>' "$U/search" > "$BODY"
+  grep -q '&lt;script&gt;' "$BODY" || { echo "  a script tag was not escaped in /search"; failures=$((failures + 1)); }
+  grep -q '<script>alert(1)</script>' "$BODY" && { echo "  a script tag came back RAW in /search"; failures=$((failures + 1)); }
+
+  rm -f "$BODY"
+
+  if [[ "$failures" -gt 0 ]]; then
+    echo "$failures relay route check(s) failed."
+    exit 1
+  fi
+  echo "relay routes: real pages 200, missing pages 404, bad input answered without leaking an error."
+}
+
+# --- sync-hostile-relay: the sync and branch clients, against a relay that answers badly --------
+# The mirror of relay-routes. In order of cost: an unreadable reply must not be recorded as a
+# completed push (the data-loss case); nothing crashes, hangs, or leaks an interpreter error;
+# and what the relay SAYS is not trusted (junk branch ids, a cursor past what the store holds, a
+# page that never landed). The relay is fixtures/hostile-relay.py, one failure mode per port.
+gate_sync_hostile_relay() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/hostile-relay-test
+  FIXTURE=scripts/testing/fixtures/hostile-relay.py
+
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  # Every mode answers /ping before it consults the mode, including the one whose whole job is never
+  # answering, so this is the readiness check for all of them. A fixture that failed to bind otherwise looks
+  # exactly like a client that found nothing wrong: the assertions below are "did NOT crash" and "recorded
+  # nothing", and both pass against a port with no server on it.
+  wait_for_relay() {  # wait_for_relay <port>
+    local port="$1"
+    for _ in $(seq 1 30); do
+      [[ "$(curl -s --max-time 2 "http://localhost:$port/ping" 2>/dev/null)" == "pong" ]] && return 0
+      sleep 1
+    done
+    echo "the hostile relay never came up on $port" >&2
+    exit 2
+  }
+
+  # Only what THIS run started: a `pkill -f` on the fixture path would also take out one a person is
+  # poking at by hand. And a port that already answers /ping is a stale fixture from a killed run --
+  # our python would fail to bind, silently, and the run would test last checkout's code.
+  FIXTURE_PIDS=()
+  start_relay() {  # start_relay <port>
+    if [[ "$(curl -s --max-time 2 "http://localhost:$1/ping" 2>/dev/null)" == "pong" ]]; then
+      echo "something already answers on port $1 (a stale fixture?); kill it and re-run" >&2
+      exit 2
+    fi
+    python3 "$FIXTURE" "$1" >/dev/null 2>&1 &
+    FIXTURE_PIDS+=($!)
+    wait_for_relay "$1"
+  }
+
+  rm -rf "$WORK"; mkdir -p "$WORK"
+
+  # The four modes that answer a push badly. The other modes are started at the step that uses them.
+  MODES=(9081 9082 9084 9085)
+  trap '[[ ${#FIXTURE_PIDS[@]} -gt 0 ]] && kill "${FIXTURE_PIDS[@]}" 2>/dev/null || true' EXIT
+  for m in "${MODES[@]}"; do
+    start_relay "$m"
+  done
+
+  client() {  # client <name> -> echoes its rundir
+    local name="$1"
+    local dir="$PWD/$WORK/$name"
+    rm -rf "$dir"; mkdir -p "$dir"
+    scripts/testing/_copy-store "$dir/data.db"
+    sqlite3 "$dir/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+    DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" identity "$name" >/dev/null 2>&1
+    echo "$dir"
+  }
+
+  clean_output() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  # 1. A push answered badly, one mode at a time.
+  for m in "${MODES[@]}"; do
+    dir=$(client "c$m")
+    DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" fn "/Hostile.T.f$m" '() : Int64 = 1L' >/dev/null 2>&1
+
+    out=$(timeout 60 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" sync "http://localhost:$m" 2>&1 | clean_output || true)
+
+    grep -qE "Encountered a Runtime Error|No matching case found|but got [A-Za-z]+|Call stack" <<<"$out" \
+      && fail "sync against relay mode $m crashed"
+
+    # The data-loss case. A push may only be recorded when the relay confirmed it. What the client
+    # records is the set of ops the relay holds (`sync_pushed`); a row here for a relay that never
+    # confirmed anything means the next push skips work the relay does not have.
+    recorded=$(sqlite3 "$dir/data.db" "SELECT count(*) FROM sync_pushed WHERE relay = 'http://localhost:$m';" 2>/dev/null || echo 0)
+    if [[ "$recorded" != "0" ]]; then
+      fail "relay mode $m did not confirm the push, but the client recorded $recorded op(s) as held (work would be lost)"
+    fi
+    echo "  ok   mode $m: no crash, and no push recorded without a confirmation"
+  done
+
+  # 2. A relay that lists junk instead of branch ids: the junk must not reach a URL or the terminal.
+  dir=$(client "cbranch")
+  out=$(timeout 60 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" branch pull "http://localhost:9081" 2>&1 | clean_output || true)
+  grep -q "are not branch ids" <<<"$out" || fail "a junk branch list was not rejected"
+  grep -q "count" <<<"$out" && fail "the relay's junk was echoed back into the output"
+  echo "  ok   a junk branch list is rejected without echoing it"
+
+  # 3. A cursor that points past ops the local log no longer has.
+  #
+  #    The relay-instance check catches a relay REPLACED at an address. It cannot catch this: the relay is
+  #    the same one, and the client's own log lost ops sitting BEHIND its cursor (a rebuild rewrites main's
+  #    log; the cursor is not part of it). Without the rewind the client asks for nothing past the cursor,
+  #    gets nothing, and reports success forever while `sync status` says it is thousands of ops behind.
+  start_relay 9087
+  dir=$(client "cstale")
+  sqlite3 "$dir/data.db" \
+    "INSERT OR REPLACE INTO config_v0 (key, value) VALUES
+       ('sync.cursor.http://localhost:9087', '500'),
+       ('sync.relay-instance.http://localhost:9087', 'inst-hostile-9087');" 2>/dev/null || true
+
+  out=$(timeout 60 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" pull "http://localhost:9087" 2>&1 | clean_output || true)
+  grep -q "points past ops this store doesn't have" <<<"$out" \
+    || fail "a cursor past missing ops did not rewind (client would pull zero forever)"
+  echo "  ok   a cursor past ops this store lost rewinds instead of pulling zero forever"
+
+
+  # 4. A relay that restarts under a pull. Page 1 lands; page 2's connection drops. The client must not
+  #    record the relay's position off that pull (it would skip the un-pulled ops for good), and the next
+  #    pull must pick up where the last page landed.
+  start_relay 9088
+  dir=$(client "crestart")
+  out=$(timeout 120 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" pull "http://localhost:9088" 2>&1 | clean_output || true)
+  grep -q "a page didn't land" <<<"$out" \
+    || fail "a pull that lost page 2 did not say so; got: $out"
+  seen=$(sqlite3 "$dir/data.db" "SELECT count(*) FROM config_v0 WHERE key = 'sync.head.http://localhost:9088';" 2>/dev/null || echo 0)
+  [[ "$seen" == "0" ]] || fail "the relay's position was recorded off a pull that lost a page"
+  out=$(timeout 120 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" pull "http://localhost:9088" 2>&1 | clean_output || true)
+  grep -qE "^Pulled|^Nothing new" <<<"$out" \
+    || fail "the pull after the relay came back did not finish; got: $out"
+  echo "  ok   a relay that dies mid-pull: position not recorded, and the next pull finishes"
+
+  # 5. A peer that upgraded before you did. The refusal has to name BOTH versions, the one the bundle
+  #    claims and the one this build speaks, or the person cannot tell which side to upgrade.
+  start_relay 9089
+  dir=$(client "cfuture")
+  out=$(timeout 120 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" pull "http://localhost:9089" 2>&1 | clean_output || true)
+  grep -q "sync format v99 not understood by this build, which speaks v" <<<"$out" \
+    || fail "a bundle from a newer format was not refused naming both versions; got: $out"
+  grep -qE "Encountered a Runtime Error|No matching case found|Call stack" <<<"$out" \
+    && fail "a bundle from a newer format crashed the client"
+  echo "  ok   a peer on a newer wire format is refused, naming both versions"
+
+  # 6. A relay that never answers: the client must give up rather than wedge.
+  #
+  #    `sync status` rather than `sync`, deliberately: a full sync makes four sequential requests at a
+  #    30s per-request timeout, so it reports correctly after ~2 minutes, which reads as a hang and is
+  #    not one. One request proves the timeout works.
+  start_relay 9086
+  dir=$(client "chang")
+  start=$(date +%s)
+  out=$(timeout 120 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" sync status "http://localhost:9086" 2>&1 | clean_output || true)
+  elapsed=$(( $(date +%s) - start ))
+
+  [[ "$elapsed" -ge 115 ]] && fail "a relay that never answers wedged the client (still going after ${elapsed}s)"
+  grep -qE "timeout|timed out|failed" <<<"$out" \
+    || fail "a relay that never answers did not produce a failure message; got: $out"
+  echo "  ok   a relay that never answers: gave up after ${elapsed}s and said so"
+
+  echo "sync + branch clients: a relay that answers badly cannot make them claim, or record, a push."
+}
+
+# --- sync-multi-instance: several instances, several branches, work moving between them ---------
+# What the substrate is FOR: a round trip; concurrent authoring; idempotence; the secret never
+# in an op; divergence recorded as a conflict with the same resolution on both sides; branches
+# pushed, pulled, merged, edited and finished; a review queue staging work inert until approved;
+# four agents on four branches merged into one main. Every scenario is isolated -- its own
+# relay, its own port, its own stores.
+gate_sync_multi_instance() {
+  set -uo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  ROOT=rundir/sync-multi
+  SECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  # Our own port, and nothing else on it. A relay left over from an earlier run answers on the port you
+  # expected with a secret you have forgotten, and every push comes back 401 as if the product were broken.
+  PORT=$(( 9200 + RANDOM % 300 ))
+  pass=0; fail=0
+
+  # No pkill: `pkill -f Matter.router` would take out every relay in the container, including one a
+  # developer is poking at by hand. The random port above covers leftovers, and this gate traps its own
+  # $RPID; so check the port instead.
+  if command -v ss > /dev/null && ss -ltn 2>/dev/null | grep -q ":$PORT "; then
+    echo "port $PORT is already in use; re-run (the port is random per run)" >&2
+    exit 2
+  fi
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT"
+  ok()   { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+  bad()  { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 150 <<<"$2" | tr '\n' ' ')"; }
+  # Case-sensitive and anchored, so a refusal cannot read as a pass: with `-i`, "Pushed" matches "nothing
+  # new to push", "merged" matches "not merged", and "conflict" matches "Conflict detection did not run".
+  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+  wantnot() { if grep -qE "$2" <<<"$3"; then bad "$1" "$3"; else ok "$1"; fi; }
+
+  # An instance is a STORE plus a HOME: the capability grant is keyed on HOME, so sharing one would let
+  # these tread on the developer's own grant.
+  mk() { local n=$1; mkdir -p "$ROOT/$n/home"; scripts/testing/_copy-store "$ROOT/$n/data.db"
+         sqlite3 "$ROOT/$n/data.db" 'DELETE FROM config_v0;'; rm -f "$ROOT/$n/cli-config.json"; }
+  x()  { local n=$1; shift; DARK_CONFIG_RUNDIR="$PWD/$ROOT/$n" HOME="$PWD/$ROOT/$n/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+
+  mk relay; mk A; mk B; mk C; mk D
+  DARK_CONFIG_RUNDIR="$PWD/$ROOT/relay" HOME="$PWD/$ROOT/relay/home" DARK_MATTER_WRITE_SECRET="$SECRET" \
+    "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" > "$ROOT/relay/log" 2>&1 &
+  RPID=$!
+  trap 'kill $RPID 2>/dev/null' EXIT
+  # Poll rather than a flat sleep: 8s was a flake on a loaded box, and most starts are ready in 2.
+  for _ in $(seq 1 40); do
+    [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && break
+    kill -0 $RPID 2>/dev/null || { echo "the relay we started is not running"; cat "$ROOT/relay/log"; exit 2; }
+    sleep 1
+  done
+  want "the relay answers" "^200$" "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/ping")"
+  for i in A B C D; do x "$i" connect "http://localhost:$PORT" --secret "$SECRET" > /dev/null; done
+  x B pull > /dev/null; x C pull > /dev/null
+
+  echo "== a round trip"
+  x A fn /SM.T.one '() : Int64 = 41L' > /dev/null
+  # A DRAFT does not travel: pushing it would land it under the receiver's import commit, and the
+  # message written later would never reach anyone (the ops would already be marked pushed).
+  want "a draft stays local" "stays local until" "$(x A push)"
+  wantnot "and does not push" "^Pushed [1-9]" "$(x A push)"
+  x A commit "A's work" -y > /dev/null
+  want "A pushes" "^Pushed [1-9][0-9]* op" "$(x A push)"
+  want "B pulls" "^Pulled [1-9][0-9]* new op" "$(x B pull)"
+  want "B runs it" "^41$" "$(x B eval 'SM.T.one ()' | tail -1)"
+  # The same work reads the same on both machines: A's commit id and message, not a "synced from A" of B's.
+  # History that differs per machine is the first thing two people sharing a relay notice.
+  ACOMMIT=$(x A commits 3 | awk '/A.s work/ {print $1}')
+  want "B files it under A's commit" "^$ACOMMIT +2 +[^ ]+ +A's work" "$(x B commits 3)"
+  wantnot "and not under an import commit of its own" "synced from" "$(x B commits 3)"
+
+  echo "== two instances authoring at the same time"
+  ( x A fn /SM.T.a '() : Int64 = 1L' > /dev/null; x A commit "A" -y > /dev/null; x A push > "$ROOT/a.log" 2>&1 ) & PA=$!
+  ( x B fn /SM.T.b '() : Int64 = 2L' > /dev/null; x B commit "B" -y > /dev/null; x B push > "$ROOT/b.log" 2>&1 ) & PB=$!
+  wait $PA $PB   # named: the relay is a background job too, and it never exits
+  want "A's push landed" "^Pushed [1-9][0-9]* op" "$(cat "$ROOT/a.log")"
+  want "B's push landed" "^Pushed [1-9][0-9]* op" "$(cat "$ROOT/b.log")"
+  x C pull > /dev/null
+  want "C sees A's" "^1$" "$(x C eval 'SM.T.a ()' | tail -1)"
+  want "C sees B's" "^2$" "$(x C eval 'SM.T.b ()' | tail -1)"
+
+  echo "== idempotence, and the secret"
+  want "re-push is a no-op" "^Already up to date with .* nothing new to push\.$" "$(x A push)"
+  want "re-pull is a no-op" "^Nothing new at " "$(x C pull)"
+  HEX=$(echo -n "$SECRET" | od -An -tx1 | tr -d ' \n' | tr 'a-f' 'A-F')
+  want "no op carries the write secret" "^0$" "$(sqlite3 "$ROOT/relay/data.db" "SELECT count(*) FROM package_ops WHERE hex(op_blob) LIKE '%$HEX%';")"
+
+  echo "== a divergent edit, each side pulling before it pushes"
+  x A fn /SM.T.same '() : Int64 = 100L' > /dev/null; x A commit "A version" -y > /dev/null; x A push > /dev/null
+  x B fn /SM.T.same '() : Int64 = 200L' > /dev/null; x B commit "B version" -y > /dev/null
+  want "B's pull records the divergence" "^1 conflict\(s\) auto-resolved by recency" "$(x B pull)"
+  x B push > /dev/null
+  want "A's pull applies it" "^Pulled [1-9][0-9]* new op" "$(x A pull)"
+  # Only B diverged: it held work it had not pushed when A's version arrived. A had already pushed, so
+  # from A's side one party moved since the agreed base, which is an update rather than a conflict. That
+  # asymmetry is the model, not a gap -- but it means "both push before either pulls" resolves by recency
+  # with nothing filed anywhere, which is worth knowing before you rely on the record.
+  bconf=$(x B conflicts --json)
+  # The JSON files a conflict as owner / modules / name, not as one dotted string, so this looks for the
+  # fields rather than the name a person would type.
+  want "B filed it against the name" '"name":"same".*"status":"pending"' "$bconf"
+  bres=$(sed -n 's/.*"autoResolvedTo":"\([0-9a-f]*\)".*/\1/p' <<<"$bconf" | head -1)
+  if [[ -n "$bres" ]]; then ok "and recorded which version won"; else bad "recorded which version won" "$bconf"; fi
+  # B authored `same` after A, so recency makes B's 200 the winner on both sides: asserted on the VALUE,
+  # not on the two agreeing, which they would also do by both being wrong.
+  want "A means the later edit" "^200$" "$(x A eval 'SM.T.same ()' | tail -1)"
+  want "and so does B" "^200$" "$(x B eval 'SM.T.same ()' | tail -1)"
+  # Override to the side that CHANGES something: on B the local side (A in the listing) is the 200 the
+  # fold kept, so B, the incoming side, is A's 100. Overriding to the kept side would exercise only the
+  # nothing-to-do arm.
+  want "an override is non-interactive" "^overrode #[0-9a-f]{8}: SM\.T\.same now binds [0-9a-f]{8}" "$(x B conflicts override SM.T.same B)"
+  want "and it took effect" "^100$" "$(x B eval 'SM.T.same ()' | tail -1)"
+
+  echo "== a branch, pushed from one instance and merged on another"
+  x A branch create feat > /dev/null
+  x A --branch feat fn /SM.T.onFeat '() : Int64 = 77L' > /dev/null
+  x A --branch feat commit "feat work" -y > /dev/null
+  # Branch ops never travel by `sync`, so `sync status` reports them apart from its verdict rather than
+  # saying "in sync" over a branch that exists on one machine only; a push clears the line.
+  want "sync status names the unpushed branch" "^  branch \"feat\": [1-9][0-9]* op\(s\) not on the relay" "$(x A sync status)"
+  want "A pushes the branch" "^pushed branch \"feat\" to " "$(x A branch push feat)"
+  wantnot "and the line is gone" "branch \"feat\"" "$(x A sync status)"
+  AID=$(x A whoami | sed 's/.*: //' | tr -d ' ')
+  want "B pulls A's branches" "^imported branch \"feat\" \([1-9][0-9]* op\(s\)\)" "$(x B branch pull --from "$AID")"
+  wantnot "a pulled branch is not reported as unpushed" "branch \"feat\"" "$(x B sync status)"
+  want "B has it" "^feat \([0-9a-f]{8}\) <- main" "$(x B branches)"
+  # The control first (the name exists and eval works), then the exact refusal on main.
+  want "B runs it on the branch" "^77$" "$(x B --branch feat eval 'SM.T.onFeat ()' | tail -1)"
+  want "and B's main does not" "^Error: SM\.T\.onFeat not found$" "$(x B eval 'SM.T.onFeat ()' | tail -1)"
+  want "B merges it" "^Merged [1-9][0-9]* op\(s\) from branch \"feat\" into its parent\.$" "$(x B --branch feat merge feat)"
+  x B push > /dev/null; x C pull > /dev/null
+  want "C gets it on main" "^77$" "$(x C eval 'SM.T.onFeat ()' | tail -1)"
+  # C never pulled the branch, so everything reached it by main sync: the branch's ops still read under
+  # A's "feat work" and the merge under B's, whatever order they arrived in, and never under a
+  # "synced from" commit of C's own.
+  want "C shows the branch work under A's commit" "feat work" "$(x C commits 5)"
+  want "and the merge under B's" "merged branch \"feat\"" "$(x C commits 5)"
+
+  echo '== sync.branches=all: one setting, and sync alone moves every branch'
+  x A config set sync.branches all > /dev/null
+  x D config set sync.branches all > /dev/null
+  x A branch create autos > /dev/null
+  x A --branch autos fn /SM.T.autoB '() : Int64 = 88L' > /dev/null
+  x A --branch autos commit "auto branch work" -y > /dev/null
+  want "sync pushes the branch unasked" "pushed branch \"autos\"" "$(x A sync)"
+  want "a colleague's sync brings it down" "imported branch \"autos\"" "$(x D sync)"
+  want "and it runs there" "^88$" "$(x D --branch autos eval 'SM.T.autoB ()' | tail -1)"
+  # The default is unchanged: without the setting, branches still travel only by `branch push/pull`.
+  wantnot "an instance without the setting is untouched" "imported branch" "$(x B sync)"
+  wantnot "with no import commit of C's own" "synced from" "$(x C commits 5)"
+
+  echo "== merged work reaches the relay when main was pushed in between"
+  # A branch op's rowid is minted when it is AUTHORED. Push main after that and any rowid cursor has
+  # stepped past it; the merge then flips it effective below the cursor, and a cursor-based push
+  # never sent it. The push has to ask what the relay HOLDS, not where it last stopped.
+  x A switch main > /dev/null  # A is still standing on feat, and a branch created there is feat's child
+  x A branch create late > /dev/null
+  x A --branch late fn /SM.T.late '() : Int64 = 88L' > /dev/null
+  x A --branch late commit "late work" -y > /dev/null
+  x A switch main > /dev/null
+  x A fn /SM.T.meanwhile '() : Int64 = 1L' > /dev/null; x A commit "meanwhile" -y > /dev/null
+  want "A pushes main in between" "^Pushed [1-9]" "$(x A push)"
+  want "A merges the branch" "^Merged [1-9]" "$(x A --branch late merge late)"
+  want "and the merge has something to push" "^Pushed [1-9]" "$(x A push)"
+  x C pull > /dev/null
+  want "C gets the merged work on main" "^88$" "$(x C eval 'SM.T.late ()' | tail -1)"
+
+  echo "== a review queue stages work inert until it is approved"
+  # D, which has never pulled: `pull` and `review pull` share ONE cursor per relay, so an instance that has
+  # already applied these ops can never stage them afterwards.
+
+  # FIRST, from a COLD cursor, which is a coworker's day one. An op pushed now sits past the first PAGE of
+  # a cursor at zero, because the shipped baseline alone is seven pages. A `review pull` that asks for one
+  # page and stops stages nothing and answers "Nothing new to stage" -- indistinguishable from being up to
+  # date, while a plain `dark pull` then applies the same ops without review.
+  #
+  # The COLD case has to come first. Draining the pages with `x D pull` beforehand leaves the next op on
+  # page 1, which is the shape that passes either way.
+  x A switch main > /dev/null
+  x A fn /SM.T.coldstaged '() : Int64 = 66L' > /dev/null
+  x A commit "cold review" -y > /dev/null
+  x A push > /dev/null
+  want "a cold instance stages what sits past page 1" "^Staged [1-9][0-9]* op\(s\) from .* on branch \"review\"" "$(x D review pull)"
+  want "D evaluates at all" "^3$" "$(x D eval 'Stdlib.Int64.add 1L 2L' | tail -1)"
+  want "and it stays inert on main" "^Error: SM\.T\.coldstaged not found$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"
+  want "approving the cold queue lands it" "^Approved [1-9][0-9]* op\(s\) from \"review\" into main\.$" "$(x D review approve)"
+  want "and then main has it" "^66$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"
+
+  # Now the warm case: D is caught up, and the next push lands on the first page it asks for.
+  x D pull > /dev/null
+  x A switch main > /dev/null
+  x A fn /SM.T.staged '() : Int64 = 55L' > /dev/null; x A commit "for review" -y > /dev/null; x A push > /dev/null
+  echo "     [D cursor=$(sqlite3 "$ROOT/D/data.db" "SELECT value FROM config_v0 WHERE key LIKE 'sync.cursor%';") relay ops=$(sqlite3 "$ROOT/relay/data.db" 'SELECT count(*) FROM package_ops;') D ops=$(sqlite3 "$ROOT/D/data.db" 'SELECT count(*) FROM package_ops;')]"
+  want "D stages rather than applies" "^Staged [1-9][0-9]* op\(s\) from .* on branch \"review\"" "$(x D review pull)"
+  want "it does resolve on the queue's branch" "^55$" "$(x D --branch review eval 'SM.T.staged ()' | tail -1)"
+  want "it does not resolve on main" "^Error: SM\.T\.staged not found$" "$(x D eval 'SM.T.staged ()' | tail -1)"
+  want "D approves" "^Approved [1-9][0-9]* op\(s\) from \"review\" into main\.$" "$(x D review approve)"
+  want "and now main has it" "^55$" "$(x D eval 'SM.T.staged ()' | tail -1)"
+
+  echo "== four agents at once, each on its own branch"
+  AG=()
+  for n in 1 2 3 4; do
+    ( x A branch create "agent-$n" > /dev/null 2>&1
+      x A --branch "agent-$n" fn "/SM.Agents.a$n" "() : Int64 = ${n}0L" > /dev/null 2>&1
+      x A --branch "agent-$n" commit "agent $n" -y > /dev/null 2>&1 ) &
+    AG+=($!)
+  done
+  wait "${AG[@]}"
+  allok=true
+  for n in 1 2 3 4; do [[ "$(x A --branch "agent-$n" eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+  if $allok; then ok "each agent's work is on its own branch"; else bad "each agent's work is on its own branch" "see above"; fi
+  for n in 1 2 3 4; do x A --branch "agent-$n" merge "agent-$n" > /dev/null 2>&1; done
+  x A switch main > /dev/null
+  allok=true
+  for n in 1 2 3 4; do [[ "$(x A eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+  if $allok; then ok "all four merged into main intact"; else bad "all four merged into main intact" "see above"; fi
+  x A switch main > /dev/null
+  echo "     [A push: $(x A push | tail -1)]"
+  echo "     [C pull: $(x C pull | tail -1)]"
+  echo "     [A ops=$(sqlite3 "$ROOT/A/data.db" 'SELECT count(*) FROM package_ops;') relay=$(sqlite3 "$ROOT/relay/data.db" 'SELECT count(*) FROM package_ops;') C=$(sqlite3 "$ROOT/C/data.db" 'SELECT count(*) FROM package_ops;')]"
+  allok=true
+  for n in 1 2 3 4; do [[ "$(x C eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+  if $allok; then ok "and another instance received all four"; else bad "another instance received all four" "see above"; fi
+
+  echo "== a branch EDITED several times, and what the other instance sees"
+  # One version per name is the easy case. THREE is where a branch overlay can disagree with itself: the
+  # name is bound three times, and anything that folds those ops by hash rather than by what the name
+  # currently binds picks an arbitrary one -- which is how `view` comes to show a different version than
+  # `eval` runs.
+  x A branch create edited > /dev/null
+  for v in 1 2 3; do
+    x A --branch edited fn /SM.T.edited "() : Int64 = ${v}0L" > /dev/null
+  done
+  x A --branch edited commit "three versions" -y > /dev/null
+
+  want "A runs the newest" "^30$" "$(x A --branch edited eval 'SM.T.edited ()' | tail -1)"
+  want "and A SHOWS the newest" "^  30L$" "$(x A --branch edited view SM.T.edited)"
+
+  want "A pushes the branch" "^pushed branch \"edited\" to " "$(x A branch push edited)"
+  want "B pulls it" "^imported branch \"edited\" \([1-9][0-9]* op\(s\)\)" "$(x B branch pull --from "$AID")"
+  want "B runs the newest" "^30$" "$(x B --branch edited eval 'SM.T.edited ()' | tail -1)"
+  want "and B SHOWS the newest" "^  30L$" "$(x B --branch edited view SM.T.edited)"
+
+  x B --branch edited merge edited > /dev/null
+  want "merged into main, still the newest" "^30$" "$(x B eval 'SM.T.edited ()' | tail -1)"
+
+  echo "== a deprecation travels"
+  # Deprecation keys on CONTENT, not on a name, so it should apply on the other instance to the same hash
+  # under whatever that instance calls it. Nothing covered that it crosses the wire at all.
+  # The scenario above leaves A on a branch, and this one is about main.
+  x A switch main > /dev/null
+  x A fn /SM.T.old '() : Int64 = 5L' > /dev/null
+  x A commit "something to deprecate" -y > /dev/null
+  x A push > /dev/null; x B pull > /dev/null
+  want "B has it before" "^5$" "$(x B eval 'SM.T.old ()' | tail -1)"
+  bview=$(x B view SM.T.old)
+  want "B shows the definition" "^let old \(\)" "$bview"
+  wantnot "and does not call it deprecated" "DEPRECATED" "$bview"
+
+  x A deprecate fn SM.T.old --kind obsolete -m "moved on" --yes > /dev/null
+  x A commit "deprecate it" -y > /dev/null
+  want "A shows it deprecated" "DEPRECATED \(obsolete\)" "$(x A view SM.T.old)"
+  want "A pushes the deprecation" "^Pushed 1 op " "$(x A push)"
+  want "B pulls it" "^Pulled 1 new op" "$(x B pull)"
+  want "and B shows it deprecated too" "DEPRECATED \(obsolete\)" "$(x B view SM.T.old)"
+  want "with the reason" "^   moved on$" "$(x B view SM.T.old)"
+
+  echo "== finishing a branch travels, so the other machine stops showing it as live work"
+  # Merging and archiving each author an op for exactly this reason: the projections are already updated
+  # locally, and the op is how the OTHER instance learns. Without it a colleague's branch list keeps
+  # offering work that is already in main, or a branch someone threw away.
+  x A switch main > /dev/null
+  x A branch create finished > /dev/null
+  x A --branch finished fn /SM.T.finished '() : Int64 = 3L' > /dev/null
+  x A --branch finished commit "work to finish" -y > /dev/null
+  x A branch push finished > /dev/null
+  x B branch pull --from "$AID" > /dev/null
+  want "B sees the branch as live" "^finished \([0-9a-f]{8}\) <- main  \[[1-9][0-9]* op" "$(x B branches)"
+
+  x A --branch finished merge finished > /dev/null
+  x A switch main > /dev/null
+  x A push > /dev/null
+  x B pull > /dev/null
+  want "B has the work on main now" "^3$" "$(x B eval 'SM.T.finished ()' | tail -1)"
+  blist=$(x B branches)
+  want "B's listing rendered" "^on main\. branches:" "$blist"
+  wantnot "and finished is not among them" "^finished \(" "$blist"
+  want "though it is still there when asked for all" "^finished \([0-9a-f]{8}\) <- main  \[merged\]$" "$(x B branches --all)"
+  # The relay still serves the bundle. Pulling it again must not revive a branch B has merged.
+  want "a re-pulled bundle does not revive a merged branch" "already merged here" "$(x B branch pull --from "$AID")"
+  wantnot "and it stays off the live list" "^finished \(" "$(x B branches)"
+
+  echo
+  echo "passed: $pass   failed: $fail"
+  [[ "$fail" -eq 0 ]]
+}

@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# _gates-ui: the workbench under a real TTY, and the LSP branch surface
+#
+# Sourced by scripts/testing/gates -- not run directly. Each gate is one self-contained bash
+# function (helpers and all), and the runner gives every invocation its own process, so a
+# gate's `set -e`, traps and exits stay its own.
+# shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
+
+# --- workbench-scm: the workbench's SCM surfaces, with actual work in the store -----------------
+# fixtures/test-workbench.expect only ever opens the workbench on an EMPTY store, which asserts
+# that a view renders, not that it can show anything. So: build a store with a draft, a commit,
+# a branch and a recorded conflict, and check each reaches the screen; then a QUIET store
+# (commits only), so Home's commit-detail-on-open path renders too. Every row asserted on comes
+# from an SCM API, so the data path is under test as much as the drawing.
+gate_workbench_scm() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/workbench-scm-test
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  # Strip ALL config: a copy of the dev store inherits `sync.relay` and the write secret, and one
+  # sync-shaped command would reach the REAL relay (see _copy-store).
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+
+  # a commit, for History
+  "$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" commit "workbench scm fixture" -y >/dev/null 2>&1
+
+  # a branch that diverges from main on one name, so merging it RECORDS a conflict
+  "$PWD/$CLI" branch create wb-scm >/dev/null 2>&1
+  "$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch wb-scm merge wb-scm >/dev/null 2>&1
+
+  # and an uncommitted draft on main, for Changes
+  "$PWD/$CLI" switch main >/dev/null 2>&1
+  "$PWD/$CLI" fn /WbScm.T.draft '() : Int64 = 9L' >/dev/null 2>&1
+
+  expect "$PWD/scripts/testing/fixtures/_workbench-scm.expect" "$PWD/$CLI" "$PWD/$WORK" || exit 1
+
+  # And a QUIET store: commits, no conflict, no draft. Home then selects a commit on open and renders its
+  # detail, which the fixture above never reaches because its conflict is selected first.
+  QUIET="$WORK-quiet"
+  rm -rf "$QUIET"; mkdir -p "$QUIET"
+  scripts/testing/_copy-store "$QUIET/data.db"
+  sqlite3 "$QUIET/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  export DARK_CONFIG_RUNDIR="$PWD/$QUIET"
+  "$PWD/$CLI" fn /WbQuiet.T.only '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" commit "workbench quiet fixture" -y >/dev/null 2>&1
+  exec expect "$PWD/scripts/testing/fixtures/_workbench-quiet.expect" "$PWD/$CLI" "$PWD/$QUIET"
+}
+
+# --- workbench-views: every workbench view, with work in the store ------------------------------
+# A field access resolves at RUNTIME in Dark, so a pane reading a shape that moved underneath it
+# is invisible until there is data to draw (the Conflicts pane once took the whole workbench
+# down). Fill the store first -- draft, commits, a branch, a conflict, traces, an identity --
+# then visit every view on its DEFAULT section. Reaching a non-default section is
+# workbench-scm's job; the two are complementary rather than one subsuming the other.
+gate_workbench_views() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/workbench-views-test
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  # Strip ALL config: a copy of the dev store inherits `sync.relay` and the write secret, and one
+  # sync-shaped command would reach the REAL relay (see _copy-store).
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  run() { "$PWD/$CLI" "$@" >/dev/null 2>&1 || true; }
+
+  # commits, for History and Home's "last commit"
+  run fn /WbV.T.base '() : Int64 = 1L'
+  run commit "workbench views fixture" -y
+
+  # a branch that diverges on one name, merged so a conflict is RECORDED
+  run branch create wbv
+  run --branch wbv fn /WbV.T.base '() : Int64 = 222L'
+  run --branch main fn /WbV.T.base '() : Int64 = 111L'
+  run --branch wbv merge wbv
+  run switch main
+
+  # an uncommitted draft, for Changes and the Home status box
+  run fn /WbV.T.draft '() : Int64 = 9L'
+
+  # a sync identity, so anything reading one has something to read. Note this does NOT unhide Devices:
+  # that view is gated on the ACCOUNT, not the identity, and only for the two people building it.
+  run identity workbench-views-test
+
+  # traces: something has to have RUN for the Traces view to hold anything
+  run eval 'WbV.T.draft ()'
+  run eval 'Stdlib.List.length [ 1L; 2L; 3L ]'
+
+  exec expect "$PWD/scripts/testing/fixtures/_workbench-views.expect" "$PWD/$CLI" "$PWD/$WORK"
+}
+
+# --- lsp-branches: the `dark/*` branch surface, driven as an editor drives it -------------------
+# Nothing else reaches this code: the CLI sweeps drive commands, the F# suite tests the store,
+# and the LSP sits between them, exercised only by a real editor. A dispatcher/handler type
+# mismatch takes the whole server down and no other test notices. Both forms a client
+# legitimately sends are tested: a name a person typed, and an id from `dark/getBranches`.
+gate_lsp_branches() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/lsp-branch-test
+
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  # Strip ALL config: a copy of the dev store inherits `sync.relay` and the write secret, and one
+  # sync-shaped command would reach the REAL relay (see _copy-store).
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  "$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
+  "$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1
+
+  # A branch with an ACTIVE CHILD, which the merge gate refuses. `canMerge` has to ask the gate: answering
+  # "has it changed any names" instead offers the editor a merge the very next request would refuse.
+  "$PWD/$CLI" branch create lsp-parent >/dev/null 2>&1
+  "$PWD/$CLI" --branch lsp-parent fn LspGate.P.f '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch lsp-parent branch create lsp-child >/dev/null 2>&1
+  "$PWD/$CLI" --branch lsp-child fn LspGate.C.f '() : Int64 = 2L' >/dev/null 2>&1
+
+  "$PWD/$CLI" switch main >/dev/null 2>&1
+
+  # A draft on main where propagation moved something behind you: `caller` follows `base`. The wip
+  # summary has to tell the two apart, because an entry propagation wrote looks exactly like one you
+  # authored, and that split is what the draft view is for.
+  "$PWD/$CLI" fn /LspGate.W.base '() : Int64 = 1L' >/dev/null 2>&1
+  "$PWD/$CLI" fn /LspGate.W.caller '() : Int64 = LspGate.W.base ()' >/dev/null 2>&1
+  "$PWD/$CLI" commit "lsp gate base" -y >/dev/null 2>&1
+  "$PWD/$CLI" fn /LspGate.W.base '() : Int64 = 2L' >/dev/null 2>&1
+
+  BRANCH_ID=$(sqlite3 "$WORK/data.db" "SELECT id FROM branches WHERE name = 'lsp-gate' LIMIT 1;")
+  [[ -n "$BRANCH_ID" ]] || fail "could not find the test branch's id"
+
+  req() { local body="$1"; printf 'Content-Length: %d\r\n\r\n%s' "${#body}" "$body"; }
+
+  OUT="$WORK/out.txt"
+  {
+    req '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+    req '{"jsonrpc":"2.0","id":2,"method":"dark/getBranches"}'
+    req '{"jsonrpc":"2.0","id":3,"method":"dark/getCurrentBranch"}'
+    # by NAME
+    req '{"jsonrpc":"2.0","id":4,"method":"dark/switchBranch","params":{"branchId":"lsp-gate"}}'
+    # and by ID
+    req "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"dark/switchBranch\",\"params\":{\"branchId\":\"$BRANCH_ID\"}}"
+    req '{"jsonrpc":"2.0","id":6,"method":"dark/canMerge","params":{"branchId":"lsp-gate"}}'
+    req '{"jsonrpc":"2.0","id":7,"method":"dark/rebaseStatus","params":{"branchId":"lsp-gate"}}'
+    req '{"jsonrpc":"2.0","id":8,"method":"dark/deleteBranch","params":{"branchId":"no-such-branch"}}'
+    # rename: the real thing, the collision, and main
+    req '{"jsonrpc":"2.0","id":9,"method":"dark/renameBranch","params":{"branchId":"lsp-gate","name":"lsp-gate-renamed"}}'
+    req '{"jsonrpc":"2.0","id":10,"method":"dark/renameBranch","params":{"branchId":"main","name":"nope"}}'
+    # by ID PREFIX, which only works because the resolver is shared with the CLI
+    req "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"dark/switchBranch\",\"params\":{\"branchId\":\"${BRANCH_ID:0:8}\"}}"
+    req '{"jsonrpc":"2.0","id":12,"method":"dark/canMerge","params":{"branchId":"lsp-parent"}}'
+    # Back to main first: the switches above moved this session, and the summary describes wherever it
+    # is standing. Asking without this reported lsp-gate's empty draft and read as a wrong answer.
+    req '{"jsonrpc":"2.0","id":13,"method":"dark/switchBranch","params":{"branchId":"main"}}'
+    req '{"jsonrpc":"2.0","id":14,"method":"dark/scm/getWipSummary"}'
+    sleep 3
+  } | timeout 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
+
+  # A type error here does not just fail one request: it takes the server's loop down with it, which is
+  # what made this invisible -- the editor sees a dead process, not a bad response.
+  ! grep -q 'but got' "$OUT" || {
+    grep -o "[A-Za-z.]*'s [a-z0-9]* parameter .* but got [A-Za-z]*" "$OUT" | head -3
+    fail "a handler was called with the wrong type"
+  }
+
+  grep -q '"name":"main"' "$OUT" || fail "getCurrentBranch did not report main by name"
+  grep -q "\"id\":\"$BRANCH_ID\",\"name\":\"lsp-gate\"" "$OUT" \
+    || fail "switchBranch did not resolve the branch to its id and name"
+  grep -q '"canMerge":' "$OUT" || fail "canMerge did not answer"
+  grep -q '"rebaseNeeded":' "$OUT" || fail "rebaseStatus did not answer"
+  grep -q 'no branch' "$OUT" || fail "a bad branch ref did not produce a friendly error"
+
+  # Ids on the wire are uuids, never the bare `main` string or an empty id.
+  grep -q '"id":"00000000-0000-0000-0000-000000000001"' "$OUT" \
+    || fail "main was not reported with its well-known uuid"
+
+  grep -q '"name":"lsp-gate-renamed"' "$OUT" || fail "renameBranch did not rename"
+  grep -q 'trunk; it has no name to change' "$OUT" \
+    || fail "renaming main was not refused with the trunk message"
+  grep -q "\"id\":\"$BRANCH_ID\",\"name\":\"lsp-gate-renamed\"" "$OUT" \
+    || fail "an id PREFIX did not resolve (the resolver shared with the CLI)"
+
+  # canMerge must be the GATE's answer, in the gate's words, or the editor offers a merge that the very
+  # next request refuses.
+  grep -q '"canMerge":false,"reason":"branch has active children' "$OUT" \
+    || fail "canMerge did not refuse a branch with an active child, the way the merge gate does"
+
+  # The wip summary reads the same draft `dark status` does, so it must make the same split.
+  grep -q '"authored":1' "$OUT" || fail "wip summary did not report 1 authored change"
+  grep -q '"followed":1' "$OUT" || fail "wip summary did not report 1 followed change"
+  grep -q '"name":"LspGate.W.caller","itemType":"fn","hash":"[0-9a-f]*","followed":true' "$OUT" \
+    || fail "wip summary did not mark the propagated entry as followed"
+
+  rm -rf "$WORK"
+  echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name."
+}

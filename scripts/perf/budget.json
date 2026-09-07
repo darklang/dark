@@ -3,6 +3,6 @@
   "steady": {
     "debug": 9276664,
     "published": 9103560,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it. Cost history: docs/perf/history.md."
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it (scripts/perf/gate --update). Method and history: docs/perf/history.md."
   }
 }

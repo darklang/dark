@@ -1,0 +1,56 @@
+#!/usr/bin/expect -f
+# Driven by the workbench-scm gate (scripts/testing/_gates-ui), which builds the store.
+set timeout 45
+log_user 0
+
+proc fail {msg} { puts "FAIL: $msg"; exit 1 }
+# Returns what was received up to and including the match. `expect_out` is set in the scope the `expect`
+# ran in, so a caller that wants to look at the text has to be handed it from in here.
+proc want {pattern what} {
+  expect {
+    -re $pattern { puts "  ok: $what"; return $expect_out(buffer) }
+    timeout { fail "timed out waiting for $what" }
+    eof { fail "process exited while waiting for $what" }
+  }
+}
+
+# Give each key a moment to land: a key pressed while a frame is still painting is dropped, and the
+# symptom is the NEXT assertion timing out, not "the key did nothing".
+proc press {key} { sleep 1; send $key }
+
+set exe [lindex $argv 0]
+set env(DARK_CONFIG_RUNDIR) [lindex $argv 1]
+spawn $exe
+
+# Home IS the SCM summary: needs you / uncommitted / recent commits / branches all render on the landing
+# screen, each from its own SCM API (`SCM.Conflicts.pending`, `SCM.Draft.read`, `SCM.Commits.recent`,
+# `SCM.Branch.list`). That makes Home the place to assert the DATA path -- one of those wired wrong takes
+# the workbench down on startup, so the assertions below are as much about the queries as the drawing.
+#
+# The startup marker is the context row, not a greeting: the welcome panel only appears on a genuine first
+# run, and this store has work in it.
+want "instance:" "the workbench on startup"
+
+want "needs you" "Home lists what needs you"
+want "uncommitted" "and the uncommitted work"
+want "WbScm.T.draft" "including the draft item itself"
+want "recent commits" "and the commits"
+want "workbench scm fixtur" "including the one this fixture made (the row is clipped to the pane)"
+want "branches" "and the branches"
+
+# 3 is the Changes view. It must show the draft rather than an empty state.
+press "3"
+want "WbScm.T.draft" "the draft item in the Changes view"
+
+# Sync is an ACTION here, not just a readout: `u` pushes, `d` pulls, through the same registered commands
+# the CLI runs. This store has no relay, so the answer is the one that says so rather than a failed push
+# against an empty url. Watching for it also proves the key is wired at all, which is the part that rots.
+press "u"
+want "(?i)no relay" "u offers to sync and says why it cannot"
+
+# `q`, not Escape: Escape means "step back" inside a view, so it does not leave from here.
+press "q"
+expect {
+  eof { puts "workbench: Home shows real SCM work, Changes lists the draft, and sync is actionable." }
+  timeout { fail "q did not exit the workbench" }
+}

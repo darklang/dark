@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Refuse to ship a binary whose package refs its own seed cannot produce.
+
+A release embeds `rundir/seed.db`; the binary resolves `PackageRefs` by hashes written from the
+STORE. Reload without re-exporting the seed and every command dies with "Function <hash> couldn't
+be found" -- only OUTSIDE the source tree, where no working store answers. This asks directly (not
+by mtime): for each ref hash, the op the fold credited with the binding must be in the seed.
+Unrelated local ops are fine. Exit 0 when every ref is carried, 1 when not, 0-with-note when there
+is nothing to compare (CI publishes from a pre-exported seed with no store).
+"""
+
+import sqlite3
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+STORE = ROOT / "rundir" / "data.db"
+SEED = ROOT / "rundir" / "seed.db"
+REFS = ROOT / "backend" / "src" / "LibExecution" / "package-ref-hashes.txt"
+
+
+def main() -> int:
+    for path, why in ((STORE, "no store to compare against"),
+                      (SEED, "no seed to check"),
+                      (REFS, "no package-ref-hashes.txt")):
+        if not path.exists():
+            print(f"check-seed-carries-refs: skipped ({why}: {path})")
+            return 0
+
+    refs = sorted(
+        {line.split("|", 1)[1].strip()
+         for line in REFS.read_text().splitlines()
+         if "|" in line}
+    )
+    if not refs:
+        print("check-seed-carries-refs: skipped (package-ref-hashes.txt is empty)")
+        return 0
+
+    db = sqlite3.connect(f"file:{STORE}?mode=ro", uri=True)
+    db.execute("ATTACH ? AS seed", (str(SEED),))
+
+    # `locations.op_id` is the op the fold credited with the binding, so it is the op that has to
+    # travel for this hash to mean anything on a fresh store.
+    query = """
+        SELECT count(*) FROM locations l
+        WHERE l.item_hash = ?
+          AND l.op_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM seed.package_ops s WHERE s.id = l.op_id)
+    """
+    missing = [h for h in refs if db.execute(query, (h,)).fetchone()[0] > 0]
+
+    # The seed must carry NO instance state. A seed built on a machine that has a branch ships that
+    # branch, and its `op_owners` rows (hundreds of thousands of them), to every install. `Seed.export`
+    # strips these; this is what holds it to that.
+    dirty = []
+    for table in ("branches", "op_branches", "op_owners", "sync_bases", "config_v0"):
+        try:
+            n = db.execute(f"SELECT count(*) FROM seed.{table}").fetchone()[0]
+        except sqlite3.OperationalError:
+            continue  # a table this build does not have is not instance state
+        if n:
+            dirty.append((table, n))
+
+    # Uncommitted ops are your DRAFT. Whatever you are part-way through when the release is cut
+    # ships to every install and reads as "1 item changed" on someone else's first run.
+    wip = db.execute(
+        "SELECT count(*) FROM seed.package_ops WHERE commit_hash IS NULL"
+    ).fetchone()[0]
+    if wip:
+        dirty.append(("package_ops (uncommitted)", wip))
+
+    if dirty:
+        print(
+            "check-seed-carries-refs: the seed carries this machine's instance state.",
+            file=sys.stderr,
+        )
+        for table, n in dirty:
+            print(f"  {table}: {n} row(s)", file=sys.stderr)
+        print(
+            "\nShipping this hands every install this machine's own state: an uncommitted op reads as\n"
+            "\"1 item changed\" on someone else's first run, and a branch row names work they do not have.\n"
+            "`dark discard` if the draft is scratch, `dark commit` if it is not, then re-export:\n"
+            "  scripts/run-local-exec export-seed rundir/seed.db",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not missing:
+        print(f"check-seed-carries-refs: ok ({len(refs)} refs, all carried by the seed)")
+        return 0
+
+    print(
+        f"check-seed-carries-refs: the seed is missing the ops behind "
+        f"{len(missing)} of {len(refs)} package refs.",
+        file=sys.stderr,
+    )
+    for h in missing[:5]:
+        print(f"  {h}", file=sys.stderr)
+    if len(missing) > 5:
+        print(f"  ... and {len(missing) - 5} more", file=sys.stderr)
+    print(
+        "\nA binary built on this seed dies with \"Function <hash> couldn't be found\" on a fresh\n"
+        "store, and only outside the source tree. Re-export it:\n"
+        "  scripts/run-local-exec export-seed rundir/seed.db",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

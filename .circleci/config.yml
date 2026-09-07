@@ -212,6 +212,12 @@ jobs:
       - run:
           name: Load packages into database
           command: scripts/build/reload-packages
+      # The Release publish embeds rundir/seed.db and refuses to build without one (shipping a
+      # stale seed used to fail only outside the source tree). Locally a seed lingers from past
+      # exports; this fresh workspace must make its own from the store just loaded.
+      - run:
+          name: Export the seed the publish embeds
+          command: scripts/run-local-exec export-seed rundir/seed.db
 
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
 
@@ -228,6 +234,15 @@ jobs:
       - run:
           name: Check the reference workload is within its allocation budget
           command: scripts/perf/gate --published
+
+      # Gate scripts covering what the F# suite structurally cannot: the relay's HTTP surface under
+      # bad input, and the workbench, whose Dark views resolve at RUNTIME (a type error there is
+      # invisible to a green suite). `gates ci` runs the CI subset (relay-routes, workbench-scm,
+      # workbench-views), each in its own process under its own `timeout 5m`, each against its own
+      # rundir (`gates gates-are-clean` asserts that, locally). `gates list` names the rest.
+      - run:
+          name: Gate scripts (the CI subset)
+          command: timeout 15m scripts/testing/gates ci
 
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# A whole first sync, from an empty home, timed. The number a new person actually waits.
+#
+# `sync-phases` measures a FIXED slice (40k ops) and so understates this: insert-and-fold gets slower as
+# the store grows, and a real first sync ends with the whole log in it. Measure both -- this one for the
+# headline, that one for attributing a change to a phase.
+set -euo pipefail
+
+# The relay hostname stays out of the repo (deploy/fly.toml omits it for the same reason).
+[ -n "${RELAY:-}" ] || { echo "set RELAY=<relay url> (the relay you deploy to)" >&2; exit 2; }
+# `CLI=` overrides which published binary is measured, for comparing builds against one relay.
+CLI=${CLI:-$(find "$(dirname "$0")/../../clis" -maxdepth 1 -name 'darklang-alpha-*-linux-x64' \
+  -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)}
+[ -n "$CLI" ] || { echo "no published CLI in clis/" >&2; exit 2; }
+CLI=$(realpath "$CLI")
+WORK=$(realpath "$(dirname "$0")/../../rundir")/first-sync
+RUNS=${RUNS:-1}
+
+HEAD=$(curl -s "$RELAY/sync/head" | python3 -c 'import sys,json;print(json.load(sys.stdin)["count"])')
+echo "relay $RELAY holds $HEAD ops"
+
+for run in $(seq 1 "$RUNS"); do
+  rm -rf "$WORK"; mkdir -p "$WORK"
+
+  # A first run grows the store from the binary's embedded seed before any network call. Timed
+  # separately, because it is not sync and it does not change when sync does.
+  t0=$(python3 -c 'import time;print(time.time())')
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" identity firstsync >/dev/null 2>&1
+  SEED=$(python3 -c "import time;print('%.1f'%(time.time()-$t0))")
+
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" connect "$RELAY" >/dev/null 2>&1 || true
+
+  t0=$(python3 -c 'import time;print(time.time())')
+  OUT=$(DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" pull 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+  PULL=$(python3 -c "import time;print('%.1f'%(time.time()-$t0))")
+
+  NEW=$(grep -oE 'Pulled [0-9]+ new' <<<"$OUT" | grep -oE '[0-9]+' || echo 0)
+  OPS=$(sqlite3 "$WORK/data.db" 'SELECT COUNT(*) FROM package_ops;')
+  PEROP=$(python3 -c "print('%.0f'%(1e6*$PULL/max(1,$NEW)))")
+
+  echo "  run $run: seed ${SEED}s + pull ${PULL}s = $(python3 -c "print('%.1f'%($SEED+$PULL))")s   ${NEW} new ops, store now ${OPS}, ${PEROP}us/op"
+done
+rm -rf "$WORK"

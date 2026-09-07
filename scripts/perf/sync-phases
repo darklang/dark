@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Where a sync pull's time actually goes, and how each phase scales with the number of ops.
+#
+# No instrumentation: the phases are separated by DIFFERENCING three runs over the same range of ops,
+# so what is measured is the real client on the real path.
+#
+#   network            curl the same pages, nothing decoded
+#   + json + decode    a pull whose ops the store ALREADY has: parsed and decoded, then deduped away
+#   + insert + fold    a pull whose ops are new, minus the run above
+#
+# The middle run is the trick. A duplicate pull does everything a fresh one does except write, because
+# `importFrom` still decodes every op to plan conflicts before it discovers it has them.
+set -euo pipefail
+
+# The relay hostname stays out of the repo (deploy/fly.toml omits it for the same reason).
+[ -n "${RELAY:-}" ] || { echo "set RELAY=<relay url> (the relay you deploy to)" >&2; exit 2; }
+CLI=$(find "$(dirname "$0")/../../clis" -maxdepth 1 -name 'darklang-alpha-*-linux-x64' \
+  -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+[ -n "$CLI" ] || { echo "no published CLI in clis/; run scripts/build/build-release-cli-exes.sh" >&2; exit 2; }
+CLI=$(realpath "$CLI")
+WORK=$(realpath "$(dirname "$0")/../../rundir")/sync-phases
+BATCHES=${BATCHES:-"2000 10000 40000 80000"}
+
+HEAD=$(curl -s "$RELAY/sync/head" | python3 -c 'import sys,json;print(json.load(sys.stdin)["count"])')
+INSTANCE=$(curl -s "$RELAY/sync/pull?sinceSeq=0" | python3 -c 'import sys,json;print(json.load(sys.stdin)["owner"])')
+echo "relay $RELAY: $HEAD ops, instance $INSTANCE"
+echo
+
+secs() { python3 -c "import time;print('%.2f'%(time.time()-$1))"; }
+
+setcursor() {  # setcursor <dir> <cursor>
+  sqlite3 "$1/data.db" \
+    "INSERT OR REPLACE INTO config_v0 (key,value) VALUES
+       ('sync.relay','$RELAY'),
+       ('sync.relay-instance.$RELAY','$INSTANCE'),
+       ('sync.cursor.$RELAY','$2');"
+}
+
+clearconfig() { sqlite3 "$1/data.db" 'DELETE FROM config_v0;'; }
+
+echo "startup is measured per batch and subtracted; 'work' is everything after it."
+printf "%8s %10s %7s %9s %9s %9s %9s %9s\n" \
+  ops new startup net json+dec ins+fold work per-op-us
+for K in $BATCHES; do
+  SINCE=$(( HEAD - K ))
+
+  # --- network only: fetch every page in the range, decode nothing
+  t0=$(python3 -c 'import time;print(time.time())')
+  s=$SINCE
+  while [ "$s" -lt "$HEAD" ]; do
+    # `--compressed`, because the real client asks for compression; measuring the uncompressed
+    # transfer here would credit the network phase with bytes no client ever moves.
+    curl -s --compressed -o /dev/null "$RELAY/sync/pull?sinceSeq=$s"
+    s=$(( s + 2000 ))
+  done
+  T_NET=$(secs "$t0")
+
+  # --- a store that does not have these ops yet
+  rm -rf "$WORK"; mkdir -p "$WORK"
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" identity phases >/dev/null 2>&1
+  clearconfig "$WORK"
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" identity phases >/dev/null 2>&1
+  setcursor "$WORK" "$SINCE"
+
+  # Starting the CLI and opening the store, with no network and nothing decoded. Subtracted from both
+  # runs below, or that fixed cost reads as JSON time at small batch sizes.
+  #
+  # NOT a pull with the cursor at the head, which is the obvious way and is wrong here: this store is
+  # behind the relay by design, so asking for nothing past the head is exactly the stale-cursor shape,
+  # and the client correctly rewinds and pulls the whole log.
+  t0=$(python3 -c 'import time;print(time.time())')
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" whoami >/dev/null 2>&1
+  T_BASE=$(secs "$t0")
+
+  t0=$(python3 -c 'import time;print(time.time())')
+  OUT=$(DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" pull 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+  T_FRESH=$(secs "$t0")
+  NEW=$(grep -oE 'Pulled [0-9]+ new' <<<"$OUT" | grep -oE '[0-9]+' || echo 0)
+
+  # --- the same range again: parsed and decoded, then deduped away
+  setcursor "$WORK" "$SINCE"
+  t0=$(python3 -c 'import time;print(time.time())')
+  DARK_CONFIG_RUNDIR="$WORK" HOME="$WORK" "$CLI" pull >/dev/null 2>&1
+  T_DUP=$(secs "$t0")
+
+  JSON=$(python3 -c "print('%.2f'%max(0.0,$T_DUP-$T_BASE-$T_NET))")
+  FOLD=$(python3 -c "print('%.2f'%max(0.0,$T_FRESH-$T_DUP))")
+  WORKTIME=$(python3 -c "print('%.2f'%($T_FRESH-$T_BASE))")
+  PEROP=$(python3 -c "print('%.0f'%(1e6*($T_FRESH-$T_BASE)/$K))")
+  printf "%8s %10s %7s %9s %9s %9s %9s %9s\n" \
+    "$K" "$NEW" "$T_BASE" "$T_NET" "$JSON" "$FOLD" "$WORKTIME" "$PEROP"
+done
+rm -rf "$WORK"

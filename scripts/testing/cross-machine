@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Two REAL machines and a relay: the setup, a smoke, and the shells for the rest.
+#
+# The rest of the two-machine walk is BY HAND, from the notes repo's runbook; scripting the full walk
+# yields more harness failures than product ones. This covers the setup and a smoke proving the two
+# boxes and the relay can talk.
+#
+#   scripts/testing/cross-machine ship  <host>              ship the newest published binary, wipe B's store
+#   scripts/testing/cross-machine smoke <host> <relay-url>  both connect, A authors, B pulls, B evaluates
+#   scripts/testing/cross-machine shells <host> <relay-url> print A() / B() to `source` for the runbook
+#
+# <host> is anything ssh reaches (`framey` over tailscale). The relay is whichever one you deployed
+# (the deployed relay) or one started here (`dark serve --port 9090 Darklang.Matter.router`;
+# then the url is http://<tailscale ip -4>:9090). The write secret is read from rundir/.relay-secret.
+set -euo pipefail
+
+cmd=${1:-}; host=${2:-}; relay=${3:-}
+[[ -n "$cmd" && -n "$host" ]] || { sed -n 2,16p "$0"; exit 2; }
+
+# shellcheck disable=SC2012  # the names are ours, and `ls -t` is the point
+newest() { ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1; }
+secret() { cat rundir/.relay-secret 2>/dev/null || { echo "no rundir/.relay-secret" >&2; exit 2; }; }
+
+# A: this box, its own scratch store, so the walk never touches the dev store. B: the host, its real store.
+A() { DARK_CONFIG_RUNDIR="$PWD/rundir/cross-machine-A" HOME="$PWD/rundir/cross-machine-A/home" "$PWD/$(newest)" "$@"; }
+# The tilde and the arguments are meant for the REMOTE shell; the args are quoted here so they survive it.
+# shellcheck disable=SC2029,SC2088
+B() { ssh "$host" "~/.darklang/bin/dark $(printf '%q ' "$@")"; }
+
+case "$cmd" in
+  ship)
+    bin=$(newest)
+    [[ -n "$bin" ]] || { echo "no published binary in clis/; run scripts/build/build-release-cli-exes.sh" >&2; exit 2; }
+    echo "shipping $bin to $host"
+    ssh "$host" "mkdir -p ~/.darklang/bin"
+    scp "$bin" "$host:~/.darklang/bin/dark"
+    ssh "$host" "chmod +x ~/.darklang/bin/dark; rm -f ~/.darklang/data.db ~/.darklang/data.db-wal ~/.darklang/data.db-shm; ~/.darklang/bin/dark eval '2L + 3L'"
+    mkdir -p rundir/cross-machine-A/home
+    scripts/testing/_copy-store rundir/cross-machine-A/data.db
+    sqlite3 rundir/cross-machine-A/data.db 'DELETE FROM config_v0;'
+    echo "B has a fresh store; A is rundir/cross-machine-A. Next: smoke $host <relay-url>"
+    ;;
+  smoke)
+    [[ -n "$relay" ]] || { echo "smoke needs the relay url" >&2; exit 2; }
+    s=$(secret)
+    echo "== identities"; A whoami; B whoami
+    echo "== connect"; A connect "$relay" --secret "$s" | tail -1; B connect "$relay" --secret "$s" | tail -1
+    n=$RANDOM
+    echo "== A authors, pushes; B pulls, evaluates"
+    A fn "/XM.T.f$n" "() : Int64 = ${n}L" > /dev/null; A commit "cross-machine smoke" -y | tail -1
+    A push | tail -1
+    B pull | tail -1
+    got=$(B eval "XM.T.f$n ()" | tail -1 | tr -d '\r')
+    if [[ "$got" == "$n" ]]; then echo "  ok   B evaluates A's function: $got"; else echo "  FAIL B got: $got"; exit 1; fi
+    echo "== B authors, pushes; A pulls"
+    B fn "/XM.T.g$n" "() : Int64 = $((n + 1))L" > /dev/null; B commit "cross-machine smoke back" -y | tail -1
+    B push | tail -1
+    A pull | tail -1
+    got=$(A eval "XM.T.g$n ()" | tail -1)
+    if [[ "$got" == "$((n + 1))" ]]; then echo "  ok   A evaluates B's function: $got"; else echo "  FAIL A got: $got"; exit 1; fi
+    echo "both directions work. The two-machine runbook in the notes repo takes it from here."
+    ;;
+  shells)
+    [[ -n "$relay" ]] || { echo "shells needs the relay url" >&2; exit 2; }
+    cat <<SH
+# paste into a shell, or: source <(scripts/testing/cross-machine shells $host $relay)
+A() { DARK_CONFIG_RUNDIR="$PWD/rundir/cross-machine-A" HOME="$PWD/rundir/cross-machine-A/home" "$PWD/$(newest)" "\$@"; }
+B() { ssh "$host" "~/.darklang/bin/dark \$(printf '%q ' "\$@")"; }
+RELAY=$relay
+SH
+    ;;
+  *) sed -n 2,16p "$0"; exit 2 ;;
+esac
