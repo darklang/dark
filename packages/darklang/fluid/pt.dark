@@ -1536,7 +1536,9 @@ let matchOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<
                     (matchPatKind "MPEnum")
                     [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
 
-            [ (cands, [ "cases" ]) ]
+            // `cases.pat`: the arm's own pattern, not everything under it. Keyed on `cases` alone, these
+            // were also offered for the FIELDS of a case, which are patterns of a different type entirely.
+            [ (cands, [ "cases.pat" ]) ]
           | _ -> [])
        | None -> [])
   | None -> []

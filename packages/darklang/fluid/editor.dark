@@ -2209,8 +2209,18 @@ let scopeNames (st: State) : List<String> =
 /// Kept separate from the binding walk because an offer needs the scope as it stood WHERE THE OFFERING
 /// NODE SITS -- a match's scrutinee is typed by something above the match, not by the match's own arms.
 let offeredCandidates (st: State) : List<Candidate> =
-  let step (acc: (Slot * List<Binding> * List<Candidate>)) (stp: Step) : (Slot * List<Binding> * List<Candidate>) =
-    let (node, scope, offered) = acc
+  // An offer names a PATH of slots, not one slot: `EMatch` offers its cases into `cases.pat`, the arm's
+  // own pattern, and not into everything underneath it. Keyed on one slot, the cases of the enum being
+  // matched were also offered for the FIELDS of a case -- `Some(⟨field⟩)` suggesting `Some` and `None` --
+  // which are patterns of an entirely different type.
+  //
+  // So each pending offer carries the segments it still has to see. It goes LIVE when there are none
+  // left, for exactly the node that step reached, and is dropped on any further descent.
+  let step
+    (acc: (Slot * List<Binding> * List<(List<String> * List<Candidate>)> * List<Candidate>))
+    (stp: Step)
+    : (Slot * List<Binding> * List<(List<String> * List<Candidate>)> * List<Candidate>) =
+    let (node, scope, pending, _live) = acc
 
     match node with
     | Filled n ->
@@ -2221,40 +2231,61 @@ let offeredCandidates (st: State) : List<Candidate> =
 
       let spec = Registry.find st.reg n.kind
 
-      let visible (groups: List<(List<'a> * List<String>)>) : List<'a> =
-        groups
-        |> Stdlib.List.filter (fun g ->
-          let (_, slots) = g
-          Stdlib.List.member slots slot)
-        |> Stdlib.List.map (fun g ->
-          let (xs, _) = g
-          xs)
-        |> Stdlib.List.flatten
-
       let bound =
         match spec with
-        | Some sp -> visible (sp.binders n)
+        | Some sp ->
+          sp.binders n
+          |> Stdlib.List.filter (fun g ->
+            let (_, slots) = g
+            Stdlib.List.member slots slot)
+          |> Stdlib.List.map (fun g ->
+            let (xs, _) = g
+            xs)
+          |> Stdlib.List.flatten
         | None -> []
 
-      let here =
+      // This node's own offers, as (path segments, candidates).
+      let fresh =
         match spec with
-        | Some sp -> visible (sp.offers scope n)
+        | Some sp ->
+          sp.offers scope n
+          |> Stdlib.List.map (fun g ->
+            let (cs, paths) = g
+            paths |> Stdlib.List.map (fun p -> ((Stdlib.String.split p "."), cs)))
+          |> Stdlib.List.flatten
         | None -> []
 
-      let nextScope = Stdlib.List.append scope bound
-      let nextOffered = Stdlib.List.append offered here
+      let advanced =
+        Stdlib.List.append pending fresh
+        |> Stdlib.List.filterMap (fun o ->
+          let (segs, cs) = o
+
+          match segs with
+          | first :: rest -> if first == slot then Stdlib.Option.Option.Some((rest, cs)) else Stdlib.Option.Option.None
+          | [] -> Stdlib.Option.Option.None)
+
+      let stillPending = advanced |> Stdlib.List.filter (fun o ->
+        let (segs, _) = o
+        Stdlib.Bool.not (Stdlib.List.isEmpty segs))
+
+      let nowLive =
+        advanced
+        |> Stdlib.List.filterMap (fun o ->
+          let (segs, cs) = o
+          if Stdlib.List.isEmpty segs then Stdlib.Option.Option.Some cs else Stdlib.Option.Option.None)
+        |> Stdlib.List.flatten
 
       (match Node.slotAt n stp with
-       | Some child -> (child, nextScope, nextOffered)
-       | None -> (node, nextScope, nextOffered))
-    | _ -> (node, scope, offered)
+       | Some child -> (child, Stdlib.List.append scope bound, stillPending, nowLive)
+       | None -> (node, Stdlib.List.append scope bound, stillPending, nowLive))
+    | _ -> (node, scope, pending, [])
 
   let targetPath =
     match Caret.slotPath st.caret with
     | Some sp -> sp
     | None -> st.caret.node
 
-  let (here, scope, offered) = Stdlib.List.fold targetPath ((st.root, [], [])) step
+  let (here, scope, _pending, offered) = Stdlib.List.fold targetPath ((st.root, [], [], [])) step
 
   // ...and the node the caret is IN, when it is in one of its text slots. The fold only ever asks
   // ANCESTORS, because a slot hole is reached by descending into it; a text slot is not descended into,
@@ -2273,6 +2304,8 @@ let offeredCandidates (st: State) : List<Candidate> =
             let (cs, _) = g
             cs)
           |> Stdlib.List.flatten)
+       // A text slot is not descended into, so an offer that named it is asked for here, and anything
+       // already LIVE for this node stays -- `S` typed into a case's name is still the arm's pattern.
      | None -> offered)
   | _ -> offered
 

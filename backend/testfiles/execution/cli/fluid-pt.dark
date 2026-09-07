@@ -1051,3 +1051,33 @@ module TabFinishesAFieldName =
     "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
   (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Tab>" ]) =
     "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
+
+
+module AnOfferNamesAPathNotASlot =
+  // The cases of the enum being matched were offered for the FIELDS of a case too: inside
+  // `Some(⟨field⟩)`, the menu suggested `Some` and `None`, which are patterns of an entirely different
+  // type. An offer was keyed on one slot name and then inherited by everything under it.
+  //
+  // It names a PATH now -- `cases.pat`, the arm's own pattern -- and each pending offer carries the
+  // segments it has still to see. It goes live for exactly the node that step reached, and is dropped on
+  // any further descent.
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+          70)
+        (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // The arm's own pattern: the cases, then the generic patterns.
+  (AnOfferNamesAPathNotASlot.menu []) = "Some, None, true, false, ()"
+
+  // One level in, the case's field: the generic patterns only. `Some`'s field is not an Option.
+  (AnOfferNamesAPathNotASlot.menu [ "<Enter>" ]) = "true, false, ()"
+
+  // And the offer still reaches the case NAME, which is a text slot on the node the pattern landed on
+  // rather than a hole below it.
+  (AnOfferNamesAPathNotASlot.menu [ "S" ]) = "Some"
