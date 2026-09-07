@@ -145,6 +145,10 @@ type WrapRule =
 /// case that proves it.
 type TextClass =
   | Chars of String
+  /// A first character and then the rest, each its own class. A name is not just "name characters": a
+  /// digit is one of them and a name cannot start with one, and a class applied character by character
+  /// has no way to say so.
+  | Word of (String * String)
   | OneOf of List<String>
 
 /// An action offered on a node (the palette). `run` returns what replaces the node's slot.

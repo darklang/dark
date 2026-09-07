@@ -1398,3 +1398,45 @@ module ATextSlotSaysWhatItHolds =
   // Bools that ARE bools still lower.
   (Fixtures.roundTrip "true") = (Fixtures.printed "true")
   (Fixtures.roundTrip "false") = (Fixtures.printed "false")
+
+
+module TheMergePathAsksTheSameQuestion =
+  // Deleting an infix operator fuses the operands when the joined text is still a literal of that kind.
+  // `mergedTextValid` decided that by writing the digit rule and the identifier rule out a second time,
+  // and its identifier rule had a first-character clause the typing path did not: you could not MERGE
+  // into a name starting with a digit, but you could type one.
+  //
+  // Both ask the slot's declared class now. That needed a third case, because a class applied character
+  // by character cannot say "not that one first" any more than it could say "true or false".
+
+  let msg (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.exprHole ()) 60)
+        keys
+
+    st.message
+
+  // Operands that fuse still fuse, at the seam.
+  (Fixtures.run [ "1", "2", "+", "3", "4", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "12~34"
+  (Fixtures.run [ "f", "o", "o", "+", "b", "a", "r", "<Left>", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "foo~bar"
+  (Fixtures.run [ "a", "b", "+", "c", "d", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "ab~cd"
+
+  // An int and a half-typed name would join into `12tt`, which is not a number, so they do not fuse and
+  // the left operand is kept.
+  (Fixtures.run [ "1", "2", "+", "t", "t", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "12~"
+
+  // The typing side gained the first-character rule it was missing. A digit is a name character, and is
+  // still wrong at the front.
+  (Fixtures.run [ "a", "1" ]) = "a1~"
+  (Fixtures.run [ "a", "b", "<Esc>", "i", "<Home>", "1" ]) = "~ab"
+  (TheMergePathAsksTheSameQuestion.msg [ "a", "b", "<Esc>", "i", "<Home>", "1" ]) = "a name can't start with `1`"
+
+  // Which half turned the character away decides what is said: `(` is not a name character anywhere.
+  (TheMergePathAsksTheSameQuestion.msg [ "x", "(" ]) = "`(` isn't part of a name"
+
+  // A number wants the same shape for a different reason: it may open with a sign and may not carry one
+  // anywhere else. Asking the whole text rather than the character is what turned this up -- `-5` has a
+  // character in it that is not a digit, and a digits-only class rejected the whole literal.
+  (Fixtures.run [ "-", "5" ]) = "-5~"
+  (Fixtures.run [ "1", "2", "-", "3" ]) = "12 - 3~"

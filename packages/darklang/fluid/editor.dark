@@ -915,6 +915,10 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   elif onChar == "<digit>" then TextEdit.isDigitString c
   elif onChar == "<letter>" then TextEdit.isLetterString c
   elif onChar == "<identifier>" then isIdentifierChar c
+  elif onChar == "<nameStart>" then (TextEdit.isLetterString c) || (c == "_")
+  // A number may open with a sign and may not carry one anywhere else, which is the same shape a name
+  // has: a first character with its own class.
+  elif onChar == "<numberStart>" then (TextEdit.isDigitString c) || (c == "-")
   elif onChar == "<operator>" then isOperatorChar syn c
   // Enter is not a character anyone types into text, but it IS a thing a spec should be able to claim:
   // in Darklang a newline after a finished expression starts the next statement. Named like the other
@@ -1717,12 +1721,45 @@ let mergeSlotOf (n: Node) : Stdlib.Option.Option<String> =
 let isIdentifierChar (c: String) : Bool =
   (TextEdit.isLetterString c) || (TextEdit.isDigitString c) || (c == "_")
 
-/// What a class is called when a character is turned away from it.
+/// What a class is called when text is turned away from it.
 let classDescription (cls: String) : String =
   if cls == "<digit>" then "a number"
+  elif cls == "<numberStart>" then "a number"
   elif cls == "<identifier>" then "a name"
+  elif cls == "<nameStart>" then "a name"
   elif cls == "<letter>" then "a word"
   else cls
+
+/// The class a node's slot declares, if it declares one.
+let textClassOf (reg: Registry) (k: Kind) (slot: String) : Stdlib.Option.Option<TextClass> =
+  match Registry.findExact reg k with
+  | Some spec ->
+    spec.textClasses
+    |> Stdlib.List.findFirst (fun pair ->
+      let (s, _) = pair
+      s == slot)
+    |> Stdlib.Option.map (fun pair ->
+      let (_, c) = pair
+      c)
+  | None -> Stdlib.Option.Option.None
+
+/// Whether `t` is text this class allows.
+///
+/// `partial` is the difference between typing and merging. Typing asks about text you are still in the
+/// middle of, so half a keyword is fine; merging asks whether the finished literal is one, so it is not.
+/// For the other two classes every prefix of something valid is valid, and the two answers coincide.
+let textFits (reg: Registry) (cls: TextClass) (t: String) (partial: Bool) : Bool =
+  match cls with
+  | Chars klass -> Stdlib.String.toList t |> Stdlib.List.all (fun g -> charClassMatches reg.syntax klass (Stdlib.Char.toString g))
+  | Word((firstKlass, restKlass)) ->
+    (match Stdlib.String.toList t with
+     | [] -> true
+     | first :: rest ->
+       (charClassMatches reg.syntax firstKlass (Stdlib.Char.toString first))
+       && (rest |> Stdlib.List.all (fun g -> charClassMatches reg.syntax restKlass (Stdlib.Char.toString g))))
+  | OneOf words ->
+    if partial then words |> Stdlib.List.any (fun w -> Stdlib.String.startsWith w t)
+    else words |> Stdlib.List.any (fun w -> w == t)
 
 /// Why a text slot can't hold `c`, if it can't. There is more than one place that inserts into a slot --
 /// a field name after `.` goes through the wrap path, not the plain one -- so the rule lives here and both
@@ -1730,36 +1767,32 @@ let classDescription (cls: String) : String =
 /// guarded.
 ///
 /// The kernel used to carry two lists of PT kinds to answer this: which kinds have digit slots, and which
-/// have name slots. It reads the spec now. `next` is the text the slot WOULD hold, which a per-character
-/// class does not need and a keyword slot does.
+/// have name slots. It reads the spec now. The question is asked of `next`, the text the slot WOULD hold,
+/// rather than of the character alone, because where a character sits is part of whether it belongs.
 let textSlotRejection (reg: Registry) (n: Node) (slot: String) (c: String) (next: String) : Stdlib.Option.Option<String> =
-  let cls =
-    match Registry.findExact reg n.kind with
-    | Some spec ->
-      spec.textClasses
-      |> Stdlib.List.findFirst (fun pair ->
-        let (s, _) = pair
-        s == slot)
-      |> Stdlib.Option.map (fun pair ->
-        let (_, k) = pair
-        k)
-    | None -> Stdlib.Option.Option.None
-
-  match cls with
-  | Some(Chars klass) ->
-    if charClassMatches reg.syntax klass c then
+  match textClassOf reg n.kind slot with
+  | Some cls ->
+    if textFits reg cls next true then
       Stdlib.Option.Option.None
     else
-      Stdlib.Option.Option.Some $"`{c}` isn't part of {classDescription klass}"
+      (match cls with
+       | Chars klass -> Stdlib.Option.Option.Some $"`{c}` isn't part of {classDescription klass}"
+       // Which half turned it away decides what to say. A `(` is not a name character at all; a digit is
+       // one, and is only wrong where it landed.
+       | Word((firstKlass, restKlass)) ->
+         let startsIt =
+           match Stdlib.String.toList next with
+           | first :: _ -> (Stdlib.Char.toString first) == c
+           | [] -> false
 
-  // A keyword slot stays a keyword the whole way in: `t`, `tr`, `tru`, `true` are all prefixes, `trueL`
-  // is not. Typing a letter after `true` used to be accepted, and `fromDoc` then read the result as
-  // `false` without a word.
-  | Some(OneOf words) ->
-    if words |> Stdlib.List.any (fun w -> Stdlib.String.startsWith w next) then
-      Stdlib.Option.Option.None
-    else
-      Stdlib.Option.Option.Some $"`{c}` doesn't make {Stdlib.String.join words " or "}"
+         if startsIt && (Stdlib.Bool.not (charClassMatches reg.syntax firstKlass c)) then
+           Stdlib.Option.Option.Some $"{classDescription firstKlass} can't start with `{c}`"
+         else
+           Stdlib.Option.Option.Some $"`{c}` isn't part of {classDescription restKlass}"
+       // A keyword slot stays a keyword the whole way in: `t`, `tr`, `tru`, `true` are all prefixes,
+       // `trueL` is not. Typing a letter after `true` used to be accepted, and `fromDoc` then read the
+       // result as `false` without a word.
+       | OneOf words -> Stdlib.Option.Option.Some $"`{c}` doesn't make {Stdlib.String.join words " or "}")
 
   | None -> Stdlib.Option.Option.None
 
@@ -1775,24 +1808,19 @@ let operandMerge (s: Slot) : Stdlib.Option.Option<(Stdlib.Option.Option<Kind> * 
   | Partial(t, _) -> Stdlib.Option.Option.Some((Stdlib.Option.Option.None, Stdlib.Option.Option.None, t))
   | Empty _ -> Stdlib.Option.Option.None
 
-/// Whether concatenated text is a valid literal of this kind: an int must stay all digits, a variable a
-/// well-formed identifier. Guards against merging `1` with a half-typed name into a bogus int `1t`.
-let mergedTextValid (k: Kind) (t: String) : Bool =
+/// Whether concatenated text is a valid literal of this kind. Guards against merging `1` with a
+/// half-typed name into a bogus int `1t`, or `1` and `x` into a variable called `1x`.
+///
+/// This wrote out the digit rule and the identifier rule a second time, and had the first-character rule
+/// the typing path did not. Both ask the slot what it holds now, so the two paths agree because they are
+/// the same question rather than because someone kept them in step.
+let mergedTextValid (reg: Registry) (k: Kind) (slot: String) (t: String) : Bool =
   if t == "" then
     false
   else
-    let chars = Stdlib.String.toList t
-    match k.case with
-    | Some "EInt" -> chars |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c)
-    | Some "EInt64" -> chars |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c)
-    | Some "EVariable" ->
-      let firstOk =
-        match Stdlib.List.head chars with
-        | Some c -> (Stdlib.Char.isLetter c) || ((Stdlib.Char.toString c) == "_")
-        | None -> false
-      firstOk
-      && (chars |> Stdlib.List.all (fun c -> (Stdlib.Char.isAlphanumeric c) || ((Stdlib.Char.toString c) == "_")))
-    | _ -> false
+    match textClassOf reg k slot with
+    | Some cls -> textFits reg cls t false
+    | None -> false
 
 /// Deleting the operator collapses an infix. Compatible operands merge into one leaf (`12 + 34` -> `1234`,
 /// `foo + bar` -> `foobar`, the join under the caret); incompatible ones don't (`true + false` -> `true`,
@@ -1800,7 +1828,7 @@ let mergedTextValid (k: Kind) (t: String) : Bool =
 /// Two operand slots joined into one leaf, with the caret offset at the seam, when they're compatible:
 /// `12`/`34` -> `1234` at 2, `foo`/`bar` -> `foobar`. None when they don't fuse -- differing kinds (an
 /// int and a bool), two kindless partials, or text that wouldn't parse as the target (`1` and `t`).
-let mergeSlots (a: Slot) (b: Slot) : Stdlib.Option.Option<(Node * Int)> =
+let mergeSlots (reg: Registry) (a: Slot) (b: Slot) : Stdlib.Option.Option<(Node * Int)> =
   match (operandMerge a, operandMerge b) with
   | (Some((ak, asn, at_)), Some((bk, bsn, bt))) ->
     let kind = if Stdlib.Option.isSome ak then ak else bk
@@ -1812,7 +1840,7 @@ let mergeSlots (a: Slot) (b: Slot) : Stdlib.Option.Option<(Node * Int)> =
     match (kind, sn) with
     | (Some k, Some slotName) ->
       let joined = at_ ++ bt
-      if kindsAgree && (mergedTextValid k joined) then
+      if kindsAgree && (mergedTextValid reg k slotName joined) then
         Stdlib.Option.Option.Some((Node.make k [ (slotName, Field.Text joined) ], Stdlib.String.length at_))
       else
         Stdlib.Option.Option.None
@@ -1834,7 +1862,7 @@ let collapseInfix (st: State) (p: Path) (n: Node) : State =
     match s with
     | Empty _ -> false
     | _ -> true
-  match mergeSlots leftSlot rightSlot with
+  match mergeSlots st.reg leftSlot rightSlot with
   | Some((merged, off)) ->
     let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
     let st1 = commit st [ Edit.Replace(p, Slot.Filled merged) ] st.caret
@@ -1923,7 +1951,7 @@ let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
                 if Stdlib.Bool.not atStart then
                   Stdlib.Option.Option.None
                 else
-                  match mergeSlots prev cur with
+                  match mergeSlots st.reg prev cur with
                   | Some((merged, off)) ->
                     let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
                     let prevPath = Path.item parentPath slot (i - 1)

@@ -1831,16 +1831,16 @@ let moreSpecs () : List<Spec> =
     caseSpec ()
     Spec.withTextClasses
       (simpleOf (matchPatKind "MPVariable") [ Piece.Text("name", Layout.Style.Name) ] (Node.make (matchPatKind "MPVariable") [ text "name" "" ]))
-      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
+      [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     simpleOf (matchPatKind "MPUnit") [ Piece.Label "()" ] (Node.make (matchPatKind "MPUnit") [])
     simpleOf (matchPatKind "MPBool") [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
     Spec.withTextClasses
       (simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ]))
-      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
     simpleOf (matchPatKind "MPInt64") [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (matchPatKind "MPInt64") [ text "digits" "" ])
     Spec.withTextClasses
       (simpleOf (matchPatKind "MPFloat") [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ] (Node.make (matchPatKind "MPFloat") [ text "whole" "", text "fraction" "" ]))
-      [ ("whole", Darklang.Fluid.TextClass.Chars "<digit>"), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
+      [ ("whole", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
     simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
     simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
@@ -1915,7 +1915,7 @@ let moreSpecs () : List<Spec> =
     Spec.withOffers
       (Spec.withTextClasses
         (simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ]))
-        [ ("field", Darklang.Fluid.TextClass.Chars "<identifier>") ])
+        [ ("field", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ])
       fieldAccessOffers
     simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
@@ -1935,16 +1935,16 @@ let baseSpecs () : List<Spec> =
       (Spec.withWrapRules
         (simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ]))
         [ WrapRule { onChar = "L"; wrap = intToInt64; opSlot = ""; nextSlot = "" } ])
-      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
     Spec.withTextClasses
       (simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ]))
-      [ ("digits", Darklang.Fluid.TextClass.Chars "<digit>") ]
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
     Spec.withTextClasses
       (simpleExpr
         "EFloat"
         [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
         (Node.make (exprKind "EFloat") [ text "whole" "", text "fraction" "" ]))
-      [ ("whole", Darklang.Fluid.TextClass.Chars "<digit>"), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
+      [ ("whole", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleExpr "EChar" [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
     simpleExpr "EString" [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
     simpleExpr
@@ -1965,7 +1965,7 @@ let baseSpecs () : List<Spec> =
       (tupleFromParen "(" (exprExpect "item"))
     Spec.withTextClasses
       (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
-      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
+      [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     simpleExpr
       "ELet"
       [ Piece.Keyword "let"
@@ -2020,7 +2020,7 @@ let baseSpecs () : List<Spec> =
     simpleLetPat "LPWildcard" [ Piece.Label "_" ] (Node.make (letPatKind "LPWildcard") [])
     Spec.withTextClasses
       (simpleLetPat "LPVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (letPatKind "LPVariable") [ text "name" "" ]))
-      [ ("name", Darklang.Fluid.TextClass.Chars "<identifier>") ]
+      [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     // `simpleLetPat`, not `simpleExpr`. Registered under the EXPRESSION kind, this spec was never found
     // for a LetPattern node, so `let (a, b) = t` drew as `let ?pattern = t`: a tuple destructuring you
     // could not see or edit. The pattern survived a save (it is carried whole), so nothing was lost -- it
