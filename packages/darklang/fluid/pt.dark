@@ -1490,115 +1490,85 @@ let wrapStatement (n: Node) (c: String) : Node =
 ///
 /// An MPEnum carries only a case NAME, no type, so a wrong guess can only produce a worse menu -- never a
 /// wrong program. That is what makes reading the declared type good enough, without inference.
+/// The hash of the custom type an EXPRESSION node is declared to be, when the document says so.
+///
+/// A variable's type comes from scope, where the binder declared one. A field access asks the same
+/// question of its target and then reads the field's declared type off the store. That recursion is the
+/// point: you rarely match on a bare parameter, you match on `t.status`, and while this only looked at a
+/// variable the answer for anything else was nothing.
+///
+/// It stops where the document stops knowing. Nothing here infers.
+let typeHashOfExpr (scope: List<Binding>) (n: Node) : Stdlib.Option.Option<String> =
+  match n.kind.case with
+  | Some "EVariable" ->
+    (match scope |> Stdlib.List.findFirst (fun b -> b.name == (textOf n "name")) with
+     | Some b ->
+       (match b.typ with
+        | Some t ->
+          if t.kind == Types.typeKind "TCustomType" then
+            (match textOf t "_hash" with
+             | "" -> Stdlib.Option.Option.None
+             | h -> Stdlib.Option.Option.Some h)
+          else
+            Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None)
+     | None -> Stdlib.Option.Option.None)
+
+  | Some "ERecordFieldAccess" ->
+    (match Node.slot n "record" with
+     | Some(Filled target) ->
+       (match typeHashOfExpr scope target with
+        | Some h ->
+          (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+           | Some t ->
+             (match t.declaration.definition with
+              | Record fields ->
+                (match fields |> Stdlib.List.findFirst (fun f -> f.name == (textOf n "field")) with
+                 | Some f ->
+                   (match f.typ with
+                    | TCustomType(nr, _) ->
+                      (match typeHashOf nr with
+                       | "" -> Stdlib.Option.Option.None
+                       | fh -> Stdlib.Option.Option.Some fh)
+                    | _ -> Stdlib.Option.Option.None)
+                 | None -> Stdlib.Option.Option.None)
+              | _ -> Stdlib.Option.Option.None)
+           | None -> Stdlib.Option.Option.None)
+        | None -> Stdlib.Option.Option.None)
+     | _ -> Stdlib.Option.Option.None)
+
+  | _ -> Stdlib.Option.Option.None
+
+/// The hash of the custom type the node in `slot` is declared to be.
+let typeHashOfSlot (scope: List<Binding>) (n: Node) (slot: String) : Stdlib.Option.Option<String> =
+  match Node.slot n slot with
+  | Some(Filled c) -> typeHashOfExpr scope c
+  | _ -> Stdlib.Option.Option.None
+
 let matchOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
-  let scrutineeName =
-    match Node.slot n "arg" with
-    | Some(Filled a) ->
-      if a.kind.case == Stdlib.Option.Option.Some "EVariable" then
-        Stdlib.Option.Option.Some(textOf a "name")
-      else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None
-
-  let typeHash =
-    match scrutineeName with
-    | Some nm ->
-      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
-       | Some b ->
-         (match b.typ with
-          | Some t ->
-            if t.kind == Types.typeKind "TCustomType" then
-              Stdlib.Option.Option.Some(textOf t "_hash")
-            else
-              Stdlib.Option.Option.None
-          | None -> Stdlib.Option.Option.None)
-       | None -> Stdlib.Option.Option.None)
-    | None -> Stdlib.Option.Option.None
-
-  match typeHash with
+  match typeHashOfSlot scope n "arg" with
   | Some h ->
-    if h == "" then
-      []
-    else
-      (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
-       | Some t ->
-         (match t.declaration.definition with
-          | Enum cases ->
-            let cands =
-              cases
-              |> Stdlib.List.map (fun c ->
-                let fieldSlots = c.fields |> Stdlib.List.map (fun _ -> Slot.Empty(matchPatExpect "field"))
+    (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+     | Some t ->
+       (match t.declaration.definition with
+        | Enum cases ->
+          let cands =
+            cases
+            |> Stdlib.List.map (fun c ->
+              let fieldSlots = c.fields |> Stdlib.List.map (fun _ -> Slot.Empty(matchPatExpect "field"))
 
-                Spec.contextCandidate
-                  c.name
-                  "case"
-                  (Node.make
-                    (matchPatKind "MPEnum")
-                    [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
+              Spec.contextCandidate
+                c.name
+                "case"
+                (Node.make
+                  (matchPatKind "MPEnum")
+                  [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
 
-            // `cases.pat`: the arm's own pattern, not everything under it. Keyed on `cases` alone, these
-            // were also offered for the FIELDS of a case, which are patterns of a different type entirely.
-            [ (cands, [ "cases.pat" ]) ]
-          | _ -> [])
-       | None -> [])
-  | None -> []
-
-/// The fields of the record the target is declared to be, as whole field accesses.
-///
-/// Same three facts as a match's cases, one node over: the access knows its target is a variable, scope
-/// knows what that variable was declared as, and the store knows that type's fields. Typing `r.` used to
-/// leave you spelling the field name from memory.
-///
-/// A field name is TEXT on this node rather than a hole in the tree, so each candidate carries the whole
-/// access with the name filled in, and committing replaces the node.
-let fieldAccessOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
-  let targetName =
-    match Node.slot n "record" with
-    | Some(Filled r) ->
-      if r.kind.case == Stdlib.Option.Option.Some "EVariable" then
-        Stdlib.Option.Option.Some(textOf r "name")
-      else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None
-
-  let typeHash =
-    match targetName with
-    | Some nm ->
-      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
-       | Some b ->
-         (match b.typ with
-          | Some t ->
-            if t.kind == Types.typeKind "TCustomType" then
-              Stdlib.Option.Option.Some(textOf t "_hash")
-            else
-              Stdlib.Option.Option.None
-          | None -> Stdlib.Option.Option.None)
-       | None -> Stdlib.Option.Option.None)
-    | None -> Stdlib.Option.Option.None
-
-  match typeHash with
-  | Some h ->
-    if h == "" then
-      []
-    else
-      (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
-       | Some t ->
-         (match t.declaration.definition with
-          | Record fields ->
-            let cands =
-              fields
-              |> Stdlib.List.map (fun f ->
-                Spec.contextCandidate
-                  f.name
-                  "field"
-                  (Node.make
-                    (exprKind "ERecordFieldAccess")
-                    [ ("record", Node.field n "record" |> Stdlib.Option.withDefault (Field.One(Slot.Empty(exprExpect "record"))))
-                      text "field" f.name ]))
-
-            [ (cands, [ "field" ]) ]
-          | _ -> [])
-       | None -> [])
+          // `cases.pat`: the arm's own pattern, not everything under it. Keyed on `cases` alone, these
+          // were also offered for the FIELDS of a case, which are patterns of a different type entirely.
+          [ (cands, [ "cases.pat" ]) ]
+        | _ -> [])
+     | None -> [])
   | None -> []
 
 /// The fields of the record type behind `hash`, as whole record-fields, minus the ones already named in
@@ -1608,24 +1578,21 @@ let fieldAccessOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> *
 /// you get the field twice. Changing a field still offers its own name, because `c` cleared it first and
 /// it is no longer among the taken.
 let fieldCandidatesFor (hash: String) (taken: List<String>) : List<Candidate> =
-  if hash == "" then
-    []
-  else
-    match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash hash) with
-    | Some t ->
-      (match t.declaration.definition with
-       | Record fields ->
-         fields
-         |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.member taken f.name))
-         |> Stdlib.List.map (fun f ->
-           Spec.contextCandidate
-             f.name
-             "field"
-             (Node.make
-               (Kind.named recordFieldType)
-               [ text "name" f.name, ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
-       | _ -> [])
-    | None -> []
+  match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash hash) with
+  | Some t ->
+    (match t.declaration.definition with
+     | Record fields ->
+       fields
+       |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.member taken f.name))
+       |> Stdlib.List.map (fun f ->
+         Spec.contextCandidate
+           f.name
+           "field"
+           (Node.make
+             (Kind.named recordFieldType)
+             [ text "name" f.name, ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
+     | _ -> [])
+  | None -> []
 
 /// The names a record node's field list already uses.
 let namesTaken (n: Node) (slot: String) : List<String> =
@@ -1640,52 +1607,51 @@ let namesTaken (n: Node) (slot: String) : List<String> =
 /// A record LITERAL knows its own type: the hash is on the node, so there is no scope to consult. This is
 /// the one of the four that needs nothing but itself.
 let recordLiteralOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
-  match fieldCandidatesFor (textOf n "_typeHash") (namesTaken n "fields") with
-  | [] -> []
-  | cands -> [ (cands, [ "fields.name", "fields" ]) ]
+  match textOf n "_typeHash" with
+  | "" -> []
+  | h ->
+    (match fieldCandidatesFor h (namesTaken n "fields") with
+     | [] -> []
+     | cands -> [ (cands, [ "fields.name", "fields" ]) ])
 
-/// The fields of the record being updated, as whole update-fields.
+/// The fields of the record being updated.
 ///
-/// `{ s with ⟨name⟩ = ... }` made you spell the field from memory, the same way `s.` did before it knew.
-/// Offered into `updates.name`, which is a TEXT slot on the field rather than a hole in the tree, so each
-/// candidate carries the field with the name filled in and the VALUE it already had.
+/// Two shapes reach the same place. `updates.name` is the field's NAME, for when there is a field there
+/// and you are retyping what it is called. `updates` is the field ITSELF, for when the slot is a hole --
+/// which is what `c` on an existing update leaves you with, and the more common way in.
 let recordUpdateOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
-  let targetName =
-    match Node.slot n "record" with
-    | Some(Filled r) ->
-      if r.kind.case == Stdlib.Option.Option.Some "EVariable" then
-        Stdlib.Option.Option.Some(textOf r "name")
-      else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None
-
-  let typeHash =
-    match targetName with
-    | Some nm ->
-      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
-       | Some b ->
-         (match b.typ with
-          | Some t ->
-            if t.kind == Types.typeKind "TCustomType" then
-              Stdlib.Option.Option.Some(textOf t "_hash")
-            else
-              Stdlib.Option.Option.None
-          | None -> Stdlib.Option.Option.None)
-       | None -> Stdlib.Option.Option.None)
-    | None -> Stdlib.Option.Option.None
-
-  match typeHash with
+  match typeHashOfSlot scope n "record" with
   | Some h ->
-    if h == "" then
-      []
-    else
-      // Two shapes reach the same place. `updates.name` is the field's NAME, for when there is a field
-      // there and you are retyping what it is called. `updates` is the field ITSELF, for when the slot is
-      // a hole -- which is what `c` on an existing update leaves you with, and the more common way in:
-      // you are changing an update that is already there.
-      (match fieldCandidatesFor h (namesTaken n "updates") with
-       | [] -> []
-       | cands -> [ (cands, [ "updates.name", "updates" ]) ])
+    (match fieldCandidatesFor h (namesTaken n "updates") with
+     | [] -> []
+     | cands -> [ (cands, [ "updates.name", "updates" ]) ])
+  | None -> []
+
+/// The fields of the record the target is declared to be, as whole field accesses.
+///
+/// A field name is TEXT on this node rather than a hole in the tree, so each candidate carries the whole
+/// access with the name filled in, and committing replaces the node.
+let fieldAccessOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
+  match typeHashOfSlot scope n "record" with
+  | Some h ->
+    (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+     | Some t ->
+       (match t.declaration.definition with
+        | Record fields ->
+          let cands =
+            fields
+            |> Stdlib.List.map (fun f ->
+              Spec.contextCandidate
+                f.name
+                "field"
+                (Node.make
+                  (exprKind "ERecordFieldAccess")
+                  [ ("record", Node.field n "record" |> Stdlib.Option.withDefault (Field.One(Slot.Empty(exprExpect "record"))))
+                    text "field" f.name ]))
+
+          [ (cands, [ "field" ]) ]
+        | _ -> [])
+     | None -> [])
   | None -> []
 
 let exprSummary (n: Node) : String =

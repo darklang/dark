@@ -1019,6 +1019,9 @@ module TypingAPatternCaseCompletes =
       70
       (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
 
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
   let menu (extra: List<String>) : String =
     let st =
       Darklang.Fluid.Test.drive
@@ -1061,6 +1064,9 @@ module AnOfferNamesAPathNotASlot =
   // It names a PATH now -- `cases.pat`, the arm's own pattern -- and each pending offer carries the
   // segments it has still to see. It goes live for exactly the node that step reached, and is dropped on
   // any further descent.
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
   let menu (extra: List<String>) : String =
     let st =
       Darklang.Fluid.Test.drive
@@ -1218,6 +1224,9 @@ module ARecordLiteralOffersItsFields =
   // Build `Stdlib.Cli.Tui.Size { width = 80; height = 24 }` by completion, then leave INSERT.
   let built () : List<String> = [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]
 
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
   let menu (extra: List<String>) : String =
     let st =
       Darklang.Fluid.Test.drive
@@ -1242,3 +1251,59 @@ module ARecordLiteralOffersItsFields =
 
   // Adding a THIRD field to a record that has both offers nothing, which is the truth: `Size` has two.
   (ARecordLiteralOffersItsFields.menu [ "h", "l", "l", "i", "<End>", ";" ]) = ""
+
+
+module MatchingOnAFieldOffersToo =
+  // `match t.status with` offered nothing. The scrutinee's type was only ever read off a VARIABLE, and
+  // you rarely match on a bare parameter -- you match on a field of one.
+  //
+  // The resolver asks the same question of a field access that it asks of a variable: what is the target
+  // declared to be, then what is this field declared to be. It recurses, so `a.b.c` works, and it stops
+  // where the document stops knowing. Nothing here infers.
+  let optionsType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Cli.AI.Agent.AgentOptions"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "AgentOptions" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "describe"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "o")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+                  { name = "o"; typ = MatchingOnAFieldOffersToo.optionsType (); description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            description = "" }))
+
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (MatchingOnAFieldOffersToo.doc ()) 70)
+        (Stdlib.List.append (MatchingOnAFieldOffersToo.baseKeys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // The record's fields, offered for the scrutinee's field name.
+  (Stdlib.String.contains (MatchingOnAFieldOffersToo.menu []) "writeMode") = true
+
+  // Pick `writeMode` and Tab to the pattern: the cases of the enum THAT FIELD is declared to be.
+  (MatchingOnAFieldOffersToo.menu [ "w", "r", "i", "<Enter>", "<Tab>" ]) =
+    "Allowed, Confirm, Denied, true, false, ()"
