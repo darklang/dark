@@ -1,0 +1,27 @@
+# The matter relay as a deployable image: one published binary and its runtime -- NOT the dev
+# container. The binary embeds the package seed, so a redeploy is safe: the store on the volume
+# survives and is topped up, and the relay's code comes from the binary, never from a client push.
+#
+# Build: publish inside the dev container, `docker cp` the output to rundir/deploy/, copy this file
+# into that payload, then `fly deploy` it with the app name passed at the command line.
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble
+
+RUN useradd --create-home --shell /bin/bash dark
+WORKDIR /home/dark
+
+# The whole publish output, not just the exe: it is self-contained apart from these.
+COPY --chown=dark:dark . /home/dark/bin/
+
+# The store lives on the volume. Nothing else here is worth keeping across a deploy.
+ENV DARK_CONFIG_RUNDIR=/data
+RUN mkdir -p /data && chown dark:dark /data
+VOLUME /data
+
+USER dark
+
+# 9090 inside, always. Fly maps 443 to it.
+EXPOSE 9090
+
+# `serve` resolves the router out of the package store, so the store has to exist first -- which the
+# binary does for itself on startup.
+CMD ["/home/dark/bin/Cli", "serve", "--port", "9090", "Darklang.Matter.router"]

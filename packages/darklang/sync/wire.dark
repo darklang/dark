@@ -1,0 +1,542 @@
+// Lives in sync/ because sync sits ON TOP of SCM; the module name is unchanged.
+module Darklang.SCM.Wire
+
+// The WIRE: how ops leave this store and arrive in another, over a relay or through a file.
+//
+// A wire record is the op blob (hex-encoded, since the binary IS the content), its id, and its origin_ts.
+// The stamp has to survive the wire or two instances stop converging on the same winner.
+//
+// Separate from `SCM.PackageOps` because this is a CONTRACT rather than an implementation detail: a peer
+// depends on these shapes, so they change on a version bump, while the log queries beside them are free to
+// be rewritten whenever. File-based here; the matter relay reuses these records over HTTP.
+
+type SyncOp =
+  { id: String
+    blobHex: String
+    ts: String
+    /// WHO wrote this op, as the sender knows it. "" when the sender genuinely does not know -- an op
+    /// imported from a file has no owner to report.
+    author: String
+    /// The commit the op belongs to where it was authored, or "" for one never committed there. Carried
+    /// so the receiver files the op under the author's commit rather than under its own "synced from"
+    /// one; the bundle's `commits` has the row. Same rule a branch bundle's ops follow.
+    commit: String }
+
+/// Bump when the SyncOp / SyncBundle shape changes, so a reader can reject what it can't understand rather
+/// than half-parse it. `wireDecode` reads exactly this version and refuses anything else.
+val currentWireVersion = 1L
+
+/// The self-describing envelope for the wire + files: which format version this is, who produced it, the
+/// Dark build that made it (informational), and the ops. Every export/push is a bundle; every import/pull
+/// checks the version first.
+///
+/// `owner` is load-bearing. Conflict detection asks what this SOURCE and I last agreed on, which needs a
+/// stable sender identity. A relay url is one; a file path is not, since every export writes a new
+/// filename and each import would look like a brand-new peer with no history. "" when the sender has no
+/// identity set.
+type SyncBundle =
+  { formatVersion: Int64
+    /// The git sha that wrote this. Says which COMMIT, not what it can be read by.
+    darkBuild: String
+    /// A fingerprint of the pinned ABI: the PT shapes and hashing that produced this. The field that answers
+    /// "can my build read this bundle", which a git sha can't -- two commits can share an ABI, and a one-line
+    /// change to a kernel type can break it.
+    kernelHash: String
+    /// WHICH INSTANCE sent them. Provenance, not authorisation.
+    owner: String
+    /// The SERVER's position after these ops -- what the client should send back as `sinceSeq` next time.
+    /// 0 from a file export, which has no server and no position.
+    cursor: Int64
+    ops: List<SyncOp>
+    /// The commit rows the ops name (`SyncOp.commit`), so a receiver can show the author's message
+    /// under the author's name. Rows only, no chain: a commit's parent may be one this receiver never
+    /// sees, and `dark commits` lists rows, it does not walk.
+    commits: List<PackageOps.BranchBundleCommit> }
+
+/// Turn op-log rows (id, op_blob, ts) into wire records. Shared by the export variants.
+let rowsToSyncOps (rows: List<Dict<String, Stdlib.Sqlite.Value>>) : List<SyncOp> =
+  rows
+  |> Stdlib.List.filterMap (fun row ->
+    match
+      (Stdlib.Sqlite.textField row "id",
+       Stdlib.Sqlite.bytesField row "op_blob",
+       Stdlib.Sqlite.textField row "ts")
+    with
+    | (Some id, Some blob, Some ts) ->
+      // `author` is optional: only the relay's export knows it (from `op_owners`), and a local export to a
+      // file has nobody to name. Missing means "", which the detector reads as "fall back to the source".
+      let author =
+        Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
+      let commit =
+        Stdlib.Sqlite.textField row "commit_id" |> Stdlib.Option.withDefault ""
+
+      // Lowercase, as the native page writer (`Queries.exportPageJson`) spells it: both writers serve
+      // the same endpoint, and `sync-wire.dark` holds them to the same bytes, field for field.
+      (SyncOp
+        { id = id
+          blobHex = Stdlib.String.toLowercase (Stdlib.Blob.toHex blob)
+          ts = ts
+          author = author
+          commit = commit })
+      |> Stdlib.Option.Option.Some
+    | _ -> Stdlib.Option.Option.None)
+
+/// EXPORT every op as a portable wire record, oldest-first (full backup / file transfer).
+let exportOps () : List<SyncOp> =
+  rowsToSyncOps (
+    Stdlib.Sqlite.rowsOrEmptyP
+      (PackageOps.localDb ())
+      // Main's EFFECTIVE log only. The file is the documented backup and machine-to-machine path, and
+      // importing it folds everything in it into main at the other end -- so a branch's unmerged work
+      // and a review queue's unapproved bundle must not be in it. Branches travel as their own bundle.
+      //
+      // `effective = 1` matters as much as the tag: `Branches.resolveTakeTheirs` drops a branch's
+      // binding by deleting the TAG and leaving the inert row, and ops a client pushed to this store
+      // are inert and untagged too. Both would otherwise ride out in a backup and fold into main.
+      // Committed only, like the push: the file is the machine-to-machine path, and a draft that
+      // travels arrives messageless forever (see `unpushedFor`).
+      "SELECT id, op_blob, origin_ts AS ts, COALESCE(commit_hash, '') AS commit_id FROM package_ops
+       WHERE effective = 1
+         AND commit_hash IS NOT NULL
+         AND id NOT IN (SELECT op_id FROM op_branches)
+       ORDER BY rowid ASC"
+      [])
+
+
+/// Main's effective ops that <param relay> is not known to hold, in log order. This is what PUSH sends:
+/// a branch's ops are effective=0, and pushing them would fold them into main on another machine's pull,
+/// so branches travel as their own bundle.
+///
+/// A set (`sync_pushed`), not a rowid cursor. An op becomes effective at its AUTHORING rowid, and a merge
+/// flips branch ops that can sit well below the last rowid pushed; a cursor stepped over them and the
+/// merged work never left the machine. Asking "which effective ops does this relay not hold" cannot be
+/// wrong about a flip it never heard of.
+let unpushedFor (relay: String) : List<SyncOp> =
+  rowsToSyncOps (
+    Stdlib.Sqlite.rowsOrEmptyP
+      (PackageOps.localDb ())
+      // COMMITTED ops only. A draft that ships arrives under the receiver's import commit, and the
+      // message you write later never travels (the ops are already marked pushed); a draft is also
+      // simply not finished. Committing is what makes work someone else's business.
+      "SELECT p.id, p.op_blob, p.origin_ts AS ts, COALESCE(p.commit_hash, '') AS commit_id
+       FROM package_ops p
+       WHERE p.effective = 1
+         AND p.commit_hash IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM sync_pushed s WHERE s.relay = @p0 AND s.op_id = p.id)
+       ORDER BY p.rowid ASC"
+      [ relay ])
+
+/// How many effective ops <param relay> is not known to hold. The push skip and `sync status` ask this,
+/// so the two cannot disagree about whether there is anything to send.
+let unpushedCount (relay: String) : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (PackageOps.localDb ())
+    "SELECT count(*) AS n FROM package_ops p
+     WHERE p.effective = 1
+       AND p.commit_hash IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM sync_pushed s WHERE s.relay = @p0 AND s.op_id = p.id)"
+    [ relay ]
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+/// The key under which a relay's BRANCH channel is recorded in `sync_pushed`.
+///
+/// A relay holds two different things: its main log, fed by `push` and read by `/sync/pull`, and
+/// hosted branch bundles, fed by `branch push` and read by `/branch/pull`. An op a bundle carried
+/// is not in the main log, so recording a bundle under the relay's own key would make the next
+/// `push` skip that op after a merge, and a third machine would never see the merged work. The
+/// bundle channel is recorded under the endpoint it went to instead.
+let branchChannel (relay: String) : String = $"{relay}/branch"
+
+/// Live branches with ops <param relay>'s bundle channel is not known to hold, as (name, count).
+/// The main push never sends a branch's ops and `unpushedCount` never counts them, so without this
+/// `sync status` would say "in sync" over a branch that exists on one machine only. A branch push and
+/// a branch pull both record what the channel holds.
+let unpushedBranches (relay: String) : List<(String * Int64)> =
+  Stdlib.Sqlite.rowsP
+    (PackageOps.localDb ())
+    "SELECT b.name AS name, b.id AS id, count(*) AS n
+     FROM op_branches ob
+     JOIN branches b ON b.id = ob.branch_id
+     WHERE b.merged_at IS NULL AND b.archived_at IS NULL
+       AND NOT EXISTS (SELECT 1 FROM sync_pushed s WHERE s.relay = @p0 AND s.op_id = ob.op_id)
+     GROUP BY b.id ORDER BY b.name"
+    [ branchChannel relay ]
+    (fun row ->
+      match
+        (Stdlib.Sqlite.textField row "name",
+         Stdlib.Sqlite.textField row "id",
+         Stdlib.Sqlite.intField row "n")
+      with
+      | (Some name, Some id, Some n) ->
+        Stdlib.Option.Option.Some(((if name == "" then id else name), n))
+      | _ -> Stdlib.Option.Option.None)
+
+/// Record that <param relay> holds these ops: after a push it confirmed, and after a pull that brought
+/// them from it. Idempotent.
+let rememberPushed (relay: String) (opIds: List<String>) : Unit =
+  if Stdlib.List.isEmpty opIds then
+    ()
+  else
+    let _ =
+      Stdlib.Sqlite.mustExecBatch
+        (PackageOps.localDb ())
+        [ ("INSERT OR IGNORE INTO sync_pushed (relay, op_id) VALUES (@p0, @p1)",
+           opIds |> Stdlib.List.map (fun id -> [ relay, id ])) ]
+    ()
+
+/// Forget what <param relay> holds, so the next push sends the whole effective log. For a relay that was
+/// wiped, or a store pointed at a fresh one under an old url.
+let forgetPushed (relay: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (PackageOps.localDb ())
+      "DELETE FROM sync_pushed WHERE relay = @p0"
+      [ relay ]
+  ()
+
+/// The highest local rowid in the log right now.
+let localMaxRowid () : Int64 =
+  Stdlib.Sqlite.scalarInt (PackageOps.localDb ()) "SELECT MAX(rowid) AS n FROM package_ops" "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+/// RELAY side of a push: store the pushed ops AND record who pushed them, so the owner can pull their
+/// stuff back from any machine. Bulk (ops + ownership in one transaction) and store-only -- NO fold, since
+/// a relay serves op blobs, not projections. Returns the count of newly-stored ops.
+let storeWithOwner
+  (owner: String)
+  (ops: List<SyncOp>)
+  (commits: List<PackageOps.BranchBundleCommit>)
+  : Stdlib.Result.Result<Int, String> =
+  let records = ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
+
+  match Builtin.scmStoreOps owner records with
+  | Ok n ->
+    // The author's commits, kept beside the hosted ops so a pull hands them on. Stored, never folded,
+    // like the ops themselves: a hosted op is inert here whatever commit it names.
+    PackageOps.adoptCommits commits (ops |> Stdlib.List.map (fun op -> (op.id, op.commit)))
+    Stdlib.Result.Result.Ok n
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// RELAY side of an incremental pull: this owner's ops that arrived AFTER <param sinceSeq>, in arrival
+/// order, plus the position to resume from.
+///
+/// Pages by the SERVER's arrival order (rowid), never the client's `max(origin_ts)`. A stamp cursor assumes
+/// ops arrive in stamp order, which concurrent editing breaks: a peer's op authored just before your latest
+/// edit lands later but stamped earlier, and `since = my max stamp` skips it forever.
+let exportOwnedSince
+  (owner: String)
+  (sinceSeq: Int64)
+  : (List<SyncOp> * Int64) =
+  let sql =
+    // Not tagged to a branch, same as the native page: a branch's ops sit at `effective = 0` like a
+    // pushed op does, and this route needs no secret while reading a branch does.
+    "SELECT p.id, p.op_blob, p.origin_ts AS ts, p.rowid AS seq, o.owner AS author,
+            COALESCE(p.commit_hash, '') AS commit_id
+     FROM package_ops p JOIN op_owners o ON o.op_id = p.id
+     WHERE o.owner = @p0 AND p.rowid > @p1
+       AND p.id NOT IN (SELECT op_id FROM op_branches)
+     ORDER BY p.rowid ASC LIMIT @p2"
+
+  let rows =
+    Stdlib.Sqlite.rowsOrEmptyP
+      (PackageOps.localDb ())
+      sql
+      [ owner, Stdlib.Int64.toString sinceSeq, Stdlib.Int64.toString relayPageSize ]
+
+  let maxSeq =
+    rows
+    |> Stdlib.List.fold sinceSeq (fun acc row ->
+      let seq = Stdlib.Sqlite.intField row "seq" |> Stdlib.Option.withDefault 0L
+      if seq > acc then seq else acc)
+
+  (rowsToSyncOps rows, maxSeq)
+
+/// How many ops a relay hands back in one response.
+///
+/// Unpaged, a first pull is the whole log in one body (16MB for ~10.8k ops). Paging also makes progress
+/// resumable: the cursor advances per page. Matches the push chunk size, and for the same reason -- under
+/// the 30MB body cap for realistic op sizes, without making a full pull a hundred round trips.
+val relayPageSize = 2000L
+
+
+/// Where this instance last got to with <param sourceId>. Per-source, because two relays have unrelated
+/// arrival orders and one cursor for both would skip ops from whichever is behind.
+let pullCursor (sourceId: String) : Int64 =
+  match Stdlib.Int64.parse (Stdlib.LocalStore.configGet $"sync.cursor.{sourceId}") with
+  | Ok n -> n
+  | Error _ -> 0L
+
+let setPullCursor (sourceId: String) (cursor: Int64) : Unit =
+  let _ = Stdlib.LocalStore.configSet $"sync.cursor.{sourceId}" (Stdlib.Int64.toString cursor)
+  ()
+
+
+/// Which relay INSTANCE we last pulled from at this url, and a check that it's still the same one.
+///
+/// The cursor is a rowid in the RELAY's store and means nothing in a different one: a relay rebuilt,
+/// restored or replaced at the same address leaves a kept cursor pointing past everything, so the client
+/// pulls zero ops forever while reporting success.
+///
+/// A relay names itself in every bundle (`owner` is its instance id), so a swap is caught on the first
+/// response and the cursor rewinds to 0. Re-pulling is free: content-addressed ops dedup.
+let lastRelayInstance (sourceId: String) : String =
+  Stdlib.LocalStore.configGet $"sync.relay-instance.{sourceId}"
+
+let rememberRelayInstance (sourceId: String) (relayInstance: String) : Unit =
+  let _ = Stdlib.LocalStore.configSet $"sync.relay-instance.{sourceId}" relayInstance
+  ()
+
+/// The max origin_ts in the local log ("" when the log is empty). Half of `SyncHead`, and derived from
+/// the log every time it is asked, so it describes what this store holds right now.
+///
+/// Not a pull position: paging is by the relay's arrival order and its cursor is stored per source
+/// (`pullCursor`). A stamp cannot serve as one -- see `exportOwnedSince`.
+let localMaxOriginTs () : String =
+  Stdlib.Sqlite.scalarTextP
+    (PackageOps.localDb ())
+    "SELECT max(origin_ts) AS m FROM package_ops"
+    []
+    "m"
+    ""
+
+/// A lightweight summary of an op log -- count + cursor -- for a cheap "are we in sync?"
+/// check that doesn't transfer the whole log. Serves the relay's /sync/head endpoint.
+type SyncHead =
+  { count: Int64
+    maxTs: String }
+
+/// This instance's own head.
+let localHead () : SyncHead =
+  SyncHead { count = PackageOps.count (); maxTs = localMaxOriginTs () }
+
+let headEncode (h: SyncHead) : String = Stdlib.Json.serialize<SyncHead> h
+
+/// What the relay looked like the last time we pulled from it, so a later pull can tell "nothing moved"
+/// without transferring anything.
+let lastSeenHead (sourceId: String) : String =
+  Stdlib.LocalStore.configGet $"sync.head.{sourceId}"
+
+let rememberHead (sourceId: String) (head: SyncHead) : Unit =
+  let _ = Stdlib.LocalStore.configSet $"sync.head.{sourceId}" (headStamp head)
+  ()
+
+/// The head as `lastSeenHead` stores and compares it.
+let headStamp (head: SyncHead) : String =
+  $"{Stdlib.Int64.toString head.count}@{head.maxTs}"
+
+/// Do we hold everything <param theirs> has? The one definition of that question, because `pull` skipping
+/// and `sync status` saying "in sync" must never disagree.
+///
+/// The stamp alone is not enough: it records only what we were TOLD, so anything that writes it while we
+/// are behind makes us deaf. Ops dedup on arrival, so having genuinely seen their log means holding a
+/// superset of it -- our count cannot be lower than theirs, and a matching stamp over a short count
+/// describes some other store.
+let seenEverything (seenStamp: String) (theirs: SyncHead) (mine: SyncHead) : Bool =
+  (seenStamp == (headStamp theirs)) && (mine.count >= theirs.count)
+
+let headDecode (body: Blob) : Stdlib.Result.Result<SyncHead, String> =
+  match Stdlib.Json.parse<SyncHead> (Stdlib.String.fromBlobWithReplacement body) with
+  | Ok h -> Stdlib.Result.Result.Ok h
+  | Error _ -> Stdlib.Result.Result.Error "unparseable head"
+
+/// What a sync-import did: how many ops were NEW, what it auto-resolved on the way in, and whether it was a
+/// bulk adoption (a first reconciliation with this source, which has nothing to compare against).
+type ImportOutcome =
+  { imported: Int
+    conflicts: List<Conflicts.Conflict>
+    bulk: Bool
+    /// false when detection was DECLINED (a first sync with this source, or a bulk adoption), so the caller
+    /// can say so rather than let "no conflicts" quietly mean "didn't look".
+    detected: Bool }
+
+/// IMPORT peer ops into the log and AUTO-APPLY them (effective=1) -- they take effect immediately.
+/// Content-addressed dedup; origin_ts PRESERVED (the LWW stamp). The hex-decode + insert happens in
+/// ONE transaction in the bulk primitive (Dark's per-op insert crawls on a real log). For REVIEW-before-apply,
+/// use `reviewImportTo` instead (lands them on a branch, pending).
+///
+/// A sync-import IS a merge: the incoming ops are a delta against the state at the last common sync with
+/// <param sourceId>. So it plans BEFORE inserting (the fold moves the local side, after which the comparison
+/// is meaningless), imports, then records what it reconciled and advances the per-name bases.
+/// <param sourceId> "" means no source identity -- import without detection.
+let importFrom
+  (sourceId: String)
+  (ops: List<SyncOp>)
+  (commits: List<PackageOps.BranchBundleCommit>)
+  : Stdlib.Result.Result<ImportOutcome, String> =
+  let records = ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
+  let plan = PackageOps.planSyncImport sourceId ops
+  // Arriving ops are somebody else's finished work, not your draft, so the import commits them on the way
+  // in. Named after the PERSON when the ops agree on one, which a sync usually does; a mixed batch keeps
+  // the source, because no single name is true of it.
+  let authors =
+    ops
+    |> Stdlib.List.map (fun op -> op.author)
+    |> Stdlib.List.filter (fun a -> a != "")
+    |> Stdlib.List.unique
+
+  let (importMessage, importAuthor) =
+    match authors with
+    | [ only ] -> ($"synced from {only}", only)
+    | _ ->
+      ($"imported from {sourceId}", if sourceId == "" then "sync" else sourceId)
+
+  // An import commit names the ops that ARRIVED, so two instances importing the same batch under the same
+  // message compute the same id, which is the property the whole content-addressed story rests on.
+  let incomingIds = ops |> Stdlib.List.map (fun op -> op.id) |> Stdlib.List.sort
+  let importCommit =
+    Commits.create importMessage importAuthor incomingIds (PackageOps.parentCommitFor SCM.Branch.mainBranchId)
+
+  match Builtin.scmImportOps importCommit records with
+  | Ok n ->
+    // The wire says who wrote each op, and that is the only place a client can learn it: keep it, or
+    // `op_owners` stays empty here and provenance is unanswerable locally.
+    PackageOps.recordOpAuthors ops
+    PackageOps.finishSyncImport sourceId plan
+    // What came from the source, the source holds; the next push to it has no reason to send these back.
+    rememberPushed sourceId (ops |> Stdlib.List.map (fun op -> op.id))
+
+    // An op the author had committed is filed under the AUTHOR's commit, not the import's: the same
+    // work then reads the same on every machine, under the same id and message, whichever way it
+    // arrived. Only what THIS import filed moves; an op already committed here keeps its commit, so a
+    // merge event arriving after its branch was pulled leaves the branch's commits alone.
+    PackageOps.adoptCommitsOver
+      importCommit
+      commits
+      (ops |> Stdlib.List.map (fun op -> (op.id, op.commit)))
+
+    // A commit NAMES the ops it committed, and every op in this batch may already be here -- re-pushing is
+    // routine, and the author's commits above may have taken everything. A commit over nothing is a row
+    // `dark commits` shows and nobody can act on.
+    let _ =
+      if PackageOps.opCountIn importCommit == 0L then
+        Commits.delete importCommit
+      else
+        ()
+
+    (ImportOutcome
+      { imported = n
+        conflicts = plan.conflicts
+        bulk = plan.bulk
+        detected = plan.detected })
+    |> Stdlib.Result.Result.Ok
+  | Error e ->
+    // The commit row was minted before the insert (the insert stamps against it); an insert that
+    // failed leaves it naming ops that never arrived, and `dark commits` would list it.
+    let _ = Commits.delete importCommit
+    Stdlib.Result.Result.Error e
+
+/// IMPORT peer/incoming ops for REVIEW: land them on a review branch (effective=0, inert, isolated from
+/// main) instead of auto-applying. Then `dark diff/log/conflicts <branch>` to inspect, and `merge <branch>`
+/// to APPROVE or `archive <branch>` to reject. The branch is caller-chosen (default "review") so multiple
+/// peers get SEPARATE queues.
+let reviewImportTo
+  (reviewBranch: String)
+  (ops: List<SyncOp>)
+  : Stdlib.Result.Result<Int, String> =
+  let records = ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
+
+  // The queue is named, like any branch a person types; its id is resolved here so re-importing to the
+  // same queue lands on the same branch rather than starting a second one beside it.
+  let (queueId, _) = PackageOps.resolveBranch reviewBranch SCM.Branch.mainBranchId
+
+  // `parent` is TEXT here on purpose: on the ordinary import path it arrives inside a peer's bundle and
+  // may be anything, so the builtin parses it and treats a non-id as main. A review queue's parent is
+  // main by construction, so this is the one place the id has to be spelled out rather than passed.
+  match
+    PackageOps.stageOpsOnBranch
+      queueId
+      reviewBranch
+      (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+      records
+  with
+  | Ok _newlyStored ->
+    // A whole-log import tags even ops already in main; keep only the genuinely-pending delta so the
+    // review's diff/log/merge reflect what's actually up for approval.
+    let _ = Branches.pruneAppliedTags queueId
+
+    // Report the size of THAT delta, not how many op rows the import happened to write. The two disagree
+    // whenever the sender's bundle overlaps what we already have, which for a whole-log bundle is nearly
+    // all of it.
+    (Stdlib.List.length (SCM.PackageOps.branchOps queueId)) |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// The ABI fingerprint this build speaks, as every bundle declares it.
+///
+/// One wrapper because two things write a bundle: the native page renderer and `wireEncodeAt`.
+let kernelHash () : String = Builtin.getKernelHash ()
+
+
+/// One page of the wire format, rendered from the store without materialising any op as a Dark value.
+///
+/// The relay answers `/sync/pull` with this. Native because a Dark-built page walks 2,000 rows, hex
+/// encodes each blob and serialises 2,000 records per request, which costs about 2.8s per page under
+/// sustained paging against the hosted relay and dominates a real first sync. What to send is decided
+/// here; only the encoding is F#.
+///
+/// Returns the JSON and the cursor to hand back.
+let exportPageJsonSince (sinceSeq: Int64) : (String * Int64) =
+  Builtin.scmExportPageJson
+    sinceSeq
+    relayPageSize
+    currentWireVersion
+    (Darklang.Cli.Installation.Helpers.buildHash ())
+    (kernelHash ())
+    (PackageOps.identity ())
+
+
+/// The wire is a JSON SyncBundle: a versioned envelope plus ops. Encode stamps the format version and
+/// this build; decode refuses a version it does not understand.
+///
+/// There are TWO writers, not one. `exportPageJsonSince` above renders the same envelope natively, and
+/// the relay picks between them per request -- native for a whole-log page, this for an owner-filtered
+/// one -- so a client reading `/ops` meets both. They have to agree field for field, and nothing in the
+/// type system says so, which is why `backend/testfiles/execution/scm/sync-wire.dark` compares the two
+/// envelopes directly. Change this shape and change the native renderer in `LibDB/Queries.fs` with it.
+let wireEncodeAt (cursor: Int64) (ops: List<SyncOp>) : String =
+  let bundle =
+    SyncBundle
+      { formatVersion = currentWireVersion
+        darkBuild = Darklang.Cli.Installation.Helpers.buildHash ()
+        kernelHash = kernelHash ()
+        owner = PackageOps.identity ()
+        cursor = cursor
+        ops = ops
+        commits = PackageOps.commitRowsFor (ops |> Stdlib.List.map (fun op -> op.commit)) }
+
+  Stdlib.Json.serialize<SyncBundle> bundle
+
+/// A file export has no server position, so no cursor.
+let wireEncode (ops: List<SyncOp>) : String = wireEncodeAt 0L ops
+
+
+/// The version an envelope CLAIMS, whatever shape it turns out to be. Every bundle shape starts with
+/// `formatVersion`, so this reads it without committing to the rest.
+type SyncBundleVersionProbe = { formatVersion: Int64 }
+
+let wireDecode (body: Blob) : Stdlib.Result.Result<SyncBundle, String> =
+  let text = Stdlib.String.fromBlobWithReplacement body
+
+  // Dispatch on the VERSION the bundle claims, not on whichever shape happens to parse: the shapes overlap
+  // (a bundle carrying no ops parses as more than one version, since what separates them lives on the ops),
+  // so "whichever parses" picks a reading based on how strict the JSON parser is about missing fields.
+  //
+  // Exactly one version is readable, deliberately. A peer on a NEWER format is told to upgrade rather than
+  // half-read.
+  match Stdlib.Json.parse<SyncBundleVersionProbe> text with
+  | Error _ ->
+    Stdlib.Result.Result.Error
+      $"unparseable sync bundle (this build speaks v{Stdlib.Int64.toString currentWireVersion})"
+  | Ok probe ->
+    if probe.formatVersion == currentWireVersion then
+      match Stdlib.Json.parse<SyncBundle> text with
+      | Ok bundle -> Stdlib.Result.Result.Ok bundle
+      | Error _ ->
+        Stdlib.Result.Result.Error
+          $"sync bundle claims v{Stdlib.Int64.toString probe.formatVersion} but does not have that shape"
+    else
+      Stdlib.Result.Result.Error
+        $"sync format v{Stdlib.Int64.toString probe.formatVersion} not understood by this build, which speaks v{Stdlib.Int64.toString currentWireVersion}"
