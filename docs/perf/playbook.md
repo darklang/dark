@@ -31,6 +31,16 @@ smaller than that from one measurement each side.
 enough to fail the gate. `scripts/perf/gate` prints which store it measured for this reason. A
 number is only comparable to another taken against the same store.
 
+The readings cluster, too: within a cluster they agree to 0.0003%-0.03%, and the clusters sit
+0.3%-1.0% apart, so a single reading tells you which cluster you landed in rather than what the code
+allocates. What picks the cluster is unknown, and it is not the shared dev store -- an isolated copy
+of `data.db` clusters the same way, so don't spend time isolating the store again.
+
+Taking the minimum of N does not tighten the readings much, since the spread is roughly symmetric
+rather than noise sitting above a floor, and `GC.GetTotalAllocatedBytes(precise: true)` is slightly
+worse. Both checked rather than assumed. So several samples a side is the only thing that helps: one
+reading is not a measurement, and never `--update` off a single sample.
+
 Decide with allocation, report time, never gate on time. A change that looks flat in allocation and
 good in time is flat.
 
