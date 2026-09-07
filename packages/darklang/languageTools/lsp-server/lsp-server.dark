@@ -24,10 +24,7 @@ let runServerCli (u: Unit) : Int =
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
 
 
-  // The first thing we get is the `initialize` request,
-  // where the client tells us what capabilities it has,
-  // and we tell the client what capabilities we have,
-  // so the client knows which requests it can make.
+  // The first message is the `initialize` capability exchange.
   let incomingMessageRaw = readMessageFromClient ()
   logIncomingRequest incomingMessageRaw
 

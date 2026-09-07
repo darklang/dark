@@ -38,7 +38,6 @@ module ReadFile =
 
 
     let getContent =
-      // Check if this is a script request
       if Stdlib.String.startsWith nameForLookup "script/" then
         let scriptName =
           nameForLookup
@@ -48,7 +47,6 @@ module ReadFile =
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
-        // Handle package entities
         let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
 
@@ -215,7 +213,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Type
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageType packageType.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     | Function fnDecl ->
       let location = locationOf fnDecl.name.name
@@ -229,7 +227,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Fn
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageFn packageFn.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     | Value valDecl ->
       let location = locationOf valDecl.name.name
@@ -243,7 +241,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Value
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _
@@ -341,13 +339,11 @@ module WriteFile =
         nameForLookup
         |> Stdlib.String.dropFirst 7  // Drop "script/"
 
-      // Update the script content
       match Cli.Scripts.update scriptName content with
       | Ok () -> sendSuccessResponse state requestId [] Stdlib.Option.Option.None
       | Error err -> sendErrorResponse state requestId [ err ]
     else
-      // Parse package module content
-      // Parse then collect every declaration with its module path (descending into nested modules).
+      // Collect every declaration with its module path (descending into nested modules).
       let allDecls =
         match Parser.Parse.toWrittenTypes content with
         | Some(SourceFile sourceFile) ->
@@ -408,7 +404,6 @@ module WriteFile =
           // If ops were added, re-read the content from database to get the version with IDs
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
-              // Re-read from package manager to get content with assigned IDs
               let pm = LanguageTools.PackageManager.pm ()
               let location = ProgramTypes.parsePackageLocation nameForLookup
 
