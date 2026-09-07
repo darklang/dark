@@ -978,29 +978,58 @@ let intFromDigit (c: String) (e: Expect) : Node = Node.make (exprKind "EInt") [ 
 /// an expression could be a record type or an enum constructor and nothing typed so far says which; the
 /// `{` is the thing that says. Keyed on the whole language it would have had to guess.
 ///
-/// The hash is looked up here so the fields can be offered straight away -- a record literal is the one
-/// completion that needs nothing but the node itself. When the name resolves to nothing the literal is
-/// still built, with an empty hash: you see what you typed, it lowers as an unresolved name, and the
-/// save reparses the source and resolves it for real.
+/// This is the SECOND way in and it is the lesser one. `recordCandidates` already offers a record type in
+/// completion, and picking one arrives with the real field names in it -- that is the path to use when the
+/// type exists. `{` earns its place on the type that does NOT exist yet, which is the ordinary case while
+/// you are sketching: you cannot complete a name the store has never heard of.
+///
+/// So it looks the name up anyway, through the same search completion uses rather than an exact location,
+/// and fills the declared fields when it finds them. Same result from either entrance when the type is
+/// known; an empty field to type into when it is not.
 let recordFromName (n: Node) (c: String) : Node =
   let name = textOf n "name"
-  let hash =
-    match
-      Darklang.LanguageTools.PackageManager.Type.find
-        Darklang.SCM.Branch.mainBranchId
-        (Darklang.LanguageTools.ProgramTypes.parsePackageLocation name)
-    with
-    | Some h -> Darklang.LanguageTools.ProgramTypes.hashToString h
-    | None -> ""
+  let blankField =
+    Slot.Filled(Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
 
-  Node.make
-    (exprKind "ERecord")
-    [ text "type" name
-      text "_typeHash" hash
-      ("fields",
-       Field.Many(
-         [ Slot.Filled(Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]) ],
-         fieldExpect ())) ]
+  let found =
+    if looksLikeATypeName name then
+      let query =
+        Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = []
+            text = Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+            searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+            entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Type ]
+            exactMatch = false }
+
+      (Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types
+      // Matched on what was TYPED, however much of the name that was: the bare last segment (`Size`), the
+      // shortened form the editor draws, or the whole location. A search ranks by fuzzy match and would
+      // otherwise hand back the first near-miss for a name that is not there at all.
+      |> Stdlib.List.findFirst (fun item ->
+        (item.location.name == name)
+        || ((locationName item.location) == name)
+        || ((displayName (locationName item.location)) == name))
+    else
+      Stdlib.Option.Option.None
+
+  match found with
+  | Some item ->
+    (match item.entity.declaration.definition with
+     | Record fields ->
+       Node.make
+         (exprKind "ERecord")
+         [ text "type" (locationName item.location)
+           text "_typeHash" (Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash)
+           ("fields",
+            Field.Many(
+              fields
+              |> Stdlib.List.map (fun f ->
+                Slot.Filled(
+                  Node.make (Kind.named recordFieldType) [ text "name" f.name, ("value", Field.One(Slot.Empty(exprExpect f.name))) ])),
+              fieldExpect ())) ]
+     | _ -> Node.make (exprKind "ERecord") [ text "type" name, text "_typeHash" "", ("fields", Field.Many([ blankField ], fieldExpect ())) ])
+  | None ->
+    Node.make (exprKind "ERecord") [ text "type" name, text "_typeHash" "", ("fields", Field.Many([ blankField ], fieldExpect ())) ]
 
 /// `L` at the end of an integer makes it an Int64, keeping the digits.
 ///
@@ -1214,7 +1243,13 @@ let shouldSearch (typed: String) : Bool =
 /// be built by typing punctuation the way a list or a tuple can; the type has to be RESOLVED first. That
 /// makes completion the natural build path rather than a `{` trigger, and it pays for itself: the search
 /// hands back the declaration, so the shell arrives with the real field NAMES already in it and the caret
-/// in the first value. Typing `Size` and pressing space gives `Size { width = <>; height = <> }`.
+/// in the first value. Typing `Size` and pressing Enter or Tab gives
+/// `Stdlib.Cli.Tui.Size { width = <>; height = <> }`.
+///
+/// SPACE does not, and the comment here used to say it did. Space commits the menu only when it is
+/// unambiguous -- one candidate, or an exact match on the label -- and `Size` is a loose prefix over
+/// three types whose labels are all longer than what was typed. That rule is right and this comment was
+/// describing something that has never happened.
 let recordCandidates (typed: String) : List<Candidate> =
   if (Stdlib.Bool.not (shouldSearch typed)) || (Stdlib.Bool.not (looksLikeATypeName typed)) then
     []
