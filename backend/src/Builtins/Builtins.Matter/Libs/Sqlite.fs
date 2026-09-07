@@ -1,6 +1,5 @@
-/// Raw, general-purpose SQLite access from Darklang — the `Stdlib.Sqlite` floor primitive that lets policy
-/// live in Dark over an ordinary database. (The internal sync machinery — op-log read/append, blob channel,
-/// store path + Release coordinate — lives in `Libs/Sync.fs`, not here.)
+/// Raw, general-purpose SQLite access from Darklang: the `Stdlib.Sqlite` floor primitive that lets policy
+/// live in Dark over an ordinary database.
 ///
 /// `sqliteExec` (DDL/DML → rows affected) and `sqliteQuery` (SELECT → each row as a typed `Dict<Value>`)
 /// are the two primitives; the `.dark` wrappers add the with/without-params convenience so there's one
@@ -8,8 +7,12 @@
 /// ATTACH/VACUUM and therefore cannot honestly uphold path-scoped file rules;
 /// both primitives require the deliberately broad Native permission.
 ///
-/// Deferred: binding typed params (params are string-only today; results already carry types via `Value`),
-/// an opaque connection handle, and `transact`.
+/// `sqliteExecBatch` is the third: several statements in one transaction, so a decision that lives in Dark
+/// can write atomically rather than one statement at a time.
+///
+/// Deferred (not needed yet): scoping the grant to a specific path/glob, binding typed params (params are
+/// string-only today; results already carry types via `Value`), and an opaque connection handle.
+/// CLEANUP(sqlite-scope): add the in-body path/glob capability check.
 module Builtins.Matter.Libs.Sqlite
 
 open FSharp.Control.Tasks
@@ -134,6 +137,48 @@ let private queryImpl
   }
 
 
+/// Run several statements in ONE transaction, each with zero or more parameter rows.
+///
+/// Returns rows-affected per PARAMETER ROW, in order, flattened across statements. Not a total: the
+/// caller has to tell a real insert from an `INSERT OR IGNORE` that deduped, and a sum cannot express
+/// that. A statement with no parameter rows runs once and contributes one count.
+///
+/// Either everything lands or nothing does. This is the primitive that lets a decision in Dark write
+/// safely; without it, Dark can only issue statements one at a time and a failure halfway leaves the
+/// store in a state no reader expects.
+let private execBatchImpl
+  (path : string)
+  (statements : List<string * List<List<string>>>)
+  : Ply<Dval> =
+  let retKT = KTList(ValueType.Known KTInt)
+
+  uply {
+    try
+      use conn = new SqliteConnection(connStr path)
+      do! conn.OpenAsync()
+      use tx = conn.BeginTransaction()
+      let counts = ResizeArray<Dval>()
+
+      for (sql, paramRows) in statements do
+        use cmd = conn.CreateCommand()
+        cmd.Transaction <- tx
+        cmd.CommandText <- sql
+        // No rows still means run it once: DDL and unparameterised DML have no rows to bind.
+        let rows = if List.isEmpty paramRows then [ [] ] else paramRows
+
+        for row in rows do
+          cmd.Parameters.Clear()
+          bindParams cmd row
+          let! affected = cmd.ExecuteNonQueryAsync()
+          counts.Add(Dval.int (bigint affected))
+
+      tx.Commit()
+      return Dval.resultOk retKT KTString (Dval.list KTInt (List.ofSeq counts))
+    with e ->
+      return Dval.resultError retKT KTString (DString e.Message)
+  }
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "sqliteExec" 0
       typeParams = []
@@ -161,6 +206,47 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "sqliteExecBatch" 0
+      typeParams = []
+      parameters =
+        [ Param.make "path" TString "the SQLite file to open"
+          Param.make
+            "statements"
+            (TList(TTuple(TString, TList(TList TString), [])))
+            ("each statement, with the parameter rows to run it for; [] rows runs "
+             + "it once with no parameters") ]
+      returnType = TypeReference.result (TList TInt) TString
+      description =
+        "Opens the SQLite file at <param path> and runs <param statements> in ONE "
+        + "transaction: either all of it lands or none does. Ok = rows affected per "
+        + "parameter row, in order, flattened across statements; Error = the SQLite "
+        + "message. A well-formed call never throws; a mis-shaped params tuple is a type error raised before the try."
+      fn =
+        (function
+        | _, _, _, [| DString path; DList(_, stmts) |] ->
+          let decoded =
+            stmts
+            |> List.map (fun stmt ->
+              match stmt with
+              | DTuple(DString sql, DList(_, rows), []) ->
+                let paramRows =
+                  rows
+                  |> List.map (fun row ->
+                    match row with
+                    | DList(_, cells) -> paramStrings cells
+                    | other -> [ string other ])
+                (sql, paramRows)
+              | other ->
+                Exception.raiseInternal
+                  "sqliteExecBatch: expected (sql, paramRows) tuples"
+                  [ "got", string other ])
+          execBatchImpl path decoded
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0
