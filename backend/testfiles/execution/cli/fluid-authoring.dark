@@ -1126,3 +1126,25 @@ module AnOperatorReassociatesWhenItIsFinished =
   // the right, so the rotation must NOT fire there.
   (Fixtures.screen (Fixtures.chars "1 + 2 * 3")) = "1 + 2 * 3~"
   (Fixtures.screen (Fixtures.chars "2^3^2")) = "2 ^ 3 ^ 2~"
+
+
+module ASpaceDoesNotAbandonAGroup =
+  // `(1 + 2) * 3` typed inside anything with a later hole lost the group: the space after the closing
+  // paren stepped to the next item and the `*` built `(1 + 2, *3)`. Typed WITHOUT the spaces it was
+  // already right, which is the tell -- the operator and the paren were both fine, the space was not.
+  //
+  // Space from just-after a node was advancing to the next hole unconditionally. Everywhere else that
+  // question goes to `landSettled`, which asks the spec whether an operator could follow; leaving is
+  // wrong when one could, because it abandons the thing the operator is about to wrap.
+  //
+  // I diagnosed this as the operator, then as the paren, before tracing it keystroke by keystroke and
+  // finding it was neither.
+  (Fixtures.screen (Fixtures.chars "((1 + 2) * 3)")) = "(1 + 2) * 3~"
+  (Fixtures.screen (Fixtures.chars "((1 + 2)*3)")) = "(1 + 2) * 3~"
+  (Fixtures.screen (Fixtures.chars "(1 + 2) * 3")) = "(1 + 2) * 3~"
+
+  // Advancing is still what a space does where no operator can follow, and the next key still reaches the
+  // next hole from just-after a node.
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "(", ")", " ", "x", "<Esc>" ]) = "let x = ()\nx"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let xs = [1] xs") [ "<Esc>", "<Esc>" ])) =
+    "let xs = [1]\nxs"

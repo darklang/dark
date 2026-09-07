@@ -1765,9 +1765,13 @@ let typeOneRaw (st: State) (c: String) : State =
     | None -> st
   | OnNode -> st
   | AfterNode ->
-    // Space from just-after a node advances to the next hole (so `let x () <space>` reaches the body).
+    // Space from just-after a node advances to the next hole -- unless an operator could follow, in which
+    // case it stays, because leaving would abandon the thing the operator is about to wrap. `landSettled`
+    // asks the spec that question everywhere else; this branch was answering it with an unconditional
+    // "advance", so `(1 + 2) * 3` inside anything with a later hole lost the group: the space stepped to
+    // the tuple's next item and the `*` built `(1 + 2, *3)`. Without the spaces it was already right.
     if c == " " then
-      nextHole st
+      landSettled st caret.node
     else
     // Just after a closed construct: an operator or `.` wraps the WHOLE construct (`[1]` then `+` gives
     // `[1] + ⟨right⟩`, `[1].` a field access on the list); anything that starts a new element grows the
