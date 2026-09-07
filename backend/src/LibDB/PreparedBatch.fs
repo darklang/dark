@@ -96,6 +96,68 @@ let bytesOption
   }
 
 
+/// Read one integer scalar, through the same prepared-statement cache. `0L` for no row.
+let scalarInt
+  (ctx : Ctx)
+  (sql : string)
+  (setParams : SqliteCommand -> unit)
+  : Task<int64> =
+  task {
+    let cmd = command ctx sql
+    cmd.Parameters.Clear()
+    setParams cmd
+    let! value = cmd.ExecuteScalarAsync()
+    return
+      match value with
+      | :? int64 as n -> n
+      | :? int as n -> int64 n
+      | _ -> 0L
+  }
+
+/// Read one optional TEXT scalar. `None` for no row or NULL; raises if the column holds
+/// something else, for the same reason `bytesOption` does.
+let textOption
+  (ctx : Ctx)
+  (sql : string)
+  (setParams : SqliteCommand -> unit)
+  : Task<Option<string>> =
+  task {
+    let cmd = command ctx sql
+    cmd.Parameters.Clear()
+    setParams cmd
+    let! value = cmd.ExecuteScalarAsync()
+    return
+      match value with
+      | :? string as s -> Some s
+      | null -> None
+      | value when System.Convert.IsDBNull value -> None
+      | value ->
+        Exception.raiseInternal
+          "Expected TEXT from a prepared-batch scalar read"
+          [ "actualType", value.GetType().FullName ]
+  }
+
+/// Read an optional (TEXT, nullable-TEXT) pair from the first row: `None` for no row,
+/// and the second column maps NULL to None. Per call site: the SQL and its parameters.
+let pairOption
+  (ctx : Ctx)
+  (sql : string)
+  (setParams : SqliteCommand -> unit)
+  : Task<Option<string * Option<string>>> =
+  task {
+    let cmd = command ctx sql
+    cmd.Parameters.Clear()
+    setParams cmd
+    use! reader = cmd.ExecuteReaderAsync()
+    let! hasRow = reader.ReadAsync()
+    if hasRow then
+      let second = if reader.IsDBNull 1 then None else Some(reader.GetString 1)
+      return Some(reader.GetString 0, second)
+    else
+      return None
+  }
+
+
 /// Bind a parameter. Wraps `AddWithValue` so it always returns unit.
 let inline p (cmd : SqliteCommand) (name : string) (value : obj) =
   cmd.Parameters.AddWithValue(name, value) |> ignore<SqliteParameter>

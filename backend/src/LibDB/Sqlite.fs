@@ -10,13 +10,26 @@ open Fumble
 
 open Prelude
 
-let private defaultConnString =
-  $"Data Source={LibConfig.Config.dbPath};Mode=ReadWriteCreate;Cache=Private;Pooling=true"
+let private connStringFor (path : string) : string =
+  $"Data Source={path};Mode=ReadWriteCreate;Cache=Private;Pooling=true"
 
-// `mutable` only so tests can repoint LibDB at a fresh store (see `Sql.useStoreForTesting`). Production never
-// rebinds it. Both the Fumble `connect` AND the raw-ADO fold path (`applyOps` opens `new SqliteConnection
-// connString`) read this, so a test swap redirects ALL of LibDB — inserts, reads, and the fold — at the
-// instance store.
+let private defaultConnString = connStringFor LibConfig.Config.dbPath
+
+/// The store this process is actually reading and writing, which is `LibConfig.Config.dbPath` except
+/// under a test that repointed it.
+///
+/// Held beside `connString` rather than parsed back out of it, and it is what `Builtin.localDbPath`
+/// answers. That matters because Dark reaches the store through `Stdlib.Sqlite`, which opens the path
+/// this reports: if it answered the CONFIG path while `useStoreForTesting` moved only the F#
+/// connection, a two-instance test would run every Dark-side read -- push, pull, conflict detection,
+/// resolve -- against the default store while believing it was on instance B, and the whole Dark half
+/// of sync would be unreachable from the harness.
+let mutable currentDbPath = LibConfig.Config.dbPath
+
+// `mutable` only so tests can repoint LibDB at a fresh store (see `Sql.useStoreForTesting`). Production
+// never rebinds it. Both the Fumble `connect` AND the raw-ADO fold path (`applyOps` opens `new
+// SqliteConnection connString`) read this, so a test swap redirects ALL of LibDB -- inserts, reads, and
+// the fold -- at the instance store.
 let mutable connString = defaultConnString
 
 module Sql =
@@ -35,33 +48,36 @@ module Sql =
     props
 
   // `mutable` only so tests can repoint LibDB at a fresh store (see `useStoreForTesting`). Production
-  // never rebinds it — it stays the default `connString` store for the process's life.
+  // never rebinds it: it stays the default `connString` store for the process's life.
   let mutable connect = Sql.connect connString |> initializeConnection
 
-  /// Force this module's initialization, and with it the first connection open and the PRAGMA round trip.
-  ///
-  /// Exists so the cost is attributable. It happens on whatever query runs first, which made it look like
-  /// part of `growIfNeeded`'s op check -- a check that is index-covered and takes 0.0 ms against this
-  /// store. Calling this first moves the cost into a span of its own rather than removing it.
+  /// Force this module's initialization (first connection open + PRAGMA round trip)
+  /// so the cost lands in its own span instead of inside whatever query runs first.
   let warm () : unit =
     connect
     |> Sql.query "SELECT 1"
     |> Sql.executeNonQuery
     |> ignore<Result<int, exn>>
 
-  /// TEST-ONLY: repoint LibDB at the store file at `path` (created if missing), so a test can run true
-  /// multi-instance scenarios — each "instance" is its own store, and you switch the active one by
-  /// calling this. Every subsequent LibDB operation hits `path`. Call `resetStoreForTesting` to restore
-  /// the default. NOT parallel-safe (it mutates process-global state): callers must be `testSequenced`
-  /// and restore the default when done.
+  /// TEST-ONLY: repoint every LibDB reader and writer, and `Builtin.localDbPath` with them, at the
+  /// store file at <param path> (created if missing). That is what lets a test run true multi-instance
+  /// scenarios: each "instance" is its own store, and you switch the active one by calling this.
+  /// `resetStoreForTesting` restores the default. NOT parallel-safe, since it mutates process-global
+  /// state, so callers must be `testSequenced` and must restore the default when done.
+  ///
+  /// The caller must invalidate the caches after this (`LibDB.Caching.invalidateAll`), which cannot
+  /// happen here because `Caching` compiles after this module. The package manager and the branch
+  /// overlay memoize by content hash and branch id, and those are IDENTICAL across two copies of one
+  /// store, so a read after the swap otherwise answers with the other instance's rows.
   let useStoreForTesting (path : string) : unit =
-    connString <-
-      $"Data Source={path};Mode=ReadWriteCreate;Cache=Private;Pooling=true"
+    connString <- connStringFor path
+    currentDbPath <- path
     connect <- Sql.connect connString |> initializeConnection
 
   /// TEST-ONLY: restore the default store after `useStoreForTesting`.
   let resetStoreForTesting () : unit =
     connString <- defaultConnString
+    currentDbPath <- LibConfig.Config.dbPath
     connect <- Sql.connect connString |> initializeConnection
 
   /// Count and time every SQL statement this process runs.
@@ -101,15 +117,12 @@ module Sql =
 
   let query (sql : string) : Sql.SqlProps = connect |> Sql.query sql
 
-  /// A store that can't be read or written is an ENVIRONMENT, not a bug: a read-only mount, a store owned
-  /// by another user, a disk with nothing left on it. SQLite says exactly which, then .NET buries it under
-  /// an AggregateException and the callers below stringify it into a message, so the cause reached the
-  /// user as a stack trace that named neither the store nor the problem. Worse, writes went through
-  /// `Result.unwrap`, which prints the raw exception to stdout and raises "TODO: failed to unwrap".
-  ///
-  /// So: every query path funnels through here first. Only these three codes are translated, because only
-  /// these three are things the person running the command can act on. Anything else keeps its own
-  /// exception, stack and all, and is a bug worth seeing in full.
+  /// A store that can't be read or written is an ENVIRONMENT, not a bug: a read-only
+  /// mount, another user's store, a full disk. SQLite says which; .NET buries it
+  /// under an AggregateException. Every query path funnels through here first. Only
+  /// these three codes are translated, because only these three are actionable by
+  /// the person running the command; anything else keeps its exception, stack and
+  /// all.
   let private storeCondition (e : exn) : string option =
     // The SqliteException arrives wrapped -- an AggregateException from the async boundary, sometimes an
     // InnerException under that -- so this looks through the chain rather than testing the top of it.
@@ -142,6 +155,16 @@ module Sql =
         [ "dbPath", LibConfig.Config.dbPath ]
     | None -> ()
 
+  /// Unwrap a query result: an Error that is a store condition raises as one, anything
+  /// else raises internal. Per call site: how the message renders the error (each
+  /// wrapper names itself, and some show `err.Message` where most show the whole exn).
+  let private unwrapDb (msg : exn -> string) (r : Result<'a, exn>) : 'a =
+    match r with
+    | Ok v -> v
+    | Error err ->
+      raiseIfStoreCondition err
+      Exception.raiseInternal (msg err) [ "err", err ]
+
   let executeNonQueryAsync props =
     timedTask "nonQuery" (fun () ->
       Sql.executeNonQueryAsync props
@@ -154,21 +177,17 @@ module Sql =
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     task {
-      match!
+      let! r =
         timedTask "row" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
+      match
+        unwrapDb (fun err -> $"SQL query failed in executeRowAsync: {err.Message}") r
       with
-      | Ok [ a ] -> return a
-      | Ok [] -> return Exception.raiseInternal $"No results; expected 1" []
-      | Ok list ->
+      | [ a ] -> return a
+      | [] -> return Exception.raiseInternal $"No results; expected 1" []
+      | list ->
         return
           Exception.raiseInternal $"Too many results, expected 1" [ "actual", list ]
-      | Error err ->
-        raiseIfStoreCondition err
-        return
-          Exception.raiseInternal
-            $"SQL query failed in executeRowAsync: {err.Message}"
-            [ "err", err ]
     }
 
   let executeRowOptionAsync
@@ -176,23 +195,21 @@ module Sql =
     (props : Sql.SqlProps)
     : Task<Option<'t>> =
     task {
-      match!
+      let! r =
         timedTask "rowOption" (fun () ->
           Sql.executeAsync reader props |> Async.StartImmediateAsTask)
+      match
+        unwrapDb
+          (fun err -> $"SQL query failed in executeRowOptionAsync: {err.Message}")
+          r
       with
-      | Ok [ a ] -> return Some a
-      | Ok [] -> return None
-      | Ok list ->
+      | [ a ] -> return Some a
+      | [] -> return None
+      | list ->
         return
           Exception.raiseInternal
             $"Too many results, expected 0 or 1"
             [ "actual", list ]
-      | Error err ->
-        raiseIfStoreCondition err
-        return
-          Exception.raiseInternal
-            $"SQL query failed in executeRowOptionAsync: {err.Message}"
-            [ "err", err ]
     }
 
   let executeAsync rr props =
@@ -208,52 +225,39 @@ module Sql =
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match
       timedSync "existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+      |> unwrapDb (fun err -> $"Database query failed in executeExistsSync: {err}")
     with
-    | Ok [ true ] -> true
-    | Ok [] -> false
-    | Ok result ->
+    | [ true ] -> true
+    | [] -> false
+    | result ->
       Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
-    | Error err ->
-      raiseIfStoreCondition err
-      Exception.raiseInternal
-        $"Database query failed in executeExistsSync: {err}"
-        [ "err", err ]
 
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
     task {
-      match!
+      let! r =
         timedTask "statement" (fun () ->
           Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
-      with
-      | Error err ->
-        raiseIfStoreCondition err
-        Exception.raiseInternal
-          $"Database statement failed in executeStatementAsync: {err}"
-          [ "err", err ]
-      | Ok _count -> return ()
+      r
+      |> unwrapDb (fun err ->
+        $"Database statement failed in executeStatementAsync: {err}")
+      |> ignore<int>
     }
 
   let executeStatementSync (props : Sql.SqlProps) : unit =
-    match timedSync "statementSync" (fun () -> Sql.executeNonQuery props) with
-    | Ok _count -> ()
-    | Error err ->
-      raiseIfStoreCondition err
-      Exception.raiseInternal
-        $"Database statement failed in executeStatementSync: {err}"
-        [ "err", err ]
+    timedSync "statementSync" (fun () -> Sql.executeNonQuery props)
+    |> unwrapDb (fun err ->
+      $"Database statement failed in executeStatementSync: {err}")
+    |> ignore<int>
 
   /// Execute multiple SQL statements in a transaction synchronously
   let executeTransactionSync
     (statements :
       List<string * List<List<string * Microsoft.Data.Sqlite.SqliteParameter>>>)
     : List<int> =
-    match connect |> Sql.executeTransaction statements with
-    | Ok counts -> counts
-    | Error err ->
-      raiseIfStoreCondition err
-      Exception.raiseInternal
-        $"Database transaction failed in executeTransactionSync: {err}"
-        [ "err", err ]
+    connect
+    |> Sql.executeTransaction statements
+    |> unwrapDb (fun err ->
+      $"Database transaction failed in executeTransactionSync: {err}")
 
   let uuid (u : uuid) = u.ToString() |> Sql.string
 
@@ -277,6 +281,16 @@ module Sql =
 
 
 
+// SQLite returns DateTime with Unspecified kind, but we know it's UTC
+// TODO consider if this is what we actually want - this seems risky
+let private toUtcInstant (dateTime : System.DateTime) : NodaTime.Instant =
+  let utcDateTime =
+    if dateTime.Kind = System.DateTimeKind.Utc then
+      dateTime
+    else
+      System.DateTime.SpecifyKind(dateTime, System.DateTimeKind.Utc)
+  NodaTime.Instant.FromDateTimeUtc utcDateTime
+
 // Extension methods
 type RowReader with
 
@@ -290,27 +304,10 @@ type RowReader with
 
 
   member this.instant(name : string) : NodaTime.Instant =
-    let dateTime : System.DateTime = this.dateTime (name)
-    // SQLite returns DateTime with Unspecified kind, but we know it's UTC
-    // TODO consider if this is what we actually want - this seems risky
-    let utcDateTime =
-      if dateTime.Kind = System.DateTimeKind.Utc then
-        dateTime
-      else
-        System.DateTime.SpecifyKind(dateTime, System.DateTimeKind.Utc)
-    NodaTime.Instant.FromDateTimeUtc utcDateTime
+    toUtcInstant (this.dateTime (name))
 
   member this.instantOrNone(name : string) : Option<NodaTime.Instant> =
-    this.dateTimeOrNone (name)
-    |> Option.map (fun dateTime ->
-      // SQLite returns DateTime with Unspecified kind, but we know it's UTC
-      // TODO consider if this is what we actually want - this seems risky
-      let utcDateTime =
-        if dateTime.Kind = System.DateTimeKind.Utc then
-          dateTime
-        else
-          System.DateTime.SpecifyKind(dateTime, System.DateTimeKind.Utc)
-      NodaTime.Instant.FromDateTimeUtc utcDateTime)
+    this.dateTimeOrNone (name) |> Option.map toUtcInstant
 
 
 
