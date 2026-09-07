@@ -142,9 +142,22 @@ let discoveredSpecs (branchId: Uuid) : List<Spec> =
     |> Stdlib.List.map (fun found -> found.value)
   | Error _ -> []
 
+/// Every editor that ships, with nothing anyone has declared.
+///
+/// Separate from `registryFor` because a generated editor STARTS from one of these, and going through the
+/// registry to find it would be circular: the registry asks the branch for declared specs, and the
+/// declared spec would be asking the registry.
+let builtinSpecs () : List<Spec> =
+  Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), PT.TypeDecl.specs (), PT.Value.specs () ]
+
+/// The editor that ships for `kind`, if one does. What `fluid generate` writes into the value it emits,
+/// so an edited editor keeps everything it did not change.
+let builtinSpec (kind: Kind) : Stdlib.Option.Option<Spec> =
+  builtinSpecs () |> Stdlib.List.reverse |> Stdlib.List.findFirst (fun s -> s.kind == kind)
+
 /// Built-in specs (prims + PT), then whatever the user has declared on this branch.
 let registryFor (branchId: Uuid) : Registry =
-  Registry.ofList (Stdlib.List.flatten [ Prims.specs (), PT.specs (), PT.Types.specs (), PT.Fn.specs (), PT.TypeDecl.specs (), PT.Value.specs (), discoveredSpecs branchId ])
+  Registry.ofList (Stdlib.List.append (builtinSpecs ()) (discoveredSpecs branchId))
 
 let defaultRegistry () : Registry = registryFor Darklang.SCM.Branch.mainBranchId
 
@@ -970,8 +983,23 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   | [ "type", name ] -> editType cliState name
   | [ "value", name ] -> editValue cliState name
   | [ "generate", typeName ] ->
-    // Emit an editable editor module for a type, derived from its declaration. Print it so a person can
-    // redirect it or pipe it into `dark module`; it needs no other wiring, discovery finds it by type.
+    // A KIND first: `fluid generate Darklang.LanguageTools.ProgramTypes.Expr.EIf` prints the editor that
+    // SHIPS for `if`, ready to edit and declare. Replacing a built-in is the thing this design is for, and
+    // it used to mean writing a Spec from scratch against a kind string you had to find in the source.
+    // The panel names that string now; this turns it into the editor.
+    match
+      Derive.kindFromString typeName
+      |> Stdlib.List.filterMap (fun k -> builtinSpec k |> Stdlib.Option.map (fun sp -> (k, sp)))
+      |> Stdlib.List.head
+    with
+    | Some(pair) ->
+      let (k, sp) = pair
+      Stdlib.printLine (Derive.generateForKind k sp)
+      cliState
+    | None ->
+
+    // Otherwise a TYPE, whose editor is derived from its declaration. Print it so a person can redirect it
+    // or pipe it into `dark module`; it needs no other wiring, discovery finds it by type.
     let branchId = Darklang.SCM.Branch.mainBranchId
     // An ENUM needs one editor per case, not just the type-level one that owns the hole. Asking for the
     // head of the derived list gave you `Piece.Dim "?Option"` and nothing to edit.
@@ -993,7 +1021,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     cliState
 
 let help (_state: Darklang.Cli.AppState) : String =
-  [ "Usage: fluid [expr [<source>] | fn <name> | type <name> | value <name> | generate <Type> | demo]"
+  [ "Usage: fluid [expr [<source>] | fn <name> | type <name> | value <name> | generate <Type|Kind> | demo]"
     "A structural editor for Darklang code. You edit a tree, not text; blanks are ⟨labelled⟩ and you"
     "fill them by typing or picking from the menu."
     ""
@@ -1004,6 +1032,8 @@ let help (_state: Darklang.Cli.AppState) : String =
     "  fluid type <name>      a type declaration: record fields, enum cases, or an alias"
     "  fluid value <name>     a package value: its body expression"
     "  fluid generate <Type>  print an editable editor module for one of your types"
+    "  fluid generate <Kind>  print the editor that SHIPS for a node, to edit and declare"
+    "                         (the kind is on the `?` panel, under the node's name)"
     "  fluid demo             a worked example (a Color value)"
     "  fluid demo table       a list of records seen as a GRID, not as a line of text"
     ""

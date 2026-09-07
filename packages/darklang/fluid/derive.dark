@@ -336,6 +336,53 @@ let generateOne (name: String) (from: String) (pieces: List<Piece>) : String =
     "        ] }" ]
   |> Stdlib.String.join "\n"
 
+/// A kind written the way `Kind.toString` writes it and the panel shows it: `Type.Case`, or just `Type`
+/// for a type-level one. Both readings are tried, because the string alone cannot say which it is.
+let kindFromString (s: String) : List<Kind> =
+  let parts = Stdlib.String.split s "."
+
+  match Stdlib.List.last parts with
+  | Some lastPart ->
+    let front = Stdlib.List.take parts ((Stdlib.List.length parts) - 1) |> Stdlib.String.join "."
+
+    if front == "" then
+      [ Kind.named s ]
+    else
+      [ Kind.ofCase front lastPart, Kind.named s ]
+  | None -> [ Kind.named s ]
+
+/// The source of an editor for a kind that already SHIPS one, ready to edit and declare.
+///
+/// Replacing a built-in editor is the thing this whole design is for, and until now it meant writing a
+/// `Spec` from scratch against a kind string you had to find in the source. This prints the one that is
+/// there, starting from it by name so an edit keeps everything it did not touch.
+let generateForKind (kind: Kind) (sp: Spec) : String =
+  let short =
+    match kind.case with
+    | Some c -> c
+    | None -> shortName (Kind.typeName kind)
+
+  let fromExpr =
+    "Darklang.Fluid.App.builtinSpec "
+    ++ (match kind.case with
+        | Some c ->
+          "(Darklang.Fluid.Kind.ofCase " ++ (quoted (Kind.typeName kind)) ++ " " ++ (quoted c) ++ ")"
+        | None -> "(Darklang.Fluid.Kind.named " ++ (quoted (Kind.typeName kind)) ++ ")")
+    ++ " |> Stdlib.Option.withDefault (Darklang.Fluid.Spec.simple "
+    ++ (match kind.case with
+        | Some c ->
+          "(Darklang.Fluid.Kind.ofCase " ++ (quoted (Kind.typeName kind)) ++ " " ++ (quoted c) ++ ")"
+        | None -> "(Darklang.Fluid.Kind.named " ++ (quoted (Kind.typeName kind)) ++ ")")
+    ++ " [] (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.named \"?\") []))"
+
+  [ "/// An editor for " ++ (Kind.toString kind) ++ ", starting from the one that ships."
+    "///"
+    "/// Edit `pieces` and declare this value anywhere on the branch: Fluid finds every value of type"
+    "/// `Darklang.Fluid.Spec` and uses it in place of the built-in for that kind."
+    generateOne ("My" ++ short ++ "Editor") fromExpr sp.pieces ]
+  |> Stdlib.String.join "
+"
+
 let generateModule (typeName: String) (pieces: List<Piece>) : String =
   let short = shortName typeName
   generateOne

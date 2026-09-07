@@ -454,3 +454,45 @@ module ExpressionHolesAreUnchanged =
   (ExpressionHolesAreUnchanged.run [ "x" ]) = "x~"
   (ExpressionHolesAreUnchanged.run [ "4" ]) = "4~"
   (ExpressionHolesAreUnchanged.run [ "\"", "h", "i" ]) = "\"hi~\""
+
+
+module GenerateTheEditorThatShips =
+  // Replacing a built-in editor is what this design is for, and until now it meant writing a `Spec` from
+  // scratch against a kind string you had to find in the source. `fluid generate <kind>` prints the one
+  // that ships, ready to edit and declare.
+  //
+  // It starts from the built-in BY NAME, so an edit keeps everything it did not touch -- the hole rules,
+  // the wrap rules, the actions, the binders. Only `pieces` is written out, because that is the part
+  // anyone wants to change.
+  let eifKind () : Darklang.Fluid.Kind =
+    Darklang.Fluid.Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "EIf"
+
+  let generated () : String =
+    match Darklang.Fluid.App.builtinSpec (GenerateTheEditorThatShips.eifKind ()) with
+    | Some sp -> Darklang.Fluid.Derive.generateForKind (GenerateTheEditorThatShips.eifKind ()) sp
+    | None -> "no built-in"
+
+  // The real pieces, not a stub.
+  (Stdlib.String.contains (GenerateTheEditorThatShips.generated ()) "Darklang.Fluid.Piece.Keyword \"then\"") = true
+  (Stdlib.String.contains (GenerateTheEditorThatShips.generated ()) "Darklang.Fluid.Piece.ParenLowSlot \"cond\"") = true
+
+  // Starting from the built-in by name, which is what makes an edit additive.
+  (Stdlib.String.contains
+    (GenerateTheEditorThatShips.generated ())
+    "Darklang.Fluid.App.builtinSpec (Darklang.Fluid.Kind.ofCase \"Darklang.LanguageTools.ProgramTypes.Expr\" \"EIf\")") = true
+
+  // `builtinSpec` looks at what SHIPS and nothing else. Going through the registry would be circular: the
+  // registry asks the branch for declared specs, and a declared spec would be asking the registry.
+  ((Darklang.Fluid.App.builtinSpec (GenerateTheEditorThatShips.eifKind ())
+    |> Stdlib.Option.map (fun s -> Darklang.Fluid.Kind.toString s.kind)
+    |> Stdlib.Option.withDefault "none")) = "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
+
+  ((Darklang.Fluid.App.builtinSpec (Darklang.Fluid.Kind.named "Nobody.Declared.This")
+    |> Stdlib.Option.map (fun s -> "found")
+    |> Stdlib.Option.withDefault "none")) = "none"
+
+  // A kind string is `Type.Case` or just `Type`, and nothing in the string says which, so both readings
+  // are offered and the first that matches a built-in wins.
+  ((Darklang.Fluid.Derive.kindFromString "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
+    |> Stdlib.List.map (fun k -> Darklang.Fluid.Kind.toString k))) =
+    [ "Darklang.LanguageTools.ProgramTypes.Expr.EIf", "Darklang.LanguageTools.ProgramTypes.Expr.EIf" ]
