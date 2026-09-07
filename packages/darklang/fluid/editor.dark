@@ -2306,28 +2306,36 @@ let offeredCandidates (st: State) : List<Candidate> =
     | Some sp -> sp
     | None -> st.caret.node
 
-  let (here, scope, _pending, offered) = Stdlib.List.fold targetPath ((st.root, [], [], [])) step
+  let (here, scope, pending, offered) = Stdlib.List.fold targetPath ((st.root, [], [], [])) step
 
-  // ...and the node the caret is IN, when it is in one of its text slots. The fold only ever asks
-  // ANCESTORS, because a slot hole is reached by descending into it; a text slot is not descended into,
-  // so `r.` -- where the field name is text on the node the caret is already on -- would never be asked.
+  // A text slot is not descended into, so an offer naming one is settled here rather than by the walk:
+  // the node the caret is IN is asked for its own, and an ANCESTOR's offer with exactly that one segment
+  // left goes live too -- a record update offers the record's field names into `updates.name`, and `name`
+  // is text on the field rather than a slot to descend into. Anything already LIVE for this node stays,
+  // which is what keeps `S` typed into a case's name reading as the arm's pattern.
   match (st.caret.part, here) with
   | (InText slotName, Filled n) ->
-    (match Registry.find st.reg n.kind with
-     | Some spec ->
-       Stdlib.List.append
-         offered
-         (spec.offers scope n
-          |> Stdlib.List.filter (fun g ->
-            let (_, slots) = g
-            Stdlib.List.member slots slotName)
-          |> Stdlib.List.map (fun g ->
-            let (cs, _) = g
-            cs)
-          |> Stdlib.List.flatten)
-       // A text slot is not descended into, so an offer that named it is asked for here, and anything
-       // already LIVE for this node stays -- `S` typed into a case's name is still the arm's pattern.
-     | None -> offered)
+    let fromAbove =
+      pending
+      |> Stdlib.List.filterMap (fun o ->
+        let (segs, cs) = o
+        if segs == [ slotName ] then Stdlib.Option.Option.Some cs else Stdlib.Option.Option.None)
+      |> Stdlib.List.flatten
+
+    let own =
+      match Registry.find st.reg n.kind with
+      | Some spec ->
+        spec.offers scope n
+        |> Stdlib.List.filter (fun g ->
+          let (_, slots) = g
+          Stdlib.List.member slots slotName)
+        |> Stdlib.List.map (fun g ->
+          let (cs, _) = g
+          cs)
+        |> Stdlib.List.flatten
+      | None -> []
+
+    Stdlib.List.flatten [ offered, fromAbove, own ]
   | _ -> offered
 
 /// Variable candidates for the hole under the caret: the in-scope names matching the typed prefix,

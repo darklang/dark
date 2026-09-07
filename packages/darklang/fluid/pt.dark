@@ -1601,6 +1601,61 @@ let fieldAccessOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> *
        | None -> [])
   | None -> []
 
+/// The fields of the record being updated, as whole update-fields.
+///
+/// `{ s with ⟨name⟩ = ... }` made you spell the field from memory, the same way `s.` did before it knew.
+/// Offered into `updates.name`, which is a TEXT slot on the field rather than a hole in the tree, so each
+/// candidate carries the field with the name filled in and the VALUE it already had.
+let recordUpdateOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> * List<String>)> =
+  let targetName =
+    match Node.slot n "record" with
+    | Some(Filled r) ->
+      if r.kind.case == Stdlib.Option.Option.Some "EVariable" then
+        Stdlib.Option.Option.Some(textOf r "name")
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  let typeHash =
+    match targetName with
+    | Some nm ->
+      (match scope |> Stdlib.List.findFirst (fun b -> b.name == nm) with
+       | Some b ->
+         (match b.typ with
+          | Some t ->
+            if t.kind == Types.typeKind "TCustomType" then
+              Stdlib.Option.Option.Some(textOf t "_hash")
+            else
+              Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+  match typeHash with
+  | Some h ->
+    if h == "" then
+      []
+    else
+      (match Darklang.LanguageTools.PackageManager.Type.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash h) with
+       | Some t ->
+         (match t.declaration.definition with
+          | Record fields ->
+            let cands =
+              fields
+              |> Stdlib.List.map (fun f ->
+                Spec.contextCandidate
+                  f.name
+                  "field"
+                  (Node.make
+                    (Kind.named recordFieldType)
+                    [ text "name" f.name
+                      ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
+
+            [ (cands, [ "updates.name" ]) ]
+          | _ -> [])
+       | None -> [])
+  | None -> []
+
 let exprSummary (n: Node) : String =
   match n.kind.case with
   | Some c -> c
@@ -1803,18 +1858,20 @@ let moreSpecs () : List<Spec> =
             Piece.HardLine
             Piece.Punct "}" ] ]
       (Node.make (exprKind "ERecord") [ text "type" "", text "_typeHash" "", ("fields", Field.Many([], fieldExpect ())) ])
-    simpleExpr
-      "ERecordUpdate"
-      [ Piece.Group
-          [ Piece.Punct "{"
-            Piece.Space
-            Piece.Slot "record"
-            Piece.Space
-            Piece.Keyword "with"
-            Piece.Nest(2, [ Piece.HardLine, Piece.Each("updates", [ Piece.Punct ";", Piece.HardLine ]) ])
-            Piece.HardLine
-            Piece.Punct "}" ] ]
-      (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ])
+    Spec.withOffers
+      (simpleExpr
+        "ERecordUpdate"
+        [ Piece.Group
+            [ Piece.Punct "{"
+              Piece.Space
+              Piece.Slot "record"
+              Piece.Space
+              Piece.Keyword "with"
+              Piece.Nest(2, [ Piece.HardLine, Piece.Each("updates", [ Piece.Punct ";", Piece.HardLine ]) ])
+              Piece.HardLine
+              Piece.Punct "}" ] ]
+        (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ]))
+      recordUpdateOffers
     simpleExpr
       "EEnum"
       [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]

@@ -1111,3 +1111,58 @@ module PutChecksWhatTheSlotWants =
 
   // An expression onto an expression is still just a put.
   (PutChecksWhatTheSlotWants.after "1 + 2" [ "<Esc>", "j", "y", "j", "p" ]) = "put EInt || 1 + 1"
+
+
+module ARecordUpdateOffersItsFields =
+  // `{ s with ⟨name⟩ = ... }` made you spell the field from memory, the same way `s.` did before it knew.
+  // Same three facts once more: the update knows its target is a variable, scope knows what that variable
+  // was declared as, the store knows that type's fields.
+  //
+  // Offered into `updates.name` -- a path whose last segment is TEXT on the field rather than a slot to
+  // descend into, which is the case the walk did not have: the node the caret is in was asked for its own
+  // offers, and an ancestor's could never reach it.
+  let doc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "grow"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "s")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "s"; typ = t; description = "" } ]
+            returnType = t
+            description = "" }))
+
+  // Clear the body, `{` for an update, `s` as the record, Tab to the field name.
+  let keys () : List<String> = [ "<Esc>", "j", "j", "j", "j", "c", "{", "s", "<Tab>" ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ARecordUpdateOffersItsFields.doc t) 70)
+        (Stdlib.List.append (ARecordUpdateOffersItsFields.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordUpdateOffersItsFields.doc t)
+      70
+      (Stdlib.List.append (ARecordUpdateOffersItsFields.keys ()) extra)
+
+  (ARecordUpdateOffersItsFields.menu (FieldAccessOffersTheFields.sizeType ()) []) = "width, height"
+  (ARecordUpdateOffersItsFields.menu (FieldAccessOffersTheFields.sizeType ()) [ "w" ]) = "width"
+
+  // Tab takes it and lands in the value, whose hole is labelled with the field it belongs to.
+  (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "w", "<Tab>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+
+  // And the whole thing lowers to the update it looks like.
+  (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Enter>", "9", "9" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = 99~\n  }"
+
+  // A target with no record type offers nothing, so this is about the declaration and not about being in
+  // an update.
+  (ARecordUpdateOffersItsFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""
