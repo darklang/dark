@@ -181,8 +181,16 @@ let typeNameResolution
   (name: String)
   (hash: String)
   : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName>, String> =
+  // An empty hash used to refuse the whole node, which meant a record literal you had just typed could be
+  // drawn and never saved. The document should hold what you typed; resolution happens at save, where the
+  // source goes back through the real parser and its resolver. So an unresolved name lowers to an
+  // UNRESOLVED name, which is a thing ProgramTypes already models and the printer already prints (it
+  // writes the original name back out).
   if hash == "" then
-    Stdlib.Result.Result.Error("unresolved type name: " ++ name)
+    Stdlib.Result.Result.Ok(
+      Darklang.LanguageTools.ProgramTypes.NameResolution
+        { originalName = Stdlib.String.split name "."
+          resolved = Stdlib.Result.Result.Error Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound })
   else
     Stdlib.Result.Result.Ok(
       Darklang.LanguageTools.ProgramTypes.NameResolution
@@ -962,6 +970,37 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
 // --- Specs ---
 
 let intFromDigit (c: String) (e: Expect) : Node = Node.make (exprKind "EInt") [ text "digits" c ]
+
+/// `{` at the end of a name makes a record literal of that type: `Point` then `{` gives
+/// `Point { ⟨name⟩ = ⟨value⟩ }`, with the caret in the field's name.
+///
+/// A rule on EVariable rather than on Expr, which is what makes it possible at all. An uppercase name in
+/// an expression could be a record type or an enum constructor and nothing typed so far says which; the
+/// `{` is the thing that says. Keyed on the whole language it would have had to guess.
+///
+/// The hash is looked up here so the fields can be offered straight away -- a record literal is the one
+/// completion that needs nothing but the node itself. When the name resolves to nothing the literal is
+/// still built, with an empty hash: you see what you typed, it lowers as an unresolved name, and the
+/// save reparses the source and resolves it for real.
+let recordFromName (n: Node) (c: String) : Node =
+  let name = textOf n "name"
+  let hash =
+    match
+      Darklang.LanguageTools.PackageManager.Type.find
+        Darklang.SCM.Branch.mainBranchId
+        (Darklang.LanguageTools.ProgramTypes.parsePackageLocation name)
+    with
+    | Some h -> Darklang.LanguageTools.ProgramTypes.hashToString h
+    | None -> ""
+
+  Node.make
+    (exprKind "ERecord")
+    [ text "type" name
+      text "_typeHash" hash
+      ("fields",
+       Field.Many(
+         [ Slot.Filled(Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]) ],
+         fieldExpect ())) ]
 
 /// `L` at the end of an integer makes it an Int64, keeping the digits.
 ///
@@ -1993,7 +2032,9 @@ let baseSpecs () : List<Spec> =
             Piece.Punct ")" ] ]
       (tupleFromParen "(" (exprExpect "item"))
     Spec.withTextClasses
-      (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
+      (Spec.withWrapRules
+        (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
+        [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = "" } ])
       [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     simpleExpr
       "ELet"

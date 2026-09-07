@@ -769,3 +769,32 @@ module EndStopsAtAHolesEdge =
   // hole's text is its LABEL, not something you are editing, so there is no "end of it" to be at. This is
   // the half of `caretForCell` that had to survive dropping its dim case.
   (Fixtures.screen [ "l", "e", "<Enter>", "<End>" ]) = "let ⟨name⟩ = ~⟨value⟩\n⟨body⟩"
+
+
+module ARecordLiteralCanBeTyped =
+  // There was no way to BUILD a record literal. Fluid drew one it was given and offered its fields once it
+  // had one, but nothing typed made one. `{` on a hole builds a record UPDATE, which is a different thing.
+  //
+  // `{` at the end of a NAME does it: `Point` then `{` gives the literal, with the caret in the first
+  // field's name. That is a rule on EVariable rather than on Expr, which is what makes it possible at
+  // all -- an uppercase name could be a record type or an enum constructor and nothing typed so far says
+  // which. The `{` is the thing that says, and a per-kind rule can be keyed on it without the language
+  // having to guess.
+  (Fixtures.screen [ "P", "o", "i", "n", "t", "{" ]) = "Point {\n  ~name = ⟨value⟩\n}"
+
+  // Everything after the first keystroke already existed: the field list takes a sibling on `,`, Tab
+  // moves name -> value, and the caret lands on the name because it is the first BLANK in the drawing.
+  (Fixtures.screen [ "P", "o", "i", "n", "t", "{", "x", "<Tab>", "1" ]) = "Point {\n  x = 1~\n}"
+  (Fixtures.screen [ "P", "o", "i", "n", "t", "{", "x", "<Tab>", "1", ",", "y", "<Tab>", "2" ]) =
+    "Point {\n  x = 1;\n  y = 2~\n}"
+
+  // And it lowers. A name that resolves to nothing yet is kept as an UNRESOLVED name rather than refusing
+  // the node: the document holds what you typed, and the save puts the source back through the real
+  // parser, which is the thing that actually resolves names. Refusing here meant a literal you had just
+  // typed could be drawn and never saved.
+  (Fixtures.program [ "P", "o", "i", "n", "t", "{", "x", "<Tab>", "1", "<Esc>", "<Esc>" ]) = "Point { x = 1 }"
+  (Fixtures.program [ "P", "o", "i", "n", "t", "{", "x", "<Tab>", "1", ",", "y", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
+    "Point { x = 1; y = 2 }"
+
+  // A name on its own is still a variable. The `{` is what changes what it is.
+  (Fixtures.program [ "P", "o", "i", "n", "t", "<Esc>", "<Esc>" ]) = "Point"
