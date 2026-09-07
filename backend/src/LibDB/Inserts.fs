@@ -390,8 +390,34 @@ let importOpsBulk
           VALUES (@id, @op_blob, 0, 1, @origin_ts, @commit_hash)
           """
 
+        // An op id is a content hash, so an op arriving from a peer's MAIN can already be here as
+        // a branch's inert copy -- the same code, authored on a branch that has not merged. The
+        // insert above ignores it, and main was then missing a name the pull had just been sent:
+        // `pull` reported 0 new ops, `eval` could not find the name, and `sync status` said in
+        // sync, because the op WAS present, just not effective.
+        //
+        // So promote it instead: this is a main op now, whatever else holds it. `applied = 0`
+        // re-arms the fold, which is what actually binds the name; the branch keeps its tag, the
+        // same state a merge leaves behind. Only ever 0 -> 1: nothing here makes a main op inert.
+        let promote =
+          """
+          UPDATE package_ops
+             SET effective = 1,
+                 applied = 0,
+                 commit_hash = COALESCE(commit_hash, @commit_hash)
+           WHERE id = @id AND effective = 0
+          """
+
+        let promoteRows =
+          paramRows
+          |> List.map (fun row ->
+            row |> List.filter (fun (k, _) -> k = "id" || k = "commit_hash"))
+
         let affected = Sql.executeTransactionSync [ (sql, paramRows) ]
-        return affected |> List.sumBy int64
+        let promoted = Sql.executeTransactionSync [ (promote, promoteRows) ]
+        // Both counts: an op that was inert here and is now effective is as new to main as one
+        // that had never arrived, and reporting only the inserts made a real pull read as "0 new".
+        return (affected |> List.sumBy int64) + (promoted |> List.sumBy int64)
   }
 
 

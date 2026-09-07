@@ -24,4 +24,8 @@ EXPOSE 9090
 
 # `serve` resolves the router out of the package store, so the store has to exist first -- which the
 # binary does for itself on startup.
-CMD ["/home/dark/bin/Cli", "serve", "--port", "9090", "Darklang.Matter.router"]
+# The relay's grants, under the effect/permission system: the port it binds, the env var the
+# write secret arrives in, and the store it stores into. The operator here IS the image -- this
+# container exists to serve 9090 and nothing else. What the relay refuses is unchanged: it still
+# never folds what it hosts, and the write secret still gates every write.
+CMD ["/bin/sh", "-c", "for g in 'http-server 9090' 'env read DARK_MATTER_WRITE_SECRET' 'package-read' 'package-write'; do /home/dark/bin/Cli permissions allow $g >/dev/null 2>&1; done; exec /home/dark/bin/Cli serve --port 9090 Darklang.Matter.router"]

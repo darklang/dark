@@ -696,6 +696,29 @@ let private applyBranchEvent
              SELECT $p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = $b"
             bindP
 
+      // The branch's PINS and FOLLOWS go where its ops go. A pin is a decision about a name --
+      // "this caller does not follow that dependency" -- and it is stored per branch, so a merge
+      // that moved the ops and left the decisions behind left the parent unable to see them: its
+      // next edit repointed a caller the child had deliberately pinned, and the pin was still
+      // there, under an id nothing consults any more.
+      //
+      // OR IGNORE, not REPLACE: the parent's own decision about a name is the parent's, and a
+      // child cannot overrule it by merging. Same rule the name bases above follow.
+      let mergeTarget =
+        match parent with
+        | Some pid when not parentIsMain -> pid
+        | _ -> string PT.BranchId.Main
+      do!
+        exec
+          ctx
+          "INSERT OR IGNORE INTO propagation_policy
+             (branch_id, owner, modules, name, policy, note, origin_ts)
+           SELECT $target, owner, modules, name, policy, note, origin_ts
+             FROM propagation_policy WHERE branch_id = $b"
+          (fun cmd ->
+            p cmd "$b" b
+            p cmd "$target" mergeTarget)
+
       do!
         exec
           ctx

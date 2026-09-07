@@ -6,6 +6,15 @@
 # gate's `set -e`, traps and exits stay its own.
 # shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
 
+# The grants a relay instance needs before `serve` will run. Called with the CLI path and the port,
+# inside whichever DARK_CONFIG_RUNDIR/HOME the caller has set.
+relay_grants() {
+  "$1" permissions allow http-server "$2" > /dev/null 2>&1
+  "$1" permissions allow env read DARK_MATTER_WRITE_SECRET > /dev/null 2>&1
+  "$1" permissions allow package-read > /dev/null 2>&1
+  "$1" permissions allow package-write > /dev/null 2>&1
+}
+
 # --- setup: `dark sync setup`, driven end to end ------------------------------------------------
 # Setup asks questions, so no other test reaches it; it also writes GLOBAL config (identity,
 # relay, write secret), which is why it gets its own rundir. `script` rather than `expect`: for
@@ -96,6 +105,11 @@ gate_relay_routes() {
   # on, by stripping every occurrence of "Bearer " anywhere in the value and by splitting the credential on
   # the first space.
   SECRET='relay-test-Bearer secret'
+
+  # What a relay needs, under the effect/permission system: the port it binds, the env var its
+  # write secret arrives in, and the store it exists to hold. Granted per instance, and a gate is
+  # its own instance. Nothing here widens what the relay DOES: it still never folds what it hosts.
+  DARK_CONFIG_RUNDIR="$PWD/$WORK" relay_grants "$PWD/$CLI" "$PORT"
 
   DARK_CONFIG_RUNDIR="$PWD/$WORK" DARK_MATTER_WRITE_SECRET="$SECRET" \
     "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
@@ -387,6 +401,9 @@ gate_sync_multi_instance() {
   x()  { local n=$1; shift; DARK_CONFIG_RUNDIR="$PWD/$ROOT/$n" HOME="$PWD/$ROOT/$n/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
 
   mk relay; mk A; mk B; mk C; mk D
+  DARK_CONFIG_RUNDIR="$PWD/$ROOT/relay" HOME="$PWD/$ROOT/relay/home" \
+    relay_grants "$PWD/$CLI" "$PORT"
+
   DARK_CONFIG_RUNDIR="$PWD/$ROOT/relay" HOME="$PWD/$ROOT/relay/home" DARK_MATTER_WRITE_SECRET="$SECRET" \
     "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" > "$ROOT/relay/log" 2>&1 &
   RPID=$!
