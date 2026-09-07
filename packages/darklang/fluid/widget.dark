@@ -288,7 +288,25 @@ let inspectorWith
       let ehead = Stdlib.List.head words |> Stdlib.Option.withDefault "" |> Stdlib.String.toUppercase
       let eval = words |> Stdlib.List.drop 1 |> Stdlib.String.join " "
       [ (head ehead) ++ "  " ++ eval, "" ]
-    else [ (head "ON") ++ "  " ++ node, "" ]
+    else
+      // The full KIND under the short name. It is the string a spec has to name to replace this node's
+      // editor, and there was nowhere to read it: `Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr"
+      // "EIf"` is not something anyone guesses, and a spec whose kind matches nothing is ignored in
+      // silence. Declaring your own editor for a built-in is the headline claim of this thing, so the
+      // string it needs belongs where you are standing when you decide to.
+      //
+      // Hard-wrapped, not word-wrapped: it is one long dotted token with no spaces to break at, and a
+      // name you cannot copy in full is no better than no name.
+      let fullKind =
+        Darklang.Fluid.nodeAtPath st.root st.caret.node
+        |> Stdlib.Option.map (fun n -> Kind.toString n.kind)
+        |> Stdlib.Option.withDefault "-"
+
+      Stdlib.List.flatten
+        [ [ (head "ON") ++ "  " ++ node ]
+          Stdlib.Cli.Tui.Text.wrapAtColumn fullKind (Stdlib.Int.max 8 (region.cols - 2))
+          |> Stdlib.List.map (fun l -> dim ("  " ++ l))
+          [ "" ] ]
   // The panel is also the help: the status line carries only the keys you reach for constantly, and the
   // rest live here, which is what makes trimming that line honest rather than a loss.
   let keyRows =

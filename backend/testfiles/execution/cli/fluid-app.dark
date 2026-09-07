@@ -583,3 +583,23 @@ module TextModeWorksOnAShell =
 
   // On an expression it is still that expression, at the root.
   (TextModeWorksOnAShell.ctrlE (Fixtures.docOf "1 + 2")) = " => 1 + 2"
+
+
+module ThePanelNamesTheKind =
+  // Declaring your own editor for a built-in node is the headline claim of this thing, and it needs the
+  // node's KIND -- `Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "EIf"`. That string was
+  // readable nowhere. I got it wrong on the first try writing exactly such a spec, and the failure mode is
+  // silence: a spec whose kind matches nothing is simply never used.
+  //
+  // So the panel says it, under the short name, wrapped hard because it is one dotted token with nothing
+  // to break at and a name you cannot copy in full is no better than no name.
+  (Stdlib.String.contains
+    (InspectorLabels.screenText "if x then 1L else 2L" [ "<Esc>" ])
+    "Darklang.LanguageTools.Program") = true
+
+  // The short name stays on the ON line: the full one is for when you are about to write a spec, not for
+  // every glance.
+  (Stdlib.String.contains (InspectorLabels.screenText "if x then 1L else 2L" [ "<Esc>" ]) "ON  EIf") = true
+
+  // A hole leads with EXPECTS instead, and gets no kind line -- there is no node there to name.
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "Darklang.LanguageTools") = false
