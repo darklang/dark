@@ -240,9 +240,12 @@ jobs:
       # invisible to a green suite). `gates ci` runs the CI subset (relay-routes, workbench-scm,
       # workbench-views), each in its own process under its own `timeout 5m`, each against its own
       # rundir (`gates gates-are-clean` asserts that, locally). `gates list` names the rest.
+      # CLI points at the published binary: this job builds Release publish only, and the gates'
+      # default is the Debug build a dev container has -- without this every gate dies on a
+      # missing file (relay-routes reports it as "the relay never came up").
       - run:
           name: Gate scripts (the CI subset)
-          command: timeout 15m scripts/testing/gates ci
+          command: CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli timeout 15m scripts/testing/gates ci
 
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
