@@ -452,3 +452,44 @@ module ParametersAreInScope =
 
   (ParametersAreInScope.scoped ()) =
     "colour: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, count: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt"
+
+
+module AParametersTypeReachesItsBody =
+  // The sequence, not the keystrokes: name a parameter, take its type from the SEARCH, then use the
+  // parameter in the body and expect its fields. Each of those three works on its own and had a pin; what
+  // was not pinned is that the type found by the search is the type the offers later ask about.
+  //
+  // Driven from the blank shell `dark fn <name>` opens, so this is the create flow rather than an edit.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let blankDoc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "report")
+
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (AParametersTypeReachesItsBody.reg ()) (AParametersTypeReachesItsBody.blankDoc ()) 70 keys
+
+  let menu (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (AParametersTypeReachesItsBody.reg ()) (AParametersTypeReachesItsBody.blankDoc ()) 70)
+        keys
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  /// A shell with a searched-for record parameter and a return type, caret in the body.
+  let built (extra: List<String>) : List<String> =
+    Stdlib.List.append [ "(", "sz", "<Tab>", "Size", "<Enter>", "<Tab>", "String", "<Enter>", "<Tab>" ] extra
+
+  (AParametersTypeReachesItsBody.run (AParametersTypeReachesItsBody.built [])) =
+    "let report (sz: Stdlib.Cli.Tui.Size): String =\n  ~⟨body⟩"
+
+  // The point of the module: a short name typed into the TYPE slot resolved through the search, and the
+  // body knows what it resolved to.
+  (AParametersTypeReachesItsBody.menu (AParametersTypeReachesItsBody.built [ "sz", "." ])) = "width, height"
+
+  (AParametersTypeReachesItsBody.run (AParametersTypeReachesItsBody.built [ "sz", ".", "w", "<Enter>" ])) =
+    "let report (sz: Stdlib.Cli.Tui.Size): String =\n  sz.width~"
+
+  // And it carries on into a pipe. The trailing backspace removes the empty step Enter starts, which is
+  // the same thing Enter does in a list and is how a chain grows as you type it.
+  (AParametersTypeReachesItsBody.run
+    (AParametersTypeReachesItsBody.built [ "sz", ".", "w", "<Enter>", "|", ">", "Stdlib.Int.toString", "<Enter>", "<BS>" ])) =
+    "let report (sz: Stdlib.Cli.Tui.Size): String =\n  sz.width |> Stdlib.Int.toString~"
