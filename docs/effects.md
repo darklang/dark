@@ -205,7 +205,7 @@ An empty complete requirement set is called `effect-free`, not `pure`: it does
 not establish termination or determinism. Resource details do not belong in
 function types: a dynamic path or URL remains dynamic and requires an explicit
 runtime rule. Effect rows on function *types* (so that a callback's effects
-flow through `List.map`) are later type-system work; see the todo file. The
+flow through `List.map`) are later type-system work; see docs/permissions-todos.md. The
 declaration-level row above is the runtime half of that design, available now.
 
 ## Requests and policies
@@ -385,7 +385,7 @@ policy layer that denied it, the reason, the exact resource, and a narrowly
 scoped suggested rule — and that structure drives the audit log and the
 actionable `permissions allow <rule>` hint. The value surfaced to *guest* code
 is still a rendered `RuntimeError` string; exposing the structured denial as a
-Dark value is tracked in the todo file.
+Dark value is tracked in docs/permissions-todos.md.
 
 A denial is actionable: it names the exact `permissions allow <rule>` that
 would fix an instance-layer denial, derived from the operation and the check

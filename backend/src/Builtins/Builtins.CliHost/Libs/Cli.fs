@@ -380,6 +380,11 @@ module ExecutionError =
   type ExecutionError =
     | Parse of ParseError.ParseError
     | Runtime of RT.RuntimeError.Error
+    /// A runtime error reclassified after the run (see `classify`), carrying
+    /// what the retry prompt needs. Deliberately not a RuntimeError case: the
+    /// classification and the suggested rule are CLI presentation.
+    // TODO exposing the structured denial as a Dark value
+    // (docs/permissions-todos.md) would make this the natural seam.
     | Denied of PermissionDenied
     | Unhandled of Unhandled
 

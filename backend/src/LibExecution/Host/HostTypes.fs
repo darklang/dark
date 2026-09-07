@@ -169,6 +169,11 @@ type Response =
 [<RequireQualifiedAccess>]
 type FailureKind =
   | NotFound
+  /// The OS refused (EACCES, UnauthorizedAccessException) — not a policy
+  /// denial, which raises before the operation runs and never appears here.
+  // CLEANUP consider renaming to OsAccessDenied: three different things are
+  // called PermissionDenied (this OS failure, the policy-denial RTE, and the
+  // CLI's ExecutionError.Denied), and this one is the odd one out.
   | PermissionDenied
   | Other
 

@@ -759,6 +759,8 @@ module Statement =
   let tests = testList "Statement" [ simple; nested; shouldError ]
 
 
+// CLEANUP ~810 lines of a ~1900-line file: split into its own
+// PermissionsGate.Tests.fs, next to Permissions.Tests / PermissionEscape.Tests.
 module PermissionsGate =
   // The gate enforces the active permission policies.
   let clockCall () =

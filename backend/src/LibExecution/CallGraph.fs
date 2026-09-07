@@ -169,6 +169,10 @@ module Requirements =
           for called in calls.names do
             match called with
             | PT.FQFnName.Builtin builtin ->
+              // TODO consider specializing a scoped effect when the resource
+              // argument is a literal at the call site (a hardcoded path or
+              // URL), so approve-time review can show an exact rule instead
+              // of the bare effect. See docs/permissions-todos.md.
               match callEffectsFor (builtin.name, builtin.version) with
               | Some found -> requiredEffects <- Set.union requiredEffects found
               | None -> incomplete ()
