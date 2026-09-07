@@ -260,7 +260,7 @@ committing would do without committing.
   eval "Ux.Money.total 3L"     # 3000 -- total followed
   propagate pin Ux.Money.total # dropped the staged repoint
   eval "Ux.Money.total 3L"     # 300 -- back on the old cents
-  commit "cents in mills"      # CHANGED (1), STAYING BEHIND (1)
+  commit "cents in mills" -y   # CHANGED (1), STAYING BEHIND (1)
 
 ## What is not versioned here
 
