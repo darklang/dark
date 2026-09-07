@@ -1311,7 +1311,9 @@ let namedBy (full: String) (suffix: String) : Bool =
   let s = Stdlib.String.toLowercase suffix
   (f == s) || (Stdlib.String.endsWith f ("." ++ s))
 
-let enumCandidates (typed: String) : List<Candidate> =
+/// The (type, case) pairs a typed case name could mean. Shared by the two sides that need it: an
+/// expression builds `Result.Ok(<>)` from one, a match PATTERN builds `Ok(<>)`.
+let enumCaseHits (typed: String) : List<(String * String * Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)> =
   // Two characters is enough for a CASE, because `Ok` is two characters and is the one everybody types.
   // The general search wants three, to keep a stray keystroke from scanning the store; a capitalised
   // two-letter word is specific enough to be worth it.
@@ -1319,9 +1321,7 @@ let enumCandidates (typed: String) : List<Candidate> =
     []
   else
     // The typed text is a case name that may carry a qualifier: `Ok`, `Result.Ok`, and the
-    // `Stdlib.Result.Result.Ok` the PRINTER writes all name the same constructor. Only the bare form used
-    // to match, so the printer's own output could not be typed back in -- you got one long name that no
-    // lookup resolves, and the space that should have committed the case went into it.
+    // `Stdlib.Result.Result.Ok` the PRINTER writes all name the same constructor.
     let segments = Stdlib.String.split typed "."
     let casePrefix =
       segments |> Stdlib.List.last |> Stdlib.Option.withDefault typed |> Stdlib.String.toLowercase
@@ -1341,8 +1341,8 @@ let enumCandidates (typed: String) : List<Candidate> =
     // at. The natural order, and measured at about 6% -- not the win I expected when I wrote it, which
     // is worth saying because the reason is the interesting part: the cost here is the SEARCH above, not
     // the scanning below. That query does not depend on what is typed at all (`text = ""`, every type),
-    // so it returns the same thing on every keystroke and is a candidate for the one field
-    // `LibDB.PackageManager.pt` still does not cache.
+    // so it returns the same thing on every keystroke, and the profile says the real cost is interpreter
+    // opcodes rather than the store.
     |> Stdlib.List.filter (fun item ->
       (qualifier == "") || (namedBy (locationName item.location) qualifier))
     |> Stdlib.List.map (fun item ->
@@ -1353,24 +1353,84 @@ let enumCandidates (typed: String) : List<Candidate> =
         cases
         |> Stdlib.List.filter (fun c ->
           Stdlib.String.startsWith (Stdlib.String.toLowercase c.name) casePrefix)
-        |> Stdlib.List.map (fun c ->
-          // A case's fields become holes, the way a record's do, so `Ok` lands you inside `Result.Ok(<>)`.
-          let fieldSlots = c.fields |> Stdlib.List.map (fun _f -> Slot.Empty(exprExpect "field"))
-          let detail =
-            if Stdlib.List.isEmpty c.fields then "case"
-            else "case of " ++ (Stdlib.Int.toString (Stdlib.List.length c.fields))
-          Spec.candidate
-            ((displayName name) ++ "." ++ c.name)
-            detail
-            (Node.make
-              (exprKind "EEnum")
-              [ text "type" name, text "_typeHash" hash, text "case" c.name
-                ("fields", Field.Many(fieldSlots, exprExpect "field")) ]))
+        |> Stdlib.List.map (fun c -> (name, hash, c))
       | _ -> [])
     |> Stdlib.List.flatten
-    // Shortest first, so `Ok` offers `Result.Ok` before anything that merely starts with it.
-    |> Stdlib.List.sortBy (fun c -> Stdlib.String.length c.label)
-    |> Stdlib.List.take 4
+
+
+/// Enum constructors as match PATTERNS: `Ok` offers `Ok(<>)`, with one hole per field.
+///
+/// Without this the pattern side had no store-backed completion at all, so `Ok` was just typed text and
+/// the space after it meant "done, go to the rhs". `match r with | Ok v ->` -- the form the stdlib itself
+/// writes most -- came out as `| Ok -> v`, a DIFFERENT program, silently. The expression side never had
+/// this bug because its candidate carries the field holes, which is the whole difference.
+///
+/// Deduped by case name, because a pattern does not name its type: two types with an `Ok` case give the
+/// same pattern, and leaving both in would make the space after it ambiguous and stop committing.
+///
+/// The tie is broken toward `Stdlib`, then by shortest path. It has to be broken by SOMETHING, and the
+/// choice matters more than it looks: nine types declare an `Error` and they do not all have the same
+/// number of fields. Taking whichever the store listed first, or merely the shortest path, picked
+/// `Fluid.Layout.Style.Error`, which has none. Committing a zero-field case leaves no hole, so the caret
+/// moved on to the right-hand side and the binding was typed there: `| Error -> e` instead of
+/// `| Error(e) ->`, silently, which is the same class of bug this whole change is about.
+///
+/// It is still a GUESS. A pattern carries no type, and the honest fix is to complete from the
+/// scrutinee's type rather than from every enum in the store -- which Fluid cannot do yet. Until then,
+/// the language's own library is what someone typing `Error` into a match almost always means.
+let enumPatCandidates (typed: String) : List<Candidate> =
+  enumCaseHits typed
+  |> Stdlib.List.sortBy (fun hit ->
+    let (name, _hash, _c) = hit
+    let ownLibrary = if Stdlib.String.startsWith name "Darklang.Stdlib." then 0 else 1000
+    ownLibrary + (Stdlib.String.length name))
+  |> Stdlib.List.map (fun hit ->
+    let (_name, _hash, c) = hit
+    c)
+  |> Stdlib.List.fold [] (fun acc c ->
+    if acc |> Stdlib.List.any (fun seen -> seen.name == c.name) then acc
+    else Stdlib.List.push acc c)
+  |> Stdlib.List.map (fun c ->
+    let fieldSlots = c.fields |> Stdlib.List.map (fun _f -> Slot.Empty(matchPatExpect "field"))
+    let detail =
+      if Stdlib.List.isEmpty c.fields then "case"
+      else "case of " ++ (Stdlib.Int.toString (Stdlib.List.length c.fields))
+    Spec.candidate
+      c.name
+      detail
+      (Node.make
+        (matchPatKind "MPEnum")
+        [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
+  |> Stdlib.List.sortBy (fun c -> Stdlib.String.length c.label)
+  |> Stdlib.List.take 4
+
+let completeMatchPat (_e: Expect) (typed: String) : List<Candidate> = enumPatCandidates typed
+
+let resolveMatchPatPartial (typed: String) : Stdlib.Option.Option<Node> =
+  if isIdentifier typed then
+    Stdlib.Option.Option.Some(Node.make (matchPatKind "MPVariable") [ text "name" typed ])
+  else
+    Stdlib.Option.Option.None
+
+let enumCandidates (typed: String) : List<Candidate> =
+  enumCaseHits typed
+  |> Stdlib.List.map (fun hit ->
+    let (name, hash, c) = hit
+    // A case's fields become holes, the way a record's do, so `Ok` lands you inside `Result.Ok(<>)`.
+    let fieldSlots = c.fields |> Stdlib.List.map (fun _f -> Slot.Empty(exprExpect "field"))
+    let detail =
+      if Stdlib.List.isEmpty c.fields then "case"
+      else "case of " ++ (Stdlib.Int.toString (Stdlib.List.length c.fields))
+    Spec.candidate
+      ((displayName name) ++ "." ++ c.name)
+      detail
+      (Node.make
+        (exprKind "EEnum")
+        [ text "type" name, text "_typeHash" hash, text "case" c.name
+          ("fields", Field.Many(fieldSlots, exprExpect "field")) ]))
+  // Shortest first, so `Ok` offers `Result.Ok` before anything that merely starts with it.
+  |> Stdlib.List.sortBy (fun c -> Stdlib.String.length c.label)
+  |> Stdlib.List.take 4
 
 let completeExpr (e: Expect) (typed: String) : List<Candidate> =
   // A capitalised last segment goes down the TYPE path -- records and constructors -- even at two
@@ -1932,7 +1992,12 @@ let matchPatTypeSpec () : Spec =
     { kind = Kind.named matchPatType
       pieces = [ Piece.Dim "?pattern" ]
       holeRules =
-        [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar matchPatVarFromLetter }
+        // Lowercase only. A CAPITALISED letter falls through to a partial, which is what lets completion
+        // run and offer the constructor with a hole per field. It used to make an `MPVariable` on the
+        // first keystroke, so the slot was Filled and `computeCandidates` -- which only pools candidates
+        // for a Partial or an Empty -- never asked. `match r with | Ok v ->`, the form the stdlib writes
+        // most, silently became `| Ok -> v`.
+        [ HoleRule { onChar = "<lowerStart>"; fill = HoleFill.WithChar matchPatVarFromLetter }
           HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar matchPatIntFromDigit }
           HoleRule { onChar = "-"; fill = HoleFill.WithChar matchPatIntFromDigit }
           HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (matchPatKind "MPChar") [ text "char" "" ]) }
@@ -1947,8 +2012,10 @@ let matchPatTypeSpec () : Spec =
         [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
           Spec.candidate "()" "unit" (Node.make (matchPatKind "MPUnit") []) ]
-      complete = Spec.noCompletions
-      resolve = Spec.noResolve
+      complete = completeMatchPat
+      // A capitalised name that matches no constructor is still a legal pattern variable, so an
+      // unresolved partial must not dead-end where it used to be a variable from the first letter.
+      resolve = resolveMatchPatPartial
       binders = Spec.noBinders
       offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None

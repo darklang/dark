@@ -937,6 +937,11 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   // A qualified name carries its modules: `Stdlib.printLine` is ONE name, and the dots are part of it.
   elif onChar == "<qualifiedName>" then (isIdentifierChar c) || (c == ".")
   elif onChar == "<nameStart>" then (TextEdit.isLetterString c) || (c == "_")
+  // A pattern splits on case the way the language does: `ok` binds, `Ok` names a constructor. The
+  // lowercase half can go straight to a variable; the uppercase half has to stay a partial long enough
+  // for completion to offer the case and its fields.
+  elif onChar == "<lowerStart>" then
+    ((TextEdit.isLetterString c) && ((Stdlib.String.toLowercase c) == c)) || (c == "_")
   // A number may open with a sign and may not carry one anywhere else, which is the same shape a name
   // has: a first character with its own class.
   elif onChar == "<numberStart>" then (TextEdit.isDigitString c) || (c == "-")
@@ -1014,6 +1019,27 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
       | Node n -> (n, false)
       | WithChar f -> (f c e, true))
   | None -> Stdlib.Option.Option.None
+
+/// Where to leave the caret after settling a node in slot `sp`, with nothing left unfilled in it.
+///
+/// Landing AFTER the node is for the case where the next keystroke says what you meant: an operator
+/// wraps what you just settled, so `if total <space> > 0` works. Somewhere an operator cannot follow,
+/// that landing has no purpose and the next character went missing instead -- `| None ` left the caret
+/// nowhere useful and ate the `1` after it.
+///
+/// So ask the SPEC rather than naming the types here: a type whose wrap rules include `<operator>` can
+/// be wrapped by what follows and is worth waiting on. One without cannot, and the next thing really is
+/// the next hole.
+let landSettled (st: State) (sp: Path) : State =
+  let canBeWrappedByOperator =
+    match nodeAtPath st.root sp with
+    | Some n ->
+      (match Registry.findTypeLevel st.reg n.kind with
+       | Some spec -> spec.wrapRules |> Stdlib.List.any (fun r -> r.onChar == "<operator>")
+       | None -> false)
+    | None -> false
+
+  if canBeWrappedByOperator then { st with caret = Caret.afterNode sp } else nextHole st
 
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
 /// these, so a rule keyed on the first character still fires and the rest follow.
@@ -1689,10 +1715,15 @@ let typeOneRaw (st: State) (c: String) : State =
           // and stay in the hole, which is where the branch itself goes.
           let st1 = commit st [ Edit.Replace(sp, was) ] caret
           { st1 with caret = { caret with offset = 0 } }
-        elif atEnd && (c == " ") then
+        elif atEnd && ((c == " ") || ((c == "(") && (Stdlib.Option.isSome (exactCandidate st)))) then
           // Space commits the menu only when it's unambiguous -- exactly one candidate (a keyword prefix
           // like `le`->let) or an exact match (`let`). A loose prefix with several candidates (`f` ->
           // fun/false) finalises what you typed as a variable and advances instead, so `f ` stays `f`.
+          //
+          // `(` after a fully-typed name means the same thing and has to, because both spellings are real
+          // Darklang and the stdlib writes both: `| Ok v ->` and `| Ok(row :: _) ->`. It only commits on
+          // an EXACT match, never on a lone prefix -- `(` after a half-typed name is someone opening a
+          // group, not accepting a completion they cannot see the end of.
           let cands = candidates st
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
@@ -1709,10 +1740,11 @@ let typeOneRaw (st: State) (c: String) : State =
             let committed = commitCandidate st
             match slotUnder committed with
             | Some(Empty _) -> committed
-            | _ -> { committed with caret = Caret.afterNode sp }
+            | _ ->
+              landSettled committed sp
           else
             match resolvePartial st with
-            | Some resolved -> { resolved with caret = Caret.afterNode sp }
+            | Some resolved -> landSettled resolved sp
             | None -> nextHole st
         elif dotOnName then
           match resolvePartial st with
