@@ -762,3 +762,10 @@ module AnOperatorAfterAFieldNameWraps =
   // With no name yet there is nothing to wrap and nothing it could be part of, so it is refused rather
   // than typed.
   (Fixtures.screen [ "s", ".", "+" ]) = "s.~field"
+
+
+module EndStopsAtAHolesEdge =
+  // End goes to the last editable place on the LINE, and when that is a hole it lands at its start: a
+  // hole's text is its LABEL, not something you are editing, so there is no "end of it" to be at. This is
+  // the half of `caretForCell` that had to survive dropping its dim case.
+  (Fixtures.screen [ "l", "e", "<Enter>", "<End>" ]) = "let ⟨name⟩ = ~⟨value⟩\n⟨body⟩"

@@ -438,3 +438,30 @@ module MakingATypeIsEditingOne =
   (MakingATypeIsEditingOne.lowered
     [ "<Tab>", "r", "e", "c", "o", "r", "d", "<Enter>", "n", "a", "m", "e", "<Tab>", "S", "t", "r", "i", "n", "g", "<Esc>" ]) =
     "type X =\n  { name: String }"
+
+
+module EndWorksOnADocComment =
+  // `End` on a doc comment did nothing, so typing after it went in at the FRONT:
+  // `///  Now with depth.Current terminal viewport dimensions.`
+  //
+  // `caretForCell` treated a DIM cell as a placeholder whose end is not a place to be. That was true when
+  // an empty text slot drew its own name dimmed; those are drawn as HOLES now, and the only remaining dim
+  // tagged text is a doc comment -- which is real text you are editing.
+  let ty () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))
+    |> fun t -> { t with description = "Some words here." }
+
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "T" (EndWorksOnADocComment.ty ())))
+      70
+      keys
+
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "i", "<End>", "Z" ]) = "/// Some words here.Z~\ntype T =\n  Int"
+
+  // `i` still starts at the front, which is what it has always done and what Home relies on.
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "i", "Z" ]) = "/// Z~Some words here.\ntype T =\n  Int"
+
+  // And it lands at the end of ordinary text elsewhere on the line, which it always did.
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "j", "i", "<End>" ]) = "/// Some words here.\ntype T =\n  Int~"

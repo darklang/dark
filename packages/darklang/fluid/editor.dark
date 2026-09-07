@@ -256,9 +256,14 @@ let caretForCell (c: Layout.Cell) (atEnd: Bool) : Stdlib.Option.Option<Caret> =
   | Some t ->
     let offset =
       if atEnd then
+        // A HOLE's text is its label, not something you are editing, so the end of it is not a place to
+        // be. Real text is, whatever colour it happens to be drawn in.
+        //
+        // `Dim` used to be treated the same way, back when an empty text slot drew its own name dimmed.
+        // Those are drawn as holes now, and the only remaining dim TAGGED text is a doc comment -- so
+        // `End` on one did nothing and typing after it went in at the front.
         (match c.style with
          | Hole -> 0
-         | Dim -> 0
          | _ -> Stdlib.String.length c.text)
       else
         0
