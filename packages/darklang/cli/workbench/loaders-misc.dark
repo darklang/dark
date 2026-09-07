@@ -176,6 +176,65 @@ let loadDocBodyItems () : List<BodyItem> =
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
+/// The Instance > Sync view's rows: this machine's sync state, from the same local reads the
+/// CLI commands use. No network: `sync status` asks the relay; this view answers from the store,
+/// so opening it is free and it renders offline.
+let loadSyncItems () : List<BodyItem> =
+  let row = fun label value kind ->
+    BodyItem
+      { name = (Stdlib.Cli.Tui.Text.fitToWidth label 14) ++ value
+        kind = kind
+        isModule = false
+        desc = "" }
+  let relay = SCM.PackageOps.relay ()
+  let identity = SCM.PackageOps.identity ()
+  if relay == "" then
+    [ row "identity" identity "sync-row"
+      row "relay" "none -- `:sync setup` names this instance and connects one" "sync-row" ]
+  else
+    let secret =
+      if Darklang.Cli.Sync.hasRelaySecret relay then "stored (local config only)"
+      else "none -- this instance can read, not push"
+    let unpushed = SCM.Wire.unpushedCount relay
+    let waiting =
+      if unpushed == 0L then "nothing -- every committed op is on the relay"
+      else (Stdlib.Int64.toString unpushed) ++ " op(s) to push"
+    let branchCount = Stdlib.List.length (SCM.Wire.unpushedBranches relay)
+    let branches =
+      if branchCount == 0 then "all on the relay"
+      else (Stdlib.Int.toString branchCount) ++ " with ops not on the relay"
+    let daemon =
+      if Stdlib.Cli.File.exists (Darklang.Cli.Apps.Service.unitPath "sync") then
+        "on -- syncs every 30s, starts on login"
+      else
+        "off -- `:apps enable sync` sets it and forgets it"
+    let scope =
+      match Darklang.Cli.Config.get "sync.branches" with
+      | Some "all" -> "everything -- main and every branch"
+      | _ -> "main only -- `:config set sync.branches all` widens it"
+    [ row "identity" identity "sync-row"
+      row "relay" relay "sync-row"
+      row "write secret" secret "sync-row"
+      row "waiting" waiting "sync-row"
+      row "branches" branches "sync-row"
+      row "auto-sync" daemon "sync-row"
+      row "sync moves" scope "sync-row" ]
+
+let syncDetail (_state: State) : String =
+  [ Stdlib.Cli.UI.Colors.boldText "This machine's sync state, answered locally."
+    ""
+    Stdlib.Cli.UI.Colors.dimText "Everything here is a local read; nothing above asked the relay. The"
+    Stdlib.Cli.UI.Colors.dimText "commands, all runnable from the : bar:"
+    ""
+    "  :sync           push then pull, right now"
+    "  :sync status    compare with the relay (this one does ask it)"
+    "  :sync setup     name this instance, point it at a relay, store a secret"
+    "  :apps enable sync"
+    Stdlib.Cli.UI.Colors.dimText "                  an auto-starting daemon syncs every 30s"
+    "  :config set sync.branches all"
+    Stdlib.Cli.UI.Colors.dimText "                  sync moves every branch too, not just main" ]
+  |> Stdlib.String.join "\n"
+
 let loadErrorItems () : List<BodyItem> =
   let conflicts =
     SCM.Conflicts.pending ()

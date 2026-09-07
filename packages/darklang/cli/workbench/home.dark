@@ -178,6 +178,36 @@ let isFirstRun (state: State) : Bool =
     // finds, and this runs per frame.
     Stdlib.Bool.not (LanguageTools.PackageManager.ownerHasItems state.branchId owner)
 
+/// The get-set-up rows of the welcome: what this instance is still missing, each shown as the
+/// `:` command that fixes it (the bar hands all three to the real terminal and returns). A fully
+/// set-up instance shows none of them. Reads are a path compare, a config read and a file stat --
+/// cheap enough for the per-frame budget Home's first-run check already spends.
+let setupLines () : List<String> =
+  let entry = fun cmd what ->
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white cmd)
+    ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ what))
+  let install =
+    match Darklang.Cli.Installation.System.getInstallationMode () with
+    | Portable -> [ entry ":install" "        running portable -- put dark on your PATH" ]
+    | Installed -> []
+  let relay = SCM.PackageOps.relay ()
+  let syncSetup =
+    if relay == "" then
+      [ entry ":sync setup" "     name this instance, point it at your relay" ]
+    else
+      []
+  let daemon =
+    if (relay != "")
+       && (Stdlib.Bool.not (Stdlib.Cli.File.exists (Darklang.Cli.Apps.Service.unitPath "sync"))) then
+      [ entry ":apps enable sync" "  set-and-forget: sync every 30s, starting on login" ]
+    else
+      []
+  let rows = Stdlib.List.flatten [ install, syncSetup, daemon ]
+  match rows with
+  | [] -> []
+  | _ ->
+    Stdlib.List.append [ "", Stdlib.Cli.UI.Colors.boldText "Get connected" ] rows
+
 let welcomeLines (state: State) : List<String> =
   // No name recorded: greet plainly and use a neutral example -- "Welcome, there" and
   // `:new fn there.hello` both read as a template with the variable unfilled.
@@ -195,6 +225,7 @@ let welcomeLines (state: State) : List<String> =
     (key (replKeys ++ " ⏎")) ++ "  " ++ (Stdlib.Cli.UI.Colors.boldText "try something") ++ (Stdlib.Cli.UI.Colors.dimText " REPL - Stdlib.List.map (fun x -> x + 1) [1, 2]")
     (key ":") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "make something") ++ (Stdlib.Cli.UI.Colors.dimText ("  :new fn " ++ (if name == "" then "scratch" else name) ++ ".hello"))
     (key "b") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "branch first") ++ (Stdlib.Cli.UI.Colors.dimText "    if you'd rather not work on main") ]
+  |> Stdlib.List.append (setupLines ())
 
 /// A padded label and value for a detail pane.
 let field (label: String) (value: String) : String =

@@ -142,6 +142,12 @@ let renderCrons (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdl
 // Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
 // (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
 // view's detail pane, which is mock-labeled, until those handlers exist.
+let renderSync (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  splitListPreview state region "Sync" "Detail" (Stdlib.Cli.UI.Colors.dimText "(no sync state)")
+
+let syncHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"), (":", "run a sync command") ]
+
 let errorHints (state: State) : List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
 
