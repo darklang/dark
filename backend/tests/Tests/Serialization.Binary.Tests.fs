@@ -72,6 +72,20 @@ module PT =
         |> BS.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
+  /// Every `PackageOp` case, through the writer and back.
+  ///
+  /// The op format is what two machines must agree on byte for byte. Storing an op and reading it
+  /// back through the fold covers this only indirectly, and never at all for a case the fold does
+  /// not reach: a `Decision` kind, a `BranchEvent`, a `SetName` carrying a predecessor.
+  let packageOpTests =
+    Roundtripping.testRoundtripMany
+      "packageOps"
+      (fun op ->
+        op
+        |> BS.PT.PackageOp.serialize (System.Guid.NewGuid())
+        |> BS.PT.PackageOp.deserialize (System.Guid.NewGuid()))
+      Values.ProgramTypes.packageOps
+
   let toplevelTests =
     Roundtripping.testRoundtripMany
       "toplevels"
@@ -272,12 +286,8 @@ module ConsistentSerializationTests =
     $"{f.prefix}-{version}-{idx}{f.suffix}"
 
 
-  /// Generates timestamped test files for binary serialization. These files are used
-  /// to prove that the binary serialization format is compatible.  When we change the
-  /// format, we should still be able to read the old files in addition to the new ones
-  /// (though they will not necessarily have the same output). If we make changes to
-  /// the binary serialization format (or to the test cases), we generate the files
-  /// and commit them.
+  /// Generates the timestamped fixture files that pin the binary format. Regenerate
+  /// and commit them alongside any deliberate format or test-value change.
   let generateTestFiles () : unit =
     formats
     |> List.iter (fun f ->
@@ -326,6 +336,7 @@ let tests =
           PT.packageValTests
           PT.packageFnTests
           PT.toplevelTests
+          PT.packageOpTests
           PT.legacyRecoveryHoleTagRejected ]
 
       testList

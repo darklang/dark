@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Language/Builtins.Language.fsproj" />
