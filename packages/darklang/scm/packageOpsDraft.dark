@@ -362,10 +362,15 @@ let supersededOverrides () : List<(LanguageTools.ProgramTypes.PackageLocation * 
 /// content ships as history), and checking it made a broken-then-fixed edit refuse the commit
 /// forever -- the broken content was still there, no longer bound to anything, failing on every try.
 /// Unreachable history is not what the gate protects; what other machines will RESOLVE is.
-let typeCheckDraft
-  (branchId: Uuid)
+/// The at-rest check over any set of ops, with the same live-items rule the draft gate uses:
+/// only the last binding per name, and the content those bindings target.
+///
+/// Split out so `merge` can ask the same question of a branch's COMMITTED frontier that
+/// `commit` asks of a draft. One implementation, so the two gates cannot disagree about what
+/// "definite type error" means.
+let typeCheckOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : LanguageTools.AtRestTypeChecker.Report =
-  let ops = draftEntriesFor branchId |> Stdlib.List.map (fun e -> e.op)
 
   // Last SetName per location wins; ops are oldest-first, so a later fold entry replaces an earlier.
   let liveTargets =
@@ -410,3 +415,9 @@ let typeCheckDraft
   match liveOps with
   | [] -> LanguageTools.AtRestTypeChecker.emptyReport ()
   | live -> LanguageTools.AtRestTypeChecker.checkPackageOps live
+
+
+let typeCheckDraft
+  (branchId: Uuid)
+  : LanguageTools.AtRestTypeChecker.Report =
+  typeCheckOps (draftEntriesFor branchId |> Stdlib.List.map (fun e -> e.op))

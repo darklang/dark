@@ -369,6 +369,90 @@ let handleRebaseStatusRequest
 /// `dark/scm/getWipSummary` -- what's in the draft: the ops you have authored and not yet committed with
 /// `dark commit`. Authoring is live-on-write, so these are already running; the draft is what you
 /// haven't reviewed, not what hasn't taken effect.
+/// The branch this editor session is on, as the string the request handlers take. What a request
+/// that names no branch means.
+let activeBranchId () : String =
+  Stdlib.Uuid.toString (activeBranch ())
+
+
+/// `dark/scm/commit`: seal the draft, exactly as `dark commit` does -- same author, same gates
+/// (the at-rest type check refuses definite errors), so the editor cannot commit what the CLI
+/// would refuse.
+let handleCommitRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (message: String)
+  : LspState =
+  match SCM.PackageOps.commitDraft (SCM.Account.currentAuthor ()) (activeBranch ()) message with
+  | Ok hash ->
+    respondOk
+      requestID
+      (Json.Object [ ("success", Json.Bool true), ("commitHash", Json.String hash) ])
+    state
+  | Error e ->
+    respondError requestID e
+    state
+
+
+/// `dark/scm/discard`: drop the whole draft on the active branch. The editor asks its own
+/// "are you sure" before calling this, the way the CLI asks at the terminal.
+let handleDiscardRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  : LspState =
+  match SCM.PackageOps.discardDraft () with
+  | Ok n ->
+    respondOk
+      requestID
+      (Json.Object
+        [ ("success", Json.Bool true), ("discardedCount", Json.Int(Stdlib.Int64.fromInt n)) ])
+    state
+  | Error e ->
+    respondError requestID e
+    state
+
+
+/// `dark/scm/getCommits`: the history the editor's log view lists.
+let handleGetCommitsRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (limit: Int64)
+  : LspState =
+  let commits =
+    SCM.Commits.recent limit
+    |> Stdlib.List.map (fun c ->
+      Json.Object
+        [ ("hash", Json.String c.hash)
+          ("message", Json.String c.message)
+          ("author", Json.String c.author)
+          ("createdAt", Json.String c.createdAt)
+          ("opCount", Json.String(Stdlib.Int64.toString (SCM.PackageOps.opCountIn c.hash))) ])
+  respondOk requestID (Json.Array commits)
+  state
+
+
+/// `dark/scm/getCommitOps`: what one commit contains, as the names it bound. Capped for the same
+/// reason `dark show` caps: the init commit holds tens of thousands of ops.
+let handleGetCommitOpsRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (commitHash: String)
+  : LspState =
+  let (ops, total) = SCM.PackageOps.getCommitNamedOps commitHash 200
+  let names =
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | SetName(loc, _, _) ->
+        Stdlib.Option.Option.Some(Json.String(SCM.Constraints.fqnOf loc))
+      | _ -> Stdlib.Option.Option.None)
+  respondOk
+    requestID
+    (Json.Object
+      [ ("names", Json.Array names), ("total", Json.Int(Stdlib.Int64.fromInt total)) ])
+  state
+
+
 let handleGetWipSummaryRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)

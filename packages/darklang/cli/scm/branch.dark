@@ -240,6 +240,17 @@ let executeArchive
   : AppState =
   match resolveRef branchRef with
   | None -> state
+  // A child resolves names through its parent chain, so archiving a parent takes the parent's work
+  // out from under it: the child's code stops resolving, its listing shows a parent "not in this
+  // store", and merging it lands ops whose dependencies are gone. Merge has refused this since it
+  // was written; archive is the same act by another route and now refuses it too.
+  | Some branchId when Stdlib.Bool.not (Stdlib.List.isEmpty (SCM.Branches.activeChildNames branchId)) ->
+    let kids = SCM.Branches.activeChildNames branchId
+    Cli.printErr
+      $"cannot archive \"{branchRef}\": {Cli.Text.plural (Stdlib.List.length kids) "branch"} still branch off it."
+    kids |> Stdlib.List.iter (fun k -> Cli.printHint $"    - {k}")
+    Cli.printHint "  merge or archive them first, and this one can go."
+    state
   | Some branchId ->
     let entries = SCM.PackageOps.branchDiffEntries branchId
 
@@ -412,14 +423,16 @@ let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
                 (Stdlib.String.fromBlobWithReplacement bundleBody)
             with
             | Ok msg ->
-              // What came from the relay's bundle channel, that channel holds.
+              // What came from the relay's bundle channel, that channel holds -- the ops that
+              // were IN the bundle, not every op the local branch happens to hold. Marking the
+              // whole branch told `sync status` the relay had work it had never been sent, and
+              // the next `branch push` skipped it: the colleague pulling that branch got a
+              // truncated history until someone pushed again by hand.
               let _ =
-                match Stdlib.Uuid.parse bid with
-                | Ok branchId ->
-                  SCM.Wire.rememberPushed
-                    (SCM.Wire.branchChannel url)
-                    (SCM.PackageOps.branchOpIds branchId)
-                | Error _ -> ()
+                SCM.Wire.rememberPushed
+                  (SCM.Wire.branchChannel url)
+                  (SCM.PackageOps.bundleOpIds
+                    (Stdlib.String.fromBlobWithReplacement bundleBody))
               Cli.printOk msg
             | Error e -> Cli.printErr $"import {bid} failed: {e}"
           | Error e -> Cli.printErr $"pull {bid} failed: {e}")
@@ -493,7 +506,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "diff", id ] -> executeDiff state id false
   | [ "diff", id, "--source" ] -> executeDiff state id true
   | [ "log", id ] -> executeLog state id
-  | [ "merge", id ] -> executeMerge state id
+  | [ "merge", id ] -> executeMerge state id false
+  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id true
   | [ "merge", id, "--dry-run" ] -> executeMergeDryRun state id
   | [ "rebase", id ] -> executeRebase state id
   | [ "resolve", id, name, choice ] -> executeResolve state id name choice

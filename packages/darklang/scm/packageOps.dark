@@ -626,11 +626,18 @@ let discardDraftName
     // through it matches nothing and drops no rows while reporting the name gone.
     let key = (owner, Stdlib.String.join modules ".", name)
 
+    // UNCOMMITTED ops only. `ownFrontierOps` is every op the branch holds, committed ones
+    // included, and discard is about the draft: dropping a committed binding here took the
+    // branch's last committed version of the name with it, leaving `eval` unable to find a
+    // name `status` called clean.
+    let uncommitted = SCM.Branches.uncommittedOpIds branchId
+
     let bindingIds =
       SCM.Branches.ownFrontierOps branchId
       |> Stdlib.List.filter (fun entry ->
-        let (_, op) = entry
-        Stdlib.Option.isSome (SCM.Branches.opBindsKey op key))
+        let (id, op) = entry
+        (Stdlib.List.member uncommitted (Stdlib.Uuid.toString id))
+        && (Stdlib.Option.isSome (SCM.Branches.opBindsKey op key)))
       |> Stdlib.List.map (fun entry ->
         let (id, _) = entry
         Stdlib.Uuid.toString id)
@@ -654,21 +661,30 @@ let dropBranchOps (branchId: Uuid) (ids: List<String>) : Stdlib.Result.Result<In
     match
       Stdlib.Sqlite.execBatch
         (localDb ())
-        [ ("DELETE FROM package_ops WHERE commit_hash IS NULL AND effective = 0 AND id = @p0
-            AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p1)
-            AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @p2)",
-           rows)
-          // Untag exactly what was handed in. The op ROW survives when a sibling also tags it or when
-          // main holds the same content live, and that is deliberate; the TAG must go regardless, or
-          // the branch still holds an op the caller was told it dropped.
-          ("DELETE FROM op_branches WHERE branch_id = @p0 AND op_id = @p1", untagRows) ]
+        // Untag FIRST, then delete the rows. The untag is guarded on the op being uncommitted,
+        // which it can only check while the row still exists; deleting first left the tag behind
+        // pointing at nothing.
+        //
+        // Uncommitted only, and belt-and-braces with the caller's own filter: an untag is what
+        // takes an op off a branch, so without this clause a committed op reached here by any
+        // path would be silently removed from the branch's history.
+        [ ("DELETE FROM op_branches WHERE branch_id = @p0 AND op_id = @p1
+            AND op_id IN (SELECT id FROM package_ops WHERE commit_hash IS NULL)",
+           untagRows)
+          // The op ROW survives when a sibling also tags it or when main holds the same content
+          // live, and that is deliberate; only rows nothing else holds go.
+          ("DELETE FROM package_ops WHERE commit_hash IS NULL AND effective = 0 AND id = @p0
+            AND id NOT IN (SELECT op_id FROM op_branches)
+            AND @p1 = @p2",
+           rows) ]
     with
     | Ok counts ->
-      // Count the UNTAGS, which is what "dropped from this branch" means. The op-row deletes are fewer
-      // whenever content is shared, so reporting those makes a real drop read as a no-op.
+      // Count the UNTAGS, which is what "dropped from this branch" means, and they run first now.
+      // The op-row deletes are fewer whenever content is shared, so reporting those would make a
+      // real drop read as a no-op.
       let dropped =
         counts
-        |> Stdlib.List.drop (Stdlib.List.length ids)
+        |> Stdlib.List.take (Stdlib.List.length ids)
         |> Stdlib.List.fold 0 (fun acc n -> acc + n)
 
       let _ = selectBranch branchId
@@ -1577,6 +1593,17 @@ let relayListAllBranches () : String =
     |> Stdlib.List.map (fun bid -> $"{owner} {bid}"))
   |> Stdlib.List.flatten
   |> (fun lines -> Stdlib.String.join lines "\n")
+
+
+/// The op ids a branch bundle CARRIES, without importing it.
+///
+/// What `branch pull` records as held by the relay's bundle channel: the ops that actually came
+/// over the wire. The branch's own local ops are not in it, and recording those as sent is how a
+/// local-only commit went missing from a colleague's pull.
+let bundleOpIds (json: String) : List<String> =
+  match Stdlib.Json.parse<BranchBundle> json with
+  | Ok b -> b.ops |> Stdlib.List.map (fun op -> op.id)
+  | Error _ -> []
 
 
 /// Import a branch bundle: register + store its ops effective=0 + tag + re-base against local main.

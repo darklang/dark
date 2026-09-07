@@ -179,6 +179,53 @@ let private execBatchImpl
   }
 
 
+/// The instance's own package store, resolved once. The SCM library is Dark code that reads and
+/// writes THIS file; everything else a caller might open is another database entirely.
+let private storePath : string = System.IO.Path.GetFullPath LibConfig.Config.dbPath
+
+/// Is this call about the package store rather than an arbitrary database?
+///
+/// `Native` is the honest effect for raw SQLite in general -- as its own doc says, the SQL can
+/// `ATTACH` any file on the machine, so a path check would pretend to confine something the
+/// runtime cannot see. Two things make the store case different, and both have to hold: the
+/// path IS the store, and the statement cannot reach outside it. `ATTACH` is what would, so a
+/// statement carrying one is not store-scoped and falls back to `Native`.
+///
+/// This is what keeps `dark status` working on a stock install: the SCM moved to Dark, so its
+/// reads are sqlite calls, and requiring `allow native` for them would mean every install
+/// handing over the keys to run its own version control.
+let private isStoreScoped (path : string) (sql : string) : bool =
+  (try System.IO.Path.GetFullPath path = storePath with _ -> false)
+  && not (System.Text.RegularExpressions.Regex.IsMatch(sql, @"(?i)\battach\b"))
+
+/// The effects a store-scoped call actually has, or `Native` when it is not store-scoped.
+let private effectsFor (write : bool) (path : string) (sql : string) : Set<Effect> =
+  if isStoreScoped path sql then
+    if write then
+      set [ Effect.PackageRead; Effect.PackageWrite ]
+    else
+      set [ Effect.PackageRead ]
+  else
+    set [ Effect.Native ]
+
+/// Check the call's real effects before running it. Declared `callEffects` are static, so the
+/// interpreter's up-front check cannot see the path; these builtins declare nothing there and
+/// ask here instead, where both arguments are in hand.
+let private requireSqlite
+  (state : ExecutionState)
+  (vm : VMState)
+  (write : bool)
+  (path : string)
+  (sql : string)
+  (builtinName : string)
+  : unit =
+  LibExecution.PermissionCheck.requireBuiltinEffects
+    state
+    vm
+    (effectsFor write path sql)
+    builtinName
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "sqliteExec" 0
       typeParams = []
@@ -200,12 +247,15 @@ let fns () : List<BuiltInFn> =
         + "none). Ok = rows affected; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
+        | state, vm, _, [| DString path; DString sql; DList(_, ps) |] ->
+          requireSqlite state vm true path sql "sqliteExec"
           execImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.Native ]
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "sqliteExecBatch" 0
@@ -225,7 +275,21 @@ let fns () : List<BuiltInFn> =
         + "message. A well-formed call never throws; a mis-shaped params tuple is a type error raised before the try."
       fn =
         (function
-        | _, _, _, [| DString path; DList(_, stmts) |] ->
+        | state, vm, _, [| DString path; DList(_, stmts) |] ->
+          // A batch is many statements; any one of them carrying ATTACH makes
+          // the whole call unscopable, so they are checked joined.
+          requireSqlite
+            state
+            vm
+            true
+            path
+            (stmts
+             |> List.map (fun stmt ->
+               match stmt with
+               | DTuple(DString sql, _, []) -> sql
+               | _ -> "")
+             |> String.concat ";")
+            "sqliteExecBatch"
           let decoded =
             stmts
             |> List.map (fun stmt ->
@@ -246,7 +310,9 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.Native ]
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0
@@ -268,12 +334,15 @@ let fns () : List<BuiltInFn> =
         + "value; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
+        | state, vm, _, [| DString path; DString sql; DList(_, ps) |] ->
+          requireSqlite state vm false path sql "sqliteQuery"
           queryImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.Native ]
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

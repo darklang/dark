@@ -86,6 +86,36 @@ let private discoverDependents
     let key (target : PMQueries.LocationTarget) =
       (target.itemKind.toString (), PackageLocation.toFQN target.location)
 
+    // What the BRANCH binds at each location, by name. `branchBindings` is keyed by hash, which
+    // answers "where does this content live"; this answers the other direction, "what lives at
+    // this name here", and that is the question a dependent has to pass.
+    let branchHashAt : Map<string * string, string> =
+      branchBindings
+      |> Map.fold
+        (fun acc h locs ->
+          locs
+          |> List.fold
+            (fun acc (kind : PT.ItemKind, loc : PT.PackageLocation) ->
+              Map.add (kind.toString (), PackageLocation.toFQN loc) h acc)
+            acc)
+        Map.empty
+
+    /// Is this dependent the version that actually lives at its name on this branch?
+    ///
+    /// A branch that rebound a name has its OWN body there, and that body may not reference the
+    /// source at all. Main's body still does, so it turns up as a dependent, resolves to the same
+    /// name, and the cascade rewrites it -- overwriting the branch's version with main's, which is
+    /// the one thing a branch must never do. When the branch binds the name, only the branch's hash
+    /// counts; when it does not, main's answer stands.
+    let liveOnThisBranch (d : PMQueries.LocationDependent) : bool =
+      match
+        Map.tryFind (d.itemKind.toString (), PackageLocation.toFQN d.itemLocation) branchHashAt
+      with
+      | None -> true
+      | Some branchHash ->
+        let (Hash h) = d.itemHash
+        h = branchHash
+
     let dependentTarget
       (d : PMQueries.LocationDependent)
       : PMQueries.LocationTarget =
@@ -139,6 +169,8 @@ let private discoverDependents
             // it. That's the right shape: a pin means this item keeps calling the
             // old version, so nothing above it sees a change either.
             |> List.filter (fun d -> not (isPinned pins follows d.itemLocation))
+            // See `liveOnThisBranch`: never repoint a name away from what the branch put there.
+            |> List.filter liveOnThisBranch
             |> List.distinctBy (fun d -> key (dependentTarget d))
 
           let newPending = unseen |> List.map dependentTarget

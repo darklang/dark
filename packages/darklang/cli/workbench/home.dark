@@ -186,19 +186,24 @@ let setupLines () : List<String> =
   let entry = fun cmd what ->
     (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white cmd)
     ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ what))
-  let install =
-    match Darklang.Cli.Installation.System.getInstallationMode () with
-    | Portable -> [ entry ":install" "        running portable -- put dark on your PATH" ]
-    | Installed -> []
+  // No install row here, deliberately. Detecting portable-vs-installed reads the running
+  // executable, and a narrowed instance policy can refuse that -- `dark eval` renders a view
+  // as guest code, so the refusal took the WHOLE frame down rather than one line of advice.
+  // A frame must not depend on being allowed to look at the binary; `dark install-status`
+  // answers the question where a refusal is the answer rather than a crash.
+  let install = []
   let relay = SCM.PackageOps.relay ()
   let syncSetup =
     if relay == "" then
       [ entry ":sync setup" "     name this instance, point it at your relay" ]
     else
       []
+  // Suggested whenever a relay is set, without asking whether the daemon is ALREADY on: that
+  // question reads $HOME and the unit file, and a frame must not depend on being allowed to do
+  // either (`dark eval` renders views as guest code, where both are refused). Enabling twice is
+  // harmless and `apps status sync` answers the question properly.
   let daemon =
-    if (relay != "")
-       && (Stdlib.Bool.not (Stdlib.Cli.File.exists (Darklang.Cli.Apps.Service.unitPath "sync"))) then
+    if relay != "" then
       [ entry ":apps enable sync" "  set-and-forget: sync every 30s, starting on login" ]
     else
       []

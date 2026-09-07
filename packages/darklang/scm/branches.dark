@@ -115,6 +115,20 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
 
 
+/// The active (unmerged, unarchived) children of <param branchId>, by name.
+///
+/// `canMerge` asks the same question its own way; this is the shape a caller needs when it has to
+/// NAME them. `None` from the query is a failure, not "none" -- a guard must not fail open.
+let activeChildNames (branchId: Uuid) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    "SELECT CASE WHEN name = '' THEN id ELSE name END AS name FROM branches
+     WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL
+     ORDER BY name"
+    [ Stdlib.Uuid.toString branchId ]
+    "name"
+
+
 //  branch lifecycle
 
 /// Register a branch off a parent if it doesn't exist yet. Idempotent, and FIRST WRITE WINS the parent: an
@@ -323,13 +337,22 @@ let nameBases (branchId: Uuid) : List<(String * String * String * String)> =
 let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String> =
   let fromMain =
     // main-scoped: main's hashes are the base; a non-main parent's rebinds are overlaid by the caller.
+    //
+    // COMMITTED bindings only. Authoring on main is live-on-write, so main's `locations` carries its
+    // draft too, and rebasing onto that pulled the parent's uncommitted work into the branch: the
+    // branch's callers were repointed at a version main had not committed and might still discard,
+    // and the branch was left inconsistent with itself (its own base said one thing, its callers
+    // another). A branch resolves through committed work only -- that rule is stated for reads, and
+    // the base a rebase moves to is the same rule.
     Stdlib.Sqlite.rowsP
       (localDb ())
       "SELECT l.owner, l.modules, l.name, l.item_hash
        FROM branch_name_bases b
        JOIN locations l
          ON l.owner = b.owner AND l.modules = b.modules AND l.name = b.name
-       WHERE b.branch_id = @p0 AND l.unlisted_at IS NULL"
+       JOIN package_ops p ON p.id = l.op_id
+       WHERE b.branch_id = @p0 AND l.unlisted_at IS NULL
+         AND p.commit_hash IS NOT NULL"
       [ Stdlib.Uuid.toString branchId ]
       (fun row ->
         match
@@ -527,6 +550,20 @@ let ownFrontierOpsWithSource
 /// A branch's own tagged op rows, oldest first: id, op_blob, ts, source. The one query
 /// behind <fn ownFrontierOpsWithSource>, `branchBindings` and `branchOps` -- the extra
 /// columns are harmless where unused, since the decoders read by name.
+/// The ids of <param branchId>'s UNCOMMITTED ops -- its draft, as `discard` and `status` mean it.
+///
+/// `ownFrontierOps` deliberately includes committed ops (a branch's whole frontier is what merge
+/// and export need). Anything that DROPS ops wants this instead.
+let uncommittedOpIds (branchId: Uuid) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    "SELECT p.id FROM package_ops p
+     JOIN op_branches ob ON ob.op_id = p.id
+     WHERE ob.branch_id = @p0 AND p.commit_hash IS NULL"
+    [ Stdlib.Uuid.toString branchId ]
+    "id"
+
+
 let ownOpRows (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
   Stdlib.Sqlite.rowsOrEmptyP
     (localDb ())

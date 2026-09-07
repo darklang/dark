@@ -203,11 +203,10 @@ let loadSyncItems () : List<BodyItem> =
     let branches =
       if branchCount == 0 then "all on the relay"
       else (Stdlib.Int.toString branchCount) ++ " with ops not on the relay"
-    let daemon =
-      if Stdlib.Cli.File.exists (Darklang.Cli.Apps.Service.unitPath "sync") then
-        "on -- syncs every 30s, starts on login"
-      else
-        "off -- `:apps enable sync` sets it and forgets it"
+    // Not probed here: the unit file's path is under $HOME, and a view must render under a
+    // policy that refuses env and file reads. `apps status sync` is the honest answer, and it
+    // runs where a refusal can be reported rather than taking the frame down.
+    let daemon = "`:apps status sync` -- `:apps enable sync` sets it and forgets it"
     let scope =
       match Darklang.Cli.Config.get "sync.branches" with
       | Some "all" -> "everything -- main and every branch"

@@ -109,7 +109,7 @@ export class BranchCommands {
               value: selected.label,
             });
             if (newName && newName !== selected.label) {
-              await this.client.sendRequest("dark/renameBranch", { branchId: selected.branchId, newName });
+              await this.client.sendRequest("dark/renameBranch", { branchId: selected.branchId, name: newName });
               vscode.window.showInformationMessage(`Renamed branch to "${newName}"`);
               this.scmProvider.refresh();
             }

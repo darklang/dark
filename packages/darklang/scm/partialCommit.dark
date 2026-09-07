@@ -116,6 +116,41 @@ let closeOverDeps (hashes: List<String>) : List<String> =
   Stdlib.List.range 1 rounds
   |> Stdlib.List.fold (Stdlib.List.unique hashes) (fun acc _ -> closeStep added acc)
 
+/// The names <param names> depend on, transitively, by NAME rather than by content hash.
+///
+/// `package_dependencies` records edges as owner/modules/name, which is what makes this able to
+/// tell "B is a dependency of A" from "B happens to have A's body". Bounded the same way
+/// `closeOverDeps` is bounded, and for the same reason.
+let closeOverDepFqns (names: List<String>) : List<String> =
+  let step (acc: List<String>) : List<String> =
+    let next =
+      acc
+      |> Stdlib.List.collect (fun fqn ->
+        Stdlib.Sqlite.rowsOrEmptyP
+          (SCM.PackageOps.localDb ())
+          "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
+           FROM package_dependencies d
+           JOIN locations l ON l.item_hash = d.item_hash
+           WHERE l.owner || '.' || (CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END)
+                 || l.name = @p0
+             AND d.depends_on_name <> ''"
+          [ fqn ]
+          |> Stdlib.List.filterMap (fun row ->
+            match
+              (Stdlib.Sqlite.textField row "o",
+               Stdlib.Sqlite.textField row "m",
+               Stdlib.Sqlite.textField row "n")
+            with
+            | (Some o, Some m, Some n) ->
+              let mid = if m == "" then "" else m ++ "."
+              Stdlib.Option.Option.Some(o ++ "." ++ mid ++ n)
+            | _ -> Stdlib.Option.Option.None))
+    Stdlib.List.unique (Stdlib.List.append acc next)
+
+  Stdlib.List.range 1 8
+  |> Stdlib.List.fold (Stdlib.List.unique names) (fun acc _ -> step acc)
+
+
 /// The op id of <param e>, when it carries CONTENT (or a deprecation) for one of <param wantedHashes>.
 ///
 /// Deprecations are keyed on content rather than on a name, so they travel with the hash.
@@ -172,11 +207,22 @@ let plan
     let wantedHashes =
       closeOverDeps (directly |> Stdlib.List.map (fun s -> s.hash))
 
-    // A naming counts if its target is in the closed hash set. That is what pulls in a dependency's own
-    // naming, and what pulls in a repoint of a selected item (propagation names the dependent to new
-    // content, and that content is what the closure walked to).
+    // A naming counts if its target is in the closed hash set AND the name is one the selection is
+    // actually about: requested outright, or reachable from a requested item through the dependency
+    // graph.
+    //
+    // The hash test alone was not enough, because a hash is CONTENT: two unrelated names with
+    // identical bodies share one, so `--include=` of a finished function also committed a private
+    // half-done one that happened to have the same body, and reported it as "needed by what you
+    // named". Nothing depended on it; it just looked the same.
+    let reachableFqns = closeOverDepFqns names
+
     let keptNamings =
-      namings |> Stdlib.List.filter (fun s -> Stdlib.List.``member`` wantedHashes s.hash)
+      namings
+      |> Stdlib.List.filter (fun s ->
+        (Stdlib.List.``member`` wantedHashes s.hash)
+        && ((Stdlib.List.``member`` names s.fqn)
+            || (Stdlib.List.``member`` reachableFqns s.fqn)))
 
     let namingIds = keptNamings |> Stdlib.List.map (fun s -> s.opId)
 

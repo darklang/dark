@@ -631,35 +631,23 @@ let everyCommandSurvivesABranch =
       })
 
 /// An empty grant is not a grant, and must not report that it is.
-let private capsRefusesAnEmptyGrant =
+let private permissionsRefusesAnEmptyRule =
   cliTest
-    "`caps grant` with no spec is refused rather than reported as granted"
+    "`permissions allow` with no rule is refused rather than reported as allowed"
     (fun state ->
       task {
-        let! refused = runCli state [ "caps"; "grant"; "" ]
+        let! refused = runCli state [ "permissions"; "allow"; "" ]
 
         Expect.stringContains
           refused
-          "usage: caps grant"
-          "it should say how to use it"
+          "invalid permission rule"
+          "it should say what was wrong with it"
 
         Expect.isFalse
-          (refused.Contains "granted")
-          "and must not report a grant that did not happen"
-
-        // Read, never write. `caps clear` here revoked the grant of whoever ran the suite,
-        // and a missing grant file reads as ALL capabilities, so the revocation was silent
-        // until something got denied much later.
-        let! shown = runCli state [ "caps" ]
-        Expect.stringContains shown "Capabilities" "and the grant is still readable"
+          (refused.Contains "allowed ")
+          "and must not report a rule it did not add"
       })
 
-/// Commands that take a target, invoked against one that doesn't exist.
-///
-/// The rule: SAY WHICH THING you could not find. "nothing to merge" is the identical sentence a
-/// real but empty target produces, so a typo reads as "already done" -- or, for `conflicts branch`,
-/// as a green light to merge. Asserting the target is NAMED pins no wording, so a better message
-/// stays green.
 let private nonexistentTargets : List<string * List<string>> =
   [ "view", [ "view"; "Zzz.Nope.nope" ]
     "deps", [ "deps"; "Zzz.Nope.nope" ]
@@ -870,7 +858,7 @@ let tests : List<Test> =
     workbenchBranchActionsWork
     mergeAndRebaseRefuseOnMain
     everyExclusionIsReal
-    capsRefusesAnEmptyGrant
+    permissionsRefusesAnEmptyRule
     aDashLedArgumentIsNeverAName
     viewHeadsWithTheNameYouAskedFor
     contextRowKeepsTheDraftWhenNarrow

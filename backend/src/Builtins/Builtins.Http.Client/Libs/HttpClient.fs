@@ -150,10 +150,13 @@ let private requireBundledCaller
       let frameTrusted, sawPackage =
         match fnOf frame.executionPoint with
         | Some p -> state.isBundledPackageFn p, true
-        // The root interpreter frame is Source. It is trusted only because the
-        // separate host capability below distinguishes `dark sync` from a
-        // guest `run`/`eval` source frame.
-        | None -> frame.parent.IsNone, sawPackage
+        // Source-derived frames -- the host's own expression, and any lambda defined in it --
+        // are trusted here because the separate host capability above is what distinguishes
+        // `dark sync` from a guest `run`/`eval`. Requiring a PARENTLESS frame was too strict:
+        // the CLI reaches the transport through a lambda of its entry expression, whose parent
+        // is the source frame, so every sync command refused itself. A lambda inside a package
+        // fn is unaffected -- `fnOf` walks to that fn and checks it.
+        | None -> true, sawPackage
       if not frameTrusted then
         false
       else
@@ -202,10 +205,12 @@ let private fetchOutcome
   (response : Result<Host.Response, Host.Failure>)
   : Dval =
   match response with
-  | Error failure ->
-    Exception.raiseInternal
-      "http request failed outside the typed error surface"
-      [ "message", failure.message ]
+  // A `Failure` here is the host refusing the request -- a malformed url, or a policy denial.
+  // These builtins promise a `Result` and are swept with arguments a person would get wrong
+  // (`dark sync zzz-not-a-url`), so a refusal is an Error to report, never an exception that
+  // takes the command down. `httpClientRequest` keeps raising, since its own typed error
+  // surface already covers the cases it can meet.
+  | Error failure -> Dval.resultError KTBlob KTString (DString failure.message)
   | Ok response ->
     match Host.expectHttp response with
     | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->

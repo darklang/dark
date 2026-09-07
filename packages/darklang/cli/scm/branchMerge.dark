@@ -75,7 +75,52 @@ let executeMergeDryRun (state: AppState) (branchRef: String) : AppState =
 
 /// Merge a branch's work into its parent, gated by `canMerge` (has-changes / no-active-children /
 /// rebased). On success its ops become part of the parent.
-let executeMerge (state: AppState) (branchRef: String) : AppState =
+/// The two things a merge refuses, checked in one place so every path into `executeMerge`
+/// (bare, named, from the workbench) is gated the same way.
+///
+/// WIP: a branch's uncommitted ops are work nobody has reviewed. Merging them moves them into
+/// the parent with no commit of their own, so they arrive as somebody else's history and the
+/// message explaining them never gets written. Commit them, or discard them, and then merge.
+///
+/// Type errors: `commit` refuses definite at-rest errors, and merging around that gate landed
+/// exactly what it exists to stop -- a branch whose commit was REFUSED could still be merged,
+/// and main got code that does not typecheck with no record of the decision. Same checker, same
+/// verdict rule (only `Failed`; `Incomplete` is not knowing, which is not the same as knowing it
+/// is wrong), same way past: `--allow-type-errors`, typed out.
+let mergeRefusal
+  (branchId: Uuid)
+  (branchRef: String)
+  (allowTypeErrors: Bool)
+  : Bool =
+  let uncommitted = SCM.PackageOps.draftOpCountFor branchId
+
+  if uncommitted != 0L then
+    Cli.printErr
+      $"cannot merge \"{branchRef}\": it has {Cli.Text.plural (Stdlib.Int.fromInt64 uncommitted) "uncommitted op"}."
+
+    Cli.printHint
+      $"  commit them (`dark --branch {branchRef} commit \"<message>\"`) or drop them (`dark --branch {branchRef} discard`), then merge."
+
+    true
+  else if allowTypeErrors then
+    false
+  else
+    let frontier =
+      SCM.Branches.ownFrontierOps branchId |> Stdlib.List.map (fun entry -> Stdlib.Tuple2.second entry)
+
+    match (SCM.PackageOps.typeCheckOps frontier).verdict with
+    | Failed ->
+      Cli.printErr
+        $"cannot merge \"{branchRef}\": the at-rest type check found definite errors in it."
+
+      Cli.printHint "  `dark typecheck --failed` lists them; fix and commit on the branch, then merge."
+      Cli.printHint "  `dark merge <branch> --allow-type-errors` merges anyway, deliberately."
+      true
+    | Checked -> false
+    | Incomplete -> false
+
+
+let executeMerge (state: AppState) (branchRef: String) (allowTypeErrors: Bool) : AppState =
   match resolveRef branchRef with
   | None -> state
   | Some branchId when SCM.PackageOps.branchIsMerged branchId ->
@@ -83,6 +128,7 @@ let executeMerge (state: AppState) (branchRef: String) : AppState =
     // rather than as "there was nothing to do".
     Cli.printOk $"\"{branchRef}\" is already merged into its parent."
     state
+  | Some branchId when mergeRefusal branchId branchRef allowTypeErrors -> state
   | Some branchId ->
     match SCM.PackageOps.mergeBranch branchId with
     | Ok outcome ->
@@ -225,7 +271,7 @@ let bareTargetBranch
 /// `dark discard` does. Naming a branch is already a deliberate act and goes straight through.
 ///
 /// An explicit yes, not a default-yes: a stray Return or a piped stdin must not move work into main.
-let executeMergeBare (state: AppState) (autoConfirm: Bool) : AppState =
+let executeMergeBare (state: AppState) (autoConfirm: Bool) (allowTypeErrors: Bool) : AppState =
   match bareTargetBranch "merge" with
   | Error _ -> state
   | Ok name ->
@@ -243,17 +289,22 @@ let executeMergeBare (state: AppState) (autoConfirm: Bool) : AppState =
 
       previewed
     else
-      executeMerge previewed name
+      executeMerge previewed name allowTypeErrors
 
 let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
   match args with
-  | [] -> executeMergeBare state false
-  | [ "-y" ] | [ "--yes" ] -> executeMergeBare state true
+  | [] -> executeMergeBare state false false
+  | [ "-y" ] | [ "--yes" ] -> executeMergeBare state true false
+  | [ "--allow-type-errors" ] -> executeMergeBare state false true
+  | [ "-y", "--allow-type-errors" ]
+  | [ "--allow-type-errors", "-y" ] -> executeMergeBare state true true
   | [ "--dry-run" ] ->
     match bareTargetBranch "merge" with
     | Ok name -> executeMergeDryRun state name
     | Error _ -> state
-  | [ id ] -> executeMerge state id
+  | [ id ] -> executeMerge state id false
+  | [ id, "--allow-type-errors" ]
+  | [ "--allow-type-errors", id ] -> executeMerge state id true
   | [ id, "--dry-run" ] -> executeMergeDryRun state id
   | [ "--dry-run", id ] -> executeMergeDryRun state id
   | _ ->

@@ -25,10 +25,11 @@ open Tests.CliTestHarness
 /// `httpGetUnsafeBytes` turns the SSRF guards off so a relay behind loopback or a tailnet is reachable at
 /// all. It is in the general builtin set, so a function pulled from a peer could call it -- and did: A
 /// authors a function that calls it, syncs, B pulls and runs it, and it reads a service on B's loopback.
-/// The transport is now unsafe only towards origins this instance was TOLD about (argv, or the stored
-/// relay). Nothing seeds them here, which is exactly the position pulled code is in.
-let private unguardedTransportRefusesNonTargets =
-  cliTest "the unguarded transport refuses an origin nobody named" (fun state ->
+///
+/// What stops that now is the caller gate rather than an origin allowlist: every frame must be bundled
+/// first-party code. An expression typed at `eval` is not, which is the same position pulled code is in.
+let private unguardedTransportRefusesGuestCallers =
+  cliTest "the unguarded transport refuses a caller that is not bundled code" (fun state ->
     task {
       let! out =
         runCli
@@ -38,7 +39,7 @@ let private unguardedTransportRefusesNonTargets =
 
       Expect.stringContains
         out
-        "cannot be fetched with the network protections off"
+        "restricted to trusted first-party"
         $"the refusal says why, got: {out}"
       Expect.isFalse (out.Contains "REACHED") "and nothing was fetched"
       return ()
@@ -363,6 +364,10 @@ let private anUnbindRemovesANameThroughTheCli =
         let! _ = runCli state [ "fn"; "Tests.Gone.f"; "() : Int64 = 1L" ]
         let! _ = runCli state [ "commit"; "gone soon"; "-y" ]
         let! _ = runCli state [ "switch"; "gonebr" ]
+        // Authoring from `eval` is GUEST code writing packages, which the instance policy
+        // denies by default. A person doing this on purpose grants it first; the CLI's own
+        // authoring commands are control code and never needed it.
+        let! _ = runCli state [ "permissions"; "allow"; "package-write" ]
         let! added =
           runCli
             state
@@ -2503,6 +2508,78 @@ let private mergeCommitsWhatASiblingStillTags =
       })
 
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
+/// Ocean's review, #1: `discard <name>` on a branch dropped every op for that name, committed
+/// ones included, so the branch lost its last committed version and `status` then called the
+/// branch clean. Discard is about the DRAFT; a committed binding is history.
+let private branchDiscardKeepsCommittedWork =
+  cliTest "discard <name> on a branch spares what the branch already committed" (fun state ->
+    task {
+      let! _ = runCli state [ "discard"; "-y" ]
+      let! _ = runCli state [ "switch"; "discardkeep" ]
+      let! _ = runCli state [ "fn"; "Tests.DiscardKeep.f"; "() : Int64 = 1L" ]
+      let! _ = runCli state [ "commit"; "f v1 on branch"; "-y" ]
+
+      let! committed = runCli state [ "eval"; "Tests.DiscardKeep.f ()" ]
+      Expect.stringContains committed "1" $"the committed version runs: {committed}"
+
+      // A second, UNCOMMITTED edit: this is what discard is allowed to take.
+      let! _ = runCli state [ "fn"; "Tests.DiscardKeep.f"; "() : Int64 = 2L" ]
+      let! _ = runCli state [ "discard"; "Tests.DiscardKeep.f"; "-y" ]
+
+      let! after = runCli state [ "eval"; "Tests.DiscardKeep.f ()" ]
+      Expect.stringContains
+        after
+        "1"
+        $"the draft edit is gone and the committed version is back, not the name: {after}"
+      Expect.isFalse (after.Contains "not found") "the name must survive the discard"
+
+      let! _ = runCli state [ "switch"; "main" ]
+      do! archiveBranches state [ "discardkeep" ]
+    })
+
+/// Ocean's review, #12: a branch whose COMMIT was refused by the at-rest type check could still
+/// be merged, landing code that does not typecheck on main with nothing recorded. Merge asks the
+/// same question commit does, and refuses uncommitted work outright rather than moving somebody
+/// else's unreviewed ops into the parent.
+let private mergeIsGatedLikeCommit =
+  cliTest "merge refuses type errors and uncommitted work" (fun state ->
+    task {
+      let! _ = runCli state [ "discard"; "-y" ]
+      let! _ = runCli state [ "switch"; "mergegate" ]
+      let! _ = runCli state [ "fn"; "Tests.MergeGate.bad"; "() : Int64 = \"oops\"" ]
+
+      let! refusedCommit = runCli state [ "commit"; "bad"; "-y" ]
+      Expect.stringContains
+        refusedCommit
+        "cannot commit"
+        $"commit refuses it, as it always did: {refusedCommit}"
+
+      // Uncommitted: the first gate, and the one that answers "why can we merge WIP at all".
+      let! _ = runCli state [ "switch"; "main" ]
+      let! refusedWip = runCli state [ "merge"; "mergegate" ]
+      Expect.stringContains
+        refusedWip
+        "uncommitted"
+        $"merge refuses uncommitted work: {refusedWip}"
+      Expect.isFalse (refusedWip.Contains "Merged") "and does not claim to have merged"
+
+      // Commit it past the gate on purpose, and the merge still refuses on the type error.
+      let! _ = runCli state [ "switch"; "mergegate" ]
+      let! _ = runCli state [ "commit"; "bad"; "-y"; "--allow-type-errors" ]
+      let! _ = runCli state [ "switch"; "main" ]
+      let! refusedTypes = runCli state [ "merge"; "mergegate" ]
+      Expect.stringContains
+        refusedTypes
+        "at-rest type check"
+        $"merge refuses definite type errors: {refusedTypes}"
+
+      // And the deliberate way past is the same one commit has.
+      let! merged = runCli state [ "merge"; "mergegate"; "--allow-type-errors" ]
+      Expect.stringContains merged "Merged" $"typed out, it merges: {merged}"
+
+      do! archiveBranches state [ "mergegate" ]
+    })
+
 let tests : List<Test> =
   [ commitRefusesDefiniteTypeErrors
     deprecationIsReversible
@@ -2519,7 +2596,7 @@ let tests : List<Test> =
     mergeGatesAreDecidedInDark
     branchBundleKeepsWhatItCannotRead
     bareDiffShowsTheDraft
-    unguardedTransportRefusesNonTargets
+    unguardedTransportRefusesGuestCallers
     bareSubcommandDoesNotBecomeABranch
     dependentsSeeTheBranchYouAreOn
     bareMergeAndRebaseMeanThisBranch
@@ -2552,4 +2629,6 @@ let tests : List<Test> =
     mergeCommitsWhatASiblingStillTags
     editingAColleaguesVersionSaysSo
     commitsHideHousekeeping
-    commitsChainToTheirParent ]
+    commitsChainToTheirParent
+    branchDiscardKeepsCommittedWork
+    mergeIsGatedLikeCommit ]

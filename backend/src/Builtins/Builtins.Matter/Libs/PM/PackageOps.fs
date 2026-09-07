@@ -131,7 +131,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -359,7 +359,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -418,7 +418,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -457,7 +457,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 

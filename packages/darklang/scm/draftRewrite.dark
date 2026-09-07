@@ -223,8 +223,13 @@ let rewriteBy
 
 /// Drop ONE name's uncommitted bindings, leaving the rest of the draft alone.
 ///
-/// Only `SetName` goes. The NAME is what makes an item exist in `locations`, so dropping its bindings
-/// reverts the name to its last committed binding, or to not existing.
+/// Bindings go, whichever op wrote them. The NAME is what makes an item exist in `locations`, so
+/// dropping its bindings reverts the name to its last committed binding, or to not existing.
+///
+/// Two op kinds bind: `SetName`, and a `Decision` that OVERRIDES a binding -- which is what `undo`
+/// writes when it steps a name back to an earlier version. Matching only `SetName` meant
+/// `discard <name>` after an `undo` reported the change dropped and changed nothing, and `status`
+/// went on listing it. `PackageOps.bindingOf` makes the same pairing for the same reason.
 ///
 /// The `Add` carrying the content STAYS; dropping content needs a real reachability check (see
 /// `collapse`).
@@ -235,15 +240,17 @@ let discardName
   : Stdlib.Result.Result<Int, String> =
   let modulePath = Stdlib.String.join modules "."
 
+  let bindsThisName (loc: LanguageTools.ProgramTypes.PackageLocation) : Bool =
+    loc.owner == owner
+    && (Stdlib.String.join loc.modules ".") == modulePath
+    && loc.name == name
+
   rewriteBy (fun draft ->
     draft
     |> Stdlib.List.filter (fun d ->
       match d.op with
-      | SetName(loc, _, _) ->
-        Stdlib.Bool.not (
-          loc.owner == owner
-          && (Stdlib.String.join loc.modules ".") == modulePath
-          && loc.name == name)
+      | SetName(loc, _, _) -> Stdlib.Bool.not (bindsThisName loc)
+      | Decision(_, loc, _, Override _) -> Stdlib.Bool.not (bindsThisName loc)
       | _ -> true))
 
 

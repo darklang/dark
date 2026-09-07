@@ -43,7 +43,36 @@ let buildState () : Task<RT.ExecutionState> =
       =
       uply { return () }
 
-    return Exe.createState builtins pmRT Exe.noTracing sendException notify program
+    // The same host posture `Cli.fs` builds for CLI control code: `createState` now defaults
+    // access to deny-all (an embedder that forgets a policy gets a confined run), so without
+    // this every dispatched command dies on its first effect. Guest `run`/`eval` inside these
+    // tests still narrow themselves, which is what the guest tests assert.
+    // `dark run` / `dark eval` inside a dispatched command build their guest state from the
+    // STORED instance policy, and a store with no policy file is deny-all -- so without this
+    // every test that evals is denied `package-read` before it can resolve a name. The real
+    // CLI seeds the same default on startup (`Cli.fs`), so seeding it here makes the harness
+    // match an install rather than granting the tests anything an install does not have.
+    //
+    // Into `rundir`, never the real `~/.darklang/policy`: the suite must not write the
+    // developer's own policy, and in the container that path is not writable anyway. The
+    // override is process-wide and deliberately never disposed -- every CLI test wants this
+    // same policy, and restoring it per test would race the sequenced dispatch.
+    let policyDir = System.IO.Path.Combine(LibConfig.Config.runDir, "test-policy")
+    System.IO.Directory.CreateDirectory policyDir |> ignore<System.IO.DirectoryInfo>
+    LibExecution.HostSecurity.policyDirectoryForTesting policyDir
+    |> ignore<System.IDisposable>
+
+    LibDB.PolicyStore.seedInstanceIfMissing LibExecution.Permissions.Policy.defaultInstance
+
+    let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+
+    return
+      { Exe.setInstancePolicy
+          LibExecution.Permissions.Policy.allowAll
+          (Exe.createState builtins pmRT Exe.noTracing sendException notify program) with
+          canManagePolicies = true
+          canUsePrivateNetworkHttp = true
+          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
   }
 
 /// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return

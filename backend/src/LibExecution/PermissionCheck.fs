@@ -165,6 +165,38 @@ let performHost
   : Ply<Result<Host.Response, Host.Failure>> =
   performHostWithAccess state vm vm.activeAccess op
 
+/// Is every non-root frame bundled first-party (Darklang) code?
+///
+/// The trust question behind the two builtins nobody can scope honestly: the private-network
+/// sync transport, and raw SQLite against this instance's own store. Checking the immediate
+/// caller is not enough -- an untrusted package can call a bundled wrapper and turn it into a
+/// confused deputy -- so every frame in the chain must be bundled.
+let callerIsBundled (state : ExecutionState) (vm : VMState) : bool =
+  let rec fnOf (point : ExecutionPoint) : Option<FQFnName.Package> =
+    match point with
+    | ExecutionPoint.Function(FQFnName.Package p) -> Some p
+    | ExecutionPoint.Lambda(parent, _) -> fnOf parent
+    | _ -> None
+  let rec allBundled (frameID : System.Guid) (sawPackage : bool) : bool =
+    match vm.callFrames.TryGetValue frameID with
+    | false, _ -> false
+    | true, frame ->
+      let frameTrusted, sawPackage =
+        match fnOf frame.executionPoint with
+        | Some p -> state.isBundledPackageFn p, true
+        // Source-derived frames -- the host's own expression, and lambdas defined in it --
+        // are trusted here; what separates the CLI from a guest is the caller's own posture,
+        // checked by whoever calls this. Requiring a parentless frame refused the CLI itself,
+        // which reaches its work through a lambda of its entry expression.
+        | None -> true, sawPackage
+      if not frameTrusted then
+        false
+      else
+        match frame.parent with
+        | ValueNone -> sawPackage
+        | ValueSome(parentID, _, _) -> allBundled parentID sawPackage
+  allBundled vm.currentFrameID false
+
 /// Check ambient effects against an explicitly supplied access. Builtins that
 /// create a child guest state use this before host-side work performed on that
 /// child's behalf; the invoking VM may belong to a broader trusted caller.

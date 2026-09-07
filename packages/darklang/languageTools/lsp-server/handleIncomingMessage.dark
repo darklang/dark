@@ -276,8 +276,40 @@ let handleIncomingMessage
         | ("dark/rebaseStatus", Some requestId, Some(Object [ ("branchId", String b) ])) ->
           Branches.handleRebaseStatusRequest state requestId b
 
+        // No branchId means the branch the editor is ON, the same thing bare `dark merge` and
+        // `dark rebase` mean. The extension asks these from a branch context and sent `{}`,
+        // which used to match nothing at all and time out.
+        | ("dark/canMerge", Some requestId, _) ->
+          Branches.handleCanMergeRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/merge", Some requestId, _) ->
+          Branches.handleMergeRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/rebase", Some requestId, _) ->
+          Branches.handleRebaseRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/rebaseStatus", Some requestId, _) ->
+          Branches.handleRebaseStatusRequest state requestId (Branches.activeBranchId ())
+
         | ("dark/scm/getWipSummary", Some requestId, _) ->
           Branches.handleGetWipSummaryRequest state requestId
+
+        // The editor's SCM surface. These were called by the extension and answered by nobody:
+        // the methods went when the F# SCM did, and the client kept calling them.
+        | ("dark/scm/commit", Some requestId, Some(Object [ ("message", String m) ])) ->
+          Branches.handleCommitRequest state requestId m
+
+        | ("dark/scm/discard", Some requestId, _) ->
+          Branches.handleDiscardRequest state requestId
+
+        | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Int limit) ])) ->
+          Branches.handleGetCommitsRequest state requestId limit
+
+        | ("dark/scm/getCommits", Some requestId, _) ->
+          Branches.handleGetCommitsRequest state requestId 20L
+
+        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("hash", String h) ])) ->
+          Branches.handleGetCommitOpsRequest state requestId h
 
         | ("dark/renameBranch",
           Some requestId,
