@@ -621,6 +621,8 @@ let inline private takeFrame
   (id : uuid)
   (parent : voption<struct (uuid * Register * int)>)
   (executionPoint : ExecutionPoint)
+  // Permission context inherited or narrowed for this frame.
+  (access : Permissions.Access)
   (instrData : InstrData)
   (expectedReturnType : TypeReference voption)
   (typeSymbolTable : TypeSymbolTable)
@@ -631,6 +633,7 @@ let inline private takeFrame
     f.id <- id
     f.parent <- parent
     f.executionPoint <- executionPoint
+    f.access <- access
     f.instrData <- instrData
     f.expectedReturnType <- expectedReturnType
     f.programCounter <- 0
@@ -640,6 +643,7 @@ let inline private takeFrame
     { id = id
       parent = parent
       executionPoint = executionPoint
+      access = access
       instrData = instrData
       expectedReturnType = expectedReturnType
       programCounter = 0
@@ -818,6 +822,9 @@ type private ApplyContext =
     typeArgs : List<TypeReference>
     args : ArgSeq
     tst : TypeSymbolTable
+    /// The access this call runs under: the applying frame's, narrowed by the
+    /// applicable's capture. Computed once in `applyInstruction`.
+    access : Permissions.Access
     /// Register in the calling frame that the result goes in.
     putResultIn : Register
     /// Where to resume the calling frame once this call returns.
@@ -941,7 +948,7 @@ let private finishBuiltin
 
 /// Everything from "we have the arguments and a checked symbol table" to "we have a checked result".
 ///
-/// Shared by the synchronous path and the fallback below it, so there is one copy of the capability gate,
+/// Shared by the synchronous path and the fallback below it, so there is one copy of the permission gate,
 /// the stats bracket, the result check and the trace.
 let private invokeBuiltin
   (exeState : ExecutionState)
@@ -968,24 +975,8 @@ let private invokeBuiltin
         0L
     else
       0L
-  // capabilities gate: a builtin runs only if the instance's grant covers the DOMAIN
-  // it declares it needs (`fn.capabilities`): a structural PRESENCE check, no name
-  // matching. Nuanced builtins (http/file/exec/…) additionally enforce the SPECIFIC
-  // target (URL/path/args) in their own body via `CapabilityCheck`. Default grant is
-  // allCaps (no behavior change); a real instance narrows it (default NONE for `dark run`).
-  // fast-path: pure builtins (the vast majority) all share the one `noCaps` instance,
-  // so a reference check skips the structural scan entirely in the hot path. A false
-  // negative (an all-empty need built fresh) just runs the full check, still correct.
-  if not (System.Object.ReferenceEquals(fn.capabilities, Capabilities.noCaps)) then
-    match Capabilities.coversStructurally exeState.grantedCaps fn.capabilities with
-    | Capabilities.Denied what ->
-      raiseRTE
-        vm.threadID
-        (RTE.UncaughtException(
-          $"capability denied: `{fn.name.name}` needs {what}, which this instance doesn't grant. Grant it with `dark caps`.",
-          []
-        ))
-    | Capabilities.Allowed -> ()
+  if not (Set.isEmpty fn.callEffects) then
+    PermissionCheck.requireBuiltinEffects exeState vm fn.callEffects fn.name.name
 
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
@@ -1017,6 +1008,26 @@ let private invokeBuiltin
     }
 
 
+/// The access a partially applied fn reference leaves the `Apply` with: the
+/// access it was applied under. `ctx.access` is already the applying frame
+/// narrowed by whatever the reference had captured, so this can only narrow.
+///
+/// Like a lambda, a partial application must not retain broader access than
+/// the frame that created it.
+let inline private captureAccess (ctx : ApplyContext) : Option<Permissions.Access> =
+  Some ctx.access
+
+
+/// Run a builtin call without entering the interpreter's computation expression.
+///
+/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
+/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
+/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
+/// per call.
+///
+/// Two things can still need the package store, and each has an escape hatch that keeps a single
+/// implementation rather than a fast copy and a slow copy that drift:
+///
 /// The three ways a builtin call ends, once the symbol table is settled: too many arguments, not enough
 /// (so it stays a partial application), or exactly right.
 ///
@@ -1042,6 +1053,7 @@ let private completeBuiltin
     { ctx.applicable with
         typeSymbolTable = tst
         typeArgs = ctx.typeArgs
+        access = captureAccess ctx
         // `Applicable.argsSoFar` is a list because lambdas share it. Converting back costs a cons
         // per argument, but only on a partial application, which is rare and already not free.
         argsSoFar = List.ofArray allArgs }
@@ -1417,14 +1429,16 @@ let private detectThinWrapper
   // The builtin's own type params are left to inference, which is what running the wrapper's body
   // would have done: that body applies the builtin with no explicit type args, which the match below
   // insists on.
-  // Never a builtin that needs capabilities. Eliding `Stdlib.HttpClient.request`, a bare forwarder
-  // like any other, changed what `request "put" "file:///etc/passwd"` does: the testfiles asserting
-  // an unsupported-protocol error instead saw a real request attempted. The effectful builtins reach
-  // for more of the calling context than a pure one does, and the wrapper's frame is part of that
-  // context. Pure builtins are the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` --
-  // so this costs nothing worth having.
+  // Never a builtin with effects. Eliding `Stdlib.HttpClient.request`, a bare forwarder like any
+  // other, changed what `request "put" "file:///etc/passwd"` does: the testfiles asserting an
+  // unsupported-protocol error instead saw a real request attempted. An effectful builtin is
+  // checked under the access of the frame applying it, and the wrapper's frame (its package
+  // policy, its ceiling) is part of that; a pure one is never checked at all. Pure builtins are
+  // the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` -- so this costs nothing
+  // worth having.
   let sameSignature (bi : BuiltInFn) =
-    sameType fn.returnType bi.returnType
+    Set.isEmpty bi.callEffects
+    && sameType fn.returnType bi.returnType
     && List.length bi.parameters = NEList.length fn.parameters
     && List.forall2
       (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> sameType p.typ bp.typ)
@@ -1506,6 +1520,80 @@ let private thinWrapperOf
     if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
 
 
+/// Cached data needed to enter a package function. Built once per function to
+/// avoid rebuilding its instructions and permission layers on every call.
+let private packageFnCallData
+  (exeState : ExecutionState)
+  (fn : PackageFn.PackageFn)
+  : PackageFnCallData =
+  let mutable cached = Unchecked.defaultof<PackageFnCallData>
+  if exeState.packageFnCallCache.TryGetValue(fn.hash, &cached) then
+    cached
+  else
+    let id = string fn.hash
+    let d : PackageFnCallData =
+      { instrData =
+          { instructions = List.toArray fn.body.instructions
+            resultReg = fn.body.resultIn }
+        packageLayer = Permissions.Layer.Package id
+        ceiling =
+          match fn.permissionCeiling with
+          | None -> ValueNone
+          | Some effects ->
+            ValueSome(
+              struct (Permissions.Layer.Function id,
+                      Permissions.Policy.allowEffects effects)
+            )
+        policy =
+          { owner = null; policy = Permissions.Policy.denyAll; isAllowAll = false } }
+    exeState.packageFnCallCache[fn.hash] <- d
+    d
+
+
+/// The consumer policy for `fn` under this state's `packagePolicy`. Resolved
+/// once per (policy fn, package fn) and remembered on the call data; a state
+/// with a different `packagePolicy` sharing the cache recomputes, so a stale
+/// approval can never leak between them.
+let private packagePolicyMemo
+  (exeState : ExecutionState)
+  (callData : PackageFnCallData)
+  (hash : Hash)
+  : PackagePolicyMemo =
+  let memo = callData.policy
+  if System.Object.ReferenceEquals(memo.owner, exeState.packagePolicy) then
+    memo
+  else
+    let policy = exeState.packagePolicy hash
+    let memo =
+      { owner = box exeState.packagePolicy
+        policy = policy
+        isAllowAll = Permissions.Policy.isAllowAll policy }
+    callData.policy <- memo
+    memo
+
+
+/// Access established on entry to a package fn: applying access narrowed by
+/// the consumer's approval and the fn's own ceiling.
+///
+/// Keep this shared by the frame path and both thin-wrapper elisions: eliding
+/// a frame must not elide its package policy or ceiling.
+let private packageEntryAccess
+  (exeState : ExecutionState)
+  (callData : PackageFnCallData)
+  (hash : Hash)
+  (applying : Permissions.Access)
+  : Permissions.Access =
+  let memo = packagePolicyMemo exeState callData hash
+  let access =
+    if memo.isAllowAll then
+      applying
+    else
+      applying |> Permissions.Access.restrict callData.packageLayer memo.policy
+  match callData.ceiling with
+  | ValueNone -> access
+  | ValueSome(struct (layer, policy)) ->
+    access |> Permissions.Access.restrict layer policy
+
 /// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right
 /// -- in which case build the frame to run it in.
 ///
@@ -1533,6 +1621,7 @@ let private completePackage
   elif argCount < paramCount then
     { applicable with
         typeArgs = typeArgs
+        access = captureAccess ctx
         // Materialised only here: a partial application has to retain its arguments.
         argsSoFar = ArgSeq.toList allArgs
         typeSymbolTable = tst }
@@ -1569,27 +1658,20 @@ let private completePackage
     if not exeState.tracing.skipTracing then
       exeState.tracing.storeFrameEntry newFrameId pkgEp (ArgSeq.toList allArgs)
     // We already hold the fn here, so the loop needn't fetch it.
-    let instrData =
-      let mutable cached = Unchecked.defaultof<InstrData>
-      if exeState.packageFnInstrCache.TryGetValue(fn.hash, &cached) then
-        cached
-      else
-        let d : InstrData =
-          { instructions = List.toArray fn.body.instructions
-            resultReg = fn.body.resultIn }
-        exeState.packageFnInstrCache[fn.hash] <- d
-        d
+    let callData = packageFnCallData exeState fn
     if vm.stats.enabled then
       vm.stats.registersAllocated <-
         vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
+      let access = packageEntryAccess exeState callData fn.hash ctx.access
       takeFrame
         vm
         fn.body.registerCount
         newFrameId
         (ValueSome(struct (vm.currentFrameID, ctx.putResultIn, ctx.returnPc)))
         pkgEp
-        instrData
+        access
+        callData.instrData
         (ValueSome fn.returnType)
         frameTst
     ArgSeq.fill frame.registers allArgs
@@ -1764,7 +1846,23 @@ let private callPackageResolved
     // the gap between the two counters is what elision saves.
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
-    let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
+    // Entering the wrapper, frame or not: its package approval and ceiling
+    // apply to the builtin it forwards to, and to any callback that builtin
+    // applies. This also caches the call data, which is what lets the early
+    // elision in the `Apply` handler do the same without fetching the fn.
+    let callData = packageFnCallData exeState fn
+    let entryAccess = packageEntryAccess exeState callData fn.hash ctx.access
+    // The elided builtin reads `vm.activeAccess`, and nothing else on this
+    // path writes it.
+    vm.activeAccess <- entryAccess
+    let call =
+      callBuiltinResolved
+        exeState
+        vm
+        currentFrame
+        { ctx with access = entryAccess }
+        biFn
+        []
     // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
     match Ply.trySync call with
     | ValueSome dv -> Ply(Completed dv)
@@ -1806,6 +1904,20 @@ let private callPackage
     }
 
 
+
+
+/// Detects the compiled direct-call pattern `LoadVal; Apply`.
+/// Direct calls use the current frame's access; function values that escape
+/// capture it so they remain authorized when called later.
+let inline private consumedByNextApply
+  (instructions : Instruction array)
+  (pc : int)
+  (reg : Register)
+  : bool =
+  pc + 1 < instructions.Length
+  && (match instructions[pc + 1] with
+      | Apply(_, thingToCallReg, _, _) -> thingToCallReg = reg
+      | _ -> false)
 
 
 /// What an `Apply` still needs, after everything that could be done synchronously has been.
@@ -1861,6 +1973,21 @@ let private applyInstruction
       )
       |> RTE.Apply
       |> raiseRTE vm.threadID
+
+  // The access this call runs under, for all three kinds of callee: the
+  // applying frame's, narrowed by whatever the value captured when it escaped
+  // the frame that created it. A reference that never escaped (`access =
+  // None`, loaded straight into this `Apply`) is the frame's own. The
+  // intersection is a no-op by reference when the capture is this frame's.
+  let access =
+    match applicable with
+    | AppLambda appLambda ->
+      currentFrame.access |> Permissions.Access.constrainBy appLambda.access
+    | AppNamedFn namedFn ->
+      match namedFn.access with
+      | Some captured ->
+        currentFrame.access |> Permissions.Access.constrainBy captured
+      | None -> currentFrame.access
 
   // Deliberately not read into a list here. The package path walks the caller's registers directly,
   // and only the lambda and builtin paths below materialise one.
@@ -1955,6 +2082,7 @@ let private applyInstruction
             struct (vm.currentFrameID, putResultIn, currentFrame.programCounter + 1)
           ))
           lambdaEp
+          access
           lambdaInstrData
           ValueNone
           lambdaTst
@@ -2004,8 +2132,10 @@ let private applyInstruction
       |> raiseRTE vm.threadID
     else
       registers[putResultIn] <-
-        // Materialised only here: a partial application has to retain its arguments.
-        { appLambda with argsSoFar = ArgSeq.toList allArgs }
+        // Materialised only here: a partial application has to retain its
+        // arguments -- and, like a named-fn partial, the access it was applied
+        // under (`access` is the frame's narrowed by the lambda's capture).
+        { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
         |> AppLambda
         |> DApplicable
 
@@ -2057,6 +2187,7 @@ let private applyInstruction
           typeArgs = typeArgs
           args = ArgSeq.ofNE registers newArgRegs
           tst = tst
+          access = access
           putResultIn = putResultIn
           returnPc = currentFrame.programCounter + 1 }
 
@@ -2075,6 +2206,8 @@ let private applyInstruction
         else
           let fn = found
           recordStage vm ApplyStage.BiFnLookup biLookupAlloc
+          // Builtins push no frame; their permission checks read this instead.
+          vm.activeAccess <- access
           let call = callBuiltin exeState vm currentFrame ctx fn
           // Usually already finished, in which case there's no bind to pay for.
           match Ply.trySync call with
@@ -2097,14 +2230,26 @@ let private applyInstruction
         // Same guards as the elision in `callPackageResolved`: no explicit type args, nothing
         // applied already, every parameter supplied. Signature equality is what put the fn in the
         // cache, so the builtin's parameter count is the package fn's.
+        // Only with the wrapper's call data in hand: its package approval and
+        // ceiling are applied below, and they live on the call data the first
+        // (long-way) call cached. Without it, go the long way, which caches it.
         let earlyWrapper =
           if List.isEmpty typeArgs && List.isEmpty applicable.argsSoFar then
-            thinWrapperCachedFor exeState pkg
+            match thinWrapperCachedFor exeState pkg with
+            | ValueSome biFn ->
+              let mutable callData = Unchecked.defaultof<PackageFnCallData>
+              if exeState.packageFnCallCache.TryGetValue(pkg, &callData) then
+                ValueSome(struct (biFn, callData))
+              else
+                ValueNone
+            | ValueNone -> ValueNone
           else
             ValueNone
 
         match earlyWrapper with
-        | ValueSome biFn when NEList.length newArgRegs = List.length biFn.parameters ->
+        | ValueSome(struct (biFn, callData)) when
+          NEList.length newArgRegs = List.length biFn.parameters
+          ->
           // Counted, since a package call happened. The late elision in `callPackageResolved` does
           // the same; this path was added afterwards and missed it, so `packageCalls` under-reported
           // every forwarder that reached the cache.
@@ -2128,14 +2273,21 @@ let private applyInstruction
 
           | ValueNone ->
 
+            // Entering the wrapper without a frame: its package approval and
+            // ceiling still apply (see `packageEntryAccess`).
+            let entryAccess = packageEntryAccess exeState callData pkg access
             let ctx : ApplyContext =
               { applicable = applicable
                 typeArgs = typeArgs
                 args = ArgSeq.ofNE registers newArgRegs
                 tst = tst
+                access = entryAccess
                 putResultIn = putResultIn
                 returnPc = currentFrame.programCounter + 1 }
 
+            // The builtin pushes no frame; its effect check and callbacks read
+            // `vm.activeAccess`, so the elided entry must update it explicitly.
+            vm.activeAccess <- entryAccess
             let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
 
             match Ply.trySync call with
@@ -2414,7 +2566,20 @@ let private runSyncInstructions
           0L
 
       match inst with
-      | LoadVal(reg, value) -> registers[reg] <- value
+      | LoadVal(reg, value) ->
+        // `LoadVal` loads compiled references to named functions without an
+        // access value. If the next instruction calls that reference, the
+        // new frame supplies the current access. If the reference escapes as
+        // a value, capture the current access here so a later call stays
+        // authorized. Already-captured values are left unchanged.
+        registers[reg] <-
+          match value with
+          | DApplicable(AppNamedFn fn) when
+            fn.access.IsNone
+            && not (consumedByNextApply instrData.instructions counter reg)
+            ->
+            DApplicable(AppNamedFn { fn with access = Some currentFrame.access })
+          | _ -> value
       | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
       | Or(createTo, left, right) ->
         match registers[left] with
@@ -2587,6 +2752,7 @@ let private runSyncInstructions
               |> List.map (fun (parentReg, childReg) ->
                 childReg, registers[parentReg])
             typeSymbolTable = currentFrame.typeSymbolTable
+            access = currentFrame.access
             argsSoFar = [] }
           |> AppLambda
           |> DApplicable
@@ -2889,14 +3055,17 @@ let private runRareOpcode
       match name with
       | FQValueName.Builtin builtin ->
         match exeState.values.builtIn.TryGetValue builtin with
-        | true, v -> registers[createTo] <- v.body
+        | true, v ->
+          registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
         | false, _ -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
       | FQValueName.Package pkg ->
         match! Ply.toTask (exeState.values.package pkg) with
         | Some v ->
-          // The Dval is already stored in the package value
-          registers[createTo] <- v.body
+          // Stored package values must not leak the seeder's authority. When
+          // one is loaded, attach this frame's access recursively to every
+          // callable inside it, so later calls use the loader's permissions.
+          registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
     // `FrameRareOpcode` for the four above. Loud rather than silent if that ever stops holding.
@@ -3207,7 +3376,23 @@ let private executeInnerTask
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
 
-let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+/// Run `vm` with its root frame under `access`.
+///
+/// Which access seeds the root frame is the whole of the callback question. A
+/// borrowed VM applying a callback for a builtin has no parent frame of its
+/// own, so unless the *invoking* frame's access is handed across here, the
+/// callback starts from the run's base access and the ceiling or package
+/// approval of the function that called the builtin never reaches it -- `f ()`
+/// inside a `:{}` function was denied while `List.map [()] f` ran the clock.
+/// Builtin callers pass their current `vm.activeAccess`; host-initiated runs
+/// pass the state's own access through `execute`.
+let executeUnder
+  (exeState : ExecutionState)
+  (access : Permissions.Access)
+  (vm : VMState)
+  : Ply<Dval> =
+  vm.callFrames[vm.currentFrameID].access <- access
+  vm.activeAccess <- access
   match executeSync exeState vm with
   | SyncDone dv -> Ply dv
   | bailed ->
@@ -3220,3 +3405,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       // The task already started; awaiting `running` continues it. Calling `executeInner` here would
       // start a second run of the same VM.
       uply { return! running }
+
+/// Host-initiated: a run that begins from the state's own access.
+let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+  executeUnder exeState exeState.access vm

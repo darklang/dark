@@ -577,6 +577,15 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   Common.List.write w Common.String.write fn.typeParams
   Common.NEList.write (writeParameter mode) w fn.parameters
   writeTypeReference mode w fn.returnType
+  // The `:{…}` ceiling is hashed, unlike the description: it is part of what
+  // the function promises, and approvals and pins are keyed on that promise.
+  // Hashing the ceiling makes any contract change produce a new hash, so
+  // existing approvals cannot silently survive a widened row.
+  match fn.permissionCeiling with
+  | None -> w.Write(0uy)
+  | Some effects ->
+    w.Write(1uy)
+    LibSerialization.Binary.Serializers.Effects.write w effects
 
 /// Write a PackageValue's hash-relevant content (skip hash, description, deprecated)
 let writeValue

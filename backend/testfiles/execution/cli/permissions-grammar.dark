@@ -1,0 +1,255 @@
+// The CLI rule grammar (`LanguageTools.Permissions`): every rule shape the
+// CLI accepts, and the round trip between `renderRule` and `parseRule`.
+//
+// Two contracts are pinned here. `permissions list`/`show` print rules with
+// `renderRule`, and an operator pastes them back into `permissions allow`, so
+// each Rule case must round-trip. And the F# denial hint (`To allow:
+// permissions allow <rule>`, from `Request.suggestRule`) is text this parser
+// must accept, so each shape it emits is parsed below.
+//
+module PermissionsGrammar =
+  let only (value: String) : Darklang.LanguageTools.Permissions.Scope<String> =
+    Darklang.LanguageTools.Permissions.Scope.Only value
+
+  /// True when rendering the rule and parsing that text gives the rule back.
+  let roundTrips (rule: Darklang.LanguageTools.Permissions.Rule) : Bool =
+    (Darklang.LanguageTools.Permissions.parseRuleText
+      (Darklang.LanguageTools.Permissions.renderRule rule))
+    == Stdlib.Option.Option.Some [ rule ]
+
+  let exactHttp () : Darklang.LanguageTools.Permissions.Rule =
+    Darklang.LanguageTools.Permissions.Rule.Http(
+      Darklang.LanguageTools.Permissions.HttpRule
+        { method = only "GET"
+          scheme = only "https"
+          host = Darklang.LanguageTools.Permissions.HostRule.Exact "h"
+          port = Darklang.LanguageTools.Permissions.Scope.Only 443
+          pathPrefix = only "/p"
+          query = only "?q" })
+
+  let broadHttp () : Darklang.LanguageTools.Permissions.Rule =
+    Darklang.LanguageTools.Permissions.Rule.Http(
+      Darklang.LanguageTools.Permissions.HttpRule
+        { method = Darklang.LanguageTools.Permissions.Scope.All
+          scheme = only "https"
+          host = Darklang.LanguageTools.Permissions.HostRule.Any
+          port = Darklang.LanguageTools.Permissions.Scope.All
+          pathPrefix = Darklang.LanguageTools.Permissions.Scope.All
+          query = Darklang.LanguageTools.Permissions.Scope.All })
+
+  let process (exe: String) (args: List<String>) : Darklang.LanguageTools.Permissions.Rule =
+    Darklang.LanguageTools.Permissions.Rule.Process(
+      Darklang.LanguageTools.Permissions.ProcessRule
+        { executable = only exe
+          args =
+            if Stdlib.List.isEmpty args then
+              Darklang.LanguageTools.Permissions.Scope.All
+            else
+              Darklang.LanguageTools.Permissions.Scope.Only args })
+
+  // Basic rule forms accepted by `permissions allow`.
+  (Darklang.LanguageTools.Permissions.parseRule [ "file", "read", "/tmp/x" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.FileRead(only "/tmp/x") ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "file", "write", "/tmp/x" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/tmp/x") ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "file", "read+write", "/tmp/x" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.FileRead(only "/tmp/x")
+      Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/tmp/x") ]
+
+  // No target means every target.
+  (Darklang.LanguageTools.Permissions.parseRule [ "file", "read" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.FileRead
+        Darklang.LanguageTools.Permissions.Scope.All ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "env", "read", "HOME" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.EnvRead(only "HOME") ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "env", "write", "PATH" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.EnvWrite(only "PATH") ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "db", "read", "t" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.DbRead(only "t") ]
+
+  // The store effects are not resource-scoped: bare effect names only.
+  (Darklang.LanguageTools.Permissions.parseRule [ "package-read" ]) = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.PackageRead ]
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "package", "read", "p" ]) = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "trace", "read", "t" ]) = Stdlib.Option.Option.None
+
+  // Unknown access, unknown kind, unknown effect: never a wildcard.
+  (Darklang.LanguageTools.Permissions.parseRule [ "file", "execute", "/x" ]) = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "disk", "read", "/x" ]) = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "teleport" ]) = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRule [ "http", "GET", "ftp://h/p" ]) = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "http GET https://h:65536/p") = Stdlib.Option.Option.None
+
+  // Representative forms emitted by the F# denial hint (`Request.suggestRule`).
+  (Darklang.LanguageTools.Permissions.parseRuleText "http GET https://h:443/p?q") = Stdlib.Option.Option.Some
+    [ exactHttp () ]
+
+  // A query with no path: the host must not swallow the query.
+  (Darklang.LanguageTools.Permissions.parseRuleText "http GET https://h?x=1") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.Http(
+        Darklang.LanguageTools.Permissions.HttpRule
+          { method = only "GET"
+            scheme = only "https"
+            host = Darklang.LanguageTools.Permissions.HostRule.Exact "h"
+            port = Darklang.LanguageTools.Permissions.Scope.Only 443
+            pathPrefix = Darklang.LanguageTools.Permissions.Scope.All
+            query = only "?x=1" }) ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "process /bin/x") = Stdlib.Option.Option.Some
+    [ process "/bin/x" [] ]
+
+  // A relative executable would name a different program per working
+  // directory; only `*` or an absolute path is a rule.
+  (Darklang.LanguageTools.Permissions.parseRuleText "process ./tool") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.parseRuleText "process tool --x") = Stdlib.Option.Option.None
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "env read") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.EnvRead
+        Darklang.LanguageTools.Permissions.Scope.All ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "db read") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.DbRead
+        Darklang.LanguageTools.Permissions.Scope.All ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "file read /tmp/x") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.FileRead(only "/tmp/x") ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "http-server 8080") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.HttpServer(
+        Darklang.LanguageTools.Permissions.Scope.Only 8080) ]
+
+  ([ "stdin", "stdout", "clock", "random"
+     "package-read", "package-write", "trace-read", "trace-write" ]
+   |> Stdlib.List.all (fun name ->
+     (Darklang.LanguageTools.Permissions.parseRuleText name)
+     == (Darklang.LanguageTools.Permissions.effectOfName name
+         |> Stdlib.Option.map (fun effect ->
+           [ Darklang.LanguageTools.Permissions.Rule.Effect effect ])))) = true
+
+  // A bare `http`, `http-server` or `process` is the whole effect, never the
+  // scoped rule's broad spelling: each text names exactly one Rule.
+  ([ "http", "http-server", "process" ]
+   |> Stdlib.List.all (fun name ->
+     (Darklang.LanguageTools.Permissions.parseRuleText name)
+     == (Darklang.LanguageTools.Permissions.effectOfName name
+         |> Stdlib.Option.map (fun effect ->
+           [ Darklang.LanguageTools.Permissions.Rule.Effect effect ])))) = true
+
+  // `*` is the wildcard executable, not an executable literally named `*`.
+  (Darklang.LanguageTools.Permissions.parseRuleText "process *") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.Process(
+        Darklang.LanguageTools.Permissions.ProcessRule
+          { executable = Darklang.LanguageTools.Permissions.Scope.All
+            args = Darklang.LanguageTools.Permissions.Scope.All }) ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "http-server *") = Stdlib.Option.Option.Some
+    [ Darklang.LanguageTools.Permissions.Rule.HttpServer
+        Darklang.LanguageTools.Permissions.Scope.All ]
+
+  (Darklang.LanguageTools.Permissions.parseRuleText "effect clock") = Stdlib.Option.Option.None
+
+  // Render/parse round trips.
+  (roundTrips Darklang.LanguageTools.Permissions.Rule.All) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock)) = true
+
+  // The three effects that also have scoped rule forms.
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Http)) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.HttpServer)) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Process)) = true
+
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.Process(
+      Darklang.LanguageTools.Permissions.ProcessRule
+        { executable = Darklang.LanguageTools.Permissions.Scope.All
+          args = Darklang.LanguageTools.Permissions.Scope.All }))) = true
+
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.Process(
+      Darklang.LanguageTools.Permissions.ProcessRule
+        { executable = Darklang.LanguageTools.Permissions.Scope.All
+          args = Darklang.LanguageTools.Permissions.Scope.Only [ "a" ] }))) = true
+
+  (roundTrips (exactHttp ())) = true
+
+  (roundTrips (broadHttp ())) = true
+
+  // A query must not be dropped when rendering a broad HTTP rule.
+  (Stdlib.String.contains
+    (Darklang.LanguageTools.Permissions.renderRule
+      (Darklang.LanguageTools.Permissions.Rule.Http(
+        Darklang.LanguageTools.Permissions.HttpRule
+          { method = only "GET"
+            scheme = Darklang.LanguageTools.Permissions.Scope.All
+            host = Darklang.LanguageTools.Permissions.HostRule.Any
+            port = Darklang.LanguageTools.Permissions.Scope.All
+            pathPrefix = Darklang.LanguageTools.Permissions.Scope.All
+            query = only "?token=secret" })))
+    "?token=secret") = true
+
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.HttpServer
+      Darklang.LanguageTools.Permissions.Scope.All)) = true
+
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.HttpServer(
+      Darklang.LanguageTools.Permissions.Scope.Only 8080))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.FileRead(only "/tmp/x"))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/tmp/x"))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.EnvRead(only "HOME"))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.EnvWrite(only "PATH"))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.DbRead(only "t"))) = true
+
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.DbWrite(only "t"))) = true
+
+  (roundTrips (process "/bin/x" [])) = true
+
+  (roundTrips (process "/bin/x" [ "a", "b" ])) = true
+
+  // Rendered guest-controlled fields are quoted: spaces, apostrophes and
+  // shell metacharacters survive the round trip as data, never syntax.
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.FileRead(
+      only "/tmp/O'Brien files/$HOME"))) = true
+
+  (roundTrips
+    (process "/opt/My Tool/bin/run" [ "two words", "'quoted'", "$HOME" ])) = true
+
+  // IPv6 hosts use brackets in text but the typed rule stores the host itself.
+  (roundTrips
+    (Darklang.LanguageTools.Permissions.Rule.Http(
+      Darklang.LanguageTools.Permissions.HttpRule
+        { method = only "GET"
+          scheme = only "http"
+          host = Darklang.LanguageTools.Permissions.HostRule.Exact "::1"
+          port = Darklang.LanguageTools.Permissions.Scope.Only 8080
+          pathPrefix = only "/health"
+          query = Darklang.LanguageTools.Permissions.Scope.All }))) = true
+
+  // The whole policy renders and parses back, deny rules included.
+  (Darklang.LanguageTools.Permissions.parse
+    (Darklang.LanguageTools.Permissions.render
+      (Darklang.LanguageTools.Permissions.Policy
+        { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock, exactHttp () ]
+          deny = [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/etc") ] }))) = Stdlib.Result.Result.Ok(
+    Darklang.LanguageTools.Permissions.Policy
+      { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock, exactHttp () ]
+        deny = [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/etc") ] })

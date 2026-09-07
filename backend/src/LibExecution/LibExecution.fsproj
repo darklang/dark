@@ -23,12 +23,20 @@
   <ItemGroup>
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="PackageRefs.fs" />
-    <!-- Capabilities (resource-domain gating model — RT-independent) /-->
-    <Compile Include="Capabilities.fs" />
-    <Compile Include="UnguardedOrigins.fs" />
+    <!-- Static effects /-->
+    <Compile Include="Effects.fs" />
+    <!-- Host security /-->
+    <Compile Include="Host/HostSecurity.fs" />
+    <!-- Host boundary /-->
+    <Compile Include="Permissions.fs" />
+    <Compile Include="Host/HostTypes.fs" />
+    <Compile Include="Host/HostLibc.fs" />
+    <Compile Include="Host/HostHttp.fs" />
+    <Compile Include="Host/HostProcess.fs" />
+    <Compile Include="Host/Host.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
-    <Compile Include="CapabilityCheck.fs" />
+    <Compile Include="PermissionCheck.fs" />
     <Compile Include="ValueType.fs" />
     <Compile Include="Blob.fs" />
     <Compile Include="Stream.fs" />
@@ -45,14 +53,15 @@
     <Compile Include="AtRest/Patterns.fs" />
     <Compile Include="AtRest/Inference.fs" />
     <Compile Include="AtRestTypeChecker.fs" />
-    <Compile Include="CapabilityAnalysis.fs" />
     <Compile Include="ProgramTypesAst.fs" />
+    <Compile Include="CallGraph.fs" />
     <Compile Include="RTQueryCompiler.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="CommonToDarkTypes.fs" />
-    <Compile Include="CapabilitiesToDarkTypes.fs" />
+    <Compile Include="EffectsToDarkTypes.fs" />
+    <Compile Include="PermissionsToDarkTypes.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
     <!-- Expose the runtime to the outside world /-->

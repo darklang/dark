@@ -8,6 +8,8 @@ module Builtin = LibExecution.Builtin
 module D = LibExecution.Dval
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
+module Effects = LibExecution.Effects
+module PermissionCheck = LibExecution.PermissionCheck
 
 open Builtin.Shortcuts
 
@@ -32,7 +34,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -54,7 +56,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -76,7 +78,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -98,7 +100,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -120,7 +122,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -145,7 +147,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -168,7 +170,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -191,7 +193,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -214,7 +216,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effects.Effect.PackageWrite ]
       deprecated = NotDeprecated } ]
 
 

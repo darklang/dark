@@ -140,7 +140,9 @@ let hasUnsafeChars (input: String) : Bool =
   Stdlib.String.contains input "&" || Stdlib.String.contains input "\n" ||
   Stdlib.String.contains input "$" || Stdlib.String.contains input "`"
 
-val findCliExecutable =
+/// Which CLI binary to invoke. This must remain a function because the answer
+/// depends on the caller's filesystem and PATH.
+let findCliExecutable () : Stdlib.Option.Option<String> =
   if Stdlib.Cli.FileSystem.pathExists "./scripts/run-cli" then
     Stdlib.Option.Option.Some "./scripts/run-cli"
   else if Stdlib.Cli.Unix.isCommandAvailable "dark" then
@@ -192,7 +194,7 @@ let runCliCommand
     else if userRejected then
       Stdlib.Result.Result.Error "command rejected by user"
     else
-      match findCliExecutable with
+      match findCliExecutable () with
       | Some exe ->
         let fullCmd = exe ++ " " ++ branchArg ++ " " ++ cmd
         Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText ("[agent] cli> " ++ cmd))

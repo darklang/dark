@@ -42,7 +42,7 @@ let private locationsFn
       | _ -> incorrectArgs ())
     sqlSpec = NotQueryable
     previewable = Impure
-    capabilities = LibExecution.Capabilities.noCaps
+    callEffects = Set.empty
     deprecated = NotDeprecated }
 
 let builtins (getPM : unit -> PT.PackageManager) : Builtins =

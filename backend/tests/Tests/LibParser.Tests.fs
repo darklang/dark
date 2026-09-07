@@ -318,6 +318,42 @@ let private parserStructureTests =
             "the package-mode diagnostic identifies the root cause"
         | other -> failtest $"expected one diagnostic, got {other}")
 
+      testCase "a function's effect row becomes its ceiling" (fun _ ->
+        let result =
+          P.parse "module M =\n  let f (x: Int64) :{Http, Clock} Int64 = x"
+        Expect.isEmpty result.diagnostics "no diagnostics"
+        match result.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DFunction f ] ->
+            Expect.equal
+              (f.effects |> Option.map (List.map (fun id -> id.name)))
+              (Some [ "Http"; "Clock" ])
+              "effect row"
+          | other -> failtest $"fn decl: {other}"
+        | other -> failtest $"fn decl: {other}")
+
+      testCase "an empty effect row declares effect-free" (fun _ ->
+        let result = P.parse "module M =\n  let f (x: Int64) :{} Int64 = x"
+        Expect.isEmpty result.diagnostics "no diagnostics"
+        match result.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DFunction f ] -> Expect.equal f.effects (Some []) "empty row"
+          | other -> failtest $"fn decl: {other}"
+        | other -> failtest $"fn decl: {other}")
+
+      testCase
+        "an unknown effect in the row is a diagnostic, not a wildcard"
+        (fun _ ->
+          let result =
+            P.parse "module M =\n  let f (x: Int64) :{Telepathy} Int64 = x"
+          match result.diagnostics with
+          | [ diagnostic ] ->
+            Expect.equal diagnostic.code P.DiagnosticCode.effect "diagnostic code"
+            Expect.stringContains diagnostic.message "Telepathy" "names the effect"
+          | other -> failtest $"expected one diagnostic, got {other}")
+
       testCase "val cannot declare a function" (fun _ ->
         let result = P.parse "val f (x: Int64) : Int64 = x"
         Expect.exists

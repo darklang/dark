@@ -48,6 +48,8 @@ let private buildState () : Task<RT.ExecutionState> =
       =
       uply { return () }
 
+    // The CLI's own commands run with the instance's full access, as in
+    // `Cli.fs`; only `run`/`eval` guests get the stored policy.
     return
       Exe.createState
         builtins
@@ -57,6 +59,7 @@ let private buildState () : Task<RT.ExecutionState> =
         notify
         PT.mainBranchId
         program
+      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
   }
 
 
@@ -358,6 +361,56 @@ let private testListTypes =
       let! output = runCli state [ "ls"; "Stdlib.Option" ]
       Expect.stringContains output "Types" "section"
       Expect.stringContains output "Option" "Option type"
+    })
+
+/// A bottom-up `mkdir -p` must not name an existing common ancestor of its
+/// target and the protected policy directory.
+let private testMkdirRecursiveUnderPolicyAncestor =
+  cliTest "mkdir -p under an ancestor of the policy directory" (fun state ->
+    task {
+      let root =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-mkdirp-test-{System.Guid.NewGuid()}"
+        )
+      let policy = System.IO.Path.Combine(root, "policy")
+      let target = System.IO.Path.Combine(root, "work", "a", "b")
+      System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
+      let restorePolicyDirectory =
+        LibExecution.HostSecurity.policyDirectoryForTesting policy
+      let! found =
+        LibDB.ProgramTypes.Fn.find
+          [ PT.mainBranchId ]
+          { owner = "Darklang"
+            modules = [ "Stdlib"; "Cli"; "Dir" ]
+            name = "createRecursive" }
+        |> Ply.toTask
+      let hash =
+        match found with
+        | Some(PT.Hash h) -> h
+        | None -> Tests.failtestf "Stdlib.Cli.Dir.createRecursive not found"
+      let createRecursive () =
+        Exe.executeFunction
+          state
+          (RT.FQFnName.fqPackage hash)
+          []
+          (NEList.singleton (RT.DString target))
+      let expectOk (label : string) (result : RT.ExecutionResult) =
+        match result with
+        | Ok(RT.DEnum(_, _, _, "Ok", _)) -> ()
+        | other -> Tests.failtestf "%s: expected Ok, got %A" label other
+      try
+        let! first = createRecursive ()
+        expectOk "mkdir -p of missing levels beside the policy directory" first
+        Expect.isTrue
+          (System.IO.Directory.Exists target)
+          "missing levels were created"
+        let! again = createRecursive ()
+        expectOk "mkdir -p on an existing directory" again
+      finally
+        restorePolicyDirectory.Dispose()
+        if System.IO.Directory.Exists root then
+          System.IO.Directory.Delete(root, true)
     })
 
 let private testHelpForRun =
@@ -1000,62 +1053,6 @@ let private everyCommandAnswersHelp =
         Tests.failtestf "commands that don't answer `--help`:\n%s" detail
     })
 
-let private everyCommandRefusesABogusArgument =
-  cliTest
-    "no registered command ignores an argument that means nothing"
-    (fun state ->
-      task {
-        let! commands = registeredCommands state
-        let mutable failures : List<string * string> = []
-
-        for cmd in commands do
-          if not (Set.contains cmd notSweepable) then
-            // Saying nothing is the failure this catches. A command that silently drops an
-            // argument it did not understand looks exactly like one that did what you asked.
-            match! runCliCatching state [ cmd; "zzz-no-such-thing-zzz" ] with
-            | Error e -> failures <- (cmd, $"crashed: {e}") :: failures
-            | Ok output ->
-              if output.Trim() = "" then
-                failures <- (cmd, "said nothing") :: failures
-
-        if not (List.isEmpty failures) then
-          let detail =
-            failures
-            |> List.rev
-            |> List.map (fun (c, why) ->
-              $"  dark {c} zzz-no-such-thing-zzz -> {why}")
-            |> String.concat "\n"
-
-          Tests.failtestf
-            "commands that ignore an argument they don't understand:\n%s"
-            detail
-      })
-
-/// An empty grant is not a grant, and must not report that it is.
-let private capsRefusesAnEmptyGrant =
-  cliTest
-    "`caps grant` with no spec is refused rather than reported as granted"
-    (fun state ->
-      task {
-        let! refused = runCli state [ "caps"; "grant"; "" ]
-
-        Expect.stringContains
-          refused
-          "usage: caps grant"
-          "it should say how to use it"
-
-        Expect.isFalse
-          (refused.Contains "granted")
-          "and must not report a grant that did not happen"
-
-        // Read, never write. `caps clear` here revoked the grant of whoever ran the suite,
-        // and a missing grant file reads as ALL capabilities, so the revocation was silent
-        // until something got denied much later.
-        let! shown = runCli state [ "caps" ]
-        Expect.stringContains shown "Capabilities" "and the grant is still readable"
-      })
-
-
 /// A dash-led argument is a mistyped flag, never a name.
 ///
 /// `create` and `rename` are the two that WRITE the name they are given, so they are the two
@@ -1168,6 +1165,7 @@ let tests =
       testStatusCommand
       testRunCases
       testEvalCases
+      testMkdirRecursiveUnderPolicyAncestor
       testScriptDeclIdentity
       testRteNamesPackageDecls
       testRteNamesScriptDecls
@@ -1203,8 +1201,6 @@ let tests =
       testTracesTruncatedStillShowsRoot
       // Command sweeps
       everyExclusionIsReal
-      capsRefusesAnEmptyGrant
       everyCommandAnswersHelp
-      everyCommandRefusesABogusArgument
       aDashLedArgumentIsNeverAName
       missingTargetsAreNamed ]

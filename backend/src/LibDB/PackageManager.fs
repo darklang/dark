@@ -62,7 +62,7 @@ let rt : RT.PackageManager =
 
 /// Create a PT PackageManager.
 /// Branch is passed per-lookup, not at construction time.
-let pt : PT.PackageManager =
+let ptForAccount (accountID : System.Guid option) : PT.PackageManager =
   let getBranchChain branchId =
     Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
 
@@ -78,9 +78,36 @@ let pt : PT.PackageManager =
   let findValueCached =
     withCache (fun (branchId, location) ->
       PMPT.Value.find (getBranchChain branchId) location)
-  let findFnCached =
+  // Snapshot the account's version pins when building the manager. All lookups
+  // in this manager then see one consistent view; a later `permissions` change
+  // is picked up by the next script or eval run, which builds a new manager.
+  let pins = PolicyStore.functionPins accountID
+  let findFnUnpinnedCached =
     withCache (fun (branchId, location) ->
       PMPT.Fn.find (getBranchChain branchId) location)
+  let findFnCached =
+    fun (branchId, location) ->
+      uply {
+        let! found = findFnUnpinnedCached (branchId, location)
+        match found with
+        | None -> return None
+        | Some hash ->
+          // Pins map logical names to approved hashes and only narrow normal
+          // name resolution. Update commands use the raw lookup for latest.
+          match Map.tryFind (PackageLocation.toFQN location) pins with
+          | Some pinned ->
+            // A pin whose hash disappeared after a reset or partial sync gets
+            // a clear diagnostic instead of failing later as an unknown name.
+            match! PMPT.Fn.get (Hash pinned) with
+            | Some _ -> return Some(Hash pinned)
+            | None ->
+              return
+                Exception.raiseInternal
+                  ("A pinned function version no longer exists in the package store. "
+                   + "Run `dark permissions unpin <fn>` to release the pin.")
+                  [ "location", PackageLocation.toFQN location; "pinned", pinned ]
+          | None -> return Some hash
+      }
 
   { findType = findTypeCached
     findValue = findValueCached
@@ -409,6 +436,10 @@ let combine
         do! overlay.init
         do! fallback.init
       } }
+
+/// The process-wide manager for the outer CLI and its tools, with the
+/// anonymous account's pins as of startup.
+let pt : PT.PackageManager = ptForAccount None
 
 
 /// Create an in-memory PackageManager from PackageOps

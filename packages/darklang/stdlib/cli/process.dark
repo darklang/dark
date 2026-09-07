@@ -34,10 +34,21 @@ let shellQuote (s: String) : String =
   $"'{escaped}'"
 
 
+/// Spawn <param program> directly (no shell), wait for it, and return
+/// (exitCode, stdout, stderr). With a timeout the child is killed when it
+/// elapses and the call fails with ETIMEDOUT.
+let spawnAndWait
+  (program: String)
+  (args: List<String>)
+  (timeoutMs: Stdlib.Option.Option<Int>)
+  : Result.Result<(Int * String * String), Posix.Error> =
+  Builtin.posixSpawnAndWait program args timeoutMs
+
+
 /// Run a program with arguments and capture its output.
 /// No bash, no shell — spawns the process directly.
 let run (program: String) (args: List<String>) : Result.Result<Output, Posix.Error> =
-  (Builtin.posixSpawnAndWait program args)
+  (spawnAndWait program args Stdlib.Option.Option.None)
   |> Stdlib.Result.map (fun result ->
     Output
       { exitCode = Stdlib.Tuple3.first result
@@ -161,7 +172,7 @@ let runWithTimeout
     Stdlib.Result.Result.Error "timeoutMs must be positive"
   else
 
-  (Builtin.posixSpawnAndWaitWithTimeout program args timeoutMs)
+  (spawnAndWait program args (Stdlib.Option.Option.Some timeoutMs))
   |> Stdlib.Result.mapError (fun e -> e.message)
   |> Stdlib.Result.map (fun result ->
     Output

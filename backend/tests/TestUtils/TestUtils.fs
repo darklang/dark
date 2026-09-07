@@ -48,7 +48,8 @@ let testPackageFn
       NEList.map
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
-    returnType = returnType }
+    returnType = returnType
+    permissionCeiling = None }
 
 
 
@@ -57,14 +58,25 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 
 
 
-let builtins
-  (httpConfig : Builtins.Http.Client.Libs.HttpClient.Configuration)
-  (pm : PT.PackageManager)
-  : RT.Builtins =
+/// Shared guest HTTP config: production SSRF guards with loopback enabled for
+/// the in-process mock server. The guest profile is process-wide.
+let testHttpConfig : LibExecution.HostHttp.Configuration =
+  { LibExecution.HostHttp.defaultConfig with
+      timeoutInMs = 5000
+      allowedIP =
+        fun ip ->
+          System.Net.IPAddress.IsLoopback ip
+          || LibExecution.HostHttp.defaultConfig.allowedIP ip }
+
+let installTestHttpConfig () : unit =
+  LibExecution.HostHttp.setGuestConfig testHttpConfig
+
+let builtins (pm : PT.PackageManager) : RT.Builtins =
+  installTestHttpConfig ()
   LibExecution.Builtin.combine
     [ LibTest.builtins ()
       Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins httpConfig
+      Builtins.Http.Client.Builtin.builtins ()
       Builtins.Language.Builtin.builtins ()
       Builtins.Matter.Builtin.builtins pm
       Builtins.Http.Server.Builtin.builtins ()
@@ -73,27 +85,15 @@ let builtins
       Builtins.Random.Builtin.builtins () ]
     []
 
-/// Tests that hit the in-process test HTTP server need `looseConfig`
-/// — the production `defaultConfig` blocks loopback / RFC1918 to
-/// catch SSRF in untrusted handler code, but the test server is on
-/// localhost.
-let localBuiltIns (pm : PT.PackageManager) =
-  let httpConfig =
-    { Builtins.Http.Client.Libs.HttpClient.looseConfig with timeoutInMs = 5000 }
-  builtins httpConfig pm
-
-/// Tests that exercise the disallow-localhost / disallow-private-IP
-/// path use the production `defaultConfig` shape.
-let cloudBuiltIns (pm : PT.PackageManager) =
-  let httpConfig =
-    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
-  builtins httpConfig pm
+/// Compatibility alias for existing test call sites.
+let localBuiltIns (pm : PT.PackageManager) = builtins pm
 
 
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (allowLocalHttpAccess : bool)
+  // The bool is retained for existing call sites; HTTP config is process-wide.
+  (_allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
@@ -142,8 +142,7 @@ let executionStateFor
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _vm _msg _tags -> uply { return () }
 
-    let builtins =
-      if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
+    let builtins = localBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
       Exe.createState
@@ -154,6 +153,8 @@ let executionStateFor
         notifier
         PT.mainBranchId
         program
+      // Ordinary tests use allow-all; security tests install narrower access.
+      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
     let state = { state with test = testContext }
     return state
   }

@@ -5,6 +5,7 @@ module Builtins.Random.Libs.Random
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module VT = LibExecution.ValueType
 module TypeChecker = LibExecution.TypeChecker
@@ -30,7 +31,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -53,7 +54,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -75,7 +76,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -99,7 +100,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -118,7 +119,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -142,7 +143,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -164,7 +165,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -193,7 +194,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -217,7 +218,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 
@@ -245,7 +246,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.random
+      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated } ]
 
 

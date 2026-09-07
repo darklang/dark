@@ -55,12 +55,17 @@ let private streamImplOfList
   (items : List<RT.Dval>)
   (elemType : RT.ValueType)
   : RT.StreamImpl =
-  RT.FromIO(listPullFn items, elemType, None, None)
+  // Bound once: `listPullFn` holds the cursor; do not recreate it per pull.
+  let pull = listPullFn items
+  RT.FromIO((fun _drainer -> pull ()), elemType, None, None)
 
 let private wrap (impl : RT.StreamImpl) : RT.Dval = Stream.wrapImpl impl
 
 let private pull (s : RT.Dval) : Task<Option<RT.Dval>> =
-  Stream.readNext s |> Ply.toTask
+  Stream.readNext
+    (LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll)
+    s
+  |> Ply.toTask
 
 /// Drain a stream to a list. Pulls until None.
 let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
@@ -68,7 +73,12 @@ let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
     let acc = ResizeArray<RT.Dval>()
     let mutable keepGoing = true
     while keepGoing do
-      let! r = Stream.readNext s |> Ply.toTask
+      let! r =
+        Stream.readNext
+          (LibExecution.Permissions.Access.start
+            LibExecution.Permissions.Policy.allowAll)
+          s
+        |> Ply.toTask
       match r with
       | Some v -> acc.Add v
       | None -> keepGoing <- false
@@ -257,7 +267,7 @@ let streamCloseMarksDisposed =
 let mappedTransformsElements =
   testTask "stream: Mapped applies fn to each element in order" {
     let src = streamImplOfList [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ] VT.int64
-    let s = wrap (RT.Mapped(src, intDouble, VT.int64))
+    let s = wrap (RT.Mapped(src, (fun _drainer -> intDouble), VT.int64))
     let! result = drain s
     Expect.equal result [ RT.DInt64 2L; RT.DInt64 4L; RT.DInt64 6L ] "1,2,3 -> *2"
   }
@@ -268,7 +278,7 @@ let filteredSkipsRejected =
       streamImplOfList
         [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L; RT.DInt64 4L ]
         VT.int64
-    let s = wrap (RT.Filtered(src, intPredEven))
+    let s = wrap (RT.Filtered(src, (fun _drainer -> intPredEven)))
     let! result = drain s
     Expect.equal result [ RT.DInt64 2L; RT.DInt64 4L ] "evens only"
   }
@@ -276,7 +286,7 @@ let filteredSkipsRejected =
 let filteredAllRejected =
   testTask "stream: Filtered returns None when no element matches" {
     let src = streamImplOfList [ RT.DInt64 1L; RT.DInt64 3L ] VT.int64
-    let s = wrap (RT.Filtered(src, intPredEven))
+    let s = wrap (RT.Filtered(src, (fun _drainer -> intPredEven)))
     let! result = pull s
     Expect.equal result None "all rejected = None"
   }
@@ -302,7 +312,7 @@ let takeOverInfiniteSourceTerminates =
         counter.Value <- counter.Value + 1L
         return Some(RT.DInt64 counter.Value)
       }
-    let src = RT.FromIO(next, VT.int64, None, None)
+    let src = RT.FromIO((fun _drainer -> next ()), VT.int64, None, None)
     let s = wrap (RT.Take(src, 3L, ref 3L))
     let! result = drain s
     Expect.equal result [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ] "took exactly 3"
@@ -344,8 +354,11 @@ let composedTransformsAreLazy =
     let pipeline =
       RT.Take(
         RT.Mapped(
-          RT.Filtered(RT.FromIO(next, VT.int64, None, None), intPredEven),
-          intDouble,
+          RT.Filtered(
+            RT.FromIO((fun _drainer -> next ()), VT.int64, None, None),
+            (fun _drainer -> intPredEven)
+          ),
+          (fun _drainer -> intDouble),
           VT.int64
         ),
         3L,
@@ -363,7 +376,7 @@ let toValueTypeWalksTransforms =
   test "stream: Dval.toValueType returns the transform's element type" {
     let src = streamImplOfList [ RT.DInt64 1L ] VT.int64
     let toString (_ : RT.Dval) : Ply<RT.Dval> = uply { return RT.DString "x" }
-    let s = wrap (RT.Mapped(src, toString, VT.string))
+    let s = wrap (RT.Mapped(src, (fun _drainer -> toString), VT.string))
     Expect.equal
       (RT.Dval.toValueType s)
       (RT.ValueType.Known(RT.KTStream VT.string))
@@ -409,8 +422,20 @@ let gcFinalizesMidDrainStream =
       let disposer () = disposerRan.Value <- true
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Pull 2 of 3 elements, then return the weak ref.
-      let pulled1 = (Stream.readNext dv |> Ply.toTask).Result
-      let pulled2 = (Stream.readNext dv |> Ply.toTask).Result
+      let pulled1 =
+        (Stream.readNext
+          (LibExecution.Permissions.Access.start
+            LibExecution.Permissions.Policy.allowAll)
+          dv
+         |> Ply.toTask)
+          .Result
+      let pulled2 =
+        (Stream.readNext
+          (LibExecution.Permissions.Access.start
+            LibExecution.Permissions.Policy.allowAll)
+          dv
+         |> Ply.toTask)
+          .Result
       Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
       Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
       System.WeakReference<RT.Dval>(dv)
@@ -471,8 +496,20 @@ let chunkedDrainMatchesByteDrain =
     "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
     let buf = [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
     let s = Stream.newChunked VT.uint8 (chunkPullFn [ buf ]) None
-    let! first = Stream.readChunk 4096 s |> Ply.toTask
-    let! second = Stream.readChunk 4096 s |> Ply.toTask
+    let! first =
+      Stream.readChunk
+        (LibExecution.Permissions.Access.start
+          LibExecution.Permissions.Policy.allowAll)
+        4096
+        s
+      |> Ply.toTask
+    let! second =
+      Stream.readChunk
+        (LibExecution.Permissions.Access.start
+          LibExecution.Permissions.Policy.allowAll)
+        4096
+        s
+      |> Ply.toTask
     Expect.equal first (Some buf) "first chunk comes through intact"
     Expect.equal second None "second call returns None on exhaustion"
   }
@@ -498,9 +535,21 @@ let chunkedDrainFallsBackToByteWise =
         VT.uint8
         (listPullFn [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ])
         None
-    let! chunk = Stream.readChunk 4096 s |> Ply.toTask
+    let! chunk =
+      Stream.readChunk
+        (LibExecution.Permissions.Access.start
+          LibExecution.Permissions.Policy.allowAll)
+        4096
+        s
+      |> Ply.toTask
     Expect.equal chunk (Some [| 0xAAuy; 0xBBuy; 0xCCuy |]) "all bytes collected"
-    let! after = Stream.readChunk 4096 s |> Ply.toTask
+    let! after =
+      Stream.readChunk
+        (LibExecution.Permissions.Access.start
+          LibExecution.Permissions.Policy.allowAll)
+        4096
+        s
+      |> Ply.toTask
     Expect.equal after None "exhausted"
   }
 

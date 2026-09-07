@@ -206,3 +206,46 @@ interpreter's own Apply.
 **`builtinCalls` over-reports for per-call arithmetic**: most of it is operators taken by the fast
 path, which are counted but never enter the builtin machinery. Multiplying that counter by a per-call
 cost overstates by more than 2x.
+## Effect/permission system (2026-09): 7.80MB -> 11.67MB -> 9.5MB
+
+- The added ~3.8MB is outside the per-operation path: most is startup, with a small per-run setup
+  cost. Proof: byOpcode for the measured loop stays ~2.5MB, and a 10x-iteration run leaves the
+  `SetTreeNode<String>` allocation ticks flat (21 -> 22) while only baseline `FSharpList<Dval>`
+  arg-list allocation grows. So the per-op path the gate guards is unchanged.
+- The per-op permission path is already lean and must stay so: pure builtins short-circuit on an
+  empty effect set (`Interpreter.fs` ~962), allow-all package frames skip the `Access.restrict`
+  entirely (`~1282`), and the fn-reference access stamp is memoized in a `ConditionalWeakTable`
+  (`LoadVal` measured 2,288 bytes across 113k loads).
+- The startup cost is the bundled-hash set (`hashesOwnedBy "Darklang"`, ~4234 entries),
+  the instance/run policy load, and per-run `Access` setup -- spread across the subsystem, no single
+  hotspot. The harmful/deprecation set is empty here (0 rows) and is not involved.
+- A clean main baseline is blocked on this branch: the serialized package format differs, so a main
+  binary cannot read this clone's package DB. Attribution above rests on the scaling test, not a
+  side-by-side. If you want the exact split, build main in a second clone with its own DB.
+- The published budget remains the previous baseline (`7,641,184`) and has not been remeasured on
+  this branch. Debug allocation does not predict published/AOT allocation; re-pin it with
+  `scripts/perf/gate --published --update` once a release build is available.
+
+- Follow-up A/B measurements in this clone (same policy: `permissions allow all`; a deny-all policy
+  short-circuits the workload and reads as a false win). Three changes, in order of effect:
+  - `hashesOwnedBy` returns a `HashSet<string>`. F# `Set.ofList` over ~4200 strings allocates
+    O(n log n) tree nodes (`SetTreeNode<String>` was 10% of allocation ticks).
+  - The guest state no longer materializes the bundled set as a `Map<Hash, Policy>` (one
+    `Map.add` per member, 12% of ticks); bundled membership is a hash-set check behind a
+    lookup function, and the interpreter memoizes the resulting policy per fn.
+  - `LoadVal` stamps a fn-reference constant only when it is not consumed by the next
+    `Apply` on the same register; partial application stamps instead. That removes the
+    `ConditionalWeakTable` probe from every named call (allocation was already ~0).
+- Trap: `byStage.bi.total` counts everything nested inside a builtin, and a `dark run`
+  script executes inside `cliParseAndExecuteScript`, so it reads as ~200 bytes per
+  builtin call when it is really the whole run. Per-call attribution needs the sub-stages.
+- Second simplification round (same day): 9.5MB. Allocation-free `Access.check` loop
+  with a one-restriction allow-all fast path; `Request.ofAmbientEffect` moved the
+  effect→request match out of the gate; posix and host arms collapsed into helpers
+  (no per-op effect).
+- After the rebase onto main's VM pooling (2026-09-03): debug 10.3MB, published 10.0MB against
+  main's 7.2MB / 6.85MB. A 10x-iteration profile showed `FSharpList<Restriction>` scaling with
+  the workload: `VMState.reuseFor` reset the pooled root frame with `Access.start Policy.denyAll`,
+  a fresh list per lambda application. `Access.denyAll` is now one shared immutable value:
+  debug 9.2MB, published 9.1MB, both pinned. The remaining ~2MB is startup (strings from the
+  bundled-hash query, policy load) and does not scale with the workload.

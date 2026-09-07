@@ -1396,7 +1396,7 @@ let packageFn
             Stdlib.List.flatten
               [ params |> Stdlib.List.map (fun d -> Stdlib.Pretty.concat Stdlib.Pretty.line d)
                 [ Stdlib.Pretty.softLine
-                  txt ": "
+                  txt (":" ++ (LanguageTools.Permissions.ceilingRow p.permissionCeiling) ++ " ")
                   typeReferenceDoc ctx p.returnType
                   txt " =" ] ]))))
 

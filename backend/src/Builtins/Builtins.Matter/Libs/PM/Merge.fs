@@ -2,6 +2,7 @@ module Builtins.Matter.Libs.PM.Merge
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
@@ -36,7 +37,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -62,7 +63,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

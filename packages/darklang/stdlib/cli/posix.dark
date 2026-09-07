@@ -25,12 +25,16 @@ module Modes =
 
 // -- Open flags ---------------------------------------------------
 module OpenFlags =
-  let rdonly () : Int = Builtin.posixFlagRdonly ()
-  let wronly () : Int = Builtin.posixFlagWronly ()
-  let rdwr () : Int = Builtin.posixFlagRdwr ()
-  let creat () : Int = Builtin.posixFlagCreat ()
-  let trunc () : Int = Builtin.posixFlagTrunc ()
-  let append () : Int = Builtin.posixFlagAppend ()
+  /// The platform-specific value of one open() flag: "rdonly", "wronly",
+  /// "rdwr", "creat", "trunc" or "append".
+  let flag (name: String) : Int = Builtin.posixOpenFlag name
+
+  let rdonly () : Int = flag "rdonly"
+  let wronly () : Int = flag "wronly"
+  let rdwr () : Int = flag "rdwr"
+  let creat () : Int = flag "creat"
+  let trunc () : Int = flag "trunc"
+  let append () : Int = flag "append"
 
 
 /// Open a file. Returns a file descriptor.
@@ -198,6 +202,12 @@ module Errno =
   /// Operation not permitted
   val eperm = 1
 
+  /// No such file or directory: a parent component is missing
+  val enoent = 2
+
+  /// File exists
+  val eexist = 17
+
 
 /// Stat file-type mask and constants
 module StatMode =
@@ -233,36 +243,35 @@ let isProcessRunning (pid: Int) : Bool =
     else false
 
 
-/// Create a directory and all missing parents (like mkdir -p)
-/// This is pure Dark — it splits the path and calls mkdir for each piece.
+/// Create a directory and all missing parents (like mkdir -p).
+///
+/// Tries the target first and walks to its parent only on ENOENT. This avoids
+/// issuing mutating mkdir operations for every existing ancestor, some of
+/// which may protect host-owned state.
 let mkdirRecursive (path: String) : Result.Result<Unit, Error> =
-  let parts = Stdlib.String.split path "/"
-
-  // Build up paths incrementally: ["a"] -> ["a", "a/b"] -> ["a", "a/b", "a/b/c"]
-  let isAbsolute = Stdlib.String.startsWith path "/"
-
-  let paths =
-    parts
-    |> Stdlib.List.filter (fun p -> p != "")
-    |> Stdlib.List.fold [] (fun acc part ->
-      let prefix =
-        match Stdlib.List.last acc with
-        | Some prev -> $"{prev}/{part}"
-        | None ->
-          if isAbsolute then $"/{part}"
-          else part
-      Stdlib.List.append acc [ prefix ])
-
-  // Create each directory. If mkdir fails but the directory exists, continue.
-  paths
-  |> Stdlib.List.fold (Stdlib.Result.Result.Ok()) (fun acc dir ->
-    match acc with
-    | Ok _ ->
-      match mkdir dir Modes.defaultDir with
-      | Ok _ -> Stdlib.Result.Result.Ok()
-      | Error e ->
-        if isDirectory dir then
-          Stdlib.Result.Result.Ok()
-        else
-          Stdlib.Result.Result.Error e
-    | Error e -> Stdlib.Result.Result.Error e)
+  let target = Path.stripTrailing path
+  match mkdir target Modes.defaultDir with
+  | Ok () -> Stdlib.Result.Result.Ok()
+  | Error e ->
+    if e.errno == Errno.eexist then
+      // Something is there already; only a directory satisfies mkdir -p.
+      if isDirectory target then Stdlib.Result.Result.Ok()
+      else Stdlib.Result.Result.Error e
+    else if e.errno == Errno.enoent then
+      let parent = Path.parent target
+      if parent == target || parent == "." || parent == "/" then
+        Stdlib.Result.Result.Error e
+      else
+        match mkdirRecursive parent with
+        | Error parentError -> Stdlib.Result.Result.Error parentError
+        | Ok () ->
+          match mkdir target Modes.defaultDir with
+          | Ok () -> Stdlib.Result.Result.Ok()
+          | Error again ->
+            // Lost a race to something that created it meanwhile.
+            if again.errno == Errno.eexist && isDirectory target then
+              Stdlib.Result.Result.Ok()
+            else
+              Stdlib.Result.Result.Error again
+    else
+      Stdlib.Result.Result.Error e

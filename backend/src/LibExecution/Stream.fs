@@ -76,7 +76,7 @@ let newFromIO
   (next : unit -> Ply.Ply<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  wrapImpl (FromIO(next, elemType, disposer, None))
+  wrapImpl (FromIO((fun _drainer -> next ()), elemType, disposer, None))
 
 
 /// Mint a DStream<UInt8> that can be drained bulk-wise via
@@ -119,7 +119,16 @@ let newChunked
         carryPos.Value <- carryPos.Value + 1
         return Some(DUInt8 b)
     }
-  wrapImpl (FromIO(next, elemType, disposer, Some nextChunk))
+  wrapImpl (FromIO((fun _drainer -> next ()), elemType, disposer, Some nextChunk))
+
+
+/// An in-process producer whose step runs guest code: the step receives the
+/// drainer's access on every pull (see `StreamImpl`).
+let newFromGuestStep
+  (elemType : ValueType)
+  (next : Permissions.Access -> Ply.Ply<Option<Dval>>)
+  : Dval =
+  wrapImpl (FromIO(next, elemType, None, None))
 
 
 /// Pull one element through a [StreamImpl]. Separate from [readNext]
@@ -127,17 +136,22 @@ let newChunked
 /// (Mapped/Filtered/Take/Concat) without re-entering the root's
 /// disposed flag — nested transforms share the wrapping DStream's
 /// lifecycle.
-let rec private pullImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
+/// `drainer` is the access of the function pulling right now; every guest
+/// closure met on the way down receives it.
+let rec private pullImpl
+  (drainer : Permissions.Access)
+  (impl : StreamImpl)
+  : Ply.Ply<Option<Dval>> =
   uply {
     match impl with
-    | FromIO(next, _elemType, _disposer, _nextChunk) -> return! next ()
+    | FromIO(next, _elemType, _disposer, _nextChunk) -> return! next drainer
 
     | Mapped(src, fn, _elemType) ->
-      let! upstream = pullImpl src
+      let! upstream = pullImpl drainer src
       match upstream with
       | None -> return None
       | Some v ->
-        let! mapped = fn v
+        let! mapped = fn drainer v
         return Some mapped
 
     | Filtered(src, pred) ->
@@ -147,11 +161,11 @@ let rec private pullImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
       let mutable result : Option<Dval> = None
       let mutable keepGoing = true
       while keepGoing do
-        let! upstream = pullImpl src
+        let! upstream = pullImpl drainer src
         match upstream with
         | None -> keepGoing <- false
         | Some v ->
-          let! matches = pred v
+          let! matches = pred drainer v
           if matches then
             result <- Some v
             keepGoing <- false
@@ -161,7 +175,7 @@ let rec private pullImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
       if remaining.Value <= 0L then
         return None
       else
-        let! upstream = pullImpl src
+        let! upstream = pullImpl drainer src
         match upstream with
         | Some _ ->
           remaining.Value <- remaining.Value - 1L
@@ -182,7 +196,7 @@ let rec private pullImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
         match streams.Value with
         | [] -> keepGoing <- false
         | head :: tail ->
-          let! pulled = pullImpl head
+          let! pulled = pullImpl drainer head
           match pulled with
           | Some _ ->
             result <- pulled
@@ -218,14 +232,15 @@ let rec private pullImpl (impl : StreamImpl) : Ply.Ply<Option<Dval>> =
 /// streams; element-wise streams pay full cost. Real fix is replacing
 /// Ply with something cheaper — either a custom `Future<'a>` struct
 /// or a CPS interpreter with a fiber scheduler.
-let readNext (dv : Dval) : Ply.Ply<Option<Dval>> =
+/// `drainer`: the access of the function pulling (a builtin's `vm.activeAccess`).
+let readNext (drainer : Permissions.Access) (dv : Dval) : Ply.Ply<Option<Dval>> =
   uply {
     match dv with
     | DStream(impl, disposed, _lockObj) ->
       if disposed.Value then
         return None
       else
-        let! result = pullImpl impl
+        let! result = pullImpl drainer impl
         match result with
         | Some _ -> return result
         | None ->
@@ -246,7 +261,11 @@ let readNext (dv : Dval) : Ply.Ply<Option<Dval>> =
 /// Used by `streamToBlob` and SSE byte accumulators to amortise the
 /// Ply-continuation cost across whole chunks rather than paying it
 /// per byte.
-let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
+let readChunk
+  (drainer : Permissions.Access)
+  (maxBytes : int)
+  (dv : Dval)
+  : Ply.Ply<Option<byte[]>> =
   uply {
     match dv with
     | DStream(impl, disposed, _) ->
@@ -271,7 +290,7 @@ let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
           let mutable keepGoing = true
           let mutable bytesSoFar = 0
           while keepGoing && bytesSoFar < maxBytes do
-            let! pulled = pullImpl impl
+            let! pulled = pullImpl drainer impl
             match pulled with
             | Some(DUInt8 b) ->
               collected.WriteByte b

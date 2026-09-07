@@ -681,6 +681,9 @@ let private fakeAppLambda
       { exprId = 0UL
         closedRegisters = closedRegisters
         typeSymbolTable = RT.TST.empty
+        access =
+          LibExecution.Permissions.Access.start
+            LibExecution.Permissions.Policy.denyAll
         argsSoFar = argsSoFar }
   )
 
@@ -691,6 +694,7 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
       { name = name
         typeSymbolTable = RT.TST.empty
         typeArgs = []
+        access = None
         argsSoFar = argsSoFar }
   )
 

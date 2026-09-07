@@ -69,7 +69,7 @@ module Registry =
       ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
       ("login", "Log into an account", [], Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
       ("logout", "Clear the active account", [], Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
-      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Caps.Command.execute, Caps.Command.help, Caps.Command.complete)
+      ("permissions", "Review effects and runtime permission policies", [ "perms" ], Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
       ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Devices.execute, Devices.help, Devices.complete)
       // CLEANUP(instances-command): `sync` currently mixes the VERB (sync now) with instance MANAGEMENT
       // (connect / disconnect / status / fetch). Those belong in a dedicated `instances` command with
@@ -166,7 +166,7 @@ module Registry =
       ("Execution", [ "run", "eval", "scripts" ])
       ("Installation", [ "install", "update", "uninstall", "version" ])
       ("AI", [ "agent" ])
-      ("Security", [ "caps" ])
+      ("Security", [ "permissions" ])
       ("Network", [ "devices", "sync", "conflicts" ])
       ("Apps", [ "apps" ])
       ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "views" ]) ]

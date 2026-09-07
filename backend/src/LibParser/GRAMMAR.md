@@ -269,6 +269,12 @@ Declaration forms:
 
 - `let f (p: T) … : R = body` defines a function. Parameters are parenthesized
   and annotated. `()` is a unit parameter.
+- `let f (p: T) … :{Http, Clock} R = body` adds an effect row on the return
+  colon: the function's permission ceiling, the most it may ever do. It never
+  grants anything; at runtime the row is one more restriction on top of the
+  instance, run, and package policies. Names are the effect case names
+  (`Http`, `FileRead`, `Clock`, …; an unknown name is a parse error).
+  `:{}` declares effect-free; no row declares no ceiling.
 - `val x = e` defines a module or test-setup value.
 - `let x = e` is a local/script binding. At declaration scope it is rejected;
   use `val` for a value declaration.

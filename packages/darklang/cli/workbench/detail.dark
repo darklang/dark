@@ -124,21 +124,29 @@ let detailLines (state: State) : List<String> =
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
             width = previewInnerWidth state }
-      let src =
+
+      let (src, accessReport) =
         match item.kind with
         | "fn" ->
           match results.fns with
-          | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
-          | [] -> "(not found)"
+          | i :: _ ->
+            (PrettyPrinter.ProgramTypes.packageFn ctx i.entity,
+             Permissions.Command.accessReportLines
+               state.accountId
+               (LanguageTools.ProgramTypes.hashToString i.entity.hash))
+          | [] -> ("(not found)", [])
         | "type" ->
           match results.types with
-          | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
-          | [] -> "(not found)"
+          | i :: _ -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
+          | [] -> ("(not found)", [])
         | _ ->
           match results.values with
-          | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
-          | [] -> "(not found)"
-      Stdlib.String.split src "\n"
+          | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
+          | [] -> ("(not found)", [])
+      let sourceLines = Stdlib.String.split src "\n"
+      match accessReport with
+      | [] -> sourceLines
+      | report -> Stdlib.List.flatten [ sourceLines, [ "" ], report ]
 
 /// The Docs topic the cursor is on, resolved by name rather than by position.
 ///

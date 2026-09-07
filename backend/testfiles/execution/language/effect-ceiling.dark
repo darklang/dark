@@ -1,0 +1,29 @@
+// A function's `:{…}` row is its permission ceiling: the most it may ever do.
+// It never grants anything, so a row that covers the body changes nothing, and
+// `:{}` on a pure body is fine. (A row narrower than the body is denied at
+// runtime; see the PermissionsGate tests in Interpreter.Tests.)
+
+module Ceiling =
+  let pure (x: Int64) :{} Int64 = x + 1L
+
+  let clocked () :{Clock} Bool =
+    let _now = Stdlib.DateTime.now ()
+    true
+
+  let widerThanNeeded (x: Int64) :{Http, FileRead, Clock} Int64 = x * 2L
+
+  // A callback applied by a builtin runs under the calling function's ceiling
+  // (the denial cases are in Interpreter.Tests.PermissionsGate, since the
+  // message carries a content hash). This pins the other half: a pure callback
+  // under `:{}` is still fine, through map, fold and a drained stream.
+  let mapped (xs: List<Int64>) :{} List<Int64> = Stdlib.List.map xs (fun x -> x + 1L)
+  let folded (xs: List<Int64>) :{} Int64 = Stdlib.List.fold xs 0L (fun acc x -> acc + x)
+  let streamed (xs: List<Int64>) :{} List<Int64> =
+    Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList xs) (fun x -> x * 10L))
+
+  Ceiling.pure 1L = 2L
+  Ceiling.mapped [ 1L, 2L ] = [ 2L, 3L ]
+  Ceiling.folded [ 1L, 2L, 3L ] = 6L
+  Ceiling.streamed [ 1L, 2L ] = [ 10L, 20L ]
+  Ceiling.clocked () = true
+  Ceiling.widerThanNeeded 4L = 8L

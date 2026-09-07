@@ -111,6 +111,49 @@ let result
   | Error dv -> resultError okType errorType dv
 
 
+/// Recursively transform every function value in a Dval, including functions
+/// nested in containers, lambda captures, and partial-application arguments.
+let rec mapCallables
+  (named : ApplicableNamedFn -> ApplicableNamedFn)
+  (lambda : ApplicableLambda -> ApplicableLambda)
+  (dval : Dval)
+  : Dval =
+  let walk = mapCallables named lambda
+  match dval with
+  | DApplicable(AppNamedFn namedFn) ->
+    DApplicable(
+      AppNamedFn(named { namedFn with argsSoFar = List.map walk namedFn.argsSoFar })
+    )
+  | DApplicable(AppLambda l) ->
+    DApplicable(
+      AppLambda(
+        lambda
+          { l with
+              closedRegisters =
+                l.closedRegisters |> List.map (fun (reg, value) -> reg, walk value)
+              argsSoFar = List.map walk l.argsSoFar }
+      )
+    )
+  | DList(vt, items) -> DList(vt, List.map walk items)
+  | DTuple(first, second, rest) ->
+    DTuple(walk first, walk second, List.map walk rest)
+  | DDict(kt, vt, entries) -> DDict(kt, vt, Map.map walk entries)
+  | DRecord(sourceType, runtimeType, typeArgs, fields) ->
+    DRecord(sourceType, runtimeType, typeArgs, Map.map walk fields)
+  | DEnum(sourceType, runtimeType, typeArgs, caseName, fields) ->
+    DEnum(sourceType, runtimeType, typeArgs, caseName, List.map walk fields)
+  | other -> other
+
+/// Attach the loading frame's access to every callable in a value.
+let captureValueAccess (access : Permissions.Access) : Dval -> Dval =
+  mapCallables (fun namedFn -> { namedFn with access = Some access }) (fun lambda ->
+    { lambda with access = access })
+
+/// Remove captured access before storing a package value.
+let stripCapturedAccess : Dval -> Dval =
+  mapCallables (fun namedFn -> { namedFn with access = None }) (fun lambda -> lambda)
+
+
 /// Can this Dval be stored as the evaluated body of a package value?
 ///
 /// The persist path in `Seed.fs` runs each package value's body and

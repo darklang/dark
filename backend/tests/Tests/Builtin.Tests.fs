@@ -401,12 +401,108 @@ let everyCliHelpReturnsText =
   }
 
 
+// Scoped effects must check their concrete target. OS operations use Host;
+// store operations use PermissionCheck.
+
+
+let private storeBuiltinsRoot () =
+  Path.Combine(findRepoRoot (), "backend", "src", "Builtins", "Builtins.Matter")
+
+let private storeScopedEffectRegex =
+  Regex(@"\bEffect\.(FileRead|FileWrite|DbRead|DbWrite)\b", RegexOptions.Compiled)
+
+let storeScopedEffectsRequireTargetChecks =
+  test "store scoped effects require target checks" {
+    let root = findRepoRoot ()
+    let nameRegex = Regex(@"^""(?<name>[^""]+)""", RegexOptions.Compiled)
+    let missing =
+      Directory.GetFiles(storeBuiltinsRoot (), "*.fs", SearchOption.AllDirectories)
+      |> Seq.collect (fun file ->
+        File
+          .ReadAllText(file)
+          .Split([| "{ name = fn " |], System.StringSplitOptions.None)
+        |> Seq.skip 1
+        |> Seq.choose (fun block ->
+          let nameMatch = nameRegex.Match block
+          if nameMatch.Success && storeScopedEffectRegex.IsMatch block then
+            Some(file, nameMatch.Groups["name"].Value, block)
+          else
+            None))
+      |> Seq.choose (fun (file, name, body) ->
+        if body.Contains "PermissionCheck.require" then
+          None
+        else
+          Some(Path.GetRelativePath(root, file), name))
+      |> Seq.sortBy snd
+      |> List.ofSeq
+
+    if not (List.isEmpty missing) then
+      let lines =
+        missing
+        |> List.map (fun (file, name) -> $"  {name} ({file})")
+        |> String.concat "\n"
+      Expect.isTrue
+        false
+        ("Scoped-effect store builtins missing a concrete PermissionCheck.require* call:\n"
+         + lines
+         + "\n\nCheck the actual path/table immediately before the store operation.")
+  }
+
+// Keep this canary so a stale regex cannot match nothing silently.
+let scopedEffectInventoryRegexIsLive =
+  test "scoped-effect inventory regex matches source" {
+    let matches =
+      Directory.GetFiles(storeBuiltinsRoot (), "*.fs", SearchOption.AllDirectories)
+      |> Seq.filter (fun file ->
+        storeScopedEffectRegex.IsMatch(File.ReadAllText file))
+      |> Seq.length
+    Expect.isGreaterThan
+      matches
+      0
+      "no builtin source matched the scoped-effect pattern; the inventory regex is stale"
+  }
+
+
+// Keep the handwritten Dark effect table aligned with Effects.all.
+let darkEffectTableMatchesRuntime =
+  test "Dark effect table matches runtime effects" {
+    let source =
+      File.ReadAllText(
+        Path.Combine(
+          findRepoRoot (),
+          "packages",
+          "darklang",
+          "languageTools",
+          "permissions.dark"
+        )
+      )
+    let block =
+      let start = source.IndexOf "val effectCases ="
+      Expect.isGreaterThan start -1 "permissions.dark should define effectCases"
+      let stop = source.IndexOf("]", start)
+      source.Substring(start, stop - start)
+    // Each row must match the runtime enum case and rule name.
+    let darkRows =
+      Regex.Matches(block, "Effect\\.([A-Za-z]+), \"([A-Za-z]+)\", \"([a-z-]+)\"\\)")
+      |> Seq.map (fun m -> m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value)
+      |> List.ofSeq
+    let runtimeRows =
+      LibExecution.Effects.all
+      |> List.map (fun effect ->
+        $"%A{effect}", $"%A{effect}", LibExecution.Effects.name effect)
+    Expect.equal darkRows runtimeRows "Dark effectCases must match Effects.all"
+  }
+
+
 let tests =
   testList
     "builtin"
-    [ oldFunctionsAreDeprecated
+    [ darkEffectTableMatchesRuntime
+      oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
       everyBuiltinIsReferenced
       descriptionsAreJoined
       everyBuiltinPackagesCallExists
-      everyCliHelpReturnsText ]
+      everyCliHelpReturnsText
+      storeScopedEffectsRequireTargetChecks
+      scopedEffectInventoryRegexIsLive ]

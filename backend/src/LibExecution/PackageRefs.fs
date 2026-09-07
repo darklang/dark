@@ -222,16 +222,17 @@ module Type =
     let builtinFn = p [] "BuiltinFunction"
     let builtinFnPurity = p [] "BuiltinFunctionPurity"
 
-    /// The structured capability model — the F#/Dark wire form (see `CapabilitiesToDarkTypes`).
-    module Capabilities =
-      let private p addl = p ("Capabilities" :: addl)
+    /// The structured runtime policy — the F#/Dark wire form.
+    module Permissions =
+      let private p addl = p ("Permissions" :: addl)
       let scope = p [] "Scope"
-      let hostMatch = p [] "HostMatch"
-      let urlScope = p [] "UrlScope"
+      let hostRule = p [] "HostRule"
       let httpRule = p [] "HttpRule"
-      let execRule = p [] "ExecRule"
-      let rw = p [] "RW"
-      let capabilities = p [] "Capabilities"
+      let processRule = p [] "ProcessRule"
+      let effect = p [] "Effect"
+      let rule = p [] "Rule"
+      let policy = p [] "Policy"
+      let pinFailure = p [] "PinFailure"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
@@ -456,6 +457,8 @@ module Type =
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let unhandled = p [ "Cli"; "ExecutionError" ] "Unhandled"
+    let permissionDenied = p [ "Cli"; "ExecutionError" ] "PermissionDenied"
+    let script = p [ "Cli"; "Scripts" ] "Script"
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"

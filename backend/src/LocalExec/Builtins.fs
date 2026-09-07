@@ -7,14 +7,13 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 
-let httpClientConfig = Builtins.Http.Client.Libs.HttpClient.defaultConfig
 let ptPM = LibExecution.ProgramTypes.PackageManager.empty
 
 /// for parsing packages, which may reference _any_ builtin
 let all () : RT.Builtins =
   LibExecution.Builtin.combine
     [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins httpClientConfig
+      Builtins.Http.Client.Builtin.builtins ()
       Builtins.Language.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins ()

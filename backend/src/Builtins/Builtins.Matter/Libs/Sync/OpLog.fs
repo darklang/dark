@@ -8,6 +8,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
@@ -15,6 +16,14 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 
 module EventLogRefs = LibExecution.PackageRefs.Type.Sync.EventLog
 let private eventLogEventType () = FQTypeName.fqPackage (EventLogRefs.event ())
+
+// Every sync builtin reads or writes the package store; `warnSkippedSyncRow`
+// additionally writes a corrupt-peer-op warning to stderr, hence `Stdout`.
+let private syncReadEffects : Set<Effect> = set [ Effect.PackageRead; Effect.Stdout ]
+
+let private syncWriteEffects : Set<Effect> =
+  set [ Effect.PackageWrite; Effect.Stdout ]
+
 let private eventLogCommitType () = FQTypeName.fqPackage (EventLogRefs.commit ())
 let private eventLogChangeType () = FQTypeName.fqPackage (EventLogRefs.change ())
 
@@ -195,10 +204,10 @@ let private parseEvents
 let fns () : List<BuiltInFn> =
   [
     // ── native op-log read/append + blob-channel builtins (the ops-queue seam sync rides on) ──
-    // CLEANUP(sync-builtins): these operate on the FIXED local store (not an arbitrary path) and still declare
-    // noCaps, so untrusted `dark run` can read/append the op log. Lower-risk than the arbitrary-path sqlite* above
-    // (can't touch other files), but when these are reorganized around a first-class ops-queue they should carry
-    // a real store capability too.
+    // CLEANUP(sync-builtins): these operate on the FIXED local store (not an arbitrary path). They currently
+    // leave effect metadata unclassified, which is deny-by-default under a real policy. Lower-risk than the
+    // arbitrary-path sqlite* above (can't touch other files), but when these are reorganized around a
+    // first-class ops-queue they should carry a real scoped store effect too.
     //
     // The TYPED, stream-shaped read of the package op log: Event/Commit records + the resume cursor, all built
     // NATIVELY so a 1000-op batch never pays the per-row Dark interpreter cost. `EventLog.readSince` wraps this;
@@ -254,7 +263,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncReadEffects
       deprecated = NotDeprecated }
 
     // The TYPED append: Commit + Event records received from a peer (parsed from JSON natively) folded into the
@@ -332,7 +341,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncWriteEffects
       deprecated = NotDeprecated }
 
 
@@ -380,7 +389,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncReadEffects
       deprecated = NotDeprecated }
 
     // Apply branch ops RECEIVED from a peer (BranchOpEvent records) — fold into branches/commits. Idempotent.
@@ -434,7 +443,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncWriteEffects
       deprecated = NotDeprecated }
 
     // The resolutions log — synced override overlays. Peers apply these AFTER package ops so a human's
@@ -481,7 +490,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncReadEffects
       deprecated = NotDeprecated }
 
     // Apply resolutions RECEIVED from a peer (ResolutionEvent records) — record + overlay onto locations.
@@ -539,7 +548,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = syncWriteEffects
       deprecated = NotDeprecated }
 
 

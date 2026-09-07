@@ -100,10 +100,16 @@ let createTypeInline
           let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Type
           let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
-          // Create ops: AddType and SetName
+          // Create ops: AddType and SetName, with stabilized hashes.
           let ops =
-            [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
+            LanguageTools.PackageManager.stabilizeHashes
+              [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
+          // The stabilized hash is what propagation must use; the parser's
+          // placeholder names nothing stored.
+          let finalHash =
+            LanguageTools.WrittenTypesToProgramTypes.typeHashBoundAt ops location
+            |> Stdlib.Option.withDefault packageType.hash
 
           match SCM.PackageOps.addAuthored state.currentBranchId ops with
           | Ok report ->
@@ -118,7 +124,7 @@ let createTypeInline
 
             // Auto-propagate if this is an update
             if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageType.hash LanguageTools.ProgramTypes.ItemKind.Type
+              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Type
 
             Stdlib.printLine ""
             state

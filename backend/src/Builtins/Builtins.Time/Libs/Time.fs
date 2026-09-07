@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -27,7 +28,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.clock
+      callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated }
 
     { name = fn "timeNowMs" 0
@@ -56,7 +57,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.clock
+      callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated } ]
 
 

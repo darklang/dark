@@ -51,7 +51,7 @@ let renderValue
   (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
   // Whether to color is decided by the host, not here: it is a fact about stdout and the environment,
-  // and asking for it from Dark needs an `env` capability the instance may not grant.
+  // and asking for it from Dark needs an `env-read` permission the instance may not grant.
   let palette = if color then Terminal.palette () else PrettyPrinter.Palette.plain
 
   let opts =

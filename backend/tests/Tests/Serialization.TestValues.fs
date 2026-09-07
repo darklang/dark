@@ -168,7 +168,8 @@ module RuntimeTypes =
         typeParams = []
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
-        body = instructions[0] }
+        body = instructions[0]
+        permissionCeiling = None }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
         parameters =
@@ -176,7 +177,8 @@ module RuntimeTypes =
             { name = "param1"; typ = RT.TVariable "T" }
             [ { name = "param2"; typ = RT.TString } ]
         returnType = RT.TString
-        body = instructions[0] } ]
+        body = instructions[0]
+        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) } ]
 
 
   let vals : List<RT.Dval> =
@@ -199,6 +201,16 @@ module RuntimeTypes =
       RT.DFloat(3.14159)
       RT.DChar "A"
       RT.DString "Hello, World!"
+      RT.DApplicable(
+        RT.AppLambda
+          { exprId = 7UL
+            closedRegisters = []
+            typeSymbolTable = RT.TST.empty
+            access =
+              LibExecution.Permissions.Access.start
+                LibExecution.Permissions.Policy.denyAll
+            argsSoFar = [] }
+      )
       // RT.CUuid and RT.CDateTime don't exist in RT.Const
       // RT.CUuid uuid
       // RT.CDateTime instant
@@ -707,7 +719,8 @@ module ProgramTypes =
         NEList.singleton
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
-      description = "test" }
+      description = "test"
+      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) }
 
   let packageFns = [ packageFn ]
 

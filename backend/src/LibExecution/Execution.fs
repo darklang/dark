@@ -39,7 +39,7 @@ let createState
     notify = notify
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
-    packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
+    packageFnCallCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     branchId = branchId
     program = program
@@ -55,12 +55,58 @@ let createState
 
     allowHarmful = false
 
-    // The base default is permissive — `createState` is RT-level and can't read the on-disk grant, so
-    // the gate is a no-op here. The CLI host narrows it per entry point (`eval`/host → the configured
-    // grant; `dark run` → NONE) before executing user code; tests run permissive.
-    grantedCaps = LibExecution.Capabilities.allCaps
+    // Fail-safe default: deny all host effects. An embedder that forgets to
+    // install a policy gets a confined execution, not an unrestricted one. The
+    // CLI host seeds `dark run`/`eval` from `PolicyStore`; trusted internal
+    // callers and tests opt into permissive explicitly with
+    // `setInstancePolicy Policy.allowAll`.
+    access = LibExecution.Permissions.Access.denyAll
+
+    packagePolicy = fun _ -> LibExecution.Permissions.Policy.allowAll
+
+    canManagePolicies = false
+
+    canUsePrivateNetworkHttp = false
+
+    // Deny-all by default: only a host that knows its bundled set opts fns in.
+    isBundledPackageFn = fun _ -> false
+
+    permissionWarnings = None
+
+    deniedRequests = ResizeArray()
 
     accountID = None }
+
+/// Set the operator-owned maximum before starting a run.
+let setInstancePolicy
+  (policy : LibExecution.Permissions.Policy)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with access = LibExecution.Permissions.Access.start policy }
+
+/// Add a run restriction. Repeated calls only narrow access.
+let restrictRun
+  (policy : LibExecution.Permissions.Policy)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with
+      access =
+        state.access
+        |> LibExecution.Permissions.Access.restrict
+          LibExecution.Permissions.Layer.Run
+          policy }
+
+/// Install consumer approvals by immutable package-function hash. A package
+/// the lookup does not know is denied. The interpreter memoizes the result
+/// per function, so the lookup itself need not be cheap.
+let setPackagePolicies
+  (lookup : RT.Hash -> Option<LibExecution.Permissions.Policy>)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with
+      packagePolicy =
+        fun hash ->
+          lookup hash |> Option.defaultValue LibExecution.Permissions.Policy.denyAll }
 
 
 let rec callStackForFrame
@@ -270,6 +316,7 @@ let private vmForApply (argCount : int) : RT.VMState =
 /// Apply the callable already loaded into `vm`'s registers.
 let private runLoaded
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (vm : RT.VMState)
   : Ply<RT.ExecutionResult> =
   // `Ply`, and asked synchronously first. A lambda that does not await -- which is nearly all of
@@ -282,7 +329,7 @@ let private runLoaded
   // common one that takes the synchronous success path and calls none of them. They are spelled out
   // where they are used instead: `succeeded` is three lines, and the other two are cold.
   try
-    let running = Interpreter.execute exeState vm
+    let running = Interpreter.executeUnder exeState access vm
 
     match Ply.trySync running with
     | ValueSome result ->
@@ -319,14 +366,25 @@ let private runLoaded
 
 
 /// Use this when calling a Darklang callback from within a builtin.
+///
+/// `access` is the access the BUILTIN was applied under -- `vm.activeAccess`
+/// of the VM that called it -- and it bounds the callback exactly as the
+/// interpreter bounds a direct application: invoking frame, narrowed by
+/// whatever the callable captured. Without it the callback ran from the base
+/// access, outside the calling function's ceiling and package approval (see
+/// `Interpreter.executeUnder`). A builtin that stores the callable to run
+/// later (a stream transform) must read `vm.activeAccess` into a local at the
+/// time it is handed the callable, not inside the deferred closure: the field
+/// is mutable and by then belongs to whatever the VM is doing.
 let executeApplicable
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : Ply<RT.ExecutionResult> =
   let vm = vmForApply (NEList.length args)
   loadApplyRegisters vm applicable args
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 /// Re-raise an error a lambda raised, keeping the frames it raised it in.
@@ -347,6 +405,7 @@ let raiseFromApplied
 /// One argument, without the `NEList` holding it. See `executeApplicable2`.
 let executeApplicable1
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg : RT.Dval)
   : Ply<RT.ExecutionResult> =
@@ -354,7 +413,7 @@ let executeApplicable1
   let registers = vm.callFrames[vm.currentFrameID].registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 /// Two arguments, without the `NEList` holding them.
@@ -365,6 +424,7 @@ let executeApplicable1
 /// interpreter's own.
 let executeApplicable2
   (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg1 : RT.Dval)
   (arg2 : RT.Dval)
@@ -374,7 +434,7 @@ let executeApplicable2
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg1
   registers[3] <- arg2
-  runLoaded exeState vm
+  runLoaded exeState access vm
 
 
 let executeFunction
@@ -385,15 +445,6 @@ let executeFunction
   : Task<RT.ExecutionResult> =
   let resultReg, rc = 0, 1
 
-  let fnInstr, fnReg, rc =
-    let namedFn : RT.ApplicableNamedFn =
-      { name = name
-        typeSymbolTable = RT.TST.empty
-        typeArgs = typeArgs
-        argsSoFar = [] }
-    let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
-    RT.LoadVal(rc, applicable), rc, rc + 1
-
   let argInstrs, argRegs, rc =
     args
     |> NEList.fold
@@ -401,12 +452,24 @@ let executeFunction
         instrs @ [ RT.LoadVal(rc, arg) ], argRegs @ [ rc ], rc + 1)
       ([], [], rc)
 
+  // Load the function immediately before `Apply`, like a compiled direct call.
+  let fnInstr, fnReg, rc =
+    let namedFn : RT.ApplicableNamedFn =
+      { name = name
+        typeSymbolTable = RT.TST.empty
+        typeArgs = typeArgs
+        // Host-initiated: runs under the run-level access the state carries.
+        access = None
+        argsSoFar = [] }
+    let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
+    RT.LoadVal(rc, applicable), rc, rc + 1
+
   let applyInstr =
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
   let instrs : RT.Instructions =
     { registerCount = rc
-      instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
+      instructions = argInstrs @ [ fnInstr; applyInstr ]
       resultIn = 0 }
   executeExpr exeState instrs
 

@@ -24,6 +24,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Blob = LibExecution.Blob
 module Exe = LibExecution.Execution
+module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
 
 
@@ -94,7 +95,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -124,11 +125,19 @@ let fns () : List<BuiltInFn> =
           uply {
             let! elemType = resolveElemVT state outputType
             let currentState = ref initialState
-            let next () : Ply<Option<Dval>> =
+            // Read now, not in `next`: the step runs on later pulls, by which
+            // time `vm.activeAccess` is whatever the VM is doing then. The
+            // access that bounds the step is the one this frame held when it
+            // handed the step over.
+            let access = vm.activeAccess
+            // ...and intersected with the DRAINER's on every pull: the step is
+            // deferred work that runs inside whoever is pulling.
+            let next (drainer : Permissions.Access) : Ply<Option<Dval>> =
               uply {
                 let! result =
                   Exe.executeApplicable
                     state
+                    (access |> Permissions.Access.constrainBy drainer)
                     app
                     (NEList.singleton currentState.Value)
                 match result with
@@ -143,12 +152,12 @@ let fns () : List<BuiltInFn> =
                       [ "got", other ]
                 | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
               }
-            return Stream.newFromIO elemType next None
+            return Stream.newFromGuestStep elemType next
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -160,16 +169,16 @@ let fns () : List<BuiltInFn> =
         "Pulls the next element from <param stream>. Returns None when the stream is exhausted. Mutates the stream — subsequent calls after exhaustion keep returning None."
       fn =
         (function
-        | state, _, [ elemType ], [| s |] ->
+        | state, vm, [ elemType ], [| s |] ->
           uply {
-            let! nextResult = Stream.readNext s
+            let! nextResult = Stream.readNext vm.activeAccess s
             let! elemKT = resolveElemKT state elemType
             return Dval.option elemKT nextResult
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -180,12 +189,12 @@ let fns () : List<BuiltInFn> =
       description = "Drains <param stream> into a List, consuming it entirely."
       fn =
         (function
-        | state, _, [ elemType ], [| s |] ->
+        | state, vm, [ elemType ], [| s |] ->
           uply {
             let collected = ResizeArray<Dval>()
             let mutable keepGoing = true
             while keepGoing do
-              let! result = Stream.readNext s
+              let! result = Stream.readNext vm.activeAccess s
               match result with
               | Some item -> collected.Add item
               | None -> keepGoing <- false
@@ -203,7 +212,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -215,7 +224,7 @@ let fns () : List<BuiltInFn> =
         "Drains a byte stream into a single ephemeral Blob, consuming <param stream>."
       fn =
         (function
-        | _, _, _, [| s |] ->
+        | _, vm, _, [| s |] ->
           uply {
             // Drain via `readStreamChunk` so IO-backed byte streams
             // (HttpClient.stream) hand back a whole buffer per pull
@@ -226,7 +235,7 @@ let fns () : List<BuiltInFn> =
             use collected = new System.IO.MemoryStream()
             let mutable keepGoing = true
             while keepGoing do
-              let! chunk = Stream.readChunk (64 * 1024) s
+              let! chunk = Stream.readChunk vm.activeAccess (64 * 1024) s
               match chunk with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
@@ -235,7 +244,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -265,7 +274,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -294,9 +303,17 @@ let fns () : List<BuiltInFn> =
         | state, vm, [ _; outputType ], [| DStream(src, _, _); DApplicable app |] ->
           uply {
             let! elemType = resolveElemVT state outputType
-            let apply (dv : Dval) : Ply<Dval> =
+            // Capture the builder's access now; when drained, intersect it
+            // with the drainer's access.
+            let access = vm.activeAccess
+            let apply (drainer : Permissions.Access) (dv : Dval) : Ply<Dval> =
               uply {
-                let! result = Exe.executeApplicable state app (NEList.singleton dv)
+                let! result =
+                  Exe.executeApplicable
+                    state
+                    (access |> Permissions.Access.constrainBy drainer)
+                    app
+                    (NEList.singleton dv)
                 match result with
                 | Ok v -> return v
                 | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
@@ -306,7 +323,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -327,9 +344,16 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DStream(src, _, _); DApplicable app |] ->
-          let pred (dv : Dval) : Ply<bool> =
+          // Snapshotted for the same reason as `streamMap`.
+          let access = vm.activeAccess
+          let pred (drainer : Permissions.Access) (dv : Dval) : Ply<bool> =
             uply {
-              let! result = Exe.executeApplicable state app (NEList.singleton dv)
+              let! result =
+                Exe.executeApplicable
+                  state
+                  (access |> Permissions.Access.constrainBy drainer)
+                  app
+                  (NEList.singleton dv)
               match result with
               | Ok(DBool b) -> return b
               | Ok other ->
@@ -343,7 +367,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -372,7 +396,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -400,7 +424,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

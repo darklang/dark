@@ -1,0 +1,556 @@
+/// The Dark representation of the runtime permission policy. This is a typed
+/// host boundary, not a second authorization model.
+module Darklang.LanguageTools.Permissions
+
+type Scope<'a> =
+  | All
+  | Only of 'a
+
+type HostRule =
+  | Any
+  | Exact of String
+  | SubdomainsOf of String
+
+type HttpRule =
+  { method: Permissions.Scope<String>
+    scheme: Permissions.Scope<String>
+    host: Permissions.HostRule
+    port: Permissions.Scope<Int>
+    pathPrefix: Permissions.Scope<String>
+    /// The query string is part of the request, so `/x?id=public` and
+    /// `/x?id=secret` are different requests. A rule written with a query
+    /// covers only that exact one (`Only "?id=public"`, leading `?` kept, as
+    /// the runtime derives it); a rule written without one covers any query
+    /// on the path (`All`).
+    query: Permissions.Scope<String> }
+
+type ProcessRule =
+  { executable: Permissions.Scope<String>
+    /// The exact argument list, in order, or any.
+    args: Permissions.Scope<List<String>> }
+
+/// One statically visible kind of host behaviour, mirroring the runtime's
+/// `Effects.Effect`. A ceiling row names these (`:{Http, Clock}`); a policy
+/// rule names one whole (`allow clock`). `effectCases` gives each its source
+/// case name and its rule name.
+type Effect =
+  | Http
+  | HttpServer
+  | FileRead
+  | FileWrite
+  | EnvRead
+  | EnvWrite
+  | DbRead
+  | DbWrite
+  | Stdin
+  | Stdout
+  | Clock
+  | Random
+  | Process
+  | PackageRead
+  | PackageWrite
+  | TraceRead
+  | TraceWrite
+  | Native
+
+type Rule =
+  | All
+  | Effect of Permissions.Effect
+  | Http of Permissions.HttpRule
+  | HttpServer of Permissions.Scope<Int>
+  | FileRead of Permissions.Scope<String>
+  | FileWrite of Permissions.Scope<String>
+  | EnvRead of Permissions.Scope<String>
+  | EnvWrite of Permissions.Scope<String>
+  | DbRead of Permissions.Scope<String>
+  | DbWrite of Permissions.Scope<String>
+  | Process of Permissions.ProcessRule
+
+type Policy =
+  { allow: List<Permissions.Rule>
+    deny: List<Permissions.Rule> }
+
+/// Why approving and pinning a version did not happen. An approval outcome
+/// rather than a policy type; it lives here because the host builtin that
+/// returns it addresses Dark types through the `LanguageTools.Permissions`
+/// package ref.
+type PinFailure =
+  /// The permission contract differs from the current pin's: the
+  /// human-readable differences, for a second explicit review.
+  | ContractChanged of List<String>
+  /// The version cannot be approved as asked: an unknown hash, an
+  /// unacknowledged incomplete analysis, rules that never allow an effect it
+  /// requires, or a storage failure. The message is complete.
+  | Refused of String
+
+type TokenMode =
+  | Bare
+  | SingleQuoted
+  | DoubleQuoted
+  | EscapedBare
+  | EscapedDouble
+
+/// Every effect with its source case name and its rule name, in the F#
+/// `Effects.all` order. The case name is what a `:{Http, Clock}` ceiling row
+/// writes; the rule name is what `permissions allow` and denial messages use.
+/// An F# test asserts this table agrees with `Effects.all`.
+val effectCases =
+  [ (Permissions.Effect.Http, "Http", "http")
+    (Permissions.Effect.HttpServer, "HttpServer", "http-server")
+    (Permissions.Effect.FileRead, "FileRead", "file-read")
+    (Permissions.Effect.FileWrite, "FileWrite", "file-write")
+    (Permissions.Effect.EnvRead, "EnvRead", "env-read")
+    (Permissions.Effect.EnvWrite, "EnvWrite", "env-write")
+    (Permissions.Effect.DbRead, "DbRead", "db-read")
+    (Permissions.Effect.DbWrite, "DbWrite", "db-write")
+    (Permissions.Effect.Stdin, "Stdin", "stdin")
+    (Permissions.Effect.Stdout, "Stdout", "stdout")
+    (Permissions.Effect.Clock, "Clock", "clock")
+    (Permissions.Effect.Random, "Random", "random")
+    (Permissions.Effect.Process, "Process", "process")
+    (Permissions.Effect.PackageRead, "PackageRead", "package-read")
+    (Permissions.Effect.PackageWrite, "PackageWrite", "package-write")
+    (Permissions.Effect.TraceRead, "TraceRead", "trace-read")
+    (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
+    (Permissions.Effect.Native, "Native", "native") ]
+
+/// The `effectCases` row an effect is in. Every effect has one, so the
+/// fallback is unreachable; it keeps the lookups total without an Option.
+let effectRow (effect: Permissions.Effect) : (Permissions.Effect * String * String) =
+  Permissions.effectCases
+  |> Stdlib.List.findFirst (fun (e, _case, _name) -> e == effect)
+  |> Stdlib.Option.withDefault (effect, "Unknown", "unknown")
+
+/// The rule name of an effect: `FileRead` -> `"file-read"`.
+let effectName (effect: Permissions.Effect) : String =
+  let (_e, _case, name) = Permissions.effectRow effect
+  name
+
+/// The source case name of an effect: `FileRead` -> `"FileRead"`.
+let effectCaseName (effect: Permissions.Effect) : String =
+  let (_e, case, _name) = Permissions.effectRow effect
+  case
+
+/// `"file-read"` -> `FileRead`; None for an unknown rule name.
+let effectOfName (name: String) : Stdlib.Option.Option<Permissions.Effect> =
+  Permissions.effectCases
+  |> Stdlib.List.findFirst (fun (_e, _case, n) -> n == name)
+  |> Stdlib.Option.map (fun (e, _case, _name) -> e)
+
+/// `"FileRead"` -> `FileRead`; None for an unknown case name.
+let effectOfCase (case: String) : Stdlib.Option.Option<Permissions.Effect> =
+  Permissions.effectCases
+  |> Stdlib.List.findFirst (fun (_e, c, _name) -> c == case)
+  |> Stdlib.Option.map (fun (e, _case, _name) -> e)
+
+/// The source form of a ceiling: `{Http, Clock}`, or `""` when none is declared.
+let ceilingRow (ceiling: Stdlib.Option.Option<List<Permissions.Effect>>) : String =
+  match ceiling with
+  | None -> ""
+  | Some effects ->
+    let cases = effects |> Stdlib.List.map Permissions.effectCaseName
+    "{" ++ (Stdlib.String.join cases ", ") ++ "}"
+
+let empty () : Permissions.Policy =
+  Permissions.Policy { allow = []; deny = [] }
+
+/// A POSIX absolute path or a Windows drive/UNC path.
+let isAbsolutePath (path: String) : Bool =
+  Stdlib.String.startsWith path "/"
+  || Stdlib.String.startsWith path "\\\\"
+  || (Stdlib.String.length path >= 3
+      && Stdlib.String.slice path 1 3 == ":\\")
+
+let scope (value: String) : Permissions.Scope<String> =
+  if value == "*" then Permissions.Scope.All
+  else Permissions.Scope.Only value
+
+/// A port for `http-server`: `*` or 0-65535. Anything else is None, never a
+/// rule that silently matches nothing.
+let portScope (value: String) : Stdlib.Option.Option<Permissions.Scope<Int>> =
+  if value == "*" then Stdlib.Option.Option.Some Permissions.Scope.All
+  else
+    Stdlib.Int.parse value
+    |> Stdlib.Result.toOption
+    |> Stdlib.Option.andThen (fun port ->
+      if port >= 0 && port <= 65535 then
+        Stdlib.Option.Option.Some(Permissions.Scope.Only port)
+      else
+        Stdlib.Option.Option.None)
+
+/// The rules for `<kind> <access> <target>`, where <param kind> is one of the
+/// read/write-split resources (`file`, `env`, `db`) and <param access> is
+/// `read`, `write` or `read+write` (also `readwrite`, `rw`). None for an
+/// unknown kind or access.
+let accessRules
+  (kind: String)
+  (access: String)
+  (target: String)
+  : Stdlib.Option.Option<List<Permissions.Rule>> =
+  let target = Permissions.scope target
+  let pair =
+    match kind with
+    | "file" ->
+      Stdlib.Option.Option.Some(
+        (Permissions.Rule.FileRead target, Permissions.Rule.FileWrite target))
+    | "env" ->
+      Stdlib.Option.Option.Some(
+        (Permissions.Rule.EnvRead target, Permissions.Rule.EnvWrite target))
+    | "db" ->
+      Stdlib.Option.Option.Some(
+        (Permissions.Rule.DbRead target, Permissions.Rule.DbWrite target))
+    | _ -> Stdlib.Option.Option.None
+  match pair with
+  | None -> Stdlib.Option.Option.None
+  | Some((read, write)) ->
+    match access with
+    | "read" -> Stdlib.Option.Option.Some [ read ]
+    | "write" -> Stdlib.Option.Option.Some [ write ]
+    | "read+write"
+    | "readwrite"
+    | "rw" -> Stdlib.Option.Option.Some [ read, write ]
+    | _ -> Stdlib.Option.Option.None
+
+let defaultPort (scheme: String) : Int =
+  if scheme == "http" then 80 else 443
+
+/// Parse a URL authority such as `h`, `h:8080`, `h:*`, `[::1]`, or
+/// `[::1]:8080`. An explicit port is exact or `:*` for any port. If omitted,
+/// named hosts use the scheme default; wildcard hosts or schemes use any port
+/// (`https://*` therefore covers every HTTPS port). Malformed input returns
+/// `None` instead of widening the rule.
+let hostAndPort
+  (scheme: String)
+  (authority: String)
+  : Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+  let withPort
+    (host: String)
+    (portText: String)
+    : Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+    Permissions.portScope portText |> Stdlib.Option.map (fun port -> (host, port))
+  // If both scheme and host are specific, an omitted port uses the scheme's
+  // default. If either is a wildcard, an omitted port means any port.
+  let withoutPort (host: String) : Stdlib.Option.Option<(String * Permissions.Scope<Int>)> =
+    if host == "*" || scheme == "*" then
+      Stdlib.Option.Option.Some((host, Permissions.Scope.All))
+    else
+      Stdlib.Option.Option.Some(
+        (host, Permissions.Scope.Only(Permissions.defaultPort scheme)))
+  if Stdlib.String.startsWith authority "[" then
+    match Stdlib.String.splitFirst authority "]" with
+    | None -> Stdlib.Option.Option.None
+    | Some((bracketed, rest)) ->
+      let host = Stdlib.String.dropFirst bracketed 1
+      if rest == "" then withoutPort host
+      else if Stdlib.String.startsWith rest ":" then
+        withPort host (Stdlib.String.dropFirst rest 1)
+      else Stdlib.Option.Option.None
+  else
+    match Stdlib.String.splitFirst authority ":" with
+    | Some((host, port)) -> withPort host port
+    | None -> withoutPort authority
+
+/// Parse a URL for a scoped rule. `*` alone is the broad form. Otherwise:
+/// scheme `http`, `https` or `*`; host, `*`, or `*.domain`; a port, `:*`, or
+/// none (the scheme's default for a named host, any for `*`); a path prefix
+/// or none (any); a query or none (any). Every rendered rule parses back to
+/// itself. Malformed URLs are rejected rather than widened.
+let httpRule
+  (method: String)
+  (url: String)
+  : Stdlib.Option.Option<Permissions.Rule> =
+  let method = Permissions.scope (Stdlib.String.toUppercase method)
+  if url == "*" then
+    Stdlib.Option.Option.Some(
+      Permissions.Rule.Http(
+        Permissions.HttpRule
+          { method = method
+            scheme = Permissions.Scope.All
+            host = Permissions.HostRule.Any
+            port = Permissions.Scope.All
+            pathPrefix = Permissions.Scope.All
+            query = Permissions.Scope.All }))
+  else
+    match Stdlib.String.splitFirst url "://" with
+    | None -> Stdlib.Option.Option.None
+    | Some((scheme, rest)) ->
+      if scheme != "http" && scheme != "https" && scheme != "*" then
+        Stdlib.Option.Option.None
+      else
+        // Split the query off first, matching the runtime request: a rule
+        // written with a query covers only that exact query; without one, any.
+        // Doing it before the path split keeps `https://h?x=1` as host `h`
+        // with path `/`, the way the runtime normalizes it.
+        let (beforeQuery, query) =
+          match Stdlib.String.splitFirst rest "?" with
+          | Some((before, query)) -> (before, Permissions.Scope.Only("?" ++ query))
+          | None -> (rest, Permissions.Scope.All)
+        // No path matches every path. For example, `/api` matches `/api` and
+        // `/api/users`, but not `/apix`.
+        let (authority, path) =
+          match Stdlib.String.splitFirst beforeQuery "/" with
+          | Some((authority, path)) -> (authority, Permissions.Scope.Only("/" ++ path))
+          | None -> (beforeQuery, Permissions.Scope.All)
+        match Permissions.hostAndPort scheme authority with
+        | None -> Stdlib.Option.Option.None
+        | Some((host, port)) ->
+          if host == "" then Stdlib.Option.Option.None
+          else
+            let hostRule =
+              if host == "*" then Permissions.HostRule.Any
+              else if Stdlib.String.startsWith host "*." then
+                Permissions.HostRule.SubdomainsOf(Stdlib.String.dropFirst host 2)
+              else Permissions.HostRule.Exact host
+            Stdlib.Option.Option.Some(
+              Permissions.Rule.Http(
+                Permissions.HttpRule
+                  { method = method
+                    scheme = Permissions.scope scheme
+                    host = hostRule
+                    port = port
+                    pathPrefix = path
+                    query = query }))
+
+/// Parse one CLI rule. This only constructs the typed Policy value; runtime
+/// authorization remains in `Permissions.Policy`.
+let parseRule
+  (args: List<String>)
+  : Stdlib.Option.Option<List<Permissions.Rule>> =
+  match args with
+  | [ "all" ] -> Stdlib.Option.Option.Some [ Permissions.Rule.All ]
+  | [ "http", method ] ->
+    (Permissions.httpRule method "*")
+    |> Stdlib.Option.map Stdlib.List.singleton
+  | [ "http", method, url ] ->
+    (Permissions.httpRule method url)
+    |> Stdlib.Option.map Stdlib.List.singleton
+  | [ "http-server", port ] ->
+    Permissions.portScope port
+    |> Stdlib.Option.map (fun scope -> [ Permissions.Rule.HttpServer scope ])
+  | "process" :: executable :: argv ->
+    // The executable is `*` or an absolute path; a relative one would mean a
+    // different program in every working directory, so it is not a rule.
+    if executable != "*" && Stdlib.Bool.not (Permissions.isAbsolutePath executable) then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some(
+        [ Permissions.Rule.Process(
+            Permissions.ProcessRule
+              { executable = Permissions.scope executable
+                args =
+                  if Stdlib.List.isEmpty argv then Permissions.Scope.All
+                  else Permissions.Scope.Only argv }) ])
+  // `file|env|db read|write [target]`; a missing target means every target.
+  // These come after the kinds above so `http GET` and
+  // `process EXE` are not mistaken for `<kind> <access>`.
+  | [ kind, access ] -> Permissions.accessRules kind access "*"
+  | [ kind, access, target ] -> Permissions.accessRules kind access target
+  // A bare effect name is always `Effect`, including `http`, `http-server`
+  // and `process`: the scoped forms above need at least one more token (their
+  // broad spellings are `http * *`, `http-server *`, `process *`), so every
+  // rule text names exactly one Rule value and `renderRule` round-trips.
+  | [ name ] ->
+    Permissions.effectOfName name
+    |> Stdlib.Option.map (fun effect -> [ Permissions.Rule.Effect effect ])
+  | _ -> Stdlib.Option.Option.None
+
+/// Shell-style tokens for one rule's text, or None for an unterminated quote
+/// or escape. Rendered rules single-quote every guest-controlled field, so
+/// spaces and metacharacters remain one token and a displayed
+/// `permissions allow ...` command is safe to paste into a shell.
+let tokens (text: String) : Stdlib.Option.Option<List<String>> =
+  let finish
+    (current: List<Char>)
+    (soFar: List<String>)
+    (active: Bool)
+    : List<String> =
+    if active then
+      Stdlib.List.push
+        soFar
+        (Stdlib.String.fromList (Stdlib.List.reverse current))
+    else
+      soFar
+
+  let walk
+    (remaining: List<Char>)
+    (mode: Permissions.TokenMode)
+    (current: List<Char>)
+    (soFar: List<String>)
+    (active: Bool)
+    : Stdlib.Option.Option<List<String>> =
+    match remaining with
+    | [] ->
+      match mode with
+      | Bare -> Stdlib.Option.Option.Some(Stdlib.List.reverse (finish current soFar active))
+      | _ -> Stdlib.Option.Option.None
+    | c :: rest ->
+      let s = Stdlib.Char.toString c
+      match mode with
+      | Bare ->
+        if s == " " || s == "\t" || s == "\n" then
+          let soFar = finish current soFar active
+          walk rest Permissions.TokenMode.Bare [] soFar false
+        else if s == "'" then
+          walk rest Permissions.TokenMode.SingleQuoted current soFar true
+        else if s == "\"" then
+          walk rest Permissions.TokenMode.DoubleQuoted current soFar true
+        else if s == "\\" then
+          walk rest Permissions.TokenMode.EscapedBare current soFar true
+        else
+          walk rest Permissions.TokenMode.Bare (Stdlib.List.push current c) soFar true
+      | SingleQuoted ->
+        if s == "'" then
+          walk rest Permissions.TokenMode.Bare current soFar true
+        else
+          walk rest Permissions.TokenMode.SingleQuoted (Stdlib.List.push current c) soFar true
+      | DoubleQuoted ->
+        if s == "\"" then
+          walk rest Permissions.TokenMode.Bare current soFar true
+        else if s == "\\" then
+          walk rest Permissions.TokenMode.EscapedDouble current soFar true
+        else
+          walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.push current c) soFar true
+      | EscapedBare ->
+        walk rest Permissions.TokenMode.Bare (Stdlib.List.push current c) soFar true
+      | EscapedDouble ->
+        walk rest Permissions.TokenMode.DoubleQuoted (Stdlib.List.push current c) soFar true
+
+  walk
+    (Stdlib.String.toList (Stdlib.String.trim text))
+    Permissions.TokenMode.Bare
+    []
+    []
+    false
+
+/// Parse one rule's text (as `permissions allow` would receive it, or as a
+/// denial's `To allow:` hint prints it). Rendered rules round-trip through
+/// this.
+let parseRuleText (text: String) : Stdlib.Option.Option<List<Permissions.Rule>> =
+  Permissions.tokens text |> Stdlib.Option.andThen Permissions.parseRule
+
+/// Parse a whole policy from rule texts; `deny <rule>` goes to the deny list.
+/// Error carries the first spec that did not parse.
+let parse
+  (specs: List<String>)
+  : Stdlib.Result.Result<Permissions.Policy, String> =
+  Stdlib.List.fold
+    specs
+    (Stdlib.Result.Result.Ok(Permissions.empty ()))
+    (fun result spec ->
+      match result with
+      | Error error -> Stdlib.Result.Result.Error error
+      | Ok policy ->
+        let rules =
+          Permissions.tokens spec
+          |> Stdlib.Option.andThen (fun tokens ->
+            let (denied, tokens) =
+              match tokens with
+              | "deny" :: rest -> (true, rest)
+              | tokens -> (false, tokens)
+            Permissions.parseRule tokens
+            |> Stdlib.Option.map (fun rules -> (denied, rules)))
+        match rules with
+        | None -> Stdlib.Result.Result.Error spec
+        | Some((denied, rules)) ->
+          if denied then
+            Stdlib.Result.Result.Ok(
+              { policy with deny = Stdlib.List.append policy.deny rules })
+          else
+            Stdlib.Result.Result.Ok(
+              { policy with allow = Stdlib.List.append policy.allow rules }))
+
+let isAll (scope: Permissions.Scope<'a>) : Bool =
+  match scope with
+  | All -> true
+  | Only _ -> false
+
+let scopeText (scope: Permissions.Scope<String>) : String =
+  match scope with
+  | All -> "*"
+  | Only value -> value
+
+/// A shell-safe token. This is also understood by <fn tokens>, so rendered
+/// policies round-trip internally as well as through an external shell.
+let quoteToken (value: String) : String =
+  "'" ++ (Stdlib.String.replaceAll value "'" "'\\''") ++ "'"
+
+let renderStringScope (scope: Permissions.Scope<String>) : String =
+  match scope with
+  | All -> "*"
+  | Only value -> Permissions.quoteToken value
+
+let renderHostRule (host: Permissions.HostRule) : String =
+  match host with
+  | Any -> "*"
+  | Exact host ->
+    if Stdlib.String.contains host ":" && Stdlib.Bool.not (Stdlib.String.startsWith host "[") then
+      "[" ++ host ++ "]"
+    else
+      host
+  | SubdomainsOf domain -> "*." ++ domain
+
+/// Faithful text for one HTTP rule: `http <method> <url>`.
+let renderHttpRule (rule: Permissions.HttpRule) : String =
+  let method = Permissions.scopeText rule.method
+  let broad =
+    Permissions.isAll rule.scheme
+    && Permissions.isAll rule.port
+    && Permissions.isAll rule.pathPrefix
+    && Permissions.isAll rule.query
+    && rule.host == Permissions.HostRule.Any
+  if broad then
+    $"http {method} *"
+  else
+    let scheme = Permissions.scopeText rule.scheme
+    let host = Permissions.renderHostRule rule.host
+    // An absent port parses as the default for a named host and as any for
+    // the wildcard host, so `All` is spelled `:*` only where it would
+    // otherwise read as the default.
+    let port =
+      match rule.port with
+      | All -> if rule.host == Permissions.HostRule.Any then "" else ":*"
+      | Only port -> ":" ++ Stdlib.Int.toString port
+    let path =
+      match rule.pathPrefix with
+      | All -> ""
+      | Only path -> path
+    // The query (leading `?` already included) round-trips so `show` reflects
+    // exactly what `allow` was given; `All` renders nothing (any query).
+    let query =
+      match rule.query with
+      | All -> ""
+      | Only query -> query
+    let url = $"{scheme}://{host}{port}{path}{query}"
+    $"http {method} {Permissions.quoteToken url}"
+
+/// Faithful text for one process rule: `process <executable> [args…]`.
+let renderProcessRule (rule: Permissions.ProcessRule) : String =
+  let executable = Permissions.renderStringScope rule.executable
+  match rule.args with
+  | All -> $"process {executable}"
+  | Only args ->
+    let args =
+      args
+      |> Stdlib.List.map Permissions.quoteToken
+      |> Stdlib.String.join " "
+    $"process {executable} {args}"
+
+let renderRule (rule: Permissions.Rule) : String =
+  match rule with
+  | All -> "all"
+  | Effect effect -> Permissions.effectName effect
+  | Http rule -> Permissions.renderHttpRule rule
+  | HttpServer All -> "http-server *"
+  | HttpServer(Only port) -> "http-server " ++ Stdlib.Int.toString port
+  | FileRead scope -> "file read " ++ Permissions.renderStringScope scope
+  | FileWrite scope -> "file write " ++ Permissions.renderStringScope scope
+  | EnvRead scope -> "env read " ++ Permissions.renderStringScope scope
+  | EnvWrite scope -> "env write " ++ Permissions.renderStringScope scope
+  | DbRead scope -> "db read " ++ Permissions.renderStringScope scope
+  | DbWrite scope -> "db write " ++ Permissions.renderStringScope scope
+  | Process rule -> Permissions.renderProcessRule rule
+
+let render (policy: Permissions.Policy) : List<String> =
+  Stdlib.List.append
+    (policy.allow |> Stdlib.List.map Permissions.renderRule)
+    (policy.deny |> Stdlib.List.map (fun rule -> "deny " ++ Permissions.renderRule rule))

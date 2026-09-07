@@ -117,8 +117,8 @@ let v2UpgradesToCurrent =
       |> List.map (fun r -> r.n)
     Expect.equal
       steps
-      [ 3; 4 ]
-      "store 2 → code 4 applies Release 3 (clean-break) then Release 4 (committed_seq)"
+      [ 3; 4; 5 ]
+      "store 2 → current applies Release 3 (clean-break), 4 (committed_seq), 5 (effect-system clean-break)"
   }
 
 // planRelease — the boot-guard DECISION, pure so the refuse-newer safety property is unit-tested without

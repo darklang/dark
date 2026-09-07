@@ -24,6 +24,7 @@ module DiagnosticCode =
   let unexpected = "PARSE-UNEXPECTED" // stray token inside a construct
   let pipeSegment = "PARSE-PIPE-SEGMENT" // pipe RHS isn't a valid segment
   let pattern = "PARSE-PATTERN" // invalid match pattern shape
+  let effect = "PARSE-EFFECT" // unknown effect name in a `:{…}` row
   let interpolation = "PARSE-INTERPOLATION" // malformed interpolation body/braces
   let internalLoop = "PARSE-INTERNAL-LOOP" // parser step budget exhausted (parser bug)
   let lex = "LEX" // tokenizer-level recovery (unterminated literal, …)
@@ -750,6 +751,10 @@ let private requireElementSeparator
     && (rng state nextIndex).start.row <= previousRange.end_.row
   then
     errExpected state nextIndex expected
+
+/// The effect names a `:{…}` row may use: the `Effects.Effect` case names.
+let private effectCaseNames : List<string> =
+  LibExecution.Effects.all |> List.map (fun effect -> $"%A{effect}")
 
 let rec parseExpr (state : ParserState) (i : int) : WT.Expr * int =
   if tooDeep state i || outOfFuel state i then
@@ -2675,6 +2680,43 @@ and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
 // A declaration-scope function (`let f (p: T) … : R = body`) or value
 // (`val x = body`). Legacy module-level `let x = body` also comes through here
 // to retain a recovery DValue beside its focused diagnostic.
+/// `:{Http, Clock}` immediately after a declaration's return colon. Absent
+/// means no ceiling; `{}` means effect-free. Unknown names are diagnostics,
+/// not wildcards: the row fails closed.
+and parseEffectRow
+  (state : ParserState)
+  (i : int)
+  : Option<List<WT.Identifier>> * int =
+  if tok state i <> TLBrace then
+    (None, i)
+  else
+    let names = System.Collections.Generic.List<WT.Identifier>()
+    let mutable j = i + 1
+    let mutable more = tok state j <> TRBrace
+    while more do
+      match tok state j with
+      | TIdent name ->
+        if not (List.contains name effectCaseNames) then
+          let known = String.concat ", " effectCaseNames
+          err
+            state
+            DiagnosticCode.effect
+            j
+            $"unknown effect '{name}'; effects are {known}"
+        names.Add { range = rng state j; name = name }
+        j <- j + 1
+        if tok state j = TComma then
+          j <- j + 1
+        elif tok state j <> TRBrace then
+          errExpected state j "',' or '}' in the effect row"
+          more <- false
+      | _ ->
+        errExpected state j "an effect name"
+        more <- false
+      if tok state j = TRBrace then more <- false
+    let close = if tok state j = TRBrace then j + 1 else j
+    (Some(List.ofSeq names), close)
+
 and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let keywordLet = rng state i
   let nameIdx = i + 1
@@ -2710,7 +2752,8 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
       else
         errExpected state kk "':' before the return type"
         (zeroWidthAtEnd (rng state kk), kk)
-    let (returnType, afterRet) = parseTypeRef state afterColon
+    let (effects, afterEffects) = parseEffectRow state afterColon
+    let (returnType, afterRet) = parseTypeRef state afterEffects
     let (eq, afterEq) =
       if tok state afterRet = TEquals then
         (rng state afterRet, afterRet + 1)
@@ -2723,6 +2766,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         name = nameId
         typeParams = typeParams
         parameters = List.ofSeq ps
+        effects = effects
         returnType = returnType
         body = body
         keywordLet = keywordLet

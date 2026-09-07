@@ -18,7 +18,8 @@
 
     <Compile Include="Binary/Serializers/Common.fs" />
 
-    <Compile Include="Binary/Serializers/Capabilities.fs" />
+    <Compile Include="Binary/Serializers/Effects.fs" />
+    <Compile Include="Binary/Serializers/Permissions.fs" />
 
     <Compile Include="Binary/Serializers/PT/Common.fs" />
     <Compile Include="Binary/Serializers/PT/TypeReference.fs" />

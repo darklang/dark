@@ -6,10 +6,13 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
+module Host = LibExecution.Host
+module PermissionCheck = LibExecution.PermissionCheck
 open Builtin.Shortcuts
 
 
@@ -22,19 +25,20 @@ let fns () : List<BuiltInFn> =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
         (function
-        | state, _, _, [| DString varName |] ->
-          // precise check: reading this exact env var must be covered (gate checked env presence).
-          LibExecution.CapabilityCheck.requireEnvRead state.grantedCaps varName
-          let envValue = System.Environment.GetEnvironmentVariable(varName)
-
-          if isNull envValue then
-            Dval.optionNone KTString |> Ply
-          else
-            Dval.optionSome KTString (DString envValue) |> Ply
+        | state, vm, _, [| DString varName |] ->
+          uply {
+            let op = Host.Operation.EnvGet varName
+            match! PermissionCheck.performHost state vm op with
+            | Ok response ->
+              match Host.expectEnvValue response with
+              | Some value -> return Dval.optionSome KTString (DString value)
+              | None -> return Dval.optionNone KTString
+            | Error _ -> return Dval.optionNone KTString
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.envRead
+      callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
 
 
@@ -46,23 +50,20 @@ let fns () : List<BuiltInFn> =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
         (function
-        | state, _, _, [| DUnit |] ->
-          // precise check: reading the WHOLE environment needs an unscoped env-read grant.
-          LibExecution.CapabilityCheck.requireEnvReadAll state.grantedCaps
-          let envVars = System.Environment.GetEnvironmentVariables()
-
-          let envMap =
-            envVars
-            |> Seq.cast<System.Collections.DictionaryEntry>
-            |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
-            |> Seq.toList
-            |> Dval.stringDict KTString
-
-          Ply(envMap)
+        | state, vm, _, [| DUnit |] ->
+          uply {
+            match! PermissionCheck.performHost state vm Host.Operation.EnvList with
+            | Ok response ->
+              return
+                Host.expectEnvEntries response
+                |> List.map (fun (k, v) -> (k, DString v))
+                |> Dval.stringDict KTString
+            | Error _ -> return Dval.stringDict KTString []
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.envRead
+      callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
 
 
@@ -77,7 +78,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

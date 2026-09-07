@@ -52,7 +52,7 @@ let wireSince
   )
 
 
-// ── peer config + per-peer resume cursors (LOCAL, per-instance; never synced, like `caps`) ──
+// ── peer config + per-peer resume cursors (LOCAL, per-instance; never synced, like permissions) ──
 
 /// This instance's local store path (its default SQLite db). The single package caller of the localDbPath
 /// builtin — everything else goes through here — so the builtin keeps one reference.

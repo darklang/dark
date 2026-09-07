@@ -4,12 +4,12 @@
 ///
 /// `sqliteExec` (DDL/DML → rows affected) and `sqliteQuery` (SELECT → each row as a typed `Dict<Value>`)
 /// are the two primitives; the `.dark` wrappers add the with/without-params convenience so there's one
-/// builtin per operation rather than four. Both open a caller-supplied path, so they declare
-/// `Needs.fileReadWrite` (the CLI host grants it; a narrowed `dark run` is denied).
+/// builtin per operation rather than four. SQL can open secondary files via
+/// ATTACH/VACUUM and therefore cannot honestly uphold path-scoped file rules;
+/// both primitives require the deliberately broad Native permission.
 ///
-/// Deferred (not needed yet): scoping the grant to a specific path/glob, binding typed params (params are
-/// string-only today; results already carry types via `Value`), an opaque connection handle, and `transact`.
-/// CLEANUP(sqlite-scope): add the in-body path/glob capability check.
+/// Deferred: binding typed params (params are string-only today; results already carry types via `Value`),
+/// an opaque connection handle, and `transact`.
 module Builtins.Matter.Libs.Sqlite
 
 open FSharp.Control.Tasks
@@ -19,6 +19,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 open Microsoft.Data.Sqlite
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
@@ -159,7 +160,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0
@@ -186,7 +187,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated } ]
 
 

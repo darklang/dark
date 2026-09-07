@@ -30,6 +30,10 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
   NEList.write Parameter.write w p.parameters
   TypeReference.write w p.returnType
   String.write w p.description
+  Option.write
+    w
+    LibSerialization.Binary.Serializers.Effects.write
+    p.permissionCeiling
 
 let read (r : BinaryReader) : PackageFn.PackageFn =
   let hash = Hash.read r
@@ -38,9 +42,12 @@ let read (r : BinaryReader) : PackageFn.PackageFn =
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
   let description = String.read r
+  let permissionCeiling =
+    Option.read r LibSerialization.Binary.Serializers.Effects.read
   { hash = hash
     body = body
     typeParams = typeParams
     parameters = parameters
     returnType = returnType
-    description = description }
+    description = description
+    permissionCeiling = permissionCeiling }

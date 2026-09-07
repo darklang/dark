@@ -8,6 +8,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Fumble
 open LibDB.Sqlite
+open LibExecution.Effects
 
 module Dval = LibExecution.Dval
 module VT = LibExecution.ValueType
@@ -22,8 +23,9 @@ let fns () : List<BuiltInFn> =
         "Look up an account ID by name. Returns None if no account with that name exists."
       fn =
         (function
-        | _, vm, _, [| DString name |] ->
+        | state, vm, _, [| DString name |] ->
           uply {
+            LibExecution.PermissionCheck.requireDbRead state vm "accounts"
             let! result =
               Sql.query "SELECT id FROM accounts_v0 WHERE name = @name"
               |> Sql.parameters [ "name", Sql.string name ]
@@ -36,7 +38,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.DbRead ]
       deprecated = NotDeprecated }
 
 
@@ -48,8 +50,9 @@ let fns () : List<BuiltInFn> =
         "Look up an account name by ID. Returns None if no account with that ID exists."
       fn =
         (function
-        | _, vm, _, [| DUuid id |] ->
+        | state, vm, _, [| DUuid id |] ->
           uply {
+            LibExecution.PermissionCheck.requireDbRead state vm "accounts"
             let! result =
               Sql.query "SELECT name FROM accounts_v0 WHERE id = @id"
               |> Sql.parameters [ "id", Sql.uuid id ]
@@ -62,7 +65,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.DbRead ]
       deprecated = NotDeprecated }
 
 
@@ -74,8 +77,9 @@ let fns () : List<BuiltInFn> =
         "Returns every (id, name) pair in the accounts table, ordered by name."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
+        | state, vm, _, [| DUnit |] ->
           uply {
+            LibExecution.PermissionCheck.requireDbRead state vm "accounts"
             let! rows =
               Sql.query "SELECT id, name FROM accounts_v0 ORDER BY name"
               |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "name"))
@@ -87,7 +91,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.DbRead ]
       deprecated = NotDeprecated } ]
 
 

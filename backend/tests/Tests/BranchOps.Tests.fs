@@ -644,10 +644,90 @@ let testRebaseConflictCrossKind =
   }
 
 
+let placeholderHashGuardBlocksUnstabilizedOps =
+  test "guest package writes cannot store the parser's placeholder hashes" {
+    // Placeholder and empty hashes must be rejected before storage.
+    let placeholder = PT.Hash "Test.BranchOps.y"
+    let fn = { makeFn (eVar "x") with hash = placeholder }
+    let unstabilized =
+      [ PT.PackageOp.AddFn fn
+        PT.PackageOp.SetName(loc "y", PT.PackageFn placeholder) ]
+    Expect.isSome
+      (Inserts.placeholderHashViolation unstabilized)
+      "a placeholder hash is rejected"
+    Expect.isSome
+      (Inserts.placeholderHashViolation
+        [ PT.PackageOp.AddFn { fn with hash = PT.Hash "" } ])
+      "an empty hash is rejected"
+    let real = makeFn (eVar "x")
+    let stabilized =
+      [ PT.PackageOp.AddFn real
+        PT.PackageOp.SetName(loc "y", PT.PackageFn real.hash) ]
+    Expect.isNone
+      (Inserts.placeholderHashViolation stabilized)
+      "hex content hashes pass"
+  }
+
+let reservedOwnerGuardBlocksBundledOwner =
+  test "guest package writes cannot bind a name under the reserved bundled owner" {
+    let fn = makeFn (eVar "x")
+    let forge : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ "X" ]; name = "y" }
+    let forgeOps =
+      [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(forge, PT.PackageFn fn.hash) ]
+    Expect.isSome
+      (Inserts.reservedOwnerViolation forgeOps)
+      "binding under owner Darklang is rejected, so bundled trust can't be forged"
+    let okOps =
+      [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(loc "ok", PT.PackageFn fn.hash) ]
+    Expect.isNone (Inserts.reservedOwnerViolation okOps) "a normal owner is allowed"
+  }
+
+/// A standalone SetName is a rename, and playback unlists every binding of the
+/// hash on the branch regardless of owner. The destination-only owner check
+/// let a guest bind a bundled hash to its own name and take the standard
+/// library's binding -- and the hash's bundled membership -- off the branch.
+let reservedOwnerGuardBlocksRenamingBundledBindings =
+  testTask "a guest rename cannot unlist a bundled binding of the same hash" {
+    let! (found : Option<PT.Hash>) =
+      LibDB.ProgramTypes.Fn.find
+        [ PT.mainBranchId ]
+        { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
+      |> Ply.toTask
+    let hash =
+      match found with
+      | Some h -> h
+      | None -> failtest "Darklang.Stdlib.List.map not found in the test store"
+    let (PT.Hash hashStr) = hash
+    let! (before : System.Collections.Generic.HashSet<string>) =
+      LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    Expect.isTrue (before.Contains hashStr) "List.map is bundled to begin with"
+
+    let! (attempt : Result<int64, string>) =
+      Inserts.insertUntrustedOps
+        PT.mainBranchId
+        None
+        [ PT.PackageOp.SetName(loc "borrowed", PT.PackageFn hash) ]
+    match attempt with
+    | Error reason ->
+      Expect.stringContains
+        reason
+        "Darklang.Stdlib.List.map"
+        "the refusal names the binding"
+    | Ok inserted -> failtest $"the rename was accepted ({inserted} ops inserted)"
+
+    let! (after : System.Collections.Generic.HashSet<string>) =
+      LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    Expect.isTrue (after.Contains hashStr) "List.map is still bundled"
+  }
+
 let tests =
   testList
     "BranchOps"
     [ testBranchOpsEmitted
+      placeholderHashGuardBlocksUnstabilizedOps
+      reservedOwnerGuardBlocksBundledOwner
+      reservedOwnerGuardBlocksRenamingBundledBindings
       testBranchOpsSerialization
       testBranchOpsDeserialization
       testGhostFunctionCrossBranch

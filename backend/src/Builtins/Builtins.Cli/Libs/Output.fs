@@ -7,6 +7,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -29,7 +30,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -46,7 +47,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -66,7 +67,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -82,7 +83,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -100,7 +101,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 
 
@@ -122,7 +123,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.stdout
+      callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated } ]
 
 

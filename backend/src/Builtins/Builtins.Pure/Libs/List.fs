@@ -248,7 +248,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable2 state app acc elem
+              let call = Exe.executeApplicable2 state vm.activeAccess app acc elem
               match Ply.trySync call with
               | ValueSome(Ok next) ->
                 acc <- next
@@ -271,7 +271,9 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty rest) do
                   match rest with
                   | elem :: elemTail ->
-                    match! Exe.executeApplicable2 state app acc elem with
+                    match!
+                      Exe.executeApplicable2 state vm.activeAccess app acc elem
+                    with
                     | Ok stepped ->
                       acc <- stepped
                       rest <- elemTail
@@ -282,7 +284,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -327,7 +329,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -358,7 +360,13 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
+              let call =
+                Exe.executeApplicable2
+                  state
+                  vm.activeAccess
+                  app
+                  (Dval.int (bigint i))
+                  elem
               match Ply.trySync call with
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
@@ -383,7 +391,12 @@ let fns () : List<BuiltInFn> =
                   match rest with
                   | elem :: elemTail ->
                     match!
-                      Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
+                      Exe.executeApplicable2
+                        state
+                        vm.activeAccess
+                        app
+                        (Dval.int (bigint i))
+                        elem
                     with
                     | Ok stepped ->
                       acc <- stepped :: acc
@@ -396,7 +409,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -425,7 +438,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok key) ->
                 keyed <- struct (key, elem) :: keyed
@@ -447,7 +460,7 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty rest) do
                   match rest with
                   | e :: elemTail ->
-                    match! Exe.executeApplicable1 state app e with
+                    match! Exe.executeApplicable1 state vm.activeAccess app e with
                     | Ok k ->
                       keyed <- struct (k, e) :: keyed
                       rest <- elemTail
@@ -458,7 +471,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -490,7 +503,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok(DEnum(_, _, _, "Some", [ v ]))) ->
                 acc <- v :: acc
@@ -520,7 +533,7 @@ let fns () : List<BuiltInFn> =
                     match rest with
                     | elem :: tl ->
                       rest <- tl
-                      Exe.executeApplicable1 state app elem
+                      Exe.executeApplicable1 state vm.activeAccess app elem
                     | [] -> Ply(Ok DUnit)
 
                 match stepped with
@@ -535,7 +548,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -571,7 +584,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -605,7 +618,7 @@ let fns () : List<BuiltInFn> =
                 && not (List.isEmpty restB) do
             match restA, restB with
             | a :: tailA, b :: tailB ->
-              let call = Exe.executeApplicable2 state app a b
+              let call = Exe.executeApplicable2 state vm.activeAccess app a b
               match Ply.trySync call with
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
@@ -629,7 +642,7 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty restA) && not (List.isEmpty restB) do
                   match restA, restB with
                   | a :: tA, b :: tB ->
-                    match! Exe.executeApplicable2 state app a b with
+                    match! Exe.executeApplicable2 state vm.activeAccess app a b with
                     | Ok stepped ->
                       acc <- stepped :: acc
                       restA <- tA
@@ -641,7 +654,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -665,7 +678,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
@@ -687,7 +700,7 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty rest) do
                   match rest with
                   | elem :: elemTail ->
-                    match! Exe.executeApplicable1 state app elem with
+                    match! Exe.executeApplicable1 state vm.activeAccess app elem with
                     | Ok stepped ->
                       acc <- stepped :: acc
                       rest <- elemTail
@@ -698,7 +711,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -723,7 +736,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok(DBool keep)) ->
                 if keep then acc <- elem :: acc
@@ -747,7 +760,7 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty rest) do
                   match rest with
                   | next :: elemTail ->
-                    match! Exe.executeApplicable1 state app next with
+                    match! Exe.executeApplicable1 state vm.activeAccess app next with
                     | Ok(DBool keepNext) ->
                       if keepNext then acc <- next :: acc
                       rest <- elemTail
@@ -761,7 +774,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -807,7 +820,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -830,7 +843,7 @@ let fns () : List<BuiltInFn> =
           while ValueOption.isNone pending && not found && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok(DBool true)) -> found <- true
               | ValueSome(Ok(DBool false)) -> rest <- tail
@@ -855,7 +868,9 @@ let fns () : List<BuiltInFn> =
                   while not found && not (List.isEmpty rest) do
                     match rest with
                     | elem :: elemTail ->
-                      match! Exe.executeApplicable1 state app elem with
+                      match!
+                        Exe.executeApplicable1 state vm.activeAccess app elem
+                      with
                       | Ok(DBool true) -> found <- true
                       | Ok(DBool false) -> rest <- elemTail
                       | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
@@ -867,7 +882,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -903,7 +918,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -927,7 +942,7 @@ let fns () : List<BuiltInFn> =
                 && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state app elem
+              let call = Exe.executeApplicable1 state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok(DBool true)) -> hit <- Some elem
               | ValueSome(Ok(DBool false)) -> rest <- tail
@@ -951,7 +966,7 @@ let fns () : List<BuiltInFn> =
                 while Option.isNone hit && not (List.isEmpty rest) do
                   match rest with
                   | next :: elemTail ->
-                    match! Exe.executeApplicable1 state app next with
+                    match! Exe.executeApplicable1 state vm.activeAccess app next with
                     | Ok(DBool true) -> hit <- Some next
                     | Ok(DBool false) -> rest <- elemTail
                     | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
@@ -963,7 +978,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -978,7 +993,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -993,7 +1008,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1014,7 +1029,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1037,7 +1052,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1064,7 +1079,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1084,7 +1099,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1104,7 +1119,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1142,7 +1157,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1171,7 +1186,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -1189,7 +1204,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 

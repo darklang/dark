@@ -49,6 +49,27 @@ let nextOriginTs () : string =
     ))
 
 
+/// The `owner` field is the first part of a package name, such as
+/// `Darklang.Stdlib.List.map`. Names beginning with `Darklang` are treated as
+/// bundled first-party code, so only trusted seeding may create those bindings;
+/// guest and sync writes reject them.
+let reservedOwners : Set<string> = Set.ofList [ "Darklang" ]
+
+/// Return the first operation that tries to bind a name under the protected
+/// `Darklang` owner. `None` means no protected binding was requested.
+let reservedOwnerViolation (ops : List<PT.PackageOp>) : Option<string> =
+  let ownersBound (op : PT.PackageOp) : List<string> =
+    match op with
+    | PT.PackageOp.SetName(loc, _) -> [ loc.owner ]
+    | PT.PackageOp.PropagateUpdate(_, loc, _, _, _) -> [ loc.owner ]
+    | PT.PackageOp.RevertPropagation(_, _, loc, _, _) -> [ loc.owner ]
+    | _ -> []
+  ops
+  |> List.collect ownersBound
+  |> List.tryFind (fun owner -> Set.contains owner reservedOwners)
+  |> Option.map (fun owner ->
+    $"cannot bind a package name under the reserved owner \"{owner}\"; it is reserved for the bundled standard library")
+
 /// Insert PackageOps and fold them into the projections. `commitHash = None` = WIP (commit_hash NULL), `Some`
 /// = committed. Returns the count actually inserted (duplicates skipped via INSERT OR IGNORE). Insert with
 /// applied=false, fold, then mark applied=true — so a mid-fold failure leaves the ops identifiable + retryable.
@@ -203,6 +224,120 @@ let insertAndApplyOpsAsWip
   (ops : List<PT.PackageOp>)
   : Task<int64> =
   insertAndApplyOps branchId None ops
+
+/// Detect a parser placeholder instead of a real content hash. Placeholders
+/// are empty or contain the package location; real hashes contain only hex
+/// digits and are produced during stabilization.
+let private isPlaceholderHash (PT.Hash hash : PT.Hash) : bool =
+  hash = "" || hash |> Seq.exists (fun c -> not (System.Uri.IsHexDigit c))
+
+/// Return a rejection reason when a package operation still has a placeholder
+/// hash. `None` means all hashes are content hashes.
+let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
+  let hashesOf (op : PT.PackageOp) : List<PT.Hash> =
+    match op with
+    | PT.PackageOp.AddType t -> [ t.hash ]
+    | PT.PackageOp.AddValue v -> [ v.hash ]
+    | PT.PackageOp.AddFn f -> [ f.hash ]
+    | PT.PackageOp.SetName(_, PT.PackageType h)
+    | PT.PackageOp.SetName(_, PT.PackageValue h)
+    | PT.PackageOp.SetName(_, PT.PackageFn h) -> [ h ]
+    | _ -> []
+  ops
+  |> List.collect hashesOf
+  |> List.tryFind isPlaceholderHash
+  |> Option.map (fun (PT.Hash h) ->
+    $"cannot store package ops with the placeholder hash \"{h}\"; stabilize them first (WrittenTypesToProgramTypes.stabilizePackageOps)")
+
+/// The bindings a batch would UNLIST, not just the ones it declares.
+///
+/// `reservedOwnerViolation` checks the destination of a `SetName`. But a
+/// standalone `SetName` -- one whose hash is not added in the same batch -- is
+/// a rename, and playback (`PackageOpPlayback.applySetName`) deprecates every
+/// live binding of that hash on the branch, whatever its owner. So a guest
+/// with package-write could bind a bundled hash to `Guest.borrowed` and take
+/// `Darklang.Stdlib.X` off the branch with it, and with it the hash's bundled
+/// membership. `RevertPropagation` unlists each repoint's `toRef` hash the same
+/// way. Both are checked here against the branch's live bindings, mirroring
+/// playback's `branch_id = @branch` filter exactly. `None` means nothing
+/// protected would be touched.
+let reservedOwnerMutation
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Task<Option<string>> =
+  task {
+    // Same classification as `PackageOpPlayback.collectAddedHashes`: a
+    // SetName for a hash added in this batch names a new item; any other is a
+    // rename.
+    let addedHashes =
+      ops
+      |> List.choose (fun op ->
+        match op with
+        | PT.PackageOp.AddType t -> Some t.hash
+        | PT.PackageOp.AddValue v -> Some v.hash
+        | PT.PackageOp.AddFn f -> Some f.hash
+        | _ -> None)
+      |> Set.ofList
+    let unlistedHashes =
+      ops
+      |> List.collect (fun op ->
+        match op with
+        | PT.PackageOp.SetName(_, target) when
+          not (Set.contains target.hash addedHashes)
+          ->
+          [ target.hash ]
+        | PT.PackageOp.RevertPropagation(_, _, _, _, repoints) ->
+          repoints |> List.map (fun r -> r.toRef.hash)
+        | _ -> [])
+      |> List.distinct
+    let mutable violation = None
+    for hash in unlistedHashes do
+      if violation.IsNone then
+        let (PT.Hash hashStr) = hash
+        let! protectedBindings =
+          Sql.query
+            """
+            SELECT owner, modules, name
+            FROM locations
+            WHERE item_hash = @item_hash
+              AND branch_id = @branch_id
+              AND unlisted_at IS NULL
+            """
+          |> Sql.parameters
+            [ "item_hash", Sql.string hashStr; "branch_id", Sql.uuid branchId ]
+          |> Sql.executeAsync (fun read ->
+            read.string "owner", read.string "modules", read.string "name")
+        match
+          protectedBindings
+          |> List.tryFind (fun (owner, _, _) -> Set.contains owner reservedOwners)
+        with
+        | Some(owner, modules, name) ->
+          violation <-
+            Some
+              $"this operation would unlist {owner}.{modules}.{name}: names under the reserved owner \"{owner}\" are the bundled standard library and cannot be moved by package writes"
+        | None -> ()
+    return violation
+  }
+
+/// Safely insert package operations submitted by running Dark code. Rejects
+/// protected `Darklang` bindings -- declared or unlisted as a side effect --
+/// and unstabilized hashes before insertion.
+let insertUntrustedOps
+  (branchId : PT.BranchId)
+  (commitHash : Option<string>)
+  (ops : List<PT.PackageOp>)
+  : Task<Result<int64, string>> =
+  task {
+    match reservedOwnerViolation ops, placeholderHashViolation ops with
+    | Some reason, _
+    | None, Some reason -> return Error reason
+    | None, None ->
+      match! reservedOwnerMutation branchId ops with
+      | Some reason -> return Error reason
+      | None ->
+        let! count = insertAndApplyOps branchId commitHash ops
+        return Ok count
+  }
 
 
 // A commit stamps package_ops plus the projection rows it publishes.

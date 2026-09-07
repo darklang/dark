@@ -739,6 +739,7 @@ module Expr =
           { name = FQFnName.toRT fnName
             typeSymbolTable = RT.TST.empty
             typeArgs = []
+            access = None
             argsSoFar = [] }
 
         let applicable = RT.Applicable.AppNamedFn namedFn
@@ -865,6 +866,7 @@ module Expr =
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
               typeSymbolTable = RT.TST.empty
               typeArgs = []
+              access = None
               argsSoFar = [] }
           |> RT.DApplicable
         ),
@@ -906,6 +908,7 @@ module Expr =
         { name = FQFnName.toRT resolved.name
           typeSymbolTable = RT.TST.empty
           typeArgs = []
+          access = None
           argsSoFar = [] }
 
       let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
@@ -1361,7 +1364,8 @@ module PackageFn =
         Expr.toRT symbols rcAfterParams (Some fnName) f.body
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
-      returnType = f.returnType |> TypeReference.toRT }
+      returnType = f.returnType |> TypeReference.toRT
+      permissionCeiling = f.permissionCeiling }
 
 
 module PackageManager =

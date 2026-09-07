@@ -7,6 +7,7 @@ open RuntimeTypes
 module VT = ValueType
 module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
+module Effects2DT = LibExecution.EffectsToDarkTypes
 
 /// `Dval.int` is shadowed by the local `module Dval` below, so it can't be
 /// called unqualified in this file. This is the unshadowed encoder for the
@@ -586,6 +587,8 @@ module ApplicableNamedFn =
       { name = FQFnName.fromDT (fields |> D.field "name")
         typeSymbolTable = TST.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
+        // Access is runtime-only; Dark values do not carry captured access.
+        access = Some(Permissions.Access.start Permissions.Policy.denyAll)
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableNamedFn" []
 
@@ -629,6 +632,7 @@ module ApplicableLambda =
           |> D.dict ValueType.fromDT
           |> Map.toList
           |> TST.ofList
+        access = Permissions.Access.start Permissions.Policy.denyAll
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableLambda" []
 

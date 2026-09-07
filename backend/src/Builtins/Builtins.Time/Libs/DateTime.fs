@@ -7,6 +7,7 @@ type Instant = NodaTime.Instant
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+open LibExecution.Effects
 
 module DarkDateTime = LibExecution.DarkDateTime
 
@@ -24,7 +25,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.clock
+      callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated }
 
 
@@ -41,7 +42,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.clock
+      callEffects = set [ Effect.Clock ]
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
