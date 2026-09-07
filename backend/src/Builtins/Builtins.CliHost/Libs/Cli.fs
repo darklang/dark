@@ -615,6 +615,21 @@ let private ownFns (mod' : Utils.CliScript.PTCliScriptModule) : List<RT.Hash> =
   List.append mod'.fns mod'.submodules.fns
   |> List.map (fun (fn : PT.PackageFn.PackageFn) -> PT2RT.Hash.toRT fn.hash)
 
+/// Is there a stack a PERSON can read here?
+///
+/// A name that does not resolve fails before any call is made, so nothing of the program is on the
+/// stack -- but the interpreter's own entry is (the source frame, and the lambda the CLI runs its
+/// entry expression through), so "is the list empty" stopped being the right question. What makes a
+/// stack worth printing is a frame naming a function; a header over the entry alone is noise over a
+/// one-line mistake.
+let private hasReadableFrames (callStack : RT.CallStack) : bool =
+  callStack
+  |> List.exists (fun ep ->
+    match ep with
+    | RT.ExecutionPoint.Function _ -> true
+    | _ -> false)
+
+
 /// Print the call stack of a failed run, when there is one. The error itself is the Dark
 /// caller's to print; the stack is not part of the error value, so it goes to stdout here.
 /// Only when non-empty: an expression that failed before any call has an empty stack, and a
@@ -627,10 +642,10 @@ let private printCallStack
   uply {
     // Not a `let!` inside one arm of the `if`: that is FS3511 in Release.
     let! csString =
-      if List.isEmpty callStack then
-        Ply ""
-      else
+      if hasReadableFrames callStack then
         Exe.callStackString exeState callStack
+      else
+        Ply ""
     if csString <> "" then
       print $"Error when executing {what}. Call-stack:\n{csString}\n"
   }
@@ -978,9 +993,8 @@ let fns () : List<BuiltInFn> =
                             )
                           )
                       | other ->
-                        // Only when there IS a stack: an expression that failed before any call
-                        // has none, and a header over nothing reads like a crash in the tool.
-                        if csString <> "" then
+                        // Only when the stack names a function: see `hasReadableFrames`.
+                        if hasReadableFrames callStack && csString <> "" then
                           print $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
                   | Error pe ->
