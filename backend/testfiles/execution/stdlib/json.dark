@@ -919,10 +919,6 @@ module Uuid =
 
 
 module BadTypes =
-  // these cause an error in the type checker
-  // Stdlib.Json.parse<'a> "5" = Result.Ok []
-  // Stdlib.Json.serialize<'a> 5 = Result.Error "dunno what happens"
-
   Stdlib.Json.parse<Int64 -> Int64> "{}" = error="Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
   Stdlib.Json.serialize<Int64 -> Int64> (fun i -> 5) = error="Cannot serialize (lambda) into JSON"
 module List =

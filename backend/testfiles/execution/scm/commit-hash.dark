@@ -1,0 +1,32 @@
+// A commit id is derived from what the commit holds and where it sits: the same inputs give the same id
+// on two machines, and each input moved gives a different id. The ORDER of `opIds` is the caller's job
+// (`draftOpIdsFor` sorts), and the last row records that `mintHash` itself does not sort, so if that ever
+// becomes true the sort has moved and `draftOpIdsFor`'s ORDER BY is dead.
+//
+// The branch is deliberately not an input. A commit is its message, author, stamp, ops and parent;
+// where it happens to sit is a property of the branch, not of the commit, so the same work committed
+// on two branches is the same commit.
+module MintHash =
+  val ts = "2026-01-01T00:00:00.000Z"
+
+  let h (message: String) (author: String) (stamp: String) (ops: List<String>) (parent: String) : String =
+    Darklang.SCM.Commits.mintHash message author stamp ops parent
+
+  // Deterministic.
+  (MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011") = (MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011")
+
+  // Sixteen hex characters.
+  (Stdlib.String.length (MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011")) = 16
+
+  // Each input moved: a different id.
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0022")) = false
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "you" MintHash.ts [ "aabb" ] "0011")) = false
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "n" "me" MintHash.ts [ "aabb" ] "0011")) = false
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" "2026-01-01T00:00:00.001Z" [ "aabb" ] "0011")) = false
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011")) = false
+
+  // An empty commit is still deterministic.
+  (MintHash.h "m" "me" MintHash.ts [] "0011") = (MintHash.h "m" "me" MintHash.ts [] "0011")
+
+  // Not sorted here.
+  ((MintHash.h "m" "me" MintHash.ts [ "aabb", "ccdd" ] "0011") == (MintHash.h "m" "me" MintHash.ts [ "ccdd", "aabb" ] "0011")) = false
