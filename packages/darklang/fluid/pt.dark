@@ -122,9 +122,21 @@ let docLineSpec () : Spec =
 let printerContext () : Darklang.PrettyPrinter.ProgramTypes.Context =
   Darklang.PrettyPrinter.ProgramTypes.Context.forBranch Darklang.SCM.Branch.mainBranchId
 
-/// Source text of something this file cannot yet take apart.
+/// Source text of something this file cannot yet take apart, on ONE line.
+///
+/// The width matters. Asked at the printer's default the source comes back already wrapped, and a
+/// newline inside a text run is not a layout line: it carries no indentation, so the second line landed
+/// at column 0 and read as a separate statement. A pipe with a type-argument step is the case that
+/// showed it -- the whole pipe goes opaque, and its source was two lines.
+///
+/// A leaf that happens to be long is still a leaf, and the layout owns where lines break. Asking for a
+/// width nothing reaches keeps the printer from making that decision here, and a long one scrolls
+/// sideways like any other long line.
 let opaque (e: Expr) : Node =
-  Node.make (exprKind "Opaque") [ text "source" (Darklang.PrettyPrinter.ProgramTypes.expr (printerContext ()) e) ]
+  let flat =
+    Darklang.PrettyPrinter.ProgramTypes.expr { (printerContext ()) with width = 100000 } e
+
+  Node.make (exprKind "Opaque") [ text "source" flat ]
 
 let nameOf
   (nr: Darklang.LanguageTools.ProgramTypes.NameResolution<Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName>)

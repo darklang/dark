@@ -1565,3 +1565,37 @@ module AnOpaqueNodeIsNotSelfDelimiting =
   (ADrawingSaysWhatTheDocumentSays.faithful "f (g<Int> x)") = true
   (ADrawingSaysWhatTheDocumentSays.faithful "1 + (g<Int> x)") = true
   (ADrawingSaysWhatTheDocumentSays.faithful "Stdlib.printLine (Stdlib.Json.serialize<Int> rows)") = true
+
+
+module AnOpaqueLeafIsOneLine =
+  // `toDoc` falls back to an `Opaque` node for what it cannot take apart, and asked the printer for the
+  // source at the printer's default width -- so the source came back ALREADY WRAPPED. A newline inside a
+  // text run is not a layout line: it carries no indentation. The second line landed at column 0 and read
+  // as a separate statement.
+  //
+  // A pipe whose step has type arguments is the case that showed it, because the whole pipe goes opaque:
+  //
+  //     let json =
+  //       ops                                            <- column 6, inside the let's nest
+  //     |> Stdlib.Json.serialize<List<...>>              <- column 0, outside it
+  //     Stdlib.Http.responseWithJson json 200
+  //
+  // A leaf that happens to be long is still a leaf, and the layout owns where lines break. The source is
+  // asked for at a width nothing reaches, so the printer stops making that decision here.
+  let sourceLines (src: String) : Int =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Stdlib.List.length
+        (Stdlib.String.split (Darklang.Fluid.PT.textOf (Darklang.Fluid.PT.toDoc e) "source") "\n")
+    | Error _ -> 0 - 1
+
+  (AnOpaqueLeafIsOneLine.sourceLines
+    "ops |> Stdlib.Json.serialize<List<Darklang.LanguageTools.ProgramTypes.PackageOp>>") = 1
+
+  // Narrower than the text, and it still does not wrap: the width belongs to the pane, not to the leaf.
+  (Fixtures.render "ops |> Stdlib.Json.serialize<List<Int>>" 30) = "ops |> Stdlib.Json.serialize<List<Int>>"
+
+  // The shape it was found in, drawn and read back.
+  (ADrawingSaysWhatTheDocumentSays.faithful
+    "match x with\n| a ->\n  let json = ops |> Stdlib.Json.serialize<List<Darklang.LanguageTools.ProgramTypes.PackageOp>>\n  f json 200") =
+    true
