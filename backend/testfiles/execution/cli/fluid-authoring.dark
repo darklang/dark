@@ -744,3 +744,21 @@ module EnterStartsTheNextStatement =
   // puts it too. The climb stops at a construct that swallows what follows it.
   (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Enter>", "<Enter>", "2", "<Esc>" ]) =
     "let x = 1\nx\n2"
+
+
+module AnOperatorAfterAFieldNameWraps =
+  // Typing `+` at the end of `s.width` inserted it INTO the name, and `formatFieldName` then drew the
+  // result honestly as ``s.`width+```. The `.` wrap rule's op-slot IS its destination -- the field name --
+  // and the branch that extends an operator being typed (`<` then `=` giving `<=`) claimed the character
+  // first. An op-slot that holds a NAME is a different thing from one that holds an operator.
+  (Fixtures.screen [ "s", ".", "w", "i", "d", "t", "h", "+", "1" ]) = "s.width + 1~"
+  (Fixtures.program [ "s", ".", "w", "i", "d", "t", "h", "+", "1", "<Esc>" ]) = "s.width + 1"
+
+  // The two things that branch is actually for still work: another `.` chains, and an operator being
+  // typed in a real op slot still extends.
+  (Fixtures.screen [ "s", ".", "a", ".", "b" ]) = "s.a.b~"
+  (Fixtures.screen [ "1", "<", "=", "2" ]) = "1 <= 2~"
+
+  // With no name yet there is nothing to wrap and nothing it could be part of, so it is refused rather
+  // than typed.
+  (Fixtures.screen [ "s", ".", "+" ]) = "s.~field"
