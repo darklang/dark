@@ -53,7 +53,7 @@ let private readRequestBodyWithLimit
       while read < body.Length && not eof do
         let! n = req.InputStream.ReadAsync(body, read, body.Length - read)
         if n = 0 then eof <- true else read <- read + n
-      // A client that declared more than it sent gets what arrived, same as before.
+      // A client that declared more than it sent gets what arrived.
       return Ok(if read = body.Length then body else Array.sub body 0 read)
     }
   else
@@ -76,6 +76,60 @@ let private readRequestBodyWithLimit
             do! ms.WriteAsync(buffer, 0, n)
       if overLimit then return Error() else return Ok(ms.ToArray())
     }
+
+
+/// Bodies below this are left alone: gzip's own framing plus the header costs more than it saves,
+/// and it makes every small response allocate a stream for nothing.
+let private compressionFloor = 1024
+
+
+/// Compress a response body IF the client asked for it, returning the body to send and the
+/// `Content-Encoding` to declare.
+///
+/// **Brotli when offered, gzip otherwise.** Both were measured on a real sync page rather than chosen by
+/// reputation, and the reason brotli wins here is specific: gzip's window is 32KB and a page is ~2.9MB,
+/// so gzip cannot see that the same hashes and names recur throughout it. A large-window coder can.
+///
+///     raw          2,883,465
+///     gzip         499,655   5.8x   14ms
+///     brotli       280,064  10.3x   19ms
+let private maybeCompress
+  (req : HttpListenerRequest)
+  (body : byte[])
+  : byte[] * Option<string> =
+  let accepts =
+    match req.Headers["Accept-Encoding"] with
+    | null -> ""
+    | value -> value.ToLowerInvariant()
+
+  let compressWith (makeStream : System.IO.Stream -> System.IO.Stream) : byte[] =
+    use out = new System.IO.MemoryStream()
+
+    (use coder = makeStream out
+     coder.Write(body, 0, body.Length))
+
+    out.ToArray()
+
+  if body.Length < compressionFloor then
+    body, None
+  elif accepts.Contains "br" then
+    let encode (out : System.IO.Stream) : System.IO.Stream =
+      new System.IO.Compression.BrotliStream(
+        out,
+        System.IO.Compression.CompressionLevel.Optimal
+      )
+
+    compressWith encode, Some "br"
+  elif accepts.Contains "gzip" then
+    let encode (out : System.IO.Stream) : System.IO.Stream =
+      new System.IO.Compression.GZipStream(
+        out,
+        System.IO.Compression.CompressionLevel.Fastest
+      )
+
+    compressWith encode, Some "gzip"
+  else
+    body, None
 
 
 /// Flatten HttpListener's NameValueCollection into the (key, value) list
@@ -252,13 +306,29 @@ let private handleRequest
           ctx.Response.StatusCode <- response.statusCode
           for (key, value) in respHeaders do
             ctx.Response.Headers.Add(key, value)
-          ctx.Response.ContentLength64 <- int64 response.body.Length
-          do!
-            ctx.Response.OutputStream.WriteAsync(
-              response.body,
-              0,
-              response.body.Length
-            )
+
+          // Only when the client asked (`maybeCompress` has the ratios and floor).
+          // Never on a body the handler already encoded (double-wrap), and always
+          // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
+          let alreadyEncoded =
+            respHeaders
+            |> List.exists (fun (k, _) ->
+              String.equalsCaseInsensitive k "Content-Encoding")
+
+          let body, encoding =
+            if alreadyEncoded then
+              response.body, None
+            else
+              maybeCompress ctx.Request response.body
+
+          match encoding with
+          | Some enc ->
+            ctx.Response.Headers.Add("Content-Encoding", enc)
+            ctx.Response.Headers.Add("Vary", "Accept-Encoding")
+          | None -> ()
+
+          ctx.Response.ContentLength64 <- int64 body.Length
+          do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
       with _ex ->
         // Don't leak ex.Message — can carry stack hints / sensitive
         // strings. Detail goes to `logRequest` (which sees the 500

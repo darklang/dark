@@ -37,6 +37,40 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // A secret compared with `==` leaks how many leading bytes matched, through how long the
+    // comparison took. `CryptographicOperations.FixedTimeEquals` takes the same time whatever the
+    // inputs. The lengths are compared first and in the open: the length of a secret is not the secret.
+    { name = fn "cryptoConstantTimeEquals" 0
+      typeParams = []
+      parameters =
+        [ Param.make "presented" TString "what the caller sent"
+          Param.make "expected" TString "what it should be" ]
+      returnType = TBool
+      description =
+        "Whether <param presented> equals <param expected>, in time that does not depend on where they first differ. For comparing a secret or a token against a request."
+      fn =
+        (function
+        | _, _, _, [| DString presented; DString expected |] ->
+          let a = System.Text.Encoding.UTF8.GetBytes presented
+          let b = System.Text.Encoding.UTF8.GetBytes expected
+          if a.Length <> b.Length then
+            Ply(DBool false)
+          else
+            Ply(
+              DBool(
+                CryptographicOperations.FixedTimeEquals(
+                  System.ReadOnlySpan(a),
+                  System.ReadOnlySpan(b)
+                )
+              )
+            )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "cryptoSha384" 0
       typeParams = []
       parameters = [ Param.make "data" TBlob "" ]

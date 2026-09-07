@@ -3,6 +3,9 @@ module Darklang.Stdlib.Cli.Stdin
 
 /// Read one line from stdin, without its trailing newline. Blocks until a
 /// line (or EOF) arrives.
+/// Whether stdin is a terminal a person can type at (true on a pty -- CI included -- false on a pipe).
+let isInteractive () : Bool = Builtin.stdinIsInteractive ()
+
 let readLine () : String =
   Builtin.stdinReadLine ()
 
@@ -10,6 +13,45 @@ let readLine () : String =
 /// Read all of stdin, until EOF.
 let readAll () : String =
   Builtin.stdinReadAll ()
+
+
+/// Read one line WITHOUT echoing it, for a secret typed at a prompt.
+///
+/// Taking a secret this way rather than as an argument keeps it out of the terminal scrollback and out of
+/// shell history. Redirected input reads as a plain line, since a piped secret was never on screen.
+///
+/// Pure Dark over `readKey`: Enter finishes, Backspace edits, control keys are not secret material,
+/// and a coalesced burst (a held key, or a paste delivering one character many times) appends
+/// `keyChar` `repeat` times so a pasted secret arrives whole.
+let readSecret () : String =
+  if Stdlib.Bool.not (isInteractive ()) then
+    readLine ()
+  else
+    let go (acc: String) : String =
+      let k = readKey ()
+
+      match k.key with
+      | Enter ->
+        Stdlib.printLine ""
+        acc
+      | Backspace -> go (Stdlib.String.dropLast acc 1)
+      | _ ->
+        if k.keyChar == "" then
+          go acc
+        else
+          let chunk =
+            if k.repeat > 1 then Stdlib.String.repeat k.keyChar k.repeat else k.keyChar
+          // A paste arrives as ONE coalesced read whose text can carry the terminating
+          // newline; without this check the loop would wait for an Enter that was already
+          // consumed. Anything pasted after the newline is not secret material and is dropped.
+          match Stdlib.String.split (acc ++ chunk) "\n" with
+          | [ whole ] -> go whole
+          | beforeNewline :: _rest ->
+            Stdlib.printLine ""
+            beforeNewline
+          | [] -> go acc
+
+    go ""
 
 
 module Key =

@@ -13,17 +13,18 @@
 /// configuration (`HostTypes.HttpProfile.Guest`); the trusted sync pull
 /// under `Sync`.
 ///
-/// TODO collapse into a single builtin. The intended end state is:
-///   - `httpClientRequest` is gone from the F# side.
-///   - `httpClientStream` is the only F# builtin, and it takes a
-///     `body : Blob` (currently always sends `[||]`).
-///   - `Stdlib.HttpClient.request` is a Dark-side wrapper: call
-///     `HttpClient.stream`, drain the body via `Stream.toBlob`,
-///     repack into a `Response`. ~5 lines of Dark.
-///
-/// Gates before the collapse stops regressing existing callers: a body
-/// parameter on the stream operation, a body-read timeout on the drain, and
-/// drain-time error translation to a typed NetworkError.
+/// TODO collapse into a single builtin: `httpClientStream` becomes the only F#
+/// builtin, and `Stdlib.HttpClient.request` a Dark-side wrapper that streams,
+/// drains via `Stream.toBlob`, and repacks into a `Response`. Four gates before
+/// the collapse stops regressing existing callers:
+///   (1) a `body : Blob` param on the stream builtin (today it always sends `[||]`);
+///   (2) a body-read timeout (`ResponseHeadersRead` means the cancel token only
+///       covers header arrival, so a drain can hang indefinitely);
+///   (3) drain-time error translation (an IOException during the drain must become
+///       `Result.Error NetworkError`, not an uncaught RuntimeError);
+///   (4) telemetry parity with `makeRequest` (one span through the drain, same tags).
+/// Until those land, the buffered builtin stays; request construction is shared via
+/// the helpers below, so the remaining duplication is small.
 module Builtins.Http.Client.Libs.HttpClient
 
 open System.Threading.Tasks
@@ -167,6 +168,74 @@ let private requireBundledCaller
     )
     |> raiseUntargetedRTE
 
+
+/// Decode a Dark `List<(String, String)>` of request headers; anything not that shape is
+/// dropped. The lenient twin of `parseHeaders`, for the caller-gated sync family only.
+let private headerPairs (dvals : List<Dval>) : List<string * string> =
+  dvals
+  |> List.choose (fun h ->
+    match h with
+    | DTuple(DString k, DString v, []) -> Some(k, v)
+    | _ -> None)
+
+/// Build and perform one Sync-profile host request. The caller gate has already run; the
+/// instance policy scopes the URL, which is what replaced the origin allowlist.
+let private syncRequest
+  (state : ExecutionState)
+  (vm : VMState)
+  (method : string)
+  (uri : string)
+  (headers : List<string * string>)
+  (body : byte array)
+  : Ply<Result<Host.Response, Host.Failure>> =
+  PermissionCheck.performHost
+    state
+    vm
+    (Host.Operation.HttpRequest(HostTypes.HttpProfile.Sync, method, uri, headers, body))
+
+/// Shape a completed sync exchange: a 2xx body is Ok bytes; a non-2xx is a FAILURE, not a
+/// body -- Ok for anything that completed would hand the caller a relay's 400 as a
+/// successful fetch whose payload happens to be an error page, and `dark branch push`
+/// would print "pushed branch ..." for a 400 it never saw.
+let private fetchOutcome
+  (verb : string)
+  (response : Result<Host.Response, Host.Failure>)
+  : Dval =
+  match response with
+  | Error failure ->
+    Exception.raiseInternal
+      "http request failed outside the typed error surface"
+      [ "message", failure.message ]
+  | Ok response ->
+    match Host.expectHttp response with
+    | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
+      Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+    | Ok r ->
+      let snippet =
+        try
+          let t = System.Text.Encoding.UTF8.GetString(r.body)
+          if t.Length > 200 then t.Substring(0, 200) + "..." else t
+        with _ ->
+          ""
+      Dval.resultError KTBlob KTString (DString $"HTTP {r.statusCode}: {snippet}")
+    | Error err ->
+      let reason =
+        match err with
+        | HostTypes.HttpRequestError.BadUrl _ -> "bad url"
+        | HostTypes.HttpRequestError.Timeout -> "timeout"
+        | HostTypes.HttpRequestError.BadHeader _ -> "bad header"
+        | HostTypes.HttpRequestError.NetworkError -> "network error"
+        | HostTypes.HttpRequestError.BadMethod -> "bad method"
+      Dval.resultError KTBlob KTString (DString $"{verb} failed: {reason}")
+
+/// In-flight prefetches, keyed by a handle rather than by url: a pull can have the same
+/// url in flight twice, and a dictionary keyed by url would hand the second caller the
+/// first one's response.
+let private pendingFetches =
+  System.Collections.Concurrent.ConcurrentDictionary<
+    System.Guid,
+    Task<Result<Host.Response, Host.Failure>>>()
+
 open LibExecution.Builtin.Shortcuts
 
 
@@ -266,49 +335,162 @@ let fns () : List<BuiltInFn> =
         + "peer's 404 page is not a store. For pulling a peer's store over the "
         + "tailnet."
       fn =
-        let resultOk = Dval.resultOk KTBlob KTString
-        let resultError = Dval.resultError KTBlob KTString
         (function
         | state, vm, _, [| DString uri |] ->
           uply {
             // SSRF guards off (loopback/RFC-1918/tailnet reachable): only the
             // bundled sync code may call this, not a third-party package.
             requireBundledCaller state vm "httpGetUnsafeBytes"
-            let op =
-              Host.Operation.HttpRequest(
-                HostTypes.HttpProfile.Sync,
-                "GET",
-                uri,
-                [],
-                [||]
-              )
-            match! PermissionCheck.performHost state vm op with
-            | Error failure ->
+            let! response = syncRequest state vm "GET" uri [] [||]
+            return fetchOutcome "fetch" response
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+
+    // Start a sync GET WITHOUT waiting for it, and collect it later.
+    //
+    // A pull is a chain of pages: fetch one, import it, fetch the next. Network and CPU are
+    // each about 40% of a pull, so done strictly in turn the total is their sum. With these
+    // two the client starts the next page's fetch as soon as it knows the cursor, imports
+    // the page in hand while that flies, and pays `max` instead.
+    //
+    // The caller gate is checked HERE, at start, so a refusal is immediate and loud; a
+    // policy refusal from the host surfaces at the await, out of the same typed surface.
+    { name = fn "httpGetUnsafeBytesStart" 0
+      typeParams = []
+      parameters =
+        [ Param.make "uri" TString "URL to begin GETting with SSRF guards OFF" ]
+      returnType = TypeReference.result TUuid TString
+      description =
+        "Begin a GET of <param uri> with NO SSRF guards and return a handle to collect "
+        + "it with `httpAwaitBytes`. The request is already in flight when this returns."
+      fn =
+        (function
+        | state, vm, _, [| DString uri |] ->
+          uply {
+            requireBundledCaller state vm "httpGetUnsafeBytesStart"
+            // Started, not awaited: `Ply.toTask` materializes the running request, so it
+            // is on the wire before this builtin returns.
+            let started = syncRequest state vm "GET" uri [] [||] |> Ply.toTask
+            let handle = System.Guid.NewGuid()
+            pendingFetches[handle] <- started
+            return Dval.resultOk KTUuid KTString (DUuid handle)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+
+    // Collect a fetch begun by `httpGetUnsafeBytesStart`. Same result shape as
+    // `httpGetUnsafeBytes`, including treating a non-2xx as a failure rather than a body.
+    { name = fn "httpAwaitBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make "handle" TUuid "a handle from `httpGetUnsafeBytesStart`" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "Wait for the fetch named by <param handle> and return its body (Ok) or an "
+        + "error message (Error). A handle may only be collected once."
+      fn =
+        (function
+        | _, _, _, [| DUuid handle |] ->
+          uply {
+            match pendingFetches.TryRemove handle with
+            | false, _ ->
               return
-                Exception.raiseInternal
-                  "http request failed outside the typed error surface"
-                  [ "message", failure.message ]
-            | Ok response ->
-              match Host.expectHttp response with
-              | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
-                return resultOk (Blob.newEphemeral r.body)
-              | Ok r ->
-                let snippet =
-                  try
-                    let t = System.Text.Encoding.UTF8.GetString(r.body)
-                    if t.Length > 200 then t.Substring(0, 200) + "..." else t
-                  with _ ->
-                    ""
-                return resultError (DString $"HTTP {r.statusCode}: {snippet}")
-              | Error err ->
-                let reason =
-                  match err with
-                  | HostTypes.HttpRequestError.BadUrl _ -> "bad url"
-                  | HostTypes.HttpRequestError.Timeout -> "timeout"
-                  | HostTypes.HttpRequestError.BadHeader _ -> "bad header"
-                  | HostTypes.HttpRequestError.NetworkError -> "network error"
-                  | HostTypes.HttpRequestError.BadMethod -> "bad method"
-                return resultError (DString $"fetch failed: {reason}")
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString
+                    "that fetch handle is unknown, or has already been collected")
+            | true, pending ->
+              let! response = pending
+              return fetchOutcome "fetch" response
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+
+    // The read twin of `httpPostUnsafeBytes`. Separate from `httpGetUnsafeBytes` because
+    // that one's arity is part of its contract. Exists so a read can carry an Authorization
+    // header: a relay's branch endpoints hand back unmerged work, and a secret belongs in a
+    // header, not a logged query string.
+    { name = fn "httpGetUnsafeBytesWithHeaders" 0
+      typeParams = []
+      parameters =
+        [ Param.make "uri" TString "URL to GET with SSRF guards OFF"
+          Param.make
+            "headers"
+            (TList(TTuple(TString, TString, [])))
+            "request headers" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "GET <param uri> with NO SSRF guards and the given <param headers>, returning the "
+        + "raw response body as Bytes (Ok) or an error message (Error)."
+      fn =
+        (function
+        | state, vm, _, [| DString uri; DList(_, headerList) |] ->
+          uply {
+            requireBundledCaller state vm "httpGetUnsafeBytesWithHeaders"
+            // The credential is attached HERE, not passed in: the write secret must not
+            // reach Dark, where a pulled package could read it.
+            let headers =
+              headerPairs headerList @ LibExecution.UnguardedOrigins.authHeadersFor uri
+            let! response = syncRequest state vm "GET" uri headers [||]
+            return fetchOutcome "fetch" response
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+
+    // The push half of the sync transport, mirror of `httpGetUnsafeBytes`: same caller
+    // gate, same profile. Body is sent as application/json (the wire codec).
+    { name = fn "httpPostUnsafeBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "uri"
+            TString
+            "URL to POST with SSRF guards OFF (loopback/RFC-1918/tailnet reachable)"
+          Param.make "body" TBlob "request body, sent as application/json"
+          Param.make
+            "headers"
+            (TList(TTuple(TString, TString, [])))
+            "extra request headers, e.g. an Authorization for a relay that requires one" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "POST <param body> to <param uri> with NO SSRF guards, returning the raw "
+        + "response body as Bytes (Ok) or an error message (Error). For pushing to a "
+        + "peer's store over the tailnet."
+      fn =
+        (function
+        | state, vm, _, [| DString uri; DBlob bodyRef; DList(_, headers) |] ->
+          uply {
+            requireBundledCaller state vm "httpPostUnsafeBytes"
+            let! body = Blob.readBytes state bodyRef
+            // Caller headers go AFTER the content type so a caller cannot accidentally
+            // unset it. A relay write secret arrives as a header rather than in the query
+            // string, which would put it in every access log and proxy trace between here
+            // and there; the stored credential is attached here, not passed in -- see
+            // `httpGetUnsafeBytesWithHeaders`.
+            let allHeaders =
+              ("Content-Type", "application/json")
+              :: (headerPairs headers
+                  @ LibExecution.UnguardedOrigins.authHeadersFor uri)
+            let! response = syncRequest state vm "POST" uri allHeaders body
+            return fetchOutcome "push" response
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
