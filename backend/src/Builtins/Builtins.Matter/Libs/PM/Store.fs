@@ -8,6 +8,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.Effects
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
@@ -54,7 +55,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -106,7 +107,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -137,7 +138,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     { name = fn "configSet" 0

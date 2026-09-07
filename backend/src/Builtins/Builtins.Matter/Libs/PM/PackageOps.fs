@@ -131,7 +131,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -199,8 +199,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     let builtins : Builtins =
                       { values = exeState.values.builtIn
                         fns = exeState.fns.builtIn }
+                    // A branch's own bodies, arriving from guest code: same bound as the
+                    // main-branch path below.
                     let! _ =
-                      LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
+                      LibDB.Seed.evaluateAllValues
+                        (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                          exeState.accountID
+                          vm.activeAccess)
+                        builtins
+                        LibDB.PackageManager.rt
                     ()
                   // Move the overlay only for the branch this process is on; writing to another branch
                   // must not change what this caller resolves against. Other branches are memoized, so
@@ -242,7 +249,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
                         exeState.accountID
                         vm.activeAccess)
-                      branchId
                       exeState.builtins
                       LibDB.PackageManager.rt
 
@@ -262,7 +268,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     ops
                     |> List.choose (fun op ->
                       match op with
-                      | PT.PackageOp.SetName(location, PT.PackageValue _) ->
+                      | PT.PackageOp.SetName(location, PT.PackageValue _, _) ->
                         Some(LibDB.PackageLocation.toFQN location)
                       | _ -> None)
                     |> Set.ofList
@@ -353,7 +359,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -385,7 +391,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -412,7 +418,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -451,7 +457,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -671,7 +677,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     // Dark edits `locations` directly on the surgical discard path, which is the one place outside the
@@ -694,7 +700,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     // ARCHIVING a branch travels, for the same reason merging does: on the other machine the branch is
@@ -725,7 +731,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -743,13 +749,22 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Fold the newly-effective ops into main's projections and evaluate merged values."
       fn =
         (function
-        | exeState, _, _, [| DUnit |] ->
+        | exeState, vm, _, [| DUnit |] ->
           uply {
             try
               let! _ = LibDB.Seed.applyUnappliedOps ()
               let builtins : Builtins =
                 { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
-              let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
+              // Ops that just folded in from a sync or an import: their bodies are code
+              // from elsewhere, so evaluating them is bounded by the instance policy and
+              // this caller's access.
+              let! _ =
+                LibDB.Seed.evaluateAllValues
+                  (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                    exeState.accountID
+                    vm.activeAccess)
+                  builtins
+                  LibDB.PackageManager.rt
               return Dval.resultOk KTUnit KTString DUnit
             with ex ->
               return Dval.resultError KTUnit KTString (DString ex.Message)
@@ -757,7 +772,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -787,7 +802,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -816,7 +831,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -859,7 +874,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -885,7 +900,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultError = Dval.resultError KTInt KTString
         (function
         | exeState,
-          _,
+          vm,
           _,
           [| DUuid branchIdGuid; DString name; DString parentText; DList(_, records) |] ->
           uply {
@@ -961,7 +976,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   let builtins : Builtins =
                     { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
                   let! _ =
-                    LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
+                    LibDB.Seed.evaluateAllValues
+                      (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                        exeState.accountID
+                        vm.activeAccess)
+                      builtins
+                      LibDB.PackageManager.rt
                   ()
 
                 // A merge event for this branch may already be in the log, folded against a store that

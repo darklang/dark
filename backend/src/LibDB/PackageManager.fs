@@ -154,7 +154,7 @@ let ptForAccount (accountID : System.Guid option) : PT.PackageManager =
               match! pt.findFn location with
               | None -> return None
               | Some hash ->
-                match Map.tryFind (PT.PackageLocation.toFQN location) pins with
+                match Map.tryFind (PackageLocation.toFQN location) pins with
                 | Some pinned ->
                   // A pin whose hash disappeared after a reset or partial sync gets
                   // a clear diagnostic instead of failing later as an unknown name.
@@ -165,7 +165,7 @@ let ptForAccount (accountID : System.Guid option) : PT.PackageManager =
                       Exception.raiseInternal
                         ("A pinned function version no longer exists in the package store. "
                          + "Run `dark permissions unpin <fn>` to release the pin.")
-                        [ "location", PT.PackageLocation.toFQN location
+                        [ "location", PackageLocation.toFQN location
                           "pinned", pinned ]
                 | None -> return Some hash
             } }
@@ -488,11 +488,6 @@ let combine
         do! overlay.init
         do! fallback.init
       } }
-
-/// The process-wide manager for the outer CLI and its tools, with the
-/// anonymous account's pins as of startup.
-let pt : PT.PackageManager = ptForAccount None
-
 
 /// The locations <param ops> leave UNBOUND: an `Unbind` with no later binding of the same name. An
 /// overlay of bindings can only add; this is what it takes away from whatever is underneath.

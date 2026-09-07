@@ -500,7 +500,6 @@ module ValueEvaluationError =
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
   (authority : EvaluationAuthority)
-  (branchId : PT.BranchId)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : Task<Result<unit, List<ValueEvaluationError>>> =
@@ -686,7 +685,7 @@ let growIfNeeded
     if appliedCount > 0L || hasUnevaluatedValues then
       let! _evalResult =
         Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
-          evaluateAllValues authority PT.mainBranchId (getBuiltins ()) pm)
+          evaluateAllValues authority (getBuiltins ()) pm)
       do!
         Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
           Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)

@@ -57,11 +57,7 @@ module HandleCommand =
       // The one trusted producer: these bodies come from the checked-in
       // `packages/` tree that was just parsed off disk, not from a guest.
       let! evalResult =
-        evaluateAllValues
-          LibDB.Seed.TrustedSeed
-          PT.mainBranchId
-          (Builtins.all ())
-          PM.rt
+        evaluateAllValues LibDB.Seed.TrustedSeed (Builtins.all ()) PM.rt
       match evalResult with
       | Error errors ->
         for e in errors do

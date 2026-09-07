@@ -355,6 +355,7 @@ let duplicateDeclarationsAreNamed =
           typeParams = []
           parameters =
             NEList.singleton { name = "p"; typ = PT.TInt64; description = "" }
+          permissionCeiling = None
           returnType = PT.TInt64
           description = body }
       [ PT.PackageOp.AddFn fn

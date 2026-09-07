@@ -1282,7 +1282,7 @@ let branchValueContentFoldIsolatesName =
     // `applyOps` stores rt_dval NULL (see PackageOpPlayback.fs), so the branch author path must run
     // `evaluateAllValues` for an EXPRESSION-valued branch value to materialise its Dval.
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
-    let! _ = Seed.evaluateAllValues builtins PM.rt
+    let! _ = Seed.evaluateAllValues Seed.TrustedSeed builtins PM.rt
     let! (evaluated : Option<RT.PackageValue.PackageValue>) =
       LibDB.RuntimeTypes.Value.get (RT.Hash valueHash) |> Ply.toTask
     match evaluated with
@@ -2443,7 +2443,8 @@ let migrationsRefoldKeepsBranchPins =
       execSql
         $"""UPDATE package_ops SET applied = 0 WHERE id IN ({mainIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
 
-    let! _ = Seed.growIfNeeded (fun () -> localBuiltIns pmPT) pmRT (fun _ -> ())
+    let! _ =
+      Seed.growIfNeeded Seed.TrustedSeed (fun () -> localBuiltIns pmPT) pmRT (fun _ -> ())
 
     let! after =
       countSql

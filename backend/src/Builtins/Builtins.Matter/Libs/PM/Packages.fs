@@ -98,7 +98,7 @@ let private locationsByHashFn
       | _ -> incorrectArgs ())
     sqlSpec = NotQueryable
     previewable = Impure
-    capabilities = LibExecution.Capabilities.noCaps
+    callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
 
 
@@ -146,7 +146,7 @@ let private findByLocationFn
       | _ -> incorrectArgs ())
     sqlSpec = NotQueryable
     previewable = Impure
-    capabilities = LibExecution.Capabilities.noCaps
+    callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
 
 
@@ -176,7 +176,7 @@ let private getByHashFn
       | _ -> incorrectArgs ())
     sqlSpec = NotQueryable
     previewable = Impure
-    capabilities = LibExecution.Capabilities.noCaps
+    callEffects = set [ Effect.PackageRead ]
     deprecated = NotDeprecated }
 
 
@@ -772,10 +772,16 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             match result with
             | Ok(Some(propagationResult, ops)) ->
+              // The repoints are the answer either way; where the OPS land is what differs.
+              let repointsDval =
+                propagationResult.repoints
+                |> List.map PT2DT.PropagateRepoint.toDT
+                |> Dval.list (PT2DT.PropagateRepoint.knownType ())
+
               if branch.IsMain then
                 // Marked as PROPAGATED, not authored. It's the only point at which the difference is known.
                 let! _ = LibDB.Inserts.insertAndApplyPropagatedOps ops
-                ()
+                return Dval.resultOk repointListKT KTString repointsDval
               else
                 // On a branch the repoints are BRANCH ops: stored effective=0 and tagged to the frontier,
                 // never folded into main's `locations`. That's the isolation guarantee -- a cascade that
@@ -804,12 +810,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 let! all = LibDB.Branches.loadDeltaOps branch
                 LibDB.PackageManager.setBranchOverlay all
 
-                let repointsDval =
-                  propagationResult.repoints
-                  |> List.map PT2DT.PropagateRepoint.toDT
-                  |> Dval.list (PT2DT.PropagateRepoint.knownType ())
-
-              return Dval.resultOk repointListKT KTString repointsDval
+                return Dval.resultOk repointListKT KTString repointsDval
             | Ok None ->
               // No dependents: nothing moved, which is a result, not an error.
               return

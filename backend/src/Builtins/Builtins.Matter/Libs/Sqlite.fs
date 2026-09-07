@@ -246,7 +246,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0

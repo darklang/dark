@@ -21,6 +21,8 @@ open TestUtils.TestUtils
 
 open Tests.CliTestHarness
 
+module PT = LibExecution.ProgramTypes
+
 /// `--local`, so the suite does not depend on reaching GitHub.
 ///
 /// Bare `version` checks for a newer release, and against a firewall that drops rather
@@ -229,7 +231,6 @@ let private testMkdirRecursiveUnderPolicyAncestor =
         LibExecution.HostSecurity.policyDirectoryForTesting policy
       let! found =
         LibDB.ProgramTypes.Fn.find
-          [ PT.mainBranchId ]
           { owner = "Darklang"
             modules = [ "Stdlib"; "Cli"; "Dir" ]
             name = "createRecursive" }

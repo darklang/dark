@@ -51,9 +51,8 @@ let private storeUnevaluated (name : string) (body : PT.Expr) : Task<PT.Hash> =
     let value = makeValue body
     let! (_ : int64) =
       Inserts.insertAndApplyOpsAsWip
-        PT.mainBranchId
         [ PT.PackageOp.AddValue value
-          PT.PackageOp.SetName(loc name, PT.PackageValue value.hash) ]
+          PT.PackageOp.SetName(loc name, PT.PackageValue value.hash, None) ]
     return value.hash
   }
 
@@ -66,7 +65,7 @@ let private isUnevaluated (PT.Hash hash) : Task<bool> =
 let private evaluateUnder
   (authority : Seed.EvaluationAuthority)
   : Task<Result<unit, List<Seed.ValueEvaluationError>>> =
-  Seed.evaluateAllValues authority PT.mainBranchId (localBuiltIns pmPT) pmRT
+  Seed.evaluateAllValues authority (localBuiltIns pmPT) pmRT
 
 /// Did evaluation report a failure for THIS value? Evaluation sweeps every
 /// pending value in the store, so an unrelated one must not decide the test.
@@ -208,7 +207,6 @@ let testGuestAuthorityInstallsApprovals =
       "an unknown, non-bundled package is denied until approved"
     let! (found : Option<PT.Hash>) =
       LibDB.ProgramTypes.Fn.find
-        [ PT.mainBranchId ]
         { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
       |> Ply.toTask
     match found with
@@ -238,9 +236,8 @@ let testUnapprovedPackageFnInValueBodyIsRefused =
         permissionCeiling = None }
     let! (_ : int64) =
       Inserts.insertAndApplyOpsAsWip
-        PT.mainBranchId
         [ PT.PackageOp.AddFn clockFn
-          PT.PackageOp.SetName(loc "unapprovedClock", PT.PackageFn clockFn.hash) ]
+          PT.PackageOp.SetName(loc "unapprovedClock", PT.PackageFn clockFn.hash, None) ]
     let! hash =
       storeUnevaluated
         "callsUnapproved"
@@ -286,7 +283,6 @@ let testStoredValuesNeedNoHostEffects =
           LibExecution.Execution.noTracing
           sendException
           notify
-          PT.mainBranchId
           { dbs = Map.empty } with
           access = Permission.Access.start packageReadsOnly }
 
