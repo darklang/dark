@@ -1081,3 +1081,24 @@ module AParenAroundOneThingIsAGroup =
   // The caret has to be in the FILLED item, which is what tells `(1 + 2` + `)` from `(1, ` + `)`: in the
   // second the comma was deliberate and the caret sits in the hole, so it stays a tuple.
   (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
+
+
+module SpacingDoesNotChangeAssociation =
+  // `x * 2 + 3` typed WITH spaces gave `x * (2 + 3)`; typed without them it was right. Two spellings of
+  // the same expression, two different programs, and the wrong one is the way people actually write.
+  //
+  // I introduced it. Space started leaving the caret just after the value it settled (which is what makes
+  // `let n = 1 + 2` typable at all), and the AfterNode branch wrapped `caret.node` itself -- the node you
+  // are standing after, not the one precedence says the operator takes. It went through `applyWrap` in
+  // every other path and hand-rolled a worse copy here.
+  //
+  // Nothing caught it because the pins that test association type without spaces, and the pins that test
+  // spacing use one operator. It needs both at once.
+  (Fixtures.screen (Fixtures.chars "x * 2 + 3")) = "x * 2 + 3~"
+  (Fixtures.screen (Fixtures.chars "x*2+3")) = "x * 2 + 3~"
+  (Fixtures.screen (Fixtures.chars "x % 2 == 0")) = "x % 2 == 0~"
+  (Fixtures.screen (Fixtures.chars "x%2==0")) = "x % 2 == 0~"
+  (Fixtures.screen (Fixtures.chars "a + b == c")) = "a + b == c~"
+
+  // The tighter operator still does NOT climb, spaced or not: `*` after `1 + 2` takes just the `2`.
+  (Fixtures.screen (Fixtures.chars "1 + 2 * 3")) = "1 + 2 * 3~"

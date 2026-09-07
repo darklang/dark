@@ -1732,16 +1732,14 @@ let typeOneRaw (st: State) (c: String) : State =
     match nodeAtPath st.root caret.node with
     | Some n ->
       match wrapRuleFor st.reg n c with
-      | Some rule ->
-        let wrapped = rule.wrap n c
-        let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
-        let caretNew =
-          if rule.opSlot == "" then
-            landAfterCommit caret.node wrapped
-          else
-            let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
-            Caret.inText caret.node rule.opSlot opLen
-        { st1 with caret = caretNew }
+      // Through `applyWrap`, so precedence picks WHAT gets wrapped. This branch used to wrap
+      // `caret.node` itself, which is the node you are standing after and not always the one the
+      // operator takes: after `x * 2 <space>`, a `+` wrapped just the `2` and gave `x * (2 + 3)`.
+      //
+      // It only started mattering once space began leaving the caret here rather than jumping to the
+      // next hole, which is why arithmetic typed WITHOUT spaces was always right and the same
+      // expression with them was not.
+      | Some rule -> applyWrap st caret n rule c
       | None ->
         if (isOperatorChar st.reg.syntax c) || (c == ".") then
           st
