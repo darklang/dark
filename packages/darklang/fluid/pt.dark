@@ -1303,6 +1303,14 @@ let looksLikeATypeName (typed: String) : Bool =
 /// that declares it. Unlike a record, the search cannot do the matching: you type a CASE name, and the
 /// store indexes types by their own name. So this reads the enum declarations and matches the cases
 /// itself, which is why it is gated on the name looking like a type: a lowercase query never pays for it.
+/// Does `full` end with `suffix` at a SEGMENT boundary? `Darklang.Stdlib.Result.Result` is named by
+/// `Result`, by `Result.Result`, and by every longer tail of itself, which is how names are written
+/// everywhere else here. Not by `sult`, which is why this is not a plain `endsWith`.
+let namedBy (full: String) (suffix: String) : Bool =
+  let f = Stdlib.String.toLowercase full
+  let s = Stdlib.String.toLowercase suffix
+  (f == s) || (Stdlib.String.endsWith f ("." ++ s))
+
 let enumCandidates (typed: String) : List<Candidate> =
   // Two characters is enough for a CASE, because `Ok` is two characters and is the one everybody types.
   // The general search wants three, to keep a stray keystroke from scanning the store; a capitalised
@@ -1310,7 +1318,17 @@ let enumCandidates (typed: String) : List<Candidate> =
   if ((Stdlib.String.length typed) < 2) || (Stdlib.Bool.not (looksLikeATypeName typed)) then
     []
   else
-    let wanted = Stdlib.String.toLowercase typed
+    // The typed text is a case name that may carry a qualifier: `Ok`, `Result.Ok`, and the
+    // `Stdlib.Result.Result.Ok` the PRINTER writes all name the same constructor. Only the bare form used
+    // to match, so the printer's own output could not be typed back in -- you got one long name that no
+    // lookup resolves, and the space that should have committed the case went into it.
+    let segments = Stdlib.String.split typed "."
+    let casePrefix =
+      segments |> Stdlib.List.last |> Stdlib.Option.withDefault typed |> Stdlib.String.toLowercase
+    let qualifier =
+      segments
+      |> Stdlib.List.take ((Stdlib.List.length segments) - 1)
+      |> (fun segs -> Stdlib.String.join segs ".")
     let query =
       Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
         { currentModule = []
@@ -1325,7 +1343,9 @@ let enumCandidates (typed: String) : List<Candidate> =
         let name = locationName item.location
         let hash = Darklang.LanguageTools.ProgramTypes.hashToString item.entity.hash
         cases
-        |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith (Stdlib.String.toLowercase c.name) wanted)
+        |> Stdlib.List.filter (fun c ->
+          (Stdlib.String.startsWith (Stdlib.String.toLowercase c.name) casePrefix)
+          && ((qualifier == "") || (namedBy name qualifier)))
         |> Stdlib.List.map (fun c ->
           // A case's fields become holes, the way a record's do, so `Ok` lands you inside `Result.Ok(<>)`.
           let fieldSlots = c.fields |> Stdlib.List.map (fun _f -> Slot.Empty(exprExpect "field"))

@@ -908,3 +908,35 @@ module AnOperatorIsNotPartOfAName =
   // new class must not reach a variable or a field, whose slots are drawn differently.
   (Fixtures.program [ "a", "b", "c", "+", "1", "<Esc>" ]) = "abc + 1"
   (Fixtures.program [ "s", ".", "w", "i", "d", "t", "h", "+", "1", "<Esc>" ]) = "s.width + 1"
+
+
+module AnEnumCaseIsNamedTheWayItIsWritten =
+  // `Stdlib.Result.Result.Ok` offered NOTHING, so the space that should have committed the case went into
+  // the name and `Ok x` came out as the single name `Stdlib.Result.Result.Okx`. Only the bare `Ok`
+  // completed: the filter compared the CASE name against the whole typed string, so any qualifier killed
+  // it.
+  //
+  // Which means the pretty-printer's own output could not be typed back in. That is the same faithfulness
+  // question EveryDrawingIsTheProgram asks of rendering, from the authoring side, and it is how this was
+  // found -- writing `Stdlib.Result.Result.Ok head` into the TUI, which is what you write after reading a
+  // printed function.
+  //
+  // A constructor is now named by any tail of its type's path, at segment boundaries, the way names work
+  // everywhere else here.
+  let ok () : List<String> =
+    [ "S", "t", "d", "l", "i", "b", ".", "R", "e", "s", "u", "l", "t", ".", "R", "e", "s", "u", "l", "t", ".", "O", "k" ]
+
+  (Fixtures.screen (Stdlib.List.append (AnEnumCaseIsNamedTheWayItIsWritten.ok ()) [ " ", "x" ])) =
+    "Result.Ok(x~)"
+  (Fixtures.program (Stdlib.List.append (AnEnumCaseIsNamedTheWayItIsWritten.ok ()) [ " ", "x", "<Esc>" ])) =
+    "Result.Ok(x)"
+
+  // Every tail names it, including the bare case that always worked.
+  (Fixtures.screen [ "R", "e", "s", "u", "l", "t", ".", "O", "k", " ", "x" ]) = "Result.Ok(x~)"
+  (Fixtures.screen [ "O", "k", " ", "x" ]) = "Result.Ok(x~)"
+
+  // A qualifier that names a different type offers nothing, which is the guard that says the qualifier is
+  // actually being READ rather than ignored. With no candidate there is nothing for the space to commit,
+  // so it is refused and the name is left as typed -- no trailing space in the drawing.
+  (Fixtures.screen [ "S", "t", "d", "l", "i", "b", ".", "O", "p", "t", "i", "o", "n", ".", "O", "k", " " ]) =
+    "Stdlib.Option.Ok~"
