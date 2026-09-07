@@ -1586,7 +1586,14 @@ let typeOneRaw (st: State) (c: String) : State =
         let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
         { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
       elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (Stdlib.Bool.not (old == "")) then
-        nextHole st
+        // Space at the end of a finished name means "done here", but NOT always "and on to the next
+        // hole". Where an operator could follow, it has to leave the caret on what was just settled so
+        // the operator can wrap it. Jumping cost `if s.width > 20` its condition: the space left the
+        // field access, the `>` landed in the THEN branch, and out came `if s.width then > else 20`.
+        //
+        // A plain variable never had this bug because it commits through the menu, which already lands
+        // after the node. A field access settles as TEXT and came through here instead.
+        landSettled st caret.node
       else
       // In an operator slot, a non-operator character moves on to the next slot and types there.
       match inOpSlot st.reg n slot with

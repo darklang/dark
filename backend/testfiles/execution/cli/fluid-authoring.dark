@@ -37,7 +37,16 @@ module KeywordsCommitOnSpace =
 module WriteALetNaturally =
   // Typed almost like text: `let x <space> 1 <space> x`. Space in a name/number field means "done, next
   // hole"; so you land on the value, then the body, without pressing Tab.
-  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " " ]) = "let x = 1\n~⟨body⟩"
+  // Space after the VALUE leaves the caret on it, not at the body. That is what makes `let x = 1 + 2`
+  // typable at all: before this, only a variable could take an operator after a space, and a literal
+  // could not -- `let n = 1 + 2` came out as the unresolved name `+2n`, and `if 1 > 2` did not parse.
+  // Tab is how you say "done, next hole" when the value really is finished.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " " ]) = "let x = 1~\n⟨body⟩"
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "<Tab>" ]) = "let x = 1\n~⟨body⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let n = 1 + 2 n") [ "<Esc>", "<Esc>" ])) =
+    "let n = 1 + 2\nn"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if 1 > 2 1 ") [ "<Tab>", "0", "<Esc>", "<Esc>" ])) =
+    "if 1 > 2 then 1 else 0"
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "x", "<Esc>" ]) = "let x = 1\nx"
 
 
@@ -637,8 +646,13 @@ module SpaceLandsAfterTheValue =
   // actually uses unusable inside a construct: `if total > 0` put the `>` in the THEN branch, and
   // `let total = items |> f` put the pipe in the let's BODY. Space now leaves the caret just after the
   // value it settled, and the next key says what you meant -- an operator wraps it, a name moves on.
+  // The caret stays on the `0` rather than jumping to the THEN hole, and that is the point rather than an
+  // accident of it. Space after a committed VARIABLE already landed after the node; space after a typed
+  // NUMBER jumped to the next hole, because one settles through the menu and the other settles as text.
+  // Two answers to the same question. They agree now, which is also what makes `if total > 0 && flag`
+  // typable -- the `&&` has something to wrap instead of landing in the branch.
   (Fixtures.screen [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " " ]) =
-    "if total > 0 then ~⟨then⟩ else ⟨else⟩"
+    "if total > 0~ then ⟨then⟩ else ⟨else⟩"
   (Fixtures.program [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " ", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
     "if total > 0 then 1 else 2"
   (Fixtures.program [ "l", "e", "t", " ", "n", " ", "a", " ", "+", " ", "b", " ", "n", "<Esc>", "<Esc>" ]) = "let n = a + b\nn"
@@ -992,3 +1006,25 @@ module AnEnumPatternTakesItsFields =
   (Fixtures.screen (Fixtures.chars "match input h::t")) = "match input with\n| h :: t~ -> ⟨rhs⟩"
   (Fixtures.screen (Fixtures.chars "match input (a,b")) = "match input with\n| (a, b~) -> ⟨rhs⟩"
   (Fixtures.screen (Fixtures.chars "match input _")) = "match input with\n| _~ -> ⟨rhs⟩"
+
+
+module AFieldAccessCanBeComparedWithSpaces =
+  // `if cfg.height > 20` came out as `if cfg.height then > else 20`. The space after a field access left
+  // it entirely, so the `>` landed in the THEN branch and the `20` in the ELSE -- a program that says
+  // something else, silently, from the spacing everyone writes.
+  //
+  // Found by typing a config record and branching on one of its fields in the TUI, which is ordinary
+  // code. A plain variable never had this bug: it settles through the MENU, which already lands after the
+  // node. A field access settles as TEXT and took the "space means next hole" path instead.
+  //
+  // Fixed with the same `landSettled` rule the pattern work needed: where an operator could follow, space
+  // leaves the caret on what it settled; where one could not, it moves on.
+  (Fixtures.screen (Fixtures.chars "if s.width > 20 ")) = "if s.width > 20~ then ⟨then⟩ else ⟨else⟩"
+  (Fixtures.screen (Fixtures.chars "if s.width + 1 ")) = "if s.width + 1~ then ⟨then⟩ else ⟨else⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let n = s.width + 1 n") [ "<Esc>", "<Esc>" ])) =
+    "let n = s.width + 1\nn"
+
+  // The no-space spelling, already pinned by AnOperatorAfterAFieldNameWraps, still works. Both spacings
+  // have to, because both are what people write.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "s.width+1") [ "<Esc>", "<Esc>" ])) = "s.width + 1"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "s.width + 1") [ "<Esc>", "<Esc>" ])) = "s.width + 1"
