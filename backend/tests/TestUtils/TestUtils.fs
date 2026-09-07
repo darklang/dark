@@ -77,39 +77,17 @@ let builtins
 /// — the production `defaultConfig` blocks loopback / RFC1918 to
 /// catch SSRF in untrusted handler code, but the test server is on
 /// localhost.
-// The builtin table is the same for every test that shares a package manager, and
-// building it is not cheap: nine modules, each producing a dictionary of hundreds
-// of entries, combined. `executionStateFor` runs per TEST, so a file with two
-// hundred cases built it two hundred times over.
-//
-// Keyed on the package manager by reference, which is how the callers already
-// group: `fileTests` makes one PM per test FILE and hands the same one to every
-// case in it. A weak table so a PM that goes out of scope takes its entry with it.
-let private localBuiltInsCache =
-  System.Runtime.CompilerServices.ConditionalWeakTable<PT.PackageManager, RT.Builtins>()
-
-let private cloudBuiltInsCache =
-  System.Runtime.CompilerServices.ConditionalWeakTable<PT.PackageManager, RT.Builtins>()
-
 let localBuiltIns (pm : PT.PackageManager) =
-  localBuiltInsCache.GetValue(
-    pm,
-    fun pm ->
-      let httpConfig =
-        { Builtins.Http.Client.Libs.HttpClient.looseConfig with timeoutInMs = 5000 }
-      builtins httpConfig pm
-  )
+  let httpConfig =
+    { Builtins.Http.Client.Libs.HttpClient.looseConfig with timeoutInMs = 5000 }
+  builtins httpConfig pm
 
 /// Tests that exercise the disallow-localhost / disallow-private-IP
 /// path use the production `defaultConfig` shape.
 let cloudBuiltIns (pm : PT.PackageManager) =
-  cloudBuiltInsCache.GetValue(
-    pm,
-    fun pm ->
-      let httpConfig =
-        { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
-      builtins httpConfig pm
-  )
+  let httpConfig =
+    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+  builtins httpConfig pm
 
 
 
