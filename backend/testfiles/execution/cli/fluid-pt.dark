@@ -1605,11 +1605,15 @@ module EveryDrawingIsTheProgram =
   // The question that found five bugs in five ticks, kept as a pin: draw a real function body, read the
   // drawing back, and print both. A drawing that says what the document says gives the same program.
   //
-  // It is a SAMPLE and not the whole store, because the whole store takes 584 seconds and this suite is
-  // already twenty-three minutes. Every tenth function by hash order, so it spreads across modules and
-  // does not shift when one module grows. That cannot prove the invariant holds everywhere -- the full
-  // sweep in rundir/probes/faithful-all.dark is for when a number is wanted -- but it is what stops the
-  // class coming back between sweeps.
+  // It is a SAMPLE and not the whole store, because the whole store takes 584 seconds. Every fortieth
+  // function by hash order, so it spreads across modules and does not shift when one module grows. That
+  // cannot prove the invariant holds everywhere -- the full sweep in rundir/probes/faithful-all.dark is
+  // for when a number is wanted -- but it is what stops the class coming back between sweeps.
+  //
+  // The divisor is a budget, not a guess. Every tenth was 248 seconds, on its own a third of the whole
+  // filtered suite, and the cost is two runs of the Dark PARSER per body: `survives` reads the drawing
+  // back, and it is asked twice. A sweep that eats a third of every run to re-answer a question that has
+  // been "" for five ticks is not paying for itself at that size.
   //
   // Two things are excluded, both deliberately. A body lifted out of its function is not always standalone
   // source (a recursive call prints as `ESelf`, the parameters as `earg0`), so the PRINTER's own rendering
@@ -1658,7 +1662,7 @@ module EveryDrawingIsTheProgram =
     |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
     |> Stdlib.List.filter (fun p ->
       let (i, _) = p
-      (Stdlib.Int.mod i 10) == 0)
+      (Stdlib.Int.mod i 40) == 0)
     |> Stdlib.List.map (fun p ->
       let (_i, pair) = p
       let (_n, h) = pair
@@ -1676,7 +1680,7 @@ module EveryDrawingIsTheProgram =
 
   // The guard that keeps this from passing vacuously: a sampling pin that samples nothing is green and
   // worthless, and the enumeration is the part most likely to quietly return an empty list.
-  ((Stdlib.List.length (EveryDrawingIsTheProgram.sample ())) > 400) = true
+  ((Stdlib.List.length (EveryDrawingIsTheProgram.sample ())) > 100) = true
 
   (EveryDrawingIsTheProgram.firstFailure ()) = ""
 

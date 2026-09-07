@@ -59,16 +59,20 @@ module Fuzz =
 
   // Every seed produces one of the expected tags. If any drive threw, the whole run errors instead.
   let runAll () : Bool =
-    Stdlib.List.range 1 60
+    Stdlib.List.range 1 20
     |> Stdlib.List.map (fun seed -> outcome seed)
     |> Stdlib.List.all (fun tag ->
       (tag == "ok") || (tag == "incomplete") || (tag == "empty") || (tag == "partial"))
 
 
 module Properties =
-  // 60 pseudo-random 24-key sessions, none of which crash the editor or its lowering. A 400-seed,
+  // 20 pseudo-random 24-key sessions, none of which crash the editor or its lowering. A 400-seed,
   // 40-key run over this same alphabet came back with nothing but the four expected tags, which is what
   // says the numbers here can stay small enough to keep the suite quick.
+  //
+  // 60 seeds was 130 seconds, a sixth of the filtered suite for a property that has never once failed at
+  // any size. Fuzzing wants a lot of seeds, but it does not want them on every single run: the place to
+  // spend them is a deliberate long run, not the loop that has to stay short enough to use.
   (Fuzz.runAll ()) = true
 
   // A stronger, deterministic property on real programs: for a spread of expressions, the document
