@@ -53,7 +53,11 @@ let nodePower (n: Node) : Int =
 /// parameter of the shared rule rather than baked into it.
 let argNeedsParens (n: Node) : Bool =
   let isApplication = n.kind.case == Stdlib.Option.Option.Some "EApply"
-  Darklang.LanguageTools.Precedence.argNeedsParensAt (nodePower n) isApplication false
+  // A lambda draws its own parentheses, so the argument position must not add a second pair. This flag
+  // was in the shared rule already, put there for the printer, and Fluid passed `false` because its
+  // lambda did not carry them. Now it does, and the two say the same thing for the same reason.
+  let selfParenthesises = n.kind.case == Stdlib.Option.Option.Some "ELambda"
+  Darklang.LanguageTools.Precedence.argNeedsParensAt (nodePower n) isApplication selfParenthesises
 
 let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Bool) (isRight: Bool) : Bool =
   Darklang.LanguageTools.Precedence.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight

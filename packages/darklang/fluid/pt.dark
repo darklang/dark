@@ -2011,13 +2011,22 @@ let baseSpecs () : List<Spec> =
         [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ])
     simpleExpr
       "ELambda"
+      // Parenthesised for the same reason a lambda pipe step is: a bare `fun x -> ...` runs to the end of
+      // whatever it is inside, so the drawing says something the document does not. As a record field it
+      // swallowed the `;` and the fields after it, and the drawing would not parse at all.
+      //
+      // Unconditional, which is what the printer does. Deciding per context would mean the layout knowing
+      // what it sits inside, and the reason for the parens does not vary: the body has no closing token
+      // of its own.
       [ Piece.Group
-          [ Piece.Keyword "fun"
+          [ Piece.Punct "("
+            Piece.Keyword "fun"
             Piece.Space
             Piece.Each("params", [ Piece.Space ])
             Piece.Space
             Piece.Punct "->"
-            Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ]
+            Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ])
+            Piece.Punct ")" ] ]
       (emptyLambda ())
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleExpr

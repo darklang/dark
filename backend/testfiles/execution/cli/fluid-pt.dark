@@ -114,7 +114,7 @@ module Editing =
 
   (Fixtures.run [ "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
 
-  (Fixtures.run [ "f", "u", "<Enter>", "a", "<Tab>", "1" ]) = "fun a -> 1~"
+  (Fixtures.run [ "f", "u", "<Enter>", "a", "<Tab>", "1" ]) = "(fun a -> 1~)"
 
   // An operator after an expression wraps it; more operator characters extend the operator; the first
   // other character moves on to the right-hand hole.
@@ -151,7 +151,7 @@ module Editing =
   (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "fu", "<Enter>", "acc", "<Tab>", "acc", "+", "1", "<Esc>" ]) =
     "(fun acc -> acc + 1)"
   // A pasted identifier (many graphemes at once) becomes a variable, same as typing it.
-  (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "fun acc -> ~⟨body⟩"
+  (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "(fun acc -> ~⟨body⟩)"
 
   // The palette (`:` in NAV) offers structural actions on the node under the caret. An action that leaves
   // a HOLE lands the caret in it and starts typing: it just made a blank only you can fill, and leaving
@@ -1483,3 +1483,28 @@ module ADrawingSaysWhatTheDocumentSays =
 
   // And inside a let, where the pipe now stays on one line.
   (ADrawingSaysWhatTheDocumentSays.faithful "let a = xs |> (fun q -> q) |> g\na") = true
+
+
+module ALambdaCarriesItsOwnParentheses =
+  // Running the faithfulness check over every function body in the store turned up eleven more of the
+  // same thing as the pipe step, in a place I would not have guessed: a lambda as a RECORD FIELD.
+  //
+  //     sizeRequest = fun () -> SizeRequest { minRows = n; ... };
+  //
+  // drew without parentheses, so the `;` and the fields after it fell inside the lambda body and the
+  // drawing did not parse at all. A bare `fun x -> ...` runs to the end of whatever it is inside, and it
+  // has no closing token of its own, so the parentheses belong to the lambda rather than to any one
+  // context. That is what the printer does, unconditionally.
+  (Fixtures.render "fun x -> x" 60) = "(fun x -> x)"
+  (Fixtures.render "let f = fun x -> x\nf 1" 60) = "let f = (fun x -> x)\nf 1"
+
+  // The argument position must not then add a SECOND pair. The shared precedence rule already had a flag
+  // for "this argument parenthesises itself", put there for the printer; Fluid passed `false` because its
+  // lambda did not carry them. It passes `true` now, so both sides say the same thing for one reason.
+  (Fixtures.render "Stdlib.List.map xs (fun x -> x)" 60) = "Stdlib.List.map xs (fun x -> x)"
+  (Fixtures.render "xs |> (fun a -> a) |> g" 60) = "xs |> (fun a -> a) |> g"
+
+  // Read back, all three are the program they draw.
+  (ADrawingSaysWhatTheDocumentSays.faithful "let f = fun x -> x\nf 1") = true
+  (ADrawingSaysWhatTheDocumentSays.faithful "Stdlib.List.map xs (fun x -> x)") = true
+  (ADrawingSaysWhatTheDocumentSays.faithful "xs |> (fun a -> a) |> g") = true

@@ -22,7 +22,7 @@ module KeywordsCommitOnSpace =
   (Fixtures.screen [ "l", "e", "t", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen [ "i", "f", " " ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
   (Fixtures.screen [ "m", "a", "t", "c", "h", " " ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
-  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "(fun ~⟨param⟩ -> ⟨body⟩)"
   (Fixtures.screen [ "t", "r", "u", "e", " " ]) = "true~"
 
   // A prefix commits too: `le<space>` is `let`.
@@ -70,7 +70,7 @@ module BuildConstructs =
   // The trigger chars build literals and constructs directly (adapted from classic Fluid).
   (Fixtures.screen [ "[" ]) = "[~⟨item⟩]"
   (Fixtures.screen [ "(" ]) = "(~⟨item⟩, ⟨item⟩)"
-  (Fixtures.screen [ "\\", "x" ]) = "fun x~ -> ⟨body⟩"
+  (Fixtures.screen [ "\\", "x" ]) = "(fun x~ -> ⟨body⟩)"
   (Fixtures.program [ "\\", "x", " ", "x", "+", "1", "<Esc>" ]) = "(fun x -> x + 1)"
 
 
@@ -369,7 +369,7 @@ module SpaceCommitDisambiguation =
   (Fixtures.screen [ "f", " " ]) = "f~"
   // A single-candidate keyword prefix still commits (`le` -> let), and an exact match always does.
   (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
-  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "(fun ~⟨param⟩ -> ⟨body⟩)"
 
 
 module CharLiterals =
@@ -607,9 +607,9 @@ module NumbersStayNumbers =
 module LambdaParams =
   // A lambda takes many params, and Enter or a comma adds the next one; space means "done here" and goes
   // to the body, which is what the common one-param lambda wants.
-  (Fixtures.screen [ "f", "u", "n", " ", "a", "<Enter>" ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
-  (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
-  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "fun a -> ~⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "<Enter>" ]) = "(fun a ~⟨param⟩ -> ⟨body⟩)"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "(fun a ~⟨param⟩ -> ⟨body⟩)"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "(fun a -> ~⟨body⟩)"
   (Fixtures.program [ "f", "u", "n", " ", "a", "<Enter>", "b", "<Tab>", "a", "+", "b", "<Esc>", "<Esc>" ]) = "(fun a b -> a + b)"
 
 
