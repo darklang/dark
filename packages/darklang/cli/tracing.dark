@@ -13,9 +13,8 @@ type TraceData = Darklang.Tracing.TraceData
 /// The line to print when a trace query comes back with nothing.
 ///
 /// "No traces found" reads as "nothing ran", and when recording is off that's the
-/// wrong conclusion: every query returns empty no matter what ran. There was no way
-/// to tell the two apart from in here until the tracesEnabled builtin, so this asks
-/// rather than guessing.
+/// wrong conclusion: every query returns empty no matter what ran. So ask whether
+/// recording is on rather than guess.
 let emptyStateHint () : String =
   if Darklang.Tracing.Store.enabled () then
     "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)"
@@ -313,9 +312,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Some full -> executeReplay state full
     | None -> state
 
-  // `delete` covers all four shapes: by ID, --keep N, --before <duration>,
-  // and --all. `prune` and `clear` were split out historically; folding
-  // them into one verb keeps the CLI surface tighter.
+  // `delete` covers all four shapes: by ID, --keep N, --before <duration>, and --all.
   | [ "delete", "--all" ] ->
     if confirmDestructive autoConfirm "Delete all traces?" then
       executeClear state
@@ -584,10 +581,7 @@ let executeHotspotsJson
     state
 
 
-/// Right-align a number in a field of `width` chars by prepending spaces.
-/// Stdlib.padStart returns Result; this helper unwraps with empty-Error
-/// fallback (only fails on bad padWith, which we hardcode here).
-// Formatting helpers moved to `Darklang.Tracing.Format`.
+/// Right-align a number in a field of `width` chars.
 let padNum (n: Int) (width: Int) : String =
   Darklang.Tracing.Format.padNum n width
 
@@ -936,13 +930,8 @@ let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
     |> Stdlib.String.join "\n"
 
 
-/// Render a dval as a single-line string for the trace viewer.
-/// PrettyPrinter is compact-when-short already, but values > 80 chars
-/// break across lines, which destroys our tree indentation. Strategy:
-/// pretty-print, split on newlines, trim each line, rejoin. We don't
-/// normalize comma spacing because that would corrupt commas inside
-/// string contents.
-// `compactDval` moved to `Darklang.Tracing.Format`.
+/// Single-line render of a dval for the trace viewer; strategy lives in
+/// `Tracing.Format.compactDval`.
 let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   Darklang.Tracing.Format.compactDval branchId dv
 
@@ -961,9 +950,7 @@ let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool 
     | Some thr -> call.durationMs < thr
     | None -> false
   // --filter / --exclude match case-insensitively, parallel to the
-  // SQL `LIKE` semantics used by `list --fn` / `find`. Uppercase the
-  // call name once per call; pat is uppercased at parse time would be
-  // cleaner but the perf gap on a typical 100-call trace is invisible.
+  // SQL `LIKE` semantics of `list --fn` / `find`.
   let fnNameUpper = Stdlib.String.toUppercase call.fnName
   let excluded =
     match opts.exclude with
@@ -1073,7 +1060,7 @@ let formatFnCalls
       // The empty case can happen for several reasons; help the user
       // figure out which by surfacing the most-likely cause first.
       match opts.maxDepth with
-      | Some 0 -> "  (depth limit 0 — no calls shown)"
+      | Some 0 -> "  (depth limit 0 -- no calls shown)"
       | _ -> "  (no calls match the active filters)"
     | _ -> Stdlib.String.join rendered "\n"
 
@@ -1302,7 +1289,7 @@ let help (_state: Cli.AppState) : String =
     "  delete --keep <N>             Keep the N most-recent traces, drop the rest"
     "  delete --before <duration>    Delete traces older than <duration> (s/m/h/d)"
     ""
-    "Trace IDs accept any unambiguous prefix — `view fe62`, `replay fe6219e9-4705`, etc."
+    "Trace IDs accept any unambiguous prefix -- `view fe62`, `replay fe6219e9-4705`, etc."
     ""
     "View flags (combinable):"
     "  -d, --depth <n>           Cap tree depth at <n> levels"

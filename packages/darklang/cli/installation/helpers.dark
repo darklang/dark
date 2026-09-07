@@ -2,9 +2,11 @@
 // or moved to the version namespace
 module Darklang.Cli.Installation.Helpers
 
-let cliVersion () : String =
-  let hash = Builtin.getBuildHash ()
-  "alpha-" ++ hash
+/// The git sha this binary was built from. The one reader of the builtin: `cliVersion` prints it and
+/// the sync wire stamps it, and both mean the same thing by it.
+let buildHash () : String = Builtin.getBuildHash ()
+
+let cliVersion () : String = "alpha-" ++ (buildHash ())
 
 /// The local version plus a check against the latest published release.
 ///

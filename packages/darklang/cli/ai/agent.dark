@@ -84,7 +84,7 @@ let lookupModelAlias (modelName: String) : Stdlib.Option.Option<Darklang.LLM.Mod
 
 // CONFIGURATION: PROMPTS
 val systemPrompt =
-  """You are a Darklang CLI assistant with a `cli` tool. Darklang is a live programming environment—code lives in a persistent package tree, not files.
+  """You are a Darklang CLI assistant with a `cli` tool. Darklang is a live programming environment--code lives in a persistent package tree, not files.
 
 ## Workflow
   fn <name>      - Create function (use full path: Darklang.Module.myFn)
@@ -235,10 +235,12 @@ let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent
 
 
 // AGENT SETUP
+
+/// The branch the agent's tool calls run on: the one the person is standing on. The tool spawns
+/// `dark --branch <name> ...`, so answering main here would have every agent edit land on main
+/// no matter where the person started it.
 let currentBranchName (state: Cli.AppState) : String =
-  match SCM.Branch.get state.currentBranchId with
-  | Some b -> b.name
-  | None -> "main"
+  SCM.PackageOps.branchName state.currentBranchId
 
 let createAgent (model: Darklang.LLM.Models.Model) (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
@@ -391,7 +393,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
   else
     match options.args with
-    | [] -> runInteractive state provider options.provider options.model options.writeMode; state
+    | [] ->
+      // A bare `dark agent` must not block reading a stdin that may never arrive (closed stdin =
+      // a hang, where every other command prints help or refuses). Ask the same question the
+      // workbench asks.
+      match Stdlib.Cli.Tui.TerminalSupport.current () with
+      | Unavailable reason ->
+        Stdlib.printLine (Stdlib.Cli.Tui.TerminalSupport.unavailableMessage reason)
+        Stdlib.printLine (help state)
+        state
+      | Available ->
+        runInteractive state provider options.provider options.model options.writeMode
+        state
     | "--help" :: _ | "-h" :: _ ->
       Stdlib.printLine (help state)
       state
@@ -433,7 +446,7 @@ let help (_state: Cli.AppState) : String =
       "  agent code add validation            - Prompts before each write"
       "  agent code add validation --yes      - Allow all writes"
       "  agent review Darklang.Cli.Core.execute"
-      "  agent fix Darklang.Cli.SCM.Status.render --yes" ]
+      "  agent fix Darklang.Cli.Status.execute --yes" ]
 
   let all = Stdlib.List.append (Stdlib.List.append header lines) footer
   Stdlib.String.join all "\n"

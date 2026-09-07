@@ -5,9 +5,7 @@
 /// what happened by emitting a message; it doesn't know it's in a full-screen app, or that documents exist.
 ///
 /// Keys it doesn't use come back as `Ignored`, and the text field inside it does the same. That's what lets
-/// Tab indent the node *while you're typing in it*: the field ignores Tab, so the editor sees it. The old
-/// version couldn't express that, and worked around it by having the parent peek at whether the editor was
-/// mid-edit before deciding who got the key.
+/// Tab indent the node *while you're typing in it*: the field ignores Tab, so the editor sees it.
 module Darklang.Cli.Outliner.Editor
 
 /// How deep the undo stack goes. Snapshots are cheap (the dicts share structure) but not free.
@@ -333,8 +331,7 @@ let startEditing (state: State) : State =
 
 /// Write the field's text back to the node.
 ///
-/// Escape commits too. Discarding what you typed is a surprise in an outliner, and undo is the honest way
-/// back: the old version threw the text away, and left behind whatever empty node you'd just made.
+/// Escape commits too: discarding what you typed is a surprise in an outliner, and undo is the honest way back.
 let commitEdit (state: State) (text: String) : State =
   match cursorNode state with
   | None -> { state with editing = Stdlib.Option.Option.None }
@@ -571,9 +568,9 @@ let colouredPrefix (vn: VisibleNode) : String =
 /// Every screen row one line of the outline occupies: its own, plus continuations when the text is wider
 /// than the pane.
 ///
-/// Long lines used to run off the right edge and stop existing. Wrapping is done on the plain text and the
-/// colour applied after, because a selected row has to be coloured in one piece: an inner colour code ends
-/// with a reset, which would cancel the highlight for everything after it.
+/// Wraps long lines, on the plain text, with the colour applied after: a selected row has to be
+/// coloured in one piece, and an inner colour code ends with a reset that would cancel the highlight
+/// for everything after it.
 let rowsForNode (state: State) (vn: VisibleNode) (cols: Int) : List<String> =
   let isCursor = vn.id == state.cursorId
   let prefix = prefixFor vn isCursor

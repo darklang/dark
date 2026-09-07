@@ -300,7 +300,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           currentPage = Page.MainPrompt }
 
 
-/// The most a single coalesced burst may be applied. See the fold in `runInteractiveLoop`.
+/// The most a single coalesced burst may be applied. See the fold in `applyKeyRead`.
 val maxKeyRepeat = 64
 
 module Update =
@@ -322,6 +322,181 @@ module Update =
       updateAppState state msg
 
 
+/// The completion hint for this pass, served from the state's caches when they still apply.
+/// Returns (hint, contextKey, contextItems, filterPartial, filterItems); the loop writes the
+/// last four back into the cache fields for the next pass.
+let computeCompletionHint
+  (state: AppState)
+  (location: String)
+  : (String * String * List<Completion.CompletionItem> * String * List<Completion.CompletionItem>) =
+  let tHint = if state.telemetryEnabled then Telemetry.now () else 0
+  let hintCached = state.cachedHintInput == state.prompt.text
+  // Two tiers. The exact-text tier serves repaints (a resize, a redraw with no typing). The context tier
+  // serves *typing*: "Sta" typed one key at a time is three different prompt strings but one completion
+  // context, so the DB-hitting half runs once for the word instead of once per character.
+  let contextKey = Registry.completionContextKey location state.prompt.text
+  let contextCached = state.cachedCompletionKey == contextKey
+  let contextItems =
+    if contextCached then
+      state.cachedCompletionItems
+    else
+      Registry.getCompletionsForContext state state.prompt.text
+  // The narrowing base is only meaningful within one context; a context change invalidates it.
+  let (prevPartial, prevItems) =
+    if contextCached then
+      (state.cachedFilterPartial, state.cachedFilterItems)
+    else
+      ("", [])
+  let (hint, filterPartial, filterItems) =
+    if hintCached then
+      // `prevPartial`/`prevItems`, not the raw cached fields: a context change has to invalidate the
+      // narrowing base here too, or a cache hit on the prompt text would carry the previous context's
+      // items forward. Unreachable today (changing location goes through a command, which also changes
+      // the prompt text), but it's one edit away from being live and the failure would be wrong
+      // completions rather than slow ones.
+      (state.cachedHintValue, prevPartial, prevItems)
+    else
+      Registry.getCompletionHintFromContext
+        state
+        state.prompt.text
+        contextItems
+        prevPartial
+        prevItems
+  if state.telemetryEnabled then
+    Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)), ("cached", Stdlib.Bool.toString hintCached), ("contextCached", Stdlib.Bool.toString contextCached)]
+  (hint, contextKey, contextItems, filterPartial, filterItems)
+
+
+/// Render the main prompt's inline region for this pass: build the prompt view and present it on
+/// the retained terminal, starting one on the first pass. A failure to start reports why and marks
+/// the state exiting.
+let renderMainPrompt
+  (state: AppState)
+  (location: String)
+  (hint: String)
+  (size: Stdlib.Cli.Tui.Size)
+  : AppState =
+  let tView = if state.telemetryEnabled then Telemetry.now () else 0
+  let promptView =
+    withModeHint
+      state
+      (Prompt.Display.viewAtSize state.prompt location hint size)
+  if state.telemetryEnabled then
+    Telemetry.log "render.buildView" tView
+  match state.promptTerminal with
+  | Some terminal ->
+    let tPresent = if state.telemetryEnabled then Telemetry.now () else 0
+    let nextTerminal =
+      Stdlib.Cli.Tui.TerminalSession.presentAtSize
+        terminal
+        size
+        promptView
+    if state.telemetryEnabled then
+      Telemetry.log "render.present" tPresent
+    { state with
+        promptTerminal =
+          Stdlib.Option.Option.Some nextTerminal }
+  | None ->
+    match Stdlib.Cli.Tui.TerminalSession.startAtSize size promptView with
+    | Ok terminal ->
+      { state with
+          promptTerminal =
+            Stdlib.Option.Option.Some terminal }
+    | Error message ->
+      Stdlib.printLine message
+      { state with isExiting = true }
+
+
+/// The page's name, for telemetry.
+let pageName (page: Page) : String =
+  match page with
+  | MainPrompt -> "MainPrompt"
+  | InteractiveNav _ -> "InteractiveNav"
+  | CompletionPicker _ -> "CompletionPicker"
+  | SubApp _ -> "SubApp"
+
+
+/// How many times one read's key should be applied.
+let burstTimes (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Int =
+  // Only movement repeats. A burst of Enter or Escape is coalesced too, but acting on it twenty times
+  // would turn a stray wheel-click-on-the-wrong-key into twenty actions; movement is the case where
+  // "do it N times" is unambiguously what was meant.
+  let repeatable =
+    match keyInput.key with
+    | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
+    | _ -> false
+  // Cap the burst. `repeat` is however many events the terminal had buffered, and while the reader bounds
+  // how long it drains, it doesn't bound how many it counts; a pathological producer shouldn't turn one
+  // keypress into an unbounded interpreter loop.
+  if repeatable then Stdlib.Int.min maxKeyRepeat (Stdlib.Int.max 1 keyInput.repeat) else 1
+
+
+/// Apply one read's worth of input to the state: a paste with embedded newlines runs line by
+/// line, and anything else is applied `times` times (see `burstTimes`).
+let applyKeyRead
+  (state: AppState)
+  (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead)
+  (times: Int)
+  : AppState =
+  let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+  // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
+  // another page on an arrow - and the rest of a burst must not be delivered to a page that never saw its
+  // start. `pageStack` depth changes on every push and pop, so it's the cheap signal for "we're somewhere
+  // else now"; `isExiting` covers leaving altogether.
+  let startingDepth = Stdlib.List.length state.pageStack
+  // A paste (or an agent's keystroke burst) whose text embeds newlines, landing at the classic
+  // prompt, runs each line the way typing it would. The reader coalesces `status<Enter>quit<Enter>`
+  // into ONE read whose text is "status\nquit\n"; inserting that literally types a single garbled
+  // line and submits nothing. Text after the final newline stays typed and unsubmitted, exactly as
+  // a trailing unfinished line should.
+  let promptPasteLines =
+    match state.currentPage with
+    | MainPrompt ->
+      if Stdlib.String.contains keyInput.keyChar "\n" then
+        Stdlib.Option.Option.Some(Stdlib.String.split keyInput.keyChar "\n")
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  match promptPasteLines with
+  | Some segments ->
+    let lastIdx = (Stdlib.List.length segments) - 1
+
+    segments
+    |> Stdlib.List.indexedMap (fun i seg -> (i, seg))
+    |> Stdlib.List.fold state (fun st pair ->
+      let (i, seg) = pair
+
+      if st.isExiting then
+        st
+      else
+        let typed =
+          if seg == "" then
+            st
+          else
+            Update.updateAppState
+              st
+              (Msg.KeyPressed(
+                keyInput.key,
+                keyInput.modifiers,
+                Stdlib.Option.Option.Some seg
+              ))
+
+        if i == lastIdx then
+          typed
+        else
+          handleKeyInput
+            typed
+            Stdlib.Cli.Stdin.Key.Key.Enter
+            keyInput.modifiers
+            Stdlib.Option.Option.None)
+  | None ->
+    Stdlib.List.range 1 times
+    |> Stdlib.List.fold state (fun st _i ->
+      if st.isExiting || (Stdlib.List.length st.pageStack) != startingDepth then st
+      else Update.updateAppState st keyPressedMsg)
+
+
 let runInteractiveLoop (state: AppState) : Int =
   if state.isExiting then
     // Clear any retained prompt region so the shell prompt takes its place.
@@ -338,77 +513,15 @@ let runInteractiveLoop (state: AppState) : Int =
     // Stdin.fs) with a keypress nobody handles, which sends us round again and re-samples here.
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
 
-    let tHint = if state.telemetryEnabled then Telemetry.now () else 0
-    let hintCached = state.cachedHintInput == state.prompt.text
-    // Two tiers. The exact-text tier serves repaints (a resize, a redraw with no typing). The context tier
-    // serves *typing*: "Sta" typed one key at a time is three different prompt strings but one completion
-    // context, so the DB-hitting half runs once for the word instead of once per character.
-    let contextKey = Registry.completionContextKey location state.prompt.text
-    let contextCached = state.cachedCompletionKey == contextKey
-    let contextItems =
-      if contextCached then
-        state.cachedCompletionItems
-      else
-        Registry.getCompletionsForContext state state.prompt.text
-    // The narrowing base is only meaningful within one context; a context change invalidates it.
-    let (prevPartial, prevItems) =
-      if contextCached then
-        (state.cachedFilterPartial, state.cachedFilterItems)
-      else
-        ("", [])
-    let (hint, filterPartial, filterItems) =
-      if hintCached then
-        // `prevPartial`/`prevItems`, not the raw cached fields: a context change has to invalidate the
-        // narrowing base here too, or a cache hit on the prompt text would carry the previous context's
-        // items forward. Unreachable today (changing location goes through a command, which also changes
-        // the prompt text), but it's one edit away from being live and the failure would be wrong
-        // completions rather than slow ones.
-        (state.cachedHintValue, prevPartial, prevItems)
-      else
-        Registry.getCompletionHintFromContext
-          state
-          state.prompt.text
-          contextItems
-          prevPartial
-          prevItems
-    if state.telemetryEnabled then
-      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)), ("cached", Stdlib.Bool.toString hintCached), ("contextCached", Stdlib.Bool.toString contextCached)]
+    let (hint, contextKey, contextItems, filterPartial, filterItems) =
+      computeCompletionHint state location
 
     // Display current page
     let tRender = if state.telemetryEnabled then Telemetry.now () else 0
 
     let renderedState =
       match state.currentPage with
-      | MainPrompt ->
-        let tView = if state.telemetryEnabled then Telemetry.now () else 0
-        let promptView =
-          withModeHint
-            state
-            (Prompt.Display.viewAtSize state.prompt location hint size)
-        if state.telemetryEnabled then
-          Telemetry.log "render.buildView" tView
-        match state.promptTerminal with
-        | Some terminal ->
-          let tPresent = if state.telemetryEnabled then Telemetry.now () else 0
-          let nextTerminal =
-            Stdlib.Cli.Tui.TerminalSession.presentAtSize
-              terminal
-              size
-              promptView
-          if state.telemetryEnabled then
-            Telemetry.log "render.present" tPresent
-          { state with
-              promptTerminal =
-                Stdlib.Option.Option.Some nextTerminal }
-        | None ->
-          match Stdlib.Cli.Tui.TerminalSession.startAtSize size promptView with
-          | Ok terminal ->
-            { state with
-                promptTerminal =
-                  Stdlib.Option.Option.Some terminal }
-          | Error message ->
-            Stdlib.printLine message
-            { state with isExiting = true }
+      | MainPrompt -> renderMainPrompt state location hint size
 
       | InteractiveNav _ ->
         // Navigation presents on start and state transitions so its Page
@@ -431,13 +544,7 @@ let runInteractiveLoop (state: AppState) : Int =
     else
 
       if renderedState.telemetryEnabled then
-        let pageName =
-          match renderedState.currentPage with
-          | MainPrompt -> "MainPrompt"
-          | InteractiveNav _ -> "InteractiveNav"
-          | CompletionPicker _ -> "CompletionPicker"
-          | SubApp _ -> "SubApp"
-        Telemetry.logWithContext "render" tRender [("page", pageName)]
+        Telemetry.logWithContext "render" tRender [("page", pageName renderedState.currentPage)]
         Telemetry.log "preInput" tLoopStart
 
       // Read keystroke input
@@ -448,33 +555,11 @@ let runInteractiveLoop (state: AppState) : Int =
       // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read with a
       // repeat count; applying it here means every page gets wheel-aware scrolling without knowing about it,
       // and the burst costs one loop iteration instead of one per event.
-      //
-      // Only movement repeats. A burst of Enter or Escape is coalesced too, but acting on it twenty times
-      // would turn a stray wheel-click-on-the-wrong-key into twenty actions; movement is the case where
-      // "do it N times" is unambiguously what was meant.
-      let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
-      let repeatable =
-        match keyInput.key with
-        | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
-        | _ -> false
-      // Cap the burst. `repeat` is however many events the terminal had buffered, and while the reader bounds
-      // how long it drains, it doesn't bound how many it counts; a pathological producer shouldn't turn one
-      // keypress into an unbounded interpreter loop.
-      let times =
-        if repeatable then Stdlib.Int.min maxKeyRepeat (Stdlib.Int.max 1 keyInput.repeat) else 1
-      // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
-      // another page on an arrow - and the rest of a burst must not be delivered to a page that never saw its
-      // start. `pageStack` depth changes on every push and pop, so it's the cheap signal for "we're somewhere
-      // else now"; `isExiting` covers leaving altogether.
-      let startingDepth = Stdlib.List.length renderedState.pageStack
+      let times = burstTimes keyInput
       // Sampled BEFORE the fold, which is the work being measured. Sampling after it and passing that as
       // the start instead times the preceding log call, and reports ~0 ms no matter how slow the fold is.
       let tUpdate = if renderedState.telemetryEnabled then Telemetry.now () else 0
-      let newState =
-        Stdlib.List.range 1 times
-        |> Stdlib.List.fold renderedState (fun st _i ->
-          if st.isExiting || (Stdlib.List.length st.pageStack) != startingDepth then st
-          else Update.updateAppState st keyPressedMsg)
+      let newState = applyKeyRead renderedState keyInput times
 
       if renderedState.telemetryEnabled then
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]

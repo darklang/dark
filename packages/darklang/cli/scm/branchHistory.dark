@@ -1,0 +1,201 @@
+module Darklang.Cli.Branch
+
+// `log` and `diff`: a branch's op sequence, its net effect vs its parent, and their rendering.
+// Part of the Darklang.Cli.Branch module, shared with branch.dark and branchMerge.dark.
+
+/// The module part of a dotted name, for grouping. `Stachu.Thing.foo` -> `Stachu.Thing`.
+let moduleOf (dotted: String) : String =
+  match Stdlib.List.dropLast (Stdlib.String.split dotted ".") with
+  | [] -> dotted
+  | parts -> Stdlib.String.join parts "."
+
+/// `dark branch diff <name> [--source]`
+///
+/// Grouped by module, because a branch that touched nine names in three modules is three things you did,
+/// not nine. `--source` prints each definition underneath, which a list of hashes cannot give you: seeing
+/// WHAT changed without opening another command per name.
+let executeDiff (state: AppState) (branchRef: String) (withSource: Bool) : AppState =
+  match resolveRef branchRef with
+  | None -> state
+  | Some branchId ->
+    match SCM.PackageOps.branchDiffEntries branchId with
+    | [] ->
+      if SCM.PackageOps.branchIsMerged branchId then
+        let n = Cli.Text.plural (Stdlib.List.length (SCM.PackageOps.mergedOpsOf branchId)) "op"
+        Cli.printOk $"\"{branchRef}\" is merged: its {n} are its parent's now."
+        Cli.printHint $"  `dark log {branchRef}` lists them."
+      else
+        Cli.printOk $"\"{branchRef}\" changes nothing vs its parent."
+      state
+    | entries ->
+      let n = Cli.Text.plural (Stdlib.List.length entries) "name"
+      Cli.printOk $"\"{branchRef}\" changes {n} vs its parent:"
+
+      entries
+      |> Stdlib.List.groupByWithKey (fun e -> moduleOf e.name)
+      |> Stdlib.List.iter (fun group ->
+        let (modulePath, inModule) = group
+        Stdlib.printLine ""
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText $"  {modulePath}")
+
+        inModule
+        |> Stdlib.List.iter (fun e ->
+          let mark = if e.change == "new" then "+" else "~"
+          let leaf =
+            Stdlib.Option.withDefault
+              (Stdlib.List.last (Stdlib.String.split e.name "."))
+              e.name
+          let short = SCM.Conflicts.shortHash e.hash
+
+          let was =
+            if e.change == "new" then
+              ""
+            else
+              $" (was {SCM.Conflicts.shortHash e.parentHash})"
+
+          Stdlib.printLine $"    {mark} {leaf}  [{e.kind}] {short}{was}"
+
+          if withSource then
+            Stdlib.printLine (
+              Stdlib.Cli.UI.Colors.dimText
+                (Cli.Conflicts.indentBlock
+                  (Cli.Conflicts.renderItem branchId e.kind e.hash leaf))
+            )
+          else
+            ()))
+
+      if Stdlib.Bool.not withSource then
+        Stdlib.printLine ""
+        Cli.printHint "  `dark diff <branch> --source` shows each definition."
+      else
+        ()
+
+      state
+
+/// The branch's authoring history: its frontier ops, oldest-first, pretty-printed (the op SEQUENCE,
+/// complementary to `diff`'s net effect).
+let executeLog (state: AppState) (branchRef: String) : AppState =
+  match resolveRef branchRef with
+  | None -> state
+  | Some branchId ->
+    let ops = SCM.PackageOps.branchOps branchId
+    // A merged branch's tags are gone; its merge events still say what it carried.
+    let merged =
+      if Stdlib.List.isEmpty ops then SCM.PackageOps.mergedOpsOf branchId else []
+    let n = Cli.Text.plural (Stdlib.List.length ops) "op"
+    let m = Cli.Text.plural (Stdlib.List.length merged) "op"
+
+    if Stdlib.Bool.not (Stdlib.List.isEmpty ops) then
+      Cli.printOk $"{n} on branch \"{branchRef}\" (oldest first):"
+      ops
+      |> Stdlib.List.iter (fun op ->
+        Stdlib.printLine
+          (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
+    else if Stdlib.Bool.not (Stdlib.List.isEmpty merged) then
+      Cli.printOk $"{m} merged from branch \"{branchRef}\" into its parent (oldest first):"
+      // Names resolve against the PARENT: the ops are its now, and the merged branch's own overlay is
+      // empty, so resolving against it would print every hash bare.
+      let parent = SCM.PackageOps.branchParentOf branchId
+      merged
+      |> Stdlib.List.iter (fun op ->
+        Stdlib.printLine
+          (PrettyPrinter.ProgramTypes.PackageOp.packageOp parent op))
+    else
+      Cli.printOk $"branch \"{branchRef}\" has no ops yet."
+
+    state
+
+/// `dark diff <id>`
+let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
+  // The flag is not the branch. Filtering flags out first is what lets `dark diff foo --json` and
+  // `dark diff --json foo` mean the same thing, rather than one looking for a branch named "--json".
+  let refs = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "-"))
+
+  match refs with
+  // No branch named: the draft. The commonest question -- what have I changed and not committed --
+  // gets the name every other tool gives it. `dark commit` reviews the same list, but reviewing is
+  // not what `diff` asks for.
+  | [] ->
+    let r = Cli.Commit.review state
+
+    if Stdlib.List.isEmpty r.changed then
+      Cli.printOk "clean: nothing changed since your last commit."
+      Cli.printHint "  `dark diff <branch>` compares a branch with its parent."
+      state
+    else
+      let nameWidth = Cli.Commit.widest (r.items |> Stdlib.List.map (fun i -> i.name))
+
+      Cli.printOk $"  CHANGED ({Stdlib.Int.toString (Stdlib.List.length r.changed)})"
+
+      r.items
+      |> Stdlib.List.iter (fun item ->
+        Stdlib.printLine (Cli.Commit.changedLine nameWidth item))
+
+      Cli.printHint "  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch."
+      state
+  | [ id ] ->
+    if ScmJson.wantsJson args then
+      match resolveRef id with
+      | None -> state
+      | Some branchId ->
+        Stdlib.printLine (
+          ScmJson.branchDiffJson (SCM.PackageOps.branchDiffEntries branchId)
+        )
+
+        state
+    else
+      executeDiff state id (Stdlib.List.member args "--source")
+  | _ ->
+    Cli.printErr "usage: dark diff <branch> [--source] [--json]"
+    Cli.printHint "  `dark branches` lists them."
+    state
+
+/// The branch's ops as JSON, oldest first -- the same sequence the human view prints.
+let branchOpsAsJson (branchRef: String) : Unit =
+  match resolveRef branchRef with
+  | None -> ()
+  | Some branchId ->
+    let rendered =
+      SCM.PackageOps.branchOps branchId
+      |> Stdlib.List.indexedMap (fun i op ->
+        ScmJson.BranchOpJson
+          { seq = i
+            op = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op })
+
+    Stdlib.printLine (ScmJson.branchOpsJson rendered)
+
+/// `dark log [<id>]` -- history, meaning whichever history you're standing in. On a BRANCH that's the
+/// branch's own ops, oldest first; on MAIN there is no delta, so it's the commits.
+let executeLogCmd (state: AppState) (args: List<String>) : AppState =
+  let wantsJson = ScmJson.wantsJson args
+  let refs = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "-"))
+
+  match refs with
+  | [ id ] ->
+    if wantsJson then
+      let _ = branchOpsAsJson id
+      state
+    else
+      executeLog state id
+  | [] ->
+    match SCM.PackageOps.currentBranch () with
+    | id when SCM.Branch.isMain id ->
+      if wantsJson then
+        // On main `log` IS the commit history, so it answers with exactly what `commits --json` answers.
+        Stdlib.printLine (ScmJson.commitsJson (Commits.commitRows 20L))
+        state
+      else
+        Commits.executeList state 20L false
+    // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI
+    // prints about a branch is its name. `resolveRef` turns it straight back into this id.
+    | id ->
+      let branchRef = SCM.PackageOps.branchName id
+
+      if wantsJson then
+        let _ = branchOpsAsJson branchRef
+        state
+      else
+        executeLog state branchRef
+  | _ ->
+    Cli.printErr "usage: dark log [<branch>] [--json]"
+    state

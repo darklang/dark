@@ -10,7 +10,7 @@ type Script = {
 // The `scripts_v0` store. Plain CRUD over one table, so the SQL lives here and the
 // command below only formats. The LSP's script filesystem provider calls these too.
 
-let scriptsDb () : String = Darklang.Sync.localDbPath ()
+let scriptsDb () : String = Stdlib.LocalStore.path ()
 
 let scriptFromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
   match
@@ -22,7 +22,6 @@ let scriptFromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Option.Optio
     (Script { id = id; name = name; text = text }) |> Stdlib.Option.Option.Some
   | _ -> Stdlib.Option.Option.None
 
-/// Every stored script.
 let list () : List<Script> =
   match
     Stdlib.Sqlite.query
@@ -32,7 +31,6 @@ let list () : List<Script> =
   | Ok rows -> rows |> Stdlib.List.filterMap scriptFromRow
   | Error _ -> []
 
-/// The stored script named <param name>, if there is one.
 let get (name: String) : Stdlib.Option.Option<Script> =
   match
     Stdlib.Sqlite.queryOneP
@@ -76,7 +74,6 @@ let update (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
   | Ok _ -> Stdlib.Result.Result.Ok()
   | Error e -> Stdlib.Result.Result.Error $"Failed to update script: {e}"
 
-/// Delete a stored script. Errors if there's no such script.
 let delete (name: String) : Stdlib.Result.Result<Unit, String> =
   match
     Stdlib.Sqlite.execP (scriptsDb ()) "DELETE FROM scripts_v0 WHERE name = @p0" [ name ]
@@ -147,9 +144,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
     match add name text with
-    | Ok script ->
-      let message = $"Script '{script.name}' added successfully"
-      Stdlib.printLine message
+    // `add` returns the stored Script; the name is already in scope here, so nothing is read off it.
+    // A pattern of the wrong shape (`Ok ()` against a record) is a runtime "No matching case", not a
+    // load error, so it waits for the first `scripts add`.
+    | Ok _ ->
+      Stdlib.printLine $"Script '{name}' added successfully"
       state
     | Error err ->
       Stdlib.printLine $"Error: {err}"

@@ -30,33 +30,26 @@ let takeFlagValue (args: List<String>) (flag: String) : (Stdlib.Option.Option<St
             (found, false, Stdlib.List.pushBack kept arg))
   (found, kept)
 
-/// The branch to start on, from `--branch`. `None` means no flag, so the caller keeps whatever `initState`
-/// restored from cli-config.json. An unusable name warns and falls back to main rather than failing.
+/// Strip a `--branch` that reached here, WITHOUT interpreting it.
+///
+/// `--branch` is resolved and consumed before Dark runs (`Cli.fs`: the flag, then `DARK_BRANCH`, then the
+/// stored branch, through `LibDB.BranchSelection`, which takes a name, a full id or an id prefix and
+/// refuses an ambiguous one). By the time argv reaches this fn the flag is gone, and `initState` reads the
+/// answer off the process.
+///
+/// So this only fires when something calls the Dark entry point directly -- in practice the test
+/// harness. Deliberately not acted on: resolving it here would be a second branch rule that can
+/// disagree with the F# one. A caller that wants a branch calls `switch`.
 let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
-  let (name, rest) = takeFlagValue args "branch"
-  match name with
-  | None -> (Stdlib.Option.Option.None, rest)
-  | Some "" ->
-    Stdlib.printLine "Warning: --branch requires a name, using main."
-    (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
-  | Some n ->
-    match SCM.Branch.getByName n with
-    | Some b -> (Stdlib.Option.Option.Some b.id, rest)
-    | None ->
-      Stdlib.printLine $"Warning: branch '{n}' not found, using main."
-      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+  let (_ignored, rest) = takeFlagValue args "branch"
+  (Stdlib.Option.Option.None, rest)
 
 
 let executeCliCommand (args: List<String>) : Int =
-  let (branchOverride, remainingArgs) = parseBranchFlag args
-  let baseState = initState ()
-  let initialState =
-    match branchOverride with
-    | Some b -> { baseState with currentBranchId = b }
-    | None -> baseState
+  let (_unused, remainingArgs) = parseBranchFlag args
+  let initialState = initState ()
 
   match remainingArgs with
-  // If someone runs `dark` without args, start the interactive loop
   | [] ->
     if initialState.telemetryEnabled then
       Telemetry.logSessionStart ()
@@ -67,8 +60,8 @@ let executeCliCommand (args: List<String>) : Int =
     // one hidden escape hatch back to the classic prompt (scripts / muscle memory); everything else lands in
     // the workbench.
     //
-    // No screen clear and no scroll region here any more: the prompt is an inline Tui region that keeps
-    // scrollback, and the workbench owns the alternate screen through its own terminal session.
+    // No screen clear or scroll region: the prompt is an inline Tui region that keeps scrollback,
+    // and the workbench owns the alternate screen through its own terminal session.
     let classic =
       match Stdlib.Env.get "DARK_CLASSIC" with
       | Some "1" -> true
@@ -89,4 +82,4 @@ let executeCliCommand (args: List<String>) : Int =
     // interactive loop so it actually runs, instead of exiting the instant the command returns.
     match resultState.currentPage with
     | SubApp _ -> runInteractiveLoop resultState
-    | _ -> 0
+    | _ -> resultState.exitCode

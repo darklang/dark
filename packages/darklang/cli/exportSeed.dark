@@ -2,6 +2,11 @@ module Darklang.Cli.ExportSeed
 
 let execute (state: AppState) (args: List<String>): AppState =
   match args with
+  // Explicit, because the only other argument shape is a PATH: without this arm a bare `help` is taken
+  // as one, and a typo writes a 32MB seed database to a file called `help`.
+  | [] | [ "help" ] ->
+    Stdlib.printLine (help state)
+    state
   | [outputPath] ->
     match Builtin.pmSeedExport outputPath with
     | Ok _ ->
