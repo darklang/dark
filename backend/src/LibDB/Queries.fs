@@ -81,7 +81,17 @@ let exportPageJson
           """
         |> Sql.parameters
           [ "hashes",
-            Sql.string (System.Text.Json.JsonSerializer.Serialize commitHashes) ]
+            // Built by hand, not by `JsonSerializer.Serialize`: that is reflection-based, and a
+            // published build can have reflection stripped -- which would make every pull fail
+            // here, on the one path a relay serves most. A list of hashes needs no serializer.
+            // (`PackageOpPlayback` builds its id array the same way, for the same reason.)
+            Sql.string (
+              "["
+              + (commitHashes
+                 |> List.map (fun (h : string) -> "\"" + h.Replace("\"", "") + "\"")
+                 |> String.concat ",")
+              + "]"
+            ) ]
         |> Sql.executeAsync (fun read ->
           (read.string "hash",
            read.string "message",

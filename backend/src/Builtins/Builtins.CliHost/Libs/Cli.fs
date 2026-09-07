@@ -837,8 +837,7 @@ let fns () : List<BuiltInFn> =
                             )
                           )
                       | other ->
-                        print
-                          $"Error when executing Script. Call-stack:\n{csString}\n"
+                        do! printCallStack hostState "Script" callStack
                         return resultError (ExecutionError.toDT other)
                   | Error pe ->
                     return
@@ -979,8 +978,10 @@ let fns () : List<BuiltInFn> =
                             )
                           )
                       | other ->
-                        print
-                          $"Error when executing expression. Call-stack:\n{csString}\n"
+                        // Only when there IS a stack: an expression that failed before any call
+                        // has none, and a header over nothing reads like a crash in the tool.
+                        if csString <> "" then
+                          print $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
                   | Error pe ->
                     return

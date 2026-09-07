@@ -192,7 +192,10 @@ let private typeHashTests =
         Expect.notEqual h1 h2 "different types should hash differently"
       }
 
-      test "description does not affect hash" {
+      // The doc comment IS identity. Two declarations that differ only in what they say about
+      // themselves are two items: without this, editing a doc comment produced the same hash, the
+      // op deduped away, the stored text never changed, and the CLI still said "Updated".
+      test "description affects the hash" {
         let def =
           PT.TypeDeclaration.Record(
             NEList.singleton { name = "a"; typ = PT.TBool; description = "" }
@@ -201,7 +204,7 @@ let private typeHashTests =
         let typ2 = { makeType def with description = "second" }
         let h1 = Hashing.computeTypeHash Hashing.Normal typ1
         let h2 = Hashing.computeTypeHash Hashing.Normal typ2
-        Expect.equal h1 h2 "description should not affect hash"
+        Expect.notEqual h1 h2 "a different doc comment is a different version"
       } ]
 
 

@@ -459,7 +459,16 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
            -- An ancestor's WIP stays its own: only the branch itself contributes uncommitted
            -- ops to the view; parents contribute what they committed.
            AND (ob.branch_id = @start OR p.commit_hash IS NOT NULL)
-         ORDER BY p.origin_ts, p.rowid"
+         -- `p.id`, not `p.rowid`: rowid is ARRIVAL order, which is a fact about this machine, so
+         -- two stores holding the same ops applied them in different orders whenever two stamps
+         -- tied exactly, and showed different code. An op id is a content hash, so this order is
+         -- the same everywhere.
+         --
+         -- Not yet the same tie-break as the FOLD, which compares the bound item's hash
+         -- (`Lww.isStale`): a branch and main can still disagree on an exact tie until the overlay
+         -- learns that rule. Same-stamp ties need two authorings in the same instant, so this is
+         -- the ordering half of the fix, not the whole of it.
+         ORDER BY p.origin_ts, p.id"
       // `@mainId`, never the literal 'main': `parent_id` holds main's UUID, so comparing against the
       // NAME is true of every row, and the walk then terminates only because main has no `branches`
       // row. The same drift `Branching.BranchId` exists to stop, in SQL, where no type checker reads

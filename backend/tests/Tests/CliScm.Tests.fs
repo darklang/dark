@@ -320,7 +320,10 @@ let private aMergeCommitsWhatItLands =
         let! _ = runCli state [ "discard"; "-y" ]
         let! _ = runCli state [ "switch"; "mergecommit" ]
         let! _ = runCli state [ "fn"; "Tests.MergeCommit.f"; "() : Int64 = 6006L" ]
-        // Uncommitted on the branch on purpose: the shape a pulled branch arrives in.
+        // Committed on the branch first: merge refuses uncommitted work now, so that it arrives
+        // in the parent under a message somebody wrote. What this test is about is the OTHER
+        // draft -- main's, which must survive the merge untouched.
+        let! _ = runCli state [ "commit"; "mergecommit work"; "-y" ]
         let! merged = runCli state [ "merge"; "mergecommit" ]
         Expect.stringContains merged "Merged" $"the merge went through: {merged}"
 
@@ -1990,6 +1993,9 @@ let private mergeGatesAreDecidedInDark =
           runCli
             state
             [ "fn"; "Tests.Gate.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 6L" ]
+        // Committed, so the refusal under test is the CHILDREN one and not the uncommitted-work
+        // one -- both are real, and a test that cannot tell them apart proves neither.
+        let! _ = runCli state [ "commit"; "gate work"; "-y" ]
         let! _ = runCli state [ "switch"; "gatechild" ]
         let! _ = runCli state [ "switch"; "main" ]
 
@@ -2475,9 +2481,11 @@ let private mergeCommitsWhatASiblingStillTags =
       task {
         let! _ = runCli state [ "switch"; "shared1" ]
         let! _ = runCli state [ "fn"; "Tests.SharedLand.f"; "() : Int64 = 99L" ]
+        let! _ = runCli state [ "commit"; "shared1 work"; "-y" ]
         let! _ = runCli state [ "switch"; "main" ]
         let! _ = runCli state [ "switch"; "shared2" ]
         let! _ = runCli state [ "fn"; "Tests.SharedLand.f"; "() : Int64 = 99L" ]
+        let! _ = runCli state [ "commit"; "shared2 work"; "-y" ]
         let! _ = runCli state [ "switch"; "main" ]
 
         let! merged = runCli state [ "merge"; "shared1" ]

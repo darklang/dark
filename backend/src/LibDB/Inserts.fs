@@ -252,6 +252,13 @@ let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
       $" AND id NOT IN ({quoted})"
   [ "DELETE FROM locations WHERE source <> 'resolution'"
     "DELETE FROM deprecations"
+    // Main's propagation decisions are folded from `Decision` ops like everything else, so a
+    // rewrite that re-folds the surviving ops has to clear them first. Without this, discarding a
+    // draft that held a pin dropped the op and kept the pin: `dark propagate` went on listing a
+    // decision with nothing in the log explaining it, and the next edit honoured it.
+    //
+    // Main only. A branch's rows are keyed by its own id and no main rewrite may touch them.
+    $"DELETE FROM propagation_policy WHERE branch_id = '{PT.BranchId.Main}'"
     // `effective = 1`: excludes client-pushed inert ops; see `draftDeletes`.
     $"DELETE FROM package_ops WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches){keepUnreadable}" ]
 
