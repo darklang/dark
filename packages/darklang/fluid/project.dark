@@ -43,14 +43,22 @@ let infixPowerOf (op: String) : (Int * Bool) =
 /// How tightly a node binds. The constructor name and the operator text are all the shared rule needs,
 /// so there is no per-consumer list here any more.
 let nodePower (n: Node) : Int =
-  Darklang.LanguageTools.Precedence.powerOfCase
-    (n.kind.case |> Stdlib.Option.withDefault "")
-    (Node.text n "op" |> Stdlib.Option.withDefault "+")
+  match n.kind.case with
+  // `Opaque` is the escape hatch for anything `toDoc` cannot take apart, and it holds whatever source the
+  // printer gave for it. The shared table has never heard of it, so it fell to the default, and the
+  // default is `selfDelimitingPower` -- the one answer a blob of arbitrary text must not get. Drawn as an
+  // argument it lost its parentheses: `f (g<Int> x)` became `f g<Int> x`, which reads back as three
+  // arguments to `f`.
+  //
+  // It belongs here rather than in the shared table. `Opaque` is a fact about this editor, not about
+  // Darklang, and `swallowingCases` next door is a list of language constructs.
+  | Some "Opaque" -> Darklang.LanguageTools.Precedence.swallowingPower
+  | _ ->
+    Darklang.LanguageTools.Precedence.powerOfCase
+      (n.kind.case |> Stdlib.Option.withDefault "")
+      (Node.text n "op" |> Stdlib.Option.withDefault "+")
 
-/// Does a node need parens as a function argument? Fluid's lambda draws itself BARE -- unlike the
-/// printer's, which brackets itself -- so this passes `selfParenthesises = false` and gets its parens
-/// from the rule. Same visible result, arrived at from the other side, which is exactly why that is a
-/// parameter of the shared rule rather than baked into it.
+/// Does a node need parentheses as a function argument?
 let argNeedsParens (n: Node) : Bool =
   let isApplication = n.kind.case == Stdlib.Option.Option.Some "EApply"
   // A lambda draws its own parentheses, so the argument position must not add a second pair. This flag

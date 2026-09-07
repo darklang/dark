@@ -1541,3 +1541,27 @@ module AnIfThatFitsStaysOnItsLine =
 
   // An `if` with no else is unchanged.
   (Fixtures.render "if a then 1" 60) = "if a then 1"
+
+
+module AnOpaqueNodeIsNotSelfDelimiting =
+  // `toDoc` refuses what it cannot take apart and falls back to an `Opaque` node holding whatever source
+  // the printer gave. A call with TYPE ARGUMENTS is one of those, and there are plenty in the store.
+  //
+  // Precedence had never heard of `Opaque`, so it fell to the shared table's default, and the default is
+  // "self-delimiting" -- the one answer a blob of arbitrary text must not get. As an argument it lost its
+  // parentheses and `f (g<Int> x)` drew as `f g<Int> x`, which reads back as three arguments to `f`.
+  //
+  // The power lives in Fluid rather than in the shared table: `Opaque` is a fact about this editor, not
+  // about Darklang. Setting it fixes every position at once, which is why the operand and field-target
+  // cases are pinned here too and were never separately reported.
+  (Fixtures.render "f (g<Int> x)" 60) = "f (g<Int> x)"
+  (Fixtures.render "1 + (g<Int> x)" 60) = "1 + (g<Int> x)"
+  (Fixtures.render "(g<Int> x).field" 60) = "(g<Int> x).field"
+
+  // A call without type arguments is a real EApply and was always parenthesised; it still is.
+  (Fixtures.render "f (g x)" 60) = "f (g x)"
+
+  // Read back, they are the programs they draw.
+  (ADrawingSaysWhatTheDocumentSays.faithful "f (g<Int> x)") = true
+  (ADrawingSaysWhatTheDocumentSays.faithful "1 + (g<Int> x)") = true
+  (ADrawingSaysWhatTheDocumentSays.faithful "Stdlib.printLine (Stdlib.Json.serialize<Int> rows)") = true
