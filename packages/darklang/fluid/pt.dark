@@ -102,10 +102,14 @@ let elseExpect () : Expect = Expect.ofKind (elseBranchKind ()) "else"
 let elseBranch (inner: Slot) : Node =
   Node.make (elseBranchKind ()) [ ("expr", Field.One inner) ]
 
+/// A `then` branch that is itself an `if` cannot share the line: read back flat, the `else` attaches to
+/// the inner one whatever it was written for. The printer guards the same case, and says so.
+let thenMustBreak (n: Node) : Bool = n.kind.case == Stdlib.Option.Option.Some "EIf"
+
 let elseBranchSpec () : Spec =
   Spec.simple
     (elseBranchKind ())
-    [ Piece.HardLine, Piece.Keyword "else", Piece.Nest(2, [ Piece.HardLine, Piece.Slot "expr" ]) ]
+    [ Piece.Line, Piece.Keyword "else", Piece.Nest(2, [ Piece.Line, Piece.Slot "expr" ]) ]
     (elseBranch (Slot.Empty(exprExpect "else")))
 
 let docLineSpec () : Spec =
@@ -1993,14 +1997,22 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp letBinders
     simpleExpr
       "EIf"
-      [ Piece.Keyword "if"
-        Piece.Space
-        Piece.ParenLowSlot "cond"
-        Piece.Space
-        Piece.Keyword "then"
-        Piece.Nest(2, [ Piece.HardLine, Piece.Slot "then" ])
-        // Zero or one branch, each drawing its own `else` keyword. Nothing here when there is none.
-        Piece.Each("else", []) ]
+      // Grouped: one line when it fits, vertical when it does not. It was hard-lined unconditionally, and
+      // that was written down as deliberate -- easier to edit with the branches under each other. What it
+      // could not survive is that an `if` never fitting forces the construct AROUND it to break, and the
+      // break lands where Darklang reads a newline as a statement separator. `a ++ (if c then "" else "s")`
+      // and `f (if c then 1 else 2)` both drew as something that reads back as two expressions. A drawing
+      // that is not the program costs more than a layout preference is worth, and an `if` too long to fit
+      // still goes vertical, which is when the preference was arguing for anything.
+      [ Piece.Group
+          [ Piece.Keyword "if"
+            Piece.Space
+            Piece.ParenLowSlot "cond"
+            Piece.Space
+            Piece.Keyword "then"
+            Piece.Nest(2, [ Piece.LineOrHard("then", thenMustBreak), Piece.Slot "then" ])
+            // Zero or one branch, each drawing its own `else` keyword. Nothing here when there is none.
+            Piece.Each("else", []) ] ]
       (emptyIf ())
     |> fun sp -> { sp with actions = ifActions () }
     simpleExpr

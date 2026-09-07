@@ -20,7 +20,7 @@ module KeywordsCommitOnSpace =
   // Typing a keyword and a space builds the CONSTRUCT, not a variable named after the keyword. This is the
   // fix for "why did typing `let` make a variable".
   (Fixtures.screen [ "l", "e", "t", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
-  (Fixtures.screen [ "i", "f", " " ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.screen [ "i", "f", " " ]) = "if ~⟨cond⟩ then ⟨then⟩ else ⟨else⟩"
   (Fixtures.screen [ "m", "a", "t", "c", "h", " " ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.screen [ "f", "u", "n", " " ]) = "(fun ~⟨param⟩ -> ⟨body⟩)"
   (Fixtures.screen [ "t", "r", "u", "e", " " ]) = "true~"
@@ -633,7 +633,7 @@ module SpaceLandsAfterTheValue =
   // `let total = items |> f` put the pipe in the let's BODY. Space now leaves the caret just after the
   // value it settled, and the next key says what you meant -- an operator wraps it, a name moves on.
   (Fixtures.screen [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " " ]) =
-    "if total > 0 then\n  ~⟨then⟩\nelse\n  ⟨else⟩"
+    "if total > 0 then ~⟨then⟩ else ⟨else⟩"
   (Fixtures.program [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " ", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
     "if total > 0 then 1 else 2"
   (Fixtures.program [ "l", "e", "t", " ", "n", " ", "a", " ", "+", " ", "b", " ", "n", "<Esc>", "<Esc>" ]) = "let n = a + b\nn"

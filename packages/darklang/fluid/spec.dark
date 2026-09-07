@@ -67,6 +67,12 @@ type Piece =
   /// A single child slot rendered as a field-access target: parenthesised unless it's a plain variable or
   /// another field access, matching the pretty-printer (`r.x`, `r.a.b`, but `([1]).x`, `(f x).y`).
   | FieldTargetSlot of slot: String
+  /// A break that is soft, unless the node in `slot` is one that must not be flattened onto the line.
+  ///
+  /// `if a then if b then c else d` is ambiguous written flat: read back, the `else` attaches to the
+  /// INNER if whatever it was written for. So a construct is allowed to say "this particular child has
+  /// to go on its own line", without giving up flattening everywhere else.
+  | LineOrHard of slot: String * mustBreak: (Node -> Bool)
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>

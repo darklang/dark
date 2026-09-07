@@ -216,6 +216,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     | Some s -> slot reg path (Part.InSlot slotName) (Path.child path slotName) s
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
+  | LineOrHard(slotName, mustBreak) ->
+    let hard =
+      match Node.slot n slotName with
+      | Some(Filled c) -> mustBreak c
+      | _ -> false
+
+    if hard then Layout.Doc.HardLine else Layout.Doc.Line
+
   | ParenIfSlot(slotName, needsParens) ->
     match Node.slot n slotName with
     | Some s ->

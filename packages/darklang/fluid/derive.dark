@@ -315,13 +315,15 @@ let pieceSource (p: Piece) : String =
     ++ (quoted slot) ++ ", " ++ (if isRight then "true" else "false") ++ ")"
   | ParenLowSlot slot -> "Darklang.Fluid.Piece.ParenLowSlot " ++ (quoted slot)
   | FieldTargetSlot slot -> "Darklang.Fluid.Piece.FieldTargetSlot " ++ (quoted slot)
-  // These two carry a PREDICATE, and a function has no source to print. Saying so in the output is the
-  // honest answer: the generated module will not compile until a person writes the predicate back, which
-  // is better than emitting something that looks right and means something else.
+  // These carry a PREDICATE, and a function has no source to print. Saying so in the output is the honest
+  // answer: the generated module will not compile until a person writes the predicate back, which is
+  // better than emitting something that looks right and means something else.
   | ParenIfSlot(slot, _) ->
     "(* a ParenIfSlot on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
   | ParenIfEach(slot, _, _) ->
     "(* a ParenIfEach on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
+  | LineOrHard(slot, _) ->
+    "(* a LineOrHard on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
 
 /// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
 /// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the

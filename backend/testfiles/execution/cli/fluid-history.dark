@@ -20,7 +20,7 @@ module Change =
   // ... and you build the replacement immediately.
   (Fixtures.run [ "5", "<Esc>", "c", "9" ]) = "9~"
 
-  (Fixtures.run [ "5", "<Esc>", "c", "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.run [ "5", "<Esc>", "c", "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then ⟨then⟩ else ⟨else⟩"
 
 
 module Undo =
