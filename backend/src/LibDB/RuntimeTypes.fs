@@ -30,28 +30,44 @@ module private LoadTiming =
       Telemetry.addUs $"pkg.{kind}.deserialize" (toUs t1 t2)
 
 
+/// Shared body of the three package-item `get`s: count it, run a one-row blob query by
+/// @hash inside a `LoadTiming` bracket, deserialize what came back. One query and one
+/// deserialize PER ITEM, demand-driven -- counted because the per-item cost only matters
+/// once you know the item count (see `Telemetry.count`). Per call site: the telemetry
+/// kind, the SQL (table, column, and Value's NULL guard), the column read, and the
+/// deserializer.
+let private getTimed
+  (kind : string)
+  (sql : string)
+  (column : string)
+  (deserialize : Hash -> byte[] -> 'a)
+  (hash : Hash)
+  : Ply<Option<'a>> =
+  uply {
+    Telemetry.count $"pkg.{kind}.get"
+    let (Hash hashStr) = hash
+    let on = LoadTiming.enabled ()
+    let t0 = LoadTiming.now on
+    let! bytes =
+      Sql.query sql
+      |> Sql.parameters [ "hash", Sql.string hashStr ]
+      |> Sql.executeRowOptionAsync (fun read -> read.bytes column)
+    let t1 = LoadTiming.now on
+    let result = bytes |> Option.map (deserialize hash)
+    let t2 = LoadTiming.now on
+    LoadTiming.record on kind t0 t1 t2
+    return result
+  }
+
+
 module Type =
   let get (hash : Hash) : Ply<Option<RT.PackageType.PackageType>> =
-    uply {
-      Telemetry.count "pkg.type.get"
-      let (Hash hashStr) = hash
-      let on = LoadTiming.enabled ()
-      let t0 = LoadTiming.now on
-      let! bytes =
-        Sql.query
-          """
-          SELECT rt_def
-          FROM package_types
-          WHERE hash = @hash
-          """
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
-      let t1 = LoadTiming.now on
-      let result = bytes |> Option.map (BS.RT.PackageType.deserialize hash)
-      let t2 = LoadTiming.now on
-      LoadTiming.record on "type" t0 t1 t2
-      return result
-    }
+    getTimed
+      "type"
+      "SELECT rt_def FROM package_types WHERE hash = @hash"
+      "rt_def"
+      BS.RT.PackageType.deserialize
+      hash
 
 
 module Value =
@@ -62,26 +78,12 @@ module Value =
   /// return None instead of throwing "data is NULL at ordinal 0" on the NULL blob; the caller treats a
   /// not-yet-evaluated value the same as an absent one (grow populates it before it's needed in the happy path).
   let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
-    uply {
-      Telemetry.count "pkg.value.get"
-      let (Hash hashStr) = hash
-      let on = LoadTiming.enabled ()
-      let t0 = LoadTiming.now on
-      let! bytes =
-        Sql.query
-          """
-          SELECT rt_dval
-          FROM package_values
-          WHERE hash = @hash AND rt_dval IS NOT NULL
-          """
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-      let t1 = LoadTiming.now on
-      let result = bytes |> Option.map (BS.RT.PackageValue.deserialize hash)
-      let t2 = LoadTiming.now on
-      LoadTiming.record on "value" t0 t1 t2
-      return result
-    }
+    getTimed
+      "value"
+      "SELECT rt_dval FROM package_values WHERE hash = @hash AND rt_dval IS NOT NULL"
+      "rt_dval"
+      BS.RT.PackageValue.deserialize
+      hash
 
   /// Find all value hashes that have the given ValueType (exact match)
   let findByValueType (vt : RT.ValueType) : Ply<List<Hash>> =
@@ -101,30 +103,12 @@ module Value =
 
 module Fn =
   let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
-    uply {
-      let (Hash hashStr) = hash
-      // One query and one deserialize PER FUNCTION, demand-driven. Counted because the per-item cost only
-      // matters once you know the item count -- see `Telemetry.count`.
-      Telemetry.count "pkg.fn.get"
-      // Gated: on an HPET clocksource a timestamp costs ~1.27us, so three per load is not something to
-      // pay when nobody is measuring.
-      let on = LoadTiming.enabled ()
-      let t0 = LoadTiming.now on
-      let! bytes =
-        Sql.query
-          """
-          SELECT rt_instrs
-          FROM package_functions
-          WHERE hash = @hash
-          """
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
-      let t1 = LoadTiming.now on
-      let result = bytes |> Option.map (BS.RT.PackageFn.deserialize hash)
-      let t2 = LoadTiming.now on
-      LoadTiming.record on "fn" t0 t1 t2
-      return result
-    }
+    getTimed
+      "fn"
+      "SELECT rt_instrs FROM package_functions WHERE hash = @hash"
+      "rt_instrs"
+      BS.RT.PackageFn.deserialize
+      hash
 
 
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
@@ -162,52 +146,6 @@ module Blob =
         |> Sql.executeNonQueryAsync
       return ()
     }
-
-  /// Base64-decode [b64], verify the bytes actually hash to [hash], and store under it. Returns whether it
-  /// stored. False on empty input, un-decodable base64, or a hash mismatch — the last is the integrity core
-  /// of a content-addressed store: without it a peer could serve arbitrary bytes for a legitimate hash and
-  /// poison the store (a value silently becomes different code) for every branch that references it. Total:
-  /// a hostile/garbled peer body must not throw.
-  let insertVerified (hash : string) (b64 : string) : Ply<bool> =
-    uply {
-      if b64 = "" then
-        return false
-      else
-        match
-          (try
-            Some(System.Convert.FromBase64String b64)
-           with _ ->
-             None)
-        with
-        | None -> return false
-        | Some bytes ->
-          if LibExecution.Blob.sha256Hex bytes = hash then
-            do! insert hash bytes
-            return true
-          else
-            return false
-    }
-
-  /// Of some offered content hashes, which this store LACKS — sync's fetch-on-miss (blobs don't ride the
-  /// op stream). Content-addressed, so a hash we have is identical content; only genuinely-absent ones need
-  /// fetching.
-  let missing (hashes : List<string>) : Ply<List<string>> =
-    uply {
-      let! present =
-        Sql.query "SELECT hash FROM package_blobs"
-        |> Sql.executeAsync (fun read -> read.string "hash")
-      let presentSet = Set.ofList present
-      return hashes |> List.filter (fun h -> not (Set.contains h presentSet))
-    }
-
-  /// Every content hash this store holds — the sync blob MANIFEST (sender side of fetch-on-miss).
-  let allHashes () : Ply<List<string>> =
-    uply {
-      return!
-        Sql.query "SELECT hash FROM package_blobs"
-        |> Sql.executeAsync (fun read -> read.string "hash")
-    }
-
 
   /// Walk a Dval tree and collect every `Persistent` blob hash it
   /// references. Ephemeral blobs aren't rows in `package_blobs` — they
@@ -265,10 +203,8 @@ module Blob =
   /// promote racing the delete, which the foreign-key-style orphan
   /// check prevents (content-addressed re-insert is cheap).
   ///
-  /// For a package set with N values and M blobs, cost is O(N+M)
-  /// deserialise passes plus one DELETE per orphan. Good enough for
-  /// CLI-triggered sweeps at current scale; a reverse-index table
-  /// is the natural next step when the DB grows past it.
+  /// O(N+M) deserialise passes plus one DELETE per orphan; fine for CLI-triggered
+  /// sweeps at current scale.
   let sweepOrphans () : Ply<int64> =
     uply {
       // Pull every materialised rt_dval — deserialise and collect

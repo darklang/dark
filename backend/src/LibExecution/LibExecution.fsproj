@@ -26,6 +26,7 @@
     <Compile Include="PackageRefs.fs" />
     <!-- Static effects /-->
     <Compile Include="Effects.fs" />
+    <Compile Include="UnguardedOrigins.fs" />
     <!-- Host security /-->
     <Compile Include="Host/HostSecurity.fs" />
     <!-- Host boundary /-->

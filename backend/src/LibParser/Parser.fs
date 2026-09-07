@@ -2121,7 +2121,17 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       $"'{txt state i}' is reserved but not supported by the expression grammar"
     (WT.EError(rng state i), i + 1)
   | _ ->
-    errExpected state i "an expression"
+    // `::` parses in PATTERNS only; the expression-side way to prepend is `Stdlib.List.push` (or a
+    // literal). Volunteered here because the bare "expected an expression" reads as a typo, and the
+    // recovery lookup costs an agent two calls every time.
+    if txt state i = "::" then
+      err
+        state
+        DiagnosticCode.expected
+        i
+        "'::' is a pattern; to build a list in an expression use `Stdlib.List.push` or a literal"
+    else
+      errExpected state i "an expression"
     // recovery: an explicit error-hole node; leave closing/separating/decl-start
     // tokens for the enclosing construct (so a group/list still closes and
     // the next declaration survives); skip one token otherwise
