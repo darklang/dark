@@ -1166,3 +1166,41 @@ module ARecordUpdateOffersItsFields =
   // A target with no record type offers nothing, so this is about the declaration and not about being in
   // an update.
   (ARecordUpdateOffersItsFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""
+
+
+module ChangingAnUpdateFieldOffersToo =
+  // `c` on an existing update field clears the WHOLE field to a hole, not just its name -- and that is
+  // the more common way in, because changing an update that is already there is more common than writing
+  // a new one. The offer named only `updates.name`, the field's text, so the hole got nothing and you
+  // were back to typing the field name blind.
+  //
+  // Two shapes now reach the same candidates: `updates.name` for retyping a name, `updates` for filling
+  // the hole. The candidates are whole fields either way, which is why one list serves both.
+  let keys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "{", "s", "<Tab>", "w", "<Tab>", "1", "<Esc>", "<Esc>", "h", "c" ]
+
+  let menu () : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (ARecordUpdateOffersItsFields.doc (FieldAccessOffersTheFields.sizeType ()))
+          70)
+        (ChangingAnUpdateFieldOffersToo.keys ())
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordUpdateOffersItsFields.doc (FieldAccessOffersTheFields.sizeType ()))
+      70
+      (Stdlib.List.append (ChangingAnUpdateFieldOffersToo.keys ()) extra)
+
+  (ChangingAnUpdateFieldOffersToo.menu ()) = "width, height"
+
+  // Enter takes the highlighted one, and typing narrows first.
+  (ChangingAnUpdateFieldOffersToo.run [ "<Enter>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+  (ChangingAnUpdateFieldOffersToo.run [ "h", "<Tab>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    height = ~⟨height⟩\n  }"

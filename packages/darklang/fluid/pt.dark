@@ -1651,7 +1651,11 @@ let recordUpdateOffers (scope: List<Binding>) (n: Node) : List<(List<Candidate> 
                     [ text "name" f.name
                       ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
 
-            [ (cands, [ "updates.name" ]) ]
+            // Two shapes reach the same place. `updates.name` is the field's NAME, for when there is a
+            // field there and you are retyping what it is called. `updates` is the field ITSELF, for when
+            // the slot is a hole -- which is what `c` on an existing update leaves you with, and the more
+            // common way in: you are changing an update that is already there.
+            [ (cands, [ "updates.name", "updates" ]) ]
           | _ -> [])
        | None -> [])
   | None -> []

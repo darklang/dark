@@ -2229,6 +2229,12 @@ let scopeNames (st: State) : List<String> =
 ///
 /// Kept separate from the binding walk because an offer needs the scope as it stood WHERE THE OFFERING
 /// NODE SITS -- a match's scrutinee is typed by something above the match, not by the match's own arms.
+/// Drop repeats by label, keeping the first of each and the order they came in.
+let dedupeCandidates (cs: List<Candidate>) : List<Candidate> =
+  cs
+  |> Stdlib.List.fold [] (fun acc c ->
+    if acc |> Stdlib.List.any (fun k -> k.label == c.label) then acc else Stdlib.List.append acc [ c ])
+
 let offeredCandidates (st: State) : List<Candidate> =
   // An offer names a PATH of slots, not one slot: `EMatch` offers its cases into `cases.pat`, the arm's
   // own pattern, and not into everything underneath it. Keyed on one slot, the cases of the enum being
@@ -2335,8 +2341,12 @@ let offeredCandidates (st: State) : List<Candidate> =
         |> Stdlib.List.flatten
       | None -> []
 
-    Stdlib.List.flatten [ offered, fromAbove, own ]
-  | _ -> offered
+    // Deduped by label, keeping the FIRST of each: an offer that names both the field and the field's
+    // NAME reaches a text slot by two routes -- live for the node, and pending for its text -- and should
+    // still be one entry. `uniqueBy` does not keep the order, and the order here is the order the fields
+    // were declared in, which is the one worth reading.
+    dedupeCandidates (Stdlib.List.flatten [ offered, fromAbove, own ])
+  | _ -> dedupeCandidates offered
 
 /// Variable candidates for the hole under the caret: the in-scope names matching the typed prefix,
 /// turned into nodes by the expected kind's `scopeCandidate`. Empty when the kind has no variables.
