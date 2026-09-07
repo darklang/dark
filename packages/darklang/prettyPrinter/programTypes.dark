@@ -119,7 +119,15 @@ module FQTypeName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Type.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
@@ -163,7 +171,15 @@ module FQValueName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Value.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
@@ -210,7 +226,15 @@ module FQFnName =
       : String =
       match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Function.locations ctx.branchId hash) with
       | Some l -> l.name
-      | None -> shortHash hash
+      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
+      // like. The caller already said which location it is being shown under, and that is a better answer
+      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
+      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
+      // source".
+      | None ->
+        match ctx.preferredLocation with
+        | Some l -> l.name
+        | None -> shortHash hash
 
     let fullForReference
       (ctx: Context)
@@ -524,32 +548,17 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     |> Stdlib.String.join " | "
 
 
+// How an operator is written, and how tightly it binds, are one fact and they now live together in
+// `LanguageTools.Precedence`. These stay as the names the printer and its callers already use.
+
 let binaryOperation (b: LanguageTools.ProgramTypes.BinaryOperation) : String =
-  match b with
-  // CLEANUP consider surrounding with spaces
-  | BinOpAnd -> "&&"
-  | BinOpOr -> "||"
+  LanguageTools.Precedence.binaryOperation b
 
 let infixFnName (i: LanguageTools.ProgramTypes.InfixFnName) : String =
-  match i with
-  | ArithmeticPlus -> "+"
-  | ArithmeticMinus -> "-"
-  | ArithmeticMultiply -> "*"
-  | ArithmeticDivide -> "/"
-  | ArithmeticModulo -> "%"
-  | ArithmeticPower -> "^"
-  | ComparisonGreaterThan -> ">"
-  | ComparisonGreaterThanOrEqual -> ">="
-  | ComparisonLessThan -> "<"
-  | ComparisonLessThanOrEqual -> "<="
-  | ComparisonEquals -> "=="
-  | ComparisonNotEquals -> "!="
-  | StringConcat -> "++"
+  LanguageTools.Precedence.infixFnName i
 
 let infix (i: LanguageTools.ProgramTypes.Infix) : String =
-  match i with
-  | InfixFnCall i -> infixFnName i
-  | BinOp b -> binaryOperation b
+  LanguageTools.Precedence.infix i
 
 let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
@@ -630,85 +639,43 @@ let docOfText (s: String) : Stdlib.Pretty.Doc =
   |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
 
 
-/// Binding power of an infix operator, and whether it associates right.
-///
-/// Mirrors `infixBindingPower` in `LibParser/Parser.fs`, loosest to tightest:
-///   1 `||`  2 `&&`  3 comparisons  4 `@` (right)  5 `+ - ++`  6 `* / %`  7 `^` (right)
-/// If that table moves, this has to move with it, or the printer starts emitting parens that change
-/// what the parser builds.
+// --- Precedence ---
+//
+// The table, the two named powers, and the parenthesisation rules all live in `LanguageTools.Precedence`
+// now. Precedence is a fact about the language, not about printing it, and while it lived here the
+// structural editor had to ask the PRINTER what `*` binds like. These are the Expr-shaped adapters the
+// printer's own arms call.
+
+let infixPowerOfText (op: String) : (Int * Bool) =
+  LanguageTools.Precedence.infixPowerOfText op
+
 let infixPower (i: LanguageTools.ProgramTypes.Infix) : (Int * Bool) =
-  match i with
-  | BinOp BinOpOr -> (1, false)
-  | BinOp BinOpAnd -> (2, false)
-  | InfixFnCall op ->
-    match op with
-    | ComparisonEquals
-    | ComparisonNotEquals
-    | ComparisonLessThan
-    | ComparisonGreaterThan
-    | ComparisonLessThanOrEqual
-    | ComparisonGreaterThanOrEqual -> (3, false)
-    | ArithmeticPlus
-    | ArithmeticMinus
-    | StringConcat -> (5, false)
-    | ArithmeticMultiply
-    | ArithmeticDivide
-    | ArithmeticModulo -> (6, false)
-    | ArithmeticPower -> (7, true)
+  LanguageTools.Precedence.infixPower i
 
+let operandNeedsParensAt
+  (operandPower: Int)
+  (parentPower: Int)
+  (parentIsRightAssoc: Bool)
+  (isRightOperand: Bool)
+  : Bool =
+  LanguageTools.Precedence.operandNeedsParensAt operandPower parentPower parentIsRightAssoc isRightOperand
 
-/// How tightly an expression binds, for deciding whether it needs parentheses inside a larger one.
-///
-/// 0 is for the constructs that swallow whatever follows them -- an `if`, a `match`, a lambda -- which
-/// always need wrapping when they appear inside something else. 100 is everything self-delimiting: a
-/// literal, a variable, a record, an application. Application binds tighter than any operator, so
-/// `factorial n * 2L` needs no parens around the call, which is the main thing the old printer got
-/// wrong by bracketing every operand unconditionally.
+let argNeedsParensAt (argPower: Int) (isApplication: Bool) (selfParenthesises: Bool) : Bool =
+  LanguageTools.Precedence.argNeedsParensAt argPower isApplication selfParenthesises
+
 let exprPower (e: LanguageTools.ProgramTypes.Expr) : Int =
-  match e with
-  | EInfix(_, op, _, _) ->
-    let (p, _) = infixPower op
-    p
-  | EIf(_, _, _, _) -> 0
-  | EMatch(_, _, _) -> 0
-  | ELet(_, _, _, _) -> 0
-  | ELambda(_, _, _) -> 0
-  | EPipe(_, _, _) -> 0
-  | EStatement(_, _, _) -> 0
-  | _ -> 100
+  LanguageTools.Precedence.exprPower e
 
-
-/// Whether an operand of an infix expression has to be parenthesised.
-///
-/// Looser than its parent always does. At equal power it depends on the side: `a - b - c` groups left,
-/// so a right operand of the same power needs parens to mean anything else; `2 ^ 3 ^ 2` groups right,
-/// so the left one does.
 let infixOperandNeedsParens
   (operand: LanguageTools.ProgramTypes.Expr)
   (parentPower: Int)
   (parentIsRightAssoc: Bool)
   (isRightOperand: Bool)
   : Bool =
-  let p = exprPower operand
+  LanguageTools.Precedence.infixOperandNeedsParens operand parentPower parentIsRightAssoc isRightOperand
 
-  if p < parentPower then
-    true
-  else if p == parentPower then
-    if parentIsRightAssoc then Stdlib.Bool.not isRightOperand else isRightOperand
-  else
-    false
-
-
-/// Whether an argument in an application has to be parenthesised.
-///
-/// Application is left-associative and binds tightest, so anything that isn't self-delimiting has to be
-/// wrapped or it would be read as further arguments: `f (g x)`, `f (a + b)`, `f (fun x -> x)`.
 let applyArgNeedsParens (arg: LanguageTools.ProgramTypes.Expr) : Bool =
-  match arg with
-  | EApply(_, _, _, _) -> true
-  // A lambda prints its own parentheses, so wrapping it again just gives `((fun x -> ...))`.
-  | ELambda(_, _, _) -> false
-  | _ -> (exprPower arg) < 100
+  LanguageTools.Precedence.applyArgNeedsParens arg
 
 
 /// `opening parts... closing`, on one line if it fits and one part per line if it doesn't.

@@ -1,0 +1,430 @@
+/// The document a Fluid editor edits.
+///
+/// This is not ProgramTypes. It is a generic tree that any value can be projected into: a PT expression,
+/// a record of the user's own type, a list of those. The two things it has that the program does not are
+/// holes (a slot with nothing in it yet, but a known expectation) and partials (text the user has typed
+/// over a slot that has not resolved to a node yet). An incomplete document is a tree with holes; the
+/// program it becomes has to be complete, and `toX` functions report what is still missing.
+///
+/// Nodes are addressed by `Path`, a list of steps from the root, never by id. A path is exactly as stable
+/// as the tree in front of you, which is all a caret needs; PT ids are random and machine-local, so they
+/// would buy nothing here.
+module Darklang.Fluid
+
+
+// --- Kinds ---
+
+/// Which family of thing a node is: a named package type, or a primitive.
+type TypeKey =
+  /// A fully-qualified type name, e.g. "Darklang.LanguageTools.ProgramTypes.Expr" or "Acme.Color".
+  | Named of String
+  /// "String", "Int", "Bool", "Float", "Char", "Uuid", "DateTime", "Unit".
+  | Prim of String
+
+/// The kind of a node. `case` is the enum case (or the PT constructor) when the type has cases.
+type Kind =
+  { typ: TypeKey
+    case: Stdlib.Option.Option<String> }
+
+module Kind =
+  let prim (name: String) : Kind =
+    Kind { typ = TypeKey.Prim name; case = Stdlib.Option.Option.None }
+
+  let named (name: String) : Kind =
+    Kind { typ = TypeKey.Named name; case = Stdlib.Option.Option.None }
+
+  let ofCase (name: String) (case: String) : Kind =
+    Kind { typ = TypeKey.Named name; case = Stdlib.Option.Option.Some case }
+
+  let typeName (k: Kind) : String =
+    match k.typ with
+    | Named n -> n
+    | Prim p -> p
+
+  /// "Expr.EList", "Acme.Color", "Int".
+  let toString (k: Kind) : String =
+    match k.case with
+    | Some c -> (typeName k) ++ "." ++ c
+    | None -> typeName k
+
+  let sameType (a: Kind) (b: Kind) : Bool =
+    a.typ == b.typ
+
+
+// --- Expectations ---
+
+/// What a hole will accept: a specific kind, a type, or anything, with a label to show in the blank.
+/// An `optional` hole is allowed to stay empty (an `if` without `else`); it is not counted as missing.
+type Expect =
+  { kind: Stdlib.Option.Option<Kind>
+    typ: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.TypeReference>
+    label: String
+    optional: Bool }
+
+module Expect =
+  let any (label: String) : Expect =
+    Expect
+      { kind = Stdlib.Option.Option.None
+        typ = Stdlib.Option.Option.None
+        label = label
+        optional = false }
+
+  let ofKind (k: Kind) (label: String) : Expect =
+    Expect
+      { kind = Stdlib.Option.Option.Some k
+        typ = Stdlib.Option.Option.None
+        label = label
+        optional = false }
+
+  let ofType
+    (t: Darklang.LanguageTools.ProgramTypes.TypeReference)
+    (label: String)
+    : Expect =
+    Expect
+      { kind = Stdlib.Option.Option.None
+        typ = Stdlib.Option.Option.Some t
+        label = label
+        optional = false }
+
+  let optionalOf (e: Expect) : Expect = { e with optional = true }
+
+
+// --- The tree ---
+
+/// A node: its kind, and its fields in projection order.
+type Node =
+  { kind: Kind
+    fields: List<String * Field> }
+
+/// One field of a node.
+type Field =
+  /// An editable run of text this node owns: a name, digits, a string body. One run; the caret has an
+  /// offset inside it. Never split into open-quote/body/close-quote tokens, which is what made classic
+  /// Fluid's strings a special case everywhere. A field whose name starts with `_` is hidden data (a
+  /// resolved hash behind a name): never projected, never a caret stop.
+  | Text of String
+  /// A single child slot.
+  | One of Slot
+  /// An ordered list of child slots, all expected to be `each`.
+  | Many of items: List<Slot> * each: Expect
+
+/// What is in a slot.
+type Slot =
+  | Filled of Node
+  /// A hole: nothing here yet, but we know what should be.
+  | Empty of Expect
+  /// Text typed over this slot, and the slot as it was before (a hole or a node), so backing out
+  /// restores it exactly.
+  | Partial of text: String * was: Slot
+
+module Slot =
+  let isEmpty (s: Slot) : Bool =
+    match s with
+    | Empty _ -> true
+    | _ -> false
+
+  let node (s: Slot) : Stdlib.Option.Option<Node> =
+    match s with
+    | Filled n -> Stdlib.Option.Option.Some n
+    | Partial(_, was) -> node was
+    | Empty _ -> Stdlib.Option.Option.None
+
+  /// The expectation of this slot, if it is (or was, under a partial) a hole.
+  let expect (s: Slot) : Stdlib.Option.Option<Expect> =
+    match s with
+    | Empty e -> Stdlib.Option.Option.Some e
+    | Partial(_, was) -> expect was
+    | Filled _ -> Stdlib.Option.Option.None
+
+  let isPartial (s: Slot) : Bool =
+    match s with
+    | Partial(_, _) -> true
+    | _ -> false
+
+
+// --- Paths ---
+
+/// One step down from a node: into the child in field `slot`, or into item `i` of the list in field `slot`.
+type Step =
+  | Into of String
+  | Item of String * Int
+
+/// From the root node down. `[]` is the root.
+type Path = List<Step>
+
+module Path =
+  let root () : Path = []
+
+  let child (p: Path) (slot: String) : Path =
+    Stdlib.List.append p [ Step.Into slot ]
+
+  let item (p: Path) (slot: String) (i: Int) : Path =
+    Stdlib.List.append p [ Step.Item(slot, i) ]
+
+  let parent (p: Path) : Stdlib.Option.Option<Path> =
+    match p with
+    | [] -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.Some(Stdlib.List.dropLast p)
+
+  let last (p: Path) : Stdlib.Option.Option<Step> =
+    Stdlib.List.last p
+
+  let stepToString (s: Step) : String =
+    match s with
+    | Into slot -> slot
+    | Item(slot, i) -> slot ++ "[" ++ (Stdlib.Int.toString i) ++ "]"
+
+  /// "body.cases[1].rhs"
+  let toString (p: Path) : String =
+    p |> Stdlib.List.map (fun s -> stepToString s) |> Stdlib.String.join "."
+
+  let isPrefixOf (prefix: Path) (p: Path) : Bool =
+    (Stdlib.List.length prefix) <= (Stdlib.List.length p)
+    && (Stdlib.List.take p (Stdlib.List.length prefix)) == prefix
+
+
+// --- Reading ---
+
+module Node =
+  let make (kind: Kind) (fields: List<String * Field>) : Node =
+    Node { kind = kind; fields = fields }
+
+  let field (n: Node) (name: String) : Stdlib.Option.Option<Field> =
+    n.fields
+    |> Stdlib.List.findFirst (fun f ->
+      let (fname, _) = f
+      fname == name)
+    |> Stdlib.Option.map (fun f ->
+      let (_, fld) = f
+      fld)
+
+  let text (n: Node) (name: String) : Stdlib.Option.Option<String> =
+    match field n name with
+    | Some(Text t) -> Stdlib.Option.Option.Some t
+    | _ -> Stdlib.Option.Option.None
+
+  let slot (n: Node) (name: String) : Stdlib.Option.Option<Slot> =
+    match field n name with
+    | Some(One s) -> Stdlib.Option.Option.Some s
+    | _ -> Stdlib.Option.Option.None
+
+  let items (n: Node) (name: String) : List<Slot> =
+    match field n name with
+    | Some(Many(items, _)) -> items
+    | _ -> []
+
+  let itemExpect (n: Node) (name: String) : Stdlib.Option.Option<Expect> =
+    match field n name with
+    | Some(Many(_, each)) -> Stdlib.Option.Option.Some each
+    | _ -> Stdlib.Option.Option.None
+
+  let setField (n: Node) (name: String) (fld: Field) : Node =
+    let replaced =
+      n.fields
+      |> Stdlib.List.map (fun f ->
+        let (fname, old) = f
+        if fname == name then (fname, fld) else (fname, old))
+    { n with fields = replaced }
+
+  let fieldNames (n: Node) : List<String> =
+    n.fields
+    |> Stdlib.List.map (fun f ->
+      let (fname, _) = f
+      fname)
+
+  /// The slot one step below this node, if the step is valid here.
+  let slotAt (n: Node) (step: Step) : Stdlib.Option.Option<Slot> =
+    match step with
+    | Into name -> slot n name
+    | Item(name, i) -> Stdlib.List.getAt (items n name) i
+
+  /// Replace the slot one step below this node.
+  let setSlotAt (n: Node) (step: Step) (s: Slot) : Node =
+    match step with
+    | Into name -> setField n name (Field.One s)
+    | Item(name, i) ->
+      match field n name with
+      | Some(Many(old, each)) ->
+        let updated =
+          old |> Stdlib.List.indexedMap (fun j x -> if j == i then s else x)
+        setField n name (Field.Many(updated, each))
+      | _ -> n
+
+
+/// Walk a path from a root slot.
+let slotAtPath (root: Slot) (path: Path) : Stdlib.Option.Option<Slot> =
+  match path with
+  | [] -> Stdlib.Option.Option.Some root
+  | step :: rest ->
+    match Slot.node root with
+    | Some n ->
+      match Node.slotAt n step with
+      | Some s -> slotAtPath s rest
+      | None -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
+let nodeAtPath (root: Slot) (path: Path) : Stdlib.Option.Option<Node> =
+  match slotAtPath root path with
+  | Some s -> Slot.node s
+  | None -> Stdlib.Option.Option.None
+
+/// Replace the slot at `path`, rebuilding the spine above it.
+let setSlotAtPath (root: Slot) (path: Path) (s: Slot) : Slot =
+  match path with
+  | [] -> s
+  | step :: rest ->
+    match root with
+    | Filled n ->
+      match Node.slotAt n step with
+      | Some childSlot ->
+        let newChild = setSlotAtPath childSlot rest s
+        Slot.Filled(Node.setSlotAt n step newChild)
+      | None -> root
+    | _ -> root
+
+/// Rewrite the node at `path` with `f`. No-op when there is no node there.
+let updateNodeAtPath (root: Slot) (path: Path) (f: Node -> Node) : Slot =
+  match slotAtPath root path with
+  | Some(Filled n) -> setSlotAtPath root path (Slot.Filled(f n))
+  | _ -> root
+
+
+// --- Edits ---
+
+/// The op vocabulary. Everything the editor does to the document is one of these; caret and selection
+/// changes are not edits, they are local state.
+type Edit =
+  /// Replace the text run `slot` of the node at `node`.
+  | SetText of node: Path * slot: String * text: String
+  /// Fill, clear or partial the single slot `slot` of the node at `node`.
+  | SetSlot of node: Path * slot: String * Slot
+  /// Replace item `i` of list `slot`.
+  | SetItem of node: Path * slot: String * i: Int * Slot
+  /// Insert before item `i` of list `slot` (`i` = length appends).
+  | InsertItem of node: Path * slot: String * i: Int * Slot
+  | RemoveItem of node: Path * slot: String * i: Int
+  /// Replace whatever is at `path` (the root when `path` is `[]`).
+  | Replace of path: Path * Slot
+
+module Edit =
+  let apply (root: Slot) (edit: Edit) : Slot =
+    match edit with
+    | SetText(path, slot, text) ->
+      updateNodeAtPath root path (fun n -> Node.setField n slot (Field.Text text))
+
+    | SetSlot(path, slot, s) ->
+      updateNodeAtPath root path (fun n -> Node.setField n slot (Field.One s))
+
+    | SetItem(path, slot, i, s) ->
+      updateNodeAtPath root path (fun n -> Node.setSlotAt n (Step.Item(slot, i)) s)
+
+    | InsertItem(path, slot, i, s) ->
+      updateNodeAtPath root path (fun n ->
+        match Node.field n slot with
+        | Some(Many(items, each)) ->
+          let before = Stdlib.List.take items i
+          let after = Stdlib.List.drop items i
+          Node.setField n slot (Field.Many(Stdlib.List.flatten [ before, [ s ], after ], each))
+        | _ -> n)
+
+    | RemoveItem(path, slot, i) ->
+      updateNodeAtPath root path (fun n ->
+        match Node.field n slot with
+        | Some(Many(items, each)) ->
+          let kept =
+            items
+            |> Stdlib.List.indexedMap (fun j x -> (j, x))
+            |> Stdlib.List.filter (fun jx ->
+              let (j, _) = jx
+              j != i)
+            |> Stdlib.List.map (fun jx ->
+              let (_, x) = jx
+              x)
+          Node.setField n slot (Field.Many(kept, each))
+        | _ -> n)
+
+    | Replace(path, s) -> setSlotAtPath root path s
+
+  let applyAll (root: Slot) (edits: List<Edit>) : Slot =
+    Stdlib.List.fold edits root (fun acc e -> apply acc e)
+
+
+// --- Walking ---
+
+/// Every hole in the document, in projection order, with its path. The path is to the SLOT, so the
+/// caret can be put on it.
+let holes (root: Slot) : List<Path * Expect> =
+  let walk (path: Path) (s: Slot) : List<Path * Expect> =
+    match s with
+    | Empty e -> if e.optional then [] else [ (path, e) ]
+    | Partial(_, _) -> []
+    | Filled n ->
+      n.fields
+      |> Stdlib.List.map (fun f ->
+        let (name, fld) = f
+        match fld with
+        | Text _ -> []
+        | One child -> walk (Path.child path name) child
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.indexedMap (fun i child -> walk (Path.item path name i) child)
+          |> Stdlib.List.flatten)
+      |> Stdlib.List.flatten
+  walk [] root
+
+/// Somewhere the caret should go next, in reading order.
+type Blank =
+  /// An empty slot: `â¨bodyâ©`.
+  | AtSlot of Path
+  /// A text field with nothing in it: the name of a parameter that has just been added.
+  | AtText of Path * String
+
+/// Everything unfinished, in reading order, INCLUDING empty text.
+///
+/// `holes` deliberately skips text, because "is this program complete" is a different question from
+/// "where does the caret go next". A parameter with no name is not a hole in the tree -- there is a node
+/// there, with a text field -- but it is the next thing you have to type. Landing off `holes` walked
+/// straight past it to the type.
+///
+/// Text fields whose name starts with `_` are skipped: a hash is carried opaquely and is not something
+/// anyone types.
+let blanks (root: Slot) : List<Blank> =
+  let walk (path: Path) (s: Slot) : List<Blank> =
+    match s with
+    | Empty e -> if e.optional then [] else [ Blank.AtSlot path ]
+    | Partial(_, _) -> []
+    | Filled n ->
+      n.fields
+      |> Stdlib.List.map (fun f ->
+        let (name, fld) = f
+
+        match fld with
+        | Text t ->
+          if (t == "") && (Stdlib.Bool.not (Stdlib.String.startsWith name "_")) then
+            [ Blank.AtText(path, name) ]
+          else
+            []
+        | One child -> walk (Path.child path name) child
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.indexedMap (fun i child -> walk (Path.item path name i) child)
+          |> Stdlib.List.flatten)
+      |> Stdlib.List.flatten
+
+  walk [] root
+
+/// True when nothing is missing or unresolved.
+let isComplete (root: Slot) : Bool =
+  let walk (s: Slot) : Bool =
+    match s with
+    | Empty e -> e.optional
+    | Partial(_, _) -> false
+    | Filled n ->
+      n.fields
+      |> Stdlib.List.all (fun f ->
+        let (_, fld) = f
+        match fld with
+        | Text _ -> true
+        | One child -> walk child
+        | Many(items, _) -> items |> Stdlib.List.all (fun child -> walk child))
+  walk root

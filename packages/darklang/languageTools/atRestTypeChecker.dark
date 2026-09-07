@@ -453,7 +453,7 @@ let contextToStringWith
     | None ->
       "Match is not exhaustive; values outside the listed patterns are not covered"
   | InfixOperandUnsupported operation ->
-    let symbol = PrettyPrinter.ProgramTypes.infixFnName operation
+    let symbol = Precedence.infixFnName operation
     $"Operator {symbol} does not accept this operand type"
   | RecordRequiredForConstruction -> "Record construction requires a record type"
   | RecordRequiredForFieldAccess -> "Field access requires a record"

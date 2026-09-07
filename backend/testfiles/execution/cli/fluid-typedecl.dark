@@ -1,0 +1,467 @@
+// Fluid edits type declarations too: a PackageType (record / enum / alias) is one document. Uses a
+// constructed PackageType so the test needs no store.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs (), Darklang.Fluid.PT.Fn.specs (), Darklang.Fluid.PT.TypeDecl.specs () ])
+
+  let field (nm: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField { name = nm; typ = t; description = "" }
+
+  let ef (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = t; label = Stdlib.Option.Option.None; description = "" }
+
+  let ecase (nm: String) (fs: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField>) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = nm; fields = fs; description = "" }
+
+  let mk (def: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition) : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+        declaration = Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = []; definition = def }
+        description = "" }
+
+  let show (nm: String) (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc nm pt))
+
+  let rt (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : Bool =
+    match Darklang.Fluid.PT.TypeDecl.fromDoc pt (Darklang.Fluid.PT.TypeDecl.toDoc "X" pt) with
+    | Ok((_n, p2)) -> p2.declaration == pt.declaration
+    | Error _ -> false
+
+  let colorRec () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record [ field "r" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, field "g" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ])
+
+  let shapeEnum () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum [ ecase "Circle" [ ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], ecase "Point" [] ])
+
+  let namesAlias () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TString))
+
+
+module Rendering =
+  // A record lays out one field per line (vertical bias).
+  (Fixtures.show "Color" (Fixtures.colorRec ())) = "type Color =\n  { r: Int\n    g: Int }"
+
+  // An enum lays out one case per line, fields after `of`.
+  (Fixtures.show "Shape" (Fixtures.shapeEnum ())) = "type Shape =\n  | Circle of Int\n  | Point"
+
+  // An alias is just the aliased type.
+  (Fixtures.show "Names" (Fixtures.namesAlias ())) = "type Names =\n  List<String>"
+
+
+module RoundTrips =
+  (Fixtures.rt (Fixtures.colorRec ())) = true
+  (Fixtures.rt (Fixtures.shapeEnum ())) = true
+  (Fixtures.rt (Fixtures.namesAlias ())) = true
+
+
+module Editing =
+  // Change a record field's type through the document, and the declaration reflects it.
+  let editedField () : String =
+    let root = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Color" (Fixtures.colorRec ()))
+    let newType = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Types.toDoc Darklang.LanguageTools.ProgramTypes.TypeReference.TString)
+    let path = [ Darklang.Fluid.Step.Into "def", Darklang.Fluid.Step.Item("fields", 1) ]
+    let edited = Darklang.Fluid.Edit.apply root (Darklang.Fluid.Edit.SetSlot(path, "type", newType))
+    match edited with
+    | Filled n ->
+      match Darklang.Fluid.PT.TypeDecl.fromDoc (Fixtures.colorRec ()) n with
+      | Ok((_nm, p2)) -> Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Color" p2))
+      | Error e -> "ERR " ++ e
+    | _ -> "no"
+
+  (Fixtures.colorRec () |> fun _ -> Editing.editedField ()) = "type Color =\n  { r: Int\n    g: String }"
+
+  // A definition hole offers record / enum / alias.
+  let defHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.TypeDecl.Def") "definition")
+
+  (Darklang.Fluid.Test.run (Fixtures.reg ()) (Editing.defHole ()) 60 [ "e", "n", "u", "m", "<Enter>" ]) = "| ~⟨case⟩"
+
+
+module MatchesThePrinter =
+  // Checked against the pretty-printer on real package types, which is where all three of these came from.
+  let mkP (params: List<String>) (def: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition) : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+        declaration =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration { typeParams = params; definition = def }
+        description = "" }
+
+  // A declaration's own type params carry their quote: the printer writes `type Option<'v>` and Fluid drew
+  // `type Option<v>`. (The CASES were already right -- those are TypeReferences.)
+  (Fixtures.show "Option"
+    (MatchesThePrinter.mkP
+      [ "v" ]
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase "Some" [ Fixtures.ef (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "v") ]
+          Fixtures.ecase "None" [] ]))) = "type Option<'v> =\n  | Some of 'v\n  | None"
+
+  // An enum case's field list breaks the way the printer breaks it: `of` with no trailing space, one
+  // field per line, and no line holding nothing but indentation. It used to keep every field on one long
+  // line and leave both kinds of trailing whitespace behind.
+  let deep () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+          Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+            Darklang.LanguageTools.ProgramTypes.TypeReference.TString,
+            Darklang.LanguageTools.ProgramTypes.TypeReference.TString))))
+
+  let longCase () : String =
+    Fixtures.show "Big"
+      (MatchesThePrinter.mkP
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+          [ Fixtures.ecase
+              "Pair"
+              [ Fixtures.ef (MatchesThePrinter.deep ()), Fixtures.ef (MatchesThePrinter.deep ()) ] ]))
+
+  (MatchesThePrinter.longCase ()) =
+    "type Big =\n  | Pair of\n    List<List<List<Dict<String, String>>>> *\n    List<List<List<Dict<String, String>>>>"
+
+  // Said again as properties, because the two things that were wrong are both invisible in a diff:
+  // a trailing space anywhere, and a line that is only indentation.
+  (Stdlib.String.contains (MatchesThePrinter.longCase ()) " \n") = false
+  ((MatchesThePrinter.longCase ())
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.all (fun l -> (Stdlib.String.trim l) != "")) = true
+
+
+module EnumFieldLabelsSurvive =
+  // `| TDict of key: X * value: Y` -- the labels are part of the declaration, and they used to be dropped
+  // on the way INTO the document and rebuilt as None on the way out. saveType prints what fromDoc returns
+  // and applies it as source, so saving a labelled type through Fluid erased its labels. Checked here the
+  // way it was proved: render, and then the save round-trip.
+  let efl (label: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = t; label = Stdlib.Option.Option.Some label; description = "" }
+
+  let dictish () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    MatchesThePrinter.mkP
+      []
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase
+            "TDict"
+            [ EnumFieldLabelsSurvive.efl "key" Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+              EnumFieldLabelsSurvive.efl "value" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+          Fixtures.ecase "TUnit" []
+          Fixtures.ecase "TList" [ Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TString ] ])
+
+  // Labelled fields show their label; an unlabelled one shows no stray colon; a nullary case shows no `of`.
+  (Fixtures.show "T" (EnumFieldLabelsSurvive.dictish ())) =
+    "type T =\n  | TDict of key: String * value: Int\n  | TUnit\n  | TList of String"
+
+  // The round-trip keeps them, which is what the save path depends on.
+  (Fixtures.rt (EnumFieldLabelsSurvive.dictish ())) = true
+
+  ((match Darklang.Fluid.PT.TypeDecl.fromDoc
+            (EnumFieldLabelsSurvive.dictish ())
+            (Darklang.Fluid.PT.TypeDecl.toDoc "T" (EnumFieldLabelsSurvive.dictish ())) with
+    | Ok(pair) ->
+      let (_n, updated) = pair
+      (match updated.declaration.definition with
+       | Enum cases ->
+         cases
+         |> Stdlib.List.map (fun c -> c.fields |> Stdlib.List.map (fun f -> f.label |> Stdlib.Option.withDefault "-"))
+         |> Stdlib.List.flatten
+         |> Stdlib.String.join ","
+       | _ -> "not an enum")
+    | Error e -> "ERR " ++ e)) = "key,value,-"
+
+
+module SaveFidelity =
+  // The same property for TYPES, against real package types. This is the regression guard for the
+  // enum-field labels: `| TDict of key: X * value: Y` used to come back as `| TDict of X * Y`, and
+  // saveType would have written that to the store.
+  let stripDocs (s: String) : String =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+    |> Stdlib.String.join "\n"
+
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Type.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      | None -> "missing"
+      | Some pt ->
+        let ctx = Darklang.Fluid.PT.printerContext ()
+        let printed = SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageType ctx pt)
+        (match Darklang.Fluid.PT.TypeDecl.fromDoc pt (Darklang.Fluid.PT.TypeDecl.toDoc loc.name pt) with
+         | Error _ -> "refuses"
+         | Ok(pair) ->
+           let (_n, updated) = pair
+           if (SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageType ctx updated)) == printed then "same"
+           else "LOSES SOMETHING")
+
+  // TypeReference is the one that caught it: it has labelled fields (`key:`, `value:`, `typeArgs:`).
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.TypeReference") = "same"
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.Expr") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.Option") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.Result") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Cli.Tui.Size") = "same"
+  (SaveFidelity.verdict "Darklang.LanguageTools.ProgramTypes.NameResolution") = "same"
+
+
+module FieldsFitWhenTheyFit =
+  // An enum case's fields get their OWN group inside the case's, exactly as the printer nests them: the
+  // outer decides whether the case fits after its `of`, and the inner then decides, at the new indent,
+  // whether the fields fit on one line. Sharing one group broke them together, so
+  // `| EFloat of ID * Sign * String * String` -- which fits perfectly well once indented -- came out one
+  // field per line.
+  let show (fields: List<Darklang.LanguageTools.ProgramTypes.TypeReference>) : String =
+    Fixtures.show "T"
+      (MatchesThePrinter.mkP
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+          [ Fixtures.ecase "Case" (fields |> Stdlib.List.map (fun t -> Fixtures.ef t)) ]))
+
+  // Short enough after the break: the head breaks, the fields stay together.
+  (FieldsFitWhenTheyFit.show
+    [ Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]) = "type T =\n  | Case of String * Int * Bool"
+
+  // Still one per line when they genuinely do not fit.
+  (Stdlib.String.contains
+    (FieldsFitWhenTheyFit.show [ MatchesThePrinter.deep (), MatchesThePrinter.deep () ]) " *\n") = true
+
+
+module ContainersCanBreak =
+  // `List<...>`, `Stream<...>`, `DB<...>`, `Dict<..., ...>` and an arrow chain were each written with hard
+  // brackets and hard spaces, so nothing inside them could break: a long element type ran off the end of
+  // the line instead of onto its own, and `List<(A * B)>` inside an enum case overflowed the width where
+  // the printer breaks it. The generic `TCustomType` had been fixed long before -- these four containers
+  // and TFn were spelled separately and kept the old shape.
+  //
+  // Asserted against the printer rather than as literal text: the point is that the two agree, and the
+  // exact break positions are the printer's business.
+  // Compared from the second line down: a fixture's hash is made up, so the printer heads it
+  // `type <hash:beef> =` where Fluid writes the name it was opened with. The BODY is what is under test.
+  let body (s: String) : String =
+    SaveFidelity.stripDocs s |> Stdlib.String.split "\n" |> Stdlib.List.drop 1 |> Stdlib.String.join "\n"
+
+  let vsPrinter (nm: String) (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : String =
+    let printed =
+      ContainersCanBreak.body
+        (Darklang.PrettyPrinter.ProgramTypes.packageType (Darklang.Fluid.PT.printerContext ()) pt)
+    let drawn =
+      ContainersCanBreak.body
+        (Darklang.Fluid.Debug.render (Fixtures.reg ()) 80
+          (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc nm pt)))
+    if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  // A tuple inside a list, far too wide for the line: the list brackets go onto their own lines and the
+  // tuple breaks after its star, one column in under the opening paren.
+  let listOfPairs () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TList(
+          Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
+            MatchesThePrinter.deep (),
+            MatchesThePrinter.deep (),
+            []))))
+
+  (ContainersCanBreak.vsPrinter "Pairs" (ContainersCanBreak.listOfPairs ())) = "same"
+
+  // A dictionary whose two type arguments do not fit together.
+  let wideDict () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+          MatchesThePrinter.deep (),
+          MatchesThePrinter.deep ())))
+
+  (ContainersCanBreak.vsPrinter "Wide" (ContainersCanBreak.wideDict ())) = "same"
+
+  // An arrow chain breaks after each arrow, all of them together.
+  let longFn () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+        [ Fixtures.field
+            "run"
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ MatchesThePrinter.deep (), MatchesThePrinter.deep (), MatchesThePrinter.deep () ],
+              MatchesThePrinter.deep ())) ])
+
+  (ContainersCanBreak.vsPrinter "Handler" (ContainersCanBreak.longFn ())) = "same"
+
+  // Short ones stay on one line, which is the half of this that a break-everything fix would lose.
+  (Fixtures.show "Names" (Fixtures.namesAlias ())) = "type Names =\n  List<String>"
+
+  // And the same thing said against real package types, which is where all of these came from: a record
+  // of callbacks, a generic component, and the big Expr enum with its `List<(Expr * Expr)>` case.
+  let real (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      | None -> "missing"
+      | Some pt -> ContainersCanBreak.vsPrinter loc.name pt
+
+  (ContainersCanBreak.real "Darklang.Cli.SubApp") = "same"
+  (ContainersCanBreak.real "Darklang.Cli.Component.Component") = "same"
+  (ContainersCanBreak.real "Darklang.Cli.Registry.CommandHandler") = "same"
+  (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.Expr") = "same"
+  (ContainersCanBreak.real "Darklang.LanguageTools.ProgramTypes.MatchPattern") = "same"
+
+
+module BarAddsACase =
+  // The same rule as `|` in a match, one level out, and the reason it needed generalising: at the end of an
+  // enum case's last FIELD, the nearest enclosing list is that case's fields -- drawn with
+  // `EachWrapped(" of", ...)`, which leads its items with nothing -- while the list that draws a `|` is the
+  // enum's CASES, one further out. Looking only at the nearest list meant `|` there went in as a literal
+  // character: `| Circle of Int|`. The enclosing lists are tried from the inside out now.
+  let caseFieldType () : Darklang.Fluid.Path =
+    [ Darklang.Fluid.Step.Into "def"
+      Darklang.Fluid.Step.Item("cases", 0)
+      Darklang.Fluid.Step.Item("fields", 0)
+      Darklang.Fluid.Step.Into "type" ]
+
+  /// The caret sitting just after `Int` in `| Circle of Int`.
+  let atEndOfFirstCase () : Darklang.Fluid.Editor.State =
+    let st =
+      Darklang.Fluid.Editor.init
+        (Fixtures.reg ())
+        (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Shape" (Fixtures.shapeEnum ())))
+        60
+    { st with caret = Darklang.Fluid.Caret.afterNode (BarAddsACase.caseFieldType ()) }
+
+  let shown (st: Darklang.Fluid.Editor.State) : String =
+    Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 st.root
+
+  // `|` adds a CASE, after the one the caret is in.
+  (BarAddsACase.shown (Darklang.Fluid.Editor.typeOne (BarAddsACase.atEndOfFirstCase ()) "|")) =
+    "type Shape =\n  | Circle of Int\n  | name\n  | Point"
+
+  // Enter is unchanged and still means the NEAREST list, which from inside a case is its fields. The two
+  // keys doing different things here is the point: `|` is what you write between cases, `*` between fields.
+  ((match Darklang.Fluid.Editor.addSibling (BarAddsACase.atEndOfFirstCase ()) with
+    | Some s -> BarAddsACase.shown s
+    | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
+
+
+module NamesReadFromWhereYouStand =
+  // Editing `ProgramTypes.Expr` drew `| EUnit of Darklang.LanguageTools.ID`, which is not how the source
+  // says it and not how the printer prints it when it is standing in that module: `| EUnit of ID`. The
+  // prefix you would already have said out loud is noise, and on this type it was enough noise to break
+  // lines that fit.
+  //
+  // The registry carries the module the document lives in, and every editor target already knows its own
+  // location, so there is nothing to look up. The document still STORES the full name -- that is the
+  // identity -- and the shortening happens on the way to the screen.
+  let reg (path: List<String>) : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.inModule (Darklang.Fluid.App.defaultRegistry ()) path
+
+  let drawn (path: List<String>) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)" with
+    | Ok e -> Darklang.Fluid.Debug.render (NamesReadFromWhereYouStand.reg path) 90 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  // From nowhere in particular, the whole path.
+  (NamesReadFromWhereYouStand.drawn []) = "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)"
+
+  // Standing in the module it lives in, just the type and the case.
+  (NamesReadFromWhereYouStand.drawn [ "Darklang", "LanguageTools", "ProgramTypes" ]) = "Expr.EUnit(1L)"
+
+  // And one level out, one segment more. The prefix you would already have said is what gets dropped,
+  // which is the printer's rule and not a second one written here.
+  (NamesReadFromWhereYouStand.drawn [ "Darklang", "LanguageTools" ]) = "ProgramTypes.Expr.EUnit(1L)"
+
+  // The helper agrees with the printer's own shortener, which is the whole point of not writing a second
+  // one: same answers from both sides.
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools", "ProgramTypes" ] "Darklang.LanguageTools.ID") = "ID"
+  (Darklang.Fluid.PT.displayNameIn [] "Darklang.LanguageTools.ID") = "Darklang.LanguageTools.ID"
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools" ] "Darklang.LanguageTools.ID") = "ID"
+
+  // And a bare name is still left alone, whatever module you are standing in.
+  (Darklang.Fluid.PT.displayNameIn [ "Darklang", "LanguageTools" ] "Colour") = "Colour"
+
+  // A type declaration seen from inside its own module: the thing this is for.
+  let exprType () : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.LanguageTools.ProgramTypes.Expr"
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      (match Darklang.LanguageTools.PackageManager.Type.get h with
+       | Some t ->
+         Darklang.Fluid.Debug.render
+           (NamesReadFromWhereYouStand.reg [ "Darklang", "LanguageTools", "ProgramTypes" ])
+           90
+           (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Expr" t))
+         |> Stdlib.String.split "\n"
+         |> Stdlib.List.take 4
+         |> Stdlib.String.join "\n"
+       | None -> "no type")
+    | None -> "not found"
+
+  (NamesReadFromWhereYouStand.exprType ()) =
+    "/// Expressions - the main part of the language.\ntype Expr =\n  | EUnit of ID\n  | EBool of ID * Bool"
+
+
+module MakingATypeIsEditingOne =
+  // The same door for a type: `dark type <name>` with no definition opens this shell, and saving creates
+  // it. The definition hole offers record / enum / alias.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let blankDoc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.emptyDocFor "Colour")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (MakingATypeIsEditingOne.reg ()) (MakingATypeIsEditingOne.blankDoc ()) 70 keys
+
+  (MakingATypeIsEditingOne.run []) = "~type Colour =\n  ⟨definition⟩"
+
+  (MakingATypeIsEditingOne.run [ "<Tab>", "e", "n", "u", "m", "<Enter>", "R", "e", "d", "<Enter>", "G", "r", "e", "e", "n", "<Esc>" ]) =
+    "type Colour =\n  | Red\n  | ~Green"
+
+  // A case and a field are NAMES: no menu lists them, so the spec has to say what typed text means here.
+  // Without that they sat as partials that draw like the real thing and refuse to lower.
+  //
+  // And Enter SETTLES the item before starting the next one. It used to add the sibling first, so every
+  // case but the last stayed a partial and `| Red | Green | Blue` would not save.
+  let lowered (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (MakingATypeIsEditingOne.reg ()) (MakingATypeIsEditingOne.blankDoc ()) 70) keys
+    match st.root with
+    | Filled node ->
+      (match Darklang.Fluid.PT.TypeDecl.fromDoc (Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit))) node with
+       | Ok((_, pt)) ->
+         Fixtures.show "X" pt
+       | Error e -> "ERR " ++ e)
+    | _ -> "not a node"
+
+  (MakingATypeIsEditingOne.lowered
+    [ "<Tab>", "e", "n", "u", "m", "<Enter>", "R", "e", "d", "<Enter>", "G", "r", "e", "e", "n", "<Esc>" ]) =
+    "type X =\n  | Red\n  | Green"
+
+  (MakingATypeIsEditingOne.lowered
+    [ "<Tab>", "r", "e", "c", "o", "r", "d", "<Enter>", "n", "a", "m", "e", "<Tab>", "S", "t", "r", "i", "n", "g", "<Esc>" ]) =
+    "type X =\n  { name: String }"
+
+
+module EndWorksOnADocComment =
+  // `End` on a doc comment did nothing, so typing after it went in at the FRONT:
+  // `///  Now with depth.Current terminal viewport dimensions.`
+  //
+  // `caretForCell` treated a DIM cell as a placeholder whose end is not a place to be. That was true when
+  // an empty text slot drew its own name dimmed; those are drawn as HOLES now, and the only remaining dim
+  // tagged text is a doc comment -- which is real text you are editing.
+  let ty () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))
+    |> fun t -> { t with description = "Some words here." }
+
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "T" (EndWorksOnADocComment.ty ())))
+      70
+      keys
+
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "i", "<End>", "Z" ]) = "/// Some words here.Z~\ntype T =\n  Int"
+
+  // `i` still starts at the front, which is what it has always done and what Home relies on.
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "i", "Z" ]) = "/// Z~Some words here.\ntype T =\n  Int"
+
+  // And it lands at the end of ordinary text elsewhere on the line, which it always did.
+  (EndWorksOnADocComment.run [ "<Esc>", "j", "j", "i", "<End>" ]) = "/// Some words here.\ntype T =\n  Int~"

@@ -1,0 +1,78 @@
+/// How the editor is coloured. The kernel and the layout stay monochrome -- they deal in style *names*
+/// (`Layout.Style`) and structural glyphs. A theme is the single place that turns a style name into an
+/// SGR string, plus the few chrome colours (breadcrumb, hint, selection). That makes colour a swappable
+/// value: a different `Theme` repaints the whole editor with no other change, and `mono` degrades it to
+/// weight-and-reverse only for NO_COLOR / dumb terminals.
+module Darklang.Fluid.Theme
+
+type Theme =
+  { plain: String
+    keyword: String
+    punct: String
+    literal: String
+    name: String
+    label: String
+    hole: String
+    partial: String
+    dim: String
+    error: String
+    /// The NAV-selected node. Reverse video reads on monochrome and e-ink, which is why it's the default.
+    selection: String
+    breadcrumb: String
+    hint: String
+    /// Popover / palette background and the highlighted row.
+    menu: String
+    menuSelected: String }
+
+/// The default palette: keywords magenta, type/case names blue, literals green, punctuation and holes
+/// dim/cyan. Colour is used sparingly so it means something (per the TUI principles).
+let default () : Theme =
+  Theme
+    { plain = ""
+      keyword = Stdlib.Cli.UI.Colors.keywordColor
+      punct = Stdlib.Cli.UI.Colors.brightBlack
+      literal = Stdlib.Cli.UI.Colors.green
+      name = ""
+      label = Stdlib.Cli.UI.Colors.blue ++ Stdlib.Cli.UI.Colors.bold
+      hole = Stdlib.Cli.UI.Colors.cyan
+      partial = Stdlib.Cli.UI.Colors.yellow
+      dim = Stdlib.Cli.UI.Colors.dim
+      error = Stdlib.Cli.UI.Colors.red
+      selection = Stdlib.Cli.UI.Colors.reverse
+      breadcrumb = Stdlib.Cli.UI.Colors.dim
+      hint = Stdlib.Cli.UI.Colors.cyan
+      menu = Stdlib.Cli.UI.Colors.grayBg
+      menuSelected = Stdlib.Cli.UI.Colors.reverse }
+
+/// No colour: everything plain, structure carried by weight and reverse only. For NO_COLOR, TERM=dumb,
+/// and e-ink where hue is noise.
+let mono () : Theme =
+  Theme
+    { plain = ""
+      keyword = Stdlib.Cli.UI.Colors.bold
+      punct = Stdlib.Cli.UI.Colors.dim
+      literal = ""
+      name = ""
+      label = Stdlib.Cli.UI.Colors.bold
+      hole = Stdlib.Cli.UI.Colors.dim
+      partial = Stdlib.Cli.UI.Colors.underline
+      dim = Stdlib.Cli.UI.Colors.dim
+      error = Stdlib.Cli.UI.Colors.reverse
+      selection = Stdlib.Cli.UI.Colors.reverse
+      breadcrumb = Stdlib.Cli.UI.Colors.dim
+      hint = Stdlib.Cli.UI.Colors.dim
+      menu = Stdlib.Cli.UI.Colors.reverse
+      menuSelected = Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.reverse }
+
+/// The SGR for a layout style under a theme.
+let styleColor (theme: Theme) (style: Layout.Style) : String =
+  match style with
+  | Plain -> theme.plain
+  | Keyword -> theme.keyword
+  | Punct -> theme.punct
+  | Literal -> theme.literal
+  | Name -> theme.name
+  | Hole -> theme.hole
+  | Partial -> theme.partial
+  | Dim -> theme.dim
+  | Error -> theme.error

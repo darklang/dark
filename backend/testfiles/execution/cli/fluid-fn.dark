@@ -1,0 +1,454 @@
+// The function shell: a whole PackageFn edits as one document -- name, typed params, return type, body.
+// A constructed PackageFn is used so the test needs no package store.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs ()
+          Darklang.Fluid.PT.specs ()
+          Darklang.Fluid.PT.Types.specs ()
+          Darklang.Fluid.PT.Fn.specs ()
+          // A function's type params are TypeDecl's TypeParam node, so its specs belong here too.
+          Darklang.Fluid.PT.TypeDecl.specs () ])
+
+  let param (name: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = name; typ = t; description = "" }
+
+  // let inc (n: Int) : Int = n + 1   -- body references the param as EArg 0
+  let inc () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "deadbeef"
+        body =
+          Darklang.LanguageTools.ProgramTypes.Expr.EInfix(
+            1L,
+            Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus,
+            Darklang.LanguageTools.ProgramTypes.Expr.EArg(2L, 0),
+            Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 1))
+        typeParams = []
+        parameters = [ param "n" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        description = "" }
+
+  let doc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "inc" (inc ()))
+
+  let render () : String = Darklang.Fluid.Debug.render (reg ()) 70 (doc ())
+
+
+module Rendering =
+  // The whole signature is on screen, and the param reference in the body reads as its name, not earg0.
+  (Fixtures.render ()) = "let inc (n: Int): Int =\n  n + 1"
+
+
+module RoundTrip =
+  // Lowering the document back gives a PackageFn with the same shape; the body keeps the param name (the
+  // parser re-lowers it to EArg on save).
+  let shape () : (String * Int) =
+    match Fixtures.doc () with
+    | Filled n ->
+      match Darklang.Fluid.PT.Fn.fromDoc (Fixtures.inc ()) n with
+      | Ok((name, fn)) -> (name, Stdlib.List.length fn.parameters)
+      | Error _ -> ("err", -1)
+    | _ -> ("not-a-node", -1)
+
+  (Fixtures.doc () |> fun _ -> RoundTrip.shape ()) = ("inc", 1)
+
+
+module Editing =
+  // Start from an empty function hole and build a signature: params complete their types, the return type
+  // completes, the body edits.
+  let fnHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.Fn.Function") "fn")
+
+  // A param node's type slot completes like any type hole.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.paramToDoc (Fixtures.param "x" Darklang.LanguageTools.ProgramTypes.TypeReference.TString)))) =
+    "(x: String)"
+
+
+module SaveFidelity =
+  // The save path is: fromDoc, print with the pretty-printer, apply that SOURCE. So anything fromDoc
+  // fails to rebuild is silently rewritten out of the store -- that is exactly how the enum-field labels
+  // were lost. This checks the whole path against REAL package functions, as a property rather than a
+  // fixed string, so it stays honest as the stdlib changes: printing what fromDoc returns must equal
+  // printing the original.
+  let stripDocs (s: String) : String =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+    |> Stdlib.String.join "\n"
+
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        let ctx = Darklang.Fluid.PT.printerContext ()
+        let printed = SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+        (match Darklang.Fluid.PT.Fn.fromDoc fn (Darklang.Fluid.PT.Fn.toDoc loc.name fn) with
+         | Error _ -> "refuses"
+         | Ok(pair) ->
+           let (_n, updated) = pair
+           if (SaveFidelity.stripDocs (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx updated)) == printed then "same"
+           else "LOSES SOMETHING")
+
+  // Generic signatures, higher-order params and multi-arm bodies all survive the trip.
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.map") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.map") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.andThen") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Option.withDefault") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Result.map2") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.List.head") = "same"
+
+  // A body that calls a builtin used to REFUSE, and refusing was the right answer while the name could
+  // not be rebuilt -- better "not saved" than a function quietly rewritten without its body. The name can
+  // be rebuilt now, so these come back whole, and the pin says the new truth rather than being deleted.
+  (SaveFidelity.verdict "Darklang.Stdlib.List.length") = "same"
+  (SaveFidelity.verdict "Darklang.Stdlib.Bool.not") = "same"
+
+
+module TypeParamsAreOnScreen =
+  // A generic function is written `let map<'a, 'b> (...)`. The type params were carried opaquely on the
+  // original record, so they survived a save but were INVISIBLE while you edited -- the signature on
+  // screen wasn't the signature. They're drawn now, and read back, so editing one is possible at all.
+  // (The node is TypeDecl's TypeParam: a declaration and a function spell a type param the same way, and
+  // one spec means the two can't drift apart.)
+  let generic () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { (Fixtures.inc ()) with
+        typeParams = [ "a", "b" ]
+        parameters = [ Fixtures.param "n" (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a") ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "b" }
+
+  (Darklang.Fluid.Debug.render
+    (Fixtures.reg ())
+    70
+    (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "conv" (TypeParamsAreOnScreen.generic ())))) =
+    "let conv<'a, 'b> (n: 'a): 'b =\n  n + 1"
+
+  // No params, no angle brackets -- an empty list draws nothing rather than an empty `<>`.
+  (Fixtures.render ()) = "let inc (n: Int): Int =\n  n + 1"
+
+  // And they come back out, so a save can't drop them.
+  ((match Darklang.Fluid.PT.Fn.fromDoc
+            (TypeParamsAreOnScreen.generic ())
+            (Darklang.Fluid.PT.Fn.toDoc "conv" (TypeParamsAreOnScreen.generic ())) with
+    | Ok(pair) -> let (_n, u) = pair in Stdlib.String.join u.typeParams ","
+    | Error e -> "ERR " ++ e)) = "a,b"
+
+
+module MatchesThePrinterExactly =
+  // Stdlib.Option.map is the function that started the printer comparison: it drew as
+  // `let map (option: Darklang.Stdlib.Option.Option<` -- broken mid-type -- `>) (fn: ('a -> 'b))`.
+  // Name shortening, type params, the return-type colon and now the function-type brackets have each
+  // closed a gap, and it is worth pinning the whole signature end to end rather than the pieces.
+  let printedVsDrawn (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        // No stripping of `///` any more: Fluid draws the doc comment too, so the comparison is the whole
+        // printed function against the whole drawn one.
+        let printed =
+          Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) fn
+        let drawn =
+          Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc loc.name fn))
+        if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.map") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.andThen") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.length") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.List.head") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.String.join") = "same"
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Option.withDefault") = "same"
+
+  // A signature too long for the line puts ONE PARAMETER PER LINE, the way the printer does. The
+  // parameters are separated by a Line rather than a hard space; with a hard space the list could not
+  // break at all, so the only thing left that could was a type INSIDE a parameter, and `Result.map2` came
+  // out with `Result<` split across three lines mid-parameter. Same bug as the type arguments, a level up.
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Stdlib.Result.map2") = "same"
+
+  // This one used to CRASH rather than differ, and the fault was not Fluid's: a lambda's parameter list
+  // came out of the package store tagged `List<(Int64 * String)>` -- the shape lambda parameters had
+  // before they became LetPatterns -- so putting the very same list back into an ELambda failed the enum
+  // type check. Two stale value types in ProgramTypesToDarkTypes. Any function with a lambda in it is a
+  // regression test for that; this is the one that found it.
+  (MatchesThePrinterExactly.printedVsDrawn "Darklang.Cli.commandOptions") = "same"
+
+
+module DocCommentsAreShown =
+  // A description was carried opaquely and drawn NOWHERE. Open a real function and everything it said
+  // about itself vanished off the screen, and a save wrote back whatever the store already had. The lines
+  // are ordinary nodes now, so they draw, they can be edited, and what you edit is what gets saved.
+  //
+  // Carried as a LIST of lines rather than one text field, for the same reason an enum field's label is:
+  // an empty list draws nothing, so `Piece.Each` over it needs no conditional.
+  let described (d: String) : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc () with description = d }
+
+  let show (d: String) : String =
+    Darklang.Fluid.Debug.render (Fixtures.reg ()) 70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "inc" (DocCommentsAreShown.described d)))
+
+  // No description: nothing drawn, not even a bare `///` on a line of its own.
+  (DocCommentsAreShown.show "") = "let inc (n: Int): Int =\n  n + 1"
+
+  // One line, and the printer's exact spelling: `/// ` then the text.
+  (DocCommentsAreShown.show "adds one") = "/// adds one\nlet inc (n: Int): Int =\n  n + 1"
+
+  // Several lines stay several lines.
+  (DocCommentsAreShown.show "adds one\nto the number given") =
+    "/// adds one\n/// to the number given\nlet inc (n: Int): Int =\n  n + 1"
+
+  // And it survives the way back: the description a save writes is the one the lines spell, so editing a
+  // doc line is editing the doc comment.
+  let saved (d: String) : String =
+    match
+      Darklang.Fluid.PT.Fn.fromDoc
+        (Fixtures.inc ())
+        (Darklang.Fluid.PT.Fn.toDoc "inc" (DocCommentsAreShown.described d)) with
+    | Ok(pair) ->
+      let (_n, f) = pair
+      f.description
+    | Error e -> "failed: " ++ e
+
+  (DocCommentsAreShown.saved "adds one") = "adds one"
+  (DocCommentsAreShown.saved "adds one\nto the number given") = "adds one\nto the number given"
+  (DocCommentsAreShown.saved "") = ""
+
+  // The whole point, against a real function: the printer's output INCLUDING its doc comment, compared
+  // without stripping `///` first, which every other parity check in this file still does.
+  let realWithDocs (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        let printed = Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) fn
+        let drawn =
+          Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc loc.name fn))
+        if printed == drawn then "same" else "DIFFERENT:\n" ++ drawn
+
+  (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.Option.map") = "same"
+  (DocCommentsAreShown.realWithDocs "Darklang.Stdlib.List.length") = "same"
+  (DocCommentsAreShown.realWithDocs "Darklang.Cli.commandOptions") = "same"
+
+
+module BuiltinNamesRoundTrip =
+  // `let length (list: List<'a>) : Int = Builtin.listLength list` is the shape of every stdlib wrapper, and
+  // lowering one REFUSED: "builtin names are not round-tripped yet". Fluid could draw those functions and
+  // could not save them. The doc already carried `builtin:listLength_v0`; nothing parsed it back.
+  let verdict (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Function.get hash with
+      | None -> "missing"
+      | Some fn ->
+        match Darklang.Fluid.PT.Fn.fromDoc fn (Darklang.Fluid.PT.Fn.toDoc loc.name fn) with
+        | Error e -> "refuses: " ++ e
+        | Ok(pair) ->
+          let (_n, f2) = pair
+          let ctx = Darklang.Fluid.PT.printerContext ()
+          if (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+             == (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx f2) then "same"
+          else "CHANGED"
+
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.List.length") = "same"
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.String.length") = "same"
+
+  // A package function is unaffected -- this is about the builtin branch, not a change to the rest.
+  (BuiltinNamesRoundTrip.verdict "Darklang.Stdlib.Option.map") = "same"
+
+  // The hash the document carries, parsed back into a name and a version. The version is what the VALUE
+  // side dropped, so a builtin value could not be rebuilt even in principle.
+  (Darklang.Fluid.PT.builtinFromHash "builtin:listLength_v0") = Stdlib.Option.Option.Some(("listLength", 0l))
+  (Darklang.Fluid.PT.builtinFromHash "builtin:intAdd_v2") = Stdlib.Option.Option.Some(("intAdd", 2l))
+  (Darklang.Fluid.PT.builtinFromHash "abc123") = Stdlib.Option.Option.None
+
+
+module NullaryFunctionsDrawTheirParens =
+  // `()` in a declaration parses as ONE parameter named `_` of type Unit. Drawn through the general
+  // `(name: Type)` shape it came out `(_: Unit)`, which the parser then rejects -- so a nullary function
+  // drew as source that would not save back. The printer already special-cased this shape and Fluid did
+  // not, so the `()` is a case of the param kind with its own spec.
+  let nullary () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "deadbeef"
+        body = Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 1)
+        typeParams = []
+        parameters = [ Fixtures.param "_" Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        description = "" }
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "initState" (NullaryFunctionsDrawTheirParens.nullary ()))
+
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (NullaryFunctionsDrawTheirParens.doc ())) =
+    "let initState (): Int =\n  1"
+
+  // And it lowers back to the `_`/Unit parameter the rest of the toolchain stores, so the `()` is a
+  // drawing of that parameter and not a different program.
+  let lowered () : (String * String) =
+    match NullaryFunctionsDrawTheirParens.doc () with
+    | Filled n ->
+      match Darklang.Fluid.PT.Fn.fromDoc (NullaryFunctionsDrawTheirParens.nullary ()) n with
+      | Ok((_, fn)) ->
+        match Stdlib.List.head fn.parameters with
+        | Some p ->
+          (p.name,
+           Darklang.PrettyPrinter.ProgramTypes.typeReference (Darklang.Fluid.PT.printerContext ()) p.typ)
+        | None -> ("no-params", "")
+      | Error e -> ("err", e)
+    | _ -> ("not-a-node", "")
+
+  (NullaryFunctionsDrawTheirParens.lowered ()) = ("_", "Unit")
+
+
+module MakingOneIsEditingOne =
+  // `dark edit <name>` opened the structural editor; `dark fn <name>` made you type a whole definition
+  // onto a command line. Creating and changing are the same act, so they are the same door now: with no
+  // definition, `dark fn` opens this shell and saving CREATES the function, through the same
+  // `applySource` an edit goes through.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let blankDoc () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "triple")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (MakingOneIsEditingOne.reg ()) (MakingOneIsEditingOne.blankDoc ()) 70 keys
+
+  // `()` and not an empty parameter list: a function with no parameter list at all is not a function,
+  // `let f: Int = 3` is a value. So the blank shape is one you could save as it stands.
+  (MakingOneIsEditingOne.run []) = "~let triple (): <return> =\n  ⟨body⟩"
+
+  // `(` adds a parameter and lands on its NAME. A lone `()` is replaced rather than appended to, because
+  // `() (x: Int)` is not a shape the language has.
+  (MakingOneIsEditingOne.run [ "(" ]) = "let triple (~name: <type>): <return> =\n  ⟨body⟩"
+  (MakingOneIsEditingOne.run [ "(", "n" ]) = "let triple (n~: <type>): <return> =\n  ⟨body⟩"
+
+  // The whole function, typed from nothing.
+  (MakingOneIsEditingOne.run
+    [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "n", "*", "3" ]) =
+    "let triple (n: Int): Int =\n  n * 3~"
+
+  // And it lowers to the function it looks like. This is the pin that matters: everything above is a
+  // drawing, and this is the program.
+  let lowered (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (MakingOneIsEditingOne.reg ()) (MakingOneIsEditingOne.blankDoc ()) 70) keys
+    match st.root with
+    | Filled node ->
+      (match Darklang.Fluid.PT.Fn.fromDoc (Fixtures.inc ()) node with
+       | Ok((_, fn)) ->
+         Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature (Darklang.Fluid.PT.printerContext ()) fn
+       | Error e -> "ERR " ++ e)
+    | _ -> "not a node"
+
+  (MakingOneIsEditingOne.lowered
+    [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "n", "*", "3", "<Esc>" ]) =
+    "(n: Int) -> Int"
+
+  // Escape settles what you typed when it is exactly one of the options. `Int` is a CANDIDATE, not
+  // something a spec's `resolve` invents, so settling used to leave a partial that draws exactly like a
+  // resolved type and then refuses to lower: "not saved: unresolved: Int", under a screen reading
+  // `(n: Int): Int`.
+  // The complaint that comes back names the BODY, not the types: both `Int`s settled. Before, this said
+  // "unresolved: Int" while the screen read `(n: Int): Int`.
+  (MakingOneIsEditingOne.lowered [ "(", "n", "<Tab>", "I", "n", "t", "<Esc>", "<Tab>", "I", "n", "t", "<Esc>" ]) =
+    "ERR the body is a hole"
+
+
+module ANewFunctionPrintsUnderItsName =
+  // Saving reconstructs source with the printer and hands it to `applySource`, and the printer names a
+  // definition from its HASH. A function being CREATED has no hash and is in no store, so that lookup
+  // found nothing and fell back to `<hash:>`: `let <hash:> (n: Int): Int =`, which does not parse. The
+  // save came back "could not parse the reconstructed source", after a screen that read correctly.
+  //
+  // `preferredLocation` is the caller saying which location it is showing this under, and it is a better
+  // answer than a debug affordance. It now fills in when the hash resolves to nothing -- which for a
+  // stored item never happens, since a stored item has a location by construction.
+  let unstored () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { (Fixtures.inc ()) with hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "" }
+
+  let loc () : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+    Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Stachu.Scratch.triple"
+
+  let printed (preferred: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageLocation>) : String =
+    let ctx =
+      { (Darklang.PrettyPrinter.ProgramTypes.Context.forBranch Darklang.SCM.Branch.mainBranchId) with
+          preferredLocation = preferred }
+
+    Darklang.PrettyPrinter.ProgramTypes.packageFn ctx (ANewFunctionPrintsUnderItsName.unstored ())
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault ""
+
+  (ANewFunctionPrintsUnderItsName.printed (Stdlib.Option.Option.Some(ANewFunctionPrintsUnderItsName.loc ()))) =
+    "let triple (n: Int): Int ="
+
+  // With nothing to go on it still says so, rather than inventing a name.
+  (ANewFunctionPrintsUnderItsName.printed Stdlib.Option.Option.None) = "let <hash:> (n: Int): Int ="
+
+  // And a STORED function is unaffected: its hash has a location, so the fallback never runs.
+  ((match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.List.map") with
+    | Some h ->
+      (match Darklang.LanguageTools.PackageManager.Function.get h with
+       | Some fn ->
+         Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature (Darklang.Fluid.PT.printerContext ()) fn
+       | None -> "no fn")
+    | None -> "not found")) = "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>"
+
+
+module ParametersAreInScope =
+  // A function's parameters were in scope NOWHERE. `scopeNames` walks each ancestor's `binders` and the
+  // function shell had none, so writing a body offered no completion for the arguments you had just
+  // declared. Typing them worked only because a lowercase identifier resolves to a variable whatever it is.
+  let withParams () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { (Fixtures.inc ()) with
+        parameters =
+          [ Fixtures.param "colour" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+            Fixtures.param "count" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ] }
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "describe" (ParametersAreInScope.withParams ()))
+
+  // Clear the body and look at what is offered there.
+  let menu (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ParametersAreInScope.doc ()) 70)
+        keys
+
+    Darklang.Fluid.Editor.candidates st
+    |> Stdlib.List.take 2
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join ", "
+
+  (ParametersAreInScope.menu [ "<Esc>", "j", "j", "j", "j", "j", "j", "j", "c" ]) = "colour, count"
+
+  // And the binding carries the DECLARED TYPE, which is what lets a `match` know what its scrutinee is.
+  let scoped () : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ParametersAreInScope.doc ()) 70)
+        [ "<Esc>", "j", "j", "j", "j", "j", "j", "j", "c" ]
+
+    Darklang.Fluid.Editor.scopeBindings st
+    |> Stdlib.List.map (fun b ->
+      b.name
+      ++ ": "
+      ++ (match b.typ with
+          | Some t -> Darklang.Fluid.Kind.toString t.kind
+          | None -> "(none)"))
+    |> Stdlib.String.join ", "
+
+  (ParametersAreInScope.scoped ()) =
+    "colour: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, count: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt"

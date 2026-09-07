@@ -1,0 +1,169 @@
+// The Fluid kernel, driven by key scripts and checked against the `~` rendering.
+//
+// `⟨label⟩` is a hole. `~` is the caret. Names are fully qualified: testfiles parse with owner "Tests".
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList (Darklang.Fluid.Prims.specs ())
+
+  let intE () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.intKind ()) "Int"
+
+  let strE () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.stringKind ()) "String"
+
+  /// Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = ["warm", ⟨tag⟩] }
+  let color () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make
+        (Darklang.Fluid.Kind.named "Acme.Color")
+        [ ("r", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode "255")))
+          ("g", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(intE ())))
+          ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(strE ())))
+          ("tags",
+           Darklang.Fluid.Field.Many(
+             [ Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.stringNode "warm")
+               Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.any "tag") ],
+             Darklang.Fluid.Expect.any "tag")) ])
+
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (reg ()) (color ()) 80 keys
+
+  let runNarrow (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (reg ()) (color ()) 24 keys
+
+
+module Layout =
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Fixtures.color ())) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // A width it cannot fit breaks the outer group, one field per line.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 24 (Fixtures.color ())) =
+    "Acme.Color {\n  r = 255;\n  g = ⟨Int⟩;\n  name = ⟨String⟩;\n  tags = [\"warm\",\n  ⟨tag⟩]\n}"
+
+
+module RootHole =
+  // Typing a digit into a hole that expects an Int makes an Int and puts the caret after the digit.
+  (Darklang.Fluid.Test.run (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Fixtures.intE ())) 80 [ "4", "2" ]) = "42~"
+
+  (Darklang.Fluid.Test.run (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Fixtures.intE ())) 80 [ "4", "2", "<BS>" ]) = "4~"
+
+  // A letter is not a digit: it starts a partial instead of an Int.
+  (Darklang.Fluid.Test.run (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Fixtures.intE ())) 80 [ "x" ]) = "x~"
+
+
+module Holes =
+  // Tab from NAV goes to the first hole and enters INSERT there.
+  (Fixtures.run [ "<Tab>" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // The typed digit fills the hole and the caret sits after it, so the next digit continues the number.
+  (Fixtures.run [ "<Tab>", "7" ]) =
+    "Acme.Color { r = 255; g = 7~; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "<Tab>", "7", "8" ]) =
+    "Acme.Color { r = 255; g = 78~; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // A quote into a String hole makes an empty string with the caret inside the quotes.
+  (Fixtures.run [ "<Tab>", "7", "<Tab>", "\"", "h", "i" ]) =
+    "Acme.Color { r = 255; g = 7; name = \"hi~\"; tags = [\"warm\", ⟨tag⟩] }"
+
+  // Tab wraps around.
+  (Fixtures.run [ "<Tab>", "<Tab>", "<Tab>", "<Tab>" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "<Tab>", "<S-Tab>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ~⟨tag⟩] }"
+
+
+module Partials =
+  // A hole that expects anything has no rules, so typing starts a partial.
+  (Fixtures.run [ "<Tab>", "<Tab>", "<Tab>", "a", "b" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ab~] }"
+
+  // Backspacing a partial to nothing restores the hole it replaced.
+  (Fixtures.run [ "<Tab>", "<Tab>", "<Tab>", "a", "b", "<BS>", "<BS>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ~⟨tag⟩] }"
+
+
+module Motion =
+  // Left from a hole lands at the end of the previous run; Right lands at the start of the next.
+  (Fixtures.run [ "<Tab>", "<Left>" ]) =
+    "Acme.Color { r = 255~; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "<Tab>", "<Left>", "<Left>" ]) =
+    "Acme.Color { r = 25~5; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "<Tab>", "<Right>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ~⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "<Tab>", "<Right>", "<Right>", "<Right>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"w~arm\", ⟨tag⟩] }"
+
+
+module Nav =
+  // j walks nodes in pre-order: root, r, g, ...
+  (Fixtures.run [ "j", "j" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // x clears a node back to a hole labelled by its slot; u brings it back.
+  (Fixtures.run [ "j", "x" ]) =
+    "Acme.Color { r = ~⟨r⟩; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "j", "x", "u" ]) =
+    "Acme.Color { r = ~255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.color ()) 80 [ "<Tab>", "<Esc>" ]) = "nav"
+
+  (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.color ()) 80 [ "<Tab>" ]) = "insert"
+
+
+module YankAndPut =
+  // `y` copies the node under the caret, `p` puts it over whatever the caret is on -- a hole, a partial, or
+  // another node. This had NO coverage at all until now, which is worth saying plainly: a whole editing
+  // feature was reachable only by driving the thing by hand, and what it printed was the fully qualified
+  // type name (`yanked Darklang.LanguageTools.ProgramTypes.Expr.EInt` for copying a `1`).
+  (Fixtures.run [ "j", "y", "j", "p" ]) =
+    "Acme.Color { r = 255; g = ~255; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // A put is one edit, so undo takes the hole back.
+  (Fixtures.run [ "j", "y", "j", "p", "u" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // Yanking again replaces what's held: copy the `255`, walk to the tag, copy THAT instead, and the put
+  // is the tag.
+  (Fixtures.run [ "j", "y", "j", "j", "j", "y", "j", "p" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", \"~warm\"] }"
+
+  let msg (keys: List<String>) : String =
+    (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.color ()) 80) keys).message
+
+  // The message names the kind the SHORT way, the way the breadcrumb does.
+  (YankAndPut.msg [ "j", "y" ]) = "yanked Int"
+  (YankAndPut.msg [ "j", "y", "j", "p" ]) = "put Int"
+
+  // And it says so when there is nothing to put.
+  (YankAndPut.msg [ "p" ]) = "clipboard is empty"
+
+
+module UnknownTestKeysAreLoud =
+  // `keyOf` falls through to `printable` for anything it does not recognise, so a mistyped key token gets
+  // TYPED. `<Backspace>` -- the token is `<BS>` -- went in as fourteen characters, one of which is `<` and
+  // starts an operator. The script still ran, still produced output, and an expectation written from that
+  // output would still pass, so a pin could look like it exercised Backspace while exercising nothing of
+  // the sort. Found by writing exactly that probe and believing it for a minute.
+  // The known token does what Backspace does, which in NAV is NOTHING -- it is an INSERT key, and the
+  // caret is on a node here. (I wrote this pin expecting it to clear the 255, twice, before probing.)
+  (Fixtures.run [ "j", "<BS>" ]) = "Acme.Color { r = ~255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // ...and where it does delete, it deletes. `<End>` is end of the caret's LINE, and this fixture renders
+  // on one, so it lands at the end of the whole thing and takes out the tags list's empty item.
+  (Fixtures.run [ "j", "i", "<End>", "<BS>" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm~\"] }"
+
+  // The mistyped one refuses instead of typing fourteen characters into the document.
+  (Fixtures.run [ "j", "<Backspace>" ]) = "UNKNOWN TEST KEY: <Backspace>"
+
+  // Only ANGLE-BRACKETED things are treated as key tokens, so ordinary text still types.
+  (Darklang.Fluid.Test.unknownKeys [ "a", "<Tab>", "1" ]) = []
+  (Darklang.Fluid.Test.unknownKeys [ "<Nope>", "<Tab>", "<Alsonope>" ]) = [ "<Nope>", "<Alsonope>" ]

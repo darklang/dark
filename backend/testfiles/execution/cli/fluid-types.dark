@@ -1,0 +1,103 @@
+// Fluid edits types too, not just expressions: TypeReference round-trips through the document, and a type
+// hole builds real types from keystrokes with completion.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.Types.typeExpect "type")
+
+  let rt (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Bool =
+    match Darklang.Fluid.PT.Types.fromDoc (Darklang.Fluid.PT.Types.toDoc t) with
+    | Ok t2 -> t2 == t
+    | Error _ -> false
+
+  let render (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Types.toDoc t))
+
+  let edit (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
+
+
+module RoundTrips =
+  (Fixtures.rt Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) = true
+  (Fixtures.rt Darklang.LanguageTools.ProgramTypes.TypeReference.TString) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(Darklang.LanguageTools.ProgramTypes.TypeReference.TString, Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, [ Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = true
+  (Fixtures.rt (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a")) = true
+
+
+module Rendering =
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)) = "List<Int>"
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(Darklang.LanguageTools.ProgramTypes.TypeReference.TString, Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))) = "Dict<String, Int>"
+  // Bare, like the printer: a function type is bracketed only when nested inside another one.
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn([ Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ], Darklang.LanguageTools.ProgramTypes.TypeReference.TBool))) = "Int -> Bool"
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, Darklang.LanguageTools.ProgramTypes.TypeReference.TString, []))) = "(Int * String)"
+
+
+module Glyphs =
+  // A blank that wants a TYPE is drawn with angle brackets, so you know to type a type, not a value.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 40 (Fixtures.hole ())) = "<type>"
+
+
+module Editing =
+  // A type name completes exact-first: "Int" gives Int, not Int8.
+  (Fixtures.edit [ "I", "n", "t", "<Enter>" ]) = "~Int"
+  // `[` builds a List with a hole for the element; then the element completes.
+  (Fixtures.edit [ "[", "S", "t", "r", "i", "n", "g", "<Enter>" ]) = "List<~String>"
+  // Containers come from completion and nest.
+  (Fixtures.edit [ "L", "i", "s", "t", "<Enter>", "I", "n", "t", "<Enter>" ]) = "List<~Int>"
+  // A lowercase identifier with no match resolves to a type variable, drawn with its quote.
+  (Fixtures.edit [ "a", "<Esc>" ]) = "'~a"
+
+
+module TypeVariablesCarryTheirQuote =
+  // A type variable is WRITTEN with its quote: both pretty-printers emit `"'" ++ varName`. Fluid drew a
+  // bare `a`, so a generic signature on screen -- `List<a>` for Stdlib.List.length -- wasn't the signature
+  // the printer would write, and wasn't valid to read back either.
+  (Fixtures.render (Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a")) = "'a"
+  (Fixtures.render
+    (Darklang.LanguageTools.ProgramTypes.TypeReference.TList(Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "a"))) = "List<'a>"
+
+  // And now that the screen says `'a`, that is what people type. The quote opens the variable and the
+  // letters land in its name; typing the bare letter still works and settles to the same thing.
+  (Fixtures.edit [ "'", "a" ]) = "'a~"
+  (Fixtures.edit [ "L", "i", "s", "t", " ", "'", "a" ]) = "List<'a~>"
+
+  // Both spellings resolve to a real TVariable, not a partial nothing can lower.
+  ((match Darklang.Fluid.Test.drive
+            (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60)
+            [ "'", "a" ] with
+    | st ->
+      (match st.root with
+       | Filled n -> n.kind.case |> Stdlib.Option.withDefault "?"
+       | Partial(t, _) -> "partial " ++ t
+       | Empty _ -> "empty"))) = "TVariable"
+
+
+module FunctionTypeParens =
+  // Fluid always bracketed a function type, so a parameter read `(fn: ('a -> 'b))`. The printer's brackets
+  // are CONTEXTUAL -- a function type is written bare and gets them only when nested inside another one --
+  // and that is a fact about the CHILD, so the spec now hands ParenIf the test rather than the piece
+  // deciding for itself. It is the general form of OperandSlot, ParenLowSlot and FieldTargetSlot, which
+  // could move onto it later.
+  let tv (n: String) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable n
+
+  let fn (args: List<Darklang.LanguageTools.ProgramTypes.TypeReference>) (ret: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(args, ret)
+
+  // Bare on its own, bracketed when nested -- each one checked against the printer.
+  (Fixtures.render (FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b"))) = "'a -> 'b"
+  (Fixtures.render
+    (FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.fn [ FunctionTypeParens.tv "b" ] (FunctionTypeParens.tv "c")))) =
+    "'a -> ('b -> 'c)"
+  (Fixtures.render
+    (FunctionTypeParens.fn [ FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b") ] (FunctionTypeParens.tv "c"))) =
+    "('a -> 'b) -> 'c"
+  // And a function type inside something that isn't one needs nothing.
+  (Fixtures.render
+    (Darklang.LanguageTools.ProgramTypes.TypeReference.TList(FunctionTypeParens.fn [ FunctionTypeParens.tv "a" ] (FunctionTypeParens.tv "b")))) =
+    "List<'a -> 'b>"

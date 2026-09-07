@@ -1,0 +1,70 @@
+/// Where the caret is, in terms of the document rather than the screen.
+///
+/// A caret names a node by path, a part of that node, and an offset inside the part. It is resolved to a
+/// row and column only after layout, and re-resolved after every edit, which is what lets an edit that
+/// reflows the whole document leave the caret exactly where the user expects. (Classic Fluid called this
+/// a CaretTarget, and it was the one idea there that never caused trouble.)
+module Darklang.Fluid
+
+/// Which part of a node the caret is on.
+type Part =
+  /// The node as a whole (NAV level).
+  | OnNode
+  /// Inside the text run in field `slot`; `offset` counts graphemes from its start.
+  | InText of slot: String
+  /// On the hole or partial in single slot `slot`; `offset` is inside the partial's text, 0 for a hole.
+  | InSlot of slot: String
+  /// On the hole or partial that is item `i` of list `slot`.
+  | InItem of slot: String * i: Int
+  /// Just after this whole node, in its parent's scope. Where the caret lands after stepping past a
+  /// closing delimiter, so the next comma or element targets the enclosing list, not the one just closed.
+  | AfterNode
+
+type Caret =
+  { node: Path
+    part: Part
+    offset: Int }
+
+module Caret =
+  let onNode (path: Path) : Caret =
+    Caret { node = path; part = Part.OnNode; offset = 0 }
+
+  let inText (path: Path) (slot: String) (offset: Int) : Caret =
+    Caret { node = path; part = Part.InText slot; offset = offset }
+
+  let inSlot (path: Path) (slot: String) (offset: Int) : Caret =
+    Caret { node = path; part = Part.InSlot slot; offset = offset }
+
+  let inItem (path: Path) (slot: String) (i: Int) (offset: Int) : Caret =
+    Caret { node = path; part = Part.InItem(slot, i); offset = offset }
+
+  let afterNode (path: Path) : Caret =
+    Caret { node = path; part = Part.AfterNode; offset = 0 }
+
+  /// The path of the SLOT the caret is on, when it is on a hole or partial. `InSlot ""` at `[]` is the
+  /// root slot itself.
+  let slotPath (c: Caret) : Stdlib.Option.Option<Path> =
+    match c.part with
+    | InSlot slot ->
+      if slot == "" && c.node == [] then
+        Stdlib.Option.Option.Some []
+      else
+        Stdlib.Option.Option.Some(Path.child c.node slot)
+    | InItem(slot, i) -> Stdlib.Option.Option.Some(Path.item c.node slot i)
+    | _ -> Stdlib.Option.Option.None
+
+  let isInsert (c: Caret) : Bool =
+    match c.part with
+    | OnNode -> false
+    | _ -> true
+
+  let partToString (p: Part) : String =
+    match p with
+    | OnNode -> "node"
+    | InText slot -> "text:" ++ slot
+    | InSlot slot -> "slot:" ++ slot
+    | InItem(slot, i) -> "item:" ++ slot ++ "[" ++ (Stdlib.Int.toString i) ++ "]"
+    | AfterNode -> "after"
+
+  let toString (c: Caret) : String =
+    (Path.toString c.node) ++ " @ " ++ (partToString c.part) ++ "+" ++ (Stdlib.Int.toString c.offset)

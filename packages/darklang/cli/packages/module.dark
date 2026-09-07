@@ -7,6 +7,14 @@ type UpdatedItem =
     kind: LanguageTools.ProgramTypes.ItemKind }
 
 
+/// The one wrapper for parsing package source to WrittenTypes. Both `execute` and `applySource` go
+/// through it so the builtin has a single caller (builtin-wrapper discipline).
+let parsePackageToWT
+  (source: String)
+  : Stdlib.Result.Result<LanguageTools.WrittenTypes.ParsedFile, List<(LanguageTools.Parser.Range * String)>> =
+  Builtin.parserParsePackageToWrittenTypes source
+
+
 let sfDeclToModuleDecl
   (decl: LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
   : LanguageTools.WrittenTypes.ModuleDeclaration.Declaration =
@@ -106,6 +114,71 @@ let updatedItems
     | _ -> Stdlib.Option.Option.None)
 
 
+/// Apply package `source` under `modulePath` (an absolute "/Owner.Module"), returning the count of
+/// declarations defined, or an error string. This is the core of `execute` with the printing removed, so
+/// a caller that is not the CLI prompt (the Fluid editor's save) can apply an edit without writing to
+/// stdout or holding a full `AppState`. `execute` still has its own copy with the reporting it needs;
+/// CLEANUP: fold execute onto this once the message wording is settled.
+let applySource
+  (branchId: Uuid)
+  (modulePath: String)
+  (source: String)
+  : Stdlib.Result.Result<Int, String> =
+  match parsePackageToWT source with
+  | Error _diagnostics -> Stdlib.Result.Result.Error "could not parse the reconstructed source"
+  | Ok(SourceFile sourceFile) ->
+    let declarations =
+      let moduleDecls = sourceFile.declarations |> Stdlib.List.map sfDeclToModuleDecl
+      collectDecls [] moduleDecls
+    let duplicateNames = duplicateDeclarationNames declarations
+    if Stdlib.List.isEmpty declarations then
+      Stdlib.Result.Result.Error "no declarations"
+    else if Stdlib.Bool.not (Stdlib.List.isEmpty duplicateNames) then
+      Stdlib.Result.Result.Error ("duplicate declaration names: " ++ (Stdlib.String.join duplicateNames ", "))
+    else
+      let locationInput = modulePath ++ ".__module__"
+      match Location.parseRelativeTo (Packages.PackageLocation.Module []) locationInput with
+      | Error message -> Stdlib.Result.Result.Error message
+      | Ok baseLocation ->
+        let basePm = LanguageTools.PackageManager.pm ()
+        let rootModule =
+          LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+            { range = sourceFile.range
+              name = (sourceFile.range, "__module__")
+              declarations = sourceFile.declarations |> Stdlib.List.map sfDeclToModuleDecl
+              keywordModule = sourceFile.range }
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = basePm
+              branchId = branchId
+              owner = baseLocation.owner
+              currentModule = baseLocation.modules }
+        let (_, provisionalOps, _) =
+          LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper ctx rootModule
+        let pm = LanguageTools.ProgramTypes.PackageManager.withExtraOps basePm provisionalOps
+        let (_, ops, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper { ctx with pm = pm } rootModule
+        if Stdlib.Bool.not (Stdlib.List.isEmpty unresolvedNames) then
+          Stdlib.Result.Result.Error ("unresolved names: " ++ (Stdlib.Int.toString (Stdlib.List.length unresolvedNames)))
+        else
+          let updates = updatedItems branchId ops
+          match SCM.PackageOps.addAuthored branchId ops with
+          | Error message -> Stdlib.Result.Result.Error message
+          | Ok _report ->
+            let propagationUpdates =
+              updates |> Stdlib.List.map (fun update -> (update.location, update.hash, update.kind))
+            Propagate.autoPropagateUpdates branchId propagationUpdates
+            let count =
+              ops
+              |> Stdlib.List.filterMap (fun op ->
+                match op with
+                | SetName(location, _) -> Stdlib.Option.Option.Some location.name
+                | _ -> Stdlib.Option.Option.None)
+              |> Stdlib.List.length
+            Stdlib.Result.Result.Ok count
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let input =
     match args with
@@ -129,7 +202,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Package input is declaration scope at its root. In particular, `val x`
     // declares a package value while `let x` is diagnosed directly instead of
     // being consumed as a script binding and failing later at EOF.
-    match Builtin.parserParsePackageToWrittenTypes source with
+    match parsePackageToWT source with
     | Error diagnostics ->
       let _ = Errors.reportParseErrors diagnostics
       state

@@ -1,0 +1,498 @@
+// Extensibility: the registry shadows a built-in spec with a later one (how a discovered user Spec
+// wins), and the source printer that `fluid generate` uses is faithful. Store-backed discovery itself
+// is exercised by eval, not here, because a testfile has no package store to declare into.
+
+module Shadowing =
+  let colorKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Color"
+
+  let builtinSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple (colorKind ()) [ Darklang.Fluid.Piece.Keyword "BUILTIN" ] (Darklang.Fluid.Node.make (colorKind ()) [])
+
+  let customSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple (colorKind ()) [ Darklang.Fluid.Piece.Keyword "CUSTOM" ] (Darklang.Fluid.Node.make (colorKind ()) [])
+
+  // Later specs win: this is what lets a discovered user spec (merged last) replace the built-in.
+  let chosen () : String =
+    let reg = Darklang.Fluid.Registry.ofList [ builtinSpec (), customSpec () ]
+    match Darklang.Fluid.Registry.find reg (colorKind ()) with
+    | Some s ->
+      match Stdlib.List.head s.pieces with
+      | Some(Keyword k) -> k
+      | _ -> "?"
+    | None -> "none"
+
+  (chosen ()) = "CUSTOM"
+
+
+module SourcePrinter =
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Slot "r")) = "Darklang.Fluid.Piece.Slot \"r\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Punct "{")) = "Darklang.Fluid.Piece.Punct \"{\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Text("name", Darklang.Fluid.Layout.Style.Literal))) =
+    "Darklang.Fluid.Piece.Text(\"name\", Darklang.Fluid.Layout.Style.Literal)"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Each("items", [ Darklang.Fluid.Piece.Punct "," ]))) =
+    "Darklang.Fluid.Piece.Each(\"items\", [ Darklang.Fluid.Piece.Punct \",\" ])"
+
+  // The generated module is a `val` (no type annotation, which Dark values reject) that starts from the
+  // derived spec and overrides pieces.
+  let generated () : String =
+    Darklang.Fluid.Derive.generateModule "Acme.Color" [ Darklang.Fluid.Piece.Keyword "rgb", Darklang.Fluid.Piece.Slot "r" ]
+
+  (Stdlib.String.contains (generated ()) "val ColorEditor =") = true
+  (Stdlib.String.contains (generated ()) "Darklang.Fluid.Derive.specForName") = true
+  (Stdlib.String.contains (generated ()) "Darklang.Fluid.Piece.Slot \"r\"") = true
+  (Stdlib.String.contains (generated ()) " : Darklang.Fluid.Spec") = false
+
+
+module SyntaxIsTheLanguages =
+  // The characters a language spells its punctuation with used to be fixed lists in the kernel, which is
+  // the first wall someone writing their own syntax hits: `pieces` let you restyle how an `if` LOOKS, but
+  // there was no way to say that in YOUR language `@` is an operator or `;` separates a name from its
+  // value. They belong to the language, so they sit on the REGISTRY, and a registry can be re-spelled.
+  let base_ () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let mine () : Darklang.Fluid.Syntax =
+    Darklang.Fluid.Syntax
+      { operatorChars = [ "@", ">", "<", "=", "!" ]
+        closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+        separators = [ ":" ]
+        stringDelimiter = "\""
+        interpolationOpen = "["
+        interpolationClose = "]" }
+
+  let custom () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // Darklang's own spelling is the default, and nothing about it changed.
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.base_ ()).syntax "+") = true
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.hole ()) 60
+    [ "1", " ", "+", " ", "2" ]) = "1 + 2~"
+
+  // A registry told a different alphabet edits by it: `@` wraps into an infix, `+` no longer does.
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.custom ()).syntax "+") = false
+  (Darklang.Fluid.Editor.isOperatorChar (SyntaxIsTheLanguages.custom ()).syntax "@") = true
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ()) 60
+    [ "1", " ", "@", " ", "2" ]) = "1 @ 2~"
+
+  // Interpolation is spelled by the language too. `{` and `}` were written into the kernel's string
+  // handling, so a language interpolating with something else could not say so; this registry uses
+  // brackets, and typing `{` in a string is then just a brace.
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "{", "b" ]) = "$\"a{b~}\""
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "[", "b" ]) = "$\"a{b~}\""
+
+  // The sharp end of it: in that language `{` is an ordinary brace in a string, because nothing in the
+  // kernel believes in `{` any more.
+  (Darklang.Fluid.Test.run (SyntaxIsTheLanguages.custom ()) (SyntaxIsTheLanguages.hole ())
+    60 [ "$", "\"", "a", "{", "b" ]) = "$\"a{b~\""
+
+  // To be clear about the scope: this is what the EDITOR treats as punctuation. Lowering to Darklang's
+  // ProgramTypes still needs Darklang's operators -- a language of its own brings its own specs too.
+  (Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())).specs
+    == (SyntaxIsTheLanguages.base_ ()).specs = true
+
+
+module TableProjection =
+  // A list of records seen as a GRID rather than as a line of text. Every other Piece draws a line and
+  // composes into a Wadler document; a table cannot, because a column's width depends on its SIBLINGS and
+  // a group only ever knows its own. So Piece.Table measures every cell first, then pads -- and the cells
+  // stay tagged, which is what keeps this an EDITOR rather than a picture of one.
+  let rowKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Demo.Row"
+  let gridKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Demo.Grid"
+
+  let rowSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple
+      (TableProjection.rowKind ())
+      [ Darklang.Fluid.Piece.Slot "name", Darklang.Fluid.Piece.Space, Darklang.Fluid.Piece.Slot "qty" ]
+      (Darklang.Fluid.Node.make (TableProjection.rowKind ())
+        [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.stringKind ()) "s")))
+          ("qty", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.intKind ()) "n"))) ])
+
+  let gridSpec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple
+      (TableProjection.gridKind ())
+      [ Darklang.Fluid.Piece.Table("rows", [ "name", "qty" ]) ]
+      (Darklang.Fluid.Node.make (TableProjection.gridKind ())
+        [ ("rows", Darklang.Fluid.Field.Many([], Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ])
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ TableProjection.rowSpec (), TableProjection.gridSpec () ] ])
+
+  let row (nm: String) (q: String) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make (TableProjection.rowKind ())
+        [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.stringNode nm)))
+          ("qty", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode q))) ])
+
+  let grid () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make (TableProjection.gridKind ())
+        [ ("rows",
+           Darklang.Fluid.Field.Many(
+             [ TableProjection.row "widget" "3", TableProjection.row "a much longer name" "12", TableProjection.row "nut" "100" ],
+             Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ])
+
+  // A header, and every column as wide as its widest cell.
+  (Darklang.Fluid.Debug.render (TableProjection.reg ()) 80 (TableProjection.grid ())) =
+    "name                  qty\n\"widget\"              3\n\"a much longer name\"  12\n\"nut\"                 100"
+
+  // The last column isn't padded, so no row ends in spaces.
+  ((Darklang.Fluid.Debug.render (TableProjection.reg ()) 80 (TableProjection.grid ()))
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.all (fun l -> (Stdlib.String.trim l) == l)) = true
+
+  // An empty grid draws a caret anchor rather than nothing at all.
+  (Darklang.Fluid.Debug.render (TableProjection.reg ()) 80
+    (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Node.make (TableProjection.gridKind ())
+      [ ("rows", Darklang.Fluid.Field.Many([], Darklang.Fluid.Expect.ofKind (TableProjection.rowKind ()) "row")) ]))) = ""
+
+  // And it is editable: navigate into a cell and change it, and the column re-measures. `j` reaches a row
+  // and `l` goes into it -- `jjj` used to land in a cell by reading order, before rows moved row-wise.
+  ((Darklang.Fluid.Editor.breadcrumb
+     (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+       [ "<Esc>", "j", "l", "l" ]))) = "Grid > Row > Int"
+  ((Darklang.Fluid.Debug.render (TableProjection.reg ()) 80
+     (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+       [ "<Esc>", "j", "l", "l", "c", "9" ]).root)) =
+    "name                  qty\n\"widget\"              9\n\"a much longer name\"  12\n\"nut\"                 100"
+
+
+module TableMotion =
+  // A grid you can only walk in reading order isn't a grid. Inside a table, j/k move down and up a COLUMN
+  // -- same field, next row -- and l/h move across the columns of a row. Reading order would walk sideways
+  // along the row and then into the next one, which is what Down did before.
+  let at (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (TableProjection.reg ()) (TableProjection.grid ()) 80)
+        keys
+    Darklang.Fluid.Path.toString st.caret.node
+
+  // On a row, j and k move rows.
+  (TableMotion.at [ "<Esc>", "j" ]) = "rows[0]"
+  (TableMotion.at [ "<Esc>", "j", "j" ]) = "rows[1]"
+
+  // In a cell, j is the SAME COLUMN one row down -- the whole point.
+  (TableMotion.at [ "<Esc>", "j", "l" ]) = "rows[0].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j" ]) = "rows[1].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j", "j" ]) = "rows[2].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "j", "k" ]) = "rows[0].name"
+
+  // l and h cross the columns, and h from the first column still steps out to the row, so you are never
+  // stuck in the grid.
+  (TableMotion.at [ "<Esc>", "j", "l", "l" ]) = "rows[0].qty"
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "h" ]) = "rows[0].name"
+  (TableMotion.at [ "<Esc>", "j", "l", "h" ]) = "rows[0]"
+
+  // Column and row motion compose, and neither runs off the end.
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "j" ]) = "rows[1].qty"
+  (TableMotion.at [ "<Esc>", "j", "l", "l", "l" ]) = "rows[0].qty"
+  // `k` from the top row has no row above it, so it falls back to ordinary motion and steps out to the
+  // row rather than sticking. Same shape as `h` from the first column.
+  (TableMotion.at [ "<Esc>", "j", "l", "k" ]) = "rows[0]"
+
+
+module SpecKeys =
+  // `Action.key` was in the spec vocabulary from the day the palette was written, and the kernel never
+  // read it: a spec could say which key it wanted and nothing happened. A kind binds its own keys now,
+  // and its bindings are consulted BEFORE the kernel's, so a DSL can rebind a key on its OWN nodes
+  // without touching the kernel's dispatch. Only `:` is reserved, because the palette is the escape hatch
+  // that lists everything and has to keep working whatever a spec has bound.
+  let shout (n: Darklang.Fluid.Node) : Darklang.Fluid.Slot = TableProjection.row "SHOUTED" "1"
+
+  let always (n: Darklang.Fluid.Node) : Bool = true
+
+  let rowSpec () : Darklang.Fluid.Spec =
+    { TableProjection.rowSpec () with
+        actions =
+          [ Darklang.Fluid.Action
+              { name = "shout"
+                key = Stdlib.Option.Option.Some "s"
+                doc = "replace this row"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+            // Deliberately over the kernel's own `x` (clear), to say which one wins.
+            Darklang.Fluid.Action
+              { name = "shout instead of clearing"
+                key = Stdlib.Option.Option.Some "x"
+                doc = "over a kernel key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+            // And over the palette key, which must NOT win.
+            Darklang.Fluid.Action
+              { name = "shout instead of the palette"
+                key = Stdlib.Option.Option.Some ":"
+                doc = "over the reserved key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout } ] }
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ SpecKeys.rowSpec (), TableProjection.gridSpec () ] ])
+
+  let after (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 keys
+
+  let kernel (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TableProjection.reg ()) (TableProjection.grid ()) 80 keys
+
+  // A key the kernel doesn't use runs the spec's action.
+  (Stdlib.String.contains (SpecKeys.after [ "<Esc>", "j", "s" ]) "SHOUTED") = true
+
+  // A key the kernel DOES use runs the spec's action instead of the kernel's.
+  (Stdlib.String.contains (SpecKeys.after [ "<Esc>", "j", "x" ]) "SHOUTED") = true
+
+  // Same keystrokes without the binding: the kernel's `x` clears the row, and nothing shouts.
+  (Stdlib.String.contains (SpecKeys.kernel [ "<Esc>", "j", "x" ]) "SHOUTED") = false
+
+  // `:` is reserved: it opens the palette however hard a spec tries to take it.
+  ((Darklang.Fluid.Test.drive
+     (Darklang.Fluid.Editor.init (SpecKeys.reg ()) (TableProjection.grid ()) 80)
+     [ "<Esc>", "j", ":" ]).paletteOpen) = true
+  (Stdlib.String.contains
+    (Darklang.Fluid.Debug.render (SpecKeys.reg ()) 80
+      (Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (SpecKeys.reg ()) (TableProjection.grid ()) 80)
+        [ "<Esc>", "j", ":" ]).root) "SHOUTED") = false
+
+  // An action with no key is still only reachable through the palette, which is what the built-in wrap
+  // actions still are.
+  (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j", "z" ])
+    = (Darklang.Fluid.Test.run (SpecKeys.reg ()) (TableProjection.grid ()) 80 [ "<Esc>", "j" ])
+
+
+module GeneratedEnumEditors =
+  // `fluid generate` on an ENUM handed you a stub. `Derive.specsFor` already derives an enum properly --
+  // the type-level spec that owns the hole, PLUS one spec per case with real layout pieces -- and the
+  // command took `List.head` of that list, which for an enum is the type-level one whose pieces are the
+  // `?Name` placeholder. So the generated module's editable part changed nothing you could see, while the
+  // per-case layouts it was meant to start from went unmentioned.
+  //
+  // Records were fine, which is why this went unnoticed: the audit graded "your own type, your own editor"
+  // on `Size`, and Size is a record.
+  let src () : String =
+    Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option"
+
+  // One editor per case, named for the case, each starting from that case's own derived spec.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionSomeEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionNoneEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "Darklang.Fluid.Derive.specForCase") = true
+
+  // ...alongside the type-level one, which is the thing that owns the hole.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "val OptionEditor =") = true
+
+  // And the case editors carry the case's REAL pieces, not the placeholder.
+  (Stdlib.String.contains (GeneratedEnumEditors.src ()) "Darklang.Fluid.Piece.Label \"Some\"") = true
+
+  // A RECORD is still one value, unchanged.
+  let recordSrc () : String =
+    Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Cli.Tui.Size"
+
+  (Stdlib.String.contains (GeneratedEnumEditors.recordSrc ()) "val SizeEditor =") = true
+  (Stdlib.String.contains (GeneratedEnumEditors.recordSrc ()) "Darklang.Fluid.Derive.specForCase") = false
+
+  // WHAT IT EMITS IS VALID DARK. The generated module is source someone pastes into their packages, so the
+  // thing worth checking is not the shape of the string but that the parser accepts it -- for an enum,
+  // several `val`s in one module, which is what discovery expects.
+  let parses (name: String) : String =
+    let src = Darklang.Fluid.Derive.generateModuleFor Darklang.SCM.Branch.mainBranchId name
+    let indented =
+      Stdlib.String.split src "\n" |> Stdlib.List.map (fun l -> "  " ++ l) |> Stdlib.String.join "\n"
+    match Darklang.LanguageTools.Parser.Parse.parsePTSourceFileWithOps ("module Probe.Generated =\n" ++ indented) with
+    | Ok _ -> "parses"
+    | Error e -> "PARSE FAILED: " ++ e
+
+  (GeneratedEnumEditors.parses "Darklang.Stdlib.Cli.Tui.Size") = "parses"
+  (GeneratedEnumEditors.parses "Darklang.Stdlib.Option.Option") = "parses"
+  (GeneratedEnumEditors.parses "Darklang.LanguageTools.ProgramTypes.LetPattern") = "parses"
+
+  // `specForCase` finds the case's spec, and says so plainly when there isn't one.
+  ((Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option" "Some").pieces
+   |> Stdlib.List.isEmpty) = false
+  ((Darklang.Fluid.Derive.specForCase Darklang.SCM.Branch.mainBranchId "Darklang.Stdlib.Option.Option" "Nope").pieces) =
+    [ Darklang.Fluid.Piece.Dim "?Nope" ]
+
+  // ...and the rest of the vocabulary. This match had no fallback and knew fifteen of the twenty-four
+  // pieces, so it was a crash waiting for the first spec that used one of the others -- and "specs are
+  // DATA, which is why they can be derived, generated and stored" is only true if all of them can be
+  // written back out. Derived specs only ever use the fifteen, which is why nothing had hit it.
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.Table("rows", [ "name", "qty" ]))) =
+    "Darklang.Fluid.Piece.Table(\"rows\", [ \"name\", \"qty\" ])"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.ParenLowSlot "cond")) =
+    "Darklang.Fluid.Piece.ParenLowSlot \"cond\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.OperandSlot("right", true))) =
+    "Darklang.Fluid.Piece.OperandSlot(\"right\", true)"
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.FieldTargetSlot "record")) =
+    "Darklang.Fluid.Piece.FieldTargetSlot \"record\""
+  (Darklang.Fluid.Derive.pieceSource (Darklang.Fluid.Piece.ArgSlots("args", [ Darklang.Fluid.Piece.Line ]))) =
+    "Darklang.Fluid.Piece.ArgSlots(\"args\", [ Darklang.Fluid.Piece.Line ])"
+
+  // The two that carry a PREDICATE cannot be printed, because a function has no source. Saying so is the
+  // honest answer: what comes out will not compile until a person writes the predicate back, which beats
+  // emitting something that looks right and means something else.
+  (Stdlib.String.contains
+    (Darklang.Fluid.Derive.pieceSource
+      (Darklang.Fluid.Piece.ParenIfSlot("ret", Darklang.Fluid.PT.Types.isFnType)))
+    "predicate is a function") = true
+
+
+module TableDemoIsReachable =
+  // `Piece.Table` renders a list of records as a GRID rather than as a line of text, and it was reachable
+  // only from the tests -- a poor place to keep the answer to "can a table be seen as a table". `fluid demo
+  // table` opens one, which also meant giving the app a way to launch a document that brings its OWN specs
+  // (`initialWith` / `launchInRegistry`): a projection that is not Darklang's has a registry of its own.
+  (Darklang.Fluid.Debug.render (Darklang.Fluid.App.demoRegistry ()) 80 (Darklang.Fluid.App.demoGrid ())) =
+    "item                  qty  note\n\"widget\"              3    \"in stock\"\n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\""
+
+  // Every column as wide as its widest cell, which is the thing a Wadler group cannot do: a column's width
+  // depends on its SIBLINGS, and a group only ever knows its own.
+  ((Darklang.Fluid.Debug.render (Darklang.Fluid.App.demoRegistry ()) 80 (Darklang.Fluid.App.demoGrid ()))
+   |> Stdlib.String.split "\n"
+   |> Stdlib.List.map (fun l -> Stdlib.String.indexOf l "  " |> Stdlib.Option.withDefault -1)
+   |> Stdlib.List.all (fun i -> i > 0)) = true
+
+  // A grid you can only LOOK at is a picture. Adding a row is the operation a table is for, and it comes
+  // out as holes with the columns re-measured around them. Enter twice because Enter in NAV means "edit",
+  // the same as `i`; the second one grows the list.
+  let rowsAfter (keys: List<String>) : Int =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80)
+        keys
+    match st.root with
+    | Filled n -> Stdlib.List.length (Darklang.Fluid.Node.items n "rows")
+    | _ -> -1
+
+  (TableDemoIsReachable.rowsAfter [ "<Esc>" ]) = 3
+  (TableDemoIsReachable.rowsAfter [ "<Esc>", "j", "<Enter>", "<Enter>" ]) = 4
+
+  (Darklang.Fluid.Test.run (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80
+    [ "<Esc>", "j", "<Enter>", "<Enter>" ]) =
+    "item                  qty    note\n\"widget\"              3      \"in stock\"\n~⟨item⟩                ⟨qty⟩  ⟨note⟩\n\"a much longer name\"  12     \"back order\"\n\"nut\"                 100    \"\""
+
+  // And the caret PATH is what says motion works -- the render cannot tell the grid, row 0 and cell 0
+  // apart, because the caret marker sits at the same column for all three.
+  let at (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.demoRegistry ()) (Darklang.Fluid.App.demoGrid ()) 80)
+        keys
+    Darklang.Fluid.Path.toString st.caret.node
+
+  (TableDemoIsReachable.at [ "<Esc>", "j" ]) = "rows[0]"
+  (TableDemoIsReachable.at [ "<Esc>", "j", "l" ]) = "rows[0].item"
+  (TableDemoIsReachable.at [ "<Esc>", "j", "l", "j" ]) = "rows[1].item"
+
+
+module ATableBehavesLikeATable =
+  // The grid piece: `Piece.Table(itemsSlot, columns)`, a spec's whole projection. These are the three
+  // things the extensibility audit said a table needs and a Wadler document cannot give you -- columns
+  // measured across siblings, a caret that moves in two dimensions, headers drawn once.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.demoRegistry ()
+  let at (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (ATableBehavesLikeATable.reg ()) (Darklang.Fluid.App.demoGrid ()) 90) keys
+    Darklang.Fluid.Path.toString (Darklang.Fluid.Editor.navPath st)
+  let draw (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (ATableBehavesLikeATable.reg ()) (Darklang.Fluid.App.demoGrid ()) 90) keys
+    Darklang.Fluid.Debug.render st.reg st.width st.root
+
+  // Down is the same COLUMN, next row. Reading order would walk sideways along the row.
+  (ATableBehavesLikeATable.at [ "l", "l" ]) = "rows[0].item"
+  (ATableBehavesLikeATable.at [ "l", "l", "j" ]) = "rows[1].item"
+  (ATableBehavesLikeATable.at [ "l", "l", "l" ]) = "rows[0].qty"
+  (ATableBehavesLikeATable.at [ "l", "l", "l", "j" ]) = "rows[1].qty"
+
+  // Forwards off the last row STICKS. It used to fall through to reading order, which walks sideways into
+  // the next column -- which is what `l` means, so two keys did one thing and one of them lied about its
+  // direction. `l` off the last column already stuck; this makes `j` agree with it.
+  (ATableBehavesLikeATable.at [ "l", "l", "j", "j", "j" ]) = "rows[2].item"
+
+  // Backwards off the first row still steps OUT, which is the deliberate escape the earlier pins settled
+  // for `h` from the first column. The two directions are not symmetric on purpose: nothing runs off the
+  // end, and you are never stuck.
+  (ATableBehavesLikeATable.at [ "l", "l", "k" ]) = "rows[0]"
+  (ATableBehavesLikeATable.at [ "l", "l", "h" ]) = "rows[0]"
+
+  // A row that is itself a hole draws its placeholder ONCE. Per column it repeated across the width and
+  // every column was measured against a placeholder that is not a cell, so clearing a row made the table
+  // jump sideways.
+  (ATableBehavesLikeATable.draw [ "l", "x" ]) =
+    "item                  qty  note\n⟨row⟩                      \n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\""
+
+
+module TypingIntoATextCell =
+  // Filling a text cell is the most ordinary thing there is to do to a table, and it needed a `"` first --
+  // a key nobody would guess -- with a bare word left sitting as an unresolvable partial. A slot that
+  // expects a STRING now takes typing as a string.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.demoRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TypingIntoATextCell.reg ()) (Darklang.Fluid.App.demoGrid ()) 90 keys
+
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "c", "b", "o", "l", "t" ]) "\"bolt~\"") = true
+
+  // The quote still opens one, for a string that starts with punctuation.
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "c", "\"", "b", "o", "l", "t" ]) "\"bolt~\"") = true
+
+  // A slot that expects an Int still takes digits as an Int, so this is about the expectation and not
+  // about the keystroke.
+  (Stdlib.String.contains (TypingIntoATextCell.run [ "l", "l", "l", "c", "7" ]) "7~") = true
+
+
+module ExpressionHolesAreUnchanged =
+  // The string rule fires on the prim String KIND. A Darklang expression hole expects an Expr, so a letter
+  // there still starts a variable and a digit still starts an int.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (ExpressionHolesAreUnchanged.reg ()) (ExpressionHolesAreUnchanged.hole ()) 60 keys
+
+  (ExpressionHolesAreUnchanged.run [ "x" ]) = "x~"
+  (ExpressionHolesAreUnchanged.run [ "4" ]) = "4~"
+  (ExpressionHolesAreUnchanged.run [ "\"", "h", "i" ]) = "\"hi~\""
+
+
+module GenerateTheEditorThatShips =
+  // Replacing a built-in editor is what this design is for, and until now it meant writing a `Spec` from
+  // scratch against a kind string you had to find in the source. `fluid generate <kind>` prints the one
+  // that ships, ready to edit and declare.
+  //
+  // It starts from the built-in BY NAME, so an edit keeps everything it did not touch -- the hole rules,
+  // the wrap rules, the actions, the binders. Only `pieces` is written out, because that is the part
+  // anyone wants to change.
+  let eifKind () : Darklang.Fluid.Kind =
+    Darklang.Fluid.Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "EIf"
+
+  let generated () : String =
+    match Darklang.Fluid.App.builtinSpec (GenerateTheEditorThatShips.eifKind ()) with
+    | Some sp -> Darklang.Fluid.Derive.generateForKind (GenerateTheEditorThatShips.eifKind ()) sp
+    | None -> "no built-in"
+
+  // The real pieces, not a stub.
+  (Stdlib.String.contains (GenerateTheEditorThatShips.generated ()) "Darklang.Fluid.Piece.Keyword \"then\"") = true
+  (Stdlib.String.contains (GenerateTheEditorThatShips.generated ()) "Darklang.Fluid.Piece.ParenLowSlot \"cond\"") = true
+
+  // Starting from the built-in by name, which is what makes an edit additive.
+  (Stdlib.String.contains
+    (GenerateTheEditorThatShips.generated ())
+    "Darklang.Fluid.App.builtinSpec (Darklang.Fluid.Kind.ofCase \"Darklang.LanguageTools.ProgramTypes.Expr\" \"EIf\")") = true
+
+  // `builtinSpec` looks at what SHIPS and nothing else. Going through the registry would be circular: the
+  // registry asks the branch for declared specs, and a declared spec would be asking the registry.
+  ((Darklang.Fluid.App.builtinSpec (GenerateTheEditorThatShips.eifKind ())
+    |> Stdlib.Option.map (fun s -> Darklang.Fluid.Kind.toString s.kind)
+    |> Stdlib.Option.withDefault "none")) = "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
+
+  ((Darklang.Fluid.App.builtinSpec (Darklang.Fluid.Kind.named "Nobody.Declared.This")
+    |> Stdlib.Option.map (fun s -> "found")
+    |> Stdlib.Option.withDefault "none")) = "none"
+
+  // A kind string is `Type.Case` or just `Type`, and nothing in the string says which, so both readings
+  // are offered and the first that matches a built-in wins.
+  ((Darklang.Fluid.Derive.kindFromString "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
+    |> Stdlib.List.map (fun k -> Darklang.Fluid.Kind.toString k))) =
+    [ "Darklang.LanguageTools.ProgramTypes.Expr.EIf", "Darklang.LanguageTools.ProgramTypes.Expr.EIf" ]

@@ -1,0 +1,137 @@
+/// Specs for the primitive kinds. Every client (PT, derived, generated) reuses these for its leaves.
+module Darklang.Fluid.Prims
+
+let intKind () : Kind = Kind.prim "Int"
+let stringKind () : Kind = Kind.prim "String"
+let boolKind () : Kind = Kind.prim "Bool"
+let floatKind () : Kind = Kind.prim "Float"
+let unitKind () : Kind = Kind.prim "Unit"
+let listKind () : Kind = Kind.prim "List"
+
+// --- Int: one run of digits ---
+
+let intNode (digits: String) : Node =
+  Node.make (intKind ()) [ ("digits", Field.Text digits) ]
+
+let intSummary (n: Node) : String =
+  Node.text n "digits" |> Stdlib.Option.withDefault ""
+
+let intFromDigit (c: String) (e: Expect) : Node = intNode c
+
+// --- String: quotes are punctuation, the body is one run ---
+
+let stringNode (body: String) : Node =
+  Node.make (stringKind ()) [ ("body", Field.Text body) ]
+
+let stringSummary (n: Node) : String =
+  "\"" ++ (Node.text n "body" |> Stdlib.Option.withDefault "") ++ "\""
+
+/// Typing into a slot that expects a STRING types a string. The quote is still how you open one that
+/// starts with punctuation, but requiring it everywhere meant that filling a text cell in a grid -- the
+/// most ordinary thing there is to do to a table -- began with a key nobody would guess, and a bare word
+/// sat there as an unresolvable partial instead.
+///
+/// This only fires where a slot expects the prim String KIND. A Darklang expression hole expects an Expr,
+/// so a letter there still starts a variable.
+let stringFromChar (c: String) (e: Expect) : Node = stringNode c
+
+// --- Bool ---
+
+let boolNode (b: Bool) : Node =
+  Node.make (boolKind ()) [ ("value", Field.Text (if b then "true" else "false")) ]
+
+// --- Float: whole and fraction, the point is punctuation ---
+
+let floatNode (whole: String) (fraction: String) : Node =
+  Node.make (floatKind ()) [ ("whole", Field.Text whole), ("fraction", Field.Text fraction) ]
+
+let floatFromDigit (c: String) (e: Expect) : Node = floatNode c ""
+
+// --- Unit ---
+
+let unitNode () : Node = Node.make (unitKind ()) []
+
+// --- List: items of one expectation. The item expectation lives on the node's Many field. ---
+
+let listNode (items: List<Slot>) (each: Expect) : Node =
+  Node.make (listKind ()) [ ("items", Field.Many(items, each)) ]
+
+/// `[` into a hole makes a list with one hole in it. What that hole expects comes from the list hole's
+/// type when we know it; `any` otherwise.
+let listFromBracket (c: String) (e: Expect) : Node =
+  let each =
+    match e.typ with
+    | Some(TList inner) -> Expect.ofType inner "item"
+    | _ -> Expect.any "item"
+  listNode [ Slot.Empty each ] each
+
+let listSummary (n: Node) : String =
+  "[" ++ (Stdlib.Int.toString (Stdlib.List.length (Node.items n "items"))) ++ " items]"
+
+let listPieces () : List<Piece> =
+  [ Piece.Group
+      [ Piece.Punct "["
+        Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+        Piece.SoftLine
+        Piece.Punct "]" ] ]
+
+
+let specs () : List<Spec> =
+  [ Spec
+      { kind = intKind ()
+        pieces = [ Piece.Text("digits", Layout.Style.Literal) ]
+        holeRules = [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar intFromDigit } ]
+        wrapRules = []
+        completions = []
+        complete = Spec.noCompletions
+        resolve = Spec.noResolve
+        binders = Spec.noBinders
+        offers = Spec.noOffers
+        scopeCandidate = Stdlib.Option.Option.None
+        actions = []
+        empty = intNode ""
+        summary = intSummary }
+    Spec
+      { kind = stringKind ()
+        pieces = [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ]
+        holeRules =
+          [ HoleRule { onChar = "\""; fill = HoleFill.Node(stringNode "") }
+            HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar stringFromChar }
+            HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar stringFromChar } ]
+        wrapRules = []
+        completions = []
+        complete = Spec.noCompletions
+        resolve = Spec.noResolve
+        binders = Spec.noBinders
+        offers = Spec.noOffers
+        scopeCandidate = Stdlib.Option.Option.None
+        actions = []
+        empty = stringNode ""
+        summary = stringSummary }
+    Spec.withCompletions
+      (Spec.simple (boolKind ()) [ Piece.Text("value", Layout.Style.Keyword) ] (boolNode false))
+      [ Spec.candidate "true" "Bool" (boolNode true)
+        Spec.candidate "false" "Bool" (boolNode false) ]
+    Spec.withRules
+      (Spec.simple
+        (floatKind ())
+        [ Piece.Text("whole", Layout.Style.Literal), Piece.Punct ".", Piece.Text("fraction", Layout.Style.Literal) ]
+        (floatNode "" ""))
+      [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar floatFromDigit } ]
+    Spec.withCompletions
+      (Spec.simple (unitKind ()) [ Piece.Punct "()" ] (unitNode ()))
+      [ Spec.candidate "()" "Unit" (unitNode ()) ]
+    Spec
+      { kind = listKind ()
+        pieces = listPieces ()
+        holeRules = [ HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket } ]
+        wrapRules = []
+        completions = []
+        complete = Spec.noCompletions
+        resolve = Spec.noResolve
+        binders = Spec.noBinders
+        offers = Spec.noOffers
+        scopeCandidate = Stdlib.Option.Option.None
+        actions = []
+        empty = listNode [] (Expect.any "item")
+        summary = listSummary } ]

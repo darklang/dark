@@ -12,7 +12,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition = Packages.definitionFromArgs definitionParts
 
     if Stdlib.String.isEmpty inlineDefinition then
-      // No body provided - show error
+      // No body: open the structural editor on an empty function with this name, which is what a person
+      // with a terminal wants. Typing a whole definition onto a command line is the shape a SCRIPT wants,
+      // and it still works; it just stopped being the only way. `dark edit` already opens the editor to
+      // CHANGE a function, and creating one had no editor at all, which was the odd half.
+      match
+        (Stdlib.Cli.Tui.TerminalSupport.current (),
+         Location.parseRelativeTo state.packageData.currentLocation location)
+      with
+      | (Available, Ok loc) -> Darklang.Fluid.App.createFn state loc
+      | _ ->
       [
         (Stdlib.Cli.UI.Colors.error "Error: Function body required")
         ""

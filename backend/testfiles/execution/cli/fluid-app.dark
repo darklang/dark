@@ -1,0 +1,605 @@
+// Smoke tests for the full-screen app's VIEW path: App.view is pure (State + Size -> View), so we can
+// render it here without a terminal and catch "not found" / crash bugs that the pure kernel tests miss.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let size () : Darklang.Stdlib.Cli.Tui.Size =
+    Darklang.Stdlib.Cli.Tui.Size { width = 110; height = 26 }
+
+  let narrow () : Darklang.Stdlib.Cli.Tui.Size =
+    Darklang.Stdlib.Cli.Tui.Size { width = 60; height = 20 }
+
+  let stateOf (editor: Darklang.Fluid.Editor.State) : Darklang.Fluid.App.State =
+    Darklang.Fluid.App.State
+      { editor = editor
+        title = "fluid: test"
+        scroll = 0
+        hscroll = 0
+        target = Darklang.Fluid.App.Target.Scratch
+        theme = Darklang.Fluid.Theme.default ()
+        bodyRows = 20
+        bodyCols = 100
+        inspectorOpen = false
+        evaluated = Stdlib.Option.Option.None
+        textMode = Stdlib.Option.Option.None
+        savedRoot = editor.root
+        confirmingExit = false
+        pendingEdit = Stdlib.Option.Option.None }
+
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  // Render the app after driving `keys`, at `size`; return the number of non-empty rows drawn.
+  let drawnRows (src: String) (keys: List<String>) (size: Darklang.Stdlib.Cli.Tui.Size) : Int =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (docOf src) 60) keys
+    let v = Darklang.Fluid.App.view (stateOf ed) size
+    v.rows |> Stdlib.List.filter (fun r -> (Stdlib.String.trim (Darklang.Stdlib.Cli.Tui.Text.stripSgr r)) != "") |> Stdlib.List.length
+
+
+module Smoke =
+  // The view renders something for a plain document, on a wide screen (framed pane + inspector).
+  ((Fixtures.drawnRows "if x > 2 then [1, 2] else 3" [] (Fixtures.size ())) > 5) = true
+
+  // ... after navigating into the tree (exercises breadcrumb + inspector "ON"/actions).
+  ((Fixtures.drawnRows "if x > 2 then [1, 2] else 3" [ "j", "j" ] (Fixtures.size ())) > 5) = true
+
+  // ... with the palette open (exercises the overlay + visibleActions).
+  ((Fixtures.drawnRows "if x > 2 then [1, 2] else 3" [ ":" ] (Fixtures.size ())) > 5) = true
+
+  // ... on a hole with completion showing (exercises the popover + candidates in the inspector).
+  ((Fixtures.drawnRows "" [ "l", "e" ] (Fixtures.size ())) > 3) = true
+
+  // ... and it degrades on a narrow screen (inspector dropped, no crash).
+  ((Fixtures.drawnRows "if x > 2 then 1 else 2" [] (Fixtures.narrow ())) > 3) = true
+
+
+module InspectorLabels =
+  // The inspector's sections read as one consistent uppercase list. On an empty hole it leads with an
+  // EXPECTS header; the ACTIONS header carries no stray colon.
+  let screenText (src: String) (keys: List<String>) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    // These are about what the PANEL says, and the panel is on demand now, so open it.
+    let v = Darklang.Fluid.App.view { (Fixtures.stateOf ed) with inspectorOpen = true } (Fixtures.size ())
+    v.rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "EXPECTS") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "ACTIONS  :") = false
+
+  // Completions live at the caret now, so the panel does NOT carry a COMPLETE section; while typing, its
+  // header reads TYPING and the candidate itself shows in the popover (its label is on screen).
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "COMPLETE") = false
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "TYPING") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "let") = true
+
+
+module CompletionOverflow =
+  // When the completion list is capped, the panel says how many more there are, so a long list doesn't
+  // masquerade as the whole set. A short list shows no such line.
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e", "t", " ", "x", " ", "1", " " ]) "more") = true
+  (Stdlib.String.contains (InspectorLabels.screenText "" [ "l", "e" ]) "more") = false
+
+
+module TextMode =
+  // Ctrl-E drops to plain text: the current document prints to source, and edited source parses back.
+  // The round-trip (source -> doc -> source) is stable, which is what makes the switch safe.
+  (Darklang.Fluid.App.docToSource (Fixtures.docOf "1 + 2 * 3")) = "1 + 2 * 3"
+  (Darklang.Fluid.App.docToSource (Fixtures.docOf "if b then 1 else 2")) = "if b then 1 else 2"
+  ((match Darklang.Fluid.App.sourceToDoc "[1, 2, 3]" with
+    | Ok s -> Darklang.Fluid.App.docToSource s
+    | Error e -> "err: " ++ e)) = "[1, 2, 3]"
+  // A multi-line construct survives the trip too.
+  ((match Darklang.Fluid.App.sourceToDoc "let x = 1\nx" with
+    | Ok s -> Darklang.Fluid.App.docToSource s
+    | Error e -> "err: " ++ e)) = "let x = 1\nx"
+
+
+module TextEditGuard =
+  // parsePTExpr fills gaps rather than failing, so applying garbage would silently mangle the expression.
+  // The guard catches placeholders the parser invented (a `()` or `_` the text never mentioned).
+  let verdict (src: String) : String =
+    match Darklang.Fluid.App.sourceToDoc src with
+    | Ok s ->
+      (match Darklang.Fluid.App.textEditProblem src s with
+       | Some _ -> "reject"
+       | None -> "ok")
+    | Error _ -> "reject"
+
+  (TextEditGuard.verdict "let =") = "reject"
+  (TextEditGuard.verdict "((((") = "reject"
+  (TextEditGuard.verdict "if if if") = "reject"
+
+  // Valid code is accepted, including code that legitimately contains unit or a wildcard, and a lambda
+  // (which the printer parenthesises) -- no false positives.
+  (TextEditGuard.verdict "1 + 2") = "ok"
+  (TextEditGuard.verdict "let x = 1\nx") = "ok"
+  (TextEditGuard.verdict "()") = "ok"
+  (TextEditGuard.verdict "if b then () else ()") = "ok"
+  (TextEditGuard.verdict "let _ = 1\n2") = "ok"
+  (TextEditGuard.verdict "fun x -> x") = "ok"
+
+
+module TextModeReadiness =
+  // Entering text mode on a document that can't be printed yet (a half-typed name) must say why -- it used
+  // to hand back an empty string, which would open a blank buffer over real work and then apply it.
+  let srcOf (keys: List<String>) : String =
+    let ed =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")) 60)
+        keys
+    match Darklang.Fluid.App.docToSourceResult ed.root with
+    | Ok s -> "ok:" ++ s
+    | Error _ -> "error"
+
+  // A bare half-typed name, and a let whose body is still an unsettled name.
+  (TextModeReadiness.srcOf [ "l", "e" ]) = "error"
+  (TextModeReadiness.srcOf [ "l", "e", "t", " ", "x", " ", "1", " ", "y" ]) = "error"
+
+  // A complete document prints; an untouched hole is simply an empty buffer.
+  (TextModeReadiness.srcOf [ "1", "+", "2" ]) = "ok:1 + 2"
+  (TextModeReadiness.srcOf []) = "ok:"
+
+
+module TextModeScope =
+  // Ctrl-E from NAV edits just the SELECTED node: printing is scoped to its path, and applying splices the
+  // re-parsed node back there, leaving the rest of the expression alone.
+  let thenPath () : Darklang.Fluid.Path = [ Darklang.Fluid.Step.Into "then" ]
+
+  (match Darklang.Fluid.slotAtPath (Fixtures.docOf "if b then [1, 2] else 3") (TextModeScope.thenPath ()) with
+   | Some s -> Darklang.Fluid.App.docToSource s
+   | None -> "none") = "[1, 2]"
+
+  ((let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "if b then [1, 2] else 3") 60
+    let replacement =
+      match Darklang.Fluid.App.sourceToDoc "[1, 2, 9]" with
+      | Ok s -> s
+      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "x")
+    let spliced =
+      Darklang.Fluid.Editor.commit ed [ Darklang.Fluid.Edit.Replace(TextModeScope.thenPath (), replacement) ] ed.caret
+    Darklang.Fluid.App.docToSource spliced.root)) = "if b then [1, 2, 9] else 3"
+
+
+module TextPaneWindow =
+  // The text pane draws a window on the buffer: `Layout.at` silently drops rows past the bottom, so a
+  // buffer taller than the pane used to hide its own tail while the caret walked off-screen. `textTop`
+  // picks which line sits at the top.
+  let linesOf (n: Int) : List<String> =
+    Stdlib.List.range 1 n |> Stdlib.List.map (fun i -> Stdlib.Int.toString i)
+
+  // A buffer that fits never scrolls, wherever the caret is.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 5) 0 10) = 0
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 5) 4 10) = 0
+
+  // A taller buffer: the top of it is visible on entry, and the caret at the end scrolls exactly far
+  // enough to show the last line -- never past it, which would draw blank rows under the tail.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 0 10) = 0
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 13 10) = 4
+
+  // Mid-buffer, the window keeps a couple of lines of lookahead below the caret.
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 9 10) = 2
+  (Darklang.Fluid.App.textTop (TextPaneWindow.linesOf 14) 7 10) = 0
+
+
+module PanelOnDemand =
+  // Redesign step 2: the code is the hero and gets the full width. The always-on context rail is now
+  // opened with `?`, and what it said constantly moved to where it is actually needed -- completions to
+  // the caret popover (step 1), and "what does this hole expect" to the status line.
+  let stateWith (open_: Bool) (editor: Darklang.Fluid.Editor.State) : Darklang.Fluid.App.State =
+    { (Fixtures.stateOf editor) with inspectorOpen = open_ }
+
+  let screenOf (open_: Bool) (src: String) (keys: List<String>) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    (Darklang.Fluid.App.view (PanelOnDemand.stateWith open_ ed) (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // Closed by default: no rail, and no ACTIONS header taking a third of the width.
+  (Stdlib.String.contains (PanelOnDemand.screenOf false "if x > 2 then [1, 2] else 3" []) "context") = false
+  (Stdlib.String.contains (PanelOnDemand.screenOf false "if x > 2 then [1, 2] else 3" []) "ACTIONS") = false
+  // Open on request, with the actions AND the full keymap, which is what lets the status line be short.
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "context") = true
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "ACTIONS") = true
+  (Stdlib.String.contains (PanelOnDemand.screenOf true "if x > 2 then [1, 2] else 3" []) "KEYS") = true
+
+  // The status line says what the panel used to: what this hole wants, or what you are typing.
+  (Darklang.Fluid.App.statusOf
+    (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "") 60) []))) = " expects expr ·"
+  (Darklang.Fluid.App.statusOf
+    (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "") 60) [ "l", "e" ]))) = " typing le ·"
+
+  // The footer has to FIT: it used to run past the right edge and read `q qu`.
+  ((Stdlib.String.length (Darklang.Fluid.App.helpFor
+     (PanelOnDemand.stateWith false (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "if x > 2 then 1 else 2") 60) [ "<Esc>" ])))) < 80) = true
+
+
+module ValueOnDemand =
+  // Redesign step 4: the VALUE of what you have selected. `v` asks and the answer stays; it is not a live
+  // readout, because evaluating is RUNNING THE CODE, and doing that on every keystroke would fire whatever
+  // effects an expression has while you are still typing it. allowHarmful stays false for the same reason.
+  //
+  // The evaluation ITSELF cannot be pinned here: it goes through Cli.Eval, whose `cliEvaluateExpression`
+  // is a CliHost builtin, and testfiles run with the cloud builtins -- asking for it gives
+  // `FnNotFound (Builtin "cliEvaluateExpression")`. So the behaviour was checked by hand in the editor
+  // (`1 + 2 * 3` -> 7, the `2 * 3` inside it -> 6, `x + 1` -> the free-variable error) and what is pinned
+  // here is everything around it that the harness CAN reach: where the answer is kept, and how the panel
+  // decides to show it.
+  let withValue (src: String) (keys: List<String>) (answer: String) (at: Darklang.Fluid.Path) : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60) keys
+    { (Fixtures.stateOf ed) with
+        inspectorOpen = true
+        evaluated = Stdlib.Option.Option.Some((at, answer)) }
+
+  let screenOf (st: Darklang.Fluid.App.State) : String =
+    (Darklang.Fluid.App.view st (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // An answer about the node you are ON is shown, under a VALUE heading.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "VALUE") = true
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "7") = true
+
+  // An answer about a DIFFERENT node is not: a value that quietly belonged to something else would be
+  // worse than no value at all.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf
+      (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "6" [ Darklang.Fluid.Step.Into "right" ])) "VALUE") = false
+
+  // Nothing asked, nothing shown.
+  (Stdlib.String.contains
+    (ValueOnDemand.screenOf { (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" []) with evaluated = Stdlib.Option.Option.None })
+    "VALUE") = false
+
+  // And the key is advertised in the status line. (Not asserted on the PANEL: it truncates to the height
+  // of its region, so which of its rows are on screen depends on the size of the terminal.)
+  (Stdlib.String.contains
+    (Darklang.Fluid.App.helpFor (ValueOnDemand.withValue "1 + 2 * 3" [ "<Esc>" ] "7" [])) "v value") = true
+
+
+module NewShapesSurviveTextMode =
+  // Ctrl-E prints the selection and re-parses what you edited, so anything Fluid can BUILD it must also be
+  // able to print and read back. Records and constructors were the newest things it can build.
+  let roundTrip (src: String) : String =
+    match Darklang.Fluid.App.sourceToDoc src with
+    | Ok back ->
+      (match Darklang.Fluid.App.docToSourceResult back with
+       | Ok again -> again
+       | Error e -> "print ERR " ++ e)
+    | Error e -> "parse ERR " ++ e
+
+  (NewShapesSurviveTextMode.roundTrip "Stdlib.Cli.Tui.Size { width = 80; height = 24 }") =
+    "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+  (NewShapesSurviveTextMode.roundTrip "Result.Ok(1)") = "Result.Ok(1)"
+  (NewShapesSurviveTextMode.roundTrip "match r with\n| Ok(v) -> v\n| Error(e) -> 0") =
+    "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+
+module LongLinesScrollSideways =
+  // A projection can hold a line that no width will break -- a doc comment is one long token, and the
+  // printer doesn't wrap it either -- and the pane used to cut it at the border with nothing to say it
+  // had. The pane moves sideways now, the same way it already moved down: `scrollFor` decides both, from
+  // the caret's row and the caret's column.
+  let ed () : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "\"0123456789abcdefghijklmnopqrstuvwxyz\"") 200
+
+  let row0 () : Darklang.Fluid.Layout.Row =
+    Darklang.Fluid.Widget.rowsFor (LongLinesScrollSideways.ed ()) |> Stdlib.List.head |> Stdlib.Option.withDefault []
+
+  let clip (cols: Int) (h: Int) : String =
+    Darklang.Stdlib.Cli.Tui.Text.stripSgr
+      (Darklang.Fluid.Widget.clipRow
+        (Darklang.Fluid.Theme.mono ())
+        (LongLinesScrollSideways.ed ())
+        cols
+        h
+        (LongLinesScrollSideways.row0 ()))
+
+  // Wide enough: untouched, and no markers invented.
+  (LongLinesScrollSideways.clip 100 0) = "\"0123456789abcdefghijklmnopqrstuvwxyz\""
+
+  // Too narrow: cut on the right, and the `>` takes the place of the column it hides rather than pushing
+  // the line over -- the caret is positioned from the same arithmetic, so a marker that shifted the text
+  // would put the cursor one column off.
+  (LongLinesScrollSideways.clip 10 0) = "\"01234567>"
+
+  // Scrolled into the middle: cut on both sides, still exactly ten columns wide.
+  (LongLinesScrollSideways.clip 10 5) = "<56789abc>"
+
+  // Scrolled past where the line ends: cut on the left only, and no `>` invented for a line that stops.
+  (LongLinesScrollSideways.clip 10 30) = "<uvwxyz\""
+
+  // The two row operations underneath, said directly. A cell straddling the cut is SPLIT and keeps its
+  // tag, so scrolling never changes what the document is, only which part of it you are looking at.
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 3 (LongLinesScrollSideways.row0 ())))
+    = "23456789abcdefghijklmnopqrstuvwxyz\""
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.takeCols 4 (LongLinesScrollSideways.row0 ()))) = "\"012"
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 0 (LongLinesScrollSideways.row0 ())))
+    = "\"0123456789abcdefghijklmnopqrstuvwxyz\""
+  (Darklang.Fluid.Layout.rowText (Darklang.Fluid.Layout.dropCols 99 (LongLinesScrollSideways.row0 ()))) = ""
+
+  // The caret's column is what the scroll follows, so a caret past the right edge pulls the window along.
+  (Darklang.Fluid.Widget.scrollFor 40 10 0) = 31
+  (Darklang.Fluid.Widget.scrollFor 3 10 31) = 3
+  (Darklang.Fluid.Widget.scrollFor 5 10 0) = 0
+
+
+module TextEditKeepsHistory =
+  // Applying a WHOLE-document text edit used to build a FRESH editor, which threw the undo history away:
+  // everything typed before a trip through text mode was unreachable afterwards, and `u` answered "nothing
+  // to undo". Splicing a sub-node always kept history, because that branch committed an edit instead.
+  //
+  // They are the same operation -- the whole document is the root path -- so there is one branch now.
+  // Found by writing a program in the terminal, taking it through text mode, and pressing undo.
+  let typed () : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Test.drive
+      (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")) 60)
+      [ "1", "+", "2" ]
+
+  let applied () : Darklang.Fluid.App.State =
+    let st = { (Fixtures.stateOf (TextEditKeepsHistory.typed ())) with
+                 textMode = Stdlib.Option.Option.Some(("1 + 9", 0, [])) }
+    match
+      Darklang.Fluid.App.textModeKey
+        st
+        "1 + 9"
+        0
+        []
+        Darklang.Stdlib.Cli.Stdin.Key.Key.S
+        (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = true; shift = false; alt = false })
+        Stdlib.Option.Option.None with
+    | Stay s -> s
+    | _ -> st
+
+  // Ctrl-S applies the edited text, and leaves text mode.
+  (Darklang.Fluid.App.docToSource (TextEditKeepsHistory.applied ()).editor.root) = "1 + 9"
+  ((TextEditKeepsHistory.applied ()).textMode == Stdlib.Option.Option.None) = true
+
+  // ...and undo peels the text edit rather than finding an empty history.
+  (Darklang.Fluid.App.docToSource
+    (Darklang.Fluid.Editor.undo (TextEditKeepsHistory.applied ()).editor).root) = "1 + 2"
+
+
+module TheNavSelectionIsARange =
+  // In NAV the current node is shown in reverse video. Only TEXT carries a tag, though -- punctuation,
+  // keywords and the spaces between them do not -- so asking each cell "are you under the caret" and
+  // reversing the ones that said yes highlighted a node's names and literals and left its `(`, its `->`
+  // and the spaces plain. On a leaf that is invisible. On a fifteen-line `let` it was forty scattered
+  // words in reverse video instead of a block you could see, which is a thing that only exists through a
+  // terminal.
+  //
+  // A marker theme rather than real SGR, so the pin says which cells are selected and nothing about
+  // colour: `<` opens a selected run and `>` closes any styled run.
+  let theme () : Darklang.Fluid.Theme.Theme =
+    { (Darklang.Fluid.Theme.mono ()) with
+        plain = ""
+        keyword = ""
+        punct = ""
+        literal = ""
+        name = ""
+        label = ""
+        hole = ""
+        partial = ""
+        dim = ""
+        error = ""
+        selection = "<" }
+
+  let ed (src: String) (keys: List<String>) : Darklang.Fluid.Editor.State =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)) 80)
+        keys
+    | Error _ ->
+      Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")) 80
+
+  let marked (src: String) (keys: List<String>) : String =
+    let st = TheNavSelectionIsARange.ed src keys
+    Darklang.Fluid.Widget.rowsFor st
+    |> Stdlib.List.map (fun r ->
+      Stdlib.String.replaceAll
+        (Darklang.Fluid.Widget.renderRow (TheNavSelectionIsARange.theme ()) st r)
+        Stdlib.Cli.UI.Colors.reset
+        ">")
+    |> Stdlib.String.join "\n"
+
+  // The whole call: the spaces, the paren and the `->` inside it are all part of the selection now.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" []) =
+    "<Stdlib.List.map>< ><xs>< ><(><fun>< ><a>< ><->>< ><a>)"
+
+  // A leaf is still just itself.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" [ "l" ]) =
+    "<Stdlib.List.map> xs (fun a -> a)"
+
+  // INSERT has the terminal's own cursor, so nothing is reversed.
+  (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" [ "i" ]) =
+    "Stdlib.List.map xs (fun a -> a)"
+
+
+module EvaluatingReclaimsTheScreen =
+  // `v` runs the expression under the caret, and running code can PRINT. The code itself may, and the
+  // interpreter prints a call stack when it fails. Either one scrolls the editor out from under the
+  // renderer, which then diffs against a screen that has moved: two stale rows at the top and the frame
+  // drawn two rows low. Reproducible with any `v` on something that errors.
+  //
+  // So `v` answers `Repaint` rather than `Stay`. Same reasoning as a resume -- the surface stopped being
+  // ours the moment something else wrote to it -- without leaving the page.
+  //
+  // The `v` path itself is NOT pinned here and cannot be: it reaches `Builtin.cliEvaluateExpression`,
+  // which this test host does not carry, so the call fails before the Step is chosen. It was checked by
+  // hand in a terminal instead, which is the only place the bug exists anyway. What is pinned is the
+  // other half of the claim -- that an ordinary key still just stays -- so a later change that makes
+  // everything repaint gets caught.
+  let plainStep () : String =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "1 + 1") 60
+    let st = { (Fixtures.stateOf ed) with editor = { ed with mode = Darklang.Fluid.Editor.Mode.Nav } }
+
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "j")
+    with
+    | Repaint _ -> "repaint"
+    | Stay _ -> "stay"
+    | Save _ -> "save"
+    | Exit _ -> "exit"
+    | Launch(_, _) -> "launch"
+    | ToPrompt _ -> "toPrompt"
+    | RunProgram(_, _, _) -> "runProgram"
+
+  (EvaluatingReclaimsTheScreen.plainStep ()) = "stay"
+
+  // And `?`, which opens the same panel WITHOUT running anything, stays too. That is the pair that says
+  // the repaint is about evaluation and not about the panel.
+  let panelStep () : String =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "1 + 1") 60
+    let st = { (Fixtures.stateOf ed) with editor = { ed with mode = Darklang.Fluid.Editor.Mode.Nav } }
+
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "?")
+    with
+    | Repaint _ -> "repaint"
+    | Stay _ -> "stay"
+    | _ -> "other"
+
+  (EvaluatingReclaimsTheScreen.panelStep ()) = "stay"
+
+
+
+module LeavingAsksAboutUnsavedWork =
+  // `q` and Escape both ended the editor outright, so a stray Escape in NAV threw away everything typed
+  // since the last save and said nothing about it. There is no confirmation anywhere else in this editor
+  // and there should not be, but throwing away work silently is the one thing worth a keystroke.
+  //
+  // Dirtiness is the document COMPARED against the document as of the last save, not a count off the undo
+  // stack, so undoing back to where you started reads as clean.
+  let stateWith (src: String) (saved: String) : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf src) 60
+    { (Fixtures.stateOf { ed with mode = Darklang.Fluid.Editor.Mode.Nav }) with
+        savedRoot = Fixtures.docOf saved }
+
+  let quitStep (st: Darklang.Fluid.App.State) : String =
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "q")
+    with
+    | Exit _ -> "exit"
+    | Stay _ -> "stay"
+    | Repaint _ -> "repaint"
+    | _ -> "other"
+
+  // Nothing changed since the last save: `q` goes straight out.
+  (LeavingAsksAboutUnsavedWork.quitStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 2")) = "exit"
+
+  // Changed: the first press stays and says so.
+  (LeavingAsksAboutUnsavedWork.quitStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3")) = "stay"
+
+  // ...and the second goes through, because the first set the flag.
+  (LeavingAsksAboutUnsavedWork.quitStep
+    { (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3") with confirmingExit = true }) = "exit"
+
+  // Escape in NAV is the same door, which is the case that made this worth doing.
+  let escapeStep (st: Darklang.Fluid.App.State) : String =
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.Escape
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        Stdlib.Option.Option.None
+    with
+    | Exit _ -> "exit"
+    | Stay _ -> "stay"
+    | Repaint _ -> "repaint"
+    | _ -> "other"
+
+  (LeavingAsksAboutUnsavedWork.escapeStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3")) = "stay"
+  (LeavingAsksAboutUnsavedWork.escapeStep (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 2")) = "exit"
+
+  // Any other key cancels the pending confirm, so it never survives more than one keystroke.
+  let afterAMove () : Bool =
+    match
+      Darklang.Fluid.App.onKey
+        { (LeavingAsksAboutUnsavedWork.stateWith "1 + 2" "1 + 3") with confirmingExit = true }
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some "k")
+    with
+    | Stay next -> next.confirmingExit
+    | _ -> true
+
+  (LeavingAsksAboutUnsavedWork.afterAMove ()) = false
+
+
+module TextModeWorksOnAShell =
+  // Text mode edits an EXPRESSION, and `dark edit <fn>` opens on the function SHELL, which is not one.
+  // So `^E` -- which the status line advertises -- answered "can't edit as text: not an expression node:
+  // Darklang.Fluid.PT.Fn.Function" at exactly the moment you arrive, which is when you want it. It falls
+  // through to the nearest expression inside the selection now: the body, for a function or a value.
+  let fnDoc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc "inc" (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+        { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+          body = Darklang.LanguageTools.ProgramTypes.Expr.EInt(1L, 42)
+          typeParams = []
+          parameters = []
+          returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+          description = "" }))
+
+  let ctrlE (root: Darklang.Fluid.Slot) : String =
+    let ed = Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) root 70
+    let st = { (Fixtures.stateOf { ed with mode = Darklang.Fluid.Editor.Mode.Nav }) with savedRoot = root }
+
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.E
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = true; alt = false; shift = false })
+        Stdlib.Option.Option.None
+    with
+    | Stay next ->
+      (match next.textMode with
+       | Some((src, _, at)) -> (Darklang.Fluid.Path.toString at) ++ " => " ++ src
+       | None -> "no text mode: " ++ next.editor.message)
+    | _ -> "other"
+
+  // On the shell: the body, at the body's path.
+  (TextModeWorksOnAShell.ctrlE (TextModeWorksOnAShell.fnDoc ())) = "body => 42"
+
+  // On an expression it is still that expression, at the root.
+  (TextModeWorksOnAShell.ctrlE (Fixtures.docOf "1 + 2")) = " => 1 + 2"
+
+
+module ThePanelNamesTheKind =
+  // Declaring your own editor for a built-in node is the headline claim of this thing, and it needs the
+  // node's KIND -- `Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "EIf"`. That string was
+  // readable nowhere. I got it wrong on the first try writing exactly such a spec, and the failure mode is
+  // silence: a spec whose kind matches nothing is simply never used.
+  //
+  // So the panel says it, under the short name, wrapped hard because it is one dotted token with nothing
+  // to break at and a name you cannot copy in full is no better than no name.
+  (Stdlib.String.contains
+    (InspectorLabels.screenText "if x then 1L else 2L" [ "<Esc>" ])
+    "Darklang.LanguageTools.Program") = true
+
+  // The short name stays on the ON line: the full one is for when you are about to write a spec, not for
+  // every glance.
+  (Stdlib.String.contains (InspectorLabels.screenText "if x then 1L else 2L" [ "<Esc>" ]) "ON  EIf") = true
+
+  // A hole leads with EXPECTS instead, and gets no kind line -- there is no node there to name.
+  (Stdlib.String.contains (InspectorLabels.screenText "" []) "Darklang.LanguageTools") = false

@@ -1,0 +1,92 @@
+// Specs derived from type declarations, and completion on partials.
+
+module Fixtures =
+  let field (name: String) (typ: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField { name = name; typ = typ; description = "" }
+
+  let colorDecl () : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        definition =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+            [ field "r" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              field "g" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              field "name" Darklang.LanguageTools.ProgramTypes.TypeReference.TString ] }
+
+  let enumField (label: Stdlib.Option.Option<String>) (typ: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField { typ = typ; label = label; description = "" }
+
+  let case (name: String) (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField>) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = name; fields = fields; description = "" }
+
+  let shapeDecl () : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        definition =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+            [ case "Circle" [ enumField (Stdlib.Option.Option.Some "radius") Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+              case "Cube" [ enumField Stdlib.Option.Option.None Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+              case "Point" [] ] }
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs ()
+          Darklang.Fluid.Derive.specsFor "Acme.Color" (colorDecl ())
+          Darklang.Fluid.Derive.specsFor "Acme.Shape" (shapeDecl ()) ])
+
+  let colorHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Acme.Color") "Color")
+
+  let shapeHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Acme.Shape") "Shape")
+
+  let run (root: Darklang.Fluid.Slot) (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (reg ()) root 80 keys
+
+
+module Records =
+  // `{` into a hole expecting a record makes the record with every field a hole, caret on the first.
+  // A record with more than one field is laid out vertically, always (the vertical bias), even when it
+  // would fit on a line.
+  (Fixtures.run (Fixtures.colorHole ()) [ "{" ]) = "Color {\n  r = ~⟨r⟩;\n  g = ⟨g⟩;\n  name = ⟨name⟩\n}"
+
+  // Fields know their types: digits make Ints, a quote makes a String.
+  (Fixtures.run (Fixtures.colorHole ()) [ "{", "1", "<Tab>", "2", "<Tab>", "\"", "x" ]) =
+    "Color {\n  r = 1;\n  g = 2;\n  name = \"x~\"\n}"
+
+  // The record's name is a completion too, for people who type it.
+  (Fixtures.run (Fixtures.colorHole ()) [ "C", "<Enter>" ]) = "Color {\n  r = ~⟨r⟩;\n  g = ⟨g⟩;\n  name = ⟨name⟩\n}"
+
+
+module Enums =
+  // Letters into an enum hole start a partial; the cases that match are the candidates.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "C" ]) = "C~"
+
+  // Enter takes the first candidate and lands on its first hole.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "C", "<Enter>" ]) = "Circle(~⟨radius⟩)"
+
+  (Fixtures.run (Fixtures.shapeHole ()) [ "C", "<Enter>", "5" ]) = "Circle(5~)"
+
+  // Down picks the next candidate. An unlabelled field is named by position.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "C", "<Down>", "<Enter>" ]) = "Cube(~⟨f0⟩)"
+
+  // Tab commits as well.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "cu", "<Tab>" ]) = "Cube(~⟨f0⟩)"
+
+  // A case with no fields anchors the caret on its name.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "P", "<Enter>" ]) = "~Point"
+
+  // No match: the partial stays and Enter does nothing.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "x", "<Enter>" ]) = "x~"
+
+  // Matching is case-insensitive.
+  (Fixtures.run (Fixtures.shapeHole ()) [ "p", "<Enter>" ]) = "~Point"
+
+
+module Lists =
+  (Fixtures.run (Darklang.Fluid.Slot.Empty(Darklang.Fluid.Derive.expectFor (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) "xs")) [ "[" ]) =
+    "[~⟨item⟩]"
+
+  (Fixtures.run (Darklang.Fluid.Slot.Empty(Darklang.Fluid.Derive.expectFor (Darklang.LanguageTools.ProgramTypes.TypeReference.TList Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) "xs")) [ "[", "7" ]) =
+    "[7~]"

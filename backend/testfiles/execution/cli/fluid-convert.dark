@@ -1,0 +1,47 @@
+// Changing a node while keeping its parts: the filterable command palette, generic unwrap (replace a
+// node with one of its children), and an if->match conversion that keeps the condition and branches.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  let runOn (src: String) (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (docOf src) 60) keys
+    Darklang.Fluid.Debug.withCaret st.reg st.width st.root st.caret
+
+  // The visible palette action names on the node at the root, after opening and typing `filter`.
+  let paletteNames (src: String) (filter: List<String>) : List<String> =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (docOf src) 60) (Stdlib.List.append [ ":" ] filter)
+    Darklang.Fluid.Editor.visibleActions st |> Stdlib.List.map (fun a -> a.name)
+
+
+module IfToMatch =
+  // Convert keeps the condition as the scrutinee and the branches as the arm bodies.
+  (Fixtures.runOn "if x then 1 else 2" [ ":", "m", "a", "t", "c", "h", "<Enter>" ]) =
+    "match ~x with\n| true -> 1\n| false -> 2"
+
+
+module Unwrap =
+  // Replace an infix with one of its operands.
+  (Fixtures.runOn "x + 1" [ ":", "l", "e", "f", "t", "<Enter>" ]) = "~x"
+  (Fixtures.runOn "x + 1" [ ":", "r", "i", "g", "h", "t", "<Enter>" ]) = "~1"
+  // A list offers each element.
+  (Fixtures.runOn "[7, 8, 9]" [ ":", "u", "n", "w", "r", "a", "p", "<Enter>" ]) = "~7"
+
+
+module Filter =
+  // Typing narrows the palette. "convert" leaves only the conversion; "match" also matches "wrap in match".
+  (Fixtures.paletteNames "if x then 1 else 2" [ "c", "o", "n", "v" ]) = [ "convert to match" ]
+  (Fixtures.paletteNames "if x then 1 else 2" [ "m", "a", "t", "c", "h" ]) = [ "convert to match", "wrap in match" ]
+
+  (Fixtures.paletteNames "x + 1" [ "u", "n", "w", "r", "a", "p" ]) = [ "unwrap to left", "unwrap to right" ]
+
+  // No filter: an if offers the wraps and the conversion (order: spec actions then generic unwraps).
+  (Stdlib.List.member (Fixtures.paletteNames "if x then 1 else 2" []) "convert to match") = true
+  (Stdlib.List.member (Fixtures.paletteNames "if x then 1 else 2" []) "wrap in let") = true

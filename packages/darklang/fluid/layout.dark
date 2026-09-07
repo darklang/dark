@@ -1,0 +1,415 @@
+/// Width-aware layout that remembers where every piece of text came from.
+///
+/// This is `Stdlib.Pretty` with one change: `render` returns rows of cells instead of a String, and a cell
+/// can carry a `Tag` saying which node and part of the document it displays. That is what lets a caret
+/// (a path, a part, an offset) be turned into a row and column after layout, and a row and column back
+/// into a caret. The `fits`/`renderLoop` shape is kept identical to Pretty's on purpose, so the two can
+/// be read side by side and this can fold back into it if Pretty ever grows a generic tag.
+///
+/// Style is a name here, not an escape. The widget decides colours at draw time, so the same layout is
+/// usable monochrome and the caret highlight can be applied per cell.
+module Darklang.Fluid.Layout
+
+/// What a run of text is, for colouring. Names, not escapes.
+type Style =
+  | Plain
+  | Keyword
+  | Punct
+  | Literal
+  | Name
+  | Hole
+  | Partial
+  | Dim
+  | Error
+
+/// Which node and part a run displays.
+type Tag =
+  { node: Path
+    part: Part }
+
+/// A document: text plus the places it may be broken. See `Stdlib.Pretty.Doc` for the break semantics.
+type Doc =
+  | Empty
+  /// Text nobody can put a caret in: punctuation, keywords, decoration.
+  | Text of Style * String
+  /// Text that displays a part of a node. Never broken across lines; the caret offset indexes into it.
+  | Tagged of Tag * Style * String
+  | Line
+  | HardLine
+  | SoftLine
+  | Concat of Doc * Doc
+  | Nest of Int * Doc
+  | Group of Doc
+  /// Laid out FLAT whatever the width. Wadler has no such combinator because Wadler lays out text whose
+  /// MEANING doesn't depend on where the breaks fall. Inside a string literal it does: the expressions in
+  /// `$"a {f x} b"` broke like any other call, and the newline and its indentation landed INSIDE the
+  /// string, so the drawing was a different program from the one being drawn.
+  | Forced of Doc
+
+type Mode =
+  | Flat
+  | Break
+
+/// One run on one row.
+type Cell =
+  { text: String
+    style: Style
+    tag: Stdlib.Option.Option<Tag>
+    /// Display width, measured once.
+    width: Int }
+
+type Row = List<Cell>
+
+
+// --- Combinators ---
+
+val empty = Doc.Empty
+val line = Doc.Line
+val hardLine = Doc.HardLine
+val softLine = Doc.SoftLine
+
+let text (s: String) : Doc = Doc.Text(Style.Plain, s)
+let punct (s: String) : Doc = Doc.Text(Style.Punct, s)
+let keyword (s: String) : Doc = Doc.Text(Style.Keyword, s)
+let dim (s: String) : Doc = Doc.Text(Style.Dim, s)
+let styledText (style: Style) (s: String) : Doc = Doc.Text(style, s)
+let space () : Doc = Doc.Text(Style.Plain, " ")
+
+let tagged (tag: Tag) (style: Style) (s: String) : Doc = Doc.Tagged(tag, style, s)
+
+let concat (a: Doc) (b: Doc) : Doc = Doc.Concat(a, b)
+
+let concatAll (ds: List<Doc>) : Doc =
+  Stdlib.List.fold ds Doc.Empty (fun acc d -> Doc.Concat(acc, d))
+
+let concatSpace (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Text(Style.Plain, " "), b))
+
+let concatLine (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
+
+let nest (n: Int) (d: Doc) : Doc = Doc.Nest(n, d)
+
+let group (d: Doc) : Doc = Doc.Group d
+
+let forced (d: Doc) : Doc = Doc.Forced d
+
+let hsep (ds: List<Doc>) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> concatSpace acc d)
+
+let vsep (ds: List<Doc>) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> concatLine acc d)
+
+/// Join with `sep` between items. Subject first, so it pipes.
+let join (ds: List<Doc>) (sep: Doc) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest ->
+    Stdlib.List.fold rest first (fun acc d -> Doc.Concat(acc, Doc.Concat(sep, d)))
+
+/// Hang `items` from `head`, breaking and indenting them when needed.
+let hang (indent: Int) (head: Doc) (items: List<Doc>) : Doc =
+  Doc.Group(
+    Doc.Concat(
+      head,
+      Doc.Nest(indent, concatAll (items |> Stdlib.List.map (fun d -> Doc.Concat(Doc.Line, d))))))
+
+/// `open`, the items separated by `sep` + soft break, `close`; flat when it fits, one per line when not.
+let bracketed (openP: String) (items: List<Doc>) (sep: String) (closeP: String) : Doc =
+  match items with
+  | [] -> Doc.Concat(punct openP, punct closeP)
+  | _ ->
+    Doc.Group(
+      concatAll
+        [ punct openP
+          Doc.Nest(2, Doc.Concat(Doc.SoftLine, join items (Doc.Concat(punct sep, Doc.Line))))
+          Doc.SoftLine
+          punct closeP ])
+
+
+// --- Measuring ---
+
+let widthOf (d: Doc) : Int =
+  match d with
+  | Text(_, s) -> Stdlib.String.displayWidth s
+  | Tagged(_, _, s) -> Stdlib.String.displayWidth s
+  | _ -> 0
+
+/// How wide a whole Doc is with nothing broken. `widthOf` measures ONE node; this measures a tree, which
+/// is what a table needs: a column's width is the widest cell in it, and you cannot know that until every
+/// cell has been measured. A Wadler group decides its own width and never its siblings', so alignment
+/// across rows has to be computed outside the normal render.
+let flatWidth (d: Doc) : Int =
+  match d with
+  | Empty -> 0
+  | Text(_, s) -> Stdlib.String.displayWidth s
+  | Tagged(_, _, s) -> Stdlib.String.displayWidth s
+  | Line -> 1
+  | SoftLine -> 0
+  | HardLine -> 0
+  | Concat(a, b) -> (flatWidth a) + (flatWidth b)
+  | Nest(_, inner) -> flatWidth inner
+  | Group inner -> flatWidth inner
+  | Forced inner -> flatWidth inner
+
+/// Would the rest of this line fit in `room` columns? Same logic as `Stdlib.Pretty.fits`.
+let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
+  if room < 0 then
+    false
+  else
+    match items with
+    | [] -> true
+    | (i, m, d) :: rest ->
+      match d with
+      | Empty -> fits room rest
+      | Text(_, s) -> fits (room - (Stdlib.String.displayWidth s)) rest
+      | Tagged(_, _, s) -> fits (room - (Stdlib.String.displayWidth s)) rest
+      | HardLine ->
+        match m with
+        | Flat -> false
+        | Break -> true
+      | Line ->
+        match m with
+        | Flat -> fits (room - 1) rest
+        | Break -> true
+      | SoftLine ->
+        match m with
+        | Flat -> fits room rest
+        | Break -> true
+      | Concat(a, b) ->
+        fits room (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
+      | Nest(j, x) -> fits room (Stdlib.List.push rest ((i + j, m, x)))
+      | Group x -> fits room (Stdlib.List.push rest ((i, m, x)))
+      | Forced x -> fits room (Stdlib.List.push rest ((i, Mode.Flat, x)))
+
+
+// --- Rendering ---
+
+/// Output under construction: finished rows (reversed), the current row (reversed), and the column.
+type Acc =
+  { rows: List<Row>
+    cur: List<Cell>
+    col: Int }
+
+let cell (style: Style) (tag: Stdlib.Option.Option<Tag>) (s: String) : Cell =
+  Cell { text = s; style = style; tag = tag; width = Stdlib.String.displayWidth s }
+
+let emit (acc: Acc) (c: Cell) : Acc =
+  { acc with cur = Stdlib.List.push acc.cur c; col = acc.col + c.width }
+
+let newline (acc: Acc) (indent: Int) : Acc =
+  let finished = Stdlib.List.push acc.rows (Stdlib.List.reverse acc.cur)
+  let padded =
+    if indent > 0 then
+      [ cell Style.Plain Stdlib.Option.Option.None (Stdlib.String.repeat " " indent) ]
+    else
+      []
+  Acc { rows = finished; cur = padded; col = indent }
+
+let renderLoop (width: Int) (acc: Acc) (items: List<(Int * Mode * Doc)>) : Acc =
+  match items with
+  | [] -> acc
+  | (i, m, d) :: rest ->
+    match d with
+    | Empty -> renderLoop width acc rest
+
+    | Text(style, s) ->
+      renderLoop width (emit acc (cell style Stdlib.Option.Option.None s)) rest
+
+    | Tagged(tag, style, s) ->
+      renderLoop width (emit acc (cell style (Stdlib.Option.Option.Some tag) s)) rest
+
+    | HardLine -> renderLoop width (newline acc i) rest
+
+    | Line ->
+      match m with
+      | Flat -> renderLoop width (emit acc (cell Style.Plain Stdlib.Option.Option.None " ")) rest
+      | Break -> renderLoop width (newline acc i) rest
+
+    | SoftLine ->
+      match m with
+      | Flat -> renderLoop width acc rest
+      | Break -> renderLoop width (newline acc i) rest
+
+    | Concat(a, b) ->
+      renderLoop width acc (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
+
+    | Nest(j, x) -> renderLoop width acc (Stdlib.List.push rest ((i + j, m, x)))
+
+    | Group x ->
+      match m with
+      // Already flat: stay flat. Wadler's `flatten` is recursive, and re-deciding here let a group inside
+      // a Forced one break anyway -- which is how `$"a {f x} b"` still broke after Forced was added.
+      // Under an ordinary Group this changes nothing: the enclosing `fits` already measured the whole
+      // flat content, so the inner test could only agree.
+      | Flat -> renderLoop width acc (Stdlib.List.push rest ((i, Mode.Flat, x)))
+      | Break ->
+        let flat = Stdlib.List.push rest ((i, Mode.Flat, x))
+        if fits (width - acc.col) flat then
+          renderLoop width acc flat
+        else
+          renderLoop width acc (Stdlib.List.push rest ((i, Mode.Break, x)))
+
+    // No `fits` test: it goes flat whether it fits or not. Overflowing the width is the lesser harm --
+    // the row is too long, but it still says what the program says.
+    | Forced x -> renderLoop width acc (Stdlib.List.push rest ((i, Mode.Flat, x)))
+
+
+/// Lay out `doc` for `width` columns. Rows of cells, top to bottom.
+let render (width: Int) (doc: Doc) : List<Row> =
+  let start = Acc { rows = []; cur = []; col = 0 }
+  let final = renderLoop width start [ ((0, Mode.Break, doc)) ]
+  Stdlib.List.push final.rows (Stdlib.List.reverse final.cur)
+  |> Stdlib.List.reverse
+
+
+// --- Reading the result ---
+
+let rowText (row: Row) : String =
+  row |> Stdlib.List.map (fun c -> c.text) |> Stdlib.String.join ""
+
+/// The plain text of the layout, for tests and for anything that wants a String.
+let toText (rows: List<Row>) : String =
+  rows |> Stdlib.List.map (fun r -> rowText r) |> Stdlib.String.join "\n"
+
+/// Total display width of a row.
+let rowWidth (row: Row) : Int = Stdlib.List.fold row 0 (fun acc c -> acc + c.width)
+
+/// The grapheme index in `s` at (or just left of) display column `col`.
+let graphemeAtWidth (s: String) (col: Int) : Int =
+  let n = Stdlib.String.length s
+  Stdlib.List.range 0 n
+  |> Stdlib.List.filter (fun k -> (Stdlib.String.displayWidth (Stdlib.String.slice s 0 k)) <= col)
+  |> Stdlib.List.last
+  |> Stdlib.Option.withDefault 0
+
+/// A row with its first `n` display columns removed. A cell straddling the cut is SPLIT and keeps its
+/// tag, so the caret is still findable inside what remains -- horizontal scrolling must not change what
+/// the document is, only which part of it you are looking at.
+let dropCols (n: Int) (row: Row) : Row =
+  if n <= 0 then
+    row
+  else
+    let (_, kept) =
+      Stdlib.List.fold row ((n, [])) (fun acc c ->
+        let (left, out) = acc
+        if left <= 0 then
+          (0, Stdlib.List.push out c)
+        elif c.width <= left then
+          (left - c.width, out)
+        else
+          let idx = graphemeAtWidth c.text left
+          let tail = Stdlib.String.slice c.text idx (Stdlib.String.length c.text)
+          (0, Stdlib.List.push out (Cell { text = tail; style = c.style; tag = c.tag; width = Stdlib.String.displayWidth tail })))
+    Stdlib.List.reverse kept
+
+/// A row cut down to its first `n` display columns, splitting the straddling cell the same way.
+let takeCols (n: Int) (row: Row) : Row =
+  if n <= 0 then
+    []
+  else
+    let (_, kept) =
+      Stdlib.List.fold row ((n, [])) (fun acc c ->
+        let (left, out) = acc
+        if left <= 0 then
+          (0, out)
+        elif c.width <= left then
+          (left - c.width, Stdlib.List.push out c)
+        else
+          let idx = graphemeAtWidth c.text left
+          let head = Stdlib.String.slice c.text 0 idx
+          (0, Stdlib.List.push out (Cell { text = head; style = c.style; tag = c.tag; width = Stdlib.String.displayWidth head })))
+    Stdlib.List.reverse kept
+
+
+/// Column where cell `idx` of `row` starts.
+let colOfCell (row: Row) (idx: Int) : Int =
+  Stdlib.List.take row idx
+  |> Stdlib.List.fold 0 (fun acc c -> acc + c.width)
+
+/// Width of the first `graphemes` graphemes of `s`, clamped to the whole string.
+let widthOfPrefix (s: String) (graphemes: Int) : Int =
+  let n = Stdlib.Int.min graphemes (Stdlib.String.length s)
+  Stdlib.String.displayWidth (Stdlib.String.slice s 0 n)
+
+/// Does this tag display the caret's (node, part)? `OnNode` matches the first cell of anything under
+/// the node, which is where a whole-node caret is shown.
+let tagMatches (t: Tag) (node: Path) (part: Part) : Bool =
+  match part with
+  | OnNode -> Path.isPrefixOf node t.node
+  | _ -> t.node == node && t.part == part
+
+/// Row and column of a caret, or None if nothing displays that (node, part).
+let locate (rows: List<Row>) (node: Path) (part: Part) (offset: Int) : Stdlib.Option.Option<(Int * Int)> =
+  match part with
+  | AfterNode ->
+    // Just past the last cell belonging to this node's subtree.
+    rows
+    |> Stdlib.List.indexedMap (fun r row ->
+      let (_, out) =
+        Stdlib.List.fold row ((0, Stdlib.Option.Option.None)) (fun acc c ->
+          let (col, best) = acc
+          let nextCol = col + c.width
+          match c.tag with
+          | Some t ->
+            if Path.isPrefixOf node t.node then (nextCol, Stdlib.Option.Option.Some((r, nextCol)))
+            else (nextCol, best)
+          | None -> (nextCol, best))
+      out)
+    |> Stdlib.List.filterMap (fun x -> x)
+    |> Stdlib.List.last
+  | _ ->
+  rows
+  |> Stdlib.List.indexedMap (fun r row ->
+    row
+    |> Stdlib.List.indexedMap (fun ci c -> (ci, c))
+    |> Stdlib.List.findFirst (fun cic ->
+      let (_, c) = cic
+      match c.tag with
+      | Some t -> tagMatches t node part
+      | None -> false)
+    |> Stdlib.Option.map (fun cic ->
+      let (ci, c) = cic
+      (r, (colOfCell row ci) + (widthOfPrefix c.text offset))))
+  |> Stdlib.List.filterMap (fun x -> x)
+  |> Stdlib.List.head
+
+/// The tagged cell under (row, col), with the grapheme offset into it. For clicks and for vertical motion.
+let cellAt (rows: List<Row>) (row: Int) (col: Int) : Stdlib.Option.Option<(Tag * Int)> =
+  match Stdlib.List.getAt rows row with
+  | None -> Stdlib.Option.Option.None
+  | Some cells ->
+    let walk (remaining: List<Cell>) (start: Int) : Stdlib.Option.Option<(Tag * Int)> =
+      match remaining with
+      | [] -> Stdlib.Option.Option.None
+      | c :: rest ->
+        if col >= start && col < (start + c.width) then
+          match c.tag with
+          | Some t ->
+            // The largest grapheme count whose width still fits left of the column.
+            let n = Stdlib.String.length c.text
+            let idx =
+              Stdlib.List.range 0 n
+              |> Stdlib.List.filter (fun k -> (widthOfPrefix c.text k) <= (col - start))
+              |> Stdlib.List.last
+              |> Stdlib.Option.withDefault 0
+            Stdlib.Option.Option.Some((t, idx))
+          | None -> Stdlib.Option.Option.None
+        else
+          walk rest (start + c.width)
+    walk cells 0
+
+/// All tagged cells in reading order: (row, startCol, cell). The kernel walks this for Left/Right.
+let taggedCells (rows: List<Row>) : List<(Int * Int * Cell)> =
+  rows
+  |> Stdlib.List.indexedMap (fun r row ->
+    let (_, out) =
+      Stdlib.List.fold row ((0, [])) (fun acc c ->
+        let (col, found) = acc
+        match c.tag with
+        | Some _ -> (col + c.width, Stdlib.List.push found ((r, col, c)))
+        | None -> (col + c.width, found))
+    Stdlib.List.reverse out)
+  |> Stdlib.List.flatten

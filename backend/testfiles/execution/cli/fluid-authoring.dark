@@ -1,0 +1,771 @@
+// How it feels to WRITE code in Fluid, pinned down. Each case is a key sequence a person would actually
+// press, checked against what ends up on screen and, where it completes, the program it lowers to. This
+// is the "does authoring feel right" coverage -- the flows a person tries first.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // What's on screen (with the caret) after the keys.
+  let screen (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
+
+  // The program the keys build, printed; or the first thing missing.
+  let program (keys: List<String>) : String = Darklang.Fluid.PT.Test.program (reg ()) (hole ()) keys
+
+
+module KeywordsCommitOnSpace =
+  // Typing a keyword and a space builds the CONSTRUCT, not a variable named after the keyword. This is the
+  // fix for "why did typing `let` make a variable".
+  (Fixtures.screen [ "l", "e", "t", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "i", "f", " " ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " " ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "t", "r", "u", "e", " " ]) = "true~"
+
+  // A prefix commits too: `le<space>` is `let`.
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module WriteALetNaturally =
+  // Typed almost like text: `let x <space> 1 <space> x`. Space in a name/number field means "done, next
+  // hole"; so you land on the value, then the body, without pressing Tab.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " " ]) = "let x = 1\n~⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module WriteALetStructurally =
+  // The other way: pick `let` from the menu, then Tab between the holes.
+  (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module TypeThenTab =
+  // The mental model of "type the keyword, Tab to accept, then Tab through the holes". Tab on a partial
+  // commits the highlighted candidate; a prefix works too.
+  (Fixtures.screen [ "l", "e", "t", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "l", "e", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", "<Tab>", "x", "<Tab>", "1", "<Tab>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module StringsKeepSpaces =
+  // A string body is text: spaces are literal, not "next hole".
+  (Fixtures.screen [ "\"", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "\"hi there~\""
+  (Fixtures.program [ "\"", "h", "i", " ", "t", "h", "e", "r", "e", "<Esc>" ]) = "\"hi there\""
+
+
+module IfAndMatch =
+  (Fixtures.program [ "i", "f", " ", "b", " ", "1", " ", "2", "<Esc>" ]) = "if b then 1 else 2"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", " ", "0", " " ]) = "match n with\n| 0 -> ~⟨rhs⟩"
+
+
+module Operators =
+  // An operator ends a name and wraps it: `x + 1`.
+  (Fixtures.program [ "x", "+", "1", "<Esc>" ]) = "x + 1"
+  (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
+
+
+module BuildConstructs =
+  // The trigger chars build literals and constructs directly (adapted from classic Fluid).
+  (Fixtures.screen [ "[" ]) = "[~⟨item⟩]"
+  (Fixtures.screen [ "(" ]) = "(~⟨item⟩, ⟨item⟩)"
+  (Fixtures.screen [ "\\", "x" ]) = "fun x~ -> ⟨body⟩"
+  (Fixtures.program [ "\\", "x", " ", "x", "+", "1", "<Esc>" ]) = "(fun x -> x + 1)"
+
+
+module BackspaceRemovesItem =
+  // Backspace on an empty element removes it (one comma too many, undone), down to the last one.
+  (Fixtures.screen [ "[", "1", ",", "<BS>" ]) = "[1~]"
+  (Fixtures.screen [ "[", "1", ",", "2", ",", "<BS>" ]) = "[1, 2~]"
+  (Fixtures.screen [ "[", "<BS>" ]) = "[~⟨item⟩]"
+
+
+module CommaAddsItem =
+  // Comma adds/advances the next list or tuple element -- the natural key inside `[1, 2]` and `(1, 2)`.
+  (Fixtures.program [ "[", "1", ",", "2", ",", "3", "<Esc>" ]) = "[1, 2, 3]"
+  (Fixtures.program [ "(", "1", ",", "2", "<Esc>" ]) = "(1, 2)"
+  // A tuple's second slot already exists, so comma jumps to it rather than inserting a third.
+  (Fixtures.screen [ "(", "1", ",", "2" ]) = "(1, 2~)"
+  // Inside a string a comma is literal.
+  (Fixtures.screen [ "\"", "a", ",", "b" ]) = "\"a,b~\""
+
+
+module EnterAddsItem =
+  // Enter inside a list adds a sibling and moves to it: a list grows, a match gains arms.
+  (Fixtures.screen [ "[", "1", "<Enter>", "2", "<Enter>" ]) = "[1, 2, ~⟨item⟩]"
+  (Fixtures.program [ "[", "1", "<Enter>", "2", "<Esc>" ]) = "[1, 2]"
+  (Fixtures.program [ "m", "a", "<Enter>", "x", "<Tab>", "0", "<Tab>", "\"", "z", "<Enter>", "1", "<Tab>", "\"", "o", "<Esc>" ]) =
+    "match x with\n| 0 -> \"z\"\n| 1 -> \"o\""
+
+
+module MenuQuality =
+  // The obvious choice tops the menu, and a short query does NOT dump the package store: `le` is just the
+  // `let` keyword, `ma` just `match`. A dotted qualifier still searches.
+  let menu (keys: List<String>) : List<String> =
+    let s = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60) keys
+    Darklang.Fluid.Editor.candidates s |> Stdlib.List.map (fun c -> c.label)
+
+  (MenuQuality.menu [ "l", "e" ]) = [ "let" ]
+  (MenuQuality.menu [ "m", "a" ]) = [ "match" ]
+  // The first candidate for a dotted function query is the exact name.
+  ((MenuQuality.menu [ "L", "i", "s", "t", ".", "m", "a", "p" ]) |> Stdlib.List.head) = (Stdlib.Option.Option.Some "Stdlib.List.map")
+
+
+module MenuKeys =
+  // Escape dismisses a live menu (you stay in INSERT with the partial), a second Escape leaves to NAV.
+  (Fixtures.screen [ "l", "e", "<Esc>" ]) = "le~"
+  (Fixtures.screen [ "l", "e", "<Esc>", "<Esc>" ]) = "~le"
+
+  // Right-arrow off an exact-match partial accepts it (commit-on-move-off): `let` then Right builds let.
+  (Fixtures.screen [ "l", "e", "t", "<Right>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Escape on a fresh empty hole (a preview menu, nothing typed) goes straight to NAV.
+  (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.hole ()) 60 [ "<Esc>" ]) = "nav"
+
+
+module Lambda =
+  (Fixtures.program [ "f", "u", "n", " ", "a", " ", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
+
+
+module FieldAccess =
+  // A `.` after a bare name is a field access, not part of the name: `r.x` lowers to a field access, and
+  // the caret lands in the field blank so you keep typing the name.
+  (Fixtures.program [ "r", ".", "x", "<Esc>" ]) = "r.x"
+  (Fixtures.screen [ "r", "." ]) = "r.~field"
+
+  // Chaining: another `.` while sitting in a field name wraps again, so it nests as `(r.a).b` and prints
+  // `r.a.b` -- not a single field named `a.b`.
+  (Fixtures.program [ "r", ".", "a", ".", "b", "<Esc>" ]) = "r.a.b"
+
+  // A qualified name keeps building as one word: the `.` only splits off a field after a bare lowercase
+  // name, so `List.map` stays a single reference being typed, not `List` with a field `map`.
+  (Fixtures.screen [ "L", "i", "s", "t", ".", "m", "a", "p" ]) = "List.map~"
+
+
+module ClosingDelimiter =
+  // Re-typing a closing delimiter that's already on screen doesn't drop a stray literal: with the list
+  // closed as `[1]`, another `]` is a no-op rather than `[1]]`. The list still lowers cleanly.
+  (Fixtures.screen [ "[", "1", "]" ]) = "[1~]"
+  (Fixtures.program [ "[", "1", "]" ]) = "[1]"
+  (Fixtures.screen [ "[", "1", "2", "3", "]" ]) = "[123~]"
+
+  // Same for a string's closing quote: typing `"` at the end of the body doesn't add a second quote.
+  (Fixtures.screen [ "\"", "a", "b", "\"" ]) = "\"ab~\""
+  (Fixtures.program [ "\"", "a", "b", "\"" ]) = "\"ab\""
+
+
+module DeleteOperator =
+  // Deleting an infix operator (backspace over it) merges compatible operands into one leaf: two ints
+  // join into one number, the caret at the seam; two names concatenate.
+  (Fixtures.program [ "1", "2", "+", "3", "4", "<Left>", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "1234"
+  (Fixtures.screen [ "1", "2", "+", "3", "4", "<Left>", "<Left>", "<Left>", "<BS>" ]) = "12~34"
+  (Fixtures.program [ "a", "+", "b", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "ab"
+
+  // Incompatible operands don't merge into a bogus literal: `1` with a half-typed name stays `1` (the
+  // right is dropped), not the invalid int `1t`.
+  (Fixtures.program [ "1", "+", "t", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "1"
+
+
+module DeleteKeyword =
+  // Backspace at the start of an untouched construct deletes it: a keyword typed by mistake is one
+  // keystroke to undo. let/lambda collapse to their body, if to its then-branch, match to its scrutinee --
+  // each a clean blank expression hole.
+  (Fixtures.screen [ "l", "e", "t", " ", "<BS>" ]) = "~⟨body⟩"
+  (Fixtures.screen [ "i", "f", " ", "<BS>" ]) = "~⟨then⟩"
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "<BS>" ]) = "~⟨arg⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "<BS>" ]) = "~⟨body⟩"
+
+  // Backspacing the name doesn't nuke the let -- the value and body stand; the emptied name just returns
+  // to a hole (like any single-value leaf), so you can retype it.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨pattern⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Collapse nests: an empty `if` in a let body collapses to a hole, and you keep typing the body.
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "i", "f", " ", "<BS>", "x", "<Esc>" ]) = "let x = 1\nx"
+
+
+module DeleteSeparator =
+  // Backspace at the start of a list element deletes the separator, merging it with the one before when
+  // they're compatible -- the same rule as deleting an infix operator. Two ints join, the caret at the seam.
+  (Fixtures.program [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "[1234]"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>" ]) = "[12~34]"
+  // Only the two neighbours merge; the rest of the list is untouched.
+  (Fixtures.program [ "[", "1", ",", "2", ",", "3", "<Left>", "<BS>", "<Esc>" ]) = "[1, 23]"
+
+  // A tuple can't drop below two elements, so its separator doesn't merge: `(12, 34)` stays put.
+  (Fixtures.program [ "(", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<Esc>" ]) = "(12, 34)"
+
+
+module NestedLists =
+  // Stepping past a closing delimiter now lands the caret AFTER the whole construct, in the enclosing
+  // scope, so a nested list types naturally: `[` `[` `1` `]` `,` `2` -> `[[1], 2]`. The comma after the
+  // inner `]` adds to the OUTER list, not the one just closed.
+  (Fixtures.program [ "[", "[", "1", "]", ",", "2", "<Esc>" ]) = "[[1], 2]"
+  (Fixtures.screen [ "[", "[", "1", "]", "," ]) = "[[1], ~⟨item⟩]"
+  (Fixtures.program [ "[", "[", "1", "]", ",", "[", "2", "]", "<Esc>" ]) = "[[1], [2]]"
+
+  // Left from just-after the inner list steps back into its end (undoing the step-past).
+  (Fixtures.screen [ "[", "[", "1", "]", ",", "2", "<Left>" ]) = "[[1], ~2]"
+
+
+module AfterNodeMotion =
+  // Typing a new element right after a closed construct grows the enclosing list without an explicit
+  // comma: `[` `[` `1` `]` `2` -> `[[1], 2]`, and a fresh `[` starts another sub-list.
+  (Fixtures.program [ "[", "[", "1", "]", "2", "<Esc>" ]) = "[[1], 2]"
+  (Fixtures.screen [ "[", "[", "1", "]", "2" ]) = "[[1], 2~]"
+  (Fixtures.program [ "[", "[", "1", "]", "[", "2", "]", "<Esc>" ]) = "[[1], [2]]"
+
+  // Right and Left move across the boundary: Left re-enters the element just typed.
+  (Fixtures.screen [ "[", "[", "1", "]", "2", "<Left>" ]) = "[[1], ~2]"
+
+
+module AfterNodeWrap =
+  // An operator or `.` right after a closed construct wraps the WHOLE construct, not a piece of it:
+  // `[1]` then `+` `2` is `[1] + 2` (infix on the list), and `[1]` then `.` `x` a field access on it.
+  (Fixtures.program [ "[", "1", "]", "+", "2", "<Esc>" ]) = "[1] + 2"
+  (Fixtures.screen [ "[", "1", "]", "+" ]) = "[1] +~ ⟨right⟩"
+  (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
+  (Fixtures.screen [ "[", "1", "]", "." ]) = "([1]).~field"
+
+  // A tuple wraps the same way once closed: `(1, 2)` then `+` `3` -> `(1, 2) + 3`.
+  (Fixtures.program [ "(", "1", ",", "2", ")", "+", "3", "<Esc>" ]) = "(1, 2) + 3"
+
+
+module CaretMotion =
+  // Home and End jump to the start and end of the current line.
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>" ]) = "~1 + 2 + 3"
+  (Fixtures.screen [ "1", "+", "2", "+", "3", "<Home>", "<End>" ]) = "1 + 2 + 3~"
+
+  // On a multiline construct they act per visual line: Home from the body goes to the body's start, not
+  // the let's.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "x", "<Home>" ]) = "let x = 1\n~x"
+
+  // Up and Down move between the lines of a let: down from the value lands on the body.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", "<Down>" ]) = "let x = 1\n~⟨body⟩"
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "1", " ", "y", "<Up>" ]) = "let ~x = 1\ny"
+
+
+module FieldTargetParens =
+  // On screen, a field-access target is parenthesised exactly when the pretty-printer would: a plain
+  // variable or a field-access chain reads bare, anything else (a list, a call) is wrapped -- so the
+  // display and the lowered form agree.
+  (Fixtures.screen [ "r", ".", "x" ]) = "r.x~"
+  (Fixtures.screen [ "r", ".", "a", ".", "b" ]) = "r.a.b~"
+  (Fixtures.screen [ "[", "1", "]", ".", "x" ]) = "([1]).x~"
+  (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
+
+
+module MultiCharOperators =
+  // Two-character operators build by typing both characters: the second appends in the operator slot.
+  (Fixtures.program [ "1", "<", "=", "2", "<Esc>" ]) = "1 <= 2"
+  (Fixtures.program [ "1", ">", "=", "2", "<Esc>" ]) = "1 >= 2"
+  (Fixtures.program [ "a", "!", "=", "b", "<Esc>" ]) = "a != b"
+  (Fixtures.program [ "a", "b", "+", "+", "c", "d", "<Esc>" ]) = "ab ++ cd"
+  (Fixtures.program [ "x", "&", "&", "y", "<Esc>" ]) = "x && y"
+
+  // A one-letter operand that prefixes a keyword (t/true) keeps a live menu, so the first Esc dismisses
+  // the menu and the second settles it as a variable -- `s + t` is two variables, not `s + true`.
+  (Fixtures.program [ "s", "+", "t", "<Esc>", "<Esc>" ]) = "s + t"
+
+
+module Precedence =
+  // Typing operators associates the way the expression reads: a looser operator typed after a tighter one
+  // takes the whole tighter subtree as its left, so the structure (and the parens the printer keeps)
+  // match natural precedence. These print WITHOUT parens only because the tree is actually right.
+  (Fixtures.program [ "1", "*", "2", "+", "3", "<Esc>" ]) = "1 * 2 + 3"
+  (Fixtures.program [ "1", "+", "2", "*", "3", "<Esc>" ]) = "1 + 2 * 3"
+  (Fixtures.program [ "1", "*", "2", "*", "3", "+", "4", "<Esc>" ]) = "1 * 2 * 3 + 4"
+
+  // Same-precedence operators chain left-associatively.
+  (Fixtures.program [ "1", "-", "2", "+", "3", "<Esc>" ]) = "1 - 2 + 3"
+  (Fixtures.program [ "1", "+", "2", "+", "3", "<Esc>" ]) = "1 + 2 + 3"
+
+  // `^` is right-associative, so it stays right-nested.
+  (Fixtures.program [ "2", "^", "3", "^", "2", "<Esc>" ]) = "2 ^ 3 ^ 2"
+
+  // A comparison is looser than arithmetic, so it takes the whole sum.
+  (Fixtures.program [ "1", "+", "2", "=", "=", "3", "<Esc>" ]) = "1 + 2 == 3"
+
+  // Mid-type, the caret lands in the new outer operator after reassociation.
+  (Fixtures.screen [ "1", "*", "2", "+" ]) = "1 * 2 +~ ⟨right⟩"
+
+
+module MatchPatterns =
+  // Patterns edit like expressions. A lowercase name binds a variable; a Capitalised one is a constructor
+  // (matching the case, not shadowing everything with a binding named after it).
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "x", "<Tab>", "1", "<Esc>" ]) = "match n with\n| x -> 1"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "N", "o", "n", "e", "<Tab>", "0", "<Esc>" ]) = "match n with\n| None -> 0"
+
+  // `(` after a constructor opens its fields and drops into the first; comma adds more; the close draws
+  // itself. A bound field is usable in the arm's body.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x" ]) = "match n with\n| Ok(x~) -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(x) -> x"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "S", "o", "m", "e", "(", "a", ",", "b", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Some(a, b) -> 1"
+
+  // Constructor fields nest, like any other pattern.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "S", "o", "m", "e", "(", "y", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Ok(Some(y)) -> 1"
+
+  // Literal patterns: int, string, bool, tuple.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "0" ]) = "match n with\n| 0~ -> ⟨rhs⟩"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "(", "a", ",", "b" ]) = "match n with\n| (a, b~) -> ⟨rhs⟩"
+
+
+module FloatLiterals =
+  // A `.` after an integer's digits makes a float and drops into the fraction -- it does NOT wrap the
+  // number in a field access. (This is the counterpart to `.` after a NAME, which is a field access.)
+  (Fixtures.program [ "1", ".", "5", "<Esc>" ]) = "1.5"
+  (Fixtures.program [ "3", ".", "1", "4", "<Esc>" ]) = "3.14"
+  (Fixtures.screen [ "1", "." ]) = "1.~fraction"
+  // Same in a pattern.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ".", "5", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 1.5 -> 0"
+  // A `.` after a name is still a field access, unaffected.
+  (Fixtures.program [ "r", ".", "x", "<Esc>" ]) = "r.x"
+
+
+module OrPatterns =
+  // `|` between patterns builds an or-pattern: the current pattern becomes the first alternative, `|` adds
+  // the next, and it chains -- `0 | 1 | 2`. The caret lands in each new alternative.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|" ]) = "match n with\n| 0 | ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|", "1", "<Tab>", "9", "<Esc>" ]) = "match n with\n| 0 | 1 -> 9"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "0", "|", "1", "|", "2", "<Tab>", "9", "<Esc>" ]) = "match n with\n| 0 | 1 | 2 -> 9"
+
+
+module SeparatorAdvance =
+  // Typing a separator that's already drawn ahead skips to the next hole rather than into the name: `=`
+  // after a let's binding jumps to the value, so `let x=1` types like text.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "=" ]) = "let x = ~⟨value⟩\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", "=", "1", " ", "x", "<Esc>" ]) = "let x = 1\nx"
+
+  // In an expression hole there's no `=` drawn ahead, so `=` still starts an operator: `1 == 2`.
+  (Fixtures.program [ "1", "=", "=", "2", "<Esc>" ]) = "1 == 2"
+
+
+module NegativeLiterals =
+  // `-` on an empty hole starts a negative number literal (not an unresolvable partial): the digits
+  // accumulate and `.` still turns it into a float. Works in expressions and in patterns.
+  (Fixtures.program [ "-", "5", "<Esc>" ]) = "-5"
+  (Fixtures.program [ "-", "5", ".", "5", "<Esc>" ]) = "-5.5"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "-", "1", "<Tab>", "0", "<Esc>" ]) = "match n with\n| -1 -> 0"
+
+  // Minus between two operands is still subtraction, not a negative literal.
+  (Fixtures.program [ "5", "-", "3", "<Esc>" ]) = "5 - 3"
+
+
+module Pipes =
+  // `|>` builds a pipe: `|` wraps into the pipe (drawing `|>`) and the `>` completing the arrow is
+  // swallowed, so the stage is `f`, not `>f`. Another `|` starts the next stage, chaining flat and
+  // stacking one stage per line.
+  (Fixtures.screen [ "x", "|", ">", "f" ]) = "x\n|> f~"
+  (Fixtures.screen [ "x", "|", ">", "f", "|", ">", "g" ]) = "x\n|> f\n|> g~"
+
+  // `>` between operands is still greater-than, unaffected by the pipe's arrow-swallow.
+  (Fixtures.program [ "1", ">", "2", "<Esc>" ]) = "1 > 2"
+  (Fixtures.program [ "1", ">", "=", "2", "<Esc>" ]) = "1 >= 2"
+
+
+module SpaceCommitDisambiguation =
+  // Space commits the menu only when it's unambiguous. A loose prefix that matches several candidates
+  // finalises what you typed, so `f ` stays the variable `f` -- it does NOT jump to `fun` (or `false`).
+  (Fixtures.screen [ "f", " " ]) = "f~"
+  // A single-candidate keyword prefix still commits (`le` -> let), and an exact match always does.
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " " ]) = "fun ~⟨param⟩ -> ⟨body⟩"
+
+
+module CharLiterals =
+  // `'` builds a character literal and drops into it; the closing quote is drawn and stepping past it is
+  // a no-op. Works in expressions and patterns.
+  (Fixtures.screen [ "'" ]) = "'~'"
+  (Fixtures.screen [ "'", "a" ]) = "'a~'"
+  (Fixtures.program [ "'", "a", "<Esc>" ]) = "'a'"
+  (Fixtures.program [ "'", "a", "'", "<Esc>" ]) = "'a'"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "'", "x", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 'x' -> 0"
+
+
+module UnitLiteral =
+  // `(` opens a tuple, but an immediate `)` is the unit literal `()`, not a one-element tuple. A tuple
+  // with content still closes as a tuple.
+  (Fixtures.screen [ "(", ")" ]) = "()~"
+  (Fixtures.program [ "(", ")", "<Esc>" ]) = "()"
+  (Fixtures.program [ "(", "1", ",", "2", ")", "<Esc>" ]) = "(1, 2)"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "(", ")", "<Tab>", "0", "<Esc>" ]) = "match n with\n| () -> 0"
+  // Unit as a let value, then space advances to the body.
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "(", ")", " ", "x", "<Esc>" ]) = "let x = ()\nx"
+
+
+module OrOperator =
+  // `||` is the boolean OR, not a pipe: `|` opens a pipe (drawing `|>`), but a second `|` on that fresh
+  // pipe converts it to `||`. (A `>` after the first `|` is the pipe; `|` is or.)
+  (Fixtures.screen [ "x", "|", "|", "y" ]) = "x || y~"
+  (Fixtures.program [ "t", "r", "u", "e", "|", "|", "f", "a", "l", "s", "e", "<Esc>" ]) = "true || false"
+  (Fixtures.program [ "1", "|", "|", "2", "<Esc>" ]) = "1 || 2"
+
+  // The pipe still works: `|` then `>` chains stages.
+  (Fixtures.screen [ "a", "|", ">", "b", "|", ">", "c" ]) = "a\n|> b\n|> c~"
+
+
+module ConsPatterns =
+  // `::` makes a cons pattern: the first `:` wraps the head and draws `::`, the second `:` is swallowed,
+  // and the caret lands in the tail. `::` is right-associative, so `a :: b :: c` nests right and prints
+  // without parens.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t" ]) = "match n with\n| h :: t~ -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| h :: t -> 0"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "a", ":", ":", "b", ":", ":", "c", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| a :: b :: c -> 0"
+
+
+module EmptyList =
+  // `[` opens a list, an immediate `]` closes it empty. An empty collection carries a caret anchor, so
+  // the caret sits between the brackets (no "caret not found"). A list with content still closes normally.
+  (Fixtures.screen [ "[", "]" ]) = "[~]"
+  (Fixtures.program [ "[", "]", "<Esc>" ]) = "[]"
+  (Fixtures.program [ "[", "1", ",", "2", "]", "<Esc>" ]) = "[1, 2]"
+  // Empty list as a cons tail: `1 :: []`.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ":", ":", "[", "]", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| 1 :: [] -> 0"
+
+
+module LeafBackspaceRevertsToHole =
+  // Deleting the last character of a single-value leaf (int, string, char) returns it to a hole, not a
+  // zombie empty node -- so you can immediately type something else. (Variables already did this.)
+  (Fixtures.screen [ "2", "<BS>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "\"", "a", "<BS>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "2", "<BS>", "5" ]) = "5~"
+  // A multi-character leaf just loses one character; a float keeps its other part.
+  (Fixtures.screen [ "1", "2", "<BS>" ]) = "1~"
+  (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~fraction"
+  // An operand emptied inside an infix becomes a clean hole, not a zombie.
+  (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨expression⟩"
+
+
+module OrChainAssociates =
+  // Chained `||` associates left, like the arithmetic operators, so it prints without parens.
+  (Fixtures.program [ "x", "|", "|", "y", "|", "|", "z", "<Esc>", "<Esc>" ]) = "x || y || z"
+  (Fixtures.screen [ "x", "|", "|", "y" ]) = "x || y~"
+
+
+module BinaryCollapse =
+  // Deleting the right operand (back to a hole), then backspacing again, undoes the operator: an infix
+  // collapses to its left, a fresh pipe to what was piped, a cons to its head.
+  (Fixtures.program [ "1", "+", "2", "<BS>", "<BS>", "<Esc>" ]) = "1"
+  (Fixtures.screen [ "a", "|", ">", "b", "<BS>", "<BS>" ]) = "a~"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<BS>", "<BS>" ]) = "match n with\n| h~ -> ⟨rhs⟩"
+  // A filled operand is edited, not collapsed.
+  (Fixtures.program [ "1", "+", "2", "3", "<BS>", "<Esc>" ]) = "1 + 2"
+
+
+module NavAndHistory =
+  // NAV: Escape settles on the node you were editing; h goes to the parent, x clears the current node to
+  // a hole. So you can select the whole expression and blank it, or just one operand.
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "x" ]) = "1 + ~⟨right⟩"
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "h" ]) = "~1 + 2"
+  (Fixtures.screen [ "1", "+", "2", "<Esc>", "h", "x" ]) = "~⟨expression⟩"
+
+  // Undo and redo: a typed value, an edit, and a structural merge all step back and forward cleanly.
+  (Fixtures.screen [ "5", "<C-z>" ]) = "~⟨expression⟩"
+  (Fixtures.screen [ "5", "<C-z>", "<C-y>" ]) = "5~"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>" ]) = "[12, ~34]"
+  (Fixtures.screen [ "[", "1", "2", ",", "3", "4", "<Left>", "<Left>", "<BS>", "<C-z>", "<C-y>" ]) = "[12~34]"
+
+
+module StringInterpolation =
+  // `$` starts an interpolated string; text fills a segment (spaces literal); `{` splits the text and
+  // drops in an interpolation, `}` steps to the text after it, `"` ends the whole string.
+  (Fixtures.screen [ "$", "h", "i", " ", "t", "h", "e", "r", "e" ]) = "$\"hi there~\""
+  (Fixtures.screen [ "$", "a", "{" ]) = "$\"a{~⟨expr⟩}\""
+  (Fixtures.screen [ "$", "a", "{", "x", "}", "b" ]) = "$\"a{x}b~\""
+  (Fixtures.program [ "$", "a", "{", "1", "}", "b", "<Esc>" ]) = "$\"a{1}b\""
+  // An interpolation is a full expression: operators and all.
+  (Fixtures.program [ "$", "n", "=", "{", "1", "+", "2", "}", "<Esc>" ]) = "$\"n={1 + 2}\""
+  // An all-text interpolated string is just a string.
+  (Fixtures.program [ "$", "h", "i", "<Esc>" ]) = "\"hi\""
+
+
+module StringInterpNesting =
+  // An interpolated string nests like any expression: inside a list, and with a filled trailing text.
+  (Fixtures.program [ "[", "$", "a", "{", "1", "}", "b", "<Esc>", "<Esc>" ]) = "[$\"a{1}b\"]"
+  (Fixtures.program [ "$", "a", "{", "1", "+", "2", "}", "!", "<Esc>" ]) = "$\"a{1 + 2}!\""
+
+
+module StringInterpCollapse =
+  // Backspacing an empty interpolation folds it back into the surrounding text, so an interpolation opened
+  // by mistake undoes cleanly.
+  (Fixtures.screen [ "$", "a", "{", "<BS>" ]) = "$\"a~\""
+  (Fixtures.program [ "$", "a", "{", "<BS>", "b", "<Esc>" ]) = "\"ab\""
+  // Delete the interpolated value, then backspace again, and the interpolation folds away too.
+  (Fixtures.screen [ "$", "a", "{", "x", "<BS>", "<BS>" ]) = "$\"a~\""
+
+
+module EnterAddsArmAfterBoundVar =
+  // Enter after an arm whose rhs is a bound variable adds the next arm, rather than just re-accepting the
+  // variable from the menu -- so a match over a constructor with a bound field types straight through.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>" ]) = "match n with\n| Ok(v) -> v\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "v", "<Tab>", "v", "<Enter>", "E", "r", "r", "o", "r", "(", "e", "<Tab>", "0", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+
+module TabAdvancesAfterBoundVar =
+  // Tab after an in-scope variable finalises it and moves to the next hole, rather than committing it in
+  // place (which used to swallow the next keystrokes). So a match whose scrutinee is a bound variable
+  // types straight through, even nested in a let.
+  (Fixtures.program [ "l", "e", "t", " ", "r", " ", "1", " ", "m", "a", "<Enter>", "r", "<Tab>", "0", "<Tab>", "\"", "z", "<Enter>", "1", "<Tab>", "\"", "o", "<Esc>", "<Esc>" ]) =
+    "let r = 1\nmatch r with\n| 0 -> \"z\"\n| 1 -> \"o\""
+  // Tab on a construct/fn still lands in its first hole to fill (not skipped past).
+  (Fixtures.screen [ "l", "e", "t", "<Tab>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module SpaceAdvancesAfterBoundVar =
+  // Space after committing an in-scope variable advances to the next hole (it's "done here"), so a nested
+  // let that references an earlier binding types straight through: `let a = 1  let b = a  b`.
+  (Fixtures.program [ "l", "e", "t", " ", "a", " ", "1", " ", "l", "e", "t", " ", "b", " ", "a", " ", "b", "<Esc>", "<Esc>" ]) =
+    "let a = 1\nlet b = a\nb"
+  // A construct committed on space still lands in its own first hole (a keyword sits at its name).
+  (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+
+module TypingFast =
+  // Fast typing (and a paste) arrives as ONE key press: the terminal reader coalesces the run and reports
+  // the whole text at once. The completion menu is a cache refreshed per key press, so folding a run
+  // without refreshing left every character after the first deciding on the menu computed BEFORE the run.
+  // Typing `Stdlib.List.filter ` quickly used to commit the empty hole's only candidate -- a lambda --
+  // and throw the name away, while typing it slowly worked. A run must behave exactly like typing it.
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun g -> Stdlib.Char.toString g)
+
+  (Fixtures.screen [ "nums |Stdlib.List.filter " ]) = "nums\n|> Stdlib.List.filter ~⟨f⟩"
+  (Fixtures.screen (TypingFast.chars "nums |Stdlib.List.filter ")) = "nums\n|> Stdlib.List.filter ~⟨f⟩"
+
+  // The general property, on a couple of shapes: a run and its characters land in the same place.
+  (Fixtures.screen [ "let nums [1, 2, 3]" ]) = (Fixtures.screen (TypingFast.chars "let nums [1, 2, 3]"))
+  (Fixtures.screen [ "abc " ]) = (Fixtures.screen (TypingFast.chars "abc "))
+
+
+module SpaceInAnEmptyHole =
+  // A space in an empty hole is leading whitespace: nothing typed to commit, nothing to advance past. It
+  // used to become the hole's text, so a list typed the way people write one came out as `[1,  2]` -- the
+  // comma made the hole and the space landed in it.
+  (Fixtures.screen [ "[", "1", ",", " ", "2" ]) = "[1, 2~]"
+  (Fixtures.program [ "[", "1", ",", " ", "2", "<Esc>", "<Esc>" ]) = "[1, 2]"
+  (Fixtures.screen [ " ", "1" ]) = "1~"
+
+
+module TypingAfterAClosedValue =
+  // Just after a closed value that isn't in a sequence there is nothing to grow, so a name means "on to
+  // the next thing": step to the next hole and type it there. Dropping the keys is what must not happen --
+  // `let xs = [1] xs` used to eat the whole name with the screen never changing.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s" ]) = "let xs = [1]\nxs~"
+  (Fixtures.program [ "l", "e", "t", " ", "x", "s", " ", "[", "1", "]", "x", "s", "<Esc>", "<Esc>" ]) = "let xs = [1]\nxs"
+
+
+module QuotedLiteralsReadAsThemselves =
+  // An empty text slot normally shows its NAME, dimmed, as a hint -- right for a `⟨name⟩` hole, wrong
+  // inside quotes, where a dim word reads as the content: an empty string showed `"body"`, an empty char
+  // `'char'`, and a string's trailing segment put a `text` inside the quotes. Delimiters already say
+  // where you are, so an empty one draws nothing.
+  (Fixtures.screen [ "\"" ]) = "\"~\""
+  (Fixtures.screen [ "'" ]) = "'~'"
+  (Fixtures.screen [ "$", "\"" ]) = "$\"~\""
+  (Fixtures.screen [ "$", "\"", "{" ]) = "$\"{~⟨expr⟩}\""
+
+
+module StringInterpCloses =
+  // Stepping out of an interpolation with `}` settles what you typed inside it. It used to leave the name
+  // an unresolved partial that the caret had already left behind, so `$"hi {name}"` refused to lower --
+  // while the same string WITHOUT the closing `}` lowered fine.
+  (Fixtures.screen [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}" ]) = "$\"hi {name}~\""
+  (Fixtures.program [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}", "<Esc>", "<Esc>" ]) = "$\"hi {name}\""
+  (Fixtures.program [ "$", "\"", "h", "i", " ", "{", "n", "a", "m", "e", "}", "!", "<Esc>", "<Esc>" ]) = "$\"hi {name}!\""
+
+
+module EnterNeedsSomethingTyped =
+  // Enter accepts the menu only when you OPENED it by typing. On an untouched hole the menu is just the
+  // list of everything that could go there, and accepting its first entry meant a bare Enter built a
+  // `let`, and Enter on a fresh match arm gave it the pattern `true`.
+  (Fixtures.screen [ "<Enter>" ]) = "~⟨expression⟩"
+  // After `match s <space>` the caret sits just after the scrutinee, and Enter there means "on to the
+  // next hole" -- it lands in the first arm's pattern rather than accepting `true` from the menu.
+  (Fixtures.screen [ "m", "a", "t", "c", "h", " ", "s", " ", "<Enter>" ]) =
+    "match s with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  // Typed-then-Enter still commits, which is the whole point of the menu.
+  (Fixtures.screen [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module NumbersStayNumbers =
+  // A number's text slot took any character you typed, so `1 + 2x` made an int whose digits read "2x",
+  // and `1 :: rest` -- cons is a PATTERN in this language, never an expression -- made one reading
+  // "1::rest". Both are documents that can never lower, and nothing said so at the time. A non-digit is
+  // refused now, with a message. Operators and `.` never reach this path; they wrap the node.
+  (Fixtures.screen [ "1", "+", "2", "x" ]) = "1 + 2~"
+  (Fixtures.program [ "1", "+", "2", "x", "<Esc>", "<Esc>" ]) = "1 + 2"
+  (Fixtures.screen [ "1", " ", ":", ":", "r" ]) = "1~"
+  // What a number legitimately holds still works: a fraction, a sign, and operators after it.
+  (Fixtures.program [ "1", ".", "5", "+", "2", ".", "2", "5", "<Esc>", "<Esc>" ]) = "1.5 + 2.25"
+  (Fixtures.program [ "-", "5", "+", "3", "<Esc>", "<Esc>" ]) = "-5 + 3"
+  (Fixtures.program [ "1", "2", "*", "3", "<Esc>", "<Esc>" ]) = "12 * 3"
+  // Pattern-side numbers are the same slots, and a match over one still types through.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) = "match n with\n| 0 -> 1"
+
+
+module LambdaParams =
+  // A lambda takes many params, and Enter or a comma adds the next one; space means "done here" and goes
+  // to the body, which is what the common one-param lambda wants.
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "<Enter>" ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "fun a ~⟨param⟩ -> ⟨body⟩"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "fun a -> ~⟨body⟩"
+  (Fixtures.program [ "f", "u", "n", " ", "a", "<Enter>", "b", "<Tab>", "a", "+", "b", "<Esc>", "<Esc>" ]) = "(fun a b -> a + b)"
+
+
+module NamesStayNames =
+  // A name slot took any character too. Typing `Ok(1` in an expression -- reaching for an enum
+  // constructor, which expressions don't support yet -- grew a variable literally named "Ok(1", which
+  // lowers to something no parser would take. Two paths insert into a slot (a field name after `.` goes
+  // through the wrap path, not the plain one), and both refuse now.
+  (Fixtures.screen [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(" ]) = "user.name~"
+  (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(", "<Esc>", "<Esc>" ]) = "user.name"
+  (Fixtures.screen [ "O", "k", "(", "1" ]) = "Ok1~"
+  // Digits and underscores are part of a name, so they still go in.
+  (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "2", "<Esc>", "<Esc>" ]) = "user.name2"
+  (Fixtures.program [ "m", "y", "_", "v", "a", "r", " ", "<Esc>", "<Esc>" ]) = "my_var"
+  (Fixtures.program [ "l", "e", "t", " ", "m", "y", "_", "x", " ", "1", " ", "m", "y", "_", "x", "<Esc>", "<Esc>" ]) = "let my_x = 1\nmy_x"
+
+
+module SpaceLandsAfterTheValue =
+  // Space used to settle what you typed and JUMP to the next hole, which made the spacing everyone
+  // actually uses unusable inside a construct: `if total > 0` put the `>` in the THEN branch, and
+  // `let total = items |> f` put the pipe in the let's BODY. Space now leaves the caret just after the
+  // value it settled, and the next key says what you meant -- an operator wraps it, a name moves on.
+  (Fixtures.screen [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " " ]) =
+    "if total > 0 then\n  ~⟨then⟩\nelse\n  ⟨else⟩"
+  (Fixtures.program [ "i", "f", " ", "t", "o", "t", "a", "l", " ", ">", " ", "0", " ", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
+    "if total > 0 then 1 else 2"
+  (Fixtures.program [ "l", "e", "t", " ", "n", " ", "a", " ", "+", " ", "b", " ", "n", "<Esc>", "<Esc>" ]) = "let n = a + b\nn"
+
+  // The `=` in `let x = 1` is drawn by the editor, and space moves you PAST it into the value. Typing it
+  // anyway -- which is what anyone writes -- used to make it the value: `let x = =`. It's swallowed now.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", " ", "=", " ", "1" ]) = "let x = 1~\n⟨body⟩"
+  (Fixtures.program [ "l", "e", "t", " ", "x", " ", "=", " ", "1", " ", "x", "<Esc>", "<Esc>" ]) = "let x = 1\nx"
+  // Guarded on an empty hole, so an operator that really is being typed still builds.
+  (Fixtures.program [ "a", " ", "=", "=", " ", "b", "<Esc>", "<Esc>" ]) = "a == b"
+
+  // And a name after a settled value still moves on, which is what the earlier bound-variable fix wanted.
+  (Fixtures.program [ "l", "e", "t", " ", "a", " ", "1", " ", "l", "e", "t", " ", "b", " ", "a", " ", "b", "<Esc>", "<Esc>" ]) =
+    "let a = 1\nlet b = a\nb"
+
+
+module KeywordsTheEditorAlreadyDrew =
+  // `if`, `then`, `else`, `with` are drawn FOR you, and anyone with muscle memory types them anyway --
+  // the same reflex that made `let x = 1` come out as `let x = =`. They were landing in the branch holes
+  // as variables named `then` and `else`, and in a match arm as the pattern `with`. Typing the keyword
+  // that is already there now throws it away and leaves you in the hole, where the branch itself goes.
+  (Fixtures.program [ "i", "f", " ", "r", " ", ">", " ", "0", " ", "t", "h", "e", "n", " ", "1", " ", "e", "l", "s", "e", " ", "2", "<Esc>", "<Esc>" ]) =
+    "if r > 0 then 1 else 2"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+
+  // Two arms, still typed straight through, no Tab anywhere.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "\"", "z", "\"", " ", "1", " ", "\"", "o", "\"", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> \"z\"\n| 1 -> \"o\""
+
+  // The check asks the LAYOUT whether the thing before the caret was drawn as a keyword, so an ordinary
+  // name never matches: a second argument that repeats the function's name still goes in.
+  (Fixtures.program [ "S", "t", "d", "l", "i", "b", ".", "L", "i", "s", "t", ".", "m", "a", "p", " ", "f", " ", "f", "<Esc>", "<Esc>" ]) =
+    "Stdlib.List.map f f"
+  // And a pattern variable that isn't a keyword is untouched.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "x", " ", "x", "<Esc>", "<Esc>" ]) =
+    "match n with\n| x -> x"
+
+
+module PunctuationTheEditorAlreadyDrew =
+  // The same reflex as the keywords, one level down: `->` and `|` are drawn for you too.
+  // `fun x -> x + 1` came out as `ERR not an Int: -`, because the `-` started a NEGATIVE NUMBER on the
+  // body hole and the `>` then wrapped it in an operator.
+  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", ">", " ", "x", " ", "+", " ", "1", "<Esc>", "<Esc>" ]) =
+    "(fun x -> x + 1)"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "0", " ", "-", ">", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "O", "k", "(", "v", ")", " ", "-", ">", " ", "v", "<Esc>", "<Esc>" ]) =
+    "match n with\n| Ok(v) -> v"
+  // An arm's leading `|`, typed although it is already there.
+  (Fixtures.program [ "m", "a", "t", "c", "h", " ", "n", " ", "w", "i", "t", "h", " ", "|", " ", "0", " ", "1", "<Esc>", "<Esc>" ]) =
+    "match n with\n| 0 -> 1"
+
+  // What a `-` and a `>` legitimately mean is untouched: a negative literal, a subtraction, a comparison,
+  // and a negative number as a lambda's whole body.
+  (Fixtures.program [ "[", "1", ",", " ", "-", "2", "<Esc>", "<Esc>" ]) = "[1, -2]"
+  (Fixtures.program [ "a", " ", "-", " ", "b", "<Esc>", "<Esc>" ]) = "a - b"
+  (Fixtures.program [ "a", " ", ">", " ", "b", "<Esc>", "<Esc>" ]) = "a > b"
+  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", "1", "<Esc>", "<Esc>" ]) = "(fun x -> -1)"
+  // A comma on an empty item still MEANS something -- another item -- so it is not swallowed.
+  (Fixtures.program [ "[", "1", ",", " ", "2", ",", " ", "3", "<Esc>", "<Esc>" ]) = "[1, 2, 3]"
+
+
+module NavKeyRuns =
+  // The terminal reader coalesces fast typing and KEY REPEAT into one press carrying the whole run, and
+  // NAV compared `char` against a single character -- so holding `j` to move down the document, or
+  // pressing it three times quickly, did nothing at all. Found by driving the type editor live, where
+  // `jjj` left the caret on the root; in-process, one key at a time, it had always worked.
+  // INSERT already decomposed a run in typeChar; this is the same thing for navigation.
+  let breadcrumbAfter (keys: List<String>) : String =
+    let root =
+      match Darklang.LanguageTools.Parser.Parse.parsePTExpr "let x = 1\nx" with
+      | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")
+    Darklang.Fluid.Editor.breadcrumb (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) root 70) keys)
+
+  // A run and its keys pressed one at a time land in the same place -- the same property the fast-typing
+  // fix pinned for INSERT.
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jj" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "j" ])
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jjj" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "j", "j" ])
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jl" ]) = (NavKeyRuns.breadcrumbAfter [ "<Esc>", "j", "l" ])
+  // And it actually moves, rather than both being the root.
+  (NavKeyRuns.breadcrumbAfter [ "<Esc>", "jjj" ]) = "ELet > EVariable"
+
+
+module EnterStartsTheNextStatement =
+  // Enter at the end of a finished expression starts the next one. It used to do NOTHING there -- no hole
+  // to go to, no list to grow -- so the most ordinary thing you do after writing a line had no key.
+  //
+  // It is a WRAP RULE on the expression spec, keyed on `<newline>`, not kernel behaviour: "a newline
+  // sequences two things" is a fact about Darklang, and a language whose newline means something else says
+  // so in its own spec. `<newline>` sits alongside `<digit>`, `<letter>` and `<operator>` as a class the
+  // kernel resolves for a rule that asked for it.
+  (Fixtures.screen [ "1", "+", "2", "<Enter>" ]) = "1 + 2\n~⟨next⟩"
+  (Fixtures.program [ "1", "<Enter>", "2", "<Esc>" ]) = "1\n2"
+  (Fixtures.program [ "1", "<Enter>", "2", "<Enter>", "3", "<Esc>" ]) = "1\n2\n3"
+
+  // The WHOLE expression that ends there, not the last thing in it: `1 + 2` then Enter is one statement
+  // and a hole, never `1 + (2; ...)`.
+  (Fixtures.program [ "1", "+", "2", "<Enter>", "3", "<Esc>" ]) = "1 + 2\n3"
+
+  // While anything is still unfinished, Enter's job is to take you to it. A key that quietly did two
+  // different things depending on the document would be worse than one that does nothing.
+  (Fixtures.screen [ "S", "t", "d", "l", "i", "b", ".", "p", "r", "i", "n", "t", "L", "i", "n", "e", "<Enter>" ]) =
+    "Stdlib.printLine ~⟨str⟩"
+
+  // At the end of a `let`'s BODY the statement goes inside the let, because that is where the language
+  // puts it too. The climb stops at a construct that swallows what follows it.
+  (Fixtures.program [ "l", "e", "<Enter>", "x", "<Tab>", "1", "<Tab>", "x", "<Enter>", "<Enter>", "2", "<Esc>" ]) =
+    "let x = 1\nx\n2"
+
+
+module AnOperatorAfterAFieldNameWraps =
+  // Typing `+` at the end of `s.width` inserted it INTO the name, and `formatFieldName` then drew the
+  // result honestly as ``s.`width+```. The `.` wrap rule's op-slot IS its destination -- the field name --
+  // and the branch that extends an operator being typed (`<` then `=` giving `<=`) claimed the character
+  // first. An op-slot that holds a NAME is a different thing from one that holds an operator.
+  (Fixtures.screen [ "s", ".", "w", "i", "d", "t", "h", "+", "1" ]) = "s.width + 1~"
+  (Fixtures.program [ "s", ".", "w", "i", "d", "t", "h", "+", "1", "<Esc>" ]) = "s.width + 1"
+
+  // The two things that branch is actually for still work: another `.` chains, and an operator being
+  // typed in a real op slot still extends.
+  (Fixtures.screen [ "s", ".", "a", ".", "b" ]) = "s.a.b~"
+  (Fixtures.screen [ "1", "<", "=", "2" ]) = "1 <= 2~"
+
+  // With no name yet there is nothing to wrap and nothing it could be part of, so it is refused rather
+  // than typed.
+  (Fixtures.screen [ "s", ".", "+" ]) = "s.~field"
+
+
+module EndStopsAtAHolesEdge =
+  // End goes to the last editable place on the LINE, and when that is a hole it lands at its start: a
+  // hole's text is its LABEL, not something you are editing, so there is no "end of it" to be at. This is
+  // the half of `caretForCell` that had to survive dropping its dim case.
+  (Fixtures.screen [ "l", "e", "<Enter>", "<End>" ]) = "let ⟨name⟩ = ~⟨value⟩\n⟨body⟩"

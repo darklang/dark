@@ -1,0 +1,183 @@
+module Darklang.LanguageTools.Precedence
+
+// How tightly the language's operators bind, how they are spelled, and when a subexpression has to be
+// parenthesised so the text reparses to the tree it came from.
+//
+// This is a fact about the LANGUAGE, so it lives here and not in one of its consumers. It used to live in
+// `PrettyPrinter.ProgramTypes`, where the operator spellings already were, and everything else reached
+// through the printer to get at it: the structural editor asked `PrettyPrinter.ProgramTypes` what `*`
+// binds like, and the type checker asks it how `&&` is written. Precedence is not a printing decision,
+// and an editor that has to depend on a printer to know its own language has the arrow pointing the
+// wrong way.
+//
+// The parser has its own copy of the table in `LibParser/Parser.fs` (`infixBindingPower`), in F#, and
+// this one still has to be kept in step with it by hand. Collapsing that is the next slice and needs the
+// F# side to read a table rather than inline one.
+
+
+// --- How an operator is written ---
+//
+// Binding power is keyed by the WRITTEN form, so the spelling and the power belong together: a structural
+// editor sees an operator being typed, when it is text and has no `Infix` value yet, and the printer sees
+// an `Infix` and needs its text. Splitting them is what forced everything to go through the printer.
+
+let binaryOperation (b: ProgramTypes.BinaryOperation) : String =
+  match b with
+  // CLEANUP consider surrounding with spaces
+  | BinOpAnd -> "&&"
+  | BinOpOr -> "||"
+
+let infixFnName (i: ProgramTypes.InfixFnName) : String =
+  match i with
+  | ArithmeticPlus -> "+"
+  | ArithmeticMinus -> "-"
+  | ArithmeticMultiply -> "*"
+  | ArithmeticDivide -> "/"
+  | ArithmeticModulo -> "%"
+  | ArithmeticPower -> "^"
+  | ComparisonGreaterThan -> ">"
+  | ComparisonGreaterThanOrEqual -> ">="
+  | ComparisonLessThan -> "<"
+  | ComparisonLessThanOrEqual -> "<="
+  | ComparisonEquals -> "=="
+  | ComparisonNotEquals -> "!="
+  | StringConcat -> "++"
+
+let infix (i: ProgramTypes.Infix) : String =
+  match i with
+  | InfixFnCall i -> infixFnName i
+  | BinOp b -> binaryOperation b
+
+
+// --- How tightly things bind ---
+
+/// (binding power, right-associative) for an infix operator BY ITS WRITTEN FORM.
+///
+/// Mirrors `infixBindingPower` in `LibParser/Parser.fs`, loosest to tightest:
+///   1 `||`  2 `&&`  3 comparisons  4 `@` (right)  5 `+ - ++`  6 `* / %`  7 `^` (right)
+/// If that table moves, this has to move with it, or the printer starts emitting parens that change what
+/// the parser builds. `@` is missing here on purpose: it is parse-only sugar that lowers to an EApply, so
+/// nothing downstream ever has to write it back out.
+let infixPowerOfText (op: String) : (Int * Bool) =
+  match op with
+  | "||" -> (1, false)
+  | "&&" -> (2, false)
+  | "==" -> (3, false)
+  | "!=" -> (3, false)
+  | "<" -> (3, false)
+  | ">" -> (3, false)
+  | "<=" -> (3, false)
+  | ">=" -> (3, false)
+  | "+" -> (5, false)
+  | "-" -> (5, false)
+  | "++" -> (5, false)
+  | "*" -> (6, false)
+  | "/" -> (6, false)
+  | "%" -> (6, false)
+  | "^" -> (7, true)
+  // An operator nobody has spelled out yet: assume it binds like `+`, which is what the editor has always
+  // done for an operator half-typed.
+  | _ -> (5, false)
+
+let infixPower (i: ProgramTypes.Infix) : (Int * Bool) = infixPowerOfText (infix i)
+
+
+/// The two powers that aren't an operator's, named so every consumer says the same thing.
+val selfDelimitingPower = 100
+
+val swallowingPower = 0
+
+/// The expression cases that SWALLOW whatever follows them, so they always need wrapping when they
+/// appear inside something larger.
+///
+/// One list, by constructor name. It was two: the printer read an `Expr` and the editor read a document
+/// node, and each carried its own copy of these six names. Nothing made them agree, and a seventh
+/// swallowing construct would have had to be remembered twice.
+val swallowingCases = [ "EIf", "EMatch", "ELet", "ELambda", "EPipe", "EStatement" ]
+
+/// How tightly a node binds, from its constructor name and (for an infix) the operator's written form.
+///
+/// 0 is for the constructs that swallow what follows them. 100 is everything self-delimiting: a literal,
+/// a variable, a record, an application. Application binds tighter than any operator, so `factorial n *
+/// 2L` needs no parens around the call.
+///
+/// Named by CASE rather than by value, because the two consumers hold the same expression in different
+/// shapes -- a `ProgramTypes.Expr` and a `Fluid.Node` -- and the constructor name is the part they share.
+let powerOfCase (case: String) (opText: String) : Int =
+  if case == "EInfix" then
+    let (p, _) = infixPowerOfText opText
+    p
+  else if Stdlib.List.member swallowingCases case then
+    swallowingPower
+  else
+    selfDelimitingPower
+
+/// `powerOfCase` for a `ProgramTypes.Expr`.
+let exprPower (e: ProgramTypes.Expr) : Int =
+  match e with
+  | EInfix(_, op, _, _) -> powerOfCase "EInfix" (infix op)
+  | EIf(_, _, _, _) -> powerOfCase "EIf" ""
+  | EMatch(_, _, _) -> powerOfCase "EMatch" ""
+  | ELet(_, _, _, _) -> powerOfCase "ELet" ""
+  | ELambda(_, _, _) -> powerOfCase "ELambda" ""
+  | EPipe(_, _, _) -> powerOfCase "EPipe" ""
+  | EStatement(_, _, _) -> powerOfCase "EStatement" ""
+  | _ -> selfDelimitingPower
+
+
+// --- When a subexpression has to be parenthesised ---
+
+/// Whether an operand of an infix needs parenthesising, given the powers alone.
+///
+/// Looser than its parent always does. At equal power it depends on the side: `a - b - c` groups left, so
+/// a right operand of the same power needs parens to mean anything else; `2 ^ 3 ^ 2` groups right, so the
+/// left one does. Stated over Ints so the editor can use it on a document node and the printer on an Expr.
+let operandNeedsParensAt
+  (operandPower: Int)
+  (parentPower: Int)
+  (parentIsRightAssoc: Bool)
+  (isRightOperand: Bool)
+  : Bool =
+  if operandPower < parentPower then
+    true
+  else if operandPower == parentPower then
+    if parentIsRightAssoc then Stdlib.Bool.not isRightOperand else isRightOperand
+  else
+    false
+
+/// Whether an argument in an application needs parenthesising, given its power.
+///
+/// `selfParenthesises` is for a form that already brackets itself, so wrapping it again would give
+/// `((fun x -> ...))`. The printer's lambda does; the editor's draws bare and relies on this, which is
+/// why that has to be the caller's answer rather than baked in here.
+let argNeedsParensAt (argPower: Int) (isApplication: Bool) (selfParenthesises: Bool) : Bool =
+  if isApplication then true
+  elif selfParenthesises then false
+  else argPower < selfDelimitingPower
+
+/// Whether an operand of an infix expression has to be parenthesised.
+let infixOperandNeedsParens
+  (operand: ProgramTypes.Expr)
+  (parentPower: Int)
+  (parentIsRightAssoc: Bool)
+  (isRightOperand: Bool)
+  : Bool =
+  operandNeedsParensAt (exprPower operand) parentPower parentIsRightAssoc isRightOperand
+
+/// Whether an argument in an application has to be parenthesised.
+///
+/// Application is left-associative and binds tightest, so anything that isn't self-delimiting has to be
+/// wrapped or it would be read as further arguments: `f (g x)`, `f (a + b)`, `f (fun x -> x)`.
+let applyArgNeedsParens (arg: ProgramTypes.Expr) : Bool =
+  let selfParenthesises =
+    match arg with
+    // A lambda prints its own parentheses here.
+    | ELambda(_, _, _) -> true
+    | _ -> false
+
+  let isApplication =
+    match arg with
+    | EApply(_, _, _, _) -> true
+    | _ -> false
+
+  argNeedsParensAt (exprPower arg) isApplication selfParenthesises

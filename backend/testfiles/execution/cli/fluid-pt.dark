@@ -1,0 +1,1309 @@
+// ProgramTypes through Fluid: parse -> toDoc -> fromDoc prints the same program, and editing an
+// expression hole builds real expressions.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.append (Darklang.Fluid.Prims.specs ()) (Darklang.Fluid.PT.specs ()))
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  /// The program after a trip through the document, as the printer writes it; or the failure.
+  let roundTrip (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+      | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e2
+      | Error err -> "ERR " ++ err
+    | Error err -> "PARSE ERR " ++ err
+
+  /// What the printer writes for the original, so the two sides compare like for like.
+  let printed (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) e
+    | Error err -> "PARSE ERR " ++ err
+
+  let render (src: String) (width: Int) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (reg ()) width (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "PARSE ERR " ++ err
+
+  let exprHole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  let run (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (exprHole ()) 60 keys
+
+
+module RoundTrips =
+  (Fixtures.roundTrip "42") = (Fixtures.printed "42")
+  (Fixtures.roundTrip "\"hi\"") = (Fixtures.printed "\"hi\"")
+  (Fixtures.roundTrip "[1, 2, 3]") = (Fixtures.printed "[1, 2, 3]")
+  (Fixtures.roundTrip "(1, \"a\", true)") = (Fixtures.printed "(1, \"a\", true)")
+  (Fixtures.roundTrip "let x = 1 + 2\nx * 3") = (Fixtures.printed "let x = 1 + 2\nx * 3")
+  (Fixtures.roundTrip "if x > 2 then [x, 3] else (1, \"two\")") = (Fixtures.printed "if x > 2 then [x, 3] else (1, \"two\")")
+  (Fixtures.roundTrip "if x then 1") = (Fixtures.printed "if x then 1")
+  (Fixtures.roundTrip "fun a b -> a ++ b") = (Fixtures.printed "fun a b -> a ++ b")
+  (Fixtures.roundTrip "let (a, b) = (1, 2)\na") = (Fixtures.printed "let (a, b) = (1, 2)\na")
+  (Fixtures.roundTrip "3.25") = (Fixtures.printed "3.25")
+  (Fixtures.roundTrip "-3.25") = (Fixtures.printed "-3.25")
+
+  (Fixtures.roundTrip "match x with\n| 1 -> \"one\"\n| _ -> \"other\"") = (Fixtures.printed "match x with\n| 1 -> \"one\"\n| _ -> \"other\"")
+  (Fixtures.roundTrip "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3") =
+    (Fixtures.printed "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3")
+  (Fixtures.roundTrip "$\"a {b} c\"") = (Fixtures.printed "$\"a {b} c\"")
+  (Fixtures.roundTrip "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length") =
+    (Fixtures.printed "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length")
+  (Fixtures.roundTrip "Stdlib.Option.Option.Some 5") = (Fixtures.printed "Stdlib.Option.Option.Some 5")
+  (Fixtures.roundTrip "Dict { a = 1; b = 2 }") = (Fixtures.printed "Dict { a = 1; b = 2 }")
+  (Fixtures.roundTrip "r.field") = (Fixtures.printed "r.field")
+  (Fixtures.roundTrip "Stdlib.List.length [ 1 ]") = (Fixtures.printed "Stdlib.List.length [ 1 ]")
+
+
+module Vertical =
+  // A list of scalars stays on one line; it's readable and compact.
+  (Fixtures.render "[1, 2, 3]" 60) = "[1, 2, 3]"
+
+  // A record literal is laid out vertically (its fields break unconditionally), and because a tall child
+  // forces its container to break, a list of records goes vertical too.
+  (Fixtures.render "Stdlib.Option.Option.Some 5" 60) = "Option.Some(5)"
+
+
+module Parens =
+  // Nesting is precedence-aware and matches the pretty-printer: arguments and operands get exactly the
+  // parentheses they need, no more.
+  let show (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (Fixtures.reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error _ -> "parse err"
+
+  (Parens.show "1 + 2 * 3") = "1 + 2 * 3"
+  (Parens.show "(1 + 2) * 3") = "(1 + 2) * 3"
+  (Parens.show "f (g x) (a + b)") = "f (g x) (a + b)"
+  (Parens.show "a && (b || c)") = "a && (b || c)"
+  // A compound argument (a lambda) is parenthesised, and the fn name is shortened.
+  (Parens.show "Stdlib.List.map xs (fun x -> x + 1)") = "Stdlib.List.map xs (fun x -> x + 1)"
+
+  // A swallowing construct in a keyword position (a match as an if condition, an if as a match
+  // scrutinee) is parenthesised so the trailing keyword can't run onto it -- better than the printer.
+  (Parens.show "if (match x with\n| _ -> b) then 1 else 2") = "if (match x with\n| _ -> b) then\n  1\nelse\n  2"
+  // A plain condition needs no parens.
+  (Parens.show "if a then 1 else 2") = "if a then\n  1\nelse\n  2"
+
+
+module Rendering =
+  (Fixtures.render "let x = 1 + 2\nif x > 2 then [x, 3] else (1, \"two\")" 60) =
+    "let x = 1 + 2\nif x > 2 then\n  [x, 3]\nelse\n  (1, \"two\")"
+
+  // An `if` without `else` draws no else at all. It used to show the hole, dimly labelled, which invented
+  // a branch the program does not have -- and this pin recorded that as the intended behaviour, which is a
+  // pin doing its job: the choice was deliberate, and changing it had to be deliberate too. A FRESHLY
+  // TYPED if still offers the hole; see TheElseIsOptional for both halves.
+  (Fixtures.render "if x then 1" 60) = "if x then\n  1"
+
+
+module Editing =
+  (Fixtures.run [ "4", "2" ]) = "42~"
+  (Fixtures.run [ "\"", "h", "i" ]) = "\"hi~\""
+  (Fixtures.run [ "[", "1" ]) = "[1~]"
+  (Fixtures.run [ "(", "1", "<Tab>", "2" ]) = "(1, 2~)"
+
+  // Keywords come from completion: `let` then Enter makes a let with the caret on the name.
+  (Fixtures.run [ "l", "e", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Letters into a pattern hole start a variable; Tab moves to the value.
+  (Fixtures.run [ "l", "e", "<Enter>", "x", "y", "<Tab>", "7" ]) = "let xy = 7~\n⟨body⟩"
+
+  (Fixtures.run [ "i", "f", "<Enter>" ]) = "if ~⟨cond⟩ then\n  ⟨then⟩\nelse\n  ⟨else⟩"
+
+  (Fixtures.run [ "f", "u", "<Enter>", "a", "<Tab>", "1" ]) = "fun a -> 1~"
+
+  // An operator after an expression wraps it; more operator characters extend the operator; the first
+  // other character moves on to the right-hand hole.
+  (Fixtures.run [ "1", "+" ]) = "1 +~ ⟨right⟩"
+  (Fixtures.run [ "1", "+", "2" ]) = "1 + 2~"
+  (Fixtures.run [ "1", "=", "=", "2" ]) = "1 == 2~"
+  (Fixtures.run [ "1", "+", "2", "*", "3" ]) = "1 + 2 * 3~"
+  (Fixtures.run [ "\"", "a", "<Right>", "+", "+", "\"", "b" ]) = "\"a\" ++ \"b~\""
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "1", "+", "2", "*", "3" ]) = "1 + 2 * 3"
+
+  // `|` after an expression starts a pipe with a hole for the first step.
+  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+
+  // Multi-grapheme input (a paste) moves the caret past all of it.
+  (Fixtures.run [ "hello" ]) = "hello~"
+  (Fixtures.run [ "\"", "hello", " world" ]) = "\"hello world~\""
+
+  // An identifier becomes a variable when you type past it; a pipe step completes from the package
+  // tree, with the piped argument left out of the placeholders.
+  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.len", "<Enter>" ]) =
+    "xs |> Stdlib.List.length"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.map", "<Enter>", "fu", "<Enter>", "x", "<Tab>", "x", "+", "1" ]) =
+    "xs |> Stdlib.List.map (fun x -> x + 1)"
+  // A trailing identifier resolves when you leave it (Esc, or save).
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "x", "+", "y" ]) = "ERR unresolved: y"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "x", "+", "y", "<Esc>" ]) = "x + y"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "le", "<Enter>", "n", "<Tab>", "1", "<Tab>", "n", "<Enter>" ]) =
+    "let n = 1\nn"
+
+  // Names bound by an enclosing let, lambda, or match arm are offered in scope and complete.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "sum", "<Tab>", "1", "<Tab>", "su", "<Enter>" ]) =
+    "let sum = 1\nsum"
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "fu", "<Enter>", "acc", "<Tab>", "acc", "+", "1", "<Esc>" ]) =
+    "(fun acc -> acc + 1)"
+  // A pasted identifier (many graphemes at once) becomes a variable, same as typing it.
+  (Fixtures.run [ "fu", "<Enter>", "acc", "<Tab>" ]) = "fun acc -> ~⟨body⟩"
+
+  // The palette (`:` in NAV) offers structural actions on the node under the caret. An action that leaves
+  // a HOLE lands the caret in it and starts typing: it just made a blank only you can fill, and leaving
+  // the caret on the node you were already on meant the next keystroke went nowhere. "wrap in let" was
+  // already doing this by accident, through `lastEditable`; the other two were not, so the three
+  // disagreed about where you end up.
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "m", "a", "t", "c", "h", "<Enter>" ]) = "match 42 with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n42"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "42\n|> ~⟨step⟩"
+  // Esc closes the palette without changing anything.
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "<Esc>" ]) = "~42"
+
+  // NAV `y` yanks the node under the caret; `p` puts that subtree into another slot.
+  (Fixtures.run [ "(", "7", "<Tab>", "<Esc>", "k", "y", "j", "p" ]) = "(7, ~7)"
+
+  // `match` comes with one case; letters into the pattern hole start a variable, `[` a list pattern.
+  (Fixtures.run [ "m", "a", "<Enter>" ]) = "match ~⟨arg⟩ with\n| ⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.run [ "m", "a", "<Enter>", "x", "<Tab>", "[", "<Tab>", "0" ]) = "match x with\n| [⟨pattern⟩] -> 0~"
+
+  // A finished edit is a real expression.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "x", "<Tab>", "7", "<Tab>", "[", "1" ]) =
+    "let x = 7\n[1]"
+
+  // ... and an unfinished one says what is missing.
+  (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "l", "e", "<Enter>", "x" ]) =
+    "ERR hole: value"
+
+
+module NamesReadTheWayThePrinterWritesThem =
+  // Fluid drew fully-qualified names where the printer shortens: `Darklang.Stdlib.Option.Option<'a>` for a
+  // parameter the printer writes `Option<'a>`, long enough to break the line mid-type. displayName defers
+  // to the pretty-printer's own shortenName now, so there is one answer rather than two.
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Option.Option") = "Option"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Result.Result") = "Result"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.List.length") = "Stdlib.List.length"
+
+  // The shortening is on the way to the SCREEN, not into the document: the full name is the thing's
+  // identity, and storing the short one made `Result.Ok` come back as `Result..Ok`. So both have to hold:
+  // the screen is short, and the round-trip is unchanged.
+  let screen (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "ERR " ++ err
+
+  let roundTrip (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      (match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+       | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e2
+       | Error err -> "ERR " ++ err)
+    | Error err -> "ERR " ++ err
+
+  (NamesReadTheWayThePrinterWritesThem.screen "Ok(1)") = "Result.Ok(1)"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "Ok(1)") = "Result.Ok(1)"
+  (NamesReadTheWayThePrinterWritesThem.screen "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
+  (NamesReadTheWayThePrinterWritesThem.screen "nums |> Stdlib.List.filter f") = "nums\n|> Stdlib.List.filter f"
+  (NamesReadTheWayThePrinterWritesThem.roundTrip "nums |> Stdlib.List.filter f") = "nums |> Stdlib.List.filter f"
+
+
+module PrecedenceIsShared =
+  // Fluid used to carry its own copy of the printer's precedence: the same operator table, the same two
+  // named powers, and the same two rules for when an operand or an argument needs parens. Two hand-written
+  // copies of one language fact drift -- the name shorteners already had -- and an editor that disagrees
+  // with the printer about parentheses is worse than either.
+  //
+  // It all lives in `LanguageTools.Precedence` now, including the operator SPELLINGS, because binding
+  // power is keyed by the written form and the two cannot be separated. The printer and the editor are
+  // both consumers. Before, the editor asked the PRINTER what `*` binds like, which worked but had the
+  // arrow the wrong way round, and the editor still kept its own copy of the swallowing-construct list.
+  let ops () : List<String> =
+    [ "||", "&&", "==", "!=", "<", ">", "<=", ">=", "+", "-", "++", "*", "/", "%", "^" ]
+
+  // The editor's answer IS the printer's answer, for every operator it can draw.
+  (PrecedenceIsShared.ops ()
+   |> Stdlib.List.all (fun op ->
+     (Darklang.Fluid.Project.infixPowerOf op) == (Darklang.LanguageTools.Precedence.infixPowerOfText op))) = true
+
+  // And the table itself is unchanged, stated once so a careless edit to it has to be deliberate.
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "||") = (1, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "&&") = (2, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "==") = (3, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "+") = (5, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "*") = (6, false)
+  (Darklang.LanguageTools.Precedence.infixPowerOfText "^") = (7, true)
+
+  // The enum path goes through the same table, so `infixPower` and the editor cannot disagree.
+  (Darklang.LanguageTools.Precedence.infixPower
+    (Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower)) = (7, true)
+  (Darklang.LanguageTools.Precedence.infixPower
+    (Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpOr)) = (1, false)
+
+  // The operand rule, stated over powers alone: looser always parenthesises, equal depends on the side.
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 6 false false) = true
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 6 5 false false) = false
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 5 false true) = true
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 5 5 false false) = false
+  (Darklang.LanguageTools.Precedence.operandNeedsParensAt 7 7 true false) = true
+
+  // The argument rule takes "does this form bracket itself" as an ANSWER rather than baking it in: the
+  // printer's lambda does, Fluid's draws bare and gets its parens from the rule. Same result either way.
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 0 false true) = false
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 0 false false) = true
+  (Darklang.LanguageTools.Precedence.argNeedsParensAt 100 true false) = true
+
+  // What the whole thing is for: the editor and the printer put parentheses in the same places.
+  let sameParens (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let strip (s: String) : String =
+        s |> Stdlib.String.toList |> Stdlib.List.filter (fun c -> (Stdlib.Char.toString c) != "\n" && (Stdlib.Char.toString c) != " ")
+          |> Stdlib.List.map (fun c -> Stdlib.Char.toString c) |> Stdlib.String.join ""
+      (strip (Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e))
+      == (strip (Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))))
+    | Error _ -> false
+
+  (PrecedenceIsShared.sameParens "1 + 2 * 3") = true
+  (PrecedenceIsShared.sameParens "(1 + 2) * 3") = true
+  (PrecedenceIsShared.sameParens "a - b - c") = true
+  (PrecedenceIsShared.sameParens "2 ^ 3 ^ 2") = true
+  (PrecedenceIsShared.sameParens "a || b && c") = true
+  (PrecedenceIsShared.sameParens "f (g x) (a + b)") = true
+  (PrecedenceIsShared.sameParens "(if a then 1 else 2) + 3") = true
+
+  // The swallowing constructs were a LIST written twice -- once as `exprPower`'s arms over an Expr, once
+  // as `nodePower`'s arms over a document node -- with nothing making them agree. One list now, read by
+  // constructor name, which is the part the two shapes share.
+  (Darklang.LanguageTools.Precedence.swallowingCases)
+    = [ "EIf", "EMatch", "ELet", "ELambda", "EPipe", "EStatement" ]
+
+  // Both readings of it: from a real Expr, and from the name alone.
+  let power (src: String) : Int =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.LanguageTools.Precedence.exprPower e
+    | Error _ -> -1
+
+  (PrecedenceIsShared.power "if a then 1 else 2") = 0
+  (PrecedenceIsShared.power "fun x -> x") = 0
+  (PrecedenceIsShared.power "let x = 1\nx") = 0
+  (PrecedenceIsShared.power "1 + 2") = 5
+  (PrecedenceIsShared.power "1 * 2") = 6
+  (PrecedenceIsShared.power "f x") = 100
+  (PrecedenceIsShared.power "1") = 100
+
+  // And the editor's reading of the same programs, off a document node rather than an Expr.
+  let nodePower (src: String) : Int =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Project.nodePower (Darklang.Fluid.PT.toDoc e)
+    | Error _ -> -1
+
+  ((PrecedenceIsShared.nodePower "if a then 1 else 2") == (PrecedenceIsShared.power "if a then 1 else 2")) = true
+  ((PrecedenceIsShared.nodePower "fun x -> x") == (PrecedenceIsShared.power "fun x -> x")) = true
+  ((PrecedenceIsShared.nodePower "1 * 2") == (PrecedenceIsShared.power "1 * 2")) = true
+  ((PrecedenceIsShared.nodePower "f x") == (PrecedenceIsShared.power "f x")) = true
+
+  // The spellings moved with the table, since binding power is keyed by the written form.
+  (Darklang.LanguageTools.Precedence.infix
+    (Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.StringConcat)) = "++"
+  (Darklang.LanguageTools.Precedence.infix
+    (Darklang.LanguageTools.ProgramTypes.Infix.BinOp Darklang.LanguageTools.ProgramTypes.BinaryOperation.BinOpAnd)) = "&&"
+
+
+module RecordsCanBeBuilt =
+  // Record literals had no build path: ERecord needs a resolved type HASH -- typeNameResolution refuses an
+  // empty one -- so you cannot get there by typing punctuation the way a list or a tuple does. The type
+  // has to be RESOLVED first, which makes COMPLETION the build path rather than a `{` trigger. That pays
+  // for itself: the search hands back the declaration, so the shell arrives with the real field names in
+  // it and the caret in the first value.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // The candidate names the type and summarises its fields, so the menu says what you are about to get.
+  ((Darklang.Fluid.PT.recordCandidates "Size" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label))
+   |> Stdlib.Option.withDefault "none") = "Stdlib.Cli.Tui.Size"
+  ((Darklang.Fluid.PT.recordCandidates "Size" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.detail))
+   |> Stdlib.Option.withDefault "none") = "{ width, height }"
+
+  // A capitalised name is a TYPE in this language, so a record leads the menu there. Without this, `Size`
+  // offered `Stdlib.Dict.size` first and Enter built a call.
+  ((Darklang.Fluid.PT.completeExpr (Darklang.Fluid.PT.exprExpect "e") "Size"
+    |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label)) |> Stdlib.Option.withDefault "none") = "Stdlib.Cli.Tui.Size"
+
+  // The shell, with the declaration's field names and the caret in the first value.
+  (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60
+    [ "S", "i", "z", "e", "<Enter>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+
+  // Filled in and lowered, which is the whole point: this is a real ERecord with a resolved type.
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]) =
+    "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+
+  // An existing record still round-trips through the document unchanged.
+  ((match Darklang.LanguageTools.Parser.Parse.parsePTExpr "Stdlib.Cli.Tui.Size { width = 80; height = 24 }" with
+    | Ok e ->
+      (match Darklang.Fluid.PT.fromDoc (Darklang.Fluid.PT.toDoc e) with
+       | Ok e2 -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e2
+       | Error err -> "ERR " ++ err)
+    | Error err -> "parse ERR " ++ err)) = "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+
+  // And the type reads the way the printer writes it, not fully qualified.
+  (Stdlib.String.contains
+    (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60 [ "S", "i", "z", "e", "<Enter>" ])
+    "Darklang.Stdlib") = false
+
+
+module EnumConstructorsCanBeBuilt =
+  // The gap found in t86: `Ok(1)` and `None` in an EXPRESSION had no build path, so an uppercase name
+  // became a variable -- `None` lowered to a variable named None, which prints fine and fails at
+  // resolution. Same wall as records (EEnum carries a type name and hash), and the same answer, except
+  // the search cannot do the matching: you type a CASE name and the store indexes types by their own
+  // name, so the enum declarations are read and the cases matched here.
+  ((Darklang.Fluid.PT.enumCandidates "Ok" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label))
+   |> Stdlib.Option.withDefault "none") = "Result.Ok"
+  ((Darklang.Fluid.PT.enumCandidates "Ok" |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.detail))
+   |> Stdlib.Option.withDefault "none") = "case of 1"
+
+  // A case's fields become holes, so `Ok` lands you inside the constructor; a nullary case has none.
+  (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60 [ "O", "k", "<Enter>" ]) =
+    "Result.Ok(~⟨field⟩)"
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "O", "k", "<Enter>", "1", "<Esc>", "<Esc>" ]) = "Result.Ok(1)"
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "N", "o", "n", "e", "<Enter>", "<Esc>", "<Esc>" ]) = "Option.None"
+
+  // Two characters is enough for a case, because `Ok` is two. The general search still wants three.
+  ((Darklang.Fluid.PT.completeExpr (Darklang.Fluid.PT.exprExpect "e") "Ok"
+    |> Stdlib.List.head |> Stdlib.Option.map (fun c -> c.label)) |> Stdlib.Option.withDefault "none") = "Result.Ok"
+
+  // It is the LAST segment that says type or function: `Stdlib.List.length` starts with a capital too,
+  // and routing it down the type path lost its function candidates entirely.
+  (Darklang.Fluid.PT.looksLikeATypeName "Stdlib.Cli.Tui.Size") = true
+  (Darklang.Fluid.PT.looksLikeATypeName "Stdlib.List.length") = false
+  (Darklang.Fluid.PT.looksLikeATypeName "Ok") = true
+  (Darklang.Fluid.PT.looksLikeATypeName "nums") = false
+  (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
+    [ "S", "t", "d", "l", "i", "b", ".", "L", "i", "s", "t", ".", "l", "e", "n", "g", "t", "h", " ", "n", "u", "m", "s", "<Esc>", "<Esc>" ]) =
+    "Stdlib.List.length nums"
+
+
+module NewShapesCompose =
+  // Records and constructors have to work WITH everything that was already there, not just on their own.
+  // These are the compositions checked by hand after building them; nothing here found a bug, which is
+  // worth having written down as much as a fix would be.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // A record bound in a let, and then used.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "l", "e", "t", " ", "s", " ", "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Tab>"
+      "s", ".", "w", "i", "d", "t", "h", " ", "<Esc>", "<Esc>" ]) =
+    "let s = Stdlib.Cli.Tui.Size { width = 80; height = 24 }\ns.width"
+
+  // Constructor PATTERNS and constructor VALUES in the same program: the pattern side has worked since the
+  // uppercase-means-a-case fix, and the expression side since the completion one.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "m", "a", "t", "c", "h", " ", "r", " ", "w", "i", "t", "h", " ", "O", "k", "(", "v", "<Tab>", "v"
+      "<Enter>", "E", "r", "r", "o", "r", "(", "e", "<Tab>", "0", "<Esc>", "<Esc>" ]) =
+    "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
+
+  // They nest: a record inside a list, and a record inside a constructor.
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "[", "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]) =
+    "[Stdlib.Cli.Tui.Size { width = 80; height = 24 }]"
+  (Darklang.Fluid.PT.Test.program (NewShapesCompose.reg ()) (NewShapesCompose.hole ())
+    [ "O", "k", "<Enter>", "S", "i", "z", "e", "<Enter>", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
+    "Result.Ok(Stdlib.Cli.Tui.Size { width = 1; height = 2 })"
+
+  // Undo peels a record field the way it peels anything else.
+  (Darklang.Fluid.Test.run (NewShapesCompose.reg ()) (NewShapesCompose.hole ()) 70
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "u", "u" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+
+
+module BarStartsTheNextArm =
+  // `|` at the end of a match arm's rhs starts the next arm, which is how anyone writing the source would
+  // type it. It used to build a PIPE, so the natural keystroke gave you `2 |> ⟨step⟩` inside the arm.
+  //
+  // Which character does this is not written down here: the kernel asks the SPEC what it draws before each
+  // item of the field (`EachWith("cases", [ Punct "|", Space ], ...)`), so a DSL that separates its items
+  // some other way gets the same behaviour without touching the kernel.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  /// `match x with | 1 -> 2`, then whatever else you type.
+  let arm (extra: List<String>) : String =
+    Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+      (Stdlib.List.append [ "ma", "<Enter>", "x", "<Tab>", "1", "<Tab>", "2" ] extra)
+
+  (BarStartsTheNextArm.arm []) = "match x with\n| 1 -> 2~"
+  (BarStartsTheNextArm.arm [ "|" ]) = "match x with\n| 1 -> 2\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.arm [ "|", "3" ]) = "match x with\n| 1 -> 2\n| 3~ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.arm [ "|", "3", "<Tab>", "4", "|", "5", "<Tab>", "6" ]) =
+    "match x with\n| 1 -> 2\n| 3 -> 4\n| 5 -> 6~"
+
+  // The half that makes stealing `|` safe. Typing it AGAIN, in the fresh empty arm it just made, means the
+  // operator was meant after all -- and the arm goes away rather than being left behind as an empty one.
+  // Stateless: `|` is never valid at the start of an empty pattern, and an arm still made entirely of
+  // holes is one nothing has been typed into.
+  (BarStartsTheNextArm.arm [ "|", "|" ]) = "match x with\n| 1 -> 2 ||~ ⟨right⟩"
+  (BarStartsTheNextArm.arm [ "|", "|", "b" ]) = "match x with\n| 1 -> 2 || b~"
+
+  // The same for CONTINUING it into another operator rather than repeating it: `|` then `>` is the pipe it
+  // always was, in the arm, not an arm whose pattern starts with `>`.
+  (BarStartsTheNextArm.arm [ "|", ">" ]) = "match x with\n| 1 ->\n  2\n  |> ~⟨step⟩"
+  (BarStartsTheNextArm.arm [ "|", ">", "f" ]) = "match x with\n| 1 ->\n  2\n  |> f~"
+
+  // Outside a list drawn that way, `|` is untouched: it still builds a pipe, and `||` still builds an
+  // infix.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60 [ "a", "|" ]) =
+    "a\n|> ~⟨step⟩"
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "a", "|", "|", "b" ]) = "a || b~"
+
+  // `|` on a match arm's PATTERN is still an or-pattern. The rule only fires at the END of an item --
+  // starting the next one is meaningless anywhere else -- so the pattern spec's own `|` keeps winning.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "ma", "<Enter>", "n", "<Tab>", "0", "|" ]) = "match n with\n| 0 | ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "ma", "<Enter>", "n", "<Tab>", "0", "|", "1", "|", "2" ]) = "match n with\n| 0 | 1 | 2~ -> ⟨rhs⟩"
+
+  // THE RHS IS NOT ALWAYS A TEXT NODE WITH THE CARET INSIDE IT, which is how the first version of this
+  // shipped broken. Type a string and the closing quote leaves the caret AFTER the node; type a list and it
+  // leaves you after the LIST, while the last node in the arm is the `1` inside it. The rule lived in the
+  // text branch of the typing path, so `| 1 -> 2` made an arm and `| 1 -> "zero"` made a pipe. Every pin
+  // above ends its arm with a number, which is why they all passed. Found by writing an ordinary program in
+  // the terminal.
+  let armEnding (rhs: String) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+      (Stdlib.List.flatten [ [ "ma", "<Enter>", "x", "<Tab>", "1", "<Tab>", rhs ], extra ])
+
+  (BarStartsTheNextArm.armEnding "\"zero\"" [ "|" ]) = "match x with\n| 1 -> \"zero\"\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (BarStartsTheNextArm.armEnding "[1]" [ "|" ]) = "match x with\n| 1 -> [1]\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  // An arm often ends in a name typed but not yet settled -- a PARTIAL, whose caret is in the SLOT rather
+  // than in any text. An empty hole looks the same, and there the lead punct must not add an arm: there is
+  // nothing in this one yet. The difference is whether anything has been typed.
+  (BarStartsTheNextArm.armEnding "foo" [ "|" ]) = "match x with\n| 1 -> foo\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // The revision still works from there: the operator applies to the string, not to a new arm.
+  (BarStartsTheNextArm.armEnding "\"zero\"" [ "|", "|" ]) = "match x with\n| 1 -> \"zero\" ||~ ⟨right⟩"
+
+  // And a list whose items are separated rather than led keeps its own key: `,` still adds an element.
+  (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
+    [ "[", "1", ",", "2" ]) = "[1, 2~]"
+
+
+module EnterDoesNotGrowWhatItJustMade =
+  // Enter in a sequence does two jobs: settle what you typed, and start the next item. When the candidate
+  // it settles has holes OF ITS OWN the caret is already inside it, so "the next item" meant that node's
+  // own list -- `fun` in a function argument committed the lambda, landed in its first parameter, and
+  // added a SECOND one. `List.map (fun ⟨param⟩ ⟨param⟩ -> ⟨body⟩)` for typing `fun`.
+  //
+  // Found by writing an ordinary pipe in the terminal. `\` builds the same lambda through the hole rule
+  // rather than the menu and gave one parameter, which is what pinned the blame on Enter.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (EnterDoesNotGrowWhatItJustMade.reg ()) (EnterDoesNotGrowWhatItJustMade.hole ()) 80 keys
+
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "fun", "<Enter>" ]) =
+    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+
+  // The same lambda through the hole rule instead of the menu: it always did the right thing.
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "\\" ]) =
+    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+
+  // The half of Enter this must not lose: a candidate with nothing left to fill still commits AND starts
+  // the next item, so a list grows as you type it.
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "true", "<Enter>" ]) = "[true, ~⟨item⟩]"
+  (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "<Enter>" ]) = "[1, ~⟨item⟩]"
+
+
+module SeparatorsComeFromTheSpec =
+  // `,` was written into the kernel, in two places, so it was the `,` of a list and nothing else. The
+  // character that separates a list's items is something the SPEC draws -- `,` between list elements, `;`
+  // between a record's fields -- so the kernel asks the projection, the way it already asks what is drawn
+  // BEFORE each item for `|`. A DSL whose lists are separated by `;` gets the key it actually writes.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (SeparatorsComeFromTheSpec.reg ()) (SeparatorsComeFromTheSpec.hole ()) 70 keys
+
+  // A record types the way the source reads: `;` goes on to the next FIELD.
+  (SeparatorsComeFromTheSpec.run [ "S", "i", "z", "e", "<Enter>", "8", "0", ";", "2", "4" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = 24~\n}"
+
+  // ...because a record's fields come from its TYPE. A separator between items that already exist and are
+  // not finished means "on to the next one", not "put another one here" -- there is no third field to add.
+  // A list is the other way round, and there the next item has nothing left to fill, so it inserts.
+  (SeparatorsComeFromTheSpec.run [ "[", "1", ",", "2", ",", "3" ]) = "[1, 2, 3~]"
+  (SeparatorsComeFromTheSpec.run [ "(", "1", ",", "2" ]) = "(1, 2~)"
+
+
+module TuplePatternsAreVisible =
+  // `let (a, b) = t` drew as `let ?pattern = t`. The LPTuple spec was registered with `simpleExpr` rather
+  // than `simpleLetPat`, so it lived under the EXPRESSION kind and was never found for a LetPattern node.
+  // The three lines above it in the spec list use `simpleLetPat` and read the same at a glance.
+  //
+  // Nothing was lost -- the pattern is carried whole, so it lowered back correctly the entire time -- but a
+  // destructuring you cannot see or edit is its own kind of bad in an editor. Found by opening the largest
+  // real function in the store and walking to the bottom of it; no pin and no fuzz seed builds one, because
+  // nothing constructs a tuple let-pattern by typing.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 70 (TuplePatternsAreVisible.docOf src)
+
+  (TuplePatternsAreVisible.show "let (a, b) = t\na") = "let (a, b) = t\na"
+  (TuplePatternsAreVisible.show "let (a, b, c) = t\na") = "let (a, b, c) = t\na"
+  (TuplePatternsAreVisible.show "let (a, (b, c)) = t\na") = "let (a, (b, c)) = t\na"
+  (TuplePatternsAreVisible.show "let (a, _) = t\na") = "let (a, _) = t\na"
+
+  // The other three let-patterns, which were always fine, so the fix cannot have moved them.
+  (TuplePatternsAreVisible.show "let x = 1\nx") = "let x = 1\nx"
+  (TuplePatternsAreVisible.show "let _ = 1\n2") = "let _ = 1\n2"
+  (TuplePatternsAreVisible.show "let () = 1\n2") = "let () = 1\n2"
+
+
+module EveryNodeHasASpec =
+  // The property behind the LPTuple bug, rather than another example of it. A node whose kind the registry
+  // cannot find a spec for is drawn by the fallback, not by its own rules -- which is how a tuple
+  // destructuring came out as `?pattern`, a render that means "this slot is missing" about a slot that was
+  // there.
+  //
+  // Checked against 250 real functions, 250 types and 250 values as a probe: zero. That sweep is too slow
+  // for the suite, so this pins the same property over parsed sources that reach the awkward corners.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let missing (src: String) : List<String> =
+    let reg = Darklang.Fluid.App.defaultRegistry ()
+    let root = EveryNodeHasASpec.docOf src
+    Darklang.Fluid.Editor.nodePaths root
+    |> Stdlib.List.filterMap (fun p ->
+      match Darklang.Fluid.slotAtPath root p with
+      | Some(Filled n) ->
+        (match Darklang.Fluid.Registry.findExact reg n.kind with
+         | Some _ -> Stdlib.Option.Option.None
+         | None ->
+           (match Darklang.Fluid.Registry.findTypeLevel reg n.kind with
+            | Some _ -> Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.Some(Darklang.Fluid.Kind.toString n.kind)))
+      | _ -> Stdlib.Option.Option.None)
+
+  // The one that was broken, and its neighbours.
+  (EveryNodeHasASpec.missing "let (a, b) = t\na") = []
+  (EveryNodeHasASpec.missing "let (a, (b, c)) = t\na") = []
+  (EveryNodeHasASpec.missing "let _ = 1\n2") = []
+  (EveryNodeHasASpec.missing "let () = 1\n2") = []
+
+  // A spread of everything else the editor draws, so a spec registered under the wrong kind shows up here
+  // rather than as a `?` on someone's screen.
+  (EveryNodeHasASpec.missing "match x with\n| Ok(v) -> v\n| Error(e) -> \"e\"") = []
+  (EveryNodeHasASpec.missing "match x with\n| [a, b] -> a\n| _ -> 0") = []
+  (EveryNodeHasASpec.missing "match x with\n| (a, b) -> a") = []
+  (EveryNodeHasASpec.missing "if b then [1, 2] else 3") = []
+  (EveryNodeHasASpec.missing "fun x -> x + 1") = []
+  (EveryNodeHasASpec.missing "$\"a{b}c\"") = []
+  (EveryNodeHasASpec.missing "r.x.y") = []
+  (EveryNodeHasASpec.missing "xs |> List.map (fun x -> x)") = []
+  (EveryNodeHasASpec.missing "Stdlib.Cli.Tui.Size { width = 1; height = 2 }") = []
+  (EveryNodeHasASpec.missing "{ s with x = 1 }") = []
+  (EveryNodeHasASpec.missing "(1, \"a\", 'c')") = []
+  (EveryNodeHasASpec.missing "Dict { a = 1 }") = []
+
+
+module TheElseIsOptional =
+  // An `if` without an else is valid Darklang (`EIf(_, _, _, None)`), and Fluid drew one anyway:
+  // `if b then 1` came out as `if b then 1 else ⟨else⟩`. It lowered back correctly the whole time, so
+  // nothing was lost -- but someone reading the screen saw an unfinished branch that is not in the program.
+  //
+  // The fix is the DATA MODEL, not a rendering rule, and it took two wrong designs to see that.
+  // `Field.One(Slot.Empty _)` cannot say which of two things it means -- "there is no else" or "there is an
+  // else, not yet written" -- and they need different renderings. A Many field of ZERO OR ONE says exactly
+  // that. (The first wrong idea was calling it an unavoidable UX trade-off; the second was a `WhenFilled`
+  // piece, which would have hidden a fresh if's else hole, because it can only see filled-or-empty too.)
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (TheElseIsOptional.reg ()) 70 (TheElseIsOptional.docOf src)
+  let back (src: String) : String =
+    match TheElseIsOptional.docOf src with
+    | Filled n ->
+      (match Darklang.Fluid.PT.fromDoc n with
+       | Ok e -> Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e
+       | Error err -> "ERR " ++ err)
+    | _ -> "not filled"
+
+  // A PARSED else-less if draws no else, and still lowers to one.
+  (TheElseIsOptional.show "if b then 1") = "if b then\n  1"
+  (TheElseIsOptional.back "if b then 1") = "if b then 1"
+
+  // One WITH an else is unchanged.
+  (TheElseIsOptional.show "if b then 1 else 2") = "if b then\n  1\nelse\n  2"
+  (TheElseIsOptional.back "if b then 1 else 2") = "if b then 1 else 2"
+
+  // A FRESHLY TYPED if still offers the else to Tab into, which is the half a rendering rule would lose.
+  (Darklang.Fluid.Test.run (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ()) 60
+    [ "if", "<Enter>", "b", "<Tab>", "1" ]) = "if b then\n  1~\nelse\n  ⟨else⟩"
+  (Darklang.Fluid.Test.run (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ()) 60
+    [ "if", "<Enter>", "b", "<Tab>", "1", "<Tab>", "2" ]) = "if b then\n  1\nelse\n  2~"
+
+  // ...and settling without filling it saves an else-less if, so the two directions agree.
+  (Darklang.Fluid.PT.Test.program (TheElseIsOptional.reg ()) (TheElseIsOptional.hole ())
+    [ "if", "<Enter>", "b", "<Tab>", "1", "<Esc>" ]) = "if b then 1"
+
+
+module AStringLiteralIsNeverBroken =
+  // Everything between the quotes of a `$"..."` is part of a string LITERAL, so breaking it puts a newline
+  // and its indentation into the string's VALUE, not just into the shape of the line. The pieces inside
+  // are wrapped in `Piece.Flat` and the layout stays flat there whatever the width.
+  (Fixtures.render "$\"a {Stdlib.String.toUppercase someLongVariableName} b\"" 30) =
+    "$\"a {Stdlib.String.toUppercase someLongVariableName} b\""
+
+  // The same call outside the quotes, at the same width, does break -- so the pin above is about the
+  // string and not about the call happening to fit.
+  (Fixtures.render "Stdlib.String.toUppercase someLongVariableName" 30) =
+    "Stdlib.String.toUppercase\n  someLongVariableName"
+
+
+module ReservedFieldNamesKeepTheirBackticks =
+  // A field named `type` has to be written ``type`` or it lexes as the keyword. The printer has done this
+  // since it started emitting source you could parse back; Fluid drew the stored text, so `p.``type``
+  // came out as `p.type`, which is a different program. Both sides now ask `formatFieldName`.
+  (Fixtures.render "p.``type``" 40) = "p.``type``"
+
+  // An ordinary field is untouched, so this is a rule about the unusual names and not a new decoration.
+  (Fixtures.render "p.name" 40) = "p.name"
+
+
+module RecordUpdatesCanBeBuilt =
+  // `{ r with x = 1 }` could be drawn and lowered but never TYPED: the record literal is built by
+  // completion (it needs a resolved type hash), and nothing claimed `{`. So `{` in an expression hole now
+  // means the one record form that needs nothing resolved, and it reads in source order.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let run (keys: List<String>) : String = Darklang.Fluid.Test.run (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ()) 60 keys
+
+  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with\n  name = ⟨value⟩\n}"
+
+  // Tab walks record, then the field NAME, then the value.
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with\n  ~name = ⟨value⟩\n}"
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9" ]) =
+    "{ r with\n  width = 99~\n}"
+
+  // `;` adds the next update, the way it adds the next field of a literal.
+  (Darklang.Fluid.PT.Test.program (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ())
+    [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9", ";", "h", "e", "i", "g", "h", "t", "<Tab>", "1", "<Esc>", "<Esc>" ]) =
+    "{ r with width = 99; height = 1 }"
+
+
+module AnEmptyTextSlotIsAHole =
+  // Tab walks the cells the LAYOUT styles as holes, and an empty text slot drew as dim decoration, so Tab
+  // stepped over an unnamed record field straight to its value: `{ r with name = ... }` could be built and
+  // the field could not be named. `;` landed on that same slot, because adding a sibling lands
+  // structurally rather than off the layout. Two answers to "is this unfinished", and the layout's was
+  // wrong. An empty text slot is a hole, everywhere.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  // The record literal's field names come from the declaration, so they are filled and Tab passes them by
+  // on its way to the values -- the rule is about EMPTY text, not about text.
+  (Darklang.Fluid.Test.run (AnEmptyTextSlotIsAHole.reg ()) (AnEmptyTextSlotIsAHole.hole ()) 60
+    [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+
+
+module SingleSegmentNamesKeepTheirShape =
+  // `parsePackageLocation "Colour"` reads a bare name as an OWNER with an empty name, and shortening
+  // owner="Colour"/name="" hands back `Colour.`. So a type declared in the module you are standing in, or
+  // one you have typed and not resolved, grew a trailing dot: `Colour.Red` drew as `Colour..Red` and
+  // `Foo { a = 1 }` drew as `Foo. { a = 1 }`. A name with no module path has nothing to shorten.
+  (Darklang.Fluid.PT.displayName "Colour") = "Colour"
+  (Darklang.Fluid.PT.displayName "Foo") = "Foo"
+  (Darklang.Fluid.PT.displayName "") = ""
+  (Darklang.Fluid.PT.displayName "A.B") = "A.B"
+  (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Option.Option") = "Option"
+
+  (Fixtures.render "Colour.Red" 60) = "Colour.Red"
+  (Fixtures.render "Foo { a = 1L }" 60) = "Foo {\n  a = 1L\n}"
+
+
+module DocCommentsAreReadable =
+  // Every package item carries a description and nothing in the editor had ever shown one. The panel does
+  // now, through the HASH the document already stores rather than through the name: a shortened name can
+  // match two items, a hash matches one. Only nodes that carry a hash have an answer, which is the honest
+  // boundary -- there is no inference here, just a lookup.
+  let docs (src: String) : (String * String * String) =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      (match Darklang.Fluid.PT.nodeDocs (Darklang.Fluid.PT.toDoc e) with
+       | Some t -> t
+       | None -> ("none", "", ""))
+    | Error _ -> ("parse err", "", "")
+
+  // Standing on a CALL is standing on the function, which is where the caret usually is.
+  ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.first) = "Stdlib.List.map"
+  ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.second) =
+    "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>"
+  (Stdlib.String.startsWith ((DocCommentsAreReadable.docs "Stdlib.List.map xs f") |> Stdlib.Tuple3.third) "Calls fn on every val in list") = true
+
+  // A record's type declaration, behind `_typeHash`.
+  ((DocCommentsAreReadable.docs "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }") |> Stdlib.Tuple3.first) = "Stdlib.Cli.Tui.Size"
+  ((DocCommentsAreReadable.docs "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }") |> Stdlib.Tuple3.third) =
+    "Current terminal viewport dimensions."
+
+  // A node with no hash has nothing to say, and says nothing.
+  ((DocCommentsAreReadable.docs "1L + 2L") |> Stdlib.Tuple3.first) = "none"
+
+  // The inline markers come out as the words they wrap...
+  (Darklang.Fluid.PT.stripDocMarkup "Calls <param fn> on every <var val>, see <fn filterMap>") =
+    "Calls fn on every val, see filterMap"
+
+  // ...and a type written in a description is not a marker, so it survives.
+  (Darklang.Fluid.PT.stripDocMarkup "returns a List<'a> of things") = "returns a List<'a> of things"
+  (Darklang.Fluid.PT.stripDocMarkup "") = ""
+
+
+module EscapedStringsSurviveTheDocument =
+  // The escaping bug is a DRAWING bug and only a drawing bug. A string's body is stored decoded, so
+  // `"a\nb"` draws as two rows, which is wrong and is the last token-level difference between what Fluid
+  // draws and what the printer writes. What it does NOT do is change the program: the document holds the
+  // real character, `fromDoc` hands back the same `EString`, and the printer escapes it again on the way
+  // to source.
+  //
+  // Worth pinning because it is the difference between "looks wrong" and "eats your code", and I had been
+  // treating it as the second. Checked end to end as well, by editing a function containing `"\n"` in the
+  // editor and saving it: the newline came back out of the package store escaped.
+  (Fixtures.roundTrip "Stdlib.String.split s \"\\n\"") = "Stdlib.String.split s \"\\n\""
+  (Fixtures.roundTrip "\"a\\tb\"") = "\"a\\tb\""
+  (Fixtures.roundTrip "\"quote \\\" inside\"") = "\"quote \\\" inside\""
+  (Fixtures.roundTrip "\"back \\\\ slash\"") = "\"back \\\\ slash\""
+
+
+module AMatchOffersItsScrutineesCases =
+  // Declare an enum, match on it, and the pattern hole offered `true` / `false` / `()`. The cases of the
+  // type you are matching are exactly what belongs there, and it was the last thing "your own type, your
+  // own editor" could not do.
+  //
+  // Three facts, in three places, none of which could reach the fourth: the `match` knows its scrutinee is
+  // a variable, SCOPE knows that variable was declared with a type, the store knows that type's cases, and
+  // the pattern hole knew none of it. `binders` carries the declared type now, and a new `offers` hook
+  // lets a node suggest candidates into the slots below it -- the mirror of `binders`, which says what a
+  // node ADDS to scope.
+  //
+  // An MPEnum carries only a case NAME, no type, so reading the declared type is good enough: a wrong
+  // guess can produce a worse menu and never a wrong program. That is what makes this safe without
+  // inference.
+  let optionType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Option.Option"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "Option" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let fnDoc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "describe"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "o")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "o"; typ = t; description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            description = "" }))
+
+  // Clear the body, build `match o with`, and look at the pattern hole.
+  let keys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "<Tab>" ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (AMatchOffersItsScrutineesCases.fnDoc t) 70)
+        (AMatchOffersItsScrutineesCases.keys ())
+
+    Darklang.Fluid.Editor.candidates st
+    |> Stdlib.List.take 4
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join ", "
+
+  // The type's cases lead, and the generic patterns still follow them.
+  (AMatchOffersItsScrutineesCases.menu (AMatchOffersItsScrutineesCases.optionType ())) = "Some, None, true, false"
+
+  // A parameter with no custom type offers nothing extra, so this is about the DECLARATION and not about
+  // being inside a match.
+  (AMatchOffersItsScrutineesCases.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt) =
+    "true, false, ()"
+
+
+module OfferedCasesCanBePicked =
+  // Showing the cases without letting you pick one is worse than not showing them. On an untouched hole
+  // Enter means "start the next item" -- otherwise a bare Enter built a `let` -- and that guard is about
+  // the GENERIC menu, which is mostly "everything that could go here". A candidate that came from the
+  // document is not that, so `Candidate.fromContext` marks it and Enter takes it.
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (AMatchOffersItsScrutineesCases.fnDoc t)
+      70
+      (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) keys)
+
+  // Enter on the pattern hole takes the highlighted case, with a hole per field and the caret in the
+  // first one.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ()) [ "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+
+  // Arrowing to another case and taking that one. A case with no fields leaves nothing to fill, so the
+  // caret sits at its end rather than jumping on.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ()) [ "<Down>", "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | None~ -> ⟨rhs⟩"
+
+  // Then the arm's body, and it lowers to the match it looks like.
+  (OfferedCasesCanBePicked.run (AMatchOffersItsScrutineesCases.optionType ())
+    [ "<Enter>", "v", "<Tab>", "\"", "y", "e", "s", "<Esc>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(v) -> \"~yes\""
+
+  // Without a case to offer, Enter still starts the next arm, which is the behaviour the guard exists for.
+  (OfferedCasesCanBePicked.run Darklang.LanguageTools.ProgramTypes.TypeReference.TInt [ "<Enter>" ]) =
+    "let describe (o: Int): String =\n  match o with\n  | ⟨pattern⟩ -> ⟨rhs⟩\n  | ~⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module TypeCompletionIsRanked =
+  // Function and record candidates have been ranked since the fix that stopped `Size` offering
+  // `Stdlib.Dict.size` first. Types were not: the store's order was the store's, so typing `Colour`
+  // offered `Darklang.Fluid.Layout.Style` above the type actually called Colour.
+  //
+  // Ranking also FILTERS, which is the bigger half: something the store returned and the ranker cannot
+  // score at all does not belong in a menu you are reading while you type.
+  let labels (typed: String) : List<String> =
+    Darklang.Fluid.PT.Types.completeType (Darklang.Fluid.PT.Types.typeExpect "t") typed
+    |> Stdlib.List.map (fun c -> c.label)
+
+  // An exact name leads, and a name that does not match at all is gone rather than ranked last.
+  (Stdlib.List.head (TypeCompletionIsRanked.labels "Option") |> Stdlib.Option.withDefault "none") = "Option"
+  (Stdlib.List.member (TypeCompletionIsRanked.labels "Option") "Darklang.Fluid.Layout.Style") = false
+
+  // A prefix still finds things, so this narrowed the menu without narrowing what you can reach.
+  (Stdlib.List.isEmpty (TypeCompletionIsRanked.labels "Optio")) = false
+
+
+module EnterInAnArmAddsAnArm =
+  // Two rules could claim Enter at the end of a match arm's right-hand side: "start the next item in the
+  // list you are in" and "start the next statement". The list wins, because the rhs IS a list item, and
+  // `sequenceHere` is only reached when there is no sibling to add. Pinned because the sequencing rule
+  // landed after this one and the precedence between them is not obvious from either.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+  let run (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (Darklang.Fluid.App.defaultRegistry ()) (EnterInAnArmAddsAnArm.hole ()) 60 keys
+
+  (EnterInAnArmAddsAnArm.run [ "m", "a", "<Enter>", "n", "<Tab>", "1", "<Tab>", "2", "<Enter>" ]) =
+    "match n with\n| 1 -> 2\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (EnterInAnArmAddsAnArm.run
+    [ "m", "a", "<Enter>", "n", "<Tab>", "1", "<Tab>", "2", "<Enter>", "3", "<Tab>", "4", "<Enter>" ]) =
+    "match n with\n| 1 -> 2\n| 3 -> 4\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module FieldAccessOffersTheFields =
+  // Typing `r.` left you spelling the field name from memory. Same three facts as a match's cases, one
+  // node over: the access knows its target is a variable, scope knows what that variable was declared as,
+  // and the store knows that type's fields.
+  //
+  // A field name is TEXT on the node rather than a hole in the tree, which is why this needed the other
+  // half of the mechanism: a text slot can have candidates, they carry a whole replacement node, and
+  // committing replaces the node. That is also what would let `So<Tab>` finish a pattern case one day.
+  let sizeType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Cli.Tui.Size"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "Size" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let doc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "area"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "s")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "s"; typ = t; description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+            description = "" }))
+
+  // Clear the body, type `s.`, and look.
+  let keys () : List<String> = [ "<Esc>", "j", "j", "j", "j", "c", "s", "." ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (FieldAccessOffersTheFields.doc t) 70)
+        (Stdlib.List.append (FieldAccessOffersTheFields.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join ", "
+
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (FieldAccessOffersTheFields.doc t)
+      70
+      (Stdlib.List.append (FieldAccessOffersTheFields.keys ()) extra)
+
+  (FieldAccessOffersTheFields.menu (FieldAccessOffersTheFields.sizeType ()) []) = "width, height"
+
+  // Typing filters it, the way every other menu here works.
+  (FieldAccessOffersTheFields.menu (FieldAccessOffersTheFields.sizeType ()) [ "h" ]) = "height"
+
+  // Enter takes the highlighted one...
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Enter>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
+
+  // ...including after typing, where the name you get is the FULL one and not what you typed.
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "h", "<Enter>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
+
+  // A target with no record type offers nothing, and `.` still starts a field access to type by hand.
+  (FieldAccessOffersTheFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""
+
+
+module TypingAPatternCaseCompletes =
+  // The thing I declined three times, and it fell out of the text-slot mechanism without touching what
+  // was blocking it. Typing an uppercase letter in a pattern hole still builds that case IMMEDIATELY
+  // rather than a partial -- t56's decision, and several pins rest on it -- but the caret then sits in
+  // the case's TEXT slot, and a text slot can complete now. The `match`'s offer is already in the pool at
+  // that point, because the walk collected it on the way down through `cases`.
+  //
+  // So the hole rule did not have to change: it just needed somewhere for the menu to live.
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+      70
+      (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+          70)
+        (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // One letter narrows it to one case.
+  (TypingAPatternCaseCompletes.menu [ "S" ]) = "Some"
+  (TypingAPatternCaseCompletes.menu [ "N" ]) = "None"
+
+  // Enter and Tab both finish it, with the fields the case actually has. `S<Tab>` used to move on and
+  // leave a case called `S`, which is a name the type does not have.
+  (TypingAPatternCaseCompletes.run [ "S", "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+  (TypingAPatternCaseCompletes.run [ "S", "<Tab>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+
+  // A case with nothing to fill advances instead of sitting there.
+  (TypingAPatternCaseCompletes.run [ "N", "<Tab>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | None -> ~⟨rhs⟩"
+
+
+module TabFinishesAFieldName =
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "h", "<Tab>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Tab>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
+
+
+module AnOfferNamesAPathNotASlot =
+  // The cases of the enum being matched were offered for the FIELDS of a case too: inside
+  // `Some(⟨field⟩)`, the menu suggested `Some` and `None`, which are patterns of an entirely different
+  // type. An offer was keyed on one slot name and then inherited by everything under it.
+  //
+  // It names a PATH now -- `cases.pat`, the arm's own pattern -- and each pending offer carries the
+  // segments it has still to see. It goes live for exactly the node that step reached, and is dropped on
+  // any further descent.
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+          70)
+        (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // The arm's own pattern: the cases, then the generic patterns.
+  (AnOfferNamesAPathNotASlot.menu []) = "Some, None, true, false, ()"
+
+  // One level in, the case's field: the generic patterns only. `Some`'s field is not an Option.
+  (AnOfferNamesAPathNotASlot.menu [ "<Enter>" ]) = "true, false, ()"
+
+  // And the offer still reaches the case NAME, which is a text slot on the node the pattern landed on
+  // rather than a hole below it.
+  (AnOfferNamesAPathNotASlot.menu [ "S" ]) = "Some"
+
+
+module PutChecksWhatTheSlotWants =
+  // Put replaced whatever was under the caret without asking. Yank a string, land on a pipe STEP, put:
+  // `|> ""`, a pipe step that is a string literal. Not a shape the language has, and not a shape typing
+  // can reach -- an editor whose promise is that you cannot build something ill-formed by editing has to
+  // check the one path that skipped the check.
+  //
+  // Same test a hole applies to a candidate: by kind TYPE, so any case of the right thing fits.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "e")
+
+  let after (src: String) (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (PutChecksWhatTheSlotWants.docOf src) 70)
+        keys
+
+    st.message ++ " || " ++ (Darklang.Fluid.Debug.render st.reg st.width st.root)
+
+  // An expression is not a pipe step, in either direction.
+  (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "y", "j", "p" ]) =
+    "can't put EString into step || \"a\"\n|> f"
+  (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "j", "y", "k", "p" ]) =
+    "can't put EPipeVariable into first || \"a\"\n|> f"
+
+  // An expression onto an expression is still just a put.
+  (PutChecksWhatTheSlotWants.after "1 + 2" [ "<Esc>", "j", "y", "j", "p" ]) = "put EInt || 1 + 1"
+
+
+module ARecordUpdateOffersItsFields =
+  // `{ s with ⟨name⟩ = ... }` made you spell the field from memory, the same way `s.` did before it knew.
+  // Same three facts once more: the update knows its target is a variable, scope knows what that variable
+  // was declared as, the store knows that type's fields.
+  //
+  // Offered into `updates.name` -- a path whose last segment is TEXT on the field rather than a slot to
+  // descend into, which is the case the walk did not have: the node the caret is in was asked for its own
+  // offers, and an ancestor's could never reach it.
+  let doc (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "grow"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "s")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = "s"; typ = t; description = "" } ]
+            returnType = t
+            description = "" }))
+
+  // Clear the body, `{` for an update, `s` as the record, Tab to the field name.
+  let keys () : List<String> = [ "<Esc>", "j", "j", "j", "j", "c", "{", "s", "<Tab>" ]
+
+  let menu (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ARecordUpdateOffersItsFields.doc t) 70)
+        (Stdlib.List.append (ARecordUpdateOffersItsFields.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordUpdateOffersItsFields.doc t)
+      70
+      (Stdlib.List.append (ARecordUpdateOffersItsFields.keys ()) extra)
+
+  (ARecordUpdateOffersItsFields.menu (FieldAccessOffersTheFields.sizeType ()) []) = "width, height"
+  (ARecordUpdateOffersItsFields.menu (FieldAccessOffersTheFields.sizeType ()) [ "w" ]) = "width"
+
+  // Tab takes it and lands in the value, whose hole is labelled with the field it belongs to.
+  (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "w", "<Tab>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+
+  // And the whole thing lowers to the update it looks like.
+  (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Enter>", "9", "9" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = 99~\n  }"
+
+  // A target with no record type offers nothing, so this is about the declaration and not about being in
+  // an update.
+  (ARecordUpdateOffersItsFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""
+
+
+module ChangingAnUpdateFieldOffersToo =
+  // `c` on an existing update field clears the WHOLE field to a hole, not just its name -- and that is
+  // the more common way in, because changing an update that is already there is more common than writing
+  // a new one. The offer named only `updates.name`, the field's text, so the hole got nothing and you
+  // were back to typing the field name blind.
+  //
+  // Two shapes now reach the same candidates: `updates.name` for retyping a name, `updates` for filling
+  // the hole. The candidates are whole fields either way, which is why one list serves both.
+  let keys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "{", "s", "<Tab>", "w", "<Tab>", "1", "<Esc>", "<Esc>", "h", "c" ]
+
+  let menu () : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (ARecordUpdateOffersItsFields.doc (FieldAccessOffersTheFields.sizeType ()))
+          70)
+        (ChangingAnUpdateFieldOffersToo.keys ())
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordUpdateOffersItsFields.doc (FieldAccessOffersTheFields.sizeType ()))
+      70
+      (Stdlib.List.append (ChangingAnUpdateFieldOffersToo.keys ()) extra)
+
+  (ChangingAnUpdateFieldOffersToo.menu ()) = "width, height"
+
+  // Enter takes the highlighted one, and typing narrows first.
+  (ChangingAnUpdateFieldOffersToo.run [ "<Enter>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+  (ChangingAnUpdateFieldOffersToo.run [ "h", "<Tab>" ]) =
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    height = ~⟨height⟩\n  }"
+
+
+module ARecordLiteralOffersItsFields =
+  // The fourth and easiest of the four: a record LITERAL knows its own type, because the hash is on the
+  // node. No scope to consult, no variable to resolve.
+  //
+  // And the one that made the "already taken" rule obvious: offering a field the record already sets is
+  // noise -- you cannot add it, and picking it gives you the field twice. Changing a field still offers
+  // its own name, because `c` cleared it first.
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  // Build `Stdlib.Cli.Tui.Size { width = 80; height = 24 }` by completion, then leave INSERT.
+  let built () : List<String> = [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "<Esc>" ]
+
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ARecordLiteralOffersItsFields.hole ()) 70)
+        (Stdlib.List.append (ARecordLiteralOffersItsFields.built ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (ARecordLiteralOffersItsFields.hole ())
+      70
+      (Stdlib.List.append (ARecordLiteralOffersItsFields.built ()) extra)
+
+  // `c` on the first field clears it, and only the field that is now missing is offered.
+  (ARecordLiteralOffersItsFields.menu [ "h", "h", "j", "c" ]) = "width"
+
+  // Picking it puts the field back, with a value hole labelled for it.
+  (ARecordLiteralOffersItsFields.run [ "h", "h", "j", "c", "<Enter>" ]) =
+    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = 24\n}"
+
+  // Adding a THIRD field to a record that has both offers nothing, which is the truth: `Size` has two.
+  (ARecordLiteralOffersItsFields.menu [ "h", "l", "l", "i", "<End>", ";" ]) = ""
+
+
+module MatchingOnAFieldOffersToo =
+  // `match t.status with` offered nothing. The scrutinee's type was only ever read off a VARIABLE, and
+  // you rarely match on a bare parameter -- you match on a field of one.
+  //
+  // The resolver asks the same question of a field access that it asks of a variable: what is the target
+  // declared to be, then what is this field declared to be. It recurses, so `a.b.c` works, and it stops
+  // where the document stops knowing. Nothing here infers.
+  let optionsType () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Cli.AI.Agent.AgentOptions"
+
+    match Darklang.LanguageTools.PackageManager.Type.find Darklang.SCM.Branch.mainBranchId loc with
+    | Some h ->
+      Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        Darklang.LanguageTools.ProgramTypes.NameResolution
+          { originalName = [ "AgentOptions" ]
+            resolved =
+              Stdlib.Result.Result.Ok(
+                Darklang.LanguageTools.ProgramTypes.ResolvedName
+                  { name = Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package h
+                    location = Stdlib.Option.Option.Some loc }) },
+        [])
+    | None -> Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc
+        "describe"
+        (Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "beef"
+            body = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(1L, "o")
+            typeParams = []
+            parameters =
+              [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+                  { name = "o"; typ = MatchingOnAFieldOffersToo.optionsType (); description = "" } ]
+            returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            description = "" }))
+
+  let baseKeys () : List<String> =
+    [ "<Esc>", "j", "j", "j", "j", "c", "m", "a", "t", "c", "h", "<Enter>", "o", "." ]
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (MatchingOnAFieldOffersToo.doc ()) 70)
+        (Stdlib.List.append (MatchingOnAFieldOffersToo.baseKeys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // The record's fields, offered for the scrutinee's field name.
+  (Stdlib.String.contains (MatchingOnAFieldOffersToo.menu []) "writeMode") = true
+
+  // Pick `writeMode` and Tab to the pattern: the cases of the enum THAT FIELD is declared to be.
+  (MatchingOnAFieldOffersToo.menu [ "w", "r", "i", "<Enter>", "<Tab>" ]) =
+    "Allowed, Confirm, Denied, true, false, ()"

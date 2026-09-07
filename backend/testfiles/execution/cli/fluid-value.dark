@@ -1,0 +1,116 @@
+// Fluid edits package values too: a PackageValue (name + body expression) as one document.
+
+module Fixtures =
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Value.specs () ])
+
+  let mk (body: Darklang.LanguageTools.ProgramTypes.Expr) : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "cafe"; body = body; description = "" }
+
+  let strVal () : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk (Darklang.LanguageTools.ProgramTypes.Expr.EString(1L, [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "hello" ]))
+
+  let listVal () : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk (Darklang.LanguageTools.ProgramTypes.Expr.EList(1L, [ Darklang.LanguageTools.ProgramTypes.Expr.EInt(2L, 1), Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 2) ]))
+
+  let show (nm: String) (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue) : String =
+    Darklang.Fluid.Debug.render (reg ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Value.toDoc nm pv))
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  // Compare printed forms: a round trip regenerates node ids, so structural `==` would differ on ids.
+  let rt (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue) : Bool =
+    match Darklang.Fluid.PT.Value.fromDoc pv (Darklang.Fluid.PT.Value.toDoc "x" pv) with
+    | Ok((_n, p2)) ->
+      (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) p2.body) == (Darklang.PrettyPrinter.ProgramTypes.expr (ctx ()) pv.body)
+    | Error _ -> false
+
+
+module Rendering =
+  // One line, the way the printer writes it: packageValue is `val {name} = {body}`, and the body wraps on
+  // its own if it needs to. This used to hard-break after the `=`.
+  (Fixtures.show "greeting" (Fixtures.strVal ())) = "val greeting = \"hello\""
+  (Fixtures.show "nums" (Fixtures.listVal ())) = "val nums = [1, 2]"
+
+
+module RoundTrips =
+  (Fixtures.rt (Fixtures.strVal ())) = true
+  (Fixtures.rt (Fixtures.listVal ())) = true
+
+
+module MatchesThePrinter =
+  // The printer writes `val name = body` on ONE line: packageValue interpolates the body straight in and
+  // lets the body's own layout wrap. Fluid hard-broke after the `=`, so every value in the store showed on
+  // two lines where the printer uses one. (A FUNCTION does break before its body -- that difference is the
+  // printer's own, and Fluid follows it.)
+  let verdict (name: String) : String =
+    let branchId = Darklang.SCM.Branch.mainBranchId
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Value.find branchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Value.get hash with
+      | None -> "missing"
+      | Some pv ->
+        // The doc comment is drawn now, so nothing is stripped before comparing.
+        let printed =
+          Darklang.PrettyPrinter.ProgramTypes.packageValue (Darklang.Fluid.PT.printerContext ()) pv
+        let screen =
+          Darklang.Fluid.Debug.render
+            (Darklang.Fluid.App.defaultRegistry ())
+            80
+            (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Value.toDoc loc.name pv))
+        if screen == printed then "same" else "DIFF: " ++ screen
+
+  (MatchesThePrinter.verdict "Darklang.SCM.Branch.mainBranchId") = "same"
+  (MatchesThePrinter.verdict "Darklang.PrettyPrinter.ProgramTypes.Context.forMain") = "same"
+  (MatchesThePrinter.verdict "Darklang.Fluid.PT.exprType") = "same"
+
+
+module BuiltinValuesRoundTrip =
+  // A value whose body is a builtin reference could not be lowered either, and the document had dropped the
+  // version on the way in, so there was nothing to rebuild from. `v` on one reported "can't print that yet:
+  // unresolved value name: Builtin.scmMainBranchId".
+  let verdict (name: String) : String =
+    let loc = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
+    match Darklang.LanguageTools.PackageManager.Value.find Darklang.SCM.Branch.mainBranchId loc with
+    | None -> "missing"
+    | Some hash ->
+      match Darklang.LanguageTools.PackageManager.Value.get hash with
+      | None -> "missing"
+      | Some pv ->
+        match Darklang.Fluid.PT.Value.fromDoc pv (Darklang.Fluid.PT.Value.toDoc loc.name pv) with
+        | Error e -> "refuses: " ++ e
+        | Ok(pair) ->
+          let (_n, v2) = pair
+          let ctx = Darklang.Fluid.PT.printerContext ()
+          if (Darklang.PrettyPrinter.ProgramTypes.packageValue ctx pv)
+             == (Darklang.PrettyPrinter.ProgramTypes.packageValue ctx v2) then "same"
+          else "CHANGED"
+
+  (BuiltinValuesRoundTrip.verdict "Darklang.SCM.Branch.mainBranchId") = "same"
+
+
+module ValueNamesAreShortened =
+  // `EFnName` shortened its name in `toDoc` and `EValue` did not, so one call could carry both forms:
+  // `Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow`. Precisely the drift t88 was
+  // about -- two paths to the same decision, one of them missed -- and t88's fix did not reach this path.
+  //
+  // Found by counting rather than sampling: 50 of 250 real functions drew tokens the printer does not
+  // write, and my two known causes explained only 19 of them.
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let show (src: String) : String =
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (ValueNamesAreShortened.docOf src)
+
+  // A value reference and a function reference in the same expression, both short.
+  (ValueNamesAreShortened.show "Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow \"x\"") =
+    "Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow \"x\""
+
+  // And what the printer writes for the same program, which is the point of shortening at all.
+  (ValueNamesAreShortened.show "Stdlib.Cli.UI.Colors.yellow") = "Stdlib.Cli.UI.Colors.yellow"
