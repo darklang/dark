@@ -142,7 +142,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
         if Stdlib.List.isEmpty state.repl.log then
           [ Stdlib.Cli.UI.Colors.boldText "A REPL over your whole package space."
             ""
-            Stdlib.Cli.UI.Colors.dimText "⏎ opens the prompt below. Type; ⏎ runs; results log here."
+            Stdlib.Cli.UI.Colors.dimText "⏎ starts typing. Then ⏎ runs, and esc stops."
             ""
             Stdlib.Cli.UI.Colors.dimText "try:"
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  1 + 1")

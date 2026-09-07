@@ -18,8 +18,7 @@ let inner (region: Layout.Region) : Layout.Region =
 /// `Tree · 5` is a pill saying Tree and a dim `· 5`, and a plain title is
 /// just the pill.
 ///
-/// Returns spans. Colour codes carry no width now that clipping goes through `Tui.Text`, so the border no
-/// longer has to dodge the layout helpers to avoid being mis-measured.
+/// Returns spans; colour codes carry no width (clipping goes through `Tui.Text`).
 let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.Span> =
   let color = if focused then Colors.purple else Colors.brightBlack
   let paint = fun s -> Colors.colorize color s
@@ -38,7 +37,15 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
   // The pill and its trailer carry their own colours (and resets), so the
   // border is painted around them in pieces rather than as one string.
   let lead = if pillPlain == "" then "" else "─"
-  let used = (Stdlib.String.displayWidth lead) + (Stdlib.String.displayWidth pillPlain) + (Stdlib.String.displayWidth restPlain)
+
+  // A title near the pane's full width used to overrun the closing corner into the neighbour's
+  // border; the trailer is clipped so `─╮` always draws (the pill itself is short by construction).
+  let leadW = Stdlib.String.displayWidth lead
+  let budget = Stdlib.Int.max 0 (innerCols - leadW - (Stdlib.String.displayWidth pillPlain) - 1)
+  let restPlain = Stdlib.Cli.Tui.Text.clipToWidth restPlain budget
+  let restStyled = if restPlain == "" then "" else Colors.dimText restPlain
+
+  let used = leadW + (Stdlib.String.displayWidth pillPlain) + (Stdlib.String.displayWidth restPlain)
   let fillLen = Stdlib.Int.max 0 (innerCols - used)
   let top =
     (paint ("╭" ++ lead)) ++ pill ++ restStyled ++ (paint ((Stdlib.String.repeat "─" fillLen) ++ "╮"))

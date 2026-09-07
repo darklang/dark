@@ -9,6 +9,8 @@ let allTests (): List<String * TestFunction> =
   [ ("Help", fun () -> testHelpCommand ())
     ("Version", fun () -> testVersionCommand ())
     ("Status", fun () -> testStatusCommand ())
+    ("Merge Round Trip", fun () -> testMergeRoundTrip ())
+    ("Conflict Walkthrough", fun () -> testConflictWalkthrough ())
 
     ("Eval Bool.and", fun () -> testEvalBoolAnd ())
     ("Eval Int64.add", fun () -> testEvalInt64Add ())
@@ -51,6 +53,7 @@ let allTests (): List<String * TestFunction> =
 
     ("List Functions", fun () -> testListFunctions ())
     ("View Function", fun () -> testViewFunction ())
+    ("Harmful Gate", fun () -> testHarmfulGate ())
     ( "Search Module and CamelCase Name",
       fun () -> testSearchMatchesModuleAndCamelCaseName () )
     ( "Search Module and Operation Name",
@@ -102,6 +105,10 @@ let allTests (): List<String * TestFunction> =
     ("Workbench Module Inspect Previews Children", fun () ->
       testWorkbenchModuleInspectPreviewsChildren ())
 
+    ("Workbench Sections Render", fun () -> testWorkbenchSectionsRender ())
+    ("Workbench Previews Render", fun () -> testWorkbenchPreviewsRender ())
+    ("Workbench Item Page Renders", fun () -> testWorkbenchItemPageRenders ())
+
     ("REPL Parses Let Binding", fun () -> testReplParsesLetBinding ())
     ("REPL Injects Binding Chain", fun () -> testReplInjectsBindingChain ())
     ("REPL Rebind Keeps Position", fun () -> testReplRebindKeepsPosition ())
@@ -145,7 +152,23 @@ let runAllTests (): Int =
       let newSummary =
         { summary with totalTests = summary.totalTests + 1 }
 
-      match testFn () with
+      let outcome = testFn ()
+
+      // `branch create` moves the process onto the branch, and a test that creates one and never comes
+      // back leaves every later test authoring there, where (for one thing) a Deprecate never folds.
+      // Say so, so the culprit is named, then put the next test back on main.
+      let outcome =
+        match outcome with
+        | Pass ->
+          let where = runWithCommand [ "branch" ]
+          if Stdlib.String.contains where "on main" then
+            TestResult.Pass
+          else
+            TestResult.Fail $"passed, but left the process on a branch: {Stdlib.String.trim where}"
+        | Fail m -> TestResult.Fail m
+      let _ = runWithCommand [ "switch", "main" ]
+
+      match outcome with
       | Pass ->
         Stdlib.printLine $"✓ PASS - {name}"
         { newSummary with passedTests = newSummary.passedTests + 1 }

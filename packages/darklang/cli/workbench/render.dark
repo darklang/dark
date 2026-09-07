@@ -23,10 +23,9 @@ let wrapRow (maxFit: Int) (line: String) : List<String> =
 /// text from the region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs
 /// both `renderPreview` and `renderReading`.
 ///
-/// Rows used to be cut with `clipToWidth`, which meant anything past the pane's right edge was gone:
-/// not wrapped, not reachable by scrolling, and with no mark that it had ever been there. A record
-/// literal printed on one line (the source printer doesn't break them) lost most of its fields that
-/// way. Wrapping is a floor under that, not a substitute for the printer laying out to the width.
+/// Wrap, never clip: clipping loses everything past the pane's edge with no mark (a
+/// record literal printed on one line lost most of its fields). Wrapping is a floor
+/// under that, not a substitute for the printer laying out to the width.
 let renderScrollableLines
   (region: Stdlib.Cli.UI.Layout.Region)
   (colOffset: Int)
@@ -56,7 +55,9 @@ let renderScrollableLines
     let (i, l) = pair
     let row = i - off
     // Belt and braces: a single grapheme wider than the pane can't be wrapped, only cut.
-    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipToWidth l maxFit))
+    // `rows` already carries the DISPLAY text (the `display` lookup happens when they are built and
+    // wrapped), so there is nothing to look up again here -- and `i` indexes wrapped rows, not lines.
+    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipMarked l maxFit))
   |> Stdlib.List.flatten
 
 

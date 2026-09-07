@@ -56,15 +56,26 @@ let launchdPlist (app: Model.App) : String =
   $"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>com.darklang.{app.slug}</string>\n  <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>{daemonCommand app}</string></array>\n  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n</dict></plist>\n"
 
 /// Register `app` as an OS service by writing its unit, then activating it.
+///
+/// Every value that reaches a unit file is checked HERE, not at authoring: apps sync
+/// from other machines. Name and entrypoint each get an allowlist (what the field is
+/// FOR) plus `isSafeForUnitFile` (what the file format survives).
 let enable (app: Model.App) : EnableResult =
   if Stdlib.Bool.not (Model.isValidSlug app.slug) then
     EnableResult.Failed $"invalid app slug '{app.slug}'"
+  else if Stdlib.Bool.not (Model.isValidAppName app.name) then
+    EnableResult.Failed
+      $"'{app.slug}' has a name that can't go in a unit file (control characters)"
+  else if Stdlib.Bool.not (Model.isValidEntrypointOf app.target) then
+    EnableResult.Failed $"'{app.slug}' has an entrypoint that isn't a plain function name"
   else if Stdlib.Bool.not (Model.isDaemon app.target) then
-    EnableResult.Failed $"'{app.slug}' is a foreground app — only daemons can auto-start"
-  // Checked here rather than at the interpolation, so both platforms are covered by one guard and
-  // nothing gets written when it fails.
+    EnableResult.Failed $"'{app.slug}' is a foreground app -- only daemons can auto-start"
+  // `isValidAppName` rules out control characters, which is the systemd half. `<` and `&` are printable
+  // and pass it, and they are what breaks the plist.
   else if Stdlib.Bool.not (isSafeForUnitFile app.name) then
     EnableResult.Failed $"'{app.slug}' has a name that can't go in a service file"
+  // The entrypoint and the slug are already allowlisted above, so the part of `daemonCommand` this still
+  // covers is the launcher path it splices in.
   else if Stdlib.Bool.not (isSafeForUnitFile (daemonCommand app)) then
     EnableResult.Failed $"'{app.slug}' has an entrypoint that can't go in a service file"
   else
@@ -78,9 +89,9 @@ let enable (app: Model.App) : EnableResult =
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "systemctl" [ "--user", "enable", "--now", $"dark-{app.slug}.service" ] with
-        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
+        | Ok _ -> EnableResult.Enabled $"enabled -- {app.name} will start on login (systemd: dark-{app.slug})"
         | Error _ ->
-          EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: systemctl --user enable --now dark-{app.slug}.service"
+          EnableResult.WroteOnly $"wrote {path}, but couldn't activate it -- run: systemctl --user enable --now dark-{app.slug}.service"
     | Mac ->
       let path = unitPath app.slug
       let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
@@ -88,8 +99,8 @@ let enable (app: Model.App) : EnableResult =
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "launchctl" [ "load", path ] with
-        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
-        | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: launchctl load {path}"
+        | Ok _ -> EnableResult.Enabled $"enabled -- {app.name} will start on login (launchd: com.darklang.{app.slug})"
+        | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it -- run: launchctl load {path}"
 
 // Delete the unit file that makes `slug` auto-start; missing files are already disabled.
 let removeUnit (slug: String) : Stdlib.Result.Result<String, String> =

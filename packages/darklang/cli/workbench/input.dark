@@ -7,7 +7,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
   if inp.action == "commit" then
     match state.accountId with
     | Some acct ->
-      match SCM.PackageOps.commit acct state.branchId inp.field.text false with
+      match SCM.PackageOps.commitDraft acct state.branchId inp.field.text with
       | Ok _ ->
         Step.Continue
           { state with
@@ -16,10 +16,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
               selected = 0
               message = "committed" }
       | Error e ->
-        let m = SCM.PackageOps.commitErrorMessage e
+        // `commitDraft`'s error IS the message; there is nothing to unwrap.
         Step.Continue
           { state with
-              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " ++ m ++ " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
+              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " ++ e ++ " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
     | None ->
       Step.Continue
         { state with
@@ -29,7 +29,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "discard" then
     // Destructive: only proceed on an explicit "y".
     if inp.field.text == "y" then
-      let _ = SCM.PackageOps.discard state.branchId
+      let _ = SCM.PackageOps.discardDraftFor state.branchId
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
@@ -69,9 +69,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
           match Packages.Location.parseRelativeTo state.location inp.field.text with
           | Error e -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " ++ e }
           | Ok newLoc ->
-            // Two fields, not one tuple: `SetName((a, b))` passes a single tuple and blows up at runtime with
-            // "Expected 2 fields ... but got 1", which took the whole CLI down every time you pressed `r`.
-            let op = LanguageTools.ProgramTypes.PackageOp.SetName(newLoc, reference)
+            // Three separate fields, never one tuple: `SetName((a, b, c))` passes a single tuple and
+            // fails at runtime with "Expected 3 fields ... but got 1", which takes the CLI down.
+            //
+            // The predecessor is None because a rename binds this content at a name that was not in use:
+            // "no predecessor known" is the honest answer, and the divergence detector only concludes
+            // anything when BOTH sides claim one.
+            let op =
+              LanguageTools.ProgramTypes.PackageOp.SetName(
+                newLoc,
+                reference,
+                Stdlib.Option.Option.None
+              )
             match SCM.PackageOps.add state.branchId [ op ] with
             | Ok _ ->
               Step.Continue
@@ -92,7 +101,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match branchForAction state with
         | Some b -> b.id
         | None -> state.branchId
-      match SCM.Merge.merge target with
+      match SCM.PackageOps.mergeBranch target with
       | Ok _ ->
         // Merged the branch you're on into its parent - follow the pointer to
         // the parent, like the `merge` command does. Merging some other
@@ -103,17 +112,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
             match SCM.Branch.get target with
             | Some b -> (match b.parentBranchId with | Some p -> p | None -> state.branchId)
             | None -> state.branchId
+        let moved = onBranch state parentId
+
         Step.Continue
-          { state with
+          { moved with
               input = Stdlib.Option.Option.None
-              branchId = parentId
               items = itemsForView state.activeView parentId state.location state.scm.section state.ai.section state.matter.lens
               selected = 0
               filter = ""
               message = "merged into parent" }
       | Error e ->
         Step.Continue
-          { state with input = Stdlib.Option.Option.None; message = "merge failed: " ++ (SCM.Merge.mergeErrorToString e) }
+          { state with input = Stdlib.Option.Option.None; message = "merge failed: " ++ e }
   else if inp.action == "rebase" then
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
@@ -122,7 +132,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match branchForAction state with
         | Some b -> b.id
         | None -> state.branchId
-      match SCM.Rebase.rebase target with
+      match SCM.PackageOps.rebaseBranch target with
       | Ok _ ->
         Step.Continue
           { state with
@@ -130,14 +140,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
               items = reloadItems state
               selected = 0
               message = "rebased onto parent" }
-      | Error conflicts ->
+      | Error e ->
         Step.Continue
-          { state with
-              input = Stdlib.Option.Option.None
-              message =
-                "rebase: "
-                ++ (Stdlib.Int.toString (Stdlib.List.length conflicts))
-                ++ " conflict(s) - see Changes › Conflicts" }
+          { state with input = Stdlib.Option.Option.None; message = "rebase failed: " ++ e }
   else if Stdlib.String.startsWith inp.action "author-" then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
     let kind = Stdlib.String.dropFirst inp.action (Stdlib.String.length "author-")
@@ -210,10 +215,22 @@ let performInputAction (state: State) (inp: InputState) : Step =
           captureOutput (fun () ->
             if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
             else Darklang.Cli.Registry.executeCommand "eval" appState words)
-        let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
-        // `config set devices.enabled true` should show up in the sidebar
-        // now, not on next launch. The gate list is read from disk, so it's
-        // computed once rather than per frame; a config command is the one
+        let body = if (Stdlib.String.trim output) == "" then "(no output)" else output
+
+        // Say which path ran when it was not the one you asked for. Falling back to `eval` is what makes
+        // `: 1 + 2` work, but when the first word was MEANT as a command the fallback's error answers a
+        // question you did not ask -- you typed `zzqqxx` and got "There is no variable named: zzqqxx",
+        // which explains the mechanism rather than the mistake.
+        let shown =
+          if isKnown then
+            body
+          else
+            (Stdlib.Cli.UI.Colors.dimText
+              $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands.")
+            ++ "\n\n"
+            ++ body
+        // `config set devices.enabled true` should show up in the sidebar now, not on next launch. The gate
+        // list is read from disk, so it's computed once rather than per frame; a config command is the one
         // thing that can invalidate it.
         let gated =
           if cmd == "config" then recomputeGatedViews state else state.enabledGatedViews
@@ -232,9 +249,8 @@ let performInputAction (state: State) (inp: InputState) : Step =
     // `let a = 21L` binds, then `a * 2L` sees it and prints 42. Indented lines continue the one above, so a
     // wrapped expression is still one statement (see `Repl.splitStatements`).
     let body = Stdlib.String.trimEnd inp.field.text
-    // Continuation lines keep the indentation you typed, and get two spaces if you typed none: `splitStatements`
-    // treats an indented line as part of the one above, so this is what makes a typed multi-line statement land
-    // as one statement - the same shape pasting those lines would have had.
+    // Two spaces when you typed none, so `splitStatements` sees the typed line as the
+    // continuation it is.
     let addLine (pending: String) (line: String) : String =
       if pending == "" then Stdlib.String.trim line
       else if Stdlib.String.startsWith line " " || Stdlib.String.startsWith line "\t" then pending ++ "\n" ++ line
@@ -281,7 +297,20 @@ let performInputAction (state: State) (inp: InputState) : Step =
           selected = 0
           detailScroll = 0 }
   else if inp.action == "branch-create" then
-    let b = Darklang.SCM.Branch.create inp.field.text state.branchId
+    // `create` hands back an Option: it looks the branch up after registering it, so a name that could
+    // not be registered has nothing to return. Reading `.id` off the Option is a runtime error.
+    match Darklang.SCM.Branch.create inp.field.text state.branchId with
+    | None ->
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.None
+            message = "couldn't start a branch called \"" ++ inp.field.text ++ "\"" }
+    | Some b ->
+
+    // The overlay FIRST: `itemsForView` reads the draft through the process overlay, so building
+    // the list before moving onto the branch describes the branch you just left.
+    let moved = onBranch state b.id
+
     let newItems =
       itemsForView state.activeView b.id state.location state.scm.section state.ai.section state.matter.lens
     // Land on the branch you just made, the way saving lands on the item you just wrote. Resetting to 0 put
@@ -295,10 +324,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Stdlib.String.contains it.name inp.field.text)
       |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
       |> Stdlib.Option.withDefault 0
+
     Step.Continue
-      { state with
+      { moved with
           input = Stdlib.Option.Option.None
-          branchId = b.id
           items = newItems
           selected = landed
           filter = ""
@@ -336,7 +365,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
           let msg =
             if b.id == state.branchId then "deleted " ++ b.name ++ " - switched to main"
             else "deleted " ++ b.name
-          let moved = { state with branchId = landedOn }
+          let moved = onBranch state landedOn
           Step.Continue
             { moved with
                 input = Stdlib.Option.Option.None
@@ -347,10 +376,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "branch-switch" then
     match Darklang.SCM.Branch.getByName inp.field.text with
     | Some b ->
+      let moved = onBranch state b.id
+
       Step.Continue
-        { state with
+        { moved with
             input = Stdlib.Option.Option.None
-            branchId = b.id
             items = itemsForView state.activeView b.id state.location state.scm.section state.ai.section state.matter.lens
             selected = 0
             filter = ""

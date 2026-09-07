@@ -33,9 +33,38 @@ let darkPackages (name: String) : Unit =
 let demoHttp (name: String) : Unit =
   httpDaemon name 9091 "HttpServerTest.router" Darklang.DemoData.HttpServerTest.router
 
-/// `sync-serve`:
-/// serve your ops over HTTP so peers can pull from you
-/// (the serving side of `dark sync`, the boot-persistent twin of `dark sync serve`).
-/// Defaults to 9000 (matches `dark sync serve`); override via config `apps.sync-serve.port`.
-let syncServer (name: String) : Unit =
-  httpDaemon name 9000 "Sync.Server.router" Darklang.Sync.Server.router
+
+/// One sync tick every <param intervalMs>, counter-bounded like `Examples.beat` (the unit's
+/// Restart=on-failure brings it back regardless). With no relay configured it waits quietly --
+/// enabling before `dark sync setup` is fine, and each tick re-reads the config so setup takes
+/// effect without a restart.
+let syncTick (name: String) (intervalMs: Int) (state: Cli.AppState) (remaining: Int) : Int =
+  if remaining <= 0 then
+    0
+  else
+    let url = SCM.PackageOps.relay ()
+
+    let nextState =
+      if url == "" then
+        state
+      else
+        Cli.Sync.executeSync state url
+
+    Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
+    syncTick name intervalMs nextState (remaining - 1)
+
+/// The set-and-forget sync loop: `dark apps enable sync` runs this as an auto-starting daemon.
+/// Each tick is exactly `dark sync` (push committed work, pull, print the story). A pull landing
+/// mid-edit is safe -- the two-machine runs drove live authoring under this exact loop. Interval:
+/// `apps.sync.intervalMs` in cli-config.json, default 30000.
+let syncDaemon (name: String) : Int =
+  let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 30000
+
+  let _logged =
+    match Stdlib.Cli.Daemon.claimPidfile name with
+    | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
+    | Ok _ ->
+      Stdlib.printLine
+        $"{name}: syncing every {Stdlib.Int.toString intervalMs}ms (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())})"
+
+  syncTick name intervalMs (Cli.initState ()) 1000000000

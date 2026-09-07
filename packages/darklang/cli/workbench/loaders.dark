@@ -64,44 +64,58 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
           desc = sig_ ++ "  [" ++ effects ++ "]" })
   Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
 
-/// How many uncommitted *items* there are - the same number the Changes list shows.
+/// How many names the draft touches -- the same number the Changes list shows.
 ///
-/// Not `getWipSummary.total`, which counts ops: authoring one value emits two of them (AddValue + SetName),
-/// so the SCM header used to read "● 2 changes" directly above a list titled "Changes · 1". Ops are the right
-/// unit for a commit's size (History says "(N ops)"); items are the right unit for "how much have I changed".
-let wipItemCount (branchId: Uuid) : Int =
-  Stdlib.List.length (SCM.PackageOps.getWipItems branchId)
+/// Items, not ops: authoring one value emits two ops (AddValue + SetName), so an op count would say
+/// "2 changes" above a list titled "Changes . 1". Ops are the right unit for a commit's size; items
+/// are the right unit for "how much have I changed".
+///
+/// No branch to pass: `SCM.Draft.read ()` resolves through the process branch overlay, which `onBranch`
+/// keeps in step with `state.branchId`. For any OTHER branch, ask `draftBindingsFor` by id.
+let wipItemCount () : Int =
+  Stdlib.List.length (SCM.Draft.read ()).bindings
 
-/// The uncommitted (WIP) items on this branch, as body items (for the Changes view).
-let loadWipBodyItems (branchId: Uuid) : List<BodyItem> =
-  SCM.PackageOps.getWipItems branchId
-  |> Stdlib.List.map (fun d ->
-    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault "?"
-    BodyItem { name = name; kind = kind; isModule = false; desc = "" })
+/// Feeds the SCM changes list and Matter's Changed lens -- one list, two angles. The
+/// lens shows the draft as your code filtered to what moved, with the real tree
+/// renderer and edit-in-place.
+///
+/// Flat and fully qualified, like the Values lens, because a draft is scattered across modules and
+/// filtering a tree to five leaves in five places is worse than a list.
+let loadChangedItems (branchId: Uuid) : List<BodyItem> =
+  // The branch ASKED about, not the process overlay: a caller that just switched hands the new id
+  // before the overlay follows, and an ignored parameter here answered for the old branch.
+  SCM.PackageOps.draftBindingsFor branchId
+  |> Stdlib.List.map (fun b ->
+    BodyItem
+      { name = SCM.Conflicts.fqn b.owner b.modules b.name
+        kind = b.itemType
+        isModule = false
+        desc = "" })
 
 /// Recent commits (this branch + ancestors) as body items (for the History view).
-let loadCommitBodyItems (branchId: Uuid) : List<BodyItem> =
-  SCM.PackageOps.getCommitsWithAncestors branchId 30
+let loadCommitBodyItems () : List<BodyItem> =
+  Cli.Commits.commitRows 30L
   |> Stdlib.List.map (fun c ->
-    let short = LanguageTools.ProgramTypes.hashToShort c.hash
-    let ops = Stdlib.Int.toString c.opCount
+    // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
+    let short = Stdlib.String.first c.hash 8
+    let ops = Stdlib.Int64.toString c.ops
     BodyItem
       { name = c.message
         kind = "commit"
         isModule = false
-        desc = short ++ " · " ++ ops ++ " ops" })
+        desc = short ++ " · " ++ ops ++ (if ops == "1" then " op" else " ops") })
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
 let commitOpsText (branchId: Uuid) (selected: Int) : String =
-  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+  let commits = Cli.Commits.commitRows 30L
   match Stdlib.List.getAt commits selected with
   | None -> "(no commit selected)"
   | Some c ->
-    let hashStr = LanguageTools.ProgramTypes.hashToString c.hash
-    let ops = SCM.PackageOps.getCommitOps hashStr
-    let opCount = Stdlib.List.length ops
-    let shown = Stdlib.List.take ops 20
+    let hashStr = c.hash
+    // Fetch the 20 we show, not all of them: the seed commit holds ~17k ops, and deserializing every blob
+    // to display twenty of them freezes this pane for as long as that takes.
+    let opCount = Stdlib.Int.fromInt64 (SCM.PackageOps.opCountIn hashStr)
+    let shown = SCM.PackageOps.opsInCommitLimited hashStr 20L
     let opLines =
       shown
       |> Stdlib.List.map (fun op -> "  " ++ (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
@@ -115,17 +129,19 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
 
 /// A cheap commit summary for the History preview - hash, message, op count - WITHOUT fetching every op (the
 /// seed commit has 10k+; fetching them per keystroke would make the list crawl). Full ops are behind Enter.
-let commitSummary (branchId: Uuid) (selected: Int) : String =
-  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+let commitSummary (selected: Int) : String =
+  let commits = Cli.Commits.commitRows 30L
   match Stdlib.List.getAt commits selected with
   | None -> "(no commit selected)"
   | Some c ->
-    (LanguageTools.ProgramTypes.hashToString c.hash)
+    // Message first: it answers "what is this commit"; the hash is only for copy/paste, so it sits
+    // dimmed underneath rather than in the brightest slot.
+    c.message
     ++ "\n\n"
-    ++ c.message
+    ++ (Stdlib.Cli.UI.Colors.dimText c.hash)
     ++ "\n\n"
-    ++ (Stdlib.Int.toString c.opCount)
-    ++ " ops  ·  press ⏎ to view them"
+    ++ (Stdlib.Int64.toString c.ops)
+    ++ (if c.ops == 1L then " op  ·  press ⏎ to view it" else " ops  ·  press ⏎ to view them")
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -189,30 +205,57 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
         (o + 1, n, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red ++ Stdlib.Cli.UI.Colors.bold) "- ") code ]))
   out
 
-/// A real +/- diff of the selected WIP item (old-vs-new), reusing the review app's diff engine. Matched by
-/// name so it lines up with the workbench's own WIP list regardless of ordering.
+/// A real old-vs-new SOURCE diff for one draft item.
+///
+/// A NEW item has no previous version, so it diffs against empty and comes out as all-added, which is
+/// exactly right.
+let sourceDiffFor (branchId: Uuid) (fqn: String) : List<Stdlib.Diff.DiffLine> =
+  let binding =
+    SCM.PackageOps.draftBindingsFor branchId
+    |> Stdlib.List.findFirst (fun b ->
+      (SCM.Conflicts.fqn b.owner b.modules b.name) == fqn)
+
+  match binding with
+  | None -> [ Stdlib.Diff.DiffLine.Same "(nothing in the draft touches this name)" ]
+  | Some b ->
+    // `b.name` on both sides: the PREVIOUS version of a name is bound to nothing live, so the printer
+    // cannot name it and would render `let <hash:...>` on the left of every diff.
+    let newText = Cli.Conflicts.renderItem branchId b.itemType b.hash b.name
+
+    let oldText =
+      match Cli.Commit.previousHashesOf branchId b with
+      | [] -> ""
+      | prev :: _ ->
+        Cli.Conflicts.renderItem
+          branchId
+          b.itemType
+          (LanguageTools.ProgramTypes.hashToString prev)
+          b.name
+
+    Stdlib.Diff.lines oldText newText
+
+/// The selected draft item's diff, as text. Matched by name so it lines up with the workbench's
+/// own WIP list regardless of ordering.
 let wipDiffText (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None -> "(no change selected)"
   | Some item ->
-    let pkgs = SCM.Review.App.loadWipItems state.branchId
-    match Stdlib.List.findFirst pkgs (fun p -> p.name == item.name) with
-    | None -> "(not found)"
-    | Some pkg ->
-      let ops = SCM.PackageOps.getWip state.branchId
-      let parentId = SCM.Review.App.getParentBranchId state.branchId
-      SCM.Review.App.diffForItem ops state.branchId parentId pkg
-      |> renderDiffLines state
-      |> Stdlib.String.join "\n"
+    sourceDiffFor state.branchId item.name
+    |> Stdlib.List.map (fun dl ->
+      match dl with
+      | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " ++ s)
+      | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " ++ s)
+      | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " ++ s))
+    |> Stdlib.String.join "\n"
 
 /// The current source of the selected WIP item, for the Changes reader.
 let changesSourceText (branchId: Uuid) (selected: Int) : String =
-  let items = SCM.PackageOps.getWipItems branchId
+  let items = loadChangedItems branchId
   match Stdlib.List.getAt items selected with
   | None -> "(no change selected)"
   | Some d ->
-    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault ""
+    let name = d.name
+    let kind = d.kind
     // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
     let parts = Stdlib.String.split name "."
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
@@ -220,11 +263,11 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
     let results = Packages.Query.searchExactMatch branchId mods leaf
     let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
     let src =
-      if kind == "Type" then
+      if kind == "type" then
         match results.types with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
         | [] -> "(not found)"
-      else if kind == "Value" then
+      else if kind == "value" then
         match results.values with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
         | [] -> "(not found)"
@@ -232,7 +275,7 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
         match results.fns with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
         | [] -> "(not found)"
-    name ++ "  (" ++ kind ++ ", WIP)\n\n" ++ src
+    name ++ "  (" ++ kind ++ ", uncommitted)\n\n" ++ src
 
 /// Run a package search across the whole tree and return jumpable hits (each carries its module path + leaf so
 /// Enter can navigate there). The `/` global action opens these in the search-results mode.
@@ -286,7 +329,7 @@ let depsText (state: State) : String =
       | None -> "(not found)"
       | Some((hash, loc, kind)) ->
         // Dependencies - what this item uses.
-        let deps = Packages.Query.getDependencies state.branchId hash
+        let deps = Packages.Query.getDependencies hash
         let depLines =
           if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
           else
@@ -297,7 +340,8 @@ let depsText (state: State) : String =
                 (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
             deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
         // Dependents - what uses this item.
-        let dependents = Cli.Deps.getDependents state.branchId [ (loc, kind) ]
+        // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
+        let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
         let dependentLines =
           if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
           else
@@ -329,9 +373,9 @@ let readBadges (state: State) : (List<String> * List<String>) =
   if (state.activeView != vMatter) || (state.matter.lens == Lens.ValuesOnly) then
     ([], [])
   else
-    let wip =
-      SCM.PackageOps.getWipItems state.branchId
-      |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
+    // The draft names come off the cached SCM status rather than a read of their own: the tree's pink dot
+    // and Home's "N changed" are the same fact, and two reads of it could disagree.
+    let wip = state.scmStatus.wipNames
     let sets = Packages.Query.loadDeprecationSets state.branchId
     let results = Packages.Query.allDirectDescendants state.branchId (modulePathOf state.location)
     let pick = fun pairs ->
@@ -363,26 +407,47 @@ let refreshBadges (previous: State) (next: State) : State =
     let (wip, deprecated) = readBadges next
     { next with wipNames = wip; deprecatedNames = deprecated }
 
+/// Re-read the SCM picture when anything that could have moved it did.
+///
+/// A WIDER rule than `refreshBadges` uses, and deliberately so. The badges depend on where you are; the SCM
+/// status depends on what you've DONE. Committing, discarding, pinning and settling a conflict all change it
+/// without moving the branch, the location or the item list, so the badges' comparison would carry a stale
+/// answer forward. The extra input is the draft's op count, which is one indexed count and is the cheapest
+/// question the op log can answer.
+///
+/// The op count is not enough on its own: an ACK writes no op, and a pull can land nothing but committed
+/// ops, so on those paths the comparison would carry a stale "N need you" over work you have just
+/// answered. `forceScmRefresh` covers them, and it is a separate function rather than a flag so a caller
+/// has to mean it.
+let refreshScmStatus (previous: State) (next: State) : State =
+  let unchanged =
+    next.scmStatus.loaded
+    && (previous.branchId == next.branchId)
+    && ((SCM.PackageOps.draftOpCountFor next.branchId) == next.scmStatus.ops)
+
+  if unchanged then
+    next
+  else
+    { next with scmStatus = readScmStatus next.branchId }
+
+/// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
+/// count: an ack, and any command run in a frame (a pull lands other people's commits).
+let forceScmRefresh (state: State) : State =
+  { state with scmStatus = readScmStatus state.branchId }
+
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
-/// Here rather than in `detailLines` because this evaluates *user code*, and the renderer has to stay a pure
-/// function of state for frame diffing to be sound. Doing it on the transition also halves the cost: from
-/// `detailLines` it ran twice per keypress, since `navDown` calls `previewLines` again just for a scroll bound.
+/// This evaluates user code, so it happens here on the transition, not in `detailLines`:
+/// the renderer stays a pure function of state, which frame diffing requires.
 ///
-/// Deliberately NOT cached across transitions, unlike the badges above. The only key available is where you
-/// are and what's under the cursor, and editing the selected `render` fn changes neither: `saveEditing`
-/// reloads the list and lands you back on the same row, and a `BodyItem` carries name/kind/isModule, so the
-/// list compares equal. A cache on that key can't tell "you edited this" from "nothing happened". Re-running
-/// costs one eval per transition, and only while the cursor is actually sitting on a `render` fn.
+/// Deliberately NOT cached across transitions: the only key available (location +
+/// cursor) doesn't change when you edit the selected `render` fn, so a cache can't tell
+/// "you edited this" from "nothing happened".
 ///
-/// Note that re-running still won't show you your own edit within one session: the runtime resolves package
-/// items through an in-process cache, so a `render` edited here keeps rendering its pre-edit output until the
-/// CLI restarts. That's above this function - verified by evaluating the same fn from a second process, which
-/// gives the new output - so the peek isn't the place to fix it, but it is why not caching here buys less than
-/// it looks like it should.
+/// Your own edit won't show within a session anyway -- the runtime's in-process package
+/// cache serves the pre-edit fn until the CLI restarts. That's above this fn.
 ///
-/// The `vMatter` test matches `detailLines`' - the peek is a Matter-tree affordance, and elsewhere the module
-/// path this builds would have nothing to do with the selected row.
+/// The `vMatter` test matches `detailLines`'.
 let refreshPeek (next: State) : State =
   let peek =
     if (next.activeView != vMatter) || (next.matter.lens == Lens.ValuesOnly) then
