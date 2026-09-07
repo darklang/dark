@@ -31,9 +31,13 @@ gate_workbench_scm() {
   "$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1L' >/dev/null 2>&1
   "$PWD/$CLI" commit "workbench scm fixture" -y >/dev/null 2>&1
 
-  # a branch that diverges from main on one name, so merging it RECORDS a conflict
+  # a branch that diverges from main on one name, so merging it RECORDS a conflict.
+  # The branch commits first: merge refuses uncommitted branch work, so without this the merge
+  # never happens, no conflict is recorded, and Home has no "needs you" to show -- which is a
+  # fixture that stopped building the thing the gate asserts on.
   "$PWD/$CLI" branch create wb-scm >/dev/null 2>&1
   "$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222L' >/dev/null 2>&1
+  "$PWD/$CLI" --branch wb-scm commit "wb-scm diverges" -y >/dev/null 2>&1
   "$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111L' >/dev/null 2>&1
   "$PWD/$CLI" --branch wb-scm merge wb-scm >/dev/null 2>&1
 

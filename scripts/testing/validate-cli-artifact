@@ -221,6 +221,12 @@ suite_rc=0
 # shows up the first time you point the validator at an R2R artifact, which
 # is exactly what --compare-against does.
 mkdir -p "$WORKDIR/suite"
+# The suite runs as `eval`, which is GUEST code under the effect/permission system, and it reads
+# DARK_CLI_UNDER_TEST to know which binary to drive. A guest gets no env by default, so the grant
+# is explicit -- one variable, this instance only (the policy lives beside the store, and this
+# store is $WORKDIR's).
+DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
+  "$ARTIFACT" permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1 || true
 suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
 
