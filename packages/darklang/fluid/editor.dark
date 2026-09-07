@@ -1593,7 +1593,22 @@ let typeOneRaw (st: State) (c: String) : State =
         //
         // A plain variable never had this bug because it commits through the menu, which already lands
         // after the node. A field access settles as TEXT and came through here instead.
-        landSettled st caret.node
+        //
+        // Except in a slot holding an OPERATOR. An operator is not a settled value: what it is waiting
+        // for is its right operand, which sits INSIDE the node, so leaving the caret after the whole
+        // infix sends the next thing you type past it. Top level hid that -- with nothing after the
+        // infix, the next hole IS the right operand -- while `(a + b` put the `b` in the tuple's second
+        // item.
+        //
+        // Keyed on the rule's own trigger, not on "is this an op slot", because the `.` rule's op-slot
+        // holds a field NAME. `AnOperatorAfterAFieldNameWraps` made that distinction once already; using
+        // the coarser test here brought its bug straight back as `if s.width > 20`.
+        let holdsAnOperator =
+          match inOpSlot st.reg n slot with
+          | Some rule -> rule.onChar == "<operator>"
+          | None -> false
+
+        if holdsAnOperator then nextHole st else landSettled st caret.node
       else
       // In an operator slot, a non-operator character moves on to the next slot and types there.
       match inOpSlot st.reg n slot with

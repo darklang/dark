@@ -1028,3 +1028,32 @@ module AFieldAccessCanBeComparedWithSpaces =
   // have to, because both are what people write.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "s.width+1") [ "<Esc>", "<Esc>" ])) = "s.width + 1"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "s.width + 1") [ "<Esc>", "<Esc>" ])) = "s.width + 1"
+
+
+module AnOperatorWaitsForItsOperand =
+  // `(a + b` put the `b` in the TUPLE's second item: `(a + ⟨right⟩, b)`. Space after an operator was
+  // landing the caret after the whole infix, so the next thing typed went past the operand that was
+  // still waiting inside it.
+  //
+  // I introduced this in the commit that let a literal take an operator, and every pin missed it because
+  // they all write `a + b` at the TOP LEVEL -- where the caret after the infix has no competing hole, so
+  // "next hole" and "the right operand" are the same place. Put the same expression inside anything with
+  // a later hole and they stop being the same place. Found by typing
+  // `Stdlib.List.filter (fun x -> x % 2 == 0)` into the TUI.
+  //
+  // An operator is not a settled value: what it waits for is its operand, and that is inside the node.
+  // Keyed on the wrap rule's own trigger rather than "is this an op slot", because the `.` rule's op-slot
+  // holds a field NAME -- the coarser test brought `if s.width > 20` straight back.
+  (Fixtures.screen (Fixtures.chars "(a + b")) = "(a + b~, ⟨item⟩)"
+  (Fixtures.screen (Fixtures.chars "(a+b")) = "(a + b~, ⟨item⟩)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(a + b") [ "<Tab>", "c", "<Esc>", "<Esc>" ])) =
+    "(a + b, c)"
+
+  // The three the operand rule has to keep working, one per settling route: a name through the menu, a
+  // literal as text, a field access as text.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let n = a + b n") [ "<Esc>", "<Esc>" ])) =
+    "let n = a + b\nn"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let n = 1 + 2 n") [ "<Esc>", "<Esc>" ])) =
+    "let n = 1 + 2\nn"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if s.width > 20 1 ") [ "<Tab>", "0", "<Esc>", "<Esc>" ])) =
+    "if s.width > 20 then 1 else 0"
