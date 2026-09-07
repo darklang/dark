@@ -2787,6 +2787,17 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // hole rather than swallowing what you type next into the same slot.
     elif completing && (onPartial st) then
       let committed = commitCandidate st
+
+      match slotUnder committed with
+      | Some(Empty _) -> handled committed
+      | _ -> handled (nextHole committed)
+    // Same for a candidate the DOCUMENT implied, which is not a partial: the node is already there and
+    // only its text is half-written. `S<Tab>` in a pattern used to move on and leave a case called `S`,
+    // which is a name the type does not have.
+    elif completing
+         && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false) then
+      let committed = commitCandidate st
+
       match slotUnder committed with
       | Some(Empty _) -> handled committed
       | _ -> handled (nextHole committed)

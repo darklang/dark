@@ -1002,3 +1002,52 @@ module FieldAccessOffersTheFields =
 
   // A target with no record type offers nothing, and `.` still starts a field access to type by hand.
   (FieldAccessOffersTheFields.menu Darklang.LanguageTools.ProgramTypes.TypeReference.TInt []) = ""
+
+
+module TypingAPatternCaseCompletes =
+  // The thing I declined three times, and it fell out of the text-slot mechanism without touching what
+  // was blocking it. Typing an uppercase letter in a pattern hole still builds that case IMMEDIATELY
+  // rather than a partial -- t56's decision, and several pins rest on it -- but the caret then sits in
+  // the case's TEXT slot, and a text slot can complete now. The `match`'s offer is already in the pool at
+  // that point, because the walk collected it on the way down through `cases`.
+  //
+  // So the hole rule did not have to change: it just needed somewhere for the menu to live.
+  let run (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.defaultRegistry ())
+      (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+      70
+      (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+  let menu (extra: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (AMatchOffersItsScrutineesCases.fnDoc (AMatchOffersItsScrutineesCases.optionType ()))
+          70)
+        (Stdlib.List.append (AMatchOffersItsScrutineesCases.keys ()) extra)
+
+    Darklang.Fluid.Editor.candidates st |> Stdlib.List.map (fun c -> c.label) |> Stdlib.String.join ", "
+
+  // One letter narrows it to one case.
+  (TypingAPatternCaseCompletes.menu [ "S" ]) = "Some"
+  (TypingAPatternCaseCompletes.menu [ "N" ]) = "None"
+
+  // Enter and Tab both finish it, with the fields the case actually has. `S<Tab>` used to move on and
+  // leave a case called `S`, which is a name the type does not have.
+  (TypingAPatternCaseCompletes.run [ "S", "<Enter>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+  (TypingAPatternCaseCompletes.run [ "S", "<Tab>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | Some(~⟨field⟩) -> ⟨rhs⟩"
+
+  // A case with nothing to fill advances instead of sitting there.
+  (TypingAPatternCaseCompletes.run [ "N", "<Tab>" ]) =
+    "let describe (o: Option): String =\n  match o with\n  | None -> ~⟨rhs⟩"
+
+
+module TabFinishesAFieldName =
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "h", "<Tab>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
+  (FieldAccessOffersTheFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Tab>" ]) =
+    "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
