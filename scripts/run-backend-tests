@@ -165,8 +165,13 @@ if [[ -v CI ]]; then
 fi
 
 set +e
+# stdin from /dev/null, unconditionally: CI gives this step a pty, so without it every test that
+# deliberately runs a confirming command bare (asserting the refusal) instead ASKS -- and blocks
+# forever on a terminal nobody types into. The tests never legitimately read stdin (interactive
+# surfaces are tested by the expect-driven gates, in their own processes); making it never a tty
+# means the suite behaves identically piped, in CI, and under tmux.
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
-"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" 2>&1 | tee "${TEST_LOG}"
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" < /dev/null 2>&1 | tee "${TEST_LOG}"
 STATUS=${PIPESTATUS[0]}
 set -e
 
