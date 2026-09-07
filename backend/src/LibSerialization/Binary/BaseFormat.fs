@@ -3,13 +3,19 @@ module LibSerialization.Binary.BaseFormat
 
 open System
 
+/// v1 is the format the op-log substrate ships with; nothing older ever existed in
+/// the wild (pre-v1 stores were rebuilt from `.dark` source each build). Bump on every
+/// wire-layout change, keeping a readV1 beside the new writer: from here, stores
+/// cannot be rebuilt from text.
 [<Literal>]
 let CurrentVersion = 1u
 
 /// Binary file header structure (8 bytes)
 type BinaryHeader =
   {
-    // TODO: this seems useless? at least until we start shipping non-alpha versions.
+    // The blob's format version. Passed to version-dispatched readers (makeDeserializerV) so a new
+    // binary can decode an OLD layout by branching on it: the keystone of any future format
+    // migration. Bump `CurrentVersion` on the next wire-layout change and add the matching readVN.
     Version : uint32 // 4 bytes - format version
     DataLength : uint32 } // 4 bytes - payload size
 
@@ -23,12 +29,7 @@ type BinaryFormatError =
 exception BinaryFormatException of BinaryFormatError
 
 
-/// Constants for varint encoding
-///
-/// "varint encoding" ~=
-///   "when serializing integers that could be of a large size,
-///     try to save some space if it's a small #"
-///   e.g. storing `7` for a uint64 sholdn't take up a whole uint64's worth of bits...
+/// Varint: small values in fewer bytes; high bit marks continuation.
 module Varint =
   [<Literal>]
   let MaxSingleByteValue = 127

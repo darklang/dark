@@ -75,10 +75,16 @@ let private isSccRef
 // Name resolution writers
 // =====================
 
-/// Skip originalName and location (location is a substitution-lookup
-/// key, not part of the canonical content); only write resolved
-/// value (or error). The value writer receives the NR's location so
-/// it can drive `resolveHash` / `isSccRef`.
+/// A resolved reference hashes by what it resolved TO; its originalName and
+/// location are skipped (location is a substitution-lookup key, not content).
+/// The value writer receives the NR's location so it can drive `resolveHash` /
+/// `isSccRef`.
+///
+/// An UNRESOLVED reference has nothing but its name, so the name is written. Without
+/// it, `f x = A.b x` and `g x = C.d x` are one content hash while neither resolves,
+/// and the store is content-addressed: whichever is inserted first owns the hash, and
+/// the second name is bound to the first body. Drafts are unresolved routinely (a
+/// caller authored before its callee), so this is an everyday collision, not a corner.
 let writeNameResolution
   (writeValue : BinaryWriter -> Option<PT.PackageLocation> -> 'a -> unit)
   (w : BinaryWriter)
@@ -91,6 +97,8 @@ let writeNameResolution
   | Error error ->
     w.Write(1uy)
     PTC.NameResolutionError.write w error
+    w.Write(List.length nr.originalName)
+    nr.originalName |> List.iter (fun segment -> w.Write(segment : string))
 
 
 /// Write FQTypeName, resolving deps and checking SCC substitution

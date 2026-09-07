@@ -53,6 +53,23 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getKernelHash" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description =
+        "A fingerprint of the pinned ABI: what PT shapes and hashing this build actually has"
+      fn =
+        (function
+        | _, _, [], [| DUnit |] ->
+          uply { return DString(LibExecution.PackageRefs.kernelHash ()) }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

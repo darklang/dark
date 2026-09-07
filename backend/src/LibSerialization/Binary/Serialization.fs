@@ -15,10 +15,9 @@ open LibSerialization.Binary.Serializers.Common
 open LibSerialization.Binary.Serializers
 
 
-// `wrap` defers stringification of the id to the error path. `string id` on a
-// generic 'ID can route through F#'s reflection-based ToString for union types
-// (e.g. `type Hash = Hash of string`), which is broken under AOT trimming.
-// Keeping the conversion lazy means the success path never touches it.
+// Stringifying the id is deferred to the error path: `string id` on a generic 'ID can route
+// through F#'s reflection-based ToString for union types (e.g. `type Hash = Hash of
+// string`), which is broken under AOT trimming.
 let wrap (idF : unit -> string) (f : unit -> 'a) : 'a =
   try
     f ()
@@ -61,7 +60,6 @@ let makeSerializer<'T, 'ID>
       let header =
         { Version = CurrentVersion; DataLength = uint32 payloadBytes.Length }
 
-      // Write header
       Header.write finalWriter header
       finalWriter.Write(payloadBytes)
       finalWriter.Flush()
@@ -69,22 +67,36 @@ let makeSerializer<'T, 'ID>
       finalStream.ToArray())
 
 
-/// Create an optimized deserializer function with embedded error handling
-let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
+/// Version-dispatched deserializer: the reader receives the blob's format version, so a type whose
+/// on-disk layout has changed can branch (`match version with 1u -> readV1 r | 2u -> readV2 r`). Keep
+/// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
+/// blob.
+///
+/// No reader dispatches on the version yet, because `CurrentVersion` is still 1: v1 is the first
+/// format whose blobs outlive the binary that wrote them, since before it every store was rebuilt
+/// from `.dark` on each build. This exists so the first layout change has somewhere to go.
+let makeDeserializerV<'T, 'ID>
+  (reader : uint32 -> BinaryReader -> 'T)
+  : 'ID -> byte[] -> 'T =
   fun id data ->
     wrap (fun () -> string id) (fun () ->
       use stream = new MemoryStream(data)
       use r = new BinaryReader(stream)
 
-      // Read header
       let header = Header.read r
 
       // Validate remaining data length
-      let remainingBytes = data.Length - 8 // header is 8 bytes (2 × uint32)
+      let remainingBytes = data.Length - 8 // header is 8 bytes (2 x uint32)
       if uint32 remainingBytes <> header.DataLength then
         Validation.validateDataLength header.DataLength (uint32 remainingBytes)
 
-      reader r)
+      reader header.Version r)
+
+
+/// Deserializer for a type with one on-disk layout: the reader never sees the blob's version.
+/// Everything uses this; `makeDeserializerV` is for the first type that needs to decode two.
+let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
+  makeDeserializerV (fun _version r -> reader r)
 
 
 module PT =
@@ -130,9 +142,48 @@ module PT =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializer PT.PackageOp.read id data
 
-  module BranchOp =
-    let serialize = PT.BranchOp.serialize
-    let deserialize = PT.BranchOp.deserialize
+    /// The op, or None when THIS BUILD cannot read it. Nearly every reader wants this
+    /// one rather than `deserialize`: a synced store's own log legitimately holds ops
+    /// a peer authored on a newer format -- stored and left unapplied so a later
+    /// build can apply them -- so local readers meet unreadable ops routinely.
+    ///
+    /// One decoder returns an Option, every reader tolerates, and no writer deletes
+    /// what it could not decode: `Inserts.wholeMainDeletes` excludes them BY ID,
+    /// never by whether they parse.
+    let tryDeserialize (id : System.Guid) (data : byte[]) : Option<PT.PackageOp> =
+      try
+        Some(deserialize id data)
+      with _ ->
+        None
+
+    /// Does this op BIND A NAME, judged from its tag alone and without decoding it?
+    ///
+    /// The point is what it avoids. A sync import decodes every incoming op to work out which names
+    /// moved, but only `SetName` and `Decision` bind anything; `AddFn` and friends carry content and
+    /// answer "no name". They are also the expensive ones, being whole ASTs, so decoding them to
+    /// discover they say nothing was most of the cost of planning an import.
+    ///
+    /// `Unbind` (12) is deliberately not counted: it binds nothing, so the incoming side of the conflict
+    /// detector has no binding to compare against yours. A peer removing a name you edited is settled by
+    /// the fold's LWW rather than raised as a conflict. Open, and known.
+    ///
+    /// Reads the header for its length rather than assuming one, so a header change cannot silently
+    /// shift which byte is read. An unreadable or truncated blob answers `false`: the caller learns
+    /// nothing from it either way, and the one decoder is where a bad blob gets reported.
+    let bindsAName (data : byte[]) : bool =
+      try
+        use stream = new MemoryStream(data)
+        use reader = new BinaryReader(stream)
+        let _header = Header.read reader
+
+        // Tags from `PT.PackageOp.write`: 3 = SetName, 11 = Decision. Both are also the cheap ops to
+        // decode, so nothing is gained by narrowing further.
+        match reader.ReadByte() with
+        | 3uy
+        | 11uy -> true
+        | _ -> false
+      with _ ->
+        false
 
   module Toplevel =
     let serialize id value = makeSerializer PT.Toplevel.write id value
