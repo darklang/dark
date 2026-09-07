@@ -106,6 +106,17 @@ let main (args : string array) : int =
         args
         (testList "tests" tests)
 
+    // Counters and timers accumulate in memory rather than logging per call, which is
+    // the point of them, so something has to read them at the end. Without this the
+    // hook above initialises telemetry and produces an empty file, which is how I
+    // first "measured" a slow run and learned nothing.
+    if Telemetry.isEnabled () then
+      Telemetry.counterSnapshot ()
+      |> List.iter (fun (name, n) -> Telemetry.event name [ "count", string n ])
+
+      Telemetry.timerSnapshot ()
+      |> List.iter (fun (name, us) -> Telemetry.event name [ "us", string us ])
+
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     httpClientTestsTask.Wait()
