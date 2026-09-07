@@ -44,9 +44,9 @@ let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
 
 // TODO: bring back eager loading
 let rt : RT.PackageManager =
-  { getType = withCache PMRT.Type.get
-    getFn = withCache PMRT.Fn.get
-    getValue = withCache PMRT.Value.get
+  { getType = withCacheNamed "rt.getType" PMRT.Type.get
+    getFn = withCacheNamed "rt.getFn" PMRT.Fn.get
+    getValue = withCacheNamed "rt.getValue" PMRT.Value.get
     getBlob = PMRT.Blob.get
     persistBlob = PMRT.Blob.insert
 
@@ -73,22 +73,35 @@ let pt : PT.PackageManager =
   // cache out so the same dict is reused across calls. Keying by
   // `(branchId, location)` covers the branch-chain dependency.
   let findTypeCached =
-    withCache (fun (branchId, location) ->
+    withCacheNamed "pt.findType" (fun (branchId, location) ->
       PMPT.Type.find (getBranchChain branchId) location)
   let findValueCached =
-    withCache (fun (branchId, location) ->
+    withCacheNamed "pt.findValue" (fun (branchId, location) ->
       PMPT.Value.find (getBranchChain branchId) location)
   let findFnCached =
-    withCache (fun (branchId, location) ->
+    withCacheNamed "pt.findFn" (fun (branchId, location) ->
       PMPT.Fn.find (getBranchChain branchId) location)
+
+  // Same reasoning, going the other way: the printer asks for a hash's name every
+  // time it renders one, and a hash the store has never heard of (a script's own
+  // declarations, anything ephemeral) answers `[]` on every single ask.
+  let typeLocationsCached =
+    withCacheListNamed "pt.getTypeLocations" (fun (branchId, id) ->
+      PMPT.Type.getLocations (getBranchChain branchId) id)
+  let valueLocationsCached =
+    withCacheListNamed "pt.getValueLocations" (fun (branchId, id) ->
+      PMPT.Value.getLocations (getBranchChain branchId) id)
+  let fnLocationsCached =
+    withCacheListNamed "pt.getFnLocations" (fun (branchId, id) ->
+      PMPT.Fn.getLocations (getBranchChain branchId) id)
 
   { findType = findTypeCached
     findValue = findValueCached
     findFn = findFnCached
 
-    getType = withCache PMPT.Type.get
-    getFn = withCache PMPT.Fn.get
-    getValue = withCache PMPT.Value.get
+    getType = withCacheNamed "pt.getType" PMPT.Type.get
+    getFn = withCacheNamed "pt.getFn" PMPT.Fn.get
+    getValue = withCacheNamed "pt.getValue" PMPT.Value.get
 
     // A CLI script's declarations are never in the store, so without a fallback
     // they render as hashes. Only as a fallback, though: hashes are content
@@ -100,21 +113,21 @@ let pt : PT.PackageManager =
     getTypeLocations =
       fun branchId id ->
         uply {
-          match! PMPT.Type.getLocations (getBranchChain branchId) id with
+          match! typeLocationsCached (branchId, id) with
           | [] -> return EphemeralPackages.typeLocations id
           | stored -> return stored
         }
     getValueLocations =
       fun branchId id ->
         uply {
-          match! PMPT.Value.getLocations (getBranchChain branchId) id with
+          match! valueLocationsCached (branchId, id) with
           | [] -> return EphemeralPackages.valueLocations id
           | stored -> return stored
         }
     getFnLocations =
       fun branchId id ->
         uply {
-          match! PMPT.Fn.getLocations (getBranchChain branchId) id with
+          match! fnLocationsCached (branchId, id) with
           | [] -> return EphemeralPackages.fnLocations id
           | stored -> return stored
         }

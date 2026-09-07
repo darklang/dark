@@ -16,11 +16,11 @@
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Caching.fs" />
     <Compile Include="Sqlite.fs" />
     <Compile Include="PreparedBatch.fs" />
     <Compile Include="Lww.fs" />
     <Compile Include="PackageLocation.fs" />
-    <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="PackageItem.fs" />
     <Compile Include="DependencyExtractor.fs" />

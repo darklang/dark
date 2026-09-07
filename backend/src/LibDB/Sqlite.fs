@@ -143,6 +143,7 @@ module Sql =
     | None -> ()
 
   let executeNonQueryAsync props =
+    Caching.bumpStoreGeneration ()
     timedTask "nonQuery" (fun () ->
       Sql.executeNonQueryAsync props
       |> Async.StartImmediateAsTask
@@ -196,8 +197,8 @@ module Sql =
     }
 
   let executeAsync rr props =
-    Sql.executeAsync rr props
-    |> Async.StartImmediateAsTask
+    timedTask "rows" (fun () ->
+      Sql.executeAsync rr props |> Async.StartImmediateAsTask)
     |> Task.map (fun r ->
       match r with
       | Ok v -> v
@@ -220,6 +221,7 @@ module Sql =
         [ "err", err ]
 
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
+    Caching.bumpStoreGeneration ()
     task {
       match!
         timedTask "statement" (fun () ->
@@ -234,6 +236,7 @@ module Sql =
     }
 
   let executeStatementSync (props : Sql.SqlProps) : unit =
+    Caching.bumpStoreGeneration ()
     match timedSync "statementSync" (fun () -> Sql.executeNonQuery props) with
     | Ok _count -> ()
     | Error err ->
@@ -247,6 +250,7 @@ module Sql =
     (statements :
       List<string * List<List<string * Microsoft.Data.Sqlite.SqliteParameter>>>)
     : List<int> =
+    Caching.bumpStoreGeneration ()
     match connect |> Sql.executeTransaction statements with
     | Ok counts -> counts
     | Error err ->

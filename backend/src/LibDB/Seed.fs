@@ -178,6 +178,8 @@ let applyUnappliedOps () : Task<int64> =
         use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
         use tx = conn.BeginTransaction()
 
+        Caching.bumpStoreGeneration ()
+
         for ((branchId, commitHash), ops) in groups do
           let opsOnly = ops |> List.map (fun (_, op, _, _) -> op)
           do! PackageOpPlayback.applyOpsOnConnection conn branchId commitHash opsOnly

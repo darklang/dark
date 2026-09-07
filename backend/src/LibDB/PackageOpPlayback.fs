@@ -739,6 +739,11 @@ let applyOps
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
+    // This is the package write path, and it opens its OWN connection rather than going
+    // through `Sqlite`, so the bump that every other writer gets for free has to be asked
+    // for here. Without it the name caches would keep answering "no such thing" about
+    // something that had just been published.
+    Caching.bumpStoreGeneration ()
     use conn = new SqliteConnection(LibDB.Sqlite.connString)
     do! conn.OpenAsync()
     use tx = conn.BeginTransaction()

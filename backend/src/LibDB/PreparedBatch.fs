@@ -52,6 +52,7 @@ let execRows
   (sql : string)
   (setParams : SqliteCommand -> unit)
   : Task<int> =
+  Caching.bumpStoreGeneration ()
   task {
     let cmd = command ctx sql
     cmd.Parameters.Clear()
