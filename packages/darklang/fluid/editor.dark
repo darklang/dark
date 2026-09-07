@@ -39,7 +39,9 @@ type State =
     /// The text run currently being typed into, so a run of characters is ONE undo step rather than one
     /// per keystroke. `None` outside a typing run; any structural edit or Esc clears it.
     lastTyped: Stdlib.Option.Option<String>
-    message: String }
+    message: String
+    docVersion: Int
+    drawn: Stdlib.Option.Option<(Int * Int * List<Layout.Row>)> }
 
 /// What the editor tells its parent.
 type Msg =
@@ -78,11 +80,24 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       paletteIndex = 0
       clipboard = Stdlib.Option.Option.None
       lastTyped = Stdlib.Option.Option.None
-      message = "" }
+      message = ""
+      docVersion = 0
+      drawn = Stdlib.Option.Option.None }
   |> fun s -> { s with menu = computeCandidates s }
 
 let layout (st: State) : List<Layout.Row> =
   Project.render st.reg st.width st.root
+
+let withLayout (st: State) : (State * List<Layout.Row>) =
+  match st.drawn with
+  | Some((v, w, rows)) when (v == st.docVersion) && (w == st.width) -> (st, rows)
+  | _ ->
+    let rows = layout st
+    ({ st with drawn = Stdlib.Option.Option.Some((st.docVersion, st.width, rows)) }, rows)
+
+let withCells (st: State) : (State * List<(Int * Int * Layout.Cell)>) =
+  let (st1, rows) = withLayout st
+  (st1, Layout.taggedCells rows)
 
 let withWidth (st: State) (width: Int) : State = { st with width = width }
 
@@ -101,6 +116,7 @@ let undo (st: State) : State =
     let now = Snapshot { root = st.root; caret = st.caret }
     { st with
         root = snap.root
+        docVersion = st.docVersion + 1
         caret = snap.caret
         history = rest
         future = Stdlib.List.push st.future now
@@ -114,6 +130,7 @@ let redo (st: State) : State =
     let now = Snapshot { root = st.root; caret = st.caret }
     { st with
         root = snap.root
+        docVersion = st.docVersion + 1
         caret = snap.caret
         future = rest
         history = Stdlib.List.push st.history now
@@ -126,6 +143,7 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
   let st1 = remember st
   { st1 with
       root = Edit.applyAll st1.root edits
+      docVersion = st1.docVersion + 1
       caret = caret
       message = ""
       completionIndex = 0
@@ -141,6 +159,7 @@ let commitRun (st: State) (runKey: String) (edits: List<Edit>) (caret: Caret) : 
   let base = if continuing then st else remember st
   { base with
       root = Edit.applyAll base.root edits
+      docVersion = base.docVersion + 1
       caret = caret
       message = ""
       completionIndex = 0
@@ -300,7 +319,7 @@ let moveLeft (st: State) : State =
   if caret.offset > 0 && (Stdlib.Option.isSome textLen) then
     { st with caret = { caret with offset = caret.offset - 1 } }
   else
-    let cells = Layout.taggedCells (layout st)
+    let (st, cells) = withCells st
     match caretCellIndex cells caret with
     | Some i ->
       if i == 0 then
@@ -319,7 +338,7 @@ let moveRight (st: State) : State =
   match caret.part with
   | AfterNode ->
     // Right from just-after a node advances to the next editable cell beyond the whole construct.
-    let cells = Layout.taggedCells (layout st)
+    let (st, cells) = withCells st
     let lastIdx =
       cells
       |> Stdlib.List.indexedMap (fun i rcc -> (i, rcc))
@@ -359,7 +378,7 @@ let moveRight (st: State) : State =
   elif canAdvance then
     { st with caret = { caret with offset = caret.offset + 1 } }
   else
-    let cells = Layout.taggedCells (layout st)
+    let (st, cells) = withCells st
     match caretCellIndex cells caret with
     | Some i ->
       match Stdlib.List.getAt cells (i + 1) with
@@ -372,7 +391,7 @@ let moveRight (st: State) : State =
 
 /// Up or down one row, keeping the column where we can.
 let moveVertical (st: State) (delta: Int) : State =
-  let rows = layout st
+  let (st, rows) = withLayout st
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | None -> st
   | Some((row, col)) ->
@@ -409,7 +428,7 @@ let moveVertical (st: State) (delta: Int) : State =
 
 /// The tagged cells on the caret's current row, in reading order.
 let cellsOnCaretRow (st: State) : List<(Int * Int * Layout.Cell)> =
-  let rows = layout st
+  let (st, rows) = withLayout st
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, _)) ->
     Layout.taggedCells rows
@@ -445,7 +464,7 @@ let holeCarets (st: State) : List<Caret> =
     | _ -> Stdlib.Option.Option.None)
 
 let nextHole (st: State) : State =
-  let cells = Layout.taggedCells (layout st)
+  let (st, cells) = withCells st
   let here = caretCellIndex cells st.caret |> Stdlib.Option.withDefault (-1)
   let after =
     cells
@@ -475,7 +494,7 @@ let nextHole (st: State) : State =
   | None -> { st with message = "no holes" }
 
 let prevHole (st: State) : State =
-  let cells = Layout.taggedCells (layout st)
+  let (st, cells) = withCells st
   let total = Stdlib.List.length cells
   let here = caretCellIndex cells st.caret |> Stdlib.Option.withDefault total
   let before =
@@ -1272,7 +1291,7 @@ let typeOne (st: State) (c: String) : State =
   // itself, and the chain asks four of them in a row. Measured on a 20-node document: 31ms a render,
   // 224ms a keystroke, so about seven renders per key. Nothing has changed the document between these
   // questions -- they are all asked of `st`, before any edit -- so one drawing answers all of them.
-  let rows = layout st
+  let (st, rows) = withLayout st
   match handleStringI st c with
   | Some handled -> handled
   | None ->
