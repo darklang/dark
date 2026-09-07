@@ -234,6 +234,9 @@ module Spec =
   let withOffers (spec: Spec) (f: List<Binding> -> Node -> List<(List<Candidate> * List<String>)>) : Spec =
     { spec with offers = f }
 
+  /// A spec with character rules of its OWN, consulted before the type's.
+  let withWrapRules (spec: Spec) (rules: List<WrapRule>) : Spec = { spec with wrapRules = rules }
+
   let withScopeCandidate (spec: Spec) (f: String -> Node) : Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }
 

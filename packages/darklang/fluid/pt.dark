@@ -941,6 +941,16 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
 
 let intFromDigit (c: String) (e: Expect) : Node = Node.make (exprKind "EInt") [ text "digits" c ]
 
+/// `L` at the end of an integer makes it an Int64, keeping the digits.
+///
+/// `250` and `250L` are different types and only the first could be typed, so the editor could not write
+/// the ordinary case: every integer literal in the package source is an Int64, 177 of them, and none of
+/// them was reachable. The `L` was swallowed with nothing said.
+///
+/// A rule on EInt rather than on Expr, because it means nothing on anything else.
+let intToInt64 (n: Node) (c: String) : Node =
+  Node.make (exprKind "EInt64") [ text "digits" (textOf n "digits") ]
+
 let stringFromQuote (c: String) (e: Expect) : Node = Node.make (exprKind "EString") [ text "body" "" ]
 
 /// `$` starts an interpolated string: an EStringI with one empty text segment to type into. Editor.dark
@@ -1901,7 +1911,9 @@ let baseSpecs () : List<Spec> =
     letPatTypeSpec ()
     simpleExpr "EUnit" [ Piece.Label "()" ] (Node.make (exprKind "EUnit") [])
     simpleExpr "EBool" [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (exprKind "EBool") [ text "value" "false" ])
-    simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ])
+    Spec.withWrapRules
+      (simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ]))
+      [ WrapRule { onChar = "L"; wrap = intToInt64; opSlot = ""; nextSlot = "" } ]
     simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ])
     simpleExpr
       "EFloat"

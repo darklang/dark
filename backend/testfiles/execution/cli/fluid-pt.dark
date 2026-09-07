@@ -1307,3 +1307,37 @@ module MatchingOnAFieldOffersToo =
   // Pick `writeMode` and Tab to the pattern: the cases of the enum THAT FIELD is declared to be.
   (MatchingOnAFieldOffersToo.menu [ "w", "r", "i", "<Enter>", "<Tab>" ]) =
     "Allowed, Confirm, Denied, true, false, ()"
+
+
+module AnIntegerCanBeMadeAnInt64 =
+  // `250` and `250L` are different types and only the first could be typed. The `L` was swallowed with
+  // nothing said, so none of the 177 Int64 literals in the package source was reachable from the editor:
+  // you could open a function full of them and not write one.
+  //
+  // What made it impossible was that character rules belonged to the TYPE, so a character had to mean the
+  // same thing after every expression in the language. `L` means something only after an integer. The
+  // rule sits on EInt now, and the kind's own rules are asked before the type's.
+
+  // Digits alone are still an Int...
+  (Fixtures.run [ "2", "5", "0" ]) = "250~"
+
+  // ... and `L` makes it an Int64, keeping the digits and leaving the caret in them, so `2500L` is four
+  // keystrokes and a suffix rather than a retype.
+  (Fixtures.run [ "2", "5", "0", "L" ]) = "250~L"
+  (Fixtures.run [ "2", "5", "0", "L", "0" ]) = "2500~L"
+
+  // A real Int64 node, not text that happens to end in an L: it comes back out of the document as one.
+  (Fixtures.roundTrip "250L") = (Fixtures.printed "250L")
+
+  // Typing carries on normally around it.
+  (Fixtures.run [ "[", "2", "5", "0", "L", ",", "1", "L" ]) = "[250L, 1~L]"
+
+  // A second `L` is not a rule on an Int64, so it is rejected the way any other stray letter is.
+  (Fixtures.run [ "2", "5", "0", "L", "L" ]) = "250~L"
+
+  // `.` after digits still means a float rather than a field access, which is a rule on the TYPE and had
+  // to keep working while the kind gained one of its own.
+  (Fixtures.run [ "1", ".", "5" ]) = "1.5~"
+
+  // And `L` is a letter everywhere else: it starts a name, it does not convert anything.
+  (Fixtures.run [ "x", "L" ]) = "xL~"

@@ -937,11 +937,24 @@ let applyWrap (st: State) (caret: Caret) (n: Node) (rule: WrapRule) (c: String) 
     let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
     { st1 with caret = Caret.inText targetPath rule.opSlot opLen }
 
-/// The wrap rule for typing `c` at the end of node `n`, if its type-level spec has one.
+/// The wrap rule for typing `c` at the end of node `n`: the KIND's own rules first, then the type's.
+///
+/// Only the type had them before, so a character could mean exactly one thing across a whole language.
+/// That is fine for `.` and for an operator, which do mean one thing wherever they appear, and wrong for
+/// anything that depends on what it is typed after: `L` makes an integer an Int64 and means nothing at
+/// all on a lambda. It is the first wall a DSL hits for the same reason.
 let wrapRuleFor (reg: Registry) (n: Node) (c: String) : Stdlib.Option.Option<WrapRule> =
-  match Registry.findTypeLevel reg n.kind with
-  | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches reg.syntax r.onChar c)
-  | None -> Stdlib.Option.Option.None
+  let own =
+    match Registry.findExact reg n.kind with
+    | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches reg.syntax r.onChar c)
+    | None -> Stdlib.Option.Option.None
+
+  match own with
+  | Some r -> Stdlib.Option.Option.Some r
+  | None ->
+    (match Registry.findTypeLevel reg n.kind with
+     | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches reg.syntax r.onChar c)
+     | None -> Stdlib.Option.Option.None)
 
 /// Is the caret in the operator slot of a node made by a wrap rule?
 let inOpSlot (reg: Registry) (n: Node) (slot: String) : Stdlib.Option.Option<WrapRule> =
