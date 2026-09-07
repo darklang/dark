@@ -998,8 +998,7 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// these, so a rule keyed on the first character still fires and the rest follow.
 /// The glyph rendered immediately to the right of the caret, if any. Used to skip past a closing
 /// delimiter you re-type: the layout draws `]`/`)`/`}`/`"` as punctuation, so this reads it back.
-let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> =
-  let rows = layout st
+let glyphAfterCaretIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
     match Stdlib.List.getAt rows row with
@@ -1011,10 +1010,11 @@ let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+
+let glyphAfterCaret (st: State) : Stdlib.Option.Option<String> = glyphAfterCaretIn (layout st) st
 /// The first non-space glyph drawn to the right of the caret on its row, if any. Used to skip past a
 /// separator you re-type (the `=` between a let's name and value, a record/annotation `:`).
-let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
-  let rows = layout st
+let nextNonSpaceGlyphIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
     match Stdlib.List.getAt rows row with
@@ -1028,11 +1028,12 @@ let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+
+let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> = nextNonSpaceGlyphIn (layout st) st
 /// The first non-space glyph drawn to the LEFT of the caret on its row, if any. The mirror of
 /// `nextNonSpaceGlyph`, for a separator you type after the editor has already drawn it AND moved you past
 /// it: in `let x = 1`, typing the `=` once the caret is in the value hole.
-let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
-  let rows = layout st
+let prevNonSpaceGlyphIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
     match Stdlib.List.getAt rows row with
@@ -1046,10 +1047,11 @@ let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> =
     | None -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+
+let prevNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> = prevNonSpaceGlyphIn (layout st) st
 /// The cell drawn immediately before the caret, ignoring blanks, punctuation and the caret's own text.
 /// Cells carry their style, so callers can ask what KIND of thing was drawn rather than guess from text.
-let prevDrawn (st: State) : Stdlib.Option.Option<Layout.Cell> =
-  let rows = layout st
+let prevDrawnIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<Layout.Cell> =
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
     // The last non-blank cell before the caret ANYWHERE above it, not just on its row: a construct puts
@@ -1094,18 +1096,21 @@ let prevDrawn (st: State) : Stdlib.Option.Option<Layout.Cell> =
     cell
   | None -> Stdlib.Option.Option.None
 
+
+let prevDrawn (st: State) : Stdlib.Option.Option<Layout.Cell> = prevDrawnIn (layout st) st
 /// The keyword drawn immediately before the caret: `then` in `if c then <hole>`. A NAME never matches,
 /// which is what keeps `Stdlib.List.map f f` from eating its second argument.
-let prevKeyword (st: State) : Stdlib.Option.Option<String> =
-  prevDrawn st
+let prevKeywordIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
+  prevDrawnIn rows st
   |> Stdlib.Option.andThen (fun c ->
     if c.style == Layout.Style.Keyword then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
     else Stdlib.Option.Option.None)
 
+
+let prevKeyword (st: State) : Stdlib.Option.Option<String> = prevKeywordIn (layout st) st
 /// The punctuation drawn immediately before the caret, as one token: the `->` of a lambda or a match arm,
 /// the `|` before a pattern. `prevDrawn` skips punctuation to find a keyword, so this walks the raw row.
-let prevPunct (st: State) : Stdlib.Option.Option<String> =
-  let rows = layout st
+let prevPunctIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
   match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
   | Some((row, col)) ->
     let mine (c: Layout.Cell) : Bool =
@@ -1144,6 +1149,8 @@ let prevPunct (st: State) : Stdlib.Option.Option<String> =
 
 
 
+
+let prevPunct (st: State) : Stdlib.Option.Option<String> = prevPunctIn (layout st) st
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
 /// already on screen: `=` between a let's name and value, `:` before a record value or a type annotation.
 
@@ -1258,6 +1265,14 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
 
 let typeOne (st: State) (c: String) : State =
   let caret = st.caret
+  // ONE layout for the whole decision below.
+  //
+  // Each of these questions ("is the glyph after the caret the closer I just typed", "is there already a
+  // separator here", "what punctuation was drawn before me") used to render the entire document to answer
+  // itself, and the chain asks four of them in a row. Measured on a 20-node document: 31ms a render,
+  // 224ms a keystroke, so about seven renders per key. Nothing has changed the document between these
+  // questions -- they are all asked of `st`, before any edit -- so one drawing answers all of them.
+  let rows = layout st
   match handleStringI st c with
   | Some handled -> handled
   | None ->
@@ -1405,7 +1420,7 @@ let typeOne (st: State) (c: String) : State =
         | Some added -> added
         | None -> typeOneRaw st c
     | None -> typeOneRaw st c
-  elif (Stdlib.List.member st.reg.syntax.closingDelimiters c) && (glyphAfterCaret st == Stdlib.Option.Option.Some c) then
+  elif (Stdlib.List.member st.reg.syntax.closingDelimiters c) && (glyphAfterCaretIn rows st == Stdlib.Option.Option.Some c) then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
     // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
@@ -1419,7 +1434,7 @@ let typeOne (st: State) (c: String) : State =
     match target with
     | Some p -> { st with caret = Caret.afterNode p }
     | None -> moveRight st
-  elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyph st == Stdlib.Option.Option.Some c) then
+  elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c) then
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
     // still starts an operator as before.
@@ -1430,7 +1445,7 @@ let typeOne (st: State) (c: String) : State =
     && (match slotUnder st with
         | Some(Empty _) -> true
         | _ -> false)
-    && (prevNonSpaceGlyph st == Stdlib.Option.Option.Some c)
+    && (prevNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c)
   then
     // The same separator, on the other side of the caret. `let x <space>` settles the name and leaves you
     // in the VALUE, past the `=` the editor drew -- so typing the `=` of `let x = 1`, which is what anyone
@@ -1467,7 +1482,7 @@ let typeOne (st: State) (c: String) : State =
         // the reflex that re-types a let's `=` or an `if`'s `then`.
         | Some(Empty e) -> Stdlib.Option.isNone (holeFill st.reg e c)
         | _ -> false)
-    && (prevPunct st == Stdlib.Option.Option.Some c)
+    && (prevPunctIn rows st == Stdlib.Option.Option.Some c)
   then
     st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
