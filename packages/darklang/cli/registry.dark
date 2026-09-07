@@ -447,6 +447,57 @@ module Registry =
     hintFromCompletions input (getCompletions state input)
 
 
+module Registry =
+  /// Commands that read stdin as part of a normal interactive run -- a question flow, a y/N
+  /// confirm, a secret, or an external $EDITOR. The workbench's `:` bar captures stdout, so
+  /// running one of these captured leaves a person answering a prompt they cannot see; the bar
+  /// hands the terminal off instead (inline, vim-`:!` style) and returns on exit. An entry is a
+  /// canonical command name, or name + first argument where only one verb prompts.
+  val promptsForInput =
+    [ "sync setup"
+      "install"
+      "uninstall"
+      "update"
+      "backups restore"
+      "backups prune"
+      "discard"
+      "commit"
+      "merge"
+      "branch archive"
+      "deprecate"
+      "delete"
+      "traces clear"
+      "conflicts"
+      "edit" ]
+
+  /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
+  /// launches it as a page instead. Canonical names; aliases resolve before matching. `apps` is
+  /// handled in `takesScreen` because it is a TUI only when bare.
+  val screenCommands = [ "outliner", "text-editor", "review", "views" ]
+
+  /// Should the workbench run this command line on the real terminal instead of captured?
+  /// `-y`/`--yes` is the universal "don't ask", so a line carrying it never needs the handoff.
+  let needsTerminal (commands: List<CommandHandler>) (cmd: String) (args: List<String>) : Bool =
+    if (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes") then
+      false
+    else
+      let canonical = (findCommandIn commands cmd).name
+      let withFirst =
+        match Stdlib.List.head args with
+        | Some first -> canonical ++ " " ++ first
+        | None -> canonical
+      (Stdlib.List.member promptsForInput canonical)
+      || (Stdlib.List.member promptsForInput withFirst)
+
+  /// Does this command line own the whole screen (a full-screen TUI)?
+  let takesScreen (commands: List<CommandHandler>) (cmd: String) (args: List<String>) : Bool =
+    let canonical = (findCommandIn commands cmd).name
+    if canonical == "apps" then
+      // Bare `apps` opens the manager TUI; `apps <verb> ...` prints.
+      Stdlib.List.isEmpty args
+    else
+      Stdlib.List.member screenCommands canonical
+
 module Commands =
   let parseAndExecute (state: AppState) (input: String) : AppState =
     let trimmed = Stdlib.String.trim input

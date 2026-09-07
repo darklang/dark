@@ -201,14 +201,17 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match words with
         | first :: rest -> (first, rest)
         | [] -> ("", [])
-      // Commands that take over the terminal (full-screen TUIs). Capturing them just dumps their alt-screen
-      // escape codes into the reader; instead hand off so they own the terminal, returning here on exit.
-      let interactiveCmds = [ "outliner", "tree-exp", "text-editor", "review", "views" ]
       if (cmd == "commands") || (cmd == "classic") || (cmd == "prompt") then
         // Drop to the old command-prompt mode (its own typeahead + live commands); `quit` there returns here.
         Step.ToPrompt { state with input = Stdlib.Option.Option.None }
-      else if Stdlib.List.member interactiveCmds cmd then
-        Step.Launch({ state with input = Stdlib.Option.Option.None }, cmd)
+      // Two kinds of command can't run captured, and the registry knows which they are: full-screen
+      // TUIs (their alt-screen escapes would dump into the reader) and commands that read stdin
+      // (their questions would be invisible). Hand the whole line off; the loop splits it, runs it
+      // on the real terminal, and returns here on exit.
+      else if Darklang.Cli.Registry.takesScreen appState.allCommandsCache cmd args then
+        Step.Launch({ state with input = Stdlib.Option.Option.None }, text)
+      else if Darklang.Cli.Registry.needsTerminal appState.allCommandsCache cmd args then
+        Step.Launch({ state with input = Stdlib.Option.Option.None }, text)
       else
         let isKnown = Stdlib.List.member allNames cmd
         let output =
