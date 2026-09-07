@@ -879,3 +879,32 @@ module APipeTakesTheWholeExpression =
   (Fixtures.program
     (Stdlib.List.append [ "f", "u", "n", " ", "x", " ", "x", "*", "2" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
     "(fun x -> x * 2 |> Stdlib.printLine)"
+
+
+module AnOperatorIsNotPartOfAName =
+  // `x |> Stdlib.printLine` then `+` gave the single NAME `Stdlib.printLine+1`, which no lookup will ever
+  // resolve and nothing said so at the time. Same shape as AnOperatorAfterAFieldNameWraps, in the four
+  // other places a name is drawn: a pipe step's function, a pipe enum's type, an enum's type, a custom
+  // type's name.
+  //
+  // Fixed by DERIVING the rule rather than repeating it. `Piece.NameText` already means "this slot holds
+  // a fully-qualified name" -- that is why the piece exists, and why it shortens for display -- so a slot
+  // drawn with it gets a name-shaped text class unless the spec declares its own, which still wins. A DSL
+  // that draws a name gets this without saying anything, which is the point.
+  //
+  // Refused rather than wrapped, because a pipe STEP is not an expression: there is no infix for `+` to
+  // build there. So it reports itself instead of quietly doing something else.
+  let pl () : List<String> = [ "S", "t", "d", "l", "i", "b", ".", "p", "r", "i", "n", "t", "L", "i", "n", "e" ]
+
+  (Fixtures.program
+    (Stdlib.List.flatten [ [ "x", "|", ">" ], AnOperatorIsNotPartOfAName.pl (), [ "+", "<Esc>" ] ])) =
+    "x |> Stdlib.printLine"
+
+  // The dots are part of the name, so a qualified name still types straight through.
+  (Fixtures.program (Stdlib.List.append (AnOperatorIsNotPartOfAName.pl ()) [ " ", "1", "<Esc>" ])) =
+    "Stdlib.printLine 1"
+
+  // The two places an operator after a name SHOULD wrap still do. These are the regression guards: the
+  // new class must not reach a variable or a field, whose slots are drawn differently.
+  (Fixtures.program [ "a", "b", "c", "+", "1", "<Esc>" ]) = "abc + 1"
+  (Fixtures.program [ "s", ".", "w", "i", "d", "t", "h", "+", "1", "<Esc>" ]) = "s.width + 1"
