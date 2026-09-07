@@ -237,45 +237,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
     // Find all value IDs that have a specific ValueType
-    // Do two versions of a function differ only in what they SAY about themselves?
-    //
-    // The doc comment is part of an item's identity (see `Canonical`), so a doc edit is a real new
-    // version that syncs and that `view` shows. It is not something a caller can observe, though,
-    // which is why propagation skips it -- and why the CLI says so at the save rather than leaving
-    // a person wondering what changed.
-    { name = fn "pmSameBehaviour" 0
-      typeParams = []
-      parameters =
-        [ Param.make "before" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) ""
-          Param.make "after" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
-      returnType = TBool
-      description =
-        "Whether the functions at <param before> and <param after> have the same behaviour -- "
-        + "identical but for their doc comments. False when either is not a stored function."
-      fn =
-        (function
-        | _, _, _, [| beforeDval; afterDval |] ->
-          uply {
-            let before = PT2DT.Hash.fromDT beforeDval
-            let after = PT2DT.Hash.fromDT afterDval
-            let! b = LibDB.ProgramTypes.Fn.get before
-            let! a = LibDB.ProgramTypes.Fn.get after
-            match b, a with
-            | Some b, Some a ->
-              let h (fn : PT.PackageFn.PackageFn) =
-                LibSerialization.Hashing.Hashing.computeFnBehaviourHash
-                  LibSerialization.Hashing.Hashing.Normal
-                  fn
-              return DBool(h b = h a)
-            | _ -> return DBool false
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "pmFindValuesByValueType" 0
       typeParams = []
       parameters =

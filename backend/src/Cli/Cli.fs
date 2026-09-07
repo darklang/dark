@@ -250,13 +250,20 @@ let main (args : string[]) =
     let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
-    // Extraction established the rundir, so policy paths are safe to use.
+    // Extraction established the rundir, so policy paths are safe to use. The policy belongs to
+    // the INSTANCE (see `setPolicyDirectory`), which is what the rundir is; for an ordinary
+    // install that is `~/.darklang`, so this is the same file it always was.
+    LibExecution.HostSecurity.setPolicyDirectory (
+      System.IO.Path.Combine(LibConfig.Config.runDir, "policy")
+    )
+
     try
       LibDB.PolicyStore.seedInstanceIfMissing
         LibExecution.Permissions.Policy.defaultInstance
     with e ->
       eprintfn
-        "warning: could not initialize ~/.darklang/policy (%s); host effects are denied this run"
+        "warning: could not initialize %s (%s); host effects are denied this run"
+        (System.IO.Path.Combine(LibConfig.Config.runDir, "policy"))
         e.Message
 
     // Prevent scoped guest file operations from targeting the package store.

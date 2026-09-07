@@ -1,16 +1,7 @@
 /// Canonical serializers for content-addressable hashing.
 ///
 /// Produces deterministic bytes by skipping identity-irrelevant fields
-/// (AST node IDs, deprecated, originalName).
-///
-/// The doc comment IS part of identity. It reads like metadata, but it is something you wrote in
-/// the same edit as the body, and leaving it out meant a doc-only edit produced the same hash,
-/// deduped to nothing, and silently kept the old text -- while the CLI said "Updated". Two
-/// bodies that differ only in their docs are two items now.
-///
-/// `writeBehaviour*` is the same bytes WITHOUT the description, for the one question that needs
-/// it: whether an edit changed anything a caller could observe. Propagation asks, so that fixing
-/// a typo in a widely-called function does not stage a repoint for every caller of it.
+/// (AST node IDs, description, deprecated, originalName).
 /// Re-uses leaf serializers from the existing binary format.
 module rec LibSerialization.Hashing.Canonical
 
@@ -578,8 +569,8 @@ let writeTypeDeclaration
 // Top-level item writers (used by both compute*Hash and SCC batch hashing)
 // =====================
 
-/// Write a PackageType's BEHAVIOUR: its declaration, without the doc comment.
-let writeBehaviourType
+/// Write a PackageType's hash-relevant content (skip hash, description, deprecated)
+let writeType
   (mode : HashRefMode)
   (w : BinaryWriter)
   (t : PT.PackageType.PackageType)
@@ -587,13 +578,8 @@ let writeBehaviourType
   w.Write(0uy) // tag: type
   writeTypeDeclaration mode w t.declaration
 
-/// Write a PackageFn's BEHAVIOUR: everything a caller can observe, and nothing else. The doc
-/// comment is deliberately absent -- see the module doc.
-let writeBehaviourFn
-  (mode : HashRefMode)
-  (w : BinaryWriter)
-  (fn : PT.PackageFn.PackageFn)
-  =
+/// Write a PackageFn's hash-relevant content (skip hash, description, deprecated)
+let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn) =
   w.Write(1uy) // tag: fn
   writeExpr mode w fn.body
   Common.List.write w Common.String.write fn.typeParams
@@ -609,33 +595,11 @@ let writeBehaviourFn
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
 
-/// Write a PackageValue's BEHAVIOUR: its body, without the doc comment.
-let writeBehaviourValue
+/// Write a PackageValue's hash-relevant content (skip hash, description, deprecated)
+let writeValue
   (mode : HashRefMode)
   (w : BinaryWriter)
   (v : PT.PackageValue.PackageValue)
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
-
-
-// =====================
-// Identity writers: behaviour, plus the doc comment (see the module doc)
-// =====================
-
-/// A doc comment, written so that "absent" and "empty" agree: both are the empty string, which is
-/// how the parser and the round-trip both spell "no doc".
-let private writeDescription (w : BinaryWriter) (description : string) =
-  Common.String.write w (if isNull description then "" else description)
-
-let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn) =
-  writeBehaviourFn mode w fn
-  writeDescription w fn.description
-
-let writeType (mode : HashRefMode) (w : BinaryWriter) (t : PT.PackageType.PackageType) =
-  writeBehaviourType mode w t
-  writeDescription w t.description
-
-let writeValue (mode : HashRefMode) (w : BinaryWriter) (v : PT.PackageValue.PackageValue) =
-  writeBehaviourValue mode w v
-  writeDescription w v.description
