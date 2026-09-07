@@ -1599,3 +1599,83 @@ module AnOpaqueLeafIsOneLine =
   (ADrawingSaysWhatTheDocumentSays.faithful
     "match x with\n| a ->\n  let json = ops |> Stdlib.Json.serialize<List<Darklang.LanguageTools.ProgramTypes.PackageOp>>\n  f json 200") =
     true
+
+
+module EveryDrawingIsTheProgram =
+  // The question that found five bugs in five ticks, kept as a pin: draw a real function body, read the
+  // drawing back, and print both. A drawing that says what the document says gives the same program.
+  //
+  // It is a SAMPLE and not the whole store, because the whole store takes 584 seconds and this suite is
+  // already twenty-three minutes. Every tenth function by hash order, so it spreads across modules and
+  // does not shift when one module grows. That cannot prove the invariant holds everywhere -- the full
+  // sweep in rundir/probes/faithful-all.dark is for when a number is wanted -- but it is what stops the
+  // class coming back between sweeps.
+  //
+  // Two things are excluded, both deliberately. A body lifted out of its function is not always standalone
+  // source (a recursive call prints as `ESelf`, the parameters as `earg0`), so the PRINTER's own rendering
+  // has to read back before Fluid's is asked; without that control the first run of this reported 1339
+  // failures, all of them noise. And a string with an escape in it is the one known limitation: a
+  // backslash, or the doubled brace an interpolated string uses.
+  let ctx80 () : Darklang.PrettyPrinter.ProgramTypes.Context =
+    { (Darklang.Fluid.PT.printerContext ()) with width = 80 }
+
+  let query () : Darklang.LanguageTools.ProgramTypes.Search.SearchQuery =
+    Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ Darklang.LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+        exactMatch = false }
+
+  let survives (e: Darklang.LanguageTools.ProgramTypes.Expr) (rendered: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr rendered with
+    | Ok e2 ->
+      (Darklang.PrettyPrinter.ProgramTypes.expr (EveryDrawingIsTheProgram.ctx80 ()) e2)
+        == (Darklang.PrettyPrinter.ProgramTypes.expr (EveryDrawingIsTheProgram.ctx80 ()) e)
+    | Error _ -> false
+
+  /// "" when the body is fine or is not a fair question; the printed body when its drawing is not it.
+  let verdict (e: Darklang.LanguageTools.ProgramTypes.Expr) : String =
+    let printed = Darklang.PrettyPrinter.ProgramTypes.expr (EveryDrawingIsTheProgram.ctx80 ()) e
+
+    if Stdlib.Bool.not (EveryDrawingIsTheProgram.survives e printed) then
+      ""
+    else if (Stdlib.String.contains printed "\\") || (Stdlib.String.contains printed "{{") then
+      ""
+    else
+      let drawn =
+        Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+
+      if EveryDrawingIsTheProgram.survives e drawn then "" else printed
+
+  let sample () : List<Darklang.LanguageTools.ProgramTypes.Expr> =
+    let (_m, _t, _v, fns) =
+      Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes
+        Darklang.SCM.Branch.mainBranchId
+        (EveryDrawingIsTheProgram.query ())
+
+    fns
+    |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+    |> Stdlib.List.filter (fun p ->
+      let (i, _) = p
+      (Stdlib.Int.mod i 10) == 0)
+    |> Stdlib.List.map (fun p ->
+      let (_i, pair) = p
+      let (_n, h) = pair
+      Darklang.LanguageTools.PackageManager.Function.get h)
+    |> Stdlib.List.filterMap (fun o -> o)
+    |> Stdlib.List.map (fun fn -> fn.body)
+
+  /// The first body whose drawing is not the program, printed, or "" if there is none.
+  let firstFailure () : String =
+    EveryDrawingIsTheProgram.sample ()
+    |> Stdlib.List.map (fun e -> EveryDrawingIsTheProgram.verdict e)
+    |> Stdlib.List.filter (fun s -> s != "")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault ""
+
+  // The guard that keeps this from passing vacuously: a sampling pin that samples nothing is green and
+  // worthless, and the enumeration is the part most likely to quietly return an empty list.
+  ((Stdlib.List.length (EveryDrawingIsTheProgram.sample ())) > 400) = true
+
+  (EveryDrawingIsTheProgram.firstFailure ()) = ""
