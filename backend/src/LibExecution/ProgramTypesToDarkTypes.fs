@@ -10,26 +10,16 @@ module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 module Effects2DT = LibExecution.EffectsToDarkTypes
 
-/// Probe for remaining stack before recursing into persisted input.
-///
-/// The `fromDT` walks below read Dvals back out of the package store, so how deep they
-/// nest is a property of what was written, not something this code chose. Running out
-/// of stack there would be a real .NET stack overflow, which cannot be caught and takes
-/// the whole process down: no error to report, nothing to recover, the CLI or server
-/// just dies. `EnsureSufficientExecutionStack` throws an ordinary
-/// `InsufficientExecutionStackException` while there is still headroom, which turns an
-/// unrecoverable crash into an exception the surrounding error boundary can report
-/// against the item that caused it. Nothing catches it here specifically; that is the
-/// whole gain.
-///
-/// `AtRestTypeChecker.ensureStack` is the same technique for the same reason, and does
-/// catch it, converting the throw into an `Incomplete` verdict.
+/// Probe for remaining stack before recursing into persisted input: fromDT depth is a
+/// property of what was written, and a real .NET stack overflow is uncatchable and
+/// kills the process. `EnsureSufficientExecutionStack` throws an ordinary exception
+/// while there is headroom, which the surrounding error boundary reports against the
+/// offending item. `AtRestTypeChecker.ensureStack` is the same technique, and does
+/// catch it.
 let private ensureSufficientExecutionStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
 
-// This isn't in PT but I'm not sure where else to put it...
-// maybe rename this file to InternalTypesToDarkTypes?
 module Sign =
   let typeName () = FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.sign ())
 
@@ -1663,9 +1653,99 @@ module Search =
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
+module BranchEventKind =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.branchEventKind ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (k : PT.BranchEventKind) : Dval =
+    let (caseName, fields) =
+      match k with
+      | PT.Merged ops -> "Merged", [ Dval.list KTUuid (ops |> List.map DUuid) ]
+      | PT.Archived -> "Archived", []
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.BranchEventKind =
+    match d with
+    | DEnum(_, _, [], "Merged", [ DList(_, ops) ]) ->
+      PT.Merged(
+        ops
+        |> List.map (fun d ->
+          match d with
+          | DUuid g -> g
+          | _ -> Exception.raiseInternal "Invalid Merged op id" [])
+      )
+    | DEnum(_, _, [], "Archived", []) -> PT.Archived
+    | _ -> Exception.raiseInternal "Invalid BranchEventKind" []
+
+
+module PropagationPolicy =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.propagationPolicy ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (p : PT.PropagationPolicy) : Dval =
+    let caseName =
+      match p with
+      | PT.PropagationPolicy.Pin -> "Pin"
+      | PT.PropagationPolicy.Follow -> "Follow"
+      | PT.PropagationPolicy.Unset -> "Unset"
+    DEnum(typeName (), typeName (), [], caseName, [])
+
+  let fromDT (d : Dval) : PT.PropagationPolicy =
+    match d with
+    | DEnum(_, _, [], "Pin", []) -> PT.PropagationPolicy.Pin
+    | DEnum(_, _, [], "Follow", []) -> PT.PropagationPolicy.Follow
+    | DEnum(_, _, [], "Unset", []) -> PT.PropagationPolicy.Unset
+    | _ -> Exception.raiseInternal "Invalid PropagationPolicy" []
+
+
+module DecisionKind =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.decisionKind ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (k : PT.DecisionKind) : Dval =
+    let (caseName, fields) =
+      match k with
+      | PT.DecisionKind.Override target -> "Override", [ Reference.toDT target ]
+      | PT.DecisionKind.Ack findingId -> "Ack", [ DString findingId ]
+      | PT.DecisionKind.Propagation policy ->
+        "Propagation", [ PropagationPolicy.toDT policy ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.DecisionKind =
+    match d with
+    | DEnum(_, _, [], "Override", [ target ]) ->
+      PT.DecisionKind.Override(Reference.fromDT target)
+    | DEnum(_, _, [], "Ack", [ DString findingId ]) -> PT.DecisionKind.Ack findingId
+    | DEnum(_, _, [], "Propagation", [ policy ]) ->
+      PT.DecisionKind.Propagation(PropagationPolicy.fromDT policy)
+    | _ -> Exception.raiseInternal "Invalid DecisionKind" []
+
+
 module PackageOp =
   let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ())
+
+  /// Encodes SetName/Unbind's `previous`. A `Hash`, not a bare string: the Dark
+  /// side declares `Option<Hash>` and `Hash` is a single-case wrapper there, so
+  /// handing it a DString typechecks nowhere and throws the first time anything
+  /// unwraps it.
+  let private previousToDT (previous : Option<PT.Hash>) : Dval =
+    previous |> Option.map Hash.toDT |> Dval.option (Hash.knownType ())
+
+  /// Decodes SetName/Unbind's `previous`; anything but `Some h` reads as None.
+  let private previousFromDT (d : Dval) : Option<PT.Hash> =
+    match d with
+    | DEnum(_, _, _, "Some", [ h ]) -> Some(Hash.fromDT h)
+    | _ -> None
 
   let toDT (op : PT.PackageOp) : Dval =
     let (caseName, fields) =
@@ -1673,40 +1753,24 @@ module PackageOp =
       | PT.PackageOp.AddType t -> "AddType", [ PackageType.toDT t ]
       | PT.PackageOp.AddValue v -> "AddValue", [ PackageValue.toDT v ]
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
-      | PT.PackageOp.SetName(loc, target) ->
-        "SetName", [ PackageLocation.toDT loc; Reference.toDT target ]
+      | PT.PackageOp.SetName(loc, target, previous) ->
+        "SetName",
+        [ PackageLocation.toDT loc; Reference.toDT target; previousToDT previous ]
+      | PT.PackageOp.Unbind(loc, previous) ->
+        "Unbind", [ PackageLocation.toDT loc; previousToDT previous ]
       | PT.PackageOp.Deprecate(target, kind, message) ->
         "Deprecate",
         [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
       | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
-      | PT.PackageOp.PropagateUpdate(propagationId,
-                                     sourceLocation,
-                                     fromRefs,
-                                     toRef,
-                                     repoints) ->
-        "PropagateUpdate",
-        [ DUuid propagationId
-          PackageLocation.toDT sourceLocation
-          DList(VT.known (Reference.knownType ()), List.map Reference.toDT fromRefs)
-          Reference.toDT toRef
-          DList(
-            VT.known (PropagateRepoint.knownType ()),
-            List.map PropagateRepoint.toDT repoints
-          ) ]
-      | PT.PackageOp.RevertPropagation(revertId,
-                                       revertedPropagationIds,
-                                       sourceLocation,
-                                       restoredSourceRef,
-                                       revertedRepoints) ->
-        "RevertPropagation",
-        [ DUuid revertId
-          DList(VT.uuid, List.map DUuid revertedPropagationIds)
-          PackageLocation.toDT sourceLocation
-          Reference.toDT restoredSourceRef
-          DList(
-            VT.known (PropagateRepoint.knownType ()),
-            List.map PropagateRepoint.toDT revertedRepoints
-          ) ]
+      | PT.PackageOp.Decision(id, location, reason, kind) ->
+        "Decision",
+        [ DString id
+          PackageLocation.toDT location
+          DString reason
+          DecisionKind.toDT kind ]
+      | PT.PackageOp.BranchEvent(branchId, event, at) ->
+        "BranchEvent",
+        [ DUuid branchId.Guid; BranchEventKind.toDT event; DString at ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.PackageOp option =
@@ -1716,8 +1780,17 @@ module PackageOp =
     | DEnum(_, _, [], "AddValue", [ v ]) ->
       Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
-    | DEnum(_, _, [], "SetName", [ loc; target ]) ->
-      Some(PT.PackageOp.SetName(PackageLocation.fromDT loc, Reference.fromDT target))
+    | DEnum(_, _, [], "SetName", [ loc; target; previous ]) ->
+      let previous = previousFromDT previous
+      Some(
+        PT.PackageOp.SetName(
+          PackageLocation.fromDT loc,
+          Reference.fromDT target,
+          previous
+        )
+      )
+    | DEnum(_, _, [], "Unbind", [ loc; previous ]) ->
+      Some(PT.PackageOp.Unbind(PackageLocation.fromDT loc, previousFromDT previous))
     | DEnum(_, _, [], "Deprecate", [ target; kind; DString message ]) ->
       Some(
         PT.PackageOp.Deprecate(
@@ -1728,40 +1801,21 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Undeprecate", [ target ]) ->
       Some(PT.PackageOp.Undeprecate(Reference.fromDT target))
-    | DEnum(_,
-            _,
-            [],
-            "PropagateUpdate",
-            [ DUuid propagationId
-              sourceLocation
-              DList(_, fromRefs)
-              toRef
-              DList(_, repoints) ]) ->
+    | DEnum(_, _, [], "Decision", [ DString id; location; DString reason; kind ]) ->
       Some(
-        PT.PackageOp.PropagateUpdate(
-          propagationId,
-          PackageLocation.fromDT sourceLocation,
-          List.map Reference.fromDT fromRefs,
-          Reference.fromDT toRef,
-          List.map PropagateRepoint.fromDT repoints
+        PT.PackageOp.Decision(
+          id,
+          PackageLocation.fromDT location,
+          reason,
+          DecisionKind.fromDT kind
         )
       )
-    | DEnum(_,
-            _,
-            [],
-            "RevertPropagation",
-            [ DUuid revertId
-              DList(_, revertedPropagationIds)
-              sourceLocation
-              restoredSourceRef
-              DList(_, revertedRepoints) ]) ->
+    | DEnum(_, _, [], "BranchEvent", [ DUuid branchId; event; DString at ]) ->
       Some(
-        PT.PackageOp.RevertPropagation(
-          revertId,
-          List.map D.uuid revertedPropagationIds,
-          PackageLocation.fromDT sourceLocation,
-          Reference.fromDT restoredSourceRef,
-          List.map PropagateRepoint.fromDT revertedRepoints
+        PT.PackageOp.BranchEvent(
+          LibExecution.Branching.BranchId.Id branchId,
+          BranchEventKind.fromDT event,
+          at
         )
       )
     | _ -> None
@@ -1791,56 +1845,7 @@ module DB =
     | _ -> Exception.raiseInternal "Invalid DB" []
 
 
-// SCM types
-module Branch =
-  let typeName () = FQTypeName.fqPackage (PackageRefs.Type.SCM.Branch.branch ())
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (b : PT.Branch) : Dval =
-    let fields =
-      [ "id", DUuid b.id
-        "name", DString b.name
-        "parentBranchId", b.parentBranchId |> Option.map DUuid |> Dval.option KTUuid
-        "baseCommitHash",
-        b.baseCommitHash |> Option.map Hash.toDT |> Dval.option (Hash.knownType ())
-        "createdAt", DDateTime(DarkDateTime.fromInstant b.createdAt)
-        "mergedAt",
-        b.mergedAt
-        |> Option.map (DarkDateTime.fromInstant >> DDateTime)
-        |> Dval.option KTDateTime ]
-      |> Map.ofList
-    DRecord(typeName (), typeName (), [], fields)
-
-
-module MergeError =
-  let typeName () = FQTypeName.fqPackage (PackageRefs.Type.SCM.Merge.mergeError ())
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (e : PT.MergeError) : Dval =
-    let caseName =
-      match e with
-      | PT.MergeError.NotRebased -> "NotRebased"
-      | PT.MergeError.HasWip -> "HasWip"
-      | PT.MergeError.HasChildren -> "HasChildren"
-      | PT.MergeError.NothingToMerge -> "NothingToMerge"
-      | PT.MergeError.NotFound -> "NotFound"
-      | PT.MergeError.IsMainBranch -> "IsMainBranch"
-    DEnum(typeName (), typeName (), [], caseName, [])
-
-
-module Commit =
-  let typeName () = FQTypeName.fqPackage (PackageRefs.Type.SCM.PackageOps.commit ())
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (c : PT.Commit) : Dval =
-    let fields =
-      [ "hash", Hash.toDT c.hash
-        "message", DString c.message
-        "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
-        "opCount", Dval.int c.opCount
-        "branchId", DUuid c.branchId
-        "branchName", DString c.branchName
-        "committerId", DUuid c.committerId
-        "committerName", DString c.committerName ]
-      |> Map.ofList
-    DRecord(typeName (), typeName (), [], fields)
+// No Branch or Commit converters here, and not because either concept is gone: `dark commit` and the
+// `commits` table are both live, and branches are everywhere. Both are SCM STATE rather than program
+// structure -- a branch is a set of tagged ops that name resolution answers for with an id, and a
+// commit marks ops. Nothing in ProgramTypes refers to either, so there is nothing to convert.

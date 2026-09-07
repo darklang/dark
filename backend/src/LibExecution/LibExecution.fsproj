@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DarkDateTime.fs" />
+    <Compile Include="Branching.fs" />
     <Compile Include="PackageRefs.fs" />
     <!-- Static effects /-->
     <Compile Include="Effects.fs" />
