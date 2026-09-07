@@ -355,8 +355,8 @@ module Pipes =
   // `|>` builds a pipe: `|` wraps into the pipe (drawing `|>`) and the `>` completing the arrow is
   // swallowed, so the stage is `f`, not `>f`. Another `|` starts the next stage, chaining flat and
   // stacking one stage per line.
-  (Fixtures.screen [ "x", "|", ">", "f" ]) = "x\n|> f~"
-  (Fixtures.screen [ "x", "|", ">", "f", "|", ">", "g" ]) = "x\n|> f\n|> g~"
+  (Fixtures.screen [ "x", "|", ">", "f" ]) = "x |> f~"
+  (Fixtures.screen [ "x", "|", ">", "f", "|", ">", "g" ]) = "x |> f |> g~"
 
   // `>` between operands is still greater-than, unaffected by the pipe's arrow-swallow.
   (Fixtures.program [ "1", ">", "2", "<Esc>" ]) = "1 > 2"
@@ -401,7 +401,7 @@ module OrOperator =
   (Fixtures.program [ "1", "|", "|", "2", "<Esc>" ]) = "1 || 2"
 
   // The pipe still works: `|` then `>` chains stages.
-  (Fixtures.screen [ "a", "|", ">", "b", "|", ">", "c" ]) = "a\n|> b\n|> c~"
+  (Fixtures.screen [ "a", "|", ">", "b", "|", ">", "c" ]) = "a |> b |> c~"
 
 
 module ConsPatterns =
@@ -529,8 +529,8 @@ module TypingFast =
   let chars (s: String) : List<String> =
     Stdlib.String.toList s |> Stdlib.List.map (fun g -> Stdlib.Char.toString g)
 
-  (Fixtures.screen [ "nums |Stdlib.List.filter " ]) = "nums\n|> Stdlib.List.filter ~⟨f⟩"
-  (Fixtures.screen (TypingFast.chars "nums |Stdlib.List.filter ")) = "nums\n|> Stdlib.List.filter ~⟨f⟩"
+  (Fixtures.screen [ "nums |Stdlib.List.filter " ]) = "nums |> Stdlib.List.filter ~⟨f⟩"
+  (Fixtures.screen (TypingFast.chars "nums |Stdlib.List.filter ")) = "nums |> Stdlib.List.filter ~⟨f⟩"
 
   // The general property, on a couple of shapes: a run and its characters land in the same place.
   (Fixtures.screen [ "let nums [1, 2, 3]" ]) = (Fixtures.screen (TypingFast.chars "let nums [1, 2, 3]"))

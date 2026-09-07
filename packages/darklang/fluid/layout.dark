@@ -109,6 +109,14 @@ let join (ds: List<Doc>) (sep: Doc) : Doc =
   | first :: rest ->
     Stdlib.List.fold rest first (fun acc d -> Doc.Concat(acc, Doc.Concat(sep, d)))
 
+/// `sep` BEFORE each doc rather than between them, so an empty list contributes nothing at all.
+///
+/// An argument list wants this and `join` cannot give it: a call's arguments each need a space in front,
+/// and a call with no arguments needs no space anywhere. Written as a leading `Line` outside the list it
+/// was a space that survived the list being empty.
+let joinLeading (ds: List<Doc>) (sep: Doc) : Doc =
+  Stdlib.List.fold ds Doc.Empty (fun acc d -> Doc.Concat(acc, Doc.Concat(sep, d)))
+
 /// Hang `items` from `head`, breaking and indenting them when needed.
 let hang (indent: Int) (head: Doc) (items: List<Doc>) : Doc =
   Doc.Group(

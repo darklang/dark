@@ -126,7 +126,7 @@ module Editing =
   (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "1", "+", "2", "*", "3" ]) = "1 + 2 * 3"
 
   // `|` after an expression starts a pipe with a hole for the first step.
-  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+  (Fixtures.run [ "xs", "|" ]) = "xs |> ~⟨step⟩"
 
   // Multi-grapheme input (a paste) moves the caret past all of it.
   (Fixtures.run [ "hello" ]) = "hello~"
@@ -134,7 +134,7 @@ module Editing =
 
   // An identifier becomes a variable when you type past it; a pipe step completes from the package
   // tree, with the piped argument left out of the placeholders.
-  (Fixtures.run [ "xs", "|" ]) = "xs\n|> ~⟨step⟩"
+  (Fixtures.run [ "xs", "|" ]) = "xs |> ~⟨step⟩"
   (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.len", "<Enter>" ]) =
     "xs |> Stdlib.List.length"
   (Darklang.Fluid.PT.Test.program (Fixtures.reg ()) (Fixtures.exprHole ()) [ "xs", "|", "List.map", "<Enter>", "fu", "<Enter>", "x", "<Tab>", "x", "+", "1" ]) =
@@ -160,7 +160,7 @@ module Editing =
   // disagreed about where you end up.
   (Fixtures.run [ "4", "2", "<Esc>", ":", "m", "a", "t", "c", "h", "<Enter>" ]) = "match 42 with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Enter>" ]) = "let ~⟨name⟩ = ⟨value⟩\n42"
-  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "42\n|> ~⟨step⟩"
+  (Fixtures.run [ "4", "2", "<Esc>", ":", "p", "i", "p", "e", "<Enter>" ]) = "42 |> ~⟨step⟩"
   // Esc closes the palette without changing anything.
   (Fixtures.run [ "4", "2", "<Esc>", ":", "<Esc>" ]) = "~42"
 
@@ -209,7 +209,7 @@ module NamesReadTheWayThePrinterWritesThem =
   (NamesReadTheWayThePrinterWritesThem.roundTrip "Ok(1)") = "Result.Ok(1)"
   (NamesReadTheWayThePrinterWritesThem.screen "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
   (NamesReadTheWayThePrinterWritesThem.roundTrip "Stdlib.Option.Option.Some(1)") = "Option.Some(1)"
-  (NamesReadTheWayThePrinterWritesThem.screen "nums |> Stdlib.List.filter f") = "nums\n|> Stdlib.List.filter f"
+  (NamesReadTheWayThePrinterWritesThem.screen "nums |> Stdlib.List.filter f") = "nums |> Stdlib.List.filter f"
   (NamesReadTheWayThePrinterWritesThem.roundTrip "nums |> Stdlib.List.filter f") = "nums |> Stdlib.List.filter f"
 
 
@@ -456,14 +456,15 @@ module BarStartsTheNextArm =
   (BarStartsTheNextArm.arm [ "|", "|", "b" ]) = "match x with\n| 1 -> 2 || b~"
 
   // The same for CONTINUING it into another operator rather than repeating it: `|` then `>` is the pipe it
-  // always was, in the arm, not an arm whose pattern starts with `>`.
-  (BarStartsTheNextArm.arm [ "|", ">" ]) = "match x with\n| 1 ->\n  2\n  |> ~⟨step⟩"
-  (BarStartsTheNextArm.arm [ "|", ">", "f" ]) = "match x with\n| 1 ->\n  2\n  |> f~"
+  // always was, in the arm, not an arm whose pattern starts with `>`. The arm stays on one line, because
+  // a pipe that fits no longer breaks the expression it sits in.
+  (BarStartsTheNextArm.arm [ "|", ">" ]) = "match x with\n| 1 -> 2 |> ~⟨step⟩"
+  (BarStartsTheNextArm.arm [ "|", ">", "f" ]) = "match x with\n| 1 -> 2 |> f~"
 
   // Outside a list drawn that way, `|` is untouched: it still builds a pipe, and `||` still builds an
   // infix.
   (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60 [ "a", "|" ]) =
-    "a\n|> ~⟨step⟩"
+    "a |> ~⟨step⟩"
   (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
     [ "a", "|", "|", "b" ]) = "a || b~"
 
@@ -513,11 +514,11 @@ module EnterDoesNotGrowWhatItJustMade =
     Darklang.Fluid.Test.run (EnterDoesNotGrowWhatItJustMade.reg ()) (EnterDoesNotGrowWhatItJustMade.hole ()) 80 keys
 
   (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "fun", "<Enter>" ]) =
-    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+    "[1] |> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
 
   // The same lambda through the hole rule instead of the menu: it always did the right thing.
   (EnterDoesNotGrowWhatItJustMade.run [ "[", "1", "]", "|", "List.map", "<Enter>", "\\" ]) =
-    "[1]\n|> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
+    "[1] |> Stdlib.List.map (fun ~⟨param⟩ -> ⟨body⟩)"
 
   // The half of Enter this must not lose: a candidate with nothing left to fill still commits AND starts
   // the next item, so a list grows as you type it.
@@ -1111,9 +1112,9 @@ module PutChecksWhatTheSlotWants =
 
   // An expression is not a pipe step, in either direction.
   (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "y", "j", "p" ]) =
-    "can't put EString into step || \"a\"\n|> f"
+    "can't put EString into step || \"a\" |> f"
   (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "j", "y", "k", "p" ]) =
-    "can't put EPipeVariable into first || \"a\"\n|> f"
+    "can't put EPipeVariable into first || \"a\" |> f"
 
   // An expression onto an expression is still just a put.
   (PutChecksWhatTheSlotWants.after "1 + 2" [ "<Esc>", "j", "y", "j", "p" ]) = "put EInt || 1 + 1"

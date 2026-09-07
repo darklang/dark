@@ -1862,10 +1862,20 @@ let moreSpecs () : List<Spec> =
       matchOffers
     simpleExpr
       "EPipe"
-      [ Piece.Slot "first", Piece.HardLine, Piece.EachWith("steps", [ Piece.Punct "|>", Piece.Space ], [ Piece.HardLine ]) ]
+      // A pipe that fits stays on one line, and one that does not puts a step on each. It used to be a
+      // HardLine, so `xs |> f` was two lines however much room there was, and a `let` whose value was a
+      // two-step pipe was four. Nothing said that was deliberate, and the pieces read as copied from
+      // EMatch above, where a line per arm IS right.
+      //
+      // The line belongs to the step, not between steps: as a separator it would have to be written
+      // once more in front of the first one, which is the shape that leaves a space behind when a list
+      // turns out to be empty.
+      [ Piece.Group
+          [ Piece.Slot "first"
+            Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
-    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
     simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
@@ -2009,7 +2019,7 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleExpr
       "EApply"
-      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.Line, Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
+      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
       (Node.make
         (exprKind "EApply")
         [ ("fn", Field.One(Slot.Empty(exprExpect "fn"))), ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])

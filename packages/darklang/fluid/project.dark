@@ -350,7 +350,10 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
           | Some child -> argNeedsParens child
           | None -> false
         parenIf needs d)
-    Layout.join docs sepDoc
+    // Leading, not between: `f` with no arguments is `f`, and every argument brings its own space with
+    // it. As a separator between arguments, the space in front of the first one had to be written
+    // outside the list, where an empty list could not take it back.
+    Layout.joinLeading docs sepDoc
 
   | OperandSlot(slotName, isRight) ->
     match Node.slot n slotName with
