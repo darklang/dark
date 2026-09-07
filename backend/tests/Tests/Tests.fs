@@ -10,6 +10,17 @@ open Prelude
 [<EntryPoint>]
 let main (args : string array) : int =
   try
+    // Same switch the CLI reads, so a slow test run can be profiled with the
+    // instrumentation that is already in the tree rather than by guesswork.
+    // `Sqlite.fs` counts and times every statement when this is on, which is the
+    // only way to tell SQL time from interpreter time.
+    match System.Environment.GetEnvironmentVariable "DARK_TELEMETRY" with
+    | "1" ->
+      Telemetry.init (
+        System.IO.Path.Combine(LibConfig.Config.logDir, "telemetry-tests.jsonl")
+      )
+    | _ -> ()
+
     // Most tests don't need trace data on disk; tests that DO check
     // trace contents (CliTraces) flip this to Detailed at their entry.
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off

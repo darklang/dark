@@ -8,7 +8,18 @@ PUBLISHED_FLAG=
 FORCE=false
 FILTERED=false
 
-EXPECTO_ARGS=()
+# Sequenced by default, which is FASTER here rather than slower.
+#
+# Every testfile case reaches the package database through one shared connection,
+# so running them in parallel does not divide the work, it multiplies the waiting.
+# Measured on the cli/fluid subtree, 991 tests:
+#
+#   parallel    1702s wall    64,720s of per-test time
+#   sequenced    807s wall       787s of per-test time
+#
+# Twice as fast on the clock, eighty times less CPU, and it stops a run pinning
+# every core on the machine. `--parallel` puts it back.
+EXPECTO_ARGS=(--sequenced)
 
 for i in "$@"
 do
@@ -18,6 +29,8 @@ do
       PUBLISHED_FLAG=$i
       ;;
     --force) FORCE=true ;;
+    # Opt back into parallel, undoing the --sequenced default above.
+    --parallel) EXPECTO_ARGS=() ;;
     --filter|--filter-test-list|--filter-test-case|--run)
       FILTERED=true
       EXPECTO_ARGS+=("${i}")

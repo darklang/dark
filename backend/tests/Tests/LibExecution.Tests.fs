@@ -304,6 +304,38 @@ let t
           ""
   }
 
+/// A package manager whose `search` remembers its answers.
+///
+/// Name completion searches on almost every keystroke, and a test that types
+/// `List.map` issues one search per character past the threshold. `LibDB`'s
+/// package manager caches `getType`, `getFn`, `findType` and the rest, but not
+/// `search`, so every one of those went to the database. Tests that type names
+/// were costing minutes of CPU each.
+///
+/// Test-only, and safe here for a reason worth stating: a file's package manager
+/// is built once from that file's ops and nothing in a testfile case writes
+/// packages, so there is nothing for a stale entry to miss. Do not lift this into
+/// the production package manager without an invalidation story.
+let private withCachedSearch (pm : PT.PackageManager) : PT.PackageManager =
+  let cache =
+    System.Collections.Concurrent.ConcurrentDictionary<
+      LibExecution.ProgramTypes.BranchId * PT.Search.SearchQuery,
+      PT.Search.SearchResults
+     >()
+
+  { pm with
+      search =
+        fun (branchId, query) ->
+          uply {
+            match cache.TryGetValue((branchId, query)) with
+            | true, hit -> return hit
+            | _ ->
+              let! results = pm.search (branchId, query)
+              cache[(branchId, query)] <- results
+              return results
+          } }
+
+
 let baseDir = "testfiles/execution/"
 
 
@@ -312,7 +344,11 @@ let baseDir = "testfiles/execution/"
 let fileTests () : Test =
   // Note: we use this at parse-time - but later we need to use an enhanced one,
   // with the 'extra' things defined in the test modules.
-  let pmPT = LibDB.PackageManager.pt
+  // Cached once for the whole run, not once per file. The package DATABASE does not
+  // change while tests run, so a search answered for one file is the same answer for
+  // every other, and the common prefixes (`List`, `Stdlib`, `Size`) recur in most of
+  // them. The per-file wrapper below still caches the file's own overlay.
+  let pmPT = withCachedSearch LibDB.PackageManager.pt
 
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
@@ -339,7 +375,9 @@ let fileTests () : Test =
 
           let allOps = modules |> List.collect _.ops
 
-          let pm = LibDB.PackageManager.withExtraOps pmPT allOps
+          let pm =
+            LibDB.PackageManager.withExtraOps pmPT allOps
+            |> withCachedSearch
 
           let tests =
             modules
@@ -360,6 +398,12 @@ let fileTests () : Test =
           // through shared toplevels_v0 / user_data_v0 rows. Run those
           // file's cases sequentially so the per-test wipe + setupDBs
           // in `t` doesn't race parallel writes from sibling tests.
+          //
+          // The rest of the tree is sequenced too, but from the RUNNER rather
+          // than here. Marking every list `testSequenced` measured WORSE than the
+          // parallel default -- 24 minutes and still going, against 13 with
+          // Expecto's own `--sequenced` -- so the flag lives in
+          // scripts/run-backend-tests where it does what it says.
           let usesSharedDBState = dir.Contains "/cloud"
           if usesSharedDBState then
             testSequenced (testList testName tests)
