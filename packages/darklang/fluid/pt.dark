@@ -1526,6 +1526,7 @@ let pipeTypeSpec () : Spec =
       holeRules = []
       wrapRules = []
       textClasses = []
+      maxItems = []
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
       resolve = Spec.noResolve
@@ -1911,6 +1912,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "{"; fill = HoleFill.WithChar recordUpdateFromBrace }
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       textClasses = []
+      maxItems = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
@@ -1946,6 +1948,7 @@ let letPatTypeSpec () : Spec =
           HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) } ]
       wrapRules = []
       textClasses = []
+      maxItems = []
       completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -2005,6 +2008,7 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
       textClasses = []
+      maxItems = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
@@ -2230,7 +2234,10 @@ let baseSpecs () : List<Spec> =
             // Zero or one branch, each drawing its own `else` keyword. Nothing here when there is none.
             Piece.Each("else", []) ] ]
       (emptyIf ())
-    |> fun sp -> { sp with actions = ifActions () }
+    // Zero or one, said out loud. The `else` Many is an OPTION, not a sequence, and the comment above
+    // has always said so while nothing enforced it: typing past a settled else grew the list, drew a
+    // second `else`, and lowered to a program without it.
+    |> fun sp -> { sp with actions = ifActions (); maxItems = [ ("else", 1) ] }
     simpleExpr
       "EInfix"
       [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
@@ -2501,6 +2508,7 @@ module Types =
             HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
         wrapRules = []
         textClasses = []
+        maxItems = []
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
         resolve = resolveTypePartial

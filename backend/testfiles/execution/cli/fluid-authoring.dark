@@ -1148,3 +1148,25 @@ module ASpaceDoesNotAbandonAGroup =
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "(", ")", " ", "x", "<Esc>" ]) = "let x = ()\nx"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "let xs = [1] xs") [ "<Esc>", "<Esc>" ])) =
     "let xs = [1]\nxs"
+
+
+module AnIfHasAtMostOneElse =
+  // `if a then 1 else zzz "x"` drew `if a then 1 else zzz else "x"` -- a SECOND `else` -- and lowered to
+  // `if a then 1 else zzz`. The document showed a program nobody had, which is the one thing this editor
+  // is not allowed to do.
+  //
+  // An `if`'s `else` is a `Field.Many` holding zero or one, used as an option: zero draws no branch, one
+  // draws `else <expr>`. The spec has said that in a comment since it was written, and nothing enforced
+  // it, so `addSibling` grew the list like any other sequence.
+  //
+  // Specs can now say `maxItems`, and the `if` says `("else", 1)`. A DSL with a slot that takes one
+  // thing, or three, says so the same way instead of hoping. The refused keystroke reports itself rather
+  // than vanishing.
+  (Fixtures.screen (Fixtures.chars "if a then 1 else zzz \"x\"")) = "if a then 1 else zzz~"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if a then 1 else zzz \"x\"") [ "<Esc>", "<Esc>" ])) =
+    "if a then 1 else zzz"
+
+  // The sequences that SHOULD still grow, so the cap is read per slot and not applied to every Many.
+  (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "if a then 1 else 2")) = "if a then 1 else 2~"

@@ -3037,6 +3037,20 @@ let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib
     | Some n ->
       match Node.field n slot with
       | Some(Many(items, each)) ->
+        // A slot the spec caps does not grow past its cap. An `if`'s `else` is a Many holding zero or
+        // one, used as an option, and typing past a settled else added a SECOND branch: the drawing
+        // gained an `else` that lowering threw away, so the screen showed a program nobody had.
+        let capped =
+          match Registry.find st.reg n.kind with
+          | Some spec ->
+            (match Spec.maxItemsFor spec slot with
+             | Some cap -> (Stdlib.List.length items) >= cap
+             | None -> false)
+          | None -> false
+
+        if capped then
+          Stdlib.Option.Option.None
+        else
         // If the next element is already an empty hole (e.g. a tuple's second slot), move to it rather
         // than inserting a new one. Otherwise add a sibling after this one.
         match Stdlib.List.getAt items (i + 1) with
