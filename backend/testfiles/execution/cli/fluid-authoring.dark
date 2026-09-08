@@ -1098,6 +1098,45 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module AVariableCanBeApplied =
+  // `f xs` drew `f`. `f 1 2` drew `f`. The arguments were dropped with nothing said, so a local function
+  // could be written and then never used -- and the whole second line here was untypeable:
+  //
+  //     let add = fun a b -> a + b
+  //     add 1 2
+  //
+  // A QUALIFIED name always applied, because picking one from completion arrives as a call with its
+  // argument slots already in it. A bare name resolves to an EVariable, which has no `args` slot at all,
+  // so there was nothing for the next thing typed to go into.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "f xs") [ "<Esc>", "<Esc>" ])) = "f xs"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "f 1 2") [ "<Esc>", "<Esc>" ])) = "f 1 2"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "f xs (fun x -> x)") [ "<Esc>", "<Esc>" ])) =
+    "f xs (fun x -> x)"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "let add = fun a b -> a + b add 1 2") [ "<Esc>", "<Esc>" ])) =
+    "let add = (fun a b -> a + b)\nadd 1 2"
+
+  // Reached by NAME rather than by a character: the trigger is "a name follows a finished value", which
+  // is a position and not a keystroke. `charClassMatches` ends in `else false`, so `<apply>` matches
+  // nothing anyone types and the rule is invisible to the typing path; the kernel asks for it the way
+  // `landSettled` asks whether a spec carries `<operator>`.
+  //
+  // It fires LAST, after the sibling and after the next hole, because both of those are the editor asking
+  // for something specific and this is only what is left. Ahead of the next hole it took one that was
+  // already waiting: an arity-capped arg list declines `addSibling`, so
+  // `Stdlib.List.map xs (fun x -> x)` came out as `Stdlib.List.map (xs (fun x -> x)) ⟨fn⟩`.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs (fun x -> x)") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map xs (fun x -> x)"
+
+  // And the two readings it must not take. Only EVariable carries the rule, so a list is still not a
+  // function and neither is an int: a name after either means the let's BODY.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let xs = [1] xs") [ "<Esc>", "<Esc>" ])) =
+    "let xs = [1]\nxs"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let x = 1 x") [ "<Esc>", "<Esc>" ])) =
+    "let x = 1\nx"
+
+
 module GrowingAListDoesNotSkipAHole =
   // `(if x > 0 then 1 else 2)` came out as
   // `(if x > 0 then ⟨then⟩ else ⟨else⟩, then, 1, else, 2)`: the space after the `0` left the caret just
@@ -1236,9 +1275,17 @@ module AnIfHasAtMostOneElse =
   // Specs can now say `maxItems`, and the `if` says `("else", 1)`. A DSL with a slot that takes one
   // thing, or three, says so the same way instead of hoping. The refused keystroke reports itself rather
   // than vanishing.
-  (Fixtures.screen (Fixtures.chars "if a then 1 else zzz \"x\"")) = "if a then 1 else zzz~"
+  // UPDATED once a variable could be applied. `zzz "x"` is now the application it reads as, which is a
+  // better answer than the refusal that used to be the best available one -- and the invariant this
+  // module is about is untouched: no second `else` is drawn, and the drawing is still the program.
+  (Fixtures.screen (Fixtures.chars "if a then 1 else zzz \"x\"")) = "if a then 1 else zzz \"x\"~"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "if a then 1 else zzz \"x\"") [ "<Esc>", "<Esc>" ])) =
-    "if a then 1 else zzz"
+    "if a then 1 else zzz \"x\""
+
+  // So the cap is pinned on values that cannot be applied instead, where the keystroke is still refused
+  // and still says so. An int is not a function and neither is a list.
+  (Fixtures.screen (Fixtures.chars "if a then 1 else 2 3")) = "if a then 1 else 2~"
+  (Fixtures.screen (Fixtures.chars "if a then 1 else [1] 2")) = "if a then 1 else [1]~"
 
   // The sequences that SHOULD still grow, so the cap is read per slot and not applied to every Many.
   (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
@@ -1404,8 +1451,18 @@ module ACallTakesTheArgumentsItsFunctionDeclares =
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs") [ "<Enter>" ])) =
     "Stdlib.List.map xs ~⟨fn⟩"
 
-  // An unresolved name has no arity to cap, so it still sequences.
-  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "zzz a") [ "<Enter>" ])) = "zzz\n~⟨next⟩"
+  // An unresolved name has no arity to cap, so nothing stops Enter growing its arguments -- and once a
+  // bare name could be applied at all, `zzz a` then Enter gave `zzz a ⟨arg⟩` with no way to say "done".
+  // A resolved call had hidden that: its args are capped at its arity, so the sibling was refused anyway
+  // and Enter sequenced.
+  //
+  // Enter grows a SEQUENCE -- a list's items, a record's fields, a match's arms, a lambda's params --
+  // and arguments are not one: you write those by typing them one after another. `ArgSlots` is already
+  // its own piece, so the spec says which is which and Enter can ask.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "zzz a") [ "<Enter>" ])) = "zzz a\n~⟨next⟩"
+
+  // Typing still grows them, which is the whole point of the apply rule.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "f 1 2 3") [ "<Esc>", "<Esc>" ])) = "f 1 2 3"
 
 
 module BackspaceAfterAClosingBracketStepsInside =

@@ -1001,6 +1001,23 @@ let wrapRuleFor (reg: Registry) (n: Node) (c: String) : Stdlib.Option.Option<Wra
      | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> charClassMatches reg.syntax r.onChar c)
      | None -> Stdlib.Option.Option.None)
 
+/// The wrap rule a spec carries under a given NAME, rather than the one a character matches. Some rules
+/// are triggered by a position rather than a keystroke -- `<apply>` fires where a name follows a finished
+/// value -- and `charClassMatches` turns their names away, so they are unreachable through `wrapRuleFor`
+/// and reachable here. Same shape as `landSettled` asking whether a spec carries `<operator>`.
+let wrapRuleNamed (reg: Registry) (n: Node) (name: String) : Stdlib.Option.Option<WrapRule> =
+  let own =
+    match Registry.findExact reg n.kind with
+    | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> r.onChar == name)
+    | None -> Stdlib.Option.Option.None
+
+  match own with
+  | Some r -> Stdlib.Option.Option.Some r
+  | None ->
+    (match Registry.findTypeLevel reg n.kind with
+     | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> r.onChar == name)
+     | None -> Stdlib.Option.Option.None)
+
 /// Is the caret in the operator slot of a node made by a wrap rule?
 let inOpSlot (reg: Registry) (n: Node) (slot: String) : Stdlib.Option.Option<WrapRule> =
   match Registry.findTypeLevel reg n.kind with
@@ -2014,14 +2031,36 @@ let typeOneRaw (st: State) (c: String) : State =
           match (if itemHasHoles then Stdlib.Option.Option.None else addSibling st) with
           | Some added -> typeOne added c
           | None ->
-            // The node isn't in a sequence, so there's nothing to grow. Typing a name just after a
-            // finished value means "on to the next thing", so step to the next hole and type it there.
-            // Anything but that drops the keystroke silently, which is how `let xs = [1] xs` ate the
-            // whole name with the screen never changing.
+            // Nothing to grow. A name after a finished value that CAN be applied is a call: `f xs` is
+            // `f` applied to `xs`. The args were dropped with nothing said -- `f xs` drew `f`, `f 1 2`
+            // drew `f` -- so `let add = fun a b -> a + b` could be written and then never used.
+            //
+            // Asked of the spec by name, and only EVariable carries the rule, so the two readings below
+            // it are untouched: a list is not a function and `let xs = [1] xs` still means the body.
+            // Typing a name just after a finished value means "on to the next thing", so step to the
+            // next hole and type it there. Anything but that drops the keystroke silently, which is how
+            // `let xs = [1] xs` ate the whole name with the screen never changing.
             let moved = nextHole st
-            if moved.caret == st.caret then
-              { st with message = "nowhere to type here -- Esc for nav" }
-            else typeOne moved c
+            if moved.caret != st.caret then
+              typeOne moved c
+            else
+              // Nowhere left to go. A name after a finished value that CAN be applied is a call: `f xs`
+              // is `f` applied to `xs`. The arguments were dropped with nothing said -- `f xs` drew `f`,
+              // `f 1 2` drew `f` -- so a local function could be written and then never used.
+              //
+              // LAST, after both the sibling and the next hole, because those are the editor asking for
+              // something specific and this is only what is left. Ahead of them it took a hole that was
+              // already waiting: `Stdlib.List.map xs (fun x -> x)` has its args capped at the arity, so
+              // `addSibling` declines, and applying there gave `Stdlib.List.map (xs (fun x -> x)) ⟨fn⟩`.
+              //
+              // Asked of the spec by name, and only EVariable carries the rule, so a list is still not a
+              // function.
+              match wrapRuleNamed st.reg n "<apply>" with
+              | Some rule ->
+                let wrapped = rule.wrap n c
+                let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled wrapped) ] caret
+                typeOne { st1 with caret = Caret.inItem caret.node rule.nextSlot 0 0 } c
+              | None -> { st with message = "nowhere to type here -- Esc for nav" }
     | None -> st
   | _ ->
     match Caret.slotPath caret with
@@ -3298,6 +3337,30 @@ let inSpaceSepList (st: State) (sp: Path) : Bool =
      | None -> false)
   | _ -> false
 
+/// Is the caret standing in a list that a spec draws as a call's ARGUMENTS?
+///
+/// Enter grows a sequence, and a sequence is something you build up deliberately: a list's items, a
+/// record's fields, a match's arms, a lambda's params. Arguments are not that -- you write them by typing
+/// one after another -- and a RESOLVED call hid the difference, because its args are capped at its arity
+/// and Enter found the sibling refused anyway. Applying a bare name has no arity to cap, and Enter there
+/// grew the arguments for ever: `add 1 2` then Enter gave `add 1 2 ⟨arg⟩` with no way to say "done".
+let inArgSlotsList (st: State) (c: Caret) : Bool =
+  match enclosingListItem c with
+  | Some((parentPath, slot, _)) ->
+    (match nodeAtPath st.root parentPath with
+     | Some parent ->
+       let fromSpec (spec: Stdlib.Option.Option<Spec>) : Bool =
+         match spec with
+         | Some sp -> Project.isArgSlots sp.pieces slot
+         | None -> false
+       (fromSpec (Registry.findExact st.reg parent.kind)) || (fromSpec (Registry.findTypeLevel st.reg parent.kind))
+     | None -> false)
+  | None -> false
+
+/// `addSibling` for the ENTER key, which does not grow an argument list. Typing still does.
+let addSiblingOnEnter (st: State) : Stdlib.Option.Option<State> =
+  if inArgSlotsList st st.caret then Stdlib.Option.Option.None else addSibling st
+
 /// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to
 /// recognise the closer it drew.
 let drawsPunct (st: State) (n: Node) (c: String) : Bool =
@@ -3545,7 +3608,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         // -- an enum's cases, a record's fields -- every item but the last stayed a partial. It drew
         // exactly like the real thing, and `type Colour = | Red | Green | Blue` then refused to save with
         // "unresolved: Red".
-        match addSibling settled with
+        match addSiblingOnEnter settled with
         | Some added -> handled added
         | None ->
           match sequenceHere settled with
@@ -3563,7 +3626,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       if completing && (onPartial st) then handled (commitCandidate st)
       else
         // Same rule outside a list: settle first.
-        match addSibling settled with
+        match addSiblingOnEnter settled with
         | Some added -> handled added
         | None ->
           match sequenceHere settled with

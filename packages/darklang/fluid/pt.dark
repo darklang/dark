@@ -1031,6 +1031,22 @@ let recordFromName (n: Node) (c: String) : Node =
   | None ->
     Node.make (exprKind "ERecord") [ text "type" name, text "_typeHash" "", ("fields", Field.Many([ blankField ], fieldExpect ())) ]
 
+/// `f xs`: the value becomes the function of a call, with one empty argument to type into.
+///
+/// Reached by NAME rather than by a character. `onChar = "<apply>"` matches nothing anyone types --
+/// `charClassMatches` ends in `else false` -- so the rule is inert to the typing path and the kernel asks
+/// for it by name, the way `landSettled` asks whether a spec carries `<operator>`. A character trigger
+/// could not work here: the trigger IS "a name follows a finished value", and that is a position, not a
+/// keystroke.
+///
+/// On EVariable and nowhere else, which is what keeps the neighbours right. `let xs = [1] xs` still means
+/// the body -- a list is not a function -- and so does `let x = 1 f`.
+let applyFromValue (n: Node) (c: String) : Node =
+  Node.make
+    (exprKind "EApply")
+    [ ("fn", Field.One(Slot.Filled n))
+      ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ]
+
 /// `L` at the end of an integer makes it an Int64, keeping the digits.
 ///
 /// `250` and `250L` are different types and only the first could be typed, so the editor could not write
@@ -2240,7 +2256,8 @@ let baseSpecs () : List<Spec> =
     Spec.withTextClasses
       (Spec.withWrapRules
         (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
-        [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = "" } ])
+        [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = "" }
+          WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args" } ])
       [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     simpleExpr
       "ELet"

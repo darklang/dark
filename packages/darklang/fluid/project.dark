@@ -177,6 +177,21 @@ let itemSepIsSpace (ps: List<Piece>) (slotName: String) : Bool =
   |> Stdlib.List.any (fun b -> b)
 
 
+/// Is `slotName` drawn as a call's ARGUMENTS rather than as a sequence?
+///
+/// `ArgSlots` is its own piece for a reason: arguments are written by typing them one after another, and
+/// every other list a spec draws -- a list's items, a record's fields, a match's arms, a lambda's params --
+/// is a sequence you grow deliberately. Enter grows a sequence; it has no business adding an argument.
+let isArgSlots (ps: List<Piece>) (slotName: String) : Bool =
+  ps
+  |> Stdlib.List.any (fun p ->
+    match p with
+    | ArgSlots(s, _) -> s == slotName
+    | Group inner -> isArgSlots inner slotName
+    | Flat inner -> isArgSlots inner slotName
+    | Nest(_, inner) -> isArgSlots inner slotName
+    | _ -> false)
+
 /// Every punctuation string a spec draws, anywhere in its pieces. Used to ask whether a construct draws
 /// the closer you just typed, which is how a `}` on its own line is recognised as this record's.
 let punctTexts (ps: List<Piece>) : List<String> =
