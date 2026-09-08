@@ -843,6 +843,29 @@ module ARecordLiteralCanBeTyped =
   // A name on its own is still a variable. The `{` is what changes what it is.
   (Fixtures.program [ "Z", "o", "r", "k", "<Esc>", "<Esc>" ]) = "Zork"
 
+  // ...and now the PRINTED form types back, which is the thing neither entrance gave. Three separate
+  // pieces of the drawing were being retyped and each was taken as content: the field NAME the literal
+  // arrives already carrying, the `=` after it, and the `}` the printer puts on its own line.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Zork { x = 1 }") [ "<Esc>", "<Esc>" ])) = "Zork { x = 1 }"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Size { width = 1; height = 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+
+  // The reading the label rule must NOT take. A local called `width` is a perfectly good value for the
+  // field of the same name, and it reads identically up to the space. So the space settles nothing there
+  // -- neither commits the menu nor resolves the partial -- and the NEXT key decides: `=` means the label
+  // you already have, anything else means the variable. Before this, the space committed the menu's best
+  // guess and `height` became `Darklang.Cli.CompletionPicker.minimumHeight`.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "let width = 1 Size { width = width; height = 2 }") [ "<Esc>", "<Esc>" ])) =
+    "let width = 1\nStdlib.Cli.Tui.Size { width = width; height = 2 }"
+
+  // A field name is a NAME. `FieldText` draws one just as `NameText` does -- they differ in how a name is
+  // QUOTED, not in what one is -- and the class derived from the piece was keyed on only one of them, so
+  // the five slots drawn with `FieldText` accepted any character at all. The space and the `}` above went
+  // straight into the field name, and the drawing then honestly showed them back as `` ` x` `` and `` `}` ``.
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", " " ]) = "Zork {\n  ~name = ⟨value⟩\n}"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", "}" ]) = "Zork {\n  name = ⟨value⟩\n}~"
+
 
 module ALetCarriesItsValuesType =
   // Found by building an ordinary thing in a terminal: a record, bound to a name, then a field of it.

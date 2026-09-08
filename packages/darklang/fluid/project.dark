@@ -177,6 +177,53 @@ let itemSepIsSpace (ps: List<Piece>) (slotName: String) : Bool =
   |> Stdlib.List.any (fun b -> b)
 
 
+/// Every punctuation string a spec draws, anywhere in its pieces. Used to ask whether a construct draws
+/// the closer you just typed, which is how a `}` on its own line is recognised as this record's.
+let punctTexts (ps: List<Piece>) : List<String> =
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Punct t -> [ t ]
+    | Each(_, sep) -> punctTexts sep
+    | EachWith(_, lead, sep) -> Stdlib.List.append (punctTexts lead) (punctTexts sep)
+    | EachWrapped(_, openP, sep, closeP) -> Stdlib.List.flatten [ [ openP ], punctTexts sep, [ closeP ] ]
+    | ArgSlots(_, sep) -> punctTexts sep
+    | Group inner -> punctTexts inner
+    | Flat inner -> punctTexts inner
+    | Nest(_, inner) -> punctTexts inner
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+/// The text slot a spec draws as the LABEL of `valueSlot`: the last name-ish text written before it.
+/// A record field draws `name = ⟨value⟩`, so the label of `value` is `name`.
+///
+/// `labelScan` carries the walk: the last label seen so far, and the answer once `valueSlot`'s own `Slot`
+/// piece is reached. Returning both is what lets a nested group hand its state back to the level above.
+let labelScan
+  (ps: List<Piece>)
+  (valueSlot: String)
+  (seen: Stdlib.Option.Option<String>)
+  : (Stdlib.Option.Option<String> * Stdlib.Option.Option<String>) =
+  Stdlib.List.fold ps ((seen, Stdlib.Option.Option.None)) (fun acc p ->
+    let (last, found) = acc
+    if Stdlib.Option.isSome found then
+      acc
+    else
+      match p with
+      | NameText(s, _) -> (Stdlib.Option.Option.Some s, found)
+      | FieldText(s, _) -> (Stdlib.Option.Option.Some s, found)
+      | Text(s, _) -> (Stdlib.Option.Option.Some s, found)
+      | Slot s -> if s == valueSlot then (last, last) else (last, found)
+      | Group inner -> labelScan inner valueSlot last
+      | Flat inner -> labelScan inner valueSlot last
+      | Nest(_, inner) -> labelScan inner valueSlot last
+      | _ -> acc)
+
+let labelTextSlot (ps: List<Piece>) (valueSlot: String) : Stdlib.Option.Option<String> =
+  let (_, found) = labelScan ps valueSlot Stdlib.Option.Option.None
+  found
+
+
 /// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
 /// means "same column, next row" rather than "the next node in reading order", and the only thing that
 /// knows a slot is a grid is the spec that draws it.

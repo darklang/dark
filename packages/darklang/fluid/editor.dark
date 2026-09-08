@@ -1688,7 +1688,19 @@ let typeOne (st: State) (c: String) : State =
         | Some added -> added
         | None -> typeOneRaw st c
     | None -> typeOneRaw st c
-  elif (Stdlib.List.member st.reg.syntax.closingDelimiters c) && (glyphAfterCaretIn rows st == Stdlib.Option.Option.Some c) then
+  elif
+    (Stdlib.List.member st.reg.syntax.closingDelimiters c)
+    && ((glyphAfterCaretIn rows st == Stdlib.Option.Option.Some c)
+        // ...or the closer is drawn by the construct we are inside, wherever the layout put it. A record
+        // breaks onto lines, so its `}` sits on one of its own and the glyph test could never see it:
+        // typing the printed `Zork { x = 1 }` read the `}` as the start of another FIELD.
+        || (match enclosingListItem caret with
+            | Some((parentPath, _, _)) ->
+              (match nodeAtPath st.root parentPath with
+               | Some pn -> drawsPunct st pn c
+               | None -> false)
+            | None -> false))
+  then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
     // the OUTER scope, which is what makes nested `[[1], 2]` type naturally.
@@ -1797,6 +1809,34 @@ let typeOne (st: State) (c: String) : State =
     // empty body. The pipe's `|>` and the cons's `::` each had this written out for them by hand; this is
     // the same rule asked of the drawing.
     st
+  elif
+    (Stdlib.Bool.not inStringBody)
+    && (Stdlib.List.member st.reg.syntax.separators c)
+    && (match caretSlotPath caret with
+        | Some sp ->
+          (match (labelForSlot st sp, slotLeafText st sp) with
+           | (Some label, Some typed) -> label == typed
+           | _ -> false)
+        | None -> false)
+  then
+    // The LABEL of this slot, typed again, followed by the separator that is also already drawn. A record
+    // literal arrives with its declared field names written in it, so typing the printed
+    // `Size { width = 1 }` back put a variable called `width` in the value and then made an operator of
+    // the `=`: `width = width = 1`.
+    //
+    // The same reflex that retypes a drawn keyword, one level down, and it has to be keyed on the
+    // SEPARATOR rather than on the name alone: `Size { width = width }` with a local called `width` is a
+    // perfectly good thing to write, and nobody writing it types a second `=`.
+    (match caretSlotPath caret with
+     | Some sp ->
+       let e =
+         match slotAtPath st.root sp with
+         | Some(Partial(_, was)) -> Slot.expect was |> Stdlib.Option.withDefault (Expect.any "value")
+         | Some(Filled n) -> Expect.ofKind (Kind.named (Kind.typeName n.kind)) "value"
+         | _ -> Expect.any "value"
+       let st1 = commit st [ Edit.Replace(sp, Slot.Empty e) ] caret
+       { st1 with caret = navCaretFor st1.root sp; mode = Mode.Insert }
+     | None -> st)
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     // The FALLBACK for `,`, kept deliberately. `sepPunctSibling` above handles every list whose spec says
     // what separates its items, and it only fires at the END of an item; this catches the rest of what the
@@ -2033,7 +2073,21 @@ let typeOneRaw (st: State) (c: String) : State =
           let duplicatesNextKeyword =
             (typedText != "") && ((nextKeyword st) == Stdlib.Option.Option.Some typedText)
 
-          if duplicatesNextKeyword then
+          // The LABEL this slot already carries, typed back. `Size {` arrives with `width` and `height`
+          // written in it, so typing the printed `Size { width = 1 }` had the space commit the menu's best
+          // guess for `height` -- `Darklang.Cli.CompletionPicker.minimumHeight` -- and there was no way
+          // back from that.
+          //
+          // Neither commit nor resolve: leave the partial exactly as typed and swallow the space. The
+          // space is where the ambiguity sits, not where it is settled. `Size { width = width }` with a
+          // local called `width` is a real thing to write and reads identically up to here; the NEXT key
+          // says which was meant, `=` for the label (the rule in `typeOne`) and anything else for the
+          // variable.
+          let duplicatesLabel = (typedText != "") && ((labelForSlot st sp) == Stdlib.Option.Option.Some typedText)
+
+          if duplicatesLabel then
+            st
+          elif duplicatesNextKeyword then
             match (Path.parent sp, Path.last sp) with
             | (Some parentPath, Some(Item(slot, i))) ->
               let st1 = commit st [ Edit.RemoveItem(parentPath, slot, i) ] caret
@@ -2138,6 +2192,11 @@ let drawsAsName (pieces: List<Piece>) (slot: String) : Bool =
   |> Stdlib.List.any (fun p ->
     match p with
     | NameText(s, _) -> s == slot
+    // `FieldText` draws a name too -- it differs from `NameText` in how it QUOTES one, not in what one is.
+    // Leaving it out meant the five slots drawn with it had no character class at all and took anything:
+    // typing the printed `Zork { x = 1 }` put the space and the `}` INTO the field name, and the drawing
+    // then honestly showed them back as `` ` x` `` and `` `}` ``.
+    | FieldText(s, _) -> s == slot
     | Group ps -> drawsAsName ps slot
     | Flat ps -> drawsAsName ps slot
     | Nest(_, ps) -> drawsAsName ps slot
@@ -3224,6 +3283,50 @@ let inSpaceSepList (st: State) (sp: Path) : Bool =
      | Some parent -> spaceSepOf st parent slot
      | None -> false)
   | _ -> false
+
+/// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to
+/// recognise the closer it drew.
+let drawsPunct (st: State) (n: Node) (c: String) : Bool =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Bool =
+    match spec with
+    | Some sp -> Stdlib.List.member (Project.punctTexts sp.pieces) c
+    | None -> false
+  (fromSpec (Registry.findExact st.reg n.kind)) || (fromSpec (Registry.findTypeLevel st.reg n.kind))
+
+/// The label a node already carries for the slot at `sp`: a record field's NAME, which its spec draws
+/// just before the value. `None` when the spec draws no label there, or the node's is still blank.
+let labelForSlot (st: State) (sp: Path) : Stdlib.Option.Option<String> =
+  match (Path.last sp, Path.parent sp) with
+  | (Some(Into valueSlot), Some(parentPath)) ->
+    (match nodeAtPath st.root parentPath with
+     | Some parent ->
+       let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<String> =
+         match spec with
+         | Some sp2 -> Project.labelTextSlot sp2.pieces valueSlot
+         | None -> Stdlib.Option.Option.None
+
+       (match fromSpec (Registry.findExact st.reg parent.kind) with
+        | Some ns -> Stdlib.Option.Option.Some ns
+        | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind))
+       |> Stdlib.Option.andThen (fun ns -> Node.text parent ns)
+       |> Stdlib.Option.andThen (fun t -> if t == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some t)
+     | None -> Stdlib.Option.Option.None)
+  | _ -> Stdlib.Option.Option.None
+
+/// The bare text sitting in a slot: what is still being typed, or the content of a leaf that settled.
+let slotLeafText (st: State) (sp: Path) : Stdlib.Option.Option<String> =
+  match slotAtPath st.root sp with
+  | Some(Partial(t, _)) -> Stdlib.Option.Option.Some t
+  | Some(Filled n) -> mergeSlotOf n |> Stdlib.Option.andThen (fun ms -> Node.text n ms)
+  | _ -> Stdlib.Option.Option.None
+
+/// The slot the caret is working in, whether it is standing in one, typing in a leaf inside one, or
+/// sitting just after it. `Caret.slotPath` only answers the first.
+let caretSlotPath (c: Caret) : Stdlib.Option.Option<Path> =
+  match c.part with
+  | AfterNode -> Stdlib.Option.Option.Some c.node
+  | InText _ -> Stdlib.Option.Option.Some c.node
+  | _ -> Caret.slotPath c
 
 /// Typing the separator a spec draws BETWEEN a list's items, at the end of a finished item, starts the
 /// next one. Same shape as the lead-punct rule and tried the same way, from the inside out.
