@@ -151,12 +151,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | exeState, vm, _, [| DUuid branchIdGuid; DList(_vtTODO, ops) |] ->
+        | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
-              let branchId = PT.BranchId.Id branchIdGuid
+              let branchId = PT.BranchId.Id branchId
 
               // Branch: the edit lands on the BRANCH, stored effective=0 and tagged, never folded into
               // main. Hashes stabilize exactly as the main path does, or a merged value's
@@ -382,9 +382,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "now active."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid |] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
-            let branchId = PT.BranchId.Id branchIdGuid
+            let branchId = PT.BranchId.Id branchId
             LibDB.PackageManager.selectBranch branchId
             return DUuid branchId.Guid
           }
@@ -719,9 +719,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Author the op that says this branch was archived, so other machines learn it."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid |] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
-            let branchId = PT.BranchId.Id branchIdGuid
+            let branchId = PT.BranchId.Id branchId
             // The event's id, so the Dark caller can COMMIT it. Left uncommitted it sits in main's
             // draft, where `status` (which counts bindings) reads clean and the next unrelated commit
             // sweeps it up under a message about something else.
@@ -816,7 +816,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Author the op that says this branch was merged, naming what it moved, so other machines learn it. Returns the event op's id."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid; DList(_, ops) |] ->
+        | _, _, _, [| DUuid branchId; DList(_, ops) |] ->
           uply {
             let ids =
               ops
@@ -825,7 +825,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | DUuid g -> Some g
                 | _ -> None)
             let! eventId =
-              recordBranchEvent (PT.BranchId.Id branchIdGuid) (PT.Merged ids)
+              recordBranchEvent (PT.BranchId.Id branchId) (PT.Merged ids)
             return DUuid eventId
           }
         | _ -> incorrectArgs ())
@@ -857,7 +857,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | _, _, _, [| DUuid branchIdGuid; opDval; DString stamp |] ->
+        | _, _, _, [| DUuid branchId; opDval; DString stamp |] ->
           uply {
             try
               match PT2DT.PackageOp.fromDT opDval with
@@ -865,7 +865,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | Some op ->
                 let! n =
                   LibDB.Branches.storeDeltaOpsStamped
-                    (PT.BranchId.Id branchIdGuid)
+                    (PT.BranchId.Id branchId)
                     [ (op, stamp) ]
                 return resultOk (Dval.int (bigint (int n)))
             with ex ->
@@ -902,9 +902,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [| DUuid branchIdGuid; DString name; DString parentText; DList(_, records) |] ->
+          [| DUuid branchId; DString name; DString parentText; DList(_, records) |] ->
           uply {
-            let branchId = PT.BranchId.Id branchIdGuid
+            let branchId = PT.BranchId.Id branchId
             // The parent arrives inside a peer's bundle, so it is text this process did not write.
             // A value that is not an id means main, the same as a branch with no parent recorded;
             // raising here would fail an import over a field that is only used for the parent link.

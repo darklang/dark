@@ -182,7 +182,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
         (function
-        | exeState, vm, _, [| DUuid branchIdGuid |] ->
+        | exeState, vm, _, [| DUuid branchId |] ->
           uply {
             LibExecution.PermissionCheck.requireDbReadAll exeState vm
             let! app = Toplevels.loadAllDBs ()
@@ -190,7 +190,7 @@ let fns () : List<BuiltInFn> =
             // branch, and main's PM has no name for it. Display-only, but "unknown
             // type" for a type you just wrote reads as breakage rather than as a
             // listing.
-            let pm = LibDB.PackageManager.ptForBranch (PT.BranchId.Id branchIdGuid)
+            let pm = LibDB.PackageManager.ptForBranch (PT.BranchId.Id branchId)
             let! dbs =
               app.dbs
               |> Map.values

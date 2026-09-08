@@ -705,7 +705,7 @@ let fns () : List<BuiltInFn> =
           _,
           [],
           [| accountIDDval
-             DUuid branchIdGuid
+             DUuid branchId
              DString filename
              DString code
              DList(_vtTODO, scriptArgs)
@@ -721,7 +721,7 @@ let fns () : List<BuiltInFn> =
             // `allowHarmful` belongs on the state the BODY runs under, not only on the parse state below:
             // the Harmful gate fires in the interpreter, so setting it on a state that never executes
             // leaves `--allow-harmful` parsed, threaded, and inert.
-            let branchId = PT.BranchId.Id branchIdGuid
+            let branchId = PT.BranchId.Id branchId
 
             let exeState =
               { exeState with
@@ -737,7 +737,6 @@ let fns () : List<BuiltInFn> =
             // still parse and then have its body denied with an actionable
             // message, not fail opaquely at parse. Only the script *body* runs
             // under the guest state built below.
-            let exeState = { exeState with branchId = PT.BranchId.Id branchIdGuid }
             let branchState = createBranchState exeState allowHarmful
             let sessionAllow = sessionAllowDvals |> List.map PolicyToDT.Rule.fromDT
             // Denials raised under the guest state land here; a run that ends
@@ -904,7 +903,7 @@ let fns () : List<BuiltInFn> =
           vm,
           [],
           [| accountIDDval
-             DUuid branchIdGuid
+             DUuid branchId
              DString expression
              DList(_, currentModule)
              DInt width
@@ -914,7 +913,7 @@ let fns () : List<BuiltInFn> =
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            let branchId = PT.BranchId.Id branchIdGuid
+            let branchId = PT.BranchId.Id branchId
             let exeState =
               { exeState with accountID = accountID; branchId = branchId }
             // Branch-specific state for parsing, under the host's access — see

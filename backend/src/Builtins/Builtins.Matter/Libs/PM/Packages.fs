@@ -33,8 +33,8 @@ let private repointListKT =
 /// sitting on -- which is what the LSP and any daemon need, and what stops a reader assuming the ambient
 /// branch is the one they meant. Dark hands over a `Uuid`, so there is nothing to parse and nothing that
 /// can arrive here not being an id; main is main's own uuid, like everywhere else.
-let private branchOfParam (branchIdGuid : System.Guid) : PT.BranchId =
-  PT.BranchId.Id branchIdGuid
+let private branchOfParam (branchId : System.Guid) : PT.BranchId =
+  PT.BranchId.Id branchId
 
 /// The `branchId` parameter every branch-scoped builtin here takes.
 let private branchParam : Param =
@@ -70,9 +70,9 @@ let private locationsByHashFn
     description = $"Returns all locations of a package {itemWord} by its hash"
     fn =
       (function
-      | _, _, _, [| DUuid branchIdGuid; hashDval |] ->
+      | _, _, _, [| DUuid branchId; hashDval |] ->
         uply {
-          let branch = branchOfParam branchIdGuid
+          let branch = branchOfParam branchId
           let hash = PT2DT.Hash.fromDT hashDval
 
           let! onMain = fromMain hash
@@ -128,11 +128,11 @@ let private findByLocationFn
       $"Tries to find a package {itemWord}, by location, and returns the ID if it exists"
     fn =
       (function
-      | _, _, _, [| DUuid branchIdGuid; location |] ->
+      | _, _, _, [| DUuid branchId; location |] ->
         uply {
           let location = PT2DT.PackageLocation.fromDT location
           let! result =
-            let branch = branchOfParam branchIdGuid
+            let branch = branchOfParam branchId
 
             if branch.IsMain then
               findOnMain location
@@ -377,7 +377,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "crashing."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid; DString name |] ->
+        | _, _, _, [| DUuid branchId; DString name |] ->
           uply {
             let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
             let err (msg : string) = Dval.resultError okKT KTString (DString msg)
@@ -392,7 +392,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 // MAIN's package manager; asked about a router authored on a branch it answers "No
                 // function named ..." about a fn that is plainly there.
                 let branchPM =
-                  LibDB.PackageManager.ptForBranch (branchOfParam branchIdGuid)
+                  LibDB.PackageManager.ptForBranch (branchOfParam branchId)
                 match! branchPM.findFn location with
                 | Some fqPkg ->
                   let rtName = FQFnName.Package(PT2RT.FQFnName.Package.toRT fqPkg)
@@ -430,12 +430,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Search for packages based on the given query."
       fn =
         function
-        | _, _, _, [| DUuid branchIdGuid; query as DRecord(_, _, _, _fields) |] ->
+        | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
             // Through the branch overlay, so a branch's items show up in ls/view/tree/search, not just
             // eval. Main's overlay is main itself.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchIdGuid)
+            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
             let! results = pm.search searchQuery
             return PT2DT.Search.SearchResults.toDT results
           }
@@ -458,7 +458,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "equality seek on the owner index."
       fn =
         function
-        | _, _, _, [| DUuid branchIdGuid; DString owner |] ->
+        | _, _, _, [| DUuid branchId; DString owner |] ->
           uply {
             // `locations` has no branch column (a branch is an overlay), so the seek answers about
             // MAIN. Ask the branch too when it says no, or the first item someone authors on a branch
@@ -470,7 +470,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               return
                 DBool(
                   LibDB.PackageManager.branchOwnerHasItems
-                    (branchOfParam branchIdGuid)
+                    (branchOfParam branchId)
                     owner
                 )
           }
@@ -497,11 +497,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "module and sorted."
       fn =
         function
-        | _, _, _, [| DUuid branchIdGuid; query as DRecord(_, _, _, _fields) |] ->
+        | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
             // Through the branch overlay: a branch is its ops laid over main, not a scope to walk up.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchIdGuid)
+            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
             let! results = pm.search searchQuery
 
             let submodules = directSubmodules searchQuery results
@@ -541,11 +541,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "listings need for deprecation marks."
       fn =
         function
-        | _, _, _, [| DUuid branchIdGuid; query as DRecord(_, _, _, _fields) |] ->
+        | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
           uply {
             let searchQuery = PT2DT.Search.SearchQuery.fromDT query
             // Through the branch overlay: a branch is its ops laid over main, not a scope to walk up.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchIdGuid)
+            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
             let! results = pm.search searchQuery
 
             let submodules = directSubmodules searchQuery results
@@ -787,7 +787,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _,
           _,
           _,
-          [| DUuid branchIdGuid
+          [| DUuid branchId
              sourceLocation
              sourceItemKindDval
              DList(_, fromSourceHashDvals)
@@ -799,7 +799,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             // The branch this propagation runs on, from the caller. Every Dark call site passes
             // `state.currentBranchId`, which is what keeps a branch's cascade off main.
-            let branch = branchOfParam branchIdGuid
+            let branch = branchOfParam branchId
 
             let! result =
               LibDB.Propagation.propagate
@@ -896,10 +896,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "deprecated items with no live direct caller."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid |] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! sets =
-              LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchIdGuid)
+              LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchId)
             let hashListDval (hashes : Set<PT.Hash>) =
               hashes
               |> Set.toList
@@ -944,13 +944,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "together. None = not deprecated; Some (kind, message) otherwise."
       fn =
         (function
-        | _, _, _, [| DUuid branchIdGuid; hashDval; itemKindDval |] ->
+        | _, _, _, [| DUuid branchId; hashDval; itemKindDval |] ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval
             let! result =
               LibDB.Queries.getCurrentDeprecationFor
-                (PT.BranchId.Id branchIdGuid)
+                (PT.BranchId.Id branchId)
                 hash
                 itemKind
             let tupleKT =
