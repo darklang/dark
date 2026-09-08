@@ -2034,7 +2034,21 @@ let letPatTypeSpec () : Spec =
       pieces = [ Piece.Dim "?pattern" ]
       holeRules =
         [ HoleRule { onChar = "<letter>"; fill = HoleFill.WithChar letPatVarFromLetter }
-          HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) } ]
+          HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) }
+          // `let (a, b) = t`. An expression hole, a match pattern and a type hole each build their tuple
+          // from a `(`; this one had rules for a letter and for `_` and nothing else, so the paren became
+          // a PARTIAL and everything after it appended: `let (a, = b = t`.
+          //
+          // The LPTuple spec is already here and already drawn -- its own comment records that a tuple
+          // destructuring "could not be seen or edited" before it was registered under the right kind. It
+          // still could not be typed.
+          HoleRule
+            { onChar = "("
+              fill =
+                HoleFill.Node(
+                  Node.make
+                    (letPatKind "LPTuple")
+                    [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]) } ]
       wrapRules = []
       textClasses = []
       maxItems = Spec.noMaxItems

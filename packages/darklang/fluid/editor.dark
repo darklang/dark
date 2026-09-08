@@ -2053,7 +2053,17 @@ let typeOneRaw (st: State) (c: String) : State =
             let updated = TextEdit.insertAt old caret.offset c
             commitRun st ((Path.toString caret.node) ++ "|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
     | None -> st
-  | OnNode -> st
+  | OnNode ->
+    // Nothing to type INTO here, so type against what follows instead. `OnNode` is where the caret lands
+    // on a node with no text and no hole -- `_` is a whole pattern drawn as a LABEL, and so is a type like
+    // `Int` -- and this branch answered every key with `st`. `fun _ ->` swallowed the arrow, the body, and
+    // everything up to the next argument, which then landed in the body and left the call a hole short.
+    //
+    // Handled HERE rather than by landing the caret elsewhere when the node is built: `OnNode` is a real
+    // position, it is what `j`/`k` and the change action select, and the type pins say a freshly built
+    // `Int` is selected rather than passed. What was wrong is that typing there did nothing, not where
+    // the caret was.
+    typeOne { st with caret = Caret.afterNode caret.node } c
   | AfterNode ->
     // Space from just-after a node advances to the next hole -- unless an operator could follow, in which
     // case it stays, because leaving would abandon the thing the operator is about to wrap. `landSettled`

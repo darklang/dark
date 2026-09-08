@@ -1098,6 +1098,55 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module ALetCanDestructureATuple =
+  // `let (a, b) = t` is ordinary Darklang and came out as `let (a, = b = t`: the `(` had no rule on a
+  // let-pattern hole, so it became a PARTIAL and everything after it appended to it.
+  //
+  //     expression hole    `(` builds a tuple
+  //     match pattern      `(` builds an MPTuple
+  //     type hole          `(` builds a TTuple
+  //     LET pattern        nothing
+  //
+  // Three of the four kinds had it. The LPTuple spec was already written and already drawn -- its own
+  // comment records that a destructuring "could not be seen or edited" before it was registered under the
+  // right kind, and it still could not be TYPED.
+  (Fixtures.screen (Fixtures.chars "let (")) = "let (~⟨a⟩, ⟨b⟩) = ⟨value⟩\n⟨body⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let (a, b) = p b") [ "<Esc>", "<Esc>" ])) =
+    "let (a, b) = p\nb"
+
+  // The rules it sits beside must still fire.
+  (Fixtures.screen (Fixtures.chars "let x")) = "let x~ = ⟨value⟩\n⟨body⟩"
+  // The wildcard is SELECTED here rather than passed, which is what `OnNode` is for: a `let _` is a whole
+  // pattern with nothing to type into, and `c` to change it is the next thing anyone does.
+  (Fixtures.screen (Fixtures.chars "let _")) = "let ~_ = ⟨value⟩\n⟨body⟩"
+
+
+module AWildcardParamDoesNotSwallowTheBody =
+  // `fun _ ->` is how you ignore an argument, and it ate everything after itself:
+  //
+  //     Stdlib.List.map (fun _ -> true) "a"   ->  (fun _ -> "a") ⟨fn⟩
+  //
+  // The `->`, the body, and everything up to the next argument were dropped in silence, and the next
+  // argument then landed in the body, leaving the call a hole short.
+  //
+  // `_` is a whole pattern drawn as a LABEL, so it has no text and no hole. `firstEditable` and
+  // `lastEditable` both answer `OnNode` when they find neither, which is how they tell their own
+  // recursion "nothing here" -- and `typeOneRaw` answers `OnNode` with `st`, so it is a position where
+  // typing does nothing at all. Landing a caret there is the "key that does nothing" this file keeps
+  // saying to avoid.
+  //
+  // After the node instead, wherever something was just BUILT: the next key then acts on what follows,
+  // and the arrow rule takes `->` to the body exactly as it does after a named parameter. The nav-side
+  // callers are untouched -- `OnNode` is a real position for `j`/`k` and for the change action.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "fun _ -> true") [ "<Esc>", "<Esc>" ])) =
+    "(fun _ -> true)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map (fun _ -> true) \"a\"") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map (fun _ -> true) \"a\""
+
+  // A named param must still land IN its name, not after it.
+  (Fixtures.screen (Fixtures.chars "fun x")) = "(fun x~ -> ⟨body⟩)"
+
+
 module AQualifiedNameTheStoreDoesNotKnowStillSettles =
   // A name that resolves to nothing is kept as WHAT WAS TYPED -- the document holds it, and the save puts
   // the source back through the real parser, which is the thing that resolves names. `Zork` has worked
