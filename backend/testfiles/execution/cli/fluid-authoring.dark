@@ -1156,6 +1156,37 @@ module ALetCanDestructureATuple =
   (Fixtures.screen (Fixtures.chars "let _")) = "let ~_ = ⟨value⟩\n⟨body⟩"
 
 
+module APipeStepTakesArguments =
+  // `xs |> zork 1` came out `xs |> zork1` -- the space lost, the digit joining the name.
+  //
+  // Two things, and both are questions this file already asks somewhere else.
+  //
+  // `landSettled` waits AFTER a node when an operator could follow, because leaving would abandon what
+  // the next key is about to attach to. An ARGUMENT could follow for the same reason, and it never asked
+  // that. `EVariable` carries an `<operator>` rule so the caret landed after it and the apply rule could
+  // reach it; `EPipeVariable` carries none, so the caret stayed in the name and the digit appended.
+  //
+  // Then the apply itself. On the expression side `<apply>` WRAPS a variable into a call; here there is
+  // nothing to build, because `EPipeVariable` already has the `args` slot and is already drawn with
+  // `ArgSlots`. It only needed extending.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork 1") [ "<Esc>", "<Esc>" ])) =
+    "xs |> (zork 1)"
+
+  // But the caret waiting after the name is also where a list grows, so the `1` first grew the PIPE:
+  // `xs |> zork |> 1`. Two readings of one position, and the node itself settles it. Growing a sibling is
+  // what a caret after a FINISHED item means, and a node that still offers `<apply>` is not finished: it
+  // has said it can take another argument. So the argument wins where the node asks for one, and the
+  // sibling wins everywhere else. `[[1] 2]` is still `[[1], 2]` because a list is not applied to anything.
+  //
+  // Only for a caret on an item's own path. Inside an `ArgSlots` list the caret sits on the last ARGUMENT,
+  // which may well be appliable itself, and there the next value is a further argument to the outer call.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[[1] 2]") [ "<Esc>", "<Esc>" ])) = "[[1], 2]"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs f") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map xs f"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "xs |> zork |> Stdlib.List.length"
+
+
 module APipeContinuationLine =
   // The printer writes a pipe that does not fit one stage to a line, and typing that back put the `|>` in
   // as TEXT:

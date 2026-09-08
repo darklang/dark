@@ -1588,6 +1588,20 @@ let resolveExprPartial (typed: String) : Stdlib.Option.Option<Node> =
   else
     Stdlib.Option.Option.None
 
+/// `xs |> zork 1`: an argument after a settled pipe variable.
+///
+/// Not a wrap, unlike the expression side's `<apply>` -- there is nothing to build. `EPipeVariable`
+/// already carries the `args` slot and is already drawn with `ArgSlots`; it just arrives with the list
+/// empty and nothing added to it, so the `1` had nowhere to go and appended to the NAME: `xs |> zork1`.
+let argToPipeVariable (n: Node) (c: String) : Node =
+  Node.make
+    (pipeKind "EPipeVariable")
+    [ text "name" (textOf n "name")
+      ("args",
+       Field.Many(
+         Stdlib.List.append (Node.items n "args") [ Slot.Empty(exprExpect "arg") ],
+         exprExpect "arg")) ]
+
 /// A bare name typed as a pipe STEP: `xs |> f`. The same bargain the expression side makes -- what the
 /// store does not know is kept as WHAT WAS TYPED, and the save puts the source back through the real
 /// parser, which is the thing that resolves names.
@@ -2229,7 +2243,9 @@ let moreSpecs () : List<Spec> =
           [ Piece.Slot "first"
             Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
-    simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ])
+    Spec.withWrapRules
+      (simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
+      [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args" } ]
     simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
     // Parenthesised, and not for looks. Without them the drawing says something the document does not:
     // `xs |> fun a -> a |> g` reads back as `xs |> (fun a -> a |> g)`, because a bare lambda swallows the

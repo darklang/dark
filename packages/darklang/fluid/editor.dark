@@ -1163,7 +1163,21 @@ let landSettled (st: State) (sp: Path) : State =
   // the next letter grow the list. A call already worked this way (its args are drawn with a leading
   // space); a lambda's params did not, and `fun a b -> a + b` came out as `(fun a -> b -> a + b)` because
   // the space walked out of the params and into the body.
-  if canBeWrappedByOperator || (inSpaceSepList st sp) then { st with caret = Caret.afterNode sp } else nextHole st
+  // ...and a node that can be APPLIED is the third reason to wait. An argument could follow, which is the
+  // same thing the operator case says: leaving would abandon what the next key is about to attach to.
+  //
+  // A pipe step is where that showed. `EVariable` carries an `<operator>` rule, so the caret lands after
+  // it and the apply rule can reach it; `EPipeVariable` carries none, so `landSettled` fell to `nextHole`,
+  // a freshly resolved one has no holes to find, and `xs |> zork 1` put the digit in the NAME: `zork1`.
+  let canBeApplied =
+    match nodeAtPath st.root sp with
+    | Some n -> Stdlib.Option.isSome (wrapRuleNamed st.reg n "<apply>")
+    | None -> false
+
+  if canBeWrappedByOperator || canBeApplied || (inSpaceSepList st sp) then
+    { st with caret = Caret.afterNode sp }
+  else
+    nextHole st
 
 /// The keyword the editor already drew, typed back into the slot it drew you into. `match n with` writes
 /// the `with` for you and lands the caret in the first arm's PATTERN, so typing `with` there is the same
@@ -2148,7 +2162,32 @@ let typeOneRaw (st: State) (c: String) : State =
           // `(if x > 0 then ⟨then⟩ else ⟨else⟩, then, 1, else, 2)`. The same `if` with no list around it
           // was always right, which is the tell -- one question, and the answer depended on what happened
           // to enclose the caret.
-          match (if itemHasHoles st caret then Stdlib.Option.Option.None else addSibling st) with
+          // A value after a settled node is usually the next ITEM of whatever list it sits in. Not when the
+          // node can take it as an ARGUMENT and nothing else can: `xs |> zork 1` means the step applied to
+          // `1`, not a second stage `1`.
+          //
+          // Three facts have to hold together, and each is what keeps one of the pinned readings:
+          //
+          //   the caret's node IS the item      a match's rhs sits INSIDE its arm, so `| 0 -> "z"` then
+          //                                     `1` is the next arm and stays that way
+          //   the list is not an ArgSlots one   an item there is already an argument, so
+          //                                     `Stdlib.List.map xs` then `f` is the next argument
+          //   the node can be applied           an EList cannot, so `[[1]` then `2` is the next element
+          //
+          // I tried "a list drawn with a LEAD punct is grown by typing that punct" first, which is a rule
+          // about the LIST, and a pin killed it: a match's arms are led by `|` and are grown by typing a
+          // value on purpose. The question is about the node and where the caret is on it.
+          let appliesHere =
+            match enclosingListItem caret with
+            | Some((parentPath, slot, i)) ->
+              ((Path.item parentPath slot i) == caret.node)
+              && (Stdlib.Bool.not (inArgSlotsList st caret))
+              && (match nodeAtPath st.root caret.node with
+                  | Some n -> Stdlib.Option.isSome (wrapRuleNamed st.reg n "<apply>")
+                  | None -> false)
+            | None -> false
+
+          match (if (itemHasHoles st caret) || appliesHere then Stdlib.Option.Option.None else addSibling st) with
           | Some added -> typeOne added c
           | None ->
             // Nothing to grow. A name after a finished value that CAN be applied is a call: `f xs` is
