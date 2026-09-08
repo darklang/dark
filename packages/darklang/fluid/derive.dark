@@ -103,6 +103,7 @@ let recordSpec
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = false
       completions = [ Spec.candidate (shortName typeName) "record" empty ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -169,6 +170,7 @@ let caseSpec
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = false
       completions = []
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -204,6 +206,7 @@ let enumTypeSpec
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = false
       completions = candidates
       complete = Spec.noCompletions
       resolve = Spec.noResolve

@@ -1694,6 +1694,7 @@ let pipeTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
       resolve = resolvePipePartial
@@ -2081,6 +2082,7 @@ let exprTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = false
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
@@ -2131,6 +2133,16 @@ let exprTypeSpec () : Spec =
       empty = Node.make (exprKind "EUnit") []
       summary = exprSummary }
 
+/// A bare name typed where a let PATTERN goes: `let x = 1`. The mirror of `resolveMatchPatPartial`, and
+/// the thing that lets a lowercase letter leave a PARTIAL rather than becoming an `LPVariable` on the
+/// first keystroke. A filled slot pools no candidates, so without this the spec's own menu -- `wildcard`,
+/// `tuple` -- could be listed and never reached.
+let resolveLetPatPartial (typed: String) : Stdlib.Option.Option<Node> =
+  if isIdentifier typed then
+    Stdlib.Option.Option.Some(Node.make (letPatKind "LPVariable") [ text "name" typed ])
+  else
+    Stdlib.Option.Option.None
+
 let letPatTypeSpec () : Spec =
   Spec
     { kind = Kind.named letPatType
@@ -2156,10 +2168,11 @@ let letPatTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = true
       completions =
-[ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
+        [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
-      resolve = Spec.noResolve
+      resolve = resolveLetPatPartial
       binders = Spec.noBinders
       offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None
@@ -2218,14 +2231,13 @@ let matchPatTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      bindsNames = true
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
-      // The same gap the expression hole had is still here: the character rules build five patterns the
-      // menu does not name. Adding them needs a lowercase letter to leave a PARTIAL rather than an
-      // `MPVariable`, and that breaks `| h :: t ->`: with `t` a partial, Tab commits the unambiguous
-      // keyword prefix and the tail becomes `true`. Written up; it wants a decision about whether an
-      // unambiguous PREFIX should commit at all, which is a rule expressions depend on.
+      // The same gap the expression hole had. `|` and `:` stay out: they are WRAP rules, not hole rules,
+      // so an or-pattern and a cons act on a pattern you already have rather than being something you
+      // pick from an empty hole. The data said that before I had to decide it.
       completions =
         [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
@@ -2738,6 +2750,7 @@ module Types =
         textClasses = []
         maxItems = Spec.noMaxItems
         noSequence = []
+        bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
         resolve = resolveTypePartial

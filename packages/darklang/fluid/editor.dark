@@ -1188,6 +1188,24 @@ let onABlankNow (st: State) : Bool =
        | None -> false)
     | _ -> false
 
+/// Is the caret in a hole that INTRODUCES a name?
+///
+/// Asked of the expectation rather than of the node, because the hole is empty: what it will hold is all
+/// there is to go on.
+let inBindingPosition (st: State) : Bool =
+  match Caret.slotPath st.caret with
+  | Some sp ->
+    (match slotAtPath st.root sp with
+     | Some s ->
+       (match Slot.expect s with
+        | Some e ->
+          (match Registry.forExpect st.reg e with
+           | Some spec -> spec.bindsNames
+           | None -> false)
+        | None -> false)
+     | None -> false)
+  | None -> false
+
 let stayIfOnHole (st: State) (move: State -> State) : State =
   if onABlankNow st then st else move st
 
@@ -2365,9 +2383,13 @@ let typeOneRaw (st: State) (c: String) : State =
           // `if c then` came out `if '' then`; `r` became a record update, `s` an empty string.
           let cands = candidates st |> Stdlib.List.filter (fun c -> c.keyword)
           let exact = exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None)
+          // A lone unambiguous candidate commits, EXCEPT where the hole introduces a name. There `t` is
+          // the tail of a list and not an abbreviation for `true`; only an exact match commits, because
+          // no variable can be named `true`.
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
-            && ((Stdlib.Option.isSome exact) || ((Stdlib.List.length cands) == 1))
+            && ((Stdlib.Option.isSome exact)
+                || (((Stdlib.List.length cands) == 1) && (Stdlib.Bool.not (inBindingPosition st))))
           if commitMenu then
             // Committing a leaf (an in-scope variable, a bool) finishes it and leaves the caret JUST AFTER
             // it, not at the next hole. That matters because the next keystroke is what says which you
@@ -4055,7 +4077,10 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // it and built a nested update where the pin wanted the variable `r`.
     //
     // ENTER is the key that means take what is shown, and it still does.
-    elif completing && (onPartial st) && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.keyword) |> Stdlib.Option.withDefault false) then
+    elif completing
+         && (onPartial st)
+         && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.keyword) |> Stdlib.Option.withDefault false)
+         && ((Stdlib.Option.isSome (exactCandidate st)) || (Stdlib.Bool.not (inBindingPosition st))) then
       let committed = commitCandidate st
 
       if onABlankNow committed then handled committed else handled (nextHole committed)

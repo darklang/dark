@@ -222,6 +222,17 @@ type Spec =
     /// Named here rather than checked for in the kernel so a DSL with its own bracketed construct can say
     /// the same thing about its own slots.
     noSequence: List<String>
+    /// Does a hole of this kind INTRODUCE a name rather than reference one?
+    ///
+    /// A space or a Tab commits an unambiguous keyword PREFIX, which is how `le` becomes `let`. That is
+    /// safe wherever a name is being referenced, because by then the name is bound and an in-scope
+    /// variable is an EXACT candidate that outranks the prefix. In a pattern nothing is in scope yet, so
+    /// the prefix wins and `match n with | h :: t ->` came out `| h :: true ->`.
+    ///
+    /// So a prefix does not commit here. An exact match still does, because no variable can be named
+    /// `true`. Declared rather than detected: `binders` says where names are VISIBLE, not where they are
+    /// born, and "has no scopeCandidate" catches type holes too.
+    bindsNames: Bool
     /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
     completions: List<Candidate>
     /// Computed candidates, given the typed text: names in scope, package search.
@@ -281,6 +292,7 @@ module Spec =
         textClasses = []
         maxItems = Spec.noMaxItems
         noSequence = []
+        bindsNames = false
         completions = []
         complete = noCompletions
         resolve = noResolve
@@ -308,6 +320,9 @@ module Spec =
 
   /// A spec that says which of its slots a newline must not sequence.
   let withNoSequence (spec: Spec) (slots: List<String>) : Spec = { spec with noSequence = slots }
+
+  /// A spec whose holes introduce names rather than reference them.
+  let bindsItsNames (spec: Spec) : Spec = { spec with bindsNames = true }
 
   /// A slot that is capped at whatever it already holds: fixed by a declaration somewhere, not by the
   /// person typing. An enum case's fields are the case in point.

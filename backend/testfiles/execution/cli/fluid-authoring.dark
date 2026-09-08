@@ -2193,3 +2193,26 @@ module AnEmptyTextIsSomethingLeftToFill =
   // And an argument position, where the commit lands INSIDE the new node rather than after it.
   (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "Stdlib.List.map xs ", Fixtures.chars "int", [ "<Enter>" ] ])) =
     "Stdlib.List.map xs ~digits"
+
+
+module APrefixDoesNotCommitWhereANameIsBorn =
+  // Space and Tab commit an unambiguous keyword PREFIX, which is how `le` becomes `let`. That was written
+  // for keywords and stayed safe by accident: wherever you REFERENCE a name it is already bound, and an
+  // in-scope variable is an EXACT candidate that outranks the prefix.
+  //
+  //     t + space, unbound   ->  true
+  //     t + space, bound     ->  t
+  //
+  // A pattern is where a name is BORN. Nothing is in scope, so the prefix wins and `| h :: t ->` came out
+  // `| h :: true ->`. So a prefix does not commit in a binding position. An exact match still does,
+  // because no variable can be named `true`.
+  //
+  // Declared, not detected. `binders` says where a name is VISIBLE, not where it is born, and "has no
+  // scopeCandidate" would catch type holes too and stop `In ` becoming `Int`.
+  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t", "<Tab>", "0", "<Esc>", "<Esc>" ]) =
+    "match n with\n| h :: t -> 0"
+
+  // Expressions are reference positions and are untouched.
+  (Fixtures.screen (Fixtures.chars "l ")) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen (Fixtures.chars "t ")) = "true~"
+  (Fixtures.screen (Fixtures.chars "i ")) = "if ~⟨cond⟩ then ⟨then⟩ else ⟨else⟩"
