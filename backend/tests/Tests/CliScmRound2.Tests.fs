@@ -190,10 +190,47 @@ let overrideByNameAnswersThePendingConflict =
     })
 
 
+// ─── 10. an identity that survives the round trip ─────────────────────────
+
+/// An identity travels as a query parameter and comes back in the relay's owner listing, one per
+/// line. A space makes that listing unparseable, so every peer's automatic branch sync skips you; an
+/// `&` reads as a second parameter, so ops land under two owners. Both fail silently, which is why
+/// the refusal belongs at the point the name is chosen.
+let anIdentityIsRefusedIfItCannotTravel =
+  cliTest "an identity that would break sync is refused when it is set" (fun state ->
+    task {
+      do!
+        refuses
+          state
+          [ "identity"; "has a space" ]
+          "can't contain"
+          "is now"
+          "a space is refused"
+      do!
+        refuses
+          state
+          [ "identity"; "amp&sand" ]
+          "can't contain"
+          "is now"
+          "an ampersand is refused"
+      do! exits state [ "identity"; "has a space" ] 1L "and it is a failed command"
+
+      do!
+        shows
+          state
+          [ "identity"; "alice-laptop_2.0" ]
+          "alice-laptop_2.0"
+          "an ordinary name is taken"
+      // Leave the store as it was found: identity is per-instance config every later test reads.
+      do! run state [ "identity"; "inst-test-restored" ]
+    })
+
+
 let tests : List<Test> =
   [ revertingToAnEarlierVersionTakesEffect
     revertingOnMainTakesEffect
     aPartialCommitTakesItsDependencysName
     commitsFollowTheCommitBeforeThem
     aParentsPinIsListedOnTheChild
-    overrideByNameAnswersThePendingConflict ]
+    overrideByNameAnswersThePendingConflict
+    anIdentityIsRefusedIfItCannotTravel ]

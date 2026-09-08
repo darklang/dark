@@ -85,10 +85,46 @@ let identity () : String =
     generated
 
 
-/// Set (or change) this instance's sync identity.
-let setIdentity (name: String) : Unit =
-  let _ = Stdlib.LocalStore.configSet "sync.identity" name
-  ()
+/// Whether <param name> can be an instance identity, and why not when it cannot.
+///
+/// An identity travels as a query parameter and comes back in the relay's owner listing, one owner
+/// per line. So a space makes that listing unparseable and every peer's automatic branch sync
+/// silently skips you, and an `&` is read as a second parameter, which files your ops under two
+/// owners and makes your branches unpullable by name. Neither fails loudly anywhere.
+///
+/// Letters, digits, dot, dash and underscore. Narrow on purpose: an identity is a name you retype on
+/// another machine, and the auto-minted `inst-<uuid>` fits well inside it.
+let identityProblem (name: String) : Stdlib.Option.Option<String> =
+  if name == "" then
+    Stdlib.Option.Option.Some "an identity can't be empty"
+  else
+    let bad =
+      name
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        let ok =
+          (Stdlib.Char.isAlphanumeric c)
+          || (c == '.')
+          || (c == '-')
+          || (c == '_')
+
+        Stdlib.Bool.not ok)
+
+    match bad with
+    | [] -> Stdlib.Option.Option.None
+    | c :: _ ->
+      let shown = Stdlib.Char.toString c
+      Stdlib.Option.Option.Some
+        $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
+
+
+/// Set (or change) this instance's sync identity. Refuses one that cannot survive the round trip.
+let setIdentity (name: String) : Stdlib.Result.Result<Unit, String> =
+  match identityProblem name with
+  | Some why -> Stdlib.Result.Result.Error why
+  | None ->
+    let _ = Stdlib.LocalStore.configSet "sync.identity" name
+    Stdlib.Result.Result.Ok()
 
 
 /// The remembered default relay URL, or "" if none (so `dark sync` needs no url).
@@ -1589,8 +1625,27 @@ let exportBranch (branchId: Uuid) : String =
 
 
 // relay branch storage (silo wrappers over the F# store; used by the matter relay)
-let relayStoreBranch (owner: String) (branchId: Uuid) (bundle: String) : Unit =
-  Branches.relayStoreBundle owner branchId bundle
+/// Host a pushed branch bundle. `false` when the relay already holds a newer one and kept it.
+///
+/// The comparison is made here rather than in the silo because the bundle's shape is known here:
+/// the newest stamp among its ops, and how many there are.
+let relayStoreBranch (owner: String) (branchId: Uuid) (bundle: String) : Bool =
+  match Stdlib.Json.parse<BranchBundle> bundle with
+  | Ok b ->
+    let maxTs =
+      b.ops
+      |> Stdlib.List.map (fun op -> op.ts)
+      |> Stdlib.List.fold "" (fun acc ts ->
+        if SCM.Conflicts.stringGt ts acc then ts else acc)
+
+    Branches.relayStoreBundle
+      owner
+      branchId
+      bundle
+      maxTs
+      (Stdlib.Int.toInt64 (Stdlib.List.length b.ops)
+       |> Stdlib.Option.withDefault 0L)
+  | Error _ -> false
 
 
 let relayGetBranch (owner: String) (branchId: Uuid) : String =

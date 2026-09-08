@@ -23,14 +23,64 @@ let current () : Uuid = Builtin.scmCurrentBranch ()
 // A relay is a dumb store: it holds branch BUNDLES keyed by (owner, branch) and hands them back. It never
 // folds or runs a branch. Re-push replaces.
 
-let relayStoreBundle (owner: String) (branchId: Uuid) (bundle: String) : Unit =
-  let _ =
-    Stdlib.Sqlite.mustExec
+/// What the relay currently holds for (owner, branch): the newest op stamp, and how many ops.
+let relayBundleStamp (owner: String) (branchId: Uuid) : (String * Int64) =
+  match
+    Stdlib.Sqlite.queryOneP
       (localDb ())
-      "INSERT OR REPLACE INTO relay_branches (owner, branch_id, bundle) VALUES (@p0, @p1, @p2)"
-      [ owner, Stdlib.Uuid.toString branchId, bundle ]
+      "SELECT COALESCE(max_ts,'') AS ts, COALESCE(op_count,0) AS n FROM relay_branches
+       WHERE owner = @p0 AND branch_id = @p1"
+      [ owner, Stdlib.Uuid.toString branchId ]
+  with
+  | Some row ->
+    (Stdlib.Sqlite.textOr row "ts",
+     (Stdlib.Sqlite.intField row "n" |> Stdlib.Option.withDefault 0L))
+  | None -> ("", 0L)
 
-  ()
+
+/// Store a pushed bundle, unless the relay already holds a NEWER one. `true` when it replaced.
+///
+/// One bundle per branch, replaced on every push, meant that pushing a stale copy of a branch served
+/// that copy to every peer: whoever pulled next lost the newest commits with nothing to tell them.
+/// Newest op stamp decides; op count breaks a tie, for a bundle rebuilt with more of the same.
+///
+/// The comparison is made HERE rather than in SQL because it is a rule, not a query: an equal
+/// bundle is a re-push of what is already there, which replaces nothing and is not a failure.
+let relayStoreBundle
+  (owner: String)
+  (branchId: Uuid)
+  (bundle: String)
+  (maxTs: String)
+  (opCount: Int64)
+  : Bool =
+  let (heldTs, heldCount) = relayBundleStamp owner branchId
+
+  // `stringGt`, not `>`: these are ISO stamps compared as TEXT, and `>` in Dark is numeric.
+  let newer =
+    (SCM.Conflicts.stringGt maxTs heldTs)
+    || ((maxTs == heldTs) && (opCount > heldCount))
+
+  // Nothing stored yet is not "older": the first push of a branch has nothing to lose to.
+  let firstOne = (heldTs == "") && (heldCount == 0L)
+
+  if newer || firstOne then
+    let _ =
+      Stdlib.Sqlite.mustExec
+        (localDb ())
+        "INSERT OR REPLACE INTO relay_branches (owner, branch_id, bundle, max_ts, op_count)
+         VALUES (@p0, @p1, @p2, @p3, @p4)"
+        [ owner,
+          Stdlib.Uuid.toString branchId,
+          bundle,
+          maxTs,
+          Stdlib.Int64.toString opCount ]
+
+    true
+  else
+    // Equal is not a failure: re-pushing what the relay already has is a no-op, and the caller says
+    // so rather than reporting a loss.
+    (maxTs == heldTs) && (opCount == heldCount)
+
 
 /// The stored bundle for (owner, branch), or "" if the relay doesn't hold one.
 let relayGetBundle (owner: String) (branchId: Uuid) : String =

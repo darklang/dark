@@ -42,10 +42,11 @@ let execute (state: AppState) (_args: List<String>) : AppState =
   // The name a colleague sees your ops arrive under.
   let identity = askWithCurrent "This instance's name" (SCM.PackageOps.identity ())
 
-  if identity == "" then
-    Cli.printErr "an instance needs a name before it can sync."
+  match SCM.PackageOps.identityProblem identity with
+  | Some why ->
+    Cli.printErr why
     state
-  else
+  | None ->
 
   let relay = askWithCurrent "Relay url" (SCM.PackageOps.relay ())
 

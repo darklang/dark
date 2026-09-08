@@ -119,9 +119,14 @@ let reportConflicts (conflicts: List<SCM.Conflicts.Conflict>) : Unit =
 /// Not a login: nothing is authenticated, and an instance already has an id without this. It only swaps
 /// a readable name in for the generated one in provenance, and survives the store being copied.
 let setIdentity (state: AppState) (name: String) : AppState =
-  SCM.PackageOps.setIdentity name
-  Cli.printOk $"this instance is now \"{name}\" -- push/pull/sync identify it that way."
-  state
+  match SCM.PackageOps.setIdentity name with
+  | Ok _ ->
+    Cli.printOk $"this instance is now \"{name}\" -- push/pull/sync identify it that way."
+    state
+  | Error why ->
+    Cli.printErr why
+    Cli.printHint "  e.g. `dark identity alice-laptop`."
+    { state with exitCode = 1 }
 
 /// Show this instance's sync identity.
 let executeWhoami (state: AppState) : AppState =

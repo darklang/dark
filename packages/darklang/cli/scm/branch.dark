@@ -361,6 +361,15 @@ let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
           // see `Wire.branchChannel`.
           SCM.Wire.rememberPushed (SCM.Wire.branchChannel url) (SCM.PackageOps.branchOpIds branchId)
           Cli.printOk $"pushed branch \"{branchRef}\" to {url} as \"{id}\"."
+        else if Stdlib.String.startsWith text "kept the newer copy" then
+          // Not an error: the relay is holding a NEWER copy of this branch than the one just sent,
+          // which happens when another machine pushed and this one has not pulled yet. Replacing it
+          // would take that work off the relay.
+          Cli.printOk
+            $"{url} already holds a newer \"{branchRef}\"; nothing was replaced."
+
+          Cli.printHint
+            "  `dark branch pull` to take it, then push again if you still have something to add."
         else
           Cli.printErr
             $"{url} answered, but not with anything this build can read as a confirmation, so the branch may not be there."

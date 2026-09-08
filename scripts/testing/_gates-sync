@@ -189,6 +189,18 @@ gate_relay_routes() {
   check 400 "no scheme, bare secret"   -X POST --data 'zzz' -H "Authorization: $SECRET" "$U/sync/push"
   check 200 "/branch/list with the secret" -H "Authorization: Bearer $SECRET" "$U/branch/list?owner=x"
 
+  # A STALE push must not replace a newer stored bundle. One bundle per branch, replaced on every
+  # push, meant that re-pushing an old copy of a branch -- a second machine on the same identity, a
+  # restored backup -- served that copy to everyone, and whoever pulled next lost the newest work
+  # with nothing to tell them. Same owner and branch, so the two pushes are the same row; only the
+  # stamps differ.
+  STALEB="00000000-0000-0000-0000-00000000beef"
+  NEWER='{"branchId":"'$STALEB'","name":"stale","parent":"","ops":[{"id":"11111111-1111-1111-1111-111111111111","blobHex":"00","ts":"2026-09-08T12:00:00.000Z","commit":""}],"commits":[]}'
+  OLDER='{"branchId":"'$STALEB'","name":"stale","parent":"","ops":[{"id":"22222222-2222-2222-2222-222222222222","blobHex":"00","ts":"2026-01-01T00:00:00.000Z","commit":""}],"commits":[]}'
+  check 200 "the newer bundle is stored" -X POST --data "$NEWER" -H "Authorization: Bearer $SECRET" "$U/branch/push?owner=stale-test&branch=$STALEB"
+  check 409 "and an older one does not replace it" -X POST --data "$OLDER" -H "Authorization: Bearer $SECRET" "$U/branch/push?owner=stale-test&branch=$STALEB"
+  check 200 "re-pushing the same bundle is not an error" -X POST --data "$NEWER" -H "Authorization: Bearer $SECRET" "$U/branch/push?owner=stale-test&branch=$STALEB"
+
   # ...and the shapes that must STILL be refused.
   check 401 "a wrong secret"           -X POST --data 'zzz' -H "Authorization: Bearer nope" "$U/sync/push"
   check 401 "Bearer with no credential" -X POST --data 'zzz' -H "Authorization: Bearer" "$U/sync/push"
@@ -493,6 +505,7 @@ gate_sync_multi_instance() {
   want "B runs it on the branch" "^77$" "$(x B --branch feat eval 'SM.T.onFeat ()' | tail -1)"
   want "and B's main does not" "^Error: SM\.T\.onFeat not found$" "$(x B eval 'SM.T.onFeat ()' | tail -1)"
   want "B merges it" "^Merged [1-9][0-9]* op\(s\) from branch \"feat\" into its parent\.$" "$(x B --branch feat merge feat)"
+
   x B push > /dev/null; x C pull > /dev/null
   want "C gets it on main" "^77$" "$(x C eval 'SM.T.onFeat ()' | tail -1)"
   # C never pulled the branch, so everything reached it by main sync: the branch's ops still read under

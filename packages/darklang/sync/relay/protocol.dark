@@ -199,8 +199,15 @@ let branchPushHandlerFn (req: HttpRequest) : HttpResponse =
         $"branch push needs ?branch= to be a branch id, and \"{branch}\" isn't one"
         400
     | Ok branchId ->
-      SCM.PackageOps.relayStoreBranch owner branchId body
-      Stdlib.Http.responseWithText $"stored branch \"{branch}\" for \"{owner}\"" 200
+      // A push that loses to a newer stored bundle is ANSWERED, not silently dropped: the pusher is
+      // usually a machine that has fallen behind, and the one thing it must not conclude is that
+      // the relay now serves what it just sent.
+      if SCM.PackageOps.relayStoreBranch owner branchId body then
+        Stdlib.Http.responseWithText $"stored branch \"{branch}\" for \"{owner}\"" 200
+      else
+        Stdlib.Http.responseWithText
+          $"kept the newer copy of branch \"{branch}\" for \"{owner}\"; nothing was replaced"
+          409
 
 /// Serve a stored branch bundle (`?owner=X&branch=Y`), or "" if none.
 let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
