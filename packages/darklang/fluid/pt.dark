@@ -1588,6 +1588,20 @@ let resolveExprPartial (typed: String) : Stdlib.Option.Option<Node> =
   else
     Stdlib.Option.Option.None
 
+/// A bare name typed as a pipe STEP: `xs |> f`. The same bargain the expression side makes -- what the
+/// store does not know is kept as WHAT WAS TYPED, and the save puts the source back through the real
+/// parser, which is the thing that resolves names.
+///
+/// The pipe spec had no `resolve` at all, so a name in a step never settled: `1 |> g` drew correctly and
+/// then refused to lower, "unresolved: g", while `zzz a` at expression level has settled since records
+/// landed. One question, answered on one side.
+let resolvePipePartial (typed: String) : Stdlib.Option.Option<Node> =
+  if isQualifiedName typed then
+    Stdlib.Option.Option.Some(
+      Node.make (pipeKind "EPipeVariable") [ text "name" typed, ("args", Field.Many([], exprExpect "arg")) ])
+  else
+    Stdlib.Option.Option.None
+
 /// Rank search hits for what was typed: a name that ends with it first, then one that contains it, then
 /// one whose last segment starts with the last typed segment. Anything else is dropped; the store's
 /// fuzzy search is wider than completion wants.
@@ -1634,7 +1648,7 @@ let pipeTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
-      resolve = Spec.noResolve
+      resolve = resolvePipePartial
       binders = Spec.noBinders
       offers = Spec.noOffers
       scopeCandidate = Stdlib.Option.Option.None

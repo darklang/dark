@@ -1156,6 +1156,52 @@ module ALetCanDestructureATuple =
   (Fixtures.screen (Fixtures.chars "let _")) = "let ~_ = ⟨value⟩\n⟨body⟩"
 
 
+module APipeContinuationLine =
+  // The printer writes a pipe that does not fit one stage to a line, and typing that back put the `|>` in
+  // as TEXT:
+  //
+  //     xs                       xs
+  //     |> Stdlib.List.length    |>Stdlib.List.length     -- a second statement, spaces gone
+  //
+  // Enter after a finished expression starts a statement, which is right on its own. `|` at the start of
+  // that statement's empty half is not: nothing in Darklang begins with `|>`, so it can only be a stage of
+  // the pipe above.
+  //
+  // `leadPunctRevision` already says this sentence for a list ITEM -- the lead punctuation typed again, in
+  // the fresh empty thing the last key just made, means the operator was meant. This is the same sentence
+  // with SLOT for item.
+  //
+  // Unambiguous, which is what separates it from the `|` in a fresh match arm, where `||` is a real second
+  // reading and the pins choose it deliberately.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "xs") (Stdlib.List.append [ "<Enter>" ]
+      (Stdlib.List.append (Fixtures.chars "|> Stdlib.List.length") [ "<Esc>", "<Esc>" ])))) =
+    "xs |> Stdlib.List.length"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "1") (Stdlib.List.append [ "<Enter>" ]
+      (Stdlib.List.append (Fixtures.chars "|> Stdlib.Int.toString") [ "<Esc>", "<Esc>" ])))) =
+    "1 |> Stdlib.Int.toString"
+
+  // A bare name as a STEP settles too, which it never has. The pipe spec answered `Spec.noResolve` while
+  // the expression spec built an EVariable, so `1 |> g` drew correctly and then refused to lower --
+  // "unresolved: g" -- though `zzz a` has settled at expression level since record literals landed.
+  // `EPipeVariable` was already here and already drawn; nothing could build one by typing.
+  //
+  // Found by writing this pin badly: I picked `g` as a step name, it failed, and the inline form failed
+  // the same way, so it was never about continuation lines at all.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "1 |> g") [ "<Esc>", "<Esc>" ])) = "1 |> g"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "1") (Stdlib.List.append [ "<Enter>" ]
+      (Stdlib.List.append (Fixtures.chars "|> g") [ "<Esc>", "<Esc>" ])))) =
+    "1 |> g"
+
+  // A statement that is NOT a pipe stage still sequences.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "1") (Stdlib.List.append [ "<Enter>" ]
+      (Stdlib.List.append (Fixtures.chars "2") [ "<Esc>", "<Esc>" ])))) =
+    "1\n2"
+
+
 module AStringHoldsWhateverYouType =
   // Every operator character broke OUT of a string body and wrapped the string in an infix:
   //

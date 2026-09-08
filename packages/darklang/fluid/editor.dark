@@ -1599,6 +1599,9 @@ let typeOne (st: State) (c: String) : State =
   // Same fix the closer branch below gets, and the same one the `)` group collapse got: three ways out of
   // an item, three places that had to remember. Enter already did this.
   let settledForSibling = resolvePartial st |> Stdlib.Option.withDefault st
+  match statementPipeRevision st c with
+  | Some revised -> revised
+  | None ->
   match leadPunctSibling settledForSibling c with
   | Some added -> added
   | None ->
@@ -3313,6 +3316,39 @@ let lastNodePathUnder (root: Slot) (itemPath: Path) : Stdlib.Option.Option<Path>
 /// meant after all: `2` then `|` then `|` inside a match is `2 || ⟨right⟩` in the arm you were in, not an
 /// arm with an empty pattern. Stateless, and it needs to be: the lead punct is never valid at the START of
 /// an empty item, and an item still made entirely of holes is one nothing has been typed into.
+/// `xs` then Enter then `|>` -- the printer's own multi-line pipe, which it writes whenever the stages do
+/// not fit on one line. Enter made a STATEMENT, correctly, and then `|` at the start of its empty `next`
+/// went in as text: `xs / |>Stdlib.List.length`, spaces and all.
+///
+/// This is `leadPunctRevision`'s sentence with SLOT for item -- the lead punctuation typed again, in the
+/// fresh empty thing the last key just made, means the operator was meant. There the fresh thing is a list
+/// item; here it is a statement's second half.
+///
+/// Unambiguous, which is what separates it from the `|` in a fresh match arm that I left alone: nothing in
+/// Darklang begins with `|>`, so a statement starting with one can only be a stage of the pipe above it.
+let statementPipeRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
+  match st.caret.part with
+  | InSlot slot ->
+    if (slot != "next") || (st.caret.offset != 0) then
+      Stdlib.Option.Option.None
+    else
+      (match nodeAtPath st.root st.caret.node with
+       | Some n ->
+         if n.kind.case != Stdlib.Option.Option.Some "EStatement" then
+           Stdlib.Option.Option.None
+         else
+           (match (Node.slot n "next", Node.slot n "first") with
+            | (Some(Empty _), Some(Filled firstNode)) ->
+              (match wrapRuleFor st.reg firstNode c with
+               | Some rule ->
+                 let wrapped = rule.wrap firstNode c
+                 let st1 = commit st [ Edit.Replace(st.caret.node, Slot.Filled wrapped) ] st.caret
+                 Stdlib.Option.Option.Some { st1 with caret = landAfterCommit st.caret.node wrapped }
+               | None -> Stdlib.Option.Option.None)
+            | _ -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+  | _ -> Stdlib.Option.Option.None
+
 let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
   match enclosingListItem st.caret with
   | Some((parentPath, slot, i)) ->
