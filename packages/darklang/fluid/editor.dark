@@ -1181,6 +1181,29 @@ let clearsDrawnKeyword (st: State) : Stdlib.Option.Option<State> =
          else
            Stdlib.Option.Option.None
        | None -> Stdlib.Option.Option.None)
+  // ...and the other half of the same question. A PATTERN hole becomes a node the moment you press a
+  // letter, which is the case above; an EXPRESSION hole stays a partial, and that is this one. `if` draws
+  // its own `then`, and typing the one you can see left `Partial "then"` in the branch -- which Enter
+  // then handed to the menu, whose best fuzzy match for `then` is `andThen`. `if a then` and Enter built
+  // `if a then Stdlib.Result.andThen ⟨result⟩ ⟨fn⟩ else ⟨else⟩`.
+  //
+  // Space already had this, written out separately in the partial-typing path; it now calls here so the
+  // two holes get one answer instead of one each. Restores the slot's own `was` rather than a rebuilt
+  // expectation, which is what that path always did and is the better of the two.
+  | InSlot _ ->
+    (match Caret.slotPath st.caret with
+     | Some sp ->
+       (match slotAtPath st.root sp with
+        | Some(Partial(typed, was)) ->
+          if (typed != "")
+             && (st.caret.offset >= (Stdlib.String.length typed))
+             && ((prevKeyword st) == Stdlib.Option.Option.Some typed) then
+            let st1 = commit st [ Edit.Replace(sp, was) ] st.caret
+            Stdlib.Option.Option.Some { st1 with caret = { st.caret with offset = 0 } }
+          else
+            Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None)
+     | None -> Stdlib.Option.Option.None)
   | _ -> Stdlib.Option.Option.None
 
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
@@ -2138,13 +2161,14 @@ let typeOneRaw (st: State) (c: String) : State =
           && (TextEdit.isLetterString (Stdlib.String.first text 1))
           && (Stdlib.Bool.not (Stdlib.String.contains text "."))
           && ((Stdlib.String.toLowercase text) == text)
-        if atEnd && (c == " ") && (prevKeyword st == Stdlib.Option.Option.Some text) then
+        if atEnd && (c == " ") && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
           // You typed the keyword the editor had already drawn. `if x > 0 then 1 else 2` is written with
           // its `then` and `else` by anyone with muscle memory, and they were landing in the branch holes
           // as variables named `then` and `else`. Same shape as re-typing the `=` of a let. Throw it away
           // and stay in the hole, which is where the branch itself goes.
-          let st1 = commit st [ Edit.Replace(sp, was) ] caret
-          { st1 with caret = { caret with offset = 0 } }
+          //
+          // Shared with Enter now, which had the same question and a different answer.
+          clearsDrawnKeyword st |> Stdlib.Option.withDefault st
         elif atEnd && ((c == " ") || ((c == "(") && (Stdlib.Option.isSome (exactCandidate st)))) then
           // Space commits the menu only when it's unambiguous -- exactly one candidate (a keyword prefix
           // like `le`->let) or an exact match (`let`). A loose prefix with several candidates (`f` ->

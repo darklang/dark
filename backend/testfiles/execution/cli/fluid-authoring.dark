@@ -1098,6 +1098,37 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module ADrawnKeywordIsNotAValueEither =
+  // `if a then` and Enter built a function call nobody asked for:
+  //
+  //     if a then Stdlib.Result.andThen ⟨result⟩ ⟨fn⟩ else ⟨else⟩
+  //
+  // The `if` draws its own `then`. Typing the one you can see leaves a PARTIAL holding `then` in the
+  // branch, and Enter hands a partial to the menu -- whose best fuzzy match for `then` is `andThen`.
+  //
+  // The other half of a question this file already answers. A PATTERN hole becomes a node the moment you
+  // press a letter, and that half was fixed when `match n with` then Enter was giving the first arm the
+  // pattern `with`. An EXPRESSION hole stays a partial, and that half was answered only for SPACE, in a
+  // different place. So: same question, two kinds of hole, two keys, three implementations, and the one
+  // combination nobody had written down was the one that broke.
+  //
+  // One helper now, and both keys and both holes ask it.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "if a then") [ "<Enter>" ])) =
+    "if a then ~⟨then⟩ else ⟨else⟩"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "if a then") (Stdlib.List.append [ "<Enter>" ] (Stdlib.List.append (Fixtures.chars "1 else 2") [ "<Esc>", "<Esc>" ])))) =
+    "if a then 1 else 2"
+
+  // Space kept its answer, which is where the partial half was written originally.
+  (Fixtures.screen (Fixtures.chars "if a then ")) = "if a then ~⟨then⟩ else ⟨else⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if x > 1 then 2 else 3") [ "<Esc>", "<Esc>" ])) =
+    "if x > 1 then 2 else 3"
+
+  // And the node half, which must not have moved.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n with") (Stdlib.List.append [ "<Enter>" ] (Fixtures.chars "0 -> 1")))) =
+    "match n with\n| 0 -> 1~"
+
+
 module ASecondPipeStartsTheNextStage =
   // A second `|>` went INSIDE the stage before it:
   //
