@@ -72,10 +72,11 @@ let recordPieces
   (typeName: String)
   (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>)
   : List<Piece> =
-  // A record with more than one field lays out one field per line, always (a HardLine breaks the group
-  // unconditionally); a single-field record stays on one line. The vertical bias: structure you can scan
-  // down a column beats structure packed onto a line.
-  let break_ = if (Stdlib.List.length fields) > 1 then Piece.HardLine else Piece.Line
+  // One line when it fits, one field per line when it does not. A soft break, like the printer's, and
+  // like the hand-written record specs in pt.dark. This used to be a HARD line for any record with more
+  // than one field, on the bias that structure you can scan down a column beats structure packed onto a
+  // line; reversed on Stachu's call so a generated editor and the printer agree.
+  let break_ = Piece.Line
   let fieldPieces =
     fields
     |> Stdlib.List.indexedMap (fun i f ->

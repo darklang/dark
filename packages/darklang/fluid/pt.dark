@@ -2344,14 +2344,21 @@ let moreSpecs () : List<Spec> =
       (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
       [ "key", "value" ]
     Spec.withOffers
+      // Soft lines, not hard: a record goes on one line when it fits. This reverses a deliberate choice
+      // ("structure you can scan down a column beats structure packed onto a line") on Stachu's call, and
+      // it is the last divergence from the printer, whose ERecord has always used a soft line.
+      //
+      // What goes with it: a tall child no longer forces its container to break, so a list of records no
+      // longer goes vertical for free. That property was the reason for the original choice and is the
+      // thing to watch for missing.
       (simpleExpr
         "ERecord"
         [ Piece.Group
             [ Piece.NameText("type", Layout.Style.Name)
               Piece.Space
               Piece.Punct "{"
-              Piece.Nest(2, [ Piece.HardLine, Piece.Each("fields", [ Piece.Punct ";", Piece.HardLine ]) ])
-              Piece.HardLine
+              Piece.Nest(2, [ Piece.Line, Piece.Each("fields", [ Piece.Punct ";", Piece.Line ]) ])
+              Piece.Line
               Piece.Punct "}" ] ]
         (Node.make (exprKind "ERecord") [ text "type" "", text "_typeHash" "", ("fields", Field.Many([], fieldExpect ())) ])
        |> fun sp -> { sp with maxItems = recordMaxItems })
@@ -2365,8 +2372,8 @@ let moreSpecs () : List<Spec> =
               Piece.Slot "record"
               Piece.Space
               Piece.Keyword "with"
-              Piece.Nest(2, [ Piece.HardLine, Piece.Each("updates", [ Piece.Punct ";", Piece.HardLine ]) ])
-              Piece.HardLine
+              Piece.Nest(2, [ Piece.Line, Piece.Each("updates", [ Piece.Punct ";", Piece.Line ]) ])
+              Piece.Line
               Piece.Punct "}" ] ]
         (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ]))
       recordUpdateOffers
@@ -2381,8 +2388,8 @@ let moreSpecs () : List<Spec> =
           [ Piece.Keyword "Dict"
             Piece.Space
             Piece.Punct "{"
-            Piece.Nest(2, [ Piece.HardLine, Piece.Each("pairs", [ Piece.Punct ";", Piece.HardLine ]) ])
-            Piece.HardLine
+            Piece.Nest(2, [ Piece.Line, Piece.Each("pairs", [ Piece.Punct ";", Piece.Line ]) ])
+            Piece.Line
             Piece.Punct "}" ] ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
     Spec.withOffers

@@ -823,20 +823,20 @@ module ARecordLiteralCanBeTyped =
   // the name up through the same search completion uses, so both entrances give the same thing when the
   // type is known.
   (Fixtures.screen [ "S", "i", "z", "e", "{" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
   (Fixtures.screen [ "S", "i", "z", "e", "<Enter>" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
   (Fixtures.program [ "S", "i", "z", "e", "{", "1", "<Tab>", "2", "<Esc>", "<Esc>" ]) =
     "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
 
   // The case completion cannot serve: a name the store does not know. One empty field to type into.
-  (Fixtures.screen [ "Z", "o", "r", "k", "{" ]) = "Zork {\n  ~name = ⟨value⟩\n}"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{" ]) = "Zork { ~name = ⟨value⟩ }"
 
   // Everything after that first keystroke already existed: `,` adds a sibling field, Tab moves name to
   // value, and the caret lands on the name because it is the first BLANK in the drawing.
-  (Fixtures.screen [ "Z", "o", "r", "k", "{", "x", "<Tab>", "1" ]) = "Zork {\n  x = 1~\n}"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", "x", "<Tab>", "1" ]) = "Zork { x = 1~ }"
   (Fixtures.screen [ "Z", "o", "r", "k", "{", "x", "<Tab>", "1", ",", "y", "<Tab>", "2" ]) =
-    "Zork {\n  x = 1;\n  y = 2~\n}"
+    "Zork { x = 1; y = 2~ }"
 
   // And it lowers. A name that resolves to nothing is kept as an UNRESOLVED name rather than refusing the
   // node: the document holds what you typed, and the save puts the source back through the real parser,
@@ -868,8 +868,8 @@ module ARecordLiteralCanBeTyped =
   // QUOTED, not in what one is -- and the class derived from the piece was keyed on only one of them, so
   // the five slots drawn with `FieldText` accepted any character at all. The space and the `}` above went
   // straight into the field name, and the drawing then honestly showed them back as `` ` x` `` and `` `}` ``.
-  (Fixtures.screen [ "Z", "o", "r", "k", "{", " " ]) = "Zork {\n  ~name = ⟨value⟩\n}"
-  (Fixtures.screen [ "Z", "o", "r", "k", "{", "}" ]) = "Zork {\n  name = ⟨value⟩\n}~"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", " " ]) = "Zork { ~name = ⟨value⟩ }"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", "}" ]) = "Zork { name = ⟨value⟩ }~"
 
 
 module ALetCarriesItsValuesType =
@@ -895,7 +895,7 @@ module ALetCarriesItsValuesType =
   (ALetCarriesItsValuesType.menu (ALetCarriesItsValuesType.built [ "cfg", "." ])) = "width, height"
 
   (Fixtures.screen (ALetCarriesItsValuesType.built [ "cfg", ".", "w", "<Enter>" ])) =
-    "let cfg =\n  Stdlib.Cli.Tui.Size {\n    width = 80;\n    height = 24\n  }\ncfg.width~"
+    "let cfg = Stdlib.Cli.Tui.Size { width = 80; height = 24 }\ncfg.width~"
 
   // It stops where the document stops knowing. A let bound to an int has no fields to offer, and nothing
   // here infers one.
@@ -912,7 +912,7 @@ module SpaceCommitsOnlyWhatIsUnambiguous =
   // typed and moves on. Enter and Tab commit the top candidate, which is what actually builds the record.
   (Fixtures.screen [ "S", "i", "z", "e", " " ]) = "Size~"
   (Fixtures.screen [ "S", "i", "z", "e", "<Tab>" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
 
 
 module APipeTakesTheWholeExpression =
@@ -1984,7 +1984,7 @@ module ARecordFieldIsNotAStatementPosition =
   (Fixtures.screen
     (Stdlib.List.flatten
       [ Fixtures.chars "Size {", [ "<Enter>" ], Fixtures.chars "width = 1", [ "<Enter>" ] ])) =
-    "Stdlib.Cli.Tui.Size {\n  width = 1;\n  height = ~⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = 1; height = ~⟨height⟩ }"
 
   // The two controls that say the rule is about the slot. A match arm's rhs sequences nothing here
   // because Enter starts the next ARM, and a bare value at the top level still opens a statement.
@@ -2044,10 +2044,10 @@ module ASettleThatLandsInAHoleHasAlreadyMoved =
 
   // All four keys, at both levels, land in the value the settle just made. Esc was the control that
   // pointed at the double move: it settles WITHOUT moving on, and it was right all along.
-  (Fixtures.screen (Fixtures.chars "{ r with x =")) = "{ r with\n  x = ~⟨value⟩\n}"
-  (Fixtures.screen (Fixtures.chars "{ r with x ")) = "{ r with\n  x = ~⟨value⟩\n}"
-  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Tab>" ])) = "{ r with\n  x = ~⟨value⟩\n}"
-  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Esc>" ])) = "{ r with\n  x = ~⟨value⟩\n}"
+  (Fixtures.screen (Fixtures.chars "{ r with x =")) = "{ r with x = ~⟨value⟩ }"
+  (Fixtures.screen (Fixtures.chars "{ r with x ")) = "{ r with x = ~⟨value⟩ }"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Tab>" ])) = "{ r with x = ~⟨value⟩ }"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Esc>" ])) = "{ r with x = ~⟨value⟩ }"
 
 
 module AnyCharacterCanEndADrawnKeyword =

@@ -47,16 +47,20 @@ module Fixtures =
 
 module Records =
   // `{` into a hole expecting a record makes the record with every field a hole, caret on the first.
-  // A record with more than one field is laid out vertically, always (the vertical bias), even when it
-  // would fit on a line.
-  (Fixtures.run (Fixtures.colorHole ()) [ "{" ]) = "Color {\n  r = ~⟨r⟩;\n  g = ⟨g⟩;\n  name = ⟨name⟩\n}"
+  //
+  // One line when it fits. This used to be vertical ALWAYS for any record with more than one field, on
+  // the bias that structure you can scan down a column beats structure packed onto a line; reversed on
+  // Stachu's call so a DERIVED editor and the printer agree. That agreement is the point of the whole
+  // exercise: a generated editor laying out differently from the hand-written ones is the exact drift
+  // this design exists to stop.
+  (Fixtures.run (Fixtures.colorHole ()) [ "{" ]) = "Color { r = ~⟨r⟩; g = ⟨g⟩; name = ⟨name⟩ }"
 
   // Fields know their types: digits make Ints, a quote makes a String.
   (Fixtures.run (Fixtures.colorHole ()) [ "{", "1", "<Tab>", "2", "<Tab>", "\"", "x" ]) =
-    "Color {\n  r = 1;\n  g = 2;\n  name = \"x~\"\n}"
+    "Color { r = 1; g = 2; name = \"x~\" }"
 
   // The record's name is a completion too, for people who type it.
-  (Fixtures.run (Fixtures.colorHole ()) [ "C", "<Enter>" ]) = "Color {\n  r = ~⟨r⟩;\n  g = ⟨g⟩;\n  name = ⟨name⟩\n}"
+  (Fixtures.run (Fixtures.colorHole ()) [ "C", "<Enter>" ]) = "Color { r = ~⟨r⟩; g = ⟨g⟩; name = ⟨name⟩ }"
 
 
 module Enums =

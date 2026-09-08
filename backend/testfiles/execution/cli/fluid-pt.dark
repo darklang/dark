@@ -338,7 +338,7 @@ module RecordsCanBeBuilt =
   // The shell, with the declaration's field names and the caret in the first value.
   (Darklang.Fluid.Test.run (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ()) 60
     [ "S", "i", "z", "e", "<Enter>" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = ⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
 
   // Filled in and lowered, which is the whole point: this is a real ERecord with a resolved type.
   (Darklang.Fluid.PT.Test.program (RecordsCanBeBuilt.reg ()) (RecordsCanBeBuilt.hole ())
@@ -424,7 +424,7 @@ module NewShapesCompose =
   // Undo peels a record field the way it peels anything else.
   (Darklang.Fluid.Test.run (NewShapesCompose.reg ()) (NewShapesCompose.hole ()) 70
     [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>", "2", "4", "<Esc>", "u", "u" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = 80; height = ~⟨height⟩ }"
 
 
 module BarStartsTheNextArm =
@@ -538,7 +538,7 @@ module SeparatorsComeFromTheSpec =
 
   // A record types the way the source reads: `;` goes on to the next FIELD.
   (SeparatorsComeFromTheSpec.run [ "S", "i", "z", "e", "<Enter>", "8", "0", ";", "2", "4" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = 24~\n}"
+    "Stdlib.Cli.Tui.Size { width = 80; height = 24~ }"
 
   // ...because a record's fields come from its TYPE. A separator between items that already exist and are
   // not finished means "on to the next one", not "put another one here" -- there is no third field to add.
@@ -701,12 +701,12 @@ module RecordUpdatesCanBeBuilt =
   let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
   let run (keys: List<String>) : String = Darklang.Fluid.Test.run (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ()) 60 keys
 
-  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with\n  name = ⟨value⟩\n}"
+  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with name = ⟨value⟩ }"
 
   // Tab walks record, then the field NAME, then the value.
-  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with\n  ~name = ⟨value⟩\n}"
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with ~name = ⟨value⟩ }"
   (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9" ]) =
-    "{ r with\n  width = 99~\n}"
+    "{ r with width = 99~ }"
 
   // `;` adds the next update, the way it adds the next field of a literal.
   (Darklang.Fluid.PT.Test.program (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ())
@@ -727,7 +727,7 @@ module AnEmptyTextSlotIsAHole =
   // on its way to the values -- the rule is about EMPTY text, not about text.
   (Darklang.Fluid.Test.run (AnEmptyTextSlotIsAHole.reg ()) (AnEmptyTextSlotIsAHole.hole ()) 60
     [ "S", "i", "z", "e", "<Enter>", "8", "0", "<Tab>" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = 80;\n  height = ~⟨height⟩\n}"
+    "Stdlib.Cli.Tui.Size { width = 80; height = ~⟨height⟩ }"
 
 
 module SingleSegmentNamesKeepTheirShape =
@@ -742,7 +742,7 @@ module SingleSegmentNamesKeepTheirShape =
   (Darklang.Fluid.PT.displayName "Darklang.Stdlib.Option.Option") = "Option"
 
   (Fixtures.render "Colour.Red" 60) = "Colour.Red"
-  (Fixtures.render "Foo { a = 1L }" 60) = "Foo {\n  a = 1L\n}"
+  (Fixtures.render "Foo { a = 1L }" 60) = "Foo { a = 1L }"
 
 
 module DocCommentsAreReadable =
@@ -1179,11 +1179,11 @@ module ARecordUpdateOffersItsFields =
 
   // Tab takes it and lands in the value, whose hole is labelled with the field it belongs to.
   (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "w", "<Tab>" ]) =
-    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with width = ~⟨width⟩ }"
 
   // And the whole thing lowers to the update it looks like.
   (ARecordUpdateOffersItsFields.run (FieldAccessOffersTheFields.sizeType ()) [ "<Enter>", "9", "9" ]) =
-    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = 99~\n  }"
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with width = 99~ }"
 
   // A target with no record type offers nothing, so this is about the declaration and not about being in
   // an update.
@@ -1223,9 +1223,9 @@ module ChangingAnUpdateFieldOffersToo =
 
   // Enter takes the highlighted one, and typing narrows first.
   (ChangingAnUpdateFieldOffersToo.run [ "<Enter>" ]) =
-    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    width = ~⟨width⟩\n  }"
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with width = ~⟨width⟩ }"
   (ChangingAnUpdateFieldOffersToo.run [ "h", "<Tab>" ]) =
-    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with\n    height = ~⟨height⟩\n  }"
+    "let grow (s: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.Size =\n  { s with height = ~⟨height⟩ }"
 
 
 module ARecordLiteralOffersItsFields =
@@ -1263,7 +1263,7 @@ module ARecordLiteralOffersItsFields =
 
   // Picking it puts the field back, with a value hole labelled for it.
   (ARecordLiteralOffersItsFields.run [ "h", "h", "j", "c", "<Enter>" ]) =
-    "Stdlib.Cli.Tui.Size {\n  width = ~⟨width⟩;\n  height = 24\n}"
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = 24 }"
 
   // Adding a THIRD field to a record that has both offers nothing, which is the truth: `Size` has two.
   (ARecordLiteralOffersItsFields.menu [ "h", "l", "l", "i", "<End>", ";" ]) = ""
