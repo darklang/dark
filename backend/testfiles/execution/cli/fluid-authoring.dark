@@ -1170,3 +1170,25 @@ module AnIfHasAtMostOneElse =
   (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
   (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
   (Fixtures.screen (Fixtures.chars "if a then 1 else 2")) = "if a then 1 else 2~"
+
+
+module ABareNameInDoubleParensCollapses =
+  // `((a))` stopped at `(a, ⟨item⟩)` while `((1 + 2))` collapsed all the way. Same shape, different
+  // answer, which is what said the group rule was reading the wrong thing.
+  //
+  // It was: how deep `caret.node` sits depends on WHAT is in the item. A filled node pushes the caret
+  // down into itself, so the tuple is its parent. A PARTIAL leaves the caret on the tuple as `InItem`.
+  // Looking only upwards from `caret.node` meant `((a)` skipped the inner tuple and matched the OUTER
+  // one, so the wrong tuple collapsed and the next `)` had nothing left to do.
+  //
+  // Now it checks the caret's own node first, then climbs. Took three attempts across three ticks; the
+  // two before this were edits made before I knew which tuple was being collapsed.
+  (Fixtures.screen (Fixtures.chars "((a))")) = "a~"
+  (Fixtures.screen (Fixtures.chars "(a)")) = "a~"
+  (Fixtures.screen (Fixtures.chars "((1 + 2))")) = "1 + 2~"
+
+  // The ones that must not move: a real tuple, unit, a tuple mid-typing, and a list.
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "()")) = "()~"
+  (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
+  (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"

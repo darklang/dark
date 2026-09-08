@@ -1033,6 +1033,23 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// The caret has to be in the FILLED item, which is what separates `(1 + 2` then `)` from `(1, ` then
 /// `)`. In the second the comma was deliberate and the caret sits in the empty item: a tuple with a hole
 /// left in it, not a group.
+/// Does the tuple AT `path` hold exactly one thing, with item `i` being it?
+let soloTupleHere (st: State) (path: Path) (slot: String) (i: Int) : Bool =
+  match nodeAtPath st.root path with
+  | Some n ->
+    let isTuple =
+      (n.kind.case == Stdlib.Option.Option.Some "ETuple")
+      || (n.kind.case == Stdlib.Option.Option.Some "MPTuple")
+    let items = Node.items n "items"
+    let filled = items |> Stdlib.List.filter (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl))
+    let caretItemFilled =
+      match Stdlib.List.getAt items i with
+      | Some sl -> Stdlib.Bool.not (Slot.isEmpty sl)
+      | None -> false
+
+    isTuple && (slot == "items") && caretItemFilled && ((Stdlib.List.length filled) == 1)
+  | None -> false
+
 let soloTupleAncestor (st: State) (from: Path) : Stdlib.Option.Option<Path> =
   match Path.parent from with
   | None -> Stdlib.Option.Option.None
@@ -1483,7 +1500,21 @@ let typeOne (st: State) (c: String) : State =
   // In the second the comma was typed deliberately and the caret sits in the empty item, so it is a tuple
   // with a hole left in it, not a group.
   // A `)` collapses an enclosing ONE-ITEM tuple to that item (see `soloTupleAncestor`).
-  let soloTuple = if c == ")" then soloTupleAncestor st caret.node else Stdlib.Option.Option.None
+  // The caret's OWN node first, then upwards. How deep `caret.node` sits depends on what is in the item:
+  // a filled node pushes the caret down into itself, so the tuple is its parent, while a PARTIAL leaves
+  // the caret on the tuple as `InItem`. Looking only upwards meant `((a)` matched the OUTER tuple and
+  // collapsed the wrong one, so `((a))` stopped at `(a, <item>)` while `((1 + 2))` went all the way.
+  let soloTuple =
+    if c != ")" then
+      Stdlib.Option.Option.None
+    else
+      match caret.part with
+      | InItem(sl, i) ->
+        if soloTupleHere st caret.node sl i then
+          Stdlib.Option.Option.Some caret.node
+        else
+          soloTupleAncestor st caret.node
+      | _ -> soloTupleAncestor st caret.node
 
 
   // `]` in a list holding just one empty item is the empty list `[]`: `[` opens a list and an immediate
