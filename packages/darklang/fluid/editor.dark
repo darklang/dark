@@ -1557,12 +1557,20 @@ let typeOne (st: State) (c: String) : State =
   // Up here rather than in the text branch below, because the caret is not always in text at the end of an
   // item: type a string and the closing quote leaves you AFTER the node, and `| 0 -> "zero"` then `|` built
   // a pipe.
-  match leadPunctSibling st c with
+  // Settle what is being typed before starting the next item. Adding a sibling moves the caret into the
+  // NEW one, so a name still half-typed in the old was resolved by nothing afterwards -- and Escape then
+  // settles what the caret is on, which by then is somewhere else. `[Stdlib.Option.None, 1]` drew right
+  // and refused to lower, "unresolved", and so did anything else whose last act in an item was a name.
+  //
+  // Same fix the closer branch below gets, and the same one the `)` group collapse got: three ways out of
+  // an item, three places that had to remember. Enter already did this.
+  let settledForSibling = resolvePartial st |> Stdlib.Option.withDefault st
+  match leadPunctSibling settledForSibling c with
   | Some added -> added
   | None ->
   // ...and the one it draws BETWEEN them. Lead first: if a spec somehow drew the same character in both
   // places, starting the next item where the character is WRITTEN is the one that matches what you typed.
-  match sepPunctSibling st c with
+  match sepPunctSibling settledForSibling c with
   | Some added -> added
   | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
@@ -1757,9 +1765,19 @@ let typeOne (st: State) (c: String) : State =
         match enclosingListItem caret with
         | Some((parentPath, _, _)) -> Stdlib.Option.Option.Some parentPath
         | None -> Stdlib.Option.Option.None
+    // Settle what you were typing before leaving it behind. Landing after the whole construct puts the
+    // caret somewhere else entirely, and Escape afterwards settles what the caret is ON -- so a name still
+    // being typed as the last thing before a `]` or a `)` was resolved by nothing at all. `[zork]` drew
+    // exactly right and then refused to lower, "unresolved: zork", and so did every constructor written
+    // inside a collection.
+    //
+    // The `)` that collapses a one-item tuple learned this two ticks ago and the note then said the other
+    // closers wanted the same audit. This is that audit: one branch, same call, and it is the branch every
+    // closing bracket goes through.
+    let settled = resolvePartial st |> Stdlib.Option.withDefault st
     match target with
-    | Some p -> { st with caret = Caret.afterNode p }
-    | None -> moveRight st
+    | Some p -> { settled with caret = Caret.afterNode p }
+    | None -> moveRight settled
   elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c) then
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
@@ -1887,7 +1905,7 @@ let typeOne (st: State) (c: String) : State =
     // The FALLBACK for `,`, kept deliberately. `sepPunctSibling` above handles every list whose spec says
     // what separates its items, and it only fires at the END of an item; this catches the rest of what the
     // hardcoded comma used to do, so nothing that worked stops working.
-    match addSibling st with
+    match addSibling settledForSibling with
     | Some added -> added
     | None -> typeOneRaw st c
   else
@@ -3675,7 +3693,22 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         | None ->
           match sequenceHere settled with
           | Some seq -> handled seq
-          | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
+          | None ->
+            // ...and then the next hole, which the branch above has done since a capped argument list
+            // showed the two disagreeing. They disagreed here too, and what decided it was the SHAPE of
+            // the thing just finished: a string leaves the caret AfterNode, which has this fallback, and
+            // a number leaves it in the digits, which did not. So `let x = "a"` then Enter reached the
+            // body and `let x = 1` then Enter did nothing at all -- and the next keystroke was refused by
+            // the number, so `if a then 1` then Enter then `2` quietly made the number 12.
+            //
+            // `sequenceHere` is what makes this the right answer rather than a guess: it declines while
+            // the document still holds a blank, which is already the rule "fill the holes before starting
+            // a new statement". The hole it declined for is the one to go to.
+            let moved = nextHole settled
+            if moved.caret != st.caret then
+              handled moved
+            else if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored
+            else handled settled
   | Tab ->
     if kp.modifiers.shift then handled (prevHole st)
     // Tab commits a partial that's being typed, then advances -- UNLESS the commit landed on a fresh hole

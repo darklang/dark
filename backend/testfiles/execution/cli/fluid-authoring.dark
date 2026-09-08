@@ -1098,6 +1098,67 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module LeavingAnItemSettlesWhatWasTypedInIt =
+  // `[zork]` drew exactly right and then refused to lower: "unresolved: zork". So did every constructor
+  // written inside a collection, which is how it was found -- but it was never about constructors.
+  //
+  // A name is a PARTIAL until something settles it. Three keys leave an item, and each moved the caret
+  // somewhere else without settling first: the `]` and `)` that step past a drawn closer, and the `,`
+  // that starts the next item. Escape afterwards settles what the caret is ON, and by then that is the
+  // next item or the whole construct, so nothing ever resolved it.
+  //
+  // Enter had this right already, and the `)` that collapses a one-item tuple to a group learned it two
+  // ticks ago -- the note then said the other ways out wanted the same audit. This is that audit.
+  //
+  // No trailing Escape in these on purpose: the point is that leaving the item is what settles it.
+  (Fixtures.program (Fixtures.chars "[zork]")) = "[zork]"
+  (Fixtures.program (Fixtures.chars "[a, b]")) = "[a, b]"
+  (Fixtures.program (Fixtures.chars "[Stdlib.Option.None]")) = "[Option.None]"
+  (Fixtures.program (Fixtures.chars "(Stdlib.Option.None, 1)")) = "(Option.None, 1)"
+  (Fixtures.program (Fixtures.chars "[Stdlib.Option.None, 1]")) = "[Option.None, 1]"
+
+  // A `)` around one thing is still a group, and it still settles what is inside it.
+  (Fixtures.program (Fixtures.chars "(zork)")) = "zork"
+
+
+module EnterReachesTheNextHoleWhereverYouAre =
+  // Enter's answer depended on the SHAPE of the thing you had just finished:
+  //
+  //     let x = "a" <Enter> x    let x = "a"      a closing quote leaves the caret AfterNode
+  //                              x
+  //     let x = 1   <Enter> x    let x = 1        a number leaves it in the digits
+  //                              ⟨body⟩           -- and the `x` is then refused by the number
+  //
+  // Worst of them, because it is silent: `if a then 1` then Enter then `2` gave `if a then 12`. Enter did
+  // nothing, so the digit joined the number it was sitting in.
+  //
+  // Enter dispatches on whether the caret is in a list, and the two halves had different fallbacks. The
+  // in-a-list one grew a sibling, then sequenced, then went to the next hole -- that last step added when
+  // a capped argument list showed `Stdlib.List.map xs` then Enter doing nothing with a `⟨fn⟩` blank
+  // waiting. The not-in-a-list one stopped at sequencing. Same key, same missing step, one branch over,
+  // and the AfterNode branch already carries this sentence in its own comment.
+  //
+  // `sequenceHere` is what makes the next hole the right answer rather than a guess: it declines while
+  // the document still holds a blank, which is already "fill the holes before starting a new statement".
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "let x = 1") (Stdlib.List.append [ "<Enter>" ] (Stdlib.List.append (Fixtures.chars "x") [ "<Esc>", "<Esc>" ])))) =
+    "let x = 1\nx"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "if a then 1") (Stdlib.List.append [ "<Enter>" ] (Stdlib.List.append (Fixtures.chars "2") [ "<Esc>", "<Esc>" ])))) =
+    "if a then 1 else 2"
+
+  // The shapes that already worked and must keep their answers: a string settles AfterNode, a document
+  // with no blanks left sequences, and a capped argument list goes to the hole it left.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "let x = \"a\"") (Stdlib.List.append [ "<Enter>" ] (Stdlib.List.append (Fixtures.chars "x") [ "<Esc>", "<Esc>" ])))) =
+    "let x = \"a\"\nx"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "1") (Stdlib.List.append [ "<Enter>" ] (Stdlib.List.append (Fixtures.chars "2") [ "<Esc>", "<Esc>" ])))) =
+    "1\n2"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs") [ "<Enter>" ])) =
+    "Stdlib.List.map xs ~⟨fn⟩"
+
+
 module AnEnumConstructorCanBeTypedAsPrinted =
   // The printer writes these, and the parser reads them back:
   //
