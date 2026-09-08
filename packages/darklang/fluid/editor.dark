@@ -2494,7 +2494,14 @@ let classDescription (cls: String) : String =
   elif cls == "<identifier>" then "a name"
   elif cls == "<nameStart>" then "a name"
   elif cls == "<letter>" then "a word"
-  else cls
+  // A pattern splits on case: a lowercase start binds a variable, an uppercase one names a constructor.
+  elif cls == "<lowerStart>" then "a name that binds"
+  elif cls == "<operator>" then "an operator"
+  elif cls == "<newline>" then "a line break"
+  // Never the class itself. This message is read by a person, and the fallthrough used to print
+  // `<intSuffixChar>` at them -- an internal token, and a promise that the next class added without a
+  // line here will do it again. Vague beats leaked.
+  else "what goes here"
 
 /// The class a node's slot declares, if it declares one.
 /// Whether the spec draws `slot` with `NameText` -- that is, whether it has already said the slot holds
