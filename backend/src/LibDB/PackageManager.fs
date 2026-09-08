@@ -136,6 +136,13 @@ let pt : PT.PackageManager =
     init = uply { return () } }
 
 
+/// NOT REACHED YET, and worth knowing before you trust a pin.
+///
+/// `permissions` stores pins and shows them, and `PackagePermissions` reads one when reviewing a
+/// version, but nothing narrows RESOLUTION by them: execution builds its state from the
+/// process-wide `pt`, and an account never reaches this. Wiring it means threading the account into
+/// wherever the run's PM is chosen, which is a change to how a run is set up rather than to this.
+///
 /// Main's manager with an account's version pins narrowing FN resolution. A pin maps a
 /// logical name to the approved hash and only narrows normal name resolution; update
 /// commands use the raw lookup for latest. Built per entry (a script or eval run), so a
@@ -567,67 +574,55 @@ let private described
   if Map.isEmpty texts then
     pm
   else
-    let patch (hash : Hash) (set : string -> 'item) (item : 'item) : 'item =
+    /// The item, with this overlay's text for it, or unchanged when the overlay is silent.
+    let redescribe (hash : Hash) (set : 'item -> string -> 'item) (item : 'item) =
       match Map.tryFind hash texts with
-      | Some text -> set text
+      | Some text -> set item text
       | None -> item
+
+    let inResults
+      (items : List<PT.LocatedItem<'item>>)
+      (hashOf : 'item -> Hash)
+      (set : 'item -> string -> 'item)
+      : List<PT.LocatedItem<'item>> =
+      items
+      |> List.map (fun i ->
+        { i with entity = redescribe (hashOf i.entity) set i.entity })
+
+    let typeText (t : PT.PackageType.PackageType) text =
+      { t with description = text }
+    let valueText (v : PT.PackageValue.PackageValue) text =
+      { v with description = text }
+    let fnText (f : PT.PackageFn.PackageFn) text = { f with description = text }
+
     { pm with
         getType =
           fun h ->
             uply {
               let! r = pm.getType h
-              return
-                r
-                |> Option.map (fun t ->
-                  patch h (fun x -> { t with description = x }) t)
+              return r |> Option.map (redescribe h typeText)
             }
         getValue =
           fun h ->
             uply {
               let! r = pm.getValue h
-              return
-                r
-                |> Option.map (fun v ->
-                  patch h (fun x -> { v with description = x }) v)
+              return r |> Option.map (redescribe h valueText)
             }
         getFn =
           fun h ->
             uply {
               let! r = pm.getFn h
-              return
-                r
-                |> Option.map (fun f ->
-                  patch h (fun x -> { f with description = x }) f)
+              return r |> Option.map (redescribe h fnText)
             }
         search =
           fun query ->
             uply {
               let! r = pm.search query
-              let located (entity : 'item) (hash : Hash) (set : string -> 'item) =
-                patch hash set entity
               return
                 { r with
-                    types =
-                      r.types
-                      |> List.map (fun i ->
-                        { i with
-                            entity =
-                              located i.entity i.entity.hash (fun x ->
-                                { i.entity with description = x }) })
-                    values =
-                      r.values
-                      |> List.map (fun i ->
-                        { i with
-                            entity =
-                              located i.entity i.entity.hash (fun x ->
-                                { i.entity with description = x }) })
-                    fns =
-                      r.fns
-                      |> List.map (fun i ->
-                        { i with
-                            entity =
-                              located i.entity i.entity.hash (fun x ->
-                                { i.entity with description = x }) }) }
+                    types = inResults r.types (fun t -> t.hash) typeText
+                    values = inResults r.values (fun v -> v.hash) valueText
+                    fns = inResults r.fns (fun f -> f.hash) fnText }
             } }
 
 

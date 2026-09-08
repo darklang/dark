@@ -170,10 +170,9 @@ let help (_state: Cli.AppState) : String =
   |> Stdlib.String.join "\n"
 
 
+// `delete` IS `deprecate --kind obsolete` with a dependents check, so it completes the same way.
 let complete
-  (_state: Cli.AppState)
+  (state: Cli.AppState)
   (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
-  match args with
-  | [] -> ["fn", "type", "value"] |> Stdlib.List.map Cli.Completion.simple
-  | _ -> []
+  Deprecate.complete state args

@@ -3,16 +3,19 @@
 ///
 /// `sqliteExec` (DDL/DML → rows affected) and `sqliteQuery` (SELECT → each row as a typed `Dict<Value>`)
 /// are the two primitives; the `.dark` wrappers add the with/without-params convenience so there's one
-/// builtin per operation rather than four. SQL can open secondary files via
-/// ATTACH/VACUUM and therefore cannot honestly uphold path-scoped file rules;
-/// both primitives require the deliberately broad Native permission.
+/// builtin per operation rather than four. `sqliteExecBatch` is the third: several statements in one
+/// transaction, so a decision that lives in Dark can write atomically rather than one statement at a
+/// time.
 ///
-/// `sqliteExecBatch` is the third: several statements in one transaction, so a decision that lives in Dark
-/// can write atomically rather than one statement at a time.
+/// What they require depends on the call, decided in the body rather than declared (`requireSqlite`):
+/// SQL can open secondary files via ATTACH and so cannot honestly uphold path-scoped rules, which
+/// makes the broad `Native` right in general -- but a statement against THIS instance's store that
+/// cannot ATTACH out of it is package-read/write and nothing more. Without that, the SCM being Dark
+/// would mean `dark status` demanding `allow native` on a stock install.
 ///
-/// Deferred (not needed yet): scoping the grant to a specific path/glob, binding typed params (params are
-/// string-only today; results already carry types via `Value`), and an opaque connection handle.
-/// CLEANUP(sqlite-scope): add the in-body path/glob capability check.
+/// Deferred (not needed yet): scoping the grant to an arbitrary path/glob (only the store is
+/// special-cased), binding typed params (params are string-only today; results already carry types
+/// via `Value`), and an opaque connection handle.
 module Builtins.Matter.Libs.Sqlite
 
 open FSharp.Control.Tasks

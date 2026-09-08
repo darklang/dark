@@ -947,16 +947,17 @@ let private applyOp
 /// for a bulk-replay, or use auto-commit for a small commit-time batch. A
 /// fresh prepared-statement cache (Ctx) is created and disposed per call,
 /// so the cache lifetime matches a single `applyOpsOnConnection` invocation.
-let applyOpsOnConnectionFrom
+let applyOpsOnConnectionWith
   (conn : SqliteConnection)
   (source : string)
+  (mayRewriteExisting : bool)
   (ops : List<PT.PackageOp>)
   : Task<unit> =
   task {
     let ctx = newCtx conn
     try
       for op in ops do
-        do! applyOp ctx source true op
+        do! applyOp ctx source mayRewriteExisting op
     finally
       disposeCtx ctx
 
@@ -964,6 +965,13 @@ let applyOpsOnConnectionFrom
     // never expire on their own -- see `Caching.invalidateAll`.
     Caching.invalidateAll ()
   }
+
+let applyOpsOnConnectionFrom
+  (conn : SqliteConnection)
+  (source : string)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
+  applyOpsOnConnectionWith conn source true ops
 
 let applyOpsOnConnection
   (conn : SqliteConnection)
@@ -977,14 +985,21 @@ let applyOpsOnConnection
 /// connection per call and wraps the whole batch in a single transaction:
 /// faster than auto-commit, and it makes the apply atomic with respect to
 /// other readers.
-let applyOpsFrom (source : string) (ops : List<PT.PackageOp>) : Task<unit> =
+let private applyOwningConnection
+  (source : string)
+  (mayRewriteExisting : bool)
+  (ops : List<PT.PackageOp>)
+  : Task<unit> =
   task {
     use conn = new SqliteConnection(LibDB.Sqlite.connString)
     do! conn.OpenAsync()
     use tx = conn.BeginTransaction()
-    do! applyOpsOnConnectionFrom conn source ops
+    do! applyOpsOnConnectionWith conn source mayRewriteExisting ops
     tx.Commit()
   }
+
+let applyOpsFrom (source : string) (ops : List<PT.PackageOp>) : Task<unit> =
+  applyOwningConnection source true ops
 
 let applyOps (ops : List<PT.PackageOp>) : Task<unit> = applyOpsFrom "op" ops
 
@@ -992,18 +1007,7 @@ let applyOps (ops : List<PT.PackageOp>) : Task<unit> = applyOpsFrom "op" ops
 /// A BRANCH's content ops: folded so the branch's own bodies are runnable and its dependency edges
 /// are visible, but never rewriting a row that is already there. See `upsertContentAddressed`.
 let applyBranchContentOps (ops : List<PT.PackageOp>) : Task<unit> =
-  task {
-    use conn = new SqliteConnection(LibDB.Sqlite.connString)
-    do! conn.OpenAsync()
-    use tx = conn.BeginTransaction()
-    let ctx = newCtx conn
-    try
-      for op in ops do
-        do! applyOp ctx "op" false op
-    finally
-      disposeCtx ctx
-    tx.Commit()
-  }
+  applyOwningConnection "op" false ops
 
 
 /// Record the callees of these `Add*` ops' items without folding anything else. For an op the log

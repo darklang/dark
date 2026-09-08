@@ -257,11 +257,3 @@ let sane
       | Some line -> Tests.failtestf "%s: %s\nfull output: %s" why line out
       | None -> Expect.isFalse (out.Trim() = "") $"{why}: it printed nothing at all"
   }
-
-/// Move to a package location, and assert we arrived.
-let at (state : RT.ExecutionState) (path : string) : Task<unit> =
-  shows state [ "nav"; path ] "Changed to" $"nav {path} moves there"
-
-/// Back to the root of the package tree. Location is stored per instance, so a test
-/// that navigates and does not come back moves the ground under every test after it.
-let atRoot (state : RT.ExecutionState) : Task<unit> = run state [ "nav"; "/" ]

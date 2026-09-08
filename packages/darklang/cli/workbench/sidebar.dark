@@ -94,11 +94,6 @@ let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
     let (_i, w) = pair
     Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDestsIn vis w)))
 
-/// The workspaces with at least one visible destination, as (index into
-/// `workspaces`, workspace).
-let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
-  visibleWorkspacesIn (visibleViews state)
-
 /// The section `view` is currently on, in `Dest` terms.
 let sectionOf (state: State) (view: Int) : Int =
   if view == vSCM then scmSectionIndex state.scm.section

@@ -16,9 +16,13 @@ so read the first section below before the command list.
    still changeable, not yet anyone else's problem.
 
 2. EVERYTHING IS ADDRESSED BY CONTENT. An item's identity is the hash of what
-   it says. Edit a fn and it is a NEW item -- the old one still exists, and
+   it DOES. Edit a fn and it is a NEW item -- the old one still exists, and
    anything that referenced it still references it, correctly, until something
    moves it. That "something" is PROPAGATION, and it has its own section below.
+
+   A doc comment is not part of that: it is something said ABOUT the item, so
+   editing one leaves the hash alone and repoints nobody. It is still a real
+   change that commits and syncs (a `Describe` op), and `view` shows it.
 
 A name is a separate thing from the item it points at. `Ux.Money.cents` is a
 binding, and editing the fn rebinds the name to the new version. That's why

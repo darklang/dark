@@ -139,6 +139,32 @@ let storedDescription
     |> Stdlib.Option.map (fun v -> v.description)
 
 
+/// Author the `Describe` a doc-only edit needs, and say whether there was one.
+///
+/// Called once the save has landed on <param hash>: if that is a hash the location already had,
+/// nothing about the VERSION moved, so the ops just authored folded to nothing and a changed doc
+/// comment is the only thing left that could have been meant. `Describe` is the op that can carry
+/// it -- its own id hashes the text, so two texts are two ops.
+let describeIfTheDocChanged
+  (branchId: Uuid)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Bool =
+  match (authoredDescription ops, storedDescription kind hash) with
+  | (Some written, Some stored) when written != stored ->
+    let reference = LanguageTools.ProgramTypes.Reference.fromHashAndKind hash kind
+
+    match
+      SCM.PackageOps.add
+        branchId
+        [ LanguageTools.ProgramTypes.PackageOp.Describe(reference, written) ]
+    with
+    | Ok _ -> true
+    | Error _ -> false
+  | _ -> false
+
+
 /// Shared tail of the fn/type/val authoring flow: build the name-resolution
 /// context, convert the written declaration, check unresolved names, take the
 /// previous hashes, save, report, and repoint dependents. `kindWord` fills the
@@ -195,32 +221,36 @@ let saveAuthored
         | None -> hash
 
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-      let action = if isUpdate then "Updated" else "Created"
+
+      // Decided here rather than before the save, because this is where the stabilized hash is
+      // finally known: the one in hand until now is the parser's placeholder.
+      let movedVersion =
+        Stdlib.Bool.not (Stdlib.List.member previousHashes boundHash)
+
+      let docOnly =
+        (isUpdate && (Stdlib.Bool.not movedVersion))
+        && (describeIfTheDocChanged state.currentBranchId kind boundHash ops)
+
+      // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
+      // it already had and carries no new text saved NOTHING: re-running the same authoring command
+      // does that, and so does editing a doc comment on a FIELD or a parameter, which is the one
+      // edit with no op to carry it (see the `Describe` op's TODO). Reporting those as an update is
+      // how a dropped edit stays hidden.
+      let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion
 
       Stdlib.printLine ""
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
 
-      // A doc-only edit lands on the hash it already had: the doc is not part of an item's
-      // identity, so nothing about the VERSION moved and the ops just authored folded to nothing.
-      // `Describe` is the op that can carry it -- its own id hashes the text, so two texts are two
-      // ops -- and it is authored here, where the stabilized hash is finally known.
-      let docOnly =
-        if isUpdate && (Stdlib.List.member previousHashes boundHash) then
-          match (authoredDescription ops, storedDescription kind boundHash) with
-          | (Some written, Some stored) when written != stored ->
-            let reference =
-              LanguageTools.ProgramTypes.Reference.fromHashAndKind boundHash kind
+      if landed then
+        let action = if isUpdate then "Updated" else "Created"
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
+      else
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged: nothing saved.")
 
-            match
-              SCM.PackageOps.add
-                state.currentBranchId
-                [ LanguageTools.ProgramTypes.PackageOp.Describe(reference, written) ]
-            with
-            | Ok _ -> true
-            | Error _ -> false
-          | _ -> false
-        else
-          false
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            "  (a doc comment on a FIELD or a parameter is the one edit with no op to carry it yet)")
 
       let _ =
         if docOnly then
