@@ -49,6 +49,9 @@
     <Compile Include="CliSurface.Tests.fs" />
     <Compile Include="CliScm.Tests.fs" />
     <Compile Include="CliScmRegression.Tests.fs" />
+    <Compile Include="CliPackages.Tests.fs" />
+    <Compile Include="CliWorkspace.Tests.fs" />
+    <Compile Include="CliSyncSurface.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
     <Compile Include="DvalReprInternalQueryable.Tests.fs" />
