@@ -1149,6 +1149,21 @@ let reassocGrown (st: State) (opPath: Path) : (State * Path) =
 /// So ask the SPEC rather than naming the types here: a type whose wrap rules include `<operator>` can
 /// be wrapped by what follows and is worth waiting on. One without cannot, and the next thing really is
 /// the next hole.
+/// A settle that landed the caret in a fresh hole has already moved you. That hole IS the next one, and
+/// moving again skips the thing you just made.
+///
+/// `commitCandidate` has carried this rule in both of its branches for a while, with the comment
+/// "Committing a construct or a function lands in its own first hole to fill, so it stays there" written
+/// above one of them. The `resolve` path never got it, three lines below, and nothing showed -- because a
+/// freshly resolved node has no hole AFTER it to overshoot into, which `landSettled`'s own comment says.
+///
+/// `Size { width = { r with x =` supplies one. The `=` settled the field, the settle put the caret in the
+/// new `⟨value⟩`, the key moved again, and the `1` went into the OUTER record's `height`.
+let stayIfOnHole (st: State) (move: State -> State) : State =
+  match slotUnder st with
+  | Some(Empty _) -> st
+  | _ -> move st
+
 let landSettled (st: State) (sp: Path) : State =
   let canBeWrappedByOperator =
     match nodeAtPath st.root sp with
@@ -2328,7 +2343,7 @@ let typeOneRaw (st: State) (c: String) : State =
               landSettled committed sp
           else
             match resolvePartial st with
-            | Some resolved -> landSettled resolved sp
+            | Some resolved -> stayIfOnHole resolved (fun r -> landSettled r sp)
             | None -> nextHole st
         elif dotOnName then
           match resolvePartial st with
@@ -3968,7 +3983,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       | _ -> handled (nextHole committed)
     else
       match resolvePartial st with
-      | Some resolved -> handled (nextHole resolved)
+      | Some resolved -> handled (stayIfOnHole resolved nextHole)
       | None -> handled (nextHole st)
   | Backspace -> handled (backspace st)
   | _ ->

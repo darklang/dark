@@ -1987,3 +1987,59 @@ module ARecordFieldIsNotAStatementPosition =
   (Fixtures.screen
     (Stdlib.List.flatten [ Fixtures.chars "a", [ "<Enter>" ], Fixtures.chars "b", [ "<Enter>" ] ])) =
     "a\nb\n~⟨next⟩"
+
+
+module ARecordUpdateTypesBackToo =
+  // `{ r with x = 1 }` lowered as `unresolved: x=1`. The literal form had worked for weeks, so the two
+  // record forms were answering the same question differently.
+  //
+  // One missing sibling. TypeDecl's RecordField spec has carried a `resolve` since type declarations were
+  // written; the EXPRESSION RecordField spec never had one. So a partial typed into a field slot never
+  // became a field: `{ r with x` left `x` sitting where the field goes, the `= ⟨value⟩` disappeared from
+  // the drawing, and every key after it appended to that one text.
+  //
+  // Nothing under it was wrong, which is the part I nearly missed. `{ r` Tab `x` Tab `1` always built the
+  // right update. Asking whether the same goal was reachable another way split "broken" into "structure
+  // works, keys do not", and only the second needed fixing.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "{ r with x = 1 }") [ "<Esc>", "<Esc>" ])) =
+    "{ r with x = 1 }"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "{ r with x = 1; y = 2 }") [ "<Esc>", "<Esc>" ])) =
+    "{ r with x = 1; y = 2 }"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[{ r with x = 1 }]") [ "<Esc>", "<Esc>" ])) =
+    "[{ r with x = 1 }]"
+
+  // The structure, driven by Tab instead. This passed before the fix and is here as the control that says
+  // which half was broken.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ Fixtures.chars "{ r", [ "<Tab>" ], Fixtures.chars "x", [ "<Tab>" ], Fixtures.chars "1"
+        [ "<Esc>", "<Esc>" ] ])) = "{ r with x = 1 }"
+
+  // The literal still types back, which is the form the printer writes.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Size { width = 1; height = 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+
+
+module ASettleThatLandsInAHoleHasAlreadyMoved =
+  // `Size { width = { r with x = 1 }; height = 2 }` put the `1` in the OUTER record's `height`.
+  //
+  // Four keys settle a partial and then move on: Tab, space, `=` and any punctuation that ends a name.
+  // `resolvePartial` already puts the caret at the node's last editable slot, which for a fresh record
+  // field is the `⟨value⟩` it just made. Then the key moved AGAIN, past it.
+  //
+  // Invisible at the top level, and `landSettled`'s own comment says why: a freshly resolved node has no
+  // hole after it to overshoot into. Nesting it inside a record supplies one.
+  //
+  // `commitCandidate` has had the rule in both its branches for a while -- "Committing a construct or a
+  // function lands in its own first hole to fill, so it stays there" -- and the `resolve` branch three
+  // lines below never got it. `stayIfOnHole` is the one copy now.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "Size { width = { r with x = 1 }; height = 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.Cli.Tui.Size { width = { r with x = 1 }; height = 2 }"
+
+  // All four keys, at both levels, land in the value the settle just made. Esc was the control that
+  // pointed at the double move: it settles WITHOUT moving on, and it was right all along.
+  (Fixtures.screen (Fixtures.chars "{ r with x =")) = "{ r with\n  x = ~⟨value⟩\n}"
+  (Fixtures.screen (Fixtures.chars "{ r with x ")) = "{ r with\n  x = ~⟨value⟩\n}"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Tab>" ])) = "{ r with\n  x = ~⟨value⟩\n}"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Esc>" ])) = "{ r with\n  x = ~⟨value⟩\n}"

@@ -1581,6 +1581,24 @@ let isIdentifier (t: String) : Bool =
 ///
 /// A trailing dot does not count. `Zork.` is a name you are in the middle of typing, and settling it
 /// would commit to half a word.
+/// A name typed where a record FIELD goes: `{ r with x` -- the `x` is a field called x, not an
+/// expression called x.
+///
+/// Its sibling in TypeDecl has had this since the type declarations were written. This one never did, so
+/// a partial typed into a field slot stayed a partial: `{ r with x` left `x` sitting where the field goes
+/// and the `= ⟨value⟩` disappeared from the drawing, which is why every key after it appended to one text
+/// and the whole thing lowered as `unresolved: x=1`.
+///
+/// Nothing was wrong with the structure underneath. `{ r` Tab `x` Tab `1` always built the right update.
+let resolveRecordField (typed: String) : Stdlib.Option.Option<Node> =
+  if isIdentifier typed then
+    Stdlib.Option.Option.Some(
+      Node.make
+        (Kind.named recordFieldType)
+        [ text "name" typed, ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+  else
+    Stdlib.Option.Option.None
+
 let isQualifiedName (t: String) : Bool =
   (Stdlib.String.length t) > 0
   && (TextEdit.isLetterString (Stdlib.String.first t 1) || (Stdlib.String.first t 1) == "_")
@@ -2276,9 +2294,10 @@ let moreSpecs () : List<Spec> =
     // A record's fields and a dict's pairs are drawn one per line between braces, so a statement inside
     // one of them draws where the reader sees the NEXT field. Enter at the end of the last one has
     // nothing to do, and doing nothing is the honest answer: the `}` that follows is the next key.
-    Spec.withNoSequence
-      (simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
-      [ "value" ]
+    { (Spec.withNoSequence
+        (simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+        [ "value" ]) with
+        resolve = resolveRecordField }
     Spec.withNoSequence
       (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
       [ "key", "value" ]
