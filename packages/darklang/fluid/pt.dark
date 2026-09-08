@@ -459,11 +459,6 @@ let segmentToDoc (seg: StringSegment) : Node =
   | StringText t -> Node.make (segmentKind "StringText") [ text "text" (PrettyPrinter.escapeSpecialCharacters t) ]
   | StringInterpolation e -> Node.make (segmentKind "StringInterpolation") [ one "expr" (toDoc e) ]
 
-let pipeSupported (p: PipeExpr) : Bool =
-  match p with
-  | EPipeFnCall(_, _, typeArgs, _) -> Stdlib.List.isEmpty typeArgs
-  | _ -> true
-
 let pipeToDoc (p: PipeExpr) : Node =
   let args (es: List<Expr>) : (String * Field) = many "args" (es |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "arg")
   match p with
@@ -473,7 +468,13 @@ let pipeToDoc (p: PipeExpr) : Node =
       (pipeKind "EPipeLambda")
       [ many "params" (params |> Stdlib.List.map (fun x -> letPatToDoc x)) (letPatExpect "param"), one "body" (toDoc body) ]
   | EPipeInfix(_, op, e) -> Node.make (pipeKind "EPipeInfix") [ text "op" (infixText op), one "expr" (toDoc e) ]
-  | EPipeFnCall(_, nr, _, es) -> Node.make (pipeKind "EPipeFnCall") [ text "name" (nameOf nr), text "_hash" (hashOf nr), args es ]
+  | EPipeFnCall(_, nr, tas, es) ->
+    Node.make
+      (pipeKind "EPipeFnCall")
+      [ text "name" (nameOf nr)
+        text "_hash" (hashOf nr)
+        many "typeArgs" (Stdlib.List.map tas (fun t -> Types.toDoc t)) (Types.typeExpect "type")
+        args es ]
   | EPipeEnum(_, tnr, caseName, es) ->
     Node.make
       (pipeKind "EPipeEnum")
@@ -594,12 +595,14 @@ let toDoc (e: Expr) : Node =
       [ many "params" (Stdlib.List.map params (fun p -> letPatToDoc p)) (letPatExpect "param")
         one "body" (toDoc body) ]
   | EApply(_, fn, typeArgs, args) ->
-    if Stdlib.List.isEmpty typeArgs then
-      Node.make
-        (exprKind "EApply")
-        [ one "fn" (toDoc fn), many "args" (Stdlib.List.map args (fun a -> toDoc a)) (exprExpect "arg") ]
-    else
-      opaque e
+    // A call carries its TYPE ARGUMENTS. `Stdlib.Json.parse<Wire> x` used to go opaque -- printed source
+    // held as text -- which made it the single largest thing Fluid could not edit: 556 nodes across the
+    // store, mostly this shape.
+    Node.make
+      (exprKind "EApply")
+      [ one "fn" (toDoc fn)
+        many "typeArgs" (Stdlib.List.map typeArgs (fun t -> Types.toDoc t)) (Types.typeExpect "type")
+        many "args" (Stdlib.List.map args (fun a -> toDoc a)) (exprExpect "arg") ]
   | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (displayName (nameOf nr)), text "_hash" (hashOf nr) ]
   | EStatement(_, first, next) ->
     Node.make (exprKind "EStatement") [ one "first" (toDoc first), one "next" (toDoc next) ]
@@ -611,7 +614,10 @@ let toDoc (e: Expr) : Node =
     else
       opaque e
   | EPipe(_, first, steps) ->
-    if steps |> Stdlib.List.all (fun p -> pipeSupported p) then
+    // Every pipe step is supported now. `pipeSupported` existed only to reject a step with type
+    // arguments, and it sent the WHOLE pipe opaque to do it: one `xs |> Stdlib.Json.parse<Wire>` took the
+    // entire chain out.
+    if true then
       Node.make
         (exprKind "EPipe")
         [ one "first" (toDoc first), many "steps" (steps |> Stdlib.List.map (fun p -> pipeToDoc p)) (pipeExpect "step") ]
@@ -814,7 +820,10 @@ let pipeFromDoc (n: Node) : Stdlib.Result.Result<PipeExpr, String> =
     | Some op -> slotExpr n "expr" |> Stdlib.Result.map (fun e -> PipeExpr.EPipeInfix(gid (), op, e))
   | Some "EPipeFnCall" ->
     match (fnNameResolution (textOf n "name") (textOf n "_hash"), itemExprs n "args") with
-    | (Ok nr, Ok es) -> Stdlib.Result.Result.Ok(PipeExpr.EPipeFnCall(gid (), nr, [], es))
+    | (Ok nr, Ok es) ->
+      (match Types.itemTypes n "typeArgs" with
+       | Ok tas -> Stdlib.Result.Result.Ok(PipeExpr.EPipeFnCall(gid (), nr, tas, es))
+       | Error err -> Stdlib.Result.Result.Error err)
     | (Error err, _) -> Stdlib.Result.Result.Error err
     | (_, Error err) -> Stdlib.Result.Result.Error err
   | Some "EPipeEnum" ->
@@ -957,7 +966,10 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
     | (_, Error err) -> Stdlib.Result.Result.Error err
   | Some "EApply" ->
     match (slotExpr n "fn", itemExprs n "args") with
-    | (Ok f, Ok args) -> ok (Expr.EApply(gid (), f, [], args))
+    | (Ok f, Ok args) ->
+      (match Types.itemTypes n "typeArgs" with
+       | Ok tas -> ok (Expr.EApply(gid (), f, tas, args))
+       | Error err -> Stdlib.Result.Result.Error err)
     | (Error err, _) -> Stdlib.Result.Result.Error err
     | (_, Error err) -> Stdlib.Result.Result.Error err
   | Some "EFnName" ->
@@ -2403,7 +2415,13 @@ let moreSpecs () : List<Spec> =
     Spec.withWrapRules
       (simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
       [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false } ]
-    simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
+    simpleOf
+      (pipeKind "EPipeFnCall")
+      [ Piece.Group
+          [ Piece.NameText("name", Layout.Style.Name)
+            Piece.EachWrapped("typeArgs", "<", [ Piece.Punct ",", Piece.Line ], ">")
+            Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
+      (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("typeArgs", Field.Many([], Types.typeExpect "type")), ("args", Field.Many([], exprExpect "arg")) ])
     // Parenthesised, and not for looks. Without them the drawing says something the document does not:
     // `xs |> fun a -> a |> g` reads back as `xs |> (fun a -> a |> g)`, because a bare lambda swallows the
     // pipe stages after it. The printer has always written the parens and says why over its own case.
@@ -2624,10 +2642,18 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp lambdaBinders
     (simpleExpr
       "EApply"
-      [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
+      // `EachWrapped` draws NOTHING when the list is empty, so a call without type arguments is byte for
+      // byte what it was. Same shape `TCustomType` uses for its own args, and the same the printer's
+      // `typeArgumentsDoc` produces.
+      [ Piece.Group
+          [ Piece.Slot "fn"
+            Piece.EachWrapped("typeArgs", "<", [ Piece.Punct ",", Piece.Line ], ">")
+            Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
       (Node.make
         (exprKind "EApply")
-        [ ("fn", Field.One(Slot.Empty(exprExpect "fn"))), ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
+        [ ("fn", Field.One(Slot.Empty(exprExpect "fn")))
+          ("typeArgs", Field.Many([], Types.typeExpect "type"))
+          ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
      |> fun sp -> { sp with maxItems = applyMaxItems })
     simpleExpr "EFnName" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
     simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ])

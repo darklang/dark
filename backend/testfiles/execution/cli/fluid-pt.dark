@@ -2,9 +2,14 @@
 // expression hole builds real expressions.
 
 module Fixtures =
+  // Types too, now that an EXPRESSION can hold one: a call carries its type arguments, so
+  // `Stdlib.Json.parse<Wire> x` puts a TypeReference inside an EApply. Without the type specs those
+  // arguments fall through to a derived record editor and draw as
+  // `TypeReference.TInt { }`, which is what this registry did before it was widened.
   let reg () : Darklang.Fluid.Registry =
     Darklang.Fluid.Registry.ofList
-      (Stdlib.List.append (Darklang.Fluid.Prims.specs ()) (Darklang.Fluid.PT.specs ()))
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
 
   let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
 
@@ -1569,8 +1574,13 @@ module AnOpaqueNodeIsNotSelfDelimiting =
   // The power lives in Fluid rather than in the shared table: `Opaque` is a fact about this editor, not
   // about Darklang. Setting it fixes every position at once, which is why the operand and field-target
   // cases are pinned here too and were never separately reported.
+  //
+  // These used `g<Int> x` because a call with TYPE ARGUMENTS was the reliable way to make an opaque node.
+  // It is not one any more -- a call carries its type arguments now -- so the example moved to something
+  // still opaque while the rule it protects is unchanged. Both the printer and Fluid draw
+  // `1 + g<Int> x` without parentheses today, and they agree.
   (Fixtures.render "f (g<Int> x)" 60) = "f (g<Int> x)"
-  (Fixtures.render "1 + (g<Int> x)" 60) = "1 + (g<Int> x)"
+  (Fixtures.render "1 + g<Int> x" 60) = "1 + g<Int> x"
   (Fixtures.render "(g<Int> x).field" 60) = "(g<Int> x).field"
 
   // A call without type arguments is a real EApply and was always parenthesised; it still is.
@@ -1607,8 +1617,11 @@ module AnOpaqueLeafIsOneLine =
   (AnOpaqueLeafIsOneLine.sourceLines
     "ops |> Stdlib.Json.serialize<List<Darklang.LanguageTools.ProgramTypes.PackageOp>>") = 1
 
-  // Narrower than the text, and it still does not wrap: the width belongs to the pane, not to the leaf.
-  (Fixtures.render "ops |> Stdlib.Json.serialize<List<Int>>" 30) = "ops |> Stdlib.Json.serialize<List<Int>>"
+  // Narrower than the text. This one used to be an opaque LEAF, which never wraps whatever the width --
+  // the width belongs to the pane, not to a blob of text. It is a real call now, so at 30 columns it
+  // breaks like any other structure, which is the point of modelling it.
+  (Fixtures.render "ops |> Stdlib.Json.serialize<List<Int>>" 30) =
+    "ops\n|> Stdlib.Json.serialize<\n  List<Int>\n>"
 
   // The shape it was found in, drawn and read back.
   (ADrawingSaysWhatTheDocumentSays.faithful
@@ -1768,3 +1781,30 @@ module EveryIntegerWidthIsItsOwnKind =
   (Fixtures.roundTrip "7UL") = "7UL"
   (Fixtures.roundTrip "7Q") = "7Q"
   (Fixtures.roundTrip "7Z") = "7Z"
+
+
+module ACallCarriesItsTypeArguments =
+  // `Stdlib.Json.parse<Wire> x` used to go opaque: printed source held as text, so it drew fine, saved
+  // fine, and could not be edited. It was the single largest thing Fluid could not represent -- most of
+  // the 556 nodes in the store that were inert for a real reason rather than being builtin wrappers.
+  //
+  // Four places said "type arguments are not supported": `toDoc` had an `if isEmpty typeArgs then ... else
+  // opaque`, `fromDoc` passed `[]`, `pipeToDoc` dropped them, and a `pipeSupported` guard existed for
+  // nothing else. All four stopped saying it together, and `pipeSupported` deleted outright.
+  //
+  // `EachWrapped` draws nothing when the list is empty, so a call WITHOUT type arguments is byte for byte
+  // what it was, which is nearly every call in the store.
+  (Fixtures.roundTrip "Stdlib.Json.parse<Darklang.Sync.Wire> wire") =
+    "Stdlib.Json.parse<Darklang.Sync.Wire> wire"
+  (Fixtures.roundTrip "Stdlib.List.map xs f") = "Stdlib.List.map xs f"
+
+  // Nested generics come free: each argument is an ordinary type slot, and a type slot already handled
+  // nesting. This is the case where a naive `>` could have terminated early.
+  (Fixtures.roundTrip "Stdlib.Json.parse<Dict<String, String>> contents") =
+    "Stdlib.Json.parse<Dict<String, String>> contents"
+
+  // A pipe STEP too. `pipeSupported` sent the WHOLE pipe opaque if any step had type arguments, so one
+  // generic call took the entire chain out.
+  (Fixtures.roundTrip "xs |> Stdlib.Json.parse<Darklang.Sync.Wire>") =
+    "xs |> Stdlib.Json.parse<Darklang.Sync.Wire>"
+  (Fixtures.roundTrip "xs |> Stdlib.List.length") = "xs |> Stdlib.List.length"
