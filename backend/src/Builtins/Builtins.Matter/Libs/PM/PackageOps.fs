@@ -955,7 +955,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
                 do! LibDB.Branches.createBranch branchId name parent
                 let ops = stamped |> List.map fst
-                let! nDecoded = LibDB.Branches.storeDeltaOpsStamped branchId stamped
+                // Tagged 'import', not 'op': these are somebody else's ops arriving, and the
+                // merge gate has to tell them from unreviewed work of your own.
+                let! nDecoded =
+                  LibDB.Branches.storeDeltaOpsStampedFrom "import" branchId stamped
                 let! nRaw = LibDB.Branches.storeDeltaBlobsStamped branchId rawRecords
                 let n = nDecoded + nRaw
                 // Re-derive bases against THIS instance's parent state (the bundle's bases don't travel).

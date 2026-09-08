@@ -82,6 +82,9 @@ let executeMergeDryRun (state: AppState) (branchRef: String) : AppState =
 /// the parent with no commit of their own, so they arrive as somebody else's history and the
 /// message explaining them never gets written. Commit them, or discard them, and then merge.
 ///
+/// YOUR uncommitted work, though. Ops that arrived in a bundle can be uncommitted too -- a peer
+/// pushed work in progress -- and refusing those told you to commit their work under your message.
+///
 /// Type errors: `commit` refuses definite at-rest errors, and merging around that gate landed
 /// exactly what it exists to stop -- a branch whose commit was REFUSED could still be merged,
 /// and main got code that does not typecheck with no record of the decision. Same checker, same
@@ -92,7 +95,7 @@ let mergeRefusal
   (branchRef: String)
   (allowTypeErrors: Bool)
   : Bool =
-  let uncommitted = SCM.PackageOps.draftOpCountFor branchId
+  let uncommitted = SCM.PackageOps.authoredDraftOpCountFor branchId
 
   if uncommitted != 0L then
     Cli.printErr

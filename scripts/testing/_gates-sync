@@ -619,7 +619,9 @@ gate_sync_multi_instance() {
   want "B runs the newest" "^30$" "$(x B --branch edited eval 'SM.T.edited ()' | tail -1)"
   want "and B SHOWS the newest" "^  30L$" "$(x B --branch edited view SM.T.edited)"
 
-  x B --branch edited merge edited > /dev/null
+  # ASSERTED, not discarded: a merge that refuses says so on stdout, and throwing that away left the
+  # next assertion to report "not found" about a name whose merge had simply not happened.
+  want "B merges the edited branch" "^Merged [1-9][0-9]* op\(s\)" "$(x B --branch edited merge edited)"
   want "merged into main, still the newest" "^30$" "$(x B eval 'SM.T.edited ()' | tail -1)"
 
   echo "== a deprecation travels"

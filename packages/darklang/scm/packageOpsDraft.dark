@@ -40,6 +40,24 @@ let draftOpCountFor (branchId: Uuid) : Int64 =
 let draftOpCount () : Int64 = draftOpCountFor (currentBranch ())
 
 
+/// Uncommitted ops on <param branchId> that THIS instance authored.
+///
+/// The merge gate's question, and not the same as the draft's. A pulled branch can carry ops nobody
+/// committed -- a peer pushed work in progress -- and refusing the merge over those told you to
+/// commit somebody else's work under your own message, which is the thing the gate exists to
+/// prevent, aimed at the wrong person. The merge commits them itself, under the merge's message,
+/// which is the honest record when nobody else committed them.
+let authoredDraftOpCountFor (branchId: Uuid) : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (localDb ())
+    "SELECT count(*) AS n FROM package_ops p
+     JOIN op_branches ob ON ob.op_id = p.id
+     WHERE p.commit_hash IS NULL AND ob.branch_id = @p0 AND ob.source <> 'import'"
+    [ Stdlib.Uuid.toString branchId ]
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
 /// The ids of the ops the draft holds, sorted, so a commit can be hashed over WHAT it commits.
 ///
 /// Sorted rather than in log order: two machines that authored the same ops in a different order committed
