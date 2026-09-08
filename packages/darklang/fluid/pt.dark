@@ -1339,6 +1339,22 @@ let applyMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
 ///
 /// Only once the case is RESOLVED. An unresolved `EEnum` has no hash and no arity to speak of, and
 /// capping it at zero would stop it ever being filled.
+/// A record literal's fields are the ones its TYPE declares, so once the type is known there is never
+/// another to add. Same fact as an enum constructor's arity, one type over.
+///
+/// The printer writes a record that does not fit a field to a line, and transcribing that pressed Enter
+/// with the caret inside the first field -- which added a third, then a fourth, and every field came out
+/// twice. Capping it here stops the growth at its source and leaves the other lists alone; a MATCH grows
+/// by Enter on purpose and is pinned that way.
+///
+/// Only once the type is RESOLVED. `Zork {` has no hash and no declaration to count, and capping it at
+/// one would stop it ever being filled.
+let recordMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
+  if (slot == "fields") && ((textOf n "_typeHash") != "") then
+    Stdlib.Option.Option.Some(Stdlib.List.length (Node.items n "fields"))
+  else
+    Stdlib.Option.Option.None
+
 let enumMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
   if (slot == "fields") && ((textOf n "_typeHash") != "") then
     Stdlib.Option.Option.Some(Stdlib.List.length (Node.items n "fields"))
@@ -2220,7 +2236,8 @@ let moreSpecs () : List<Spec> =
               Piece.Nest(2, [ Piece.HardLine, Piece.Each("fields", [ Piece.Punct ";", Piece.HardLine ]) ])
               Piece.HardLine
               Piece.Punct "}" ] ]
-        (Node.make (exprKind "ERecord") [ text "type" "", text "_typeHash" "", ("fields", Field.Many([], fieldExpect ())) ]))
+        (Node.make (exprKind "ERecord") [ text "type" "", text "_typeHash" "", ("fields", Field.Many([], fieldExpect ())) ])
+       |> fun sp -> { sp with maxItems = recordMaxItems })
       recordLiteralOffers
     Spec.withOffers
       (simpleExpr

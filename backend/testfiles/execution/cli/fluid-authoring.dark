@@ -1098,6 +1098,41 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module ALineBreakIsLayoutNotStructure =
+  // The printer breaks a list across lines when it does not fit, and typing those breaks back added
+  // structure the text does not carry: `[a,` already put the caret in an empty item, so the line break
+  // after it added a SECOND and `[a, / b]` came out `[a, ⟨item⟩, b]`.
+  //
+  // Two things were wrong and each is a rule this file already had, asked from a key that had not been
+  // asked.
+  //
+  // Enter grew the list past an untouched BLANK. It has to be a blank and not merely "an item with holes
+  // in it": a fresh match ARM is a filled node whose slots are holes, and Enter adding one of those is
+  // pinned behaviour a few modules down. A list's items are bare holes, and that is the difference.
+  //
+  // Enter then went to the NEXT hole from a hole it was already in. "On to the next blank" makes sense
+  // from something finished, not from a blank you have not filled.
+  //
+  // And the closer arrived to find a trailing item nothing had been typed into, because the printer puts
+  // its `]` on a line of its own and that last break started one. It drops it now -- only the last, only
+  // when entirely holes, never the only one.
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "[a,") (Stdlib.List.append [ "<Enter>" ]
+      (Stdlib.List.append (Fixtures.chars "b]") [ "<Esc>", "<Esc>" ])))) =
+    "[a, b]"
+
+  // What the trailing-item drop must not take: a list you are still filling in is not one to empty, and
+  // a closer on a finished list leaves it alone.
+  (Fixtures.screen (Fixtures.chars "[")) = "[~⟨item⟩]"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[1, 2]") [ "<Esc>", "<Esc>" ])) = "[1, 2]"
+
+  // And what Enter must still do: grow a list from a FINISHED item, and reach a waiting hole from
+  // something settled.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1") [ "<Enter>" ])) = "[1, ~⟨item⟩]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs") [ "<Enter>" ])) =
+    "Stdlib.List.map xs ~⟨fn⟩"
+
+
 module ALetCanDestructureATuple =
   // `let (a, b) = t` is ordinary Darklang and came out as `let (a, = b = t`: the `(` had no rule on a
   // let-pattern hole, so it became a PARTIAL and everything after it appended to it.
@@ -1119,6 +1154,42 @@ module ALetCanDestructureATuple =
   // The wildcard is SELECTED here rather than passed, which is what `OnNode` is for: a `let _` is a whole
   // pattern with nothing to type into, and `c` to change it is the next thing anyone does.
   (Fixtures.screen (Fixtures.chars "let _")) = "let ~_ = ⟨value⟩\n⟨body⟩"
+
+
+module AStringHoldsWhateverYouType =
+  // Every operator character broke OUT of a string body and wrapped the string in an infix:
+  //
+  //     "a/b"   ->  "a" / b
+  //     "a=b"   ->  "a" = b
+  //     "a.b"   ->  ("a").b
+  //
+  // so no path, no URL and no message with punctuation in it could be typed. `+ - * / % ^ > < = ! &` all
+  // did it, and `.` made a field access. Only the non-operator punctuation stayed in.
+  //
+  // The plainest construct in the language, and every string pinned in this file is operator-free, which
+  // is exactly why nothing caught it. The store-wide typed sweep found it on a real body,
+  // `Stdlib.Cli.FileSystem.readFile "$HOME/.bashrc"`.
+  //
+  // Its neighbours in the chain all ask: `typeOne` guards eight branches on `inStringBody`, and the space
+  // rule two lines above asks `slot != "body"`. The operator branch did not, so `isOperatorChar` won.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a/b\"") [ "<Esc>", "<Esc>" ])) = "\"a/b\""
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a = b\"") [ "<Esc>", "<Esc>" ])) = "\"a = b\""
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a.b\"") [ "<Esc>", "<Esc>" ])) = "\"a.b\""
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"2 > 1\"") [ "<Esc>", "<Esc>" ])) = "\"2 > 1\""
+
+  // The closing quote is what ends a string, and from after it an operator wraps exactly as before.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a\" ++ \"b\"") [ "<Esc>", "<Esc>" ])) =
+    "\"a\" ++ \"b\""
+
+  // ...and so does Right, which never did. `moveRight` asks for the next cell a caret can occupy, and the
+  // cell after a string's body is its closing QUOTE -- punctuation the node draws, which takes none -- so
+  // it found nothing and stayed put. `"a` then Right sat exactly where it started.
+  //
+  // Nobody noticed because typing an operator got you out, by breaking the string. A pin was using that
+  // as its way out, and it stopped working the moment an operator inside a string became content. Two
+  // bugs, and the second was only visible once the first was fixed.
+  (Fixtures.screen [ "\"", "a", "<Right>" ]) = "\"a\"~"
+  (Fixtures.screen [ "\"", "a", "<Right>", "+" ]) = "\"a\" +~ ⟨right⟩"
 
 
 module AWildcardParamDoesNotSwallowTheBody =

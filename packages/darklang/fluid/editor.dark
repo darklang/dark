@@ -379,14 +379,25 @@ let moveRight (st: State) : State =
     { st with caret = { caret with offset = caret.offset + 1 } }
   else
     let (st, cells) = withCells st
+    // The cell after the caret is the next place a caret can GO. When it is punctuation the node itself
+    // draws -- a string's closing quote -- there is no cell to take, and Right did nothing at all.
+    //
+    // So `"a` then Right stayed inside the string, and the only way out was to type an operator, which
+    // used to break out and wrap. That is the escape hatch a pin was using, and it stopped working the
+    // moment an operator inside a string became content, which is what it always should have been. The
+    // hatch was covering for this.
+    //
+    // Landing AFTER the node is where Right from the end of one belongs, and it is where the closing
+    // quote already puts you.
+    let afterOwnNode = { st with caret = Caret.afterNode caret.node }
     match caretCellIndex cells caret with
     | Some i ->
       match Stdlib.List.getAt cells (i + 1) with
       | Some((_, _, c)) ->
         match caretForCell c false with
         | Some nc -> { st with caret = nc }
-        | None -> st
-      | None -> st
+        | None -> afterOwnNode
+      | None -> afterOwnNode
     | None -> st
 
 /// Up or down one row, keeping the column where we can.
@@ -1798,9 +1809,34 @@ let typeOne (st: State) (c: String) : State =
     // closers wanted the same audit. This is that audit: one branch, same call, and it is the branch every
     // closing bracket goes through.
     let settled = resolvePartial st |> Stdlib.Option.withDefault st
+    // A closer also drops a trailing item nothing was typed into. The printer puts its `}` or `]` on a
+    // line of its own, so transcribing one ends with a line break that starts an item, and then the closer
+    // arrives to find it empty: `Size { width = 1; height = 2 }` came out with a third field, and
+    // `[a, b]` with a third element.
+    //
+    // Only the LAST one, only when it is entirely holes, and never the only one -- `[⟨item⟩]` is a list
+    // you are still filling in, not one to empty.
+    let dropped =
+      match enclosingListItem caret with
+      | Some((parentPath, slot, _)) ->
+        (match nodeAtPath settled.root parentPath with
+         | Some parent ->
+           let items = Node.items parent slot
+           let n = Stdlib.List.length items
+           if n <= 1 then
+             settled
+           else
+             (match Stdlib.List.getAt items (n - 1) with
+              | Some(Empty _) -> commit settled [ Edit.RemoveItem(parentPath, slot, n - 1) ] settled.caret
+              | Some(Filled child) ->
+                if isAllHoles child then commit settled [ Edit.RemoveItem(parentPath, slot, n - 1) ] settled.caret
+                else settled
+              | None -> settled)
+         | None -> settled)
+      | None -> settled
     match target with
-    | Some p -> { settled with caret = Caret.afterNode p }
-    | None -> moveRight settled
+    | Some p -> { dropped with caret = Caret.afterNode p }
+    | None -> moveRight dropped
   elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c) then
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
@@ -2043,7 +2079,19 @@ let typeOneRaw (st: State) (c: String) : State =
           typeOne { st with caret = next } c
       | None ->
         // At the end of a node's text, an operator wraps the node (`1` then `+` gives `1 + ⟨right⟩`).
-        match (if atEnd then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
+        //
+        // Except inside a STRING, where every character is content. `"a/b"` came out as `"a" / b`, and so
+        // did every other operator: `+ - * / % ^ > < = ! &` all broke out and wrapped the string in an
+        // infix, and `.` made a field access of it. No path, no URL and no message with punctuation in it
+        // could be typed -- `"$HOME/.bashrc"` is the real body that found this.
+        //
+        // Its neighbours in this chain all ask: `typeOne` guards eight branches on `inStringBody`, and the
+        // space rule two lines up asks `slot != "body"`. This one did not, so `isOperatorChar` won.
+        //
+        // The closing quote is what ends a string, and it has its own rule. From after it the caret is
+        // AfterNode and `"abc" + "def"` wraps exactly as it always did.
+        let inString = slot == "body"
+        match (if atEnd && (Stdlib.Bool.not inString) then wrapRuleFor st.reg n c else Stdlib.Option.Option.None) with
         // An infix operator wraps the node precedence says it should, not always the one under the caret.
         | Some rule -> applyWrap st caret n rule c
         | None ->
@@ -2097,15 +2145,7 @@ let typeOneRaw (st: State) (c: String) : State =
           // `(if x > 0 then ⟨then⟩ else ⟨else⟩, then, 1, else, 2)`. The same `if` with no list around it
           // was always right, which is the tell -- one question, and the answer depended on what happened
           // to enclose the caret.
-          let itemHasHoles =
-            match enclosingListItem caret with
-            | Some((parentPath, slot, i)) ->
-              (match slotAtPath st.root (Path.item parentPath slot i) with
-               | Some s -> Stdlib.Bool.not (Stdlib.List.isEmpty (holes s))
-               | None -> false)
-            | None -> false
-
-          match (if itemHasHoles then Stdlib.Option.Option.None else addSibling st) with
+          match (if itemHasHoles st caret then Stdlib.Option.Option.None else addSibling st) with
           | Some added -> typeOne added c
           | None ->
             // Nothing to grow. A name after a finished value that CAN be applied is a call: `f xs` is
@@ -3457,9 +3497,42 @@ let inArgSlotsList (st: State) (c: Caret) : Bool =
      | None -> false)
   | None -> false
 
-/// `addSibling` for the ENTER key, which does not grow an argument list. Typing still does.
+/// Is the item the caret stands in an untouched BLANK -- a bare hole, not a node with holes in it?
+///
+/// The difference decides whether Enter may add another. A list's items are bare holes: `[a,` already put
+/// you in an empty one, so the line break that follows it in the printer's multi-line layout was adding a
+/// SECOND, and `[a, / b]` came out `[a, ⟨item⟩, b]`. A match's arms are not -- a fresh arm is a FILLED
+/// MatchCase whose slots happen to be holes -- and Enter adding one of those is pinned behaviour, with a
+/// comment saying so.
+///
+/// I had this as "does the item have holes", which cannot tell the two apart and broke the match.
+let itemIsBlank (st: State) (c: Caret) : Bool =
+  match enclosingListItem c with
+  | Some((parentPath, slot, i)) ->
+    (match slotAtPath st.root (Path.item parentPath slot i) with
+     | Some(Empty _) -> true
+     | _ -> false)
+  | None -> false
+
+/// Does the item the caret stands in still hold something unfilled? Growing the enclosing list past that
+/// skips over what you are in the middle of writing.
+let itemHasHoles (st: State) (c: Caret) : Bool =
+  match enclosingListItem c with
+  | Some((parentPath, slot, i)) ->
+    (match slotAtPath st.root (Path.item parentPath slot i) with
+     | Some s -> Stdlib.Bool.not (Stdlib.List.isEmpty (holes s))
+     | None -> false)
+  | None -> false
+
+/// `addSibling` for the ENTER key. It does not grow an argument list, and it does not grow past a hole in
+/// the item you are standing in.
+///
+/// Enter already declines when the candidate it just COMMITTED has holes of its own -- that is what stops
+/// `fun` in an argument giving two parameters. This is the same judgement about an item that was already
+/// there, which is the case the commit path cannot see.
 let addSiblingOnEnter (st: State) : Stdlib.Option.Option<State> =
-  if inArgSlotsList st st.caret then Stdlib.Option.Option.None else addSibling st
+  if (inArgSlotsList st st.caret) || (itemIsBlank st st.caret) then Stdlib.Option.Option.None
+  else addSibling st
 
 /// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to
 /// recognise the closer it drew.
@@ -3725,8 +3798,13 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
             // branch above already does. They disagreed, and a capped list is where it showed --
             // `Stdlib.List.map xs` then Enter had a `<fn>` hole waiting and did NOTHING, because the
             // sibling was refused (the call is as long as its arity) and the blank stopped the statement.
+            let onABlank =
+              match slotUnder settled with
+              | Some(Empty _) -> true
+              | _ -> false
+
             let moved = nextHole settled
-            if moved.caret == st.caret then
+            if onABlank || (moved.caret == st.caret) then
               (if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled)
             else handled moved
     | None ->
@@ -3739,7 +3817,15 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           match sequenceHere settled with
           | Some seq -> handled seq
           | None ->
-            // ...and then the next hole, which the branch above has done since a capped argument list
+            // ...and then the next hole -- but not when the caret is ALREADY in one. Enter meaning "on to
+            // the next blank" makes sense from something finished; from a blank you have not filled yet it
+            // skips the very thing it is pointing at. The printer's multi-line record is where that shows:
+            // `Size {` leaves the caret in the first field's VALUE, and the Enter that ends that line sent
+            // it to the SECOND field, so `width = 1` was written into `height`.
+            //
+            // A line break in printed source is layout. It should cost nothing to type.
+            //
+            // The branch above has done the next-hole step since a capped argument list
             // showed the two disagreeing. They disagreed here too, and what decided it was the SHAPE of
             // the thing just finished: a string leaves the caret AfterNode, which has this fallback, and
             // a number leaves it in the digits, which did not. So `let x = "a"` then Enter reached the
