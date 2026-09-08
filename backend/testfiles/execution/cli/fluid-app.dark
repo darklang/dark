@@ -662,3 +662,26 @@ module TheScrollerMeasuresWhatIsDrawn =
 
   (TheScrollerMeasuresWhatIsDrawn.lastRowScroll ()) = 22
   (Stdlib.String.contains (TheScrollerMeasuresWhatIsDrawn.screenAt (TheScrollerMeasuresWhatIsDrawn.lastRowScroll ())) "40") = true
+
+
+module TextPaneHorizontalWindow =
+  // The same question sideways. `Layout.at` CLIPS a long line to the pane, so nothing bleeds, but past
+  // the right edge the caret and everything after it were simply gone -- you could keep typing into a
+  // line you could not see. `textLeft` picks which column sits at the left.
+  //
+  // Found while checking whether "horizontal clipping on a long line" was still open. Clipping was never
+  // the gap: it has always worked. Seeing what you are typing was.
+  //
+  // A line that fits never scrolls, wherever the caret is in it.
+  (Darklang.Fluid.App.textLeft 0 80) = 0
+  (Darklang.Fluid.App.textLeft 40 80) = 0
+  (Darklang.Fluid.App.textLeft 77 80) = 0
+
+  // Past the edge it shifts by exactly enough, keeping a couple of columns of lead so the caret is not
+  // jammed against the border -- the same three `textTop` keeps below.
+  (Darklang.Fluid.App.textLeft 78 80) = 1
+  (Darklang.Fluid.App.textLeft 137 80) = 60
+
+  // Never negative, which is what a narrow pane or a caret at the start would otherwise produce.
+  (Darklang.Fluid.App.textLeft 0 4) = 0
+  (Darklang.Fluid.App.textLeft 2 4) = 1

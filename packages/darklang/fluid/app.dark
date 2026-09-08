@@ -506,6 +506,14 @@ let textTop (lines: List<String>) (crow: Int) (rows: Int) : Int =
   let want = Stdlib.Int.max 0 (crow - rows + 3)
   Stdlib.Int.min want maxTop
 
+/// How far LEFT the text window has scrolled, so the caret column stays on screen.
+///
+/// `Layout.at` clips a long line to the pane, which stops it bleeding but does not help you see what you
+/// are typing: past the right edge the caret and everything after it were simply gone. The same problem
+/// `textTop` solves downwards, and the same shape of answer -- keep a few columns of lead so the caret is
+/// not jammed against the edge.
+let textLeft (ccol: Int) (cols: Int) : Int = Stdlib.Int.max 0 (ccol - cols + 3)
+
 
 let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   match st.textMode with
@@ -530,11 +538,17 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
     // `Layout.at`, so a tall expression used to hide its own tail while the caret walked off-screen and
     // typed into lines nobody could see. Scroll the window to keep the caret row in it.
     let top = textTop lines crow region.rows
+    let left = textLeft ccol region.cols
     let textSpans =
       lines
       |> Stdlib.List.drop top
       |> Stdlib.List.take region.rows
-      |> Stdlib.List.indexedMap (fun i line -> Stdlib.Cli.UI.Layout.at region i 0 line)
+      |> Stdlib.List.indexedMap (fun i line ->
+        // Every row shifts by the same amount, so the columns still line up with each other and with the
+        // caret. Dropping from a line shorter than the shift leaves nothing, which is what should be
+        // there.
+        let shifted = Stdlib.String.dropFirst line left
+        Stdlib.Cli.UI.Layout.at region i 0 shifted)
       |> Stdlib.List.flatten
     let total = Stdlib.List.length lines
     let paneTitle =
@@ -543,7 +557,9 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
       else "fluid · text"
     let body = Stdlib.List.flatten [ Stdlib.Cli.UI.Box.draw full paneTitle true, textSpans ]
     let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
-    { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(region.top + (crow - top) - 1, region.left + ccol - 1) }
+    // The caret shifts with the text, the same way it shifts with `top` vertically. Without this the
+    // window scrolled and the cursor stayed where it was.
+    { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(region.top + (crow - top) - 1, region.left + (ccol - left) - 1) }
   | None ->
   let base_ = Stdlib.Cli.UI.Chrome.frame st.title (modeBadge st) (helpFor st)
   let toned =
