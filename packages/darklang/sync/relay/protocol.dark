@@ -214,13 +214,19 @@ let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
   let branch =
     Stdlib.Http.Request.queryParam req "branch" |> Stdlib.Option.withDefault ""
 
-  match Stdlib.Uuid.parse branch with
-  // Malformed input is refused, the way push refuses it; only a MISSING bundle answers "" 200.
-  | Error _ ->
-    Stdlib.Http.badRequest
-      $"branch pull needs ?branch= to be a branch id, and \"{branch}\" isn't one"
-  | Ok branchId ->
-    Stdlib.Http.responseWithText (SCM.PackageOps.relayGetBranch owner branchId) 200
+  if owner == "" then
+    // Refused, the way `/branch/list` refuses it and the way push refuses ops under owner "".
+    // A pull with no owner used to look up a branch under the empty owner and answer "" 200,
+    // which reads to a client as "that branch isn't here" rather than "you didn't say whose".
+    Stdlib.Http.badRequest "branch pull needs ?owner="
+  else
+    match Stdlib.Uuid.parse branch with
+    // Malformed input is refused, the way push refuses it; only a MISSING bundle answers "" 200.
+    | Error _ ->
+      Stdlib.Http.badRequest
+        $"branch pull needs ?branch= to be a branch id, and \"{branch}\" isn't one"
+    | Ok branchId ->
+      Stdlib.Http.responseWithText (SCM.PackageOps.relayGetBranch owner branchId) 200
 
 /// List the branch ids an owner has pushed (`?owner=X`), newline-joined.
 let branchListHandlerFn (req: HttpRequest) : HttpResponse =
