@@ -41,6 +41,17 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Ok newLocation ->
       let locationStr = Packages.formatLocation newLocation
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Changed to: {locationStr}")
+
+      // Where you are lives in this session, like a shell's cwd: `dark nav X` from a prompt moves
+      // for the length of that one command and nothing after it sees the move. Said out loud,
+      // because "Changed to:" on its own reads like it stuck, and the next `dark ls` disagreeing
+      // with it is a confusing way to find out.
+      if state.nonInteractive then
+        Cli.printHint
+          "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments keeps one.)"
+      else
+        ()
+
       navTo state newLocation
   | _ ->
     Stdlib.printLine (help state)

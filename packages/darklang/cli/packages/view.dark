@@ -495,7 +495,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | Error e ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {e}")
     Stdlib.printLine (help state)
-    state
+    { state with exitCode = 1 }
   | Ok parsed ->
     let (pathArg, mode) = parsed
 
@@ -512,7 +512,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error errorMsg ->
       // The traversal names the path it looked for, so this does not repeat it.
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {errorMsg}")
-      state
+      // Nonzero: `dark view X` in a script is asking a question whose answer here is "there is no
+      // such thing", and a zero exit says the opposite to everything downstream of it.
+      { state with exitCode = 1 }
     | Ok location ->
       match mode with
       | Source -> viewEntity branchId location

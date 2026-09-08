@@ -281,19 +281,27 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// something is the sort of question a tool asks because it is easy to implement.
 let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let branchId = state.currentBranchId
-  let positional = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--" |> Stdlib.Bool.not)
+  // Any dash-led argument, not just `--` ones. `delete <name> -y` is how you get here in the first
+  // place, so `restore <name> -y` is what people type to undo it -- and it used to fall through to
+  // the usage line, which named `undeprecate`, a command they had not typed. Nothing to confirm
+  // here anyway: putting something back is not destructive.
+  let positional =
+    args
+    |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "-" |> Stdlib.Bool.not)
 
   match positional with
   // Asking for help is not an error, so `help` is plain and only a bare call (which IS a missing
   // argument) shows the usage in red.
   | [ "help" ] ->
-    Stdlib.printLine "usage: dark undeprecate <name>"
+    Stdlib.printLine "usage: dark undeprecate <name>   (also `dark restore <name>`)"
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
         "  puts a deprecated fn, type or value back on the shelf. `dark ls --include-deprecated` finds them.")
     state
   | [] ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "usage: dark undeprecate <name>")
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        "usage: dark undeprecate <name>   (also `dark restore <name>`)")
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
         "  puts a deprecated fn, type or value back on the shelf. `dark ls --include-deprecated` finds them.")

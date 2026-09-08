@@ -60,7 +60,13 @@ let executePretty (state: AppState) : AppState =
   let s = SCM.Draft.counts ()
   branchLine state
 
-  if (s.changed == 0) && (s.removed == 0) && (s.conflicts == 0L) then
+  // `s.ops` is in the clean test, not just the three name-shaped counts. An op that binds no name --
+  // a deprecation, a pin, an ack -- is still uncommitted work, and counting only bindings reported
+  // "clean" right after `dark delete X`, with the Deprecate sitting in the draft waiting to be swept
+  // into whatever got committed next. Same mistake `discard` made about the same ops.
+  if
+    (s.changed == 0) && (s.removed == 0) && (s.conflicts == 0L) && (s.ops == 0L)
+  then
     Cli.printOk "clean: nothing changed since your last commit."
 
     // Nothing in a clean tree is yours, so say the constraints stand on their own.
@@ -94,7 +100,15 @@ let executePretty (state: AppState) : AppState =
            else
              [ $"{Cli.Text.plural (Stdlib.Int.fromInt64 s.conflicts) "conflict"} to review" ]))
 
-    Cli.printOk $"""draft: {Stdlib.String.join parts ", "}"""
+    // Nothing name-shaped to describe, but ops all the same: say what they are rather than printing
+    // "draft: " with an empty list after it.
+    if Stdlib.List.isEmpty parts then
+      Cli.printOk
+        $"""draft: {Cli.Text.plural (Stdlib.Int.fromInt64 s.ops) "op"}, no changed names (decisions only: pins, deprecations, acks)"""
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint "  -> `dark commit` to review + commit (it asks first)")
+    else
+      Cli.printOk $"""draft: {Stdlib.String.join parts ", "}"""
 
     if s.conflicts > 0L then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  -> `dark conflicts` to review them")

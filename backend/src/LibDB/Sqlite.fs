@@ -32,6 +32,49 @@ let mutable currentDbPath = LibConfig.Config.dbPath
 // the fold -- at the instance store.
 let mutable connString = defaultConnString
 
+/// Copy the live store to `target`, and copy a file back over the live store.
+///
+/// Through SQLite's own online-backup API, never a file copy. Two reasons, and the
+/// first one is why these exist at all: the store path is guarded
+/// (`HostSecurity.isPackageDbPath`), so Dark's file builtins refuse it -- correctly,
+/// since a guest must not read or replace the host's store -- and `dark backups now`
+/// was reaching for exactly those builtins and dying on an uncaught denial. The
+/// store's owner offers the operation instead of the guard being weakened for
+/// everyone.
+///
+/// The second: a copy of `data.db` alone is not the store. Recent writes sit in
+/// `data.db-wal`, and a restore has to land while connections are open. The backup
+/// API handles both -- it reads through the WAL for a consistent snapshot, and
+/// writing into a live destination is what it is for.
+module Backup =
+  let private copy (fromConn : string) (toConn : string) : Result<unit, string> =
+    try
+      use source = new SqliteConnection(fromConn)
+      source.Open()
+      use destination = new SqliteConnection(toConn)
+      destination.Open()
+      source.BackupDatabase destination
+      Ok()
+    with e ->
+      Error e.Message
+
+  /// Snapshot the live store into `target`, creating it.
+  let toFile (target : string) : Result<unit, string> =
+    copy connString (connStringFor target)
+
+  /// Replace the live store's contents with `source`'s.
+  ///
+  /// Contents, not the file: connections already open keep working and see the
+  /// restored data, which swapping the file underneath them could not promise. What
+  /// it cannot refresh is anything already read into memory, so the caller still
+  /// says to restart.
+  let fromFile (source : string) : Result<unit, string> =
+    if not (System.IO.File.Exists source) then
+      Error $"no file at {source}"
+    else
+      copy (connStringFor source) connString
+
+
 module Sql =
   // Initialize connection with PRAGMA settings that can't be set in the connection string
   let initializeConnection (props : Sql.SqlProps) : Sql.SqlProps =

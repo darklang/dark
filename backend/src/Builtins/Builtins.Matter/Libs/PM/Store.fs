@@ -14,6 +14,23 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 
 
+/// Refuse a store-level operation unless every non-root frame is bundled Darklang
+/// code. The same check the private-network transport makes, for the same reason: a
+/// guest that can call a bundled wrapper would otherwise turn it into a confused
+/// deputy.
+let private requireBundledCaller
+  (state : ExecutionState)
+  (vm : VMState)
+  (builtinName : string)
+  : unit =
+  if not (LibExecution.PermissionCheck.callerIsBundled state vm) then
+    RuntimeError.UncaughtException(
+      $"permission denied: `{builtinName}` is restricted to trusted first-party (Darklang) code",
+      []
+    )
+    |> raiseUntargetedRTE
+
+
 let fns () : List<BuiltInFn> =
   [
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
@@ -33,6 +50,55 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    // Take a copy of this instance's store, and put one back.
+    //
+    // The store path is guarded, so the file builtins refuse it and `dark backups`
+    // cannot do this for itself -- see `LibDB.Sqlite.Backup`. First-party only,
+    // checked the way the sync transport checks it: replacing the store wholesale
+    // from an arbitrary file is not something a guest holding package-write should
+    // be able to reach through a wrapper.
+    { name = fn "localDbBackupTo" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "where to write the copy" ]
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Snapshots this instance's package store to <param path>. Returns the failure as an Error."
+      fn =
+        (function
+        | state, vm, _, [| DString path |] ->
+          uply {
+            requireBundledCaller state vm "localDbBackupTo"
+            match LibDB.Sqlite.Backup.toFile path with
+            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
+            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "localDbRestoreFrom" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "the copy to restore" ]
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Replaces this instance's package store contents with <param path>'s. Returns the failure as an Error."
+      fn =
+        (function
+        | state, vm, _, [| DString path |] ->
+          uply {
+            requireBundledCaller state vm "localDbRestoreFrom"
+            match LibDB.Sqlite.Backup.fromFile path with
+            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
+            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     // Whether a write secret is stored for a relay, WITHOUT handing it over.

@@ -62,40 +62,28 @@ let executeList (state: AppState) : AppState =
     Cli.printHint "  dark backups prune <n>       keep the newest n, delete the rest"
     state
 
-/// The store is in WAL mode, so recent writes can sit in `data.db-wal` and not in `data.db`. A copy of
-/// the file alone misses them. Fold the WAL into the file first, so the copy is the whole store.
-let checkpoint () : Unit =
-  let _ = Stdlib.Sqlite.exec (Stdlib.LocalStore.path ()) "PRAGMA wal_checkpoint(TRUNCATE)"
-  ()
-
 /// `dark backups now`. Named for the moment rather than the day, so an on-demand copy never collides
 /// with the upgrade path's daily one.
 let executeNow (state: AppState) : AppState =
-  let db = Stdlib.LocalStore.path ()
+  let dir = backupDir ()
+  let _ = Stdlib.Cli.Dir.createRecursive dir
+  let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
+  let target = $"{dir}/data.db.manual-{stamp}"
 
-  if Stdlib.Bool.not (Stdlib.Cli.File.exists db) then
-    Cli.printErr "there's no store to back up yet."
+  // `LocalStore.backupTo`, not a file copy. The store path is guarded, so the file builtins refuse
+  // it -- this command used to die on that denial before it wrote anything, since even asking
+  // whether the store EXISTS goes through the same guard.
+  match Stdlib.LocalStore.backupTo target with
+  | Ok _ ->
+    Cli.printOk $"copied the store to {target}"
     state
-  else
-    let dir = backupDir ()
-    let _ = Stdlib.Cli.Dir.createRecursive dir
-    let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
-    let target = $"{dir}/data.db.manual-{stamp}"
-    let _ = checkpoint ()
-
-    match Stdlib.Cli.File.copy db target with
-    | Ok _ ->
-      Cli.printOk $"copied the store to {target}"
-      state
-    | Error _ ->
-      Cli.printErr $"couldn't write {target}"
-      state
+  | Error e ->
+    Cli.printErr $"couldn't write {target}: {e}"
+    { state with exitCode = 1 }
 
 /// `dark backups restore <name> [-y]`. Puts the named backup in place of the store. The store as it is
-/// now is copied aside first (`data.db.pre-restore-<stamp>`), so a restore is itself undoable; then the
-/// WAL is folded and truncated, so nothing of the old store replays over the new file on the next open.
+/// now is copied aside first (`data.db.pre-restore-<stamp>`), so a restore is itself undoable.
 let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppState =
-  let db = Stdlib.LocalStore.path ()
   let source = $"{backupDir ()}/{name}"
 
   if Stdlib.Bool.not (Stdlib.List.``member`` (list ()) name) then
@@ -117,23 +105,27 @@ let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppSta
   else
     let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
     let aside = $"{backupDir ()}/data.db.pre-restore-{stamp}"
-    let _ = checkpoint ()
 
-    match Stdlib.Cli.File.copy db aside with
-    | Error _ ->
-      Cli.printErr $"couldn't copy the current store aside to {aside}; nothing restored."
-      state
+    match Stdlib.LocalStore.backupTo aside with
+    | Error e ->
+      Cli.printErr
+        $"couldn't copy the current store aside to {aside} ({e}); nothing restored."
+
+      { state with exitCode = 1 }
     | Ok _ ->
-      match Stdlib.Cli.File.copy source db with
+      // Contents in, rather than the file swapped underneath the open store: see
+      // `Stdlib.LocalStore.restoreFrom`. What it cannot do is refresh what this process has
+      // already read, hence the restart.
+      match Stdlib.LocalStore.restoreFrom source with
       | Ok _ ->
-        // The old store's WAL was truncated above; the -wal/-shm files that remain describe nothing.
-        let _ = Stdlib.Cli.File.delete $"{db}-wal"
-        let _ = Stdlib.Cli.File.delete $"{db}-shm"
         Cli.printOk $"restored {name}. The store as it was is at {aside}."
+        Cli.printHint "  start `dark` again: this process is still holding the old store."
         state
-      | Error _ ->
-        Cli.printErr $"couldn't copy {source} over the store. The store is unchanged; a copy is at {aside}."
-        state
+      | Error e ->
+        Cli.printErr
+          $"couldn't restore {source} ({e}). The store is unchanged; a copy is at {aside}."
+
+        { state with exitCode = 1 }
 
 /// `dark backups prune <keep> [-y]`. Deletes the oldest, keeping the newest <keep>. Shows what would go
 /// and takes an explicit yes, like every other verb that destroys something: a backup is the thing you

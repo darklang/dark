@@ -2,30 +2,25 @@ module Darklang.Cli.Packages.FindValues
 
 // Find all package values of a given type
 
-/// Resolve a type path to its hash
+/// Resolve a type path to its hash.
+///
+/// Resolved with `Traversal.traverse`, the walk `view` and `ls` use, rather than split on dots here.
+/// Splitting read the FIRST segment as the owner, so `find-values Stdlib.Option.Option` looked for an
+/// owner named Stdlib and answered "Type not found" about a type `view` prints happily.
 let resolveTypeHash
   (branchId: Uuid)
+  (currentLocation: Packages.PackageLocation)
   (typePath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
-  let parts = Stdlib.String.split typePath "."
-
-  match Stdlib.List.reverse parts with
-  | [] -> Stdlib.Result.Result.Error "Empty type path"
-  | name :: revRest ->
-    let rest = Stdlib.List.reverse revRest
-
-    match rest with
-    | [] -> Stdlib.Result.Result.Error "Type path must have at least owner.name"
-    | owner :: modules ->
-      let location =
-        LanguageTools.ProgramTypes.PackageLocation
-          { owner = owner
-            modules = modules
-            name = name }
-
-      match LanguageTools.PackageManager.Type.find branchId location with
-      | Some typeHash -> Stdlib.Result.Result.Ok typeHash
-      | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
+  match Traversal.traverse branchId currentLocation typePath with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(Type loc) ->
+    match LanguageTools.PackageManager.Type.find branchId loc with
+    | Some typeHash -> Stdlib.Result.Result.Ok typeHash
+    | None -> Stdlib.Result.Result.Error $"Type not found: {typePath}"
+  | Ok _ ->
+    Stdlib.Result.Result.Error
+      $"{typePath} is not a type. find-values looks for values OF a type."
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -35,7 +30,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ typePath ] ->
-    match resolveTypeHash state.currentBranchId typePath with
+    match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
@@ -51,7 +46,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ typePath, namespace_ ] ->
-    match resolveTypeHash state.currentBranchId typePath with
+    match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state

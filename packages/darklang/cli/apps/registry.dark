@@ -50,7 +50,13 @@ let available () : List<Model.App> =
 /// Any `App` value declared anywhere, discovered by type — so a user's own app shows up in
 /// `list-available` without editing this file.
 let discover (branchId: Uuid) : List<Model.App> =
-  match Packages.FindValues.resolveTypeHash branchId "Darklang.Cli.Apps.Model.App" with
+  // From the root, not from wherever the caller is standing: this name is absolute.
+  match
+    Packages.FindValues.resolveTypeHash
+      branchId
+      (Packages.PackageLocation.Module [])
+      "Darklang.Cli.Apps.Model.App"
+  with
   | Ok typeHash ->
     let found =
       Stdlib.ValueSearch.findByType branchId "" typeHash

@@ -26,3 +26,21 @@ let configGet (key: String) : String = Builtin.configGet key
 /// Write a setting. Local to this instance, always: this is where "which relay", "which branch" and
 /// "which entry point" live, and none of them is anybody else's business.
 let configSet (key: String) (value: String) : Unit = Builtin.configSet key value
+
+
+/// Snapshot this instance's store to <param path>.
+///
+/// Not `Stdlib.Cli.File.copy`: the store path is guarded (a guest must not read or replace the
+/// host's store), so the file API refuses it, and a copy of `data.db` alone would miss whatever is
+/// still in the WAL. This goes through SQLite's online-backup API, which reads a consistent snapshot
+/// of an open store.
+let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbBackupTo path
+
+
+/// Replace this instance's store contents with the copy at <param path>.
+///
+/// Contents, not the file, so connections already open keep working. Anything already read into
+/// memory is still the OLD store, though, so the caller should say to restart.
+let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbRestoreFrom path

@@ -884,28 +884,55 @@ let executeStatus (state: AppState) (url: String) : AppState =
 
   state
 
+/// Refuse something that could never be a relay url, saying so where it was TYPED.
+///
+/// Without this the argument travels all the way to the http client and comes back as "push failed:
+/// bad url" -- about a word the person never thought of as a url. `dark sync push` is the one that
+/// gets typed: `push` is a verb everywhere else, `sync` reads its lone argument as a url, and the
+/// result reads like the relay is broken.
+///
+/// Only the shape is checked. Whether it ANSWERS is a different question, and a relay that is down
+/// is not a typo (see `executeConnect`).
+let refuseIfNotARelayUrl (url: String) : Bool =
+  if
+    (Stdlib.String.startsWith url "http://")
+    || (Stdlib.String.startsWith url "https://")
+  then
+    false
+  else
+    Cli.printErr $"{url} is not a relay url: it needs an http:// or https:// scheme."
+    Cli.printHint "  `dark sync help` lists the verbs; a url goes after them."
+    true
+
+
 /// Connect to a relay: remember it as the default, then push your stuff up. After this,
 /// `dark sync` / `pull` / `push` need no url.
 let executeConnect (state: AppState) (url: String) : AppState =
-  SCM.PackageOps.setRelay url
-  Cli.printOk $"relay remembered: {url}. Uploading your ops..."
-  let after = executePush state url
-
-  // The url is kept even when the push fails: connecting while offline is legitimate, and `dark push` is
-  // then the retry. But a TYPO looks exactly like a relay that's down, so say what is stored and how to
-  // change it rather than leaving "network error" as the last word.
-  let reachable =
-    match relayGet $"{url}/ping" with
-    | Ok _ -> true
-    | Error _ -> false
-
-  if reachable then
-    after
+  // Refused BEFORE it is stored. Keeping an unreachable url is deliberate (see below); keeping one
+  // with no scheme is not, because no later `dark push` can ever succeed against it, so the retry
+  // the hint offers is one that cannot work.
+  if refuseIfNotARelayUrl url then
+    { state with exitCode = 1 }
   else
-    Cli.printHint
-      $"  {url} is still your relay -- `dark push` retries, `dark connect <url>` changes it."
+    SCM.PackageOps.setRelay url
+    Cli.printOk $"relay remembered: {url}. Uploading your ops..."
+    let after = executePush state url
 
-    after
+    // The url is kept even when the push fails: connecting while offline is legitimate, and `dark push` is
+    // then the retry. But a TYPO looks exactly like a relay that's down, so say what is stored and how to
+    // change it rather than leaving "network error" as the last word.
+    let reachable =
+      match relayGet $"{url}/ping" with
+      | Ok _ -> true
+      | Error _ -> false
+
+    if reachable then
+      after
+    else
+      Cli.printHint
+        $"  {url} is still your relay -- `dark push` retries, `dark connect <url>` changes it."
+
+      after
 
 
 let help (_state: AppState) : String =
@@ -963,10 +990,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] -> executeSync state (SCM.PackageOps.relay ())
   | [ "status" ] -> executeStatus state (SCM.PackageOps.relay ())
-  | [ "status", url ] -> executeStatus state url
+  | [ "status", url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeStatus state url
   | [ "export", path ] -> executeExport state path
   | [ "import", path ] -> executeImport state path
-  | [ url ] -> executeSync state url
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeSync state url
   | _ ->
     Stdlib.printLine (help state)
     state
@@ -975,7 +1004,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 let executePushCmd (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] -> executePush state (SCM.PackageOps.relay ())
-  | [ url ] -> executePush state url
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePush state url
   | _ ->
     Cli.printErr "usage: dark push [url]"
     state
@@ -984,7 +1014,8 @@ let executePushCmd (state: AppState) (args: List<String>) : AppState =
 let executePullCmd (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] -> executePull state (SCM.PackageOps.relay ())
-  | [ url ] -> executePull state url
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePull state url
   | _ ->
     Cli.printErr "usage: dark pull [url]"
     state

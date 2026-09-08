@@ -1,5 +1,13 @@
 module Darklang.Cli.Packages.Hash
 
+// `dark hash <name>` -- the content hash of what a name currently holds.
+//
+// It resolves its argument with `Traversal.traverse`, the same walk `view`, `ls` and `tree` use,
+// rather than parsing the string into a location itself. Parsing it here read the first segment as
+// the OWNER, so `hash Stdlib.List.head` looked for an owner called Stdlib and reported "Not found"
+// on a name that `view Stdlib.List.head` printed happily. One name, two answers, and the failing one
+// is the command you reach for when you want to be precise.
+
 let formatHash (hash: LanguageTools.ProgramTypes.Hash) (long: Bool) : String =
   if long then Darklang.LanguageTools.ProgramTypes.hashToString hash
   else Darklang.LanguageTools.ProgramTypes.hashToShort hash
@@ -16,34 +24,52 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine "Usage: hash <location>"
     state
   | locationStr :: _ ->
-    match Location.parseRelativeTo state.packageData.currentLocation locationStr with
+    let branchId = state.currentBranchId
+
+    match Traversal.traverse branchId state.packageData.currentLocation locationStr with
     | Error e ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
-      state
+      { state with exitCode = 1 }
+
     | Ok location ->
-      let branchId = state.currentBranchId
+      let found =
+        match location with
+        | Module _ -> Stdlib.Option.Option.None
+        | Type loc ->
+          LanguageTools.PackageManager.Type.find branchId loc
+          |> Stdlib.Option.map (fun h -> ("type", h))
+        | Function loc ->
+          LanguageTools.PackageManager.Function.find branchId loc
+          |> Stdlib.Option.map (fun h -> ("fn", h))
+        | Value loc ->
+          LanguageTools.PackageManager.Value.find branchId loc
+          |> Stdlib.Option.map (fun h -> ("value", h))
 
-      match LanguageTools.PackageManager.findAny branchId location with
-      | Some ((hash, kind)) ->
-        let kindStr =
-          match kind with
-          | Type -> "type"
-          | Fn -> "fn"
-          | Value -> "value"
-
+      match found with
+      | Some((kindStr, hash)) ->
         Stdlib.printLine $"{kindStr} {formatHash hash long}"
         state
       | None ->
-        let looked =
-          PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Not found: {looked}")
-        state
+        // A module resolves fine and simply has nothing to hash: it is a path, not content.
+        match location with
+        | Module path ->
+          let dotted = Stdlib.String.join path "."
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.error
+              $"{dotted} is a module, and a module has no hash.")
+          Stdlib.printLine "  `dark ls` lists what is in it; each item has its own."
+          { state with exitCode = 1 }
+        | _ ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Not found: {locationStr}")
+          { state with exitCode = 1 }
 
 let help (_state: Cli.AppState) : String =
   [ "Usage: hash [--long] <location>"
     "Show the hash of a package type, function, or value."
     "By default shows a short (8-char) hash; use --long or --full for the full hash."
+    ""
+    "The name is resolved the way `view` resolves it, so anything you can view,"
+    "you can hash: relative to where you are, or absolute with a leading `/`."
     ""
     "Examples:"
     "  hash MyType          -- short hash of type at current location"
@@ -53,4 +79,9 @@ let help (_state: Cli.AppState) : String =
   |> Stdlib.String.join "\n"
 
 let complete (state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
-  []
+  let branchId = state.currentBranchId
+  match Stdlib.List.last args with
+  | Some lastArg ->
+    Traversal.completePartialPath branchId state.packageData.currentLocation lastArg
+  | None ->
+    Traversal.completePartialPath branchId state.packageData.currentLocation ""
