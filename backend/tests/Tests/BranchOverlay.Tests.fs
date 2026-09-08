@@ -2444,7 +2444,11 @@ let migrationsRefoldKeepsBranchPins =
         $"""UPDATE package_ops SET applied = 0 WHERE id IN ({mainIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
 
     let! _ =
-      Seed.growIfNeeded Seed.TrustedSeed (fun () -> localBuiltIns pmPT) pmRT (fun _ -> ())
+      Seed.growIfNeeded
+        Seed.TrustedSeed
+        (fun () -> localBuiltIns pmPT)
+        pmRT
+        (fun _ -> ())
 
     let! after =
       countSql

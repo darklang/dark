@@ -334,12 +334,32 @@ let liveBindingFor
   | None ->
     match
       // main-scoped: the fallback half of THE branch-aware read, after the chain overlay above.
+      //
+      // From a BRANCH, committed bindings only. That is the rule the branch model rests on: a
+      // parent's draft is invisible downstream. Authoring on main is live-on-write, so main's
+      // `locations` carry its uncommitted work too, and without the clause a branch resolved names
+      // through whatever main had half-written; `rebase` then repointed the branch's callers at it,
+      // which is the second half of Ocean's 10 (the base move was the first).
+      //
+      // From MAIN, no such clause: main's draft is main's own live state, and hiding it here would
+      // mean `status`, `view` and `eval` disagreeing with the edit you just made.
       Stdlib.Sqlite.queryOneP
         (localDb ())
-        "SELECT owner, modules, name, item_type, item_hash, COALESCE(origin_ts,'') AS ts, previous
-         FROM locations
-         WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND unlisted_at IS NULL
-         LIMIT 1"
+        (if SCM.Branch.isMain branchId then
+           "SELECT owner, modules, name, item_type, item_hash,
+                   COALESCE(origin_ts,'') AS ts, previous
+            FROM locations
+            WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND unlisted_at IS NULL
+            LIMIT 1"
+         else
+           "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
+                   COALESCE(l.origin_ts,'') AS ts, l.previous
+            FROM locations l
+            JOIN package_ops p ON p.id = l.op_id
+            WHERE l.owner = @p0 AND l.modules = @p1 AND l.name = @p2
+              AND l.unlisted_at IS NULL
+              AND p.commit_hash IS NOT NULL
+            LIMIT 1")
         [ loc.owner, modules, loc.name ]
     with
     | Some row -> Conflicts.bindingFromRow row

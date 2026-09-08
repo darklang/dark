@@ -709,15 +709,12 @@ let private applyBranchEvent
         | Some pid when not parentIsMain -> pid
         | _ -> string PT.BranchId.Main
       do!
-        exec
-          ctx
-          "INSERT OR IGNORE INTO propagation_policy
+        exec ctx "INSERT OR IGNORE INTO propagation_policy
              (branch_id, owner, modules, name, policy, note, origin_ts)
            SELECT $target, owner, modules, name, policy, note, origin_ts
-             FROM propagation_policy WHERE branch_id = $b"
-          (fun cmd ->
-            p cmd "$b" b
-            p cmd "$target" mergeTarget)
+             FROM propagation_policy WHERE branch_id = $b" (fun cmd ->
+          p cmd "$b" b
+          p cmd "$target" mergeTarget)
 
       do!
         exec

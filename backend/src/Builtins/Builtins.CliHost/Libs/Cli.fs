@@ -949,12 +949,7 @@ let fns () : List<BuiltInFn> =
                         exeState
                     let exeState = { exeState with deniedRequests = denied }
                     match!
-                      execute
-                        exeState
-                        mod'
-                        []
-                        dbs
-                        (EvalExpression expression)
+                      execute exeState mod' [] dbs (EvalExpression expression)
                     with
                     | Ok result ->
                       match result with
@@ -995,7 +990,8 @@ let fns () : List<BuiltInFn> =
                       | other ->
                         // Only when the stack names a function: see `hasReadableFrames`.
                         if hasReadableFrames callStack && csString <> "" then
-                          print $"Error when executing expression. Call-stack:\n{csString}\n"
+                          print
+                            $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
                   | Error pe ->
                     return

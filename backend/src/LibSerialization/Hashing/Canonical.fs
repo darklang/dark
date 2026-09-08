@@ -632,10 +632,18 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   writeBehaviourFn mode w fn
   writeDescription w fn.description
 
-let writeType (mode : HashRefMode) (w : BinaryWriter) (t : PT.PackageType.PackageType) =
+let writeType
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (t : PT.PackageType.PackageType)
+  =
   writeBehaviourType mode w t
   writeDescription w t.description
 
-let writeValue (mode : HashRefMode) (w : BinaryWriter) (v : PT.PackageValue.PackageValue) =
+let writeValue
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (v : PT.PackageValue.PackageValue)
+  =
   writeBehaviourValue mode w v
   writeDescription w v.description

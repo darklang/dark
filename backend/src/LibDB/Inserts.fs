@@ -209,7 +209,6 @@ let insertAndApplyOpsAsWip (ops : List<PT.PackageOp>) : Task<int64> =
 /// `effective = 1` is the same clause `Queries.getWipOps` carries and for the same reason: ops a client
 /// pushed to this store are inert, untagged and uncommitted, so without it a discard here deletes data
 /// this store is only holding for someone else.
-
 /// Safely insert package operations submitted by RUNNING Dark code -- a guest
 /// `run`, or ops that arrived over sync. Rejects protected `Darklang` bindings
 /// and unstabilized hashes before insertion; trusted seeding does not come

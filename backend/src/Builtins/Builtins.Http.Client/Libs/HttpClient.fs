@@ -194,7 +194,13 @@ let private syncRequest
   PermissionCheck.performHost
     state
     vm
-    (Host.Operation.HttpRequest(HostTypes.HttpProfile.Sync, method, uri, headers, body))
+    (Host.Operation.HttpRequest(
+      HostTypes.HttpProfile.Sync,
+      method,
+      uri,
+      headers,
+      body
+    ))
 
 /// Shape a completed sync exchange: a 2xx body is Ok bytes; a non-2xx is a FAILURE, not a
 /// body -- Ok for anything that completed would hand the caller a relay's 400 as a
@@ -237,9 +243,7 @@ let private fetchOutcome
 /// url in flight twice, and a dictionary keyed by url would hand the second caller the
 /// first one's response.
 let private pendingFetches =
-  System.Collections.Concurrent.ConcurrentDictionary<
-    System.Guid,
-    Task<Result<Host.Response, Host.Failure>>>()
+  System.Collections.Concurrent.ConcurrentDictionary<System.Guid, Task<Result<Host.Response, Host.Failure>>>()
 
 open LibExecution.Builtin.Shortcuts
 
@@ -449,7 +453,8 @@ let fns () : List<BuiltInFn> =
             // The credential is attached HERE, not passed in: the write secret must not
             // reach Dark, where a pulled package could read it.
             let headers =
-              headerPairs headerList @ LibExecution.UnguardedOrigins.authHeadersFor uri
+              headerPairs headerList
+              @ LibExecution.UnguardedOrigins.authHeadersFor uri
             let! response = syncRequest state vm "GET" uri headers [||]
             return fetchOutcome "fetch" response
           }

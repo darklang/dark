@@ -660,7 +660,6 @@ let getDeprecationSets () : Task<DeprecationSets> =
 ///
 /// - latest non-superseded row wins (`unlisted_at IS NULL`)
 /// - state = 'deprecated' with a Harmful annotation
-
 /// <fn getCurrentDeprecation> as <param branchId> sees it.
 ///
 /// The branch chain's own `Deprecate`/`Undeprecate` ops win over main's row, latest by `origin_ts`.

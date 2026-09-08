@@ -109,7 +109,9 @@ let private discoverDependents
     /// counts; when it does not, main's answer stands.
     let liveOnThisBranch (d : PMQueries.LocationDependent) : bool =
       match
-        Map.tryFind (d.itemKind.toString (), PackageLocation.toFQN d.itemLocation) branchHashAt
+        Map.tryFind
+          (d.itemKind.toString (), PackageLocation.toFQN d.itemLocation)
+          branchHashAt
       with
       | None -> true
       | Some branchHash ->
@@ -531,7 +533,8 @@ let propagate
           // `toSourceHash` can be a parser-time placeholder (the CLI hands over what it had
           // before stabilization), so resolve it the same way the cascade itself does. Comparing
           // against the placeholder found nothing and quietly answered "not doc-only".
-          let! current = resolveCurrentHash branch sourceLocation sourceItemKind toSourceHash
+          let! current =
+            resolveCurrentHash branch sourceLocation sourceItemKind toSourceHash
           let! before = ProgramTypes.Fn.get from |> Ply.toTask
           let! after = ProgramTypes.Fn.get current |> Ply.toTask
           match before, after with
@@ -547,53 +550,53 @@ let propagate
       return Ok None
     else
 
-    let! previousSourceLocations =
-      PMQueries.getUnlistedLocationsForRefs sourceItemKind fromSourceHashes
-    let sourceLocations =
-      (sourceLocation :: previousSourceLocations) |> List.distinct
+      let! previousSourceLocations =
+        PMQueries.getUnlistedLocationsForRefs sourceItemKind fromSourceHashes
+      let sourceLocations =
+        (sourceLocation :: previousSourceLocations) |> List.distinct
 
-    // On a branch, resolve dependents through the branch's own bindings first.
-    let! branchBindings =
-      if branch.IsMain then
-        Task.FromResult Map.empty
-      else
-        Branches.chainBindingsByHash branch
+      // On a branch, resolve dependents through the branch's own bindings first.
+      let! branchBindings =
+        if branch.IsMain then
+          Task.FromResult Map.empty
+        else
+          Branches.chainBindingsByHash branch
 
-    // The user's explicit choices about what follows what. Loaded once per cascade rather than per
-    // dependent: the table only ever holds things a person deliberately said, so it stays small.
-    // Scoped to where the cascade is running -- on a branch that is the branch's own choices layered
-    // over main's, on main it is main's alone, so another branch's experiment cannot reach it. Main
-    // is an id like any other here: its policy rows are stored under its id, and the inheritance
-    // clause compares real ids.
-    let! pins = PMQueries.getPropagationPins branch
-    let! follows = PMQueries.getPropagationFollows branch
+      // The user's explicit choices about what follows what. Loaded once per cascade rather than per
+      // dependent: the table only ever holds things a person deliberately said, so it stays small.
+      // Scoped to where the cascade is running -- on a branch that is the branch's own choices layered
+      // over main's, on main it is main's alone, so another branch's experiment cannot reach it. Main
+      // is an id like any other here: its policy rows are stored under its id, and the inheritance
+      // clause compares real ids.
+      let! pins = PMQueries.getPropagationPins branch
+      let! follows = PMQueries.getPropagationFollows branch
 
-    let! dependents =
-      discoverDependents
-        pins
-        follows
-        branchBindings
-        sourceLocations
-        sourceItemKind
-        fromSourceHashes
-
-    match dependents with
-    | [] -> return Ok None
-    | _ ->
-      let! result =
-        createAllItems
-          branch
-          fromSourceHashes
-          toSourceHash
-          sourceLocation
+      let! dependents =
+        discoverDependents
+          pins
+          follows
+          branchBindings
           sourceLocations
           sourceItemKind
-          dependents
+          fromSourceHashes
 
-      match result with
-      | Error err -> return Error err
-      | Ok(repoints, ops, _finalToSourceHash) ->
-        // No marker op: the Add + SetName ops ARE the propagation. Grouping comes from
-        // the commit, and "this version lost" from a recorded conflict.
-        return Ok(Some({ repoints = repoints }, ops))
+      match dependents with
+      | [] -> return Ok None
+      | _ ->
+        let! result =
+          createAllItems
+            branch
+            fromSourceHashes
+            toSourceHash
+            sourceLocation
+            sourceLocations
+            sourceItemKind
+            dependents
+
+        match result with
+        | Error err -> return Error err
+        | Ok(repoints, ops, _finalToSourceHash) ->
+          // No marker op: the Add + SetName ops ARE the propagation. Grouping comes from
+          // the commit, and "this version lost" from a recorded conflict.
+          return Ok(Some({ repoints = repoints }, ops))
   }

@@ -983,8 +983,10 @@ let private invokeBuiltin
     // a pulled package calling the same builtin still needs the grant. Every other effect
     // is checked for everyone.
     let effects =
-      if Set.contains Effects.Effect.Native fn.callEffects
-         && PermissionCheck.callerIsBundled exeState vm then
+      if
+        Set.contains Effects.Effect.Native fn.callEffects
+        && PermissionCheck.callerIsBundled exeState vm
+      then
         Set.remove Effects.Effect.Native fn.callEffects
       else
         fn.callEffects

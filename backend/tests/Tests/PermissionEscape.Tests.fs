@@ -237,7 +237,11 @@ let testUnapprovedPackageFnInValueBodyIsRefused =
     let! (_ : int64) =
       Inserts.insertAndApplyOpsAsWip
         [ PT.PackageOp.AddFn clockFn
-          PT.PackageOp.SetName(loc "unapprovedClock", PT.PackageFn clockFn.hash, None) ]
+          PT.PackageOp.SetName(
+            loc "unapprovedClock",
+            PT.PackageFn clockFn.hash,
+            None
+          ) ]
     let! hash =
       storeUnevaluated
         "callsUnapproved"

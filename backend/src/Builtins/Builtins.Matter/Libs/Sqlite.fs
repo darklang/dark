@@ -195,7 +195,10 @@ let private storePath : string = System.IO.Path.GetFullPath LibConfig.Config.dbP
 /// reads are sqlite calls, and requiring `allow native` for them would mean every install
 /// handing over the keys to run its own version control.
 let private isStoreScoped (path : string) (sql : string) : bool =
-  (try System.IO.Path.GetFullPath path = storePath with _ -> false)
+  (try
+    System.IO.Path.GetFullPath path = storePath
+   with _ ->
+     false)
   && not (System.Text.RegularExpressions.Regex.IsMatch(sql, @"(?i)\battach\b"))
 
 /// The effects a store-scoped call actually has, or `Native` when it is not store-scoped.

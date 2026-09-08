@@ -730,6 +730,7 @@ let tests =
        } ]
      @ Tests.CliSurface.tests
      @ Tests.CliScm.tests
+     @ Tests.CliScmRegression.tests
      @ [ testVersionCommand
          testStatusCommand
          testRunCases
