@@ -2245,3 +2245,26 @@ module EveryIntegerWidthCanBeTyped =
   // fallthrough prints the class itself, and a pin caught `<intSuffixChar>` leaking into this message.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "7u") [ "<Esc>", "<Esc>" ])) =
     "ERR `7u` is missing its width suffix: `y` for a byte, `s`, `l`, `L` for wider"
+
+
+module RealisticProgramsTypeStraightThrough =
+  // Sixteen programs typed the way a person writes them, gathered from driving the editor rather than
+  // from thinking about the grammar. They cover ground the per-rule pins do not: a rule can be right on
+  // its own and wrong in combination, and these are the combinations.
+  //
+  // The one shape that does NOT work is a type argument -- `Stdlib.Json.parse<Int> raw` gives
+  // `ERR unresolved: <Int>raw`, because `<` is an operator character. Written up; it needs a rule rather
+  // than a fix, since `a < b` and `f<T> x` are both real.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match Stdlib.List.head xs with Some v v None 0") [ "<Esc>", "<Esc>" ])) =
+    "match Stdlib.List.head xs with\n| Some(v) -> v\n| None -> 0"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.map (fun x -> x * 2) |> Stdlib.List.sum") [ "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.map (fun x -> x * 2) |> Stdlib.List.sum"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.printLine (if ok then \"yes\" else \"no\")") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.printLine (if ok then \"yes\" else \"no\")"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "$\"count: {Stdlib.List.length xs}\"") [ "<Esc>", "<Esc>" ])) =
+    "$\"count: {Stdlib.List.length xs}\""
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "-1 + 2") [ "<Esc>", "<Esc>" ])) = "-1 + 2"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let (a, b) = pair a") [ "<Esc>", "<Esc>" ])) =
+    "let (a, b) = pair\na"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.filter xs (fun x -> x > 0)") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.filter xs (fun x -> x > 0)"

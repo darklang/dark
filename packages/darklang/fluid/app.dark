@@ -867,7 +867,23 @@ let evaluateSelection (st: State) : State =
   // "can't EVALUATE that", not "can't print that": `v` on a return type answered `can't print that yet:
   // not an expression node: ...TypeReference.TInt`, which blames the printer for the fact that a type is
   // not something you can run.
-  | Error err -> { st with evaluated = Stdlib.Option.Option.Some((scope, "can't evaluate that: " ++ err)) }
+  | Error err ->
+    // The KIND, not the fully qualified kind. `docToSourceResult` names the node it refused, which for a
+    // type is `Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType` -- sixty characters that
+    // wrap over four lines of a 32-column panel and say nothing the last segment does not. The `ON` line
+    // above it carries the full name on purpose, because that is the handle for replacing an editor; this
+    // is a sentence about what went wrong.
+    // Only the NAME after the colon. Splitting the whole sentence would have left
+    // "can't evaluate that: TCustomType", which drops the reason and keeps the noun.
+    let short =
+      match Stdlib.String.split err ": " with
+      | [ reason, name ] ->
+        (match Stdlib.String.split name "." |> Stdlib.List.last with
+         | Some seg -> reason ++ ": " ++ (if seg == "" then name else seg)
+         | None -> err)
+      | _ -> err
+
+    { st with evaluated = Stdlib.Option.Option.Some((scope, "can't evaluate that: " ++ short)) }
   | Ok src ->
     if (Stdlib.String.trim src) == "" then
       { st with evaluated = Stdlib.Option.Option.Some((scope, "nothing to evaluate")) }
