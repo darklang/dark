@@ -541,7 +541,11 @@ let getByIdPrefix (rawPrefix: String) : Stdlib.Option.Option<Conflict> =
               OR (owner || '.' || modules || '.' || name) = @p0
               OR name = @p0)
          AND branch_id = @p1
-       ORDER BY created_at LIMIT 1"
+       -- PENDING FIRST. A name that has conflicted twice matches both rows, and the listing shows
+       -- only pending ones, so the command acting on the listing has to agree with it. Ordering
+       -- rather than filtering: `show <id>` of a settled conflict should still find it.
+       ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at
+       LIMIT 1"
       [ idPrefix, Stdlib.Uuid.toString (onBranch ()) ]
   with
   | Ok [ row ] -> conflictFromRow row

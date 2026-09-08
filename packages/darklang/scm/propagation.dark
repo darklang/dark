@@ -105,10 +105,19 @@ let allChoices () : List<Choice> =
         (Stdlib.Result.Result.Error
           $"couldn't read propagation policy, so no pin can be trusted: {e}")
 
-  if SCM.Branch.isMain branch then
-    rows SCM.Branch.mainBranchId
-  else
-    Stdlib.List.append (rows branch) (rows SCM.Branch.mainBranchId)
+  // The WHOLE chain, nearest first: this branch, its parent, and so on to main. Resolution walks
+  // the chain, so a listing that read only "here and main" told a child of a pinned branch that
+  // nothing was pinned while the pin governed it. Nearest first is also what makes a nearer
+  // branch's choice win the resolvers' first-match.
+  let chainFrom (branchId: Uuid) (acc: List<Uuid>) : List<Uuid> =
+    if SCM.Branch.isMain branchId then
+      Stdlib.List.append acc [ SCM.Branch.mainBranchId ]
+    else
+      chainFrom
+        (SCM.PackageOps.branchParentOf branchId)
+        (Stdlib.List.append acc [ branchId ])
+
+  chainFrom branch [] |> Stdlib.List.map rows |> Stdlib.List.flatten
 
 
 /// The explicit choices that could cover <param loc>: the item itself, its module, then each parent module,
