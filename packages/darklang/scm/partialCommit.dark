@@ -122,21 +122,44 @@ let closeOverDeps (hashes: List<String>) : List<String> =
 /// tell "B is a dependency of A" from "B happens to have A's body". Bounded the same way
 /// `closeOverDeps` is bounded, and for the same reason.
 let closeOverDepFqns (names: List<String>) : List<String> =
-  // main-scoped: `--include=` is a MAIN commit surface (a branch commits its whole frontier), so
-  // reading main's `locations` to resolve a name to its dependencies is the right scope here.
+  // Through the DRAFT first, then main's `locations`. A branch's items have no `locations` row --
+  // that is the name isolation -- so joining it alone found nothing on a branch, and the closure
+  // returned the caller without the dependency whose name it needs.
+  //
+  // The fallback read IS main-scoped, and correctly: it answers for names the draft does not touch,
+  // which are main's by definition. What the draft holds is answered above it, branch and all.
+  let draftHashes =
+    draftNamings () |> Stdlib.List.map (fun s -> (s.fqn, s.hash))
+
   let step (acc: List<String>) : List<String> =
     let next =
       acc
       |> Stdlib.List.map (fun fqn ->
-        Stdlib.Sqlite.rowsOrEmptyP
-          (SCM.PackageOps.localDb ())
-          "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
-           FROM package_dependencies d
-           JOIN locations l ON l.item_hash = d.item_hash
-           WHERE l.owner || '.' || (CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END)
-                 || l.name = @p0
-             AND d.depends_on_name <> ''"
-          [ fqn ]
+        let viaDraft =
+          draftHashes
+          |> Stdlib.List.findFirst (fun pair -> let (f, _) = pair in f == fqn)
+          |> Stdlib.Option.map (fun pair -> let (_, h) = pair in h)
+
+        let byHash (hash: String) : List<Dict<String, Stdlib.Sqlite.Value>> =
+          Stdlib.Sqlite.rowsOrEmptyP
+            (SCM.PackageOps.localDb ())
+            "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
+             FROM package_dependencies d
+             WHERE d.item_hash = @p0 AND d.depends_on_name <> ''"
+            [ hash ]
+
+        (match viaDraft with
+         | Some hash -> byHash hash
+         | None ->
+           Stdlib.Sqlite.rowsOrEmptyP
+             (SCM.PackageOps.localDb ())
+             "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
+              FROM package_dependencies d
+              JOIN locations l ON l.item_hash = d.item_hash
+              WHERE l.owner || '.' || (CASE WHEN l.modules = '' THEN '' ELSE l.modules || '.' END)
+                    || l.name = @p0
+                AND d.depends_on_name <> ''"
+             [ fqn ])
           |> Stdlib.List.filterMap (fun row ->
             match
               (Stdlib.Sqlite.textField row "o",

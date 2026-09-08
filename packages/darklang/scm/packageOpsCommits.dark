@@ -221,10 +221,14 @@ let parentCommitFor (branchId: Uuid) : String =
       ++ " SELECT bid FROM chain))
             OR (p.effective = 1 AND p.id NOT IN (SELECT op_id FROM op_branches)))"
 
+  // The newest COMMIT this branch can see, not the commit of the newest visible OP. They differ
+  // whenever commits are made out of authoring order, which `--include=` makes easy, and then the
+  // commit made second is on nobody's chain.
   Stdlib.Sqlite.scalarTextP
     (localDb ())
-    ("SELECT p.commit_hash AS h FROM package_ops p WHERE " ++ where
-     ++ " ORDER BY p.rowid DESC LIMIT 1")
+    ("SELECT c.hash AS h FROM commits c
+      WHERE c.hash IN (SELECT p.commit_hash FROM package_ops p WHERE " ++ where
+     ++ ") ORDER BY c.origin_ts DESC, c.rowid DESC LIMIT 1")
     (visibleParams branchId)
     "h"
     ""
