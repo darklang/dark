@@ -1154,6 +1154,35 @@ let landSettled (st: State) (sp: Path) : State =
   // the space walked out of the params and into the body.
   if canBeWrappedByOperator || (inSpaceSepList st sp) then { st with caret = Caret.afterNode sp } else nextHole st
 
+/// The keyword the editor already drew, typed back into the slot it drew you into. `match n with` writes
+/// the `with` for you and lands the caret in the first arm's PATTERN, so typing `with` there is the same
+/// reflex that re-types a drawn `=` or a drawn `then`. Put the hole back and stay in it.
+///
+/// Reads the NODE's text rather than a partial's: a pattern hole becomes a node the moment you press a
+/// letter, so there is no partial left to throw away by the time anyone asks.
+///
+/// Shared, because space and Enter both need it and only space had it -- `match n with <space>` was right
+/// and `match n with <Enter>` built a first arm whose pattern was the literal keyword.
+let clearsDrawnKeyword (st: State) : Stdlib.Option.Option<State> =
+  match st.caret.part with
+  | InText slot ->
+    if (slot == "body") || (slot == "text") then
+      Stdlib.Option.Option.None
+    else
+      (match nodeAtPath st.root st.caret.node with
+       | Some n ->
+         let old = Node.text n slot |> Stdlib.Option.withDefault ""
+         if (old != "")
+            && (st.caret.offset >= (Stdlib.String.length old))
+            && ((prevKeyword st) == Stdlib.Option.Option.Some old) then
+           let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) "pattern"
+           let st1 = commit st [ Edit.Replace(st.caret.node, Slot.Empty e) ] st.caret
+           Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root st.caret.node; mode = Mode.Insert }
+         else
+           Stdlib.Option.Option.None
+       | None -> Stdlib.Option.Option.None)
+  | _ -> Stdlib.Option.Option.None
+
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
 /// these, so a rule keyed on the first character still fires and the rest follow.
 /// The glyph rendered immediately to the right of the caret, if any. Used to skip past a closing
@@ -1900,13 +1929,10 @@ let typeOneRaw (st: State) (c: String) : State =
         let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
         let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled fnode) ] caret
         { st1 with caret = Caret.inText caret.node "fraction" 0 }
-      elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (prevKeyword st == Stdlib.Option.Option.Some old) then
-        // The keyword the editor already drew, typed again -- but in a slot that becomes a NODE as soon as
-        // you press a letter, so there was no partial to throw away. A pattern hole does that: `match n
-        // with` gave the first arm the pattern `with`. Put the hole back and stay in it.
-        let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) "pattern"
-        let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
-        { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
+      elif (c == " ") && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
+        // The keyword the editor already drew, typed again. See `clearsDrawnKeyword`, which Enter asks
+        // the same question of.
+        clearsDrawnKeyword st |> Stdlib.Option.withDefault st
       elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (Stdlib.Bool.not (old == "")) then
         // Space at the end of a finished name means "done here", but NOT always "and on to the next
         // hole". Where an operator could follow, it has to leave the caret on what was just settled so
@@ -3547,6 +3573,13 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | Home -> handled (moveLineStart st)
   | End -> handled (moveLineEnd st)
   | Enter ->
+    // The keyword the editor already drew, typed back. Space has always put the hole back here; Enter
+    // settled the keyword into a node and then added a sibling around it, so `match n with <Enter>` built
+    // a first arm whose pattern was the literal `with` and left the real one to be typed in a second.
+    // Same question, two keys, two answers.
+    match clearsDrawnKeyword st with
+    | Some cleared -> handled cleared
+    | None ->
     // Just after a finished value, Enter means what space means: on to the next hole. Since space started
     // landing the caret there rather than jumping, Enter at that spot did NOTHING, and a key that does
     // nothing is the thing to avoid.

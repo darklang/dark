@@ -1098,6 +1098,30 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module ADrawnKeywordIsNotAPattern =
+  // `match n with` draws the `with` for you and lands the caret in the first arm's PATTERN. Typing it
+  // back is the reflex that re-types a drawn `=` or a drawn `then`, and space had always put the hole
+  // back. Enter had not:
+  //
+  //     match n with <Enter> 0 -> 1   ->  match n with
+  //                                       | with -> ⟨rhs⟩
+  //                                       | 0 -> 1
+  //
+  // Enter settled the keyword into a node and then added a sibling AROUND it, so the arm got built and
+  // the real one had to be typed in a second. Same question, two keys, two answers -- the rule now lives
+  // in one place and both ask it.
+  (Fixtures.screen (Fixtures.chars "match n with 0 -> 1")) = "match n with\n| 0 -> 1~"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n with") (Stdlib.List.append [ "<Enter>" ] (Fixtures.chars "0 -> 1")))) =
+    "match n with\n| 0 -> 1~"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n with") (Stdlib.List.append [ "<Enter>" ] (Fixtures.chars "| 0 -> 1")))) =
+    "match n with\n| 0 -> 1~"
+
+  // Enter still starts the next arm once there is one to follow, by both routes.
+  (Fixtures.screen (Fixtures.chars "match n with 0 -> 1 | 1 -> 2")) = "match n with\n| 0 -> 1\n| 1 -> 2~"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n with 0 -> 1") (Stdlib.List.append [ "<Enter>" ] (Fixtures.chars "1 -> 2")))) =
+    "match n with\n| 0 -> 1\n| 1 -> 2~"
+
+
 module AVariableCanBeApplied =
   // `f xs` drew `f`. `f 1 2` drew `f`. The arguments were dropped with nothing said, so a local function
   // could be written and then never used -- and the whole second line here was untypeable:
