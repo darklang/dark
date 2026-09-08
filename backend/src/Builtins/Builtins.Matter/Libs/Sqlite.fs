@@ -185,15 +185,14 @@ let private storePath : string = System.IO.Path.GetFullPath LibConfig.Config.dbP
 
 /// Is this call about the package store rather than an arbitrary database?
 ///
-/// `Native` is the honest effect for raw SQLite in general -- as its own doc says, the SQL can
-/// `ATTACH` any file on the machine, so a path check would pretend to confine something the
-/// runtime cannot see. Two things make the store case different, and both have to hold: the
-/// path IS the store, and the statement cannot reach outside it. `ATTACH` is what would, so a
-/// statement carrying one is not store-scoped and falls back to `Native`.
+/// `Native` is the honest effect for raw SQLite in general: the SQL can `ATTACH` any file on the
+/// machine, so a path check alone would pretend to confine what the runtime cannot see. Two things
+/// have to hold for the store case: the path IS the store, and the statement cannot reach outside
+/// it. `ATTACH` is what would, so a statement carrying one falls back to `Native`.
 ///
-/// This is what keeps `dark status` working on a stock install: the SCM moved to Dark, so its
-/// reads are sqlite calls, and requiring `allow native` for them would mean every install
-/// handing over the keys to run its own version control.
+/// This is what keeps `dark status` working on a stock install. The SCM is Dark, so its reads are
+/// sqlite calls, and requiring `allow native` for them would mean handing over the keys to run
+/// version control.
 let private isStoreScoped (path : string) (sql : string) : bool =
   (try
     System.IO.Path.GetFullPath path = storePath

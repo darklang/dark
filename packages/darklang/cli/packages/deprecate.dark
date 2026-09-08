@@ -282,9 +282,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let branchId = state.currentBranchId
   // Any dash-led argument, not just `--` ones. `delete <name> -y` is how you get here in the first
-  // place, so `restore <name> -y` is what people type to undo it -- and it used to fall through to
-  // the usage line, which named `undeprecate`, a command they had not typed. Nothing to confirm
-  // here anyway: putting something back is not destructive.
+  // place, so `restore <name> -y` is what people type to undo it. Nothing to confirm either way:
+  // putting something back is not destructive.
   let positional =
     args
     |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "-" |> Stdlib.Bool.not)

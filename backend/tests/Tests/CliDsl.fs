@@ -1,19 +1,11 @@
 /// A small vocabulary for CLI tests, so a test reads like the session it describes.
 ///
-/// The tests underneath this are end-to-end: they drive `dark` the way a person
-/// does, and what they assert on is what a person sees. That makes them valuable and
-/// it made them verbose, because every step was `let! _ = runCli state [ "commit";
-/// msg; "-y" ]` and every assertion was three lines of `Expect.stringContains` with
-/// a hand-written message. The noise was most of the file, and the cost showed up as
-/// tests nobody wrote.
+/// Verbs for what a test DOES (`fn`, `commit`, `switch`), assertions for what it CLAIMS (`shows`,
+/// `evals`, `refuses`). Every assertion puts the command's real output in its failure message, so
+/// a failure is readable without re-running the command by hand.
 ///
-/// So: verbs for the things a test DOES (`fn`, `commit`, `switch`), and assertions
-/// for the things a test CLAIMS (`shows`, `lacks`, `evals`, `refuses`). Each
-/// assertion puts the command's real output in its failure message without the
-/// caller composing one, which is the other thing that was being skipped.
-///
-/// Anything a verb here does not cover is still `runCli`, which these are built
-/// from. Reach for it rather than bending a verb into a shape it does not have.
+/// Anything a verb does not cover is still `runCli`, which these are built from. Reach for that
+/// rather than bending a verb into a shape it does not have.
 module Tests.CliDsl
 
 open System.Threading.Tasks
@@ -26,12 +18,9 @@ module RT = LibExecution.RuntimeTypes
 open Tests.CliTestHarness
 
 
-/// The output as a person reads it, with the colour taken out.
-///
-/// Every assertion here goes through this. The CLI colours its output, and it
-/// colours it per TOKEN -- `let` and `head` are separately wrapped -- so an
-/// assertion on "let head" was really an assertion about where the escape sequences
-/// fell, and it failed on output that looked exactly right on screen.
+/// The output as a person reads it, with the colour taken out. Every assertion goes through this:
+/// the CLI colours per TOKEN, so `let` and `head` are separately wrapped and a raw assertion on
+/// "let head" is really an assertion about where the escape sequences fall.
 let plain (output : string) : string =
   System.Text.RegularExpressions.Regex.Replace(output, @"\x1b\[[0-9;]*[a-zA-Z]", "")
 

@@ -70,9 +70,9 @@ let executeNow (state: AppState) : AppState =
   let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
   let target = $"{dir}/data.db.manual-{stamp}"
 
-  // `LocalStore.backupTo`, not a file copy. The store path is guarded, so the file builtins refuse
-  // it -- this command used to die on that denial before it wrote anything, since even asking
-  // whether the store EXISTS goes through the same guard.
+  // `LocalStore.backupTo`, not a file copy: the store path is guarded, so the file builtins refuse
+  // it, and the denial is an uncaught error rather than a `false`. Even asking whether the store
+  // EXISTS goes through that same guard.
   match Stdlib.LocalStore.backupTo target with
   | Ok _ ->
     Cli.printOk $"copied the store to {target}"

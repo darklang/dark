@@ -3,10 +3,9 @@ module Darklang.PrettyPrinter.RuntimeTypes
 /// An RT hash as the PT one the package manager answers about.
 ///
 /// `RuntimeTypes.Hash` and `ProgramTypes.Hash` are both `Hash of String` and name the same bytes;
-/// they are separate types because they belong to separate vocabularies. Passing one where the
-/// other is declared used to type-check by accident -- identical declarations hashed identically,
-/// so the two were literally one item -- and stopped the day doc comments became part of an item's
-/// identity. This says the conversion out loud, which is what the code always meant.
+/// they are separate types because they belong to separate vocabularies. Identical declarations
+/// hash identically, so the two can be one stored item and passing either for the other can
+/// type-check by accident. This says the conversion out loud, which is what the code means.
 let ptHash
   (hash: LanguageTools.RuntimeTypes.Hash)
   : LanguageTools.ProgramTypes.Hash =

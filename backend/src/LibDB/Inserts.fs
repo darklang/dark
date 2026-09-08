@@ -251,12 +251,11 @@ let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
       $" AND id NOT IN ({quoted})"
   [ "DELETE FROM locations WHERE source <> 'resolution'"
     "DELETE FROM deprecations"
-    // Main's propagation decisions are folded from `Decision` ops like everything else, so a
-    // rewrite that re-folds the surviving ops has to clear them first. Without this, discarding a
-    // draft that held a pin dropped the op and kept the pin: `dark propagate` went on listing a
-    // decision with nothing in the log explaining it, and the next edit honoured it.
+    // Decisions are folded from `Decision` ops like everything else, so a rewrite that re-folds
+    // the surviving ops clears them first: otherwise a discarded pin loses its op and keeps the
+    // pin, and the next edit honours a decision with nothing in the log behind it.
     //
-    // Main only. A branch's rows are keyed by its own id and no main rewrite may touch them.
+    // Main only. A branch's rows are keyed by its own id, and no main rewrite may touch them.
     $"DELETE FROM propagation_policy WHERE branch_id = '{PT.BranchId.Main}'"
     // `effective = 1`: excludes client-pushed inert ops; see `draftDeletes`.
     $"DELETE FROM package_ops WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches){keepUnreadable}" ]
@@ -397,14 +396,10 @@ let importOpsBulk
           """
 
         // An op id is a content hash, so an op arriving from a peer's MAIN can already be here as
-        // a branch's inert copy -- the same code, authored on a branch that has not merged. The
-        // insert above ignores it, and main was then missing a name the pull had just been sent:
-        // `pull` reported 0 new ops, `eval` could not find the name, and `sync status` said in
-        // sync, because the op WAS present, just not effective.
-        //
-        // So promote it instead: this is a main op now, whatever else holds it. `applied = 0`
-        // re-arms the fold, which is what actually binds the name; the branch keeps its tag, the
-        // same state a merge leaves behind. Only ever 0 -> 1: nothing here makes a main op inert.
+        // a branch's inert copy: the same code, authored on a branch that has not merged. The
+        // insert above ignores it, so promote it -- it is a main op now, whatever else holds it.
+        // `applied = 0` re-arms the fold, which is what binds the name; the branch keeps its tag,
+        // the state a merge leaves behind. Only ever 0 -> 1: nothing here makes a main op inert.
         let promote =
           """
           UPDATE package_ops
@@ -422,7 +417,7 @@ let importOpsBulk
         let affected = Sql.executeTransactionSync [ (sql, paramRows) ]
         let promoted = Sql.executeTransactionSync [ (promote, promoteRows) ]
         // Both counts: an op that was inert here and is now effective is as new to main as one
-        // that had never arrived, and reporting only the inserts made a real pull read as "0 new".
+        // that never arrived at all.
         return (affected |> List.sumBy int64) + (promoted |> List.sumBy int64)
   }
 

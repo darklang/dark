@@ -3,14 +3,13 @@
 /// Produces deterministic bytes by skipping identity-irrelevant fields
 /// (AST node IDs, deprecated, originalName).
 ///
-/// The doc comment IS part of identity. It reads like metadata, but it is something you wrote in
-/// the same edit as the body, and leaving it out meant a doc-only edit produced the same hash,
-/// deduped to nothing, and silently kept the old text -- while the CLI said "Updated". Two
-/// bodies that differ only in their docs are two items now.
+/// The doc comment is part of identity: two bodies differing only in their docs are two items.
+/// Leaving it out makes a doc-only edit hash the same, dedupe to nothing, and keep the old text
+/// while reporting success.
 ///
-/// `writeBehaviour*` is the same bytes WITHOUT the description, for the one question that needs
-/// it: whether an edit changed anything a caller could observe. Propagation asks, so that fixing
-/// a typo in a widely-called function does not stage a repoint for every caller of it.
+/// `writeBehaviour*` is the same bytes WITHOUT the doc, for the one question that needs it:
+/// whether an edit changed anything a caller can observe. Propagation asks, so that a typo fix in
+/// a widely-called function does not stage a repoint for every caller of it.
 /// Re-uses leaf serializers from the existing binary format.
 module rec LibSerialization.Hashing.Canonical
 

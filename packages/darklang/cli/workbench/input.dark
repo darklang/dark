@@ -39,10 +39,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
     else
       Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "rename" then
-    // A real rename: the old name ends and the same content binds at the new one. It used to be a
-    // lone SetName, leaning on a fold heuristic that unlisted the old binding -- that heuristic is
-    // gone, so a lone SetName just ADDED a second name and left the first, which is not a rename.
-    // `Packages.Rename.ops` is the one description of what a rename authors; the command uses it too.
+    // A real rename: the old name ends and the same content binds at the new one. A lone SetName
+    // ADDS a second name and leaves the first, which is not a rename. `Packages.Rename.ops` is the
+    // one description of what a rename authors; `dark rename` uses it too.
     match Stdlib.List.getAt state.items state.selected with
     | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
     | Some item ->

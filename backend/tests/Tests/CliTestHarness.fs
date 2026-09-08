@@ -62,16 +62,13 @@ let buildState () : Task<RT.ExecutionState> =
     LibExecution.HostSecurity.policyDirectoryForTesting policyDir
     |> ignore<System.IDisposable>
 
-    // `defaultInstance` PLUS package-write, and the addition is the point.
+    // `defaultInstance` PLUS package-write, granted once here for every test.
     //
-    // These tests drive authoring through `dark eval`, which is guest code: a guest gets no
-    // package-write by default, so an eval that authors is denied. One test granted it inline and
-    // the grant then leaked into every test that ran after it in the same store, which made a
-    // later test pass or fail depending on the order the runner chose. It passed locally and
-    // failed in CI, which is the tell for exactly that.
+    // These tests drive authoring through `dark eval`, which is guest code, and a guest has no
+    // package-write by default. Granting it inside a single test instead would leak into every
+    // test after it in the same store, so a later test would pass or fail on runner order.
     //
-    // So the rig grants it once, up front, for every test. What a GUEST may do without the grant
-    // is still tested, in `PermissionEscape.Tests`, against its own state.
+    // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
       LibExecution.Permissions.Policy.allowEffects (
         Set.add

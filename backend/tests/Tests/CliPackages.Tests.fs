@@ -167,9 +167,8 @@ let hashOfAModuleSaysSo =
           "and a missing name is missing"
     })
 
-/// `dark nav X` moves for the length of that one command, like a shell's cwd inside
-/// a subshell. It used to say "Changed to: /Stdlib.List" and stop there, and the
-/// next `dark ls` disagreeing with it was how you found out.
+/// `dark nav X` moves for the length of that one command, like a shell's cwd inside a subshell.
+/// The move has to SAY so, or the next `dark ls` disagreeing with it is how you find out.
 let navIsHonestAboutHowLongItLasts =
   cliTest "nav moves, and says how long the move lasts" (fun state ->
     task {
@@ -291,9 +290,8 @@ let deleteAndRestore =
           "50505"
           "and it still runs, because callers still resolve it"
 
-      // A Deprecate binds no name, and `status` used to count only bindings -- so
-      // this said "clean" with the op sitting in the draft, waiting to be swept into
-      // the next commit's message.
+      // A Deprecate binds no name, so a `status` that counts only bindings calls this clean while
+      // the op sits in the draft, waiting to be swept into the next commit.
       do!
         lacks
           state

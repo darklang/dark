@@ -335,14 +335,13 @@ let liveBindingFor
     match
       // main-scoped: the fallback half of THE branch-aware read, after the chain overlay above.
       //
-      // From a BRANCH, committed bindings only. That is the rule the branch model rests on: a
-      // parent's draft is invisible downstream. Authoring on main is live-on-write, so main's
-      // `locations` carry its uncommitted work too, and without the clause a branch resolved names
-      // through whatever main had half-written; `rebase` then repointed the branch's callers at it,
-      // which is the second half of Ocean's 10 (the base move was the first).
+      // From a BRANCH, committed bindings only: a parent's draft is invisible downstream. Main
+      // authors live-on-write, so its `locations` carry uncommitted work too, and without the
+      // clause a branch resolves names through whatever main has half-written -- and a rebase
+      // then repoints the branch's callers at it.
       //
-      // From MAIN, no such clause: main's draft is main's own live state, and hiding it here would
-      // mean `status`, `view` and `eval` disagreeing with the edit you just made.
+      // From MAIN, no such clause: main's draft IS main's live state, and hiding it would have
+      // `status`, `view` and `eval` disagree with the edit just made.
       Stdlib.Sqlite.queryOneP
         (localDb ())
         (if SCM.Branch.isMain branchId then
@@ -647,9 +646,8 @@ let discardDraftName
     let key = (owner, Stdlib.String.join modules ".", name)
 
     // UNCOMMITTED ops only. `ownFrontierOps` is every op the branch holds, committed ones
-    // included, and discard is about the draft: dropping a committed binding here took the
-    // branch's last committed version of the name with it, leaving `eval` unable to find a
-    // name `status` called clean.
+    // included, and discard is about the draft: dropping a committed binding here takes the
+    // branch's last committed version of the name with it.
     let uncommitted = SCM.Branches.uncommittedOpIds branchId
 
     let bindingIds =

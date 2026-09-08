@@ -6,11 +6,9 @@ module Darklang.Cli.Packages.Rename
 // gets bound at the new one (`SetName`). Nothing is re-authored and no hash changes, which is why
 // callers are unaffected: they reference content, not names.
 //
-// It used to be one op. The fold had a heuristic -- a `SetName` whose target was not added in the
-// same batch unlisted every other binding of that hash -- and that is what "renaming" leaned on.
-// The heuristic is gone (identical content is one item, so it was unlisting colleagues' names for
-// a body that merely matched), and with it went the only thing making a rename remove the old
-// name. Saying it in two ops says exactly what happened, and both travel.
+// Two ops rather than one: identical content is one item, so no heuristic over a single `SetName`
+// can tell "rename this name" from "bind this content somewhere else too". Saying both halves out
+// loud says exactly what happened, and both travel.
 
 /// The ops a rename authors: end the old name, bind the content at the new one.
 ///

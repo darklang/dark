@@ -34,18 +34,13 @@ let mutable connString = defaultConnString
 
 /// Copy the live store to `target`, and copy a file back over the live store.
 ///
-/// Through SQLite's own online-backup API, never a file copy. Two reasons, and the
-/// first one is why these exist at all: the store path is guarded
-/// (`HostSecurity.isPackageDbPath`), so Dark's file builtins refuse it -- correctly,
-/// since a guest must not read or replace the host's store -- and `dark backups now`
-/// was reaching for exactly those builtins and dying on an uncaught denial. The
-/// store's owner offers the operation instead of the guard being weakened for
-/// everyone.
+/// Through SQLite's own online-backup API, never a file copy, for two reasons. The store path is
+/// guarded (`HostSecurity.isPackageDbPath`), so Dark's file builtins refuse it -- rightly, since a
+/// guest must not read or replace the host's store -- and the store's owner offering the operation
+/// beats weakening that guard for everyone.
 ///
-/// The second: a copy of `data.db` alone is not the store. Recent writes sit in
-/// `data.db-wal`, and a restore has to land while connections are open. The backup
-/// API handles both -- it reads through the WAL for a consistent snapshot, and
-/// writing into a live destination is what it is for.
+/// And a copy of `data.db` alone is not the store: recent writes sit in `data.db-wal`, and a
+/// restore has to land while connections are open. The backup API handles both.
 module Backup =
   let private copy (fromConn : string) (toConn : string) : Result<unit, string> =
     try

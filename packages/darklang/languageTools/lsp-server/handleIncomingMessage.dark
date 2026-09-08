@@ -277,8 +277,8 @@ let handleIncomingMessage
           Branches.handleRebaseStatusRequest state requestId b
 
         // No branchId means the branch the editor is ON, the same thing bare `dark merge` and
-        // `dark rebase` mean. The extension asks these from a branch context and sent `{}`,
-        // which used to match nothing at all and time out.
+        // `dark rebase` mean. The extension asks these from a branch context and sends `{}`, so
+        // without these arms the request matches nothing and the editor waits out its timeout.
         | ("dark/canMerge", Some requestId, _) ->
           Branches.handleCanMergeRequest state requestId (Branches.activeBranchId ())
 

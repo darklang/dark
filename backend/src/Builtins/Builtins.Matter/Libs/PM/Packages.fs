@@ -236,13 +236,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       PT2DT.PackageValue.toDT
 
 
-    // Find all value IDs that have a specific ValueType
     // Do two versions of a function differ only in what they SAY about themselves?
     //
     // The doc comment is part of an item's identity (see `Canonical`), so a doc edit is a real new
-    // version that syncs and that `view` shows. It is not something a caller can observe, though,
-    // which is why propagation skips it -- and why the CLI says so at the save rather than leaving
-    // a person wondering what changed.
+    // version that syncs and that `view` shows, but not one a caller can observe. Propagation
+    // skips those, and the authoring commands say which kind of edit it was.
+    //
+    // TODO: this goes away with a separate description op -- a doc edit would not mint a new hash
+    // at all, so "did behaviour change" collapses back into "did the hash change".
     { name = fn "pmSameBehaviour" 0
       typeParams = []
       parameters =
@@ -898,8 +899,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [| DUuid branchId |] ->
           uply {
-            let! sets =
-              LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchId)
+            let! sets = LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchId)
             let hashListDval (hashes : Set<PT.Hash>) =
               hashes
               |> Set.toList

@@ -58,10 +58,9 @@ let everySyncVerbSaysThereIsNoRelayYet =
       do! showsAll state [ "pull" ] [ "no relay"; "dark connect" ] "and bare pull"
     })
 
-/// `dark sync push` is the typo that gets typed: `push` is a verb everywhere else,
-/// and `sync` reads its lone argument as a url. It used to be carried to the http
-/// client and come back as "push failed: bad url", which reads like the relay is
-/// broken rather than like a mistyped command.
+/// `dark sync push` is the typo that gets typed: `push` is a verb everywhere else, and `sync`
+/// reads its lone argument as a url. Carried to the http client it comes back as "push failed:
+/// bad url", which reads like a broken relay rather than a mistyped command.
 let aVerbInTheUrlPositionIsRefusedThere =
   cliTest "a word in the url position is refused as a url" (fun state ->
     task {

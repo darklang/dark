@@ -151,8 +151,8 @@ let saveAuthored
 
       // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
       // stabilized inside the save, so the value in hand until now is a placeholder. Everything
-      // below that names a version -- the permission summary, the doc-only note -- needs the real
-      // one, and printing an empty hash is how we noticed.
+      // below that names a version -- the permission summary, the doc-only note -- needs the
+      // real one.
       let boundHash =
         match Packages.Rename.referenceAt state.currentBranchId location with
         | Some reference -> LanguageTools.ProgramTypes.Reference.hash reference
@@ -164,10 +164,10 @@ let saveAuthored
       Stdlib.printLine ""
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
 
-      // Say when the edit was only the doc comment. It IS a real change -- the doc is part of what
-      // an item is, so this is a new version that syncs and that `view` shows -- but nothing a
-      // caller can observe moved, which is why no dependents were repointed. Silence here read as
-      // "nothing happened", which is the complaint that got this fixed in the first place.
+      // Say when the edit was only the doc comment. It IS a real change -- the doc is part of
+      // what an item is, so this is a new version that syncs and that `view` shows -- but nothing
+      // a caller can observe moved, so no dependents were repointed. Without the line, that reads
+      // as nothing having happened.
       let _ =
         if isUpdate && (Stdlib.List.member previousHashes boundHash |> Stdlib.Bool.not) then
           match previousHashes with
