@@ -338,6 +338,31 @@ execution-owned handles so they can carry narrower access.
 
 ## Policy administration
 
+`permissions profile` lists named starting policies. `default` restores the
+installation default. `read-only <ABSOLUTE-ROOT>` permits reads under that
+directory, local-store reads, stdio, clock, randomness, and HTTPS GET to any
+host on port 443. `local-dev <ABSOLUTE-ROOT>` also permits writes under the
+directory, local-store writes, and HTTP serving on any port. Neither grants
+environment access, process execution, or Native. HTTP transport restrictions
+still apply; a profile does not bypass SSRF checks.
+
+Profiles expand to ordinary typed rules and carry no authority of their own.
+The command previews the full expansion; adding `--yes` applies it through the
+same host-only writer as `permissions set`. Application replaces the entire
+instance policy, including explicit denies. Package approvals, pins, run
+restrictions and author ceilings remain independent.
+
+```text
+permissions profile
+permissions profile read-only /home/me/project
+permissions profile local-dev /home/me/project --yes
+permissions allow http GET https://api.example.com/v1
+```
+
+The typed rule grammar, `permissions list`/`show`, and exact denial hints are
+the current editing loop. A future TUI editor can use those same policy types
+and host checks; it does not need a second permissions model.
+
 Guest code cannot change instance, run, or package approval policy. The
 policy builtins are host-only (`ExecutionState.canManagePolicies`), granted
 only to the trusted `dark permissions` command.

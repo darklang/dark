@@ -24,7 +24,11 @@ let buildState () : Task<RT.ExecutionState> =
   task {
     let pmPTValue = pmPT
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
-    let pmRT = PT2RT.PackageManager.toRT builtins.values pmPTValue
+    // Read evaluated package values as the CLI does. The PT-to-RT value converter
+    // handles literals only and turns computed values into Unit.
+    let pmRT =
+      { PT2RT.PackageManager.toRT builtins.values pmPTValue with
+          getValue = LibDB.PackageManager.rt.getValue }
     let program : RT.Program = { dbs = Map.empty }
 
     let notify
