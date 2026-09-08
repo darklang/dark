@@ -218,6 +218,16 @@ scoping: `package-read`, `package-write`, `trace-read` and `trace-write` are
 ambient effects, granted or denied as a whole like `stdout`. Datastores keep a
 per-table rule.
 
+Blob dereferencing is deliberately effect-free value materialization. An
+ephemeral blob carries its bytes; a persistent blob loads the same immutable
+bytes by content hash from the host-owned `package_blobs` store. The latter
+is ambient local storage, but does not require `PackageRead` or `FileRead`:
+passing a blob to an effect-free function must work regardless of its storage
+representation. This does not grant arbitrary SQL or filesystem access, and
+does not provide per-blob authorization or confidentiality within the local
+store. Operations that load or persist enclosing packages, traces, or database
+values retain their own permission checks.
+
 Policies are allowlists with optional explicit denies:
 
 1. A matching deny always wins inside a policy.
