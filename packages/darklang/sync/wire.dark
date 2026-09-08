@@ -435,6 +435,7 @@ let importFrom
 let reviewImportTo
   (reviewBranch: String)
   (ops: List<SyncOp>)
+  (commits: List<PackageOps.BranchBundleCommit>)
   : Stdlib.Result.Result<Int, String> =
   let records = ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
 
@@ -453,6 +454,11 @@ let reviewImportTo
       records
   with
   | Ok _newlyStored ->
+    // The author's commits, same as every other receive path (`storeWithOwner`, `importBranch`).
+    // Without this the queue's ops arrive uncommitted, so accepting the work committed them under
+    // the accepter's own "merged branch review" and the author's name and message were gone.
+    PackageOps.adoptCommits commits (ops |> Stdlib.List.map (fun op -> (op.id, op.commit)))
+
     // A whole-log import tags even ops already in main; keep only the genuinely-pending delta so the
     // review's diff/log/merge reflect what's actually up for approval.
     let _ = Branches.pruneAppliedTags queueId

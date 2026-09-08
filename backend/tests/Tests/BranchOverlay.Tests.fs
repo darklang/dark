@@ -2134,6 +2134,57 @@ let foldDoesNotStrandOpsItMadeEffective =
 /// Checked by reading the source, because the failure is invisible at run time on a single-branch
 /// store. The relay (`sync/relay/server.dark`) is exempt: a relay holds no branches, so main's
 /// projection IS its answer.
+/// Every path that RECEIVES ops from elsewhere adopts the sender's commits.
+///
+/// Ocean's round 2, finding 4: accepting someone's work through `dark review` filed it under the
+/// accepter's own "merged branch review" commit, and the author's name and message were gone. The
+/// wire has carried `commits` all along and two of the three receive paths adopted them; the review
+/// queue's did not. Nothing about the accepted work looked wrong -- it was the history that lost the
+/// person who wrote it.
+///
+/// Checked by reading the source, because the failure needs two instances and a relay to see, and
+/// what is actually wrong is a missing call rather than a wrong answer.
+let everyReceivePathAdoptsCommits =
+  test "every path that stages received ops also adopts their commits" {
+    let files =
+      [ "wire.dark",
+        System.IO.Path.Combine("..", "packages", "darklang", "sync", "wire.dark")
+        "packageOps.dark",
+        System.IO.Path.Combine(
+          "..",
+          "packages",
+          "darklang",
+          "scm",
+          "packageOps.dark"
+        ) ]
+
+    // The two ways ops arrive from somebody else. `scmStoreOps` is the relay's hosting path;
+    // `stageOpsOnBranch` is a branch bundle and a review queue.
+    let stagers = [ "scmStoreOps"; "stageOpsOnBranch" ]
+
+    let offenders =
+      [ for (name, path) in files do
+          let text = System.IO.File.ReadAllText path
+          // Per enclosing top-level `let`, which is the unit a receive path is written in.
+          let blocks = text.Split("\nlet ")
+          for block in blocks do
+            let fnName = (block.Split('\n')[0]).Split(' ')[0]
+            // Not the stager's own definition: it is the primitive the receive paths call, and
+            // adopting commits is the CALLER's business -- the relay hosts ops for owners, a bundle
+            // and a queue each carry their own commit rows.
+            let stages =
+              not (List.contains fnName stagers)
+              && (stagers |> List.exists block.Contains)
+            if stages && not (block.Contains "adoptCommits") then
+              yield $"{name}: {fnName}" ]
+
+    Expect.isEmpty
+      offenders
+      ("these stage received ops without adopting the sender's commits, so the work arrives "
+       + $"anonymous: {offenders}")
+  }
+
+
 let noDirectLocationsReadsOutsideTheSilos =
   testTask
     "only the SCM silos query `locations` from Dark, and each such read says it is main-scoped" {
@@ -2512,6 +2563,7 @@ let tests =
       foldDoesNotStrandOpsItMadeEffective
       branchTransferImportReDerivesBases
       noDirectLocationsReadsOutsideTheSilos
+      everyReceivePathAdoptsCommits
       noMainLiteralInDarkSql
       branchIdsNeverReachAPerson
       overrideClosesOnlyItsOwnKind

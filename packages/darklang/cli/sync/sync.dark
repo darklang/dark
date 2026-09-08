@@ -188,7 +188,7 @@ let executeReviewImport (state: AppState) (path: String) (queue: String) : AppSt
   | Ok json ->
     match SCM.Wire.wireDecode (Stdlib.String.toBlob json) with
     | Ok bundle ->
-      match SCM.Wire.reviewImportTo queue bundle.ops with
+      match SCM.Wire.reviewImportTo queue bundle.ops bundle.commits with
       | Ok n ->
         Cli.printOk
           $"Staged {Stdlib.Int.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
@@ -241,7 +241,7 @@ let executeReviewPullPages
             "  the relay stopped advancing its cursor -- stopping rather than asking for the same page again."
           -1
         else
-          match SCM.Wire.reviewImportTo queue ops with
+          match SCM.Wire.reviewImportTo queue ops bundle.commits with
           | Error e ->
             Cli.printErr $"  page staging failed: {e}"
             -1
