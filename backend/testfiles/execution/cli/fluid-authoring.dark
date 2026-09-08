@@ -85,7 +85,7 @@ module BuildConstructs =
   (Fixtures.screen [ "[" ]) = "[~⟨item⟩]"
   (Fixtures.screen [ "(" ]) = "(~⟨item⟩, ⟨item⟩)"
   (Fixtures.screen [ "\\", "x" ]) = "(fun x~ -> ⟨body⟩)"
-  (Fixtures.program [ "\\", "x", " ", "x", "+", "1", "<Esc>" ]) = "(fun x -> x + 1)"
+  (Fixtures.program [ "\\", "x", " ", "-", ">", "x", "+", "1", "<Esc>" ]) = "(fun x -> x + 1)"
 
 
 module BackspaceRemovesItem =
@@ -144,7 +144,7 @@ module MenuKeys =
 
 
 module Lambda =
-  (Fixtures.program [ "f", "u", "n", " ", "a", " ", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
+  (Fixtures.program [ "f", "u", "n", " ", "a", " ", "-", ">", "a", "+", "1", "<Esc>" ]) = "(fun a -> a + 1)"
 
 
 module FieldAccess =
@@ -624,12 +624,23 @@ module NumbersStayNumbers =
 
 
 module LambdaParams =
-  // A lambda takes many params, and Enter or a comma adds the next one; space means "done here" and goes
-  // to the body, which is what the common one-param lambda wants.
+  // A lambda takes many params, and Enter or a comma adds the next one.
   (Fixtures.screen [ "f", "u", "n", " ", "a", "<Enter>" ]) = "(fun a ~⟨param⟩ -> ⟨body⟩)"
   (Fixtures.screen [ "f", "u", "n", " ", "a", "," ]) = "(fun a ~⟨param⟩ -> ⟨body⟩)"
-  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "(fun a -> ~⟨body⟩)"
   (Fixtures.program [ "f", "u", "n", " ", "a", "<Enter>", "b", "<Tab>", "a", "+", "b", "<Esc>", "<Esc>" ]) = "(fun a b -> a + b)"
+
+  // ...and so does a SPACE, because that is what the printer writes between them. `fun a b -> a + b` is
+  // printed by the printer and could not be typed at all: the space walked out of the params and into the
+  // body, so it came out as `(fun a -> b -> a + b)`.
+  //
+  // A call's arguments are written the same way and already grew on a space; this is the params list
+  // taking the same route rather than a second one. The cost is the arrow-less shorthand that used to
+  // work -- `fun a <space> a + 1` now reads the second `a` as another param, and you type the `->` you
+  // can already see (or Tab) to get to the body.
+  (Fixtures.screen [ "f", "u", "n", " ", "a", " " ]) = "(fun a~ -> ⟨body⟩)"
+  (Fixtures.screen [ "f", "u", "n", " ", "a", " ", "b" ]) = "(fun a b~ -> ⟨body⟩)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "fun a b -> a + b") [ "<Esc>", "<Esc>" ])) = "(fun a b -> a + b)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "fun a b c -> c") [ "<Esc>", "<Esc>" ])) = "(fun a b c -> c)"
 
 
 module NamesStayNames =
@@ -716,7 +727,7 @@ module PunctuationTheEditorAlreadyDrew =
   (Fixtures.program [ "[", "1", ",", " ", "-", "2", "<Esc>", "<Esc>" ]) = "[1, -2]"
   (Fixtures.program [ "a", " ", "-", " ", "b", "<Esc>", "<Esc>" ]) = "a - b"
   (Fixtures.program [ "a", " ", ">", " ", "b", "<Esc>", "<Esc>" ]) = "a > b"
-  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", "1", "<Esc>", "<Esc>" ]) = "(fun x -> -1)"
+  (Fixtures.program [ "f", "u", "n", " ", "x", " ", "-", ">", " ", "-", "1", "<Esc>", "<Esc>" ]) = "(fun x -> -1)"
   // A comma on an empty item still MEANS something -- another item -- so it is not swallowed.
   (Fixtures.program [ "[", "1", ",", " ", "2", ",", " ", "3", "<Esc>", "<Esc>" ]) = "[1, 2, 3]"
 
@@ -901,7 +912,7 @@ module APipeTakesTheWholeExpression =
   // The climb stops at the first construct that swallows what follows it, so a pipe written inside a
   // lambda body stays inside the lambda rather than reaching out to whatever encloses it.
   (Fixtures.program
-    (Stdlib.List.append [ "f", "u", "n", " ", "x", " ", "x", "*", "2" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
+    (Stdlib.List.append [ "f", "u", "n", " ", "x", " ", "-", ">", "x", "*", "2" ] (APipeTakesTheWholeExpression.pipeTo ()))) =
     "(fun x -> x * 2 |> Stdlib.printLine)"
 
 
@@ -1078,6 +1089,17 @@ module AParenAroundOneThingIsAGroup =
   (Fixtures.screen (Fixtures.chars "(fun x -> x)")) = "(fun x -> x)~"
   (Fixtures.screen (Fixtures.chars "let items = [1] items |> Stdlib.List.filter (fun x -> x)")) =
     "let items = [1]\nitems |> Stdlib.List.filter (fun x -> x)~"
+
+  // ...and the `)` settles what you were typing on the way out. The collapse lands the caret AFTER the
+  // whole group, so a name still half-typed under it was resolved by nothing afterwards -- not even
+  // Escape, which settles what the caret is ON, and by then that is somewhere else. Each of these drew
+  // exactly right and then refused to lower, "unresolved: x".
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(fun x -> x * x)") [ "<Esc>", "<Esc>" ])) =
+    "(fun x -> x * x)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map [1, 2, 3] (fun x -> x * x)") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map [1, 2, 3] (fun x -> x * x)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.fold xs 0 (fun acc x -> acc + x)") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.fold xs 0 (fun acc x -> acc + x)"
 
   // The two it must NOT collapse. A comma means a tuple was meant, and an immediate `)` is still unit.
   (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2)~"

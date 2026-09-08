@@ -1130,7 +1130,12 @@ let landSettled (st: State) (sp: Path) : State =
        | None -> false)
     | None -> false
 
-  if canBeWrappedByOperator then { st with caret = Caret.afterNode sp } else nextHole st
+  // ...and a space-separated list is the other reason to wait: `fun a b` and `f x y` write the next item
+  // with nothing but a space in front of it, so leaving the caret after the one just settled is what lets
+  // the next letter grow the list. A call already worked this way (its args are drawn with a leading
+  // space); a lambda's params did not, and `fun a b -> a + b` came out as `(fun a -> b -> a + b)` because
+  // the space walked out of the params and into the body.
+  if canBeWrappedByOperator || (inSpaceSepList st sp) then { st with caret = Caret.afterNode sp } else nextHole st
 
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
 /// these, so a rule keyed on the first character still fires and the rest follow.
@@ -1168,6 +1173,35 @@ let nextNonSpaceGlyphIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Opt
 
 
 let nextNonSpaceGlyph (st: State) : Stdlib.Option.Option<String> = nextNonSpaceGlyphIn (layout st) st
+
+/// The punctuation drawn immediately ahead of the caret, if the next thing drawn IS punctuation. The
+/// mirror of `prevPunctIn`, and like it, the whole token: the `->` of a lambda comes back as `->`, not
+/// as `-`. Multi-character punctuation is the point -- typing its first character is how you say you
+/// meant the one already drawn.
+let nextPunctIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    let mine (c: Layout.Cell) : Bool =
+      match c.tag with
+      | Some t -> Layout.tagMatches t st.caret.node st.caret.part
+      | None -> false
+    let firstOfRow (r: Layout.Row) (from: Int) : Stdlib.Option.Option<Layout.Cell> =
+      let step (acc: (Int * Stdlib.Option.Option<Layout.Cell>)) (c: Layout.Cell) : (Int * Stdlib.Option.Option<Layout.Cell>) =
+        let (x, best) = acc
+        let ends = x + c.width
+        if (Stdlib.Option.isSome best) || (x < from) then (ends, best)
+        elif ((Stdlib.String.trim c.text) == "") || (mine c) then (ends, best)
+        else (ends, Stdlib.Option.Option.Some c)
+      let (_, cell) = Stdlib.List.fold r (0, Stdlib.Option.Option.None) step
+      cell
+    (match Stdlib.List.getAt rows row with
+     | Some r -> firstOfRow r col
+     | None -> Stdlib.Option.Option.None)
+    |> Stdlib.Option.andThen (fun c ->
+      if c.style == Layout.Style.Punct then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
+      else Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
+
 /// The first non-space glyph drawn to the LEFT of the caret on its row, if any. The mirror of
 /// `nextNonSpaceGlyph`, for a separator you type after the editor has already drawn it AND moved you past
 /// it: in `let x = 1`, typing the `=` once the caret is in the value hole.
@@ -1592,14 +1626,19 @@ let typeOne (st: State) (c: String) : State =
   elif Stdlib.Option.isSome soloTuple then
     match soloTuple with
     | Some tuplePath ->
-      (match nodeAtPath st.root tuplePath with
+      // Settle what you were typing first. The collapse lands the caret AFTER the whole group, so a name
+      // still half-typed under it was never resolved by anything afterwards -- not even Escape, which only
+      // settles what the caret is on. `(fun x -> x * x)` drew correctly and then refused to lower, with
+      // "unresolved: x" for the `x` the `)` had walked away from.
+      let settled = resolvePartial st |> Stdlib.Option.withDefault st
+      (match nodeAtPath settled.root tuplePath with
        | Some tn ->
          (match Node.items tn "items" |> Stdlib.List.findFirst (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl)) with
           | Some kept ->
-            let st1 = commit st [ Edit.Replace(tuplePath, kept) ] caret
+            let st1 = commit settled [ Edit.Replace(tuplePath, kept) ] caret
             { st1 with caret = Caret.afterNode tuplePath }
-          | None -> st)
-       | None -> st)
+          | None -> settled)
+       | None -> settled)
     | None -> st
   elif emptyListToNil then
     match nodeAtPath st.root caret.node with
@@ -1713,6 +1752,50 @@ let typeOne (st: State) (c: String) : State =
         | _ -> false)
     && (prevPunctIn rows st == Stdlib.Option.Option.Some c)
   then
+    st
+  elif
+    (Stdlib.Bool.not inStringBody)
+    && (match nextPunctIn rows st with
+        | Some pn -> ((Stdlib.String.length pn) > 1) && (Stdlib.String.startsWith pn c)
+        | None -> false)
+    && (match caret.part with
+        // Nowhere the character could go: it is not part of the text under the caret and it does not wrap
+        // what is there either.
+        | InText slot ->
+          (match nodeAtPath st.root caret.node with
+           | Some n ->
+             let old = Node.text n slot |> Stdlib.Option.withDefault ""
+             (Stdlib.Option.isSome (textSlotRejection st.reg n slot c (TextEdit.insertAt old caret.offset c)))
+             && (Stdlib.Option.isNone (wrapRuleFor st.reg n c))
+           | None -> false)
+        | AfterNode ->
+          (match nodeAtPath st.root caret.node with
+           | Some n -> Stdlib.Option.isNone (wrapRuleFor st.reg n c)
+           | None -> false)
+        | _ -> false)
+  then
+    // You typed the first character of the punctuation drawn just ahead, somewhere that character cannot
+    // go: you meant the one already there. `fun a b` then `-` is the arrow, so skip past it to the body.
+    //
+    // Only for punctuation of more than one character. A single-character one has its own rule above
+    // (the `=` of a let, a closing bracket), and firing here as well would take `,` and `)` away from
+    // them. The multi-character ones -- `->`, `|>`, `::` -- are the ones you type in halves, which is why
+    // typing the FIRST half is a reliable signal and the second half is swallowed below.
+    nextHole st
+  elif
+    (Stdlib.Bool.not inStringBody)
+    && (caret.offset == 0)
+    && (match slotUnder st with
+        | Some(Empty _) -> true
+        | _ -> false)
+    && (match prevPunctIn rows st with
+        | Some pp -> ((Stdlib.String.length pp) > 1) && (Stdlib.String.endsWith pp c)
+        | None -> false)
+  then
+    // ...and the second half, at the start of the hole the first half moved you into. `-` skipped past
+    // the `->`, and the `>` that follows it in anyone's typing would otherwise start an operator on an
+    // empty body. The pipe's `|>` and the cons's `::` each had this written out for them by hand; this is
+    // the same rule asked of the drawing.
     st
   elif (c == ",") && (Stdlib.Bool.not inStringBody) then
     // The FALLBACK for `,`, kept deliberately. `sepPunctSibling` above handles every list whose spec says
@@ -3122,6 +3205,25 @@ let sepPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option<
   match fromSpec (Registry.findExact st.reg parent.kind) with
   | Some p -> Stdlib.Option.Option.Some p
   | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
+
+/// Is `slot`'s list one whose items are written with only a space between them (a lambda's parameters,
+/// a call's arguments)? Asked of the spec, like every other separator question.
+let spaceSepOf (st: State) (parent: Node) (slot: String) : Bool =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Bool =
+    match spec with
+    | Some sp -> Project.itemSepIsSpace sp.pieces slot
+    | None -> false
+  (fromSpec (Registry.findExact st.reg parent.kind)) || (fromSpec (Registry.findTypeLevel st.reg parent.kind))
+
+/// Is the node at `sp` an item of a list whose items are separated by a space? Then a space at the end of
+/// it means the next item, not "done with the list".
+let inSpaceSepList (st: State) (sp: Path) : Bool =
+  match (Path.last sp, Path.parent sp) with
+  | (Some(Item(slot, _)), Some(parentPath)) ->
+    (match nodeAtPath st.root parentPath with
+     | Some parent -> spaceSepOf st parent slot
+     | None -> false)
+  | _ -> false
 
 /// Typing the separator a spec draws BETWEEN a list's items, at the end of a finished item, starts the
 /// next one. Same shape as the lead-punct rule and tried the same way, from the inside out.

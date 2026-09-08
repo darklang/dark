@@ -141,6 +141,42 @@ let itemSepPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<Str
   |> Stdlib.List.flatten
   |> Stdlib.List.head
 
+/// Is `slotName`'s list separated by nothing but a space?
+///
+/// `fun a b -> ...` and `f x y` write their items with a space between them and no punctuation, so the
+/// space is the separator and typing one means "on to the next item". Read off the pieces rather than
+/// named here, so a DSL whose list is written the same way gets the same key.
+///
+/// A HARD line is deliberately not whitespace for this purpose: items that each take their own line
+/// (a record type's fields) are grown with Enter, and a space inside one of them is just a space.
+let itemSepIsSpace (ps: List<Piece>) (slotName: String) : Bool =
+  let spaceOnly (sep: List<Piece>) : Bool =
+    (Stdlib.Bool.not (Stdlib.List.isEmpty sep))
+    && (sep
+        |> Stdlib.List.all (fun b ->
+          match b with
+          | Space -> true
+          | Line -> true
+          | SoftLine -> true
+          | _ -> false))
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Each(s, sep) -> if s == slotName then [ spaceOnly sep ] else []
+    // Lead-only forms write the space in FRONT of each item (`f x y`), which is the same separator seen
+    // from the other side.
+    | EachWith(s, lead, sep) ->
+      if s == slotName then [ if Stdlib.List.isEmpty sep then spaceOnly lead else spaceOnly sep ] else []
+    | EachWrapped(s, _, sep, _) -> if s == slotName then [ spaceOnly sep ] else []
+    | ArgSlots(s, sep) -> if s == slotName then [ spaceOnly sep ] else []
+    | Group inner -> [ itemSepIsSpace inner slotName ]
+    | Flat inner -> [ itemSepIsSpace inner slotName ]
+    | Nest(_, inner) -> [ itemSepIsSpace inner slotName ]
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.any (fun b -> b)
+
+
 /// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
 /// means "same column, next row" rather than "the next node in reading order", and the only thing that
 /// knows a slot is a grid is the spec that draws it.
