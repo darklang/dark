@@ -190,7 +190,12 @@ type Spec =
     /// nothing. The document showed something it did not have.
     ///
     /// A DSL with a slot that takes one thing, or three, says it here rather than hoping.
-    maxItems: List<(String * Int)>
+    ///
+    /// Given the NODE, because the answer is not always a constant: an `if`'s `else` is always at most
+    /// one, but an enum constructor's fields are however many the CASE declares, which the node knows
+    /// and the spec cannot. `Ok 1` then Enter grew `Result.Ok(1, 2)` -- a two-field `Ok` -- and that
+    /// lowered without complaint.
+    maxItems: Node -> String -> Stdlib.Option.Option<Int>
     /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
     completions: List<Candidate>
     /// Computed candidates, given the typed text: names in scope, package search.
@@ -248,7 +253,7 @@ module Spec =
         holeRules = []
         wrapRules = []
         textClasses = []
-        maxItems = []
+        maxItems = Spec.noMaxItems
         completions = []
         complete = noCompletions
         resolve = noResolve
@@ -269,17 +274,18 @@ module Spec =
   /// A spec that says what its text slots are made of.
   let withTextClasses (spec: Spec) (cs: List<(String * TextClass)>) : Spec = { spec with textClasses = cs }
 
-  let withMaxItems (spec: Spec) (caps: List<(String * Int)>) : Spec = { spec with maxItems = caps }
+  let noMaxItems (_n: Node) (_slot: String) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.None
 
-  /// How many items `slot` may hold, if the spec says.
-  let maxItemsFor (spec: Spec) (slot: String) : Stdlib.Option.Option<Int> =
-    spec.maxItems
-    |> Stdlib.List.findFirst (fun pair ->
-      let (s, _) = pair
-      s == slot)
-    |> Stdlib.Option.map (fun pair ->
-      let (_, n) = pair
-      n)
+  let withMaxItems (spec: Spec) (f: Node -> String -> Stdlib.Option.Option<Int>) : Spec =
+    { spec with maxItems = f }
+
+  /// A slot that is capped at whatever it already holds: fixed by a declaration somewhere, not by the
+  /// person typing. An enum case's fields are the case in point.
+  let fixedSlot (slot: String) (n: Node) (asked: String) : Stdlib.Option.Option<Int> =
+    if asked == slot then
+      Stdlib.Option.Option.Some(Stdlib.List.length (Node.items n slot))
+    else
+      Stdlib.Option.Option.None
 
   let withBinders (spec: Spec) (f: Node -> List<(List<Binding> * List<String>)>) : Spec =
     { spec with binders = f }

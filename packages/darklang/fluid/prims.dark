@@ -83,7 +83,7 @@ let specs () : List<Spec> =
         holeRules = [ HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar intFromDigit } ]
         wrapRules = []
         textClasses = []
-        maxItems = []
+        maxItems = Spec.noMaxItems
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve
@@ -102,7 +102,7 @@ let specs () : List<Spec> =
             HoleRule { onChar = "<digit>"; fill = HoleFill.WithChar stringFromChar } ]
         wrapRules = []
         textClasses = []
-        maxItems = []
+        maxItems = Spec.noMaxItems
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve
@@ -131,7 +131,7 @@ let specs () : List<Spec> =
         holeRules = [ HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket } ]
         wrapRules = []
         textClasses = []
-        maxItems = []
+        maxItems = Spec.noMaxItems
         completions = []
         complete = Spec.noCompletions
         resolve = Spec.noResolve

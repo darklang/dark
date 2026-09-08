@@ -101,7 +101,7 @@ let recordSpec
       holeRules = [ HoleRule { onChar = "{"; fill = HoleFill.Node empty } ]
       wrapRules = []
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       completions = [ Spec.candidate (shortName typeName) "record" empty ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -166,7 +166,7 @@ let caseSpec
       holeRules = []
       wrapRules = []
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       completions = []
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -200,7 +200,7 @@ let enumTypeSpec
       holeRules = []
       wrapRules = []
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       completions = candidates
       complete = Spec.noCompletions
       resolve = Spec.noResolve

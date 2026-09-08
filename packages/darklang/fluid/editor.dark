@@ -3074,7 +3074,7 @@ let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib
         let capped =
           match Registry.find st.reg n.kind with
           | Some spec ->
-            (match Spec.maxItemsFor spec slot with
+            (match spec.maxItems n slot with
              | Some cap -> (Stdlib.List.length items) >= cap
              | None -> false)
           | None -> false
@@ -3097,10 +3097,20 @@ let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib
       | _ -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
+/// Start the next item in the nearest list that will take one.
+///
+/// From the INSIDE OUT, past any list that is capped, the way `leadPunctSibling` already walks. A node
+/// sits inside several lists at once, and the nearest is not always the one that can grow: at the end of
+/// `Ok(1)` in a match arm the nearest list is the constructor's FIELDS, whose length the case declares.
+/// Stopping there meant Enter opened a statement inside the arm rather than starting the next arm.
 let addSibling (st: State) : Stdlib.Option.Option<State> =
-  match enclosingListItem st.caret with
-  | Some((parentPath, slot, i)) -> addSiblingAt st parentPath slot i
-  | None -> Stdlib.Option.Option.None
+  enclosingListItems st.caret
+  |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc entry ->
+    match acc with
+    | Some _ -> acc
+    | None ->
+      let (parentPath, slot, i) = entry
+      addSiblingAt st parentPath slot i)
 
 
 // --- Keys ---

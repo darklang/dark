@@ -1291,6 +1291,22 @@ let recordCandidates (typed: String) : List<Candidate> =
 /// the common path.
 /// It is the LAST segment that says which: `Stdlib.Cli.Tui.Size` names a type, `Stdlib.List.length` names
 /// a function, and both start with a capital.
+/// An `if` has at most one `else`. Constant, unlike the enum below.
+let elseMaxItems (_n: Node) (slot: String) : Stdlib.Option.Option<Int> =
+  if slot == "else" then Stdlib.Option.Option.Some 1 else Stdlib.Option.Option.None
+
+/// An enum constructor's fields are however many the CASE declares, so the node is the only thing that
+/// knows. Capped at what it already holds -- the candidate builds it with the declared number, and
+/// nothing a person types should change that.
+///
+/// Only once the case is RESOLVED. An unresolved `EEnum` has no hash and no arity to speak of, and
+/// capping it at zero would stop it ever being filled.
+let enumMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
+  if (slot == "fields") && ((textOf n "_typeHash") != "") then
+    Stdlib.Option.Option.Some(Stdlib.List.length (Node.items n "fields"))
+  else
+    Stdlib.Option.Option.None
+
 let looksLikeATypeName (typed: String) : Bool =
   let lastSegment = Stdlib.String.split typed "." |> Stdlib.List.last |> Stdlib.Option.withDefault typed
   match Stdlib.String.first lastSegment 1 with
@@ -1526,7 +1542,7 @@ let pipeTypeSpec () : Spec =
       holeRules = []
       wrapRules = []
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
       resolve = Spec.noResolve
@@ -1912,7 +1928,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "{"; fill = HoleFill.WithChar recordUpdateFromBrace }
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
@@ -1948,7 +1964,7 @@ let letPatTypeSpec () : Spec =
           HoleRule { onChar = "_"; fill = HoleFill.Node(Node.make (letPatKind "LPWildcard") []) } ]
       wrapRules = []
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -2008,7 +2024,7 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (matchPatKind "MPList") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "pattern") ], matchPatExpect "pattern")) ]) }
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
       textClasses = []
-      maxItems = []
+      maxItems = Spec.noMaxItems
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
@@ -2133,10 +2149,11 @@ let moreSpecs () : List<Spec> =
               Piece.Punct "}" ] ]
         (Node.make (exprKind "ERecordUpdate") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), ("updates", Field.Many([], fieldExpect ())) ]))
       recordUpdateOffers
-    simpleExpr
+    (simpleExpr
       "EEnum"
       [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]
       (Node.make (exprKind "EEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
+     |> fun sp -> { sp with maxItems = enumMaxItems })
     simpleExpr
       "EDict"
       [ Piece.Group
@@ -2237,7 +2254,7 @@ let baseSpecs () : List<Spec> =
     // Zero or one, said out loud. The `else` Many is an OPTION, not a sequence, and the comment above
     // has always said so while nothing enforced it: typing past a settled else grew the list, drew a
     // second `else`, and lowered to a program without it.
-    |> fun sp -> { sp with actions = ifActions (); maxItems = [ ("else", 1) ] }
+    |> fun sp -> { sp with actions = ifActions (); maxItems = elseMaxItems }
     simpleExpr
       "EInfix"
       [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
@@ -2508,7 +2525,7 @@ module Types =
             HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
         wrapRules = []
         textClasses = []
-        maxItems = []
+        maxItems = Spec.noMaxItems
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
         resolve = resolveTypePartial

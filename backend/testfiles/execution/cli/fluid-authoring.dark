@@ -1217,3 +1217,34 @@ module EnterStartsTheNextArmWhateverTheRhsIs =
   // Outside any sequence Enter still starts the next STATEMENT, which is the fallback it always was.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<Enter>" ])) = "1 + 2\n~⟨next⟩"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "1") [ "<Enter>", "2", "<Esc>", "<Esc>" ])) = "1\n2"
+
+
+module AConstructorHasTheArityItsCaseDeclares =
+  // `Ok 1` then Enter grew `Result.Ok(1, 2)` -- a two-field `Ok` -- and it LOWERED without complaint. A
+  // program that cannot typecheck, from one keystroke, silently.
+  //
+  // Found by sweeping the same key in the same position across value shapes rather than waiting to trip
+  // over it. Five of six shapes started the next arm; the constructor grew its own fields instead,
+  // because `addSibling` takes the NEAREST list and inside `Ok(1)` that is the fields.
+  //
+  // Two halves. `maxItems` became a question about the NODE, since an enum's arity is declared by the
+  // case and only the node knows it, where an `if`'s one `else` is a constant. And `addSibling` walks
+  // enclosing lists from the inside OUT past any that is capped, which is how `leadPunctSibling` already
+  // worked -- a node sits inside several lists at once and the nearest is not always the one that grows.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Ok 1") [ "<Enter>", "2" ])) =
+    "Result.Ok(1)\n2~"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Ok 1") [ "<Enter>", "2", "<Esc>", "<Esc>" ])) =
+    "Result.Ok(1)\n2"
+
+  // The same key, the same position, every shape: this is the pin the earlier ones could not be, because
+  // one example cannot show that another disagrees.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 1") [ "<Enter>" ])) =
+    "match n with\n| 0 -> 1\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 \"s\"") [ "<Enter>" ])) =
+    "match n with\n| 0 -> \"s\"\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 r.f") [ "<Enter>" ])) =
+    "match n with\n| 0 -> r.f\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 Ok 1") [ "<Enter>" ])) =
+    "match n with\n| 0 -> Result.Ok(1)\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[Ok 1") [ "<Enter>" ])) =
+    "[Result.Ok(1), ~⟨item⟩]"
