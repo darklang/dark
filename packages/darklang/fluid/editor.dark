@@ -3967,9 +3967,17 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         // caret INSIDE itself, and "start the next item" then meant the new node's own list: `fun` in a
         // function argument committed the lambda, landed in its first parameter, and added a SECOND
         // parameter, so `List.map (fun ⟨param⟩ ⟨param⟩ -> ⟨body⟩)` was what you got for typing `fun`.
+        // `blanks`, not `holes`. An empty TEXT field is something left to fill just as much as an empty
+        // slot is, and `landAfterCommit` learned that long ago: "an empty TEXT field is the next thing to
+        // type too, and landing off `holes` walked past a parameter with no name straight into its type".
+        //
+        // This one never learned it. `int` in a match pattern commits to an `MPInt` whose only blank is
+        // its digits TEXT, so `holes` said there was nothing left, and Enter committed the pattern and
+        // then started the next arm -- leaving an empty `| ⟨digits⟩ ->` behind and the caret two arms
+        // away from the number you were about to type.
         let leavesHoles =
           match selectedCandidate st with
-          | Some c -> Stdlib.Bool.not (Stdlib.List.isEmpty (holes (Slot.Filled c.node)))
+          | Some c -> Stdlib.Bool.not (Stdlib.List.isEmpty (blanks (Slot.Filled c.node)))
           | None -> false
         if (Stdlib.Option.isSome (exactCandidate st)) && (Stdlib.Bool.not leavesHoles) then
           match addSibling committed with

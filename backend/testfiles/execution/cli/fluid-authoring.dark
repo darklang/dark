@@ -2166,3 +2166,30 @@ module SettlingIsNotChoosing =
     (Stdlib.List.flatten
       [ Fixtures.chars "{ r", [ "<Tab>" ], Fixtures.chars "x", [ "<Tab>" ], Fixtures.chars "1"
         [ "<Esc>", "<Esc>" ] ])) = "{ r with x = 1 }"
+
+
+module AnEmptyTextIsSomethingLeftToFill =
+  // Enter after committing a candidate ALSO starts the next item, but only when the thing it committed
+  // has nothing left to fill. That check asked `holes`, which counts empty SLOTS, and an `EInt`'s only
+  // blank is its digits TEXT. So picking `int` inside a list committed the number and immediately began
+  // the next element, leaving an empty one behind and the caret past the digits you were about to type.
+  //
+  //     [int<Enter>     ->  [⟨digits⟩, ⟨item⟩]     wanted [⟨digits⟩] with the caret in it
+  //
+  // `landAfterCommit` has known this for months and says so where it lands: "`blanks`, not `holes`: an
+  // empty TEXT field is the next thing to type too, and landing off `holes` walked past a parameter with
+  // no name straight into its type". Three other places asked the narrower question.
+  //
+  // `holes` stays. One caller genuinely wants it -- moving into the NEXT list item skips a record field's
+  // name to reach a real hole -- and its comment says so. Two of the three did not.
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "[", Fixtures.chars "int", [ "<Enter>" ] ])) =
+    "[~digits]"
+
+  // The suggestion rules, in a list, where a hijack would be easy to miss: neither Tab nor space takes
+  // `int`, because it is an ordinary word somebody may be naming a variable.
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "[", Fixtures.chars "int", [ "<Tab>" ] ])) = "[int~]"
+  (Fixtures.screen (Fixtures.chars "[int ")) = "[int~]"
+
+  // And an argument position, where the commit lands INSIDE the new node rather than after it.
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "Stdlib.List.map xs ", Fixtures.chars "int", [ "<Enter>" ] ])) =
+    "Stdlib.List.map xs ~digits"
