@@ -1784,6 +1784,7 @@ let pipeTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      opensItems = []
       bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
@@ -2172,6 +2173,7 @@ let exprTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      opensItems = []
       bindsNames = false
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps"; continuesText = false }
@@ -2258,6 +2260,7 @@ let letPatTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      opensItems = []
       bindsNames = true
       completions =
         [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
@@ -2321,6 +2324,7 @@ let matchPatTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
+      opensItems = []
       bindsNames = true
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts"; continuesText = false }
@@ -2384,7 +2388,9 @@ let moreSpecs () : List<Spec> =
     simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
     simpleOf (matchPatKind "MPListCons") [ Piece.Slot "head", Piece.Space, Piece.Punct "::", Piece.Space, Piece.Slot "tail" ] (Node.make (matchPatKind "MPListCons") [ ("head", Field.One(Slot.Empty(matchPatExpect "head"))), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ])
     simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
-    simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ])
+    Spec.opensItemsOn
+      (simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ]))
+      [ ("(", "fields") ]
     simpleOf (matchPatKind "MPOr") [ Piece.Group [ Piece.Each("alts", [ Piece.Space, Piece.Punct "|", Piece.Line ]) ] ] (Node.make (matchPatKind "MPOr") [ ("alts", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
     Spec.withOffers
       (simpleExpr
@@ -2895,6 +2901,7 @@ module Types =
         textClasses = []
         maxItems = Spec.noMaxItems
         noSequence = []
+        opensItems = []
         bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
@@ -3438,10 +3445,15 @@ module TypeDecl =
           [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
           (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
           resolve = resolveField }
-      { (simpleT
-          "EnumCase"
-          [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
-          (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ])) with
+      // A space after the case name opens its first field, and the ` of` is DRAWN rather than typed:
+      // `| Delayed` then a space gives `| Delayed of <type>`, and Enter from inside that field
+      // adds the next one, separated by the `*` the spec draws. `of` is a keyword nobody has to spell.
+      { (Spec.opensItemsOn
+          (simpleT
+            "EnumCase"
+            [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
+            (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ]))
+          [ (" ", "fields") ]) with
           resolve = resolveCase }
       simpleT
         "EnumField"

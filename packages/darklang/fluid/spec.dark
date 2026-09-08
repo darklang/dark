@@ -231,6 +231,18 @@ type Spec =
     /// Named here rather than checked for in the kernel so a DSL with its own bracketed construct can say
     /// the same thing about its own slots.
     noSequence: List<String>
+    /// Characters that OPEN an empty item list on this node, as (character, slot) pairs.
+    ///
+    /// Some nodes carry a list they do not have yet, and one keystroke at the end of their text is how
+    /// you ask for it: `Ok` then `(` opens a constructor pattern's fields, `| Delayed` then a space
+    /// opens an enum case's. The kernel knew the first one BY NAME -- it tested for `MPEnum` and the
+    /// slot `case` -- so the construct that had this was the one somebody had written the branch for,
+    /// and an enum case in a type DECLARATION, which is the same shape one level over, could be read
+    /// but never written. `| Foo of Int` printed perfectly and there was no key that made one.
+    ///
+    /// The kernel keeps the part that is not about any language: only an EMPTY list opens, and only from
+    /// the end of a text slot. The spec says which character and which slot.
+    opensItems: List<(String * String)>
     /// Does a hole of this kind INTRODUCE a name rather than reference one?
     ///
     /// A space or a Tab commits an unambiguous keyword PREFIX, which is how `le` becomes `let`. That is
@@ -301,6 +313,7 @@ module Spec =
         textClasses = []
         maxItems = Spec.noMaxItems
         noSequence = []
+        opensItems = []
         bindsNames = false
         completions = []
         complete = noCompletions
@@ -329,6 +342,9 @@ module Spec =
 
   /// A spec that says which of its slots a newline must not sequence.
   let withNoSequence (spec: Spec) (slots: List<String>) : Spec = { spec with noSequence = slots }
+
+  /// A spec that says which character opens which of its empty item lists.
+  let opensItemsOn (spec: Spec) (pairs: List<(String * String)>) : Spec = { spec with opensItems = pairs }
 
   /// A spec whose holes introduce names rather than reference them.
   let bindsItsNames (spec: Spec) : Spec = { spec with bindsNames = true }

@@ -1047,6 +1047,32 @@ let wrapRuleNamed (reg: Registry) (n: Node) (name: String) : Stdlib.Option.Optio
      | Some spec -> spec.wrapRules |> Stdlib.List.findFirst (fun r -> r.onChar == name)
      | None -> Stdlib.Option.Option.None)
 
+/// The item slot that typing `c` OPENS on this node, when the spec claims the character and the list is
+/// still empty.
+///
+/// Two places settle a name onto a node and both have to ask: typing at the end of a node that already
+/// exists, and RESOLVING a partial into one. `| Delayed` typed into a case hole is text until something
+/// commits it, so the space that should have opened the fields was spent on the commit and it took two
+/// spaces to write `| Delayed of Int` -- where a record field, whose type hole is already drawn, takes
+/// one. Same question, two answers, which is the shape nearly every bug here has had.
+///
+/// The spec says which character and which slot. What stays here is the part that is true of any
+/// language: the list must be a Many, and it must be EMPTY, because after that the character means
+/// whatever it means next to a filled list.
+let opensItemSlot (reg: Registry) (n: Node) (c: String) : Stdlib.Option.Option<String> =
+  match Registry.find reg n.kind with
+  | Some spec ->
+    spec.opensItems
+    |> Stdlib.List.findFirst (fun pair ->
+      let (onChar, itemSlot) = pair
+      (onChar == c)
+      && (Stdlib.List.isEmpty (Node.items n itemSlot))
+      && (Stdlib.Option.isSome (Node.itemExpect n itemSlot)))
+    |> Stdlib.Option.map (fun pair ->
+      let (_onChar, itemSlot) = pair
+      itemSlot)
+  | None -> Stdlib.Option.Option.None
+
 /// Is the caret in the operator slot of a node made by a wrap rule?
 let inOpSlot (reg: Registry) (n: Node) (slot: String) : Stdlib.Option.Option<WrapRule> =
   match Registry.findTypeLevel reg n.kind with
@@ -1281,21 +1307,30 @@ let clearsDrawnKeyword (st: State) : Stdlib.Option.Option<State> =
   // Space already had this, written out separately in the partial-typing path; it now calls here so the
   // two holes get one answer instead of one each. Restores the slot's own `was` rather than a rebuilt
   // expectation, which is what that path always did and is the better of the two.
-  | InSlot _ ->
-    (match Caret.slotPath st.caret with
-     | Some sp ->
-       (match slotAtPath st.root sp with
-        | Some(Partial(typed, was)) ->
-          if (typed != "")
-             && (st.caret.offset >= (Stdlib.String.length typed))
-             && ((prevKeyword st) == Stdlib.Option.Option.Some typed) then
-            let st1 = commit st [ Edit.Replace(sp, was) ] st.caret
-            Stdlib.Option.Option.Some { st1 with caret = { st.caret with offset = 0 } }
-          else
-            Stdlib.Option.Option.None
-        | _ -> Stdlib.Option.Option.None)
-     | None -> Stdlib.Option.Option.None)
+  //
+  // An ITEM asks it too. A partial in a list item was falling through to the catch-all, so the rule held
+  // for a hole and not for the same hole one comma over -- and an enum case's fields ARE items, so
+  // `| Delayed of Int`, typed the way the source spells it, kept the `of` and came out
+  // `| Delayed of ofInt`. `Caret.slotPath` already answers for both; only the match arm was missing.
+  | InSlot _ -> clearsPartialKeyword st
+  | InItem(_, _) -> clearsPartialKeyword st
   | _ -> Stdlib.Option.Option.None
+
+/// The half of `clearsDrawnKeyword` that works on a PARTIAL, whichever kind of slot holds it.
+let clearsPartialKeyword (st: State) : Stdlib.Option.Option<State> =
+  match Caret.slotPath st.caret with
+  | Some sp ->
+    (match slotAtPath st.root sp with
+     | Some(Partial(typed, was)) ->
+       if (typed != "")
+          && (st.caret.offset >= (Stdlib.String.length typed))
+          && ((prevKeyword st) == Stdlib.Option.Option.Some typed) then
+         let st1 = commit st [ Edit.Replace(sp, was) ] st.caret
+         Stdlib.Option.Option.Some { st1 with caret = { st.caret with offset = 0 } }
+       else
+         Stdlib.Option.Option.None
+     | _ -> Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
 
 /// Type one grapheme. A paste (many graphemes at once) is decomposed by `typeChar` into a sequence of
 /// these, so a rule keyed on the first character still fires and the rest follow.
@@ -2061,12 +2096,20 @@ let typeOneRaw (st: State) (c: String) : State =
     | Some n ->
       let old = Node.text n slot |> Stdlib.Option.withDefault ""
       let atEnd = caret.offset >= (Stdlib.String.length old)
-      // `(` after a constructor pattern's case name opens its fields and drops into the first one, so
-      // `Ok(x)` types straight through; the closing paren draws itself.
+      // A character that OPENS an empty item list, from the end of one of the node's text slots: `(`
+      // after a constructor pattern's case name opens its fields and drops into the first one, so
+      // `Ok(x)` types straight through and the closing paren draws itself.
+      //
+      // The pairs come from the spec. This tested `n.kind.case == Some "MPEnum" && slot == "case"`, so
+      // the only construct that could grow a list this way was the one the branch had been written for,
+      // and an enum case in a type DECLARATION -- the same shape one level over -- could be READ and
+      // never written: `| Foo of Int` printed correctly and no key made one. `EnumCase` claims a space
+      // where `MPEnum` claims `(`, and neither is spelled here.
+      //
+      // What stays in the kernel is what is true of any language: the list must be EMPTY (otherwise the
+      // character means whatever it means after a filled list) and it must actually be a Many.
       let openFields =
-        (c == "(") && atEnd && (n.kind.case == Stdlib.Option.Option.Some "MPEnum") && (slot == "case")
-        && (Stdlib.List.isEmpty (Node.items n "fields"))
-        && (Stdlib.Option.isSome (Node.itemExpect n "fields"))
+        if atEnd then opensItemSlot st.reg n c else Stdlib.Option.Option.None
       // A `.` at the end of an integer's digits makes it a float and drops into the fraction, so `1.5`
       // types straight through -- rather than the generic `.`-field-access wrapping the number in `(1).5`.
       let floatKind =
@@ -2080,10 +2123,11 @@ let typeOneRaw (st: State) (c: String) : State =
       // Space at the end of a completed leaf means "done here" -> advance to the next hole, so you can type
       // `let x <space> 1 <space> body` close to writing it as text. A STRING body (slot "body") keeps its
       // spaces; everything else (names, digits, float parts) treats space as "next".
-      if openFields then
-        let each = Node.itemExpect n "fields" |> Stdlib.Option.withDefault (Expect.any "field")
-        let st1 = commit st [ Edit.InsertItem(caret.node, "fields", 0, Slot.Empty each) ] caret
-        { st1 with caret = Caret.inItem caret.node "fields" 0 0 }
+      if Stdlib.Option.isSome openFields then
+        let itemSlot = openFields |> Stdlib.Option.withDefault ""
+        let each = Node.itemExpect n itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
+        let st1 = commit st [ Edit.InsertItem(caret.node, itemSlot, 0, Slot.Empty each) ] caret
+        { st1 with caret = Caret.inItem caret.node itemSlot 0 0 }
       elif Stdlib.Option.isSome floatKind then
         let fk = floatKind |> Stdlib.Option.withDefault n.kind
         let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
@@ -2424,7 +2468,22 @@ let typeOneRaw (st: State) (c: String) : State =
             | None -> landSettled st sp
           else
             match resolvePartial st with
-            | Some resolved -> stayIfOnHole resolved (fun r -> landSettled r sp)
+            | Some resolved ->
+              // The name has just BECOME a node, so this is the first moment it can be asked whether the
+              // character opens one of its lists. Only when resolving left nothing unfilled: a construct
+              // that came back with holes wants the caret in them, and that is what `stayIfOnHole` is for.
+              (match nodeAtPath resolved.root sp with
+               | Some rn ->
+                 if Stdlib.List.isEmpty (blanks (Slot.Filled rn)) then
+                   (match opensItemSlot resolved.reg rn c with
+                    | Some itemSlot ->
+                      let each = Node.itemExpect rn itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
+                      let st1 = commit resolved [ Edit.InsertItem(sp, itemSlot, 0, Slot.Empty each) ] resolved.caret
+                      { st1 with caret = Caret.inItem sp itemSlot 0 0 }
+                    | None -> stayIfOnHole resolved (fun r -> landSettled r sp))
+                 else
+                   stayIfOnHole resolved (fun r -> landSettled r sp)
+               | None -> stayIfOnHole resolved (fun r -> landSettled r sp))
             | None -> nextHole st
         elif dotOnName then
           match resolvePartial st with

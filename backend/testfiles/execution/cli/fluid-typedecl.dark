@@ -346,6 +346,48 @@ module BarAddsACase =
     | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
 
 
+module ACaseGrowsItsOwnFields =
+  // `| Foo of Int` could be READ and never WRITTEN. The kernel's one branch for opening an empty item
+  // list tested for `MPEnum` by name and for the slot `case`, so a constructor PATTERN could grow fields
+  // and an enum case in a DECLARATION -- the same shape one level over -- had no key that made one. The
+  // pair is spec data now (`opensItems`), the kernel only keeps "the list must be a Many and empty", and
+  // `of` is DRAWN rather than typed.
+  let typed (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (Fixtures.reg ()) (Editing.defHole ()) 60 keys
+
+  let aCase () : List<String> =
+    [ "e", "n", "u", "m", "<Enter>", "D", "e", "l", "a", "y", "e", "d" ]
+
+  // A space after the case name opens its first field, and draws the `of` for you.
+  (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " " ])) =
+    "| Delayed of ~⟨field⟩"
+
+  (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " ", "I", "n", "t" ])) =
+    "| Delayed of Int~"
+
+  // ONE space, the way a record field takes one. It took two, because the name typed into a case hole is
+  // a PARTIAL until something commits it: the first space was spent on the commit and only the second
+  // reached the node. Both settle paths ask `opensItemSlot` now.
+  (ACaseGrowsItsOwnFields.typed [ "r", "e", "c", "o", "r", "d", "<Enter>", "x", " ", "I", "n", "t" ]) =
+    "{ x: Int~ }"
+
+  // Typed the way the source spells it, `of` and all. The `of` the editor already drew is thrown away
+  // rather than kept as a field type: it came out `| Delayed of ofInt`, because the rule that clears a
+  // drawn keyword had a match arm for a hole and none for an ITEM, and a case's fields are items.
+  (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " ", "o", "f", " ", "I", "n", "t" ])) =
+    "| Delayed of Int~"
+
+  // And Enter from inside a field adds the next one, separated by the `*` the spec draws.
+  (ACaseGrowsItsOwnFields.typed
+    (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " ", "o", "f", " ", "I", "n", "t", "<Enter>", "S", "t", "r", "i", "n", "g" ])) =
+    "| Delayed of Int * String~"
+
+  // A case with NO fields still just ends. The space is the only thing that opens them, so `|` for the
+  // next case is untouched.
+  (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ "|", "P", "o", "i", "n", "t" ])) =
+    "| Delayed\n| Point~"
+
+
 module NamesReadFromWhereYouStand =
   // Editing `ProgramTypes.Expr` drew `| EUnit of Darklang.LanguageTools.ID`, which is not how the source
   // says it and not how the printer prints it when it is standing in that module: `| EUnit of ID`. The

@@ -457,9 +457,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
         // the inner one then decides, at the new indent, whether the FIELDS fit on one line. With a single
         // group they broke together, so `| EFloat of ID * Sign * String * String` -- which fits perfectly
         // well once indented -- came out one field per line.
+        // Drawn as a KEYWORD, not as punctuation, because that is what it is. `prevKeyword` only sees
+        // cells styled that way, so the ` of` the editor draws for you was invisible to the rule that
+        // throws away a keyword you type back -- and `| Delayed of Int`, typed the way the source spells
+        // it, came out `| Delayed of ofInt`. Every other drawn keyword (`then`, `else`, `with`) already
+        // clears itself; this one was drawn by a different piece and so missed out.
         Layout.group
           (Layout.concatAll
-            [ Layout.punct openP
+            [ Layout.keyword openP
               Layout.nest 2 (Layout.concat Layout.Doc.Line (Layout.group (Layout.join docs sepDoc))) ])
       else
         Layout.group
