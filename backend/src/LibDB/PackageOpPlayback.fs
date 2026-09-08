@@ -459,9 +459,14 @@ let private serializeAnnotation
 /// Identity is hash-keyed: `Reference` carries only a Hash, so two FQNs sharing a hash
 /// deprecate together. Not branch-scoped: a deprecation is keyed on content, and a
 /// branch's `Deprecate` never folds at all.
+/// <param ts> is the OP's time, and it is what decides. Deprecating a thing and undeprecating it are
+/// two ops; whichever was SAID last is the answer, on every machine, whatever order they arrived in.
+/// Ordering by arrival meant a peer that pulled them in the other order disagreed with you about
+/// whether a function is harmful.
 let private writeDeprecationState
   (ctx : Ctx)
   (target : PT.Reference)
+  (ts : Option<string>)
   (state : string)
   (blob : Option<byte[]>)
   : Task<unit> =
@@ -469,37 +474,58 @@ let private writeDeprecationState
     let (Hash itemHashStr) = target.hash
     let itemKindStr = target.kind.toString ()
 
-    do!
-      exec ctx """
-        UPDATE deprecations
-        SET unlisted_at = datetime('now')
-        WHERE item_hash = $item_hash
-          AND item_kind = $item_kind
-          AND unlisted_at IS NULL
-        """ (fun cmd ->
-        p cmd "$item_hash" itemHashStr
-        p cmd "$item_kind" itemKindStr)
+    // Older than what already stands is a late arrival, not a new decision.
+    let! standingTs =
+      textOption
+        ctx
+        ("SELECT COALESCE(origin_ts,'') AS ts FROM deprecations "
+         + "WHERE item_hash = $item_hash AND item_kind = $item_kind "
+         + "AND unlisted_at IS NULL LIMIT 1")
+        (fun cmd ->
+          p cmd "$item_hash" itemHashStr
+          p cmd "$item_kind" itemKindStr)
 
-    do!
-      exec ctx """
-        INSERT INTO deprecations
-          (deprecation_id, item_hash, item_kind, state, annotation_blob)
-        VALUES
-          ($deprecation_id, $item_hash, $item_kind, $state, $blob)
-        """ (fun cmd ->
-        pUuid cmd "$deprecation_id" (System.Guid.NewGuid())
-        p cmd "$item_hash" itemHashStr
-        p cmd "$item_kind" itemKindStr
-        p cmd "$state" state
-        match blob with
-        | Some b -> p cmd "$blob" b
-        | None -> p cmd "$blob" System.DBNull.Value)
+    let stale =
+      match standingTs, ts with
+      | Some standing, Some t when standing <> "" -> t < standing
+      | _ -> false
+
+    if stale then
+      return ()
+    else
+      do!
+        exec ctx """
+          UPDATE deprecations
+          SET unlisted_at = datetime('now')
+          WHERE item_hash = $item_hash
+            AND item_kind = $item_kind
+            AND unlisted_at IS NULL
+          """ (fun cmd ->
+          p cmd "$item_hash" itemHashStr
+          p cmd "$item_kind" itemKindStr)
+
+      do!
+        exec ctx """
+          INSERT INTO deprecations
+            (deprecation_id, item_hash, item_kind, state, annotation_blob, origin_ts)
+          VALUES
+            ($deprecation_id, $item_hash, $item_kind, $state, $blob, $origin_ts)
+          """ (fun cmd ->
+          pUuid cmd "$deprecation_id" (System.Guid.NewGuid())
+          p cmd "$item_hash" itemHashStr
+          p cmd "$item_kind" itemKindStr
+          p cmd "$state" state
+          pOpt cmd "$origin_ts" ts
+          match blob with
+          | Some b -> p cmd "$blob" b
+          | None -> p cmd "$blob" System.DBNull.Value)
   }
 
 
 /// Apply a Deprecate op: a `deprecated` row carrying the serialized kind + message.
 let private applyDeprecate
   (ctx : Ctx)
+  (ts : Option<string>)
   (target : PT.Reference)
   (kind : PT.DeprecationKind)
   (message : string)
@@ -507,13 +533,18 @@ let private applyDeprecate
   writeDeprecationState
     ctx
     target
+    ts
     "deprecated"
     (Some(serializeAnnotation kind message))
 
 
 /// Apply an Undeprecate op: an `undeprecated` row with no annotation.
-let private applyUndeprecate (ctx : Ctx) (target : PT.Reference) : Task<unit> =
-  writeDeprecationState ctx target "undeprecated" None
+let private applyUndeprecate
+  (ctx : Ctx)
+  (ts : Option<string>)
+  (target : PT.Reference)
+  : Task<unit> =
+  writeDeprecationState ctx target ts "undeprecated" None
 
 
 /// Apply a Describe op: the item's stored text becomes <param text>.
@@ -605,15 +636,25 @@ let private applyDecision
       ()
 
     | PT.DecisionKind.Propagation PT.PropagationPolicy.Unset ->
-      // Clearing is a decision like any other, so it's an op -- but it's the one that removes the row rather
-      // than writing it. Still guarded by origin_ts, so a stale unset can't wipe a newer pin.
+      // A tombstone, not a delete: state 'unset' carrying the op's time. Deleting the row deletes
+      // the evidence a later-arriving OLDER pin has to lose to, so it would re-insert and undo an
+      // unset that postdates it. Readers already read 'unset' as "no policy".
       do!
-        exec ctx "DELETE FROM propagation_policy
-           WHERE branch_id = $branch AND owner = $owner AND modules = $modules AND name = $name
-             AND COALESCE(origin_ts, '') < $ts" (fun cmd ->
-          p cmd "$branch" (string branchId)
-          pLoc cmd loc
-          p cmd "$ts" ts)
+        exec
+          ctx
+          "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
+           VALUES ($branch, $owner, $modules, $name, $policy, $note, $ts)
+           ON CONFLICT(branch_id, owner, modules, name) DO UPDATE SET
+             policy = excluded.policy,
+             note = excluded.note,
+             origin_ts = excluded.origin_ts
+           WHERE COALESCE(propagation_policy.origin_ts, '') < excluded.origin_ts"
+          (fun cmd ->
+            p cmd "$branch" (string branchId)
+            pLoc cmd loc
+            p cmd "$policy" PT.PropagationPolicy.Unset.ToText
+            p cmd "$note" reason
+            p cmd "$ts" ts)
 
     | PT.DecisionKind.Propagation policy ->
       // Guarded by origin_ts so an older op arriving late can't undo a newer decision.
@@ -901,8 +942,12 @@ let private applyOp
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
     | PT.PackageOp.Deprecate(target, kind, message) ->
-      do! applyDeprecate ctx target kind message
-    | PT.PackageOp.Undeprecate target -> do! applyUndeprecate ctx target
+      // The op's own time, so the NEWEST statement wins rather than the last to arrive.
+      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
+      do! applyDeprecate ctx ts target kind message
+    | PT.PackageOp.Undeprecate target ->
+      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
+      do! applyUndeprecate ctx ts target
     | PT.PackageOp.Describe(target, text) -> do! applyDescribe ctx target text
     | PT.PackageOp.Decision(id, loc, reason, kind) ->
       match kind with

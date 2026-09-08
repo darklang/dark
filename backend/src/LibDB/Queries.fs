@@ -574,7 +574,10 @@ let getCurrentDeprecation
         WHERE item_hash = @item_hash
           AND item_kind = @item_kind
           AND unlisted_at IS NULL
-        ORDER BY created_at DESC
+        -- By the op's time, then arrival as the tie-break for rows folded before `origin_ts`
+        -- existed. `created_at` alone answered "whichever reached this machine last", so two peers
+        -- holding the same two ops could disagree about whether an item is deprecated.
+        ORDER BY COALESCE(origin_ts, '') DESC, created_at DESC
         LIMIT 1
         """
       |> Sql.parameters

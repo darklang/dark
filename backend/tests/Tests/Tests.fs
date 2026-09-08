@@ -72,6 +72,7 @@ let main (args : string array) : int =
         Tests.Blob.tests
         Tests.OpTransport.tests
         Tests.Lww.tests
+        Tests.ScmArrivalOrder.tests
         Tests.PropagationPolicy.tests
         Tests.BranchOverlay.tests
         Tests.OpsProjections.tests

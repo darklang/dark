@@ -337,6 +337,11 @@ CREATE TABLE IF NOT EXISTS deprecations (
   state TEXT NOT NULL,
   annotation_blob BLOB,
 
+  -- The origin_ts of the op that said this, so the answer is the NEWEST statement rather than the
+  -- last one to arrive. `created_at` is when this machine wrote the row; two machines folding the
+  -- same two ops in different orders used to disagree about whether an item is deprecated.
+  origin_ts TEXT,
+
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
   unlisted_at TIMESTAMP                       -- set when a later row supersedes this one
 );

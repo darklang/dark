@@ -197,7 +197,9 @@ let supersededPolicies
   let anyPolicies =
     Stdlib.Sqlite.scalarInt
       (localDb ())
-      "SELECT COUNT(*) AS n FROM propagation_policy"
+      // Not 'unset' rows: clearing a choice leaves a tombstone (see the fold), and a store whose
+      // every choice has been cleared has no choices.
+      "SELECT COUNT(*) AS n FROM propagation_policy WHERE policy <> 'unset'"
       "n"
     |> Stdlib.Option.withDefault 0L
 
