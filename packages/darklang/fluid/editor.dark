@@ -2829,7 +2829,18 @@ let exactCandidate (st: State) : Stdlib.Option.Option<Candidate> =
   match slotUnder st with
   | Some(Partial(typed, _)) ->
     let t = Stdlib.String.toLowercase typed
-    candidates st |> Stdlib.List.findFirst (fun c -> (Stdlib.String.toLowercase c.label) == t)
+    // The menu labels a candidate the way the printer would write it from HERE, and someone typing the
+    // printed form of something declared further away types MORE segments than the label carries:
+    // `Stdlib.Option.None` against a label of `Option.None`. That is the same name written from a
+    // greater distance, so it is still exact.
+    //
+    // One-way on purpose. Typing more qualification than the label says exactly which thing you mean;
+    // typing LESS does not, and matching that way would commit `Size` to the first of three types whose
+    // labels merely end in it. Space finalising what was typed is the right answer there and stays.
+    candidates st
+    |> Stdlib.List.findFirst (fun c ->
+      let l = Stdlib.String.toLowercase c.label
+      (l == t) || (Stdlib.String.endsWith t ("." ++ l)))
   | _ -> Stdlib.Option.Option.None
 
 /// Is the caret on a partial (text typed but not resolved)? Tab commits a candidate only here; on a

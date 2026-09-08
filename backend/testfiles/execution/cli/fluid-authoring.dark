@@ -1098,6 +1098,43 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module AnEnumConstructorCanBeTypedAsPrinted =
+  // The printer writes these, and the parser reads them back:
+  //
+  //     Stdlib.Option.Some 1     prints as `Stdlib.Option.Some(1)`
+  //     Stdlib.Option.None       prints as itself
+  //
+  // Typed into Fluid, every one was `ERR unresolved`. Constructors are built through COMPLETION -- pick
+  // `Some` from the menu and it arrives with its field holes -- which is how every test here has ever
+  // made one, so nothing noticed that the printed form was not an entrance.
+  //
+  // `enumCaseHits` splits the text into a case name and a qualifier naming the type. `Ok` and
+  // `Stdlib.Result.Result.Ok` both matched: the second spells the type out, module path plus type name,
+  // and the location ends with exactly that. `Stdlib.Option.None` did not. The printer ELIDES the
+  // repeated segment, so the qualifier is the module path `Stdlib.Option` while the type is
+  // `Darklang.Stdlib.Option.Option` -- which ends with `.Option.Option` and never with `.Stdlib.Option`.
+  // The one qualifier shape every printed enum carries was the one shape the matcher could not see.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.None") [ "<Esc>", "<Esc>" ])) =
+    "Option.None"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.Some 1") [ "<Esc>", "<Esc>" ])) =
+    "Option.Some(1)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.Some(1)") [ "<Esc>", "<Esc>" ])) =
+    "Option.Some(1)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Result.Ok 1") [ "<Esc>", "<Esc>" ])) =
+    "Result.Ok(1)"
+
+  // Finding the candidate was only half of it. The menu labels one the way the printer would write it
+  // from HERE, so someone typing the printed form of something declared further away types MORE segments
+  // than the label carries -- `Stdlib.Option.None` against a label of `Option.None` -- and the exact
+  // match that lets space, `(` and Escape commit compared the two as strings. A zero-field case has
+  // nothing following it to commit on, so `None` alone stayed a partial however it was settled.
+  //
+  // One-way on purpose: typing MORE qualification than the label says exactly which thing you mean,
+  // typing less does not. `Size` is still a loose prefix over three types and space still finalises what
+  // was typed rather than picking one.
+  (Fixtures.screen [ "S", "i", "z", "e", " " ]) = "Size~"
+
+
 module ADrawnKeywordIsNotAPattern =
   // `match n with` draws the `with` for you and lands the caret in the first arm's PATTERN. Typing it
   // back is the reflex that re-types a drawn `=` or a drawn `then`, and space had always put the hole

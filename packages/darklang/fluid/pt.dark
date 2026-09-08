@@ -1397,8 +1397,21 @@ let enumCaseHits (typed: String) : List<(String * String * Darklang.LanguageTool
     // the scanning below. That query does not depend on what is typed at all (`text = ""`, every type),
     // so it returns the same thing on every keystroke, and the profile says the real cost is interpreter
     // opcodes rather than the store.
+    // The qualifier names the type, and there are two ways to write one. `Stdlib.Result.Result.Ok`
+    // spells the type out -- module path plus type name -- and `namedBy` matches that against the
+    // location directly. `Stdlib.Option.None` does not: the PRINTER elides the repeated segment, so the
+    // qualifier is the type's MODULE path (`Stdlib.Option`) while the type is
+    // `Darklang.Stdlib.Option.Option`, which ends with `.Option.Option` and never with `.Stdlib.Option`.
+    //
+    // So the one qualifier shape every printed enum in the store actually carries was the one shape this
+    // could not see, and `Stdlib.Option.None` offered no completion at all -- nothing for Enter or Tab to
+    // commit, and the text stayed an unresolved partial.
     |> Stdlib.List.filter (fun item ->
-      (qualifier == "") || (namedBy (locationName item.location) qualifier))
+      let full = locationName item.location
+      let segments = Stdlib.String.split full "."
+      let modulePath =
+        Stdlib.String.join (Stdlib.List.take segments ((Stdlib.List.length segments) - 1)) "."
+      (qualifier == "") || (namedBy full qualifier) || (namedBy modulePath qualifier))
     |> Stdlib.List.map (fun item ->
       match item.entity.declaration.definition with
       | Enum cases ->
