@@ -73,6 +73,74 @@ let escapeSpecialCharacters (s: String) : String =
 let escapeCharLiteral (s: String) : String =
   (escapeCommon s) |> Stdlib.String.replaceAll "'" "\\'"
 
+/// The inverse: source text back to the string it denotes.
+///
+/// It lives next to its inverse rather than with the parser on purpose. The two have to agree about
+/// every sequence in the table above, and a pair that reads as one function is a pair that gets edited
+/// as one. Fluid holds SOURCE text in a string's slot -- what you typed, what a backslash is -- so it
+/// escapes on the way in and calls this on the way out.
+///
+/// Lenient by design. An escape this does not know (`\q`) comes back as the two characters that were
+/// written, and so does a backslash at the very end. Text somebody is halfway through typing is not an
+/// error, and a half-written escape must not silently eat the next character.
+let unescapeStringContent (s: String) : String =
+  let hexValue =
+    fun c ->
+      match Stdlib.Char.toAsciiCode c with
+      | Some code ->
+        if code >= 48 && code <= 57 then code - 48
+        else if code >= 97 && code <= 102 then code - 87
+        else if code >= 65 && code <= 70 then code - 55
+        else 0
+      | None -> 0
+
+  let simpleEscape =
+    fun ch ->
+      if ch == "n" then Stdlib.Option.Option.Some "\n"
+      else if ch == "t" then Stdlib.Option.Option.Some "\t"
+      else if ch == "r" then Stdlib.Option.Option.Some "\r"
+      else if ch == "a" then Stdlib.Option.Option.Some (Stdlib.String.fromChar (Stdlib.Char.fromCodepoint 7 |> Stdlib.Option.withDefault ' '))
+      else if ch == "b" then Stdlib.Option.Option.Some (Stdlib.String.fromChar (Stdlib.Char.fromCodepoint 8 |> Stdlib.Option.withDefault ' '))
+      else if ch == "v" then Stdlib.Option.Option.Some (Stdlib.String.fromChar (Stdlib.Char.fromCodepoint 11 |> Stdlib.Option.withDefault ' '))
+      else if ch == "f" then Stdlib.Option.Option.Some (Stdlib.String.fromChar (Stdlib.Char.fromCodepoint 12 |> Stdlib.Option.withDefault ' '))
+      else if ch == "\\" then Stdlib.Option.Option.Some "\\"
+      else if ch == "\"" then Stdlib.Option.Option.Some "\""
+      else if ch == "'" then Stdlib.Option.Option.Some "'"
+      else Stdlib.Option.Option.None
+
+  // `mode` is where the scan is: 0 plain, 1 just saw a backslash, 2 want the first hex digit of `\xNN`,
+  // 3 want the second. `pending` carries the first hex digit's value across 2 -> 3.
+  let step =
+    fun st c ->
+      let (out, mode, pending) = st
+      let ch = Stdlib.Char.toString c
+
+      if mode == 0 then
+        if ch == "\\" then (out, 1, 0) else (out ++ ch, 0, 0)
+      else if mode == 1 then
+        if ch == "x" then
+          (out, 2, 0)
+        else
+          match simpleEscape ch with
+          | Some decoded -> (out ++ decoded, 0, 0)
+          | None -> (out ++ "\\" ++ ch, 0, 0)
+      else if mode == 2 then
+        (out, 3, hexValue c)
+      else
+        let code = (pending * 16) + (hexValue c)
+
+        match Stdlib.Char.fromCodepoint code with
+        | Some decoded -> (out ++ (Stdlib.String.fromChar decoded), 0, 0)
+        | None -> (out, 0, 0)
+
+  let (out, mode, _pending) =
+    s |> Stdlib.String.toList |> Stdlib.List.fold ("", 0, 0) step
+
+  // A trailing escape nobody finished typing yet, put back as written.
+  if mode == 1 then out ++ "\\"
+  else if mode == 2 || mode == 3 then out ++ "\\x"
+  else out
+
 /// Format a record/dict field name for source output.
 /// Two reasons a field name needs backticks:
 ///  - its shape: a bare identifier is a letter or `_` followed by letters,

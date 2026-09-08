@@ -1938,3 +1938,15 @@ module AnEmptyCollectionBackspacesAway =
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "le") [ "<Enter>", "<BS>" ])) = "~⟨body⟩"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "if ") [ "<BS>" ])) = "~⟨then⟩"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "ma") [ "<Enter>", "<BS>" ])) = "~⟨arg⟩"
+
+
+module ABackslashInAStringIsAnEscape =
+  // A string's slot holds SOURCE text now, which settles what a backslash means while you TYPE one:
+  // exactly what it means in a file. `\` then `n` is a newline, `\\` is one backslash. The alternative
+  // -- storing the decoded string and escaping only when drawing -- would have made the drawn text and
+  // the stored text different lengths, so every caret offset into a string would need translating.
+  //
+  // Nothing in the editor had to learn any of this. The string body is an ordinary text slot and these
+  // are ordinary characters going into it; the meaning is applied once, at the edge, by `fromDoc`.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a\\nb") [ "<Esc>", "<Esc>" ])) = "\"a\\nb\""
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a\\\\b") [ "<Esc>", "<Esc>" ])) = "\"a\\\\b\""

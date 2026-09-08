@@ -415,8 +415,8 @@ let matchPatToDoc (p: MatchPattern) : Node =
       | Negative -> "-" ++ whole
       | Positive -> whole
     Node.make (matchPatKind "MPFloat") [ text "whole" signed, text "fraction" fraction ]
-  | MPChar(_, c) -> Node.make (matchPatKind "MPChar") [ text "char" c ]
-  | MPString(_, str) -> Node.make (matchPatKind "MPString") [ text "body" str ]
+  | MPChar(_, c) -> Node.make (matchPatKind "MPChar") [ text "char" (PrettyPrinter.escapeCharLiteral c) ]
+  | MPString(_, str) -> Node.make (matchPatKind "MPString") [ text "body" (PrettyPrinter.escapeSpecialCharacters str) ]
   | MPList(_, items) -> Node.make (matchPatKind "MPList") [ many "items" (pats items) (matchPatExpect "pattern") ]
   | MPListCons(_, h, t) ->
     Node.make (matchPatKind "MPListCons") [ one "head" (matchPatToDoc h), one "tail" (matchPatToDoc t) ]
@@ -446,7 +446,7 @@ let pairToDoc (p: (Expr * Expr)) : Node =
 
 let segmentToDoc (seg: StringSegment) : Node =
   match seg with
-  | StringText t -> Node.make (segmentKind "StringText") [ text "text" t ]
+  | StringText t -> Node.make (segmentKind "StringText") [ text "text" (PrettyPrinter.escapeSpecialCharacters t) ]
   | StringInterpolation e -> Node.make (segmentKind "StringInterpolation") [ one "expr" (toDoc e) ]
 
 let pipeSupported (p: PipeExpr) : Bool =
@@ -543,10 +543,10 @@ let toDoc (e: Expr) : Node =
       | Negative -> "-" ++ whole
       | Positive -> whole
     Node.make (exprKind "EFloat") [ text "whole" signed, text "fraction" fraction ]
-  | EChar(_, c) -> Node.make (exprKind "EChar") [ text "char" c ]
+  | EChar(_, c) -> Node.make (exprKind "EChar") [ text "char" (PrettyPrinter.escapeCharLiteral c) ]
   | EString(_, segments) ->
     match allText segments with
-    | Some body -> Node.make (exprKind "EString") [ text "body" body ]
+    | Some body -> Node.make (exprKind "EString") [ text "body" (PrettyPrinter.escapeSpecialCharacters body) ]
     | None ->
       Node.make (exprKind "EStringI") [ many "segments" (segments |> Stdlib.List.map (fun x -> segmentToDoc x)) (segmentExpect ()) ]
   | EList(_, items) ->
@@ -727,8 +727,8 @@ let matchPatFromDoc (n: Node) : Stdlib.Result.Result<MatchPattern, String> =
       else
         (Darklang.LanguageTools.Sign.Positive, whole)
     ok (MatchPattern.MPFloat(gid (), sign, digits, textOf n "fraction"))
-  | Some "MPChar" -> ok (MatchPattern.MPChar(gid (), textOf n "char"))
-  | Some "MPString" -> ok (MatchPattern.MPString(gid (), textOf n "body"))
+  | Some "MPChar" -> ok (MatchPattern.MPChar(gid (), PrettyPrinter.unescapeStringContent (textOf n "char")))
+  | Some "MPString" -> ok (MatchPattern.MPString(gid (), PrettyPrinter.unescapeStringContent (textOf n "body")))
   | Some "MPList" -> items "items" |> Stdlib.Result.map (fun ps -> MatchPattern.MPList(gid (), ps))
   | Some "MPListCons" ->
     match (Node.slot n "head", Node.slot n "tail") with
@@ -776,7 +776,8 @@ let pairFromDoc (n: Node) : Stdlib.Result.Result<(Expr * Expr), String> =
 
 let segmentFromDoc (n: Node) : Stdlib.Result.Result<StringSegment, String> =
   match n.kind.case with
-  | Some "StringText" -> Stdlib.Result.Result.Ok(StringSegment.StringText(textOf n "text"))
+  | Some "StringText" ->
+    Stdlib.Result.Result.Ok(StringSegment.StringText(PrettyPrinter.unescapeStringContent (textOf n "text")))
   | Some "StringInterpolation" -> slotExpr n "expr" |> Stdlib.Result.map (fun e -> StringSegment.StringInterpolation e)
   | _ -> Stdlib.Result.Result.Error "not a string segment"
 
@@ -831,9 +832,13 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
       else
         (Darklang.LanguageTools.Sign.Positive, whole)
     ok (Expr.EFloat(gid (), sign, digits, textOf n "fraction"))
-  | Some "EChar" -> ok (Expr.EChar(gid (), textOf n "char"))
+  | Some "EChar" -> ok (Expr.EChar(gid (), PrettyPrinter.unescapeStringContent (textOf n "char")))
   | Some "EString" ->
-    ok (Expr.EString(gid (), [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText(textOf n "body") ]))
+    ok (
+      Expr.EString(
+        gid (),
+        [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText(
+            PrettyPrinter.unescapeStringContent (textOf n "body")) ]))
   | Some "EList" ->
     match itemExprs n "items" with
     | Ok items -> ok (Expr.EList(gid (), items))

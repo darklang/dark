@@ -782,19 +782,34 @@ module DocCommentsAreReadable =
 
 
 module EscapedStringsSurviveTheDocument =
-  // The escaping bug is a DRAWING bug and only a drawing bug. A string's body is stored decoded, so
-  // `"a\nb"` draws as two rows, which is wrong and is the last token-level difference between what Fluid
-  // draws and what the printer writes. What it does NOT do is change the program: the document holds the
-  // real character, `fromDoc` hands back the same `EString`, and the printer escapes it again on the way
-  // to source.
+  // A string's slot holds SOURCE text: what you typed, backslash and all. It used to hold the decoded
+  // string, so `"a\nb"` drew as two rows and `"say \"hi\""` drew as something that is not a program.
+  // Never a corruption -- `fromDoc` handed back the same `EString` either way -- but it was the last
+  // token-level difference between what Fluid draws and what the printer writes, and it was 210 of the
+  // store's functions.
   //
-  // Worth pinning because it is the difference between "looks wrong" and "eats your code", and I had been
-  // treating it as the second. Checked end to end as well, by editing a function containing `"\n"` in the
-  // editor and saving it: the newline came back out of the package store escaped.
+  // The choice worth recording is which side moves. Escaping at DRAW time would mean the drawn text and
+  // the stored text have different lengths, and every caret offset into a string would need translating
+  // between the two. Holding source text instead means the offsets are the same number, and a backslash
+  // is a character you can put the caret after, which is how every other text editor behaves.
+  //
+  // So `toDoc` escapes and `fromDoc` unescapes, through the printer's own `escapeSpecialCharacters` and a
+  // new `unescapeStringContent` written next to it. Next to it deliberately: the two have to agree about
+  // every sequence in the table, and a pair that reads as one function is a pair that gets edited as one.
+  (Fixtures.render "Stdlib.String.join xs \"\\n\"" 60) = "Stdlib.String.join xs \"\\n\""
+  (Fixtures.render "\"a\\tb\"" 60) = "\"a\\tb\""
+  (Fixtures.render "\"say \\\"hi\\\"\"" 60) = "\"say \\\"hi\\\"\""
+  (Fixtures.render "\"back\\\\slash\"" 60) = "\"back\\\\slash\""
+  (Fixtures.render "$\"a\\nb{x}c\"" 60) = "$\"a\\nb{x}c\""
+  (Fixtures.render "'\\n'" 60) = "'\\n'"
+
+  // And the document still gives the program back.
   (Fixtures.roundTrip "Stdlib.String.split s \"\\n\"") = "Stdlib.String.split s \"\\n\""
   (Fixtures.roundTrip "\"a\\tb\"") = "\"a\\tb\""
   (Fixtures.roundTrip "\"quote \\\" inside\"") = "\"quote \\\" inside\""
   (Fixtures.roundTrip "\"back \\\\ slash\"") = "\"back \\\\ slash\""
+  (Fixtures.roundTrip "$\"a\\nb{x}c\"") = "$\"a\\nb{x}c\""
+  (Fixtures.roundTrip "'\\n'") = "'\\n'"
 
 
 module AMatchOffersItsScrutineesCases =
