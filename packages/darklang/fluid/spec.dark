@@ -154,7 +154,16 @@ type WrapRule =
   { onChar: String
     wrap: Node -> String -> Node
     opSlot: String
-    nextSlot: String }
+    nextSlot: String
+    /// Does this character CONTINUE the node's text, rather than follow the node?
+    ///
+    /// An operator follows: `[1]` then `+` wraps the whole list, and it does so from the caret sitting
+    /// AFTER the construct. A width suffix does not: `1y` is an Int8 only when the `y` is typed against
+    /// the digits. Once `y`, `s` and `l` became suffixes, `let a = 1 let b = ...` broke, because the `l`
+    /// of the second `let` arrived just after a settled number and wrapped it into an Int32.
+    ///
+    /// Default false, so every rule that existed before keeps firing in both places.
+    continuesText: Bool }
 
 /// What a TEXT slot is allowed to hold.
 ///

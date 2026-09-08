@@ -547,6 +547,15 @@ let toDoc (e: Expr) : Node =
   | EBool(_, b) -> Node.make (exprKind "EBool") [ text "value" (if b then "true" else "false") ]
   | EInt(_, i) -> Node.make (exprKind "EInt") [ text "digits" (Stdlib.Int.toString i) ]
   | EInt64(_, i) -> Node.make (exprKind "EInt64") [ text "digits" (Stdlib.Int64.toString i) ]
+  | EInt8(_, i) -> Node.make (exprKind "EInt8") [ text "digits" (Stdlib.Int8.toString i) ]
+  | EUInt8(_, i) -> Node.make (exprKind "EUInt8") [ text "digits" (Stdlib.UInt8.toString i) ]
+  | EInt16(_, i) -> Node.make (exprKind "EInt16") [ text "digits" (Stdlib.Int16.toString i) ]
+  | EUInt16(_, i) -> Node.make (exprKind "EUInt16") [ text "digits" (Stdlib.UInt16.toString i) ]
+  | EInt32(_, i) -> Node.make (exprKind "EInt32") [ text "digits" (Stdlib.Int32.toString i) ]
+  | EUInt32(_, i) -> Node.make (exprKind "EUInt32") [ text "digits" (Stdlib.UInt32.toString i) ]
+  | EUInt64(_, i) -> Node.make (exprKind "EUInt64") [ text "digits" (Stdlib.UInt64.toString i) ]
+  | EInt128(_, i) -> Node.make (exprKind "EInt128") [ text "digits" (Stdlib.Int128.toString i) ]
+  | EUInt128(_, i) -> Node.make (exprKind "EUInt128") [ text "digits" (Stdlib.UInt128.toString i) ]
   | EFloat(_, sign, whole, fraction) ->
     let signed =
       match sign with
@@ -827,13 +836,58 @@ let fromDoc (n: Node) : Stdlib.Result.Result<Expr, String> =
      // thing and the program said another. A bad int has always said so.
      | other -> Stdlib.Result.Result.Error("not a Bool: " ++ other))
   | Some "EInt" ->
-    match Stdlib.Int.parse (textOf n "digits") with
+    let digits = textOf n "digits"
+    // A trailing `u`/`U` is the unsigned MARKER of a width suffix whose final character never arrived.
+    // Refusing it is right -- a half-typed suffix is no more saveable than a half-typed name -- but the
+    // parse error blamed the number, so say what is actually missing.
+    if (Stdlib.String.endsWith digits "u") || (Stdlib.String.endsWith digits "U") then
+      Stdlib.Result.Result.Error(
+        "`" ++ digits ++ "` is missing its width suffix: `y` for a byte, `s`, `l`, `L` for wider")
+    else
+
+    match Stdlib.Int.parse digits with
     | Ok i -> ok (Expr.EInt(gid (), i))
-    | Error _ -> Stdlib.Result.Result.Error("not an Int: " ++ (textOf n "digits"))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int: " ++ digits)
   | Some "EInt64" ->
     match Stdlib.Int64.parse (textOf n "digits") with
     | Ok i -> ok (Expr.EInt64(gid (), i))
     | Error _ -> Stdlib.Result.Result.Error("not an Int64: " ++ (textOf n "digits"))
+  | Some "EInt8" ->
+    match Stdlib.Int8.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt8(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int8: " ++ (textOf n "digits"))
+  | Some "EUInt8" ->
+    match Stdlib.UInt8.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EUInt8(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an UInt8: " ++ (textOf n "digits"))
+  | Some "EInt16" ->
+    match Stdlib.Int16.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt16(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int16: " ++ (textOf n "digits"))
+  | Some "EUInt16" ->
+    match Stdlib.UInt16.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EUInt16(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an UInt16: " ++ (textOf n "digits"))
+  | Some "EInt32" ->
+    match Stdlib.Int32.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt32(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int32: " ++ (textOf n "digits"))
+  | Some "EUInt32" ->
+    match Stdlib.UInt32.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EUInt32(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an UInt32: " ++ (textOf n "digits"))
+  | Some "EUInt64" ->
+    match Stdlib.UInt64.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EUInt64(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an UInt64: " ++ (textOf n "digits"))
+  | Some "EInt128" ->
+    match Stdlib.Int128.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EInt128(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an Int128: " ++ (textOf n "digits"))
+  | Some "EUInt128" ->
+    match Stdlib.UInt128.parse (textOf n "digits") with
+    | Ok i -> ok (Expr.EUInt128(gid (), i))
+    | Error _ -> Stdlib.Result.Result.Error("not an UInt128: " ++ (textOf n "digits"))
   | Some "EFloat" ->
     let whole = textOf n "whole"
     let (sign, digits) =
@@ -1069,8 +1123,32 @@ let applyFromValue (n: Node) (c: String) : Node =
 /// them was reachable. The `L` was swallowed with nothing said.
 ///
 /// A rule on EInt rather than on Expr, because it means nothing on anything else.
-let intToInt64 (n: Node) (c: String) : Node =
-  Node.make (exprKind "EInt64") [ text "digits" (textOf n "digits") ]
+/// A width suffix, typed. `255uy` is a UInt8; `255y` is an Int8.
+///
+/// Darklang's suffixes are one or two characters (`y`, `uy`, `s`, `us`, `l`, `ul`, `L`, `UL`, `Q`, `Z`)
+/// and a wrap rule fires on ONE. So the digits text accepts a trailing `u` or `U` as ordinary text, and
+/// the final character looks back at it: `255u` then `y` is an unsigned byte, `255` then `y` a signed one.
+///
+/// Before this, everything but `L` was swallowed silently, and `255UL` was worse than swallowed: the `U`
+/// vanished and the `L` did its job, so a UInt64 became an Int64 with nothing said.
+let pendingUnsigned (n: Node) : Bool =
+  let d = textOf n "digits"
+  (Stdlib.String.endsWith d "u") || (Stdlib.String.endsWith d "U")
+
+let digitsWithoutMarker (n: Node) : String =
+  let d = textOf n "digits"
+  if pendingUnsigned n then Stdlib.String.dropLast d 1 else d
+
+let widthSuffix (signed: String) (unsigned: String) (n: Node) (c: String) : Node =
+  let kind = if pendingUnsigned n then unsigned else signed
+  Node.make (exprKind kind) [ text "digits" (digitsWithoutMarker n) ]
+
+let toInt8OrUInt8 (n: Node) (c: String) : Node = widthSuffix "EInt8" "EUInt8" n c
+let toInt16OrUInt16 (n: Node) (c: String) : Node = widthSuffix "EInt16" "EUInt16" n c
+let toInt32OrUInt32 (n: Node) (c: String) : Node = widthSuffix "EInt32" "EUInt32" n c
+let toInt64OrUInt64 (n: Node) (c: String) : Node = widthSuffix "EInt64" "EUInt64" n c
+let toInt128 (n: Node) (c: String) : Node = widthSuffix "EInt128" "EInt128" n c
+let toUInt128 (n: Node) (c: String) : Node = widthSuffix "EUInt128" "EUInt128" n c
 
 let stringFromQuote (c: String) (e: Expect) : Node = Node.make (exprKind "EString") [ text "body" "" ]
 
@@ -2084,14 +2162,14 @@ let exprTypeSpec () : Spec =
       noSequence = []
       bindsNames = false
       wrapRules =
-        [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
+        [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps"; continuesText = false }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
           // between two expressions in this language. A wrap rule and not kernel behaviour, because
           // "a newline sequences two things" is a fact about Darklang: a DSL whose newline means
           // something else says so here.
-          WrapRule { onChar = "<newline>"; wrap = wrapStatement; opSlot = ""; nextSlot = "next" }
-          WrapRule { onChar = "."; wrap = wrapFieldAccess; opSlot = "field"; nextSlot = "field" }
-          WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
+          WrapRule { onChar = "<newline>"; wrap = wrapStatement; opSlot = ""; nextSlot = "next"; continuesText = false }
+          WrapRule { onChar = "."; wrap = wrapFieldAccess; opSlot = "field"; nextSlot = "field"; continuesText = false }
+          WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right"; continuesText = false } ]
       // Everything that can go in an expression hole, named the way a person would say it, with the
       // keystroke that gets there faster.
       //
@@ -2233,8 +2311,8 @@ let matchPatTypeSpec () : Spec =
       noSequence = []
       bindsNames = true
       wrapRules =
-        [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
-          WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
+        [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts"; continuesText = false }
+          WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail"; continuesText = false } ]
       // The same gap the expression hole had. `|` and `:` stay out: they are WRAP rules, not hole rules,
       // so an or-pattern and a cons act on a pattern you already have rather than being something you
       // pick from an empty hole. The data said that before I had to decide it.
@@ -2324,7 +2402,7 @@ let moreSpecs () : List<Spec> =
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     Spec.withWrapRules
       (simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
-      [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args" } ]
+      [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false } ]
     simpleOf (pipeKind "EPipeFnCall") [ Piece.Group [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ] (Node.make (pipeKind "EPipeFnCall") [ text "name" "", text "_hash" "", ("args", Field.Many([], exprExpect "arg")) ])
     // Parenthesised, and not for looks. Without them the drawing says something the document does not:
     // `xs |> fun a -> a |> g` reads back as `xs |> (fun a -> a |> g)`, because a bare lambda swallows the
@@ -2414,10 +2492,44 @@ let baseSpecs () : List<Spec> =
     Spec.withTextClasses
       (Spec.withWrapRules
         (simpleExpr "EInt" [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (exprKind "EInt") [ text "digits" "" ]))
-        [ WrapRule { onChar = "L"; wrap = intToInt64; opSlot = ""; nextSlot = "" } ])
-      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+        // One rule per FINAL suffix character. The unsigned marker `u`/`U` is ordinary text in the digits
+        // (see `<intSuffixChar>`), and each of these looks back at it, so ten suffixes need six rules.
+        [ WrapRule { onChar = "y"; wrap = toInt8OrUInt8; opSlot = ""; nextSlot = ""; continuesText = true }
+          WrapRule { onChar = "s"; wrap = toInt16OrUInt16; opSlot = ""; nextSlot = ""; continuesText = true }
+          WrapRule { onChar = "l"; wrap = toInt32OrUInt32; opSlot = ""; nextSlot = ""; continuesText = true }
+          WrapRule { onChar = "L"; wrap = toInt64OrUInt64; opSlot = ""; nextSlot = ""; continuesText = true }
+          WrapRule { onChar = "Q"; wrap = toInt128; opSlot = ""; nextSlot = ""; continuesText = true }
+          WrapRule { onChar = "Z"; wrap = toUInt128; opSlot = ""; nextSlot = ""; continuesText = true } ])
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<intSuffixChar>"))) ]
     Spec.withTextClasses
       (simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EInt8" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "y" ] (Node.make (exprKind "EInt8") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EUInt8" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "uy" ] (Node.make (exprKind "EUInt8") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EInt16" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "s" ] (Node.make (exprKind "EInt16") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EUInt16" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "us" ] (Node.make (exprKind "EUInt16") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EInt32" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "l" ] (Node.make (exprKind "EInt32") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EUInt32" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "ul" ] (Node.make (exprKind "EUInt32") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EUInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "UL" ] (Node.make (exprKind "EUInt64") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EInt128" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "Q" ] (Node.make (exprKind "EInt128") [ text "digits" "" ]))
+      [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    Spec.withTextClasses
+      (simpleExpr "EUInt128" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "Z" ] (Node.make (exprKind "EUInt128") [ text "digits" "" ]))
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
     Spec.withTextClasses
       (simpleExpr
@@ -2446,8 +2558,8 @@ let baseSpecs () : List<Spec> =
     Spec.withTextClasses
       (Spec.withWrapRules
         (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
-        [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = "" }
-          WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args" } ])
+        [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = ""; continuesText = false }
+          WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args"; continuesText = false } ])
       [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     simpleExpr
       "ELet"

@@ -968,6 +968,12 @@ let charClassMatches (syn: Syntax) (onChar: String) (c: String) : Bool =
   // A number may open with a sign and may not carry one anywhere else, which is the same shape a name
   // has: a first character with its own class.
   elif onChar == "<numberStart>" then (TextEdit.isDigitString c) || (c == "-")
+  // A number's REST: its digits, plus the `u`/`U` that marks a width suffix unsigned. Darklang's suffixes
+  // are one or two characters (`y`, `uy`, `L`, `UL`, ...) and a wrap rule fires on one, so the marker is
+  // carried as ordinary text and the final character looks back at it. A marker with no suffix after it
+  // is dropped when the number settles: it was never part of the value.
+  elif onChar == "<intSuffixChar>" then
+    (TextEdit.isDigitString c) || (c == "u") || (c == "U")
   elif onChar == "<operator>" then isOperatorChar syn c
   // Enter is not a character anyone types into text, but it IS a thing a spec should be able to claim:
   // in Darklang a newline after a finished expression starts the next statement. Named like the other
@@ -2209,7 +2215,9 @@ let typeOneRaw (st: State) (c: String) : State =
     // enclosing list without an explicit comma (`[[1]` then `2` -> `[[1], 2]`).
     match nodeAtPath st.root caret.node with
     | Some n ->
-      match wrapRuleFor st.reg n c with
+      // A rule that CONTINUES the node's text does not apply here: the caret is past the node, and the
+      // character is the start of whatever comes next. `let a = 1 let b = ...` is where that showed.
+      match wrapRuleFor st.reg n c |> Stdlib.Option.andThen (fun r -> if r.continuesText then Stdlib.Option.Option.None else Stdlib.Option.Option.Some r) with
       // Through `applyWrap`, so precedence picks WHAT gets wrapped. This branch used to wrap
       // `caret.node` itself, which is the node you are standing after and not always the one the
       // operator takes: after `x * 2 <space>`, a `+` wrapped just the `2` and gave `x * (2 + 3)`.
@@ -2480,6 +2488,9 @@ let classDescription (cls: String) : String =
   if cls == "<qualifiedName>" then "a name"
   elif cls == "<digit>" then "a number"
   elif cls == "<numberStart>" then "a number"
+  // Every class needs a line here. The fallthrough prints the class ITSELF, so a new one without a
+  // description leaks `<intSuffixChar>` into a message a person reads, which is how this line got added.
+  elif cls == "<intSuffixChar>" then "a number"
   elif cls == "<identifier>" then "a name"
   elif cls == "<nameStart>" then "a name"
   elif cls == "<letter>" then "a word"

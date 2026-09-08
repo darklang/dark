@@ -2216,3 +2216,32 @@ module APrefixDoesNotCommitWhereANameIsBorn =
   (Fixtures.screen (Fixtures.chars "l ")) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen (Fixtures.chars "t ")) = "true~"
   (Fixtures.screen (Fixtures.chars "i ")) = "if ~⟨cond⟩ then ⟨then⟩ else ⟨else⟩"
+
+
+module EveryIntegerWidthCanBeTyped =
+  // Nine of the eleven integer kinds could not be typed at all: `255uy` swallowed both characters, and
+  // `255UL` dropped the `U` and applied the `L`, so a UInt64 became an Int64 in silence.
+  //
+  // Darklang's suffixes are one or two characters and a wrap rule fires on ONE, so the unsigned marker
+  // `u`/`U` is carried as ordinary text in the digits and each final character looks back at it: ten
+  // suffixes, six rules, no intermediate node kinds.
+  //
+  // `l` and `L` are one keystroke apart and mean different widths, as are `ul` and `UL`, so each is
+  // pinned rather than trusted to the table that generated them.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7y") [ "<Esc>", "<Esc>" ])) = "7y"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7uy") [ "<Esc>", "<Esc>" ])) = "7uy"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7s") [ "<Esc>", "<Esc>" ])) = "7s"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7us") [ "<Esc>", "<Esc>" ])) = "7us"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7l") [ "<Esc>", "<Esc>" ])) = "7l"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7ul") [ "<Esc>", "<Esc>" ])) = "7ul"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7L") [ "<Esc>", "<Esc>" ])) = "7L"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7UL") [ "<Esc>", "<Esc>" ])) = "7UL"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7Q") [ "<Esc>", "<Esc>" ])) = "7Q"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7Z") [ "<Esc>", "<Esc>" ])) = "7Z"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7") [ "<Esc>", "<Esc>" ])) = "7"
+
+  // A marker whose suffix never arrived is refused rather than guessed at, and the message names what is
+  // missing instead of blaming the number. Every text class needs a line in `classDescription`: the
+  // fallthrough prints the class itself, and a pin caught `<intSuffixChar>` leaking into this message.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "7u") [ "<Esc>", "<Esc>" ])) =
+    "ERR `7u` is missing its width suffix: `y` for a byte, `s`, `l`, `L` for wider"

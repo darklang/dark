@@ -1743,3 +1743,28 @@ module AnElseIfChainDoesNotStairStep =
   // it would steal the outer `else`.
   (Fixtures.render "if a then if b then 1 else 2 else 3" 80) =
     "if a then\n  if b then 1 else 2\nelse\n  3"
+
+
+module EveryIntegerWidthIsItsOwnKind =
+  // `ProgramTypes.Expr` has eleven integer kinds and Fluid modelled two, so the other nine went through
+  // `Opaque`: printed source held as text. They round tripped from the store but could not be edited, and
+  // could not be TYPED at all.
+  //
+  //     255uy   ->  255      both characters swallowed with nothing said
+  //     255UL   ->  255L     the `U` dropped and the `L` applied, so a UInt64 became an Int64
+  //
+  // The second is the one that mattered: a value changing type in silence.
+  //
+  // Darklang's suffixes are one or two characters and a wrap rule fires on ONE. So the unsigned marker
+  // `u`/`U` is carried as ordinary text in the digits, and each final character looks back at it: ten
+  // suffixes, six rules. `<intSuffixChar>` is the class that lets the marker in.
+  (Fixtures.roundTrip "7y") = "7y"
+  (Fixtures.roundTrip "7uy") = "7uy"
+  (Fixtures.roundTrip "7s") = "7s"
+  (Fixtures.roundTrip "7us") = "7us"
+  (Fixtures.roundTrip "7l") = "7l"
+  (Fixtures.roundTrip "7ul") = "7ul"
+  (Fixtures.roundTrip "7L") = "7L"
+  (Fixtures.roundTrip "7UL") = "7UL"
+  (Fixtures.roundTrip "7Q") = "7Q"
+  (Fixtures.roundTrip "7Z") = "7Z"
