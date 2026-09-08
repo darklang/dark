@@ -711,7 +711,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      // It authors an op. `Decision`/`Override` is a write whatever the name suggests, and this one
+      // reaches `Inserts`, `storeDeltaOps` and `recordNameBases`.
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 

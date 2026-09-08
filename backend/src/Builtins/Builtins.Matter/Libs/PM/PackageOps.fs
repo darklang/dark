@@ -1005,7 +1005,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      // Importing a branch REGISTERS it, folds its content and records its name bases. Behind
+      // `dark branch pull` and `dark branch import`, both of which write.
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated } ]
 
 
