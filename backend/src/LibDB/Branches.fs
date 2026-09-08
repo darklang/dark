@@ -579,6 +579,26 @@ let private mainNameHashes () : Task<Map<NameKey, string>> =
     return Map.ofList rows
   }
 
+/// What an op does to a NAME: binds it to some content, ends it, or neither.
+///
+/// One reading of "which ops bind" for every overlay fold below. An `Override` counts as a bind:
+/// it IS a rebind that also carries a decision id (`resolve mine` writes one), and every fold that
+/// forgot it produced a different wrong answer -- an invisible dependent, a missing name base, a
+/// stale fork base. Answering it in one place is what stops the next fold from forgetting it too.
+type NameEffect =
+  | Binds of PT.PackageLocation * PT.ItemKind * string
+  | Ends of PT.PackageLocation
+
+let nameEffect (op : PT.PackageOp) : Option<NameEffect> =
+  match op with
+  | PT.PackageOp.SetName(loc, target, _)
+  | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
+    let (Hash h) = target.hash
+    Some(Binds(loc, target.kind, h))
+  | PT.PackageOp.Unbind(loc, _) -> Some(Ends loc)
+  | _ -> None
+
+
 /// The PARENT's CURRENT effective content-hash per name -- the state a child forks from and merges
 /// back into. parent=main -> `locations`; a non-main parent -> main overridden by that chain's own
 /// SetName rebinds (latest by origin_ts wins), since a non-main branch lives only as an overlay.
@@ -593,18 +613,12 @@ let parentNameHashes (parentId : PT.BranchId) : Task<Map<NameKey, string>> =
         ops
         |> List.fold
           (fun (m : Map<NameKey, string>) op ->
-            match op with
-            | PT.PackageOp.SetName(loc, target, _)
-            // An Override BINDS, same as SetName (it's what `resolve mine` writes;
-            // `rebindKeys` and the overlay both count it). Skipped, a child forking
-            // after a settled conflict would record the pre-override hash as its
-            // base.
-            | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
-              let (Hash h) = target.hash
-              Map.add (loc.owner, String.concat "." loc.modules, loc.name) h m
-            | PT.PackageOp.Unbind(loc, _) ->
-              Map.remove (loc.owner, String.concat "." loc.modules, loc.name) m
-            | _ -> m)
+            let key (loc : PT.PackageLocation) =
+              (loc.owner, String.concat "." loc.modules, loc.name)
+            match nameEffect op with
+            | Some(Binds(loc, _, h)) -> Map.add (key loc) h m
+            | Some(Ends loc) -> Map.remove (key loc) m
+            | None -> m)
           baseMap
   }
 
@@ -624,15 +638,10 @@ let chainBindingsByHash
       ops
       |> List.fold
         (fun (m : Map<PT.PackageLocation, PT.ItemKind * string>) op ->
-          match op with
-          | PT.PackageOp.SetName(loc, target, _)
-          // An Override IS a rebind (the overlay and the fork bases both treat it as one);
-          // skipping it here made a branch's Override-only binding invisible to discovery.
-          | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
-            let (Hash h) = target.hash
-            Map.add loc (target.kind, h) m
-          | PT.PackageOp.Unbind(loc, _) -> Map.remove loc m
-          | _ -> m)
+          match nameEffect op with
+          | Some(Binds(loc, kind, h)) -> Map.add loc (kind, h) m
+          | Some(Ends loc) -> Map.remove loc m
+          | None -> m)
         Map.empty
 
     // LIST-valued: one hash can be bound at several names, since identical content IS one item.
@@ -653,20 +662,18 @@ let chainBindingsByHash
 
 /// The locations a set of ops rebinds.
 ///
-/// An `Override` counts, same as in `SCM.PackageOps.bindingFromOp`: it IS a rebind that also carries a
-/// decision id. Counting only `SetName` leaves a name bound solely by resolving a
-/// conflict with no `branch_name_bases` row, and without a base the detector cannot prove both
-/// sides moved, so that name can never conflict again.
+/// A name bound solely by resolving a conflict still needs its `branch_name_bases` row: without a
+/// base the detector cannot prove both sides moved, so that name can never conflict again. Hence
+/// `nameEffect`, which counts an `Override` as the rebind it is.
 let private rebindKeys (ops : List<PT.PackageOp>) : List<PT.PackageLocation> =
   ops
   |> List.choose (fun op ->
-    match op with
-    | PT.PackageOp.SetName(loc, _, _) -> Some loc
-    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override _) -> Some loc
+    match nameEffect op with
+    | Some(Binds(loc, _, _)) -> Some loc
     // Unbinding moves a name too, to nothing; the base is what tells that apart from the parent
     // editing it meanwhile.
-    | PT.PackageOp.Unbind(loc, _) -> Some loc
-    | _ -> None)
+    | Some(Ends loc) -> Some loc
+    | None -> None)
 
 /// Record the per-name BASE for a branch: for each name these ops rebind, capture the PARENT's
 /// CURRENT content-hash (or '' if the name is new to the parent) ONCE, first touch wins (INSERT OR
