@@ -81,7 +81,7 @@ let deprecationHeaderRowsFor
   (hash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<String> =
-  match Builtin.pmGetCurrentDeprecation hash itemKind with
+  match Builtin.pmGetCurrentDeprecation branchId hash itemKind with
   | None -> []
   | Some tuple ->
     let (kind, message) = tuple

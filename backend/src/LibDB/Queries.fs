@@ -660,6 +660,98 @@ let getDeprecationSets () : Task<DeprecationSets> =
 ///
 /// - latest non-superseded row wins (`unlisted_at IS NULL`)
 /// - state = 'deprecated' with a Harmful annotation
+
+/// <fn getCurrentDeprecation> as <param branchId> sees it.
+///
+/// The branch chain's own `Deprecate`/`Undeprecate` ops win over main's row, latest by `origin_ts`.
+/// A branch that undeprecates something main deprecated sees it live; a branch that deprecates
+/// something main calls live sees it deprecated, with its own kind and message. Main is an ordinary
+/// id here, and its chain is empty, so this collapses to the plain read.
+let getCurrentDeprecationFor
+  (branchId : PT.BranchId)
+  (itemHash : Hash)
+  (itemKind : PT.ItemKind)
+  : Task<Option<PT.DeprecationKind * string>> =
+  task {
+    let! ops = Branches.chainOverlayOps branchId
+    let (Hash wanted) = itemHash
+
+    // Last one wins: the ops arrive oldest-first, same as every other overlay fold here.
+    let fromBranch =
+      ops
+      |> List.fold
+        (fun acc op ->
+          match op with
+          | PT.PackageOp.Deprecate(target, kind, message) ->
+            let (Hash h) = target.hash
+            if h = wanted then Some(Some(kind, message)) else acc
+          | PT.PackageOp.Undeprecate target ->
+            let (Hash h) = target.hash
+            if h = wanted then Some None else acc
+          | _ -> acc)
+        None
+
+    match fromBranch with
+    | Some answer -> return answer
+    | None -> return! getCurrentDeprecation itemHash itemKind
+  }
+
+
+/// The deprecation state a BRANCH sees, layered over main's.
+///
+/// The fold is main-only by design -- a branch's ops sit inert and never reach a projection -- so a
+/// `Deprecate` authored on a branch changed nothing there, and `view` on the branch went on calling
+/// the item live. Names solve this with an in-memory overlay rather than a per-branch table
+/// (`chainBindingsByHash`), and deprecations get the same treatment: main's rows, then the chain's
+/// own Deprecate/Undeprecate ops applied in `origin_ts` order, last one winning.
+///
+/// `Undeprecate` is what lets a branch say "not here" about something main deprecated, which is the
+/// ancestor-override the schema comment has always described.
+///
+/// Main is an ordinary branch id here, and its chain is empty, so this collapses to the plain read.
+let private chainDeprecationOverlay
+  (branchId : PT.BranchId)
+  : Task<Map<string, bool>> =
+  task {
+    let! ops = Branches.chainOverlayOps branchId
+
+    return
+      ops
+      |> List.fold
+        (fun acc op ->
+          match op with
+          | PT.PackageOp.Deprecate(target, _, _) ->
+            let (Hash h) = target.hash
+            Map.add h true acc
+          | PT.PackageOp.Undeprecate target ->
+            let (Hash h) = target.hash
+            Map.add h false acc
+          | _ -> acc)
+        Map.empty
+  }
+
+/// <fn getDeprecationSets> as <param branchId> sees it: main's, plus what the branch chain says.
+let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
+  task {
+    let! mainSets = getDeprecationSets ()
+    let! overlay = chainDeprecationOverlay branchId
+
+    if Map.isEmpty overlay then
+      return mainSets
+    else
+      let deprecated =
+        overlay
+        |> Map.fold
+          (fun acc h isDeprecated ->
+            if isDeprecated then Set.add (Hash h) acc else Set.remove (Hash h) acc)
+          mainSets.allDeprecated
+
+      // `hidden` is "deprecated with no live caller", computed by the main query against main's
+      // callers. A branch's own additions are not run through that: the caller graph it would need
+      // is the branch's, and reporting them as hidden would hide items the branch still calls.
+      return { allDeprecated = deprecated; hidden = mainSets.hidden }
+  }
+
 let getHarmfulFnHashes () : Task<Set<Hash>> =
   task {
     // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.

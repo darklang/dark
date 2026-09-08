@@ -877,7 +877,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // live direct caller (a caller is "live" iff it's not itself deprecated).
     { name = fn "pmGetDeprecationSets" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters =
+        [ Param.make
+            "branchId"
+            TUuid
+            "the branch to read as; main is `SCM.Branch.mainBranchId`" ]
       returnType =
         TTuple(
           TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])),
@@ -885,15 +889,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           []
         )
       description =
-        "Tuple (allDeprecated, hidden) of package hashes. Not branch-scoped: "
-        + "deprecation keys on CONTENT, so it applies to a hash wherever that hash is "
-        + "named. `hidden` is a subset of `allDeprecated`: the deprecated items with no "
-        + "live direct caller."
+        "Tuple (allDeprecated, hidden) of package hashes, as <param branchId> sees them: "
+        + "main's deprecations with the branch chain's own Deprecate/Undeprecate ops "
+        + "layered over them. Deprecation keys on CONTENT, so it applies to a hash "
+        + "wherever that hash is named. `hidden` is a subset of `allDeprecated`: the "
+        + "deprecated items with no live direct caller."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
+        | _, _, _, [| DUuid branchIdGuid |] ->
           uply {
-            let! sets = LibDB.Queries.getDeprecationSets ()
+            let! sets =
+              LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchIdGuid)
             let hashListDval (hashes : Set<PT.Hash>) =
               hashes
               |> Set.toList
@@ -914,7 +920,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmGetCurrentDeprecation" 0
       typeParams = []
       parameters =
-        [ Param.make "itemHash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) ""
+        [ Param.make
+            "branchId"
+            TUuid
+            "the branch to read as; main is `SCM.Branch.mainBranchId`"
+          Param.make "itemHash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) ""
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
@@ -928,16 +938,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           )
         )
       description =
-        "Current deprecation state for an item, by hash. Not branch-scoped: "
-        + "deprecation keys on CONTENT, so two names holding the same bytes are "
-        + "deprecated together. None = not deprecated; Some (kind, message) otherwise."
+        "Current deprecation state for an item, by hash, as <param branchId> sees it: main's "
+        + "state with the branch chain's own Deprecate/Undeprecate ops layered over it. "
+        + "Deprecation keys on CONTENT, so two names holding the same bytes are deprecated "
+        + "together. None = not deprecated; Some (kind, message) otherwise."
       fn =
         (function
-        | _, _, _, [| hashDval; itemKindDval |] ->
+        | _, _, _, [| DUuid branchIdGuid; hashDval; itemKindDval |] ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval
-            let! result = LibDB.Queries.getCurrentDeprecation hash itemKind
+            let! result =
+              LibDB.Queries.getCurrentDeprecationFor
+                (PT.BranchId.Id branchIdGuid)
+                hash
+                itemKind
             let tupleKT =
               KTTuple(
                 VT.known (PT2DT.DeprecationKind.knownType ()),
