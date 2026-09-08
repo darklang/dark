@@ -1098,6 +1098,39 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module AQualifiedNameTheStoreDoesNotKnowStillSettles =
+  // A name that resolves to nothing is kept as WHAT WAS TYPED -- the document holds it, and the save puts
+  // the source back through the real parser, which is the thing that resolves names. `Zork` has worked
+  // that way since record literals landed.
+  //
+  // A QUALIFIED one did not, and not on purpose. `resolveExprPartial` asks `isIdentifier`, which requires
+  // every character to be alphanumeric or `_`, so a dot turned it away and the partial never settled at
+  // all: the space after it did nothing, the next hole was nowhere, and the next letter appended to the
+  // name.
+  //
+  //     Builtin.charToAsciiCode earg0   ->  one long word
+  //
+  // Every builtin wrapper body in the store is written that way, which is how the store-wide typed sweep
+  // found it.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Zork.zzz a") [ "<Esc>", "<Esc>" ])) = "Zork.zzz a"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "A.B.c d") [ "<Esc>", "<Esc>" ])) = "A.B.c d"
+
+  // A bare unresolved name was always fine, and a resolved one goes through the menu. Both stay.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "zzz a") [ "<Esc>", "<Esc>" ])) = "zzz a"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.length a") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.length a"
+
+  // The half that keeps a CONSTRUCTOR a constructor. An enum case is spelled exactly like a qualified
+  // name, so once `resolve` accepted one, `Stdlib.Option.None` began settling as a VARIABLE with that
+  // name -- before the menu, which holds the real thing, was ever asked. The menu goes first now: a
+  // candidate is the more specific answer wherever both have one, and `resolve` is the fallback for what
+  // no menu lists.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.None") [ "<Esc>", "<Esc>" ])) =
+    "Option.None"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[Stdlib.Option.None, 1]") [ "<Esc>", "<Esc>" ])) =
+    "[Option.None, 1]"
+
+
 module ADrawnKeywordIsNotAValueEither =
   // `if a then` and Enter built a function call nobody asked for:
   //

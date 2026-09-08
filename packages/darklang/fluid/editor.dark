@@ -3114,22 +3114,27 @@ let resolvePartial (st: State) : Stdlib.Option.Option<State> =
       let e = Slot.expect was |> Stdlib.Option.withDefault (Expect.any "")
       match Registry.forExpect st.reg e with
       | Some spec ->
-        match spec.resolve typed with
-        | Some n ->
-          let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] st.caret
-          Stdlib.Option.Option.Some { st1 with caret = lastEditable sp n }
+        // What you typed IS one of the options, so settling takes it. A spec's `resolve` is for the
+        // things no menu can list -- a variable name, a type variable -- and it said no to `Int`, because
+        // `Int` is a CANDIDATE. So Escape left a partial that drew exactly like a resolved type and then
+        // refused to lower: "not saved: unresolved: Int", under a screen reading `(n: Int): Int`. The menu
+        // already treats an exact match as nothing to wave off; this is the same rule one step later.
+        //
+        // Asked FIRST, which it was not. `resolve` now accepts a qualified name -- so that
+        // `Builtin.charToAsciiCode` settles rather than sticking -- and a qualified name is exactly what
+        // an enum constructor is: `Stdlib.Option.None` started settling as a VARIABLE with that name
+        // before the menu, which holds the real constructor, was ever asked. A candidate is the more
+        // specific answer wherever both have one, and `resolve` is the fallback for what no menu lists.
+        match exactCandidate st with
+        | Some c ->
+          let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+          Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }
         | None ->
-          // What you typed IS one of the options, so settling takes it. A spec's `resolve` is for the
-          // things no menu can list -- a variable name, a type variable -- and it said no to `Int`,
-          // because `Int` is a CANDIDATE. So Escape left a partial that draws exactly like a resolved
-          // type and then refused to lower: "not saved: unresolved: Int", under a screen reading
-          // `(n: Int): Int`. The menu already treats an exact match as nothing to wave off; this is the
-          // same rule one step later, where it decides what you actually get.
-          match exactCandidate st with
-          | Some c ->
-            let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
-            Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }
-          | None -> Stdlib.Option.Option.None
+          (match spec.resolve typed with
+           | Some n ->
+             let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] st.caret
+             Stdlib.Option.Option.Some { st1 with caret = lastEditable sp n }
+           | None -> Stdlib.Option.Option.None)
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 

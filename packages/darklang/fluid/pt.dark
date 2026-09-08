@@ -1544,8 +1544,30 @@ let isIdentifier (t: String) : Bool =
   && (Stdlib.String.toList t
       |> Stdlib.List.all (fun ch -> (Stdlib.Char.isAlphanumeric ch) || ((Stdlib.Char.toString ch) == "_")))
 
+/// A name with dots in it: `Builtin.charToAsciiCode`, `Zork.zzz`, `A.B.c`. Not an IDENTIFIER -- a
+/// variable never carries a dot, and the five places that ask `isIdentifier` mean the narrow thing -- but
+/// it is still something the document can hold.
+///
+/// A trailing dot does not count. `Zork.` is a name you are in the middle of typing, and settling it
+/// would commit to half a word.
+let isQualifiedName (t: String) : Bool =
+  (Stdlib.String.length t) > 0
+  && (TextEdit.isLetterString (Stdlib.String.first t 1) || (Stdlib.String.first t 1) == "_")
+  && (Stdlib.Bool.not (Stdlib.String.endsWith t "."))
+  && (Stdlib.String.toList t
+      |> Stdlib.List.all (fun ch ->
+        (Stdlib.Char.isAlphanumeric ch) || ((Stdlib.Char.toString ch) == "_") || ((Stdlib.Char.toString ch) == ".")))
+
+/// A name the store has never heard of is kept as WHAT WAS TYPED. The document holds it, and the save
+/// puts the source back through the real parser, which is the thing that actually resolves names -- the
+/// same rule `Zork` has followed since record literals landed.
+///
+/// A QUALIFIED one was the exception, and not on purpose: `isIdentifier` turns away a dot, so
+/// `Builtin.charToAsciiCode` never settled at all. The space after it did nothing, `nextHole` had
+/// nowhere to go, and the next letter appended to the name -- `Builtin.charToAsciiCode earg0` came out as
+/// one long word. Every builtin wrapper body in the store is written that way.
 let resolveExprPartial (typed: String) : Stdlib.Option.Option<Node> =
-  if isIdentifier typed then
+  if isQualifiedName typed then
     Stdlib.Option.Option.Some(Node.make (exprKind "EVariable") [ text "name" typed ])
   else
     Stdlib.Option.Option.None
