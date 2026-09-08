@@ -2090,11 +2090,32 @@ let exprTypeSpec () : Spec =
           WrapRule { onChar = "<newline>"; wrap = wrapStatement; opSlot = ""; nextSlot = "next" }
           WrapRule { onChar = "."; wrap = wrapFieldAccess; opSlot = "field"; nextSlot = "field" }
           WrapRule { onChar = "<operator>"; wrap = wrapInfix; opSlot = "op"; nextSlot = "right" } ]
+      // Everything that can go in an expression hole, named the way a person would say it, with the
+      // keystroke that gets there faster.
+      //
+      // The menu and the hole rules above used to be DISJOINT lists. Every construct the menu named was
+      // one no character built, and every construct a character built was one the menu never named -- so
+      // a number, a string, a list, a tuple and a record update were reachable only if you already knew
+      // the punctuation. Typing `in` offered nothing at all.
+      //
+      // The detail column carries the shortcut so the menu teaches its own way out: use it once, see the
+      // character, stop needing the menu. Same nodes as the hole rules build, from the same functions, so
+      // the two paths cannot drift the way these two lists already had.
       completions =
         [ Spec.candidate "let" "bind a name" (emptyLet ())
           Spec.candidate "if" "conditional" (emptyIf ())
           Spec.candidate "match" "pattern match" (emptyMatch ())
-          Spec.candidate "fun" "lambda" (emptyLambda ())
+          Spec.candidate "fun" "lambda   \\" (emptyLambda ())
+          Spec.suggestion "int" "a whole number   0-9" (Node.make (exprKind "EInt") [ text "digits" "" ])
+          Spec.suggestion "string" "text   \"" (Node.make (exprKind "EString") [ text "body" "" ])
+          Spec.suggestion "list" "a list   [" (listFromBracket "[" (exprExpect "item"))
+          Spec.suggestion "tuple" "a tuple   (" (tupleFromParen "(" (exprExpect "item"))
+          // The record LITERAL is not here on purpose: `ERecord` needs a resolved type hash, so it is
+          // built by completing on the type's NAME. `{` and this entry are the update form, which needs
+          // nothing resolved.
+          Spec.suggestion "record update" "{ r with f = v }   {" (recordUpdateFromBrace "{" (exprExpect "record"))
+          Spec.suggestion "char" "one character   '" (Node.make (exprKind "EChar") [ text "char" "" ])
+          Spec.suggestion "interpolated string" "text with {holes}   $" (stringInterpFromDollar "$" (exprExpect "expr"))
           Spec.candidate "true" "Bool" (Node.make (exprKind "EBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (exprKind "EBool") [ text "value" "false" ])
           Spec.candidate "()" "Unit" (Node.make (exprKind "EUnit") []) ]

@@ -159,10 +159,19 @@ let popover
     | Some((screenRow, screenCol)) ->
       let row0 = screenRow - region.top
       let col0 = Stdlib.Int.max 0 (screenCol - region.left)
-      let shown = Stdlib.List.take cs maxPopoverRows
+      // The window FOLLOWS the selection. It used to be the first six whatever `completionIndex` said, so
+      // arrowing past the sixth entry changed nothing you could see: the selection moved, the window did
+      // not, and Enter took something off screen. Harmless while the menu was seven long and the last one
+      // was the only casualty; the menu is fourteen now and it was eight.
+      //
+      // Same fact as the horizontal clip marker, one axis over: keep the selection inside the window.
+      // Stateless, because there is nowhere to keep a popover scroll and nothing needs one -- the window
+      // is a function of where the selection is.
       let selected = Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1)
-      let extra = (Stdlib.List.length cs) - (Stdlib.List.length shown)
-      // A trailing "+N more" row when the list overflows, so a long menu doesn't look like the whole set.
+      let start = if selected < maxPopoverRows then 0 else selected - maxPopoverRows + 1
+      let shown = cs |> Stdlib.List.drop start |> Stdlib.List.take maxPopoverRows
+      let extra = (Stdlib.List.length cs) - start - (Stdlib.List.length shown)
+      // A trailing "+N more" row counts what is BELOW the window, so it shrinks as you scroll into it.
       let moreText = if extra > 0 then " +" ++ (Stdlib.Int.toString extra) ++ " more" else ""
       let labelWidth (c: Editor.Candidate) : Int = Stdlib.String.displayWidth (c.label ++ "  " ++ c.detail)
       let widest =
@@ -177,7 +186,8 @@ let popover
         |> Stdlib.List.indexedMap (fun i c ->
           let line =
             Stdlib.Cli.Tui.Text.fitToWidth (" " ++ c.label ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText c.detail)) (widest + 2)
-          let style = if i == selected then theme.menuSelected else theme.menu
+          // `i` indexes the WINDOW; `selected` indexes the whole list.
+          let style = if (start + i) == selected then theme.menuSelected else theme.menu
           Stdlib.Cli.UI.Layout.at region (startRow + i) col0 (Stdlib.Cli.UI.Colors.colorize style line))
         |> Stdlib.List.flatten
       let moreSpan =

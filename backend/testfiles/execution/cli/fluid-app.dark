@@ -29,6 +29,9 @@ module Fixtures =
         confirmingExit = false
         pendingEdit = Stdlib.Option.Option.None }
 
+  let hole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
   let docOf (src: String) : Darklang.Fluid.Slot =
     match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
     | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
@@ -744,3 +747,32 @@ module TheCaretIsNeverUnderTheClipMarker =
   // column too far right, and the caret landed on the marker.
   (Darklang.Fluid.Widget.scrollFor 1 54 7) = 1
   (Fixtures.glyphUnderCursor (atHome ()) 1) = "<"
+
+
+module ThePopoverFollowsTheSelection =
+  // `popover` drew `List.take cs maxPopoverRows` -- the FIRST six, whatever `completionIndex` said. So
+  // arrowing past the sixth entry changed nothing you could see: the selection moved, the window did not,
+  // and Enter took something off screen.
+  //
+  // Harmless while the menu was seven long and only the last entry was lost. The menu is fourteen now and
+  // it was eight of them, which is the difference between a corner case and the feature not working.
+  //
+  // Same fact as the horizontal clip marker one axis over: keep the selection inside the window. Stateless,
+  // because the window is a function of where the selection is and there is nowhere to keep a scroll.
+  //
+  // The highlight had to move with it. `i` indexes the WINDOW and `selected` indexes the LIST, and those
+  // were the same number only while the window started at zero.
+  let visibleAt (i: Int) : Bool =
+    let ed0 = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 80
+    let ed = { ed0 with completionIndex = i, mode = Darklang.Fluid.Editor.Mode.Insert }
+    let v = Darklang.Fluid.App.view (Fixtures.stateOf ed) (Fixtures.size ())
+    let label =
+      Darklang.Fluid.Editor.candidates ed
+      |> Stdlib.List.getAt i
+      |> Stdlib.Option.map (fun c -> c.label)
+      |> Stdlib.Option.withDefault "?"
+
+    v.rows |> Stdlib.List.any (fun r -> Stdlib.String.contains (Darklang.Stdlib.Cli.Tui.Text.stripSgr r) label)
+
+  ([ 0, 3, 5, 6, 9, 13 ] |> Stdlib.List.map (fun i -> visibleAt i)) =
+    [ true, true, true, true, true, true ]

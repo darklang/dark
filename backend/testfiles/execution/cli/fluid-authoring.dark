@@ -9,6 +9,11 @@ module Fixtures =
 
   let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
 
+  // The menu's labels after driving `keys`.
+  let candidateLabels (keys: List<String>) : List<String> =
+    Darklang.Fluid.Editor.candidates (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (hole ()) 80) keys)
+    |> Stdlib.List.map (fun c -> c.label)
+
   // What's on screen (with the caret) after the keys.
   let screen (keys: List<String>) : String = Darklang.Fluid.Test.run (reg ()) (hole ()) 60 keys
 
@@ -2067,3 +2072,94 @@ module AnyCharacterCanEndADrawnKeyword =
   // `then` has to build a group in the branch rather than a variable called `then`.
   (Fixtures.screen (Fixtures.chars "if a then(")) = "if a then (~⟨item⟩, ⟨item⟩) else ⟨else⟩"
   (Fixtures.screen (Fixtures.chars "if a then[")) = "if a then [~⟨item⟩] else ⟨else⟩"
+
+
+module TheMenuNamesEverythingAHoleCanHold =
+  // The completions and the hole rules were DISJOINT lists. Every construct the menu named was one no
+  // character built (let, if, match, fun, true, false, unit); every construct a character built was one
+  // the menu never named (a number, a string, a char, an interpolated string, a list, a tuple, a record
+  // update). So half the language was reachable only if you already knew the punctuation, and typing
+  // `in` offered nothing at all.
+  //
+  // Same shape as most of this month's bugs -- one question answered in two places -- except these two
+  // were complementary rather than contradictory, so nothing ever looked wrong.
+  //
+  // Each new entry is built by the SAME function the hole rule calls, so the menu and the keystroke make
+  // the same node and cannot drift apart again. The detail column carries the shortcut, so the menu
+  // teaches its own way out: use it once, see the character, stop needing the menu.
+  //
+  // The record LITERAL is deliberately absent. `ERecord` needs a resolved type hash, so it is built by
+  // completing on the type's NAME; only the update form can be offered from a bare hole, and calling it
+  // "record update" says so.
+  let labels () : List<String> =
+    Darklang.Fluid.Editor.candidates
+      (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 80)
+    |> Stdlib.List.map (fun c -> c.label)
+
+  (labels ()) =
+    [ "let", "if", "match", "fun", "int", "string", "list", "tuple", "record update", "char"
+      "interpolated string", "true", "false", "()" ]
+
+  // The example that started this: `in` used to match nothing.
+  (Fixtures.candidateLabels (Fixtures.chars "in")) = [ "int", "interpolated string" ]
+
+  // Picking from the menu builds what the character builds.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "list") [ "<Enter>", "1", "<Esc>", "<Esc>" ])) = "[1]"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[") [ "1", "<Esc>", "<Esc>" ])) = "[1]"
+
+  // What a SPACE commits is unchanged by any of this, and that took two goes to get right.
+  //
+  // Space commits an unambiguous candidate, and that rule was written for KEYWORDS: `le` can only be
+  // `let`, and no variable is named `let`. The new entries are ordinary words, so the moment they joined
+  // the menu a lone `c` was an unambiguous `char` and `if c then` came out `if '' then`. `r` became a
+  // record update and `s` an empty string -- three of the commonest one-letter names in the codebase.
+  //
+  // So a candidate says whether a space may take it. `Spec.suggestion` is offered and never taken by a
+  // space; Enter and Tab still take it, which is what those keys mean.
+  //
+  // Then the second half: the DECISION was filtered and the CHOICE was not, so `t ` built the `tuple`
+  // sitting at index 0 rather than the `true` that made the decision. A space picks by rule rather than
+  // by selection, so it commits the candidate it named.
+  (Fixtures.screen (Fixtures.chars "c ")) = "c~"
+  (Fixtures.screen (Fixtures.chars "r ")) = "r~"
+  (Fixtures.screen (Fixtures.chars "s ")) = "s~"
+  (Fixtures.screen (Fixtures.chars "i ")) = "if ~⟨cond⟩ then ⟨then⟩ else ⟨else⟩"
+  (Fixtures.screen (Fixtures.chars "t ")) = "true~"
+  (Fixtures.screen (Fixtures.chars "l ")) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen (Fixtures.chars "tr ")) = "true~"
+
+  // And the variable names that were being eaten.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if c then 1 else 2") [ "<Esc>", "<Esc>" ])) =
+    "if c then 1 else 2"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "if r > 0 then 1 else 2") [ "<Esc>", "<Esc>" ])) =
+    "if r > 0 then 1 else 2"
+
+
+module SettlingIsNotChoosing =
+  // Widening the menu produced the same collision at THREE call sites, because a suggestion's label is an
+  // ordinary word and a variable can be named it. Space, Tab and settle-a-partial all took the menu entry
+  // where the person was writing a name.
+  //
+  // The rule that came out of it: ENTER means "take what the menu is showing". Space, Tab and typing on
+  // mean "I have finished writing this name". Tab's own comment already said so -- "`r<Tab>` (an in-scope
+  // variable) finalises and moves to the next hole" -- so this is the code catching up with what was
+  // written down, which is where most of this month's bugs have lived.
+  //
+  // A reserved word is exempt at every one of those sites, because no variable can be named `let`. That
+  // is also what keeps `Stdlib.Option.None` settling as the constructor rather than a variable.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "list") [ "<Esc>", "<Esc>" ])) = "list"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "string") [ "<Esc>", "<Esc>" ])) = "string"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "char") [ "<Esc>", "<Esc>" ])) = "char"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "tuple") [ "<Esc>", "<Esc>" ])) = "tuple"
+
+  // Enter still picks them, which is the whole point of putting them in the menu.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "list") [ "<Enter>" ])) = "[~⟨item⟩]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "string") [ "<Enter>" ])) = "\"~\""
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "tuple") [ "<Enter>" ])) = "(~⟨item⟩, ⟨item⟩)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "le") [ "<Enter>" ])) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // Tab settles and advances. `{ r <Tab>` took the `record update` suggestion for one run of the suite.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ Fixtures.chars "{ r", [ "<Tab>" ], Fixtures.chars "x", [ "<Tab>" ], Fixtures.chars "1"
+        [ "<Esc>", "<Esc>" ] ])) = "{ r with x = 1 }"

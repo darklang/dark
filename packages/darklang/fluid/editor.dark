@@ -2344,10 +2344,15 @@ let typeOneRaw (st: State) (c: String) : State =
             | _ -> nextHole st
           else
 
-          let cands = candidates st
+          // Only a KEYWORD candidate. The rule above was written for keywords -- `le` can only be `let`,
+          // and no variable is called `let` -- and stayed correct only while every candidate was reserved.
+          // The moment the menu learned ordinary words, a lone `c` was an unambiguous `char` and
+          // `if c then` came out `if '' then`; `r` became a record update, `s` an empty string.
+          let cands = candidates st |> Stdlib.List.filter (fun c -> c.keyword)
+          let exact = exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None)
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
-            && ((Stdlib.Option.isSome (exactCandidate st)) || ((Stdlib.List.length cands) == 1))
+            && ((Stdlib.Option.isSome exact) || ((Stdlib.List.length cands) == 1))
           if commitMenu then
             // Committing a leaf (an in-scope variable, a bool) finishes it and leaves the caret JUST AFTER
             // it, not at the next hole. That matters because the next keystroke is what says which you
@@ -2357,11 +2362,23 @@ let typeOneRaw (st: State) (c: String) : State =
             // to the next hole made `if total > 0` and `let n = a + b` untypeable with the spacing anyone
             // actually uses: the operator landed in the THEN branch.
             // Committing a construct or a function lands in its own first hole to fill, so it stays there.
-            let committed = commitCandidate st
-            match slotUnder committed with
-            | Some(Empty _) -> committed
-            | _ ->
-              landSettled committed sp
+            // The KEYWORD one, not the selected one. `commitCandidate` takes whatever the menu is
+            // pointing at, and the menu is the whole list -- so after filtering the DECISION but not the
+            // CHOICE, `t ` built the tuple sitting at index 0 rather than the `true` that made the
+            // decision, and `l ` built a `let` where it used to leave `l` alone.
+            let taken =
+              match exact with
+              | Some c -> Stdlib.Option.Option.Some c
+              | None -> Stdlib.List.head cands
+
+            match taken with
+            | Some c ->
+              let committed = commitNamed st c
+
+              (match slotUnder committed with
+               | Some(Empty _) -> committed
+               | _ -> landSettled committed sp)
+            | None -> landSettled st sp
           else
             match resolvePartial st with
             | Some resolved -> stayIfOnHole resolved (fun r -> landSettled r sp)
@@ -3253,7 +3270,15 @@ let resolvePartial (st: State) : Stdlib.Option.Option<State> =
         // an enum constructor is: `Stdlib.Option.None` started settling as a VARIABLE with that name
         // before the menu, which holds the real constructor, was ever asked. A candidate is the more
         // specific answer wherever both have one, and `resolve` is the fallback for what no menu lists.
-        match exactCandidate st with
+        // A KEYWORD candidate only. Settling is not choosing: Esc, a space, or typing on means "I have
+        // finished writing this name", and `list`, `string`, `char`, `int` and `tuple` are names people
+        // write. They joined the menu as suggestions and immediately started winning here -- typing
+        // `list` and settling built an empty EList, `string` built `""`.
+        //
+        // A reserved word cannot be a variable, so a keyword candidate still wins, which is what keeps
+        // `Stdlib.Option.None` settling as the constructor rather than as a variable of that name. Enter
+        // and Tab still take a suggestion, because those keys mean "take what the menu is showing".
+        match exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None) with
         | Some c ->
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
           Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }
@@ -3286,6 +3311,23 @@ let commitCandidate (st: State) : State =
          let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
          { st1 with caret = landAfterCommit sp c.node }
        | None -> st)
+    | _ -> st
+
+/// Commit a NAMED candidate, rather than whichever one the menu is pointing at.
+///
+/// `commitCandidate` is right for Enter and Tab, where the selection IS the choice. A space chooses by
+/// rule instead -- the one unambiguous keyword -- and that is not always the selected row.
+let commitNamed (st: State) (c: Candidate) : State =
+  match Caret.slotPath st.caret with
+  | Some sp ->
+    let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+    { st1 with caret = landAfterCommit sp c.node }
+  | None ->
+    match st.caret.part with
+    | InText _ ->
+      let sp = st.caret.node
+      let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
+      { st1 with caret = landAfterCommit sp c.node }
     | _ -> st
 
 let cycleCandidate (st: State) (delta: Int) : State =
@@ -3986,7 +4028,13 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // (a construct like `let`, or a function's argument holes), where you want to fill it, not skip past.
     // So `let<Tab>` sits at the name, but `r<Tab>` (an in-scope variable) finalises and moves to the next
     // hole rather than swallowing what you type next into the same slot.
-    elif completing && (onPartial st) then
+    // A KEYWORD candidate only, for the same reason space wants one. Tab's own comment says what it
+    // means here -- "`r<Tab>` (an in-scope variable) finalises and moves to the next hole" -- so Tab is
+    // settle-and-advance, not take-what-is-shown. Once `record update` was in the menu, `{ r <Tab>` took
+    // it and built a nested update where the pin wanted the variable `r`.
+    //
+    // ENTER is the key that means take what is shown, and it still does.
+    elif completing && (onPartial st) && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.keyword) |> Stdlib.Option.withDefault false) then
       let committed = commitCandidate st
 
       match slotUnder committed with

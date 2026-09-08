@@ -123,6 +123,9 @@ type Candidate =
     detail: String
     valid: Validity
     node: Node
+    /// Can a SPACE take this one? True for a reserved word, which no variable can be named; false for a
+    /// suggestion whose label is an ordinary word somebody may be typing as a name.
+    keyword: Bool
     /// Did this come from the DOCUMENT rather than from the spec's fixed list?
     ///
     /// On an untouched hole the menu is mostly "everything that could go here", and Enter there means
@@ -325,11 +328,23 @@ module Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }
 
   let candidate (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = true }
+
+  /// A candidate whose name is an ORDINARY WORD, so a space must not commit it.
+  ///
+  /// Space commits an unambiguous candidate, and the rule was written for KEYWORDS: `le` can only be
+  /// `let`, and nobody can name a variable `let`. `int`, `string`, `list`, `char`, `tuple` and `record
+  /// update` are not reserved, so the moment they joined the menu a lone `c` was an unambiguous `char`
+  /// and `if c then` came out `if '' then`. `r` became a record update and `s` an empty string.
+  ///
+  /// So they are offered but never taken by a space. Enter and Tab still take them, which is what those
+  /// keys mean, and typing on past them settles a variable as it always did.
+  let suggestion (label: String) (detail: String) (node: Node) : Candidate =
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = false }
 
   /// A candidate the document itself implied -- see `Candidate.fromContext`.
   let contextCandidate (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = true }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = true; keyword = true }
 
 
 /// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec
