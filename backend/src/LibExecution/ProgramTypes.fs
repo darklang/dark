@@ -926,6 +926,34 @@ and PropagateRepoint =
 
 
 /// A package entity paired with its location
+/// The op that says a binding AGAIN, or `None` for an op that is not a binding.
+///
+/// Ops are content-addressed, so `SetName(name -> H)` for a name that once held H IS the op that
+/// bound it the first time: it dedupes, and when it does land it carries that op's stamp and loses
+/// to anything bound since. A revert is unsayable as a `SetName`. `Decision`/`Override` can say it,
+/// because it carries an id -- the reason it exists on the conflict path too. The id carries the
+/// stamp, because 611 -> 622 -> 611 -> 622 is four decisions and the fourth must not dedupe into
+/// the second.
+///
+/// Here rather than beside a writer, because main authoring and a branch's must say it identically
+/// or a restatement syncs as a different op than the one that was made.
+let restatingBinding (ts : string) (op : PackageOp) : Option<PackageOp> =
+  match op with
+  | PackageOp.SetName(location, target, _) ->
+    let (Hash h) = target.hash
+    let where =
+      String.concat "." (location.owner :: (location.modules @ [ location.name ]))
+    Some(
+      PackageOp.Decision(
+        $"restate:{where}:{h}:{ts}",
+        location,
+        "bound this name to a version it held before",
+        DecisionKind.Override target
+      )
+    )
+  | _ -> None
+
+
 type LocatedItem<'T> = { entity : 'T; location : PackageLocation }
 
 module Search =

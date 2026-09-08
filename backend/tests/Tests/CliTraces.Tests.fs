@@ -734,6 +734,7 @@ let tests =
      @ Tests.CliPackages.tests
      @ Tests.CliWorkspace.tests
      @ Tests.CliSyncSurface.tests
+     @ Tests.CliScmRound2.tests
      @ [ testVersionCommand
          testStatusCommand
          testRunCases

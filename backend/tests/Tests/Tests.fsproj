@@ -52,6 +52,8 @@
     <Compile Include="CliPackages.Tests.fs" />
     <Compile Include="CliWorkspace.Tests.fs" />
     <Compile Include="CliSyncSurface.Tests.fs" />
+    <Compile Include="ScmArrivalOrder.Tests.fs" />
+    <Compile Include="CliScmRound2.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
     <Compile Include="DvalReprInternalQueryable.Tests.fs" />

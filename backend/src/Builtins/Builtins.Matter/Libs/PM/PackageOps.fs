@@ -178,6 +178,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
 
                   let stabilized = LibDB.HashStabilization.computeRealHashes ops
+                  let! stabilized = LibDB.Branches.restateReverts branchId stabilized
                   let! n = LibDB.Branches.storeDeltaOps branchId stabilized
                   // The parent's current hash per name touched, so a later merge can tell whether the
                   // parent moved the same name.

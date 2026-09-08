@@ -27,7 +27,64 @@ let nextOriginTs () : string = OriginTs.next ()
 /// Insert PackageOps and fold them into the projections, resolving each op's origin_ts via `tsFor`
 /// and its committing commit via `commitFor`. Same contract as `insertAndApplyOps`; the two
 /// resolvers let callers PRESERVE existing values instead of resetting them for every op.
-let insertAndApplyOpsWith
+/// Which of these locations do NOT currently bind the hash the op names.
+///
+/// The filter that separates a REVERT from a no-op re-author: re-running the same authoring command
+/// also produces a duplicate `SetName`, and that one really is nothing to do.
+let private notCurrentlyBound (ops : List<PT.PackageOp>) : Task<List<PT.PackageOp>> =
+  task {
+    let candidates =
+      ops
+      |> List.choose (fun op ->
+        match op with
+        | PT.PackageOp.SetName(location, target, _) ->
+          Some(op, location, target.hash)
+        | _ -> None)
+
+    if List.isEmpty candidates then
+      return []
+    else
+      let keyParams =
+        candidates
+        |> List.mapi (fun i (_, location : PT.PackageLocation, _) ->
+          ($"key_{i}",
+           Sql.string (
+             String.concat
+               "\u0000"
+               [ location.owner; String.concat "." location.modules; location.name ]
+           )))
+
+      let keyClause =
+        candidates |> List.mapi (fun i _ -> $"@key_{i}") |> String.concat ", "
+
+      let! rows =
+        Sql.query
+          $"""
+          SELECT owner, modules, name, item_hash
+          FROM locations
+          WHERE unlisted_at IS NULL
+            AND owner || char(0) || modules || char(0) || name IN ({keyClause})
+          """
+        |> Sql.parameters keyParams
+        |> Sql.executeAsync (fun read ->
+          ((read.string "owner", read.string "modules", read.string "name"),
+           read.string "item_hash"))
+
+      let live = Map.ofList rows
+
+      return
+        candidates
+        |> List.filter (fun (_, location, Hash h) ->
+          let key =
+            (location.owner, String.concat "." location.modules, location.name)
+          match Map.tryFind key live with
+          | Some bound -> bound <> h
+          | None -> true)
+        |> List.map (fun (op, _, _) -> op)
+  }
+
+
+let rec insertAndApplyOpsWith
   (tsFor : System.Guid -> string)
   (commitFor : System.Guid -> string option)
   (source : string)
@@ -113,6 +170,18 @@ let insertAndApplyOpsWith
         |> List.map (fun ((_, op, _, _, _), _) -> op)
       do! PackageOpPlayback.recordDependenciesOnly ignored
 
+      // A `SetName` already in the log, for a name bound to something else right now, is a revert:
+      // unsayable as a `SetName` (`PT.restatingBinding`), so it is re-authored as the decision it
+      // is. Never recurses -- what goes back in is a `Decision`, and only `SetName` produces one.
+      let! toRestate = notCurrentlyBound ignored
+      let! restated =
+        if List.isEmpty toRestate then
+          Task.FromResult 0L
+        else
+          toRestate
+          |> List.choose (PT.restatingBinding (nextOriginTs ()))
+          |> insertAndApplyOpsWith tsFor commitFor source
+
       // Bookkeeping only: the fold above already ran, so a failure here costs a redundant re-fold on
       // the next pass, not correctness.
       if not (List.isEmpty insertedOpIds) then
@@ -132,7 +201,9 @@ let insertAndApplyOpsWith
             $"Warning: Failed to mark {List.length insertedOpIds} ops as applied: {ex.Message}"
           )
 
-      return insertedCount
+      // The restatements count: they are ops this call authored, and a caller reporting "0 ops" for
+      // a revert that did land would be the same lie in a different place.
+      return insertedCount + restated
   }
 
 

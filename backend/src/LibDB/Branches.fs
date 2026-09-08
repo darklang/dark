@@ -21,7 +21,9 @@ module Hashing = LibSerialization.Hashing.Hashing
 
 /// The content-addressed row id for an op. One definition, shared with authoring and
 /// the fold, so a branch tags the same op id those two mint.
-let private opRowId (op : PT.PackageOp) : System.Guid = Hashing.computeOpRowId op
+/// An op's row id: its content hash. Public because the branch authoring path asks whether the log
+/// already holds an op before deciding it needs restating (see `PT.restatingBinding`).
+let opRowId (op : PT.PackageOp) : System.Guid = Hashing.computeOpRowId op
 
 /// Create a branch off `parentId` (main for a top-level branch). The fork point is tracked PER
 /// NAME (branch_name_bases, recorded on authoring), not a whole-branch watermark, so there's no
@@ -320,6 +322,22 @@ let private storeInertTagged
 /// <param source> says what put these ops on the branch: 'op', 'propagation' or 'resolution', the same
 /// vocabulary as `locations.source`. Authoring passes 'op'; the two other kinds are recorded at the one
 /// point each is known, `pmPropagate` and `pmSetName`.
+/// Which of <param ids> the op log already holds. A restatement is only needed for an op that would
+/// dedupe, and asking is cheaper than discovering it from an insert that affected no rows.
+let heldOpIds (ids : List<System.Guid>) : Task<Set<System.Guid>> =
+  task {
+    if List.isEmpty ids then
+      return Set.empty
+    else
+      let clause = ids |> List.mapi (fun i _ -> $"@id_{i}") |> String.concat ", "
+      let! rows =
+        Sql.query $"SELECT id FROM package_ops WHERE id IN ({clause})"
+        |> Sql.parameters (ids |> List.mapi (fun i id -> ($"id_{i}", Sql.uuid id)))
+        |> Sql.executeAsync (fun read -> read.uuid "id")
+      return Set.ofList rows
+  }
+
+
 let storeDeltaOpsStampedFrom
   (source : string)
   (branchId : PT.BranchId)
@@ -620,6 +638,45 @@ let parentNameHashes (parentId : PT.BranchId) : Task<Map<NameKey, string>> =
             | Some(Ends loc) -> Map.remove (key loc) m
             | None -> m)
           baseMap
+  }
+
+
+/// <param ops> with any REVERT re-authored as the decision it is (`PT.restatingBinding`).
+///
+/// A `SetName` the log already holds, for a name this branch currently binds to something else.
+/// Authoring only: an incoming duplicate really is a duplicate, so the receive paths that share
+/// `storeDeltaOps` never come through here. Liveness is the branch's own -- its chain folded over
+/// main, since its items have no `locations` row.
+let restateReverts
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp>> =
+  task {
+    let bindings =
+      ops |> List.filter (fun op -> Option.isSome (PT.restatingBinding "" op))
+
+    if List.isEmpty bindings then
+      return ops
+    else
+      let! liveHere = parentNameHashes branchId
+      let! held = heldOpIds (bindings |> List.map opRowId)
+
+      let saidAgain (op : PT.PackageOp) : bool =
+        match op with
+        | PT.PackageOp.SetName(location, target, _) ->
+          let (Hash h) = target.hash
+          let key =
+            (location.owner, String.concat "." location.modules, location.name)
+          Map.tryFind key liveHere <> Some h
+        | _ -> false
+
+      return
+        ops
+        |> List.map (fun op ->
+          if saidAgain op && Set.contains (opRowId op) held then
+            PT.restatingBinding (OriginTs.next ()) op |> Option.defaultValue op
+          else
+            op)
   }
 
 /// The branch chain's LIVE bindings, inverted: item-hash -> (kind, location).
