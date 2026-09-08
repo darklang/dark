@@ -1675,6 +1675,7 @@ let pipeTypeSpec () : Spec =
       wrapRules = []
       textClasses = []
       maxItems = Spec.noMaxItems
+      noSequence = []
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
       resolve = resolvePipePartial
@@ -2061,6 +2062,7 @@ let exprTypeSpec () : Spec =
           HoleRule { onChar = "\\"; fill = HoleFill.Node(emptyLambda ()) } ]
       textClasses = []
       maxItems = Spec.noMaxItems
+      noSequence = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps" }
           // Enter after a finished expression starts the next STATEMENT, which is what a newline means
@@ -2111,6 +2113,7 @@ let letPatTypeSpec () : Spec =
       wrapRules = []
       textClasses = []
       maxItems = Spec.noMaxItems
+      noSequence = []
       completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
@@ -2171,6 +2174,7 @@ let matchPatTypeSpec () : Spec =
           HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]) } ]
       textClasses = []
       maxItems = Spec.noMaxItems
+      noSequence = []
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
@@ -2269,8 +2273,15 @@ let moreSpecs () : List<Spec> =
     |> fun sp -> Spec.withBinders sp lambdaBinders
     simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
     simpleOf (pipeKind "EPipeEnum") [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
-    simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
-    simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+    // A record's fields and a dict's pairs are drawn one per line between braces, so a statement inside
+    // one of them draws where the reader sees the NEXT field. Enter at the end of the last one has
+    // nothing to do, and doing nothing is the honest answer: the `}` that follows is the next key.
+    Spec.withNoSequence
+      (simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+      [ "value" ]
+    Spec.withNoSequence
+      (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+      [ "key", "value" ]
     Spec.withOffers
       (simpleExpr
         "ERecord"
@@ -2677,6 +2688,7 @@ module Types =
         wrapRules = []
         textClasses = []
         maxItems = Spec.noMaxItems
+        noSequence = []
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
         resolve = resolveTypePartial

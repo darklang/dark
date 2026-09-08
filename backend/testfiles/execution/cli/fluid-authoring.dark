@@ -1950,3 +1950,40 @@ module ABackslashInAStringIsAnEscape =
   // are ordinary characters going into it; the meaning is applied once, at the edge, by `fromDoc`.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a\\nb") [ "<Esc>", "<Esc>" ])) = "\"a\\nb\""
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "\"a\\\\b") [ "<Esc>", "<Esc>" ])) = "\"a\\\\b\""
+
+
+module ARecordFieldIsNotAStatementPosition =
+  // The last Enter of a record, the one that ends the final field's line before you type the `}`, left a
+  // stray hole behind:
+  //
+  //     Size { / width = 1; / height = 2 / }     wanted
+  //     height = 2 / ⟨next⟩                      what it drew, between the braces
+  //
+  // Cause, and it took three passes to find. `recordMaxItems` caps a RESOLVED record's fields at the
+  // count the type declares, so the field list is permanently full and `addSibling` can never succeed
+  // inside it. Enter is sibling-then-sequence in all three of its branches, so with the sibling refused
+  // it fell through to `sequenceHere`, which climbed to the RecordField and wrapped the field's VALUE.
+  //
+  // The cap is right. The fallback is the part that is wrong, and neither "the list is capped" nor "the
+  // node is an EInt" separates the cases: a match arm's rhs IS a statement position, and ITS list is
+  // capped exactly the same way. It is the SLOT. So specs name the slots a newline must not sequence,
+  // `Spec.withNoSequence`, and a DSL with its own bracketed construct can say it about its own.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ Fixtures.chars "Size {", [ "<Enter>" ], Fixtures.chars "width = 1", [ "<Enter>" ]
+        Fixtures.chars "height = 2", [ "<Enter>" ], Fixtures.chars "}", [ "<Esc>", "<Esc>" ] ])) =
+    "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+
+  // Enter in the MIDDLE of a record still moves on to the next field. It never grew the list (the cap
+  // saw to that); it moves to the hole already waiting.
+  (Fixtures.screen
+    (Stdlib.List.flatten
+      [ Fixtures.chars "Size {", [ "<Enter>" ], Fixtures.chars "width = 1", [ "<Enter>" ] ])) =
+    "Stdlib.Cli.Tui.Size {\n  width = 1;\n  height = ~⟨height⟩\n}"
+
+  // The two controls that say the rule is about the slot. A match arm's rhs sequences nothing here
+  // because Enter starts the next ARM, and a bare value at the top level still opens a statement.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "xs") [ "<Enter>" ])) = "xs\n~⟨next⟩"
+  (Fixtures.screen
+    (Stdlib.List.flatten [ Fixtures.chars "a", [ "<Enter>" ], Fixtures.chars "b", [ "<Enter>" ] ])) =
+    "a\nb\n~⟨next⟩"

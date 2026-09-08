@@ -3466,6 +3466,31 @@ let statementTarget (st: State) (p: Path) : Path =
      | None -> p)
   | None -> p
 
+/// Does the slot this node sits in refuse to hold a statement?
+///
+/// The spec of the node's PARENT names them. `{ width = 1; height = 2 }` with the caret after the `2`
+/// used to grow `height = 2 / ⟨next⟩` -- a hole drawn between the braces, where a reader sees the next
+/// FIELD rather than a second statement in the field's value.
+///
+/// Asked of the slot rather than of the node or the list, because neither of those separates the cases.
+/// An `EInt` sequences perfectly well in a body. And a match arm's rhs IS a statement position while its
+/// list is capped exactly like a resolved record's fields are, so "the list cannot grow" is true of both.
+let slotRefusesSequence (st: State) (p: Path) : Bool =
+  match (Path.parent p, Path.last p) with
+  | (Some parentPath, Some step) ->
+    let slotName =
+      match step with
+      | Into slot -> slot
+      | Item(slot, _) -> slot
+
+    (match nodeAtPath st.root parentPath with
+     | Some parent ->
+       (match Registry.find st.reg parent.kind with
+        | Some spec -> Stdlib.List.member spec.noSequence slotName
+        | None -> false)
+     | None -> false)
+  | _ -> false
+
 /// Enter at the end of a finished expression: whatever the spec says a NEWLINE does there.
 ///
 /// Only when nothing is left unfinished. While a hole remains anywhere, Enter's job is to take you to it,
@@ -3476,6 +3501,10 @@ let sequenceHere (st: State) : Stdlib.Option.Option<State> =
     Stdlib.Option.Option.None
   else
     let targetPath = statementTarget st st.caret.node
+
+    if slotRefusesSequence st targetPath then
+      Stdlib.Option.Option.None
+    else
 
     match nodeAtPath st.root targetPath with
     | Some target ->

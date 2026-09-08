@@ -206,6 +206,19 @@ type Spec =
     /// and the spec cannot. `Ok 1` then Enter grew `Result.Ok(1, 2)` -- a two-field `Ok` -- and that
     /// lowered without complaint.
     maxItems: Node -> String -> Stdlib.Option.Option<Int>
+    /// Slots where a NEWLINE does not start a statement.
+    ///
+    /// Enter at the end of a finished expression wraps it in an `EStatement`, which is what you want in a
+    /// body and not what you want in a record field: `{ width = 1; height = 2 }` with the caret after the
+    /// `2` grew `height = 2 / ⟨next⟩`, a hole drawn inside the braces where the next FIELD goes.
+    ///
+    /// It is the SLOT that decides. Not the node -- an `EInt` sequences perfectly well elsewhere. Not the
+    /// enclosing list either: a match arm's rhs IS a statement position and its list is capped exactly
+    /// like a resolved record's fields are, so "capped" does not separate the two.
+    ///
+    /// Named here rather than checked for in the kernel so a DSL with its own bracketed construct can say
+    /// the same thing about its own slots.
+    noSequence: List<String>
     /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
     completions: List<Candidate>
     /// Computed candidates, given the typed text: names in scope, package search.
@@ -264,6 +277,7 @@ module Spec =
         wrapRules = []
         textClasses = []
         maxItems = Spec.noMaxItems
+        noSequence = []
         completions = []
         complete = noCompletions
         resolve = noResolve
@@ -288,6 +302,9 @@ module Spec =
 
   let withMaxItems (spec: Spec) (f: Node -> String -> Stdlib.Option.Option<Int>) : Spec =
     { spec with maxItems = f }
+
+  /// A spec that says which of its slots a newline must not sequence.
+  let withNoSequence (spec: Spec) (slots: List<String>) : Spec = { spec with noSequence = slots }
 
   /// A slot that is capped at whatever it already holds: fixed by a declaration somewhere, not by the
   /// person typing. An enum case's fields are the case in point.
