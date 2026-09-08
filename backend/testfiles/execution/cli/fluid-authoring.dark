@@ -1332,3 +1332,29 @@ module ACallTakesTheArgumentsItsFunctionDeclares =
 
   // An unresolved name has no arity to cap, so it still sequences.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "zzz a") [ "<Enter>" ])) = "zzz\n~⟨next⟩"
+
+
+module BackspaceAfterAClosingBracketStepsInside =
+  // Just AFTER a node there is no text behind the caret to delete, and Backspace did NOTHING at all --
+  // silently, for `[1]`, `(1, 2)`, `"abc"`, `()` and `[]` alike. A key that does nothing is what this
+  // file keeps saying to avoid, and here it was, on the single most-pressed corrective key.
+  //
+  // It steps back INSIDE now, to the last place there is something to delete, which is where `moveLeft`
+  // already goes from this position. Non-destructive, and it puts the NEXT Backspace somewhere it can
+  // work: hold the key and it deletes, which is what holding it is for. Deleting the whole node instead
+  // is a lot to do for one keystroke on a construct whose inside you can no longer see.
+  //
+  // Found by re-sweeping right after the arity cap landed, on the theory that a cap changes what the
+  // fallbacks see. It did -- but this one had been there all along, and only showed once the neighbouring
+  // rows agreed and it stood out as the odd one.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>" ])) = "[1~]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2)") [ "<BS>" ])) = "(1, 2~)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"abc\"") [ "<BS>" ])) = "\"abc~\""
+
+  // And then it deletes, so holding the key does the obvious thing.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>", "<BS>" ])) = "[~⟨expression⟩]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"ab\"") [ "<BS>", "<BS>", "<BS>" ])) = "~⟨expression⟩"
+
+  // Backspace where there IS text behind the caret is untouched.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "s.width") [ "<BS>" ])) = "s.widt~"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1+2") [ "<BS>" ])) = "1 + ~⟨expression⟩"

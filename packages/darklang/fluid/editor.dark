@@ -2398,6 +2398,20 @@ let tryCollapseInterp (st: State) : Stdlib.Option.Option<State> =
         | None -> Stdlib.Option.Option.None
 
 let backspace (st: State) : State =
+  // Just AFTER a node there is no text behind the caret to delete, and Backspace did nothing at all --
+  // silently, for `[1]`, `(1, 2)`, `"abc"`, `()` and `[]` alike. A key that does nothing is the thing
+  // this file keeps saying to avoid.
+  //
+  // Step back INSIDE instead, to the last place there is something to delete, which is where `moveLeft`
+  // already goes from here. Non-destructive, and it puts the next Backspace somewhere it can work: hold
+  // the key and it deletes, which is what holding it is for. Deleting the whole node instead would be a
+  // lot to do for one keystroke on a construct you can no longer see the inside of.
+  if st.caret.part == Part.AfterNode then
+    match nodeAtPath st.root st.caret.node with
+    | Some n -> { st with caret = lastEditable st.caret.node n }
+    | None -> st
+  else
+
   match tryCollapseInterp st with
   | Some collapsed -> collapsed
   | None ->
