@@ -91,6 +91,15 @@ module FilePath =
 
 let mutable private policyDirectoryOverride : string option = None
 
+/// The policy directory, re-resolved on every read. This governs where the
+/// instance policy is loaded from, so the home it is built on MUST NOT be one
+/// guest code can move. `SpecialFolder.UserProfile` is the CLR's own
+/// resolution and does not follow a libc `setenv "HOME"` (the only env-write a
+/// guest can reach); a guest cannot redirect it to a directory holding a
+/// permissive `policies.bin`. Keep it that way: do not switch this to read a
+/// guest-settable variable, and do not add a `Host.Operation` that sets HOME
+/// through .NET. Either would let `env write` + `file write` compose into a
+/// self-widening of the instance policy.
 let policyDirectory () : Result<string, string> =
   match policyDirectoryOverride with
   | Some directory -> Ok directory

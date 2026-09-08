@@ -268,6 +268,11 @@ other approved root still needs.
 
 ## Checked host boundary
 
+The host modules live in `LibExecution/Host/` and compile before
+`RuntimeTypes.fs`; they depend on the effect and policy vocabulary, not VM state. This keeps the dependency direction suitable for a later assembly
+split. Today the separation is enforced by F# compile order and the compiled IL scan below. A separate assembly could also hide subsystem implementations
+behind `internal`; it would need to take the shared effect/policy types with it so the interpreter can depend on the host without a cycle.
+
 The boundary is one door: `LibExecution.Host`. A converted builtin never
 touches the OS; it constructs an `Operation` — the full description of one
 host action — and hands it to `Host.perform`, which derives the exact
