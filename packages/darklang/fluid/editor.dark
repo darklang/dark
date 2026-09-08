@@ -1171,10 +1171,25 @@ let reassocGrown (st: State) (opPath: Path) : (State * Path) =
 ///
 /// `Size { width = { r with x =` supplies one. The `=` settled the field, the settle put the caret in the
 /// new `⟨value⟩`, the key moved again, and the `1` went into the OUTER record's `height`.
-let stayIfOnHole (st: State) (move: State -> State) : State =
+/// Is the caret sitting on something still to be filled?
+///
+/// An empty SLOT, or an empty TEXT field. `landAfterCommit` has always counted both -- "`blanks`, not
+/// `holes`: an empty TEXT field is the next thing to type too" -- and the stay-here checks counted only
+/// the first. So committing a construct whose first blank is a TEXT slot landed you in it and then moved
+/// on anyway: picking `int` in a match pattern built the empty pattern and then started the next ARM.
+let onABlankNow (st: State) : Bool =
   match slotUnder st with
-  | Some(Empty _) -> st
-  | _ -> move st
+  | Some(Empty _) -> true
+  | _ ->
+    match st.caret.part with
+    | InText slot ->
+      (match nodeAtPath st.root st.caret.node with
+       | Some n -> (Node.text n slot |> Stdlib.Option.withDefault "") == ""
+       | None -> false)
+    | _ -> false
+
+let stayIfOnHole (st: State) (move: State -> State) : State =
+  if onABlankNow st then st else move st
 
 let landSettled (st: State) (sp: Path) : State =
   let canBeWrappedByOperator =
@@ -2375,9 +2390,7 @@ let typeOneRaw (st: State) (c: String) : State =
             | Some c ->
               let committed = commitNamed st c
 
-              (match slotUnder committed with
-               | Some(Empty _) -> committed
-               | _ -> landSettled committed sp)
+              (if onABlankNow committed then committed else landSettled committed sp)
             | None -> landSettled st sp
           else
             match resolvePartial st with
@@ -4037,9 +4050,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     elif completing && (onPartial st) && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.keyword) |> Stdlib.Option.withDefault false) then
       let committed = commitCandidate st
 
-      match slotUnder committed with
-      | Some(Empty _) -> handled committed
-      | _ -> handled (nextHole committed)
+      if onABlankNow committed then handled committed else handled (nextHole committed)
     // Same for a candidate the DOCUMENT implied, which is not a partial: the node is already there and
     // only its text is half-written. `S<Tab>` in a pattern used to move on and leave a case called `S`,
     // which is a name the type does not have.
@@ -4047,9 +4058,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
          && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false) then
       let committed = commitCandidate st
 
-      match slotUnder committed with
-      | Some(Empty _) -> handled committed
-      | _ -> handled (nextHole committed)
+      if onABlankNow committed then handled committed else handled (nextHole committed)
     else
       match resolvePartial st with
       | Some resolved -> handled (stayIfOnHole resolved nextHole)

@@ -2113,9 +2113,12 @@ let exprTypeSpec () : Spec =
           // The record LITERAL is not here on purpose: `ERecord` needs a resolved type hash, so it is
           // built by completing on the type's NAME. `{` and this entry are the update form, which needs
           // nothing resolved.
-          Spec.suggestion "record update" "{ r with f = v }   {" (recordUpdateFromBrace "{" (exprExpect "record"))
+          // ONE WORD. A label is typed to reach it, and a space settles the partial, so "record update"
+          // could only ever be reached by arrowing to it -- typing it gave a variable called `record`
+          // applied to something called `update`. The detail column carries the rest of the name.
+          Spec.suggestion "update" "{ r with f = v }   {" (recordUpdateFromBrace "{" (exprExpect "record"))
           Spec.suggestion "char" "one character   '" (Node.make (exprKind "EChar") [ text "char" "" ])
-          Spec.suggestion "interpolated string" "text with {holes}   $" (stringInterpFromDollar "$" (exprExpect "expr"))
+          Spec.suggestion "interpolation" "text with {holes}   $" (stringInterpFromDollar "$" (exprExpect "expr"))
           Spec.candidate "true" "Bool" (Node.make (exprKind "EBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (exprKind "EBool") [ text "value" "false" ])
           Spec.candidate "()" "Unit" (Node.make (exprKind "EUnit") []) ]
@@ -2153,7 +2156,8 @@ let letPatTypeSpec () : Spec =
       textClasses = []
       maxItems = Spec.noMaxItems
       noSequence = []
-      completions = [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
+      completions =
+[ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
       complete = Spec.noCompletions
       resolve = Spec.noResolve
       binders = Spec.noBinders
@@ -2217,6 +2221,11 @@ let matchPatTypeSpec () : Spec =
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts" }
           WrapRule { onChar = ":"; wrap = wrapListCons; opSlot = ""; nextSlot = "tail" } ]
+      // The same gap the expression hole had is still here: the character rules build five patterns the
+      // menu does not name. Adding them needs a lowercase letter to leave a PARTIAL rather than an
+      // `MPVariable`, and that breaks `| h :: t ->`: with `t` a partial, Tab commits the unambiguous
+      // keyword prefix and the tail becomes `true`. Written up; it wants a decision about whether an
+      // unambiguous PREFIX should commit at all, which is a rule expressions depend on.
       completions =
         [ Spec.candidate "true" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (matchPatKind "MPBool") [ text "value" "false" ])

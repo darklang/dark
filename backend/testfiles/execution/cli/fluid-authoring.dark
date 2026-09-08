@@ -2097,11 +2097,14 @@ module TheMenuNamesEverythingAHoleCanHold =
     |> Stdlib.List.map (fun c -> c.label)
 
   (labels ()) =
-    [ "let", "if", "match", "fun", "int", "string", "list", "tuple", "record update", "char"
-      "interpolated string", "true", "false", "()" ]
+    [ "let", "if", "match", "fun", "int", "string", "list", "tuple", "update", "char"
+      "interpolation", "true", "false", "()" ]
 
   // The example that started this: `in` used to match nothing.
-  (Fixtures.candidateLabels (Fixtures.chars "in")) = [ "int", "interpolated string" ]
+  // One word each, because a label is reached by TYPING it and a space settles the partial.
+  // "record update" gave a variable called `record` applied to `update`, so it could only ever be
+  // arrowed to. The detail column carries the longer name.
+  (Fixtures.candidateLabels (Fixtures.chars "in")) = [ "int", "interpolation" ]
 
   // Picking from the menu builds what the character builds.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "list") [ "<Enter>", "1", "<Esc>", "<Esc>" ])) = "[1]"
