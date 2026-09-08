@@ -1276,3 +1276,32 @@ module TheCaretDrawsPastAClosingBracket =
   // for `AfterNode`, and only over punctuation the node itself draws.
   (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
   (Fixtures.screen (Fixtures.chars "1")) = "1~"
+
+
+module AKeywordAfterACallIsNotAnArgument =
+  // `match Stdlib.List.length xs with` drew `... xs with with`, and `if Stdlib.List.isEmpty xs then` drew
+  // `... then then`, while `match n with` and `if c then` were fine. Ordinary code both ways.
+  //
+  // Typing the keyword the editor has ALREADY DRAWN is swallowed when the caret can see it BEHIND --
+  // a simple scrutinee settles, the space lands you in the pattern hole, and `prevKeyword` catches it.
+  // After a CALL the caret never gets there: an apply keeps taking arguments, so the keyword became a
+  // third one, sitting as `Partial('with')` at `args/1`.
+  //
+  // `nextKeyword` is the mirror of `prevKeyword`, asked from the other side, and the argument is dropped
+  // rather than committed. Sixth bug this session of one shape: two settling routes, two answers to the
+  // same question, and an example that works sitting next to one that does not.
+  (Fixtures.screen (Fixtures.chars "match Stdlib.List.length xs with ")) =
+    "match Stdlib.List.length xs with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Fixtures.chars "if Stdlib.List.isEmpty xs then ")) =
+    "if Stdlib.List.isEmpty xs then ~⟨then⟩ else ⟨else⟩"
+
+  // The simple scrutinee, which always worked and goes through the BACKWARD rule. Both paths now agree,
+  // which is the point.
+  (Fixtures.screen (Fixtures.chars "match n with ")) = "match n with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Fixtures.chars "if c then ")) = "if c then ~⟨then⟩ else ⟨else⟩"
+  (Fixtures.screen (Fixtures.chars "if c then 1 else ")) = "if c then 1 else ~⟨else⟩"
+
+  // A real argument after a call is still a real argument -- the swallow only fires when what you typed
+  // IS the keyword drawn next, so nothing that merely follows a call is at risk.
+  (Fixtures.screen (Fixtures.chars "Stdlib.List.map xs f ")) = "Stdlib.List.map xs f~"
+  (Fixtures.screen (Fixtures.chars "Stdlib.String.split line \",\" ")) = "Stdlib.String.split line \",\"~"

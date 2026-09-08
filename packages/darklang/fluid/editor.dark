@@ -1246,6 +1246,58 @@ let prevKeywordIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<St
 
 
 let prevKeyword (st: State) : Stdlib.Option.Option<String> = prevKeywordIn (layout st) st
+
+/// The next KEYWORD drawn after the caret, if the very next thing drawn is one.
+///
+/// The mirror of `prevKeyword`, and needed for the same reason from the other side. Typing a keyword the
+/// editor has already drawn is swallowed when the caret can SEE it behind -- `match n with` lands you in
+/// the pattern hole with `with` just before you. After a CALL it never gets there: an apply keeps taking
+/// arguments, so `match Stdlib.List.length xs with` made `with` a third argument and drew `with with`.
+///
+/// Punctuation does not stop the scan (a match arm draws `| ` between the `with` and the hole) and blanks
+/// do not either, but a NAME does: the next drawn name is someone else's, not a keyword we are about to
+/// duplicate.
+let nextKeywordIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
+  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  | Some((row, col)) ->
+    let mine (c: Layout.Cell) : Bool =
+      match c.tag with
+      | Some t -> Layout.tagMatches t st.caret.node st.caret.part
+      | None -> false
+
+    let firstOfRow (r: Layout.Row) (from: Int) : Stdlib.Option.Option<Layout.Cell> =
+      let step (acc: (Int * Stdlib.Option.Option<Layout.Cell>)) (c: Layout.Cell) : (Int * Stdlib.Option.Option<Layout.Cell>) =
+        let (x, best) = acc
+        let ends = x + c.width
+        if (Stdlib.Option.isSome best) || (x < from) then (ends, best)
+        elif ((Stdlib.String.trim c.text) == "") || (mine c) || (c.style == Layout.Style.Punct) then (ends, best)
+        else (ends, Stdlib.Option.Option.Some c)
+      let (_, cell) = Stdlib.List.fold r (0, Stdlib.Option.Option.None) step
+      cell
+
+    let onRow =
+      match Stdlib.List.getAt rows row with
+      | Some r -> firstOfRow r col
+      | None -> Stdlib.Option.Option.None
+
+    let cell =
+      match onRow with
+      | Some c -> Stdlib.Option.Option.Some c
+      | None ->
+        Stdlib.List.range (row + 1) ((Stdlib.List.length rows) - 1)
+        |> Stdlib.List.filterMap (fun i ->
+          match Stdlib.List.getAt rows i with
+          | Some r -> firstOfRow r 0
+          | None -> Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+
+    cell
+    |> Stdlib.Option.andThen (fun c ->
+      if c.style == Layout.Style.Keyword then Stdlib.Option.Option.Some(Stdlib.String.trim c.text)
+      else Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
+
+let nextKeyword (st: State) : Stdlib.Option.Option<String> = nextKeywordIn (layout st) st
 /// The punctuation drawn immediately before the caret, as one token: the `->` of a lambda or a match arm,
 /// the `|` before a pattern. `prevDrawn` skips punctuation to find a keyword, so this walks the raw row.
 let prevPunctIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<String> =
@@ -1882,6 +1934,30 @@ let typeOneRaw (st: State) (c: String) : State =
           // Darklang and the stdlib writes both: `| Ok v ->` and `| Ok(row :: _) ->`. It only commits on
           // an EXACT match, never on a lone prefix -- `(` after a half-typed name is someone opening a
           // group, not accepting a completion they cannot see the end of.
+          // The keyword the editor has ALREADY DRAWN, typed again. `prevKeyword` catches this when the
+          // keyword sits behind the caret; after a call it is ahead, because an apply keeps taking
+          // arguments and the caret never leaves the arg list. `match Stdlib.List.length xs with` made
+          // `with` a third argument and drew `with with`, while `match n with` was fine -- the same
+          // question answered two ways depending on how the scrutinee settled.
+          //
+          // Drop the argument rather than committing it, and let the space do what it would have done
+          // with no argument there.
+          let typedText =
+            match slotUnder st with
+            | Some(Partial(t, _)) -> t
+            | _ -> ""
+
+          let duplicatesNextKeyword =
+            (typedText != "") && ((nextKeyword st) == Stdlib.Option.Option.Some typedText)
+
+          if duplicatesNextKeyword then
+            match (Path.parent sp, Path.last sp) with
+            | (Some parentPath, Some(Item(slot, i))) ->
+              let st1 = commit st [ Edit.RemoveItem(parentPath, slot, i) ] caret
+              nextHole { st1 with caret = Caret.onNode parentPath }
+            | _ -> nextHole st
+          else
+
           let cands = candidates st
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
