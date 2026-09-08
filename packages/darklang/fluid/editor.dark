@@ -2740,13 +2740,18 @@ let collapseInfix (st: State) (p: Path) (n: Node) : State =
 /// When you delete a construct keyword, it collapses to this slot: a let/lambda to its body, an if to its
 /// then-branch, a match to its scrutinee. Each is an expression hole carrying the right expectation, so
 /// the collapse lands on a clean blank rather than a fabricated one.
-let constructTargetSlot (n: Node) : Stdlib.Option.Option<Slot> =
-  match n.kind.case with
-  | Some "ELet" -> Node.slot n "body"
-  | Some "ELambda" -> Node.slot n "body"
-  | Some "EIf" -> Node.slot n "then"
-  | Some "EMatch" -> Node.slot n "arg"
-  | _ -> Stdlib.Option.Option.None
+///
+/// The slot comes from the spec. It was four kind names here, one line each, which is the same thing the
+/// `MPEnum` branch was doing before `opensItems`: a real question answered by a list of the constructs
+/// somebody had got round to. `collapsesToHole`, three lines further down, already asks its half of this
+/// question of the SHAPE and says so in its comment.
+let constructTargetSlot (reg: Registry) (n: Node) : Stdlib.Option.Option<Slot> =
+  match Registry.find reg n.kind with
+  | Some spec ->
+    (match spec.collapsesTo with
+     | Some slot -> Node.slot n slot
+     | None -> Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
 
 /// Nothing has been typed anywhere in this node: every slot is a hole (or a structural child that is itself
 /// all holes, like a fresh match arm), and no text has been entered. Hash slots (`_hash`) don't count.
@@ -2800,7 +2805,7 @@ let tryCollapseConstruct (st: State) : Stdlib.Option.Option<State> =
       let fe = firstEditable caret.node n
       let atStart = (fe.part == caret.part) && (allHolesEmpty n)
 
-      match constructTargetSlot n with
+      match constructTargetSlot st.reg n with
       | Some target ->
         if atStart then
           let st1 = commit st [ Edit.Replace(caret.node, target) ] caret

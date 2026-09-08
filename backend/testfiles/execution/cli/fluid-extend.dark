@@ -496,3 +496,47 @@ module GenerateTheEditorThatShips =
   ((Darklang.Fluid.Derive.kindFromString "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
     |> Stdlib.List.map (fun k -> Darklang.Fluid.Kind.toString k))) =
     [ "Darklang.LanguageTools.ProgramTypes.Expr.EIf", "Darklang.LanguageTools.ProgramTypes.Expr.EIf" ]
+
+
+module ACollapseTheKernelDoesNotKnow =
+  // Backspace at the start of an untouched construct leaves one child behind: a let and a lambda their
+  // body, an if its then, a match its scrutinee. WHICH child was four kind names in the kernel, so a
+  // language the kernel has never heard of could not have the key at all -- while its neighbour
+  // `collapsesToHole`, which handles the empty-collection half, had always asked the SHAPE and said in
+  // its own comment that a DSL got that one for free. Only one half was true.
+  //
+  // `Acme.Wrap` is nothing Darklang defines. It gets the key because its spec says where to go.
+  let wrapKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Wrap"
+
+  let innerExpect () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Acme.Inner") "inner"
+
+  let emptyWrap () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ACollapseTheKernelDoesNotKnow.wrapKind ())
+      [ ("inner", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(ACollapseTheKernelDoesNotKnow.innerExpect ()))) ]
+
+  let spec (collapses: Bool) : Darklang.Fluid.Spec =
+    let base =
+      Darklang.Fluid.Spec.simple
+        (ACollapseTheKernelDoesNotKnow.wrapKind ())
+        [ Darklang.Fluid.Piece.Keyword "wrap", Darklang.Fluid.Piece.Space, Darklang.Fluid.Piece.Slot "inner" ]
+        (ACollapseTheKernelDoesNotKnow.emptyWrap ())
+
+    if collapses then
+      Darklang.Fluid.Spec.collapsingTo base "inner"
+    else
+      base
+
+  let target (collapses: Bool) : String =
+    let reg = Darklang.Fluid.Registry.ofList [ ACollapseTheKernelDoesNotKnow.spec collapses ]
+
+    match Darklang.Fluid.Editor.constructTargetSlot reg (ACollapseTheKernelDoesNotKnow.emptyWrap ()) with
+    | Some(Empty e) -> "hole: " ++ e.label
+    | Some _ -> "filled"
+    | None -> "none"
+
+  (ACollapseTheKernelDoesNotKnow.target true) = "hole: inner"
+
+  // A spec that says nothing still gets nothing: the kernel invents no survivor of its own.
+  (ACollapseTheKernelDoesNotKnow.target false) = "none"

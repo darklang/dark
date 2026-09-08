@@ -1785,6 +1785,7 @@ let pipeTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
@@ -2174,6 +2175,7 @@ let exprTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps"; continuesText = false }
@@ -2261,6 +2263,7 @@ let letPatTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      collapsesTo = Stdlib.Option.Option.None
       bindsNames = true
       completions =
         [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
@@ -2325,6 +2328,7 @@ let matchPatTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      collapsesTo = Stdlib.Option.Option.None
       bindsNames = true
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts"; continuesText = false }
@@ -2404,6 +2408,7 @@ let moreSpecs () : List<Spec> =
         Piece.EachWith("cases", [ Piece.Punct "|", Piece.Space ], [ Piece.HardLine ]) ]
         (emptyMatch ()))
       matchOffers
+    |> fun sp -> Spec.collapsingTo sp "arg"
     simpleExpr
       "EPipe"
       // A pipe that fits stays on one line, and one that does not puts a step on each. It used to be a
@@ -2597,6 +2602,9 @@ let baseSpecs () : List<Spec> =
         Piece.Slot "body" ]
       (emptyLet ())
     |> fun sp -> Spec.withBinders sp letBinders
+    // Backspace at the start of an untouched `let` leaves the BODY behind. The four constructs with an
+    // obvious survivor used to be a list of kind names in the kernel; each says so itself now.
+    |> fun sp -> Spec.collapsingTo sp "body"
     simpleExpr
       "EIf"
       // Grouped: one line when it fits, vertical when it does not. It was hard-lined unconditionally, and
@@ -2620,6 +2628,7 @@ let baseSpecs () : List<Spec> =
     // has always said so while nothing enforced it: typing past a settled else grew the list, drew a
     // second `else`, and lowered to a program without it.
     |> fun sp -> { sp with actions = ifActions (); maxItems = elseMaxItems }
+    |> fun sp -> Spec.collapsingTo sp "then"
     simpleExpr
       "EInfix"
       [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
@@ -2646,6 +2655,7 @@ let baseSpecs () : List<Spec> =
             Piece.Punct ")" ] ]
       (emptyLambda ())
     |> fun sp -> Spec.withBinders sp lambdaBinders
+    |> fun sp -> Spec.collapsingTo sp "body"
     (simpleExpr
       "EApply"
       // `EachWrapped` draws NOTHING when the list is empty, so a call without type arguments is byte for
@@ -2902,6 +2912,7 @@ module Types =
         maxItems = Spec.noMaxItems
         noSequence = []
         opensItems = []
+        collapsesTo = Stdlib.Option.Option.None
         bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType

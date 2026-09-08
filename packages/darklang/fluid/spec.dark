@@ -243,6 +243,14 @@ type Spec =
     /// The kernel keeps the part that is not about any language: only an EMPTY list opens, and only from
     /// the end of a text slot. The spec says which character and which slot.
     opensItems: List<(String * String)>
+    /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
+    /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
+    /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
+    ///
+    /// Its neighbour `collapsesToHole` already asks this of the SHAPE (a list with no items, a node with
+    /// no fields), and says in its own comment that anything a DSL builds the same way gets the key for
+    /// free. This half was a list of four kind names, so it did not.
+    collapsesTo: Stdlib.Option.Option<String>
     /// Does a hole of this kind INTRODUCE a name rather than reference one?
     ///
     /// A space or a Tab commits an unambiguous keyword PREFIX, which is how `le` becomes `let`. That is
@@ -314,6 +322,7 @@ module Spec =
         maxItems = Spec.noMaxItems
         noSequence = []
         opensItems = []
+        collapsesTo = Stdlib.Option.Option.None
         bindsNames = false
         completions = []
         complete = noCompletions
@@ -345,6 +354,10 @@ module Spec =
 
   /// A spec that says which character opens which of its empty item lists.
   let opensItemsOn (spec: Spec) (pairs: List<(String * String)>) : Spec = { spec with opensItems = pairs }
+
+  /// A spec that says which of its children survives when the construct is deleted.
+  let collapsingTo (spec: Spec) (slot: String) : Spec =
+    { spec with collapsesTo = Stdlib.Option.Option.Some slot }
 
   /// A spec whose holes introduce names rather than reference them.
   let bindsItsNames (spec: Spec) : Spec = { spec with bindsNames = true }
