@@ -92,7 +92,12 @@ module BackspaceRemovesItem =
   // Backspace on an empty element removes it (one comma too many, undone), down to the last one.
   (Fixtures.screen [ "[", "1", ",", "<BS>" ]) = "[1~]"
   (Fixtures.screen [ "[", "1", ",", "2", ",", "<BS>" ]) = "[1, 2~]"
-  (Fixtures.screen [ "[", "<BS>" ]) = "[~⟨item⟩]"
+
+  // At the LAST element there is no element to remove, and this used to stop there -- which meant
+  // Backspace on `[` did nothing at all, since `[` gives you a list of exactly one hole. The bracket is
+  // what you are undoing at that point, so the list goes with it, the way an untouched `let` or `if`
+  // already did.
+  (Fixtures.screen [ "[", "<BS>" ]) = "~⟨expression⟩"
 
 
 module CommaAddsItem =
@@ -1358,3 +1363,31 @@ module BackspaceAfterAClosingBracketStepsInside =
   // Backspace where there IS text behind the caret is untouched.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "s.width") [ "<BS>" ])) = "s.widt~"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1+2") [ "<BS>" ])) = "1 + ~⟨expression⟩"
+
+
+module AnEmptyCollectionBackspacesAway =
+  // `[]` and `()` could not be deleted. Backspace on them did nothing and undo was the only way back --
+  // the last of the "key that does nothing" family the sweeps kept turning up.
+  //
+  // `tryCollapseConstruct` asks `constructTargetSlot` what a construct BECOMES: a let becomes its body,
+  // an if its then. An empty collection has no survivor to become, so it had no rule at all. It becomes
+  // the hole it came from.
+  //
+  // Asked of the SHAPE rather than by naming kinds -- a list whose items are all holes, or a node with no
+  // fields at all, which is what `()` is -- so a DSL collection gets the same key without saying
+  // anything. `allHolesEmpty` still guards it, so nothing filled is ever at risk.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[]") [ "<BS>", "<BS>" ])) = "~⟨expression⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "()") [ "<BS>", "<BS>" ])) = "~⟨expression⟩"
+
+  // `[]` and `[⟨item⟩]` are the same list to anyone looking at it, so backspacing out of `[1]` reaches a
+  // hole rather than stopping one step short.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>", "<BS>", "<BS>" ])) = "~⟨expression⟩"
+
+  // Anything with real content in it is untouched: this only fires on an untouched node.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1, 2]") [ "<BS>" ])) = "[1, 2~]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2)") [ "<BS>" ])) = "(1, 2~)"
+
+  // And the four constructs that DO have a survivor still collapse to it.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "le") [ "<Enter>", "<BS>" ])) = "~⟨body⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "if ") [ "<BS>" ])) = "~⟨then⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "ma") [ "<Enter>", "<BS>" ])) = "~⟨arg⟩"

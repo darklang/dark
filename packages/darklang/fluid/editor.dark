@@ -2244,6 +2244,29 @@ let allHolesEmpty (n: Node) : Bool =
     | One s -> slotHollow s
     | Many(items, _) -> items |> Stdlib.List.all (fun s -> slotHollow s))
 
+/// A node that collapses to a plain HOLE rather than to one of its children.
+///
+/// `constructTargetSlot` answers "what does this construct become" for the four that have an obvious
+/// survivor -- a let becomes its body, an if its then. An empty COLLECTION has no survivor: `[]` and `()`
+/// and `{}` should just become a hole again. They had no rule at all, so Backspace on them did nothing
+/// and the only way back was undo.
+///
+/// Asked of the shape rather than by naming kinds: a list with no items, or a node with no fields at all
+/// (which is what `()` is). Anything a DSL builds with the same shape gets the same key for free.
+let collapsesToHole (n: Node) : Bool =
+  // Items that are all HOLES count as empty, not just an item list of length zero: `[]` and `[<item>]`
+  // are the same list to anyone looking at it, and only one of them collapsing is the kind of split this
+  // editor keeps producing. The caller has already checked `allHolesEmpty`, so nothing filled is at risk.
+  let emptyCollection =
+    n.fields
+    |> Stdlib.List.any (fun f ->
+      let (_, fld) = f
+      match fld with
+      | Many(items, _) -> items |> Stdlib.List.all (fun s -> Slot.isEmpty s)
+      | _ -> false)
+
+  emptyCollection || (Stdlib.List.isEmpty n.fields)
+
 /// Backspace at the very start of an untouched construct deletes it: an empty `let`/`if`/`match`/lambda
 /// collapses to a blank expression hole, so a keyword typed by mistake is one keystroke to undo. Only
 /// fires from the construct's first hole and only when nothing is filled in, so real work is never lost.
@@ -2254,15 +2277,24 @@ let tryCollapseConstruct (st: State) : Stdlib.Option.Option<State> =
   else
     match nodeAtPath st.root caret.node with
     | Some n ->
+      let fe = firstEditable caret.node n
+      let atStart = (fe.part == caret.part) && (allHolesEmpty n)
+
       match constructTargetSlot n with
       | Some target ->
-        let fe = firstEditable caret.node n
-        if (fe.part == caret.part) && (allHolesEmpty n) then
+        if atStart then
           let st1 = commit st [ Edit.Replace(caret.node, target) ] caret
           Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
         else
           Stdlib.Option.Option.None
-      | None -> Stdlib.Option.Option.None
+      | None ->
+        // No survivor to collapse to, but an empty collection still has to go somewhere: back to the
+        // hole it came from.
+        if atStart && (collapsesToHole n) then
+          let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty(expectForSlot st caret.node)) ] caret
+          Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
+        else
+          Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
 /// Backspace at the start of a list/tuple element deletes the separator before it, merging the two
