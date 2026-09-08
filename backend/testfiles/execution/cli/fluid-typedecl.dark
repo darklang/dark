@@ -465,3 +465,43 @@ module EndWorksOnADocComment =
 
   // And it lands at the end of ordinary text elsewhere on the line, which it always did.
   (EndWorksOnADocComment.run [ "<Esc>", "j", "j", "i", "<End>" ]) = "/// Some words here.\ntype T =\n  Int~"
+
+
+module AWideCaseBreaksTheWayThePrinterBreaksIt =
+  // A standing note said Fluid and the printer break a long `of` list differently -- the printer packing
+  // greedily where Fluid's group is all-or-nothing. Checked at three widths and they agree exactly, so
+  // the note was stale. Pinned rather than just crossed off, because "Fluid draws what the printer draws"
+  // is the property this editor is FOR, and it was resting on nobody having looked.
+  let wide () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase
+            "Wide"
+            [ Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+              Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ] ])
+
+  let fluidAt (w: Int) : String =
+    Darklang.Fluid.Debug.render (Fixtures.reg ()) w
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Big" (AWideCaseBreaksTheWayThePrinterBreaksIt.wide ())))
+
+  // The printer names the type by hash here (a constructed type is in no store), so the comparison is of
+  // everything BELOW that line -- which is the part that breaks.
+  let printerAt (w: Int) : String =
+    let ctx = { (Darklang.Fluid.PT.printerContext ()) with width = w }
+    Darklang.PrettyPrinter.ProgramTypes.packageType ctx (AWideCaseBreaksTheWayThePrinterBreaksIt.wide ())
+
+  let bodyOf (s: String) : String =
+    Stdlib.String.split s "\n" |> Stdlib.List.drop 1 |> (fun ls -> Stdlib.String.join ls "\n")
+
+  // Fits on one line, breaks one field per line, and agrees with the printer at every width.
+  (AWideCaseBreaksTheWayThePrinterBreaksIt.fluidAt 50) = "type Big =\n  | Wide of Int * Int * Int * Int * Int * Int"
+  (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.fluidAt 50))
+    = (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.printerAt 50))
+  (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.fluidAt 30))
+    = (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.printerAt 30))
+  (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.fluidAt 24))
+    = (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.printerAt 24))
