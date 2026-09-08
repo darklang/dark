@@ -623,6 +623,20 @@ let writeBehaviourValue
 // Identity writers: behaviour, plus the doc comment (see the module doc)
 // =====================
 
+// TODO: documentation probably should not be a field of the declaration at all, and
+// then this pair of writers goes away.
+//
+// A doc comment is a separate thing said ABOUT an item, so an edit to it wants to be
+// its own op rather than a re-authoring of the item. The shape that generalises: a
+// doc is a package VALUE of a broadly-known type -- roughly `{ text: String;
+// reference: PackageThing }` -- and "known type" is a thing this world needs anyway.
+// Most metadata we currently bolt onto declarations (docs, examples, deprecation
+// notes) could be values of known types pointing AT an item, which is also how a
+// third party annotates something they do not own.
+//
+// Until then the doc rides in the identity hash, because the alternative was worse:
+// a doc-only edit deduped to nothing while the CLI reported "Updated".
+
 /// A doc comment, written so that "absent" and "empty" agree: both are the empty string, which is
 /// how the parser and the round-trip both spell "no doc".
 let private writeDescription (w : BinaryWriter) (description : string) =
