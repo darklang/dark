@@ -142,7 +142,7 @@ let failureOfErrno (errno : int, message : string) : Failure =
     match errno with
     | 2 -> FailureKind.NotFound
     | 1
-    | 13 -> FailureKind.PermissionDenied
+    | 13 -> FailureKind.OsAccessDenied
     | _ -> FailureKind.Other
   { kind = kind; errno = errno; message = message }
 
@@ -194,7 +194,7 @@ let private classify (e : exn) : Failure =
     match e with
     | :? System.IO.FileNotFoundException
     | :? System.IO.DirectoryNotFoundException -> FailureKind.NotFound
-    | :? System.UnauthorizedAccessException -> FailureKind.PermissionDenied
+    | :? System.UnauthorizedAccessException -> FailureKind.OsAccessDenied
     | _ -> FailureKind.Other
   { kind = kind; errno = -1; message = e.Message }
 

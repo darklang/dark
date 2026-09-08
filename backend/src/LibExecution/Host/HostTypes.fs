@@ -182,10 +182,8 @@ type FailureKind =
   | NotFound
   /// The OS refused (EACCES, UnauthorizedAccessException) — not a policy
   /// denial, which raises before the operation runs and never appears here.
-  // CLEANUP consider renaming to OsAccessDenied: three different things are
-  // called PermissionDenied (this OS failure, the policy-denial RTE, and the
-  // CLI's ExecutionError.Denied), and this one is the odd one out.
-  | PermissionDenied
+  /// The OS refused access after the runtime policy allowed the operation.
+  | OsAccessDenied
   | Other
 
 /// An OS-level failure after the policy check passed. Guest-visible as a
