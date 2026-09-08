@@ -1192,3 +1192,28 @@ module ABareNameInDoubleParensCollapses =
   (Fixtures.screen (Fixtures.chars "()")) = "()~"
   (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
   (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
+
+
+module EnterStartsTheNextArmWhateverTheRhsIs =
+  // Enter after a match arm depended on the SHAPE of the rhs. After `1` or `v` the caret sits in a text
+  // slot and Enter added the next arm; after `"zero"` the closing quote leaves it AfterNode and Enter
+  // opened a statement INSIDE the arm instead. Same key, same place, two answers -- and the string one is
+  // what you hit writing `| 0 -> "zero"` and reaching for the next case.
+  //
+  // The AfterNode branch went straight to `sequenceHere`. Everywhere else Enter tries the next ITEM first
+  // and falls back to a statement, which is the order that makes the answer about WHERE you are rather
+  // than what you happened to type.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 \"zero\"") [ "<Enter>" ])) =
+    "match n with\n| 0 -> \"zero\"\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 1") [ "<Enter>" ])) =
+    "match n with\n| 0 -> 1\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n 0 v") [ "<Enter>" ])) =
+    "match n with\n| 0 -> v\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // A list element is the same question, and a string element used to answer it differently too.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1") [ "<Enter>" ])) = "[1, ~⟨item⟩]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[\"a\"") [ "<Enter>" ])) = "[\"a\", ~⟨item⟩]"
+
+  // Outside any sequence Enter still starts the next STATEMENT, which is the fallback it always was.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<Enter>" ])) = "1 + 2\n~⟨next⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "1") [ "<Enter>", "2", "<Esc>", "<Esc>" ])) = "1\n2"

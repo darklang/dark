@@ -3137,9 +3137,17 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // landing the caret there rather than jumping, Enter at that spot did NOTHING, and a key that does
     // nothing is the thing to avoid.
     if st.caret.part == Part.AfterNode then
-      match sequenceHere settled with
-      | Some seq -> handled seq
-      | None -> handled (nextHole st)
+      // Start the next ITEM before starting the next statement, which is the order the branch below has
+      // always used. Skipping it here made Enter depend on the SHAPE of what you had just written: after
+      // a match arm whose rhs was `1` or `v` the caret sits in a text slot and Enter added the next arm,
+      // while after `"zero"` the closing quote leaves it AfterNode and Enter opened a statement inside
+      // the arm instead. Same key, same place, two answers.
+      match addSibling settled with
+      | Some added -> handled added
+      | None ->
+        match sequenceHere settled with
+        | Some seq -> handled seq
+        | None -> handled (nextHole st)
     else
     // In a sequence (list element, match arm, record field), Enter settles what you typed and starts the
     // next item -- even with a menu up, so a bound variable that matches the rhs doesn't hijack Enter into
