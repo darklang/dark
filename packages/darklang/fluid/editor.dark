@@ -2038,10 +2038,16 @@ let typeOneRaw (st: State) (c: String) : State =
         let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
         let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled fnode) ] caret
         { st1 with caret = Caret.inText caret.node "fraction" 0 }
-      elif (c == " ") && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
+      elif (Stdlib.Bool.not (isIdentChar c)) && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
         // The keyword the editor already drew, typed again. See `clearsDrawnKeyword`, which Enter asks
         // the same question of.
-        clearsDrawnKeyword st |> Stdlib.Option.withDefault st
+        //
+        // Any character that cannot CONTINUE the keyword ends it, not just a space. It was space-only, so
+        // `match args with[]` kept a pattern called `with` and dropped the `[]`, while
+        // `match args with []` was fine. An identifier character is the one thing that must not clear:
+        // `with0` is a name somebody may mean, and only the person typing knows.
+        let cleared = clearsDrawnKeyword st |> Stdlib.Option.withDefault st
+        if c == " " then cleared else typeOne cleared c
       elif (c == " ") && (slot != "body") && (slot != "text") && atEnd && (Stdlib.Bool.not (old == "")) then
         // Space at the end of a finished name means "done here", but NOT always "and on to the next
         // hole". Where an operator could follow, it has to leave the caret on what was just settled so
@@ -2268,14 +2274,17 @@ let typeOneRaw (st: State) (c: String) : State =
           && (TextEdit.isLetterString (Stdlib.String.first text 1))
           && (Stdlib.Bool.not (Stdlib.String.contains text "."))
           && ((Stdlib.String.toLowercase text) == text)
-        if atEnd && (c == " ") && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
+        if atEnd && (Stdlib.Bool.not (isIdentChar c)) && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
           // You typed the keyword the editor had already drawn. `if x > 0 then 1 else 2` is written with
           // its `then` and `else` by anyone with muscle memory, and they were landing in the branch holes
           // as variables named `then` and `else`. Same shape as re-typing the `=` of a let. Throw it away
           // and stay in the hole, which is where the branch itself goes.
           //
-          // Shared with Enter now, which had the same question and a different answer.
-          clearsDrawnKeyword st |> Stdlib.Option.withDefault st
+          // Shared with Enter now, which had the same question and a different answer. And with every
+          // character that cannot continue the keyword, not just the space: `match args with[]` used to
+          // keep a pattern called `with` and throw the `[]` away.
+          let cleared = clearsDrawnKeyword st |> Stdlib.Option.withDefault st
+          if c == " " then cleared else typeOne cleared c
         elif atEnd && ((c == " ") || ((c == "(") && (Stdlib.Option.isSome (exactCandidate st)))) then
           // Space commits the menu only when it's unambiguous -- exactly one candidate (a keyword prefix
           // like `le`->let) or an exact match (`let`). A loose prefix with several candidates (`f` ->

@@ -2043,3 +2043,27 @@ module ASettleThatLandsInAHoleHasAlreadyMoved =
   (Fixtures.screen (Fixtures.chars "{ r with x ")) = "{ r with\n  x = ~⟨value⟩\n}"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Tab>" ])) = "{ r with\n  x = ~⟨value⟩\n}"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "{ r with x") [ "<Esc>" ])) = "{ r with\n  x = ~⟨value⟩\n}"
+
+
+module AnyCharacterCanEndADrawnKeyword =
+  // Found by driving the TUI, not by the harness: I typed `match args with` with no space after it and
+  // the `[]` vanished, leaving a pattern called `with`.
+  //
+  //     match args with[]      | with -> ⟨rhs⟩     the `[]` thrown away
+  //     match args with []     | [] -> ⟨rhs⟩       fine
+  //
+  // `clearsDrawnKeyword` was asked only when the next key was a SPACE (or Enter). Any character that
+  // cannot CONTINUE the keyword ends it just as much -- that is what "you have finished typing the word"
+  // means -- and the character then has to be typed at the restored caret rather than swallowed.
+  //
+  // The one thing that must NOT clear is an identifier character. `with0` is a name somebody may mean,
+  // and nothing in the document can tell you otherwise.
+  (Fixtures.screen (Fixtures.chars "match args with[] options")) = "match args with\n| [] -> options~"
+  (Fixtures.screen (Fixtures.chars "match args with []")) = "match args with\n| []~ -> ⟨rhs⟩"
+  (Fixtures.screen (Fixtures.chars "match args with[")) = "match args with\n| [~⟨pattern⟩] -> ⟨rhs⟩"
+  (Fixtures.screen (Fixtures.chars "match args with0")) = "match args with\n| with0~ -> ⟨rhs⟩"
+
+  // The same question one construct over: `if` draws its own `then`, and a `(` right after the typed-back
+  // `then` has to build a group in the branch rather than a variable called `then`.
+  (Fixtures.screen (Fixtures.chars "if a then(")) = "if a then (~⟨item⟩, ⟨item⟩) else ⟨else⟩"
+  (Fixtures.screen (Fixtures.chars "if a then[")) = "if a then [~⟨item⟩] else ⟨else⟩"
