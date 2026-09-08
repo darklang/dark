@@ -6,6 +6,17 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
+/// A flag for the C library's open() call, named rather than numbered.
+/// `Host.openFlag` turns it into the platform's number.
+[<RequireQualifiedAccess>]
+type OpenFlag =
+  | ReadOnly
+  | WriteOnly
+  | ReadWrite
+  | Create
+  | Truncate
+  | Append
+
 /// Posix operations with a scoped resource (a path, env name, or spawn). The
 /// libc twins of the .NET operations exist because libc semantics differ (the
 /// libc environment vs the CLR cache, fork/exec details), so they keep their

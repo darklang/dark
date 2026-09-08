@@ -278,8 +278,10 @@ The libc-backed posix twins route through it too, with the libc bridge
 (paths, env names, spawns) go through `Host.perform`; an answer that is a
 path (the working directory, the home directory, a file's owner, the running
 binary) is checked as a read of that path. Raw fds, pids and spawns are
-`Native`. Plain host facts (uname, pid, uid, cpu count, terminal size) are
-effect-free and call `HostLibc` directly. Native-gated operations that do go
+`Native`. Plain host facts (uname, pid, uid, cpu count) are effect-free and
+call `HostLibc` directly; the terminal size and the open() flag values are
+handed out by `Host` itself, so those builtins name only the door. Native-gated
+operations that do go
 through the boundary (fd reads, process I/O) are checked once, at the
 interpreter's gate; the boundary executes and audits them without a second
 decision. HTTP server binds

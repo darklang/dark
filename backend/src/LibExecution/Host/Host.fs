@@ -866,3 +866,21 @@ let httpStreamRead (handle : int64) (maxBytes : int) : Task<Option<byte[]>> =
   }
 
 let httpStreamClose (handle : int64) : unit = HostHttp.closeStream handle
+
+// ── host facts ────────────────────────────────────────────────────────────────
+
+/// The platform value of one open() flag.
+let openFlag (flag : HostTypes.OpenFlag) : int =
+  match flag with
+  | HostTypes.OpenFlag.ReadOnly -> HostLibc.O_RDONLY
+  | HostTypes.OpenFlag.WriteOnly -> HostLibc.O_WRONLY
+  | HostTypes.OpenFlag.ReadWrite -> HostLibc.O_RDWR
+  | HostTypes.OpenFlag.Create -> HostLibc.O_CREAT
+  | HostTypes.OpenFlag.Truncate -> HostLibc.O_TRUNC
+  | HostTypes.OpenFlag.Append -> HostLibc.O_APPEND
+
+/// The kernel's current window size for a terminal descriptor, as
+/// (columns, rows). None when the descriptor is not a terminal, on Windows,
+/// and on macOS, where the ioctl bridge is unsafe (see `HostLibc`).
+let terminalWindowSize (fd : int) : Option<int64 * int64> =
+  HostLibc.tryTerminalWindowSize fd

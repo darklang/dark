@@ -57,13 +57,6 @@ let private ambientHostLibcMembers =
       "getuid"
       "cpuCount"
       "fnmatch"
-      "tryTerminalWindowSize"
-      "get_O_RDONLY"
-      "get_O_WRONLY"
-      "get_O_RDWR"
-      "get_O_CREAT"
-      "get_O_TRUNC"
-      "get_O_APPEND"
       "get_FNM_PATHNAME"
       "get_LOCK_EX"
       "get_LOCK_UN" ]
