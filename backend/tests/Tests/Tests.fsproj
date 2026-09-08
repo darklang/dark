@@ -29,6 +29,7 @@
     <Compile Include="Prelude.Tests.fs" />
 
     <Compile Include="PT2RT.Tests.fs" />
+    <Compile Include="PermissionsGate.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="HostBoundary.Tests.fs" />
