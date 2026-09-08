@@ -19,6 +19,15 @@ type Part =
   /// Just after this whole node, in its parent's scope. Where the caret lands after stepping past a
   /// closing delimiter, so the next comma or element targets the enclosing list, not the one just closed.
   | AfterNode
+  /// Not a place the caret can be: punctuation a node DRAWS, tagged so the node's extent includes it.
+  ///
+  /// `AfterNode` is located by walking to the end of the cells belonging to a node, and punctuation used
+  /// to be drawn untagged, so a node's extent stopped before its own closing bracket. The caret then drew
+  /// inside it -- `[1~]` for a caret that is after the list, `"abc~"` for one after the string -- which
+  /// also made AfterNode and end-of-content look identical on screen.
+  ///
+  /// `taggedCells` filters these out, so navigation never lands on one; only `locate` counts them.
+  | Decoration
 
 type Caret =
   { node: Path

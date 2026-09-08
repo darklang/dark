@@ -160,12 +160,12 @@ module FieldAccess =
 module ClosingDelimiter =
   // Re-typing a closing delimiter that's already on screen doesn't drop a stray literal: with the list
   // closed as `[1]`, another `]` is a no-op rather than `[1]]`. The list still lowers cleanly.
-  (Fixtures.screen [ "[", "1", "]" ]) = "[1~]"
+  (Fixtures.screen [ "[", "1", "]" ]) = "[1]~"
   (Fixtures.program [ "[", "1", "]" ]) = "[1]"
-  (Fixtures.screen [ "[", "1", "2", "3", "]" ]) = "[123~]"
+  (Fixtures.screen [ "[", "1", "2", "3", "]" ]) = "[123]~"
 
   // Same for a string's closing quote: typing `"` at the end of the body doesn't add a second quote.
-  (Fixtures.screen [ "\"", "a", "b", "\"" ]) = "\"ab~\""
+  (Fixtures.screen [ "\"", "a", "b", "\"" ]) = "\"ab\"~"
   (Fixtures.program [ "\"", "a", "b", "\"" ]) = "\"ab\""
 
 
@@ -430,7 +430,7 @@ module ConsPatterns =
 module EmptyList =
   // `[` opens a list, an immediate `]` closes it empty. An empty collection carries a caret anchor, so
   // the caret sits between the brackets (no "caret not found"). A list with content still closes normally.
-  (Fixtures.screen [ "[", "]" ]) = "[~]"
+  (Fixtures.screen [ "[", "]" ]) = "[]~"
   (Fixtures.program [ "[", "]", "<Esc>" ]) = "[]"
   (Fixtures.program [ "[", "1", ",", "2", "]", "<Esc>" ]) = "[1, 2]"
   // Empty list as a cons tail: `1 :: []`.
@@ -1070,12 +1070,12 @@ module AParenAroundOneThingIsAGroup =
   //
   // Sits beside the two collapses already here: `()` is unit, `[]` is nil, `(x)` is x.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "(1 + 2)") [ "<Esc>", "<Esc>" ])) = "1 + 2"
-  (Fixtures.screen (Fixtures.chars "(fun x -> x)")) = "(fun x -> x~)"
+  (Fixtures.screen (Fixtures.chars "(fun x -> x)")) = "(fun x -> x)~"
   (Fixtures.screen (Fixtures.chars "let items = [1] items |> Stdlib.List.filter (fun x -> x)")) =
-    "let items = [1]\nitems |> Stdlib.List.filter (fun x -> x~)"
+    "let items = [1]\nitems |> Stdlib.List.filter (fun x -> x)~"
 
   // The two it must NOT collapse. A comma means a tuple was meant, and an immediate `)` is still unit.
-  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2)~"
   (Fixtures.screen (Fixtures.chars "()")) = "()~"
 
   // The caret has to be in the FILLED item, which is what tells `(1 + 2` + `)` from `(1, ` + `)`: in the
@@ -1168,7 +1168,7 @@ module AnIfHasAtMostOneElse =
 
   // The sequences that SHOULD still grow, so the cap is read per slot and not applied to every Many.
   (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
-  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2)~"
   (Fixtures.screen (Fixtures.chars "if a then 1 else 2")) = "if a then 1 else 2~"
 
 
@@ -1188,7 +1188,7 @@ module ABareNameInDoubleParensCollapses =
   (Fixtures.screen (Fixtures.chars "((1 + 2))")) = "1 + 2~"
 
   // The ones that must not move: a real tuple, unit, a tuple mid-typing, and a list.
-  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2~)"
+  (Fixtures.screen (Fixtures.chars "(1, 2)")) = "(1, 2)~"
   (Fixtures.screen (Fixtures.chars "()")) = "()~"
   (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
   (Fixtures.screen (Fixtures.chars "[1, 2, 3")) = "[1, 2, 3~]"
@@ -1248,3 +1248,31 @@ module AConstructorHasTheArityItsCaseDeclares =
     "match n with\n| 0 -> Result.Ok(1)\n| ~⟨pattern⟩ -> ⟨rhs⟩"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[Ok 1") [ "<Enter>" ])) =
     "[Result.Ok(1), ~⟨item⟩]"
+
+
+module TheCaretDrawsPastAClosingBracket =
+  // `AfterNode` used to draw INSIDE the node's own closing delimiter -- `[1~]` for a caret that is after
+  // the list, `"abc~"` for one after the string. Nine pins across this file recorded that position, so
+  // the wrong answer was written down nine times and passing.
+  //
+  // Worse than cosmetic: it made AfterNode and end-of-content look IDENTICAL. Pressing Left after closing
+  // a string appeared to do nothing, because the caret moved from AfterNode to the end of the body and
+  // both drew the same. Four Lefts looked like three.
+  //
+  // `Layout.locate` finds a node's extent by walking to the end of the cells belonging to it, and
+  // `Piece.Punct` was drawn untagged, so a node's extent stopped before its own bracket. Puncts now carry
+  // `Part.Decoration`: `locate` counts them, and `taggedCells` filters them out so caret motion, the hole
+  // list and `prevDrawn` see exactly what they saw before.
+  (Fixtures.screen (Fixtures.chars "\"abc\"")) = "\"abc\"~"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"abc\"") [ "<Left>" ])) = "\"abc~\""
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"abc\"") [ "<Left>", "<Left>" ])) = "\"ab~c\""
+
+  // The two positions are distinguishable now, which is the whole point: the pin above and the pin below
+  // it could not have been told apart before.
+  (Fixtures.screen (Fixtures.chars "[1]")) = "[1]~"
+  (Fixtures.screen (Fixtures.chars "[1, 2")) = "[1, 2~]"
+
+  // A caret genuinely INSIDE a construct still draws inside it. Decoration only extends a node's reach
+  // for `AfterNode`, and only over punctuation the node itself draws.
+  (Fixtures.screen (Fixtures.chars "(1, ")) = "(1, ~⟨item⟩)"
+  (Fixtures.screen (Fixtures.chars "1")) = "1~"

@@ -346,7 +346,9 @@ let widthOfPrefix (s: String) (graphemes: Int) : Int =
 /// the node, which is where a whole-node caret is shown.
 let tagMatches (t: Tag) (node: Path) (part: Part) : Bool =
   match part with
-  | OnNode -> Path.isPrefixOf node t.node
+  // Decoration is never a caret target, and `OnNode` must not settle on one: it takes the FIRST cell
+  // under the node, which would otherwise be an opening bracket rather than the node's own text.
+  | OnNode -> (t.part != Part.Decoration) && (Path.isPrefixOf node t.node)
   | _ -> t.node == node && t.part == part
 
 /// Row and column of a caret, or None if nothing displays that (node, part).
@@ -417,7 +419,12 @@ let taggedCells (rows: List<Row>) : List<(Int * Int * Cell)> =
       Stdlib.List.fold row ((0, [])) (fun acc c ->
         let (col, found) = acc
         match c.tag with
-        | Some _ -> (col + c.width, Stdlib.List.push found ((r, col, c)))
+        // Decoration is drawn by a node but is not part of it for navigation: an opening or closing
+        // bracket is not somewhere the caret goes. Everything walking this list -- caret motion, the
+        // hole list, `prevDrawn` -- wants content only. `locate` reads the rows directly and does count
+        // them, which is the whole point of tagging them.
+        | Some t -> if t.part == Part.Decoration then (col + c.width, found)
+                    else (col + c.width, Stdlib.List.push found ((r, col, c)))
         | None -> (col + c.width, found))
     Stdlib.List.reverse out)
   |> Stdlib.List.flatten
