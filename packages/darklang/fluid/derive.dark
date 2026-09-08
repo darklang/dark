@@ -327,6 +327,8 @@ let pieceSource (p: Piece) : String =
     "(* a ParenIfEach on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
   | LineOrHard(slot, _) ->
     "(* a LineOrHard on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
+  | Choose(slot, _, _, _) ->
+    "(* a Choose on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
 
 /// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
 /// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the

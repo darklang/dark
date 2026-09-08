@@ -1717,3 +1717,29 @@ module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
   (Fixtures.render "([1]).x" 60) = "([1]).x"
   (Fixtures.render "(f x).y" 60) = "(f x).y"
   (Fixtures.render "(if c then a else b).z" 60) = "(if c then a else b).z"
+
+
+module AnElseIfChainDoesNotStairStep =
+  // The `else` spec nested its branch unconditionally, so `else if` put the inner `if` on its own
+  // indented line and a chain gained a level per link. The printer keeps `else if c then` on one line at
+  // the OUTER if's indentation, and says why in a comment.
+  //
+  // Both branches of an `if` have a rule about a nested `if`, for opposite reasons, and only one of them
+  // was written. A `then` branch that is an `if` MUST break (flat, the `else` would attach to the inner
+  // one). An `else` branch that is an `if` must NOT be indented. `isIfNode` is now the one predicate both
+  // ask, because it is one fact.
+  //
+  // It needed a new piece. `LineOrHard` picks a BREAK from what is in a slot; this picks the surrounding
+  // SHAPE, which is what an `else` needs. `Piece.Choose(slot, pick, whenTrue, whenFalse)` is the general
+  // form, and the static queries over pieces (separators, lead punct, table columns) read BOTH branches,
+  // because they ask what a spec can say rather than what it says for one node.
+  (Fixtures.render "if a then 1 else if b then 2 else 3" 80) = "if a then 1 else if b then 2 else 3"
+  (Fixtures.render
+    "if Stdlib.String.startsWith arg \"--\" then Flag arg else if Stdlib.String.contains arg \"=\" then Pair arg else Bare arg"
+    80) =
+    "if Stdlib.String.startsWith arg \"--\" then\n  Flag.Flag(arg)\nelse if Stdlib.String.contains arg \"=\" then Pair.Pair(arg) else Bare.Bare(arg)"
+
+  // The other branch's rule, unchanged: a `then` that is an `if` still goes on its own line, because flat
+  // it would steal the outer `else`.
+  (Fixtures.render "if a then if b then 1 else 2 else 3" 80) =
+    "if a then\n  if b then 1 else 2\nelse\n  3"

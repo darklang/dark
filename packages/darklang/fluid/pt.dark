@@ -102,14 +102,24 @@ let elseExpect () : Expect = Expect.ofKind (elseBranchKind ()) "else"
 let elseBranch (inner: Slot) : Node =
   Node.make (elseBranchKind ()) [ ("expr", Field.One inner) ]
 
-/// A `then` branch that is itself an `if` cannot share the line: read back flat, the `else` attaches to
-/// the inner one whatever it was written for. The printer guards the same case, and says so.
-let thenMustBreak (n: Node) : Bool = n.kind.case == Stdlib.Option.Option.Some "EIf"
+/// An `if` in a branch, which both branches have a rule about, for opposite reasons.
+///
+/// A `then` branch that is an `if` cannot share the line: read back flat, the `else` attaches to the
+/// inner one whatever it was written for. An `else` branch that is an `if` must NOT be indented under
+/// its `else`, or `else if ... else if ...` stair-steps a level per link.
+///
+/// One predicate because it is one fact. The pair used to be one rule and a missing one.
+let isIfNode (n: Node) : Bool = n.kind.case == Stdlib.Option.Option.Some "EIf"
 
 let elseBranchSpec () : Spec =
   Spec.simple
     (elseBranchKind ())
-    [ Piece.Line, Piece.Keyword "else", Piece.Nest(2, [ Piece.Line, Piece.Slot "expr" ]) ]
+    [ Piece.Choose(
+        "expr",
+        isIfNode,
+        // `else if c then ...`, the inner `if` starting on this line at this indentation.
+        [ Piece.Line, Piece.Keyword "else", Piece.Space, Piece.Slot "expr" ],
+        [ Piece.Line, Piece.Keyword "else", Piece.Nest(2, [ Piece.Line, Piece.Slot "expr" ]) ]) ]
     (elseBranch (Slot.Empty(exprExpect "else")))
 
 let docLineSpec () : Spec =
@@ -2387,7 +2397,7 @@ let baseSpecs () : List<Spec> =
             Piece.ParenLowSlot "cond"
             Piece.Space
             Piece.Keyword "then"
-            Piece.Nest(2, [ Piece.LineOrHard("then", thenMustBreak), Piece.Slot "then" ])
+            Piece.Nest(2, [ Piece.LineOrHard("then", isIfNode), Piece.Slot "then" ])
             // Zero or one branch, each drawing its own `else` keyword. Nothing here when there is none.
             Piece.Each("else", []) ] ]
       (emptyIf ())

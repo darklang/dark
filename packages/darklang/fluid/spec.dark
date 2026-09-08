@@ -73,6 +73,16 @@ type Piece =
   /// INNER if whatever it was written for. So a construct is allowed to say "this particular child has
   /// to go on its own line", without giving up flattening everywhere else.
   | LineOrHard of slot: String * mustBreak: (Node -> Bool)
+  /// Two layouts for one node, picked by what is IN a slot.
+  ///
+  /// `LineOrHard` chooses a BREAK that way; this chooses the surrounding shape, which is what an `else`
+  /// needs. An `else` whose branch is another `if` hugs it -- `else if c then` on one line, at the outer
+  /// if's own indentation -- where any other branch goes on its own indented line. Nest the chain instead
+  /// and it stair-steps a level per link, which is a different shape from the one that was written.
+  ///
+  /// The static queries below (separators, lead punctuation, table columns) read BOTH branches, because
+  /// they ask what a spec can say rather than what it says for one node. Only the projection picks.
+  | Choose of slot: String * pick: (Node -> Bool) * whenTrue: List<Piece> * whenFalse: List<Piece>
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>
