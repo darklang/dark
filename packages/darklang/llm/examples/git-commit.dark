@@ -14,7 +14,7 @@ Keep the first line under 72 characters."
 
 
 /// Create the git commit agent
-val agent =
+let agent () : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.withShellTool "get_staged_files" "Get files staged for commit" "git diff --cached --name-only"
@@ -27,6 +27,6 @@ val agent =
 
 /// Generate a commit message
 let generate () : String =
-  match Darklang.LLM.Agent.run agent "Analyze staged changes and generate a commit message." with
+  match Darklang.LLM.Agent.run (agent ()) "Analyze staged changes and generate a commit message." with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"

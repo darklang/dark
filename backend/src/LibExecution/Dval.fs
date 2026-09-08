@@ -202,9 +202,18 @@ let rec isPersistable (dv : Dval) : bool =
   // DApplicable and DDB serialize successfully — lambdas store their
   // instruction stream, DB handles store as a string identifier.
   // Demo handlers persist lambdas as vals; user DBs rely on the DDB path.
-  | DApplicable _
   | DDB _
   | DBlob(Persistent _) -> true
+
+  // A NAMED fn survives being stored: it is a name, and any process can resolve it. A lambda does
+  // not. Its instructions live in `lambdaInstrCache`, keyed by an exprId that only the execution
+  // that created it registered, and the serialized form carries the id alone -- so a stored lambda
+  // is a dangling reference that deserializes fine and dies at the moment it is applied, in a later
+  // process, with `lambda not found` and no clue where it came from.
+  | DApplicable applicable ->
+    match applicable with
+    | AppNamedFn _ -> true
+    | AppLambda _ -> false
 
   | DList(_, items) -> items |> List.forall isPersistable
   | DTuple(a, b, rest) ->
@@ -225,6 +234,12 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
   | DBlob(Ephemeral _) ->
     Some
       "ephemeral blob can't be stored in a `val` — promote to persistent (serialize) first"
+  | DApplicable(AppLambda _) ->
+    Some(
+      "a lambda can't be stored in a `val` — its instructions belong to the execution that made it, "
+      + "so a later run finds a dangling reference. Make it a function (`let f () = ...`), which is "
+      + "rebuilt per call"
+    )
 
   | DList(_, items) -> items |> List.tryPick nonPersistableReason
   | DTuple(a, b, rest) -> [ a; b ] @ rest |> List.tryPick nonPersistableReason

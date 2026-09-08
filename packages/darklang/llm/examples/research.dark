@@ -10,7 +10,7 @@ Format: ## Research: [Topic] → ### Summary → ### Key Findings → ### Analys
 
 
 /// Full research agent with thinking and web search
-val agent =
+let agent () : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.useSonnet
@@ -33,7 +33,7 @@ val quickAgent =
 
 /// Research a topic thoroughly
 let research (topic: String) : String =
-  match Darklang.LLM.Agent.run agent $"Research this topic thoroughly: {topic}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Research this topic thoroughly: {topic}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 
@@ -47,7 +47,7 @@ let quickResearch (topic: String) : String =
 
 /// Research and show the thinking process
 let researchShowReasoning (topic: String) : String =
-  match Darklang.LLM.Agent.run agent $"Research this topic thoroughly: {topic}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Research this topic thoroughly: {topic}" with
   | Ok result ->
     let thinking =
       match result.thinking with
@@ -66,13 +66,13 @@ let researchShowReasoning (topic: String) : String =
 
 /// Answer a specific research question
 let answerQuestion (question: String) : String =
-  match Darklang.LLM.Agent.run agent $"Research and answer: {question}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Research and answer: {question}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 
 
 /// Compare two topics
 let compare (topic1: String) (topic2: String) : String =
-  match Darklang.LLM.Agent.run agent $"Compare: 1. {topic1} vs 2. {topic2}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Compare: 1. {topic1} vs 2. {topic2}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"

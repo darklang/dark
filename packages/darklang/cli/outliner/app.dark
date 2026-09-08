@@ -21,7 +21,10 @@ let onKey
 let save (state: Main.State) : Main.State =
   Main.save state
 
-val component =
+/// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
+/// instructions live in the execution that created it, so a stored one is a dangling reference that
+/// dies when applied in a later process. Rebuilt per call instead.
+let component () : Cli.Component.Component<Cli.Outliner.Main.State> =
   Darklang.Cli.Component.simple view onKey save
 
 
@@ -60,7 +63,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     // the terminal's own, not `cliState.nonInteractive`, which only means "typed as `dark outliner`" and is
     // true even when there's a perfectly good terminal.)
     match Stdlib.Cli.Tui.TerminalSupport.current () with
-    | Available -> Darklang.Cli.Component.launch cliState component (Main.load ())
+    | Available -> Darklang.Cli.Component.launch cliState (component ()) (Main.load ())
     | Unavailable _reason ->
       Commands.ls ()
       cliState

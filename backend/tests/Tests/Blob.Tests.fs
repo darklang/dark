@@ -387,12 +387,15 @@ let queryableJsonEphemeralRaises =
 // ─────────────────────────────────────────────────────────────────────
 // Val-persistability guard (Dval.isPersistable)
 // ─────────────────────────────────────────────────────────────────────
-// Rejects shapes that can't round-trip through `package_values.rt_dval`:
-// DStream, DBlob(Ephemeral _). DApplicable + DDB serialize successfully
-// (lambdas store their instruction stream, DBs store as canvas-local
-// string identifiers). The Seed.fs evaluator hits this before calling
-// BS.RT.PackageValue.serialize so users get a clear reason string
-// instead of a deep-stack serialize raise.
+// Rejects shapes that can't round-trip through `package_values.rt_dval`: DStream,
+// DBlob(Ephemeral _), and a LAMBDA. A lambda serializes -- which is what made this look fine -- but
+// it serializes as an exprId alone, and the instructions it names live in the `lambdaInstrCache` of
+// the execution that created it. A stored one therefore reads back fine and dies where it is
+// applied, in a later process, with `lambda not found`. A NAMED fn is a name and survives; so does a
+// DDB, which stores as a canvas-local identifier.
+//
+// The Seed.fs evaluator asks before serializing, so the author gets a reason naming the shape
+// instead of a deep-stack raise later.
 
 let persistableAcceptsPlainShapes =
   test "isPersistable: primitives and persistent blobs OK" {
@@ -409,6 +412,35 @@ let persistableAcceptsPlainShapes =
     for dv in cases do
       Expect.isTrue (Dval.isPersistable dv) $"expected isPersistable=true for {dv}"
   }
+
+/// Ocean's round 2, finding 6: `dark propagate` in a terminal died with `lambda not found`, and
+/// every Component-based TUI held its component in a `val`. Nothing about the crash pointed here.
+let persistableRejectsLambda =
+  test "isPersistable: a lambda is not persistable, a named fn is" {
+    let lambda =
+      RT.DApplicable(
+        RT.AppLambda
+          { exprId = 1234UL
+            closedRegisters = []
+            typeSymbolTable = RT.TST.empty
+            argsSoFar = []
+            access =
+              LibExecution.Permissions.Access.start
+                LibExecution.Permissions.Policy.denyAll }
+      )
+
+    Expect.isFalse (Dval.isPersistable lambda) "a lambda cannot be stored"
+
+    match Dval.nonPersistableReason lambda with
+    | Some reason ->
+      Expect.stringContains reason "lambda" "the reason names the shape"
+      Expect.stringContains
+        reason
+        "let f () ="
+        "and says what to write instead, which is the whole value of catching it here"
+    | None -> failtest "expected a reason"
+  }
+
 
 let persistableRejectsEphemeralBlob =
   test "isPersistable: ephemeral blob is not persistable (must promote)" {
@@ -853,6 +885,7 @@ let tests =
       persistableAcceptsPlainShapes
       persistableRejectsEphemeralBlob
       persistableRejectsStream
+      persistableRejectsLambda
       persistableAcceptsApplicableAndDDB
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced

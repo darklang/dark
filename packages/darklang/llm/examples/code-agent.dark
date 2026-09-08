@@ -11,7 +11,7 @@ Be concise and helpful."
 
 
 /// Code agent with all file tools
-val agent =
+let agent () : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.withFileTools
@@ -22,14 +22,14 @@ val agent =
 
 /// Run the code agent
 let run (task: String) : String =
-  match Darklang.LLM.Agent.run agent task with
+  match Darklang.LLM.Agent.run (agent ()) task with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 
 
 /// Run with detailed output (shows tool calls)
 let runVerbose (task: String) : String =
-  match Darklang.LLM.Agent.run agent task with
+  match Darklang.LLM.Agent.run (agent ()) task with
   | Ok result ->
     let tools =
       if Stdlib.List.isEmpty result.toolCalls then ""

@@ -10,7 +10,7 @@ Format: ## [Topic] News → 3 headlines with 1-sentence summaries → ### Takeaw
 
 
 /// News digest agent with web search
-val agent =
+let agent () : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.withWebSearch
@@ -21,14 +21,14 @@ val agent =
 
 /// Get a news digest for a topic
 let getDigest (topic: String) : String =
-  match Darklang.LLM.Agent.run agent $"Get me a news digest on: {topic}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Get me a news digest on: {topic}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 
 
 /// Get a formatted news digest with sources
 let news (topic: String) : String =
-  match Darklang.LLM.Agent.run agent $"Get me a news digest on: {topic}" with
+  match Darklang.LLM.Agent.run (agent ()) $"Get me a news digest on: {topic}" with
   | Ok result ->
     let sources =
       if Stdlib.List.isEmpty result.webSearchResults then ""

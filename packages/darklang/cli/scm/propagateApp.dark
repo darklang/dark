@@ -163,7 +163,10 @@ let onKey
 // `Component` takes a `view` (state -> size -> View) rather than a `render` (state -> String), and a
 // `save`/`refresh` pair. This screen renders one string and derives nothing, so it lifts its render and
 // opts out of the other two.
-val component =
+/// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
+/// instructions live in the execution that created it, so a stored one is a dangling reference that
+/// dies when applied in a later process. Rebuilt per call instead.
+let component () : Cli.Component.Component<Cli.PropagateApp.State> =
   Component.Component
     { view = fun state _size -> Component.viewOfString (render state)
       onKey = onKey
@@ -172,4 +175,4 @@ val component =
 
 
 let launch (cliState: AppState) : AppState =
-  Component.launch cliState component (load cliState.currentBranchId "")
+  Component.launch cliState (component ()) (load cliState.currentBranchId "")

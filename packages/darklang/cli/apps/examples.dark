@@ -57,11 +57,11 @@ module TextEdit =
     | Emitted(next, _msg) -> Component.Step.Exit next
     | Ignored -> Component.Step.Stay state
 
-  val component =
+  let component () : Cli.Component.Component<Stdlib.Cli.UI.TextField.State> =
     Component.stateless view onKey
 
   let execute (cliState: Cli.AppState) (_args: List<String>) : Cli.AppState =
-    Component.launch cliState component Stdlib.Cli.UI.TextField.empty
+    Component.launch cliState (component ()) Stdlib.Cli.UI.TextField.empty
 
   let help (_state: Cli.AppState) : String =
     "A tiny text editor (demo) -- type, Enter or Esc to exit."
