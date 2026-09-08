@@ -1295,6 +1295,28 @@ let recordCandidates (typed: String) : List<Candidate> =
 let elseMaxItems (_n: Node) (slot: String) : Stdlib.Option.Option<Int> =
   if slot == "else" then Stdlib.Option.Option.Some 1 else Stdlib.Option.Option.None
 
+/// A call takes however many arguments the FUNCTION declares. The completion builds the apply with one
+/// hole per parameter and the name resolved, so what it already holds IS the arity.
+///
+/// Without this, Enter after a saturated call offered another argument instead of starting the next
+/// statement -- `Stdlib.List.length xs` then Enter gave `Stdlib.List.length xs <arg>`, while the same key
+/// after a plain value started the next statement. `addSibling` grows the nearest list and for a call
+/// that is the args.
+///
+/// Only once the function is RESOLVED. A half-typed name has no arity to speak of, and capping it at
+/// what it happens to hold would stop the call ever being filled in.
+let applyMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
+  if slot != "args" then
+    Stdlib.Option.Option.None
+  else
+    match Node.slot n "fn" with
+    | Some(Filled fnNode) ->
+      if (textOf fnNode "_hash") != "" then
+        Stdlib.Option.Option.Some(Stdlib.List.length (Node.items n "args"))
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
 /// An enum constructor's fields are however many the CASE declares, so the node is the only thing that
 /// knows. Capped at what it already holds -- the candidate builds it with the declared number, and
 /// nothing a person types should change that.
@@ -2281,12 +2303,13 @@ let baseSpecs () : List<Spec> =
             Piece.Punct ")" ] ]
       (emptyLambda ())
     |> fun sp -> Spec.withBinders sp lambdaBinders
-    simpleExpr
+    (simpleExpr
       "EApply"
       [ Piece.Group [ Piece.Slot "fn", Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] ]
       (Node.make
         (exprKind "EApply")
         [ ("fn", Field.One(Slot.Empty(exprExpect "fn"))), ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
+     |> fun sp -> { sp with maxItems = applyMaxItems })
     simpleExpr "EFnName" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
     simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ])
     simpleExpr "Opaque" [ Piece.Text("source", Layout.Style.Dim) ] (Node.make (exprKind "Opaque") [ text "source" "" ])

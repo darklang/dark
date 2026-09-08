@@ -3285,7 +3285,15 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         | None ->
           match sequenceHere settled with
           | Some seq -> handled seq
-          | None -> if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled
+          | None ->
+            // Nothing to add and nothing to sequence: go to the next hole, which is what the AfterNode
+            // branch above already does. They disagreed, and a capped list is where it showed --
+            // `Stdlib.List.map xs` then Enter had a `<fn>` hole waiting and did NOTHING, because the
+            // sibling was refused (the call is as long as its arity) and the blank stopped the statement.
+            let moved = nextHole settled
+            if moved.caret == st.caret then
+              (if settled == st then Stdlib.Cli.UI.Widget.Outcome.Ignored else handled settled)
+            else handled moved
     | None ->
       if completing && (onPartial st) then handled (commitCandidate st)
       else

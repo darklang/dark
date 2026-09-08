@@ -1305,3 +1305,30 @@ module AKeywordAfterACallIsNotAnArgument =
   // IS the keyword drawn next, so nothing that merely follows a call is at risk.
   (Fixtures.screen (Fixtures.chars "Stdlib.List.map xs f ")) = "Stdlib.List.map xs f~"
   (Fixtures.screen (Fixtures.chars "Stdlib.String.split line \",\" ")) = "Stdlib.String.split line \",\"~"
+
+
+module ACallTakesTheArgumentsItsFunctionDeclares =
+  // `Stdlib.List.length xs` then Enter offered ANOTHER argument, where the same key after a plain value
+  // starts the next statement. `Stdlib.List.length` takes one parameter, so the call was already as long
+  // as it can be.
+  //
+  // Same shape as the enum arity cap, and the same mechanism: the completion builds an apply with one
+  // hole per parameter and the name resolved, so what it already holds IS the arity. Capped only once
+  // the function is resolved -- a half-typed name has no arity, and capping it would stop the call ever
+  // being filled.
+  //
+  // Found by sweeping keys after a CALL against the same keys after a VALUE, which is the route
+  // difference the previous bug turned up.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.length xs") [ "<Enter>" ])) =
+    "Stdlib.List.length xs\n~⟨next⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.String.split line \",\"") [ "<Enter>" ])) =
+    "Stdlib.String.split line \",\"\n~⟨next⟩"
+
+  // A call with a hole left goes TO the hole. Enter did nothing at all here: the sibling was refused
+  // because the call is saturated, and the waiting `⟨fn⟩` blank stopped the statement, so the two Enter
+  // branches disagreed on their fallback -- AfterNode went to the next hole and this one gave up.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs") [ "<Enter>" ])) =
+    "Stdlib.List.map xs ~⟨fn⟩"
+
+  // An unresolved name has no arity to cap, so it still sequences.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "zzz a") [ "<Enter>" ])) = "zzz\n~⟨next⟩"
