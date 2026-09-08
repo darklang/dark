@@ -34,6 +34,34 @@ module Fixtures =
     | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
     | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
 
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let editorFor (keys: List<String>) : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Test.drive
+      (Darklang.Fluid.Editor.init (reg ()) (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")) 56)
+      keys
+
+  /// The horizontal scroll the app would carry, computed the way `afterKey` does. Not through `afterKey`
+  /// itself, which asks the terminal for its size and so cannot run here.
+  let hscrollAfter (keys: List<String>) (prev: Int) : Int =
+    Darklang.Fluid.Widget.hscrollFor (Darklang.Fluid.Widget.caretCol (editorFor keys)) 54 prev
+
+  /// The character the terminal cursor would be sitting on.
+  let glyphUnderCursor (keys: List<String>) (hscroll: Int) : String =
+    let st = { (stateOf (editorFor keys)) with hscroll = hscroll }
+    let v = Darklang.Fluid.App.view st (Darklang.Stdlib.Cli.Tui.Size { width = 56; height = 22 })
+
+    match v.cursor with
+    | Visible(row, col) ->
+      (match Stdlib.List.getAt v.rows row with
+       | Some r ->
+         (match Stdlib.List.getAt (Stdlib.String.toList (Darklang.Stdlib.Cli.Tui.Text.stripSgr r)) col with
+          | Some ch -> Stdlib.Char.toString ch
+          | None -> "<past end>")
+       | None -> "<no row>")
+    | Hidden -> "<hidden>"
+
   // Render the app after driving `keys`, at `size`; return the number of non-empty rows drawn.
   let drawnRows (src: String) (keys: List<String>) (size: Darklang.Stdlib.Cli.Tui.Size) : Int =
     let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (reg ()) (docOf src) 60) keys
@@ -685,3 +713,34 @@ module TextPaneHorizontalWindow =
   // Never negative, which is what a narrow pane or a caret at the start would otherwise produce.
   (Darklang.Fluid.App.textLeft 0 4) = 0
   (Darklang.Fluid.App.textLeft 2 4) = 1
+
+
+module TheCaretIsNeverUnderTheClipMarker =
+  // Found in a terminal, at 56 columns: type a long string, press Home, and the cursor sits ON the `<`
+  // that marks the clipped-off left. Reachable from here the whole time -- `App.view` is pure and this
+  // file says so at the top -- but every pin asserted on ROWS, and none ever asserted on `View.cursor`.
+  //
+  // `clipRow` drops `hscroll + 1` columns and draws the marker in the space, deliberately: it "takes the
+  // place of the column it hides rather than pushing the line over", so the drawn row stays aligned with
+  // the columns the layout reports and `caretScreenPos` can use the same arithmetic. The column it takes
+  // the place of is exactly `hscroll` -- so the caret must never be there, and `scrollFor` put it there
+  // every time, because its answer for "the caret is left of the window" is the caret's own column.
+  //
+  // `hscrollFor` targets one column earlier. Vertical scrolling keeps `scrollFor`: no marker, no problem.
+  //
+  // The invariant, which is the part worth keeping: the glyph under the terminal cursor is the glyph the
+  // layout puts at the caret.
+  let long () : List<String> =
+    Fixtures.chars "\"this is a very long string literal that will not fit at all"
+
+  let atHome () : List<String> = Stdlib.List.append (long ()) [ "<Home>" ]
+
+  // Scrolled right by typing, then Home.
+  (Fixtures.hscrollAfter (long ()) 0) = 7
+  (Fixtures.hscrollAfter (atHome ()) 7) = 0
+  (Fixtures.glyphUnderCursor (atHome ()) (Fixtures.hscrollAfter (atHome ()) 7)) = "t"
+
+  // The old shared function's answer, pinned so the bug cannot come back quietly: it put the window one
+  // column too far right, and the caret landed on the marker.
+  (Darklang.Fluid.Widget.scrollFor 1 54 7) = 1
+  (Fixtures.glyphUnderCursor (atHome ()) 1) = "<"

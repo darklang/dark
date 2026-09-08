@@ -674,7 +674,7 @@ let afterKey (st: State) (editor: Editor.State) : State =
       bodyRows = docArea.rows
       bodyCols = docArea.cols
       scroll = Widget.scrollFor row docArea.rows st.scroll
-      hscroll = Widget.scrollFor col docArea.cols st.hscroll
+      hscroll = Widget.hscrollFor col docArea.cols st.hscroll
       // Any key at all cancels a pending "press again to discard".
       confirmingExit = false }
 

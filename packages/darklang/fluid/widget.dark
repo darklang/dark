@@ -56,6 +56,21 @@ let scrollFor (caretRow: Int) (height: Int) (scroll: Int) : Int =
   elif caretRow >= scroll + height then caretRow - height + 1
   else scroll
 
+/// `scrollFor`, for the HORIZONTAL axis, where the left clip marker eats a column.
+///
+/// `clipRow` drops `hscroll + 1` columns and draws a `<` in the space, deliberately: the marker "takes
+/// the place of the column it hides rather than pushing the line over", so the drawn row stays aligned
+/// with the columns the layout reports and `caretScreenPos` can use the same arithmetic.
+///
+/// The column it takes the place of is exactly column `hscroll`. So the caret must never BE there, and
+/// `scrollFor` put it there every time you scrolled left, because its answer for "the caret is left of
+/// the window" is the caret's own column. Home in a long string drew the caret ON the `<`.
+///
+/// One column earlier instead. At column 1 that gives 0, which means no marker at all and the whole row
+/// from its start, which is what Home should show anyway.
+let hscrollFor (caretCol: Int) (width: Int) (hscroll: Int) : Int =
+  if caretCol < hscroll + 1 then Stdlib.Int.max 0 (caretCol - 1) else scrollFor caretCol width hscroll
+
 /// The layout the widget draws: the kernel's, at the kernel's width.
 let rowsFor (st: Editor.State) : List<Layout.Row> = Editor.layout st
 
