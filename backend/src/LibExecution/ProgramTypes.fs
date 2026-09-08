@@ -742,6 +742,27 @@ type PackageOp =
   //   shouldn't silently un-Harmful on merge).
   | Undeprecate of target : Reference
 
+  /// What an item SAYS about itself, as a thing said about content rather than part of it.
+  ///
+  /// A doc comment is not behaviour, so it is not in the identity hash (see `Canonical`): editing
+  /// one leaves the hash alone, and every caller keeps resolving to the same item. That is only
+  /// possible with an op of its own -- ops are content-addressed, so an `AddFn` that differs only
+  /// in its docs IS the earlier `AddFn` and folds to nothing, which is exactly how a doc edit came
+  /// to be reported as saved and then dropped.
+  ///
+  /// Keyed on content, like `Deprecate`: every name bound to this body describes the same thing.
+  /// Last one wins by `origin_ts`, and a branch's own text overlays main's.
+  ///
+  /// TODO: the shape this wants to become is a package VALUE of a broadly-known type, roughly
+  /// `{ text: String; reference: PackageThing }`, so that examples, deprecation notes and a third
+  /// party's annotations of code they do not own are all the same mechanism. This op is the same
+  /// idea with the vocabulary we have.
+  ///
+  /// It also leaves one gap that shape would close: this carries the ITEM's text, and a field's doc
+  /// comment has never been part of identity either, so editing one alone has no op to ride on. A
+  /// reload picks it up and nothing else does.
+  | Describe of target : Reference * text : string
+
   /// A human's judgment about a NAME, recorded so that it travels.
   ///
   /// One op rather than two because overriding a binding and acking a finding are the same class of act:

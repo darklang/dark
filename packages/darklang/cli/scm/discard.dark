@@ -103,7 +103,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty changed then
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.dimText
-          "    (no changed names -- decisions only: pins, deprecations, acks)")
+          "    (no changed names -- no new version: pins, deprecations, docs, acks)")
     else
       ()
 

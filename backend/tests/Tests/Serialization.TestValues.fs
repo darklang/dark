@@ -793,6 +793,9 @@ module ProgramTypes =
         "use the other one"
       )
       Undeprecate(Reference.PackageValue hashPT)
+      Describe(Reference.PackageFn hashPT, "What it says about itself.")
+      // The empty text is a real op: it is how a doc is cleared.
+      Describe(Reference.PackageType hashPT, "")
 
       Decision(
         "d1",

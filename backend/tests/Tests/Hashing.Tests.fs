@@ -192,10 +192,9 @@ let private typeHashTests =
         Expect.notEqual h1 h2 "different types should hash differently"
       }
 
-      // The doc comment IS identity. Two declarations that differ only in what they say about
-      // themselves are two items: without this, editing a doc comment produced the same hash, the
-      // op deduped away, the stored text never changed, and the CLI still said "Updated".
-      test "description affects the hash" {
+      // A doc comment is NOT identity: it is something said about the item, carried by a
+      // `Describe` op, so editing one leaves every caller pointed at the same version.
+      test "the description does not affect the hash" {
         let def =
           PT.TypeDeclaration.Record(
             NEList.singleton { name = "a"; typ = PT.TBool; description = "" }
@@ -204,7 +203,32 @@ let private typeHashTests =
         let typ2 = { makeType def with description = "second" }
         let h1 = Hashing.computeTypeHash Hashing.Normal typ1
         let h2 = Hashing.computeTypeHash Hashing.Normal typ2
-        Expect.notEqual h1 h2 "a different doc comment is a different version"
+        Expect.equal h1 h2 "a different doc comment is the same version"
+      }
+
+      // Nor does a FIELD's, which is the same rule one level down and has always been true here.
+      //
+      // KNOWN GAP: `Describe` carries the item's own text, so an edit to a field's doc alone has no
+      // op that can carry it -- same hash, so the `AddType` folds to nothing and the text never
+      // lands. A full reload picks it up (it re-folds every op) and nothing else does. The fix is
+      // the same one the op's TODO names: docs as values pointing at what they describe, which
+      // reaches a field as easily as an item.
+      test "a field's description does not affect the hash either" {
+        let typ1 =
+          makeType (
+            PT.TypeDeclaration.Record(
+              NEList.singleton { name = "a"; typ = PT.TBool; description = "first" }
+            )
+          )
+        let typ2 =
+          makeType (
+            PT.TypeDeclaration.Record(
+              NEList.singleton { name = "a"; typ = PT.TBool; description = "second" }
+            )
+          )
+        let h1 = Hashing.computeTypeHash Hashing.Normal typ1
+        let h2 = Hashing.computeTypeHash Hashing.Normal typ2
+        Expect.equal h1 h2 "a field's doc is not part of the declaration's identity"
       } ]
 
 

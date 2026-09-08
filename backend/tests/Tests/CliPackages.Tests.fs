@@ -302,7 +302,7 @@ let deleteAndRestore =
         shows
           state
           [ "status" ]
-          "decisions only"
+          "no new version"
           "and status says what kind of op it is"
 
       do!
@@ -358,6 +358,99 @@ let deprecateAndUndeprecate =
       do! discardAll state
     })
 
+/// Ocean's 3, and the shape it settled into. A doc comment is not behaviour, so editing one leaves
+/// the item's hash alone -- which means the edit cannot ride on an `AddFn` (ops are
+/// content-addressed, so that op IS the earlier one and folds to nothing) and rides on a `Describe`
+/// instead.
+let aDocOnlyEditKeepsTheVersionAndStillLands =
+  cliTestOnMain
+    "editing only the docs changes the docs and nothing else"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Docs.f" "() : Int64 = 7L"
+        do! fn state "Tests.Docs.caller" "() : Int64 = Tests.Docs.f () + 1L"
+        do! commit state "add f and its caller"
+
+        let! before = runCliPlain state [ "hash"; "Tests.Docs.f" ]
+
+        do! fn state "Tests.Docs.f" "/// Returns seven.\nlet f (): Int64 =\n  7L"
+
+        let! after = runCliPlain state [ "hash"; "Tests.Docs.f" ]
+        Expect.equal
+          after
+          before
+          $"the version did not move, got {after} from {before}"
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.Docs.f" ]
+            "Returns seven"
+            "and the new text is what you read"
+        do! shows state [ "ops" ] "Describe" "the op log says what happened"
+        do! dirty state "an uncommitted doc edit is not a clean tree"
+        do! evals state "Tests.Docs.caller ()" "8" "its caller is untouched"
+
+        do! commit state "document f"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Docs.f" ]
+            "Returns seven"
+            "and it survives the commit"
+        do! discardAll state
+      })
+
+/// The other half: a doc edit made on a branch is the branch's opinion until it merges.
+let aBranchesDocEditStaysOnTheBranch =
+  cliTestOnMain
+    "a doc edit on a branch is invisible to main until it merges"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.DocsBr.f" "() : Int64 = 3L"
+        do! fn state "Tests.DocsBr.f" "/// Main's wording.\nlet f (): Int64 =\n  3L"
+        do! commit state "add f, documented"
+
+        do! switch state "docsbr"
+        do!
+          fn
+            state
+            "Tests.DocsBr.f"
+            "/// The branch's wording.\nlet f (): Int64 =\n  3L"
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocsBr.f" ]
+            "branch's wording"
+            "the branch reads its own"
+        do! commit state "reword"
+
+        do! onMain state
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocsBr.f" ]
+            "Main's wording"
+            "main still reads main's"
+        do!
+          lacks
+            state
+            [ "view"; "Tests.DocsBr.f" ]
+            "branch's wording"
+            "and not the branch's"
+
+        do! merge state "docsbr"
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocsBr.f" ]
+            "branch's wording"
+            "the merge brings it over"
+        do! discardAll state
+      })
+
 let renameIsVisibleToEverythingThatReads =
   cliTestOnMain
     "a renamed item is readable at its new name, by every reader"
@@ -404,4 +497,6 @@ let tests : List<Test> =
     deleteAndRestore
     deleteRefusesWhatIsNotThere
     deprecateAndUndeprecate
-    renameIsVisibleToEverythingThatReads ]
+    renameIsVisibleToEverythingThatReads
+    aDocOnlyEditKeepsTheVersionAndStillLands
+    aBranchesDocEditStaysOnTheBranch ]

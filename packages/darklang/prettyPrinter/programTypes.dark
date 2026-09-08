@@ -1530,6 +1530,25 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort hash}]"
 
+    | Describe(target, text) ->
+      let hash = LanguageTools.ProgramTypes.Reference.hash target
+      // The first line of it, and only that: an op listing is for scanning, and a doc comment is
+      // the one op payload with no length limit at all.
+      let firstLine =
+        match Stdlib.String.split (Stdlib.String.trim text) "\n" with
+        | line :: _ -> line
+        | [] -> ""
+
+      let summary =
+        if Stdlib.String.length firstLine > 40 then
+          (Stdlib.String.slice firstLine 0 40) ++ "..."
+        else if firstLine == "" then
+          "(cleared)"
+        else
+          firstLine
+
+      $"Describe [{LanguageTools.ProgramTypes.hashToShort hash}] {summary}"
+
     | Decision(id, location, reason, kind) ->
       let name = PackageLocation.packageLocation location
       let why = if reason == "" then "" else $" ({reason})"

@@ -1762,6 +1762,8 @@ module PackageOp =
         "Deprecate",
         [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
       | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
+      | PT.PackageOp.Describe(target, text) ->
+        "Describe", [ Reference.toDT target; DString text ]
       | PT.PackageOp.Decision(id, location, reason, kind) ->
         "Decision",
         [ DString id
@@ -1801,6 +1803,8 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Undeprecate", [ target ]) ->
       Some(PT.PackageOp.Undeprecate(Reference.fromDT target))
+    | DEnum(_, _, [], "Describe", [ target; DString text ]) ->
+      Some(PT.PackageOp.Describe(Reference.fromDT target, text))
     | DEnum(_, _, [], "Decision", [ DString id; location; DString reason; kind ]) ->
       Some(
         PT.PackageOp.Decision(

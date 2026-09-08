@@ -70,6 +70,7 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
+    | PT.PackageOp.Describe _
     | PT.PackageOp.Decision _
     | PT.PackageOp.BranchEvent _ -> None
 

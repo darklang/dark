@@ -198,6 +198,8 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
+    // A Describe carries prose about an item, never an expression, so nothing in it resolves.
+    | PT.PackageOp.Describe _
     | PT.PackageOp.Decision _
     // A branch event names a branch, not a package item, so there is no reference in it to be unresolved.
     | PT.PackageOp.BranchEvent _ -> None

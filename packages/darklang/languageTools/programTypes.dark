@@ -552,6 +552,11 @@ type PackageOp =
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
+  /// What an item SAYS about itself. A doc comment is not behaviour, so it is not in the identity
+  /// hash: editing one leaves the hash alone and every caller keeps resolving to the same item.
+  /// That needs an op of its own, because an `AddFn` differing only in its docs IS the earlier
+  /// `AddFn` and folds to nothing. Keyed on content, like `Deprecate`; last one wins.
+  | Describe of target: Reference * text: String
   /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding, acking a
   /// finding and choosing a propagation policy are one class of act -- someone decided something about
   /// a location, and it has to hold on every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,

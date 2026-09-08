@@ -285,15 +285,6 @@ module Hashing =
   let computeFnHash (mode : HashRefMode) (fn : PT.PackageFn.PackageFn) : Hash =
     hashWithWriter (fun w -> Canonical.writeFn mode w (normalizeFn fn))
 
-  /// The same, WITHOUT the doc comment: two versions with the same behaviour hash differ only in
-  /// what they say about themselves. Propagation asks, so that fixing a typo in a doc does not
-  /// stage a repoint for every caller.
-  let computeFnBehaviourHash
-    (mode : HashRefMode)
-    (fn : PT.PackageFn.PackageFn)
-    : Hash =
-    hashWithWriter (fun w -> Canonical.writeBehaviourFn mode w (normalizeFn fn))
-
 
   /// Hash a PackageValue (skip id, description, deprecated)
   let computeValueHash

@@ -3,13 +3,11 @@
 /// Produces deterministic bytes by skipping identity-irrelevant fields
 /// (AST node IDs, deprecated, originalName).
 ///
-/// The doc comment is part of identity: two bodies differing only in their docs are two items.
-/// Leaving it out makes a doc-only edit hash the same, dedupe to nothing, and keep the old text
-/// while reporting success.
-///
-/// `writeBehaviour*` is the same bytes WITHOUT the doc, for the one question that needs it:
-/// whether an edit changed anything a caller can observe. Propagation asks, so that a typo fix in
-/// a widely-called function does not stage a repoint for every caller of it.
+/// The doc comment is NOT one of them: what an item says about itself is not what it does, so two
+/// bodies differing only in their docs are one item and a typo fix in a widely-called function
+/// repoints nobody. The current text is carried by the `Describe` op instead, which is what makes a
+/// doc-only edit representable at all -- ops are content-addressed, so an `AddFn` differing only in
+/// its docs would fold to nothing.
 /// Re-uses leaf serializers from the existing binary format.
 module rec LibSerialization.Hashing.Canonical
 
@@ -577,8 +575,8 @@ let writeTypeDeclaration
 // Top-level item writers (used by both compute*Hash and SCC batch hashing)
 // =====================
 
-/// Write a PackageType's BEHAVIOUR: its declaration, without the doc comment.
-let writeBehaviourType
+/// Write a PackageType's hash-relevant content: its declaration.
+let writeType
   (mode : HashRefMode)
   (w : BinaryWriter)
   (t : PT.PackageType.PackageType)
@@ -586,13 +584,8 @@ let writeBehaviourType
   w.Write(0uy) // tag: type
   writeTypeDeclaration mode w t.declaration
 
-/// Write a PackageFn's BEHAVIOUR: everything a caller can observe, and nothing else. The doc
-/// comment is deliberately absent -- see the module doc.
-let writeBehaviourFn
-  (mode : HashRefMode)
-  (w : BinaryWriter)
-  (fn : PT.PackageFn.PackageFn)
-  =
+/// Write a PackageFn's hash-relevant content: everything a caller can observe, and nothing else.
+let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn) =
   w.Write(1uy) // tag: fn
   writeExpr mode w fn.body
   Common.List.write w Common.String.write fn.typeParams
@@ -608,55 +601,11 @@ let writeBehaviourFn
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
 
-/// Write a PackageValue's BEHAVIOUR: its body, without the doc comment.
-let writeBehaviourValue
+/// Write a PackageValue's hash-relevant content: its body.
+let writeValue
   (mode : HashRefMode)
   (w : BinaryWriter)
   (v : PT.PackageValue.PackageValue)
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
-
-
-// =====================
-// Identity writers: behaviour, plus the doc comment (see the module doc)
-// =====================
-
-// TODO: documentation probably should not be a field of the declaration at all, and
-// then this pair of writers goes away.
-//
-// A doc comment is a separate thing said ABOUT an item, so an edit to it wants to be
-// its own op rather than a re-authoring of the item. The shape that generalises: a
-// doc is a package VALUE of a broadly-known type -- roughly `{ text: String;
-// reference: PackageThing }` -- and "known type" is a thing this world needs anyway.
-// Most metadata we currently bolt onto declarations (docs, examples, deprecation
-// notes) could be values of known types pointing AT an item, which is also how a
-// third party annotates something they do not own.
-//
-// Until then the doc rides in the identity hash, because the alternative was worse:
-// a doc-only edit deduped to nothing while the CLI reported "Updated".
-
-/// A doc comment, written so that "absent" and "empty" agree: both are the empty string, which is
-/// how the parser and the round-trip both spell "no doc".
-let private writeDescription (w : BinaryWriter) (description : string) =
-  Common.String.write w (if isNull description then "" else description)
-
-let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn) =
-  writeBehaviourFn mode w fn
-  writeDescription w fn.description
-
-let writeType
-  (mode : HashRefMode)
-  (w : BinaryWriter)
-  (t : PT.PackageType.PackageType)
-  =
-  writeBehaviourType mode w t
-  writeDescription w t.description
-
-let writeValue
-  (mode : HashRefMode)
-  (w : BinaryWriter)
-  (v : PT.PackageValue.PackageValue)
-  =
-  writeBehaviourValue mode w v
-  writeDescription w v.description

@@ -103,6 +103,42 @@ let peerHeadsUpLine
   | None -> Stdlib.Option.Option.None
 
 
+/// The doc comment these authored ops carry.
+let authoredDescription
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Option.Option<String> =
+  ops
+  |> Stdlib.List.findFirst (fun op ->
+    match op with
+    | AddFn _ -> true
+    | AddType _ -> true
+    | AddValue _ -> true
+    | _ -> false)
+  |> Stdlib.Option.andThen (fun op ->
+    match op with
+    | AddFn fn -> Stdlib.Option.Option.Some fn.description
+    | AddType t -> Stdlib.Option.Option.Some t.description
+    | AddValue v -> Stdlib.Option.Option.Some v.description
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// What the store currently says about the item at <param hash>.
+let storedDescription
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<String> =
+  match kind with
+  | Fn ->
+    LanguageTools.PackageManager.Function.get hash
+    |> Stdlib.Option.map (fun f -> f.description)
+  | Type ->
+    LanguageTools.PackageManager.Type.get hash
+    |> Stdlib.Option.map (fun t -> t.description)
+  | Value ->
+    LanguageTools.PackageManager.Value.get hash
+    |> Stdlib.Option.map (fun v -> v.description)
+
+
 /// Shared tail of the fn/type/val authoring flow: build the name-resolution
 /// context, convert the written declaration, check unresolved names, take the
 /// previous hashes, save, report, and repoint dependents. `kindWord` fills the
@@ -164,21 +200,33 @@ let saveAuthored
       Stdlib.printLine ""
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
 
-      // Say when the edit was only the doc comment. It IS a real change -- the doc is part of
-      // what an item is, so this is a new version that syncs and that `view` shows -- but nothing
-      // a caller can observe moved, so no dependents were repointed. Without the line, that reads
-      // as nothing having happened.
+      // A doc-only edit lands on the hash it already had: the doc is not part of an item's
+      // identity, so nothing about the VERSION moved and the ops just authored folded to nothing.
+      // `Describe` is the op that can carry it -- its own id hashes the text, so two texts are two
+      // ops -- and it is authored here, where the stabilized hash is finally known.
+      let docOnly =
+        if isUpdate && (Stdlib.List.member previousHashes boundHash) then
+          match (authoredDescription ops, storedDescription kind boundHash) with
+          | (Some written, Some stored) when written != stored ->
+            let reference =
+              LanguageTools.ProgramTypes.Reference.fromHashAndKind boundHash kind
+
+            match
+              SCM.PackageOps.add
+                state.currentBranchId
+                [ LanguageTools.ProgramTypes.PackageOp.Describe(reference, written) ]
+            with
+            | Ok _ -> true
+            | Error _ -> false
+          | _ -> false
+        else
+          false
+
       let _ =
-        if isUpdate && (Stdlib.List.member previousHashes boundHash |> Stdlib.Bool.not) then
-          match previousHashes with
-          | previous :: _ ->
-            if SCM.Deps.sameBehaviour previous boundHash then
-              Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.dimText
-                  "  documentation only -- nothing that calls it changed, so nothing was repointed.")
-            else
-              ()
-          | [] -> ()
+        if docOnly then
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              "  documentation only -- the version is unchanged, so nothing was repointed.")
         else
           ()
 
@@ -188,7 +236,7 @@ let saveAuthored
 
       // Repoint dependents NOW, into the draft, so you can run them against this change before
       // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
-      if isUpdate then
+      if isUpdate && (Stdlib.Bool.not docOnly) then
         Propagate.repointNow state.currentBranchId location previousHashes hash kind
 
       // A fn's transitive permission requirements, named at the save so the author

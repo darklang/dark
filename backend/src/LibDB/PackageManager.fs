@@ -210,9 +210,11 @@ let createInMemoryOver
     | PT.PackageOp.AddFn _ -> ()
 
     // None of these change what a name points at -- an ack or a policy records what a person decided ABOUT a
-    // name, a BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
+    // name, a Describe changes what an item says about itself (`described` applies those), a
+    // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
+    | PT.PackageOp.Describe _
     | PT.PackageOp.Decision(_,
                             _,
                             _,
@@ -542,6 +544,93 @@ let hide
                     fns = shown r.fns }
             } }
 
+/// The text each `Describe` in <param ops> sets, last one winning.
+let private describedBy (ops : List<PT.PackageOp>) : Map<Hash, string> =
+  ops
+  |> List.fold
+    (fun acc op ->
+      match op with
+      | PT.PackageOp.Describe(target, text) -> Map.add target.hash text acc
+      | _ -> acc)
+    Map.empty
+
+/// <param pm>, with <param texts> applied to whatever it hands back.
+///
+/// A branch's `Describe` must not reach main's stored blob -- the fold is main-only for exactly
+/// that reason -- so the branch's own text is applied as the item is read, over whichever layer
+/// answered. At this seam rather than inside the overlay's item map, because a branch usually
+/// describes something MAIN holds, and the overlay has no copy of that to patch.
+let private described
+  (texts : Map<Hash, string>)
+  (pm : PT.PackageManager)
+  : PT.PackageManager =
+  if Map.isEmpty texts then
+    pm
+  else
+    let patch (hash : Hash) (set : string -> 'item) (item : 'item) : 'item =
+      match Map.tryFind hash texts with
+      | Some text -> set text
+      | None -> item
+    { pm with
+        getType =
+          fun h ->
+            uply {
+              let! r = pm.getType h
+              return
+                r
+                |> Option.map (fun t ->
+                  patch h (fun x -> { t with description = x }) t)
+            }
+        getValue =
+          fun h ->
+            uply {
+              let! r = pm.getValue h
+              return
+                r
+                |> Option.map (fun v ->
+                  patch h (fun x -> { v with description = x }) v)
+            }
+        getFn =
+          fun h ->
+            uply {
+              let! r = pm.getFn h
+              return
+                r
+                |> Option.map (fun f ->
+                  patch h (fun x -> { f with description = x }) f)
+            }
+        search =
+          fun query ->
+            uply {
+              let! r = pm.search query
+              let located (entity : 'item) (hash : Hash) (set : string -> 'item) =
+                patch hash set entity
+              return
+                { r with
+                    types =
+                      r.types
+                      |> List.map (fun i ->
+                        { i with
+                            entity =
+                              located i.entity i.entity.hash (fun x ->
+                                { i.entity with description = x }) })
+                    values =
+                      r.values
+                      |> List.map (fun i ->
+                        { i with
+                            entity =
+                              located i.entity i.entity.hash (fun x ->
+                                { i.entity with description = x }) })
+                    fns =
+                      r.fns
+                      |> List.map (fun i ->
+                        { i with
+                            entity =
+                              located i.entity i.entity.hash (fun x ->
+                                { i.entity with description = x }) }) }
+            } }
+
+
 /// `basePM` with `ops` overlaid on top: the branch overlay, and the parse-time PM for tests and
 /// from-disk parsing.
 let withExtraOps
@@ -549,7 +638,7 @@ let withExtraOps
   (ops : List<PT.PackageOp>)
   : PT.PackageManager =
   let opsPM = createInMemoryOver (Some basePM) ops
-  combine opsPM (hide (unboundBy ops) basePM)
+  described (describedBy ops) (combine opsPM (hide (unboundBy ops) basePM))
 
 
 // BRANCH OVERLAYS.

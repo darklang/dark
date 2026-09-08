@@ -146,6 +146,10 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.Undeprecate target ->
     w.Write(5uy)
     Reference.write w target
+  | PackageOp.Describe(target, text) ->
+    w.Write(13uy)
+    Reference.write w target
+    String.write w text
   // 11, not one of the retired 6-9. A retired tag is never recycled: an old blob would then decode
   // as a DIFFERENT op rather than failing, and silently decoding as something else is the worst
   // thing a format can do. Cheap to avoid -- tags are arbitrary and there is no shortage of them.
@@ -197,6 +201,10 @@ let read (r : BinaryReader) : PackageOp =
   | 5uy ->
     let target = Reference.read r
     PackageOp.Undeprecate target
+  | 13uy ->
+    let target = Reference.read r
+    let text = String.read r
+    PackageOp.Describe(target, text)
   | 10uy ->
     let branchId = LibExecution.Branching.BranchId.Id(Guid.read r)
     let event = BranchEventKind.read r

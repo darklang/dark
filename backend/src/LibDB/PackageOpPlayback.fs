@@ -137,6 +137,13 @@ let private ensureExistingBodyMatches
 /// fills: `package_values` leaves `rt_dval` and `value_type` for
 /// `Seed.evaluateAllValues`, which runs once every op in the batch has been applied and
 /// cross-package references can resolve.
+/// <param mayRewriteExisting> is what a BRANCH does not get.
+///
+/// An existing row and an incoming item with the same hash agree about behaviour by construction --
+/// that is what the hash is -- so the only thing that can differ is the doc comment, and the row is
+/// main's. A branch folds its own content here so its bodies are runnable, and rewriting the row
+/// would publish the branch's wording to everyone. A branch says what it thinks an item is with a
+/// `Describe`, which stays on the branch like its names do.
 let private upsertContentAddressed
   (ctx : Ctx)
   (kind : string)
@@ -144,6 +151,7 @@ let private upsertContentAddressed
   (hash : Hash)
   (columns : List<string * obj>)
   (insertOnlyNulls : List<string>)
+  (mayRewriteExisting : bool)
   (incomingFingerprint : Hash)
   (storedFingerprint : byte[] -> Hash)
   : Task<unit> =
@@ -181,16 +189,18 @@ let private upsertContentAddressed
           incomingFingerprint
           storedFingerprint
 
-      let assignments =
-        names |> List.map (fun name -> $"{name} = ${name}") |> String.concat ", "
+      if mayRewriteExisting then
+        let assignments =
+          names |> List.map (fun name -> $"{name} = ${name}") |> String.concat ", "
 
-      do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
+        do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
   }
 
 
 /// Apply a single AddType op to the package_types table.
 let private applyAddType
   (ctx : Ctx)
+  (mayRewriteExisting : bool)
   (typ : PT.PackageType.PackageType)
   : Task<unit> =
   task {
@@ -214,6 +224,7 @@ let private applyAddType
           box (typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr)
           "description", box typ.description ]
         []
+        mayRewriteExisting
         (Hashing.computeTypeHash Hashing.Normal typ)
         (fun bytes ->
           BS.PT.PackageType.deserialize hash bytes
@@ -226,6 +237,7 @@ let private applyAddType
 /// Apply a single AddValue op to the package_values table.
 let private applyAddValue
   (ctx : Ctx)
+  (mayRewriteExisting : bool)
   (value : PT.PackageValue.PackageValue)
   : Task<unit> =
   task {
@@ -245,6 +257,7 @@ let private applyAddValue
         [ "pt_def", box (BS.PT.PackageValue.serialize hashStr value)
           "description", box value.description ]
         [ "rt_dval"; "value_type" ]
+        mayRewriteExisting
         (Hashing.computeValueHash Hashing.Normal value)
         (fun bytes ->
           BS.PT.PackageValue.deserialize hash bytes
@@ -255,7 +268,11 @@ let private applyAddValue
   }
 
 /// Apply a single AddFn op to the package_functions table.
-let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
+let private applyAddFn
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (fn : PT.PackageFn.PackageFn)
+  : Task<unit> =
   task {
     let hash =
       match fn.hash with
@@ -275,6 +292,7 @@ let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
           box (fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hashStr)
           "description", box fn.description ]
         []
+        mayRewriteExisting
         (Hashing.computeFnHash Hashing.Normal fn)
         (fun bytes ->
           BS.PT.PackageFn.deserialize hash bytes
@@ -496,6 +514,62 @@ let private applyDeprecate
 /// Apply an Undeprecate op: an `undeprecated` row with no annotation.
 let private applyUndeprecate (ctx : Ctx) (target : PT.Reference) : Task<unit> =
   writeDeprecationState ctx target "undeprecated" None
+
+
+/// Apply a Describe op: the item's stored text becomes <param text>.
+///
+/// A rewrite in place rather than a row in a projection table, and that is only sound because the
+/// doc is not in the identity hash: the blob for hash H carries H's behaviour plus whatever H is
+/// currently said to be, and only the first half is what H means. So there is nothing to reconcile
+/// -- last writer wins by `origin_ts`, like every other fold here.
+///
+/// Both the blob and the `description` column, because both are read: the column by the listings
+/// and search, the blob by anything that loads the item.
+let private applyDescribe
+  (ctx : Ctx)
+  (target : PT.Reference)
+  (text : string)
+  : Task<unit> =
+  task {
+    let (Hash hashStr) = target.hash
+
+    let table, reserialize =
+      match target.kind with
+      | PT.ItemKind.Fn ->
+        "package_functions",
+        (fun (bytes : byte[]) ->
+          let fn = BS.PT.PackageFn.deserialize target.hash bytes
+          BS.PT.PackageFn.serialize hashStr { fn with description = text })
+      | PT.ItemKind.Type ->
+        "package_types",
+        (fun bytes ->
+          let t = BS.PT.PackageType.deserialize target.hash bytes
+          BS.PT.PackageType.serialize hashStr { t with description = text })
+      | PT.ItemKind.Value ->
+        "package_values",
+        (fun bytes ->
+          let v = BS.PT.PackageValue.deserialize target.hash bytes
+          BS.PT.PackageValue.serialize hashStr { v with description = text })
+
+    let! stored =
+      bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
+        p cmd "$hash" hashStr)
+
+    // Nothing here to describe: the item has not arrived (a Describe can travel ahead of the
+    // AddFn that carries its subject). Dropped rather than stored, the same as every other op
+    // whose target this store does not hold.
+    match stored with
+    | None -> return ()
+    | Some bytes ->
+      do!
+        exec
+          ctx
+          $"UPDATE {table} SET pt_def = $pt_def, description = $description WHERE hash = $hash"
+          (fun cmd ->
+            p cmd "$hash" hashStr
+            p cmd "$pt_def" (reserialize bytes)
+            p cmd "$description" text)
+  }
 
 
 // ------------------------------------------------------------------
@@ -812,18 +886,24 @@ let private applyUnbind
   }
 
 
-let private applyOp (ctx : Ctx) (source : string) (op : PT.PackageOp) : Task<unit> =
+let private applyOp
+  (ctx : Ctx)
+  (source : string)
+  (mayRewriteExisting : bool)
+  (op : PT.PackageOp)
+  : Task<unit> =
   task {
     match op with
-    | PT.PackageOp.AddType typ -> do! applyAddType ctx typ
-    | PT.PackageOp.AddValue value -> do! applyAddValue ctx value
-    | PT.PackageOp.AddFn fn -> do! applyAddFn ctx fn
+    | PT.PackageOp.AddType typ -> do! applyAddType ctx mayRewriteExisting typ
+    | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
+    | PT.PackageOp.AddFn fn -> do! applyAddFn ctx mayRewriteExisting fn
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
     | PT.PackageOp.Deprecate(target, kind, message) ->
       do! applyDeprecate ctx target kind message
     | PT.PackageOp.Undeprecate target -> do! applyUndeprecate ctx target
+    | PT.PackageOp.Describe(target, text) -> do! applyDescribe ctx target text
     | PT.PackageOp.Decision(id, loc, reason, kind) ->
       match kind with
       | PT.DecisionKind.Override target ->
@@ -876,7 +956,7 @@ let applyOpsOnConnectionFrom
     let ctx = newCtx conn
     try
       for op in ops do
-        do! applyOp ctx source op
+        do! applyOp ctx source true op
     finally
       disposeCtx ctx
 
@@ -907,6 +987,23 @@ let applyOpsFrom (source : string) (ops : List<PT.PackageOp>) : Task<unit> =
   }
 
 let applyOps (ops : List<PT.PackageOp>) : Task<unit> = applyOpsFrom "op" ops
+
+
+/// A BRANCH's content ops: folded so the branch's own bodies are runnable and its dependency edges
+/// are visible, but never rewriting a row that is already there. See `upsertContentAddressed`.
+let applyBranchContentOps (ops : List<PT.PackageOp>) : Task<unit> =
+  task {
+    use conn = new SqliteConnection(LibDB.Sqlite.connString)
+    do! conn.OpenAsync()
+    use tx = conn.BeginTransaction()
+    let ctx = newCtx conn
+    try
+      for op in ops do
+        do! applyOp ctx "op" false op
+    finally
+      disposeCtx ctx
+    tx.Commit()
+  }
 
 
 /// Record the callees of these `Add*` ops' items without folding anything else. For an op the log

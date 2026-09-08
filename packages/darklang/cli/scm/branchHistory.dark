@@ -127,7 +127,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
         Cli.printOk "clean: nothing changed since your last commit."
       else
         Cli.printOk
-          $"""{Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"} to commit, no changed names (decisions only: pins, deprecations, acks)"""
+          $"""{Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"} to commit, no changed names (no new version: pins, deprecations, docs, acks)"""
 
       Cli.printHint "  `dark diff <branch>` compares a branch with its parent."
       state
