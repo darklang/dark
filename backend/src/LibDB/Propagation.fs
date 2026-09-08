@@ -516,6 +516,37 @@ let propagate
   (toSourceHash : Hash)
   : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
   task {
+    // A doc-only edit cascades nothing. The doc comment is part of an item's identity (two bodies
+    // that differ only in their docs are two items, so the edit is a real op that travels and
+    // shows up in `view`), but it is not something a CALLER can observe -- so repointing every
+    // caller of a widely-used function because somebody fixed a typo in its docs would be a draft
+    // full of changes that mean nothing. The behaviour hash is exactly this question.
+    let! isDocOnly =
+      task {
+        match sourceItemKind, fromSourceHashes with
+        // The head is the version this edit REPLACED (the list is newest-first, and an item that
+        // has been edited before carries all of its older hashes behind that). Comparing against
+        // the whole list would answer "false" for anything with a history, which is most things.
+        | PT.ItemKind.Fn, from :: _ ->
+          // `toSourceHash` can be a parser-time placeholder (the CLI hands over what it had
+          // before stabilization), so resolve it the same way the cascade itself does. Comparing
+          // against the placeholder found nothing and quietly answered "not doc-only".
+          let! current = resolveCurrentHash branch sourceLocation sourceItemKind toSourceHash
+          let! before = ProgramTypes.Fn.get from |> Ply.toTask
+          let! after = ProgramTypes.Fn.get current |> Ply.toTask
+          match before, after with
+          | Some b, Some a ->
+            let behaviour (fn : PT.PackageFn.PackageFn) =
+              Hashing.computeFnBehaviourHash Hashing.Normal fn
+            return behaviour b = behaviour a
+          | _ -> return false
+        | _ -> return false
+      }
+
+    if isDocOnly then
+      return Ok None
+    else
+
     let! previousSourceLocations =
       PMQueries.getUnlistedLocationsForRefs sourceItemKind fromSourceHashes
     let sourceLocations =

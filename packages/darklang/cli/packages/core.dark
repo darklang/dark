@@ -164,6 +164,24 @@ let saveAuthored
       Stdlib.printLine ""
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
 
+      // Say when the edit was only the doc comment. It IS a real change -- the doc is part of what
+      // an item is, so this is a new version that syncs and that `view` shows -- but nothing a
+      // caller can observe moved, which is why no dependents were repointed. Silence here read as
+      // "nothing happened", which is the complaint that got this fixed in the first place.
+      let _ =
+        if isUpdate && (Stdlib.List.member previousHashes boundHash |> Stdlib.Bool.not) then
+          match previousHashes with
+          | previous :: _ ->
+            if SCM.Deps.sameBehaviour previous boundHash then
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.dimText
+                  "  documentation only -- nothing that calls it changed, so nothing was repointed.")
+            else
+              ()
+          | [] -> ()
+        else
+          ()
+
       match peerHeadsUp with
       | Some line -> Stdlib.printLine line
       | None -> ()

@@ -11,6 +11,18 @@ module Darklang.SCM.Deps
 
 let localDb () : String = Stdlib.LocalStore.path ()
 
+/// Do these two versions of a function differ only in their doc comments?
+///
+/// The doc is part of an item's identity, so a doc-only edit is a real new version -- it syncs,
+/// and `view` shows it. Nothing a CALLER can see moved, though, so propagation skips it and the
+/// authoring commands say which kind of edit it was.
+let sameBehaviour
+  (before: LanguageTools.ProgramTypes.Hash)
+  (after: LanguageTools.ProgramTypes.Hash)
+  : Bool =
+  Builtin.pmSameBehaviour before after
+
+
 let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
   match s with
   | "type" -> LanguageTools.ProgramTypes.ItemKind.Type

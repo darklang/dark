@@ -1,5 +1,18 @@
 module Darklang.PrettyPrinter.RuntimeTypes
 
+/// An RT hash as the PT one the package manager answers about.
+///
+/// `RuntimeTypes.Hash` and `ProgramTypes.Hash` are both `Hash of String` and name the same bytes;
+/// they are separate types because they belong to separate vocabularies. Passing one where the
+/// other is declared used to type-check by accident -- identical declarations hashed identically,
+/// so the two were literally one item -- and stopped the day doc comments became part of an item's
+/// identity. This says the conversion out loud, which is what the code always meant.
+let ptHash
+  (hash: LanguageTools.RuntimeTypes.Hash)
+  : LanguageTools.ProgramTypes.Hash =
+  LanguageTools.ProgramTypes.Hash.Hash (LanguageTools.RuntimeTypes.hashToString hash)
+
+
 let nameResolutionError
   (nre: LanguageTools.RuntimeTypes.NameResolutionError)
   : String =
@@ -72,7 +85,7 @@ let typeNameWith
   : String =
   match t with
   | Package hash ->
-    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
     match
       Darklang.LanguageTools.PackageManager.pickLocation
         (LanguageTools.PackageManager.PickContext
@@ -97,7 +110,7 @@ let caseNameStandsAlone
   : Bool =
   match t with
   | Package hash ->
-    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
 
     // Several names for one type, and nothing in the reader's context to choose between them.
     //
@@ -140,7 +153,7 @@ module FQTypeName =
         (branchId: Uuid)
         (hash: LanguageTools.RuntimeTypes.FQTypeName.Package)
     : String =
-    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Type.locations branchId hash) hash
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Type.locations branchId (ptHash hash)) hash
 
 // TODO rename to fqtypeName?
 let typeName
@@ -162,7 +175,7 @@ let shortTypeName
   : String =
   match t with
   | Package hash ->
-    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
     match
       Darklang.LanguageTools.PackageManager.pickLocation
         LanguageTools.PackageManager.PickContext.empty
@@ -188,7 +201,7 @@ module FQValueName =
         (branchId: Uuid)
         (hash: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
-    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId hash) hash
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId (ptHash hash)) hash
 
 // TODO rename to fqvalueName?
 let valueName
@@ -216,7 +229,7 @@ module FQFnName =
         (branchId: Uuid)
         (hash: LanguageTools.RuntimeTypes.FQFnName.Package)
     : String =
-    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Function.locations branchId hash) hash
+    resolvePackageHash LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Function.locations branchId (ptHash hash)) hash
 
 
 // TODO rename to fqfnName?
@@ -291,7 +304,7 @@ let typeReference
       | Ok name ->
         match name with
         | Package hash ->
-          let locations = LanguageTools.PackageManager.Type.locations branchId hash
+          let locations = LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
           resolvePackageHashWithOriginalName LanguageTools.PackageManager.PickContext.empty locations typ.originalName hash
       | Error e -> nameResolutionError e
 
@@ -477,7 +490,7 @@ let declaredKnownType
         |> Stdlib.String.join ", "
         |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
 
-    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
 
     let namePart =
       resolvePackageHashWithOriginalName
@@ -579,7 +592,7 @@ module Dval =
     : List<String> =
     match typeName with
     | Package hash ->
-      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      match Darklang.LanguageTools.PackageManager.Type.get (ptHash hash) with
       | Some t ->
         match t.declaration.definition with
         | Record fields -> fields |> Stdlib.List.map (fun f -> f.name)
