@@ -3197,7 +3197,13 @@ let leadPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option
   | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
 
 let leadsItemsWith (st: State) (parent: Node) (slot: String) (c: String) : Bool =
-  (leadPunctOf st parent slot) == Stdlib.Option.Option.Some c
+  match leadPunctOf st parent slot with
+  // The FIRST character of a multi-character lead is enough to mean it, the same way the first character
+  // of multi-character punctuation drawn ahead is. A pipe leads its stages with `|>` and the key you press
+  // is `|`, so the exact comparison never matched and the rule that starts the next stage was unreachable
+  // from anywhere but the pipe node itself.
+  | Some lead -> (lead == c) || (((Stdlib.String.length lead) > 1) && (Stdlib.String.startsWith lead c))
+  | None -> false
 
 /// Is every leaf of this node still a hole? A freshly added list item is; one you have typed into isn't.
 let isAllHoles (n: Node) : Bool =

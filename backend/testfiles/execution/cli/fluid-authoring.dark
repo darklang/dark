@@ -1098,6 +1098,44 @@ module AnOperatorWaitsForItsOperand =
     "if s.width > 20 then 1 else 0"
 
 
+module ASecondPipeStartsTheNextStage =
+  // A second `|>` went INSIDE the stage before it:
+  //
+  //     xs |> Stdlib.List.map f |> Stdlib.List.length
+  //     ->  xs |> Stdlib.List.map (f |> Stdlib.List.length)
+  //
+  // No parentheses and no lambda needed -- any second `|>` typed after a call's ARGUMENT. The rule that
+  // starts the next stage exists and is right, and is keyed on the caret being `InItem("steps", i)` on
+  // the pipe node itself. After an argument the caret is several steps down, so it never fired, and the
+  // `|>` fell through to wrapping whatever was under it. The precedence climb then did exactly what it
+  // was asked: it stops below a construct that swallows what follows, and a pipe is one.
+  //
+  // `leadPunctSibling` already walks the enclosing list items inside-out and already reaches this
+  // position -- it just did not recognise the key. A pipe leads its stages with `|>` and you press `|`,
+  // and `leadsItemsWith` compared the two exactly. The first character of a MULTI-character lead is now
+  // enough to mean it, the same way the first character of multi-character punctuation drawn ahead is.
+  //
+  // Stays spec-read: no kind named, and a DSL leading its stages with `>>` gets this too.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.map f |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.map f |> Stdlib.List.length"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length"
+
+  // What the widening must NOT take. A `|` on a FRESH pipe is the second half of `||`, and the conversion
+  // back to the operator still wins -- a fresh stage is an empty hole, and `atEndOfItem` answers false
+  // there, which is what keeps the sibling path out of it.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a || b") [ "<Esc>", "<Esc>" ])) = "a || b"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a || b || c") [ "<Esc>", "<Esc>" ])) = "a || b || c"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a && b") [ "<Esc>", "<Esc>" ])) = "a && b"
+
+  // And the single-stage pipes, which were always right.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.length"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[1] |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "[1] |> Stdlib.List.length"
+
+
 module LeavingAnItemSettlesWhatWasTypedInIt =
   // `[zork]` drew exactly right and then refused to lower: "unresolved: zork". So did every constructor
   // written inside a collection, which is how it was found -- but it was never about constructors.
