@@ -144,12 +144,10 @@ CREATE TABLE IF NOT EXISTS relay_branches (
   -- replace it on every push, so pushing an old copy of a branch served that old copy to everyone
   -- and the newest commits were gone.
   --
-  -- No incremental migration for these. `relay_branches` is hosted data rather than a projection, so
-  -- the refold that follows a schema change leaves it alone -- but SQLite has no
-  -- `ADD COLUMN IF NOT EXISTS`, so an ALTER that is right for an existing store fails on every fresh
-  -- one, which is where the test DB lives. A relay predating this reads its bundles as stamp "" and
-  -- count 0, which loses to any push, so the first push after an upgrade re-establishes the pair;
-  -- wiping the relay volume also does it.
+  -- A store that already exists gets these from `LibDB.Releases`, not from an incremental .sql:
+  -- `relay_branches` is hosted data rather than a projection, so the refold that follows a schema
+  -- change leaves it alone, and SQLite has no `ADD COLUMN IF NOT EXISTS`, so a plain ALTER is right
+  -- for an old store and fails on every fresh one.
   max_ts TEXT NOT NULL DEFAULT '',
   op_count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (owner, branch_id)

@@ -130,7 +130,17 @@ let steps : List<Step> =
               "note: this store was made by a previous version of the SCM (it has a `branch_ops` table). \
                Branches recorded there do not carry over; main's ops do. For a clean start, wipe the store \
                (`rm ~/.darklang/data.db*`): the packages re-grow from this binary, and `dark pull` brings \
-               the rest back from your relay." } ]
+               the rest back from your relay." }
+
+    // What a relay's stored bundle CONTAINS, so a push can be compared with it rather than replacing
+    // it blind. `relay_branches` is hosted data, not a projection, so nothing else brings these to a
+    // store that already exists -- and a relay that has them missing does not degrade quietly, it
+    // fails every branch push with "no column named max_ts".
+    { name = "20260908_000001_relay_branch_freshness"
+      run =
+        fun () ->
+          addColumnIfMissing "relay_branches" "max_ts" "TEXT NOT NULL DEFAULT ''"
+          addColumnIfMissing "relay_branches" "op_count" "INTEGER NOT NULL DEFAULT 0" } ]
 
 
 let private alreadyRun () : Set<string> =
