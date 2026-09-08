@@ -45,3 +45,42 @@ module Filter =
   // No filter: an if offers the wraps and the conversion (order: spec actions then generic unwraps).
   (Stdlib.List.member (Fixtures.paletteNames "if x then 1 else 2" []) "convert to match") = true
   (Stdlib.List.member (Fixtures.paletteNames "if x then 1 else 2" []) "wrap in let") = true
+
+
+module ANodeWithNoCaseIsItsOwnTypeLevel =
+  // Seen on the `?` panel over a Function: every action listed twice.
+  //
+  //     ACTIONS
+  //       ( add a parameter
+  //       • takes nothing
+  //       ( add a parameter
+  //       • takes nothing
+  //
+  // `paletteActions` flattens the EXACT spec's actions and the TYPE-LEVEL spec's. `findTypeLevel` builds
+  // the kind with its case stripped -- and when there is no case to strip, that is the same kind, so both
+  // lookups land on the same spec and its actions are counted twice.
+  //
+  // Measured rather than guessed: 108 specs, 20 with no case, and only 2 of those carry actions at all.
+  // So the visible damage was one node type, which is exactly what the panel showed.
+  //
+  // The guard is at the call site, not in the lookup. Every other caller of `findTypeLevel` uses it as a
+  // `| None ->` fallback or ORs two booleans, where a duplicate cannot be seen; this is the only place
+  // that flattens them into a list.
+  // `Fixtures.reg` is prims + PT + PT.Types, which is everything an EXPRESSION needs and does not include
+  // the Function spec. A registry without the spec has no actions to duplicate, so the first run of this
+  // pin compared against an empty list and told me nothing about the bug.
+  let fnActions () : List<String> =
+    let st =
+      Darklang.Fluid.Editor.init
+        (Darklang.Fluid.App.defaultRegistry ())
+        (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "zork"))
+        80
+
+    Darklang.Fluid.Editor.paletteActions st |> Stdlib.List.map (fun a -> a.name)
+
+  (fnActions ()) = [ "add a parameter", "takes nothing" ]
+
+  // A node whose kind HAS a case must still get both: `convert to match` is the EIf spec's, and the
+  // wraps and `pipe into` belong to the type-level Expr spec that every case shares.
+  (Fixtures.paletteNames "if a then 1 else 2" []) =
+    [ "convert to match", "wrap in let", "wrap in match", "wrap in if", "pipe into", "unwrap to cond", "unwrap to then" ]

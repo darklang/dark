@@ -545,9 +545,21 @@ let paletteActions (st: State) : List<Action> =
       match spec with
       | Some sp -> sp.actions |> Stdlib.List.filter (fun a -> a.applies n)
       | None -> []
+    // A kind with no CASE is its own type level -- `findTypeLevel` strips the case, and there is none to
+    // strip -- so asking both is asking one question twice, and the panel drew every action on a Function
+    // twice under ACTIONS. It also inflated the `:` palette and the panel's "7 shown, N more" count.
+    //
+    // Only here. Every other caller of `findTypeLevel` uses it as a `| None ->` fallback or ORs the two
+    // booleans, and a duplicate is invisible in both; this is the one place that flattens them into a
+    // LIST. So the guard goes here rather than in the lookup, which is correct as it stands.
+    let typeLevel =
+      match n.kind.case with
+      | Some _ -> fromSpec (Registry.findTypeLevel st.reg n.kind)
+      | None -> []
+
     Stdlib.List.flatten
       [ fromSpec (Registry.findExact st.reg n.kind)
-        fromSpec (Registry.findTypeLevel st.reg n.kind)
+        typeLevel
         unwrapActions n (navPath st) ]
   | None -> []
 
