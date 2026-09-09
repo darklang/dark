@@ -515,8 +515,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "diff", id ] -> executeDiff state id false
   | [ "diff", id, "--source" ] -> executeDiff state id true
   | [ "log", id ] -> executeLog state id
-  | [ "merge", id ] -> executeMerge state id false
-  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id true
+  | [ "merge", id ] -> executeMerge state id false false
+  | [ "merge", id, "-y" ] | [ "merge", id, "--yes" ] ->
+    executeMerge state id true false
+  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id false true
+  | [ "merge", id, "--allow-type-errors", "-y" ]
+  | [ "merge", id, "-y", "--allow-type-errors" ] -> executeMerge state id true true
   | [ "merge", id, "--dry-run" ] -> executeMergeDryRun state id
   | [ "rebase", id ] -> executeRebase state id
   | [ "resolve", id, name, choice ] -> executeResolve state id name choice

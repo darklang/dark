@@ -80,7 +80,7 @@ let discardName (state : RT.ExecutionState) (name : string) : Task<unit> =
   run state [ "discard"; name; "-y" ]
 
 let merge (state : RT.ExecutionState) (branch : string) : Task<unit> =
-  run state [ "merge"; branch ]
+  run state [ "merge"; branch; "-y" ]
 
 let rebase (state : RT.ExecutionState) (branch : string) : Task<unit> =
   run state [ "rebase"; branch ]

@@ -170,7 +170,7 @@ each, and they never see each other's work until someone merges.
   dark branches [--json]           # what exists
   dark diff feature                # what it changes vs its parent
   dark rebase feature              # take the parent's current state
-  dark merge feature               # fold it in
+  dark merge feature -y            # fold it in (-y: nothing is there to answer the prompt)
 
 Conflicts never block. Both sides converge on the same winner, the loser is
 kept, and `dark conflicts` is where you review it after.

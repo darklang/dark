@@ -139,7 +139,7 @@ let private mergeCarriesPins =
       do! commit state "pin the caller"
 
       do! onMain state
-      do! shows state [ "merge"; "pinbr" ] "Merged" "the merge lands"
+      do! shows state [ "merge"; "pinbr"; "-y" ] "Merged" "the merge lands"
 
       // The pin is the parent's now, so main's next edit leaves the caller where it is.
       do! fn state "Tests.Pin.base" "() : Int64 = 20L"
@@ -357,7 +357,7 @@ let private mergeIsGatedLikeCommit =
       do!
         shows
           state
-          [ "merge"; "mergegate"; "--allow-type-errors" ]
+          [ "merge"; "mergegate"; "--allow-type-errors"; "-y" ]
           "Merged"
           "typed out, it merges"
 

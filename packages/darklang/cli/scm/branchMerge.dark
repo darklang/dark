@@ -123,7 +123,18 @@ let mergeRefusal
     | Incomplete -> false
 
 
-let executeMerge (state: AppState) (branchRef: String) (allowTypeErrors: Bool) : AppState =
+/// `dark merge <branch>`.
+///
+/// Asks the same way the bare form does. Naming the branch is not the confirmation: a merge moves
+/// somebody's committed work onto main and there is no undo verb for it, and the piped case is the
+/// one that matters -- an unattended run that meant to merge says `-y`, and one that did not gets
+/// told rather than obeyed.
+let executeMerge
+  (state: AppState)
+  (branchRef: String)
+  (autoConfirm: Bool)
+  (allowTypeErrors: Bool)
+  : AppState =
   match resolveRef branchRef with
   | None -> state
   | Some branchId when SCM.PackageOps.branchIsMerged branchId ->
@@ -132,6 +143,27 @@ let executeMerge (state: AppState) (branchRef: String) (allowTypeErrors: Bool) :
     Cli.printOk $"\"{branchRef}\" is already merged into its parent."
     state
   | Some branchId when mergeRefusal branchId branchRef allowTypeErrors -> state
+  // Structural refusals are reported BEFORE the question. Asking "merge it?" about a branch that
+  // cannot merge is a question with one answer, and on a pipe the refusal would be reported as a
+  // declined prompt rather than as the reason.
+  | Some branchId when Stdlib.Result.isError (SCM.Branches.canMerge branchId) ->
+    match SCM.Branches.canMerge branchId with
+    | Error r ->
+      Cli.printErr $"couldn't merge: {SCM.Branches.refusalMessage r}"
+      state
+    | Ok _ -> state
+  | Some branchId when
+    Stdlib.Bool.not (
+      Cli.Prompt.confirmExplicit
+        autoConfirm
+        (Stdlib.Cli.UI.Colors.warning
+          $"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")
+    )
+    ->
+    Cli.printOk
+      $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)"
+
+    state
   | Some branchId ->
     match SCM.PackageOps.mergeBranch branchId with
     | Ok outcome ->
@@ -292,24 +324,47 @@ let executeMergeBare (state: AppState) (autoConfirm: Bool) (allowTypeErrors: Boo
 
       previewed
     else
-      executeMerge previewed name allowTypeErrors
+      executeMerge previewed name true allowTypeErrors
 
+/// `dark merge [branch] [-y] [--allow-type-errors] [--dry-run]`
+///
+/// One parse for every combination, rather than an arm per spelling: the arm list missed
+/// `merge <branch> -y` entirely, so the named form had no way to say yes in advance.
 let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
-  match args with
-  | [] -> executeMergeBare state false false
-  | [ "-y" ] | [ "--yes" ] -> executeMergeBare state true false
-  | [ "--allow-type-errors" ] -> executeMergeBare state false true
-  | [ "-y", "--allow-type-errors" ]
-  | [ "--allow-type-errors", "-y" ] -> executeMergeBare state true true
-  | [ "--dry-run" ] ->
-    match bareTargetBranch "merge" with
-    | Ok name -> executeMergeDryRun state name
-    | Error _ -> state
-  | [ id ] -> executeMerge state id false
-  | [ id, "--allow-type-errors" ]
-  | [ "--allow-type-errors", id ] -> executeMerge state id true
-  | [ id, "--dry-run" ] -> executeMergeDryRun state id
-  | [ "--dry-run", id ] -> executeMergeDryRun state id
+  let (flags, rest) =
+    Stdlib.List.partition args (fun a -> Stdlib.String.startsWith a "-")
+
+  let autoConfirm =
+    (Stdlib.List.member flags "-y") || (Stdlib.List.member flags "--yes")
+
+  let allowTypeErrors = Stdlib.List.member flags "--allow-type-errors"
+  let dryRun = Stdlib.List.member flags "--dry-run"
+
+  let unknown =
+    flags
+    |> Stdlib.List.filter (fun f ->
+      f != "-y" && f != "--yes" && f != "--allow-type-errors" && f != "--dry-run")
+
+  match unknown with
+  | bad :: _ ->
+    Cli.printErr $"unknown flag: {bad}"
+    Cli.printHint "usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]"
+    { state with exitCode = 1 }
+  | [] ->
+
+  match rest with
+  | [] ->
+    if dryRun then
+      match bareTargetBranch "merge" with
+      | Ok name -> executeMergeDryRun state name
+      | Error _ -> state
+    else
+      executeMergeBare state autoConfirm allowTypeErrors
+  | [ id ] ->
+    if dryRun then
+      executeMergeDryRun state id
+    else
+      executeMerge state id autoConfirm allowTypeErrors
   | _ ->
     Cli.printErr "usage: dark merge <branch>"
     Cli.printHint "  `dark branches` lists them."

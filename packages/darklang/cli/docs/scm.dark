@@ -121,7 +121,7 @@ while it has children, so a one-off scratch branch shouldn't become one.
 ## Rebase and merge
 
   rebase <name>  accept the parent's current state as this branch's new base
-  merge <name>   fold the branch's ops into its parent
+  merge <name> [-y]   fold the branch's ops into its parent
 
 Merging the branch you're standing on puts you back on its parent and says so,
 because the branch is finished and the next thing you write shouldn't land on
@@ -145,9 +145,13 @@ same winner), and the LOSER IS KEPT and recorded for you to look at:
   conflicts branch <branch>    preview a branch's conflicts before merging
   resolve <branch> <name> mine|theirs   settle one name on a branch
 
-Review-after, not block-before. Losing someone's work quietly is the failure
-mode this design is built to avoid, and a merge that stops and asks is just a
-slower way to be blocked.
+Review-after, not block-before: a CONFLICT never stops a merge, it is
+auto-resolved and recorded for you to look at. Losing someone's work quietly is
+the failure mode this design is built to avoid.
+
+Merge itself does ask before it goes, because it moves committed work onto main
+and there is no undo verb for that. `-y` skips the question, and unattended
+callers need it: a stdin nobody is holding counts as no.
 
 ## Constraints: standing findings about your store
 

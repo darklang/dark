@@ -338,7 +338,7 @@ let private aMergeCommitsWhatItLands =
         // in the parent under a message somebody wrote. What this test is about is the OTHER
         // draft -- main's, which must survive the merge untouched.
         do! commit state "mergecommit work"
-        let! merged = runCli state [ "merge"; "mergecommit" ]
+        let! merged = runCli state [ "merge"; "mergecommit"; "-y" ]
         Expect.stringContains merged "Merged" $"the merge went through: {merged}"
 
         do!
@@ -420,7 +420,7 @@ let private anUnbindRemovesANameThroughTheCli =
             [ "eval"; "Tests.Gone.f ()" ]
             "1"
             "main still has it before the merge"
-        do! shows state [ "merge"; "gonebr" ] "Merged" "the branch merges"
+        do! shows state [ "merge"; "gonebr"; "-y" ] "Merged" "the branch merges"
         do!
           shows
             state
@@ -2101,7 +2101,7 @@ let private mergeGatesAreDecidedInDark =
         do!
           shows
             state
-            [ "merge"; "gateparent" ]
+            [ "merge"; "gateparent"; "-y" ]
             "Merged"
             "and archiving the child clears the gate, rather than repeating the advice"
 
@@ -2597,7 +2597,7 @@ let private mergeCommitsWhatASiblingStillTags =
         do! commit state "shared2 work"
         do! switch state "main"
 
-        do! shows state [ "merge"; "shared1" ] "erged" "the merge went through"
+        do! shows state [ "merge"; "shared1"; "-y" ] "erged" "the merge went through"
 
         // The shared content op is tagged by shared2 still; it must carry the merge's commit.
         let! unstamped =

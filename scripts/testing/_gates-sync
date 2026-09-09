@@ -517,7 +517,7 @@ gate_sync_multi_instance() {
   # The control first (the name exists and eval works), then the exact refusal on main.
   want "B runs it on the branch" "^77$" "$(x B --branch feat eval 'SM.T.onFeat ()' | tail -1)"
   want "and B's main does not" "^Error: SM\.T\.onFeat not found$" "$(x B eval 'SM.T.onFeat ()' | tail -1)"
-  want "B merges it" "^Merged [1-9][0-9]* op\(s\) from branch \"feat\" into its parent\.$" "$(x B --branch feat merge feat)"
+  want "B merges it" "^Merged [1-9][0-9]* op\(s\) from branch \"feat\" into its parent\.$" "$(x B --branch feat merge feat -y)"
 
   x B push > /dev/null; x C pull > /dev/null
   want "C gets it on main" "^77$" "$(x C eval 'SM.T.onFeat ()' | tail -1)"
@@ -551,7 +551,7 @@ gate_sync_multi_instance() {
   x A switch main > /dev/null
   x A fn /SM.T.meanwhile '() : Int64 = 1L' > /dev/null; x A commit "meanwhile" -y > /dev/null
   want "A pushes main in between" "^Pushed [1-9]" "$(x A push)"
-  want "A merges the branch" "^Merged [1-9]" "$(x A --branch late merge late)"
+  want "A merges the branch" "^Merged [1-9]" "$(x A --branch late merge late -y)"
   want "and the merge has something to push" "^Pushed [1-9]" "$(x A push)"
   x C pull > /dev/null
   want "C gets the merged work on main" "^88$" "$(x C eval 'SM.T.late ()' | tail -1)"
@@ -600,7 +600,7 @@ gate_sync_multi_instance() {
   allok=true
   for n in 1 2 3 4; do [[ "$(x A --branch "agent-$n" eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
   if $allok; then ok "each agent's work is on its own branch"; else bad "each agent's work is on its own branch" "see above"; fi
-  for n in 1 2 3 4; do x A --branch "agent-$n" merge "agent-$n" > /dev/null 2>&1; done
+  for n in 1 2 3 4; do x A --branch "agent-$n" merge "agent-$n" -y > /dev/null 2>&1; done
   x A switch main > /dev/null
   allok=true
   for n in 1 2 3 4; do [[ "$(x A eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
@@ -634,7 +634,7 @@ gate_sync_multi_instance() {
 
   # ASSERTED, not discarded: a merge that refuses says so on stdout, and throwing that away left the
   # next assertion to report "not found" about a name whose merge had simply not happened.
-  want "B merges the edited branch" "^Merged [1-9][0-9]* op\(s\)" "$(x B --branch edited merge edited)"
+  want "B merges the edited branch" "^Merged [1-9][0-9]* op\(s\)" "$(x B --branch edited merge edited -y)"
   want "merged into main, still the newest" "^30$" "$(x B eval 'SM.T.edited ()' | tail -1)"
 
   echo "== a deprecation travels"
@@ -670,7 +670,7 @@ gate_sync_multi_instance() {
   x B branch pull --from "$AID" > /dev/null
   want "B sees the branch as live" "^finished \([0-9a-f]{8}\) <- main  \[[1-9][0-9]* op" "$(x B branches)"
 
-  x A --branch finished merge finished > /dev/null
+  x A --branch finished merge finished -y > /dev/null
   x A switch main > /dev/null
   x A push > /dev/null
   x B pull > /dev/null

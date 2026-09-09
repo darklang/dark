@@ -64,7 +64,7 @@ Your edits are LIVE as soon as you write them. There is no build step.
   diff <name>       what it changes vs its parent
   log [<name>]      its ops (on main: the commits)
   rebase <name>     take the parent's current state
-  merge <name>      fold it into its parent
+  merge <name> [-y] fold it into its parent
   resolve <branch> <name> mine|theirs
   (see: docs scm)
 
