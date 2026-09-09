@@ -1655,17 +1655,7 @@ let regroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
 
   match Path.parent from with
   | None -> Stdlib.Option.Option.None
-  | Some parentPath ->
-    (match (Path.last from, nodeAtPath st.root parentPath) with
-     | (Some(Into "left"), Some pn) ->
-       (match nodeAtPath st.root from with
-        | Some child ->
-          if (isInfix pn) && (isInfix child) then
-            Stdlib.Option.Option.Some parentPath
-          else
-            regroupTarget st parentPath
-        | None -> regroupTarget st parentPath)
-     | _ -> regroupTarget st parentPath)
+  | Some parentPath -> regroupTarget st parentPath
 
 let regroupRight (st: State) : Stdlib.Option.Option<State> =
   match regroupTarget st (navPath st) with
@@ -1680,6 +1670,55 @@ let regroupRight (st: State) : Stdlib.Option.Option<State> =
            | (Some lRight, Some _) ->
              let newA = Node.setField a "left" (Field.One lRight)
              let rotated = Node.setField l "right" (Field.One(Slot.Filled newA))
+             let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
+             Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
+           | _ -> Stdlib.Option.Option.None)
+        | _ -> Stdlib.Option.Option.None))
+
+/// Ungroup: `1 - (3 + 2)` becomes `(1 - 3) + 2`. The other direction, and the same rotation
+/// `reassocGrown` performs for precedence -- a left rotation, where `regroupRight` is a right one.
+///
+///     A.right <- R.left           1 - (3 + 2)
+///     R.left  <- A            ->  (1 - 3) + 2
+///     result  <- R
+///
+/// Undo already reverses a grouping you just made. What this adds is regrouping code you did NOT write:
+/// opening `1 - (3 + 2)` from the store and wanting the other reading. Undo cannot reach that.
+let ungroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
+  let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+
+  let hereRotates =
+    match nodeAtPath st.root from with
+    | Some n ->
+      if isInfix n then
+        (match Node.slot n "right" with
+         | Some(Filled r) -> isInfix r
+         | _ -> false)
+      else
+        false
+    | None -> false
+
+  if hereRotates then
+    Stdlib.Option.Option.Some from
+  else
+
+  match Path.parent from with
+  | None -> Stdlib.Option.Option.None
+  | Some parentPath -> ungroupTarget st parentPath
+
+let ungroupLeft (st: State) : Stdlib.Option.Option<State> =
+  match ungroupTarget st (navPath st) with
+  | None -> Stdlib.Option.Option.None
+  | Some aPath ->
+    (match nodeAtPath st.root aPath with
+     | None -> Stdlib.Option.Option.None
+     | Some a ->
+       (match Node.slot a "right" with
+        | Some(Filled r) ->
+          (match Node.slot r "left" with
+           | Some rLeft ->
+             let newA = Node.setField a "right" (Field.One rLeft)
+             let rotated = Node.setField r "left" (Field.One(Slot.Filled newA))
              let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
              Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
            | _ -> Stdlib.Option.Option.None)
@@ -4374,6 +4413,10 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           (match regroupRight st with
            | Some s2 -> handled s2
            | None -> handled { st with message = "nothing to group here" })
+        elif ch == ")" then
+          (match ungroupLeft st with
+           | Some s2 -> handled s2
+           | None -> handled { st with message = "nothing to ungroup here" })
         elif ch == "j" then handled (navBy st 1)
         elif ch == "k" then handled (navBy st (-1))
         elif ch == "h" then handled (navParent st)

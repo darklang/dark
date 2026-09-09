@@ -21,6 +21,59 @@ type Target =
     value: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue *
     location: Darklang.LanguageTools.ProgramTypes.PackageLocation
 
+/// A type declaration to edit: an enum whose cases carry fields, which is the shape that could be READ
+/// and not written until `opensItems` landed.
+let demoEnumDecl () : Slot =
+  let field (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = t; label = Stdlib.Option.Option.None; description = "" }
+
+  let case (nm: String) (fs: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField>) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = nm; fields = fs; description = "" }
+
+  let pt =
+    Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "demo"
+        declaration =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams = []
+              definition =
+                Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+                  [ case "Circle" [ field Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+                    case
+                      "Rect"
+                      [ field Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+                        field Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+                    case "Point" [] ] }
+        description = "a small enum. `| Circle of Int` is typeable: name it, then a space opens its fields." }
+
+  Slot.Filled(PT.TypeDecl.toDoc "Shape" pt)
+
+/// The gallery `fluid demo` opens.
+///
+/// Each entry carries its OWN registry, which is half the point: the grid and the Color value are drawn
+/// by specs the kernel has never heard of, and they sit in the same editor as Darklang code.
+let demos () : List<(String * Registry * Slot)> =
+  let parsed =
+    match
+      Darklang.LanguageTools.Parser.Parse.parsePTExpr
+        "match Stdlib.List.head xs with\n| Some v -> v |> Stdlib.Int.toString\n| None -> \"none\""
+    with
+    | Ok e -> Slot.Filled(PT.toDoc e)
+    | Error _ -> Slot.Empty(PT.exprExpect "expression")
+
+  [ ("a blank expression", defaultRegistry (), Slot.Empty(PT.exprExpect "expression"))
+    ("an expression: match, pipe, a lambda", defaultRegistry (), parsed)
+    ("a value of a type the kernel never heard of", defaultRegistry (), demoDocument ())
+    ("a list of records, seen as a GRID", demoRegistry (), demoGrid ())
+    ("a type declaration: an enum with fields", defaultRegistry (), demoEnumDecl ()) ]
+
+let demoLabels () : List<String> =
+  demos ()
+  |> Stdlib.List.map (fun d ->
+    let (n, _reg, _root) = d
+    n)
+
 type State =
   { editor: Editor.State
     title: String
@@ -58,7 +111,16 @@ type State =
     /// A file handed to `$EDITOR`, waiting to be read back. Set when the editor is launched and cleared by
     /// `refresh` when the CLI hands the terminal back -- the read cannot happen in `view`, which has to be
     /// a pure function of state for frame diffing to be sound.
-    pendingEdit: Stdlib.Option.Option<String> }
+    pendingEdit: Stdlib.Option.Option<String>
+
+    /// Which entry of the demo gallery is showing, if this editor was opened by `fluid demo`. `]` and `[`
+    /// walk the gallery, so trying the different things Fluid can project is one command and two keys
+    /// rather than one command per example.
+    demo: Stdlib.Option.Option<Int>
+
+    /// The gallery list, when it is showing. `Stdlib.Cli.UI.Picker` already does this job -- labels in, a
+    /// chosen index out -- so this is the widget rather than another list-with-a-cursor.
+    demoPick: Stdlib.Option.Option<Stdlib.Cli.UI.Picker.State> }
 
 /// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
 /// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
@@ -199,6 +261,33 @@ let launchTarget (cliState: Darklang.Cli.AppState) (title: String) (root: Slot) 
     cliState
 
 /// Launch a document that brings its OWN specs (a grid, a language of its own).
+/// Load gallery entry `i`, keeping the frame, the theme and the pane sizes. Everything about the
+/// DOCUMENT is replaced; everything about the window is not.
+let loadDemo (st: State) (i: Int) : State =
+  match Stdlib.List.getAt (demos ()) i with
+  | Some entry ->
+    let (nm, reg, root) = entry
+
+    { st with
+        editor = Editor.init reg root st.editor.width
+        title = nm
+        scroll = 0
+        hscroll = 0
+        savedRoot = root
+        evaluated = Stdlib.Option.Option.None
+        demo = Stdlib.Option.Option.Some i
+        demoPick = Stdlib.Option.Option.None }
+  | None -> st
+
+/// Launch a state that has already been prepared, for the gallery, which opens with a document loaded
+/// AND the list showing over it.
+let launchPrepared (cliState: Darklang.Cli.AppState) (st: State) : Darklang.Cli.AppState =
+  match Stdlib.Cli.Tui.TerminalSupport.current () with
+  | Available -> Darklang.Cli.Component.launch cliState component st
+  | Unavailable reason ->
+    Stdlib.printLine $"fluid needs a terminal: {reason}"
+    cliState
+
 let launchInRegistry
   (cliState: Darklang.Cli.AppState)
   (reg: Registry)
@@ -430,7 +519,9 @@ let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : 
       textMode = Stdlib.Option.Option.None
       savedRoot = root
       confirmingExit = false
-      pendingEdit = Stdlib.Option.Option.None }
+      pendingEdit = Stdlib.Option.Option.None
+      demo = Stdlib.Option.Option.None
+      demoPick = Stdlib.Option.Option.None }
 
 /// The module the document being edited lives in, so names on screen read the way they read in the
 /// source: standing in `Darklang.LanguageTools.ProgramTypes`, `Darklang.LanguageTools.ID` is `ID`. Every
@@ -460,7 +551,9 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       textMode = Stdlib.Option.Option.None
       savedRoot = root
       confirmingExit = false
-      pendingEdit = Stdlib.Option.Option.None }
+      pendingEdit = Stdlib.Option.Option.None
+      demo = Stdlib.Option.Option.None
+      demoPick = Stdlib.Option.Option.None }
 
 let initial (title: String) (root: Slot) : State =
   initialFor title root Target.Scratch
@@ -496,7 +589,8 @@ let helpFor (st: State) : String =
       let evalKey = "  v value"
       // Only the keys reached for constantly. The rest are in the panel, which `?` opens -- the status
       // line used to run past the right edge and read `q qu`.
-      (statusOf st) ++ " j/k nav  h/l in/out  i edit  c change" ++ actionsKey ++ evalKey ++ panelKey ++ "  q quit"
+      let demoKey = if Stdlib.Option.isSome st.demo then "  ] demos" else ""
+      (statusOf st) ++ " j/k nav  h/l in/out  i edit  c change" ++ actionsKey ++ evalKey ++ demoKey ++ panelKey ++ "  q quit"
 
 /// Which buffer line sits at the top of the text pane. The pane shows `rows` lines, so a taller buffer
 /// needs a window; this picks the smallest scroll that keeps the caret row visible with a couple of lines
@@ -582,7 +676,20 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
       [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true
         Widget.view st.theme st.editor region st.scroll st.hscroll
         popoverSpans
-        Widget.palette st.theme st.editor region ]
+        Widget.palette st.theme st.editor region
+        (match st.demoPick with
+         | Some pick ->
+           // A centred list over the document, so what you pick lands where you are already looking.
+           let rows = Stdlib.Int.min ((Stdlib.List.length (demoLabels ())) + 2) (Stdlib.Int.max 6 (region.rows - 4))
+           let cols = Stdlib.Int.min 60 (Stdlib.Int.max 24 (region.cols - 6))
+           let top = region.top + (Stdlib.Int.max 0 (Stdlib.Int.divide (region.rows - rows) 2))
+           let left = region.left + (Stdlib.Int.max 0 (Stdlib.Int.divide (region.cols - cols) 2))
+           let box = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = rows; cols = cols }
+           let inner = Stdlib.Cli.UI.Box.inner box
+           Stdlib.List.flatten
+             [ Stdlib.Cli.UI.Box.draw box "fluid demo -- Enter opens, Esc closes, ] reopens" true
+               Stdlib.Cli.UI.Picker.view pick inner ]
+         | None -> []) ]
   let inspSpans =
     if showInspector then
       // What the node under the caret IS, when it carries a hash: its signature and its doc comment. Every
@@ -904,6 +1011,18 @@ let onKey
   (keyChar: Stdlib.Option.Option<String>)
   : Darklang.Cli.Component.Step<State> =
   let kp = Stdlib.Cli.UI.Widget.press key modifiers keyChar
+  match st.demoPick with
+  | Some pick ->
+    // The gallery owns the keyboard while it is up, the way the palette does.
+    (match Stdlib.Cli.UI.Picker.onKey pick kp with
+     | Handled p2 -> Darklang.Cli.Component.Step.Stay { st with demoPick = Stdlib.Option.Option.Some p2 }
+     | Emitted(_p, msg) ->
+       (match msg with
+        | Chose i -> Darklang.Cli.Component.Step.Repaint(loadDemo st i)
+        | Cancelled -> Darklang.Cli.Component.Step.Stay { st with demoPick = Stdlib.Option.Option.None })
+     | Ignored -> Darklang.Cli.Component.Step.Stay st)
+  | None ->
+
   match st.textMode with
   | Some((buf, caret, path)) -> textModeKey st buf caret path key modifiers keyChar
   | None ->
@@ -917,6 +1036,12 @@ let onKey
     // then diffs against a screen that has moved and leaves two stale rows at the top. The surface is not
     // ours any more once something else has written to it.
     Darklang.Cli.Component.Step.Repaint { (evaluateSelection st) with inspectorOpen = true }
+  elif (keyChar == Stdlib.Option.Option.Some "]") && (st.editor.mode == Editor.Mode.Nav)
+       && (Stdlib.Bool.not st.editor.paletteOpen) && (Stdlib.Option.isSome st.demo) then
+    // Back to the gallery, sitting on whatever is showing rather than at the top.
+    let at = st.demo |> Stdlib.Option.withDefault 0
+    let pick = Stdlib.Cli.UI.Picker.moveTo (Stdlib.Cli.UI.Picker.make (demoLabels ())) at
+    Darklang.Cli.Component.Step.Stay { st with demoPick = Stdlib.Option.Option.Some pick }
   elif (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
     // NAV only: in INSERT a `?` is a character you are typing.
     Darklang.Cli.Component.Step.Stay { st with inspectorOpen = Stdlib.Bool.not st.inspectorOpen }
@@ -941,12 +1066,17 @@ let onKey
         Editor.nodePaths settled.root
         |> Stdlib.List.filter (fun p -> (Darklang.Fluid.Path.isPrefixOf scope p) && p != scope)
         |> Stdlib.List.filterMap (fun p ->
+          // A FILLED node only. `docToSourceResult` answers `Ok ""` for an empty slot, and it is right to
+          // -- an empty document is an empty buffer to type into -- but as a fall-through TARGET that is
+          // wrong: it silently scopes you to some hole and shows a blank screen. `fluid demo` did exactly
+          // that, because the Color value has holes in it, and the blank buffer looked like text mode
+          // being broken rather than like text mode editing a hole.
           match Darklang.Fluid.slotAtPath settled.root p with
-          | Some inner ->
-            (match docToSourceResult inner with
+          | Some(Filled innerNode) ->
+            (match docToSourceResult (Slot.Filled innerNode) with
              | Ok src -> Stdlib.Option.Option.Some((src, p))
              | Error _ -> Stdlib.Option.Option.None)
-          | None -> Stdlib.Option.Option.None)
+          | _ -> Stdlib.Option.Option.None)
         |> Stdlib.List.head
 
     match target with
@@ -1032,7 +1162,13 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   // Bare `fluid` is a scratch EXPRESSION: an empty expression, the most common thing to try. The blank
   // is a value you type (a number, a string, `let`, `if`...), not a type.
   | [] -> launchWith cliState "scratch expression" (Slot.Empty(PT.exprExpect "expression"))
-  | [ "demo" ] -> launchWith cliState "example Color value" (demoDocument ())
+  | [ "demo" ] ->
+    // Opens ON the first entry with the gallery over it, so one command reaches every example.
+    let st0 = initialWith (defaultRegistry ()) "fluid demo" (Slot.Empty(PT.exprExpect "expression")) Target.Scratch
+    let loaded = loadDemo st0 0
+    launchPrepared
+      cliState
+      { loaded with demoPick = Stdlib.Option.Option.Some(Stdlib.Cli.UI.Picker.make (demoLabels ())) }
   | [ "demo", "table" ] ->
     launchInRegistry cliState (demoRegistry ()) "example grid" (demoGrid ())
   | [ "expr" ] -> launchWith cliState "scratch expression" (Slot.Empty(PT.exprExpect "expression"))
@@ -1098,8 +1234,8 @@ let help (_state: Darklang.Cli.AppState) : String =
     "  fluid generate <Type>  print an editable editor module for one of your types"
     "  fluid generate <Kind>  print the editor that SHIPS for a node, to edit and declare"
     "                         (the kind is on the `?` panel, under the node's name)"
-    "  fluid demo             a worked example (a Color value)"
-    "  fluid demo table       a list of records seen as a GRID, not as a line of text"
+    "  fluid demo             a GALLERY of worked examples: pick one, `]` for the list again"
+    "  fluid demo table       straight to the grid one (a list of records seen as a table)"
     ""
     "In a VALUE or expression, a blank wants an expression -- a number, a string, a call."
     "In a TYPE, a blank wants a type -- Int, List<String>, and so on."

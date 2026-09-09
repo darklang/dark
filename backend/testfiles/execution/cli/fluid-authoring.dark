@@ -2381,3 +2381,25 @@ module GroupingIsARotation =
 
   // And it really is a different program, not a redrawing: `8 / 4 / 2` is 1, `8 / (4 / 2)` is 4.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "8 / 4 / 2") [ "<Esc>", "(" ])) = "8 / (4 / 2)"
+
+
+module UngroupingIsTheSameRotationBackwards =
+  // `)` is the other direction: `1 - (3 + 2)` becomes `(1 - 3) + 2`. It is the LEFT rotation, the one
+  // `reassocGrown` already performs for precedence, asked for explicitly.
+  //
+  // Undo already reverses a grouping you just made. What this adds is regrouping code you did NOT
+  // write: opening `1 - (3 + 2)` from the store and wanting the other reading. Undo cannot reach that.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "1 - (3 + 2)") [ "<Esc>", ")" ])) = "1 - 3 + 2"
+
+  // The pair round-trips, and both leave the caret on the rotated node so pressing them alternately
+  // does not wander. That is the property `h`/`l` still lacks, and it would be poor form to ship a new
+  // pair without it.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "(", ")" ])) = "~1 - 3 + 2"
+
+  // Each direction terminates on its own rather than spinning.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 - (3 + 2)") [ "<Esc>", ")", ")" ])) = "~1 - 3 + 2"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<Esc>", ")" ])) = "1 + ~2"
+
+  // The climb finds the nearest ancestor that rotates, so it works from deep inside an operand.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a - b + c * d") [ "<Esc>", "(" ])) =
+    "a - (b + c * d)"

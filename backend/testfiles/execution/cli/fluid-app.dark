@@ -27,7 +27,9 @@ module Fixtures =
         textMode = Stdlib.Option.Option.None
         savedRoot = editor.root
         confirmingExit = false
-        pendingEdit = Stdlib.Option.Option.None }
+        pendingEdit = Stdlib.Option.Option.None
+        demo = Stdlib.Option.Option.None
+        demoPick = Stdlib.Option.Option.None }
 
   let hole () : Darklang.Fluid.Slot =
     Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
@@ -617,6 +619,41 @@ module TextModeWorksOnAShell =
 
   // On an expression it is still that expression, at the root.
   (TextModeWorksOnAShell.ctrlE (Fixtures.docOf "1 + 2")) = " => 1 + 2"
+
+  // But the fall-through must not land on a HOLE. `docToSourceResult` answers `Ok ""` for an empty slot,
+  // and it is right to -- an empty document is an empty buffer to type into -- so the search for "the
+  // nearest expression inside the selection" accepted the first hole it found and opened text mode on it.
+  // `fluid demo` showed a completely blank screen, which reads as text mode being broken rather than as
+  // text mode editing a hole. A foreign node with holes in it now says what it is instead.
+  (TextModeWorksOnAShell.ctrlE (Darklang.Fluid.App.demoDocument ())) =
+    "no text mode: can't edit as text: not an expression node: Acme.Color"
+
+
+module TheDemoGalleryIsAList =
+  // `fluid demo` used to be one example, and `fluid demo table` a second one nobody would guess at. It is
+  // a gallery now: one command, a list over the document, Enter to open and `]` to come back. The picker
+  // is `Stdlib.Cli.UI.Picker`, which already existed for exactly this and even marks the selection with a
+  // `>` rather than colour alone, for monochrome terminals.
+  //
+  // Each entry carries its OWN registry, which is the thing worth showing: the grid and the Color value
+  // are drawn by specs the kernel has never heard of, in the same editor as Darklang code.
+  ((Stdlib.List.length (Darklang.Fluid.App.demoLabels ())) > 3) = true
+
+  (Darklang.Fluid.App.demoLabels ()) =
+    [ "a blank expression"
+      "an expression: match, pipe, a lambda"
+      "a value of a type the kernel never heard of"
+      "a list of records, seen as a GRID"
+      "a type declaration: an enum with fields" ]
+
+  // Loading an entry replaces the document and says which one is showing, so `]` can reopen on it.
+  let loaded (i: Int) : String =
+    let st = Darklang.Fluid.App.loadDemo (Darklang.Fluid.App.initial "start" (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))) i
+    st.title ++ " / " ++ (match st.demo with
+                          | Some n -> Stdlib.Int.toString n
+                          | None -> "none")
+
+  (TheDemoGalleryIsAList.loaded 3) = "a list of records, seen as a GRID / 3"
 
 
 module ThePanelNamesTheKind =
