@@ -494,7 +494,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let help (state: Cli.AppState) : String =
   [
-    "Search for packages, types, functions, and values"
+    "Search modules, types, functions, and values"
     ""
     "Usage: search [query] [options]"
     ""
