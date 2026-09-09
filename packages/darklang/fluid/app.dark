@@ -885,7 +885,14 @@ let sourceToDoc (src: String) : Stdlib.Result.Result<Slot, String> =
 /// the structural editor (staying in text mode with a message if it doesn't parse); Escape discards it.
 let textModeKey (st: State) (buf: String) (caret: Int) (path: Path) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Darklang.Cli.Component.Step<State> =
   let stay (b: String) (c: Int) : Darklang.Cli.Component.Step<State> =
-    Darklang.Cli.Component.Step.Stay { st with textMode = Stdlib.Option.Option.Some((b, c, path)) }
+    // Typing clears whatever the last keystroke said. The message is where "text edit cancelled" and
+    // "parse error: ..." land, and it sat in the footer through everything typed afterwards -- which for
+    // a parse error means the complaint stays on screen while you fix it, and reads as though the fix had
+    // not taken.
+    Darklang.Cli.Component.Step.Stay
+      { st with
+          textMode = Stdlib.Option.Option.Some((b, c, path))
+          editor = { st.editor with message = "" } }
   let len = Stdlib.String.length buf
   // A multi-line buffer needs vertical and line-wise motion. Without it the caret could only walk one
   // character at a time, so anything the printer wrapped over several lines was unusable.
@@ -1104,8 +1111,13 @@ let onKey
     | Some(pair) ->
       let (src, at) = pair
 
+      // Arriving with a clean footer. A message REPLACES the text frame's key line, so whatever the last
+      // structural keystroke said would sit on top of `Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel` for the
+      // whole visit -- and those keys are the only place text mode's contract is written down.
       Darklang.Cli.Component.Step.Stay
-        { st with editor = settled; textMode = Stdlib.Option.Option.Some((src, 0, at)) }
+        { st with
+            editor = { settled with message = "" }
+            textMode = Stdlib.Option.Option.Some((src, 0, at)) }
     | None ->
       match docToSourceResult scoped with
       | Error err ->

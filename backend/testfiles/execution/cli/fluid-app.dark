@@ -813,3 +813,50 @@ module ThePopoverFollowsTheSelection =
 
   ([ 0, 3, 5, 6, 9, 13 ] |> Stdlib.List.map (fun i -> visibleAt i)) =
     [ true, true, true, true, true, true ]
+
+
+module TextModeKeepsItsKeysOnScreen =
+  // Text mode's frame carries the only written-down statement of its contract --
+  // `Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel` -- and a MESSAGE replaces that line rather than sitting
+  // beside it. So once anything set a message it stayed there for the rest of the visit, and the keys
+  // were gone.
+  //
+  // Two ways in. Arriving carried whatever the last structural keystroke had said. And a message set
+  // INSIDE text mode -- "parse error: ..." from a Ctrl-S that did not parse -- survived everything typed
+  // to fix it, so the complaint read as though the fix had not taken.
+  //
+  // Found by driving `$EDITOR` in a terminal: change `2` to `42 * 3`, press Escape, and the "text edit
+  // cancelled" it says then hid the keys from the next visit. There is no way to see this without a
+  // terminal, because it is about what the frame shows rather than what the document holds.
+  let ed () : Darklang.Fluid.Editor.State =
+    Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "1 + 2") 80
+
+  let noisy () : Darklang.Fluid.App.State =
+    let base_ = Fixtures.stateOf (TextModeKeepsItsKeysOnScreen.ed ())
+    { base_ with editor = { base_.editor with message = "text edit cancelled" } }
+
+  /// The message after a step, which is what decides whether the key line survives.
+  let messageAfter (step: Darklang.Cli.Component.Step<Darklang.Fluid.App.State>) : String =
+    match step with
+    | Stay s -> s.editor.message
+    | Repaint s -> s.editor.message
+    | _ -> "<other step>"
+
+  // Entering text mode with a message already showing: it goes.
+  (TextModeKeepsItsKeysOnScreen.messageAfter
+    (Darklang.Fluid.App.onKey
+      (TextModeKeepsItsKeysOnScreen.noisy ())
+      Darklang.Stdlib.Cli.Stdin.Key.Key.E
+      (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = true; shift = false })
+      Stdlib.Option.Option.None)) = ""
+
+  // ...and typing in text mode clears what the last keystroke there said.
+  (TextModeKeepsItsKeysOnScreen.messageAfter
+    (Darklang.Fluid.App.textModeKey
+      (TextModeKeepsItsKeysOnScreen.noisy ())
+      "1 + "
+      4
+      []
+      Darklang.Stdlib.Cli.Stdin.Key.Key.NoName
+      (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false })
+      (Stdlib.Option.Option.Some "3"))) = ""
