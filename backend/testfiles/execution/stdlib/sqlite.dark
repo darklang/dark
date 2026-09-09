@@ -67,3 +67,31 @@ module Row =
    | Some r -> (Stdlib.Sqlite.textField r "name", Stdlib.Sqlite.intField r "id")
    | None -> (Stdlib.Option.Option.None, Stdlib.Option.Option.None))
    = (Stdlib.Option.Option.Some "bob", Stdlib.Option.Option.Some 2L)
+
+// execBatch — several statements in ONE transaction, one statement run per parameter row.
+module Batch =
+  (let db = "/tmp/dark-test-sqlite-e.db"
+   let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+   let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+   let r =
+     Stdlib.Sqlite.execBatch
+       db
+       [ ("INSERT INTO t (id, name) VALUES (@p0, @p1)", [ [ "1", "alice" ], [ "2", "bob" ] ]),
+         ("UPDATE t SET name = @p0 WHERE id = @p1", [ [ "carol", "1" ] ]) ]
+   (Stdlib.Result.isOk r, Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name"))
+   = (true, [ "carol", "bob" ])
+
+// The whole point of the batch: a statement that fails takes the ones before it with it. Without
+// the transaction, "bob" would be sitting in the table after a call that reported an error.
+module BatchIsAtomic =
+  (let db = "/tmp/dark-test-sqlite-f.db"
+   let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+   let _ = Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+   let _ = Stdlib.Sqlite.execP db "INSERT INTO t (id, name) VALUES (@p0, @p1)" [ "1", "alice" ]
+   let r =
+     Stdlib.Sqlite.execBatch
+       db
+       [ ("INSERT INTO t (id, name) VALUES (@p0, @p1)", [ [ "2", "bob" ] ]),
+         ("INSERT INTO t (id, name) VALUES (@p0, @p1)", [ [ "1", "collides" ] ]) ]
+   (Stdlib.Result.isError r, Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name"))
+   = (true, [ "alice" ])
