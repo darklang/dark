@@ -178,3 +178,14 @@ let inline pOpt (cmd : SqliteCommand) (name : string) (value : string option) =
   match value with
   | Some s -> p cmd name (box s)
   | None -> p cmd name (box System.DBNull.Value)
+
+
+/// Bind the location key nearly every projection statement filters on: $owner, $modules
+/// (dot-joined) and $name. Per call site, only the location varies.
+let inline pLoc
+  (cmd : SqliteCommand)
+  (location : LibExecution.ProgramTypes.PackageLocation)
+  =
+  p cmd "$owner" location.owner
+  p cmd "$modules" (String.concat "." location.modules)
+  p cmd "$name" location.name

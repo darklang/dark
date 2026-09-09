@@ -14,12 +14,16 @@ module LibDB.Docs
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Fumble
+open Microsoft.Data.Sqlite
 
 open Prelude
 open LibExecution.ProgramTypes
 open LibDB.Sqlite
+open LibDB.PreparedBatch
+open LibSerialization.Hashing
 
 module PT = LibExecution.ProgramTypes
+module BS = LibSerialization.Binary.Serialization
 
 
 // ---------------------
@@ -319,4 +323,225 @@ let docsForLocations
                 Map.add loc (standing @ [ part, text ]) acc
               | _ -> acc)
             byLocation
+  }
+
+
+// ---------------------
+// The fold
+// ---------------------
+//
+// Applying an `UpdateDoc` lives here rather than beside the other `applyX` functions in
+// `PackageOpPlayback`, because everything else it needs is in this file: the lens that reads a
+// declaration, the key a row is stored under, and the fallback when a name has said nothing of its
+// own. Split across two files it was two places to look for one rule.
+
+/// What the DECLARATION at <param location> says at <param part>, if anything.
+///
+/// The fallback under a name's own doc, and the thing a first edit is made against. `None` when the
+/// name holds nothing, or when the part is not in that declaration -- a record field on a function,
+/// a parameter the signature does not have. Dropped rather than raised: such an op can only arrive
+/// from another instance, and one bad op must not refuse the batch it came in.
+let private declaredAt
+  (ctx : Ctx)
+  (location : PT.PackageLocation)
+  (part : PT.DocPart)
+  : Task<Option<string>> =
+  task {
+    let! bound =
+      pairOption ctx "SELECT item_hash, item_type FROM locations
+         WHERE owner = $owner AND modules = $modules AND name = $name
+           AND unlisted_at IS NULL AND source <> 'unbind'
+         LIMIT 1" (fun cmd -> pLoc cmd location)
+
+    match bound with
+    | None
+    | Some(_, None) -> return None
+    | Some(hashStr, Some itemType) ->
+      let hash = Hash hashStr
+
+      let table, read =
+        match PT.ItemKind.fromString itemType with
+        | PT.ItemKind.Fn ->
+          "package_functions",
+          (fun bytes -> inFn part (BS.PT.PackageFn.deserialize hash bytes))
+        | PT.ItemKind.Type ->
+          "package_types",
+          (fun bytes -> inType part (BS.PT.PackageType.deserialize hash bytes))
+        | PT.ItemKind.Value ->
+          "package_values",
+          (fun bytes -> inValue part (BS.PT.PackageValue.deserialize hash bytes))
+
+      let! stored =
+        bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
+          p cmd "$hash" hashStr)
+
+      return stored |> Option.bind read
+  }
+
+
+/// Record that two people wrote different prose for one name, neither having seen the other's.
+///
+/// Auto-resolved and pending, exactly like a name divergence: the newer statement is applied so the
+/// store stays usable, and the row is what makes the loser's words findable instead of gone. The id
+/// is derived from both texts, so both instances mint the same one and re-folding the same pair
+/// updates one row rather than piling up duplicates.
+let private recordDocConflict
+  (ctx : Ctx)
+  (branchId : PT.BranchId)
+  (ts : string)
+  (location : PT.PackageLocation)
+  (part : PT.DocPart)
+  (ours : string)
+  (standingTs : string)
+  (theirs : string)
+  (incomingWins : bool)
+  : Task<unit> =
+  task {
+    let (Hash ourText) = Hashing.hashText ours
+    let (Hash theirText) = Hashing.hashText theirs
+    let modules = String.concat "." location.modules
+
+    let material =
+      let sorted = List.sort [ ourText; theirText ]
+      $"{location.owner}/{modules}/{location.name}/{kind part}/{within part}|"
+      + String.concat "," sorted
+
+    let id =
+      material
+      |> UTF8.toBytes
+      |> System.Security.Cryptography.SHA256.HashData
+      |> System.Convert.ToHexString
+      |> fun h -> "doc" + h.Substring(0, 8).ToLowerInvariant()
+
+    // The candidates are hashes of the TEXTS, not of items: a doc edit never moves an item's hash.
+    // Same field names as a name divergence's candidates, because the same reader decodes both and
+    // a listing that cannot find its own sides says "auto" for every row. Built by hand: the
+    // reflection serializer is disabled under AOT.
+    // The TEXT rides along too, because settling a wording disagreement means writing one of these
+    // words, and a hash cannot be turned back into the sentence it hashed.
+    let candidate (side : string) (hash : string) (text : string) (stamp : string) =
+      let escaped = System.Text.Json.JsonEncodedText.Encode(text).ToString()
+
+      $"""{{"side":"{side}","hash":"{hash}","text":"{escaped}","originTs":"{stamp}","author":""}}"""
+
+    let candidates =
+      "["
+      + candidate "local" ourText ours standingTs
+      + ","
+      + candidate "incoming" theirText theirs ts
+      + "]"
+
+    do!
+      exec ctx "INSERT INTO conflicts
+           (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to, reason,
+            status, origin_ts, branch_id)
+         VALUES ($id, $owner, $modules, $name, '', $part, 'doc-divergence', $candidates,
+                 $winner, $reason, 'pending', $ts, $branch)
+         ON CONFLICT(id) DO UPDATE SET
+           auto_resolved_to = excluded.auto_resolved_to,
+           reason = excluded.reason,
+           origin_ts = excluded.origin_ts" (fun cmd ->
+        p cmd "$id" id
+        pLoc cmd location
+        p cmd "$part" (partKey part)
+        p cmd "$candidates" candidates
+        p cmd "$winner" (if incomingWins then theirText else ourText)
+        p
+          cmd
+          "$reason"
+          $"two texts for {describe part}, neither made from the other"
+        p cmd "$ts" ts
+        p cmd "$branch" (string branchId))
+  }
+
+
+/// Apply an `UpdateDoc`: what the name at <param location> says at <param part> becomes <param
+/// text>.
+///
+/// A row in `location_docs` and nothing else. The declaration keeps its own `///` -- that is shared
+/// content, and rewriting it would put one name's words on every other name holding that body,
+/// which is the whole reason this op is scoped to a location.
+///
+/// Two questions decide whether the row moves, and they are different:
+///   - WHO IS NEWER, by the ops' own `origin_ts`, so two machines folding the same pair in
+///     different orders land in the same place. An older statement arriving late is a late arrival,
+///     not a new decision.
+///   - WHETHER THE WRITER SAW WHAT WE HOLD, by `previous`. An edit made on top of our text is
+///     collaboration and applies quietly. One made against a text we never had is a divergence: the
+///     newer text still wins, and the conflict record keeps the loser's words findable.
+let applyUpdateDoc
+  (ctx : Ctx)
+  (branchId : PT.BranchId)
+  (ts : string)
+  (location : PT.PackageLocation)
+  (part : PT.DocPart)
+  (text : string)
+  (previous : Option<Hash>)
+  : Task<unit> =
+  task {
+    let kind = kind part
+    let within = within part
+
+    let bindKey (cmd : SqliteCommand) =
+      pLoc cmd location
+      p cmd "$kind" kind
+      p cmd "$within" within
+
+    let! standing =
+      pairOption
+        ctx
+        "SELECT text, origin_ts FROM location_docs
+         WHERE owner = $owner AND modules = $modules AND name = $name
+           AND kind = $kind AND within = $within"
+        bindKey
+
+    // The name's own words if it has said any, else what its declaration says. "" when the name
+    // holds nothing at all, which is the ordinary case for a doc op that arrived ahead of the
+    // `SetName` that binds its subject.
+    let! current =
+      match standing with
+      | Some(text, _) -> Task.FromResult text
+      | None -> declaredAt ctx location part |> Task.map (Option.defaultValue "")
+
+    let standingTs = standing |> Option.bind snd |> Option.defaultValue ""
+
+    if current = text then
+      return ()
+    else
+      let stale = standingTs <> "" && ts < standingTs
+
+      // Did whoever wrote this see the text we hold? `previous` naming its hash says yes. None says
+      // the writer found nothing there, which is only consistent with what we hold if we have
+      // nothing either.
+      let descends =
+        match previous with
+        | Some p -> p = Hashing.hashText current
+        | None -> current = ""
+
+      // A divergence needs TWO statements. An empty local text is not a quiet disagreement, it is
+      // nobody here having said anything yet.
+      if not descends && current <> "" then
+        do!
+          recordDocConflict
+            ctx
+            branchId
+            ts
+            location
+            part
+            current
+            standingTs
+            text
+            (not stale)
+
+      if stale then
+        return ()
+      else
+        do!
+          exec ctx "INSERT INTO location_docs (owner, modules, name, kind, within, text, origin_ts)
+             VALUES ($owner, $modules, $name, $kind, $within, $text, $ts)
+             ON CONFLICT(owner, modules, name, kind, within) DO UPDATE SET
+               text = excluded.text, origin_ts = excluded.origin_ts" (fun cmd ->
+            bindKey cmd
+            p cmd "$text" text
+            p cmd "$ts" ts)
   }
