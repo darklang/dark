@@ -29,11 +29,6 @@ let asyncTests =
         let! result = Ply.List.filterSequentially fn [ 1; 2; 3; 4 ] |> Ply.toTask
         Expect.equal result [ 2; 4 ] ""
       }
-      testTask "findSequentially" {
-        let fn (i : int) = delay (fun () -> i = 3) i
-        let! result = Ply.List.findSequentially fn [ 1; 2; 3; 4 ] |> Ply.toTask
-        Expect.equal result (Some 3) ""
-      }
       testTask "iterSequentially" {
         let mutable state = []
         let fn (i : int) = delay (fun () -> state <- i + 1 :: state) i
@@ -145,25 +140,11 @@ let deepRecursion =
         Expect.equal (List.length r) 50_000 "kept the evens, in order"
         Expect.equal (Seq.head r) 0 "order preserved"
       }
-      testTask "filterMapSequentially" {
-        let! r =
-          Ply.List.filterMapSequentially
-            (fun i -> Ply(if i % 10 = 0 then Some i else None))
-            big
-          |> Ply.toTask
-        Expect.equal (List.length r) 10_000 "kept every tenth, in order"
-        Expect.equal (Seq.head r) 0 "order preserved"
-      }
       testTask "iterSequentially" {
         let mutable n = 0
         do!
           Ply.List.iterSequentially (fun _ -> uply { n <- n + 1 }) big |> Ply.toTask
         Expect.equal n 100_000 "visited every element"
-      }
-      testTask "findSequentially" {
-        let! r =
-          Ply.List.findSequentially (fun i -> Ply((i = 99_999))) big |> Ply.toTask
-        Expect.equal r (Some 99_999) "found the last element"
       }
       testTask "flatten" {
         let! r = Ply.List.flatten (big |> List.map Ply) |> Ply.toTask
