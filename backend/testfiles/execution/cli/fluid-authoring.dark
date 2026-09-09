@@ -2979,3 +2979,34 @@ module AnUndoRunEndsWhenYouLeave =
 
   // Leaving between them does split it, which is this change working on the delete side too.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "abcd") [ "<Left>", "<BS>", "<C-z>" ])) = "abc~d"
+
+
+module MovingAlongEitherAxis =
+  // `moveSibling` is bound to both pairs of arrows: Ctrl-Left and Ctrl-Up go towards the start, Ctrl-Right
+  // and Ctrl-Down towards the end.
+  //
+  // A sequence is drawn along ONE of the two axes and which one is the spec's choice, not the kernel's: a
+  // tuple's items sit side by side, a match's arms and a grid's rows sit stacked. Reaching for Ctrl-Left
+  // on a table reads as wrong even though it works, and having the kernel ask the layout which way a
+  // given list runs is more machinery than the problem deserves. Both gestures do the same thing, so
+  // whichever you reach for is the one that works.
+  //
+  // Found by moving a row in the grid demo with Ctrl-Left and noticing the row went UP.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Up>" ])) = "(2~, 1)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Up>", "<C-Down>" ])) = "(1, 2~)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1, 2, 3") [ "<C-Up>" ])) = "[1, 3~, 2]"
+
+  // The vertical list this is really for.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ (TypingTheBarsThePrinterWrites.bars "match n with\n| 0 -> a\n| 1 -> b")
+        [ "<C-Up>", "<Esc>", "<Esc>" ] ])) = "match n with\n| 1 -> b\n| 0 -> a"
+
+  // In NAV as well, on the node the caret stands on.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ (TypingTheBarsThePrinterWrites.bars "match n with\n| 0 -> a\n| 1 -> b")
+        [ "<Esc>", "h", "<C-Up>", "<Esc>" ] ])) = "match n with\n| 1 -> b\n| 0 -> a"
+
+  // A plain Up still chooses in the menu rather than moving anything.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "l") [ "<Up>" ])) = "l~"

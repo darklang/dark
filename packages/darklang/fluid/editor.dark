@@ -989,6 +989,13 @@ let clearNode (st: State) : State =
 /// Move the thing under the caret one place along the sequence it sits in. `(1, 2)` with the caret on the
 /// `2` and Ctrl-Left is `(2, 1)`, with the caret still on the `2`.
 ///
+/// Both axes, bound to the same move: Ctrl-Left and Ctrl-Up go towards the start, Ctrl-Right and
+/// Ctrl-Down towards the end. A sequence is drawn along ONE of the two axes and which one is the spec's
+/// choice, not the kernel's -- a tuple's items sit side by side and a grid's rows sit stacked, and
+/// reaching for the horizontal gesture on a table reads as wrong even when it works. Rather than have
+/// the kernel ask the layout which way a particular list runs, both gestures do the same thing, so
+/// whichever you reach for is the one that works.
+///
 /// A structural move rather than a cut and a paste: the node keeps its children, its holes and whatever
 /// was half-typed inside it, and undo puts it back in one step. This is the edit a projectional editor
 /// should be best at and a text editor is worst at -- swapping two arguments in text means selecting
@@ -4629,8 +4636,16 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       handled { settled with mode = Mode.Nav; caret = navCaretFor settled.root here }
   | LeftArrow -> if kp.modifiers.ctrl then handled (moveSibling st (-1)) else handled (moveLeft st)
   | RightArrow -> if kp.modifiers.ctrl then handled (moveSibling st 1) else handled (moveRight st)
-  | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))
-  | DownArrow -> if completing then handled (cycleCandidate st 1) else handled (moveVertical st 1)
+  // Ctrl before the menu check: moving a node is not choosing a candidate, and a list you want to reorder
+  // is very often one you are mid-way through typing.
+  | UpArrow ->
+    if kp.modifiers.ctrl then handled (moveSibling st (-1))
+    elif completing then handled (cycleCandidate st (-1))
+    else handled (moveVertical st (-1))
+  | DownArrow ->
+    if kp.modifiers.ctrl then handled (moveSibling st 1)
+    elif completing then handled (cycleCandidate st 1)
+    else handled (moveVertical st 1)
   | Home -> handled (moveLineStart st)
   | End -> handled (moveLineEnd st)
   | Enter ->
@@ -4853,8 +4868,8 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | Escape -> Stdlib.Cli.UI.Widget.Outcome.Emitted(st, Msg.Back)
   | Enter -> handled (enterInsert st)
   | Tab -> if kp.modifiers.shift then handled (prevHole st) else handled (nextHole st)
-  | DownArrow -> handled (navBy st 1)
-  | UpArrow -> handled (navBy st (-1))
+  | DownArrow -> if kp.modifiers.ctrl then handled (moveSibling st 1) else handled (navBy st 1)
+  | UpArrow -> if kp.modifiers.ctrl then handled (moveSibling st (-1)) else handled (navBy st (-1))
   | LeftArrow -> if kp.modifiers.ctrl then handled (moveSibling st (-1)) else handled (navParent st)
   | RightArrow -> if kp.modifiers.ctrl then handled (moveSibling st 1) else handled (navChild st)
   | _ ->
