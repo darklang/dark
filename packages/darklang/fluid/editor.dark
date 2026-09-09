@@ -1956,10 +1956,9 @@ let typeOne (st: State) (c: String) : State =
   | None ->
   // A comma adds the next element of the enclosing list/tuple (the natural key inside `[1, 2]`), unless
   // you're typing inside a string, where it's a literal comma.
-  let inStringBody =
-    match caret.part with
-    | InText slot -> slot == "body"
-    | _ -> false
+  // Asked of the SPEC, which says so by drawing the slot with `QuietText`. It was `slot == "body"`, a
+  // name that happened to be right for a string and wrong for a char.
+  let inStringBody = inContentText st
   // `|` on an expression builds a pipe, which draws `|>` already; the `>` completing the arrow lands in
   // the fresh step, so swallow it. Only at the very start of an empty pipe step, where a real `>` never
   // begins a stage anyway.
@@ -2826,6 +2825,35 @@ let drawsAsName (pieces: List<Piece>) (slot: String) : Bool =
     | Flat ps -> drawsAsName ps slot
     | Nest(_, ps) -> drawsAsName ps slot
     | _ -> false)
+
+/// Whether the spec draws `slot` with `QuietText` -- that is, whether it has already said every
+/// character in the slot is CONTENT and not syntax. Recurses the same way `drawsAsName` does.
+///
+/// Derived rather than repeated, for the reason `drawsAsName` gives above: the piece already carries the
+/// fact. The hand-written version of this was `slot == "body"`, which named the string's slot and missed
+/// the CHAR's, so `'` then `+` broke out of the literal and wrapped it as `'' + <right>`.
+let drawsAsContent (pieces: List<Piece>) (slot: String) : Bool =
+  pieces
+  |> Stdlib.List.any (fun p ->
+    match p with
+    | QuietText(s, _) -> s == slot
+    | Group ps -> drawsAsContent ps slot
+    | Flat ps -> drawsAsContent ps slot
+    | Nest(_, ps) -> drawsAsContent ps slot
+    | _ -> false)
+
+/// Is the caret inside a slot whose every character is content -- a string body, a char, a segment of an
+/// interpolated string? Nine rules in `typeOne` need to stand down when it is.
+let inContentText (st: State) : Bool =
+  match st.caret.part with
+  | InText slot ->
+    (match nodeAtPath st.root st.caret.node with
+     | Some n ->
+       (match Registry.findExact st.reg n.kind with
+        | Some spec -> drawsAsContent spec.pieces slot
+        | None -> false)
+     | None -> false)
+  | _ -> false
 
 let textClassOf (reg: Registry) (k: Kind) (slot: String) : Stdlib.Option.Option<TextClass> =
   match Registry.findExact reg k with
@@ -3896,7 +3924,19 @@ let statementPipeRevision (st: State) (c: String) : Stdlib.Option.Option<State> 
        | None -> Stdlib.Option.Option.None)
   | _ -> Stdlib.Option.Option.None
 
+/// A list whose items are led by an OPERATOR punct -- a match's arms are led by `|` -- reads an operator
+/// typed in a fresh last item as meaning the lead punct: `||` repeats it, `|>` continues it. So `a || b`
+/// and `a |> b` can be typed where an arm's `|` was already drawn.
+///
+/// Not inside string content. This was the ninth rule in `typeOne`'s chain and the only one that did not
+/// ask: with the caret between the quotes of an empty string in a second match arm, any operator wiped
+/// the arm out and piped the PREVIOUS arm's right-hand side into a partial. `| [] -> opts` then a new arm
+/// then `"` then `+` gave `| [] -> opts |> +`. The empty string is what made the arm read as fresh, and
+/// the operator did the rest.
 let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
+  if inContentText st then
+    Stdlib.Option.Option.None
+  else
   match enclosingListItem st.caret with
   | Some((parentPath, slot, i)) ->
     match nodeAtPath st.root parentPath with

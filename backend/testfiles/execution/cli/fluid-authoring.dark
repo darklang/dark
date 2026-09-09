@@ -2645,3 +2645,44 @@ module AFullSlotIsNotAnInvitationToTheOuterOne =
   // Enter still climbs. This is the reading that says so.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n Error(e 0") [ "<Esc>", "<Esc>" ])) =
     "match n with\n| Error(e) -> 0"
+
+
+module AnOperatorInsideAStringIsStillContent =
+  // `typeOne` runs a chain of rules that read a character as syntax rather than as text, and every one of
+  // them stands down inside string content. Every one but the ninth.
+  //
+  // `leadPunctRevision` reads an operator typed in a fresh last item of a list led by an operator punct
+  // as meaning that punct: a match's arms are led by `|`, so `||` and `|>` can be typed where the arm's
+  // `|` is already drawn. With the caret between the quotes of an EMPTY string in a second arm, that
+  // fired: the empty string made the arm read as fresh, and any operator wiped the arm out and piped the
+  // PREVIOUS arm's right-hand side into a partial.
+  //
+  //     | [] -> opts          then a new arm, then `"`, then `+`
+  //     | [] -> opts |> +     what came out
+  //
+  // The first arm was fine (no earlier item to revise), and a non-empty string was fine (not fresh), so
+  // it needed all three at once.
+  let arm2 (s: String) : String =
+    Fixtures.screen
+      (Stdlib.List.flatten
+        [ (Fixtures.chars "match xs with [] -> opts")
+          [ "<Esc>", "i", "<Enter>" ]
+          (Fixtures.chars s) ])
+
+  (AnOperatorInsideAStringIsStillContent.arm2 "\"+") = "match xs with\n| [] -> opts\n| \"+~\" -> ⟨rhs⟩"
+  (AnOperatorInsideAStringIsStillContent.arm2 "\"-") = "match xs with\n| [] -> opts\n| \"-~\" -> ⟨rhs⟩"
+  (AnOperatorInsideAStringIsStillContent.arm2 "\"/") = "match xs with\n| [] -> opts\n| \"/~\" -> ⟨rhs⟩"
+
+  // ...and the rule it was standing in the way of still works. `||` typed where an arm's `|` is drawn is
+  // the operator, not a second arm.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "x || y") [ "<Esc>", "<Esc>" ])) = "x || y"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.length") [ "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.length"
+
+  // The whole second arm, which is what sent me looking.
+  (Fixtures.screen
+    (Stdlib.List.flatten
+      [ (Fixtures.chars "match xs with [] -> opts")
+        [ "<Esc>", "i", "<Enter>" ]
+        (Fixtures.chars "\"--yes\" :: rest") ])) =
+    "match xs with\n| [] -> opts\n| \"--yes\" :: rest~ -> ⟨rhs⟩"
