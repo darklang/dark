@@ -22,7 +22,7 @@ module Registry =
       ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
       ("install-status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
       ("version", "Display CLI version", [ "--version", "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
-      ("nav", "Navigate between packages, modules, and entities", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
+      ("nav", "Navigate between owners, modules, and items", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
       ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
       ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)

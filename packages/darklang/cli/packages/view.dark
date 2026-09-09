@@ -547,7 +547,7 @@ let help (_state: AppState) : String =
     "Usage: view [path] [--raw | --ast | --instructions]"
     "View detailed information about functions, types, values, or modules."
     ""
-    "With path: View the specified entity with syntax highlighting."
+    "With path: View the specified item with syntax highlighting."
     "Without path: View current location."
     ""
     "Options:"
