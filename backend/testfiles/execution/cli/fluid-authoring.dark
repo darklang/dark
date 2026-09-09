@@ -2509,3 +2509,28 @@ module ABlankChoosesNothingUntilYouSaySo =
 
   // An expression blank is the same: the generic menu presumes nothing.
   (Fixtures.screen [ "<Enter>" ]) = "~⟨expression⟩"
+
+
+module AContainerSaysWhatItsCloserDoes =
+  // Three questions the kernel answered by naming kinds, and they are one thing: `)` in an untouched
+  // tuple is `()`, `]` in an untouched list is `[]`, and `)` in a tuple holding one filled item is a
+  // GROUPING paren, because Darklang has no one-tuples. A list is exempt from the last: `[x]` is a
+  // perfectly good list.
+  //
+  // `Closer` is spec data now -- which character, which slot, what an all-empty one becomes, and whether
+  // a one-item form is spelled like a grouping. `ETuple`, `MPTuple` and `MPList` are gone from the
+  // kernel entirely, and the `if MPTuple then MPUnit else EUnit` went with them: the spec names the case.
+  //
+  // `soloIsGroup` is the field to read carefully. It does NOT mean "this container is parenthesised". It
+  // means "this container's one-element form is spelled the same way as a grouping", which is a fact
+  // about the syntax and is exactly why lists are exempt. The coarser reading breaks `[x]`.
+  (Fixtures.program (Fixtures.chars "()")) = "()"
+  (Fixtures.program (Fixtures.chars "[]")) = "[]"
+
+  // The grouping collapse, and the nesting fix that came before it, both still driven by the spec.
+  (Fixtures.screen (Fixtures.chars "(1 + 2)")) = "1 + 2~"
+  (Fixtures.program (Fixtures.chars "((1, 2), 3)")) = "((1, 2), 3)"
+
+  // Patterns get it from the same field, through `MPTuple` and `MPList`, which no longer appear here.
+  (Fixtures.program (Fixtures.chars "match n with () -> 1 ")) = "match n with\n| () -> 1"
+  (Fixtures.program (Fixtures.chars "match n with [] -> 1 ")) = "match n with\n| [] -> 1"

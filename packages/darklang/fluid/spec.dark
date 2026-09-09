@@ -198,6 +198,28 @@ type Action =
 /// As much of this is plain data as possible, so a spec can be derived from a type declaration at runtime,
 /// generated as source, or written by hand, and so it can sit in retained state. The two functions left
 /// (`complete`, `summary`) must be named package fns.
+/// What a bracketed container's CLOSING character does.
+///
+/// Three questions the kernel used to answer by naming kinds, and they are one thing: `)` in an untouched
+/// tuple is `()`, `]` in an untouched list is `[]`, and `)` in a tuple holding exactly one filled item is
+/// a GROUPING paren, because Darklang has no one-tuples. A list is exempt from that last one: `[x]` is a
+/// perfectly good list.
+///
+/// `soloIsGroup` is the one to read carefully. It does NOT mean "this container is parenthesised". It
+/// means "this container's one-element form is spelled the same way as a grouping", which is a fact about
+/// the SYNTAX and is exactly why lists are exempt. The coarser reading would sweep them in and break
+/// `[x]`.
+type Closer =
+  { /// The character that closes it.
+    char: String
+    /// The item list it closes.
+    slot: String
+    /// What an ALL-EMPTY one becomes: another case of the same type (a tuple becomes its unit), or
+    /// `None` for "itself, with the list emptied" (a list becomes `[]`).
+    whenEmpty: Stdlib.Option.Option<String>
+    /// Is a one-item form indistinguishable from a grouping? Tuples yes, lists no.
+    soloIsGroup: Bool }
+
 type Spec =
   { kind: Kind
     /// Projection order and shape. Static: a node's variable parts are `Each` over its lists.
@@ -251,6 +273,8 @@ type Spec =
     /// The kernel keeps the part that is not about any language: only an EMPTY list opens, and only from
     /// the end of a text slot. The spec says which character and which slot.
     opensItems: List<(String * String)>
+    /// What this node's closing character does, when it has one. See `Closer`.
+    closer: Stdlib.Option.Option<Closer>
     /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
     /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
     /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
@@ -330,6 +354,7 @@ module Spec =
         maxItems = Spec.noMaxItems
         noSequence = []
         opensItems = []
+        closer = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         bindsNames = false
         completions = []
@@ -362,6 +387,9 @@ module Spec =
 
   /// A spec that says which character opens which of its empty item lists.
   let opensItemsOn (spec: Spec) (pairs: List<(String * String)>) : Spec = { spec with opensItems = pairs }
+
+  /// A spec that says what its closing character does.
+  let closesWith (spec: Spec) (cl: Closer) : Spec = { spec with closer = Stdlib.Option.Option.Some cl }
 
   /// A spec that says which of its children survives when the construct is deleted.
   let collapsingTo (spec: Spec) (slot: String) : Spec =

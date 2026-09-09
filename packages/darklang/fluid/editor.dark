@@ -1156,13 +1156,26 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// The caret has to be in the FILLED item, which is what separates `(1 + 2` then `)` from `(1, ` then
 /// `)`. In the second the comma was deliberate and the caret sits in the empty item: a tuple with a hole
 /// left in it, not a group.
-/// Does the tuple AT `path` hold exactly one thing, with item `i` being it?
+/// The closing behaviour this node's spec declares, if it has one. See `Spec.Closer`.
+///
+/// Three questions used to be answered here by naming kinds: `)` in an untouched tuple is `()`, `]` in an
+/// untouched list is `[]`, and `)` in a tuple holding one filled item is a GROUPING paren. They are one
+/// thing, and the spec says which character, which slot, what an empty one becomes, and whether a
+/// one-item form is spelled like a grouping.
+let closerOf (reg: Registry) (n: Node) : Stdlib.Option.Option<Closer> =
+  match Registry.find reg n.kind with
+  | Some spec -> spec.closer
+  | None -> Stdlib.Option.Option.None
+
+/// Does the container AT `path` hold exactly one thing, with item `i` being it, and is its one-item form
+/// a grouping rather than a container? A list is exempt: `[x]` is a perfectly good list.
 let soloTupleHere (st: State) (path: Path) (slot: String) (i: Int) : Bool =
   match nodeAtPath st.root path with
   | Some n ->
     let isTuple =
-      (n.kind.case == Stdlib.Option.Option.Some "ETuple")
-      || (n.kind.case == Stdlib.Option.Option.Some "MPTuple")
+      match closerOf st.reg n with
+      | Some cl -> cl.soloIsGroup && (slot == cl.slot)
+      | None -> false
     let items = Node.items n "items"
     let filled = items |> Stdlib.List.filter (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl))
     let caretItemFilled =
@@ -1180,8 +1193,10 @@ let soloTupleAncestor (st: State) (from: Path) : Stdlib.Option.Option<Path> =
     match (Path.last from, nodeAtPath st.root parent) with
     | (Some(Item(slot, i)), Some pn) ->
       let isTuple =
-        (pn.kind.case == Stdlib.Option.Option.Some "ETuple")
-        || (pn.kind.case == Stdlib.Option.Option.Some "MPTuple")
+        match closerOf st.reg pn with
+        | Some cl -> cl.soloIsGroup && (slot == cl.slot)
+        | None -> false
+
       let items = Node.items pn "items"
       let filled = items |> Stdlib.List.filter (fun sl -> Stdlib.Bool.not (Slot.isEmpty sl))
       let caretItemFilled =
@@ -1950,16 +1965,30 @@ let typeOne (st: State) (c: String) : State =
         | None -> false)
   // `)` while sitting in an untouched tuple is the unit literal `()`, not a one-element tuple: `(` opens a
   // tuple and an immediate `)` collapses it to unit.
+  //
+  // Asked of the spec: which character closes this, which slot it closes, and what an all-empty one
+  // becomes. A tuple becomes its unit case; a list stays a list with nothing in it. The kernel used to
+  // name all four kinds and pick `MPUnit` or `EUnit` by testing for `MPTuple`.
+  let closingAnEmptyOne =
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      (match closerOf st.reg n with
+       | Some cl ->
+         if (c == cl.char)
+            && (match caret.part with
+                | InItem(s, _) -> s == cl.slot
+                | _ -> false)
+            && (Node.items n cl.slot |> Stdlib.List.all (fun s -> Slot.isEmpty s)) then
+           Stdlib.Option.Option.Some cl
+         else
+           Stdlib.Option.Option.None
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
   let emptyTupleToUnit =
-    (c == ")")
-    && (match caret.part with
-        | InItem(s, _) -> s == "items"
-        | _ -> false)
-    && (match nodeAtPath st.root caret.node with
-        | Some n ->
-          ((n.kind.case == Stdlib.Option.Option.Some "ETuple") || (n.kind.case == Stdlib.Option.Option.Some "MPTuple"))
-          && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
-        | None -> false)
+    match closingAnEmptyOne with
+    | Some cl -> Stdlib.Option.isSome cl.whenEmpty
+    | None -> false
   // `)` in a tuple holding ONE thing is a grouping paren, not a one-element tuple -- Darklang has no
   // one-tuples. `(` opens a tuple, so `(1 + 2)` came out as `(1 + 2, ⟨item⟩)` and `(fun x -> x)` could
   // not be typed at all. That matters because both are how the PRINTER writes things: a precedence group,
@@ -1990,19 +2019,18 @@ let typeOne (st: State) (c: String) : State =
   // `]` in a list holding just one empty item is the empty list `[]`: `[` opens a list and an immediate
   // `]` closes it empty. (Empty collections now carry a caret anchor, so the caret is findable.)
   let emptyListToNil =
-    (c == "]")
-    && (match caret.part with
-        | InItem(s, _) -> s == "items"
-        | _ -> false)
-    && (match nodeAtPath st.root caret.node with
-        | Some n ->
-          ((n.kind.case == Stdlib.Option.Option.Some "EList") || (n.kind.case == Stdlib.Option.Option.Some "MPList"))
-          && (Node.items n "items" |> Stdlib.List.all (fun s -> Slot.isEmpty s))
-        | None -> false)
+    match closingAnEmptyOne with
+    | Some cl -> Stdlib.Option.isNone cl.whenEmpty
+    | None -> false
   if emptyTupleToUnit then
     match nodeAtPath st.root caret.node with
     | Some n ->
-      let unitCase = if n.kind.case == Stdlib.Option.Option.Some "MPTuple" then "MPUnit" else "EUnit"
+      // The spec names the case, so `MPTuple` becoming `MPUnit` and `ETuple` becoming `EUnit` is one
+      // rule rather than a test for one of them.
+      let unitCase =
+        closingAnEmptyOne
+        |> Stdlib.Option.andThen (fun cl -> cl.whenEmpty)
+        |> Stdlib.Option.withDefault "EUnit"
       let unit = Node.make (Kind.ofCase (Kind.typeName n.kind) unitCase) []
       let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled unit) ] caret
       { st1 with caret = Caret.afterNode caret.node }

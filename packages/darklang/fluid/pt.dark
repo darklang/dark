@@ -1798,6 +1798,7 @@ let pipeTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      closer = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
@@ -2199,6 +2200,7 @@ let exprTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      closer = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       wrapRules =
@@ -2287,6 +2289,7 @@ let letPatTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      closer = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = true
       completions =
@@ -2352,6 +2355,7 @@ let matchPatTypeSpec () : Spec =
       maxItems = Spec.noMaxItems
       noSequence = []
       opensItems = []
+      closer = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = true
       wrapRules =
@@ -2439,9 +2443,13 @@ let moreSpecs () : List<Spec> =
       [ ("whole", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleOf (matchPatKind "MPChar") [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (matchPatKind "MPChar") [ text "char" "" ])
     simpleOf (matchPatKind "MPString") [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (matchPatKind "MPString") [ text "body" "" ])
-    simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ])
+    Spec.closesWith
+      (simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ]))
+      (Closer { char = "]"; slot = "items"; whenEmpty = Stdlib.Option.Option.None; soloIsGroup = false })
     simpleOf (matchPatKind "MPListCons") [ Piece.Slot "head", Piece.Space, Piece.Punct "::", Piece.Space, Piece.Slot "tail" ] (Node.make (matchPatKind "MPListCons") [ ("head", Field.One(Slot.Empty(matchPatExpect "head"))), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ])
-    simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
+    Spec.closesWith
+      (simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]))
+      (Closer { char = ")"; slot = "items"; whenEmpty = Stdlib.Option.Option.Some "MPUnit"; soloIsGroup = true })
     Spec.opensItemsOn
       (simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ]))
       [ ("(", "fields") ]
@@ -2618,26 +2626,32 @@ let baseSpecs () : List<Spec> =
       [ ("whole", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleExpr "EChar" [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
     simpleExpr "EString" [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
-    Spec.withNoSequence
-      (simpleExpr
-        "EList"
-        [ Piece.Group
-            [ Piece.Punct "["
-              Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
-              Piece.SoftLine
-              Piece.Punct "]" ] ]
-        (listFromBracket "[" (exprExpect "item")))
-      [ "items" ]
-    Spec.withNoSequence
-      (simpleExpr
-        "ETuple"
-        [ Piece.Group
-            [ Piece.Punct "("
-              Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
-              Piece.SoftLine
-              Piece.Punct ")" ] ]
-        (tupleFromParen "(" (exprExpect "item")))
-      [ "items" ]
+    Spec.closesWith
+      (Spec.withNoSequence
+        (simpleExpr
+          "EList"
+          [ Piece.Group
+              [ Piece.Punct "["
+                Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+                Piece.SoftLine
+                Piece.Punct "]" ] ]
+          (listFromBracket "[" (exprExpect "item")))
+        [ "items" ])
+      // An empty one stays a LIST with nothing in it, and `[x]` is a perfectly good list, so no grouping.
+      (Closer { char = "]"; slot = "items"; whenEmpty = Stdlib.Option.Option.None; soloIsGroup = false })
+    Spec.closesWith
+      (Spec.withNoSequence
+        (simpleExpr
+          "ETuple"
+          [ Piece.Group
+              [ Piece.Punct "("
+                Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+                Piece.SoftLine
+                Piece.Punct ")" ] ]
+          (tupleFromParen "(" (exprExpect "item")))
+        [ "items" ])
+      // An empty one is `()`, and a one-item one is a GROUP, because Darklang has no one-tuples.
+      (Closer { char = ")"; slot = "items"; whenEmpty = Stdlib.Option.Option.Some "EUnit"; soloIsGroup = true })
     Spec.withTextClasses
       (Spec.withWrapRules
         (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
@@ -2966,6 +2980,7 @@ module Types =
         maxItems = Spec.noMaxItems
         noSequence = []
         opensItems = []
+        closer = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
