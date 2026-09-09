@@ -13,6 +13,21 @@ val holeClose = "⟩"
 /// type a value or a type.
 val typeTypeName = "Darklang.LanguageTools.ProgramTypes.TypeReference"
 
+/// An empty TEXT field, drawn the way an empty SLOT is: its label between the hole brackets.
+///
+/// It used to be the bare slot name in hole style, so the glyph the comment above promises -- the one
+/// that tells you at a glance what to type -- was missing from exactly the places where the thing to
+/// type is free text. `/// text` for a doc line nobody has written yet is indistinguishable from a doc
+/// line that says "text", `let name` from a function actually called `name`, and `1.fraction` from
+/// something that is not a number at all.
+///
+/// Colour was carrying it, which is not enough: it is gone in the debug rendering every test reads, and
+/// it is unreliable on an e-ink screen. It fooled me too -- a store sweep reported 267 of 267 functions
+/// differing, all of them drawn `let name`, and I read that as the editor being broken rather than as a
+/// placeholder.
+let emptyTextLabel (tag: Layout.Tag) (slotName: String) : Layout.Doc =
+  Layout.tagged tag Layout.Style.Hole (holeOpen ++ slotName ++ holeClose)
+
 let wantsType (e: Expect) : Bool =
   match e.kind with
   | Some k ->
@@ -290,17 +305,14 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
-      if t == "" then
-        Layout.tagged tag Layout.Style.Hole slotName
-      else
-        Layout.tagged tag style t
+      if t == "" then emptyTextLabel tag slotName else Layout.tagged tag style t
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | NameText(slotName, style) ->
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
-      if t == "" then Layout.tagged tag Layout.Style.Hole slotName
+      if t == "" then emptyTextLabel tag slotName
       else Layout.tagged tag style (Darklang.Fluid.PT.displayNameIn reg.currentModule t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
@@ -308,7 +320,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
     let tag = tagFor path (Part.InText slotName)
     match Node.text n slotName with
     | Some t ->
-      if t == "" then Layout.tagged tag Layout.Style.Hole slotName
+      if t == "" then emptyTextLabel tag slotName
       else Layout.tagged tag style (Darklang.PrettyPrinter.formatFieldName t)
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 

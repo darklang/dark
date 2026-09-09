@@ -331,7 +331,7 @@ module MakingOneIsEditingOne =
 
   // `(` adds a parameter and lands on its NAME. A lone `()` is replaced rather than appended to, because
   // `() (x: Int)` is not a shape the language has.
-  (MakingOneIsEditingOne.run [ "(" ]) = "let triple (~name: <type>): <return> =\n  ⟨body⟩"
+  (MakingOneIsEditingOne.run [ "(" ]) = "let triple (~⟨name⟩: <type>): <return> =\n  ⟨body⟩"
   (MakingOneIsEditingOne.run [ "(", "n" ]) = "let triple (n~: <type>): <return> =\n  ⟨body⟩"
 
   // The whole function, typed from nothing.

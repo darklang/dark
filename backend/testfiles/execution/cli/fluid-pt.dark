@@ -706,10 +706,10 @@ module RecordUpdatesCanBeBuilt =
   let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
   let run (keys: List<String>) : String = Darklang.Fluid.Test.run (RecordUpdatesCanBeBuilt.reg ()) (RecordUpdatesCanBeBuilt.hole ()) 60 keys
 
-  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with name = ⟨value⟩ }"
+  (RecordUpdatesCanBeBuilt.run [ "{" ]) = "{ ~⟨record⟩ with ⟨name⟩ = ⟨value⟩ }"
 
   // Tab walks record, then the field NAME, then the value.
-  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with ~name = ⟨value⟩ }"
+  (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>" ]) = "{ r with ~⟨name⟩ = ⟨value⟩ }"
   (RecordUpdatesCanBeBuilt.run [ "{", "r", "<Tab>", "w", "i", "d", "t", "h", "<Tab>", "9", "9" ]) =
     "{ r with width = 99~ }"
 

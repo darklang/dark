@@ -159,7 +159,7 @@ module FieldAccess =
   // A `.` after a bare name is a field access, not part of the name: `r.x` lowers to a field access, and
   // the caret lands in the field blank so you keep typing the name.
   (Fixtures.program [ "r", ".", "x", "<Esc>" ]) = "r.x"
-  (Fixtures.screen [ "r", "." ]) = "r.~field"
+  (Fixtures.screen [ "r", "." ]) = "r.~⟨field⟩"
 
   // Chaining: another `.` while sitting in a field name wraps again, so it nests as `(r.a).b` and prints
   // `r.a.b` -- not a single field named `a.b`.
@@ -252,7 +252,7 @@ module AfterNodeWrap =
   (Fixtures.program [ "[", "1", "]", "+", "2", "<Esc>" ]) = "[1] + 2"
   (Fixtures.screen [ "[", "1", "]", "+" ]) = "[1] +~ ⟨right⟩"
   (Fixtures.program [ "[", "1", "]", ".", "x", "<Esc>" ]) = "([1]).x"
-  (Fixtures.screen [ "[", "1", "]", "." ]) = "([1]).~field"
+  (Fixtures.screen [ "[", "1", "]", "." ]) = "([1]).~⟨field⟩"
 
   // A tuple wraps the same way once closed: `(1, 2)` then `+` `3` -> `(1, 2) + 3`.
   (Fixtures.program [ "(", "1", ",", "2", ")", "+", "3", "<Esc>" ]) = "(1, 2) + 3"
@@ -353,7 +353,7 @@ module FloatLiterals =
   // everywhere else. `EInt`, `MPInt`, `EFloat` and `MPFloat` all left the kernel with it.
   (Fixtures.program [ "1", ".", "5", "<Esc>" ]) = "1.5"
   (Fixtures.program [ "3", ".", "1", "4", "<Esc>" ]) = "3.14"
-  (Fixtures.screen [ "1", "." ]) = "1.~fraction"
+  (Fixtures.screen [ "1", "." ]) = "1.~⟨fraction⟩"
   // Same in a pattern.
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "1", ".", "5", "<Tab>", "0", "<Esc>" ]) = "match n with\n| 1.5 -> 0"
   // A `.` after a name is still a field access, unaffected.
@@ -469,7 +469,7 @@ module LeafBackspaceRevertsToHole =
   (Fixtures.screen [ "2", "<BS>", "5" ]) = "5~"
   // A multi-character leaf just loses one character; a float keeps its other part.
   (Fixtures.screen [ "1", "2", "<BS>" ]) = "1~"
-  (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~fraction"
+  (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~⟨fraction⟩"
   // An operand emptied inside an infix becomes a clean hole, not a zombie.
   (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨right⟩"
 
@@ -820,7 +820,7 @@ module AnOperatorAfterAFieldNameWraps =
 
   // With no name yet there is nothing to wrap and nothing it could be part of, so it is refused rather
   // than typed.
-  (Fixtures.screen [ "s", ".", "+" ]) = "s.~field"
+  (Fixtures.screen [ "s", ".", "+" ]) = "s.~⟨field⟩"
 
 
 module EndStopsAtAHolesEdge =
@@ -849,7 +849,7 @@ module ARecordLiteralCanBeTyped =
     "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
 
   // The case completion cannot serve: a name the store does not know. One empty field to type into.
-  (Fixtures.screen [ "Z", "o", "r", "k", "{" ]) = "Zork { ~name = ⟨value⟩ }"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{" ]) = "Zork { ~⟨name⟩ = ⟨value⟩ }"
 
   // Everything after that first keystroke already existed: `,` adds a sibling field, Tab moves name to
   // value, and the caret lands on the name because it is the first BLANK in the drawing.
@@ -887,8 +887,8 @@ module ARecordLiteralCanBeTyped =
   // QUOTED, not in what one is -- and the class derived from the piece was keyed on only one of them, so
   // the five slots drawn with `FieldText` accepted any character at all. The space and the `}` above went
   // straight into the field name, and the drawing then honestly showed them back as `` ` x` `` and `` `}` ``.
-  (Fixtures.screen [ "Z", "o", "r", "k", "{", " " ]) = "Zork { ~name = ⟨value⟩ }"
-  (Fixtures.screen [ "Z", "o", "r", "k", "{", "}" ]) = "Zork { name = ⟨value⟩ }~"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", " " ]) = "Zork { ~⟨name⟩ = ⟨value⟩ }"
+  (Fixtures.screen [ "Z", "o", "r", "k", "{", "}" ]) = "Zork { ⟨name⟩ = ⟨value⟩ }~"
 
 
 module ALetCarriesItsValuesType =
@@ -2208,7 +2208,7 @@ module AnEmptyTextIsSomethingLeftToFill =
   // `holes` stays. One caller genuinely wants it -- moving into the NEXT list item skips a record field's
   // name to reach a real hole -- and its comment says so. Two of the three did not.
   (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "[", Fixtures.chars "int", [ "<Enter>" ] ])) =
-    "[~digits]"
+    "[~⟨digits⟩]"
 
   // The suggestion rules, in a list, where a hijack would be easy to miss: neither Tab nor space takes
   // `int`, because it is an ordinary word somebody may be naming a variable.
@@ -2217,7 +2217,7 @@ module AnEmptyTextIsSomethingLeftToFill =
 
   // And an argument position, where the commit lands INSIDE the new node rather than after it.
   (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "Stdlib.List.map xs ", Fixtures.chars "int", [ "<Enter>" ] ])) =
-    "Stdlib.List.map xs ~digits"
+    "Stdlib.List.map xs ~⟨digits⟩"
 
 
 module APrefixDoesNotCommitWhereANameIsBorn =

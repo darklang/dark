@@ -337,7 +337,7 @@ module BarAddsACase =
 
   // `|` adds a CASE, after the one the caret is in.
   (BarAddsACase.shown (Darklang.Fluid.Editor.typeOne (BarAddsACase.atEndOfFirstCase ()) "|")) =
-    "type Shape =\n  | Circle of Int\n  | name\n  | Point"
+    "type Shape =\n  | Circle of Int\n  | ⟨name⟩\n  | Point"
 
   // Enter is unchanged and still means the NEAREST list, which from inside a case is its fields. The two
   // keys doing different things here is the point: `|` is what you write between cases, `*` between fields.
