@@ -341,14 +341,10 @@ module BarAddsACase =
 
   // Enter is unchanged and still means the NEAREST list, which from inside a case is its fields. The two
   // keys doing different things here is the point: `|` is what you write between cases, `*` between fields.
-  //
-  // The new field draws as `⟨field⟩` rather than `<type>`: an enum field is a wrapper and it is the
-  // WRAPPER that is empty. It used to arrive as the wrapper's template with a type hole inside, because
-  // `newItemForEach` builds a template for a kind with nothing to type into -- and an enum field now has
-  // something to type into, which is what made a typed field saveable at all.
+
   ((match Darklang.Fluid.Editor.addSibling (BarAddsACase.atEndOfFirstCase ()) with
     | Some s -> BarAddsACase.shown s
-    | None -> "declined")) = "type Shape =\n  | Circle of Int * ⟨field⟩\n  | Point"
+    | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
 
 
 module ACaseGrowsItsOwnFields =
@@ -364,8 +360,13 @@ module ACaseGrowsItsOwnFields =
     [ "e", "n", "u", "m", "<Enter>", "D", "e", "l", "a", "y", "e", "d" ]
 
   // A space after the case name opens its first field, and draws the `of` for you.
+  //
+  // `<type>` and not `⟨field⟩`: an enum field is a WRAPPER, an optional label and the type that does the
+  // work, so the hole you land in is the TYPE's. It used to be the wrapper's own hole -- a place nothing
+  // could be typed, since the wrapper has no resolve and no completion -- and this test recorded that as
+  // intended. `| Delayed of Int` typed from here lowered as "unresolved: Int".
   (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " " ])) =
-    "| Delayed of ~⟨field⟩"
+    "| Delayed of ~<type>"
 
   (ACaseGrowsItsOwnFields.typed (Stdlib.List.append (ACaseGrowsItsOwnFields.aCase ()) [ " ", "I", "n", "t" ])) =
     "| Delayed of Int~"
@@ -593,18 +594,19 @@ module AnEnumFieldYouTypeCanBeSaved =
   // typed was unsaveable, and it looked right the whole time.
   //
   // An `EnumField` is a WRAPPER -- an optional label, and the type that does the work -- so a slot
-  // expecting one is not a place you can type. Text there became a partial in the WRAPPER, which has no
-  // resolve and no completion, so nothing could ever settle it. The type spec below it, which does have
-  // both, was never reached.
+  // expecting one is not a place you can type. The SPACE that opens a case's fields inserted a bare hole
+  // of that kind, and text typed there became a partial in the wrapper, which has no resolve and no
+  // completion and could never settle. The type spec below it, which has both, was never reached.
   //
-  // Typing into an empty field builds the wrapper and puts the character in its TYPE. One rule per way a
-  // type can start, mirroring the type hole's own openers: a name, a `'` variable, `[` for a list and `(`
-  // for a tuple. The two containers BUILD rather than stand as text, which is what the type hole does
-  // with them -- a partial `[` resolves to nothing and lowered as "unresolved: [Int".
+  // `addSiblingAt` -- the `*` path -- never had the bug, because it already asks both halves of this:
+  // `newItemForEach` gives a kind with nothing to type into its TEMPLATE, and the caret goes INSIDE the
+  // item when it is a node. The opens-a-list path hand-rolled `Slot.Empty each` and a caret on the item
+  // slot instead. One question, two places, and only one of them answering it. Now it calls the same two.
   //
   // Found by driving the type-declaration demo in a terminal and typing a second field, which came out
-  // `Int*String` with the `*` swallowed. The separator was innocent: it works on a settled type and the
+  // `Int*String` with the `*` swallowed. The separator was innocent: it works on a settled type, and the
   // type never settled.
+
   let base_ () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
     Fixtures.mk (
       Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum

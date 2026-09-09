@@ -2442,9 +2442,21 @@ let typeOneRaw (st: State) (c: String) : State =
       // spaces; everything else (names, digits, float parts) treats space as "next".
       if Stdlib.Option.isSome openFields then
         let itemSlot = openFields |> Stdlib.Option.withDefault ""
+        // Built the way `addSibling` builds one, not as a bare hole. `newItemForEach` gives a kind with
+        // nothing to type into its TEMPLATE, so the hole you land in is one that means something.
+        //
+        // An enum field is a wrapper -- an optional label and the type that does the work -- so as a bare
+        // hole it was a slot expecting a wrapper, and text there became a partial in the wrapper, which
+        // has no resolve and no completion and could never settle. `| Tri of Int` typed after the space
+        // that opens the fields drew perfectly and lowered as "unresolved: Int". The SIBLING path never
+        // had the bug, because it already asked this question.
         let each = Node.itemExpect n itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
-        let st1 = commit st [ Edit.InsertItem(caret.node, itemSlot, 0, Slot.Empty each) ] caret
-        { st1 with caret = Caret.inItem caret.node itemSlot 0 0 }
+        let item = newItemForEach st each
+        let st1 = commit st [ Edit.InsertItem(caret.node, itemSlot, 0, item) ] caret
+        // ...and the caret goes INSIDE it when it is a node, which is the other half `addSiblingAt`
+        // already does. Landing on the item slot of a filled wrapper put the caret nowhere the drawing
+        // has -- "caret not found" -- and the next character went into the wrapper instead of its type.
+        { st1 with caret = firstEditableIn (Path.item caret.node itemSlot 0) item }
       elif (Stdlib.Bool.not (isIdentChar c)) && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
         // The keyword the editor already drew, typed again. See `clearsDrawnKeyword`, which Enter asks
         // the same question of.
@@ -2862,8 +2874,9 @@ let typeOneRaw (st: State) (c: String) : State =
                    (match opensItemSlot resolved.reg rn c with
                     | Some itemSlot ->
                       let each = Node.itemExpect rn itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
-                      let st1 = commit resolved [ Edit.InsertItem(sp, itemSlot, 0, Slot.Empty each) ] resolved.caret
-                      { st1 with caret = Caret.inItem sp itemSlot 0 0 }
+                      let item = newItemForEach resolved each
+                      let st1 = commit resolved [ Edit.InsertItem(sp, itemSlot, 0, item) ] resolved.caret
+                      { st1 with caret = firstEditableIn (Path.item sp itemSlot 0) item }
                     | None -> stayIfOnHole resolved (fun r -> landSettled r sp))
                  else
                    stayIfOnHole resolved (fun r -> landSettled r sp)
@@ -4002,6 +4015,12 @@ let enclosingListItems (c: Caret) : List<(Path * String * Int)> =
 
 /// A fresh element for a list whose items expect `each`: a hole when items are filled by typing/picking
 /// (expressions, types), or a filled template when they're structural (a match arm, a record field).
+/// Where the caret goes when an item is inserted: inside it if it is a node, on the slot if it is a hole.
+let firstEditableIn (at: Path) (item: Slot) : Caret =
+  match item with
+  | Filled child -> firstEditable at child
+  | _ -> Caret.inSlot at "" 0
+
 let newItemForEach (st: State) (each: Expect) : Slot =
   match Registry.forExpect st.reg each with
   | Some spec ->
