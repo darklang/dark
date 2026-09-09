@@ -32,6 +32,16 @@ module HandleCommand =
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
+      // What the store holds BEFORE the purge, so the reload can say what it destroyed. A reload
+      // replaces the log with what `packages/` produces, so anything else in it -- ops authored
+      // here, ops pulled from a relay -- does not survive. That is the intended behaviour of a dev
+      // reload and it used to happen in silence, which is how a morning's work disappears and gets
+      // blamed on whatever was edited last.
+      let countOps () =
+        Sql.query "SELECT COUNT(*) as count FROM package_ops"
+        |> Sql.executeRowAsync (fun read -> read.int64 "count")
+      let! opsBefore = countOps ()
+
       print "Purging ..."
       do! LibDB.Purge.purge ()
 
@@ -75,6 +85,15 @@ module HandleCommand =
         let! fns = countDistinct "package_functions"
         print "Loaded packages from disk "
         print $"{types} types, {values} values, and {fns} fns"
+
+        // Exact, not an estimate: the log now holds what `packages/` produces, so whatever the
+        // count fell by is what a disk reload cannot reproduce.
+        let! opsAfter = countOps ()
+        if opsBefore > opsAfter then
+          print
+            $"WARNING: {opsBefore - opsAfter} op(s) did not survive this reload. A reload replaces \
+              the log with what `packages/` produces; ops authored here or pulled from a relay are \
+              not in it. `dark push` or `dark sync export <file>` before reloading keeps them."
 
         return Ok()
     }
