@@ -42,6 +42,15 @@ module Hashing =
     let bytes = ms.ToArray()
     SHA256.HashData(bytes) |> fromSHA256Bytes
 
+  /// The hash of PROSE, which is said about content rather than being content.
+  ///
+  /// `UpdateDoc.previous` names the text it replaces, and has to say WHICH without carrying it.
+  /// Not `hashWithWriter`: that is over a canonical serialization, this is over the bytes of a
+  /// string. Same shape (SHA-256, lowercase hex) so the two are alike in a column.
+  let hashText (text : string) : Hash =
+    text |> UTF8.toBytes |> SHA256.HashData |> fromSHA256Bytes
+
+
   // ---------------------
   // Alpha-normalization: this IS how a fn/value hashes (see the module doc).
   // ---------------------

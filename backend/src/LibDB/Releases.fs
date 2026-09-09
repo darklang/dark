@@ -160,6 +160,25 @@ let steps : List<Step> =
                text TEXT NOT NULL,
                origin_ts TEXT NOT NULL,
                PRIMARY KEY (item_hash, part, within))"
+          |> Sql.executeStatementSync }
+
+    // ...and then keyed on the LOCATION instead, because content is shared and ten names holding one
+    // declaration do not mean one thing. `item_docs` never reached a released build; it goes.
+    { name = "20260909_000001_location_docs"
+      run =
+        fun () ->
+          Sql.query "DROP TABLE IF EXISTS item_docs" |> Sql.executeStatementSync
+
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS location_docs (
+               owner TEXT NOT NULL,
+               modules TEXT NOT NULL,
+               name TEXT NOT NULL,
+               kind TEXT NOT NULL,
+               within TEXT NOT NULL,
+               text TEXT NOT NULL,
+               origin_ts TEXT NOT NULL,
+               PRIMARY KEY (owner, modules, name, kind, within))"
           |> Sql.executeStatementSync } ]
 
 

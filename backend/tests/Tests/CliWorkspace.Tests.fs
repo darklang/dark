@@ -237,12 +237,12 @@ let constraintsAndConflictsReportQuiet =
   cliTestOnMain "constraints and conflicts say nothing is pending" (fun state ->
     task {
       do! start state
-      // Not "no constraints": constraints are a standing property of the STORE, and
-      // every CLI test shares one store, so whether any stand here depends on what
-      // ran before. What is worth pinning is that the command answers and that a
-      // finding id nobody has says so.
+      // Not "no constraints", and not "no conflicts": both are standing properties of the STORE,
+      // and every CLI test shares one store, so whether any stand here depends on what ran before
+      // -- the doc tests put a divergence in deliberately. What is worth pinning is that each
+      // command answers, and that an id nobody has says so.
       do! sane state [ "constraints" ] "constraints answers"
-      do! shows state [ "conflicts" ] "no conflicts" "and nothing is conflicted"
+      do! sane state [ "conflicts" ] "conflicts answers"
       do!
         shows
           state

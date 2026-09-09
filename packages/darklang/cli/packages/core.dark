@@ -103,99 +103,97 @@ let peerHeadsUpLine
   | None -> Stdlib.Option.Option.None
 
 
-/// Every doc comment a declaration carries, as (target, text): the item's own, plus one per
-/// parameter, record field or enum case.
+/// Every doc comment a declaration carries, as (part, text): its own, plus one per parameter,
+/// record field or enum case.
 ///
 /// Both sides of the comparison are built by this, so "what did the author write" and "what does
-/// the store hold" are the same question asked of two declarations, and a target that exists on one
-/// side and not the other simply has no pair.
+/// this name say now" are the same question asked of two declarations.
 let docsOfFn
-  (reference: LanguageTools.ProgramTypes.Reference)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
-  : List<(LanguageTools.ProgramTypes.DocTarget * String)> =
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let params =
     fn.parameters
     |> Stdlib.List.indexedMap (fun i p ->
-      (LanguageTools.ProgramTypes.DocTarget.ParameterDoc(reference, i),
-       p.description))
+      (LanguageTools.ProgramTypes.DocPart.Parameter i, p.description))
 
   Stdlib.List.append
-    [ (LanguageTools.ProgramTypes.DocTarget.ItemDoc reference, fn.description) ]
+    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description) ]
     params
 
 
 let docsOfType
-  (reference: LanguageTools.ProgramTypes.Reference)
   (t: LanguageTools.ProgramTypes.PackageType.PackageType)
-  : List<(LanguageTools.ProgramTypes.DocTarget * String)> =
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   let nested =
     match t.declaration.definition with
     | Record fields ->
       fields
       |> Stdlib.List.map (fun f ->
-        (LanguageTools.ProgramTypes.DocTarget.RecordFieldDoc(reference, f.name),
-         f.description))
+        (LanguageTools.ProgramTypes.DocPart.RecordField f.name, f.description))
     | Enum cases ->
       cases
       |> Stdlib.List.map (fun c ->
-        (LanguageTools.ProgramTypes.DocTarget.EnumCaseDoc(reference, c.name),
-         c.description))
+        (LanguageTools.ProgramTypes.DocPart.EnumCase c.name, c.description))
     | Alias _ -> []
 
   Stdlib.List.append
-    [ (LanguageTools.ProgramTypes.DocTarget.ItemDoc reference, t.description) ]
+    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description) ]
     nested
 
 
 /// Every doc these authored ops carry, for the item they declare.
 let authoredDocs
-  (reference: LanguageTools.ProgramTypes.Reference)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : List<(LanguageTools.ProgramTypes.DocTarget * String)> =
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
   ops
   |> Stdlib.List.filterMap (fun op ->
     match op with
-    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn reference fn)
-    | AddType t -> Stdlib.Option.Option.Some(docsOfType reference t)
+    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn fn)
+    | AddType t -> Stdlib.Option.Option.Some(docsOfType t)
     | AddValue v ->
       Stdlib.Option.Option.Some(
-        [ (LanguageTools.ProgramTypes.DocTarget.ItemDoc reference, v.description) ]
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
       )
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.flatten
 
 
-/// Every doc the STORE currently holds for <param reference>.
-let storedDocs
-  (reference: LanguageTools.ProgramTypes.Reference)
-  : List<(LanguageTools.ProgramTypes.DocTarget * String)> =
-  let hash = LanguageTools.ProgramTypes.Reference.hash reference
+/// What <param location> says NOW at each part: its own words where it has said any, and its
+/// declaration's where it has not.
+let currentDocs
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  let declared =
+    match kind with
+    | Fn ->
+      LanguageTools.PackageManager.Function.get hash
+      |> Stdlib.Option.map (fun fn -> docsOfFn fn)
+      |> Stdlib.Option.withDefault []
+    | Type ->
+      LanguageTools.PackageManager.Type.get hash
+      |> Stdlib.Option.map (fun t -> docsOfType t)
+      |> Stdlib.Option.withDefault []
+    | Value ->
+      LanguageTools.PackageManager.Value.get hash
+      |> Stdlib.Option.map (fun v ->
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
+      |> Stdlib.Option.withDefault []
 
-  match LanguageTools.ProgramTypes.Reference.kind reference with
-  | Fn ->
-    LanguageTools.PackageManager.Function.get hash
-    |> Stdlib.Option.map (fun fn -> docsOfFn reference fn)
-    |> Stdlib.Option.withDefault []
-  | Type ->
-    LanguageTools.PackageManager.Type.get hash
-    |> Stdlib.Option.map (fun t -> docsOfType reference t)
-    |> Stdlib.Option.withDefault []
-  | Value ->
-    LanguageTools.PackageManager.Value.get hash
-    |> Stdlib.Option.map (fun v ->
-      [ (LanguageTools.ProgramTypes.DocTarget.ItemDoc reference, v.description) ])
-    |> Stdlib.Option.withDefault []
+  SCM.Docs.overlay branchId location declared
 
 
-/// The text <param target> holds in <param docs>, or None when it names nothing there.
+/// The text <param part> holds in <param docs>, or None when it names nothing there.
 let docAt
-  (docs: List<(LanguageTools.ProgramTypes.DocTarget * String)>)
-  (target: LanguageTools.ProgramTypes.DocTarget)
+  (docs: List<(LanguageTools.ProgramTypes.DocPart * String)>)
+  (part: LanguageTools.ProgramTypes.DocPart)
   : Stdlib.Option.Option<String> =
   docs
   |> Stdlib.List.findFirst (fun pair ->
-    let (t, _) = pair
-    t == target)
+    let (p, _) = pair
+    p == part)
   |> Stdlib.Option.map (fun pair ->
     let (_, text) = pair
     text)
@@ -205,56 +203,48 @@ let docAt
 ///
 /// Called once the save has landed on <param hash>: if that is a hash the location already had,
 /// nothing about the VERSION moved, so the ops just authored folded to nothing and a changed doc
-/// comment is the only thing left that could have been meant. `UpdateDoc` is the op that can carry
-/// it -- its own id hashes the text and the target, so two texts are two ops.
+/// comment is the only thing left that could have been meant.
 ///
-/// One op per changed TARGET, each naming the text it replaces. Naming it is what lets the far side
-/// tell an edit made on top of its own words from one made without ever seeing them; without it the
-/// second writer simply wins and the first's words are gone with no record that they existed.
+/// One op per changed PART, each naming the text it replaces. Naming it is what lets the far side
+/// tell an edit made on top of its own words from one made without ever seeing them.
 let updateDocsThatChanged
   (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
   (kind: LanguageTools.ProgramTypes.ItemKind)
   (hash: LanguageTools.ProgramTypes.Hash)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Bool =
-  let reference = LanguageTools.ProgramTypes.Reference.fromHashAndKind hash kind
-  let stored = storedDocs reference
-  let written = authoredDocs reference ops
+  let current = currentDocs branchId location kind hash
+  let written = authoredDocs ops
 
   let updates =
     written
     |> Stdlib.List.filterMap (fun pair ->
-      let (target, text) = pair
+      let (part, text) = pair
 
-      match docAt stored target with
-      // A target the store does not have is not an edit to anything: the declaration this parse
-      // produced disagrees with the stored one about its own shape, which cannot happen for a hash
-      // that just came back from the save.
+      match docAt current part with
+      // A part the declaration does not have is not an edit to anything.
       | None -> Stdlib.Option.Option.None
-      | Some current ->
-        if current == text then
+      | Some currentText ->
+        if currentText == text then
           Stdlib.Option.Option.None
-        // Silence is not a statement that the existing words are wrong. A doc is said ABOUT content,
-        // and content is shared: several names hold one body, so a declaration written without a
-        // `///` would otherwise wipe whatever anyone else had said about that body -- and two
-        // trivial functions with the same one-line body really are one item. Clearing a doc is
-        // sayable (the op takes an empty text), just not by omission.
+        // Silence is not a statement that the existing words are wrong. Clearing a doc is sayable
+        // (the op takes an empty text), just not by omitting one.
         else if text == "" then
           Stdlib.Option.Option.None
         else
-          // `previous` is None for a doc that was empty, which is what "nothing was there" means on
-          // the far side too. Some(hash of the old text) otherwise.
           let previous =
-            if current == "" then
+            if currentText == "" then
               Stdlib.Option.Option.None
             else
               Stdlib.Option.Option.Some(
-                LanguageTools.ProgramTypes.hashOfText current
+                LanguageTools.ProgramTypes.hashOfText currentText
               )
 
           Stdlib.Option.Option.Some(
             LanguageTools.ProgramTypes.PackageOp.UpdateDoc(
-              target,
+              location,
+              part,
               text,
               previous,
               Stdlib.Option.Option.None
@@ -333,7 +323,7 @@ let saveAuthored
 
       let docOnly =
         (isUpdate && (Stdlib.Bool.not movedVersion))
-        && (updateDocsThatChanged state.currentBranchId kind boundHash ops)
+        && (updateDocsThatChanged state.currentBranchId location kind boundHash ops)
 
       // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
       // it already had and carries no new text saved NOTHING, and re-running the same authoring

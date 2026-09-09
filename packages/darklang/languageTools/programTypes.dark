@@ -542,36 +542,26 @@ type PropagationPolicy =
   | Follow
   | Unset
 
-/// WHICH piece of prose an `UpdateDoc` sets. One op with a target rather than a family of ops: the
-/// fold and the conflict path are identical for every case, and only the reach into the declaration
-/// differs. The nested cases are the point -- a doc comment on a field, a case or a parameter is not
-/// part of identity either, so before this there was no op that could carry an edit to one.
-type DocTarget =
-  | ItemDoc of target: Reference
-  | RecordFieldDoc of target: Reference * fieldName: String
-  | EnumCaseDoc of target: Reference * caseName: String
-  /// By POSITION, not by name: a parameter's name is not part of the identity hash (a body
-  /// references parameters by position), so two functions differing only in parameter names are one
-  /// item and a name would not identify anything.
-  | ParameterDoc of target: Reference * parameterIndex: Int
+/// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
+///
+/// The nested parts are the point. A doc on a field, a case or a parameter is outside the identity
+/// hash too, so before these there was no op that could carry an edit to one.
+type DocPart =
+  | WholeItem
+  | RecordField of fieldName: String
+  | EnumCase of caseName: String
+  /// By POSITION, not name: a parameter's name is not in the identity hash, so a name would not
+  /// survive the version it was written against. Field and case names ARE hashed.
+  | Parameter of parameterIndex: Int
 
-module DocTarget =
-  /// The content the prose is about. Every case carries one; only the reach into the declaration
-  /// differs.
-  let reference (t: DocTarget) : Reference =
-    match t with
-    | ItemDoc r -> r
-    | RecordFieldDoc(r, _) -> r
-    | EnumCaseDoc(r, _) -> r
-    | ParameterDoc(r, _) -> r
-
-  /// How it reads in a listing: what part of the item is being described.
-  let describe (t: DocTarget) : String =
-    match t with
-    | ItemDoc _ -> "the item"
-    | RecordFieldDoc(_, name) -> $"field {name}"
-    | EnumCaseDoc(_, name) -> $"case {name}"
-    | ParameterDoc(_, index) -> $"parameter {Stdlib.Int.toString (index + 1)}"
+module DocPart =
+  /// How it reads in a listing: which part of the declaration is being described.
+  let describe (p: DocPart) : String =
+    match p with
+    | WholeItem -> "the item"
+    | RecordField name -> $"field {name}"
+    | EnumCase name -> $"case {name}"
+    | Parameter index -> $"parameter {Stdlib.Int.toString (index + 1)}"
 
 
 type PackageOp =
@@ -596,20 +586,19 @@ type PackageOp =
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
-  /// What an item, or one named part of it, SAYS about itself. A doc comment is not behaviour, so it
-  /// is not in the identity hash: editing one leaves the hash alone and every caller keeps resolving
-  /// to the same item. That needs an op of its own, because an `AddFn` differing only in its docs IS
-  /// the earlier `AddFn` and folds to nothing. Keyed on content, like `Deprecate`.
+  /// What the thing at a NAME says about itself, or one named part of it.
   ///
-  /// `previous` is the hash of the text being replaced, or None when there was nothing there. It is
+  /// Scoped to a location, not to content, and that is the point: content is shared. Ten names hold
+  /// `type ParseError = | BadFormat | OutOfRange`, and what `Int64.ParseError` means is not what
+  /// `UInt64.ParseError` means. The declaration's own `///` still travels in the item and is the
+  /// fallback; this is how one name says something else.
+  ///
+  /// `previous` is the hash of the text being replaced, None when there was nothing there. It is
   /// what lets two people editing one doc comment produce a recorded conflict rather than one of
-  /// them losing their words silently.
-  ///
-  /// `restating` is empty except on one path and is never read: it is what makes a RESTATEMENT a
-  /// distinct op, since putting a doc back to text it held before otherwise produces the op that
-  /// set it then, which dedupes and folds nothing.
+  /// them losing their words silently. `restating` is empty except on the restatement path.
   | UpdateDoc of
-      target: DocTarget *
+      location: PackageLocation *
+      part: DocPart *
       text: String *
       previous: Stdlib.Option.Option<Hash> *
       restating: Stdlib.Option.Option<String>

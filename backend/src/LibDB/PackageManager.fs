@@ -100,6 +100,55 @@ let rt : RT.PackageManager =
 
 /// The PT PackageManager for MAIN: name resolution against `locations`, which by design holds only
 /// main's bindings. A branch is this plus its delta ops -- branch-aware callers want `ptForBranch`.
+/// <param pm>'s LOCATED results, with each name's own doc in place of its declaration's.
+///
+/// Only the located reads: a search result knows which NAME it answered for, and that is what a doc
+/// is scoped to. `getFn hash` does not, and keeps the declaration's words -- which is the honest
+/// answer to a question that named no name.
+///
+/// One query for the whole batch, and none at all when nothing matched.
+let withLocationDocs
+  (branchId : PT.BranchId)
+  (pm : PT.PackageManager)
+  : PT.PackageManager =
+  { pm with
+      search =
+        fun query ->
+          uply {
+            let! r = pm.search query
+
+            let locations =
+              (r.types |> List.map _.location)
+              @ (r.values |> List.map _.location)
+              @ (r.fns |> List.map _.location)
+
+            let! docs = Docs.docsForLocations branchId locations
+
+            if Map.isEmpty docs then
+              return r
+            else
+              let patch
+                (set : PT.DocPart -> string -> 'item -> 'item)
+                (i : PT.LocatedItem<'item>)
+                =
+                match Map.tryFind i.location docs with
+                | None -> i
+                | Some parts ->
+                  { i with
+                      entity =
+                        parts
+                        |> List.fold
+                          (fun acc (part, text) -> set part text acc)
+                          i.entity }
+
+              return
+                { r with
+                    types = r.types |> List.map (patch Docs.onType)
+                    values = r.values |> List.map (patch Docs.onValue)
+                    fns = r.fns |> List.map (patch Docs.onFn) }
+          } }
+
+
 let pt : PT.PackageManager =
   // `withCache` allocates a fresh `ConcurrentDictionary` per invocation, so hoist the cached
   // lambdas out here to reuse one dict. Caching by location is safe precisely because this PM only
@@ -218,7 +267,7 @@ let createInMemoryOver
     | PT.PackageOp.AddFn _ -> ()
 
     // None of these change what a name points at -- an ack or a policy records what a person decided ABOUT a
-    // name, an UpdateDoc changes what an item says about itself (`described` applies those), a
+    // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those), a
     // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
@@ -552,91 +601,6 @@ let hide
                     fns = shown r.fns }
             } }
 
-/// What each `UpdateDoc` in <param ops> says, grouped by the item it is about and in the order it
-/// must be applied: later ops last, and one entry per target, so restating a target replaces its
-/// earlier text rather than stacking behind it.
-let private describedBy
-  (ops : List<PT.PackageOp>)
-  : Map<Hash, List<PT.DocTarget * string>> =
-  ops
-  |> List.fold
-    (fun acc op ->
-      match op with
-      | PT.PackageOp.UpdateDoc(target, text, _, _) ->
-        let hash = target.reference.hash
-        let standing =
-          Map.tryFind hash acc
-          |> Option.defaultValue []
-          |> List.filter (fun (t, _) -> t <> target)
-        Map.add hash (standing @ [ target, text ]) acc
-      | _ -> acc)
-    Map.empty
-
-/// <param pm>, with <param texts> applied to whatever it hands back.
-///
-/// A branch's `UpdateDoc` must not reach main's stored blob -- the fold is main-only for exactly
-/// that reason -- so the branch's own text is applied as the item is read, over whichever layer
-/// answered. At this seam rather than inside the overlay's item map, because a branch usually
-/// describes something MAIN holds, and the overlay has no copy of that to patch.
-let private described
-  (texts : Map<Hash, List<PT.DocTarget * string>>)
-  (pm : PT.PackageManager)
-  : PT.PackageManager =
-  if Map.isEmpty texts then
-    pm
-  else
-    /// The item, with every doc this overlay sets on it, or unchanged when the overlay is silent.
-    let redescribe
-      (hash : Hash)
-      (set : PT.DocTarget -> string -> 'item -> 'item)
-      (item : 'item)
-      =
-      match Map.tryFind hash texts with
-      | Some docs ->
-        docs |> List.fold (fun acc (target, text) -> set target text acc) item
-      | None -> item
-
-    let inResults
-      (items : List<PT.LocatedItem<'item>>)
-      (hashOf : 'item -> Hash)
-      (set : PT.DocTarget -> string -> 'item -> 'item)
-      : List<PT.LocatedItem<'item>> =
-      items
-      |> List.map (fun i ->
-        { i with entity = redescribe (hashOf i.entity) set i.entity })
-
-    { pm with
-        getType =
-          fun h ->
-            uply {
-              let! r = pm.getType h
-              return r |> Option.map (redescribe h PT.DocTarget.onType)
-            }
-        getValue =
-          fun h ->
-            uply {
-              let! r = pm.getValue h
-              return r |> Option.map (redescribe h PT.DocTarget.onValue)
-            }
-        getFn =
-          fun h ->
-            uply {
-              let! r = pm.getFn h
-              return r |> Option.map (redescribe h PT.DocTarget.onFn)
-            }
-        search =
-          fun query ->
-            uply {
-              let! r = pm.search query
-              return
-                { r with
-                    types = inResults r.types (fun t -> t.hash) PT.DocTarget.onType
-                    values =
-                      inResults r.values (fun v -> v.hash) PT.DocTarget.onValue
-                    fns = inResults r.fns (fun f -> f.hash) PT.DocTarget.onFn }
-            } }
-
-
 /// `basePM` with `ops` overlaid on top: the branch overlay, and the parse-time PM for tests and
 /// from-disk parsing.
 let withExtraOps
@@ -644,7 +608,7 @@ let withExtraOps
   (ops : List<PT.PackageOp>)
   : PT.PackageManager =
   let opsPM = createInMemoryOver (Some basePM) ops
-  described (describedBy ops) (combine opsPM (hide (unboundBy ops) basePM))
+  combine opsPM (hide (unboundBy ops) basePM)
 
 
 // BRANCH OVERLAYS.
@@ -712,12 +676,18 @@ let opsForBranch (branchId : PT.BranchId) : List<PT.PackageOp> =
 /// resolves through COMMITTED main plus its own work, so main's uncommitted draft never leaks
 /// into a branch's view. The branch's own ops come later in the list and win over the mask.
 let ptForBranch (branchId : PT.BranchId) : PT.PackageManager =
-  if branchId.IsMain then
-    pt
-  else
-    match (Queries.mainDraftMaskOps ()).Result @ opsForBranch branchId with
-    | [] -> pt
-    | ops -> withExtraOps pt ops
+  // The doc overlay goes on OUTSIDE the branch overlay, and carries the branch id: a name's own
+  // words come from `location_docs` on main and from the branch's ops on a branch, and only this
+  // layer knows which branch is being asked.
+  let base' =
+    if branchId.IsMain then
+      pt
+    else
+      match (Queries.mainDraftMaskOps ()).Result @ opsForBranch branchId with
+      | [] -> pt
+      | ops -> withExtraOps pt ops
+
+  withLocationDocs branchId base'
 
 /// Where a branch binds <param hash>, for hash-to-NAME lookups.
 ///

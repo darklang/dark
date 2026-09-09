@@ -1,0 +1,50 @@
+module Darklang.SCM.Docs
+
+// What a NAME says about itself, when it says something other than its declaration does.
+//
+// Doc comments are scoped to a LOCATION, not to content, because content is shared: ten names hold
+// `type ParseError = | BadFormat | OutOfRange`, and what `Int64.ParseError` means is not what
+// `UInt64.ParseError` means. The declaration's own `///` travels in the item and is what a reader
+// sees by default; this module answers the other question, "does this name say something else".
+
+/// Every doc <param location> has of its own, by part. Empty for a name nobody has edited, which is
+/// most of them.
+let at
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  Builtin.pmDocsAt branchId location
+
+
+/// The text <param docs> holds for <param part>, if any.
+let find
+  (docs: List<(LanguageTools.ProgramTypes.DocPart * String)>)
+  (part: LanguageTools.ProgramTypes.DocPart)
+  : Stdlib.Option.Option<String> =
+  docs
+  |> Stdlib.List.findFirst (fun pair ->
+    let (p, _) = pair
+    p == part)
+  |> Stdlib.Option.map (fun pair ->
+    let (_, text) = pair
+    text)
+
+
+/// <param declared> with anything <param location> says of its own in place of it.
+///
+/// The read every located surface wants: `view`, a listing, hover. A lookup BY HASH has no name to
+/// ask about and keeps the declaration's words, which is the honest answer for it.
+let overlay
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (declared: List<(LanguageTools.ProgramTypes.DocPart * String)>)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  let own = Docs.at branchId location
+
+  declared
+  |> Stdlib.List.map (fun pair ->
+    let (part, declaredText) = pair
+
+    match Docs.find own part with
+    | Some ownText -> (part, ownText)
+    | None -> (part, declaredText))

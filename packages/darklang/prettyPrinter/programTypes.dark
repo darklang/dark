@@ -1565,9 +1565,8 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort hash}]"
 
-    | UpdateDoc(target, text, _previous, _restating) ->
-      let reference = LanguageTools.ProgramTypes.DocTarget.reference target
-      let hash = LanguageTools.ProgramTypes.Reference.hash reference
+    | UpdateDoc(location, part, text, _previous, _restating) ->
+      let path = PackageLocation.packageLocation location
       // The first line of it, and only that: an op listing is for scanning, and a doc comment is
       // the one op payload with no length limit at all.
       let firstLine =
@@ -1583,11 +1582,11 @@ module PackageOp =
         else
           firstLine
 
-      // Which PART, because four targets on one item are four different edits and a listing that
-      // named only the hash showed them as four identical lines.
-      let part = LanguageTools.ProgramTypes.DocTarget.describe target
+      // Which PART, because four parts of one name are four different edits and a listing that
+      // named only the name showed them as four identical lines.
+      let which = LanguageTools.ProgramTypes.DocPart.describe part
 
-      $"UpdateDoc [{LanguageTools.ProgramTypes.hashToShort hash}] {part}: {summary}"
+      $"UpdateDoc {path} {which}: {summary}"
 
     | Decision(id, location, reason, kind) ->
       let name = PackageLocation.packageLocation location

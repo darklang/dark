@@ -1459,37 +1459,30 @@ module Reference =
     | _ -> Exception.raiseInternal "Invalid Reference" []
 
 
-module DocTarget =
+module DocPart =
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.docTarget ())
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.docPart ())
   let knownType () = KTCustomType(typeName (), [])
 
-  let toDT (t : PT.DocTarget) : Dval =
+  let toDT (p : PT.DocPart) : Dval =
     let (caseName, fields) =
-      match t with
-      | PT.ItemDoc r -> "ItemDoc", [ Reference.toDT r ]
-      | PT.RecordFieldDoc(r, name) ->
-        "RecordFieldDoc", [ Reference.toDT r; DString name ]
-      | PT.EnumCaseDoc(r, name) -> "EnumCaseDoc", [ Reference.toDT r; DString name ]
-      | PT.ParameterDoc(r, index) ->
-        "ParameterDoc", [ Reference.toDT r; DInt(DarkInt.Finite(int64 index)) ]
+      match p with
+      | PT.WholeItem -> "WholeItem", []
+      | PT.RecordField name -> "RecordField", [ DString name ]
+      | PT.EnumCase name -> "EnumCase", [ DString name ]
+      | PT.Parameter index -> "Parameter", [ DInt(DarkInt.Finite(int64 index)) ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
-  let fromDT (d : Dval) : PT.DocTarget =
+  let fromDT (d : Dval) : PT.DocPart =
     match d with
-    | DEnum(_, _, [], "ItemDoc", [ r ]) -> PT.ItemDoc(Reference.fromDT r)
-    | DEnum(_, _, [], "RecordFieldDoc", [ r; DString name ]) ->
-      PT.RecordFieldDoc(Reference.fromDT r, name)
-    | DEnum(_, _, [], "EnumCaseDoc", [ r; DString name ]) ->
-      PT.EnumCaseDoc(Reference.fromDT r, name)
-    | DEnum(_, _, [], "ParameterDoc", [ r; DInt index ]) ->
-      // A parameter position, so a value that does not fit an int is not a large index, it is a
-      // corrupt op. 0 is as wrong as anything else and does not crash the fold.
-      PT.ParameterDoc(
-        Reference.fromDT r,
-        DarkInt.toInt32 index |> Option.defaultValue 0
-      )
-    | _ -> Exception.raiseInternal "Invalid DocTarget" []
+    | DEnum(_, _, [], "WholeItem", []) -> PT.WholeItem
+    | DEnum(_, _, [], "RecordField", [ DString name ]) -> PT.RecordField name
+    | DEnum(_, _, [], "EnumCase", [ DString name ]) -> PT.EnumCase name
+    // A parameter position, so a value that does not fit an int is not a large index, it is a
+    // corrupt op. 0 is as wrong as anything else and does not crash the fold.
+    | DEnum(_, _, [], "Parameter", [ DInt index ]) ->
+      PT.Parameter(DarkInt.toInt32 index |> Option.defaultValue 0)
+    | _ -> Exception.raiseInternal "Invalid DocPart" []
 
 
 module DeprecationKind =
@@ -1795,9 +1788,10 @@ module PackageOp =
         "Deprecate",
         [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
       | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
-      | PT.PackageOp.UpdateDoc(target, text, previous, restating) ->
+      | PT.PackageOp.UpdateDoc(location, part, text, previous, restating) ->
         "UpdateDoc",
-        [ DocTarget.toDT target
+        [ PackageLocation.toDT location
+          DocPart.toDT part
           DString text
           previousToDT previous
           restating |> Option.map DString |> Dval.option KTString ]
@@ -1840,14 +1834,19 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Undeprecate", [ target ]) ->
       Some(PT.PackageOp.Undeprecate(Reference.fromDT target))
-    | DEnum(_, _, [], "UpdateDoc", [ target; DString text; previous; restating ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "UpdateDoc",
+            [ location; part; DString text; previous; restating ]) ->
       let restating =
         match restating with
         | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
         | _ -> None
       Some(
         PT.PackageOp.UpdateDoc(
-          DocTarget.fromDT target,
+          PackageLocation.fromDT location,
+          DocPart.fromDT part,
           text,
           previousFromDT previous,
           restating

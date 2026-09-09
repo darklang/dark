@@ -106,40 +106,29 @@ module DecisionKind =
     | b -> raiseFormatError $"Invalid DecisionKind tag: {b}"
 
 
-// -- DocTarget --
+// -- DocPart --
 
-module DocTarget =
-  let write (w : BinaryWriter) (target : DocTarget) : unit =
-    match target with
-    | DocTarget.ItemDoc r ->
-      w.Write(0uy)
-      Reference.write w r
-    | DocTarget.RecordFieldDoc(r, name) ->
+module DocPart =
+  let write (w : BinaryWriter) (part : DocPart) : unit =
+    match part with
+    | DocPart.WholeItem -> w.Write(0uy)
+    | DocPart.RecordField name ->
       w.Write(1uy)
-      Reference.write w r
       String.write w name
-    | DocTarget.EnumCaseDoc(r, name) ->
+    | DocPart.EnumCase name ->
       w.Write(2uy)
-      Reference.write w r
       String.write w name
-    | DocTarget.ParameterDoc(r, index) ->
+    | DocPart.Parameter index ->
       w.Write(3uy)
-      Reference.write w r
       w.Write(index)
 
-  let read (r : BinaryReader) : DocTarget =
+  let read (r : BinaryReader) : DocPart =
     match r.ReadByte() with
-    | 0uy -> DocTarget.ItemDoc(Reference.read r)
-    | 1uy ->
-      let reference = Reference.read r
-      DocTarget.RecordFieldDoc(reference, String.read r)
-    | 2uy ->
-      let reference = Reference.read r
-      DocTarget.EnumCaseDoc(reference, String.read r)
-    | 3uy ->
-      let reference = Reference.read r
-      DocTarget.ParameterDoc(reference, r.ReadInt32())
-    | b -> raiseFormatError $"Invalid DocTarget tag: {b}"
+    | 0uy -> DocPart.WholeItem
+    | 1uy -> DocPart.RecordField(String.read r)
+    | 2uy -> DocPart.EnumCase(String.read r)
+    | 3uy -> DocPart.Parameter(r.ReadInt32())
+    | b -> raiseFormatError $"Invalid DocPart tag: {b}"
 
 
 // -- PackageOp --
@@ -182,9 +171,10 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.Undeprecate target ->
     w.Write(5uy)
     Reference.write w target
-  | PackageOp.UpdateDoc(target, text, previous, restating) ->
+  | PackageOp.UpdateDoc(location, part, text, previous, restating) ->
     w.Write(14uy)
-    DocTarget.write w target
+    PackageLocation.write w location
+    DocPart.write w part
     String.write w text
     (match previous with
      | None -> w.Write(0uy)
@@ -249,7 +239,8 @@ let read (r : BinaryReader) : PackageOp =
     let target = Reference.read r
     PackageOp.Undeprecate target
   | 14uy ->
-    let target = DocTarget.read r
+    let location = PackageLocation.read r
+    let part = DocPart.read r
     let text = String.read r
     let previous =
       match r.ReadByte() with
@@ -261,7 +252,7 @@ let read (r : BinaryReader) : PackageOp =
       | 0uy -> None
       | 1uy -> Some(String.read r)
       | b -> raiseFormatError $"Invalid UpdateDoc restating tag: {b}"
-    PackageOp.UpdateDoc(target, text, previous, restating)
+    PackageOp.UpdateDoc(location, part, text, previous, restating)
   | 10uy ->
     let branchId = LibExecution.Branching.BranchId.Id(Guid.read r)
     let event = BranchEventKind.read r

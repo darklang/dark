@@ -37,7 +37,7 @@ let tables : List<string> =
     // The LWW register for doc comments: what each `UpdateDoc` said and when. A claim about the
     // log's state, not a cache -- keeping it would let a stale stamp reject the first doc op of the
     // replacement log as an older statement.
-    "item_docs"
+    "location_docs"
 
     // Folded from `Decision` ops (main rows by the fold, branch rows by `Branches.refoldBranchDecides`),
     // so it says what the log decided about a name, and a purged log decided nothing.

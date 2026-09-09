@@ -932,6 +932,43 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmDocsAt" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "location"
+            (TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
+            "" ]
+      returnType =
+        TList(
+          TTuple(TCustomType(NR.ok (PT2DT.DocPart.typeName ()), []), TString, [])
+        )
+      description =
+        "Every doc this NAME has of its own, by part. Empty for a name that has never had one "
+        + "edited, which is most of them: the text a reader sees then comes from the declaration."
+      fn =
+        (function
+        | _, _, _, [| DUuid branchId; location |] ->
+          uply {
+            let location = PT2DT.PackageLocation.fromDT location
+            let! docs = LibDB.Docs.docsAt (branchOfParam branchId) location
+
+            let partKT = VT.known (PT2DT.DocPart.knownType ())
+
+            return
+              docs
+              |> List.map (fun (part, text) ->
+                DTuple(PT2DT.DocPart.toDT part, DString text, []))
+              |> fun rows -> DList(VT.tuple partKT VT.string [], rows)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

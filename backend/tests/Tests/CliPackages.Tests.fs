@@ -491,7 +491,11 @@ let aFieldsDocEditLands =
           "distance along the axis"
           "the field's new wording is what you read"
       do!
-        shows state [ "ops" ] "field alongwards" "and the op names WHICH doc it set"
+        shows
+          state
+          [ "ops" ]
+          "UpdateDoc Tests.FieldDocs.Coord field"
+          "and the op names the NAME and WHICH part of it"
       do! dirty state "an uncommitted field-doc edit is not a clean tree"
       do! commit state "reword the field"
       do!
@@ -536,7 +540,12 @@ let anEnumCasesDocEditLands =
           [ "view"; "Tests.CaseDocs.Signal" ]
           "come to a full stop"
           "the case's new wording is what you read"
-      do! shows state [ "ops" ] "case Halting" "and the op names WHICH case"
+      do!
+        shows
+          state
+          [ "ops" ]
+          "UpdateDoc Tests.CaseDocs.Signal case"
+          "and the op names the NAME and WHICH case"
       do! discardAll state
     })
 
@@ -592,6 +601,54 @@ let aParametersDocEditLands =
 ///
 /// The op is authored here rather than synced because the sync gates cover the transport; what
 /// needs asserting is the FOLD's answer, which is the same either way.
+/// The reason docs are scoped to a NAME rather than to content.
+///
+/// Ten `ParseError` types in the stdlib are literally one item: same declaration, so one hash. What
+/// `Int64.ParseError` means is not what `UInt64.ParseError` means, so one doc for the item cannot
+/// be right. A doc edit at one name must not be visible at the other.
+let twoNamesHoldingOneItemHaveTheirOwnDocs =
+  cliTestOnMain "two names holding one item document it separately" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.DocOne.f" "() : Int64 = 5301L"
+      do! fn state "Tests.DocTwo.f" "() : Int64 = 5301L"
+      do! commit state "one body, two names"
+
+      // Same body, so ONE item: this is the premise, not an accident of the fixture.
+      let! one = runCliPlain state [ "hash"; "Tests.DocOne.f" ]
+      let! two = runCliPlain state [ "hash"; "Tests.DocTwo.f" ]
+      Expect.equal two one $"the two names hold one item, got {one} and {two}"
+
+      do!
+        fn
+          state
+          "Tests.DocOne.f"
+          "/// what the first name means\nlet f (): Int64 =\n  5301L"
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.DocOne.f" ]
+          "what the first name means"
+          "the name that was edited says the new thing"
+      do!
+        lacks
+          state
+          [ "view"; "Tests.DocTwo.f" ]
+          "what the first name means"
+          "and the other name holding the same item does not"
+
+      do! commit state "document the first name"
+      do!
+        lacks
+          state
+          [ "view"; "Tests.DocTwo.f" ]
+          "what the first name means"
+          "still not, once committed"
+      do! discardAll state
+    })
+
+
 let twoWordingsForOneDocRecordAConflict =
   cliTestOnMain
     "a doc edit made against a text this store never had is a conflict"
@@ -605,16 +662,13 @@ let twoWordingsForOneDocRecordAConflict =
             "/// ours, written here\nlet f (): Int64 =\n  5101L"
         do! commit state "add f, documented"
 
-        let! hashLine = runCliPlain state [ "hash"; "Tests.DocClash.f"; "--full" ]
-        let hash = hashLine.Trim().Split(' ') |> Array.last
-
         // What a peer's op looks like on arrival: it names a predecessor nobody here ever wrote.
         let theirs =
           "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) "
           + "[Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc("
-          + "Darklang.LanguageTools.ProgramTypes.DocTarget.ItemDoc("
-          + "Darklang.LanguageTools.ProgramTypes.Reference.PackageFn "
-          + $"(Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{hash}\")), "
+          + "Darklang.LanguageTools.ProgramTypes.PackageLocation "
+          + "{ owner = \"Tests\"; modules = [\"DocClash\"]; name = \"f\" }, "
+          + "Darklang.LanguageTools.ProgramTypes.DocPart.WholeItem, "
           + "\"theirs, written somewhere else\", "
           + "Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText "
           + "\"a text this store never had\"), Stdlib.Option.Option.None)]"
@@ -650,7 +704,15 @@ let twoWordingsForOneDocRecordAConflict =
             "now binds"
             "override has no side to take on a wording disagreement"
 
-        do! run state [ "conflicts"; "ack"; id ]
+        // Acked, and ASSERTED acked: this test deliberately puts a divergence in a store every
+        // other CLI test shares, so leaving one behind is leaving a landmine.
+        do!
+          shows
+            state
+            [ "conflicts"; "ack"; id ]
+            "acked"
+            "the conflict is settled by acking the auto-pick"
+        do! lacks state [ "conflicts" ] id "and it is gone from the pending list"
         do! discardAll state
       })
 
@@ -787,5 +849,6 @@ let tests : List<Test> =
     aBranchesDocEditStaysOnTheBranch
     reAuthoringTheSameSourceSurvivesTheCommit
     aVersionMovedAndMovedBackKeepsTheLastNaming
+    twoNamesHoldingOneItemHaveTheirOwnDocs
     twoWordingsForOneDocRecordAConflict
     authoringWithoutADocDoesNotClearOne ]

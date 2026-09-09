@@ -199,12 +199,22 @@ let refuses
   }
 
 /// The draft holds nothing.
+///
+/// Asked of `--json`, not of the prose. `status`'s summary line also reports store-wide standing
+/// facts -- conflicts and constraints -- and every CLI test shares one store, so a test that reads
+/// the word "clean" is really asserting that no OTHER test left a divergence anywhere.
 let clean (state : RT.ExecutionState) (why : string) : Task<unit> =
-  shows state [ "status" ] "clean" why
+  task {
+    let! out = runCliPlain state [ "status"; "--json" ]
+    Expect.stringContains out "\"draftOps\":0" $"{why}, got: {out}"
+  }
 
 /// The draft holds something.
 let dirty (state : RT.ExecutionState) (why : string) : Task<unit> =
-  shows state [ "status" ] "changed" why
+  task {
+    let! out = runCliPlain state [ "status"; "--json" ]
+    Expect.isFalse (out.Contains "\"draftOps\":0") $"{why}, got: {out}"
+  }
 
 /// Several substrings, all of them. One assertion per claim reads better than one
 /// per command, and this is for the commands whose output IS several claims (a

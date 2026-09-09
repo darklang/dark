@@ -68,24 +68,29 @@ CREATE INDEX IF NOT EXISTS idx_deprecations_lookup
   ON deprecations(item_hash, item_kind) WHERE unlisted_at IS NULL;
 
 
--- What an item, or one named part of it, currently says about itself. Projection of UpdateDoc ops.
+-- What a NAME says about itself, when it says something other than its declaration does.
+-- Projection of UpdateDoc ops.
 --
--- The prose itself lives in the item's serialized declaration, where every reader already looks;
--- this table is the LWW REGISTER that decides whether an arriving op gets to rewrite it. Without a
--- register there is nowhere to keep the doc's own origin_ts, so a stale op arriving late overwrote
--- a newer one, and nothing could tell an edit that descends from what we hold (apply it) from one
--- made against a text we never had (a divergence, which gets a conflict row).
-CREATE TABLE IF NOT EXISTS item_docs (
-  item_hash TEXT NOT NULL,
+-- Keyed on the LOCATION, not on content, because content is shared: ten names hold
+-- `type ParseError = | BadFormat | OutOfRange`, and what `Int64.ParseError` means is not what
+-- `UInt64.ParseError` means. The declaration's own `///` travels in the item and is the fallback;
+-- this is how one name says something else.
+--
+-- Nothing is here for most names. A row exists only where somebody edited a doc.
+CREATE TABLE IF NOT EXISTS location_docs (
+  owner TEXT NOT NULL,
+  modules TEXT NOT NULL,
+  name TEXT NOT NULL,
   -- 'item' | 'record-field' | 'enum-case' | 'parameter': WHICH kind of part.
-  part TEXT NOT NULL,
-  -- WHICH part, by its name in the declaration; '' for the item's own doc.
+  kind TEXT NOT NULL,
+  -- WHICH part, by its name in the declaration ('' for the declaration's own doc). A parameter is
+  -- its INDEX, since a parameter's name is not part of identity.
   within TEXT NOT NULL,
   text TEXT NOT NULL,
   -- The origin_ts of the op that wrote this text, so the newest STATEMENT wins rather than the last
   -- to arrive.
   origin_ts TEXT NOT NULL,
-  PRIMARY KEY (item_hash, part, within)
+  PRIMARY KEY (owner, modules, name, kind, within)
 );
 
 

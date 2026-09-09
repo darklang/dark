@@ -197,13 +197,6 @@ let contentIdIfWanted
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
     | Undeprecate target ->
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
-    // Same as a deprecation: it says something ABOUT content, so `--include=` finds it by the
-    // name that content is bound to.
-    | UpdateDoc(target, _, _, _) ->
-      let reference = LanguageTools.ProgramTypes.DocTarget.reference target
-      Stdlib.Option.Option.Some(
-        hashOf (LanguageTools.ProgramTypes.Reference.hash reference)
-      )
     | _ -> Stdlib.Option.Option.None
 
   match target with
@@ -213,6 +206,23 @@ let contentIdIfWanted
     else
       Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
+
+/// The op id of <param e>, when it is a doc edit for one of <param wantedFqns>.
+///
+/// By NAME, not by hash: an `UpdateDoc` says what a name means, so `--include=` of that name takes
+/// its doc edits and nothing else's.
+let docIdIfWanted
+  (wantedFqns: List<String>)
+  (e: SCM.PackageOps.DraftEntry)
+  : Stdlib.Option.Option<String> =
+  match e.op with
+  | UpdateDoc(location, _, _, _, _) ->
+    if Stdlib.List.``member`` wantedFqns (fqnOf location) then
+      Stdlib.Option.Option.Some e.id
+    else
+      Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
 
 /// Which names `--include=` asked for that the draft doesn't hold.
 let unknownNames (names: List<String>) : List<String> =
@@ -259,10 +269,16 @@ let plan
 
     let namingIds = keptNamings |> Stdlib.List.map (fun s -> s.opId)
 
-    // Content and deprecations for the same hashes (see `contentIdIfWanted`).
+    // Content and deprecations for the same hashes (see `contentIdIfWanted`), plus the doc edits
+    // for the names in play, which are selected by name rather than by hash.
+    let wantedFqns = Stdlib.List.unique (Stdlib.List.append names reachableFqns)
+
+    let entries = SCM.PackageOps.draftEntries ()
+
     let otherIds =
-      SCM.PackageOps.draftEntries ()
-      |> Stdlib.List.filterMap (fun e -> contentIdIfWanted wantedHashes e)
+      Stdlib.List.append
+        (entries |> Stdlib.List.filterMap (fun e -> contentIdIfWanted wantedHashes e))
+        (entries |> Stdlib.List.filterMap (fun e -> docIdIfWanted wantedFqns e))
 
     let pulledIn =
       keptNamings
