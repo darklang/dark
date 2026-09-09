@@ -2294,3 +2294,23 @@ module ACloseBracketClosesTheInnermostOne =
   (Fixtures.program (Fixtures.chars "((1 + 2))")) = "1 + 2"
   (Fixtures.program (Fixtures.chars "((1, 2))")) = "(1, 2)"
   (Fixtures.program (Fixtures.chars "(1, 2)")) = "(1, 2)"
+
+
+module APipeStaysInsideItsBracket =
+  // `[1 |> f` was building `[1] |> f`: the pipe climbed out of the list item and swallowed the list.
+  // `[1, 2 |> f` did it too, so the LAST element of a list could never be piped. Both are valid Dark.
+  //
+  // `statementTarget` climbs while the child is the last node under its parent, which is right for
+  // statements -- the body is the last thing under a `let`, so a pipe at the end of it takes the whole
+  // body -- and wrong for a bracketed collection, where an item is bounded by the `]`.
+  //
+  // `(1 |> f, 2)` always worked, and not for a good reason: the tuple carries a trailing empty hole, so
+  // its first item was never the last node under it. That accident was hiding this.
+  //
+  // The slot says so now, through the `noSequence` the spec already had and Enter already asked about.
+  (Fixtures.screen (Fixtures.chars "[1 |> f")) = "[1 |> f~]"
+  (Fixtures.screen (Fixtures.chars "[1, 2 |> f")) = "[1, 2 |> f~]"
+  (Fixtures.screen (Fixtures.chars "(1 |> f, 2")) = "(1 |> f, 2~)"
+
+  // And where the climb IS right, it still happens: a pipe at the end of a let body takes the body.
+  (Fixtures.screen (Fixtures.chars "let a = 1 a |> f")) = "let a = 1\na |> f~"

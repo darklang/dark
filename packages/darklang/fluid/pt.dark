@@ -2568,22 +2568,26 @@ let baseSpecs () : List<Spec> =
       [ ("whole", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))), ("fraction", Darklang.Fluid.TextClass.Chars "<digit>") ]
     simpleExpr "EChar" [ Piece.Punct "'", Piece.QuietText("char", Layout.Style.Literal), Piece.Punct "'" ] (Node.make (exprKind "EChar") [ text "char" "" ])
     simpleExpr "EString" [ Piece.Punct "\"", Piece.QuietText("body", Layout.Style.Literal), Piece.Punct "\"" ] (Node.make (exprKind "EString") [ text "body" "" ])
-    simpleExpr
-      "EList"
-      [ Piece.Group
-          [ Piece.Punct "["
-            Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
-            Piece.SoftLine
-            Piece.Punct "]" ] ]
-      (listFromBracket "[" (exprExpect "item"))
-    simpleExpr
-      "ETuple"
-      [ Piece.Group
-          [ Piece.Punct "("
-            Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
-            Piece.SoftLine
-            Piece.Punct ")" ] ]
-      (tupleFromParen "(" (exprExpect "item"))
+    Spec.withNoSequence
+      (simpleExpr
+        "EList"
+        [ Piece.Group
+            [ Piece.Punct "["
+              Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+              Piece.SoftLine
+              Piece.Punct "]" ] ]
+        (listFromBracket "[" (exprExpect "item")))
+      [ "items" ]
+    Spec.withNoSequence
+      (simpleExpr
+        "ETuple"
+        [ Piece.Group
+            [ Piece.Punct "("
+              Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+              Piece.SoftLine
+              Piece.Punct ")" ] ]
+        (tupleFromParen "(" (exprExpect "item")))
+      [ "items" ]
     Spec.withTextClasses
       (Spec.withWrapRules
         (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))

@@ -3658,6 +3658,23 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
 /// end of a `let`'s body it is the body rather than the let -- a statement written after a let belongs
 /// INSIDE it, which is what the language means too.
 let statementTarget (st: State) (p: Path) : Path =
+  // A slot that will not hold a statement will not let one climb OUT of it either.
+  //
+  // The climb below is right for statements: the body is the last thing under a `let`, so a pipe typed
+  // at the end of it takes the whole body. It is wrong for a bracketed collection, where an item is
+  // bounded by the `]`: being the LAST item does not make the list part of what the pipe swallows.
+  // `[1 |> f` was building `[1] |> f`, and `[1, 2 |> f` gave `[1, 2] |> f`, so the last element of a
+  // list could never be piped.
+  //
+  // `(1 |> f, 2)` worked, and not for a good reason -- the tuple carried a trailing empty hole, so its
+  // first item was not the last node under it. That accident was hiding this.
+  //
+  // Asked of `slotRefusesSequence`, which Enter already asks. One question, and the wrap path was not
+  // asking it.
+  if slotRefusesSequence st p then
+    p
+  else
+
   match nodeAtPath st.root p with
   | Some child ->
     (match Path.parent p with
