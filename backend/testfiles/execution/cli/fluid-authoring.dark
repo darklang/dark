@@ -2686,3 +2686,58 @@ module AnOperatorInsideAStringIsStillContent =
         [ "<Esc>", "i", "<Enter>" ]
         (Fixtures.chars "\"--yes\" :: rest") ])) =
     "match xs with\n| [] -> opts\n| \"--yes\" :: rest~ -> ⟨rhs⟩"
+
+
+module MovingAlongTheListItIsIn =
+  // Ctrl-Left and Ctrl-Right move the thing under the caret one place along the sequence it sits in.
+  // `(1, 2)` with the caret on the `2` becomes `(2, 1)`, caret still on the `2`.
+  //
+  // A structural move rather than a cut and a paste: the node keeps its children, its holes and whatever
+  // was half-typed inside it, and undo puts it back in one step. It is the edit a projectional editor
+  // should be best at and a text editor is worst at -- swapping two arguments in text means selecting the
+  // right span twice and fixing the commas after.
+  //
+  // Asked of the CARET, so every sequence the language draws gets it and the kernel names none of them.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Left>" ])) = "(2~, 1)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Left>", "<Esc>", "<Esc>" ])) = "(2, 1)"
+
+  // The caret follows what MOVED, which is what makes the key repeatable: hold it and the node walks
+  // along. Landing on the index would leave you looking at whatever swapped in behind you.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1, 2, 3") [ "<C-Left>" ])) = "[1, 3~, 2]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1, 2, 3") [ "<C-Left>", "<C-Left>" ])) = "[3~, 1, 2]"
+
+  // Either end is a no-op, said with nothing. Running off the end is how you find the end.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Left>", "<C-Left>" ])) = "(2~, 1)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Right>" ])) = "(1, 2~)"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Left>", "<C-Right>" ])) = "(1, 2~)"
+
+  // One op, so one undo.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "(1, 2") [ "<C-Left>", "<C-z>" ])) = "(1, 2~)"
+
+  // The sequences a Darklang program actually has: a call's arguments, a nested tuple's items, a
+  // record's fields, a pipe's stages, a match's arms.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs f") [ "<C-Left>", "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map f xs"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[(1, 2), (3, 4") [ "<C-Left>" ])) = "[(1, 2), (4~, 3)]"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "Stdlib.Cli.Tui.Size { width = 80; height = 24") [ "<C-Left>", "<Esc>", "<Esc>" ])) =
+    "Stdlib.Cli.Tui.Size { height = 24; width = 80 }"
+  (Fixtures.program
+    (Stdlib.List.append (Fixtures.chars "xs |> Stdlib.List.map f |> Stdlib.List.sum") [ "<C-Left>", "<Esc>", "<Esc>" ])) =
+    "xs |> Stdlib.List.sum |> Stdlib.List.map f"
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ (Fixtures.chars "match n with 0 -> \"a\"")
+        [ "<Esc>", "i", "<Enter>" ]
+        (Fixtures.chars "1 -> \"b\"")
+        [ "<C-Left>", "<Esc>", "<Esc>" ] ])) =
+    "match n with\n| 1 -> \"b\"\n| 0 -> \"a\""
+
+  // In NAV as well as INSERT, on the node the caret is standing on.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1, 2, 3") [ "<Esc>", "<C-Left>" ])) = "[1, ~3, 2]"
+
+  // What it does NOT reach: a binary operator's two operands are `One` slots, not a list. The spec names
+  // them (`operands`, which the `(`/`)` rotations use), so it is a small addition -- left out because
+  // swapping them changes what the program means for every operator that is not commutative, and that
+  // deserves its own decision rather than falling out of a key.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<C-Left>" ])) = "1 + 2~"

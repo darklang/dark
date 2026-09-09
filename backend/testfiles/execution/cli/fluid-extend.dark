@@ -733,3 +733,51 @@ module ASpaceWaitsForADSLsOperator =
 
   // Without the rule the space has nothing to wait for, so `a` stays alone and the `~` finds nothing.
   (ASpaceWaitsForADSLsOperator.screen false [ " ", "~" ]) = "a~"
+
+
+module AReorderTheKernelDoesNotKnow =
+  // Ctrl-Left and Ctrl-Right move a node along the sequence it sits in. The kernel asks the CARET which
+  // sequence that is rather than naming any kind, so a DSL's own Many gets reordering with no spec field
+  // and nothing declared.
+  //
+  // `Acme.Row` holds `cells`, and nothing in Darklang has heard of it.
+  let rowKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Row"
+
+  let cellExpect () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.intKind ()) "cell"
+
+  let row () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (AReorderTheKernelDoesNotKnow.rowKind ())
+      [ ("cells",
+         Darklang.Fluid.Field.Many(
+           [ Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode "1")
+             Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode "2")
+             Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode "3") ],
+           AReorderTheKernelDoesNotKnow.cellExpect ())) ]
+
+  let spec () : Darklang.Fluid.Spec =
+    Darklang.Fluid.Spec.simple
+      (AReorderTheKernelDoesNotKnow.rowKind ())
+      [ Darklang.Fluid.Piece.Punct "<"
+        Darklang.Fluid.Piece.Each("cells", [ Darklang.Fluid.Piece.Punct "|" ])
+        Darklang.Fluid.Piece.Punct ">" ]
+      (AReorderTheKernelDoesNotKnow.row ())
+
+  let screen (keys: List<String>) : String =
+    let reg =
+      Darklang.Fluid.Registry.ofList
+        (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ AReorderTheKernelDoesNotKnow.spec () ] ])
+
+    Darklang.Fluid.Test.runFrom
+      reg
+      (Darklang.Fluid.Slot.Filled(AReorderTheKernelDoesNotKnow.row ()))
+      60
+      (Darklang.Fluid.Caret.inText (Darklang.Fluid.Path.item [] "cells" 2) "digits" 1)
+      keys
+
+  (AReorderTheKernelDoesNotKnow.screen []) = "<1|2|3~>"
+  (AReorderTheKernelDoesNotKnow.screen [ "<C-Left>" ]) = "<1|3~|2>"
+  (AReorderTheKernelDoesNotKnow.screen [ "<C-Left>", "<C-Left>" ]) = "<3~|1|2>"
+  // Back where it started, because the caret went with it.
+  (AReorderTheKernelDoesNotKnow.screen [ "<C-Left>", "<C-Right>" ]) = "<1|2|3~>"

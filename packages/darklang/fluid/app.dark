@@ -1263,6 +1263,7 @@ let help (_state: Darklang.Cli.AppState) : String =
     ""
     "INSERT: type into text and holes; Tab/Shift-Tab move between holes; arrows move; Esc to NAV."
     "NAV:    j/k move; h/l in/out; i edit; c change; x clear; y/p copy; : actions; u undo; q quit."
+    "BOTH:   Ctrl-Left/Ctrl-Right move the thing under the caret along the list it is in."
     ""
     "`dark edit <name>` opens a function, type, or value here too." ]
   |> Stdlib.String.join "\n"

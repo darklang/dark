@@ -972,6 +972,56 @@ let clearNode (st: State) : State =
     { st1 with caret = navCaretFor st1.root here }
   | _ -> st
 
+/// Move the thing under the caret one place along the sequence it sits in. `(1, 2)` with the caret on the
+/// `2` and Ctrl-Left is `(2, 1)`, with the caret still on the `2`.
+///
+/// A structural move rather than a cut and a paste: the node keeps its children, its holes and whatever
+/// was half-typed inside it, and undo puts it back in one step. This is the edit a projectional editor
+/// should be best at and a text editor is worst at -- swapping two arguments in text means selecting
+/// exactly the right span twice and getting the commas right afterwards.
+///
+/// Asked of the caret, not of any kind, so it works on every sequence the language draws: a tuple's
+/// items, a call's arguments, a list, a match's arms, a record's fields, the statements of a block, the
+/// stages of a pipe. A DSL's own Many gets it without saying anything.
+///
+/// It does NOT reach a binary operator's two operands, which are `One` slots rather than a list. The spec
+/// says which they are (`operands`, used by the `(`/`)` rotations), so that is a small addition; it is
+/// left out here because swapping them changes what the program means for every operator that is not
+/// commutative, and that deserves its own decision rather than falling out of a key.
+let moveSibling (st: State) (delta: Int) : State =
+  match enclosingListItem st.caret with
+  | Some entry ->
+    let (parentPath, slot, i) = entry
+    let j = i + delta
+
+    match nodeAtPath st.root parentPath with
+    | Some parent ->
+      let items = Node.items parent slot
+
+      // At either end, nothing happens and nothing is said. Running off the end of a list is the ordinary
+      // way to find out where the end is, not a mistake to report.
+      if (j < 0) || (j >= (Stdlib.List.length items)) then
+        st
+      else
+        match (Stdlib.List.getAt items i, Stdlib.List.getAt items j) with
+        | (Some here, Some there) ->
+          let herePath = Path.item parentPath slot i
+          let therePath = Path.item parentPath slot j
+          let st1 = commit st [ Edit.Replace(herePath, there), Edit.Replace(therePath, here) ] st.caret
+          // The caret follows what MOVED, which is what makes the key repeatable: hold it down and the
+          // node walks along the list. Landing on the index instead would leave you looking at whatever
+          // swapped into place behind you.
+          let landed =
+            match Slot.node here with
+            | Some moved ->
+              if st.mode == Mode.Nav then navCaretFor st1.root therePath else lastEditable therePath moved
+            | None -> Caret.inItem parentPath slot j 0
+
+          { st1 with caret = landed }
+        | _ -> st
+    | None -> st
+  | None -> st
+
 
 /// Copy the node under the caret into the clipboard (a whole subtree).
 let yankNode (st: State) : State =
@@ -4427,8 +4477,8 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     else
       let here = navPath settled
       handled { settled with mode = Mode.Nav; caret = navCaretFor settled.root here }
-  | LeftArrow -> handled (moveLeft st)
-  | RightArrow -> handled (moveRight st)
+  | LeftArrow -> if kp.modifiers.ctrl then handled (moveSibling st (-1)) else handled (moveLeft st)
+  | RightArrow -> if kp.modifiers.ctrl then handled (moveSibling st 1) else handled (moveRight st)
   | UpArrow -> if completing then handled (cycleCandidate st (-1)) else handled (moveVertical st (-1))
   | DownArrow -> if completing then handled (cycleCandidate st 1) else handled (moveVertical st 1)
   | Home -> handled (moveLineStart st)
@@ -4655,8 +4705,8 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   | Tab -> if kp.modifiers.shift then handled (prevHole st) else handled (nextHole st)
   | DownArrow -> handled (navBy st 1)
   | UpArrow -> handled (navBy st (-1))
-  | LeftArrow -> handled (navParent st)
-  | RightArrow -> handled (navChild st)
+  | LeftArrow -> if kp.modifiers.ctrl then handled (moveSibling st (-1)) else handled (navParent st)
+  | RightArrow -> if kp.modifiers.ctrl then handled (moveSibling st 1) else handled (navChild st)
   | _ ->
     if kp.modifiers.ctrl then
       match kp.key with

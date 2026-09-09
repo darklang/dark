@@ -357,6 +357,9 @@ let inspectorWith
         dim "  i c    edit / change"
         dim "  x      clear"
         dim "  y p    copy / paste"
+        // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
+        // worth a line here rather than only in the actions list.
+        dim "  ^< ^>  move along its list"
         dim "  u ^r   undo / redo"
         dim "  :      actions"
         dim "  v      evaluate this"
@@ -371,6 +374,7 @@ let inspectorWith
         // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
         // record field, a new row in a grid -- and that is the operation you reach for most in a table.
         dim "  Enter  accept / add an item"
+        dim "  ^< ^>  move along its list"
         dim "  ^E     edit as text"
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
