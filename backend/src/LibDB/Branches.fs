@@ -525,10 +525,10 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
         (read.string "ts",
          BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob")))
 
-    // Sorted the way `Lww.isStale` breaks a tie, so every reader of this overlay lands where the
-    // fold would: later stamp wins, an equal stamp goes to the greater bound hash, and a binding
-    // beats an `Unbind` (`unbindBeatsBinding` is a strict `>`). SQL cannot do this half -- the bound
-    // hash is inside the blob -- so it happens here, on a branch's ops, which are bounded.
+    // `Lww.isStale`'s order, so every reader of these ops lands where the fold would: later stamp
+    // wins, an equal stamp goes to the greater bound hash, a binding beats an `Unbind`. SQL cannot
+    // supply it -- the bound hash is inside the blob -- so it happens here, over a branch's ops,
+    // which are bounded.
     let sortKey (ts : string, op : PT.PackageOp) : string * string * string =
       match op with
       | PT.PackageOp.SetName(_, target, _) -> (ts, "1", string target.hash)

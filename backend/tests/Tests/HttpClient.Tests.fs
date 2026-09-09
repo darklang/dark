@@ -532,11 +532,10 @@ let init (token : System.Threading.CancellationToken) : Task =
               try
                 do! runTestHandler ctx
               with e ->
-                // Without this the handler's exception dies with its task, the response closes
-                // with nothing in it, and the client reports `NetworkError` -- which names the
-                // symptom and nothing else. CI hit exactly that once and left no way to tell
-                // which handler had thrown or why. Say it, and answer 500 so the assertion
-                // fails on a body rather than on an aborted connection.
+                // The task is fire-and-forget, so an exception in it is only visible here. Left
+                // unsaid, the response closes empty and the client reports `NetworkError`, which
+                // names the symptom and nothing else. The 500 gives the assertion a body to fail
+                // on rather than an aborted connection.
                 print
                   $"httpclient test server: {ctx.Request.RawUrl} handler threw: {e.Message}"
 
@@ -753,14 +752,12 @@ module StreamDvalTests =
         } ]
 
 
-/// Sequenced against ITSELF, not against the whole suite: `testSequencedGroup` lets this run
-/// alongside other groups while its own cases go one at a time.
+/// Sequenced against ITSELF: `testSequencedGroup` runs these one at a time while still running
+/// alongside other groups.
 ///
-/// They share one `HttpListener`, which on Linux is .NET's managed implementation, and firing forty
-/// requests at it at once produced an occasional `NetworkError` on whichever case drew the short
-/// straw -- a different one each time, so it read as a flake rather than as contention. The failing
-/// case waited out the group's whole duration before failing, which is what a request nobody
-/// accepted looks like.
+/// They share one `HttpListener`, which on Linux is .NET's managed implementation and does not take
+/// forty concurrent requests well: one goes unaccepted and comes back `NetworkError`. Which one
+/// varies, so it presents as a flake. Serialising them is also faster than not.
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
     [ StreamDvalTests.tests ] ]

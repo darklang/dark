@@ -171,10 +171,10 @@ module Registry =
 
     let body = helpFn state
 
-    // Every `--help` opens with what the command IS. Several help texts are shared by a family
-    // (`whoami`, `push` and `pull` all print the sync list) or start straight in on `Usage:`, so
-    // asking about one told you about a group, or about syntax before purpose. The registry
-    // description is that sentence and every command already has one.
+    // Every `--help` opens with what the command IS. Some help texts are shared by a family
+    // (`whoami`, `push` and `pull` all print the sync list) and some open on `Usage:`, so without
+    // this you learn about a group, or about syntax, before purpose. Every command has a registry
+    // description, and that is the sentence.
     let firstLine =
       Stdlib.String.splitOnNewline body
       |> Stdlib.List.head

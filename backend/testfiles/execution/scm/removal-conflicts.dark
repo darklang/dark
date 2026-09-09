@@ -1,8 +1,8 @@
-// A rename ends the old name (`Unbind`), so "they renamed it while I changed it" is a divergence that
-// never reached the detector: it takes bindings on both sides, and a removal binds nothing.
+// A rename ends the old name (`Unbind`), so "they renamed it while I changed it" is a divergence the
+// binding-vs-binding detector cannot see: a removal binds nothing.
 //
-// Three cases, and the middle one is the whole point of `previous`: a removal of exactly what you hold
-// is ordinary, a removal of something you have since edited is not.
+// `previous` is what separates the two cases: ending exactly what you hold is ordinary, ending what
+// you have since replaced is not.
 
 module Removals =
   let mine (hash: String) (ts: String) : Darklang.SCM.Conflicts.Binding =

@@ -400,8 +400,9 @@ let executeOverride
         Cli.printErr $"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author."
         state
       | Some cand when cand.removed ->
-        // Taking the removal means ending the name again, not binding anything. `unbindName` authors
-        // the `Unbind`, so the choice travels like every other resolution.
+        // Taking the removal ends the name again rather than binding anything.
+        // `settleConflictByRemoval` authors the `Unbind`, so the choice travels like any other
+        // resolution.
         if c.autoResolvedTo == "" then
           Cli.printOk
             $"#{c.id}: the name is already gone. Nothing to override -- `dark conflicts ack {c.id}` if it's right."

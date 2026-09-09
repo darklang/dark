@@ -115,16 +115,15 @@ type NameWord =
     binding: Stdlib.Option.Option<Conflicts.Binding> }
 
 
-/// The overlay's tie-break, made to match the fold's.
+/// Orders ops so the one the fold would keep sorts LAST, since the fold below takes the last word.
 ///
-/// Later wins, so the key sorts the WINNER last. Equal stamps break the way `LibDB.Lww` breaks them:
-/// the greater bound hash wins (`isStale`), and a binding beats an `Unbind` (`unbindBeatsBinding` is
-/// strict `>`). Without this the overlay fell back on SQL order, whose tie-break is `rowid` -- arrival
-/// order, so two machines given the same two ops in opposite orders disagreed about what a branch
-/// binds, while agreeing about main.
+/// The rule is `LibDB.Lww`'s, and it has to be: equal stamps go to the greater bound hash
+/// (`isStale`), and a binding beats an `Unbind` (`unbindBeatsBinding` is strict `>`). SQL order
+/// cannot supply it -- its tie-break is `rowid`, which is arrival order, so two stores holding the
+/// same ops would answer differently.
 ///
-/// One string rather than a tuple because the stamp is fixed-width ISO, so lexical IS chronological
-/// and the rank and hash simply follow it.
+/// One string rather than a tuple: the stamp is fixed-width ISO, so lexical is chronological and the
+/// rank and hash follow it.
 let bindingSortKey (ts: String) (isBinding: Bool) (hash: String) : String =
   let rank = if isBinding then "1" else "0"
   $"{ts}|{rank}|{hash}"

@@ -488,9 +488,9 @@ let private notSweepable =
 
 /// Every `--help` opens with a sentence saying what the command IS.
 ///
-/// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which was the second of
-/// two voices the help had. Both used to appear; the renderer supplies the registry description when
-/// the body does not start with a summary of its own.
+/// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which repeats the name
+/// you just typed. The renderer falls back to the registry description when a help body has no
+/// summary of its own, so a new command satisfies this without doing anything.
 let private everyHelpLeadsWithASummary =
   cliTest "every command's help starts by saying what it is" (fun state ->
     task {

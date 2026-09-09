@@ -1,9 +1,8 @@
-// `--include=` is how a partial commit names what it takes, and the parse is the whole of it: get it
-// wrong and the wrong ops are sealed under somebody's message. It accepts repeats, commas, spaces and
-// duplicates, and every one of those was covered by cli testfiles that were deleted in the rewrite.
+// `--include=` names what a partial commit takes, so the parse decides which ops get sealed under
+// somebody's message. It accepts repeats, commas, spaces and duplicates.
 //
-// Through `parseInclude` rather than through `dark commit`, because these are questions about the
-// string, and a commit per case would need a draft per case.
+// Through `parseInclude` rather than `dark commit`: these are questions about a string, and a commit
+// per case would need a draft per case.
 
 module Include =
   let parse (args: List<String>) : List<String> =

@@ -86,11 +86,11 @@ let settleConflict
 
 /// Settle a conflict by taking the REMOVAL: end the name again, and close the record.
 ///
-/// The sibling of <fn settleConflict>, which binds a hash. Same reason for being one function: an
-/// unbind authored with the record left open, or a record closed with no op behind it, are both
-/// states nothing later repairs.
+/// The sibling of <fn settleConflict>, which binds a hash, and one function for the same reason: an
+/// unbind with the record left open, or a closed record with no op behind it, are both states
+/// nothing later repairs.
 ///
-/// `previous` is what the name holds NOW, so the op says what it ended -- which is what lets a peer's
+/// `previous` is what the name holds NOW, so the op says what it ended. That is what lets a peer's
 /// detector tell an ordinary removal from a divergence.
 let settleConflictByRemoval
   (branchId: Uuid)
