@@ -2403,3 +2403,34 @@ module UngroupingIsTheSameRotationBackwards =
   // The climb finds the nearest ancestor that rotates, so it works from deep inside an operand.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "a - b + c * d") [ "<Esc>", "(" ])) =
     "a - (b + c * d)"
+
+
+module ExpandAndCollapseAreAPair =
+  // `h` climbs out, `l` climbs in, and they did not compose. `navChild` takes the FIRST child, which from
+  // a `let` is the pattern -- a leaf -- so collapse did not return you where expand came from, and the
+  // let's VALUE was unreachable without switching to `j`. Two keys that each worked separately.
+  //
+  // Stachu asked for expand/collapse and could not find it. That is the same complaint from the other
+  // side: undiscoverable AND, once found, not actually a pair.
+  //
+  // One field remembers the deepest path `h` climbed out of. `h` keeps an existing trail while it is
+  // still below the caret, so climbing several levels records the deepest point once rather than
+  // overwriting it on the way up; `l` steps one level along it.
+  let src () : List<String> = Fixtures.chars "let x = 1 - 3 + 2"
+
+  // Three out, two back in: the caret returns to where it started.
+  (Fixtures.screen (Stdlib.List.append (ExpandAndCollapseAreAPair.src ()) [ "<Esc>" ])) =
+    "let x = 1 - 3 + ~2\n⟨body⟩"
+
+  (Fixtures.screen (Stdlib.List.append (ExpandAndCollapseAreAPair.src ()) [ "<Esc>", "h", "h", "h", "l", "l" ])) =
+    "let x = 1 - 3 + ~2\n⟨body⟩"
+
+  // One out is one level out.
+  (Fixtures.screen (Stdlib.List.append (ExpandAndCollapseAreAPair.src ()) [ "<Esc>", "h" ])) =
+    "let x = ~1 - 3 + 2\n⟨body⟩"
+
+  // The trail describes where you WERE. Reading-order motion abandons it, and `l` is the first child
+  // again -- the `let`'s pattern, which is exactly the old behaviour and the right answer with nothing
+  // remembered.
+  (Fixtures.screen (Stdlib.List.append (ExpandAndCollapseAreAPair.src ()) [ "<Esc>", "h", "h", "h", "j", "l" ])) =
+    "let ~x = 1 - 3 + 2\n⟨body⟩"

@@ -41,7 +41,19 @@ type State =
     lastTyped: Stdlib.Option.Option<String>
     message: String
     docVersion: Int
-    drawn: Stdlib.Option.Option<(Int * Int * List<Layout.Row>)> }
+    drawn: Stdlib.Option.Option<(Int * Int * List<Layout.Row>)>
+
+    /// The deepest path `h` has climbed out of, so `l` can climb back INTO it.
+    ///
+    /// `navChild` takes the first child, which from a `let` is the pattern -- a leaf. So expand then
+    /// collapse did not return you where you started, and the value was unreachable without switching to
+    /// `j`. Two keys that each worked, and did not compose. Stachu asked for expand/collapse and could
+    /// not find it, which is the same complaint from the other side.
+    ///
+    /// One field rather than a stack: `h` records the deepest point once (it keeps an existing descent
+    /// that is still below the caret), and `l` steps one level along it. So three `h` then three `l`
+    /// returns exactly, and `l` still descends sensibly when there is nothing remembered.
+    descent: Stdlib.Option.Option<Path> }
 
 /// What the editor tells its parent.
 type Msg =
@@ -82,7 +94,8 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       lastTyped = Stdlib.Option.Option.None
       message = ""
       docVersion = 0
-      drawn = Stdlib.Option.Option.None }
+      drawn = Stdlib.Option.Option.None
+      descent = Stdlib.Option.Option.None }
   |> fun s -> { s with menu = computeCandidates s }
 
 let layout (st: State) : List<Layout.Row> =
@@ -148,7 +161,9 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
       message = ""
       completionIndex = 0
       lastTyped = Stdlib.Option.Option.None
-      menuDismissed = false }
+      menuDismissed = false
+      // An edit invalidates the `h`/`l` trail: it is a path into a tree that has just changed shape.
+      descent = Stdlib.Option.Option.None }
 
 /// Apply typing edits, coalescing consecutive characters in the SAME text run into one undo step. The
 /// first character of a run snapshots; the rest edit the same snapshot, so Ctrl-Z undoes the whole word,
@@ -797,6 +812,9 @@ let navByReadingOrder (st: State) (delta: Int) : State =
   | None -> st
 
 let navBy (st: State) (delta: Int) : State =
+  // Reading-order motion abandons the trail, which describes where `h` came from and is now a lie.
+  let st = { st with descent = Stdlib.Option.Option.None }
+
   match tableRowTarget st delta with
   | Some(Some p) -> { st with caret = navCaretFor st.root p }
 
@@ -814,8 +832,20 @@ let navParent (st: State) : State =
   match tableColumnTarget st (-1) with
   | Some p -> { st with caret = navCaretFor st.root p }
   | None ->
-  match Path.parent (navPath st) with
-  | Some p -> { st with caret = navCaretFor st.root p }
+  let here = navPath st
+  // Keep an existing descent when it is still below where we are, so climbing several levels remembers
+  // the DEEPEST point rather than overwriting it with each step out.
+  let remembered =
+    match st.descent with
+    | Some d ->
+      if (Path.isPrefixOf here d) && ((Stdlib.List.length d) > (Stdlib.List.length here)) then
+        st.descent
+      else
+        Stdlib.Option.Option.Some here
+    | None -> Stdlib.Option.Option.Some here
+
+  match Path.parent here with
+  | Some p -> { st with caret = navCaretFor st.root p; descent = remembered }
   | None -> st
 
 let navChild (st: State) : State =
@@ -823,11 +853,25 @@ let navChild (st: State) : State =
   | Some p -> { st with caret = navCaretFor st.root p }
   | None ->
   let here = navPath st
+  // Back down the way we came, when `h` left a trail that still fits: one level along it, so repeated
+  // `l` retraces a repeated `h` exactly.
+  let remembered =
+    match st.descent with
+    | Some d ->
+      if (Path.isPrefixOf here d) && ((Stdlib.List.length d) > (Stdlib.List.length here)) then
+        Stdlib.Option.Option.Some(Stdlib.List.take d ((Stdlib.List.length here) + 1))
+      else
+        Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
   let firstChild =
     nodePaths st.root
     |> Stdlib.List.findFirst (fun p ->
       (Stdlib.List.length p) == ((Stdlib.List.length here) + 1) && Path.isPrefixOf here p)
-  match firstChild with
+
+  match (match remembered with
+         | Some d -> Stdlib.Option.Option.Some d
+         | None -> firstChild) with
   | Some p -> { st with caret = navCaretFor st.root p }
   | None -> st
 
