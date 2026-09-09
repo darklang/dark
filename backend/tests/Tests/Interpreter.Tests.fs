@@ -1147,7 +1147,7 @@ module PermissionsGate =
     testTask "guest code cannot change package approvals" {
       do!
         expectHostOnly
-          "pmPolicyPinFunction"
+          "pmPolicyApproveVersion"
           [| LibExecution.Dval.optionNone RT.KTUuid
              RT.DString "loc"
              RT.DString "unknown"

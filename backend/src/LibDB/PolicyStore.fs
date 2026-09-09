@@ -38,7 +38,7 @@ type Store =
     // Account-scoped logical function name -> approved content hash. This is
     // the user's lock; hashes remain an implementation detail of the host
     // policy store.
-    functionPins : Map<ScopedKey, string>
+    approvedVersions : Map<ScopedKey, string>
     // Account-scoped record of each approved *root* hash: the immutable
     // dependency closure the approval covered (revocation consults it so
     // dropping one root only removes dependencies no remaining root still
@@ -69,7 +69,7 @@ let private fileName = "policies.bin"
 let empty : Store =
   { instance = P.Policy.denyAll
     packages = Map.empty
-    functionPins = Map.empty
+    approvedVersions = Map.empty
     approvedRoots = Map.empty }
 
 // ── codec ─────────────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ let toBytes (store : Store) : byte[] =
   writer.Write formatVersion
   PolicyBin.write writer store.instance
   writeEntries writer writeScopedKey PolicyBin.write store.packages
-  writeEntries writer writeScopedKey String.write store.functionPins
+  writeEntries writer writeScopedKey String.write store.approvedVersions
   writeEntries writer writeScopedKey writeRootApproval store.approvedRoots
   writer.Flush()
   stream.ToArray()
@@ -162,9 +162,12 @@ let fromBytes (bytes : byte[]) : Store =
   let instance = PolicyBin.read reader
   let packages =
     readEntries reader "package" (readScopedKey "package") PolicyBin.read
-  let functionPins =
-    readEntries reader "function pin" (readScopedKey "function pin") (fun r ->
-      readIdentifier r "function hash")
+  let approvedVersions =
+    readEntries
+      reader
+      "approved version"
+      (readScopedKey "approved version")
+      (fun r -> readIdentifier r "function hash")
   let approvedRoots =
     readEntries
       reader
@@ -175,7 +178,7 @@ let fromBytes (bytes : byte[]) : Store =
     raiseFormatError "Trailing bytes in policy store"
   { instance = instance
     packages = packages
-    functionPins = functionPins
+    approvedVersions = approvedVersions
     approvedRoots = approvedRoots }
 
 /// The format version stamped in `bytes`, if it carries our magic. Used to
@@ -192,7 +195,7 @@ let storedVersion (bytes : byte[]) : Option<int> =
 // ── file access ───────────────────────────────────────────────────────────────
 
 /// Parsed-store cache keyed on the file's (mtime, ctime, length) stamp.
-/// Function resolution consults pins on every package-fn lookup; without this
+/// Function resolution consults the approved versions on every package-fn lookup; without this
 /// each lookup is a full file read + parse. Same-process writes invalidate
 /// eagerly; another process's write changes the stamp and is picked up on the
 /// next read.
@@ -229,7 +232,7 @@ let private writeFile (store : Store) : unit =
   lock cacheLock (fun () -> cache <- None)
 
 /// Read the store before mutation. A present but invalid file is an error so a
-/// write cannot replace approvals and pins with an empty store.
+/// write cannot replace approvals and approved versions with an empty store.
 let private getForWrite () : Store =
   match LocalFile.read fileName with
   | LocalFile.Missing -> empty
@@ -244,7 +247,7 @@ let private getForWrite () : Store =
           []
       | _ ->
         Exception.raiseInternal
-          "The policy file is damaged and will not be overwritten. Move ~/.darklang/policy/policies.bin aside (approvals and pins in it are lost) and retry."
+          "The policy file is damaged and will not be overwritten. Move ~/.darklang/policy/policies.bin aside (the approvals in it are lost) and retry."
           []
   | LocalFile.Unreadable message ->
     Exception.raiseInternal
@@ -367,12 +370,12 @@ let instancePolicy () : P.Policy = (get ()).instance
 let packagePolicies (accountID : Option<Guid>) : Map<string, P.Policy> =
   scopedEntries accountID (get ()).packages
 
-/// Return the pinned hash for a logical function, if the consumer has chosen one.
-let pinnedFunction (accountID : Option<Guid>) (location : string) : Option<string> =
-  (get ()).functionPins |> Map.tryFind (scopedKey accountID location)
+/// The version this consumer APPROVED for a logical function name, if they have approved one.
+let approvedVersion (accountID : Option<Guid>) (location : string) : Option<string> =
+  (get ()).approvedVersions |> Map.tryFind (scopedKey accountID location)
 
-let functionPins (accountID : Option<Guid>) : Map<string, string> =
-  scopedEntries accountID (get ()).functionPins
+let approvedVersions (accountID : Option<Guid>) : Map<string, string> =
+  scopedEntries accountID (get ()).approvedVersions
 
 // ── writes ────────────────────────────────────────────────────────────────────
 
@@ -414,10 +417,9 @@ let private closuresOfOtherRoots
   |> Seq.collect (fun (_, approval) -> Set.toSeq approval.closure)
   |> Set.ofSeq
 
-/// Drop a root's approval record and the dependency policies no other root
-/// still needs. Pins are NOT touched: this is the cleanup a re-approval
-/// performs before installing the new closure, and a pin belongs to a name,
-/// not to the closure.
+/// Drop a root's approval record and the dependency policies no other root still needs. The
+/// name-to-version approvals are NOT touched: this is the cleanup a re-approval performs before
+/// installing the new closure, and an approved version belongs to a NAME, not to the closure.
 let private dropRootInStore
   (accountID : Option<Guid>)
   (rootHash : string)
@@ -437,14 +439,13 @@ let private dropRootInStore
         packages = packages
         approvedRoots = Map.remove rootKey store.approvedRoots }
 
-/// Revoke: drop the root and ALSO unpin every name pointing at it, since a
+/// Revoke: drop the root and ALSO withdraw the approval from every name pointing at it, since a
 /// revoked version must not stay callable under any name.
 ///
-/// Re-approval must not reuse this. Content addressing makes one hash the
-/// target of several names -- the same body under two owners, a trivially
-/// equal helper -- and approving `Acme.b -> H` after `Acme.a -> H` used to
-/// run this whole function first, unpinning `Acme.a` and restoring only the
-/// name being approved. `dropRootInStore` is the re-approval half.
+/// Re-approval must not reuse this. Content addressing makes one hash the target of several names
+/// -- the same body under two owners, a trivially equal helper -- and approving `Acme.b -> H` after
+/// `Acme.a -> H` used to run this whole function first, withdrawing `Acme.a`'s approval and
+/// restoring only the name being approved. `dropRootInStore` is the re-approval half.
 let revokeRootInStore
   (accountID : Option<Guid>)
   (rootHash : string)
@@ -452,10 +453,10 @@ let revokeRootInStore
   : Store =
   let store = dropRootInStore accountID rootHash store
   { store with
-      functionPins =
-        store.functionPins
-        |> Map.filterWithIndex (fun (key : ScopedKey) pinned ->
-          not (fst key = accountID && pinned = rootHash)) }
+      approvedVersions =
+        store.approvedVersions
+        |> Map.filterWithIndex (fun (key : ScopedKey) approved ->
+          not (fst key = accountID && approved = rootHash)) }
 
 /// Revoke one approved root, dependency-aware. See [revokeRootInStore].
 let revokePackageRoot (accountID : Option<Guid>) (rootHash : string) : unit =
@@ -471,8 +472,8 @@ let recordApprovalInStore
   (explicitPolicy : Option<P.Policy>)
   (store : Store)
   : Store =
-  // Only the stale dependencies and the old record go; see `revokeRootInStore`
-  // for why the pins must stay.
+  // Only the stale dependencies and the old record go; see `revokeRootInStore` for why the
+  // name-to-version approvals must stay.
   let store = dropRootInStore accountID rootHash store
   // A separately approved root keeps its own policy; another root's closure
   // must not replace or widen it.
@@ -497,9 +498,9 @@ let recordApprovalInStore
       approvedRoots =
         store.approvedRoots |> Map.add (scopedKey accountID rootHash) approval }
 
-/// Install an approval and move its pin only if the pin still matches the
-/// reviewed version. A stale comparison changes nothing.
-let recordApprovalAndMovePinInStore
+/// Install an approval and move the name's approved version, only if that approval still names the
+/// version that was reviewed. A stale comparison changes nothing.
+let recordApprovalAndMoveVersionInStore
   (accountID : Option<Guid>)
   (rootHash : string)
   (policies : List<string * P.Policy>)
@@ -511,9 +512,9 @@ let recordApprovalAndMovePinInStore
   (store : Store)
   : Result<Store, string> =
   let key = scopedKey accountID location
-  if Map.tryFind key store.functionPins <> expectedCurrent then
+  if Map.tryFind key store.approvedVersions <> expectedCurrent then
     Error
-      $"the pin for {location} changed while this update was being reviewed; re-run the update"
+      $"the approved version of {location} changed while this update was being reviewed; re-run the update"
   else
     let store =
       recordApprovalInStore
@@ -523,11 +524,11 @@ let recordApprovalAndMovePinInStore
         fingerprint
         explicitPolicy
         store
-    Ok { store with functionPins = store.functionPins |> Map.add key hash }
+    Ok { store with approvedVersions = store.approvedVersions |> Map.add key hash }
 
-/// Atomically approve a closure and move its logical-name pin. Locking keeps
-/// the policies and pin consistent, and stale pin moves are rejected.
-let recordApprovalAndMovePin
+/// Atomically approve a closure and move the logical name's approved version. Locking keeps the
+/// policies and the approval consistent, and a stale move is rejected.
+let recordApprovalAndMoveVersion
   (accountID : Option<Guid>)
   (rootHash : string)
   (policies : List<string * P.Policy>)
@@ -542,7 +543,7 @@ let recordApprovalAndMovePin
   nonBlank "hash" hash
   policies |> List.iter (fun (h, _) -> nonBlank "package hash" h)
   update (
-    recordApprovalAndMovePinInStore
+    recordApprovalAndMoveVersionInStore
       accountID
       rootHash
       policies
@@ -559,11 +560,11 @@ let explicitApproval (accountID : Option<Guid>) (hash : string) : Option<P.Polic
   Map.tryFind (scopedKey accountID hash) (get ()).approvedRoots
   |> Option.bind (fun approval -> approval.explicitPolicy)
 
-let unpinFunction (accountID : Option<Guid>) (location : string) : unit =
+let unapproveVersion (accountID : Option<Guid>) (location : string) : unit =
   set (fun store ->
     { store with
-        functionPins =
-          store.functionPins |> Map.remove (scopedKey accountID location) })
+        approvedVersions =
+          store.approvedVersions |> Map.remove (scopedKey accountID location) })
 
 // ── guest execution ───────────────────────────────────────────────────────────
 

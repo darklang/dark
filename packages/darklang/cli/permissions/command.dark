@@ -7,7 +7,7 @@ type AccessReportFacts =
     ceiling: Stdlib.Option.Option<List<LanguageTools.Permissions.Effect>>
     bundled: Bool
     packagePolicy: Stdlib.Option.Option<LanguageTools.Permissions.Policy>
-    pinnedNames: List<String>
+    approvedAs: List<String>
     instancePolicy: LanguageTools.Permissions.Policy }
 
 // Builtin wrappers.
@@ -36,7 +36,7 @@ let permissionRequirementsForHash
   Builtin.pmFnPermissionRequirements hash
 
 /// Drop the approval of one immutable version and the dependencies no other
-/// approved root still needs. `unpin` does not do this; the pin and the
+/// approved root still needs. `unapprove` does not do this; a name's approved version and the
 /// approval are separate records.
 let revokeHash
   (accountID: Stdlib.Option.Option<Uuid>)
@@ -69,41 +69,41 @@ let explicitApprovalFor
 let approvalsStale () : Bool =
   Builtin.pmPolicyApprovalsStale ()
 
-/// Every (logical name, pinned version) pair for this account.
-let pins (accountID: Stdlib.Option.Option<Uuid>) : List<(String * String)> =
-  Builtin.pmPolicyPins accountID
+/// Every (logical name, approved version) pair for this account.
+let approvedVersions
+  (accountID: Stdlib.Option.Option<Uuid>)
+  : List<(String * String)> =
+  Builtin.pmPolicyApprovedVersions accountID
 
-/// The approved hashes, each labelled with the pinned name pointing at it when
-/// there is one. A hash with no name is a dependency approved inside another
-/// root's closure.
+/// The approved hashes, each labelled with the name that resolves to it when there is one. A hash
+/// with no name is a dependency approved inside another root's closure.
 let namedApprovals (accountID: Stdlib.Option.Option<Uuid>) : List<String> =
-  let pinned = Command.pins accountID
+  let byName = Command.approvedVersions accountID
   Command.approvedHashes accountID
   |> Stdlib.List.map (fun hash ->
     let named =
-      pinned
+      byName
       |> Stdlib.List.filterMap (fun pair ->
-        let (name, pinnedHash) = pair
-        if pinnedHash == hash then Stdlib.Option.Option.Some name
+        let (name, approvedHash) = pair
+        if approvedHash == hash then Stdlib.Option.Option.Some name
         else Stdlib.Option.Option.None)
       |> Stdlib.List.head
     match named with
     | Some name -> $"{hash}  {name}"
     | None -> hash)
 
-/// Approve an immutable closure and move its logical-name pin atomically.
-/// The builtin compares the contract before storing approval; changed
-/// contracts return diffs for explicit review. `rules` optionally narrows the
-/// consumer's policy; None approves the analyzed effect set.
-let pinFor
+/// Approve an immutable closure and point its logical name at that version, atomically. The builtin
+/// compares the contract before storing approval; a changed contract returns diffs for explicit
+/// review. `rules` optionally narrows the consumer's policy; None approves the analyzed effect set.
+let approveVersionFor
   (accountID: Stdlib.Option.Option<Uuid>)
   (name: String)
   (hash: String)
   (rules: Stdlib.Option.Option<LanguageTools.Permissions.Policy>)
   (acknowledgeIncomplete: Bool)
   (acknowledgeContractChange: Bool)
-  : Stdlib.Result.Result<Unit, LanguageTools.Permissions.PinFailure> =
-  Builtin.pmPolicyPinFunction
+  : Stdlib.Result.Result<Unit, LanguageTools.Permissions.ApprovalFailure> =
+  Builtin.pmPolicyApproveVersion
     accountID
     name
     hash
@@ -111,11 +111,12 @@ let pinFor
     acknowledgeIncomplete
     acknowledgeContractChange
 
-let unpinFor
+/// Withdraw a name's approved version, so it resolves to whatever is current again.
+let unapproveVersionFor
   (accountID: Stdlib.Option.Option<Uuid>)
   (name: String)
   : Unit =
-  Builtin.pmPolicyUnpinFunction accountID name
+  Builtin.pmPolicyUnapproveVersion accountID name
 
 
 // Requirements display.
@@ -213,9 +214,9 @@ let renderAccessReport (facts: Command.AccessReportFacts) : List<String> =
     | None ->
       if facts.bundled then "not required (bundled Darklang code)"
       else "not approved for dependency use"
-  let pinText =
-    if Stdlib.List.isEmpty facts.pinnedNames then "none"
-    else Stdlib.String.join facts.pinnedNames ", "
+  let approvedAsText =
+    if Stdlib.List.isEmpty facts.approvedAs then "none"
+    else Stdlib.String.join facts.approvedAs ", "
   let packageLines =
     match facts.packagePolicy with
     | Some policy ->
@@ -243,7 +244,7 @@ let renderAccessReport (facts: Command.AccessReportFacts) : List<String> =
         $"  analysis: {analysis}"
         $"  author ceiling: {ceilingText}"
         $"  consumer approval: {approvalText}"
-        $"  pinned as: {pinText}" ]
+        $"  approved as: {approvedAsText}" ]
       packageLines
       instanceLines
       [ "  run policy: selected when invoked (`--sandbox` denies all)"
@@ -259,10 +260,10 @@ let accessReportLines
   : List<String> =
   let (effects, complete) = Command.permissionRequirementsForHash hash
   let (bundled, packagePolicy) = Command.packageAccess accountID hash
-  let pinnedNames =
-    Command.pins accountID
+  let approvedAs =
+    Command.approvedVersions accountID
     |> Stdlib.List.filter (fun pair ->
-      let (_name, pinnedHash) = pair in pinnedHash == hash)
+      let (_name, approvedHash) = pair in approvedHash == hash)
     |> Stdlib.List.map Stdlib.Tuple2.first
   Command.renderAccessReport
     (Command.AccessReportFacts
@@ -272,7 +273,7 @@ let accessReportLines
         ceiling = Command.ceilingForHash hash
         bundled = bundled
         packagePolicy = packagePolicy
-        pinnedNames = pinnedNames
+        approvedAs = approvedAs
         instancePolicy = Command.currentPolicy () })
 
 
@@ -336,7 +337,7 @@ let replacePolicy
 
 // Named consumer approvals.
 // The user-facing surface for account-scoped package approvals and version
-// pins (docs/effects.md). Hashes stay internal; output shows short version
+// approvals (docs/effects.md). Hashes stay internal; output shows short version
 // identifiers only.
 
 /// Resolve a logical name to its latest published version on this branch.
@@ -350,14 +351,15 @@ let latestVersion
     Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString hash)
   | None -> Stdlib.Option.Option.None
 
-/// The version <param name> is pinned to for this account, if any.
-let pinnedVersion
+/// The version this account has APPROVED for <param name>, if any.
+let approvedVersionOf
   (accountID: Stdlib.Option.Option<Uuid>)
   (name: String)
   : Stdlib.Option.Option<String> =
-  (Command.pins accountID)
-  |> Stdlib.List.findFirst (fun pair -> let (pinned, _hash) = pair in pinned == name)
-  |> Stdlib.Option.map (fun pair -> let (_pinned, hash) = pair in hash)
+  (Command.approvedVersions accountID)
+  |> Stdlib.List.findFirst (fun pair ->
+    let (approvedName, _hash) = pair in approvedName == name)
+  |> Stdlib.Option.map (fun pair -> let (_name, hash) = pair in hash)
 
 /// `requirements`/`show` accept a logical name (resolved to its latest version)
 /// or a raw hash for diagnostics.
@@ -431,7 +433,7 @@ let describeApprovalRules
       [ "  approved under these rules (the package and everything it calls):" ]
       (Command.indentedPolicyLines policy)
 
-let pinFailureText (failure: LanguageTools.Permissions.PinFailure) : String =
+let approvalFailureText (failure: LanguageTools.Permissions.ApprovalFailure) : String =
   match failure with
   | Refused message -> Stdlib.Cli.UI.Colors.error message
   | ContractChanged diffs ->
@@ -439,12 +441,10 @@ let pinFailureText (failure: LanguageTools.Permissions.PinFailure) : String =
       ("the permission contract changed — review required:\n"
        ++ (diffs |> Stdlib.List.map (fun diff -> $"    {diff}") |> Stdlib.String.join "\n"))
 
-/// Pin <param hash> to <param name> and report: <param accepted> on success,
-/// the refusal (then <param kept>) when it cannot be approved. Some diffs when
-/// the pin operation wants a second review of a changed contract and
-/// <param acknowledgeContractChange> was false; the caller shows them and
-/// asks.
-let pinReporting
+/// Approve <param hash> for <param name> and report: <param accepted> on success, the refusal (then
+/// <param kept>) when it cannot be approved. Some diffs when approving wants a second review of a
+/// changed contract and <param acknowledgeContractChange> was false; the caller shows them and asks.
+let approveReporting
   (accountID: Stdlib.Option.Option<Uuid>)
   (name: String)
   (hash: String)
@@ -455,7 +455,7 @@ let pinReporting
   (kept: String)
   : Stdlib.Option.Option<List<String>> =
   match
-    Command.pinFor
+    Command.approveVersionFor
       accountID
       name
       hash
@@ -495,7 +495,8 @@ let approveNamed
       let accepted =
         if acceptWithoutPrompt then true
         else if Command.stdinIsInteractive () then
-          Stdlib.Cli.UI.Prompt.confirm "Approve this version and pin the name to it?"
+          Stdlib.Cli.UI.Prompt.confirm
+            "Approve this version, so the name resolves to it?"
         else
           true
       if accepted then
@@ -503,7 +504,7 @@ let approveNamed
         // named this exact version; that is the contract review, so a changed
         // contract is acknowledged up front and no second review can be asked.
         let _ =
-          Command.pinReporting
+          Command.approveReporting
             state.accountID
             name
             hash
@@ -516,8 +517,8 @@ let approveNamed
       else
         Stdlib.printLine "not approved"
 
-/// Review a newer version: only an explicit yes accepts it; otherwise the pin
-/// is kept. A changed contract requires a second confirmation. Updates always
+/// Review a newer version: only an explicit yes accepts it; otherwise the approved version stands.
+/// A changed contract requires a second confirmation. Updates always
 /// prompt, including non-interactive runs, unless `--yes` was given, which is
 /// itself the explicit yes and covers a changed contract too.
 let updateNamed
@@ -530,17 +531,17 @@ let updateNamed
   match Command.parseApprovalRules specs with
   | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
   | Ok givenRules ->
-    match Command.pinnedVersion accountID name with
+    match Command.approvedVersionOf accountID name with
     | None ->
       Stdlib.printLine
-        $"{name} is not pinned; run `permissions approve {name}` first"
-    | Some pinned ->
+        $"{name} has no approved version; run `permissions approve {name}` first"
+    | Some approved ->
       match Command.latestVersion state.currentBranchId name with
       | None ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {name}")
       | Some latest ->
-        if latest == pinned then
-          Stdlib.printLine $"{name} is up to date ({Command.shortVersion pinned})"
+        if latest == approved then
+          Stdlib.printLine $"{name} is up to date ({Command.shortVersion approved})"
         else
           // Rules given now win; otherwise the rules the consumer wrote when
           // approving carry over, and a derived effect set is recomputed from
@@ -549,17 +550,19 @@ let updateNamed
           let rules =
             match givenRules with
             | Some _ -> givenRules
-            | None -> Command.explicitApprovalFor accountID pinned
+            | None -> Command.explicitApprovalFor accountID approved
           let complete =
             Command.showVersionRequirements
-              $"{name}: {Command.shortVersion pinned} → {Command.shortVersion latest}"
+              $"{name}: {Command.shortVersion approved} → {Command.shortVersion latest}"
               latest
           Stdlib.printLines (Command.describeApprovalRules rules)
           let acknowledgeIncomplete = Stdlib.Bool.not complete
-          let kept = $"keeping {Command.shortVersion pinned}"
+          let kept = $"keeping {Command.shortVersion approved}"
           let accepted = $"✓ {name} now follows {Command.shortVersion latest}"
-          let pin (acknowledgeContractChange: Bool) : Stdlib.Option.Option<List<String>> =
-            Command.pinReporting
+          let approve
+            (acknowledgeContractChange: Bool)
+            : Stdlib.Option.Option<List<String>> =
+            Command.approveReporting
               accountID
               name
               latest
@@ -574,19 +577,19 @@ let updateNamed
           if Stdlib.Bool.not acceptNew then
             Stdlib.printLine kept
           else
-            match pin false with
+            match approve false with
             | None -> ()
             | Some diffs ->
               Stdlib.printLine
-                (Command.pinFailureText
-                  (LanguageTools.Permissions.PinFailure.ContractChanged diffs))
+                (Command.approvalFailureText
+                  (LanguageTools.Permissions.ApprovalFailure.ContractChanged diffs))
               // The differences were shown; accepting them is the review.
               let acceptChanged =
                 acceptWithoutPrompt
                 || (Stdlib.Cli.UI.Prompt.confirm
                       "Accept the new version and its changed permission contract?")
               if acceptChanged then
-                let _ = pin true
+                let _ = approve true
                 ()
               else
                 Stdlib.printLine kept
@@ -622,7 +625,11 @@ val subcommands =
     ("clear", Stdlib.Option.Option.None)
     ("approve", Stdlib.Option.Option.Some "approve <fn> [rule,…]")
     ("update", Stdlib.Option.Option.Some "update <fn> [rule,…]")
-    ("unpin", Stdlib.Option.Option.Some "unpin <fn>")
+    ("unapprove", Stdlib.Option.Option.Some "unapprove <fn>")
+    // Kept as an alias: `pin`/`unpin` was the old spelling and is what anyone's notes and shell
+    // history still say. It does the same thing and prints the same lines.
+    ("unpin", Stdlib.Option.Option.Some "unapprove <fn>")
+    ("approved", Stdlib.Option.Option.None)
     ("pins", Stdlib.Option.Option.None)
     ("requirements", Stdlib.Option.Option.Some "requirements <fn|hash>")
     ("show", Stdlib.Option.Option.Some "show <fn|hash>")
@@ -681,22 +688,26 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Command.updateNamed state acceptWithoutPrompt name rules
     | (_, []) ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
+  | [ "unapprove", name ]
   | [ "unpin", name ] ->
-    // Pins are keyed by the name as it was approved, so an unmatched name
-    // removes nothing; say so rather than report a release that did not happen.
-    let pinnedNames =
-      Command.pins state.accountID
-      |> Stdlib.List.map (fun pair -> let (pinned, _hash) = pair in pinned)
-    if Stdlib.List.member_v0 pinnedNames name then
-      Command.unpinFor state.accountID name
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {name} is no longer pinned")
+    // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
+    // say so rather than report a release that did not happen.
+    let approvedNames =
+      Command.approvedVersions state.accountID
+      |> Stdlib.List.map (fun pair -> let (approvedName, _hash) = pair in approvedName)
+    if Stdlib.List.member_v0 approvedNames name then
+      Command.unapproveVersionFor state.accountID name
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.success
+          $"✓ {name} has no approved version; it follows the latest again")
     else
       Stdlib.printLine (
         Stdlib.Cli.UI.Colors.error
-          $"{name} is not pinned; `permissions pins` lists the pinned names")
+          $"{name} has no approved version; `permissions approved` lists the ones that do")
+  | [ "approved" ]
   | [ "pins" ] ->
     Command.printListOrNone
-      ((Command.pins state.accountID)
+      ((Command.approvedVersions state.accountID)
        |> Stdlib.List.map (fun pair ->
          let (name, hash) = pair in $"{name}  {Command.shortVersion hash}"))
   | [ "requirements", target ] ->
@@ -709,9 +720,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Command.revokeHash state.accountID hash
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ package approval revoked")
   | [ "approvals" ] ->
-    // Name the ones a pin points at. The rest are dependencies approved as
-    // part of some root's closure and have no name of their own, but a page of
-    // bare hashes gave no way to tell those two apart.
+    // Name the ones an approved version points at. The rest are dependencies approved as part of
+    // some root's closure and have no name of their own, but a page of bare hashes gave no way to
+    // tell those two apart.
     Command.printListOrNone (Command.namedApprovals state.accountID)
     if Command.approvalsStale () then
       Stdlib.printLine
@@ -736,7 +747,8 @@ let complete
 let help (_state: Cli.AppState) : String =
   [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"
     "                   | set <rule>;… | clear"
-    "                   | approve <fn> [rule,…] | update <fn> [rule,…] | unpin <fn> | pins"
+    "                   | approve <fn> [rule,…] | update <fn> [rule,…] | unapprove <fn>"
+    "                   | approved"
     "                   | requirements <fn|hash> | show <fn|hash>"
     "                   | approvals | revoke-package <hash>"
     ""
@@ -746,14 +758,17 @@ let help (_state: Cli.AppState) : String =
     "Named approvals (account-scoped):"
     "  --yes, -y      skip the confirmation; required for an unattended run,"
     "                 which must not rely on being detected as non-interactive"
-    "  approve <fn>   review the latest version's permission requirements, approve it,"
-    "                 and pin the name to it. Rules after the name confine the"
-    "                 function and everything it calls to those resources, e.g."
+    "  approve <fn>   review the latest version's permission requirements and approve it, so"
+    "                 the name resolves to that exact version until you review a newer"
+    "                 one. Rules after the name confine the function and everything it"
+    "                 calls to those resources, e.g."
     "                 approve MyApp.fetch http GET 'https://api.example.com'"
-    "  update <fn>    review a newer version: y accepts, anything else keeps the pin;"
-    "                 a changed permission contract asks again. Rules given on"
+    "  update <fn>    review a newer version: y accepts, anything else keeps the approved"
+    "                 one; a changed permission contract asks again. Rules given on"
     "                 approve carry over unless new ones are given"
-    "  unpin <fn>     stop pinning; the name follows the latest version again"
+    "  unapprove <fn> withdraw the approval; the name follows the latest version again"
+    "                 (`unpin` is the old spelling and still works)"
+    "  approved       the names with an approved version, and which version"
     "  approvals      the approved versions (hashes); revoke-package drops one and"
     "                 the dependencies nothing else needs"
     ""

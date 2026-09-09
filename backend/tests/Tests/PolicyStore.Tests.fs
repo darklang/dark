@@ -107,7 +107,8 @@ let policyStoreRoundTripsVersionedPolicies =
               Permission.Rule.File(Permission.AccessKind.Read, only "/tmp") ]
             [ Permission.Rule.Effect Effect.Effect.Native ]
         packages = Map.ofList [ scoped "stripe@sha256:abc", stripePolicy ]
-        functionPins = Map.ofList [ scoped "Feriel.Stripe.pay", "stripe@sha256:abc" ]
+        approvedVersions =
+          Map.ofList [ scoped "Feriel.Stripe.pay", "stripe@sha256:abc" ]
         approvedRoots = Map.empty }
     let decoded = PolicyStore.toBytes store |> PolicyStore.fromBytes
     Expect.equal
@@ -119,7 +120,7 @@ let policyStoreRoundTripsVersionedPolicies =
       (Some stripePolicy)
       "package approval"
     Expect.equal
-      (decoded.functionPins |> Map.tryFind (scoped "Feriel.Stripe.pay"))
+      (decoded.approvedVersions |> Map.tryFind (scoped "Feriel.Stripe.pay"))
       (Some "stripe@sha256:abc")
       "logical function pin"
   }
@@ -251,7 +252,7 @@ let revokingARootDropsPinsToIt =
     let store : PolicyStore.Store =
       { PolicyStore.empty with
           packages = Map.ofList [ scoped "A", Permission.Policy.allowAll ]
-          functionPins =
+          approvedVersions =
             Map.ofList
               [ scoped "Acme.fetch", "A"
                 scoped "Acme.other", "B"
@@ -264,7 +265,7 @@ let revokingARootDropsPinsToIt =
                   explicitPolicy = None } ] }
     let after = PolicyStore.revokeRootInStore accountID "A" store
     Expect.equal
-      (after.functionPins |> Map.toList |> Set.ofList)
+      (after.approvedVersions |> Map.toList |> Set.ofList)
       (Set.ofList [ (other, "Acme.fetch"), "A"; scoped "Acme.other", "B" ])
       "this account's pin to A is gone; another account's pin and a pin to B stay"
   }
@@ -377,7 +378,7 @@ let reapprovingASharedHashKeepsTheOtherNamesPinned =
     let accountID : Option<System.Guid> = None
     let approve location store =
       match
-        PolicyStore.recordApprovalAndMovePinInStore
+        PolicyStore.recordApprovalAndMoveVersionInStore
           accountID
           "H"
           [ "H", Permission.Policy.allowAll ]
@@ -391,13 +392,13 @@ let reapprovingASharedHashKeepsTheOtherNamesPinned =
       | Ok store -> store
       | Error e -> failtest $"approval of {location} was rejected: {e}"
     let store = PolicyStore.empty |> approve "Acme.a" |> approve "Acme.b"
-    let pin name = Map.tryFind (accountID, name) store.functionPins
+    let pin name = Map.tryFind (accountID, name) store.approvedVersions
     Expect.equal (pin "Acme.a") (Some "H") "the first name is still pinned"
     Expect.equal (pin "Acme.b") (Some "H") "the second name is pinned"
     // An explicit revocation is the operation that unpins, and it takes
     // every name with it.
     let revoked = PolicyStore.revokeRootInStore accountID "H" store
-    Expect.isEmpty revoked.functionPins "revoking the hash unpins every name"
+    Expect.isEmpty revoked.approvedVersions "revoking the hash unpins every name"
     Expect.isEmpty revoked.approvedRoots "and drops the approval"
   }
 
@@ -424,9 +425,10 @@ let approvalAndPinAreOneTransaction =
     let accountID : Option<System.Guid> = None
     let location = "Acme.Tools.run"
     let key : PolicyStore.ScopedKey = accountID, location
-    let store = { PolicyStore.empty with functionPins = Map.ofList [ key, "old" ] }
+    let store =
+      { PolicyStore.empty with approvedVersions = Map.ofList [ key, "old" ] }
     let attempted =
-      PolicyStore.recordApprovalAndMovePinInStore
+      PolicyStore.recordApprovalAndMoveVersionInStore
         accountID
         "new"
         [ "new", Permission.Policy.allowAll; "dep", Permission.Policy.allowAll ]
@@ -439,10 +441,13 @@ let approvalAndPinAreOneTransaction =
     Expect.isError attempted "a concurrent/stale pin comparison is rejected"
     Expect.isEmpty store.packages "rejection installs no package policies"
     Expect.isEmpty store.approvedRoots "rejection records no approved root"
-    Expect.equal store.functionPins[key] "old" "rejection leaves the pin unchanged"
+    Expect.equal
+      store.approvedVersions[key]
+      "old"
+      "rejection leaves the pin unchanged"
 
     let accepted =
-      PolicyStore.recordApprovalAndMovePinInStore
+      PolicyStore.recordApprovalAndMoveVersionInStore
         accountID
         "new"
         [ "new", Permission.Policy.allowAll; "dep", Permission.Policy.allowAll ]
@@ -455,7 +460,7 @@ let approvalAndPinAreOneTransaction =
     match accepted with
     | Error message -> failtest message
     | Ok accepted ->
-      Expect.equal accepted.functionPins[key] "new" "the reviewed pin moves"
+      Expect.equal accepted.approvedVersions[key] "new" "the reviewed pin moves"
       Expect.isSome
         (accepted.packages |> Map.tryFind (scoped "new"))
         "the root approval is installed"

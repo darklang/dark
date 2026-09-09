@@ -106,19 +106,22 @@ rules allow (or deny) additional effects and resources:
 
 Consumer approvals are local to the logged-in account on this installation.
 The instance policy remains machine-wide, while each account gets its own
-package approvals and logical-function pins. The normal workflow uses the
-logical function name; immutable hashes stay behind the approval:
+package approvals and its own approved version per logical function name. The
+normal workflow uses the logical function name; immutable hashes stay behind
+the approval:
 
   permissions approve Darklang.Vendor.Package.function
   permissions update Darklang.Vendor.Package.function
-  permissions pins                      # name  shorthash
-  permissions unpin Darklang.Vendor.Package.function
+  permissions approved                  # name  shorthash
+  permissions unapprove Darklang.Vendor.Package.function
   permissions approvals                 # approved hashes; revoke-package <hash> drops one
 
 Approval computes the function's inferred transitive needs; changing the code
 changes its hash and requires a new decision, without changing the user's
-logical name. `unpin` only releases the name; the version's approval stays
-until `revoke-package`.
+logical name. An approved version is what the name RESOLVES to when you run
+something, so approving is how you stay on a reviewed version while the package
+moves on. `unapprove` only releases the name; the version's approval stays until
+`revoke-package`.
 
 ## SCM (version control)
 

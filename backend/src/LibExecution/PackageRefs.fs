@@ -278,7 +278,7 @@ module Type =
       let effect = p [] "Effect"
       let rule = p [] "Rule"
       let policy = p [] "Policy"
-      let pinFailure = p [] "PinFailure"
+      let approvalFailure = p [] "ApprovalFailure"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)

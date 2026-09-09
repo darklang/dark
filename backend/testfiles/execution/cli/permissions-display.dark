@@ -38,7 +38,7 @@ module PermissionsDisplay =
         ceiling = Stdlib.Option.Option.Some [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
         bundled = false
         packagePolicy = Stdlib.Option.Option.Some (packagePolicy ())
-        pinnedNames = [ "Acme.Client.fetch" ]
+        approvedAs = [ "Acme.Client.fetch" ]
         instancePolicy = instancePolicy () }
 
   (Darklang.Cli.Permissions.Command.renderAccessReport (approved ()))
@@ -48,7 +48,7 @@ module PermissionsDisplay =
       "  analysis: complete"
       "  author ceiling: {Http, Clock}"
       "  consumer approval: approved for this account (rules below)"
-      "  pinned as: Acme.Client.fetch"
+      "  approved as: Acme.Client.fetch"
       "  package approval policy:"
       "    http"
       "    clock"
@@ -68,7 +68,7 @@ module PermissionsDisplay =
         complete = false
         ceiling = Stdlib.Option.Option.None
         packagePolicy = Stdlib.Option.Option.None
-        pinnedNames = [] }
+        approvedAs = [] }
 
   (Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ()))
   = [ "access"
@@ -77,7 +77,7 @@ module PermissionsDisplay =
       "  analysis: incomplete: it runs code it is given, whose effects are not known here"
       "  author ceiling: not declared (inherits caller limits)"
       "  consumer approval: not approved for dependency use"
-      "  pinned as: none"
+      "  approved as: none"
       "  instance policy:"
       "    http GET 'https://api.example.com:443/v1'"
       "  run policy: selected when invoked (`--sandbox` denies all)"

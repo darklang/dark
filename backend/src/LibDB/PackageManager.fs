@@ -136,44 +136,45 @@ let pt : PT.PackageManager =
     init = uply { return () } }
 
 
-/// NOT REACHED YET, and worth knowing before you trust a pin.
+/// <param pm>, with an account's APPROVED VERSIONS narrowing how a function NAME resolves.
 ///
-/// `permissions` stores pins and shows them, and `PackagePermissions` reads one when reviewing a
-/// version, but nothing narrows RESOLUTION by them: execution builds its state from the
-/// process-wide `pt`, and an account never reaches this. Wiring it means threading the account into
-/// wherever the run's PM is chosen, which is a change to how a run is set up rather than to this.
+/// An approved version says "when I call `Acme.charge`, I mean this exact body, until I review a
+/// newer one". So it belongs at name resolution and nowhere else: a hash lookup still answers for
+/// any version (the update commands read the latest that way, and a caller that already holds a
+/// hash is not asking a question about names).
 ///
-/// Main's manager with an account's version pins narrowing FN resolution. A pin maps a
-/// logical name to the approved hash and only narrows normal name resolution; update
-/// commands use the raw lookup for latest. Built per entry (a script or eval run), so a
-/// later `permissions` change is picked up by the next one. Pins ride ON TOP of the one
-/// shared main manager rather than being baked into it, because `pt` is branch-blind and
-/// account-blind by design.
-let ptForAccount (accountID : System.Guid option) : PT.PackageManager =
-  let pins = PolicyStore.functionPins accountID
-  if Map.isEmpty pins then
-    pt
+/// Applied per RUN, over whichever manager that run resolves through, rather than baked into the
+/// shared `pt`: `pt` is branch-blind and account-blind by design, and an approval is one account's
+/// decision on one branch's names. Building it per run is also what makes a `permissions approve`
+/// take effect on the next command rather than the next process.
+let narrowedToApprovedVersions
+  (accountID : System.Guid option)
+  (pm : PT.PackageManager)
+  : PT.PackageManager =
+  let approved = PolicyStore.approvedVersions accountID
+  if Map.isEmpty approved then
+    pm
   else
-    { pt with
+    { pm with
         findFn =
           fun location ->
             uply {
-              match! pt.findFn location with
+              match! pm.findFn location with
               | None -> return None
               | Some hash ->
-                match Map.tryFind (PackageLocation.toFQN location) pins with
-                | Some pinned ->
-                  // A pin whose hash disappeared after a reset or partial sync gets
-                  // a clear diagnostic instead of failing later as an unknown name.
-                  match! PMPT.Fn.get (Hash pinned) with
-                  | Some _ -> return Some(Hash pinned)
+                match Map.tryFind (PackageLocation.toFQN location) approved with
+                | Some approvedHash ->
+                  // An approval whose hash disappeared after a reset or partial sync gets a clear
+                  // diagnostic instead of failing later as an unknown name.
+                  match! PMPT.Fn.get (Hash approvedHash) with
+                  | Some _ -> return Some(Hash approvedHash)
                   | None ->
                     return
                       Exception.raiseInternal
-                        ("A pinned function version no longer exists in the package store. "
-                         + "Run `dark permissions unpin <fn>` to release the pin.")
+                        ("An approved version of this function is no longer in the package store. "
+                         + "Run `dark permissions unapprove <fn>` to release the approval.")
                         [ "location", PackageLocation.toFQN location
-                          "pinned", pinned ]
+                          "approved", approvedHash ]
                 | None -> return Some hash
             } }
 

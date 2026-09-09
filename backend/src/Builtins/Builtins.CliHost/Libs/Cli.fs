@@ -186,7 +186,14 @@ let private declarationsToModule
     // exactly `pt` for the common case). The branch has to be applied HERE, by wrapping the pm, because
     // a location lookup takes no branch: `locations` has no branch column, so a branch is an overlay
     // of ops rather than an argument a query can carry.
-    let pm0 = LibDB.PackageManager.ptForBranch state.branchId
+    //
+    // Then the account's APPROVED VERSIONS on top, which is what makes an approval bind anything:
+    // a name becomes a hash HERE, at lowering, so this is the only place a "when I say `Acme.charge`
+    // I mean this body" decision can be honoured. Per run rather than in the shared `pt`, so
+    // `permissions approve` takes effect on the next command instead of the next process.
+    let pm0 =
+      LibDB.PackageManager.ptForBranch state.branchId
+      |> LibDB.PackageManager.narrowedToApprovedVersions state.accountID
     let! fns1 =
       lowerFns pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types1 =

@@ -133,6 +133,80 @@ let permissionsLists =
           "the policy lists what it covers"
     })
 
+/// An approved version is the point of the whole permissions surface: it says "when I call this
+/// name, I mean the body I reviewed", and it has to hold when code actually RUNS.
+///
+/// This is what was missing until now. The approval was stored, listed and shown, and nothing
+/// narrowed name resolution by it, so every run took the latest version regardless.
+let anApprovedVersionIsWhatRuns =
+  cliTestOnMain
+    "an approved version is what a run resolves, until it is withdrawn"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Appr.rate" "() : Int64 = 6101L"
+        do! commit state "rate v1"
+        do! run state [ "permissions"; "approve"; "Tests.Appr.rate"; "--yes" ]
+        do!
+          shows
+            state
+            [ "permissions"; "approved" ]
+            "Tests.Appr.rate"
+            "the approval is recorded against the name"
+
+        // A newer version, published and live: the NAME now points at it for everything that has
+        // not approved a version.
+        do! fn state "Tests.Appr.rate" "() : Int64 = 6102L"
+        do! commit state "rate v2"
+
+        do!
+          evals
+            state
+            "Tests.Appr.rate ()"
+            "6101"
+            "a run resolves the version this account approved, not the latest"
+
+        do! run state [ "permissions"; "unapprove"; "Tests.Appr.rate" ]
+        do!
+          evals
+            state
+            "Tests.Appr.rate ()"
+            "6102"
+            "and follows the latest again once the approval is withdrawn"
+        do! discardAll state
+      })
+
+/// `unpin` was the old spelling. Keeping it working costs one arm and saves everyone's muscle
+/// memory and notes.
+let unpinStillWorksAsUnapprove =
+  cliTestOnMain "the old `unpin` spelling still withdraws an approval" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.Appr.legacy" "() : Int64 = 6103L"
+      do! commit state "legacy v1"
+      do! run state [ "permissions"; "approve"; "Tests.Appr.legacy"; "--yes" ]
+      do! fn state "Tests.Appr.legacy" "() : Int64 = 6104L"
+      do! commit state "legacy v2"
+      do! evals state "Tests.Appr.legacy ()" "6103" "the approved version stands"
+      do! run state [ "permissions"; "unpin"; "Tests.Appr.legacy" ]
+      do! evals state "Tests.Appr.legacy ()" "6104" "and `unpin` withdraws it"
+      do! discardAll state
+    })
+
+/// Withdrawing what was never approved says so, rather than reporting a release that did not
+/// happen.
+let unapprovingAnUnapprovedNameSaysSo =
+  cliTest "withdrawing an approval nobody made says so" (fun state ->
+    task {
+      do!
+        shows
+          state
+          [ "permissions"; "unapprove"; "Tests.Appr.neverApproved" ]
+          "has no approved version"
+          "an unmatched name withdraws nothing and says so"
+    })
+
+
 let dbAndTracesAnswer =
   cliTest "db and traces answer without a canvas or a recording" (fun state ->
     task {
@@ -209,6 +283,9 @@ let tests : List<Test> =
     appsCatalogLists
     appsInstalledLists
     permissionsLists
+    anApprovedVersionIsWhatRuns
+    unpinStillWorksAsUnapprove
+    unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
