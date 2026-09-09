@@ -179,6 +179,21 @@ let partOf (kind : string) (within : string) : Option<PT.DocPart> =
   | _ -> None
 
 
+/// The part as ONE string, for a column that has to carry it whole: "item",
+/// "record-field:alongwards", "parameter:0". `partFromKey` reads it back.
+let partKey (part : PT.DocPart) : string =
+  match part with
+  | PT.WholeItem -> "item"
+  | _ -> $"{kind part}:{within part}"
+
+/// The part a `partKey` names, or None for a string this build cannot read.
+let partFromKey (key : string) : Option<PT.DocPart> =
+  match key.Split(':', 2) with
+  | [| k |] -> partOf k ""
+  | [| k; w |] -> partOf k w
+  | _ -> None
+
+
 /// Every doc <param location> has OF ITS OWN, keyed by (kind, within).
 ///
 /// Empty for almost every name: a doc a name has not overridden lives in the declaration, which is

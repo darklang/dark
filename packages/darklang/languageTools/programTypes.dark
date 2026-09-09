@@ -555,6 +555,19 @@ type DocPart =
   | Parameter of parameterIndex: Int
 
 module DocPart =
+  /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
+  /// build cannot read. Must agree with `LibDB.Docs.partKey`, which writes them.
+  let fromKey (key: String) : Stdlib.Option.Option<DocPart> =
+    match Stdlib.String.split key ":" with
+    | [ "item" ] -> Stdlib.Option.Option.Some DocPart.WholeItem
+    | [ "record-field", name ] -> Stdlib.Option.Option.Some(DocPart.RecordField name)
+    | [ "enum-case", name ] -> Stdlib.Option.Option.Some(DocPart.EnumCase name)
+    | [ "parameter", index ] ->
+      Stdlib.Int.parse index
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.map (fun i -> DocPart.Parameter i)
+    | _ -> Stdlib.Option.Option.None
+
   /// How it reads in a listing: which part of the declaration is being described.
   let describe (p: DocPart) : String =
     match p with

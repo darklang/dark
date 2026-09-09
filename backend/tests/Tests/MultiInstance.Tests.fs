@@ -896,13 +896,13 @@ let private conflictLiteral
   + "\"; owner = \"TwoStore\"; "
   + "modules = \"Cascade\"; name = \""
   + name
-  + "\"; itemType = \"fn\"; kind = \"same-name-different-hash\"; "
+  + "\"; itemType = \"fn\"; part = \"\"; kind = \"same-name-different-hash\"; "
   + "candidates = [ Darklang.SCM.Conflicts.Candidate { side = \"local\"; hash = \""
   + mine
-  + "\"; originTs = \"\"; author = \"\" }; "
+  + "\"; text = \"\"; originTs = \"\"; author = \"\" }; "
   + "Darklang.SCM.Conflicts.Candidate { side = \"incoming\"; hash = \""
   + theirs
-  + "\"; originTs = \"\"; author = \"\" } ]; "
+  + "\"; text = \"\"; originTs = \"\"; author = \"\" } ]; "
   + "autoResolvedTo = \""
   + theirs
   + "\"; reason = \"\"; status = \"pending\"; resolvedBy = \"\" }"

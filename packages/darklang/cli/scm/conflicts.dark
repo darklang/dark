@@ -258,7 +258,12 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
     { state with exitCode = 1 }
   | Some c ->
     let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
-    Cli.printOk $"#{c.id}  {dotted}  [{c.itemType}] -- two live versions"
+    let aboutABinding = SCM.Conflicts.aboutABinding c.kind
+
+    if aboutABinding then
+      Cli.printOk $"#{c.id}  {dotted}  [{c.itemType}] -- two live versions"
+    else
+      Cli.printOk $"#{c.id}  {dotted}  [{c.part}] -- two wordings"
 
     // Once for both candidates, not once each: it is a store read.
     let me = SCM.PackageOps.identity ()
@@ -271,14 +276,24 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
       // keeps the raw identity, so `--json` can still tell two machines apart.
       let who = whoseCandidate me cand
 
-      let header =
-        $"  {label} ({mark})  {who}  hash {SCM.Conflicts.shortHash cand.hash}  stamped {cand.originTs}"
+      // A version is shown by rendering it; a WORDING is the thing itself, and a reader choosing
+      // between two sentences needs the sentences, not the hashes of them.
+      if aboutABinding then
+        let header =
+          $"  {label} ({mark})  {who}  hash {SCM.Conflicts.shortHash cand.hash}  stamped {cand.originTs}"
 
-      $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}")
+        $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}"
+      else
+        let header = $"  {label} ({mark})  {who}  stamped {cand.originTs}"
+        $"{header}\n{indentBlock cand.text}")
     |> Stdlib.List.iter (fun block -> Stdlib.printLine block)
 
-    Stdlib.printLine
-      $"  auto-resolution: {SCM.Conflicts.shortHash c.autoResolvedTo}, by {c.reason}  [{c.status}]"
+    if aboutABinding then
+      Stdlib.printLine
+        $"  auto-resolution: {SCM.Conflicts.shortHash c.autoResolvedTo}, by {c.reason}  [{c.status}]"
+    else
+      Stdlib.printLine $"  auto-resolution: by {c.reason}  [{c.status}]"
+
     state
 
 /// ACK: the auto-pick stands. Closes the conflict without touching any binding -- the fold already did the
@@ -323,15 +338,40 @@ let executeOverride
     Cli.printErr $"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them."
     { state with exitCode = 1 }
   | Some c when Stdlib.Bool.not (SCM.Conflicts.aboutABinding c.kind) ->
-    // A doc divergence has no side to take: both candidates are TEXT, and binding a name to a text
-    // hash is not a thing. The way to settle one is to write the wording you want and ack it.
-    Cli.printErr
-      $"#{c.id} is a disagreement about wording, not about which version a name holds."
+    // A wording disagreement is settled by SAYING something, not by binding a name: `override A|B`
+    // takes one of the two texts, and `override -` shows both and hands the doc back to you, for
+    // the case where the answer is a third wording made out of both.
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
 
-    Cli.printHint
-      $"  write the wording you want (edit the doc comment), then `dark conflicts ack {c.id}`."
+    if choice == "-" then
+      Cli.printOk $"#{c.id}  {dotted} -- hand-authoring. Both wordings:"
+      let _ = executeShow state idPrefix
+      Stdlib.printLine ""
 
-    { state with exitCode = 1 }
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"  write the wording you want, then `dark conflicts ack {c.id}`.")
+
+      state
+    else
+      match pickCandidate c choice with
+      | None ->
+        Cli.printErr
+          $"no candidate \"{choice}\" on #{c.id} -- use A, B, or - to write a third wording."
+
+        { state with exitCode = 1 }
+      | Some cand ->
+        match SCM.Conflicts.settleWording state.currentBranchId c cand.text with
+        | Ok _ ->
+          Cli.printOk $"overrode #{c.id}: {dotted} now says \"{cand.text}\"."
+
+          Cli.printHint
+            "  it's an op, so the choice syncs and holds."
+
+          state
+        | Error e ->
+          Cli.printErr $"override failed: {e}"
+          { state with exitCode = 1 }
 
   | Some c ->
     let dotted = SCM.Conflicts.fqn c.owner c.modules c.name

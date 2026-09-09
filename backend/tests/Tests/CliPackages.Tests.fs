@@ -690,28 +690,48 @@ let twoWordingsForOneDocRecordAConflict =
 
         // A doc divergence has no side to take -- both candidates are TEXT -- so `override` says so
         // instead of trying to bind a name to the hash of a sentence.
+        // THIS conflict's id, not the first one listed: every CLI test shares one store, and the
+        // doc tests above leave their own divergences in it.
         let! listed = runCliPlain state [ "conflicts" ]
+
         let id =
-          listed.Split('#')
-          |> Array.item 1
+          listed.Split('\n')
+          |> Array.filter (fun line -> line.Contains "Tests.DocClash.f")
+          |> Array.tryHead
+          |> Option.defaultWith (fun () ->
+            Tests.failtestf
+              "no conflict listed for Tests.DocClash.f, got: %s"
+              listed)
+          |> fun line -> line.Split('#') |> Array.item 1
           |> fun rest -> rest.Split(' ') |> Array.head
 
+        // The review screen shows the two SENTENCES. A hash of a sentence tells a reader nothing
+        // they can choose between, and choosing is the point of the screen.
         do!
-          refuses
+          showsAll
             state
-            [ "conflicts"; "override"; id; "A" ]
-            "not about which version a name holds"
-            "now binds"
-            "override has no side to take on a wording disagreement"
+            [ "conflicts"; "show"; id ]
+            [ "two wordings"
+              "ours, written here"
+              "theirs, written somewhere else" ]
+            "both wordings are on the screen you choose from"
 
-        // Acked, and ASSERTED acked: this test deliberately puts a divergence in a store every
-        // other CLI test shares, so leaving one behind is leaving a landmine.
+        // Taking a side SAYS the chosen wording: it authors the op, so the choice syncs and holds.
         do!
           shows
             state
-            [ "conflicts"; "ack"; id ]
-            "acked"
-            "the conflict is settled by acking the auto-pick"
+            [ "conflicts"; "override"; id; "A" ]
+            "now says"
+            "override takes one of the two wordings"
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocClash.f" ]
+            "ours, written here"
+            "and the name says what was chosen"
+
+        // Settled, and ASSERTED settled: this test deliberately puts a divergence in a store every
+        // other CLI test shares, so leaving one behind is leaving a landmine.
         do! lacks state [ "conflicts" ] id "and it is gone from the pending list"
         do! discardAll state
       })

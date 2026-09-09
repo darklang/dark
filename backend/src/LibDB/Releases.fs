@@ -179,7 +179,13 @@ let steps : List<Step> =
                text TEXT NOT NULL,
                origin_ts TEXT NOT NULL,
                PRIMARY KEY (owner, modules, name, kind, within))"
-          |> Sql.executeStatementSync } ]
+          |> Sql.executeStatementSync }
+
+    // A doc divergence is about one PART of a declaration, and settling it means writing that part.
+    // Without this the resolution path could name the conflict but not what it was about.
+    { name = "20260909_000002_conflicts_part"
+      run =
+        fun () -> addColumnIfMissing "conflicts" "part" "TEXT NOT NULL DEFAULT ''" } ]
 
 
 let private alreadyRun () : Set<string> =

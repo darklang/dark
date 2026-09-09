@@ -630,21 +630,25 @@ let private recordDocConflict
     // Same field names as a name divergence's candidates, because the same reader decodes both and
     // a listing that cannot find its own sides says "auto" for every row. Built by hand: the
     // reflection serializer is disabled under AOT.
-    let candidate (side : string) (hash : string) (stamp : string) =
-      $"""{{"side":"{side}","hash":"{hash}","originTs":"{stamp}","author":""}}"""
+    // The TEXT rides along too, because settling a wording disagreement means writing one of these
+    // words, and a hash cannot be turned back into the sentence it hashed.
+    let candidate (side : string) (hash : string) (text : string) (stamp : string) =
+      let escaped = System.Text.Json.JsonEncodedText.Encode(text).ToString()
+
+      $"""{{"side":"{side}","hash":"{hash}","text":"{escaped}","originTs":"{stamp}","author":""}}"""
 
     let candidates =
       "["
-      + candidate "local" ourText standingTs
+      + candidate "local" ourText ours standingTs
       + ","
-      + candidate "incoming" theirText ts
+      + candidate "incoming" theirText theirs ts
       + "]"
 
     do!
       exec ctx "INSERT INTO conflicts
-           (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason,
+           (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to, reason,
             status, origin_ts, branch_id)
-         VALUES ($id, $owner, $modules, $name, '', 'doc-divergence', $candidates,
+         VALUES ($id, $owner, $modules, $name, '', $part, 'doc-divergence', $candidates,
                  $winner, $reason, 'pending', $ts, $branch)
          ON CONFLICT(id) DO UPDATE SET
            auto_resolved_to = excluded.auto_resolved_to,
@@ -652,6 +656,7 @@ let private recordDocConflict
            origin_ts = excluded.origin_ts" (fun cmd ->
         p cmd "$id" id
         pLoc cmd location
+        p cmd "$part" (Docs.partKey part)
         p cmd "$candidates" candidates
         p cmd "$winner" (if incomingWins then theirText else ourText)
         p

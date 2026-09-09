@@ -1972,7 +1972,7 @@ let private dependentsSeeTheBranchYouAreOn =
 /// A `record` call as an eval expression. The candidates are empty because nothing
 /// here reads them; what is under test is which branch the row lands on.
 let private recordConflictOn (branchIdExpr : string) (id : string) : string =
-  $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Zz"; modules = "Confl"; name = "f"; itemType = "fn"; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "bbb"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
+  $"""Darklang.SCM.Conflicts.record ({branchIdExpr}) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Zz"; modules = "Confl"; name = "f"; itemType = "fn"; part = ""; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "bbb"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
 
 /// A branch bundle carrying an op this build cannot decode is imported anyway: the readable ops land,
 /// the unreadable one is stored raw and inert for a later build, and a note says so. That is what main

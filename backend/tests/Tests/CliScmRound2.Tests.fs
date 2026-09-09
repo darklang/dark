@@ -169,7 +169,7 @@ let overrideByNameAnswersThePendingConflict =
       do! switch state "confl2"
 
       let record (id : string) (hash : string) =
-        $"""Darklang.SCM.Conflicts.record (Builtin.scmCurrentBranch ()) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Tests"; modules = "Confl2"; name = "same"; itemType = "fn"; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "{hash}"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
+        $"""Darklang.SCM.Conflicts.record (Builtin.scmCurrentBranch ()) [Darklang.SCM.Conflicts.Conflict {{ id = "{id}"; owner = "Tests"; modules = "Confl2"; name = "same"; itemType = "fn"; part = ""; kind = "same-name-different-hash"; candidates = []; autoResolvedTo = "{hash}"; reason = "test"; status = "pending"; resolvedBy = "" }}]"""
 
       do! run state [ "eval"; record "r2first001" "aaa" ]
       do! run state [ "conflicts"; "ack"; "r2first001" ]

@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS conflicts (
   modules TEXT NOT NULL,
   name TEXT NOT NULL,
   item_type TEXT NOT NULL,
+  -- WHICH part of a declaration, for a doc divergence: 'item', 'record-field:x', 'enum-case:X',
+  -- 'parameter:0'. Empty for a name divergence, which is about the whole binding.
+  part TEXT NOT NULL DEFAULT '',
   kind TEXT NOT NULL,               -- 'same-name-different-hash' (room for cap-change / sig-break later)
   candidates TEXT NOT NULL,         -- JSON: [{ hash, origin_ts, author }] -- the competing versions
   auto_resolved_to TEXT NOT NULL,   -- the winning hash reconciliation picked
