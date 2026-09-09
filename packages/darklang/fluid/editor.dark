@@ -2450,13 +2450,30 @@ let typeOneRaw (st: State) (c: String) : State =
           // `if c then` came out `if '' then`; `r` became a record update, `s` an empty string.
           let cands = candidates st |> Stdlib.List.filter (fun c -> c.keyword)
           let exact = exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None)
+          // A variable named EXACTLY what was typed outranks a keyword this is merely a prefix of.
+          //
+          // The filter above decides among KEYWORDS, and the comment justifying it says "no variable is
+          // called `let`". True of `let`. False of `f` against `fun`, and in a pipe stage `fun` is the
+          // only keyword offered -- `if`, `let` and `match` are not stages -- so `f` was its lone
+          // candidate. `xs |> f` committed a lambda and threw the name away, and since the lambda then
+          // took parameters, `if c then xs |> f else ys` drew `(fun else ys -> <body>)`.
+          //
+          // Keyed on an EXACT variable rather than any competing candidate, so an ordinary keyword prefix
+          // is untouched: `l ` is still `let` even with `list` in scope, because nothing is named `l`.
+          let exactVariable =
+            (typedText != "")
+            && (candidates st
+                |> Stdlib.List.any (fun c -> (Stdlib.Bool.not c.keyword) && (c.label == typedText)))
+
           // A lone unambiguous candidate commits, EXCEPT where the hole introduces a name. There `t` is
           // the tail of a list and not an abbreviation for `true`; only an exact match commits, because
           // no variable can be named `true`.
           let commitMenu =
             (Stdlib.Bool.not (Stdlib.List.isEmpty cands))
             && ((Stdlib.Option.isSome exact)
-                || (((Stdlib.List.length cands) == 1) && (Stdlib.Bool.not (inBindingPosition st))))
+                || (((Stdlib.List.length cands) == 1)
+                    && (Stdlib.Bool.not (inBindingPosition st))
+                    && (Stdlib.Bool.not exactVariable)))
           if commitMenu then
             // Committing a leaf (an in-scope variable, a bool) finishes it and leaves the caret JUST AFTER
             // it, not at the next hole. That matters because the next keystroke is what says which you

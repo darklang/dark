@@ -1792,7 +1792,7 @@ let pipeTypeSpec () : Spec =
       resolve = resolvePipePartial
       binders = Spec.noBinders
       offers = Spec.noOffers
-      scopeCandidate = Stdlib.Option.Option.None
+      scopeCandidate = Stdlib.Option.Option.Some pipeVariableNode
       actions = []
       empty = emptyPipeLambda ()
       summary = exprSummary }
@@ -1885,6 +1885,17 @@ let caseBinders (n: Node) : List<(List<Binding> * List<String>)> =
   [ (namesFromSlot n "pat" matchPatNames |> Stdlib.List.map (fun nm -> Spec.bound nm), [ "rhs", "when" ]) ]
 
 let variableNode (name: String) : Node = Node.make (exprKind "EVariable") [ text "name" name ]
+
+/// The same thing one level over: a name in scope, offered as a pipe STAGE.
+///
+/// The expression hole has offered in-scope variables since scope-aware completion landed; the pipe
+/// stage never did, so `xs |> f` saw exactly one candidate, the `fun` keyword it is a prefix of, and the
+/// space committed a lambda and threw the name away. `xs |> g` looked fine only because `g` prefixes
+/// nothing and so got no candidates at all.
+///
+/// `EPipeVariable` has existed the whole time to hold this; nothing offered it.
+let pipeVariableNode (name: String) : Node =
+  Node.make (pipeKind "EPipeVariable") [ text "name" name, ("args", Field.Many([], exprExpect "arg")) ]
 
 // --- Actions (palette) ---
 

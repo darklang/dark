@@ -2314,3 +2314,33 @@ module APipeStaysInsideItsBracket =
 
   // And where the climb IS right, it still happens: a pipe at the end of a let body takes the body.
   (Fixtures.screen (Fixtures.chars "let a = 1 a |> f")) = "let a = 1\na |> f~"
+
+
+module APipeStageCanBeALocal =
+  // `xs |> f` threw the name away and built a lambda. `f` is a PREFIX OF `fun`, and in a pipe stage
+  // `fun` was the only candidate on offer -- `if`, `let` and `match` are not stages -- so the space
+  // committed it under "a lone unambiguous candidate commits".
+  //
+  // It surfaced as something stranger, because once the lambda exists the rest lands in its parameters:
+  //
+  //     if c then xs |> f else ys   ->   if c then xs |> (fun else ys -> <body>) else <else>
+  //
+  // Two things were wrong. The pipe stage never offered IN-SCOPE VARIABLES at all, though
+  // `EPipeVariable` has existed the whole time to hold one; the expression hole has offered them since
+  // scope-aware completion landed. And a keyword this is merely a PREFIX of outranked a variable named
+  // exactly what was typed, on a rule whose own comment says "no variable is called `let`" -- true of
+  // `let`, false of `f` against `fun`.
+  //
+  // `xs |> g` looked fine throughout, and only because `g` prefixes nothing and so drew no candidates.
+  (Fixtures.program (Fixtures.chars "let f = (fun x -> x) 1 |> f ")) = "let f = (fun x -> x)\n1 |> f"
+  (Fixtures.program (Fixtures.chars "let g = (fun x -> x) 1 |> g ")) = "let g = (fun x -> x)\n1 |> g"
+
+  // The symptom that led here.
+  (Fixtures.screen (Fixtures.chars "let f = (fun x -> x) if c then xs |> f else ys ")) =
+    "let f = (fun x -> x)\nif c then xs |> f else ys~"
+
+  // A keyword PREFIX still commits where nothing is named that, which is what the narrow rule buys:
+  // the guard is an EXACT variable, not any competing candidate, so `l ` is still `let` with `list` in
+  // scope.
+  (Fixtures.screen (Fixtures.chars "le ")) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen (Fixtures.chars "fun ")) = "(fun ~⟨param⟩ -> ⟨body⟩)"
