@@ -341,9 +341,14 @@ module BarAddsACase =
 
   // Enter is unchanged and still means the NEAREST list, which from inside a case is its fields. The two
   // keys doing different things here is the point: `|` is what you write between cases, `*` between fields.
+  //
+  // The new field draws as `⟨field⟩` rather than `<type>`: an enum field is a wrapper and it is the
+  // WRAPPER that is empty. It used to arrive as the wrapper's template with a type hole inside, because
+  // `newItemForEach` builds a template for a kind with nothing to type into -- and an enum field now has
+  // something to type into, which is what made a typed field saveable at all.
   ((match Darklang.Fluid.Editor.addSibling (BarAddsACase.atEndOfFirstCase ()) with
     | Some s -> BarAddsACase.shown s
-    | None -> "declined")) = "type Shape =\n  | Circle of Int * <type>\n  | Point"
+    | None -> "declined")) = "type Shape =\n  | Circle of Int * ⟨field⟩\n  | Point"
 
 
 module ACaseGrowsItsOwnFields =
@@ -581,3 +586,62 @@ module AFunctionNameReadsFromWhereYouStand =
 
   // And one level out, one segment more. All three used to be the first one.
   (AFunctionNameReadsFromWhereYouStand.drawn [ "Darklang" ]) = "PrettyPrinter.shortenName [] \"a\" [] \"b\""
+
+
+module AnEnumFieldYouTypeCanBeSaved =
+  // `| Tri of Int` typed by hand drew perfectly and lowered as "unresolved: Int". Every enum field anyone
+  // typed was unsaveable, and it looked right the whole time.
+  //
+  // An `EnumField` is a WRAPPER -- an optional label, and the type that does the work -- so a slot
+  // expecting one is not a place you can type. Text there became a partial in the WRAPPER, which has no
+  // resolve and no completion, so nothing could ever settle it. The type spec below it, which does have
+  // both, was never reached.
+  //
+  // Typing into an empty field builds the wrapper and puts the character in its TYPE. One rule per way a
+  // type can start, mirroring the type hole's own openers: a name, a `'` variable, `[` for a list and `(`
+  // for a tuple. The two containers BUILD rather than stand as text, which is what the type hole does
+  // with them -- a partial `[` resolves to nothing and lowered as "unresolved: [Int".
+  //
+  // Found by driving the type-declaration demo in a terminal and typing a second field, which came out
+  // `Int*String` with the `*` swallowed. The separator was innocent: it works on a settled type and the
+  // type never settled.
+  let base_ () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (
+      Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+        [ Fixtures.ecase "Circle" [ Fixtures.ef Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ] ])
+
+  let typed (src: String) : String =
+    let keys =
+      Stdlib.List.flatten
+        [ [ "<Esc>", "j", "j", "i", "<Enter>" ]
+          (Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c))
+          [ "<Esc>", "<Esc>" ] ]
+
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Fixtures.reg ())
+          (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "Shape" (AnEnumFieldYouTypeCanBeSaved.base_ ())))
+          60)
+        keys
+
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.PT.TypeDecl.fromDoc (AnEnumFieldYouTypeCanBeSaved.base_ ()) n with
+       | Ok pair ->
+         let (_nm, pt) = pair
+         Darklang.PrettyPrinter.ProgramTypes.packageType (Darklang.Fluid.PT.printerContext ()) pt
+       | Error e -> "ERR " ++ e)
+    | _ -> "no root"
+
+  (AnEnumFieldYouTypeCanBeSaved.typed "Tri Int") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of Int"
+  (AnEnumFieldYouTypeCanBeSaved.typed "Tri String") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of String"
+
+  // ...and the `*` that starts the next field, which was what made this visible. It works on a settled
+  // type and always did; the type was never settling.
+  (AnEnumFieldYouTypeCanBeSaved.typed "Tri Int * String") =
+    "type <hash:beef> =\n  | Circle of Int\n  | Tri of Int * String"
+
+  // The other three ways a type starts.
+  (AnEnumFieldYouTypeCanBeSaved.typed "Tri 'a") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of 'a"
+  (AnEnumFieldYouTypeCanBeSaved.typed "Tri [Int") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of List<Int>"

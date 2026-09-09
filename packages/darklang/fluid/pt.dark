@@ -3561,6 +3561,26 @@ module TypeDecl =
   /// typed and it sat there as a partial that draws exactly like the real thing and refuses to lower:
   /// "not saved: unresolved: Red", under a screen reading `| Red`. `resolve` is the spec's own answer to
   /// "what does this text mean here", and for these two kinds it had none.
+  let enumFieldAround (inner: Slot) : Node =
+    Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One inner) ]
+
+  /// An enum field built from the first character typed into an empty one: the wrapper, with the
+  /// character standing as a partial in its TYPE slot, which is where completion and resolution live.
+  let enumFieldFromChar (c: String) (_e: Expect) : Node =
+    enumFieldAround (Slot.Partial(c, Slot.Empty(Types.typeExpect "type")))
+
+  /// `[` and `(` BUILD a container rather than standing as text, which is what the type hole's own rules
+  /// do with them. A partial `[` resolves to nothing and lowered as "unresolved: [Int".
+  let enumFieldList (_c: String) (_e: Expect) : Node =
+    enumFieldAround (Slot.Filled(Node.make (Types.typeKind "TList") [ ("arg", Field.One(Slot.Empty(Types.typeExpect "item"))) ]))
+
+  let enumFieldTuple (_c: String) (_e: Expect) : Node =
+    enumFieldAround
+      (Slot.Filled(
+        Node.make
+          (Types.typeKind "TTuple")
+          [ ("items", Field.Many([ Slot.Empty(Types.typeExpect "a"), Slot.Empty(Types.typeExpect "b") ], Types.typeExpect "type")) ]))
+
   let resolveCase (typed: String) : Stdlib.Option.Option<Node> =
     if PT.isIdentifier typed then
       Stdlib.Option.Option.Some(
@@ -3628,12 +3648,25 @@ module TypeDecl =
             (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ]))
           [ (" ", "fields") ]) with
           resolve = resolveCase }
-      simpleT
-        "EnumField"
-        // A function type in an enum case gets brackets: the case's fields are a `*` product, and
-        // `| WithChar of String -> Expect -> Node` reads as one arrow chain rather than one field.
-        [ Piece.Each("label", []), Piece.ParenIfSlot("type", Types.isFnType) ]
-        (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
+      // An `EnumField` is a WRAPPER: an optional label and the type that does the work. So a slot expecting
+      // one is not a place you can type -- text there became a partial in the WRAPPER, which has no
+      // resolve and no completion and could never settle. `| Tri of Int` drew perfectly and lowered as
+      // "unresolved: Int", so every enum field anyone typed was unsaveable and looked right throughout.
+      //
+      // Typing into an empty field builds the wrapper and puts the character in its TYPE, which is where
+      // completion and resolution live. One rule per way a type can start, mirroring the type hole's own
+      // openers. The containers BUILD rather than stand as text, the same distinction the type hole makes.
+      { (simpleT
+          "EnumField"
+          // A function type in an enum case gets brackets: the case's fields are a `*` product, and
+          // `| WithChar of String -> Expect -> Node` reads as one arrow chain rather than one field.
+          [ Piece.Each("label", []), Piece.ParenIfSlot("type", Types.isFnType) ]
+          (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
+          holeRules =
+            [ HoleRule { onChar = "<nameStart>"; fill = HoleFill.WithChar enumFieldFromChar }
+              HoleRule { onChar = "'"; fill = HoleFill.WithChar enumFieldFromChar }
+              HoleRule { onChar = "["; fill = HoleFill.WithChar enumFieldList }
+              HoleRule { onChar = "("; fill = HoleFill.WithChar enumFieldTuple } ] }
       simpleT
         "EnumFieldLabel"
         [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
