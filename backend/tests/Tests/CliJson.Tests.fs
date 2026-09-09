@@ -330,6 +330,37 @@ let emptyListingsAreStillArrays =
       })
 
 
+/// `typecheck --json` is the at-rest audit, which is the one an agent reads before deciding a branch
+/// is safe to merge. Its five counters and its verdict are the whole contract; `items` carries the
+/// per-item rows, and stays an array when the audit found nothing to complain about.
+let typecheckAnswersWithItsCounts =
+  cliTestOnMain "typecheck --json answers with the audit's counts" (fun state ->
+    task {
+      do! start state
+
+      do!
+        hasKeys
+          state
+          [ "typecheck"; "--json" ]
+          [ "verdict"; "checked"; "failed"; "incomplete"; "total"; "items" ]
+
+      let! root = parsed state [ "typecheck"; "--json" ]
+
+      // The one field a caller branches on. Anything outside these three is a new variant, and a
+      // caller switching on it would fall through.
+      let verdict = root.GetProperty("verdict").GetString()
+      Expect.contains
+        [ "checked"; "failed"; "incomplete" ]
+        verdict
+        "verdict is one of the three the renderer can produce"
+
+      Expect.equal
+        (root.GetProperty("items").ValueKind)
+        System.Text.Json.JsonValueKind.Array
+        "items is an array even when the audit is clean"
+    })
+
+
 // ─── the ones that do NOT take --json ─────────────────────────────────────
 
 /// A command that does not answer in JSON has to SAY so and exit nonzero, rather than printing its
@@ -359,5 +390,6 @@ let tests : List<Test> =
     commitDryRunAnswersInJson
     commitsIsAnArrayOfCommits
     branchesIsAnArrayOfBranches
+    typecheckAnswersWithItsCounts
     emptyListingsAreStillArrays
     aCommandWithoutJsonRefusesTheFlag ]
