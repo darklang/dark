@@ -4972,7 +4972,38 @@ let onKeyNavRun (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) (run: String) : 
   let (_, out) = Stdlib.List.fold (Stdlib.String.toList run) (st, Stdlib.Cli.UI.Widget.Outcome.Ignored) step
   out
 
-let onKey (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+/// Does this key MOVE rather than edit? A typing run ends at one, so the next character starts a fresh
+/// undo step.
+///
+/// The run key is the path and the slot, and nothing else, so without this any later edit of the same
+/// text joined the run that first filled it, however long ago and whatever happened in between -- and one
+/// Ctrl-Z took the lot:
+///
+///     "ab"  Esc  i  c  Ctrl-Z   gave  ""     and should give  "ab"
+///     "ab   Left    c  Ctrl-Z   gave  ""     and should give  "ab"
+///
+/// Typing a word, going away, coming back and adding one character cost you the word. Found in the grid
+/// demo, where undoing one keystroke emptied a cell typed several edits earlier.
+///
+/// Asked once, here, rather than by clearing the run at each of the dozen places that move the caret --
+/// which is the shape of bug this branch keeps finding. Backspace is not on the list on purpose: holding
+/// it down should still be one undo, the same as holding a letter down.
+let keyMoves (kp: Stdlib.Cli.UI.Widget.KeyPress) : Bool =
+  match kp.key with
+  | LeftArrow -> true
+  | RightArrow -> true
+  | UpArrow -> true
+  | DownArrow -> true
+  | Home -> true
+  | End -> true
+  | Tab -> true
+  | Escape -> true
+  | Enter -> true
+  | _ -> false
+
+let onKey (st0: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
+  let st = if keyMoves kp then { st0 with lastTyped = Stdlib.Option.Option.None } else st0
+
   let raw =
     match st.mode with
     | Insert -> onKeyInsert st kp

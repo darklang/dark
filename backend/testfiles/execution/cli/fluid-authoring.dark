@@ -2946,3 +2946,36 @@ module AnOpTextOnItsWayToNothing =
   // A second operator character that is on its way to nothing AND is not drawn anywhere is simply
   // refused, the way any other character with nowhere to go is. It used to grow `+*`.
   (Fixtures.screen (Fixtures.chars "1 +* 2")) = "1 + 2~"
+
+
+module AnUndoRunEndsWhenYouLeave =
+  // Typing coalesces into one undo step, so Ctrl-Z takes back a word rather than a letter. The run was
+  // keyed on the path and the slot and nothing else, so ANY later edit of the same text joined the run
+  // that first filled it -- however long ago, and whatever happened in between. One Ctrl-Z then took the
+  // lot:
+  //
+  //     "ab"  Esc  i  c  Ctrl-Z   gave  ""    and should give  "ab"
+  //     "ab   Left    c  Ctrl-Z   gave  ""    and should give  "ab"
+  //
+  // Typing a word, going away, coming back and adding one character cost you the word. Found in the grid
+  // demo, undoing one keystroke and watching a cell typed several edits earlier go empty.
+  //
+  // A key that MOVES ends the run, asked once in `onKey` rather than at each of the dozen places that
+  // move the caret. Backspace is deliberately not one of them: holding it down should be one undo, the
+  // same as holding a letter down.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"ab\"") [ "<Esc>", "i", "c", "<C-z>" ])) = "\"~ab\""
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"ab") [ "<Left>", "c", "<C-z>" ])) = "\"a~b\""
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "12") [ "<Esc>", "i", "3", "<C-z>" ])) = "~12"
+
+  // ...and a run that was never left is still ONE step, which is the behaviour this must not cost.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "abc") [ "<C-z>" ])) = "~⟨expression⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"hello") [ "<C-z>" ])) = "\"~\""
+
+  // Backspace still coalesces, and it coalesces with the TYPING before it: an uninterrupted burst of
+  // typing and deleting is one step, so this undoes back past the word. Recorded as what it does rather
+  // than as what I expected, which was `abcd`. Whether a run of deletes should be its own step is a
+  // separate question and a separate change -- most editors say yes.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "abcd") [ "<BS>", "<BS>", "<C-z>" ])) = "~⟨expression⟩"
+
+  // Leaving between them does split it, which is this change working on the delete side too.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "abcd") [ "<Left>", "<BS>", "<C-z>" ])) = "abc~d"
