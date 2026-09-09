@@ -57,10 +57,10 @@ let private conflictLiteral
   + "\"; itemType = \"fn\"; part = \"\"; kind = \"same-name-different-hash\"; "
   + "candidates = [ Darklang.SCM.Conflicts.Candidate { side = \"local\"; hash = \""
   + mine
-  + "\"; text = \"\"; originTs = \"\"; author = \"\" }; "
+  + "\"; removed = false; text = \"\"; originTs = \"\"; author = \"\" }; "
   + "Darklang.SCM.Conflicts.Candidate { side = \"incoming\"; hash = \""
   + theirs
-  + "\"; text = \"\"; originTs = \"\"; author = \"\" } ]; "
+  + "\"; removed = false; text = \"\"; originTs = \"\"; author = \"\" } ]; "
   + "autoResolvedTo = \""
   + theirs
   + "\"; reason = \"\"; status = \"pending\"; resolvedBy = \"\" }"
