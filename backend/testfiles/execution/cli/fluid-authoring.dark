@@ -2791,3 +2791,59 @@ module ACallToSomethingLocalCanBeSpelledWithParens =
     "Stdlib.List.map xs (fun x -> x)"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork(1") [ "<Esc>", "<Esc>" ])) = "xs |> (zork 1)"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.Some(1") [ "<Esc>", "<Esc>" ])) = "Option.Some(1)"
+
+
+module TypingTheBarsThePrinterWrites =
+  // The printer writes a match with a `|` in front of every arm. Typing that back worked for the FIRST
+  // arm and failed from the second on: `match n with`, `| 0 -> a`, `| 1 -> b` came out
+  // `ERR not an operator: ->`, and so did a three-arm match, and so did the `x || y` the rule in the way
+  // exists for.
+  //
+  // `leadPunctRevision` reads an operator typed in a fresh last item of a list led by an operator punct
+  // as meaning that punct: the first `|` at the end of an arm's rhs optimistically starts the next arm,
+  // and a second `|` REVISES that into `||` on the previous arm. That is what makes `x || y` and
+  // `xs |> f` writable inside an arm at all.
+  //
+  // It never checked that the fresh item was the one it had just made. An arm made by ENTER is the same
+  // document and the same caret as an arm made by an optimistic `|` -- I compared them -- so the `|`
+  // starting a printed arm was eaten as the first half of an `||`. The only thing separating the two is
+  // which key came before, so the state records it.
+  //
+  // `||` and `|>` are two-character tokens whose first half leaves nothing on screen; every other one in
+  // this language (`->`, `::`) is recognised from the DRAWING, because its first half is already drawn by
+  // the time the second arrives.
+  let bars (src: String) : List<String> =
+    Stdlib.String.toList src
+    |> Stdlib.List.map (fun ch ->
+      let t = Stdlib.Char.toString ch
+      if t == "\n" then "<Enter>" else t)
+
+  let typed (src: String) : String =
+    Fixtures.program (Stdlib.List.append (TypingTheBarsThePrinterWrites.bars src) [ "<Esc>", "<Esc>" ])
+
+  (TypingTheBarsThePrinterWrites.typed "match n with\n| 0 -> a\n| 1 -> b") = "match n with\n| 0 -> a\n| 1 -> b"
+  (TypingTheBarsThePrinterWrites.typed "match n with\n| 0 -> a\n| 1 -> b\n| _ -> c") =
+    "match n with\n| 0 -> a\n| 1 -> b\n| _ -> c"
+  (TypingTheBarsThePrinterWrites.typed "match r with\n| Ok(v) -> v\n| Error(e) -> 0") =
+    "match r with\n| Ok(v) -> v\n| Error(e) -> 0"
+  (TypingTheBarsThePrinterWrites.typed "match xs with\n| h :: t -> h\n| [] -> 0") =
+    "match xs with\n| h :: t -> h\n| [] -> 0"
+
+  // ...and the readings the rule is FOR, which were broken in the same place for the same reason: the
+  // `|` that starts them never survived either, from the second arm on.
+  (TypingTheBarsThePrinterWrites.typed "match n with\n| 0 -> a\n| 1 -> x || y") =
+    "match n with\n| 0 -> a\n| 1 -> x || y"
+  (TypingTheBarsThePrinterWrites.typed "match n with\n| 0 -> a\n| 1 -> b\n| 2 -> xs |> f") =
+    "match n with\n| 0 -> a\n| 1 -> b\n| 2 -> xs |> f"
+
+  // The first arm never went through the revision at all, and is unchanged.
+  (TypingTheBarsThePrinterWrites.typed "match n with 0 -> x || y") = "match n with\n| 0 -> x || y"
+  (TypingTheBarsThePrinterWrites.typed "match n with 0 -> xs |> Stdlib.List.length") =
+    "match n with\n| 0 -> xs |> Stdlib.List.length"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "x || y || z") [ "<Esc>", "<Esc>" ])) = "x || y || z"
+
+  // The arm the PR leads with, typed exactly as the printer writes it, bars and all. The local call needs
+  // the paren spelling; the spaced one is the open question in 05-.
+  (TypingTheBarsThePrinterWrites.typed
+    "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)") =
+    "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse rest"

@@ -44,6 +44,16 @@ type State =
     /// The text run currently being typed into, so a run of characters is ONE undo step rather than one
     /// per keystroke. `None` outside a typing run; any structural edit or Esc clears it.
     lastTyped: Stdlib.Option.Option<String>
+    /// The character typed by the PREVIOUS keystroke, or None if the last key was not a character.
+    ///
+    /// Only one rule reads it, and it needs it: `||` and `|>` are two-character tokens whose first half
+    /// leaves nothing on screen. Every other two-character token in this language -- `->`, `::`, `|>`
+    /// after a settled node -- is recognised from the DRAWING, because the editor has already drawn its
+    /// first half by the time the second arrives. The lead punct of a list is the exception: the `|` that
+    /// starts a match arm is drawn by the arm, so a `|` typed to start one leaves the screen looking
+    /// exactly as it would if Enter had made the arm instead. The two are the same document, the same
+    /// caret, and different intentions, so the only thing that separates them is which key came before.
+    lastChar: Stdlib.Option.Option<String>
     message: String
     docVersion: Int
     drawn: Stdlib.Option.Option<(Int * Int * List<Layout.Row>)>
@@ -98,6 +108,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       paletteIndex = 0
       clipboard = Stdlib.Option.Option.None
       lastTyped = Stdlib.Option.Option.None
+      lastChar = Stdlib.Option.Option.None
       message = ""
       docVersion = 0
       drawn = Stdlib.Option.Option.None
@@ -140,6 +151,7 @@ let undo (st: State) : State =
         history = rest
         future = Stdlib.List.push st.future now
         lastTyped = Stdlib.Option.Option.None
+        lastChar = Stdlib.Option.Option.None
         message = "" }
 
 let redo (st: State) : State =
@@ -154,6 +166,7 @@ let redo (st: State) : State =
         future = rest
         history = Stdlib.List.push st.history now
         lastTyped = Stdlib.Option.Option.None
+        lastChar = Stdlib.Option.Option.None
         message = "" }
 
 /// Apply edits as one undoable step, then put the caret where the edit says. A structural edit, so it
@@ -168,6 +181,7 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
       // A structural edit lands somewhere new, usually a blank, so nothing is chosen there yet.
       completionIndex = -1
       lastTyped = Stdlib.Option.Option.None
+      lastChar = Stdlib.Option.Option.None
       menuDismissed = false
       // An edit invalidates the `h`/`l` trail: it is a path into a tree that has just changed shape.
       descent = Stdlib.Option.Option.None }
@@ -2819,8 +2833,10 @@ let typeOneRaw (st: State) (c: String) : State =
 /// Type `c`, which may be one grapheme or many (a paste). Multi-grapheme input is applied one grapheme at
 /// a time, so hole rules and wrap rules that look at a single character behave the same as live typing.
 let typeChar (st: State) (c: String) : State =
+  // Recorded AFTER the keystroke, because `commit` clears it: making the sibling that a lead punct starts
+  // is a structural edit, and it would wipe the very fact the next character needs.
   if (Stdlib.String.length c) <= 1 then
-    typeOne st c
+    { (typeOne st c) with lastChar = Stdlib.Option.Option.Some c }
   else
     // A run of characters arrives as ONE key press: the reader coalesces fast typing (and pastes) into a
     // single event. The completion menu is a cache refreshed once per key press, so folding the run
@@ -2835,7 +2851,7 @@ let typeChar (st: State) (c: String) : State =
     Stdlib.List.fold (Stdlib.String.toList c) st (fun acc g ->
       let ch = Stdlib.Char.toString g
       let ready = if ch == " " then refreshMenu acc else acc
-      typeOne ready ch)
+      { (typeOne ready ch) with lastChar = Stdlib.Option.Option.Some ch })
 
 
 /// The text slot a leaf carries its content in, if it's the kind we can merge by concatenation: an int's
@@ -4013,7 +4029,17 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
       let meansOperator =
         (lead != "") && (isOperatorChar st.reg.syntax lead)
         && ((c == lead) || (isOperatorChar st.reg.syntax c))
-      if (i > 0) && fresh && (i == ((Stdlib.List.length items) - 1)) && meansOperator then
+      // ...and only when the PREVIOUS keystroke was that lead punct, which is what makes this a revision
+      // of something you just did rather than a reading of where you happen to be standing.
+      //
+      // Without it, an arm made by ENTER was indistinguishable from an arm made by an optimistic `|`:
+      // same document, same caret, and the `|` that starts the next arm of a printed match was eaten as
+      // the first half of an `||`. So `match n with` and three arms typed the way the printer writes them
+      // failed from the second arm on -- and so did the `x || y` this rule exists for, since its `|` never
+      // survived either.
+      let followsTheLeadPunct = st.lastChar == (Stdlib.Option.Option.Some lead)
+
+      if (i > 0) && fresh && followsTheLeadPunct && (i == ((Stdlib.List.length items) - 1)) && meansOperator then
         match lastNodePathUnder st.root (Path.item parentPath slot (i - 1)) with
         | Some p ->
           // Precedence picks WHICH node the operator takes, the same way typing it normally would, so
