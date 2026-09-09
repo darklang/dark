@@ -33,8 +33,19 @@ let renderCell (theme: Theme.Theme) (c: Layout.Cell) (selected: Bool) : String =
 /// fifteen-line `let` it was forty scattered words in reverse video instead of a block you could see.
 /// Everything between the first and last selected cell on a row is selected, which is what selecting a
 /// subtree means.
+/// ...and nothing is marked when the selection is the WHOLE document, because that carries no
+/// information. Opening a document lands the caret at the root, so every demo opened with the entire
+/// thing marked -- which says only "you have not moved yet" and says it in the loudest way available.
+/// The frame's breadcrumb already names the node.
+let selectionWorthDrawing (st: Editor.State) : Bool =
+  Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.navPath st))
+
 let renderRow (theme: Theme.Theme) (st: Editor.State) (row: Layout.Row) : String =
-  let flags = row |> Stdlib.List.map (fun c -> underNavCaret st c)
+  let flags =
+    if selectionWorthDrawing st then
+      row |> Stdlib.List.map (fun c -> underNavCaret st c)
+    else
+      row |> Stdlib.List.map (fun _c -> false)
 
   match Stdlib.List.findFirstIndex flags (fun b -> b) with
   | None -> row |> Stdlib.List.map (fun c -> renderCell theme c false) |> Stdlib.String.join ""

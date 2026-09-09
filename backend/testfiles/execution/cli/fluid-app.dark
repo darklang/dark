@@ -447,8 +447,18 @@ module TheNavSelectionIsARange =
     |> Stdlib.String.join "\n"
 
   // The whole call: the spaces, the paren and the `->` inside it are all part of the selection now.
+  //
+  // Nested in a `let` and reached with two `j`s, because the selection is not drawn at all when it covers
+  // the WHOLE document -- see below. This used to be the same call at the root with no keys.
+  (TheNavSelectionIsARange.marked "let q = Stdlib.List.map xs (fun a -> a)\nq" [ "j", "j" ]) =
+    "let q = <Stdlib.List.map>< ><xs>< ><(><fun>< ><a>< ><->>< ><a>)\nq"
+
+  // Nothing is marked when the selection is everything. Opening a document lands the caret at the root,
+  // so every demo opened with the entire thing in reverse video -- which says only "you have not moved
+  // yet", in the loudest way available, and was the first thing Stachu said about the demos. A selection
+  // covering the whole document carries no information; the frame's breadcrumb names the node.
   (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" []) =
-    "<Stdlib.List.map>< ><xs>< ><(><fun>< ><a>< ><->>< ><a>)"
+    "Stdlib.List.map xs (fun a -> a)"
 
   // A leaf is still just itself.
   (TheNavSelectionIsARange.marked "Stdlib.List.map xs (fun a -> a)" [ "l" ]) =
