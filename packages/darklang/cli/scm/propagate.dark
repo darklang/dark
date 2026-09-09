@@ -481,8 +481,7 @@ let executeUnset (state: AppState) (arg: String) : AppState =
 
 
 let help (_state: AppState) : String =
-  [ "dark propagate -- choose what follows what"
-    ""
+  [ ""
     "  Editing an item repoints everything above it, immediately, in"
     "  your draft. These are the exceptions to that."
     ""

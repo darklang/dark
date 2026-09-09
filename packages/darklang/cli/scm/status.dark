@@ -173,8 +173,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     executePretty state
 
 let help (_state: AppState) : String =
-  [ "dark status - what's in your draft, in one line."
-    ""
+  [ ""
     "Editing is live and silent: an edit takes effect immediately, and"
     "nothing prompts you mid-flow."
     "This is the only signal you get until you ask for more."

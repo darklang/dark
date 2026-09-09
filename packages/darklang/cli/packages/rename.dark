@@ -116,8 +116,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (_state: Cli.AppState) : String =
-  [ "dark rename - give an item a different name"
-    ""
+  [ ""
     "  dark rename <name> <new-name>"
     ""
     "  The content does not change and neither does its hash, so everything that"

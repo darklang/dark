@@ -613,8 +613,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     executePretty state args
 
 let help (_state: AppState) : String =
-  [ "dark commit - review your draft, propagate, and commit it."
-    ""
+  [ ""
     "Usage: dark commit [message] [--include=names] [-y]"
     ""
     "This is not a gate. Your edits are already live; commit is where"

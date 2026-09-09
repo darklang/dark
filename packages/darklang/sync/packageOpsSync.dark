@@ -10,6 +10,32 @@ module Darklang.SCM.PackageOps
 /// The same fold over WIRE records (id, hex-encoded op_blob, origin_ts) -- the incoming side of a sync-import,
 /// read BEFORE the ops are inserted, since afterwards the fold has already moved the local side.
 /// Records must arrive oldest-first, like the wire itself produces them.
+/// The name ENDINGS in a batch of wire records. `bindingsFromWireRecords`'s other half: an `Unbind`
+/// binds nothing, so it produces no `Binding` and would otherwise never reach the detector.
+let removalsFromWireRecords
+  (records: List<Wire.SyncOp>)
+  : List<Conflicts.Removal> =
+  records
+  |> Stdlib.List.filterMap (fun record ->
+    match (Stdlib.Uuid.parse record.id, Stdlib.Blob.fromHex record.blobHex) with
+    | (Ok id, Ok blob) ->
+      match tryDecodeOp id blob with
+      | Some(Unbind(location, previous)) ->
+        Conflicts.Removal
+          { owner = location.owner
+            modules = Stdlib.String.join location.modules "."
+            name = location.name
+            originTs = record.ts
+            author = ""
+            previous =
+              previous
+              |> Stdlib.Option.map (fun h ->
+                LanguageTools.ProgramTypes.hashToString h) }
+        |> Stdlib.Option.Option.Some
+      | _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
 let bindingsFromWireRecords
   (records: List<Wire.SyncOp>)
   : List<Conflicts.Binding> =
@@ -102,8 +128,18 @@ let planSyncImport
   else
     // Only what actually ARRIVED counts as incoming -- see `unknownRecords`. The same three reads feed
     // both arms; what differs is the base they are compared against.
-    let incoming = bindingsFromWireRecords (unknownRecords records)
-    let names = incoming |> Stdlib.List.map (fun b -> b.name)
+    let arrived = unknownRecords records
+    let incoming = bindingsFromWireRecords arrived
+    let arrivedRemovals = removalsFromWireRecords arrived
+
+    // Removal names too, or the local side of a rename-vs-edit is never looked up and the conflict
+    // cannot be seen.
+    let names =
+      Stdlib.List.append
+        (incoming |> Stdlib.List.map (fun b -> b.name))
+        (arrivedRemovals |> Stdlib.List.map (fun r -> r.name))
+      |> Stdlib.List.unique
+
     let local = Conflicts.localBindingsFor names
 
     // The local side is labelled with this instance's IDENTITY, because the label is STORED and handed to
@@ -111,9 +147,16 @@ let planSyncImport
     // "yours" is the renderer's decision, which it makes by comparing against this same identity.
     let me = identity ()
 
+    // Removals are detected the same either way: a rename that ends a name you edited is a
+    // divergence whether or not the two sides have ever agreed a base.
+    let removals =
+      Conflicts.detectRemovals me sourceId local arrivedRemovals
+
     if Conflicts.hasSyncBases sourceId then
       let conflicts =
-        Conflicts.detect me sourceId local incoming (Conflicts.syncBases sourceId)
+        Stdlib.List.append
+          (Conflicts.detect me sourceId local incoming (Conflicts.syncBases sourceId))
+          removals
 
       SyncPlan { conflicts = conflicts; bulk = false; detected = true }
     else
@@ -129,7 +172,10 @@ let planSyncImport
         Conflicts.detect me sourceId local incoming []
         |> Stdlib.List.filter (fun c -> c.kind == "same-name-different-hash")
 
-      SyncPlan { conflicts = diverged; bulk = true; detected = false }
+      SyncPlan
+        { conflicts = Stdlib.List.append diverged removals
+          bulk = true
+          detected = false }
 
 
 /// FINISH a sync-import, AFTER the ops have been inserted and folded: record the conflicts the plan found.

@@ -274,8 +274,7 @@ let executeResolve
 /// questions a person actually has here -- what does this take, and what will it do to a conflict --
 /// would both go unanswered.
 let mergeHelp (_state: AppState) : String =
-  [ "dark merge - move a branch's work into its parent."
-    ""
+  [ ""
     "  dark merge                 merge the branch you're on, after showing what would land"
     "  dark merge -y              the same, without the confirmation"
     "  dark merge <branch>        merge that one"

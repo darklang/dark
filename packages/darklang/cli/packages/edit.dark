@@ -200,8 +200,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
 
 let help (_state: AppState) : String =
-  [ "dark edit -- change an item without retyping it"
-    ""
+  [ ""
     "  dark edit <name>           open $EDITOR on the declaration, apply on save"
     "  dark edit <name> <file>    apply that file instead (no editor, for scripts)"
     ""

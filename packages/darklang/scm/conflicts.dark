@@ -43,6 +43,20 @@ type Binding =
     /// other's hash descends from it, which is an ordinary edit and not a conflict.
     previous: Stdlib.Option.Option<String> }
 
+/// A name ENDING, as the other side told it. `dark rename` authors one of these for the old name.
+///
+/// Not a `Binding` with an empty hash: a removal binds nothing, and every reader of `Binding` would
+/// then have to know about a case that has no version to offer.
+type Removal =
+  { owner: String
+    modules: String
+    name: String
+    originTs: String
+    author: String
+    /// What the name held when it was ended. A removal of exactly what you hold is an ordinary
+    /// removal; a removal of something you have since edited is the divergence.
+    previous: Stdlib.Option.Option<String> }
+
 /// A recorded per-name base: the hash two sides last AGREED on. "" = the name did not exist at the base.
 type NameBase =
   { owner: String
@@ -55,6 +69,9 @@ type NameBase =
 type Candidate =
   { side: String
     hash: String
+    /// This side ENDED the name rather than binding it. `hash` is empty, and there is nothing to
+    /// take but the removal itself.
+    removed: Bool
     /// The competing TEXT, for a divergence whose sides are prose rather than versions. Empty for a
     /// name divergence, where the hash is what identifies a side and the text is the item itself.
     text: String
@@ -228,6 +245,7 @@ let detect
             [ Candidate
                 { side = "local"
                   hash = loc.hash
+                  removed = false
                   // Empty: for a name divergence the HASH is what identifies a side. `text` is what
                   // a wording disagreement carries, where a hash identifies nothing a reader can act
                   // on.
@@ -237,6 +255,7 @@ let detect
               Candidate
                 { side = "incoming"
                   hash = inc.hash
+                  removed = false
                   text = ""
                   originTs = inc.originTs
                   // The op's own author when the sender told us, falling back to the source it arrived
@@ -274,6 +293,64 @@ let detect
         Stdlib.Option.Option.None
       else
         Stdlib.Option.Option.Some(conflictWith loc "same-name-different-hash")
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// A removal that arrives for a name you have SINCE edited.
+///
+/// `dark rename` ends the old name, so this is "they renamed it while I changed it". A removal of
+/// exactly what you hold records nothing: they ended the version you had, and you have no competing
+/// work to lose.
+let detectRemovals
+  (localLabel: String)
+  (incomingLabel: String)
+  (local: List<Binding>)
+  (removals: List<Removal>)
+  : List<Conflict> =
+  let localByKey =
+    local
+    |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b))
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+  removals
+  |> Stdlib.List.filterMap (fun rem ->
+    let k = bindingKey rem.owner rem.modules rem.name
+
+    match Stdlib.Dict.get localByKey k with
+    | Some loc when rem.previous != (Stdlib.Option.Option.Some loc.hash) ->
+      // The fold settles it by stamp, and a binding beats a removal on an exact tie
+      // (`Lww.unbindBeatsBinding` is strict `>`).
+      let removalWins = stringGt rem.originTs loc.originTs
+      // The removal side of the id is the empty string: content-derived like every other, so
+      // re-detecting the same pair lands on the same row.
+      Conflict
+        { id = conflictId loc.owner loc.modules loc.name [ loc.hash, "" ]
+          owner = loc.owner
+          modules = loc.modules
+          name = loc.name
+          itemType = loc.itemType
+          part = ""
+          kind = "removed-vs-edited"
+          candidates =
+            [ Candidate
+                { side = "local"
+                  hash = loc.hash
+                  removed = false
+                  text = ""
+                  originTs = loc.originTs
+                  author = localLabel }
+              Candidate
+                { side = "incoming"
+                  hash = ""
+                  removed = true
+                  text = ""
+                  originTs = rem.originTs
+                  author = if rem.author == "" then incomingLabel else rem.author } ]
+          autoResolvedTo = if removalWins then "" else loc.hash
+          reason = if removalWins then "removal is newer" else "your edit is newer"
+          status = "pending"
+          resolvedBy = "" }
+      |> Stdlib.Option.Option.Some
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -539,7 +616,9 @@ let settleWording
 /// and its candidates are hashes of text rather than of items. Anything keyed on the live binding
 /// has to ask this first.
 let aboutABinding (kind: String) : Bool =
-  Stdlib.List.``member`` [ "same-name-different-hash", "independent-creation" ] kind
+  Stdlib.List.``member``
+    [ "same-name-different-hash", "independent-creation", "removed-vs-edited" ]
+    kind
 
 
 /// Conflicts awaiting a human ON THIS BRANCH, oldest first.
@@ -673,7 +752,9 @@ let detailLines (c: Conflict) : List<String> =
       let mark = if cand.hash == c.autoResolvedTo then "kept" else "over"
       let who = if cand.author == "" then cand.side else $"{cand.side} ({cand.author})"
       let what =
-        if cand.text == "" then
+        if cand.removed then
+          "REMOVED the name"
+        else if cand.text == "" then
           $"hash {shortHash cand.hash}"
         else
           $"\"{cand.text}\""
@@ -687,7 +768,9 @@ let detailLines (c: Conflict) : List<String> =
       $"  #{c.id}  {dotted}  [{c.part}] -- two wordings"
 
   let footer =
-    if aboutABinding c.kind then
+    if c.autoResolvedTo == "" then
+      $"    auto-resolution: the name is gone, by {c.reason}"
+    else if aboutABinding c.kind then
       $"    auto-resolution: {shortHash c.autoResolvedTo}, by {c.reason}"
     else
       $"    auto-resolution: by {c.reason}"

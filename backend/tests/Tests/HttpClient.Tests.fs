@@ -529,7 +529,23 @@ let init (token : System.Threading.CancellationToken) : Task =
         Task.Run(fun () ->
           task {
             try
-              do! runTestHandler ctx
+              try
+                do! runTestHandler ctx
+              with e ->
+                // The task is fire-and-forget, so an exception in it is only visible here. Left
+                // unsaid, the response closes empty and the client reports `NetworkError`, which
+                // names the symptom and nothing else. The 500 gives the assertion a body to fail
+                // on rather than an aborted connection.
+                print
+                  $"httpclient test server: {ctx.Request.RawUrl} handler threw: {e.Message}"
+
+                try
+                  ctx.Response.StatusCode <- 500
+                  let body = UTF8.toBytes $"test server handler threw: {e.Message}"
+                  ctx.Response.ContentLength64 <- int64 body.Length
+                  do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
+                with _ ->
+                  ()
             finally
               try
                 ctx.Response.OutputStream.Close()
@@ -736,8 +752,15 @@ module StreamDvalTests =
         } ]
 
 
+/// Sequenced against ITSELF: `testSequencedGroup` runs these one at a time while still running
+/// alongside other groups.
+///
+/// They share one `HttpListener`, which on Linux is .NET's managed implementation and does not take
+/// forty concurrent requests well: one goes unaccepted and comes back `NetworkError`. Which one
+/// varies, so it presents as a flake. Serialising them is also faster than not.
 let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
     [ StreamDvalTests.tests ] ]
   |> List.concat
   |> testList "HttpClient"
+  |> testSequencedGroup "httpclient"

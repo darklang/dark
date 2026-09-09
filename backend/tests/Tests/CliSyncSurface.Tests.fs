@@ -125,6 +125,33 @@ let pullKnowsItsOwnFlags =
           "--all is understood, and there is still nowhere to pull from"
     })
 
+/// `dark sync --branches` is the whole tree in one verb. The behaviour already existed behind
+/// `config set sync.branches all`, which is a thing to remember rather than a thing to type when you
+/// sit down at the other machine.
+let syncTakesBranchesFlag =
+  cliTest
+    "sync understands --branches, and still refuses one it doesn't"
+    (fun state ->
+      task {
+        do!
+          refuses
+            state
+            [ "sync"; "--nope" ]
+            "isn't a url"
+            "pushed"
+            "an unknown flag is named rather than read as a url"
+        do! exits state [ "sync"; "--nope" ] 1L "and it is a failed command"
+
+        // With no relay there is nothing to sync either way; what matters is that the flag parses
+        // rather than being refused alongside the unknown ones.
+        do!
+          shows
+            state
+            [ "sync"; "--branches" ]
+            "no relay"
+            "--branches is understood, and there is still nowhere to sync to"
+      })
+
 let syncHelpNamesItsVerbs =
   cliTest "sync help names the verbs it has" (fun state ->
     task {
@@ -193,6 +220,7 @@ let tests : List<Test> =
     aVerbInTheUrlPositionIsRefusedThere
     connectRefusesSomethingThatIsNotAUrl
     pullKnowsItsOwnFlags
+    syncTakesBranchesFlag
     syncHelpNamesItsVerbs
     exportSeedExplainsItself
     anIdentityIsRefusedIfItCannotTravel ]

@@ -17,7 +17,7 @@ module Darklang.Cli.Sync
 let help (_state: AppState) : String =
   [ ""
     "  dark sync setup         name this instance, point it at a relay, push once"
-    "  dark sync [url]         push then pull. url optional after connect."
+    "  dark sync [url] [--branches]  push then pull. --branches: every branch too"
     "  dark sync status [url]  compare with the relay (in sync? no full transfer)"
     "  dark sync export <f>    write the log to a file (backup, offline)"
     "  dark sync import <f>    read ops from a file (they take effect)"
@@ -41,24 +41,32 @@ let help (_state: AppState) : String =
 ///
 /// An unknown flag is REFUSED rather than read as a url, which would report "bad url" about a flag.
 let execute (state: AppState) (args: List<String>) : AppState =
+  // `--branches` pulled out before the unknown-flag check, so it composes with a url the way
+  // `--all` does on `pull`.
+  let allBranches = Stdlib.List.member args "--branches"
+  let args = args |> Stdlib.List.filter (fun a -> a != "--branches")
+
   let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then
     let f = Stdlib.String.join flags " "
-    Cli.printErr $"sync takes no flags, and {f} isn't a url."
+    Cli.printErr $"sync takes no flags besides --branches, and {f} isn't a url."
     Cli.printHint "  `dark sync help` lists what it does take."
-    state
+    { state with exitCode = 1 }
   else
 
   match args with
-  | [] -> executeSync state (SCM.PackageOps.relay ())
+  | [] -> executeSyncWith state (SCM.PackageOps.relay ()) allBranches
   | [ "status" ] -> executeStatus state (SCM.PackageOps.relay ())
   | [ "status", url ] ->
     if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeStatus state url
   | [ "export", path ] -> executeExport state path
   | [ "import", path ] -> executeImport state path
   | [ url ] ->
-    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeSync state url
+    if refuseIfNotARelayUrl url then
+      { state with exitCode = 1 }
+    else
+      executeSyncWith state url allBranches
   | _ ->
     Stdlib.printLine (help state)
     state

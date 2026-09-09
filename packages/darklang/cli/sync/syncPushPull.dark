@@ -480,14 +480,23 @@ let syncAllBranches (state: AppState) (url: String) : AppState =
 /// Sync with a relay: push my ops up, then pull theirs down. (Push is full -- the relay
 /// dedups by content id; pull is incremental. One command for the common two-box workflow.)
 /// With `sync.branches = all` in the config, every branch moves too (see `syncAllBranches`).
-let executeSync (state: AppState) (url: String) : AppState =
+let executeSyncWith (state: AppState) (url: String) (allBranches: Bool) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
     state
   else
     let synced = executePull (executePush state url) url
 
-    match Config.get "sync.branches" with
-    | Some "all" -> syncAllBranches synced url
-    | _ -> synced
+    // `--branches` is the config for one run. The whole-tree sync already existed and needed
+    // `dark config set sync.branches all` first, which is a thing to remember rather than a thing
+    // to type when you sit down at the other machine.
+    if allBranches then
+      syncAllBranches synced url
+    else
+      match Config.get "sync.branches" with
+      | Some "all" -> syncAllBranches synced url
+      | _ -> synced
+
+let executeSync (state: AppState) (url: String) : AppState =
+  executeSyncWith state url false
 

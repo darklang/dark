@@ -398,8 +398,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
 
 
 let help (_state: AppState) : String =
-  [ "dark constraints - standing findings about the store, and what you've decided about them."
-    ""
+  [ ""
     "  Checks you RUN, not warnings at commit. Three kinds today:"
     ""
     "    stale-usage    a live item still uses a version that is not"

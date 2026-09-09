@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # A whole first sync, from an empty home, timed. The number a new person actually waits.
 #
-# `sync-phases` measures a FIXED slice (40k ops) and so understates this: insert-and-fold gets slower as
-# the store grows, and a real first sync ends with the whole log in it. Measure both -- this one for the
-# headline, that one for attributing a change to a phase.
+# This is the headline number. There is no phase breakdown any more: `sync-phases` separated phases by
+# differencing three runs, which stopped working when the pull began pipelining (it starts the next page
+# before importing the one in hand, so network overlaps decode and the subtraction reads ~0). Attributing
+# a change to a phase wants telemetry spans, not arithmetic.
 set -euo pipefail
 
 # The relay hostname stays out of the repo (deploy/fly.toml omits it for the same reason).

@@ -486,6 +486,39 @@ let private notSweepable =
       "devices" // shells out to `tailscale`
       "clear" ] // clears the screen, taking the sweep's own output with it
 
+/// Every `--help` opens with a sentence saying what the command IS.
+///
+/// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which repeats the name
+/// you just typed. The renderer falls back to the registry description when a help body has no
+/// summary of its own, so a new command satisfies this without doing anything.
+let private everyHelpLeadsWithASummary =
+  cliTest "every command's help starts by saying what it is" (fun state ->
+    task {
+      let! commands = registeredCommands state
+      Expect.isGreaterThan (List.length commands) 20 "the registry was read"
+
+      let mutable bad : List<string> = []
+
+      for cmd in commands do
+        if not (Set.contains cmd (Set.add "agent" notSweepable)) then
+          let! out = runCliCatching state [ cmd; "--help" ]
+
+          match out with
+          | Error _ -> ()
+          | Ok text ->
+            let first = (text.Split('\n')[0]).Trim()
+
+            if
+              first = "" || first.StartsWith "Usage:" || first.StartsWith "dark "
+            then
+              bad <- $"  {cmd} -> {first}" :: bad
+
+      if not (List.isEmpty bad) then
+        Tests.failtestf
+          "help that doesn't start with a summary:\n%s"
+          (bad |> List.rev |> String.concat "\n")
+    })
+
 let private everyExclusionIsReal =
   cliTest "every command excluded from the sweeps still exists" (fun state ->
     task {
@@ -861,6 +894,7 @@ let tests : List<Test> =
     workbenchBranchActionsWork
     mergeAndRebaseRefuseOnMain
     everyExclusionIsReal
+    everyHelpLeadsWithASummary
     permissionsRefusesAnEmptyRule
     aDashLedArgumentIsNeverAName
     viewHeadsWithTheNameYouAskedFor

@@ -458,8 +458,7 @@ let executePull (state: AppState) (url: String) : AppState =
 /// at the root" block below is where each of them is documented. `merge` gets its own page
 /// (`mergeHelp`) because it is the one that moves work into a parent and the questions are different.
 let help (_state: AppState) : String =
-  [ "dark branch - isolated lines of work; author and eval without touching main."
-    ""
+  [ ""
     "  You name a branch; it gets a uuid underneath. Names are what you"
     "  type and can reuse; the uuid is what op tags, bundles and parent"
     "  links point at. `dark branches` shows both."
