@@ -2722,8 +2722,29 @@ let typeOneRaw (st: State) (c: String) : State =
           // variable.
           let duplicatesLabel = (typedText != "") && ((labelForSlot st sp) == Stdlib.Option.Option.Some typedText)
 
+          // The keyword that opens an optional slot of the construct you are standing in. `when` typed in a
+          // match arm's right-hand side is the arm's guard, not a variable called `when`, and the arm's
+          // spec is where that is written down.
+          let keywordSlot = opensKeywordSlot st sp typedText
+
           if duplicatesLabel then
             st
+          elif Stdlib.Option.isSome keywordSlot then
+            match keywordSlot with
+            | Some target ->
+              let (parentPath, slotName) = target
+
+              (match nodeAtPath st.root parentPath with
+               | Some pn ->
+                 let each = Node.itemExpect pn slotName |> Stdlib.Option.withDefault (Expect.any slotName)
+                 // The slot the word was typed in goes back to what it was before the word -- a hole, or
+                 // whatever the partial was standing on. `was` is what the partial has been carrying for
+                 // exactly this.
+                 let st1 =
+                   commit st [ Edit.Replace(sp, was), Edit.InsertItem(parentPath, slotName, 0, Slot.Empty each) ] caret
+                 { st1 with caret = Caret.inItem parentPath slotName 0 0 }
+               | None -> st)
+            | None -> st
           elif duplicatesNextKeyword then
             match (Path.parent sp, Path.last sp) with
             | (Some parentPath, Some(Item(slot, i))) ->
@@ -2930,6 +2951,57 @@ let inContentText (st: State) : Bool =
         | None -> false)
      | None -> false)
   | _ -> false
+
+/// The optional slots a spec draws behind a KEYWORD, as (slot, keyword) pairs.
+///
+/// `Piece.EachWrapped(slot, opener, _, _)` puts the opener in front of a list that has items and draws
+/// nothing at all when it has none. A match arm's `when` guard is spelled that way, and so is an enum
+/// case's ` of`. So the keyword is in the spec, never on screen while the slot is empty, and nothing
+/// could type it: `| x when x > 0 -> 1` put the word `when` in the arm's right-hand side as a variable.
+///
+/// Only openers that are WORDS. `(`, `<` and the rest are punctuation a character rule already opens.
+let keywordOpenedSlots (pieces: List<Piece>) : List<(String * String)> =
+  pieces
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | EachWrapped(slot, openP, _, _) ->
+      let word = Stdlib.String.trim openP
+      if (word != "") && (TextEdit.isLetterString (Stdlib.String.first word 1)) then
+        [ (slot, word) ]
+      else
+        []
+    | Group ps -> keywordOpenedSlots ps
+    | Flat ps -> keywordOpenedSlots ps
+    | Nest(_, ps) -> keywordOpenedSlots ps
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+/// The keyword slot `typed` names on the node the caret's slot hangs off, when that slot is still empty.
+///
+/// Asked of the PARENT, because the word is typed in a sibling: `when` arrives in the arm's right-hand
+/// side, and it is the arm that has the guard.
+let opensKeywordSlot (st: State) (sp: Path) (typed: String) : Stdlib.Option.Option<(Path * String)> =
+  if typed == "" then
+    Stdlib.Option.Option.None
+  else
+    match Path.parent sp with
+    | Some parentPath ->
+      (match nodeAtPath st.root parentPath with
+       | Some pn ->
+         (match Registry.find st.reg pn.kind with
+          | Some spec ->
+            keywordOpenedSlots spec.pieces
+            |> Stdlib.List.findFirst (fun pair ->
+              let (slot, word) = pair
+              (word == typed)
+              && (Stdlib.List.isEmpty (Node.items pn slot))
+              && ((Path.last sp) != (Stdlib.Option.Option.Some(Step.Into slot))))
+            |> Stdlib.Option.map (fun pair ->
+              let (slot, _) = pair
+              (parentPath, slot))
+          | None -> Stdlib.Option.Option.None)
+       | None -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
 
 let textClassOf (reg: Registry) (k: Kind) (slot: String) : Stdlib.Option.Option<TextClass> =
   match Registry.findExact reg k with

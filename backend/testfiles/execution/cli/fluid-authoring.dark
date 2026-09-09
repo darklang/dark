@@ -2847,3 +2847,52 @@ module TypingTheBarsThePrinterWrites =
   (TypingTheBarsThePrinterWrites.typed
     "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)") =
     "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse rest"
+
+
+module AKeywordOpensTheSlotItIntroduces =
+  // A match arm's guard could not be typed at all, only added from the palette. `Piece.EachWrapped` draws
+  // its opener in front of a list that has items and draws NOTHING when the list is empty, which is how a
+  // guard is spelled: ` when` is in the spec, never on screen while there is no guard, and so nothing
+  // could type it. `| x when x > 0 -> 1` put the word `when` in the arm's right-hand side as a variable.
+  //
+  // The word is in the pieces, so the editor reads it back: typing a word that names an EMPTY
+  // keyword-opened slot of the construct you are standing in opens that slot instead of settling as a
+  // name. Asked of the parent, because the word is typed in a SIBLING -- `when` arrives in the arm's
+  // right-hand side and it is the arm that has the guard.
+  let keys (src: String) : List<String> =
+    Stdlib.String.toList src
+    |> Stdlib.List.map (fun ch ->
+      let t = Stdlib.Char.toString ch
+      if t == "\n" then "<Enter>" else t)
+
+  (Fixtures.screen (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when ")) =
+    "match n with\n| x when ~⟨when⟩ -> ⟨rhs⟩"
+  (Fixtures.screen (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when x > 0")) =
+    "match n with\n| x when x > 0~ -> ⟨rhs⟩"
+
+  // Tab reaches the right-hand side, the way it reaches any hole. Typing `->` there does NOT work and is
+  // written up: after a PATTERN a `-` has nowhere to go so it skips to the arrow, and in the guard's
+  // EXPRESSION slot it is a subtraction, which is a real reading of a real character.
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when x > 0")
+        [ "<Tab>" ]
+        (AKeywordOpensTheSlotItIntroduces.keys "1")
+        [ "<Esc>", "<Esc>" ] ])) = "match n with\n| x when x > 0 -> 1"
+
+  // With a constructor pattern, and with an arm after it.
+  (Fixtures.screen
+    (Stdlib.List.append
+      (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| Some v when v > 2")
+      [ "<Tab>", "v" ])) = "match n with\n| Some(v) when v > 2 -> v~"
+  (Fixtures.program
+    (Stdlib.List.flatten
+      [ (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when x > 0")
+        [ "<Tab>" ]
+        (AKeywordOpensTheSlotItIntroduces.keys "1\n_ -> 0")
+        [ "<Esc>", "<Esc>" ] ])) = "match n with\n| x when x > 0 -> 1\n| _ -> 0"
+
+  // An arm with no guard is untouched, and a word that names no slot here is still a name.
+  (Fixtures.program (Stdlib.List.append (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x -> 1") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| x -> 1"
+  (Fixtures.screen (Fixtures.chars "let when = 1")) = "let when = 1~\n⟨body⟩"

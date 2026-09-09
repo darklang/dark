@@ -782,3 +782,70 @@ module AReorderTheKernelDoesNotKnow =
   (AReorderTheKernelDoesNotKnow.screen [ "<C-Left>", "<C-Left>" ]) = "<3~|1|2>"
   // Back where it started, because the caret went with it.
   (AReorderTheKernelDoesNotKnow.screen [ "<C-Left>", "<C-Right>" ]) = "<1|2|3~>"
+
+
+module AKeywordSlotTheKernelDoesNotKnow =
+  // A slot drawn behind a keyword only when it HAS something in it -- a match arm's guard is the Darklang
+  // one -- can be opened by typing that keyword. The word lives in the pieces and never on screen while
+  // the slot is empty, so nothing could type it. The kernel reads it back out of the pieces, so a DSL
+  // gets this by drawing the slot that way and declaring nothing else.
+  //
+  // `Acme.Rule` is `name unless <exceptions> => body`, and nothing in Darklang defines it.
+  let ruleKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Rule"
+  let wordKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Word"
+
+  let wordExpect (label: String) : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (AKeywordSlotTheKernelDoesNotKnow.wordKind ()) label
+
+  let word (s: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (AKeywordSlotTheKernelDoesNotKnow.wordKind ())
+      [ ("chars", Darklang.Fluid.Field.Text s) ]
+
+  let rule () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (AKeywordSlotTheKernelDoesNotKnow.ruleKind ())
+      [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(AKeywordSlotTheKernelDoesNotKnow.word "ab")))
+        ("unless", Darklang.Fluid.Field.Many([], AKeywordSlotTheKernelDoesNotKnow.wordExpect "exception"))
+        ("body", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(AKeywordSlotTheKernelDoesNotKnow.wordExpect "body"))) ]
+
+  let specs (drawsKeyword: Bool) : List<Darklang.Fluid.Spec> =
+    let wordSpec =
+      Darklang.Fluid.Spec.simple
+        (AKeywordSlotTheKernelDoesNotKnow.wordKind ())
+        [ Darklang.Fluid.Piece.Text("chars", Darklang.Fluid.Layout.Style.Name) ]
+        (AKeywordSlotTheKernelDoesNotKnow.word "")
+
+    let ruleSpec =
+      Darklang.Fluid.Spec.simple
+        (AKeywordSlotTheKernelDoesNotKnow.ruleKind ())
+        [ Darklang.Fluid.Piece.Slot "name"
+          (if drawsKeyword then
+             Darklang.Fluid.Piece.EachWrapped("unless", " unless", [], "")
+           else
+             Darklang.Fluid.Piece.EachWrapped("unless", " ", [], ""))
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Punct "=>"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Slot "body" ]
+        (AKeywordSlotTheKernelDoesNotKnow.rule ())
+
+    [ wordSpec, ruleSpec ]
+
+  let screen (drawsKeyword: Bool) (keys: List<String>) : String =
+    // From the BODY, because that is where the word arrives: the guard's keyword is typed in the arm's
+    // right-hand side, and it is the arm that has the guard.
+    Darklang.Fluid.Test.runFrom
+      (Darklang.Fluid.Registry.ofList (AKeywordSlotTheKernelDoesNotKnow.specs drawsKeyword))
+      (Darklang.Fluid.Slot.Filled(AKeywordSlotTheKernelDoesNotKnow.rule ()))
+      60
+      (Darklang.Fluid.Caret.inSlot [] "body" 0)
+      keys
+
+  (AKeywordSlotTheKernelDoesNotKnow.screen true []) = "ab => ~⟨body⟩"
+  (AKeywordSlotTheKernelDoesNotKnow.screen true [ "u", "n", "l", "e", "s", "s", " " ]) =
+    "ab unless ~⟨exception⟩ => ⟨body⟩"
+
+  // The same spec with no WORD in front of the slot: there is no keyword to name, so `unless` is a name
+  // being typed in the body and stays one.
+  (AKeywordSlotTheKernelDoesNotKnow.screen false [ "u", "n", "l", "e", "s", "s", " " ]) = "ab => unless~"
