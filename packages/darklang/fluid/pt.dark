@@ -307,14 +307,14 @@ let nodeDocs (n: Node) : Stdlib.Option.Option<(String * String * String)> =
        (match Darklang.LanguageTools.PackageManager.Function.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash hash) with
         | Some fn ->
           Stdlib.Option.Option.Some(
-            (textOf n "name",
+            (displayName (textOf n "name"),
              Darklang.PrettyPrinter.ProgramTypes.PackageFn.signature ctx fn,
              stripDocMarkup fn.description))
         | None -> Stdlib.Option.Option.None))
 
   | Some "EValue" ->
     (match Darklang.LanguageTools.PackageManager.Value.get (Darklang.LanguageTools.ProgramTypes.Hash.Hash (textOf n "_hash")) with
-     | Some v -> Stdlib.Option.Option.Some((textOf n "name", "", stripDocMarkup v.description))
+     | Some v -> Stdlib.Option.Option.Some((displayName (textOf n "name"), "", stripDocMarkup v.description))
      | None -> Stdlib.Option.Option.None)
 
   | Some "ERecord" -> typeDocs (textOf n "_typeHash") (displayName (textOf n "type"))
@@ -462,7 +462,7 @@ let segmentToDoc (seg: StringSegment) : Node =
 let pipeToDoc (p: PipeExpr) : Node =
   let args (es: List<Expr>) : (String * Field) = many "args" (es |> Stdlib.List.map (fun x -> toDoc x)) (exprExpect "arg")
   match p with
-  | EPipeVariable(_, name, es) -> Node.make (pipeKind "EPipeVariable") [ text "name" (displayName name), args es ]
+  | EPipeVariable(_, name, es) -> Node.make (pipeKind "EPipeVariable") [ text "name" name, args es ]
   | EPipeLambda(_, params, body) ->
     Node.make
       (pipeKind "EPipeLambda")
@@ -603,7 +603,7 @@ let toDoc (e: Expr) : Node =
       [ one "fn" (toDoc fn)
         many "typeArgs" (Stdlib.List.map typeArgs (fun t -> Types.toDoc t)) (Types.typeExpect "type")
         many "args" (Stdlib.List.map args (fun a -> toDoc a)) (exprExpect "arg") ]
-  | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (displayName (nameOf nr)), text "_hash" (hashOf nr) ]
+  | EFnName(_, nr) -> Node.make (exprKind "EFnName") [ text "name" (nameOf nr), text "_hash" (hashOf nr) ]
   | EStatement(_, first, next) ->
     Node.make (exprKind "EStatement") [ one "first" (toDoc first), one "next" (toDoc next) ]
   | EMatch(_, arg, cases) ->
@@ -667,7 +667,7 @@ let toDoc (e: Expr) : Node =
     // Shortened, the way a function name is. This drew the FULL name while `EFnName` next to it drew the
     // short one, so `Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow` had one of each in
     // the same call. Exactly the drift t88 was about: two paths to the same decision, one of them missed.
-    Node.make (exprKind "EValue") [ text "name" (displayName name), text "_hash" hash ]
+    Node.make (exprKind "EValue") [ text "name" name, text "_hash" hash ]
   | _ -> opaque e
 
 
@@ -1284,7 +1284,7 @@ let displayNameIn (currentModule: List<String>) (name: String) : String =
 let displayName (name: String) : String = displayNameIn [] name
 
 let fnNameNode (name: String) (hash: String) : Node =
-  Node.make (exprKind "EFnName") [ text "name" (displayName name), text "_hash" hash ]
+  Node.make (exprKind "EFnName") [ text "name" name, text "_hash" hash ]
 
 /// A call with one hole per parameter, labelled by the parameter's name.
 let applyNode (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn) (name: String) : Node =
@@ -2424,7 +2424,7 @@ let moreSpecs () : List<Spec> =
             Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     Spec.withWrapRules
-      (simpleOf (pipeKind "EPipeVariable") [ Piece.Text("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
+      (simpleOf (pipeKind "EPipeVariable") [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
       [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false } ]
     simpleOf
       (pipeKind "EPipeFnCall")
@@ -2504,7 +2504,7 @@ let moreSpecs () : List<Spec> =
         (simpleExpr "ERecordFieldAccess" [ Piece.FieldTargetSlot "record", Piece.Punct ".", Piece.FieldText("field", Layout.Style.Name) ] (Node.make (exprKind "ERecordFieldAccess") [ ("record", Field.One(Slot.Empty(exprExpect "record"))), text "field" "" ]))
         [ ("field", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ])
       fieldAccessOffers
-    simpleExpr "EValue" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
+    simpleExpr "EValue" [ Piece.NameText("name", Layout.Style.Name) ] (Node.make (exprKind "EValue") [ text "name" "", text "_hash" "" ])
     // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
     // would put a newline and an indent into the string's value.
     simpleExpr "EStringI" [ Piece.Flat [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ])
@@ -2671,7 +2671,7 @@ let baseSpecs () : List<Spec> =
           ("typeArgs", Field.Many([], Types.typeExpect "type"))
           ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
      |> fun sp -> { sp with maxItems = applyMaxItems })
-    simpleExpr "EFnName" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
+    simpleExpr "EFnName" [ Piece.NameText("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
     simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ])
     simpleExpr "Opaque" [ Piece.Text("source", Layout.Style.Dim) ] (Node.make (exprKind "Opaque") [ text "source" "" ])
     simpleLetPat "LPUnit" [ Piece.Label "()" ] (Node.make (letPatKind "LPUnit") [])

@@ -547,3 +547,37 @@ module AWideCaseBreaksTheWayThePrinterBreaksIt =
     = (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.printerAt 30))
   (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.fluidAt 24))
     = (AWideCaseBreaksTheWayThePrinterBreaksIt.bodyOf (AWideCaseBreaksTheWayThePrinterBreaksIt.printerAt 24))
+
+
+module AFunctionNameReadsFromWhereYouStand =
+  // The same rule as `NamesReadFromWhereYouStand` above, for a CALL rather than an enum constructor.
+  //
+  // It did not hold. `spec.dark` says the document keeps the full name -- that is the thing's identity --
+  // and `Piece.NameText` shortens on the way to the screen using the module the registry carries, which
+  // `App` sets from the target's own location. `EFnName` did neither: it STORED
+  // `displayName (nameOf nr)`, which is shortened once against NO module at build time, and drew it with
+  // `Piece.Text`, which prints text verbatim. So a function name was shortened once with the answer for
+  // standing nowhere, and every module context after that got that same answer.
+  //
+  // Found by drawing a real function beside `dark view` of it: the printer wrote `Slot.isEmpty` and
+  // Fluid wrote `Darklang.Fluid.Slot.isEmpty`, in a body that agreed on everything else.
+  //
+  // `EValue` and `EPipeVariable` had it too, and `EValue` disagreed with ITSELF: built from an
+  // expression it stored the shortened name, built from a completion candidate it stored the full one.
+  let src () : String = "Darklang.PrettyPrinter.shortenName [] \"a\" [] \"b\""
+
+  let drawn (path: List<String>) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AFunctionNameReadsFromWhereYouStand.src ()) with
+    | Ok e ->
+      let reg = Darklang.Fluid.Registry.inModule (Darklang.Fluid.App.defaultRegistry ()) path
+      Darklang.Fluid.Debug.render reg 90 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  // From nowhere in particular, the whole path.
+  (AFunctionNameReadsFromWhereYouStand.drawn []) = "Darklang.PrettyPrinter.shortenName [] \"a\" [] \"b\""
+
+  // Standing in the module it lives in, just the function.
+  (AFunctionNameReadsFromWhereYouStand.drawn [ "Darklang", "PrettyPrinter" ]) = "shortenName [] \"a\" [] \"b\""
+
+  // And one level out, one segment more. All three used to be the first one.
+  (AFunctionNameReadsFromWhereYouStand.drawn [ "Darklang" ]) = "PrettyPrinter.shortenName [] \"a\" [] \"b\""
