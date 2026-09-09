@@ -2604,8 +2604,10 @@ let typeOneRaw (st: State) (c: String) : State =
           // and no variable is called `let` -- and stayed correct only while every candidate was reserved.
           // The moment the menu learned ordinary words, a lone `c` was an unambiguous `char` and
           // `if c then` came out `if '' then`; `r` became a record update, `s` an empty string.
-          let cands = candidates st |> Stdlib.List.filter (fun c -> c.keyword)
-          let exact = exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None)
+          // `takesSpace`, not `keyword`: Tab still reaches a record from a name you typed, and a space
+          // does not, because the space after a type name is the one you type before its `{`.
+          let cands = candidates st |> Stdlib.List.filter (fun c -> c.takesSpace)
+          let exact = exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.takesSpace then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None)
           // A variable named EXACTLY what was typed outranks a keyword this is merely a prefix of.
           //
           // The filter above decides among KEYWORDS, and the comment justifying it says "no variable is
@@ -3583,7 +3585,12 @@ let resolvePartial (st: State) : Stdlib.Option.Option<State> =
         // A reserved word cannot be a variable, so a keyword candidate still wins, which is what keeps
         // `Stdlib.Option.None` settling as the constructor rather than as a variable of that name. Enter
         // and Tab still take a suggestion, because those keys mean "take what the menu is showing".
-        match exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.keyword then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None) with
+        //
+        // `takesSpace` rather than `keyword`, for the reason this comment already gives: this is
+        // SETTLING. A record must not win here either -- settling `Stdlib.Cli.Tui.Size` should leave the
+        // name, so the `{` you type next builds the record, which is what the short `Size {` always did.
+        // Tab and Enter are choosing, and still take it.
+        match exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.takesSpace then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None) with
         | Some c ->
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
           Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }

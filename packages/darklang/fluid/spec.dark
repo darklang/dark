@@ -123,9 +123,17 @@ type Candidate =
     detail: String
     valid: Validity
     node: Node
-    /// Can a SPACE take this one? True for a reserved word, which no variable can be named; false for a
-    /// suggestion whose label is an ordinary word somebody may be typing as a name.
+    /// Is this a reserved word, which no variable can be named? Consulted by TAB, which settles what you
+    /// typed and takes the top candidate, and by the decision about which candidate a menu commit means.
     keyword: Bool
+    /// May a SPACE take this one?
+    ///
+    /// Split out of `keyword`, which was doing both jobs. They agree everywhere except a record: it has
+    /// to be reachable by Tab, because that is how you build one from a name you typed, and it must NOT
+    /// be taken by a space, because the space after a type name is the one you type before its `{`. That
+    /// space used to commit a whole record with its `{` already drawn, so the `{` you typed next opened a
+    /// record UPDATE in whichever hole the caret had landed in.
+    takesSpace: Bool
     /// Did this come from the DOCUMENT rather than from the spec's fixed list?
     ///
     /// On an untouched hole the menu is mostly "everything that could go here", and Enter there means
@@ -381,7 +389,7 @@ module Spec =
     { spec with scopeCandidate = Stdlib.Option.Option.Some f }
 
   let candidate (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = true }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = true; takesSpace = true }
 
   /// A candidate whose name is an ORDINARY WORD, so a space must not commit it.
   ///
@@ -392,12 +400,17 @@ module Spec =
   ///
   /// So they are offered but never taken by a space. Enter and Tab still take them, which is what those
   /// keys mean, and typing on past them settles a variable as it always did.
+  /// Reachable by Tab, but never taken by a space. For a candidate whose own opening delimiter is the
+  /// next thing you type: a record's `{`.
+  let candidateNotOnSpace (label: String) (detail: String) (node: Node) : Candidate =
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = true; takesSpace = false }
+
   let suggestion (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = false }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = false; keyword = false; takesSpace = false }
 
   /// A candidate the document itself implied -- see `Candidate.fromContext`.
   let contextCandidate (label: String) (detail: String) (node: Node) : Candidate =
-    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = true; keyword = true }
+    Candidate { label = label; detail = detail; valid = Validity.Valid; node = node; fromContext = true; keyword = true; takesSpace = true }
 
 
 /// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec

@@ -910,6 +910,12 @@ module SpaceCommitsOnlyWhatIsUnambiguous =
   // Space commits the menu only when it is unambiguous: one candidate, or an exact match on the label.
   // `Size` is a loose prefix over three types whose labels are all longer, so space finalises what was
   // typed and moves on. Enter and Tab commit the top candidate, which is what actually builds the record.
+  //
+  // The QUALIFIED name used to differ, and only by accident: it is unique, so the space committed the
+  // whole record with its `{` already drawn, and the `{` you typed next opened a record UPDATE in
+  // whichever hole the caret had landed in. `keyword` was answering two questions -- "may a space take
+  // this" and "may Tab take this" -- which agree everywhere except here. They are two fields now, and
+  // both spellings take the same path.
   (Fixtures.screen [ "S", "i", "z", "e", " " ]) = "Size~"
   (Fixtures.screen [ "S", "i", "z", "e", "<Tab>" ]) =
     "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
@@ -2434,3 +2440,38 @@ module ExpandAndCollapseAreAPair =
   // remembered.
   (Fixtures.screen (Stdlib.List.append (ExpandAndCollapseAreAPair.src ()) [ "<Esc>", "h", "h", "h", "j", "l" ])) =
     "let ~x = 1 - 3 + 2\n⟨body⟩"
+
+
+module AQualifiedRecordDoesNotCommitOnASpace =
+  // `Stdlib.Cli.Tui.Size { width = 1; height = 2 }` built a record UPDATE inside the first field. The
+  // SHORT form was always fine, and that is the whole clue: `Size` is a loose prefix over three types so
+  // it never committed, and the `{` then built the record through `recordFromName`, which is correct.
+  // The qualified name is unique, so the space committed a whole record with its `{` already drawn, and
+  // the `{` that came next opened an update in whichever hole the caret had landed in.
+  //
+  // The fix is one word. `Spec.candidate` sets `keyword = true`, which means exactly "a space may commit
+  // this", and a record must not claim it -- the `{` you are about to type is what builds one. It is
+  // `Spec.suggestion` now.
+  //
+  // Deliberately NOT a guard in `commitMenu` for a candidate whose node is an `ERecord`: that would put
+  // a Darklang kind name back in the kernel, which is what four commits today were about removing.
+  (Fixtures.program (Fixtures.chars "Stdlib.Cli.Tui.Size { width = 1; height = 2 }")) =
+    "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+
+  (Fixtures.program (Fixtures.chars "Size { width = 1; height = 2 }")) =
+    "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+
+  // A nested update in a field is a real thing to write and still works: it is the same keystroke in the
+  // same position as the bug was, which is why no rule about the `{` itself could have separated them.
+  // `screen`, not `program`: the height is still a hole, so there is nothing to lower yet. It breaks
+  // across lines at this width, which is the record layout doing its job.
+  (Fixtures.screen (Fixtures.chars "Size { width = { r with x = 1 } }")) =
+    "Stdlib.Cli.Tui.Size {\n  width = { r with x = 1 };\n  height = ⟨height⟩\n}~"
+
+  // Enter still commits it: `commitCandidate` takes the SELECTION, with no keyword filter, so a record
+  // is one keystroke away when you mean it. Without this the fix would make records untypeable.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.Cli.Tui.Size") [ "<Enter>" ])) =
+    "Stdlib.Cli.Tui.Size { width = ~⟨width⟩; height = ⟨height⟩ }"
+
+  // An enum constructor still commits on a space: it has no delimiter of its own to wait for.
+  (Fixtures.program (Fixtures.chars "Stdlib.Option.Some 1 ")) = "Option.Some(1)"

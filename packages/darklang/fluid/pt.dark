@@ -1397,8 +1397,21 @@ let recordCandidates (typed: String) : List<Candidate> =
                 (Kind.named recordFieldType)
                 [ text "name" f.name, ("value", Field.One(Slot.Empty(exprExpect f.name))) ]))
         let summary = Stdlib.String.join (fields |> Stdlib.List.map (fun f -> f.name)) ", "
+        // `suggestion`, not `candidate`: the flag means "a space may commit this", and a record must not
+        // claim it. The `{` you are about to type is what builds a record, through `recordFromName`, and
+        // that path is correct -- it is the only reason the short form ever worked:
+        //
+        //     Size { width = 1                  right, because `Size` is a loose prefix over three types
+        //                                       and so never committed on the space
+        //     Stdlib.Cli.Tui.Size { width = 1   wrong: unique, so the space committed a whole record with
+        //                                       its `{` already drawn, and the `{` that came next opened
+        //                                       a record UPDATE in whichever hole the caret had landed in
+        //
+        // Both forms settle as a name now and both are wrapped by the `{`. Enter and Tab are untouched:
+        // they commit the SELECTION through `commitCandidate` rather than the keyword-filtered list, so a
+        // record is still one keystroke away when you mean it.
         Stdlib.Option.Option.Some(
-          Spec.candidate
+          Spec.candidateNotOnSpace
             (displayName name)
             ("{ " ++ summary ++ " }")
             (Node.make
@@ -2362,6 +2375,31 @@ let matchPatTypeSpec () : Spec =
       empty = Node.make (matchPatKind "MPVariable") [ text "name" "_" ]
       summary = exprSummary }
 
+/// A guard on an arm: `| x when x > 0 -> ...`.
+///
+/// The `when` slot is a nought-or-one Many, the same option shape an `if`'s `else` uses, so a guard was
+/// drawn perfectly and could not be TYPED -- `match n with x when` put a variable called `when` in the
+/// arm's right-hand side. Read-only, the way enum-case fields were before `opensItems`.
+///
+/// An ACTION rather than a character, unlike the enum case. There is no character to spare: the gesture
+/// after a settled pattern is a space, and a space there means "on to the right-hand side", which is what
+/// you want almost every time. Taking it for the rare guard would be the same trade as the one-hole `(`
+/// I reverted -- a rare win paid for on a common path. A guard is a deliberate thing, so it belongs where
+/// the other deliberate things are.
+let addGuard (n: Node) : Slot =
+  Slot.Filled(Node.setField n "when" (Field.Many([ Slot.Empty(exprExpect "guard") ], exprExpect "guard")))
+
+/// Only when there is not one already: the slot holds at most one.
+let hasNoGuard (n: Node) : Bool = Stdlib.List.isEmpty (Node.items n "when")
+
+let caseActions () : List<Action> =
+  [ Action
+      { name = "add a guard"
+        key = Stdlib.Option.Option.None
+        doc = "| pat when <cond> -> ..."
+        applies = hasNoGuard
+        run = addGuard } ]
+
 let caseSpec () : Spec =
   simpleOf
     (Kind.named matchCaseType)
@@ -2372,6 +2410,7 @@ let caseSpec () : Spec =
       Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "rhs" ]) ] ]
     (emptyCase ())
   |> fun sp -> Spec.withBinders sp caseBinders
+  |> fun sp -> { sp with actions = caseActions () }
 
 let listSepPieces () : List<Piece> = [ Piece.Punct ",", Piece.Line ]
 
