@@ -84,6 +84,33 @@ let settleConflict
     | Error e -> Stdlib.Result.Result.Error e
 
 
+/// Settle a conflict by taking the REMOVAL: end the name again, and close the record.
+///
+/// The sibling of <fn settleConflict>, which binds a hash. Same reason for being one function: an
+/// unbind authored with the record left open, or a record closed with no op behind it, are both
+/// states nothing later repairs.
+///
+/// `previous` is what the name holds NOW, so the op says what it ended -- which is what lets a peer's
+/// detector tell an ordinary removal from a divergence.
+let settleConflictByRemoval
+  (branchId: Uuid)
+  (c: Conflicts.Conflict)
+  : Stdlib.Result.Result<Unit, String> =
+  let location = Deps.locationOf c.owner c.modules c.name
+
+  let previous =
+    PackageOps.liveBindingFor branchId location
+    |> Stdlib.Option.map (fun b -> LanguageTools.ProgramTypes.Hash.Hash b.hash)
+
+  let op = LanguageTools.ProgramTypes.PackageOp.Unbind(location, previous)
+
+  match add branchId [ op ] with
+  | Ok _ ->
+    let _ = Conflicts.setStatus c.id "overridden" ""
+    Stdlib.Result.Result.Ok()
+  | Error e -> Stdlib.Result.Result.Error e
+
+
 /// Commit the draft on <param branchId> under <param message>. Returns the new commit's hash.
 ///
 /// Refuses when something in the draft references a name that does not resolve. The gate is on the

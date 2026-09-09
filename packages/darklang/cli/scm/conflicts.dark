@@ -278,7 +278,11 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
 
       // A version is shown by rendering it; a WORDING is the thing itself, and a reader choosing
       // between two sentences needs the sentences, not the hashes of them.
-      if aboutABinding then
+      if cand.removed then
+        // Nothing to render: this side ended the name. Say so where the hash would go, or the row
+        // reads as a version with a blank hash.
+        $"  {label} ({mark})  {who}  REMOVED the name  stamped {cand.originTs}"
+      else if aboutABinding then
         let header =
           $"  {label} ({mark})  {who}  hash {SCM.Conflicts.shortHash cand.hash}  stamped {cand.originTs}"
 
@@ -288,7 +292,11 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
         $"{header}\n{indentBlock cand.text}")
     |> Stdlib.List.iter (fun block -> Stdlib.printLine block)
 
-    if aboutABinding then
+    if c.autoResolvedTo == "" then
+      // The removal won: there is no hash to name, and "auto-resolution: " with nothing after it
+      // reads as a bug.
+      Stdlib.printLine $"  auto-resolution: the name is gone, by {c.reason}  [{c.status}]"
+    else if aboutABinding then
       Stdlib.printLine
         $"  auto-resolution: {SCM.Conflicts.shortHash c.autoResolvedTo}, by {c.reason}  [{c.status}]"
     else
@@ -391,6 +399,23 @@ let executeOverride
       | None ->
         Cli.printErr $"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author."
         state
+      | Some cand when cand.removed ->
+        // Taking the removal means ending the name again, not binding anything. `unbindName` authors
+        // the `Unbind`, so the choice travels like every other resolution.
+        if c.autoResolvedTo == "" then
+          Cli.printOk
+            $"#{c.id}: the name is already gone. Nothing to override -- `dark conflicts ack {c.id}` if it's right."
+
+          state
+        else
+          match SCM.PackageOps.settleConflictByRemoval state.currentBranchId c with
+          | Ok _ ->
+            Cli.printOk $"took {choice}; {dotted} is unbound again."
+            Cli.printHint "  it's an op, so the removal syncs and holds."
+            state
+          | Error e ->
+            Cli.printErr $"override failed: {e}"
+            { state with exitCode = 1 }
       | Some cand ->
         if cand.hash == c.autoResolvedTo then
           Cli.printOk

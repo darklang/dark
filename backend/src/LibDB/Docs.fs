@@ -422,7 +422,9 @@ let private recordDocConflict
     let candidate (side : string) (hash : string) (text : string) (stamp : string) =
       let escaped = System.Text.Json.JsonEncodedText.Encode(text).ToString()
 
-      $"""{{"side":"{side}","hash":"{hash}","text":"{escaped}","originTs":"{stamp}","author":""}}"""
+      // `removed` is false for every doc candidate: a wording disagreement has two texts, never an
+      // absence. Present because the Dark `Candidate` has the field and a missing one fails the parse.
+      $"""{{"side":"{side}","hash":"{hash}","removed":false,"text":"{escaped}","originTs":"{stamp}","author":""}}"""
 
     let candidates =
       "["
