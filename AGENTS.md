@@ -187,7 +187,8 @@ Logs go to `rundir/logs/fsharp-tests.log`.
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
-    backend/migrations/   # schema.sql, plus incremental/ for additive migrations
+    backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
+                          # LibDB/Releases.fs
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
     scripts/build/        # the build itself; `_` ones are called by other scripts

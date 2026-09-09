@@ -62,17 +62,29 @@ let private extractResource (resourceName : string) (targetPath : string) : unit
     use fileStream = File.Create(targetPath)
     stream.CopyTo(fileStream)
 
-/// The embedded `schema.sql`, or None in a debug build that did not embed it.
+/// The embedded schema, or None in a debug build that did not embed it.
+///
+/// One resource per file under `migrations/schema/`, concatenated in NAME order -- the same order
+/// `LocalExec.Migrations` reads them from disk in, and the order the statements need (FK targets
+/// before FK sources, across files as well as within one).
 let embeddedSchema () : Option<string> =
   let assembly = Assembly.GetExecutingAssembly()
-  let stream = assembly.GetManifestResourceStream("schema.sql")
 
-  if stream = null then
+  let names =
+    assembly.GetManifestResourceNames()
+    |> Array.filter (fun n -> n.StartsWith("schema/") && n.EndsWith(".sql"))
+    |> Array.sort
+
+  if Array.isEmpty names then
     None
   else
-    use stream = stream
-    use reader = new StreamReader(stream)
-    Some(reader.ReadToEnd())
+    names
+    |> Array.map (fun name ->
+      use stream = assembly.GetManifestResourceStream(name)
+      use reader = new StreamReader(stream)
+      reader.ReadToEnd())
+    |> String.concat "\n"
+    |> Some
 
 
 /// Extract a resource that was gzip-compressed at build time.
@@ -291,7 +303,7 @@ let extract () : unit =
 
     let dbPath = Path.Combine(darklangDir, "data.db")
 
-    // An EXISTING store keeps whatever shape the seed it was born from had: `schema.sql` never runs
+    // An EXISTING store keeps whatever shape the seed it was born from had: the schema never runs
     // against it, so a table or column added since is simply absent, and the top-up below is the first
     // thing to trip over it -- as a raw SQLite error ("table locations has no column named previous"),
     // on a store that is otherwise fine. Bring the shape forward first, in the order the statements

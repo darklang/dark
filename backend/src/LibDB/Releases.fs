@@ -1,17 +1,19 @@
 /// Shape changes to CANONICAL tables, on stores that already exist.
 ///
-/// `schema.sql` declares the from-scratch shape, but `CREATE TABLE IF NOT EXISTS` no-ops against a table
-/// that already exists, so a new column never reaches an existing store from that file.
+/// `migrations/schema/*.sql` declares the from-scratch shape, but `CREATE TABLE IF NOT EXISTS` no-ops
+/// against a table that already exists, so a new column never reaches an existing store from those files.
 ///
 /// In principle a PROJECTION needs no step, since dropping and re-folding it rebuilds the new shape. In
 /// practice nothing on the shipped path does that: `rebuildProjections` is reachable only from LocalExec,
 /// which is not shipped. So a projection whose shape changed needs a step here too, and `locations` has
 /// two. Fixing that properly means teaching startup to notice the drift and re-fold; until then, a step.
 ///
-/// Not an incremental `.sql` file, because those run on FRESH stores too, where `schema.sql` has already
-/// created the table with the new shape; `ALTER TABLE ... ADD COLUMN` then fails with "duplicate column
-/// name" and SQLite has no `ADD COLUMN IF NOT EXISTS`. A step has to LOOK at the store before acting,
-/// which a raw SQL file cannot.
+/// This is THE mechanism, and the only one. There used to be a second (`migrations/incremental/*.sql`,
+/// now deleted) with no written rule for choosing between them, which is how the same migration got
+/// written twice and failed in both directions: a raw `.sql` file runs on FRESH stores too, where the
+/// schema has already created the table with the new shape, and `ALTER TABLE ... ADD COLUMN` then fails
+/// with "duplicate column name" -- SQLite has no `ADD COLUMN IF NOT EXISTS`. A step has to LOOK at the
+/// store before acting, which a raw SQL file cannot.
 ///
 /// So steps are code: stable name, at most once per store, recorded in `system_migrations_v0` inside a
 /// transaction. Every step must be safe against a store that already has the desired shape, since that is
@@ -40,7 +42,7 @@ let private tableExists (table : string) : bool =
   |> Sql.executeExistsSync
 
 
-/// Add a column, or do nothing if it is already there (the FRESH store, where `schema.sql` just declared
+/// Add a column, or do nothing if it is already there (the FRESH store, where the schema just declared
 /// it).
 let addColumnIfMissing
   (table : string)
@@ -66,7 +68,7 @@ type Step = { name : string; run : unit -> unit }
 let steps : List<Step> =
   [
     // A conflict is recorded against a name; this scopes it to a BRANCH too. Note the default here is
-    // '' while `schema.sql` declares main's uuid, so a conflict row that predates the column is
+    // '' while the schema declares main's uuid, so a conflict row that predates the column is
     // scoped to no branch at all and no listing shows it. Deliberate: a conflict is a finding about a
     // log this store has since replaced, and re-detection produces it again under a real branch id.
     { name = "20260731_000001_conflicts_branch_id"
@@ -112,7 +114,8 @@ let steps : List<Step> =
     { name = "20260828_000006_locations_previous"
       run = fun () -> addColumnIfMissing "locations" "previous" "TEXT NULL" }
 
-    // The branch twin of `locations.source`; see schema.sql. Without it a branch records no provenance.
+    // The branch twin of `locations.source`; see `migrations/schema/`. Without it a branch records no
+    // provenance.
     { name = "20260904_000001_op_branches_source"
       run =
         fun () ->
@@ -153,7 +156,7 @@ let private alreadyRun () : Set<string> =
     |> Set.ofList
 
 
-/// Replay the statements of `schema.sql` that `keep` selects, against an existing store.
+/// Replay the schema statements that `keep` selects, against an existing store.
 ///
 /// Every statement in that file is `CREATE ... IF NOT EXISTS` or `INSERT OR IGNORE`, so this is safe on
 /// every startup and does nothing once the store is current. Passed in rather than read from disk: the
@@ -165,10 +168,10 @@ let private alreadyRun () : Set<string> =
 ///   2. columns  -- `steps` below, which is the only thing that can widen a table that already exists
 ///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added
 ///
-/// Doing it in one pass fails exactly there: `schema.sql` indexes `package_ops(effective)`, and on a
+/// Doing it in one pass fails exactly there: the schema indexes `package_ops(effective)`, and on a
 /// store predating that column the index cannot be created.
 let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
-  // Comments FIRST, then split. `schema.sql`'s comments contain semicolons ("NULL = DRAFT; Gates
+  // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = DRAFT; Gates
   // nothing"), so splitting first cuts statements in half and SQLite reports "incomplete input".
   // No `--` appears inside a string literal in that file, so truncating at one is safe here.
   let stripped =

@@ -105,7 +105,7 @@ module HandleCommand =
     uply {
       try
         print
-          "`migrations list` is gone — there's one schema.sql now and \
+          "`migrations list` is gone — the schema lives in migrations/schema/ now and \
            it kill-and-fills on hash change. Run `migrations run` to \
            apply (or no-op if up-to-date)."
         return Ok()

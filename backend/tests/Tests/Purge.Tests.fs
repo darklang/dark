@@ -207,6 +207,48 @@ let seedExportStripsTheBuildersDraft =
   }
 
 
+/// Every table the schema DECLARES is a table the store HAS.
+///
+/// The schema is a directory now, read by concatenating `migrations/schema/*.sql` in filename
+/// order. Two ways that can go wrong quietly: a file lands in the directory and the read path never
+/// picks it up (a filter, a sort, a glob that missed it), or a file is read and its statements never
+/// run. Either way the store is short a table and nothing says so until something queries it.
+///
+/// So: parse the CREATE TABLE names out of the files on disk and check the store has each one. The
+/// store under test was built by this bootstrap, so agreement is the whole claim.
+let everyDeclaredTableExists =
+  testTask "every table the schema files declare exists in the store" {
+    let dir = System.IO.Path.Combine(LibCloud.Config.migrationsDir, "schema")
+
+    let declared =
+      System.IO.Directory.GetFiles(dir, "*.sql")
+      |> Array.toList
+      |> List.sort
+      |> List.collect (fun path ->
+        System.Text.RegularExpressions.Regex.Matches(
+          System.IO.File.ReadAllText path,
+          @"CREATE TABLE IF NOT EXISTS\s+(\w+)"
+        )
+        |> Seq.map (fun m -> m.Groups[1].Value)
+        |> List.ofSeq)
+
+    Expect.isNonEmpty declared "the schema directory declares tables"
+
+    let! present =
+      Sql.query "SELECT name FROM sqlite_master WHERE type = 'table'"
+      |> Sql.executeAsync (fun read -> read.string "name")
+
+    let missing = declared |> List.filter (fun t -> not (List.contains t present))
+
+    Expect.isEmpty
+      missing
+      $"""every declared table exists (missing: {String.concat ", " missing}). \
+        A table declared in `migrations/schema/` and absent from the store means the file it is in \
+        never reached the bootstrap -- check the read in `LocalExec.Migrations.schemaSql` and the \
+        glob in `Cli.fsproj`."""
+  }
+
+
 let tests =
   testList
     "Purge"
@@ -216,4 +258,5 @@ let tests =
       logStateProjectionsArePurged
       foldProjectionsArePurged
       seedExportStripsPerInstallState
-      seedExportStripsTheBuildersDraft ]
+      seedExportStripsTheBuildersDraft
+      everyDeclaredTableExists ]
