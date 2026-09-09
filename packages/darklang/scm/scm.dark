@@ -1,0 +1,14 @@
+module Darklang.SCM
+
+// What every SCM module needs and nothing owns.
+//
+// Name resolution walks up the module path, so a definition here resolves unqualified from every
+// `Darklang.SCM.*` submodule. That is the whole reason this file exists: `localDb` had ten
+// identical definitions, one per module, because each module needed it and none was the obvious
+// home.
+
+/// This instance's store, which is what every SCM query runs against.
+///
+/// A function rather than a `val` because the path follows the store swap a test does, and a `val`
+/// is evaluated once.
+let localDb () : String = Stdlib.LocalStore.path ()

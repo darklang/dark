@@ -15,7 +15,6 @@ module Darklang.SCM.Conflicts
 // Does NOT read `package_ops`: that is `SCM.PackageOps`'s silo, which hands the op-log side here as plain
 // `Binding`s. One-way, PackageOps -> Conflicts.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// The branch this process is on. Asked of `SCM.Branches`, not of `SCM.PackageOps` (which spells the same
 /// thing `currentBranch`): PackageOps depends on this module, so reaching back would close the loop.

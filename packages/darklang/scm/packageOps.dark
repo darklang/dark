@@ -62,7 +62,6 @@ let addAuthored
 // This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor, sync) go
 // through the typed functions below and never hand-roll SQL. There should be no op-log SQL outside here.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 // Identity here is a NAME, not an authentication. There is no crypto and no proof: it is a string you
 // reuse across machines so a relay can attribute ops to you, trusted by convention, stored in per-install

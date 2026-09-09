@@ -13,7 +13,6 @@
 /// drawn when both sides of a comparison say it, which is why the weaker reading is safe.
 module Darklang.SCM.Lineage
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// The hash currently bound at `location` for `kind` on the PARENT of the branch being authored on, if
 /// anything is. `parentOverlay` is that parent's chain overlay (empty when the parent is main).

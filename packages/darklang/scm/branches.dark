@@ -9,7 +9,6 @@ module Darklang.SCM.Branches
 // `storeDeltaOps`, which needs the binary codec. `markMergedEffective` and `finishMerge` are here: the
 // fold between them (`scmApplyMergedOps`) is F#, the SQL on either side of it is not.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// The branch this process is on. This is an ID: `--branch <name>` and `DARK_BRANCH` are resolved to one in
 /// the CLI entry point before any Dark runs, and the persistent `current_branch` already holds one.

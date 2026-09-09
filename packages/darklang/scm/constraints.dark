@@ -12,7 +12,6 @@ module Darklang.SCM.Constraints
 // durable, for the same reason `Resolve` is an op: an ack that lives only locally re-reports forever, and
 // differently on each machine.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// What kind of thing a Constraint noticed.
 ///
@@ -276,7 +275,7 @@ let detectSupersededPolicies () : List<Finding> =
     // policy names a live binding. Fn only when nothing is bound (the finding still reads).
     let kind =
       match Stdlib.Sqlite.queryP
-              (SCM.PackageOps.localDb ())
+              (SCM.localDb ())
               "SELECT item_type FROM locations
                WHERE owner = @p0 AND modules = @p1 AND name = @p2
                  AND unlisted_at IS NULL AND source <> 'unbind' LIMIT 1"

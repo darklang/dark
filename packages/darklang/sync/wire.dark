@@ -85,7 +85,7 @@ let rowsToSyncOps (rows: List<Dict<String, Stdlib.Sqlite.Value>>) : List<SyncOp>
 let exportOps () : List<SyncOp> =
   rowsToSyncOps (
     Stdlib.Sqlite.rowsOrEmptyP
-      (PackageOps.localDb ())
+      (SCM.localDb ())
       // Main's EFFECTIVE log only. The file is the documented backup and machine-to-machine path, and
       // importing it folds everything in it into main at the other end -- so a branch's unmerged work
       // and a review queue's unapproved bundle must not be in it. Branches travel as their own bundle.
@@ -114,7 +114,7 @@ let exportOps () : List<SyncOp> =
 let unpushedFor (relay: String) : List<SyncOp> =
   rowsToSyncOps (
     Stdlib.Sqlite.rowsOrEmptyP
-      (PackageOps.localDb ())
+      (SCM.localDb ())
       // COMMITTED ops only. A draft that ships arrives under the receiver's import commit, and the
       // message you write later never travels (the ops are already marked pushed); a draft is also
       // simply not finished. Committing is what makes work someone else's business.
@@ -130,7 +130,7 @@ let unpushedFor (relay: String) : List<SyncOp> =
 /// so the two cannot disagree about whether there is anything to send.
 let unpushedCount (relay: String) : Int64 =
   Stdlib.Sqlite.scalarIntP
-    (PackageOps.localDb ())
+    (SCM.localDb ())
     "SELECT count(*) AS n FROM package_ops p
      WHERE p.effective = 1
        AND p.commit_hash IS NOT NULL
@@ -154,7 +154,7 @@ let branchChannel (relay: String) : String = $"{relay}/branch"
 /// a branch pull both record what the channel holds.
 let unpushedBranches (relay: String) : List<(String * Int64)> =
   Stdlib.Sqlite.rowsP
-    (PackageOps.localDb ())
+    (SCM.localDb ())
     "SELECT b.name AS name, b.id AS id, count(*) AS n
      FROM op_branches ob
      JOIN branches b ON b.id = ob.branch_id
@@ -180,7 +180,7 @@ let rememberPushed (relay: String) (opIds: List<String>) : Unit =
   else
     let _ =
       Stdlib.Sqlite.mustExecBatch
-        (PackageOps.localDb ())
+        (SCM.localDb ())
         [ ("INSERT OR IGNORE INTO sync_pushed (relay, op_id) VALUES (@p0, @p1)",
            opIds |> Stdlib.List.map (fun id -> [ relay, id ])) ]
     ()
@@ -190,14 +190,14 @@ let rememberPushed (relay: String) (opIds: List<String>) : Unit =
 let forgetPushed (relay: String) : Unit =
   let _ =
     Stdlib.Sqlite.mustExec
-      (PackageOps.localDb ())
+      (SCM.localDb ())
       "DELETE FROM sync_pushed WHERE relay = @p0"
       [ relay ]
   ()
 
 /// The highest local rowid in the log right now.
 let localMaxRowid () : Int64 =
-  Stdlib.Sqlite.scalarInt (PackageOps.localDb ()) "SELECT MAX(rowid) AS n FROM package_ops" "n"
+  Stdlib.Sqlite.scalarInt (SCM.localDb ()) "SELECT MAX(rowid) AS n FROM package_ops" "n"
   |> Stdlib.Option.withDefault 0L
 
 
@@ -242,7 +242,7 @@ let exportOwnedSince
 
   let rows =
     Stdlib.Sqlite.rowsOrEmptyP
-      (PackageOps.localDb ())
+      (SCM.localDb ())
       sql
       [ owner, Stdlib.Int64.toString sinceSeq, Stdlib.Int64.toString relayPageSize ]
 
@@ -296,7 +296,7 @@ let rememberRelayInstance (sourceId: String) (relayInstance: String) : Unit =
 /// (`pullCursor`). A stamp cannot serve as one -- see `exportOwnedSince`.
 let localMaxOriginTs () : String =
   Stdlib.Sqlite.scalarTextP
-    (PackageOps.localDb ())
+    (SCM.localDb ())
     "SELECT max(origin_ts) AS m FROM package_ops"
     []
     "m"
