@@ -2366,7 +2366,7 @@ let caseSpec () : Spec =
   simpleOf
     (Kind.named matchCaseType)
     [ Piece.Slot "pat"
-      Piece.EachWrapped("when", " when ", [], "")
+      Piece.EachWrapped("when", " when", [], "")
       Piece.Space
       Piece.Punct "->"
       Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "rhs" ]) ] ]

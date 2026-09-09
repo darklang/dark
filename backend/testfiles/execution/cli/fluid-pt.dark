@@ -1808,3 +1808,26 @@ module ACallCarriesItsTypeArguments =
   (Fixtures.roundTrip "xs |> Stdlib.Json.parse<Darklang.Sync.Wire>") =
     "xs |> Stdlib.Json.parse<Darklang.Sync.Wire>"
   (Fixtures.roundTrip "xs |> Stdlib.List.length") = "xs |> Stdlib.List.length"
+
+
+module AMatchGuardIsSpacedLikeThePrinter =
+  // `| x when  x > 0 -> 1`, with two spaces. `Piece.EachWrapped("when", " when ", [], "")` carried a
+  // trailing space in the opener AND the piece emits a `Line` before the item, so both landed.
+  //
+  // The enum case is the control that says which one is wrong: its opener is ` of` with no trailing
+  // space, drawn by the same branch, and `| Circle of Int` has always been right.
+  //
+  // Found by auditing a commit message of mine that claimed the guard "gets the same fix" as the enum
+  // case from a keyword-styling change. It does not -- that claim was wrong, and testing it turned this
+  // up instead.
+  let drawn (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 90 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  (AMatchGuardIsSpacedLikeThePrinter.drawn "match n with\n| x when x > 0 -> 1\n| _ -> 0") =
+    "match n with\n| x when x > 0 -> 1\n| _ -> 0"
+
+  (AMatchGuardIsSpacedLikeThePrinter.drawn "match n with\n| Some v when v > 2 -> v\n| _ -> 0") =
+    "match n with\n| Some(v) when v > 2 -> v\n| _ -> 0"

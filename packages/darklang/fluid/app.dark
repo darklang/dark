@@ -670,7 +670,12 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let paneTitle = "fluid · " ++ (Editor.breadcrumb st.editor)
   // Completions live at the caret, always: a floating popover under (or over) the cursor, so the menu is
   // where your eyes already are rather than off in a side panel. The inspector no longer lists them.
-  let popoverSpans = Widget.popover st.theme st.editor region st.scroll st.hscroll
+  // The gallery owns the screen while it is up. The first entry is a blank expression, whose completion
+  // menu drew straight through the list behind it -- two menus at once, and neither obviously the one
+  // the keyboard was talking to.
+  let popoverSpans =
+    if Stdlib.Option.isSome st.demoPick then []
+    else Widget.popover st.theme st.editor region st.scroll st.hscroll
   let mainSpans =
     Stdlib.List.flatten
       [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true
