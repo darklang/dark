@@ -38,8 +38,8 @@ let executeMergePreview
     let (_, parentName) = parentOf branchId
 
     match SCM.Branches.canMerge branchId with
-    | Error why ->
-      Cli.printErr $"would NOT merge: {why}"
+    | Error r ->
+      Cli.printErr $"would NOT merge: {SCM.Branches.refusalMessage r}"
       state
     | Ok _ ->
       Cli.printOk $"\"{branchRef}\" would merge into \"{parentName}\"."
@@ -160,7 +160,7 @@ let executeMerge (state: AppState) (branchRef: String) (allowTypeErrors: Bool) :
 
       { state with currentBranchId = landedOn }
     | Error e ->
-      Cli.printErr $"couldn't merge: {e}"
+      Cli.printErr $"couldn't merge: {SCM.PackageOps.mergeErrorMessage e}"
       state
 
 /// What a rebase would reconcile, and nothing recorded.

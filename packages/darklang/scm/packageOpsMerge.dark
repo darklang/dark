@@ -204,6 +204,21 @@ type MergeOutcome =
     conflicts: List<Conflicts.Conflict> }
 
 
+/// What stopped a merge: the gate said no, or the mechanism failed partway through.
+///
+/// The two are worth telling apart. A refusal is a state the branch is in and a person can act on;
+/// a mechanism failure means the store did something unexpected halfway.
+type MergeError =
+  | Refused of Branches.MergeRefusal
+  | Mechanism of String
+
+/// The sentence a person reads, whichever half it came from.
+let mergeErrorMessage (e: MergeError) : String =
+  match e with
+  | Refused r -> Branches.refusalMessage r
+  | Mechanism m -> m
+
+
 /// Merge a branch into its parent. Decides whether it MAY (`Branches.canMerge`), then has the builtin do
 /// it: flip the frontier effective, fold into main, evaluate merged values, clear the frontier, mark
 /// merged. The gate is here and the mechanism is there, which is the line this module draws everywhere.
@@ -211,9 +226,9 @@ type MergeOutcome =
 /// Conflicts do not BLOCK the merge. They are detected first (the fold is about to move the local side,
 /// after which the comparison is meaningless), auto-resolved by origin_ts LWW, and recorded once the merge
 /// succeeds, so the loser is reviewable rather than silently gone.
-let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, String> =
+let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, MergeError> =
   match Branches.canMerge branchId with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error r -> Stdlib.Result.Result.Error(MergeError.Refused r)
   | Ok _ ->
 
   let conflicts = branchPreview branchId
@@ -267,7 +282,7 @@ let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, String> =
 
     (MergeOutcome { merged = n; conflicts = conflicts })
     |> Stdlib.Result.Result.Ok
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error(MergeError.Mechanism e)
 
 
 /// What a rebase did: the parent's message, and what the rebase reconciled.

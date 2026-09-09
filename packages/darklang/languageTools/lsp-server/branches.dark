@@ -280,7 +280,7 @@ let handleCanMergeRequest
     let (allowed, why) =
       match gate with
       | Ok _ -> (true, "")
-      | Error reason -> (false, reason)
+      | Error r -> (false, SCM.Branches.refusalMessage r)
 
     respondOk
       requestID
@@ -314,7 +314,7 @@ let handleMergeRequest
       notifyBranchChanged (activeBranch ()) (SCM.PackageOps.branchName (activeBranch ()))
       state
     | Error e ->
-      respondError requestID e
+      respondError requestID (SCM.PackageOps.mergeErrorMessage e)
       state)
 
 
