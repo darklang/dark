@@ -122,18 +122,18 @@ let steps : List<Step> =
           addColumnIfMissing "op_branches" "source" "TEXT NOT NULL DEFAULT 'op'" }
 
     // A store made under the previous SCM has `branch_ops`, its separate op log for branch structure.
-    // Nothing reads it now, and the branches recorded there do not carry over: say so ONCE, at the
-    // first boot that sees it, rather than let `dark branches` come up empty with no explanation. The
-    // table is left where it is; wiping is the person's call.
+    // Nothing reads it now, and NOTHING in it carries over -- not the branches, and not main's ops
+    // either, whatever an earlier version of this note claimed. Say so ONCE, at the first boot that
+    // sees it, rather than let `dark branches` come up empty with no explanation. The table is left
+    // where it is; wiping is the person's call.
     { name = "20260904_000002_previous_scm_store"
       run =
         fun () ->
           if tableExists "branch_ops" then
             System.Console.Error.WriteLine
               "note: this store was made by a previous version of the SCM (it has a `branch_ops` table). \
-               Branches recorded there do not carry over; main's ops do. For a clean start, wipe the store \
-               (`rm ~/.darklang/data.db*`): the packages re-grow from this binary, and `dark pull` brings \
-               the rest back from your relay." }
+               Nothing in it carries over. Wipe the store (`rm ~/.darklang/data.db*`): the packages \
+               re-grow from this binary, and `dark pull` brings the rest back from your relay." }
 
     // What a relay's stored bundle CONTAINS, so a push can be compared with it rather than replacing
     // it blind. `relay_branches` is hosted data, not a projection, so nothing else brings these to a
