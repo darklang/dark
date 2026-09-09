@@ -1351,11 +1351,19 @@ let stayIfOnHole (st: State) (move: State -> State) : State =
   if onABlankNow st then st else move st
 
 let landSettled (st: State) (sp: Path) : State =
-  let canBeWrappedByOperator =
+  // Any type-level rule that fires from AFTER the node, not just the one named `<operator>`.
+  //
+  // The question is "could the next character wrap what was just settled", and `continuesText = false`
+  // is precisely how a rule says it acts on a finished node rather than on its text. Naming `<operator>`
+  // answered a narrower question that happens to coincide in expressions, where the operator rule is
+  // always there, and does not in PATTERNS, where `::` and `|` are wrap rules under their own names. So
+  // a space after a pattern walked out to the right-hand side and `| h :: t ->` could not be typed with
+  // the spaces the printer writes: `h::t` worked, `h :: t` gave `| h -> ::t`.
+  let canBeWrappedAfter =
     match nodeAtPath st.root sp with
     | Some n ->
       (match Registry.findTypeLevel st.reg n.kind with
-       | Some spec -> spec.wrapRules |> Stdlib.List.any (fun r -> r.onChar == "<operator>")
+       | Some spec -> spec.wrapRules |> Stdlib.List.any (fun r -> Stdlib.Bool.not r.continuesText)
        | None -> false)
     | None -> false
 
@@ -1375,7 +1383,7 @@ let landSettled (st: State) (sp: Path) : State =
     | Some n -> Stdlib.Option.isSome (wrapRuleNamed st.reg n "<apply>")
     | None -> false
 
-  if canBeWrappedByOperator || canBeApplied || (inSpaceSepList st sp) then
+  if canBeWrappedAfter || canBeApplied || (inSpaceSepList st sp) then
     { st with caret = Caret.afterNode sp }
   else
     nextHole st
@@ -2316,7 +2324,10 @@ let typeOne (st: State) (c: String) : State =
     // The FALLBACK for `,`, kept deliberately. `sepPunctSibling` above handles every list whose spec says
     // what separates its items, and it only fires at the END of an item; this catches the rest of what the
     // hardcoded comma used to do, so nothing that worked stops working.
-    match addSibling settledForSibling with
+    // Not past a FULL one, for the reason typing a value is not: a comma inside `Some(a` asked for a
+    // second field of a one-field case, and walking out to the arm list answered a question nobody asked
+    // by starting `| b -> <rhs>`. A full fixed-arity slot has no next item, here or anywhere out from it.
+    match addSiblingNotPastAFullOne settledForSibling with
     | Some added -> added
     | None -> typeOneRaw st c
   else
@@ -2524,7 +2535,7 @@ let typeOneRaw (st: State) (c: String) : State =
                   | None -> false)
             | None -> false
 
-          match (if (itemHasHoles st caret) || appliesHere then Stdlib.Option.Option.None else addSibling st) with
+          match (if (itemHasHoles st caret) || appliesHere then Stdlib.Option.Option.None else addSiblingNotPastAFullOne st) with
           | Some added -> typeOne added c
           | None ->
             // Nothing to grow. A name after a finished value that CAN be applied is a call: `f xs` is
@@ -4258,6 +4269,22 @@ let leadPunctSibling (st: State) (c: String) : Stdlib.Option.Option<State> =
 /// Enter inside a list adds a sibling element after the current one and moves to it. This is how you grow
 /// a match (a new arm), a list, a record, a set of parameters -- without leaving the keyboard row.
 /// Add an element after item `i` of `parentPath`'s `slot`, and move to it.
+/// Is this Many at its spec's cap? `addSiblingAt` asks the same question to refuse to grow; this is the
+/// half a caller needs to tell "full" apart from "not a list at all", which are the same `None` there.
+let listIsFull (st: State) (parentPath: Path) (slot: String) : Bool =
+  match nodeAtPath st.root parentPath with
+  | Some n ->
+    (match Node.field n slot with
+     | Some(Many(items, _)) ->
+       (match Registry.find st.reg n.kind with
+        | Some spec ->
+          (match spec.maxItems n slot with
+           | Some cap -> (Stdlib.List.length items) >= cap
+           | None -> false)
+        | None -> false)
+     | _ -> false)
+  | None -> false
+
 let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib.Option.Option<State> =
     match nodeAtPath st.root parentPath with
     | Some n ->
@@ -4306,6 +4333,35 @@ let addSibling (st: State) : Stdlib.Option.Option<State> =
     | None ->
       let (parentPath, slot, i) = entry
       addSiblingAt st parentPath slot i)
+
+/// The same walk, stopping at the first list that is FULL rather than climbing past it.
+///
+/// Enter wants the climb: at the end of `Ok(1)` in a match arm, Enter means the next arm, and the arm
+/// list is two levels out. TYPING a value there does not -- a full fixed-arity slot is the construct
+/// saying it is complete, so the value belongs to whatever comes after it, not to the enclosing list.
+/// `match input Ok v 1` started a second arm `| 1 ->` and left the first one's right-hand side empty.
+///
+/// It only became reachable when a space stopped walking out of a pattern on its own, which is the same
+/// keystroke arriving somewhere it had never arrived before.
+let addSiblingNotPastAFullOne (st: State) : Stdlib.Option.Option<State> =
+  enclosingListItems st.caret
+  |> Stdlib.List.fold (false, Stdlib.Option.Option.None) (fun acc entry ->
+    let (stopped, found) = acc
+
+    if stopped then
+      acc
+    else
+      match found with
+      | Some _ -> acc
+      | None ->
+        let (parentPath, slot, i) = entry
+
+        match addSiblingAt st parentPath slot i with
+        | Some next -> (true, Stdlib.Option.Option.Some next)
+        | None -> ((listIsFull st parentPath slot), Stdlib.Option.Option.None))
+  |> fun r ->
+    let (_stopped, found) = r
+    found
 
 
 // --- Keys ---

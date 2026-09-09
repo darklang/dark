@@ -76,7 +76,10 @@ module StringsKeepSpaces =
 
 module IfAndMatch =
   (Fixtures.program [ "i", "f", " ", "b", " ", "1", " ", "2", "<Esc>" ]) = "if b then 1 else 2"
-  (Fixtures.screen [ "m", "a", "<Enter>", "n", " ", "0", " " ]) = "match n with\n| 0 -> ~⟨rhs⟩"
+  // The space HOLDS on the settled pattern rather than stepping to the rhs, because `::` or `|` could
+  // follow it. What reaches the rhs is the next thing you type, or the `->` you would write anyway.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", " ", "0", " " ]) = "match n with\n| 0~ -> ⟨rhs⟩"
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", " ", "0", " ", "1" ]) = "match n with\n| 0 -> 1~"
 
 
 module Operators =
@@ -324,7 +327,12 @@ module MatchPatterns =
   // itself. A bound field is usable in the arm's body.
   (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x" ]) = "match n with\n| Ok(x~) -> ⟨rhs⟩"
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "match n with\n| Ok(x) -> x"
-  (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "S", "o", "m", "e", "(", "a", ",", "b", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Some(a, b) -> 1"
+  // ...but not past the arity. `Some` takes one field, so the comma is not a second one, and the
+  // pattern side now refuses it exactly the way the expression side always has -- the character joins
+  // the name it is standing in. Neither is graceful; they are at least the same.
+  (Fixtures.screen [ "m", "a", "<Enter>", "n", "<Tab>", "S", "o", "m", "e", "(", "a", ",", "b" ]) =
+    "match n with\n| Some(ab~) -> ⟨rhs⟩"
+  (Fixtures.screen (Fixtures.chars "Stdlib.Option.Some(a,b")) = "Option.Some(ab~)"
 
   // Constructor fields nest, like any other pattern.
   (Fixtures.program [ "m", "a", "<Enter>", "n", "<Tab>", "O", "k", "(", "S", "o", "m", "e", "(", "y", "<Tab>", "1", "<Esc>" ]) = "match n with\n| Ok(Some(y)) -> 1"
@@ -2578,3 +2586,62 @@ module AHoleRemembersWhatGoesInIt =
   (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.length xs") [ "<Esc>", "x" ])) =
     "Stdlib.List.length ~⟨arg⟩"
+
+
+module APatternTypesWithTheSpacesThePrinterWrites =
+  // The printer writes `| h :: t -> 0`. Typing that gave `| h -> ::t->0`, with everything after the
+  // space as text in the right-hand side, because a space after a settled PATTERN walked out to the rhs
+  // and `::` never got to wrap the head. `h::t` with no spaces worked, and every pin here typed it that
+  // way, so nothing said otherwise.
+  //
+  // `landSettled` decides whether a space holds the caret on what was just settled or moves on, and it
+  // asked whether the node's type carries a wrap rule NAMED `<operator>`. The real question is whether
+  // any rule fires from AFTER the node, which is what `continuesText = false` says. Expressions have an
+  // `<operator>` rule so the two answers coincide there; a pattern's `::` and `|` are wrap rules under
+  // their own names, so they did not.
+  //
+  // This is the property the whole project leans on -- the printed form types back -- failing on the
+  // most common pattern in the language, and it was found by typing rather than by reading.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with h :: t -> h") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| h :: t -> h"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with \"--yes\" :: rest -> rest") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| \"--yes\" :: rest -> rest"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with h :: t :: r -> h") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| h :: t :: r -> h"
+
+  // The or-pattern is the same rule's other half, and the same fix reaches it.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with 1 | 2 -> 0") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| 1 | 2 -> 0"
+
+  // Both spellings, so neither can drift: no spaces still works.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with h::t -> h") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| h :: t -> h"
+
+  // The controls. A space still ADVANCES where nothing could follow, and still holds where an operator
+  // could -- the expression rule this generalises, unchanged.
+  (Fixtures.screen [ "1", " " ]) = "1~"
+  (Fixtures.screen [ "1", " ", "+" ]) = "1 +~ ⟨right⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "match n with h ") [ "<Tab>", "0" ])) =
+    "match n with\n| h -> 0~"
+
+
+module AFullSlotIsNotAnInvitationToTheOuterOne =
+  // `match input Ok v 1` put the `1` in a SECOND ARM and left the first one's right-hand side empty.
+  // Two things had to be wrong for that, and both were.
+  //
+  // A constructor pattern's fields were not capped at the case's arity, though the expression side has
+  // been capped all along, so `match n with Some v -> v` printed `| Some(v, v) -> <rhs>` -- not a
+  // pattern in this language. A pattern carries no type, so whatever BUILDS one records the arity: the
+  // completion, and `toDoc` reading one back.
+  //
+  // Then, with the fields full, growing walked PAST them to the arm list. That walk is right for Enter
+  // -- at the end of `Ok(1)` in an arm, Enter means the next arm -- and wrong for typing, where a full
+  // fixed-arity slot is the construct saying it is complete.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n with Some v -> v") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| Some(v) -> v"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match input Ok v 1") [ "<Esc>", "<Esc>" ])) =
+    "match input with\n| Ok(v) -> 1"
+
+  // Enter still climbs. This is the reading that says so.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "match n Error(e 0") [ "<Esc>", "<Esc>" ])) =
+    "match n with\n| Error(e) -> 0"

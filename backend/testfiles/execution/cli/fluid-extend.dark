@@ -647,3 +647,89 @@ module AMergeTheKernelDoesNotKnow =
 
   (AMergeTheKernelDoesNotKnow.merged true) = "abcd at 2"
   (AMergeTheKernelDoesNotKnow.merged false) = "no merge"
+
+
+module ASpaceWaitsForADSLsOperator =
+  // A space either holds the caret on what was just settled or moves on to the next hole, and the answer
+  // is "hold, if the next character could wrap this". The kernel decided that by looking for a wrap rule
+  // literally NAMED `<operator>`, so a language whose binary operator is spelled anything else got the
+  // caret moved out from under it.
+  //
+  // `Acme.Word` with a `~` rule that pairs two of them. With the rule the space waits and the `~` builds
+  // a pair; without it the space leaves and there is nothing left to pair.
+  let wordKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Word"
+  let pairKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Pairing"
+
+  let wordExpect () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (ASpaceWaitsForADSLsOperator.wordKind ()) "word"
+
+  let pairUp (n: Darklang.Fluid.Node) (_c: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ASpaceWaitsForADSLsOperator.pairKind ())
+      [ ("left", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled n))
+        ("right", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect ()))) ]
+
+  let specs (declares: Bool) : List<Darklang.Fluid.Spec> =
+    // The TYPE-level spec is where a rule that applies to any word of the language goes, and it is the
+    // one `landSettled` reads.
+    let typeSpec =
+      Darklang.Fluid.Spec.withWrapRules
+        (Darklang.Fluid.Spec.simple
+          (ASpaceWaitsForADSLsOperator.wordKind ())
+          []
+          (Darklang.Fluid.Node.make (ASpaceWaitsForADSLsOperator.wordKind ()) []))
+        (if declares then
+           [ Darklang.Fluid.WrapRule
+               { onChar = "~"
+                 wrap = ASpaceWaitsForADSLsOperator.pairUp
+                 opSlot = ""
+                 nextSlot = "right"
+                 continuesText = false } ]
+         else
+           [])
+
+    let wordSpec =
+      Darklang.Fluid.Spec.withTextClasses
+        (Darklang.Fluid.Spec.simple
+          (Darklang.Fluid.Kind.ofCase "Acme.Word" "Plain")
+          [ Darklang.Fluid.Piece.Text("chars", Darklang.Fluid.Layout.Style.Literal) ]
+          (Darklang.Fluid.Node.make
+            (Darklang.Fluid.Kind.ofCase "Acme.Word" "Plain")
+            [ ("chars", Darklang.Fluid.Field.Text "") ]))
+        [ ("chars", Darklang.Fluid.TextClass.Chars "<identifier>") ]
+
+    let pairSpec =
+      Darklang.Fluid.Spec.simple
+        (ASpaceWaitsForADSLsOperator.pairKind ())
+        [ Darklang.Fluid.Piece.Slot "left"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Punct "~"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Slot "right" ]
+        (Darklang.Fluid.Node.make
+          (ASpaceWaitsForADSLsOperator.pairKind ())
+          [ ("left", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect ())))
+            ("right", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect ()))) ])
+
+    [ typeSpec, wordSpec, pairSpec ]
+
+  let screen (declares: Bool) (keys: List<String>) : String =
+    let reg = Darklang.Fluid.Registry.ofList (ASpaceWaitsForADSLsOperator.specs declares)
+
+    // From the END of the `a`, because that is where a space is the question. `Test.run` starts at
+    // offset 0, where a space is just a space.
+    Darklang.Fluid.Test.runFrom
+      reg
+      (Darklang.Fluid.Slot.Filled(
+        Darklang.Fluid.Node.make
+          (Darklang.Fluid.Kind.ofCase "Acme.Word" "Plain")
+          [ ("chars", Darklang.Fluid.Field.Text "a") ]))
+      60
+      (Darklang.Fluid.Caret.inText [] "chars" 1)
+      keys
+
+  // A space, then the DSL's own operator: the space waited, so the `~` had something to pair.
+  (ASpaceWaitsForADSLsOperator.screen true [ " ", "~" ]) = "a ~ ~⟨word⟩"
+
+  // Without the rule the space has nothing to wait for, so `a` stays alone and the `~` finds nothing.
+  (ASpaceWaitsForADSLsOperator.screen false [ " ", "~" ]) = "a~"

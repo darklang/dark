@@ -433,7 +433,11 @@ let matchPatToDoc (p: MatchPattern) : Node =
   | MPTuple(_, a, b, rest) ->
     Node.make (matchPatKind "MPTuple") [ many "items" (pats (Stdlib.List.flatten [ [ a, b ], rest ])) (matchPatExpect "pattern") ]
   | MPEnum(_, caseName, fields) ->
-    Node.make (matchPatKind "MPEnum") [ text "case" caseName, many "fields" (pats fields) (matchPatExpect "field") ]
+    Node.make
+      (matchPatKind "MPEnum")
+      [ text "case" caseName
+        text "_arity" (Stdlib.Int.toString (Stdlib.List.length fields))
+        many "fields" (pats fields) (matchPatExpect "field") ]
   | MPOr(_, alts) -> Node.make (matchPatKind "MPOr") [ many "alts" (pats alts) (matchPatExpect "pattern") ]
   | _ -> Node.make (matchPatKind "MPUnit") []
 
@@ -1494,6 +1498,20 @@ let enumMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
   else
     Stdlib.Option.Option.None
 
+/// A pattern's enum fields are capped at the case's arity, the same way an expression's are. They were
+/// not, and a value typed just after a settled field grew the list instead of moving on:
+/// `match n with Some v -> v` came out `| Some(v, v) -> <rhs>`, which is not a pattern in this language.
+///
+/// A pattern carries no type, so the node cannot look the arity up the way `enumMaxItems` does from a
+/// hash. Whatever BUILT the pattern knew it, so it records it: the completion from the store, and
+/// `toDoc` reading one back. A pattern grown by hand from `(` records nothing and stays uncapped, which
+/// is the same latitude the expression side gives.
+let matchPatEnumMaxItems (n: Node) (slot: String) : Stdlib.Option.Option<Int> =
+  if slot == "fields" then
+    Stdlib.Result.toOption (Stdlib.Int.parse (textOf n "_arity"))
+  else
+    Stdlib.Option.Option.None
+
 let looksLikeATypeName (typed: String) : Bool =
   let lastSegment = Stdlib.String.split typed "." |> Stdlib.List.last |> Stdlib.Option.withDefault typed
   match Stdlib.String.first lastSegment 1 with
@@ -1616,7 +1634,9 @@ let enumPatCandidates (typed: String) : List<Candidate> =
       detail
       (Node.make
         (matchPatKind "MPEnum")
-        [ text "case" c.name, ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
+        [ text "case" c.name
+          text "_arity" (Stdlib.Int.toString (Stdlib.List.length c.fields))
+          ("fields", Field.Many(fieldSlots, matchPatExpect "field")) ]))
   |> Stdlib.List.sortBy (fun c -> Stdlib.String.length c.label)
   |> Stdlib.List.take 4
 
@@ -2481,7 +2501,8 @@ let moreSpecs () : List<Spec> =
       (simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]))
       (Closer { char = ")"; slot = "items"; whenEmpty = Stdlib.Option.Option.Some "MPUnit"; soloIsGroup = true })
     Spec.opensItemsOn
-      (simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ]))
+      (simpleOf (matchPatKind "MPEnum") [ Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (matchPatKind "MPEnum") [ text "case" "", ("fields", Field.Many([], matchPatExpect "field")) ])
+       |> fun sp -> { sp with maxItems = matchPatEnumMaxItems })
       [ ("(", "fields") ]
     simpleOf (matchPatKind "MPOr") [ Piece.Group [ Piece.Each("alts", [ Piece.Space, Piece.Punct "|", Piece.Line ]) ] ] (Node.make (matchPatKind "MPOr") [ ("alts", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ])
     Spec.withOffers
