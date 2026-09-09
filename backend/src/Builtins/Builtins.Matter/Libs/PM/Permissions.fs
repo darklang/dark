@@ -198,21 +198,21 @@ let fns : List<BuiltInFn> =
 
     // Read-only policy metadata; see pmPolicyPackageAccess above.
     policyFn
-      "pmPolicyPins"
+      "pmPolicyApprovedVersions"
       [ accountParam ]
       (TList(TTuple(TString, TString, [])))
-      ("Every logical function name this account has pinned, with the pinned "
-       + "content hash (host metadata; hashes are not user-facing). Read-only.")
+      ("Every logical function name this account has approved a version of, with the "
+       + "approved content hash (host metadata; hashes are not user-facing). Read-only.")
       (fun _ args ->
         match args with
         | [| accountIDDval |] ->
           uply {
-            let pins =
-              PolicyStore.functionPins (accountIDOf accountIDDval)
+            let approved =
+              PolicyStore.approvedVersions (accountIDOf accountIDDval)
               |> Map.toList
               |> List.map (fun (name, hash) ->
                 DTuple(DString name, DString hash, []))
-            return DList(VT.tuple VT.string VT.string [], pins)
+            return DList(VT.tuple VT.string VT.string [], approved)
           }
         | _ -> incorrectArgs ())
 
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     hostOnly
-      "pmPolicyPinFunction"
+      "pmPolicyApproveVersion"
       [ accountParam
         locationParam
         Param.make "hash" TString "Approved content hash"
@@ -289,10 +289,10 @@ let fns : List<BuiltInFn> =
           "True only when a human has reviewed a changed permission contract" ]
       (TypeReference.result
         TUnit
-        (TCustomType(NR.ok (PolicyToDT.PinFailure.typeName ()), [])))
-      ("Approve an immutable function closure and pin its logical name as one "
-       + "transaction. Contract comparison happens before any approval is stored. "
-       + "`Ok ()` when approved and pinned; `Error (ContractChanged differences)` "
+        (TCustomType(NR.ok (PolicyToDT.ApprovalFailure.typeName ()), [])))
+      ("Approve an immutable function closure and point its logical name at that version, as "
+       + "one transaction. Contract comparison happens before any approval is stored. "
+       + "`Ok ()` when approved; `Error (ContractChanged differences)` "
        + "when the contract changed and `acknowledgeContractChange` was false — "
        + "show them, obtain the review, and call again with the acknowledgment; "
        + "`Error (Refused message)` when the version cannot be approved as asked. "
@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
              DBool acknowledgeIncomplete
              DBool acknowledgeContractChange |] ->
           uply {
-            let failureKT = PolicyToDT.PinFailure.knownType ()
+            let failureKT = PolicyToDT.ApprovalFailure.knownType ()
             let effects = builtinEffects state
             let rules =
               match rulesDval with
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
                 Some(PolicyToDT.Policy.fromDT policy)
               | _ -> incorrectArgs ()
             match!
-              PackagePermissions.approveAndPinFunctionVersion
+              PackagePermissions.approveVersionForName
                 LibDB.ProgramTypes.Fn.get
                 effects.callEffectsFor
                 (accountIDOf accountIDDval)
@@ -326,33 +326,33 @@ let fns : List<BuiltInFn> =
                 acknowledgeContractChange
                 effects.fingerprint
             with
-            | Ok PackagePermissions.PinOutcome.Pinned ->
+            | Ok PackagePermissions.ApprovalOutcome.Approved ->
               return Dval.resultOk KTUnit failureKT DUnit
-            | Ok(PackagePermissions.PinOutcome.ContractChanged differences) ->
+            | Ok(PackagePermissions.ApprovalOutcome.ContractChanged differences) ->
               return
                 Dval.resultError
                   KTUnit
                   failureKT
-                  (PolicyToDT.PinFailure.contractChanged differences)
+                  (PolicyToDT.ApprovalFailure.contractChanged differences)
             | Error message ->
               return
                 Dval.resultError
                   KTUnit
                   failureKT
-                  (PolicyToDT.PinFailure.refused message)
+                  (PolicyToDT.ApprovalFailure.refused message)
           }
         | _ -> incorrectArgs ())
 
     hostOnly
-      "pmPolicyUnpinFunction"
+      "pmPolicyUnapproveVersion"
       [ accountParam; locationParam ]
       TUnit
-      "Remove a logical function version pin. Host-only."
+      "Withdraw a logical function name's approved version. Host-only."
       (fun _ args ->
         match args with
         | [| accountIDDval; DString location |] ->
           uply {
-            PolicyStore.unpinFunction (accountIDOf accountIDDval) location
+            PolicyStore.unapproveVersion (accountIDOf accountIDDval) location
             return DUnit
           }
         | _ -> incorrectArgs ())

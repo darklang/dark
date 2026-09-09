@@ -46,7 +46,7 @@ Updating existing items also re-checks their visible transitive dependents after
 all propagation finishes and lists any that have definite type errors. Reports
 count package locations rather than shared content hashes and do not misattribute
 errors that already existed.
-`commit` re-checks what it is committing and refuses a definite type error —
+`commit` re-checks what it is committing and refuses a definite type error;
 `commit --allow-type-errors` overrides that. An incomplete proof is reported but
 never blocks: it means the checker lacked evidence, not that the declaration is
 wrong. `typecheck` summarizes the whole branch; `--all` also lists successful
@@ -64,7 +64,10 @@ line of it:
 `--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
 than a screen-scrape. Plain `view` is for a person to read and carries a
 capabilities line you would have to strip. `edit <name>` with no file opens
-$EDITOR instead, which is the shape for a human, not for you.
+$EDITOR instead, which is the shape for a human, not for you. And `--raw` is
+the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
+annotated nested lets come back normalized, so diff against a fresh `--raw`,
+never against what you typed.
 
 ## Names and syntax
 
@@ -94,29 +97,165 @@ rules allow (or deny) additional effects and resources:
   permissions allow http GET https://api.stripe.com/v1
   permissions allow file write /srv/app/data     # roots are absolute; ~ is not expanded
   permissions deny http POST https://api.stripe.com/v1
-  permissions allow native             # SQLite SQL, raw fds, process handles: cannot be
-                                       # scoped, so it is granted whole or not at all
+  permissions allow native             # raw fds, process handles, SQL against another
+                                       # database: cannot be scoped, so it is granted
+                                       # whole or not at all. SQL against THIS instance's
+                                       # own store needs no such grant.
   permissions requirements <fn|hash>   # complete transitive permission requirements
   permissions show <fn|hash>           # requirements, approvals, and effective policies
 
 Consumer approvals are local to the logged-in account on this installation.
 The instance policy remains machine-wide, while each account gets its own
-package approvals and logical-function pins. The normal workflow uses the
-logical function name; immutable hashes stay behind the approval:
+package approvals and its own approved version per logical function name. The
+normal workflow uses the logical function name; immutable hashes stay behind
+the approval:
 
   permissions approve Darklang.Vendor.Package.function
   permissions update Darklang.Vendor.Package.function
-  permissions pins                      # name  shorthash
-  permissions unpin Darklang.Vendor.Package.function
+  permissions approved                  # name  shorthash
+  permissions unapprove Darklang.Vendor.Package.function
   permissions approvals                 # approved hashes; revoke-package <hash> drops one
 
 Approval computes the function's inferred transitive needs; changing the code
 changes its hash and requires a new decision, without changing the user's
-logical name. `unpin` only releases the name; the version's approval stays
-until `revoke-package`.
+logical name. An approved version is what the name RESOLVES to when you run
+something, so approving is how you stay on a reviewed version while the package
+moves on. `unapprove` only releases the name; the version's approval stays until
+`revoke-package`.
 
-## Targeted help
+## SCM (version control)
 
+Your edits are LIVE the moment you author them. `commit` doesn't make them
+real -- it reviews them and records them. Before that they're your draft: running,
+changeable, not yet anyone else's.
+
+Editing an item repoints everything that uses it, immediately. That's
+PROPAGATION, and it's the one behaviour to know about, because it means a
+`status` after one edit can show two changed items.
+
+  status [--json]      what changed, what FOLLOWED, what's waiting
+  commit <msg> [-y]    review + commit; -y skips the prompt
+  commit --json        a dry review -- exactly what committing would do
+  discard [-y]         drop the whole draft
+  undo <name>          step ONE item back one version
+  deps <name> --json   what it uses and what uses it, each flagged `behind`
+  propagate pin <name> stop something following, and undo the repoint it got
+  ack --all            leave every constraint finding for now
+
+Every question-answering command takes `--json` (status, commit's dry review,
+conflicts, constraints, branches, diff, deps, search, typecheck), and it's the
+same data the human view renders. `status --json` flags each changed item
+`followed` or not, which is how you tell what you did from what propagation did.
+Authoring commands exit nonzero when nothing was saved (a parse error, a name
+mismatch), so branch on the exit, not on grepping for "error".
+  (see: docs scm -- the full model, branches, merge, conflicts, sync)
+
+## Deprecation (mark items as unused / dangerous / obsolete)
+  deprecate <fn|type|value> <name> --kind <k> [options]
+    kinds: superseded-by (requires --replacement), harmful, obsolete
+  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
+    options: --ignore-dependents; --force = --ignore-dependents + --yes
+  undeprecate <name>                          # clear it, any kind, harmful included
+  eval --allow-harmful <fn>                   # opt out of harmful halt
+  (see: docs deprecation)
+
+## Branches
+
+A branch is an overlay on the same op log, invisible to main until it merges, and it sees only COMMITTED work from main and its parents -- a draft is private to where it was authored.
+Several agents on several branches is the case this is built for: one process
+each, and they never see each other's work until someone merges.
+
+  dark switch feature              # persists; the next `dark` starts here
+  dark --branch feature <cmd>      # ONE command, without switching
+  dark branches [--json]           # what exists
+  dark diff feature                # what it changes vs its parent
+  dark rebase feature              # take the parent's current state
+  dark merge feature               # fold it in
+
+Conflicts never block. Both sides converge on the same winner, the loser is
+kept, and `dark conflicts` is where you review it after.
+  (see: docs scm)
+
+## Sync
+
+One relay, remembered, and explicit verbs. Nothing runs in the background.
+
+  dark sync setup                  # name this instance, point it at a relay, push once
+  dark sync                        # push then pull
+  dark push / dark pull            # one direction only
+  dark commits                     # THIS branch's commits, newest first
+  dark review pull [queue]         # stage a peer's ops instead of applying them
+
+Ops are content-addressed, so pushing the same work twice changes nothing.
+Pulled code is ordinary package code: it does not run until you run it, and
+the unguarded HTTP transport it could reach is limited to the relay you
+configured, not whatever it asks for.
+  (see: docs scm)
+
+## Name Resolution
+Names resolve relative to the current module, searching from
+most-specific to least-specific.
+
+In `module Darklang.Stdlib.List`, writing `Option.Option` tries:
+  1. Darklang.Stdlib.List.Option.Option
+  2. Darklang.Stdlib.Option.Option   <-- found here
+  3. Darklang.Option.Option
+  4. Option.Option
+
+Rules:
+  - Same module: no qualifier needed
+    (in Darklang.Stdlib.List, `map` finds Darklang.Stdlib.List.map)
+  - Parent/sibling modules: use relative name
+    (in Darklang.Stdlib.List, `Option.Option` finds
+     Darklang.Stdlib.Option.Option)
+  - `Stdlib.X` shortcut: always expands to `Darklang.Stdlib.X`
+    (works from any module, even outside Darklang)
+  - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
+  - Cross-owner: must use full path
+    (from Tests.*, write `Darklang.SCM.PackageOps.currentBranch`)
+
+## Critical Syntax
+- Whitespace-sensitive (like Python)
+- Nested function definitions need PARENTHESIZED params AND full annotations:
+  `let helper (x: Int) : Int = ...`. The parser desugars this to a local lambda, so
+  use it for task-local helpers. A nested fn can call one defined above it; a FORWARD
+  reference to one defined below fails, and so does mutual recursion.
+- NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid --
+  modules are not first-class values. Use the full path each time.)
+- Pipe |> feeds the left value as the FIRST argument of the right fn; any
+  args written after the fn come after it: `[1, 2] |> Stdlib.List.map toString`,
+  `n |> Stdlib.Int.add 1`. Wrap a complex left side in parens: (complex expr) |> fn
+- Lists: [1, 2, 3] (commas; a semicolon is a parse error)
+- Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
+  double quotes; "a" is not 'a')
+- Tuples destructure inline in `let` and in lambda params:
+  `let (a, b) = pair`, `fun (name, done) -> ...`
+- String concat: ++ (not @)
+- String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
+  non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
+- Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
+  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
+  division on ints; float division on floats. A bare `1` is an arbitrary-
+  precision `Int` and never overflows.
+
+## Records
+  MyRecord { a = 1; b = 2 }
+  # { must not be left of type name
+
+## Enums
+  Option.Some 5      # construct: TypeName.Case
+  | Some x -> ...     # match: just Case (never the qualified Type.Case in an arm)
+  | (Ok x, Ok y) -> ...      # tuple of constructors; parens optional, with or without a space
+  | Some(Ok v) -> ...        # constructor of a constructor
+  | Some((a, b)) -> ...      # constructor wrapping a tuple NEEDS its inner parens
+  # `::` is pattern-only; prepend in an expression with `Stdlib.List.push item list`
+
+## Troubleshooting
+If commands hang or fail silently, check logs:
+  rundir/logs/cli.log    # main CLI log
+  rundir/logs/           # other logs
+
+## More
   docs syntax | types | operators | errors | packages
   docs stdlib | cli | scm | deprecation
   docs signatures <module>

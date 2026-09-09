@@ -39,7 +39,15 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   else if state.activeView == vApps then
     splitListPreview state region "Apps" "Detail" (Stdlib.Cli.UI.Colors.dimText "no apps registered")
   else if state.activeView == vTraces then
-    splitListPreview state region "Traces" "Detail" (Stdlib.Cli.UI.Colors.dimText "no traces yet - eval or run an app to record")
+    // Sample rows must SAY so in the title, not only in the detail pane: the first sample is the
+    // REPL's own "try:" example, which someone who just ran it will believe tracing recorded.
+    let tracesTitle =
+      if state.items |> Stdlib.List.any (fun it -> it.kind == "trace-sample") then
+        "Traces · (sample)"
+      else
+        "Traces"
+
+    splitListPreview state region tracesTitle "Detail" (Stdlib.Cli.UI.Colors.dimText "no traces yet - eval or run an app to record")
   else if state.activeView == vDocs then
     splitListPreview state region "Docs" "Topic" (Stdlib.Cli.UI.Colors.dimText "(no topics)")
   else
@@ -109,7 +117,8 @@ let renderBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
 /// A view's purpose and data caveat. An empty caveat means real data.
 let viewBlurb (idx: Int) : (String * String) =
   if idx == vMatter then ("browse and edit the package tree", "")
-  else if idx == vScratch then ("evaluate expressions; `let` binds for the session", "")
+  else if idx == vScratch then
+    ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
   else if idx == vSCM then ("changes, commits, branches, conflicts", "")
   else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
   else if idx == vAI then ("agent threads and prompts", "sample data")
@@ -127,19 +136,30 @@ let viewBlurb (idx: Int) : (String * String) =
     | None -> ("", "")
 
 /// Key hints for the focused pane, followed by global shortcuts.
-let hintsForView (state: State) : String =
+///
+/// Fitted to `width` rather than concatenated and clipped: clipping one long string loses the hints at the
+/// END, which are `?` (the keymap) and `q` (the way out) -- the two a person needs most when lost. The
+/// row drops whole hints cheapest-first instead: secondary globals, then the view's own actions, and
+/// `?`/`q` never.
+let hintsForView (state: State) (width: Int) : String =
   let view = state.activeView
   // Pane movement only applies when a preview exists.
   let hasPreview = Stdlib.Bool.not (Stdlib.List.isEmpty state.items)
   let paneHint = if hasPreview then [ ("←→", "pane") ] else []
-  // Global keys, always the same, anchored at the right end of the footer.
-  // Short enough that a view's own keys still fit beside them at 120 columns;
-  // ` and the rest of the long tail live in `?`.
-  let global = [ ("/", "find"), (":", "cmd"), ("?", "help"), ("esc", "back"), ("q", "quit") ]
+  // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
+  // Split by what a person cannot do without: `?` opens the keymap and `q` leaves; everything else on
+  // this row is discoverable THROUGH `?`, so everything else can give way on a narrow terminal.
+  //
+  // `q`, not `esc/q`: Escape is BACK one level everywhere and never quits (see `keys-view.dark` and the
+  // `?` overlay, which both say so). The one hint that has to survive every width said the opposite.
+  let essential = [ ("?", "help"), ("q", "quit") ]
+  let secondaryGlobal = [ ("/", "search"), (":", "cmd"), ("p", "prompt"), ("`", "views") ]
   let ctx =
     if sidebarFocused state then
       // Home exposes the shortcut back to the command prompt.
-      if view == vHome then [ ("↑↓", "move"), ("⏎", "go"), ("1-9", "workspace"), ("→", "to view"), ("p", "prompt") ]
+      // `p prompt` lives in secondaryGlobal already; repeating it here printed the footer's one
+      // duplicate entry.
+      if view == vHome then [ ("↑↓", "move"), ("⏎", "go"), ("1-9", "workspace"), ("→", "to view") ]
       else [ ("↑↓", "move"), ("⏎", "go"), ("→", "to view") ]
     else if view == vMatter then
       Stdlib.List.flatten
@@ -164,12 +184,13 @@ let hintsForView (state: State) : String =
         [ ("↑↓", "move"), ("o", "ours"), ("t", "theirs"), ("a", "ack") ]
       else
         // merge/rebase are in `?` - eight verbs plus the globals didn't fit a
-        // 120-column footer.
+        // 120-column footer. `u/d` stay: they are the only way to sync from in here, and a key nobody
+        // can see is a key nobody uses.
         Stdlib.List.flatten
-          [ [ ("↑↓", "move"), ("⏎", "open"), ("c", "commit"), ("x", "discard"), ("b", "branch"), ("s", "switch") ]
+          [ [ ("↑↓", "move"), ("⏎", "open"), ("c", "commit"), ("x", "discard"), ("b", "branch"), ("s", "switch"), ("u/d", "push/pull") ]
             paneHint ]
     else if view == vDevices then
-      [ ("c", "config"), ("s", "sync"), ("a", "add") ]
+      [ ("c", "config"), ("s", "sync now"), ("a", "setup") ]
     else if view == vAI then
       let enterHint = if state.ai.section == AiSection.Prompts then ("⏎", "use") else ("⏎", "open")
       Stdlib.List.flatten [ [ ("↑↓", "move"), enterHint, ("a", "ask") ], paneHint ]
@@ -187,7 +208,9 @@ let hintsForView (state: State) : String =
         let h = vd.hints
         h state
       | None -> [ ("↑↓", "move") ]
-  Frame.formatHints (Stdlib.List.append ctx global)
+  // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
+  // outlive the secondary global keys, and `?`/`q` outlive everything.
+  Frame.formatHintsFitted (Stdlib.List.append ctx secondaryGlobal) essential width
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =
@@ -195,11 +218,12 @@ val helpGroups =
     ("Move", "↑↓ or j/k   g/G top/bottom   ←→ or h/l between panes   tab next pane")
     ("Open", "⏎ into a module / open a row   esc up a module")
     ("Find", "/ find   : command   ? this   q quit")
-    ("Code", "e edit   n new fn   t new type   v new value   r rename   x traces   L values only   f filter")
+    ("Code", "e edit   n new fn   t new type   v new value   r rename   x traces   L lens   C changed   f filter")
     ("REPL", "⏎ type (esc leaves the prompt)   f clear log   x clear session")
     ("Home", "⏎ go to the row's thing   c commit   x discard   b branch   m merge   r rebase   o/t/a resolve")
-    ("Changes", "c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
+    ("Changes", "c commit   x discard   u/d push/pull   b branch   s switch   m merge   r rebase   o/t/a resolve")
     ("Run", "apps: ⏎ inspect   i install   r run   s stop")
+    ("Devices", "s sync now   c view the config   a where setup lives")
     ("Search", "↑↓ move   ⏎ jump   esc close")
     // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
     // the prompt runs from the `:` bar; `p` hands you the prompt itself.

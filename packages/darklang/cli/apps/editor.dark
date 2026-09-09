@@ -391,7 +391,10 @@ let onKey
   | Exit next -> Cli.Component.Step.Exit next
   | LaunchFg cmd -> Cli.Component.Step.Launch(state, cmd)
 
-val component =
+/// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
+/// instructions live in the execution that created it, so a stored one is a dangling reference that
+/// dies when applied in a later process. Rebuilt per call instead.
+let component () : Cli.Component.Component<Cli.Apps.Editor.State> =
   Cli.Component.stateless viewAtSize onKey
 
 
@@ -411,4 +414,4 @@ let launch (cliState: Cli.AppState) : Cli.AppState =
         message = ""
         showDetail = false }
     |> refreshPresentation
-  Cli.Component.launch cliState component state
+  Cli.Component.launch cliState (component ()) state

@@ -375,6 +375,18 @@ let hashToShort (hash: Hash) : String =
   let h = hashToString hash
   Stdlib.String.first h 8
 
+/// The hash of a piece of PROSE, which is not content and so is not hashed the way an item is.
+///
+/// `UpdateDoc.previous` names the text it replaces, and naming it needs a way to say WHICH text
+/// without carrying it. Same construction as an item hash (SHA-256, lowercase hex) so the two are
+/// indistinguishable in a column, and deliberately not the same function: an item hash is over a
+/// canonical serialization and this is over the bytes of a string. Must agree with
+/// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
+let hashOfText (text: String) : Hash =
+  (Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob text)))
+  |> Stdlib.String.toLowercase
+  |> Hash.Hash
+
 /// A package entity paired with its location
 type LocatedItem<'entity> =
   { entity: 'entity
@@ -493,37 +505,129 @@ type DeprecationKind =
   /// Don't use this anymore (catch-all).
   | Obsolete
 
-/// A single repoint operation within a PropagateUpdate
+/// A single repoint: what propagation moved. Reported back to the caller; NOT an op.
 type PropagateRepoint =
   { location: PackageLocation
     fromRef: Reference
     toRef: Reference }
 
 
+/// What happened to a branch. A closed set, so a type rather than a string. Both cases are monotonic:
+/// applying one twice, or out of order, lands in the same place. Rename is absent because it is
+/// last-writer-wins and `branches` records no stamp to arbitrate with.
+type BranchEventKind =
+  /// The ids of the ops the merge moved. A peer holding more of the branch than the merger saw (its own
+  /// unpushed edits) keeps those on the branch.
+  | Merged of ops: List<Uuid>
+  | Archived
+
+/// What a `Decision` DID. The shared part of a decision (who, where, why) lives on the op; this is the
+/// part that varies, so a decision that binds a name and one that only closes a finding can't be
+/// confused for each other.
+type DecisionKind =
+  /// Bind this name to THIS version, the one the fold didn't pick. Its own case rather than another
+  /// SetName because ops are content-addressed: re-authoring the losing SetName produces the op that
+  /// already exists and folds nothing. Binds with source='resolution' and closes the conflict as
+  /// `overridden`.
+  | Override of target: Reference
+  /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
+  | Ack of findingId: String
+  /// Whether this name follows its dependencies when they move, or stays where it is.
+  | Propagation of policy: PropagationPolicy
+
+/// Pin and follow are the two standing answers; `Unset` is the absence of one, which the fold deletes
+/// rather than stores, so "no policy" has a single spelling.
+type PropagationPolicy =
+  | Pin
+  | Follow
+  | Unset
+
+/// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
+///
+/// The nested parts are the point. A doc on a field, a case or a parameter is outside the identity
+/// hash too, so before these there was no op that could carry an edit to one.
+type DocPart =
+  | WholeItem
+  | RecordField of fieldName: String
+  | EnumCase of caseName: String
+  /// By POSITION, not name: a parameter's name is not in the identity hash, so a name would not
+  /// survive the version it was written against. Field and case names ARE hashed.
+  | Parameter of parameterIndex: Int
+
+module DocPart =
+  /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
+  /// build cannot read. Must agree with `LibDB.Docs.partKey`, which writes them.
+  let fromKey (key: String) : Stdlib.Option.Option<DocPart> =
+    match Stdlib.String.split key ":" with
+    | [ "item" ] -> Stdlib.Option.Option.Some DocPart.WholeItem
+    | [ "record-field", name ] -> Stdlib.Option.Option.Some(DocPart.RecordField name)
+    | [ "enum-case", name ] -> Stdlib.Option.Option.Some(DocPart.EnumCase name)
+    | [ "parameter", index ] ->
+      Stdlib.Int.parse index
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.map (fun i -> DocPart.Parameter i)
+    | _ -> Stdlib.Option.Option.None
+
+  /// How it reads in a listing: which part of the declaration is being described.
+  let describe (p: DocPart) : String =
+    match p with
+    | WholeItem -> "the item"
+    | RecordField name -> $"field {name}"
+    | EnumCase name -> $"case {name}"
+    | Parameter index -> $"parameter {Stdlib.Int.toString (index + 1)}"
+
+
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
-  // Bind a name (location) to a piece of content (target).
-  | SetName of location: PackageLocation * target: Reference
+  /// Bind a name (location) to a piece of content (target).
+  ///
+  /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
+  /// authored it had no store to ask, which is true of the parsers). Two SetNames for one location that
+  /// BOTH name no predecessor are two independent creations, which is a conflict; one that names the
+  /// other's hash is an ordinary edit, which is not.
+  | SetName of
+      location: PackageLocation *
+      target: Reference *
+      previous: Stdlib.Option.Option<Hash>
+  /// A name stops existing. Unlists whatever is live at the location and nothing else: the content stays
+  /// reachable by hash. `previous` is the hash it unbound. Not a Deprecate, which is about content and would
+  /// mark every other name on the same body; a deprecated name still resolves, an unbound one does not.
+  | Unbind of location: PackageLocation * previous: Stdlib.Option.Option<Hash>
   // Author-initiated deprecation annotation on a specific hash.
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
-  // Propagation: when a definition is updated, propagate the change to all dependents
-  | PropagateUpdate of
-      propagationId: Uuid *
-      sourceLocation: PackageLocation *
-      fromRefs: List<Reference> *
-      toRef: Reference *
-      repoints: List<PropagateRepoint>
-  // Revert a propagation: restore previous versions atomically
-  | RevertPropagation of
-      revertId: Uuid *
-      revertedPropagationIds: List<Uuid> *
-      sourceLocation: PackageLocation *
-      restoredSourceRef: Reference *
-      revertedRepoints: List<PropagateRepoint>
+  /// What the thing at a NAME says about itself, or one named part of it.
+  ///
+  /// Scoped to a location, not to content, and that is the point: content is shared. Ten names hold
+  /// `type ParseError = | BadFormat | OutOfRange`, and what `Int64.ParseError` means is not what
+  /// `UInt64.ParseError` means. The declaration's own `///` still travels in the item and is the
+  /// fallback; this is how one name says something else.
+  ///
+  /// `previous` is the hash of the text being replaced, None when there was nothing there. It is
+  /// what lets two people editing one doc comment produce a recorded conflict rather than one of
+  /// them losing their words silently. `restating` is empty except on the restatement path.
+  | UpdateDoc of
+      location: PackageLocation *
+      part: DocPart *
+      text: String *
+      previous: Stdlib.Option.Option<Hash> *
+      restating: Stdlib.Option.Option<String>
+  /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding, acking a
+  /// finding and choosing a propagation policy are one class of act -- someone decided something about
+  /// a location, and it has to hold on every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
+  /// and idempotence is the caller's choice of what to put in it. `reason` is carried, never interpreted.
+  | Decision of
+      id: String *
+      location: PackageLocation *
+      reason: String *
+      kind: DecisionKind
+  /// Something that happened to a BRANCH rather than to a name. Merged ops travel on their own, since
+  /// they become main ops; the FACT of the merge does not, so without this a colleague's copy of a branch
+  /// goes on listing it as live work after you land it.
+  | BranchEvent of branchId: Uuid * event: BranchEventKind * at: String
 
 
 module Search =
@@ -665,21 +769,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageType hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageValue hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageFn hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

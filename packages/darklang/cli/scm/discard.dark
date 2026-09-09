@@ -1,70 +1,142 @@
-module Darklang.Cli.SCM.Discard
+module Darklang.Cli.Discard
 
-
-let execute (state: AppState) (args: List<String>) : AppState =
-  let known =
-    (fun a -> (a == "--yes") || (a == "-y"))
-
-  let understood =
-    "flags: --yes (-y). Discards all uncommitted work; `undo <name>` takes one."
-
-  if Cli.refuseUnknownArgs "discard" understood known args then
-    state
-  else
-
-  let branchId = state.currentBranchId
-
-  let autoConfirm =
-    (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
-
-  let summary = SCM.PackageOps.getWipSummary branchId
-
-  if summary.total == 0 then
-    Stdlib.printLine "Nothing to discard."
-    state
-  else
-    let header = if autoConfirm then "Discarded:" else "Will discard:"
-    Stdlib.printLine header
-
-    if summary.types > 0 then
-      Stdlib.printLine $"  {Cli.Text.plural summary.types "type"}"
-
-    if summary.values > 0 then
-      Stdlib.printLine $"  {Cli.Text.plural summary.values "value"}"
-
-    if summary.fns > 0 then
-      Stdlib.printLine $"  {Cli.Text.plural summary.fns "function"}"
-
-    Stdlib.printLine ""
-
-    let proceed =
-      Cli.Prompt.confirmExplicit
-        autoConfirm
-        (Stdlib.Cli.UI.Colors.warning "This cannot be undone. Proceed? (y/n): ")
-
-    if proceed then
-      match SCM.PackageOps.discard branchId with
-      | Ok count ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Discarded {Stdlib.Int.toString count} ops.")
-        state
-      | Error e ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Discard failed: {e}")
-        state
-    else
-      Stdlib.printLine "Discard cancelled."
-      state
-
-
-let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
-  []
-
+// `dark discard` -- decide against your draft.
+//
+// The draft is everything you've authored since the last `dark commit`. Authoring is live-on-write, so a
+// draft is not pending work: it is already running, and discarding it takes those versions back out. What
+// is already committed is never touched, which is what makes this safe to reach for.
 
 let help (_state: AppState) : String =
-  [ "Usage: discard [--yes|-y]"
-    "Discard all uncommitted (WIP) changes on the current branch."
+  [ "dark discard - drop your draft: everything authored since the last commit."
     ""
-    "This permanently deletes all uncommitted changes. Use with caution."
+    "  dark discard          review what would go, then confirm"
+    "  dark discard -y       skip the confirmation"
+    "  dark discard <name>   drop just that item from your draft"
     ""
-    "Flags:"
-    "  --yes, -y   Skip confirmation prompt" ]
+    "  Committed work is never touched. On a branch this drops that branch's uncommitted ops;"
+    "  on main it drops main's and re-folds from the commits that remain."
+    "  To step ONE item BACK a version, that's `dark undo <name>`. To remove one from"
+    "  the draft entirely, which is what a NEW item needs since it has no version to"
+    "  step back to, `dark discard <name>`." ]
   |> Stdlib.String.join "\n"
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let autoConfirm =
+    (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes")
+
+  let named =
+    args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "-"))
+
+  let scope =
+    match SCM.PackageOps.currentBranch () with
+    | id when SCM.Branch.isMain id -> SCM.Branch.mainBranchName
+    | id -> $"branch \"{SCM.PackageOps.branchName id}\""
+
+  // `dark discard <name>` drops just that name's uncommitted bindings. It is the only way out for a
+  // newly-authored item: `undo` steps back a VERSION and a new item has none, so without this a typo in
+  // a new item blocks `commit` until the whole draft goes.
+  match named with
+  | [ arg ] ->
+    match Packages.Location.parseRelativeTo state.packageData.currentLocation arg with
+    | Error e ->
+      Cli.printErr e
+      state
+    | Ok loc ->
+      let dotted = PropagateCmd.dotted loc
+      let mods = Stdlib.String.join loc.modules "."
+
+      let inDraft =
+        SCM.PackageOps.draftBindings ()
+        |> Stdlib.List.filter (fun b ->
+          (b.owner == loc.owner) && (b.name == loc.name) && (b.modules == mods))
+
+      if Stdlib.List.isEmpty inDraft then
+        Cli.printOk $"{dotted} isn't in your draft on {scope} -- nothing to discard."
+        Cli.printHint "  `dark status` lists what is."
+        state
+      else if
+        Stdlib.Bool.not (
+          Cli.Prompt.confirmExplicit
+            autoConfirm
+            (Stdlib.Cli.UI.Colors.warning $"\n  Drop {dotted} from your draft? [y/N]: ")
+        )
+      then
+        Cli.printOk
+          $"  kept. (`dark discard {dotted} -y` if you mean it -- a piped stdin can't answer this.)"
+        state
+      else
+        match SCM.PackageOps.discardDraftName loc.owner loc.modules loc.name with
+        | Ok n ->
+          Cli.printOk $"dropped {dotted} from your draft ({Cli.Text.plural n "op"})."
+          state
+        | Error e ->
+          Cli.printErr $"couldn't drop {dotted}: {e}"
+          state
+  | _ :: _ :: _ ->
+    Cli.printErr "dark discard takes at most one name."
+    Cli.printHint "  `dark discard` drops the whole draft; `dark discard <name>` drops one item."
+    state
+  | [] ->
+
+  let changed = SCM.PackageOps.draftBindings ()
+  let ops = SCM.PackageOps.draftOpCount ()
+
+  // Empty means NO OPS, not "no changed names". A draft can hold ops that bind nothing -- a
+  // propagation pin, a deprecation, an ack -- and deciding on the bindings alone reported those
+  // as nothing to discard and then left them in place, which `dark propagate` promptly showed
+  // still there. The listing below is per binding and stays that way; the count is the truth.
+  if ops == 0L then
+    Cli.printOk $"nothing to discard -- your draft on {scope} is empty."
+    state
+  else
+
+  // A WARNING header, not a green one: this listing is what is about to be destroyed, and green
+  // reads as "already fine".
+  Stdlib.printLine (
+    Stdlib.Cli.UI.Colors.warning
+      $"  DISCARDING ({Stdlib.Int.toString (Stdlib.List.length changed)}) on {scope}, {Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"}"
+  )
+
+  // Ops that bind no name have nothing to list per-name; say how many rather than showing an
+  // empty listing under a header that promises one.
+  let _ =
+    if Stdlib.List.isEmpty changed then
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "    (no changed names -- no new version: pins, deprecations, docs, acks)")
+    else
+      ()
+
+  changed
+  |> Stdlib.List.iter (fun b ->
+    // The FULL name, as `status` and the JSON spell it; a listing of what dies is the wrong place
+    // to abbreviate.
+    let name = SCM.Conflicts.fqn b.owner b.modules b.name
+    Stdlib.printLine $"    - {name}")
+
+  // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
+  // stray Return or a piped stdin must not answer for you.
+  if
+    Stdlib.Bool.not (
+      Cli.Prompt.confirmExplicit
+        autoConfirm
+        (Stdlib.Cli.UI.Colors.warning "\n  Drop these? [y/N]: ")
+    )
+  then
+    Cli.printOk "  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)"
+    state
+  else
+
+  match SCM.PackageOps.discardDraft () with
+  | Ok n ->
+    Cli.printOk $"discarded {Cli.Text.plural n "op"} -- {scope} is back to its last commit."
+    state
+  | Error e ->
+    Cli.printErr $"couldn't discard: {e}"
+    state
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

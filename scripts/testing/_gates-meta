@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# _gates-meta: the gate that watches the other gates
+#
+# Sourced by scripts/testing/gates -- not run directly. Each gate is one self-contained bash
+# function (helpers and all), and the runner gives every invocation its own process, so a
+# gate's `set -e`, traps and exits stay its own.
+# shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
+
+# --- gates-are-clean: no gate may disturb the shared dev store ----------------------------------
+# Every gate builds its own store and points the CLI at it, and one mistake defeats that: the
+# container sets DARK_CONFIG_RUNDIR for every process, and it BEATS the `<home>/.darklang` path
+# a published binary computes -- setting only HOME is not isolation. A gate that leaks writes
+# turns up later as unrelated flakes in other gates, so: fingerprint the store, run each other
+# gate, require the fingerprint identical afterwards. META-gate, SLOW (runs every other gate end
+# to end); run it when you add or change one, not on every loop.
+#
+# Gate, not an F#/.dark test: it runs every other gate, each of which is a process of its own.
+gate_gates_are_clean() {
+  set -uo pipefail
+
+  FINGERPRINT="
+    SELECT 'ops='       || (SELECT COUNT(*) FROM package_ops)
+        || ' locs='     || (SELECT COUNT(*) FROM locations WHERE unlisted_at IS NULL)
+        || ' owners='   || (SELECT COUNT(DISTINCT owner) FROM locations WHERE unlisted_at IS NULL)
+        || ' branches=' || (SELECT COUNT(*) FROM branches)
+        || ' conflicts='|| (SELECT COUNT(*) FROM conflicts)
+        || ' commits='  || (SELECT COUNT(*) FROM commits)
+        || ' config='   || (SELECT COUNT(*) FROM config_v0);
+  "
+
+  # The capability grant is shared state too, and not in the store: `$HOME/.darklang/capabilities.bin`,
+  # keyed on HOME rather than DARK_CONFIG_RUNDIR. Its ABSENCE is what makes the host permissive, so a
+  # gate that creates it narrows every later process.
+  grant_state() {
+    local f="$HOME/.darklang/capabilities.bin"
+    if [[ -f "$f" ]]; then echo "grant=$(md5sum "$f" | cut -d' ' -f1)"; else echo "grant=absent"; fi
+  }
+
+  fingerprint() { echo "$(sqlite3 rundir/data.db "$FINGERPRINT" 2>/dev/null) $(grant_state)"; }
+
+  # Every gate the runner knows except this one, so a new gate is watched the day it is
+  # registered and a removed one cannot linger here.
+  WATCHED=()
+  for g in "${GATES[@]}"; do
+    [[ "$g" == "gates-are-clean" ]] || WATCHED+=("$g")
+  done
+
+  before=$(fingerprint)
+  [[ -n "$before" ]] || { echo "gates-are-clean: could not read rundir/data.db" >&2; exit 2; }
+  echo "  store before: $before"
+
+  failures=0; broken=0
+  for g in "${WATCHED[@]}"; do
+    scripts/testing/gates "$g" > /dev/null 2>&1
+    rc=$?
+    after=$(fingerprint)
+
+    if [[ "$before" != "$after" ]]; then
+      echo "  DIRTY  $g changed the shared dev store"
+      echo "         before: $before"
+      echo "         after:  $after"
+      failures=$((failures + 1))
+      before="$after"   # so the next gate is judged against reality, not the original
+    else
+      # A gate that FAILS is a separate problem, but a red gate cannot vouch for anything: it may have died
+      # before the step that writes, so "clean" would be a claim about code that did not run. Counted apart
+      # from a DIRTY gate, and it fails this run too.
+      if [[ "$rc" -ne 0 ]]; then
+        echo "  BROKEN $g (exit $rc -- run it directly; its cleanliness is unknown)"
+        broken=$((broken + 1))
+      else
+        echo "  clean  $g"
+      fi
+    fi
+  done
+
+  if [[ "$failures" -gt 0 ]]; then
+    echo "$failures gate(s) wrote to shared state. A gate needs its own DARK_CONFIG_RUNDIR, and its own HOME"
+    echo "too if it touches \`dark caps\` -- the capability grant is keyed on HOME."
+  fi
+  if [[ "$broken" -gt 0 ]]; then
+    echo "$broken gate(s) failed outright, so nothing is known about what they would have written."
+  fi
+  [[ "$failures" -eq 0 && "$broken" -eq 0 ]] || exit 1
+  echo "every gate ran, passed, and left the shared dev store exactly as it found it."
+}

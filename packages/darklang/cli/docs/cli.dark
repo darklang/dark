@@ -3,70 +3,99 @@ module Darklang.Cli.Docs.CLI
 let content () : String =
   """# CLI Commands
 
-## Global Flags
-  --branch <name>   # run command on a specific branch (default: main)
-                    # required for non-interactive use on non-main branches
+`help` lists every command, grouped. This is the ones you reach for, with a
+sentence of context each; `docs scm` is the one to read for how source control
+WORKS, because that model is not git's.
 
-## Creating Code (main workflow)
-  fn <name>       # create function - USE THIS TO WRITE CODE
-  type <name>     # create type
-  val <name>      # create value (let)
+## Global flags
+  --branch <name>   run ONE command on a branch, without switching to it
+  --safe            ignore the stored entry point, run the shipped CLI
+  --json            on any command that answers a question
 
-## Running/Testing
-  eval <expr>     # evaluate an expression — also how you run a fn: eval MyMod.myFn 1 2
-  run <file>      # run a .dark script file (alias: run-script)
+Branch context DOES persist: `dark switch <name>` moves you and the next `dark`
+starts there. `--branch` is for a one-off.
 
-## Navigation
-  nav <path>      # go to module (cd)
-  ls              # list contents
-  back            # previous location
-  tree            # show hierarchy
+## Writing code
+  fn <name> "<body>"      create or update a function
+  type <name> "<body>"    create or update a type
+  val <name> "<expr>"     create or update a value (`let` is an alias)
+  module <path> -         several declarations at once, from stdin
+  edit <name> [<file>]    apply a file, or open $EDITOR on the declaration
+  typecheck               audit the declarations on this branch
+  deprecate / delete      take something off the shelf (see: docs deprecation)
+  undeprecate <name>      put it back
 
-## Viewing
-  view <name>     # inspect fn/type/value
-  builtins        # list builtins
-  search <term>   # find anything
-  deps <name>     # show dependencies
+Your edits are LIVE as soon as you write them. There is no build step.
 
-## Version Control (SCM)
-  status          # current branch + uncommitted changes
-  commit <msg>    # commit on current branch
-  log             # history for current branch
-  show <hash>     # commit details
-  discard         # undo uncommitted changes
+## Running
+  eval <expr>       evaluate an expression -- this is how you call a function,
+                    e.g. `eval MyMod.myFn 1 2`
+  run-script <f>    run a .dark script file (`run` is an alias)
+  scripts           store and re-run named scripts
+  traces            what ran, and what it returned
+
+## Looking around
+  nav <path>        go to a module (`cd`)
+  ls / back / tree  list / go back / show the hierarchy
+  view <name>       inspect a fn, type or value
+  search <term>     find anything
+  deps <name>       what it uses and what uses it (`--json`, `--deep`)
+  builtins          the F# builtins
+  find-values       every value of a given type
+
+## Your changes
+  status            what changed, what FOLLOWED your change, what's waiting
+  commit "<msg>"    review your draft and commit it (`-y` skips the prompt)
+  commits           the commits, newest first
+  show <id>         what a commit committed, or what one op does
+  discard           drop the whole draft
+  undo <name>       step ONE item back a version
+  propagate         choose what follows what when a dependency changes
+  conflicts         review what a merge, rebase or sync auto-resolved
+  constraints       standing checks over the store
+  ack <id>...       leave a constraint finding for now (`ack --all`)
+  ops               read this branch's op log
 
 ## Branches
-  branch          # list branches (* = current)
-  branch create   # create + switch
-  branch switch   # switch to branch
-  rebase          # update from parent
-  merge           # merge into parent
+  branch            which branch am I on
+  branch <name>     switch to it, starting it if it's new
+  branches          list them (name, short id, parent, status)
+  switch <name>     same as `branch <name>`; `switch main` returns
+  diff <name>       what it changes vs its parent
+  log [<name>]      its ops (on main: the commits)
+  rebase <name>     take the parent's current state
+  merge <name>      fold it into its parent
+  resolve <branch> <name> mine|theirs
   (see: docs scm)
 
-## Server
-  serve <router> [--port N]   # start an HTTP server (alias: http-server; --port defaults to 8080)
+## Sync
+  connect <url>     remember a relay and push (once per machine)
+  sync              push then pull -- what you run day to day
+  push / pull       one direction
+  whoami            this instance's sync identity (`identity <name>` renames it)
+  review            stage someone else's ops instead of applying them
+  backups           copies of the store: what exists, take one, prune
+  (see: docs scm)
 
-## Workbench (the full-screen experience — `dark` with no args opens it)
-  workbench       # open the framed, navigable workbench (alias: wb)
-  views           # browse + preview the individual CLI views
+## Serving and apps
+  serve <router> [--port N]   an HTTP server backed by a Darklang router
+                              (alias: http-server; --port defaults to 8080)
+  apps              list, install and manage apps (daemons, foreground, UI)
+  devices           your tailnet devices (status/serve/ping)
 
-## Account + config
-  login [name]    # log in (no name lists accounts); persists across runs
-  logout          # clear the active account
-  config          # get/set/list CLI config (config set <key> <value>)
+## The full-screen experience (`dark` with no args opens it)
+  workbench         the framed, navigable workbench (alias: wb)
+  views             browse + preview the individual CLI views
+  outliner          the interactive tree outliner
 
-## Sync + apps + AI
-  sync            # share package changes with other instances
-  conflicts       # review + resolve sync divergences
-  devices         # your tailnet devices (status/serve/ping)
-  apps            # list, install, manage apps (daemons, foreground, UI)
-  agent <verb>    # AI workflows: ask/code/review/fix/diff (alias: ai)
-  traces          # list + view execution traces
-
-## Other
-  help [cmd]      # help
-  docs [topic]    # documentation
-  clear / quit
+## Account, config, and the rest
+  install / update / uninstall / version   the `dark` binary itself
+  login [name]      log in (no name lists accounts); persists across runs
+  logout            clear the active account
+  config            per-install settings (`config set <key> <value>`)
+  caps              what this instance is allowed to do
+  agent <verb>      AI workflows: ask/code/review/fix/diff (alias: ai)
+  help [cmd] / docs [topic] / clear / quit
 
 ## Troubleshooting
 If something hangs or behaves unexpectedly, check the logs:

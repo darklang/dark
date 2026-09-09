@@ -3,9 +3,14 @@
 
 set -euo pipefail
 
-# Forget that a migration ran, so the next build applies it again.
+# Forget that a release step ran, so the next build applies it again.
 #
 #   scripts/migrations/mark-not-run <any unique part of its name>
+#
+# The names are the ones in LibDB/Releases.fs, recorded in system_migrations_v0 as
+# they run. Steps are written to be safe against a store that already has the shape,
+# so re-running one is normally a no-op; this is for when you have edited a step and
+# want it to actually do something again.
 #
 # Was still written against Postgres: it called psql, which isn't installed, via a
 # variable we don't set.

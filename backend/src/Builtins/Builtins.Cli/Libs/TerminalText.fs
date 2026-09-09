@@ -12,15 +12,9 @@ module Builtins.Cli.Libs.TerminalText
 let inline private isCsiFinal (c : char) = c >= '@' && c <= '~'
 
 
-/// Skip one escape or control character at `i`, returning only the next index.
-///
-/// `skipEscape` below also decides whether the sequence is SGR worth keeping, which costs a
-/// `Char.IsDigit` for every parameter character. Only a caller that keeps the sequence needs that,
-/// and the two hottest callers -- `styledWidth` and `stripSgr` -- throw it away. Those run once per
-/// row of a frame, on strings that are typically a colour prefix, a short word and a reset, so that
-/// is most of a parameter scan per call spent on a question nobody asks.
-///
-/// The index it returns is the same one `skipEscape` returns; only the inspection is skipped.
+/// Skip one escape or control character at `i`. Like `skipEscape` but without deciding whether the
+/// sequence is SGR: `styledWidth` and `stripSgr` discard it, so the per-character IsDigit scan is
+/// wasted there. Returns the same index.
 let private skipEscapeOnly (text : string) (i : int) : int =
   let len = text.Length
 
@@ -40,10 +34,8 @@ let private skipEscapeOnly (text : string) (i : int) : int =
 /// dropped: a non-SGR CSI whole, a non-CSI escape just its ESC byte, so ordinary text after it stays
 /// visible.
 ///
-/// Bounds rather than a string, because two of the four callers throw the sequence away and this
-/// runs once per escape, of which a painted frame has many. Handing those callers a `Substring` was
-/// an allocation each that nothing ever read. The caller that genuinely needs a string builds one;
-/// the one appending to a `StringBuilder` no longer needs an intermediate at all.
+/// Bounds rather than a string: two of the four callers discard the sequence, and this runs once
+/// per escape per frame.
 let private skipEscape (text : string) (i : int) (keep : int -> int -> unit) : int =
   let len = text.Length
 
@@ -145,7 +137,9 @@ let clipToWidth (text : string) (maxWidth : int) : string =
 /// Break a row into terminal-width rows at the column, keeping any styling it carries.
 ///
 /// Styling active at a wrap is restated on the next row, since the frame renderer resets after each
-/// one. Clusters are never split. Empty input yields one empty row.
+/// one. Clusters are never split, and neither are WORDS when a space offers a break point: the wrap
+/// prefers the last space in the row, and falls back to the exact column only for a word wider than
+/// the whole row. Empty input yields one empty row.
 let wrapAtColumn (text : string) (maxWidth : int) : string list =
   let width = max 1 maxWidth
   let completed = ResizeArray<string>()
@@ -153,6 +147,10 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
   let mutable activeStyle = ""
   let mutable currentWidth = 0
   let mutable wrapPending = false
+  // Where the row could break at a word boundary: the builder index just past the last space, and
+  // the display width consumed up to and including it. -1 = no space in this row yet.
+  let mutable lastSpaceEnd = -1
+  let mutable widthAtSpaceEnd = 0
   let mutable i = 0
 
   while i < text.Length do
@@ -169,11 +167,7 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
       i <- i + 1
     else
       let c = text[i]
-      // A printable ASCII character followed by another ASCII character is one column and one
-      // character, and cannot combine into a longer cluster -- so nothing needs extracting. The same
-      // rule `styledWidth` and `TextWidth.ofString` use, and for the same reason:
-      // `GetNextTextElement` allocates a string per character, and the text being wrapped here is
-      // descriptions and help text, which is nearly all ASCII.
+      // ASCII fast path: same rule and reason as in `styledWidth`.
       let plain =
         c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
       let cluster =
@@ -186,16 +180,39 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
         wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
 
       if shouldWrap then
-        completed.Add(current.ToString())
-        current.Clear() |> ignore<System.Text.StringBuilder>
-        current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
+        // Break at the row's last space when one exists (and it is not the very end, which would
+        // carry nothing): the head keeps everything before the space, the tail moves down with the
+        // active styling restated. A row with no space -- one word wider than the pane -- still
+        // breaks at the column.
+        if lastSpaceEnd > activeStyle.Length && lastSpaceEnd < current.Length then
+          let whole = current.ToString()
+          let head = whole.Substring(0, lastSpaceEnd - 1) // drop the break space itself
+          let tail = whole.Substring(lastSpaceEnd)
+          completed.Add head
+          current.Clear() |> ignore<System.Text.StringBuilder>
+          current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
+          current.Append(tail) |> ignore<System.Text.StringBuilder>
+          currentWidth <- currentWidth - widthAtSpaceEnd
+        else
+          completed.Add(current.ToString())
+          current.Clear() |> ignore<System.Text.StringBuilder>
+          current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
+          currentWidth <- 0
+
+        lastSpaceEnd <- -1
+        widthAtSpaceEnd <- 0
 
       if plain then
         current.Append(c) |> ignore<System.Text.StringBuilder>
       else
         current.Append(cluster) |> ignore<System.Text.StringBuilder>
 
-      currentWidth <- if shouldWrap then charWidth else currentWidth + charWidth
+      currentWidth <- currentWidth + charWidth
+
+      if plain && c = ' ' then
+        lastSpaceEnd <- current.Length
+        widthAtSpaceEnd <- currentWidth
+
       wrapPending <- currentWidth >= width
       i <- i + (if plain then 1 else cluster.Length)
 

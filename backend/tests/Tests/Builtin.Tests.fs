@@ -79,6 +79,18 @@ let private allBuiltinNames () : List<string> =
 // Infix-dispatched builtins (`+`, `==`, etc.) are dispatched through
 // operator syntax, so they have no textual `Builtin.X` references.
 
+/// Builtins that are language IDIOM rather than library calls, so "one wrapper, everyone through it"
+/// does not apply to them. Distinct from the allowlist below, which is for builtins that could be
+/// wrapped and deliberately are not.
+let private languageIdioms : Set<string> =
+  Set.ofList
+    [ // `unwrap` reads as syntax and appears in 60-odd places. A generic Dark wrapper typechecks
+      // (`let unwrap (value: 'optOrRes) : 'a` works for both Option and Result) and buys nothing: it
+      // has no shape to type and nothing to document that the name does not say, and it puts itself
+      // at the bottom of every unwrap failure's call stack, one frame below the code that had the
+      // None. That frame is the reason, and it is a reason about error messages, not about layering.
+      "unwrap" ]
+
 /// Builtins called via infix operators rather than `Builtin.X` syntax.
 /// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName
 /// for binary ops; LibParser/Parser.fs lowers unary `-x` to Builtin.negate.
@@ -102,21 +114,15 @@ let private infixDispatched : Set<string> =
 
 
 /// Builtins intentionally referenced from more than one place in `packages/`.
-/// Everything else routes through a single Dark wrapper; when a builtin picks
-/// up a second caller, wrap it rather than adding it here. An entry needs a
-/// comment saying why a wrapper is the wrong answer for that one.
-let private multiUseAllowlist : Set<string> =
-  Set.ofList
-    [ // The unwrap idiom, in 60-odd places across packages/. A generic Dark
-      // wrapper does work -- `let unwrap (value: 'optOrRes) : 'a` typechecks
-      // for both Option and Result -- but it costs a package call at every
-      // unwrap and puts itself at the bottom of every unwrap failure's call
-      // stack, one frame below the code that actually had the None.
-      "unwrap" ]
+///
+/// EMPTY, and worth keeping that way: when a builtin picks up a second caller, wrap it.
+/// Before adding an entry, check whether a wrapper already exists and the new caller
+/// simply has not been pointed at it. "A wrapper would just name the thing it already
+/// is" is not a reason -- that is what a wrapper is.
+let private multiUseAllowlist : Set<string> = Set.empty
 
 
-/// Find the repo root by walking up from CWD until we hit one with
-/// packages/darklang/.
+/// The repo root: the first directory at or above CWD holding `packages/darklang/`.
 let private findRepoRoot () : string =
   let rec walk (dir : string) : string option =
     if System.String.IsNullOrEmpty dir then
@@ -187,6 +193,8 @@ let builtinAccessInPackageMatter =
       allBuiltinNames ()
       |> Seq.choose (fun name ->
         if Set.contains name multiUseAllowlist then
+          None
+        elif Set.contains name languageIdioms then
           None
         elif Set.contains name infixDispatched then
           None

@@ -72,6 +72,13 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
   | Some app ->
     match app.target with
     | Daemon entrypoint ->
+      // The same guard `enable` applies before writing a unit file. The entrypoint is spliced into an
+      // expression a daemon evaluates, and it came from a package, which came from anywhere.
+      if Stdlib.Bool.not (Model.isValidEntrypoint entrypoint) then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error $"'{slug}' has an entrypoint that isn't a plain function name")
+      else
+
       let q = "\""
       let expr = entrypoint ++ " " ++ q ++ slug ++ q
 

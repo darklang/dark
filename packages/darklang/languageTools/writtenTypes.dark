@@ -517,6 +517,8 @@ module FnDeclaration =
     { range: Range
       name: VariableIdentifier
       typ: TypeReference.TypeReference
+      /// The `///` written above the parameter.
+      description: String
       symbolLeftParen: Range
       symbolColon: Range
       symbolRightParen: Range }

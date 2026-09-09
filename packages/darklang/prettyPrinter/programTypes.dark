@@ -22,6 +22,36 @@ let formatDocComment (description: String) : String =
     |> fun s -> s ++ "\n"
 
 
+/// A description as `///` lines, ending in a hard line break, or nothing when there is no text.
+///
+/// The break is HARD on purpose: `///` runs to the end of the line, so a doc rendered onto the same
+/// line as the thing it documents would comment that thing out. This is the form used inside a
+/// declaration -- for a field, a case or a parameter -- where the surrounding doc may otherwise be
+/// laid out on one line.
+let inlineDocDoc (description: String) : Stdlib.Option.Option<Stdlib.Pretty.Doc> =
+  if description == "" then
+    Stdlib.Option.Option.None
+  else
+    description
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun line -> Stdlib.Pretty.text $"/// {line}")
+    |> fun docs -> Stdlib.Pretty.join docs Stdlib.Pretty.hardLine
+    |> fun doc ->
+      Stdlib.Option.Option.Some(
+        Stdlib.Pretty.concat doc Stdlib.Pretty.hardLine
+      )
+
+
+/// <param doc>, with <param description> written above it as `///` lines.
+let withInlineDoc
+  (description: String)
+  (doc: Stdlib.Pretty.Doc)
+  : Stdlib.Pretty.Doc =
+  match inlineDocDoc description with
+  | None -> doc
+  | Some docLines -> Stdlib.Pretty.concat docLines doc
+
+
 /// Format a hash for display when PM lookup fails.
 let shortHash (hash: LanguageTools.ProgramTypes.Hash) : String =
   $"<hash:{Darklang.LanguageTools.ProgramTypes.hashToShort hash}>"
@@ -72,7 +102,7 @@ module Context =
         width = 80
         preferredLocation = Stdlib.Option.Option.None }
 
-  val forMain = forBranch SCM.Branch.mainBranchId
+  val forMain = forBranch Darklang.SCM.Branch.mainBranchId
 
   /// A context anchored at `path` (owner-first, e.g. `["Darklang", "Stdlib", "Option"]`).
   ///
@@ -1132,9 +1162,11 @@ module TypeDeclaration =
     (ctx: Context)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
     : Stdlib.Pretty.Doc =
-    Stdlib.Pretty.concat
-      (Stdlib.Pretty.text $"{PrettyPrinter.formatFieldName d.name}: ")
-      (typeReferenceDoc ctx d.typ)
+    withInlineDoc
+      d.description
+      (Stdlib.Pretty.concat
+        (Stdlib.Pretty.text $"{PrettyPrinter.formatFieldName d.name}: ")
+        (typeReferenceDoc ctx d.typ))
 
   let recordField
     (ctx: Context)
@@ -1167,7 +1199,7 @@ module TypeDeclaration =
     (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
     : Stdlib.Pretty.Doc =
     match c.fields with
-    | [] -> Stdlib.Pretty.text ("| " ++ c.name)
+    | [] -> withInlineDoc c.description (Stdlib.Pretty.text ("| " ++ c.name))
     | fields ->
       let fieldPart =
         fields
@@ -1181,10 +1213,9 @@ module TypeDeclaration =
               Stdlib.Pretty.line)
         |> Stdlib.Pretty.group
 
-      Stdlib.Pretty.hang
-        2
-        (Stdlib.Pretty.text $"| {c.name} of")
-        [ fieldPart ]
+      withInlineDoc
+        c.description
+        (Stdlib.Pretty.hang 2 (Stdlib.Pretty.text $"| {c.name} of") [ fieldPart ])
 
   let enumCase
     (ctx: Context)
@@ -1311,7 +1342,9 @@ module PackageFn =
     (ctx: Context)
     (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
     : String =
-    // TODO: /// for description
+    // No `///` here: this is the one-line form (a signature in a listing), and a doc comment runs to
+    // the end of the line, so writing one would comment out the rest of the signature.
+    // `parameterDoc` is the form that renders back to source and does carry them.
     //
     // `()` in a declaration parses as one parameter named `_` of type Unit, so print that shape back as `()`.
     // The general `(name: Type)` form gave `(_: Unit)`, which the parser then rejected with "expected a
@@ -1342,10 +1375,12 @@ module PackageFn =
       Stdlib.Pretty.text "()"
     else
       parens (
-        Stdlib.Pretty.hang
-          2
-          (Stdlib.Pretty.text $"{p.name}:")
-          [ typeReferenceDoc ctx p.typ ])
+        withInlineDoc
+          p.description
+          (Stdlib.Pretty.hang
+            2
+            (Stdlib.Pretty.text $"{p.name}:")
+            [ typeReferenceDoc ctx p.typ ]))
 
 
   let signature
@@ -1496,7 +1531,7 @@ module PackageOp =
       // actually is — content added here, name bound to it there — rather than a list of unrelated lines.
       $"AddValue {name} = {source}  [{LanguageTools.ProgramTypes.hashToShort value.hash}]"
 
-    | SetName(loc, target) ->
+    | SetName(loc, target, _) ->
       let path = PackageLocation.packageLocation loc
       let kind =
         match target with
@@ -1507,6 +1542,14 @@ module PackageOp =
       // so an Add and the SetName that named it were two lines with nothing tying them together.
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"SetName {path} to {kind} of [{LanguageTools.ProgramTypes.hashToShort hash}]"
+
+    | Unbind(loc, previous) ->
+      let path = PackageLocation.packageLocation loc
+      let was =
+        match previous with
+        | Some h -> $" (was [{LanguageTools.ProgramTypes.hashToShort h}])"
+        | None -> ""
+      $"Unbind {path}{was}"
 
     | Deprecate(target, kind, _message) ->
       let kindStr =
@@ -1522,10 +1565,57 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort hash}]"
 
-    | PropagateUpdate (_propId, _sloc, _fromRefs, _toRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
-      $"PropagateUpdate ({count} repoint(s))"
+    | UpdateDoc(location, part, text, _previous, _restating) ->
+      let path = PackageLocation.packageLocation location
+      // The first line of it, and only that: an op listing is for scanning, and a doc comment is
+      // the one op payload with no length limit at all.
+      let firstLine =
+        match Stdlib.String.split (Stdlib.String.trim text) "\n" with
+        | line :: _ -> line
+        | [] -> ""
 
-    | RevertPropagation (_revertId, _propIds, _sloc, _restoredRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
-      $"RevertPropagation ({count} repoint(s))"
+      let summary =
+        if Stdlib.String.length firstLine > 40 then
+          (Stdlib.String.slice firstLine 0 40) ++ "..."
+        else if firstLine == "" then
+          "(cleared)"
+        else
+          firstLine
+
+      // Which PART, because four parts of one name are four different edits and a listing that
+      // named only the name showed them as four identical lines.
+      let which = LanguageTools.ProgramTypes.DocPart.describe part
+
+      $"UpdateDoc {path} {which}: {summary}"
+
+    | Decision(id, location, reason, kind) ->
+      let name = PackageLocation.packageLocation location
+      let why = if reason == "" then "" else $" ({reason})"
+
+      match kind with
+      | Override target ->
+        let hash = LanguageTools.ProgramTypes.Reference.hash target
+        $"Override #{id} {name} -> [{LanguageTools.ProgramTypes.hashToShort hash}]{why}"
+      | Ack findingId -> $"Ack {findingId} {name}{why}"
+      | Propagation policy ->
+        let p =
+          match policy with
+          | Pin -> "pin"
+          | Follow -> "follow"
+          | Unset -> "unset"
+
+        $"Propagation {name} -> {p}{why}"
+
+    // A commit that lands a branch carries this op, so without an arm here `dark show` and
+    // `dark commits` raise on exactly the commits a person most wants to read.
+    | BranchEvent(eventBranchId, event, _at) ->
+      let what =
+        match event with
+        | Merged _ -> "merged into its parent"
+        | Archived -> "archived"
+
+      // Show the NAME, same as everywhere else a branch is user-facing.
+      let who = Darklang.SCM.PackageOps.branchName eventBranchId
+
+      $"BranchEvent {who} {what}"
+

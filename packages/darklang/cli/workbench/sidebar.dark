@@ -71,8 +71,10 @@ val workspaces =
       { name = "AI"
         dests = [ ("Agents", mkDest vAI 0), ("Prompts", mkDest vAI 1) ] }
     Workspace { name = "Docs"; dests = [ ("Guides", mkDest vDocs 0) ] }
-    // This machine: its config and the peers it syncs with.
-    Workspace { name = "Instance"; dests = [ ("Devices", mkDest vDevices 0) ] } ]
+    // This machine: its sync state and the peers it syncs with.
+    Workspace
+      { name = "Instance"
+        dests = [ ("Sync", mkDest (extViewIndex "sync") 0), ("Devices", mkDest vDevices 0) ] } ]
 
 /// The destinations of `ws` this account can see, given the already-computed visible view list.
 ///
@@ -91,11 +93,6 @@ let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
   |> Stdlib.List.filter (fun pair ->
     let (_i, w) = pair
     Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDestsIn vis w)))
-
-/// The workspaces with at least one visible destination, as (index into
-/// `workspaces`, workspace).
-let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
-  visibleWorkspacesIn (visibleViews state)
 
 /// The section `view` is currently on, in `Dest` terms.
 let sectionOf (state: State) (view: Int) : Int =

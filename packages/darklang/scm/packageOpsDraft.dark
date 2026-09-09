@@ -1,0 +1,744 @@
+module Darklang.SCM.PackageOps
+
+// What is UNCOMMITTED on the branch you are standing on, and the decisions a later edit undid.
+//
+// Live-on-write means a draft is not "pending work" -- it is already running. It is the set of ops you
+// have not reviewed and committed yet, which is exactly what `dark status` reports and `dark commit`
+// acts on. On a branch it is that branch's own uncommitted frontier instead; `draftWhere` is the one
+// place that difference is spelled out.
+//
+// Same module as `packageOps.dark`; see the note there.
+
+
+/// The clause that defines the draft, in ONE place so status, commit and the counts can't disagree.
+/// On MAIN the draft is uncommitted ops that aren't tagged to any branch. On a BRANCH it's that branch's own
+/// uncommitted frontier -- its ops are effective=0 by design, so the effective test doesn't apply there.
+let draftWhere (branchId: Uuid) : String =
+  if SCM.Branch.isMain branchId then
+    "p.commit_hash IS NULL AND p.effective = 1
+     AND p.id NOT IN (SELECT op_id FROM op_branches)"
+  else
+    "p.commit_hash IS NULL
+     AND p.id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)"
+
+
+/// Params for `draftWhere` (the branch form binds one).
+let draftParams (branchId: Uuid) : List<String> =
+  if SCM.Branch.isMain branchId then [] else [ Stdlib.Uuid.toString branchId ]
+
+
+/// How many ops are in the draft.
+let draftOpCountFor (branchId: Uuid) : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (localDb ())
+    ("SELECT count(*) AS n FROM package_ops p WHERE " ++ draftWhere branchId)
+    (draftParams branchId)
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+let draftOpCount () : Int64 = draftOpCountFor (currentBranch ())
+
+
+/// Uncommitted ops on <param branchId> that THIS instance authored.
+///
+/// The merge gate's question, and not the same as the draft's. A pulled branch can carry ops nobody
+/// committed -- a peer pushed work in progress -- and refusing the merge over those told you to
+/// commit somebody else's work under your own message, which is the thing the gate exists to
+/// prevent, aimed at the wrong person. The merge commits them itself, under the merge's message,
+/// which is the honest record when nobody else committed them.
+let authoredDraftOpCountFor (branchId: Uuid) : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (localDb ())
+    "SELECT count(*) AS n FROM package_ops p
+     JOIN op_branches ob ON ob.op_id = p.id
+     WHERE p.commit_hash IS NULL AND ob.branch_id = @p0 AND ob.source <> 'import'"
+    [ Stdlib.Uuid.toString branchId ]
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+/// The ids of the ops the draft holds, sorted, so a commit can be hashed over WHAT it commits.
+///
+/// Sorted rather than in log order: two machines that authored the same ops in a different order committed
+/// the same thing, and an id that says otherwise would be lying about the contents it claims to name.
+let draftOpIdsFor (branchId: Uuid) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    ("SELECT p.id FROM package_ops p WHERE " ++ draftWhere branchId ++ " ORDER BY p.id")
+    (draftParams branchId)
+    "id"
+
+
+let draftOpIds () : List<String> = draftOpIdsFor (currentBranch ())
+
+
+/// What the draft BINDS: one entry per name, latest edit wins. Five edits to one fn collapse to one entry
+/// here, which is why propagation runs at commit time -- the intermediate versions never need to be shown
+/// or propagated to.
+let draftBindingsFor (branchId: Uuid) : List<Conflicts.Binding> =
+  bindingsFromOpRows (draftOpRowsFor branchId)
+
+
+/// The draft's op rows for <param branchId>, oldest first -- the one query behind
+/// <fn draftBindingsFor>, <fn draftRemovalsFor> and <fn draftEntriesFor>.
+let draftOpRowsFor (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
+  Stdlib.Sqlite.rowsOrEmptyP
+    (localDb ())
+    ("SELECT p.id, p.op_blob, p.origin_ts AS ts FROM package_ops p WHERE "
+     ++ draftWhere branchId
+     ++ " ORDER BY p.origin_ts, p.rowid")
+    (draftParams branchId)
+
+
+let draftBindings () : List<Conflicts.Binding> =
+  draftBindingsFor (currentBranch ())
+
+
+/// The names the draft REMOVES, fully qualified: an `Unbind` with no later binding of the same name.
+/// Not a binding, so `draftBindingsFor` cannot carry it, and a status that counted bindings alone would
+/// read "clean" over a draft whose one op deletes something.
+let draftRemovalsFor (branchId: Uuid) : List<String> =
+  bindingEntriesFromOpRows (draftOpRowsFor branchId)
+  |> Stdlib.List.filterMap (fun w ->
+    match w.binding with
+    | Some _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.Some(Conflicts.fqn w.owner w.modules w.name))
+
+
+let draftRemovals () : List<String> = draftRemovalsFor (currentBranch ())
+
+
+/// Draft items that still reference a name which does not resolve, as (item, the names it cannot find).
+///
+/// An unresolved reference is fine while you work -- you can write a caller before the callee exists, and
+/// `WipRefresh` re-resolves once it does. It stops being fine at commit, where a draft becomes history
+/// other machines rely on. What to DO about the answer is decided in `Cli.Commit`.
+let unresolvedInDraft (branchId: Uuid) : List<(String * List<String>)> =
+  let ops = draftEntriesFor branchId |> Stdlib.List.map (fun e -> e.op)
+  let bindings = draftBindingsFor branchId
+
+  Builtin.pmUnresolvedNames ops
+  |> Stdlib.List.filterMap (fun (hash, names) ->
+    // The draft binds the hash it just authored, so the name is usually right there.
+    match bindings |> Stdlib.List.findFirst (fun b -> b.hash == hash) with
+    | Some b -> Stdlib.Option.Option.Some((Conflicts.fqn b.owner b.modules b.name, names))
+    | None ->
+      // An Add with NO surviving SetName is content nothing names: authoring hasn't bound it yet, or
+      // `dark discard <name>` dropped the binding and kept the content on purpose (see `Draft.collapse`).
+      let reachable =
+        Stdlib.Sqlite.scalarIntP
+          (localDb ())
+          "SELECT count(*) AS n FROM package_dependencies WHERE depends_on_hash = @p0"
+          [ hash ]
+          "n"
+        |> Stdlib.Option.withDefault 0L
+
+      if reachable == 0L then
+        Stdlib.Option.Option.None
+      else
+        // Reachable but unnamed: still a real problem, and the short hash is the only honest label.
+        Stdlib.Option.Option.Some((Stdlib.String.first hash 8, names)))
+
+
+/// The names whose CURRENT binding was written by PROPAGATION rather than by a person.
+///
+/// `locations.source` is the only place this is knowable: a repoint changes an item's resolved references
+/// and nothing else, so its binding is shape-identical to one you typed. Returned fully-qualified so a
+/// caller can intersect with what it is about to display rather than asking per item.
+let propagatedNames () : List<String> =
+  match currentBranch () with
+  | id when SCM.Branch.isMain id ->
+    // main-scoped: the branch arm is below.
+    Stdlib.Sqlite.rowsP
+      (localDb ())
+      "SELECT owner, modules, name FROM locations
+        WHERE source = 'propagation' AND unlisted_at IS NULL"
+      []
+      (fun row ->
+        match Stdlib.Sqlite.textField row "name" with
+        | Some n ->
+          Stdlib.Option.Option.Some(
+            Conflicts.fqn (Stdlib.Sqlite.textOr row "owner") (Stdlib.Sqlite.textOr row "modules") n)
+        | None -> Stdlib.Option.Option.None)
+  | branchId ->
+    // The branch's own record, `op_branches.source`: the LAST op binding each name decides. Main's
+    // followers are not this branch's, so `locations.source` cannot answer for a branch.
+    SCM.Branches.ownFrontierOpsWithSource branchId
+    |> Stdlib.List.filterMap (fun entry ->
+      match entry with
+      | (_, SetName(loc, _, _), source) ->
+        Stdlib.Option.Option.Some(
+          (Conflicts.fqn loc.owner (Stdlib.String.join loc.modules ".") loc.name, source)
+        )
+      | (_, Decision(_, loc, _, Override _), source) ->
+        Stdlib.Option.Option.Some(
+          (Conflicts.fqn loc.owner (Stdlib.String.join loc.modules ".") loc.name, source)
+        )
+      | _ -> Stdlib.Option.Option.None)
+    // Oldest first, so the later binder of a name overwrites the earlier: the LAST binder decides.
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.filterMap (fun (name, source) ->
+      if source == "propagation" then Stdlib.Option.Option.Some name else Stdlib.Option.Option.None)
+
+
+/// The draft, decoded, oldest first. Same predicate as `draftWhere`, so this and the counts can't disagree
+/// about what the draft is.
+let draftEntriesFor (branchId: Uuid) : List<DraftEntry> =
+  decodeOpRowEntries (draftOpRowsFor branchId)
+  |> Stdlib.List.map (fun (id, ts, op) -> DraftEntry { id = id; ts = ts; op = op })
+
+
+let draftEntries () : List<DraftEntry> = draftEntriesFor (currentBranch ())
+
+
+/// The per-location key the two decision folds below group on. A string built here rather than through
+/// `Constraints.fqnOf`: this silo owns the op log and must not depend on the one that reports findings.
+let decisionKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  loc.owner ++ "|" ++ (Stdlib.String.join loc.modules ".") ++ "|" ++ loc.name
+
+
+/// Where a propagation choice of YOURS was replaced by one that arrived from somebody else.
+///
+/// This is the silent half of last-writer-wins: two people pin the same name, the later stamp wins, and
+/// nothing says so. The loser is kept and reviewable, but only if something surfaces it.
+///
+/// Answerable because an import records the author the wire hands it. A locally-authored op has
+/// no `op_owners` row and an arriving one does, so "mine, replaced by theirs" is exactly "no owner, then
+/// an owner". A choice you changed yourself is not reported: that is not a surprise.
+///
+/// Returns (location, the policy you chose, the policy in force now, who replaced it).
+let supersededPolicies
+  ()
+  : List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PropagationPolicy * LanguageTools.ProgramTypes.PropagationPolicy * String)> =
+  let anyPolicies =
+    Stdlib.Sqlite.scalarInt
+      (localDb ())
+      // Not 'unset' rows: clearing a choice leaves a tombstone (see the fold), and a store whose
+      // every choice has been cleared has no choices.
+      "SELECT COUNT(*) AS n FROM propagation_policy WHERE policy <> 'unset'"
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  if anyPolicies == 0L then
+    []
+  else
+    match
+      Stdlib.Sqlite.query
+        (localDb ())
+        "SELECT p.id, p.op_blob,
+                (SELECT o.owner FROM op_owners o WHERE o.op_id = p.id LIMIT 1) AS author
+         FROM package_ops p
+         WHERE p.effective = 1 ORDER BY p.origin_ts, p.rowid"
+    with
+    | Error _ -> []
+    | Ok rows ->
+      // Per name: the last choice YOU made with nobody having replaced it yet, then whether a later one
+      // arrived from a peer with a different answer.
+      let step =
+        (fun acc row ->
+          match
+            (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
+          with
+          | (Some idStr, Some blob) ->
+            if Stdlib.Bool.not (opBindsAName blob) then
+              acc
+            else
+              let author =
+                Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
+
+              match Stdlib.Uuid.parse idStr with
+              | Error _ -> acc
+              | Ok id ->
+                match tryDecodeOp id blob with
+                | Some(Decision(_, loc, _, Propagation policy)) ->
+                  let k = decisionKey loc
+
+                  match Stdlib.Dict.get acc k with
+                  | None ->
+                    // A peer's choice with no local one before it supersedes nothing of yours; only a
+                    // locally-authored choice (no `op_owners` row) starts the record of what is "yours".
+                    if author == "" then
+                      Stdlib.Dict.setOverridingDuplicates acc k (loc, policy, policy, "")
+                    else
+                      acc
+                  | Some entry ->
+                    let (l, mine, _now, _by) = entry
+                    // Only a PEER's later choice counts as superseding; changing your own mind is not a
+                    // finding, and it resets what "yours" is.
+                    if author == "" then
+                      Stdlib.Dict.setOverridingDuplicates acc k (l, policy, policy, "")
+                    else
+                      Stdlib.Dict.setOverridingDuplicates acc k (l, mine, policy, author)
+                | _ -> acc
+          | _ -> acc)
+
+      rows
+      |> Stdlib.List.fold Stdlib.Dict.empty step
+      |> Stdlib.Dict.values
+      |> Stdlib.List.filter (fun entry ->
+        let (_loc, mine, now, by) = entry
+        (by != "") && (mine != now))
+
+
+/// Where a human's OVERRIDE was later undone by an ordinary edit.
+///
+/// Returns (location, the hash the override chose, the hash bound now) per name.
+///
+/// Last-writer-wins is working as designed here; what is missing is that the losing side goes silently.
+/// `SCM.Constraints` turns these into standing findings.
+///
+/// Only an OVERRIDE counts. A propagation policy can only be displaced by another propagation decision,
+/// which is one deliberate act beating another and not a surprise; an override is the one an ordinary
+/// edit can undo without anyone deciding anything.
+///
+/// Guarded on the `conflicts` projection first, which is small and usually empty of overrides, so the
+/// op-log decode below costs nothing on the common path.
+let supersededOverrides () : List<(LanguageTools.ProgramTypes.PackageLocation * String * String)> =
+  let anyOverrides =
+    Stdlib.Sqlite.scalarInt
+      (localDb ())
+      "SELECT COUNT(*) AS n FROM conflicts WHERE status = 'overridden'"
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  if anyOverrides == 0L then
+    []
+  else
+    match
+      Stdlib.Sqlite.query
+        (localDb ())
+        "SELECT id, op_blob,
+                (SELECT o.owner FROM op_owners o WHERE o.op_id = id LIMIT 1) AS author
+         FROM package_ops
+         WHERE effective = 1 ORDER BY origin_ts, rowid"
+    with
+    | Error _ -> []
+    | Ok rows ->
+      // Fold the log in order, remembering per location: the hash the last LOCAL override chose, and
+      // the hash bound now. Order is the fold's own (origin_ts, rowid), so "later" means what the fold
+      // means. The same authorship rule as `supersededPolicies`: only YOUR override can be superseded
+      // (a peer's is theirs to watch), and a later edit of YOURS is a change of mind, which closes the
+      // record rather than reporting you to yourself.
+      let hashOf =
+        (fun target ->
+          LanguageTools.ProgramTypes.hashToString
+            (LanguageTools.ProgramTypes.Reference.hash target))
+
+      let step =
+        (fun acc row ->
+          match
+            (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
+          with
+          | (Some idStr, Some blob) ->
+            let author =
+              Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
+
+            match Stdlib.Uuid.parse idStr with
+            | Error _ -> acc
+            | Ok id ->
+              match tryDecodeOp id blob with
+              | None -> acc
+              | Some(Decision(_, loc, _, Override target)) ->
+                if author == "" then
+                  let h = hashOf target
+                  Stdlib.Dict.setOverridingDuplicates acc (decisionKey loc) (loc, h, h)
+                else
+                  // A peer's override displaces whatever record was open: from here on the standing
+                  // choice on this name is theirs, not yours.
+                  Stdlib.Dict.remove acc (decisionKey loc)
+              | Some(SetName(loc, target, _)) ->
+                match Stdlib.Dict.get acc (decisionKey loc) with
+                | None -> acc
+                | Some entry ->
+                  if author == "" then
+                    Stdlib.Dict.remove acc (decisionKey loc)
+                  else
+                    let (l, chosen, _live) = entry
+                    Stdlib.Dict.setOverridingDuplicates
+                      acc
+                      (decisionKey loc)
+                      (l, chosen, hashOf target)
+              | _ -> acc
+          | _ -> acc)
+
+      rows
+      |> Stdlib.List.fold Stdlib.Dict.empty step
+      |> Stdlib.Dict.values
+      |> Stdlib.List.filter (fun entry ->
+        let (_loc, chosen, live) = entry
+        chosen != live)
+
+
+/// The at-rest type check over what the DRAFT holds, on <param branchId>.
+///
+/// Asked at commit rather than only at save, because a draft is allowed to be broken (you write the caller
+/// before the callee) and a commit is not: a commit is what other machines pull. Saving already reports
+/// this; committing is where refusing it is worth something.
+///
+/// Checks the draft's LIVE items only: the last binding per name, and the content those bindings
+/// target. A superseded version's `Add` stays in the draft by design (its naming collapses, the
+/// content ships as history), and checking it made a broken-then-fixed edit refuse the commit
+/// forever -- the broken content was still there, no longer bound to anything, failing on every try.
+/// Unreachable history is not what the gate protects; what other machines will RESOLVE is.
+/// The at-rest check over any set of ops, with the same live-items rule the draft gate uses:
+/// only the last binding per name, and the content those bindings target.
+///
+/// Split out so `merge` can ask the same question of a branch's COMMITTED frontier that
+/// `commit` asks of a draft. One implementation, so the two gates cannot disagree about what
+/// "definite type error" means.
+let typeCheckOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : LanguageTools.AtRestTypeChecker.Report =
+
+  // Last SetName per location wins; ops are oldest-first, so a later fold entry replaces an earlier.
+  let liveTargets =
+    ops
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc op ->
+      match op with
+      | SetName(loc, target, _) ->
+        Stdlib.Dict.setOverridingDuplicates
+          acc
+          (decisionKey loc)
+          (LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target))
+      | _ -> acc)
+    |> Stdlib.Dict.values
+
+  let namedHashes =
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | SetName(_, target, _) ->
+        Stdlib.Option.Option.Some(
+          LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target)
+        )
+      | _ -> Stdlib.Option.Option.None)
+
+  let liveOps =
+    ops
+    |> Stdlib.List.filter (fun op ->
+      match op with
+      | AddFn f ->
+        let h = LanguageTools.ProgramTypes.hashToString f.hash
+        // Content some binding targets, or content no draft SetName ever named (don't silently
+        // skip a shape this filter does not understand).
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddType t ->
+        let h = LanguageTools.ProgramTypes.hashToString t.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddValue v ->
+        let h = LanguageTools.ProgramTypes.hashToString v.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | _ -> true)
+
+  match liveOps with
+  | [] -> LanguageTools.AtRestTypeChecker.emptyReport ()
+  | live -> LanguageTools.AtRestTypeChecker.checkPackageOps live
+
+
+let typeCheckDraft
+  (branchId: Uuid)
+  : LanguageTools.AtRestTypeChecker.Report =
+  typeCheckOps (draftEntriesFor branchId |> Stdlib.List.map (fun e -> e.op))
+
+
+// Stamping a draft into a commit, and dropping one. Moved here from `packageOps.dark`, which
+// had grown past the size its own header warns about.
+
+/// Commit the whole current draft into <param commitHash>. Returns how many ops the draft held.
+///
+/// The whole-draft form counts BEFORE the stamp, because the UPDATE's predicate is the draft itself and
+/// after it there is nothing left to count. `stampDraftOpsFor` narrows the same UPDATE to an id list and
+/// so can report matched rows instead; the two answer the same question by different means.
+let stampDraftFor (branchId: Uuid) (commitHash: String) : Int64 =
+  let n = draftOpCountFor branchId
+
+  // `draftWhere` binds @p0 when there is a branch; the commit hash takes the next slot, as in
+  // `stampDraftOpsFor`, so the predicate is the one definition of "the draft" and not a copy of it.
+  let params = draftParams branchId
+  let hashSlot = $"@p{Stdlib.Int.toString (Stdlib.List.length params)}"
+
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (localDb ())
+      ("UPDATE package_ops SET commit_hash = " ++ hashSlot ++ " WHERE id IN
+          (SELECT p.id FROM package_ops p WHERE " ++ draftWhere branchId ++ ")")
+      (Stdlib.List.append params [ commitHash ])
+
+  n
+
+let stampDraft (commitHash: String) : Int64 =
+  stampDraftFor (currentBranch ()) commitHash
+
+
+/// A draft op, with the two things a selection needs that a decoded op alone doesn't carry: which row it is,
+/// and when it was authored.
+type DraftEntry =
+  { id: String
+    ts: String
+    op: LanguageTools.ProgramTypes.PackageOp }
+
+
+/// Commit ONLY these ops into <param commitHash>. Returns how many rows it actually stamped.
+///
+/// The whole-draft UPDATE narrowed to an explicit id set, for `dark commit --include=`. It re-applies the
+/// draft predicate as well as the id list, so a stale id -- already committed, or belonging to a branch --
+/// cannot be swept in by a caller whose selection is a moment old. Counts MATCHED rows, not the caller's
+/// list length.
+let stampDraftOpsFor
+  (branchId: Uuid)
+  (commitHash: String)
+  (opIds: List<String>)
+  : Int64 =
+  if Stdlib.List.isEmpty opIds then
+    0L
+  else
+    // One UPDATE per id, every value BOUND, all in one transaction. Splicing the ids into an `IN (...)`
+    // would be safe only because they came out of this store's own `id` column, and nothing in the code
+    // says so; bound is the shape a reader can trust without tracing where the values came from.
+    //
+    // The statement is scoped by `draftWhere` as well as by id, so an id that is not in the draft (already
+    // committed, or another branch's) updates nothing. Each row's affected-count reports that, and that is
+    // where the return value comes from.
+    let params = draftParams branchId
+    let positional = Stdlib.List.length params
+
+    // `draftWhere` binds @p0 when there is a branch. The commit hash and the id follow it.
+    let where = draftWhere branchId
+    let hashSlot = $"@p{Stdlib.Int.toString positional}"
+    let idSlot = $"@p{Stdlib.Int.toString (positional + 1)}"
+
+    let rows =
+      opIds
+      |> Stdlib.List.map (fun id -> Stdlib.List.append params [ commitHash, id ])
+
+    Stdlib.Sqlite.mustExecBatch
+      (localDb ())
+      [ ("UPDATE package_ops SET commit_hash = " ++ hashSlot ++ " WHERE id = " ++ idSlot
+         ++ " AND id IN (SELECT p.id FROM package_ops p WHERE " ++ where ++ ")",
+         rows) ]
+    // Per-row counts are `Int`; this reports `Int64`. `toInt64` is an Option because an Int is
+    // unbounded, which an affected-row count is not, so `0L` stands in for the impossible case.
+    |> Stdlib.List.fold 0L (fun acc n ->
+      acc + (Stdlib.Int.toInt64 n |> Stdlib.Option.withDefault 0L))
+
+let stampDraftOps (commitHash: String) (opIds: List<String>) : Int64 =
+  stampDraftOpsFor (currentBranch ()) commitHash opIds
+
+
+/// Stamp <param opIds> that have LANDED on main (effective, uncommitted) with <param commitHash>,
+/// whatever branch tags they may still carry. `stampDraftOpsFor` scopes by `draftWhere`, which
+/// excludes ops a SIBLING branch still tags -- right for a person's commit, wrong for a merge:
+/// content-addressed ops are one row, so a review queue holding the same op must not keep a merge
+/// from committing what it landed (left unstamped, the op surfaces later as draft work nobody
+/// typed, or gets swept under the sibling's merge message).
+let stampLandedOps (commitHash: String) (opIds: List<String>) : Int64 =
+  if Stdlib.List.isEmpty opIds then
+    0L
+  else
+    let rows = opIds |> Stdlib.List.map (fun id -> [ commitHash, id ])
+
+    Stdlib.Sqlite.mustExecBatch
+      (localDb ())
+      [ ("UPDATE package_ops SET commit_hash = @p0
+          WHERE id = @p1 AND commit_hash IS NULL AND effective = 1",
+         rows) ]
+    |> Stdlib.List.fold 0L (fun acc n ->
+      acc + (Stdlib.Int.toInt64 n |> Stdlib.Option.withDefault 0L))
+
+
+/// Collapse the draft's superseded NAMINGS, keeping the last binding per name. Returns how many ops went.
+///
+/// Main only. A branch's ops are branch-pending rather than draft, and they're collapsed when they merge.
+let collapseDraft () : Stdlib.Result.Result<Int, String> =
+  match currentBranch () with
+  | id when SCM.Branch.isMain id -> SCM.Draft.collapse ()
+  | _ -> Stdlib.Result.Result.Ok 0
+
+
+/// Drop a BRANCH's uncommitted ops. Returns how many went.
+///
+/// Nothing is re-folded: a branch's ops are effective=0 and never fold into main's projections, so
+/// deleting the rows and reloading the overlay IS the removal. Main's draft goes through `discardMainDraft`.
+///
+/// The op rows go FIRST -- untagging before deleting leaves an op looking like a main op, and a main op
+/// is one that folds.
+let discardBranchDraft (branchId: Uuid) : Int64 =
+  let n = draftOpCountFor branchId
+
+  // The ids FIRST, as a list: each statement below shrinks what the other's subquery would see, so
+  // running them against live subqueries either deletes rows the untag then cannot find (dangling
+  // tags, which `dark status`'s store health reports as damage) or untags rows the delete then
+  // will not touch. Against a fixed list, order stops mattering for coverage; rows still go before
+  // tags so an op never sits untagged-but-present looking like a main op.
+  let draftIds =
+    Stdlib.Sqlite.columnP
+      (localDb ())
+      "SELECT id FROM package_ops
+       WHERE commit_hash IS NULL AND effective = 0
+         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)"
+      [ Stdlib.Uuid.toString branchId ]
+      "id"
+
+  let idsJson = Stdlib.Json.serialize<List<String>> draftIds
+
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (localDb ())
+      // Only ops no OTHER branch holds -- see the same guard in `Branches.archive`. The tag can also
+      // point at an op main holds live (author the same value on both places), which the
+      // `commit_hash IS NULL AND effective = 0` shape of the id list above already excludes.
+      "DELETE FROM package_ops
+        WHERE id IN (SELECT value FROM json_each(@p0))
+          AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @p1)"
+      [ idsJson, Stdlib.Uuid.toString branchId ]
+
+  // Untag everything the branch held, whether or not the row above survived (a sibling's tag keeps
+  // the row; this branch's tag must still go).
+  let _ =
+    Stdlib.Sqlite.mustExec
+      (localDb ())
+      "DELETE FROM op_branches
+        WHERE branch_id = @p0
+          AND op_id IN (SELECT value FROM json_each(@p1))"
+      [ Stdlib.Uuid.toString branchId, idsJson ]
+
+  // Once the branch holds nothing, its per-name fork points describe ops that no longer exist. They stay
+  // while any op survives, because those ops are still based on them.
+  let remaining =
+    Stdlib.Sqlite.scalarIntP
+      (localDb ())
+      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
+      [ Stdlib.Uuid.toString branchId ]
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let _ =
+    if remaining == 0L then
+      Stdlib.Sqlite.execP
+        (localDb ())
+        "DELETE FROM branch_name_bases WHERE branch_id = @p0"
+        [ Stdlib.Uuid.toString branchId ]
+    else
+      Stdlib.Result.Result.Ok 0
+
+  // Reload the overlay so this process stops resolving names through the ops just deleted.
+  let _ = selectBranch branchId
+  n
+
+
+/// Drop MAIN's uncommitted ops. Returns how many went.
+///
+/// Dark decides what survives and does the surgical drop; only the whole-log rebuild fallback is still
+/// F#, because it re-mints ids and re-folds. See `SCM.Draft.rewriteBy`.
+let discardMainDraft () : Stdlib.Result.Result<Int, String> = SCM.Draft.discardAll ()
+
+
+/// Drop ONE name's uncommitted bindings from MAIN's draft, leaving the rest alone.
+let discardMainDraftName
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : Stdlib.Result.Result<Int, String> =
+  SCM.Draft.discardName owner modules name
+
+
+/// Drop one name's uncommitted bindings from the current scope's draft.
+///
+/// What neither `discard` (all-or-nothing) nor `undo` (step back a version) can express: a newly-authored
+/// item has no previous version, so `undo` refuses it, and without this one typo in a reference blocks
+/// `commit` until the entire draft goes.
+///
+/// Only the NAME's bindings go. That reverts the name to its last committed binding, or to not
+/// existing at all if it never had one.
+let discardDraftName
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : Stdlib.Result.Result<Int, String> =
+  match currentBranch () with
+  | id when SCM.Branch.isMain id -> discardMainDraftName owner modules name
+  | branchId ->
+    // A branch's ops are effective=0 and never fold into main, so deleting the tagged rows for this
+    // name IS the removal, exactly as `discardBranchDraft` does for all of them.
+    //
+    // Which rows: the branch's own ops that BIND this name, found by reading the ops. Not via
+    // `locations` -- that is main's projection, and a branch's SetName never folds into it, so a join
+    // through it matches nothing and drops no rows while reporting the name gone.
+    let key = (owner, Stdlib.String.join modules ".", name)
+
+    // UNCOMMITTED ops only. `ownFrontierOps` is every op the branch holds, committed ones
+    // included, and discard is about the draft: dropping a committed binding here takes the
+    // branch's last committed version of the name with it.
+    let uncommitted = SCM.Branches.uncommittedOpIds branchId
+
+    let bindingIds =
+      SCM.Branches.ownFrontierOps branchId
+      |> Stdlib.List.filter (fun entry ->
+        let (id, op) = entry
+        (Stdlib.List.member uncommitted (Stdlib.Uuid.toString id))
+        && (Stdlib.Option.isSome (SCM.Branches.opBindsKey op key)))
+      |> Stdlib.List.map (fun entry ->
+        let (id, _) = entry
+        Stdlib.Uuid.toString id)
+
+    dropBranchOps branchId bindingIds
+
+
+/// Drop these ops from <param branchId>'s frontier, and reload the overlay. Returns how many went.
+///
+/// A branch's ops are effective=0 and never fold into main, so deleting the rows IS the removal. Only
+/// uncommitted, inert rows the branch holds alone: an op another branch also tags stays, untagged here.
+let dropBranchOps (branchId: Uuid) (ids: List<String>) : Stdlib.Result.Result<Int, String> =
+  match ids with
+  | [] -> Stdlib.Result.Result.Ok 0
+  | ids ->
+    let b = Stdlib.Uuid.toString branchId
+    let rows = ids |> Stdlib.List.map (fun id -> [ id, b, b ])
+
+    let untagRows = ids |> Stdlib.List.map (fun id -> [ b, id ])
+
+    match
+      Stdlib.Sqlite.execBatch
+        (localDb ())
+        // Untag FIRST, then delete the rows. The untag is guarded on the op being uncommitted,
+        // which it can only check while the row still exists; deleting first left the tag behind
+        // pointing at nothing.
+        //
+        // Uncommitted only, and belt-and-braces with the caller's own filter: an untag is what
+        // takes an op off a branch, so without this clause a committed op reached here by any
+        // path would be silently removed from the branch's history.
+        [ ("DELETE FROM op_branches WHERE branch_id = @p0 AND op_id = @p1
+            AND op_id IN (SELECT id FROM package_ops WHERE commit_hash IS NULL)",
+           untagRows)
+          // The op ROW survives when a sibling also tags it or when main holds the same content
+          // live, and that is deliberate; only rows nothing else holds go.
+          ("DELETE FROM package_ops WHERE commit_hash IS NULL AND effective = 0 AND id = @p0
+            AND id NOT IN (SELECT op_id FROM op_branches)
+            AND @p1 = @p2",
+           rows) ]
+    with
+    | Ok counts ->
+      // Count the UNTAGS, which is what "dropped from this branch" means, and they run first now.
+      // The op-row deletes are fewer whenever content is shared, so reporting those would make a
+      // real drop read as a no-op.
+      let dropped =
+        counts
+        |> Stdlib.List.take (Stdlib.List.length ids)
+        |> Stdlib.List.fold 0 (fun acc n -> acc + n)
+
+      let _ = selectBranch branchId
+      Stdlib.Result.Result.Ok dropped
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Drop the current scope's draft, whichever it is.
+let discardDraft () : Stdlib.Result.Result<Int, String> =
+  match currentBranch () with
+  | id when SCM.Branch.isMain id -> discardMainDraft ()
+  | branchId ->
+    Stdlib.Result.Result.Ok(
+      Stdlib.Int.fromInt64 (discardBranchDraft branchId)
+    )
+

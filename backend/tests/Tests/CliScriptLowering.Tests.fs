@@ -149,8 +149,7 @@ let private testDeclarationsAreNameableAfterLowering =
     match m.types with
     | [ celsius ] ->
       let! locations =
-        LibDB.PackageManager.pt.getTypeLocations PT.mainBranchId celsius.hash
-        |> Ply.toTask
+        LibDB.PackageManager.pt.getTypeLocations celsius.hash |> Ply.toTask
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       Expect.contains names "Celsius" "the script's type is reachable by hash"
     | _ -> failtest "expected exactly one script type"
@@ -171,8 +170,7 @@ let private testRegistryDoesNotDisplaceStoredNames =
     match m.types with
     | [ myErr ] ->
       let! locations =
-        LibDB.PackageManager.pt.getTypeLocations PT.mainBranchId myErr.hash
-        |> Ply.toTask
+        LibDB.PackageManager.pt.getTypeLocations myErr.hash |> Ply.toTask
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       // Same shape as the stdlib `ParseError`s, so the store names this hash.
       Expect.contains names "ParseError" "the stored name is still there"
@@ -183,10 +181,8 @@ let private testRegistryDoesNotDisplaceStoredNames =
   }
 
 
-/// A script's expressions used to be started as a list, with only the last one awaited, so an error
-/// in any earlier one was dropped: the statement ran, its failure vanished, and the script carried on
-/// and reported the last expression's success. That is silent, and it hid a broken row in a perf
-/// workload for long enough to be worth a test.
+/// Each script expression is awaited as it runs. Awaiting only the last one drops an
+/// earlier failure silently -- it hid a broken perf-workload row.
 let private testMiddleStatementErrorStopsTheScript =
   testTask "an error in a middle statement ends the script" {
     let code =
@@ -199,8 +195,8 @@ let private testMiddleStatementErrorStopsTheScript =
     let! mod' = parse code
     let! state = executionStateFor pmPT false Map.empty
     let! result =
-      Cli.execute state PT.mainBranchId mod' [] Map.empty (Cli.RunScript("t", code))
-      |> Ply.toTask
+      // `execute` takes no branch here: the execution state already carries it.
+      Cli.execute state mod' [] Map.empty (Cli.RunScript("t", code)) |> Ply.toTask
 
     match result with
     | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"

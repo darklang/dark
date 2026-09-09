@@ -15,10 +15,8 @@
 ///   /value/find/:name, /value/get/:hash, /value/get/with-location/:hash
 ///   /function/find/:name, /function/get/:hash, /function/get/with-location/:hash
 ///
-/// Within the single-segment routes, literal paths (`/ping`, `/ops`, `/stats`,
-/// `/search`) must precede `/:location`, which would otherwise swallow them.
-/// Multi-segment routes (`/type/...`, etc.) can appear anywhere in the list
-/// since they can never match a single-segment path.
+/// Within the single-segment routes, literals must precede `/:location` -- see the
+/// note at `router`.
 ///
 /// SECURITY: POST /ops mutates the package store with no authentication. The
 /// old canvas sat behind canvas auth; under `darklang serve` it's reachable
@@ -95,7 +93,7 @@ let parseExactMatch (s: String) : Stdlib.Result.Result<Bool, String> =
 
 /// Branch the package server reads/writes against. Single-tenant install →
 /// always main.
-val serverBranchId = SCM.Branch.mainBranchId
+val serverBranchId = Darklang.SCM.Branch.mainBranchId
 
 
 // ────────────────────────── handlers ──────────────────────────
@@ -138,8 +136,25 @@ val opsGetHandler =
   Stdlib.HttpServer.get "/ops" opsGetHandlerFn
 
 
+/// How many distinct content items the store holds. Counts CONTENT (distinct hashes), not names -- two
+/// names sharing a hash are one item, which is the whole point of content-addressing.
+///
+/// Three COUNTs and nothing else -- no compiler, no codec, no fold -- which is the side of the F#/Dark
+/// line this belongs on.
+let packageStats () : Darklang.DarkPackages.Stats =
+  let db = Stdlib.LocalStore.path ()
+
+  let countOf (table: String) : Int64 =
+    Stdlib.Sqlite.scalarInt db $"SELECT COUNT(DISTINCT hash) AS n FROM {table}" "n"
+    |> Stdlib.Option.withDefault 0L
+
+  Darklang.DarkPackages.Stats
+    { types = Stdlib.Int.fromInt64 (countOf "package_types")
+      values = Stdlib.Int.fromInt64 (countOf "package_values")
+      fns = Stdlib.Int.fromInt64 (countOf "package_functions") }
+
 let statsHandlerFn (req: HttpRequest) : HttpResponse =
-  let stats = Builtin.pmGetStats ()
+  let stats = packageStats ()
   let body =
     $"Package stats:
 - types: {stats.types |> Stdlib.Int.toString}
@@ -283,11 +298,7 @@ val locationHandler =
 
 
 // ───── per-kind find / get / get-with-location ─────
-//
-// `:hash` carries a hex SHA-256 (the `Hash` content). The old canvas exposed
-// these as UUID `:id` segments because hashes were UUIDs back then; the
-// schema moved to content-addressed hashes, so we accept the hash hex
-// directly with no parse step.
+// `:hash` is hex SHA-256 (the `Hash` content), accepted directly with no parse step.
 
 val typeFindRoute = "/type/find/:name"
 let typeFindHandlerFn (req: HttpRequest) : HttpResponse =

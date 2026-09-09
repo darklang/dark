@@ -89,25 +89,6 @@ let createErrorDiagnostic
     range
     message
 
-let createInfoDiagnostic
-  (range: Parser.Range)
-  (message: String)
-  : LanguageServerProtocol.Diagnostic.Diagnostic =
-  createDiagnostic
-    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Information
-    range
-    message
-
-let createHintDiagnostic
-  (range: Parser.Range)
-  (message: String)
-  : LanguageServerProtocol.Diagnostic.Diagnostic =
-  createDiagnostic
-    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Hint
-    range
-    message
-
-
 let sendDiagnostic
   (uri: LanguageServerProtocol.DocumentUri)
   (diagnostic:
@@ -202,29 +183,7 @@ let handleIncomingMessage
       log $"got hover request for {requestParams.textDocument.uri}"
       Hover.handleHoverRequest state requestId requestParams
 
-    // // -- The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
-    // | Exit ->
-    //   log "Exit notification received"
-    //   if state.shouldShutdown then
-    //     log "Exiting with success code 0 (shutdown request received)"
-    //     //TODO
-    //   else
-    //     log "Exiting with error code 1 (shutdown request not received)"
-    //     //TODO
-    //   state
-
-    // | _ when state.shouldShutdown ->
-    //   log "Request received after shutdown, responding with InvalidRequest"
-    //   let response =
-    //     (JsonRPC.Response.Error.make
-    //       (Stdlib.Option.Option.Some r.id)
-    //       JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-    //       "Invalid request: server is shutting down"
-    //       Stdlib.Option.Option.None)
-    //     |> Stdlib.AltJson.format
-
-    //   logAndSendToClient response
-    //   state
+    // TODO: handle Exit and the after-shutdown InvalidRequest guard
 
     // -- other
     | Other jsonRpcRequest ->
@@ -279,70 +238,93 @@ let handleIncomingMessage
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
 
+        | ("dark/getPendingOps", Some requestId, params) ->
+          PendingOps.handleGetPendingOpsRequest state requestId params
+
+        // branches
+        // Branch ids are UUIDs, names are the readable strings -- see branches.dark's header.
         | ("dark/getBranches", Some requestId, _) ->
           Branches.handleGetBranchesRequest state requestId
+
+        | ("dark/getCurrentBranch", Some requestId, _) ->
+          Branches.handleGetCurrentBranchRequest state requestId
 
         | ("dark/createBranch",
           Some requestId,
           Some(Object [ ("name", String branchName) ])) ->
           Branches.handleCreateBranchRequest state requestId branchName
 
-        | ("dark/getPendingOps", Some requestId, params) ->
-          PendingOps.handleGetPendingOpsRequest state requestId params
-
         | ("dark/switchBranch",
           Some requestId,
           Some(Object [ ("branchId", String branchIdStr) ])) ->
-          SwitchBranch.handleSwitchBranchRequest state requestId branchIdStr
+          Branches.handleSwitchBranchRequest state requestId branchIdStr
 
         | ("dark/deleteBranch",
           Some requestId,
           Some(Object [ ("branchId", String branchIdStr) ])) ->
           Branches.handleDeleteBranchRequest state requestId branchIdStr
 
-        | ("dark/getCurrentBranch", Some requestId, _) ->
-          Branches.handleGetCurrentBranchRequest state requestId
+        | ("dark/canMerge", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleCanMergeRequest state requestId b
+
+        | ("dark/merge", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleMergeRequest state requestId b
+
+        | ("dark/rebase", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleRebaseRequest state requestId b
+
+        | ("dark/rebaseStatus", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleRebaseStatusRequest state requestId b
+
+        // No branchId means the branch the editor is ON, the same thing bare `dark merge` and
+        // `dark rebase` mean. The extension asks these from a branch context and sends `{}`, so
+        // without these arms the request matches nothing and the editor waits out its timeout.
+        | ("dark/canMerge", Some requestId, _) ->
+          Branches.handleCanMergeRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/merge", Some requestId, _) ->
+          Branches.handleMergeRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/rebase", Some requestId, _) ->
+          Branches.handleRebaseRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/rebaseStatus", Some requestId, _) ->
+          Branches.handleRebaseStatusRequest state requestId (Branches.activeBranchId ())
+
+        | ("dark/scm/getWipSummary", Some requestId, _) ->
+          Branches.handleGetWipSummaryRequest state requestId
+
+        // The editor's SCM surface. These were called by the extension and answered by nobody:
+        // the methods went when the F# SCM did, and the client kept calling them.
+        | ("dark/scm/commit", Some requestId, Some(Object [ ("message", String m) ])) ->
+          Branches.handleCommitRequest state requestId m
+
+        | ("dark/scm/discard", Some requestId, _) ->
+          Branches.handleDiscardRequest state requestId
+
+        | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Int limit) ])) ->
+          Branches.handleGetCommitsRequest state requestId limit
+
+        | ("dark/scm/getCommits", Some requestId, _) ->
+          Branches.handleGetCommitsRequest state requestId 20L
+
+        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("hash", String h) ])) ->
+          Branches.handleGetCommitOpsRequest state requestId h
 
         | ("dark/renameBranch",
           Some requestId,
-          Some(Object [ ("branchId", String branchIdStr), ("newName", String newName) ])) ->
-          Branches.handleRenameBranchRequest state requestId branchIdStr newName
+          Some(Object [ ("branchId", String b), ("name", String newName) ])) ->
+          Branches.handleRenameBranchRequest state requestId b newName
 
-        | ("dark/rebase", Some requestId, _) ->
-          Branches.handleRebaseRequest state requestId
-
-        | ("dark/rebaseStatus", Some requestId, _) ->
-          Branches.handleRebaseStatusRequest state requestId
-
-        | ("dark/merge", Some requestId, _) ->
-          Branches.handleMergeRequest state requestId
-
-        | ("dark/canMerge", Some requestId, _) ->
-          Branches.handleCanMergeRequest state requestId
+        // The two below answer explicitly rather than falling through to "we don't yet support this
+        // method": a rename with nothing to rename, and a concept this build has no registry for. A
+        // specific reason is worth more to whoever picks it up than a timeout -- see
+        // `Branches.respondUnsupported`.
+        | ("dark/renameBranch", Some requestId, _) ->
+          Branches.handleRenameBranchUnsupported state requestId
 
         | ("dark/listInstances", Some requestId, _) ->
-          Sync.handleListInstancesRequest state requestId
-
-        | ("dark/scm/getWipSummary", Some requestId, _) ->
-          Scm.handleGetWipSummaryRequest state requestId
-
-        | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Number n) ])) ->
-          Scm.handleGetCommitsRequest state requestId (Stdlib.Int.fromFloat n)
-
-        | ("dark/scm/getCommits", Some requestId, _) ->
-          Scm.handleGetCommitsRequest state requestId 10
-
-        | ("dark/scm/getWipOps", Some requestId, _) ->
-          Scm.handleGetWipOpsRequest state requestId
-
-        | ("dark/scm/commit", Some requestId, Some(Object [ ("message", String message) ])) ->
-          Scm.handleCommitRequest state requestId message
-
-        | ("dark/scm/discard", Some requestId, _) ->
-          Scm.handleDiscardRequest state requestId
-
-        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitHash", String commitHashStr) ])) ->
-          Scm.handleGetCommitOpsRequest state requestId commitHashStr
+          Branches.handleListInstancesRequest state requestId
 
         | ("dark/docs/getTopics", Some requestId, _) ->
           Docs.handleGetTopicsRequest state requestId

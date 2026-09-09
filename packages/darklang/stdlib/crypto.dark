@@ -20,3 +20,10 @@ let sha256hmac (key: Blob) (data: Blob) : Blob =
 
 /// Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.
 let sha1hmac (key: Blob) (data: Blob) : Blob = Builtin.cryptoSha1hmac key data
+
+
+/// Whether <param presented> equals <param expected>, in time that does not depend on where they first
+/// differ. Use this, never `==`, to check a secret or token against what a request sent: `==` stops at
+/// the first mismatch, so how long it took says how many leading characters were right.
+let constantTimeEquals (presented: String) (expected: String) : Bool =
+  Builtin.cryptoConstantTimeEquals presented expected

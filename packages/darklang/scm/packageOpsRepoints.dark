@@ -1,0 +1,216 @@
+module Darklang.SCM.PackageOps
+
+// Which dependents an edit should repoint, and which it left behind.
+//
+// Propagation's read half. It answers what WOULD move; authoring decides whether to move it, and
+// the pins in `propagation_policy` decide what stays put.
+
+/// The names that would REPOINT if the draft were committed now: everything that still references an OLD hash
+/// of a changed name, plus everything that references those, transitively.
+///
+/// The recursion is the cascade: if X repoints it gets a new hash, so anything referencing X repoints too.
+/// One recursive query rather than a Dark loop, so `dark status` is cheap enough to run on every prompt.
+let staleHashesFor (b: Conflicts.Binding) : List<String> =
+  Stdlib.Sqlite.columnP
+    (localDb ())
+    "WITH RECURSIVE stale(hash) AS (
+       SELECT d.item_hash FROM package_dependencies d
+        WHERE d.depends_on_owner = @p0
+          AND d.depends_on_modules = @p1
+          AND d.depends_on_name = @p2
+          AND d.depends_on_hash <> @p3
+       UNION
+       SELECT d2.item_hash FROM package_dependencies d2 JOIN stale s ON d2.depends_on_hash = s.hash
+     )
+     SELECT DISTINCT hash FROM stale"
+    [ b.owner, b.modules, b.name, b.hash ]
+    "hash"
+
+
+/// Every name bound to <param hash>, as <param branchId> sees it: main's, plus the branch's own frontier.
+///
+/// Deprecation is keyed on CONTENT, so it applies to every name holding that hash, which for a trivial
+/// value can be many unrelated ones. `locations` answers for MAIN only, so reading it alone under-reports
+/// the collateral on a branch -- precisely where a caller is about to warn someone about it.
+let namesAtContent (branchId: Uuid) (hash: String) (itemType: String) : List<String> =
+  let mainNames =
+    // main-scoped: main's names for this content; the chain's names and rebinds are applied below.
+    Stdlib.Sqlite.rowsP
+      (localDb ())
+      "SELECT owner, modules, name FROM locations
+       WHERE item_hash = @p0 AND item_type = @p1 AND unlisted_at IS NULL"
+      [ hash, itemType ]
+      (fun row ->
+        match
+          (Stdlib.Sqlite.textField row "owner",
+           Stdlib.Sqlite.textField row "modules",
+           Stdlib.Sqlite.textField row "name")
+        with
+        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(Conflicts.fqn o m n)
+        | _ -> Stdlib.Option.Option.None)
+
+  if SCM.Branch.isMain branchId then
+    mainNames
+  else
+    // The whole CHAIN, not the branch's own frontier: a parent branch's name for this content is
+    // collateral too. And main's name is not, when the chain has rebound it away from this content.
+    let chain = chainBindings branchId
+
+    let branchNames =
+      chain
+      |> Stdlib.List.filterMap (fun b ->
+        if b.hash == hash && b.itemType == itemType then
+          Stdlib.Option.Option.Some(Conflicts.fqn b.owner b.modules b.name)
+        else
+          Stdlib.Option.Option.None)
+
+    let reboundAway =
+      chain
+      |> Stdlib.List.filterMap (fun b ->
+        if b.hash != hash then
+          Stdlib.Option.Option.Some(Conflicts.fqn b.owner b.modules b.name)
+        else
+          Stdlib.Option.Option.None)
+
+    let mainStill =
+      mainNames |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.``member`` reboundAway n))
+
+    Stdlib.List.unique (Stdlib.List.append mainStill branchNames)
+
+
+/// Where MAIN says each of <param hashes> lives. LIST-valued per hash on purpose: identical content is the
+/// same item, so one hash is routinely live at several names, and picking one would drop the others from
+/// the preview -- the same mistake that would drop them from the cascade itself.
+///
+/// main-scoped, by name and on purpose: the cascade preview asks what MAIN binds, and a branch's
+/// own names are added by the caller from the overlay.
+let mainNamesForHashes (hashes: List<String>) : List<(String * String)> =
+  match hashes with
+  | [] -> []
+  | _ ->
+    // Chunked for the same reason as `Conflicts.localBindingsFor`: a wide cascade can produce more stale
+    // hashes than SQLite will bind in one statement, and the over-cap failure reads as an empty repoint list.
+    Stdlib.List.unique hashes
+    |> Conflicts.inChunks
+    |> Stdlib.List.map (fun chunk ->
+      let sql =
+        "SELECT item_hash, owner, modules, name FROM locations
+         WHERE unlisted_at IS NULL AND item_hash IN ("
+        ++ (Conflicts.inPlaceholders chunk)
+        ++ ")"
+
+      Stdlib.Sqlite.rowsP
+        (localDb ())
+        sql
+        chunk
+        (fun row ->
+          match
+            (Stdlib.Sqlite.textField row "item_hash",
+             Stdlib.Sqlite.textField row "owner",
+             Stdlib.Sqlite.textField row "modules",
+             Stdlib.Sqlite.textField row "name")
+          with
+          | (Some h, Some o, Some m, Some n) ->
+            Stdlib.Option.Option.Some((h, Conflicts.fqn o m n))
+          | _ -> Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten
+
+
+/// The NAMES `staleHashesFor` finds for <param b>, resolved through the BRANCH overlay first, then main. A
+/// branch's items have no `locations` row, so resolving only against main undercounts the preview -- fewer
+/// repoints than the commit will perform, which is the wrong direction for a number whose job is to warn you.
+let repointsFor (b: Conflicts.Binding) : List<String> =
+  let hashes = staleHashesFor b
+
+  let overlay =
+    match currentBranch () with
+    | id when SCM.Branch.isMain id -> []
+    | branch ->
+      chainBindings branch
+      |> Stdlib.List.map (fun bind ->
+        (bind.hash, Conflicts.fqn bind.owner bind.modules bind.name))
+
+  let overlayHashes = overlay |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
+
+  let fromOverlay =
+    overlay
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.List.``member`` hashes (Stdlib.Tuple2.first pair))
+
+  // Main answers only for hashes the branch doesn't already place.
+  let unresolved =
+    hashes |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` overlayHashes h))
+
+  (Stdlib.List.append fromOverlay (mainNamesForHashes unresolved))
+  |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
+  |> Stdlib.List.unique
+
+
+/// The location a fully-qualified name refers to, as `Conflicts.fqn` writes them: the first segment is the
+/// owner, the last is the name, everything between is the module path. None when there aren't enough
+/// segments to be an item.
+let locationOfFqn
+  (fqn: String)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  (Branches.parseFqn fqn)
+  |> Stdlib.Option.map (fun (o, m, n) -> Deps.locationOf o m n)
+
+
+/// One knock-on repoint: <param name> moves because <param uses> did. Carrying the CAUSE is what lets the
+/// commit view read as an outcome ("Home.render -> uses User.format") instead of a bare list of names.
+type Repoint =
+  { name: String
+    uses: String }
+
+
+/// Every name the draft would touch as a knock-on, before any policy is applied: it references an old
+/// version of something the draft changed. Never a name the draft itself changed, which is listed as a
+/// change rather than an effect. Split by `draftRepoints` (will follow) and `draftLeftBehind` (pinned).
+let draftRepointCandidates
+  (changed: List<Conflicts.Binding>)
+  : List<Repoint> =
+  let changedNames =
+    changed |> Stdlib.List.map (fun b -> Conflicts.fqn b.owner b.modules b.name)
+
+  changed
+  |> Stdlib.List.map (fun b ->
+    let cause = Conflicts.fqn b.owner b.modules b.name
+
+    repointsFor b
+    |> Stdlib.List.map (fun n -> Repoint { name = n; uses = cause }))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.filter (fun r ->
+    Stdlib.Bool.not (Stdlib.List.``member`` changedNames r.name))
+  |> Stdlib.List.uniqueBy (fun r -> r.name)
+  |> Stdlib.List.sortBy (fun r -> r.name)
+
+
+/// Every name the draft would repoint, deduped: the candidates policy says will follow.
+let draftRepoints (changed: List<Conflicts.Binding>) : List<Repoint> =
+  draftRepointCandidates changed
+  |> (fun rs ->
+    let choices = Propagation.allChoices ()
+
+    rs
+    |> Stdlib.List.filter (fun r ->
+      match locationOfFqn r.name with
+      | Some loc -> Propagation.shouldFollowIn choices loc
+      | None -> true))
+
+
+/// Every name that WOULD have repointed and won't, because a pin says so.
+///
+/// The complement of `draftRepoints`, and a first-class outcome rather than a warning: leaving a reference
+/// on an older version is what a pin IS. Shown at commit so you can see the decision next to the changes
+/// that triggered it.
+let draftLeftBehind (changed: List<Conflicts.Binding>) : List<Repoint> =
+  draftRepointCandidates changed
+  |> (fun rs ->
+    let choices = Propagation.allChoices ()
+
+    rs
+    |> Stdlib.List.filter (fun r ->
+      match locationOfFqn r.name with
+      | Some loc -> Stdlib.Bool.not (Propagation.shouldFollowIn choices loc)
+      | None -> false))
+

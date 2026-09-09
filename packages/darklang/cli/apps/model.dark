@@ -29,6 +29,32 @@ let isValidSlug (slug: String) : Bool =
   Stdlib.Regex.isMatch slug "^[a-z0-9][a-z0-9-]*$"
 
 
+/// True when <param entrypoint> is a plain package function name.
+///
+/// The entrypoint is interpolated into `<launcher> eval '<entrypoint> "<slug>"'`, which becomes a
+/// systemd `ExecStart=` and, on macOS, an argument to `/bin/sh -c`. A quote in it closes the eval string
+/// and everything after is a command. Apps are DISCOVERED from packages (`Registry.catalog`), and
+/// packages sync, so this value can arrive from another machine.
+let isValidEntrypoint (entrypoint: String) : Bool =
+  Stdlib.Regex.isMatch entrypoint "^[A-Za-z][A-Za-z0-9_.]*$"
+
+
+/// True when <param name> is safe to write into a generated unit file.
+///
+/// It lands in a systemd `Description=`, which is newline-delimited, so a newline in the name writes
+/// further unit directives. Anything printable on one line is fine; control characters are not.
+let isValidAppName (name: String) : Bool =
+  name != "" && Stdlib.Regex.isMatch name "^[^\\p{C}]+$"
+
+
+/// `isValidEntrypoint` for whichever entrypoint the target carries. A foreground app writes no unit
+/// file, so it has nothing to check.
+let isValidEntrypointOf (target: Target) : Bool =
+  match target with
+  | Daemon entrypoint -> isValidEntrypoint entrypoint
+  | Foreground _ -> true
+
+
 let kindTag (target: Target) : String =
   match target with
   | Foreground _ -> "foreground"

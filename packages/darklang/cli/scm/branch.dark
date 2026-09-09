@@ -1,283 +1,676 @@
-module Darklang.Cli.SCM.Branch
+module Darklang.Cli.Branch
 
-// Branch is per-process (not persisted) — use `--branch <name>`
-// or `DARK_BRANCH=<name>` for non-interactive picks.
+// Branches: isolated lines of work you can author and evaluate without touching main.
+//
+// A branch is a set of delta ops stored `effective = 0` in the shared `package_ops` and tagged in
+// `op_branches`; a branch's package manager is main's with those ops overlaid. Nothing here writes SQL --
+// all of it is siloed in `SCM.PackageOps` -- this file only parses arguments and formats what it returns.
+//
+// This file holds the lifecycle and registry surface (switch/list/archive, export and push/pull,
+// execute/help/complete). Merge and rebase are in branchMerge.dark, log and diff in
+// branchHistory.dark; all three files share this module.
 
+/// Where a branch id is, in words: `main`, or `branch "<name>"`. Main is never quoted and a branch
+/// always is, so the two read differently in every message that names one.
+let whereLabel (id: Uuid) : String =
+  if SCM.Branch.isMain id then SCM.Branch.mainBranchName
+  else $"branch \"{SCM.PackageOps.branchName id}\""
 
-/// Format annotations for a branch (pending WIP and/or commit count).
-/// Main branch only shows WIP, other branches show both.
-let branchAnnotation
-  (branch: SCM.Branch.Branch)
-  (isMain: Bool)
-  : String =
-  let wip = SCM.PackageOps.getWipSummary branch.id
+/// The id of the branch <param branchRef> refers to, WITHOUT creating anything, or None.
+///
+/// Three spellings, because all three get printed at people and anything you can see you should be able to
+/// paste: a NAME, which is what you normally type; a full ID, which a bundle carries and which a branch
+/// with no name of its own goes by; and an ID PREFIX, which is what `dark branches` shows (8 characters).
+///
+/// Ambiguity is refused rather than guessed. Returns None on no match too; the caller decides whether that
+/// is an error to report or a name to start a branch under.
+let lookupRef (branchRef: String) : Stdlib.Option.Option<Uuid> =
+  // The resolution itself is in `SCM.PackageOps.resolveBranchRef`, because the LSP needs the same
+  // answer. What stays here is the WORDS.
+  match SCM.PackageOps.resolveBranchRef branchRef with
+  | Found id -> Stdlib.Option.Option.Some id
+  | NotFound -> Stdlib.Option.Option.None
+  | UnknownId _ ->
+    Cli.printErr $"no branch with id {branchRef} in this store."
+    Cli.printHint "  `dark branches` lists yours; a peer's branch arrives with `dark branch pull`."
+    Stdlib.Option.Option.None
+  | Ambiguous ->
+    Cli.printErr
+      $"\"{branchRef}\" matches more than one branch -- use more of the id, or its name."
 
-  let pendingPart =
-    if wip.total > 0 then
-      let total = Stdlib.Int.toString wip.total
-      [ Stdlib.Cli.UI.Colors.warning $"{total} pending" ]
+    Stdlib.Option.Option.None
+
+/// The id of the branch you just named, or None having said why. What every READ verb goes through: a
+/// branch we don't have is refused rather than started, so `dark merge typoo` says so instead of merging
+/// an empty branch it just invented.
+let resolveRef (branchRef: String) : Stdlib.Option.Option<Uuid> =
+  match lookupRef branchRef with
+  | Some id -> Stdlib.Option.Option.Some id
+  | None ->
+    Cli.printErr $"no branch \"{branchRef}\"."
+    Cli.printHint "  `dark branches` lists them."
+    Stdlib.Option.Option.None
+
+/// Show the current branch (or main).
+///
+/// Asks the PROCESS, not the config key: `--branch` and `DARK_BRANCH` both move the process without
+/// touching the config, so reading the key would report the branch you'd be on if you hadn't asked for
+/// another one.
+let executeCurrent (state: AppState) : AppState =
+  Cli.printOk $"on {whereLabel (SCM.PackageOps.currentBranch ())}."
+  state
+
+/// Every branch, as the machine-readable shape. Same data the list renders, so the two can't drift.
+let branchRows (unit: Unit) : List<ScmJson.BranchJson> =
+  let current = SCM.PackageOps.currentBranch ()
+
+  SCM.Branches.list ()
+  |> Stdlib.List.map (fun b ->
+    ScmJson.BranchJson
+      // Ids are `Uuid` inside and text only where the medium is text. JSON is text.
+      { id = Stdlib.Uuid.toString b.id
+        name = if b.name == "" then Stdlib.Uuid.toString b.id else b.name
+        parent = Stdlib.Uuid.toString b.parent
+        parentName =
+          if SCM.Branch.isMain b.parent then
+            ""
+          else
+            SCM.PackageOps.branchName b.parent
+        ops = b.ops
+        current = b.id == current
+        merged = b.merged })
+
+/// List all active branches.
+let executeList (state: AppState) (includeMerged: Bool) : AppState =
+  Cli.printOk $"on {whereLabel (SCM.PackageOps.currentBranch ())}. branches:"
+  Stdlib.printLine (SCM.PackageOps.branchList includeMerged)
+  state
+
+/// Switch the current branch: persistently (the `current_branch` config key, so the next process starts
+/// here) AND in this process (the overlay used for name resolution and execution). `switch main` (or
+/// empty) returns to main.
+///
+/// Both halves are needed: the interactive REPL is one long-lived process, so writing only the config key
+/// leaves it on whatever branch it booted on while the status bar says otherwise.
+let executeSwitch (state: AppState) (branchRef: String) : AppState =
+  // The branch a switch lands on, RETURNED rather than assumed, so the REPL's state moves with the process
+  // overlay instead of drifting from it for the rest of the session.
+  let landedOn =
+    match branchRef with
+    // A leading dash is a mistyped flag or a sweep's argument, never a branch name. Without this
+    // arm `dark switch --help` starts a branch called "--help" and moves the store onto it.
+    | ref when Stdlib.String.startsWith ref "-" ->
+      let _ =
+        Cli.printErr $"\"{ref}\" starts with a dash, so it's a flag rather than a branch name."
+
+      let _ = Cli.printHint "  `dark switch <branch>`, and `dark branches` lists them."
+      SCM.PackageOps.currentBranch ()
+    | ref when (ref == "") || (ref == SCM.Branch.mainBranchName) ->
+      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+      let _ = Stdlib.LocalStore.configSet "current_branch_name" SCM.Branch.mainBranchName
+      let _ = SCM.PackageOps.selectBranch SCM.Branch.mainBranchId
+      let _ = Cli.printOk $"switched to {SCM.Branch.mainBranchName}."
+      SCM.Branch.mainBranchId
+    | ref ->
+      // A branch started while on another branch is parented to it (branches off branches). The parent
+      // is whatever we're currently on, BY ID -- the parent link is a reference, and references don't
+      // follow a rename. An existing branch is never re-parented, so switching onto one can't move it.
+      let parentId =
+        match SCM.PackageOps.currentBranch () with
+        | id when SCM.Branch.isMain id -> SCM.Branch.mainBranchId
+        | cur -> cur
+
+      // Resolve BEFORE creating; `lookupRef` takes a name or an id. It also resolves MERGED branches,
+      // because read verbs need them -- but switching onto one must not, since its work is already in the
+      // parent. A merged name is therefore free again, and typing it starts a new branch.
+      // Only a name nobody has starts a branch. A foreign uuid or an ambiguous prefix is refused, with
+      // the reason `lookupRef` printed; starting a branch NAMED after either read as success.
+      let resolved =
+        match SCM.PackageOps.resolveBranchRef ref with
+        | Found existing ->
+          if SCM.PackageOps.branchIsMerged existing then
+            Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch ref parentId)
+          else
+            Stdlib.Option.Option.Some((existing, false))
+        | NotFound -> Stdlib.Option.Option.Some(SCM.PackageOps.ensureBranch ref parentId)
+        | UnknownId _ ->
+          let _ = lookupRef ref
+          Stdlib.Option.Option.None
+        | Ambiguous ->
+          let _ = lookupRef ref
+          Stdlib.Option.Option.None
+
+      match resolved with
+      | None -> SCM.PackageOps.currentBranch ()
+      | Some pair ->
+
+      let (branchId, created) = pair
+
+      // The config holds the ID, with the name beside it for anyone reading the file. Names are
+      // deliberately not unique, including across instances, so storing the name would let a sync that
+      // brings in a peer's same-named branch move you onto theirs without a word.
+      let handle =
+        match SCM.PackageOps.branchName branchId with
+        | "" -> Stdlib.Uuid.toString branchId
+        | named -> named
+
+      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString branchId)
+      let _ = Stdlib.LocalStore.configSet "current_branch_name" handle
+      let _ = SCM.PackageOps.selectBranch branchId
+
+      let parentNote =
+        if SCM.Branch.isMain parentId then
+          ""
+        else
+          $" (off \"{SCM.PackageOps.branchName parentId}\")"
+
+      let _ =
+        if created then
+          Cli.printOk $"started branch \"{handle}\"{parentNote}."
+
+          // A merged namesake exists: the "come back after lunch" move is `switch <old name>`, and
+          // silently starting an empty impostor lets you edit a branch you believe holds your work.
+          let namesake =
+            SCM.Branches.list ()
+            |> Stdlib.List.any (fun b -> (b.name == handle) && b.merged && (b.id != branchId))
+
+          if namesake then
+            Cli.printHint
+              $"  note: an earlier \"{handle}\" was merged; this one is fresh. `dark branches --all` shows both."
+          else
+            ()
+        else
+          ()
+
+      let _ =
+        Cli.printOk
+          $"switched to branch \"{handle}\" -- authoring + eval target it now (`dark switch main` to return)."
+
+      branchId
+
+  { state with currentBranchId = landedOn }
+
+/// Where merging <branchId> leaves you: its parent, as (id, name). A branch with no row is treated as
+/// parented to main, which is what an imported branch that arrived as tagged ops looks like.
+let parentOf (branchId: Uuid) : (Uuid * String) =
+  match SCM.Branches.list () |> Stdlib.List.findFirst (fun b -> b.id == branchId) with
+  | Some b -> (b.parent, SCM.PackageOps.branchName b.parent)
+  | None -> (SCM.Branch.mainBranchId, SCM.Branch.mainBranchName)
+
+/// `dark branch rename <branch> <new-name>`
+///
+/// Possible at all only because a name is an alias now: op tags, per-name bases, relay bundles and parent
+/// links all point at the id, so this is one UPDATE and nothing else moves. It could not be done when the
+/// name WAS the id.
+let executeRename (state: AppState) (branchRef: String) (newName: String) : AppState =
+  match resolveRef branchRef with
+  | None -> state
+  | Some branchId ->
+    if SCM.Branch.isMain branchId then
+      Cli.printErr "main is the trunk; it has no name to change."
+      state
     else
-      []
+      let was = SCM.PackageOps.branchName branchId
 
-  let commitPart =
-    if isMain then
-      []
-    else
-      let commits = SCM.PackageOps.getCommits branch.id 1000
-      let commitCount = Stdlib.List.length commits
+      match SCM.Branch.rename branchId newName with
+      | Ok b ->
+        // The config keeps the name beside the id for anyone reading the file, so it goes stale on a
+        // rename of the branch you are standing on.
+        if SCM.PackageOps.currentBranch () == branchId then
+          Stdlib.LocalStore.configSet "current_branch_name" b.name
+        else
+          ()
 
-      if commitCount > 0 then
-        let count = Stdlib.Int.toString commitCount
-        [ Stdlib.Cli.UI.Colors.info $"{count} committed" ]
+        Cli.printOk $"renamed \"{was}\" to \"{b.name}\". Nothing else moved: references are by id."
+        state
+      | Error e ->
+        Cli.printErr e
+        state
+
+/// Archive (soft-delete) a branch: its unmerged ops are discarded and it leaves every listing, `--all`
+/// included. So it asks the same way `discard` and `merge` do: say what would go, then take an explicit
+/// yes, which a piped stdin cannot give.
+///
+/// A branch with nothing unmerged has nothing to lose, so that case goes straight through -- the whole
+/// point of the question is the work, and there is none.
+let executeArchive
+  (state: AppState)
+  (branchRef: String)
+  (autoConfirm: Bool)
+  : AppState =
+  match resolveRef branchRef with
+  | None -> state
+  // A child resolves names through its parent chain, so archiving a parent takes the parent's work
+  // out from under it: the child's code stops resolving, its listing shows a parent "not in this
+  // store", and merging it lands ops whose dependencies are gone. Merge has refused this since it
+  // was written; archive is the same act by another route and now refuses it too.
+  | Some branchId when Stdlib.Bool.not (Stdlib.List.isEmpty (SCM.Branches.activeChildNames branchId)) ->
+    let kids = SCM.Branches.activeChildNames branchId
+    Cli.printErr
+      $"cannot archive \"{branchRef}\": {Cli.Text.plural (Stdlib.List.length kids) "branch"} still branch off it."
+    kids |> Stdlib.List.iter (fun k -> Cli.printHint $"    - {k}")
+    Cli.printHint "  merge or archive them first, and this one can go."
+    state
+  | Some branchId ->
+    let entries = SCM.PackageOps.branchDiffEntries branchId
+
+    let confirmed =
+      if (entries == []) || autoConfirm then
+        true
       else
-        []
+        // Warning-colored like DISCARDING: this listing is what is about to be destroyed, and
+        // green reads as "already fine".
+        Stdlib.printLine (
+          Stdlib.Cli.UI.Colors.warning
+            $"  ARCHIVING \"{branchRef}\" discards {Cli.Text.plural (Stdlib.List.length entries) "unmerged name"}:"
+        )
 
-  let annotations = Stdlib.List.append pendingPart commitPart
+        entries
+        |> Stdlib.List.iter (fun e ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText $"    - {e.name}  [{e.kind}]"))
 
-  if Stdlib.List.isEmpty annotations then
-    ""
+        Cli.printHint "  `dark merge` first if you meant to keep them."
+
+        Cli.Prompt.confirmExplicit
+          autoConfirm
+          (Stdlib.Cli.UI.Colors.warning "\n  Archive it? [y/N]: ")
+
+    if Stdlib.Bool.not confirmed then
+      Cli.printOk
+        "  kept. (`dark branch archive <name> -y` if you mean it -- a piped stdin can't answer this.)"
+
+      state
+    else
+
+    // The parent, read BEFORE the archive: an archived branch drops out of the listing `parentOf`
+    // reads, so asking afterwards answers main even for a branch of a branch.
+    let (parentId, parentName) = parentOf branchId
+
+    match SCM.PackageOps.archiveBranch branchId with
+    | Ok _ ->
+      Cli.printOk $"archived branch \"{branchRef}\"."
+      // Same as merge: standing on the branch you just archived is standing on finished work, and the
+      // next edit would land there and revive it. Move to the parent, in this process and in the
+      // config the next one reads, and say so.
+      if SCM.PackageOps.currentBranch () == branchId then
+        let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString parentId)
+        let _ =
+          Stdlib.LocalStore.configSet
+            "current_branch_name"
+            (if SCM.Branch.isMain parentId then "" else parentName)
+        let _ = SCM.PackageOps.selectBranch parentId
+        Cli.printOk $"now on {whereLabel parentId} -- that's where the next edit lands."
+        { state with currentBranchId = parentId }
+      else
+        state
+    | Error e ->
+      Cli.printErr $"couldn't archive: {e}"
+      state
+
+/// Export a branch as a portable bundle file (registry + frontier ops) -- move it to another machine.
+let executeExport (state: AppState) (branchRef: String) (path: String) : AppState =
+  match resolveRef branchRef with
+  | None -> state
+  | Some branchId ->
+    match Stdlib.Cli.File.writeText path (SCM.PackageOps.exportBranch branchId) with
+    | Ok _ -> Cli.printOk $"exported branch \"{branchRef}\" to {path}."
+    | Error _ -> Cli.printErr $"couldn't write {path}."
+
+    state
+
+/// Import a branch bundle file (from another machine): recreates the branch here (isolated from main).
+let executeImport (state: AppState) (path: String) : AppState =
+  match Stdlib.Cli.File.readText path with
+  | Ok json ->
+    match SCM.PackageOps.importBranch json with
+    | Ok msg -> Cli.printOk msg
+    | Error e -> Cli.printErr $"couldn't import: {e}"
+  | Error _ -> Cli.printErr $"couldn't read {path}."
+
+  state
+
+/// Push a branch to a relay under your identity, so you can pull it on another machine.
+let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
+  if url == "" then
+    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    state
   else
-    let joined = Stdlib.String.join annotations ", "
-    $" ({joined})"
+    match resolveRef branchRef with
+    | None -> state
+    | Some branchId ->
+      // No identity gate: an instance mints its own id on first use, so this can't be empty.
+      let id = SCM.PackageOps.identity ()
+      let bundle = Stdlib.String.toBlob (SCM.PackageOps.exportBranch branchId)
 
+      // The relay keys on the branch ID, not the name: two machines can each have a `fix-auth`, and
+      // they are different branches. The name travels inside the bundle, for display on the far end.
+      // The id is a `Uuid`; a URL is text, so this is one of the few places it becomes a string.
+      let branchParam = Stdlib.Uuid.toString branchId
 
-/// Print a branch and its children recursively as a tree
-let printBranchTree
-  (branches: List<SCM.Branch.Branch>)
-  (parentId: Uuid)
-  (currentBranchId: Uuid)
-  (prefix: String)
-  : Unit =
-  let children =
-    branches
-    |> Stdlib.List.filter (fun b ->
-      match b.parentBranchId with
-      | Some pid -> pid == parentId
-      | None -> false)
+      match Sync.relayPostTo url $"/branch/push?owner={id}&branch={branchParam}" bundle with
+      | Ok reply ->
+        // Read the confirmation rather than trusting the status: a 200 with a body this cannot
+        // read has not said it stored anything, and "pushed branch X" would be a claim rather than
+        // a report. Nothing is recorded either way here, so the cost of being wrong is only the
+        // message.
+        let text = Stdlib.String.trim (Stdlib.String.fromBlobWithReplacement reply)
 
-  let childCount = Stdlib.List.length children
+        if Stdlib.String.startsWith text "stored branch" then
+          // The relay's bundle channel holds these now; `sync status` asks. Not the relay's own key:
+          // see `Wire.branchChannel`.
+          SCM.Wire.rememberPushed (SCM.Wire.branchChannel url) (SCM.PackageOps.branchOpIds branchId)
+          Cli.printOk $"pushed branch \"{branchRef}\" to {url} as \"{id}\"."
+        else if Stdlib.String.startsWith text "kept the newer copy" then
+          // Not an error: the relay is holding a NEWER copy of this branch than the one just sent,
+          // which happens when another machine pushed and this one has not pulled yet. Replacing it
+          // would take that work off the relay.
+          Cli.printOk
+            $"{url} already holds a newer \"{branchRef}\"; nothing was replaced."
 
-  children
-  |> Stdlib.List.indexedMap (fun i child ->
-    let isLastChild = i == (childCount - 1)
+          Cli.printHint
+            "  `dark branch pull` to take it, then push again if you still have something to add."
+        else
+          Cli.printErr
+            $"{url} answered, but not with anything this build can read as a confirmation, so the branch may not be there."
 
-    let connector =
-      if isLastChild then
-        "└── "
+          Cli.printHint "  `dark branch push` again once the relay is healthy."
+      | Error e -> Cli.printErr $"branch push failed: {e}"
+
+      state
+
+/// Pull branches from a relay, yours by default or someone else's with <param owner>.
+///
+/// The relay stores every owner's branches side by side, which is what lets one of YOUR branches follow
+/// you between your own machines, and what lets you fetch a colleague's.
+///
+/// A pulled branch arrives like any other: isolated from main, yours to look at, merge or discard. It does
+/// NOT become the same branch as theirs -- a branch id is minted by whoever created it, so pulling gives
+/// you their ops under their id, and pushing it back is what shares your side.
+let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
+  if url == "" then
+    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    match Sync.relayGetAuthed url $"/branch/list?owner={owner}" with
+    | Ok listBody ->
+      // Every line the relay sends here goes back to it inside the next request's URL, and is printed
+      // if the import fails. A branch id is a uuid, so anything that is not one is discarded rather
+      // than echoed: the relay's own push handler refuses a non-id for the same reason ("keeps the
+      // branch table keyed on real ids"), and a broken relay answering with a page of HTML should not
+      // put a page of HTML in a URL or in your terminal.
+      let lines =
+        Stdlib.String.fromBlobWithReplacement listBody
+        |> Stdlib.String.split "\n"
+        |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+        |> Stdlib.List.filter (fun s -> s != "")
+
+      let ids =
+        lines
+        |> Stdlib.List.filter (fun s ->
+          match Stdlib.Uuid.parse s with
+          | Ok _ -> true
+          | Error _ -> false)
+
+      let ignored = (Stdlib.List.length lines) - (Stdlib.List.length ids)
+
+      let _ =
+        if ignored > 0 then
+          Cli.printErr
+            $"{url} listed {Cli.Text.plural ignored "line"} that are not branch ids; ignoring them."
+        else
+          ()
+
+      if Stdlib.List.isEmpty ids then
+        Cli.printOk $"no branches for \"{owner}\" on {url}."
       else
-        "├── "
+        ids
+        |> Stdlib.List.iter (fun bid ->
+          match Sync.relayGetAuthed url $"/branch/pull?owner={owner}&branch={bid}" with
+          | Ok bundleBody ->
+            match
+              SCM.PackageOps.importBranch
+                (Stdlib.String.fromBlobWithReplacement bundleBody)
+            with
+            | Ok msg ->
+              // What came from the relay's bundle channel, that channel holds -- the ops that
+              // were IN the bundle, not every op the local branch happens to hold. Marking the
+              // whole branch told `sync status` the relay had work it had never been sent, and
+              // the next `branch push` skipped it: the colleague pulling that branch got a
+              // truncated history until someone pushed again by hand.
+              let _ =
+                SCM.Wire.rememberPushed
+                  (SCM.Wire.branchChannel url)
+                  (SCM.PackageOps.bundleOpIds
+                    (Stdlib.String.fromBlobWithReplacement bundleBody))
+              Cli.printOk msg
+            | Error e -> Cli.printErr $"import {bid} failed: {e}"
+          | Error e -> Cli.printErr $"pull {bid} failed: {e}")
+    | Error e -> Cli.printErr $"branch list failed: {e}"
 
-    let marker =
-      if child.id == currentBranchId then
-        Stdlib.Cli.UI.Colors.success "* "
-      else
-        "  "
+  state
 
-    let isMain = child.id == SCM.Branch.mainBranchId
-    let annotation = branchAnnotation child isMain
+/// Pull ALL your own branches from a relay.
+let executePull (state: AppState) (url: String) : AppState =
+  executePullFrom state url (SCM.PackageOps.identity ())
 
-    Stdlib.printLine $"{prefix}{connector}{marker}{child.name}{annotation}"
+/// The page for `dark branch` AND for the root commands that share this file's subject: `branches`,
+/// `switch`, `rebase`, `diff`, `log`, `resolve`. They are one thing seen from six angles, and the "Also
+/// at the root" block below is where each of them is documented. `merge` gets its own page
+/// (`mergeHelp`) because it is the one that moves work into a parent and the questions are different.
+let help (_state: AppState) : String =
+  [ "dark branch - isolated lines of work; author and eval without touching main."
+    ""
+    "  You name a branch; it gets a uuid underneath. Names are what you"
+    "  type and can reuse; the uuid is what op tags, bundles and parent"
+    "  links point at. `dark branches` shows both."
+    ""
+    "  dark branch                   show the current branch (or main)"
+    "  dark branch <name>            switch to a branch, starting it if it's new"
+    "  dark branch list              name (id) <- parent [status]"
+    "  dark branch list --all        include the ones already merged"
+    "  dark branch rename <old> <new>   give a branch a different name"
+    "  dark branch archive <name> [-y]  discard a branch + its unmerged work"
+    "  dark branch diff <name>       what it changes vs its parent"
+    "  dark branch log <name>        its ops, oldest-first"
+    "  dark branch export <name> <f> write it to a file"
+    "  dark branch import <f>        recreate a branch here from that file"
+    "  dark branch push <name> [url] push a branch to a relay under your identity"
+    "  dark branch pull [url]        pull all your branches back from a relay"
+    "  dark branch pull --from <who> pull a COLLEAGUE's branches from the relay"
+    ""
+    "  Also at the root, because you reach for them constantly:"
+    "  dark branches                 same as `dark branch list`"
+    "  dark branches --all           merged branches too (hidden by default)"
+    "  dark switch <name>            same as `dark branch <name>`"
+    "  dark merge <name>             merge a branch into its parent"
+    "  dark rebase <name> [--dry-run]  accept the parent's changes into a branch"
+    "  dark diff <name>              same as `dark branch diff`"
+    "  dark log [name]               its ops; on main, the commits"
+    "  dark resolve <branch> <name> mine|theirs"
+    "                                keep the branch's, or the parent's"
+    ""
+    "  Conflicts: `dark conflicts branch <name>` previews; `dark"
+    "  conflicts` reviews recorded ones."
+    "  One-off, without switching: `dark --branch <name> eval <expr>`"
+    "  One shell at a time: `export DARK_BRANCH=<name>`" ]
+  |> Stdlib.String.join "\n"
 
-    let childPrefix =
-      if isLastChild then
-        prefix ++ "    "
-      else
-        prefix ++ "│   "
-
-    printBranchTree branches child.id currentBranchId childPrefix)
-  |> Stdlib.List.iter (fun _ -> ())
-
-
+/// `dark branch ...`. Bare `dark branch <id>` switches (creating the branch if it's new), which is why
+/// the subcommand arms come first: a subcommand name can't also be a branch you switch to.
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
-  | [] | [ "list" ] ->
-    let branches = SCM.Branch.list ()
-    if Stdlib.List.isEmpty branches then
-      Stdlib.printLine "No branches."
+  | [] -> executeCurrent state
+  | [ "list" ] -> executeList state false
+  | [ "list", "--all" ] -> executeList state true
+  | [ "current" ] -> executeCurrent state
+  | [ "switch", id ] -> executeSwitch state id
+  | [ "new", id ] -> executeSwitch state id
+  // `new` and `create` are the same thing as a bare switch: a branch is created by switching to a name
+  // nothing holds.
+  | [ "create", id ] -> executeSwitch state id
+  | [ "archive", id ] -> executeArchive state id false
+  | [ "archive", id, "-y" ] | [ "archive", id, "--yes" ] ->
+    executeArchive state id true
+  | [ "rename", id, newName ] -> executeRename state id newName
+  | [ "diff", id ] -> executeDiff state id false
+  | [ "diff", id, "--source" ] -> executeDiff state id true
+  | [ "log", id ] -> executeLog state id
+  | [ "merge", id ] -> executeMerge state id false
+  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id true
+  | [ "merge", id, "--dry-run" ] -> executeMergeDryRun state id
+  | [ "rebase", id ] -> executeRebase state id
+  | [ "resolve", id, name, choice ] -> executeResolve state id name choice
+  | [ "export", id, path ] -> executeExport state id path
+  | [ "import", path ] -> executeImport state path
+  | [ "push", id ] -> executePush state id (SCM.PackageOps.relay ())
+  | [ "push", id, url ] -> executePush state id url
+  | [ "pull" ] -> executePull state (SCM.PackageOps.relay ())
+  | [ "pull", "--from", owner ] ->
+    executePullFrom state (SCM.PackageOps.relay ()) owner
+  // Both orders: the url reads naturally on either side of the flag.
+  | [ "pull", url, "--from", owner ] when looksLikeRelayUrl url ->
+    executePullFrom state url owner
+  | [ "pull", "--from", owner, url ] when looksLikeRelayUrl url ->
+    executePullFrom state url owner
+  | [ "pull", arg ] ->
+    if looksLikeRelayUrl arg then
+      executePull state arg
     else
-      // Find the root: main branch (no parent)
-      let mainId = SCM.Branch.mainBranchId
-
-      // Print main first
-      let mainBranch =
-        branches |> Stdlib.List.findFirst (fun b -> b.id == mainId)
-
-      match mainBranch with
-      | Some main ->
-        let marker =
-          if main.id == state.currentBranchId then
-            Stdlib.Cli.UI.Colors.success "* "
-          else
-            "  "
-
-        let annotation = branchAnnotation main true
-        Stdlib.printLine $"{marker}{main.name}{annotation}"
-        printBranchTree branches mainId state.currentBranchId "  "
-
-        // Print any orphan branches (no parent or parent not in list)
-        let branchIds = Stdlib.List.map branches (fun b -> b.id)
-
-        branches
-        |> Stdlib.List.iter (fun b ->
-          let isOrphan =
-            match b.parentBranchId with
-            | None -> b.id != mainId
-            | Some pid ->
-              Stdlib.Bool.not (Stdlib.List.member branchIds pid)
-
-          if isOrphan then
-            let orphanMarker =
-              if b.id == state.currentBranchId then
-                Stdlib.Cli.UI.Colors.success "* "
-              else
-                "  "
-
-            let orphanAnnotation = branchAnnotation b false
-            Stdlib.printLine $"{orphanMarker}{b.name}{orphanAnnotation}"
-            printBranchTree branches b.id state.currentBranchId ""
-          else
-            ())
-
-      | None ->
-        // No main branch found, just list flat
-        branches
-        |> Stdlib.List.iter (fun b ->
-          let marker =
-            if b.id == state.currentBranchId then
-              Stdlib.Cli.UI.Colors.success "* "
-            else
-              "  "
-
-          Stdlib.printLine $"{marker}{b.name}")
-    state
-
-  | [ "create", name ] ->
-    if Cli.refuseDashLedName "branch" name then
+      Cli.printErr $"`dark branch pull` takes a relay url, and \"{arg}\" isn't one."
+      Cli.printHint "  your own branches back from the relay:  dark branch pull"
+      Cli.printHint "  a colleague's:                          dark branch pull --from <who>"
+      Cli.printHint $"  switch to a branch you already have:    dark branch {arg}"
       state
+  | [ id ] ->
+    if Stdlib.List.member knownSubcommands id then
+      // A subcommand with its arguments left off, which the typo check below deliberately does not catch
+      // (it excludes exact matches). Falling through to "switch to a branch called that" would CREATE a
+      // branch named "rename" and move you onto it: a mistake that leaves state behind, which is the one
+      // thing this arm must not do.
+      Cli.printErr $"`dark branch {id}` is missing its arguments."
+      Cli.printHint $"  to start or switch to a branch actually named \"{id}\": dark switch {id}"
+      Stdlib.printLine (help state)
+      state
+    else if Stdlib.List.member commandShapedWords id then
+      // A question-shaped word must not CHANGE STATE: `dark branch status` from a git reflex would
+      // otherwise start a branch named "status" and switch onto it.
+      Cli.printErr $"\"{id}\" reads like a command, not a branch name, so nothing was created."
+      Cli.printHint "  the current branch:      dark branch"
+      Cli.printHint $"  really start \"{id}\":    dark switch {id}"
+      { state with exitCode = 1 }
     else
-
-    let newBranch = SCM.Branch.create name state.currentBranchId
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Created and switched to branch '{name}'")
-    if state.nonInteractive then
-      Stdlib.printLine
-        "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
-    { state with currentBranchId = newBranch.id }
-
-  | [ "switch", name ] ->
-    match SCM.Branch.getByName name with
-    | Some b ->
-      Stdlib.printLine $"Switched to branch '{name}'"
-      if state.nonInteractive then
-        Stdlib.printLine
-          "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
-      { state with currentBranchId = b.id }
-    | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
-      state
-
-  // `switch` only lasts as long as the process, which is no use to a non-interactive run — hence its own
-  // "(pass --branch or set DARK_BRANCH on the next call)". This is the durable answer: it's remembered until
-  // you change it. DARK_BRANCH still wins for one shell, and --branch still wins for one command.
-  | [ "default" ] ->
-    match Darklang.Cli.Config.get "branch.default" with
-    | Some name -> Stdlib.printLine $"Default branch: {name}"
-    | None -> Stdlib.printLine "Default branch: main (unset)"
-
-    state
-
-  | [ "set-default", name ] ->
-    match SCM.Branch.getByName name with
-    | Some _ ->
-      let updated =
-        Stdlib.Dict.setOverridingDuplicates
-          (Darklang.Cli.Config.readConfig ())
-          "branch.default"
-          name
-
-      let _ = Darklang.Cli.Config.writeConfig updated
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Default branch is now '{name}'.")
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  Override once with --branch, or per-shell with DARK_BRANCH.")
-      state
-    | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
-      state
-
-  // Setting is its own verb (`set-default`), so `default` reads as show-only and doesn't silently write.
-  | [ "default", name ] ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"To set the default branch, use:  branch set-default {name}")
-    state
-
-  | [ "rename", oldName, newName ] ->
-    if Cli.refuseDashLedName "branch" newName then
-      state
-    else
-
-    match SCM.Branch.getByName oldName with
-    | Some b ->
-      match SCM.Branch.rename b.id newName with
-      | Ok _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Renamed '{oldName}' to '{newName}'")
-      | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Rename failed: {e}")
-      state
-    | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{oldName}' not found.")
-      state
-
-  | [ "delete", name ] | [ "archive", name ] ->
-    match SCM.Branch.getByName name with
-    | Some b ->
-      match SCM.Branch.archive b.id with
-      | Ok _ ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Archived branch '{name}'")
-        if b.id == state.currentBranchId then
-          let mainId = SCM.Branch.mainBranchId
-          Stdlib.printLine "Switched to main."
-          { state with currentBranchId = mainId }
-        else
-          state
-      | Error e ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Archive failed: {e}")
+      match looksLikeTypoedSubcommand id with
+      | Some sub ->
+        Cli.printErr $"`dark branch {id}` isn't a subcommand. Did you mean `dark branch {sub}`?"
+        Cli.printHint $"  to start or switch to a branch actually named \"{id}\": dark switch {id}"
         state
-    | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
-      state
-
+      | None -> executeSwitch state id
   | _ ->
-    Stdlib.printLine
-      "Usage: branch [list|create|switch|rename|archive|default|set-default] [args]"
-
+    // Printing help alone reads as though nothing happened, so say what was not understood first.
+    Cli.printErr $"`dark branch {Stdlib.String.join args " "}` isn't a form of this command."
+    Stdlib.printLine (help state)
     state
 
+/// Subcommands `dark branch` knows, for telling a typo from a branch name.
+val knownSubcommands =
+  [ "list"
+    "current"
+    "switch"
+    "new"
+    "create"
+    "rename"
+    "archive"
+    "diff"
+    "log"
+    "merge"
+    "rebase"
+    "resolve"
+    "export"
+    "import"
+    "push"
+    "pull" ]
 
-let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+/// Words a git reflex types after `branch` that are questions or other tools' verbs, not names.
+/// (`switch`, `delete` and friends that ARE subcommands here live in `knownSubcommands` above.)
+val commandShapedWords = [ "status", "info", "show", "remove", "rm", "help", "checkout", "branch" ]
+
+/// Whether <param arg> looks like a fumbled subcommand rather than a branch name.
+///
+/// `dark branch <name>` starts a branch if the name is new, so a mistyped subcommand -- `list-remote`,
+/// `puhs` -- silently CREATES one and switches onto it. A typo should not leave state behind. Prefix
+/// either way catches the realistic misses (a truncation, or a subcommand with something stuck on it)
+/// without refusing legitimate names that merely start with the same letters.
+let looksLikeTypoedSubcommand (arg: String) : Stdlib.Option.Option<String> =
+  knownSubcommands
+  |> Stdlib.List.findFirst (fun sub ->
+    (sub != arg)
+    && ((Stdlib.String.startsWith arg sub) || (Stdlib.String.startsWith sub arg)))
+
+/// Whether an argument is a relay URL rather than something else a person might have typed there.
+let looksLikeRelayUrl (arg: String) : Bool =
+  (Stdlib.String.startsWith arg "http://") || (Stdlib.String.startsWith arg "https://")
+
+/// `dark branches`
+let executeBranchesCmd (state: AppState) (args: List<String>) : AppState =
+  if ScmJson.wantsJson args then
+    // JSON is for a program, and a program wants the whole set rather than the readable subset.
+    Stdlib.printLine (ScmJson.branchesJson (branchRows ()))
+    state
+  else
+    executeList state (Stdlib.List.member args "--all")
+
+/// `dark switch [<id>]`. No argument reports where you are rather than switching, so a bare `switch`
+/// can't silently move you to main.
+let executeSwitchCmd (state: AppState) (args: List<String>) : AppState =
   match args with
-  | [] ->
-    [ "list", "create", "switch", "rename", "archive", "default", "set-default" ]
+  | [] -> executeCurrent state
+  | [ id ] -> executeSwitch state id
+  | _ ->
+    Cli.printErr "usage: dark switch <branch>   (`dark switch main` returns to main)"
+    state
+
+/// One `complete` is shared by branch/switch/merge/rebase/branches/resolve, so it can't tell which
+/// word was typed. Branch names are the right answer for nearly all of them, so offer those plus the
+/// subcommands and let the prefix filter sort it out.
+let complete
+  (state: AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  let branchTakingSubcommands =
+    [ "switch"
+      "archive"
+      "diff"
+      "log"
+      "merge"
+      "rebase"
+      "push"
+      "resolve"
+      "export" ]
+
+  let subcommands =
+    Stdlib.List.append
+      branchTakingSubcommands
+      [ "list", "current", "new", "pull", "import" ]
+
+  let branchNames =
+    SCM.Branches.list ()
+    |> Stdlib.List.map (fun b -> b.name)
+    |> Stdlib.List.filter (fun n -> n != "")
+
+  let matching
+    (options: List<String>)
+    (partial: String)
+    : List<Completion.CompletionItem> =
+    options
+    |> Stdlib.List.filter (fun o -> Stdlib.String.startsWith o partial)
     |> Stdlib.List.map Completion.simple
-  | [ "switch" ] | [ "archive" ] | [ "delete" ] | [ "default" ] | [ "set-default" ] ->
-    let branches = SCM.Branch.list ()
-    Stdlib.List.map branches (fun b -> Completion.simple b.name)
+
+  match args with
+  | [] -> matching (Stdlib.List.append branchNames subcommands) ""
+  | [ partial ] -> matching (Stdlib.List.append branchNames subcommands) partial
+  | [ sub, partial ] ->
+    if Stdlib.List.member branchTakingSubcommands sub then
+      matching (Stdlib.List.append branchNames [ SCM.Branch.mainBranchName ]) partial
+    else
+      []
   | _ -> []
-
-
-let help (_state: AppState) : String =
-  [ "Usage: branch [subcommand] [args]"
-    ""
-    "Subcommands:"
-    "  (none)                  List all branches (* = current)"
-    "  list                    List all branches (* = current)"
-    "  create <name>           Create branch from current, switch to it"
-    "  switch <name>           Switch to existing branch"
-    "  rename <old> <new>      Rename a branch"
-    "  archive <name>          Archive a branch (soft delete)"
-    "  delete <name>           Archive a branch (alias for archive)"
-    "  default                 Show the branch new CLI runs start on"
-    "  set-default <name>      Set the branch new CLI runs start on"
-    ""
-    "Which branch a command runs on: --branch beats DARK_BRANCH beats `default` beats main."
-    ""
-    "Note: branch context does not persist between CLI invocations."
-    "In interactive mode, 'branch switch' works for the session."
-    "For non-interactive use, pass --branch <name> as a global flag:"
-    "  dark --branch feature status"
-    "  dark --branch feature commit \"my changes\"" ]
-  |> Stdlib.String.join "\n"

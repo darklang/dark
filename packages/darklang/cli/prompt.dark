@@ -1,7 +1,7 @@
 module Darklang.Cli.Prompt
 
 /// Is stdin a terminal? Both confirmations need it, and a builtin gets one wrapper.
-let interactive () : Bool = Builtin.stdinIsInteractive ()
+let interactive () : Bool = Stdlib.Cli.Stdin.isInteractive ()
 
 /// Ask a yes/no question. `-y`, an empty answer, and non-interactive stdin all proceed.
 ///

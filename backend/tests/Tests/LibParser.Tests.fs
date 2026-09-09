@@ -578,12 +578,58 @@ let private parserStructureTests =
                                                          _) ] }) -> ()
         | other -> failtest $"bool: {other}")
 
+      // A `///` on a field, a case or a parameter. The lexer has always attached a doc comment to the
+      // next token; until these fields existed the parser read the token and dropped the comment, so
+      // every nested doc in the tree was silently empty and no op could carry an edit to one.
+      testCase "keeps a doc comment written on a record field" (fun _ ->
+        match
+          (P.parse "type T =\n  { /// how far along\n    x: Int64 }").parsed
+        with
+        | Some(WT.SourceFile { declarations = [ WT.DType t ] }) ->
+          match t.definition with
+          | WT.TDRecord [ (field, _) ] ->
+            Expect.equal field.description "how far along" "the field's doc"
+          | other -> failtest $"record: {other}"
+        | other -> failtest $"type decl: {other}")
+
+      testCase "keeps a doc comment written on an enum case" (fun _ ->
+        match
+          (P.parse "type T =\n  /// stop here\n  | Halting\n  | Going").parsed
+        with
+        | Some(WT.SourceFile { declarations = [ WT.DType t ] }) ->
+          match t.definition with
+          | WT.TDEnum((_, first) :: _) ->
+            Expect.equal first.description "stop here" "the case's doc"
+          | other -> failtest $"enum: {other}"
+        | other -> failtest $"type decl: {other}")
+
+      // Both spellings, because both occur: above the whole parameter, and just inside its paren.
+      testCase
+        "keeps a doc comment written on a parameter, either side of the paren"
+        (fun _ ->
+          let docOf (source : string) =
+            match (P.parse source).parsed with
+            | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
+              match f.parameters with
+              | [ WT.FPNormal(_, _, _, _, _, _, description) ] -> description
+              | other -> failtest $"parameters: {other}"
+            | other -> failtest $"fn decl: {other}"
+
+          Expect.equal
+            (docOf "let f\n  /// who to greet\n  (name: String) : String = name")
+            "who to greet"
+            "written above the parameter"
+          Expect.equal
+            (docOf "let f (/// who to greet\n       name: String) : String = name")
+            "who to greet"
+            "written inside the paren")
+
       testCase "parses type variables in a generic signature" (fun _ ->
         match (P.parse "let f (x: 'a) : 'a = x").parsed with
         | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
           match f.returnType, f.parameters with
           | WT.TVariable(_, _, (_, "a")),
-            [ WT.FPNormal(_, _, WT.TVariable(_, _, (_, "a")), _, _, _) ] -> ()
+            [ WT.FPNormal(_, _, WT.TVariable(_, _, (_, "a")), _, _, _, _) ] -> ()
           | other -> failtest $"type var: {other}"
         | other -> failtest $"generic fn: {other}")
 
@@ -596,6 +642,7 @@ let private parserStructureTests =
                                                                                                  _),
                                                                                           _,
                                                                                           _,
+                                                                                          _,
                                                                                           _) ] } ] }) ->
           ()
         | other -> failtest $"fn type: {other}"
@@ -603,6 +650,7 @@ let private parserStructureTests =
         | Some(WT.SourceFile { declarations = [ WT.DFunction { parameters = [ WT.FPNormal(_,
                                                                                           _,
                                                                                           WT.TTuple _,
+                                                                                          _,
                                                                                           _,
                                                                                           _,
                                                                                           _) ] } ] }) ->
@@ -614,6 +662,7 @@ let private parserStructureTests =
         | Some(WT.SourceFile { declarations = [ WT.DFunction { parameters = [ WT.FPNormal(_,
                                                                                           _,
                                                                                           WT.TCustom q,
+                                                                                          _,
                                                                                           _,
                                                                                           _,
                                                                                           _) ] } ] }) ->
@@ -671,14 +720,7 @@ let private toPT (e : WT.Expr) : PT.Expr =
   let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
   let ctx : WT2PT.Context =
     { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
-  (WT2PT.Expr.toPT
-    emptyBuiltins
-    PT.PackageManager.empty
-    NR.OnMissing.Allow
-    PT.mainBranchId
-    []
-    ctx
-    e
+  (WT2PT.Expr.toPT emptyBuiltins PT.PackageManager.empty NR.OnMissing.Allow [] ctx e
    |> Ply.toTask)
     .Result
 
@@ -689,14 +731,7 @@ let private toPTWithInModule
   (e : WT.Expr)
   : PT.Expr =
   let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
-  (WT2PT.Expr.toPT
-    emptyBuiltins
-    pm
-    NR.OnMissing.Allow
-    PT.mainBranchId
-    currentModule
-    context
-    e
+  (WT2PT.Expr.toPT emptyBuiltins pm NR.OnMissing.Allow currentModule context e
    |> Ply.toTask)
     .Result
 
@@ -762,8 +797,7 @@ let private loweringRegressionTests =
   let globalMapPM : PT.PackageManager =
     { PT.PackageManager.empty with
         findFn =
-          fun (_, _) ->
-            Prelude.uply { return Some(PT.FQFnName.package "global-map") } }
+          fun _ -> Prelude.uply { return Some(PT.FQFnName.package "global-map") } }
   let context args locals : WT2PT.Context =
     { currentFnName = Some [ "Darklang"; "Test"; "outer" ]
       argMap = args
@@ -1760,7 +1794,6 @@ let private primTypeDriftTests =
             (WT2PT.TypeReference.toPT
               PT.PackageManager.empty
               NR.OnMissing.Allow
-              PT.mainBranchId
               []
               t
              |> Ply.toTask)

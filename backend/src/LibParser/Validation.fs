@@ -310,7 +310,7 @@ let rec private declarationStructureIssues
     duplicateIssues (
       fn.parameters
       |> List.choose (function
-        | WT.FPNormal(_, name, _, _, _, _) -> Some(name.name, name.range)
+        | WT.FPNormal(_, name, _, _, _, _, _) -> Some(name.name, name.range)
         | WT.FPUnit _ -> None)
     )
     @ exprIssues fn.body

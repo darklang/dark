@@ -89,19 +89,17 @@ let thingDetail (state: State) : String =
 
 /// Recorded sync divergences for Changes › Conflicts.
 let loadConflictBodyItems () : List<BodyItem> =
-  Darklang.Sync.Conflicts.list ()
+  SCM.Conflicts.pending ()
   |> Stdlib.List.map (fun c ->
-    BodyItem { name = c.location; kind = "conflict"; isModule = false; desc = c.status })
+    let location = SCM.Conflicts.fqn c.owner c.modules c.name
+    BodyItem { name = location; kind = "conflict"; isModule = false; desc = c.status })
 
 /// Branches on this instance (for the SCM · Branches section). Current branch marked ●, merged ones noted.
 let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
   Darklang.SCM.Branch.list ()
   |> Stdlib.List.map (fun b ->
     let marker = if b.id == currentBranchId then "● " else "○ "
-    let tag =
-      match b.mergedAt with
-      | Some _ -> "   (merged)"
-      | None -> ""
+    let tag = if b.merged then "   (merged)" else ""
     BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false; desc = "" })
 
 /// The branch the cursor is on, resolved by name rather than by position.
@@ -136,13 +134,16 @@ let branchForAction (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Br
   if onBranchRow then selectedBranch state else Darklang.SCM.Branch.get state.branchId
 
 /// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
-let selectedConflict (state: State) : Stdlib.Option.Option<Darklang.Sync.Conflicts.Conflict> =
+let selectedConflict (state: State) : Stdlib.Option.Option<SCM.Conflicts.Conflict> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> Stdlib.Option.Option.None
   | Some item ->
     let location =
       Stdlib.String.split item.name "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault item.name
-    Darklang.Sync.Conflicts.list () |> Stdlib.List.findFirst (fun c -> c.location == location)
+
+    SCM.Conflicts.pending ()
+    |> Stdlib.List.findFirst (fun c ->
+      (SCM.Conflicts.fqn c.owner c.modules c.name) == location)
 
 /// The selected branch's detail (SCM · Branches preview).
 let branchDetail (state: State) : String =
@@ -156,9 +157,9 @@ let branchDetail (state: State) : String =
         | None -> "?"
       | None -> "(root)"
     let status =
-      match b.mergedAt with
-      | Some _ -> "merged"
-      | None -> if b.id == state.branchId then "active (current)" else "active"
+      if b.merged then "merged"
+      else if b.id == state.branchId then "active (current)"
+      else "active"
     (Stdlib.Cli.UI.Colors.boldText b.name)
     ++ "\n\n"
     ++ "parent:  " ++ parent ++ "\n"
@@ -175,11 +176,74 @@ let loadDocBodyItems () : List<BodyItem> =
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
+/// The Instance > Sync view's rows: this machine's sync state, from the same local reads the
+/// CLI commands use. No network: `sync status` asks the relay; this view answers from the store,
+/// so opening it is free and it renders offline.
+let loadSyncItems () : List<BodyItem> =
+  let row = fun label value kind ->
+    BodyItem
+      { name = (Stdlib.Cli.Tui.Text.fitToWidth label 14) ++ value
+        kind = kind
+        isModule = false
+        desc = "" }
+  let relay = SCM.PackageOps.relay ()
+  let identity = SCM.PackageOps.identity ()
+  if relay == "" then
+    [ row "identity" identity "sync-row"
+      row "relay" "none -- `:sync setup` names this instance and connects one" "sync-row" ]
+  else
+    let secret =
+      if Darklang.Cli.Sync.hasRelaySecret relay then "stored (local config only)"
+      else "none -- this instance can read, not push"
+    let unpushed = SCM.Wire.unpushedCount relay
+    let waiting =
+      if unpushed == 0L then "nothing -- every committed op is on the relay"
+      else (Stdlib.Int64.toString unpushed) ++ " op(s) to push"
+    let branchCount = Stdlib.List.length (SCM.Wire.unpushedBranches relay)
+    let branches =
+      if branchCount == 0 then "all on the relay"
+      else (Stdlib.Int.toString branchCount) ++ " with ops not on the relay"
+    // Not probed here: the unit file's path is under $HOME, and a view must render under a
+    // policy that refuses env and file reads. `apps status sync` is the honest answer, and it
+    // runs where a refusal can be reported rather than taking the frame down.
+    let daemon = "`:apps status sync` -- `:apps enable sync` sets it and forgets it"
+    let scope =
+      match Darklang.Cli.Config.get "sync.branches" with
+      | Some "all" -> "everything -- main and every branch"
+      | _ -> "main only -- `:config set sync.branches all` widens it"
+    [ row "identity" identity "sync-row"
+      row "relay" relay "sync-row"
+      row "write secret" secret "sync-row"
+      row "waiting" waiting "sync-row"
+      row "branches" branches "sync-row"
+      row "auto-sync" daemon "sync-row"
+      row "sync moves" scope "sync-row" ]
+
+let syncDetail (_state: State) : String =
+  [ Stdlib.Cli.UI.Colors.boldText "This machine's sync state, answered locally."
+    ""
+    Stdlib.Cli.UI.Colors.dimText "Everything here is a local read; nothing above asked the relay. The"
+    Stdlib.Cli.UI.Colors.dimText "commands, all runnable from the : bar:"
+    ""
+    "  :sync           push then pull, right now"
+    "  :sync status    compare with the relay (this one does ask it)"
+    "  :sync setup     name this instance, point it at a relay, store a secret"
+    "  :apps enable sync"
+    Stdlib.Cli.UI.Colors.dimText "                  an auto-starting daemon syncs every 30s"
+    "  :config set sync.branches all"
+    Stdlib.Cli.UI.Colors.dimText "                  sync moves every branch too, not just main" ]
+  |> Stdlib.String.join "\n"
+
 let loadErrorItems () : List<BodyItem> =
   let conflicts =
-    Darklang.Sync.Conflicts.list ()
+    SCM.Conflicts.pending ()
     |> Stdlib.List.map (fun c ->
-      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false; desc = "" })
+      let location = SCM.Conflicts.fqn c.owner c.modules c.name
+      BodyItem
+        { name = "⚠ conflict    " ++ location ++ "  ·  " ++ c.status
+          kind = "error"
+          isModule = false
+          desc = "" })
   // Invented rows showing the shape of the thing. Tagged apart from the real conflicts above so the
   // detail pane can say which one you are looking at.
   let mock =
@@ -274,12 +338,14 @@ let itemsForView
   : List<BodyItem> =
   if view == vHome then loadHomeItems branchId
   else if view == vMatter then
-    if matterLens == Lens.ValuesOnly then loadThingItems branchId else loadItems branchId location
+    if matterLens == Lens.ValuesOnly then loadThingItems branchId
+    else if matterLens == Lens.Changed then loadChangedItems branchId
+    else loadItems branchId location
   else if view == vSCM then
-    if scmSection == ScmSection.History then loadCommitBodyItems branchId
+    if scmSection == ScmSection.History then loadCommitBodyItems ()
     else if scmSection == ScmSection.Conflicts then loadConflictBodyItems ()
     else if scmSection == ScmSection.Branches then loadBranchItems branchId
-    else loadWipBodyItems branchId
+    else loadChangedItems branchId
   else if view == vAI then
     if aiSection == AiSection.Prompts then loadPromptItems () else loadAiThreadItems ()
   else if view == vApps then loadAppItems branchId
@@ -309,10 +375,9 @@ let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
 
 /// Reload the current view's items, keeping any active filter applied.
 ///
-/// The filter used to be applied once, where you typed it, and nowhere else - so every later reload of the
-/// same list (commit, discard, rename, save) silently widened it back to everything while the title still
-/// said "filter: foo". Applying it here makes it a property of the state rather than a one-shot, which is the
-/// only way the ~17 reload sites stay correct.
+/// Applying the filter here makes it a property of the state, not a one-shot: otherwise
+/// every later reload (commit, discard, rename, save) silently widens the list while the
+/// title still says "filter: foo" -- the only way ~17 reload sites stay correct.
 ///
 /// Switching to a DIFFERENT list is the other case, and those sites clear `filter` instead: a filter you
 /// typed for Changes has no business narrowing History.

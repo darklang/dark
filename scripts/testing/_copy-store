@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Copy the dev store to a gate's own rundir WITHOUT writing to the dev store.
+#
+# The store is WAL mode (LibDB/Sqlite.fs), so `cp data.db` misses the tail in `data.db-wal`: a
+# fixture that varies by machine and silently omits the newest ops. `.backup` reads through the
+# WAL into one consistent file, taking only a read lock -- safe against the shared dev store
+# the gates-are-clean gate watches.
+#
+# Callers strip config from the copy afterwards -- ALL of it, not just `current_branch`: the copy
+# inherits `sync.relay` and the write secret, so one sync-shaped command against it would reach the
+# REAL relay. A config-less store looks like a first run to the SETUP check, so no wizard blocks
+# startup; the greeting is separate (it follows commits/changes/relay), so a store with work in it
+# still greets "Welcome back".
+#
+# Usage: _copy-store <dest.db>
+set -euo pipefail
+
+DEST="${1:?usage: _copy-store <dest.db>}"
+SRC="${DARK_STORE_SRC:-rundir/data.db}"
+
+if [[ ! -f "$SRC" ]]; then
+  echo "_copy-store: no store at $SRC" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname "$DEST")"
+rm -f "$DEST" "$DEST-wal" "$DEST-shm"
+# `.backup` takes a read lock; under `gates all` (parallel) several gates copy at once and a
+# writer mid-checkpoint answers "database is locked". A busy timeout waits it out, and the retry
+# covers the rarer whole-command failure. Total patience ~30s, far past any checkpoint.
+for attempt in 1 2 3; do
+  if sqlite3 -cmd ".timeout 10000" "$SRC" ".backup '$DEST'" 2>/dev/null; then
+    exit 0
+  fi
+  sleep $attempt
+done
+echo "_copy-store: could not back up $SRC after 3 attempts (locked?)" >&2
+exit 1

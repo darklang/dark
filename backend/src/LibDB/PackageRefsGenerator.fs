@@ -65,17 +65,11 @@ let generate () : Ply<unit> =
         buildKey "fn" (String.concat "." modules) name)
       |> Set.ofList
 
-    // Union in whatever the existing file already knew about.
-    //
-    // `_lookup` is only populated as each `PackageRefs` nested module initializes, which happens when
-    // something touches it. A process that regenerates before touching them all -- or an older binary that
-    // predates a ref entirely -- would otherwise silently write a *shorter* file, dropping refs. That is
-    // not a theoretical concern: `growIfNeeded` regenerates on any startup that applies ops, so running a
-    // previous release inside the source tree was enough to truncate the file, after which the next build
-    // produced a binary that raised "PackageRefs: hash not found" on startup.
-    //
-    // Keys that no longer resolve are dropped below by the `List.choose` against the DB, so this
-    // accumulates known refs without letting deleted ones linger.
+    // Union in whatever the existing file already knew. `_lookup` populates only as
+    // each `PackageRefs` module initializes, so a process that regenerates before
+    // touching them all (or an older binary predating a ref) would write a SHORTER
+    // file and drop refs. Keys that no longer resolve are dropped below by the
+    // `List.choose` against the DB.
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
@@ -115,6 +109,43 @@ let generate () : Ply<unit> =
           | Some hash -> Some(key, hash)
           | None -> None)
       |> List.sortBy fst
+
+    // A HARDENED pin moving is refused here rather than reported as a diff. See
+    // `PackageRefs.hardened` for which ones and why: the point is that the failure
+    // arrives at the moment the identity moves, naming what moved and what it moved
+    // to, instead of arriving in CI as "the worktree is dirty".
+    //
+    // The escape hatch is deliberate and deliberately awkward. Sometimes the move IS
+    // correct (the type genuinely changed), and then re-running with the variable
+    // set is the way to say so on purpose.
+    let hardenedMoves =
+      merged
+      |> List.choose (fun (key, hash) ->
+        if PackageRefs.hardened |> Set.contains key then
+          match Map.tryFind key existingMap with
+          | Some old when old <> hash -> Some(key, old, hash)
+          | _ -> None
+        else
+          None)
+
+    let repinAllowed =
+      match System.Environment.GetEnvironmentVariable "DARK_REPIN_HARDENED" with
+      | "1" -> true
+      | _ -> false
+
+    if not (List.isEmpty hardenedMoves) && not repinAllowed then
+      let detail =
+        hardenedMoves
+        |> List.map (fun (key, old, hash) ->
+          $"  {key}\n    was {old}\n    now {hash}")
+        |> String.concat "\n"
+
+      Exception.raiseInternal
+        ("A hardened package ref moved. These are constructed by name throughout the kernel, so their "
+         + "identity moving means something changed underneath the whole tree -- check that before "
+         + "re-pinning. If the move is correct, re-run with DARK_REPIN_HARDENED=1.\n"
+         + detail)
+        []
 
     let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
 

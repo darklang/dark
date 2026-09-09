@@ -64,9 +64,9 @@ let resolveLoadValues
           match valueName with
           | FQValueName.Builtin builtinName ->
             // Builtin values - look up in builtIn values
-            match Dictionary.get builtinName exeState.values.builtIn with
-            | Some v -> return Some(valueName, v.body)
-            | None -> return None
+            match exeState.values.builtIn.TryGetValue builtinName with
+            | true, v -> return Some(valueName, v.body)
+            | false, _ -> return None
           | FQValueName.Package pkgId ->
             let! pkg = exeState.values.package pkgId
             match pkg with
@@ -173,7 +173,11 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dbListAll" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch for resolving type names" ]
+      parameters =
+        [ Param.make
+            "branchId"
+            TUuid
+            "the branch to resolve DB type names against; main is `SCM.Branch.mainBranchId`" ]
       returnType = TList(TTuple(TString, TString, []))
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
@@ -182,7 +186,11 @@ let fns () : List<BuiltInFn> =
           uply {
             LibExecution.PermissionCheck.requireDbReadAll exeState vm
             let! app = Toplevels.loadAllDBs ()
-            let pm = LibDB.PackageManager.pt
+            // Through the branch overlay: a DB's type can be one authored on the
+            // branch, and main's PM has no name for it. Display-only, but "unknown
+            // type" for a type you just wrote reads as breakage rather than as a
+            // listing.
+            let pm = LibDB.PackageManager.ptForBranch (PT.BranchId.Id branchId)
             let! dbs =
               app.dbs
               |> Map.values
@@ -193,7 +201,7 @@ let fns () : List<BuiltInFn> =
                     | PT.TypeReference.TCustomType({ resolved = Ok { name = PT.FQTypeName.Package typeID } },
                                                    _) ->
                       uply {
-                        let! locs = pm.getTypeLocations branchId typeID
+                        let! locs = pm.getTypeLocations typeID
                         match locs with
                         | location :: _ -> return PackageLocation.toFQN location
                         | [] -> return typeID.ToString()

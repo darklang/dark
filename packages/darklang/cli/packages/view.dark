@@ -92,7 +92,7 @@ let deprecationHeaderRowsFor
         ( "DEPRECATED (superseded)"
         , Stdlib.Option.Option.Some $"   → use {replName} instead" )
       | Harmful ->
-        ( "DEPRECATED (HARMFUL — runtime will halt)"
+        ( "DEPRECATED (HARMFUL -- runtime will halt)"
         , Stdlib.Option.Option.None )
       | Obsolete ->
         ( "DEPRECATED (obsolete)"
@@ -450,6 +450,43 @@ let viewCompiled
     | Raw -> printRaw branchId location
 
 
+/// Is every character a hex digit? (Cheaper than a parse, and an FQN never looks like this.)
+let looksLikeHex (s: String) : Bool =
+  s
+  |> Stdlib.String.toList
+  |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.List.member [ 'a', 'b', 'c', 'd', 'e', 'f' ] c))
+
+
+/// A 64-hex argument is an item HASH: every --json surface hands them out, and a
+/// content-addressed store whose ids were dead ends on the command line taught agents to
+/// route back through names that propagation can move underneath them.
+let isItemHash (s: String) : Bool =
+  (Stdlib.String.length s == 64)
+  && (Stdlib.String.toLowercase s == s)
+  && (looksLikeHex s)
+
+
+/// Resolve an item hash (see `isItemHash`) to the location main binds it to, wrapped by
+/// the KIND the store records for it, so the viewer renders it as itself. Errors when no
+/// live name binds the hash.
+let resolveHashArg
+  (hash: String)
+  : Stdlib.Result.Result<PackageLocation, String> =
+  match SCM.Deps.mainLocationOf hash with
+  | Some loc ->
+    let kind =
+      SCM.Propagation.kindAt loc
+      |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
+
+    (match kind with
+     | Fn -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Function loc)
+     | Type -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Type loc)
+     | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value loc))
+  | None ->
+    Stdlib.Result.Result.Error
+      $"no live name binds hash {Stdlib.String.first hash 8} -- `dark show {Stdlib.String.first hash 8}` reads it as an op."
+
+
 // VIEW command - view modules, functions, types, or constants, as source, AST, or instructions
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
@@ -458,20 +495,26 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | Error e ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {e}")
     Stdlib.printLine (help state)
-    state
+    { state with exitCode = 1 }
   | Ok parsed ->
     let (pathArg, mode) = parsed
 
     let locationResult =
       match pathArg with
       | None -> Stdlib.Result.Result.Ok state.packageData.currentLocation
-      | Some p -> Traversal.traverse branchId state.packageData.currentLocation p
+      | Some p ->
+        if isItemHash p then
+          resolveHashArg p
+        else
+          Traversal.traverse branchId state.packageData.currentLocation p
 
     match locationResult with
     | Error errorMsg ->
       // The traversal names the path it looked for, so this does not repeat it.
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {errorMsg}")
-      state
+      // Nonzero: `dark view X` in a script is asking a question whose answer here is "there is no
+      // such thing", and a zero exit says the opposite to everything downstream of it.
+      { state with exitCode = 1 }
     | Ok location ->
       match mode with
       | Source -> viewEntity branchId location

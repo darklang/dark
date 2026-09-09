@@ -24,7 +24,7 @@ pseudo-TTY and sends keystrokes programmatically.
   '
 
 ### Reusable expect script
-  ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+  ./scripts/run-in-docker expect scripts/testing/fixtures/test-interactive.expect
 
 Customize sleeps and sends for different scenarios.
 
@@ -77,6 +77,6 @@ loop writes JSON-lines to rundir/logs/telemetry.jsonl:
     rundir/logs/telemetry.jsonl | awk '{s+=$1;n++} END{print s/n"ms"}'
 
 ## Testing across modes
-  1. Debug:   ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
+  1. Debug:   ./scripts/run-in-docker expect scripts/testing/fixtures/test-interactive.expect
   2. Release: Build with build-release-cli-exes.sh, run binary directly
   3. Remote:  Copy release binary to rM2/etc, run there"""

@@ -6,6 +6,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open Fumble
 open LibDB.Sqlite
 
 open Prelude
@@ -30,6 +31,40 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 let pmPT = LibDB.PackageManager.pt
 let pmRT = LibDB.PackageManager.rt
+
+
+// --- SQL plumbing, shared by the suites that assert on the store directly --------
+
+/// Run <param sql> against the active store, discarding any result.
+let execSql (sql : string) : Task<unit> = Sql.query sql |> Sql.executeStatementAsync
+
+/// `execSql` with parameters bound.
+let execSqlP
+  (sql : string)
+  (ps : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
+  : Task<unit> =
+  Sql.query sql |> Sql.parameters ps |> Sql.executeStatementAsync
+
+/// Run a one-row scalar query; the single int64 column must be aliased `n`.
+let countSql
+  (sql : string)
+  (ps : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
+  : Task<int64> =
+  Sql.query sql
+  |> Sql.parameters ps
+  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+
+/// What `locations` currently binds <param l> to: the live (not unlisted) row, if
+/// any. Raises if more than one row is live, which would itself be a store bug.
+let liveBoundHash (l : PT.PackageLocation) : Task<Option<string>> =
+  Sql.query
+    "SELECT item_hash FROM locations
+     WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL"
+  |> Sql.parameters
+    [ "o", Sql.string l.owner
+      "m", Sql.string (String.concat "." l.modules)
+      "n", Sql.string l.name ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
 
 let testPackageFn
   (typeParams : List<string>)
@@ -145,29 +180,12 @@ let executionStateFor
     let builtins = localBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
-      Exe.createState
-        builtins
-        pmRT
-        Exe.noTracing
-        exceptionReporter
-        notifier
-        PT.mainBranchId
-        program
+      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
       // Ordinary tests use allow-all; security tests install narrower access.
       |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
     let state = { state with test = testContext }
     return state
   }
-
-// /// Saves and reloads the canvas for the Toplevels
-// let canvasForTLs (canvasID : uuid) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
-//   task {
-//     let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
-//     do! Toplevels.saveTLIDs canvasID descs
-//     return! Canvas.loadAll canvasID
-//   }
-
-
 
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
@@ -263,42 +281,6 @@ open LibExecution.RuntimeTypes
 
 let rec debugDval (v : Dval) : string =
   match v with
-  // most Dvals print out reasonably nice-looking values automatically,
-  // but in these cases we'd like to print something a bit prettier
-
-  // | DString s ->
-  //   $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
-
-  // | DDateTime d ->
-  //   $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-
-  // | DRecord(tn, _, typeArgs, o) ->
-  //   let typeStr = FQTypeName.toString tn
-
-  //   let typeArgsPart =
-  //     match typeArgs with
-  //     | [] -> ""
-  //     | _ ->
-  //       typeArgs
-  //       |> List.map ValueType.toString
-  //       |> String.concat ", "
-  //       |> fun s -> $"<{s}>"
-
-  //   let fieldsPart =
-  //     o
-  //     |> Map.toList
-  //     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
-  //     |> String.concat ",\n  "
-
-  //   $"DRecord {typeStr}{typeArgsPart} {{\n  {fieldsPart}}}"
-
-  // | DDict(_vtTODO, obj) ->
-  //   obj
-  //   |> Map.toList
-  //   |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
-  //   |> String.concat ",\n  "
-  //   |> fun contents -> $"DDict {{\n  {contents}}}"
-
   | _ -> v.ToString()
 
 module Expect =
@@ -359,78 +341,6 @@ module Expect =
     else
       let path = path @ [ "value" ] |> List.reverse |> String.concat "."
       $" `{path}` of"
-
-
-
-
-
-
-  // let rec matchPatternEqualityBaseFn
-  //   (checkIDs : bool)
-  //   (path : Path)
-  //   (actual : MatchPattern)
-  //   (expected : MatchPattern)
-  //   (errorFn : Path -> string -> string -> unit)
-  //   : unit =
-  //   let eq path a e = matchPatternEqualityBaseFn checkIDs path a e errorFn
-
-  //   let check path (a : 'a) (e : 'a) =
-  //     if a <> e then errorFn path (string actual) (string expected)
-
-  //   let eqList path (l1 : List<RT.MatchPattern>) (l2 : List<RT.MatchPattern>) =
-  //     List.iteri2 (fun i -> eq (string i :: path)) l1 l2
-  //     check path (List.length l1) (List.length l2)
-
-  //   if checkIDs then
-  //     check path (MatchPattern.toID actual) (MatchPattern.toID expected)
-
-  //   match actual, expected with
-  //   | MPVariable(_, name), MPVariable(_, name') -> check path name name'
-  //   | (MPEnum(_, caseName, fieldPats), MPEnum(_, caseName', fieldPats')) ->
-  //     check path caseName caseName'
-  //     eqList (caseName :: path) fieldPats fieldPats'
-  //   | MPString(_, str), MPString(_, str') -> check path str str'
-  //   | MPInt64(_, l), MPInt64(_, l') -> check path l l'
-  //   | MPUInt64(_, l), MPUInt64(_, l') -> check path l l'
-  //   | MPInt8(_, l), MPInt8(_, l') -> check path l l'
-  //   | MPUInt8(_, l), MPUInt8(_, l') -> check path l l'
-  //   | MPInt16(_, l), MPInt16(_, l') -> check path l l'
-  //   | MPUInt16(_, l), MPUInt16(_, l') -> check path l l'
-  //   | MPInt32(_, l), MPInt32(_, l') -> check path l l'
-  //   | MPUInt32(_, l), MPUInt32(_, l') -> check path l l'
-  //   | MPInt128(_, l), MPInt128(_, l') -> check path l l'
-  //   | MPUInt128(_, l), MPUInt128(_, l') -> check path l l'
-  //   | MPFloat(_, d), MPFloat(_, d') -> check path d d'
-  //   | MPBool(_, l), MPBool(_, l') -> check path l l'
-  //   | MPChar(_, c), MPChar(_, c') -> check path c c'
-  //   | MPUnit(_), MPUnit(_) -> ()
-  //   | MPTuple(_, first, second, theRest), MPTuple(_, first', second', theRest') ->
-  //     eqList path (first :: second :: theRest) (first' :: second' :: theRest')
-  //   | MPList(_, pats), MPList(_, pats') -> eqList path pats pats'
-  //   | MPListCons(_, head, tail), MPListCons(_, head', tail') ->
-  //     check path head head'
-  //     check path tail tail'
-  //   // exhaustiveness check
-  //   | MPVariable _, _
-  //   | MPEnum _, _
-  //   | MPString _, _
-  //   | MPInt64 _, _
-  //   | MPUInt64 _, _
-  //   | MPInt8 _, _
-  //   | MPUInt8 _, _
-  //   | MPInt16 _, _
-  //   | MPUInt16 _, _
-  //   | MPInt32 _, _
-  //   | MPUInt32 _, _
-  //   | MPInt128 _, _
-  //   | MPUInt128 _, _
-  //   | MPFloat _, _
-  //   | MPBool _, _
-  //   | MPChar _, _
-  //   | MPUnit _, _
-  //   | MPTuple _, _
-  //   | MPListCons _, _
-  //   | MPList _, _ -> check path actual expected
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
@@ -593,14 +503,6 @@ module Expect =
         List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
         ()
 
-      // | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-      //   NEList.iter2
-      //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
-      //     l1.parameters
-      //     l2.parameters
-      //   check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
-      //   exprEqualityBaseFn false path l1.body l2.body errorFn
-
       | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
 
       // Keep for exhaustiveness checking
@@ -665,22 +567,6 @@ module Expect =
       match actual, expected with
       | FQTypeName.Package a, FQTypeName.Package e -> if a <> e then err ()
 
-
-    // let nameResolutionEqualityBaseFn<'a>
-    //   (path : Path)
-    //   (actual : NameResolution<'a>)
-    //   (expected : NameResolution<'a>)
-    //   (fn: )
-    //   (errorFn : Path -> string -> string -> unit)
-    //   : unit =
-    //   let err () = errorFn path (string actual) (string expected)
-
-    //   match actual, expected with
-    //   | NRNotFound, NRNotFound -> ()
-    //   | NRName a, NRName e -> if a <> e then err ()
-    //   | NRType a, NRType e -> if a <> e then err ()
-
-
     let rec letPatternEqualityBaseFn
       (checkIDs : bool)
       (path : Path)
@@ -739,8 +625,7 @@ module Expect =
 
       | EPipeFnCall(_, name, typeArgs, args), EPipeFnCall(_, name', typeArgs', args') ->
         let path = (string name :: path)
-        // `location` is resolver-derived metadata; ignore it when comparing
-        // structurally so test fixtures predating Phase 1 still match.
+        // resolver-derived `location` is stripped; see stripNRLocation.
         check path (stripNRLocation name) (stripNRLocation name')
         check path (List.length typeArgs) (List.length typeArgs')
         List.iteri2
@@ -751,14 +636,6 @@ module Expect =
           (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
           args
           args'
-
-      // | EPipeEnum(_, typeName, caseName, fields), EPipeEnum(_, typeName', caseName', fields') ->
-      //   typeNameEqualityBaseFn path typeName typeName' errorFn
-      //   check path caseName caseName'
-      //   List.iteri2
-      //     (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
-      //     fields
-      //     fields'
 
       | EPipeVariable(_, varContainingPipeable, args),
         EPipeVariable(_, varContainingPipeable', args') ->
@@ -875,19 +752,6 @@ module Expect =
       | EFnName(_, name), EFnName(_, name') ->
         check path (stripNRLocation name) (stripNRLocation name')
 
-      // | ERecord(_, typeName, typeArgs, fields), ERecord(_, typeName', typeArgs', fields') ->
-      //   typeNameEqualityBaseFn path typeName typeName' errorFn
-      //   List.iteri2
-      //     (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
-      //     typeArgs
-      //     typeArgs'
-      //   NEList.iter2
-      //     (fun (k, v) (k', v') ->
-      //       check path k k'
-      //       eq (k :: path) v v')
-      //     fields
-      //     fields'
-
       | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
         check path record record'
         NEList.iter2
@@ -908,12 +772,6 @@ module Expect =
         eq (f :: path) e e'
         check path f f'
 
-      // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-      //   typeNameEqualityBaseFn path typeName typeName' errorFn
-      //   check path caseName caseName'
-      //   eqList path fields fields'
-      //   ()
-
       | ELambda(_, pats, e), ELambda(_, pats', e') ->
         let path = ("lambda" :: path)
         eq path e e'
@@ -927,29 +785,6 @@ module Expect =
         eq ("next" :: path) n n'
 
       | ESelf _, ESelf _ -> ()
-
-      // | EMatch(_, e, branches), EMatch(_, e', branches') ->
-      //   eq ("matchCond" :: path) e e'
-
-      //   check path (NEList.length branches) (NEList.length branches')
-      //   NEList.iteri2
-      //     (fun i branch branch' ->
-      //       let path = $"Case {i} - {branch.pat}" :: path
-      //       matchPatternEqualityBaseFn
-      //         checkIDs
-      //         ("pat" :: path)
-      //         branch.pat
-      //         branch'.pat
-      //         errorFn
-      //       match branch.whenCondition, branch'.whenCondition with
-      //       | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
-      //       | None, None -> ()
-      //       | _ ->
-      //         errorFn ("whenCondition" :: path) (string actual) (string expected)
-      //         ()
-      //       eq ("rhs" :: path) branch.rhs branch'.rhs)
-      //     branches
-      //     branches'
 
       | EPipe(_, lhs, parts), EPipe(_, lhs', parts') ->
         eq ("lhs" :: path) lhs lhs'
@@ -1002,37 +837,6 @@ module Expect =
     let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
       exprEqualityBaseFn false [] actual expected (fun path a e ->
         Expect.equal a e (formatMsg "" path actual))
-
-
-
-
-
-
-
-
-// let rec equalMatchPattern
-//   (actual : MatchPattern)
-//   (expected : MatchPattern)
-//   (msg : string)
-//   : unit =
-//   matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
-//     Expect.equal a e (formatMsg msg path actual))
-
-// let rec equalMatchPatternIgnoringIDs
-//   (actual : MatchPattern)
-//   (expected : MatchPattern)
-//   : unit =
-//   matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
-//     Expect.equal a e (formatMsg "" path actual))
-
-// let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-//   exprEqualityBaseFn true [] actual expected (fun path a e ->
-//     Expect.equal a e (formatMsg msg path actual))
-
-
-
-
-
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -1279,62 +1083,6 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        KTString
        [ (Dval.int (bigint 1), DString "one"); (Dval.int (bigint 2), DString "two") ],
      TDict(TInt, TString))
-    // ("lambda",
-    //  DApplicable(
-    //    Lambda
-    //      { body = RT.EUnit(id 1234)
-    //        typeSymbolTable = Map.empty
-    //        symtable = Map.empty
-    //        parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
-    //  ),
-    //  TFn(NEList.singleton TInt64, TUnit))
-    // ("lambda with pipe",
-    //  DFnVal(
-    //    Lambda
-    //      { body =
-    //          EApply(
-    //            92356985UL,
-    //            (EFnName(
-    //              957274UL,
-    //              FQFnName.Builtin { name = "listPush"; version = 0 }
-    //            )),
-    //            [],
-    //            NEList.singleton (
-    //              EApply(
-    //                93459985UL,
-    //                (EFnName(123123UL, FQFnName.Builtin { name = "+"; version = 0 })),
-    //                [],
-    //                (NEList.doubleton
-    //                  (EApply(
-    //                    394567785UL,
-    //                    (EFnName(
-    //                      95723UL,
-    //                      FQFnName.Builtin { name = "+"; version = 0 }
-    //                    )),
-    //                    [],
-    //                    (NEList.doubleton
-    //                      (EApply(
-    //                        44444485UL,
-    //                        (EFnName(
-    //                          9473UL,
-    //                          FQFnName.Builtin { name = "+"; version = 0 }
-    //                        )),
-    //                        [],
-    //                        (NEList.doubleton
-    //                          (EInt64(234213618UL, 5))
-    //                          (EInt64(923423468UL, 6)))
-    //                      ))
-    //                      (EInt64(648327618UL, 7)))
-    //                  ))
-    //                  (EInt64(325843618UL, 8)))
-    //              )
-    //            )
-    //          )
-    //        symtable = Map.empty
-    //        typeSymbolTable = Map.empty
-    //        parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
-    //  ),
-    //  TFn(NEList.singleton TInt64, TInt64))
     ("db", DDB "Visitors", TDB TInt64)
     ("date",
      DDateTime(
@@ -1527,7 +1275,7 @@ let unwrapExecutionResult
           state
           errorMessageFn
           []
-          (NEList.ofList (RT.DUuid PT.mainBranchId) [ rteDval ])
+          (NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ rteDval ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 
@@ -1561,3 +1309,71 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
   }
   |> Ply.toTask
+
+
+// ---------------------------------------------------------------------------
+// Authoring against the real store
+//
+// The SCM test files (BranchOverlay, Draft, Propagation) all drive the authoring
+// path rather than hand-building ops, so that what they assert about is the code
+// the CLI runs. These are that path, in the two halves those files need.
+// ---------------------------------------------------------------------------
+
+/// Parse package source into stabilized ops: the real authoring path, SCC-aware hashes
+/// and all. The ops are returned, not stored.
+let parsePackageOps (source : string) : Task<List<PT.PackageOp>> =
+  task {
+    let! parsed =
+      LibParser.Package.parse
+        (localBuiltIns pmPT)
+        pmPT
+        LibParser.NameResolver.OnMissing.ThrowError
+        source
+      |> Ply.toTask
+    match parsed with
+    | Ok ops -> return LibDB.HashStabilization.computeRealHashes ops
+    | Error errs ->
+      return
+        Exception.raiseInternal
+          "test package source failed to parse"
+          [ "errs", errs ]
+  }
+
+/// Author source into MAIN the way the CLI does: parse, stabilize, insert + fold.
+let authorIntoMain (source : string) : Task<List<PT.PackageOp>> =
+  task {
+    let! stabilized = parsePackageOps source
+    let! _ = LibDB.Inserts.insertAndApplyOpsAsWip stabilized
+    // The same second step the authoring builtin takes: re-resolve names and recompute
+    // SCC-aware hashes now that the new items exist. Skipping it leaves forward
+    // references unresolved, so the dependency edges a cascade reads are never written.
+    let! _ = LibDB.WipRefresh.refresh pmPT
+    return stabilized
+  }
+
+/// The hash a batch of authored ops BOUND to a name.
+///
+/// Read off the `SetName`, not the `AddFn`: an `AddFn` carries content and no name at
+/// all -- naming is a separate op, which is the whole point of the model.
+let hashBoundTo (ops : List<PT.PackageOp>) (name : string) : PT.Hash =
+  ops
+  |> List.tryPick (fun op ->
+    match op with
+    | PT.PackageOp.SetName(l, target, _) when l.name = name -> Some target.hash
+    | _ -> None)
+  |> Option.defaultWith (fun () ->
+    Exception.raiseInternal "no SetName for name" [ "name", name ])
+
+
+/// Run a Dark expression against main's package manager, as the CLI would.
+///
+/// The SCM's write paths live in Dark (`SCM.*`), so a test that called the F# helper
+/// underneath one would be asserting about a second copy of the logic rather than the
+/// one that runs. Callers wrap this with the result shape they expect, and decide for
+/// themselves whether a Dark-side `Error` is a test failure or an assertion.
+let evalDarkExpr (code : string) : Task<RT.ExecutionResult> =
+  task {
+    let! ptExpr = parsePTExpr code
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    return! Exe.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+  }

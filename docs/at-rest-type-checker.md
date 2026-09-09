@@ -95,7 +95,7 @@ items by location. `--all`, `--failed` and `--incomplete` filter the detail. It 
 package operations and mutates no branch state.
 
 The gate is deliberately outside F# storage (`Builtin.scmAddOps`,
-`Builtin.scmCommitWipOpsByIds`, `LibDB.Inserts`) and outside merge, rebase and sync,
+`LibDB.Inserts`, the `SCM.Commits` commit path) and outside merge, rebase and sync,
 which move already-committed content. Package synchronization, historical op replay,
 propagation, and other storage callers never see it and must not reject data based on
 this checker. Persistence, when added, stores regenerable verdicts keyed by the item

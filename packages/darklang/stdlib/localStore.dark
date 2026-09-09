@@ -1,0 +1,46 @@
+/// This instance's own local state: where its store is, and the key-value settings beside it.
+///
+/// One module because these are the two primitives every layer needs and neither belongs to any of
+/// them. `scm/` runs SQL against the store; the CLI's `config`, `backups` and `scripts` do too; the
+/// relay and the package browser do. Without a shared home each of them carries its own
+/// `let localDb () : String = Builtin.localDbPath ()`, which is the one-wrapper rule defeated by
+/// copy-paste rather than a case where wrapping does not work.
+module Darklang.Stdlib.LocalStore
+
+
+/// The path of this instance's package store, for `Stdlib.Sqlite` calls against it.
+///
+/// A PATH rather than a handle: every reader opens its own connection, and the store moves per
+/// instance (`DARK_CONFIG_RUNDIR`, a test's copy, a backup being restored), so nothing may cache it.
+let path () : String = Builtin.localDbPath ()
+
+
+/// Read a setting. `""` when the key has never been set, which every caller treats as the default
+/// rather than as an error: a fresh install has none of them.
+///
+/// Keys are namespaced by whoever owns them (`sync.*`, `current_branch`, `entry_point`), and the
+/// namespace is the contract. `Seed.export` strips this table wholesale, so nothing here travels.
+let configGet (key: String) : String = Builtin.configGet key
+
+
+/// Write a setting. Local to this instance, always: this is where "which relay", "which branch" and
+/// "which entry point" live, and none of them is anybody else's business.
+let configSet (key: String) (value: String) : Unit = Builtin.configSet key value
+
+
+/// Snapshot this instance's store to <param path>.
+///
+/// Not `Stdlib.Cli.File.copy`: the store path is guarded (a guest must not read or replace the
+/// host's store), so the file API refuses it, and a copy of `data.db` alone would miss whatever is
+/// still in the WAL. This goes through SQLite's online-backup API, which reads a consistent snapshot
+/// of an open store.
+let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbBackupTo path
+
+
+/// Replace this instance's store contents with the copy at <param path>.
+///
+/// Contents, not the file, so connections already open keep working. Anything already read into
+/// memory is still the OLD store, though, so the caller should say to restart.
+let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.localDbRestoreFrom path

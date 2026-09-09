@@ -249,3 +249,59 @@ cost overstates by more than 2x.
   a fresh list per lambda application. `Access.denyAll` is now one shared immutable value:
   debug 9.2MB, published 9.1MB, both pinned. The remaining ~2MB is startup (strings from the
   bundled-hash query, policy load) and does not scale with the workload.
+
+
+
+## 2026-08-27: both budgets re-baselined off multi-run minimums
+
+Moved here out of `scripts/perf/budget.json`, where it had grown into a paragraph inside a config file.
+The figures are the budgets of that day; later rounds lowered both (the current numbers are in
+`budget.json`, and its git log is the record). The method is what this entry is for.
+
+Debug 7,780,232 (min of 12 runs, 7780232..7861944). Published 7,722,608 (min of 9, 7722608..7755696).
+Taken as minimums rather than by `scripts/perf/gate --update`, which records whichever single reading you
+happened to get.
+
+The previous numbers were each a single reading: debug 7,763,560 was unreachable by all 12 runs, so the
+gate asserted a figure the tree never hit, and published 7,797,328 carried about 1% of unclaimed headroom.
+
+Allocation has MODES on this box: it repeats to 0.0003%-0.03% within a cluster, and the clusters sit
+0.3%-1.0% apart. So one reading tells you which mode you landed in rather than what the code allocates,
+and the gate's 3% tolerance is what absorbs the band. Take 5+ samples a side before believing any sub-1%
+difference.
+
+History worth keeping: published was raised 4.0% for kernel-substrate after the rebase onto main's
+records/enums work, then handed most of it back on the rebase onto hash-after-resolution. The
+published-vs-debug asymmetry against main is long-standing; the suspect is the Release-only embedded-seed
+path, still unproven.
+
+
+## 2026-08-27: `push` is not slow, tracing is
+
+Same call, same store (11,989 ops): a 2000-op export page took >600s with tracing ON and **2.1s**
+with it off; the full main export 5.6s off, never finishing on. The raw SQL is 0.014s either way.
+There is nothing to fix in push.
+
+The trap, so nobody re-files it: `config/dev` says `DARK_CONFIG_TRACE_DETAIL=off`, but a container
+created before that change has `on` baked into its environment (recreate, not restart, to fix), and
+`run-in-docker` forwards host `DARK_*` vars -- so two terminals can measure the same binary two
+orders of magnitude apart. Trust the live process, not the file.
+
+The real problem underneath: tracing has no GC. One night of ordinary work left 15.8 GB in
+`trace_fn_calls` (164 traces, ~96 MB each; the store hit 17 GB and the relay was OOM-killed --
+reported to the client as "network error"). `dark traces delete --all` + VACUUM recovers it;
+nothing yet notices it happening, which is a `dark status` candidate (in follow-ups).
+
+## 2026-08-27: what `dark` startup actually costs
+
+Shapes, not constants; re-measure before concluding. Three instrumentation seams exist, all no-ops
+when telemetry is off: `Telemetry.time` spans over the boot phases, `counterSnapshot` for items
+decoded, and `RT.InterpreterStatsSink` for instruction/builtin/frame totals; read via
+`scripts/perf/view-telemetry.py`.
+
+Measured (warm, same store): `status` 8,832 instructions / `help` 42,958, roughly equal wall time --
+so instruction count is not the cost, package loading (36ms) is not, buildState (3ms) is not. What
+remains is a large FIXED per-process cost, still unexplained; that is the open question. Debug is
+1.6x release (701ms vs 438ms for `status`); measure the release binary, and a true `--aot` build has
+never been measured. Where `status` scales with the store: `Constraints.pending`'s three-way join
+and the per-binding recursive CTE in `draftRepoints`.

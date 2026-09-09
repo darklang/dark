@@ -1,325 +1,298 @@
-/// The Release migrator — moves a store forward one Release at a time, and REFUSES to open a store from a
-/// NEWER Release with older code.
+/// Shape changes to CANONICAL tables, on stores that already exist.
 ///
-/// A **Release** is the single version coordinate spanning {language/`ProgramTypes`, op-serialization
-/// format, SQL schema, content-hashing} — the same integer (`currentRelease`) that gates
-/// cross-instance sync also gates whether this binary may open this store. One coordinate, one upgrade.
+/// `migrations/schema/*.sql` declares the from-scratch shape, but `CREATE TABLE IF NOT EXISTS` no-ops
+/// against a table that already exists, so a new column never reaches an existing store from those files.
 ///
-/// A `Release N` step bundles:
-///   1. a forward, **copy-and-swap** canonical `.sql` — never `DROP`; the op log is preserved,
-///   2. an optional **op-format remap** — re-serialize the whole log once, in one transaction,
-///   3. a **projection refold** — mark ops unapplied; startup regenerates the projections.
-/// Projections are dropped+refolded, never migrated. Forward-only; the undo is "restore from a peer"
-/// (every peer holds the whole log, so the tailnet is the backup).
+/// In principle a PROJECTION needs no step, since dropping and re-folding it rebuilds the new shape. In
+/// practice nothing on the shipped path does that: `rebuildProjections` is reachable only from LocalExec,
+/// which is not shipped. So a projection whose shape changed needs a step here too, and `locations` has
+/// two. Fixing that properly means teaching startup to notice the drift and re-fold; until then, a step.
 ///
-/// The current baseline is **Release 3** — a fresh store is born here; see `releases` for why 3 is a
-/// clean break and how the first real format change appends the next entry.
+/// This is THE mechanism, and the only one. There used to be a second (`migrations/incremental/*.sql`,
+/// now deleted) with no written rule for choosing between them, which is how the same migration got
+/// written twice and failed in both directions: a raw `.sql` file runs on FRESH stores too, where the
+/// schema has already created the table with the new shape, and `ALTER TABLE ... ADD COLUMN` then fails
+/// with "duplicate column name" -- SQLite has no `ADD COLUMN IF NOT EXISTS`. A step has to LOOK at the
+/// store before acting, which a raw SQL file cannot.
+///
+/// So steps are code: stable name, at most once per store, recorded in `system_migrations_v0` inside a
+/// transaction. Every step must be safe against a store that already has the desired shape, since that is
+/// what a fresh store is. `addColumnIfMissing` checks before it acts.
 module LibDB.Releases
-
-open Prelude
 
 open Fumble
 open LibDB.Sqlite
 
-
-/// THE version coordinate (see the module doc). A store is stamped with this Release; older code refuses
-/// to open a store stamped NEWER, and cross-instance sync uses this same integer as its wire-format version.
-let currentRelease : int = 5
+open Prelude
 
 
-/// One forward step that ARRIVES at Release `n` (apply it to move a store from `n-1` to `n`).
-type Release =
-  {
-    /// the Release this step lands on
-    n : int
-    /// canonical-table forward migration — copy-and-swap, NEVER drop. "" = no canonical-shape change.
-    sql : string
-    /// op-format remap (old `op_blob` bytes → new), only when the serialization format changed.
-    /// `None` = the op format is unchanged at this step (the common case).
-    reserialize : (byte[] -> byte[]) option
-    /// CLEAN-BREAK boundary: when `true`, pre-this-Release data is disposable — the package dataset is
-    /// CLEARED and rebuilds from source (dev) or re-pulls from a same-Release peer. Use only when the
-    /// change can't be cheaply migrated (e.g. a content-hash redefinition). The default (`false`) is the
-    /// durable path: the canonical copy-swap `.sql` + op-format reserialize + re-fold, keeping the log.
-    clearForRebuild : bool
-  }
+/// Does <param table> already have <param column>?
+let private hasColumn (table : string) (column : string) : bool =
+  // `pragma_table_info` is the queryable form of `PRAGMA table_info`, so this can be a normal SELECT.
+  // Table name is interpolated because a pragma-table argument cannot be a bound parameter; it is a
+  // literal in this file, never caller input.
+  Sql.query $"SELECT 1 AS n FROM pragma_table_info('{table}') WHERE name = @c"
+  |> Sql.parameters [ "c", Sql.string column ]
+  |> Sql.executeExistsSync
 
 
-/// The ordered registry of forward steps. Add an entry when you bump `currentRelease`; the
-/// migrator does the rest. Each `n` must be exactly one greater than the previous (see
-/// `registryIsWellFormed`).
-///
-/// **Release 3 — meaning-stable hashing.** Hashes are now over the alpha-normalized canonical form, so older
-/// `op_blob`s embed stale hashes and can't be cheaply migrated — hence the CLEAN-BREAK marker. A fresh store
-/// is born at the current Release and never replays this step; it's the worked example of the clean-break path.
-///
-/// **Release 4 — sync's canonical-table shape.** Everything sync adds to the two CANONICAL tables, which a
-/// schema.sql change can never reach: `CREATE TABLE IF NOT EXISTS` no-ops on a table that exists, and the
-/// schema-hash path drops only the regenerable projections (`Seed.projectionTables`) — by design, since the
-/// op log is the durable state. So a real Release-3 → 4 store gets its shape from HERE or not at all. Fresh
-/// stores get it from schema.sql and never replay this.
-///
-/// `branches` takes plain ALTERs (constant defaults). `package_ops` can't: `origin_ts`'s default is
-/// `strftime(...)`, and SQLite refuses "a column with non-constant default" on ADD COLUMN — so it's a
-/// copy-and-swap, which also carries the two things ALTER could never do anyway (the PK becoming
-/// `(id, branch_id)`, and `committed_seq`'s backfill). The op log is COPIED, never dropped.
-///
-/// `origin_ts` backfills from `created_at`: it's the authoring stamp we actually have, and it preserves
-/// local ordering, so the LWW sees these ops in the order they were written.
-///
-/// Verified against a store built from the pre-sync schema: after this step its `package_ops` (columns,
-/// types, NOT NULLs, defaults, PK, indexes) is byte-identical to a fresh store's, with the ops preserved.
-/// `branches` matches too except that ALTER appends its two columns rather than placing them beside
-/// `base_commit_hash` — cosmetic, since nothing SELECTs * off it and every read is by column name.
-/// The PK change is the old `incremental/20260519_133237_package_ops_composite_pk.sql` (the ghost-function
-/// fix: a bare `id` PK made an identical op on two branches collide, and `INSERT OR IGNORE` dropped the
-/// second). Folding it into schema.sql covers fresh stores; this covers the rest.
-let releases : Release list =
-  [ { n = 3; sql = ""; reserialize = None; clearForRebuild = true }
-    { n = 4
-      sql =
-        "ALTER TABLE branches ADD COLUMN base_ts TEXT NOT NULL DEFAULT '';"
-        + " ALTER TABLE branches ADD COLUMN base_op TEXT NOT NULL DEFAULT '';"
-        + " CREATE TABLE package_ops_r4 ("
-        + "   id TEXT NOT NULL,"
-        + "   op_blob BLOB NOT NULL,"
-        + "   branch_id TEXT NOT NULL REFERENCES branches(id),"
-        + "   commit_hash TEXT REFERENCES commits(hash),"
-        + "   applied INTEGER NOT NULL DEFAULT 0,"
-        + "   propagation_id TEXT NULL,"
-        + "   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),"
-        + "   origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),"
-        + "   committed_seq INTEGER,"
-        + "   PRIMARY KEY (id, branch_id));"
-        + " INSERT INTO package_ops_r4"
-        + "   (id, op_blob, branch_id, commit_hash, applied, propagation_id, created_at,"
-        + "    origin_ts, committed_seq)"
-        + " SELECT id, op_blob, branch_id, commit_hash, applied, propagation_id, created_at,"
-        + "   strftime('%Y-%m-%dT%H:%M:%fZ', created_at),"
-        + "   CASE WHEN commit_hash IS NOT NULL THEN rowid ELSE NULL END"
-        + " FROM package_ops;"
-        + " DROP TABLE package_ops;"
-        + " ALTER TABLE package_ops_r4 RENAME TO package_ops;"
-        + " CREATE INDEX IF NOT EXISTS idx_package_ops_wip"
-        + "   ON package_ops(branch_id) WHERE commit_hash IS NULL;"
-        + " CREATE INDEX IF NOT EXISTS idx_package_ops_created ON package_ops(created_at);"
-        + " CREATE INDEX IF NOT EXISTS idx_package_ops_applied"
-        + "   ON package_ops(applied) WHERE applied = 0;"
-        + " CREATE INDEX IF NOT EXISTS idx_package_ops_commit_hash"
-        + "   ON package_ops(commit_hash);"
-        + " CREATE INDEX IF NOT EXISTS idx_package_ops_propagation_id"
-        + "   ON package_ops(propagation_id) WHERE propagation_id IS NOT NULL"
-      reserialize = None
-      clearForRebuild = false }
-    // Release 5 — effect/permission system. Package-function serialization gained
-    // `permissionCeiling`, named-function Dvals gained a captured-access flag,
-    // and canonical hashing changed, so pre-5 `op_blob`s embed a stale binary
-    // format (now rejected) and stale hashes that can't be cheaply migrated.
-    // Clean break: the package dataset is cleared and rebuilds from source (dev)
-    // or re-pulls from a same-Release peer.
-    { n = 5; sql = ""; reserialize = None; clearForRebuild = true } ]
+let private tableExists (table : string) : bool =
+  Sql.query "SELECT 1 AS n FROM sqlite_master WHERE type = 'table' AND name = @t"
+  |> Sql.parameters [ "t", Sql.string table ]
+  |> Sql.executeExistsSync
 
 
-// ── The pure planning half (unit-tested; takes the registry explicitly so tests inject their own) ──
+/// Add a column, or do nothing if it is already there (the FRESH store, where the schema just declared
+/// it).
+let addColumnIfMissing
+  (table : string)
+  (column : string)
+  (declaration : string)
+  : unit =
+  if tableExists table && not (hasColumn table column) then
+    print $"  release: adding {table}.{column}"
+    Sql.query $"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+    |> Sql.executeStatementSync
 
 
-/// The steps to move a store from `storeN` up to `codeN`: the entries with `storeN < n <= codeN`, in
-/// ascending order. Pure.
-let pendingReleases
-  (registry : Release list)
-  (storeN : int)
-  (codeN : int)
-  : Release list =
-  registry
-  |> List.filter (fun r -> r.n > storeN && r.n <= codeN)
-  |> List.sortBy (fun r -> r.n)
+// ---------------------
+// The steps
+// ---------------------
+//
+// APPEND ONLY. A step's name is how a store remembers having run it, so renaming one re-runs it and
+// reordering changes what "already applied" means.
+
+type Step = { name : string; run : unit -> unit }
 
 
-/// Is the registry well-formed: strictly ascending, **contiguous** (no gaps), no duplicates, and none
-/// above `codeRelease`? A gap would silently skip a migration; a dup would double-apply; an entry above
-/// the code's Release is unreachable. Pure guard — unit-tested and asserted at boot.
-let registryIsWellFormed (registry : Release list) (codeRelease : int) : bool =
-  let ns = registry |> List.map (fun r -> r.n)
-  let contiguous = ns |> List.pairwise |> List.forall (fun (a, b) -> b = a + 1)
-  let distinct = (List.distinct ns) = ns
-  let noneAboveCode = ns |> List.forall (fun n -> n <= codeRelease)
-  contiguous && distinct && noneAboveCode
+let steps : List<Step> =
+  [
+    // A conflict is recorded against a name; this scopes it to a BRANCH too. Note the default here is
+    // '' while the schema declares main's uuid, so a conflict row that predates the column is
+    // scoped to no branch at all and no listing shows it. Deliberate: a conflict is a finding about a
+    // log this store has since replaced, and re-detection produces it again under a real branch id.
+    { name = "20260731_000001_conflicts_branch_id"
+      run =
+        fun () ->
+          addColumnIfMissing "conflicts" "branch_id" "TEXT NOT NULL DEFAULT ''" }
+
+    // A commit names the commit it follows, so the graph is a chain. Existing rows get '', which reads
+    // as "nothing before this one": true of the first, a lie about the rest, and unrecoverable.
+    { name = "20260819_000001_commits_parent"
+      run =
+        fun () -> addColumnIfMissing "commits" "parent" "TEXT NOT NULL DEFAULT ''" }
+
+    // Defaults are chosen so existing rows keep the meaning they already had:
+    //   `effective = 1`  -- everything in an old store is main's, and main's ops take effect.
+    //   `parent_id`      -- main's well-known id, which is what every pre-branch branch forked from.
+    //   `op_id`, `previous`, `author`, `origin_ts` -- empty, meaning "not recorded", which is true.
+    { name = "20260828_000001_package_ops_effective"
+      run =
+        fun () ->
+          addColumnIfMissing "package_ops" "effective" "INTEGER NOT NULL DEFAULT 1" }
+
+    { name = "20260828_000002_branches_parent_id"
+      run =
+        fun () ->
+          addColumnIfMissing
+            "branches"
+            "parent_id"
+            "TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001'" }
+
+    { name = "20260828_000003_commits_author"
+      run =
+        fun () -> addColumnIfMissing "commits" "author" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260828_000004_commits_origin_ts"
+      run =
+        fun () -> addColumnIfMissing "commits" "origin_ts" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260828_000005_locations_op_id"
+      run =
+        fun () -> addColumnIfMissing "locations" "op_id" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260828_000006_locations_previous"
+      run = fun () -> addColumnIfMissing "locations" "previous" "TEXT NULL" }
+
+    // The branch twin of `locations.source`; see `migrations/schema/`. Without it a branch records no
+    // provenance.
+    { name = "20260904_000001_op_branches_source"
+      run =
+        fun () ->
+          addColumnIfMissing "op_branches" "source" "TEXT NOT NULL DEFAULT 'op'" }
+
+    // A store made under the previous SCM has `branch_ops`, its separate op log for branch structure.
+    // Nothing reads it now, and the branches recorded there do not carry over: say so ONCE, at the
+    // first boot that sees it, rather than let `dark branches` come up empty with no explanation. The
+    // table is left where it is; wiping is the person's call.
+    { name = "20260904_000002_previous_scm_store"
+      run =
+        fun () ->
+          if tableExists "branch_ops" then
+            System.Console.Error.WriteLine
+              "note: this store was made by a previous version of the SCM (it has a `branch_ops` table). \
+               Branches recorded there do not carry over; main's ops do. For a clean start, wipe the store \
+               (`rm ~/.darklang/data.db*`): the packages re-grow from this binary, and `dark pull` brings \
+               the rest back from your relay." }
+
+    // What a relay's stored bundle CONTAINS, so a push can be compared with it rather than replacing
+    // it blind. `relay_branches` is hosted data, not a projection, so nothing else brings these to a
+    // store that already exists -- and a relay that has them missing does not degrade quietly, it
+    // fails every branch push with "no column named max_ts".
+    { name = "20260908_000001_relay_branch_freshness"
+      run =
+        fun () ->
+          addColumnIfMissing "relay_branches" "max_ts" "TEXT NOT NULL DEFAULT ''"
+          addColumnIfMissing "relay_branches" "op_count" "INTEGER NOT NULL DEFAULT 0" }
+
+    // The LWW register for doc comments. A whole table rather than a column, so `IF NOT EXISTS`
+    // WOULD have reached an existing store from the schema -- but only because the bootstrap
+    // replays it, which it does not promise to. Named here so the store records having got it, and
+    // so the answer to "how does a shape change reach an existing store" stays one answer.
+    { name = "20260908_000002_item_docs"
+      run =
+        fun () ->
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS item_docs (
+               item_hash TEXT NOT NULL,
+               part TEXT NOT NULL,
+               within TEXT NOT NULL,
+               text TEXT NOT NULL,
+               origin_ts TEXT NOT NULL,
+               PRIMARY KEY (item_hash, part, within))"
+          |> Sql.executeStatementSync }
+
+    // ...and then keyed on the LOCATION instead, because content is shared and ten names holding one
+    // declaration do not mean one thing. `item_docs` never reached a released build; it goes.
+    { name = "20260909_000001_location_docs"
+      run =
+        fun () ->
+          Sql.query "DROP TABLE IF EXISTS item_docs" |> Sql.executeStatementSync
+
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS location_docs (
+               owner TEXT NOT NULL,
+               modules TEXT NOT NULL,
+               name TEXT NOT NULL,
+               kind TEXT NOT NULL,
+               within TEXT NOT NULL,
+               text TEXT NOT NULL,
+               origin_ts TEXT NOT NULL,
+               PRIMARY KEY (owner, modules, name, kind, within))"
+          |> Sql.executeStatementSync }
+
+    // A doc divergence is about one PART of a declaration, and settling it means writing that part.
+    // Without this the resolution path could name the conflict but not what it was about.
+    { name = "20260909_000002_conflicts_part"
+      run =
+        fun () -> addColumnIfMissing "conflicts" "part" "TEXT NOT NULL DEFAULT ''" }
+
+    // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
+    ]
 
 
-// ── The store's Release stamp (a tiny local table, separate from the schema-hash stamp) ──
-
-
-let private releaseTable = "release_state_v0"
-
-
-/// The Release this store was last stamped at, or `None` if it predates Release tracking (or is fresh).
-let storedRelease () : int option =
-  let exists =
-    Sql.query "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = @name"
-    |> Sql.parameters [ "name", Sql.string releaseTable ]
-    |> Sql.executeExistsSync
-  if not exists then
-    None
+let private alreadyRun () : Set<string> =
+  if not (tableExists "system_migrations_v0") then
+    Set.empty
   else
-    match
-      // `release` is a SQLite keyword (SAVEPOINT RELEASE) — quote the column so it can never mis-parse.
-      Sql.query $"SELECT \"release\" FROM {releaseTable} WHERE id = 0"
-      |> Sql.execute (fun read -> read.int64 "release")
-    with
-    | Ok [ r ] -> Some(int r)
-    | _ -> None
-
-
-/// Stamp the store at Release `n`.
-let writeRelease (n : int) : unit =
-  Sql.query
-    $"CREATE TABLE IF NOT EXISTS {releaseTable} (id INTEGER PRIMARY KEY, \"release\" INTEGER NOT NULL)"
-  |> Sql.executeStatementSync
-  Sql.query
-    $"INSERT OR REPLACE INTO {releaseTable} (id, \"release\") VALUES (0, @release)"
-  |> Sql.parameters [ "release", Sql.int64 (int64 n) ]
-  |> Sql.executeStatementSync
-
-
-// ── Applying a step ──
-
-
-/// Re-serialize the WHOLE op log once through `remap` (old `op_blob` → new), in a single transaction.
-/// The op id is content-addressed over the op's MEANING (a normalized canonical form), not its raw
-/// bytes — so a pure *format* change keeps the same id, and we update `op_blob` in place. (A remap that
-/// changes an op's meaning/hash is a different, louder operation — the hash-remap path — not this.)
-let reserializeLog (remap : byte[] -> byte[]) : unit =
-  let rows =
-    Sql.query "SELECT id, branch_id, op_blob FROM package_ops"
-    |> Sql.execute (fun read ->
-      (read.string "id", read.string "branch_id", read.bytes "op_blob"))
+    Sql.query "SELECT name FROM system_migrations_v0"
+    |> Sql.execute (fun read -> read.string "name")
     |> Result.unwrap
-  let updates =
-    rows
-    |> List.map (fun (id, branchId, blob) ->
-      ("UPDATE package_ops SET op_blob = @blob WHERE id = @id AND branch_id = @branch_id",
-       [ [ "blob", Sql.bytes (remap blob)
-           "id", Sql.string id
-           "branch_id", Sql.string branchId ] ]))
-  Sql.executeTransactionSync updates |> ignore<List<int>>
+    |> Set.ofList
 
 
-/// The package dataset cleared by a `clearForRebuild` boundary: the PT op log + blobs, the branch
-/// structure, the regenerable projections, and the RT-derived caches (traces). Reload-from-source (dev)
-/// repopulates it. We KEEP accounts and user data — only the package world is reset. (`rt_dval` lives in
-/// `package_values`, so it's cleared with the projections — RT recomputed from PT.)
-let private rebuildClearTables : List<string> =
-  [ "package_ops"; "package_blobs"; "branches"; "commits"; "branch_ops" ]
-  @ LibDB.Seed.projectionTables
-  @ [ "traces"; "trace_fn_calls" ]
+/// Replay the schema statements that `keep` selects, against an existing store.
+///
+/// Every statement in that file is `CREATE ... IF NOT EXISTS` or `INSERT OR IGNORE`, so this is safe on
+/// every startup and does nothing once the store is current. Passed in rather than read from disk: the
+/// shipped binary has no `backend/migrations` beside it.
+///
+/// Split in three on purpose, because ORDER matters against an existing store:
+///
+///   1. tables   -- `CREATE TABLE IF NOT EXISTS` brings across anything wholly new
+///   2. columns  -- `steps` below, which is the only thing that can widen a table that already exists
+///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added
+///
+/// Doing it in one pass fails exactly there: the schema indexes `package_ops(effective)`, and on a
+/// store predating that column the index cannot be created.
+let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
+  // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = DRAFT; Gates
+  // nothing"), so splitting first cuts statements in half and SQLite reports "incomplete input".
+  // No `--` appears inside a string literal in that file, so truncating at one is safe here.
+  let stripped =
+    schemaSql.Split('\n')
+    |> Array.map (fun line ->
+      match line.IndexOf "--" with
+      | -1 -> line
+      | i -> line.Substring(0, i))
+    |> String.concat "\n"
+
+  let statements =
+    stripped.Split(';')
+    |> Array.map (fun st -> st.Trim())
+    |> Array.filter (fun st -> st <> "" && keep (st.ToUpperInvariant()))
+
+  if not (Array.isEmpty statements) then
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
+    conn.Open()
+
+    for st in statements do
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- st
+      cmd.ExecuteNonQuery() |> ignore<int>
+
+/// Step 1: tables (and the seeded account row), which carry a wholly new table to an existing store.
+let applySchemaTables (schemaSql : string) : unit =
+  runStatements
+    (fun upper ->
+      upper.StartsWith "CREATE TABLE" || upper.StartsWith "INSERT OR IGNORE")
+    schemaSql
+
+/// Step 3: indexes, once every column they name exists. `UNIQUE` has to be matched separately:
+/// `CREATE UNIQUE INDEX` does not start with "CREATE INDEX", and `package_dependencies` has one.
+let applySchemaIndexes (schemaSql : string) : unit =
+  runStatements
+    (fun upper ->
+      upper.StartsWith "CREATE INDEX" || upper.StartsWith "CREATE UNIQUE INDEX")
+    schemaSql
 
 
-/// Clear the package dataset for a clean-break Release (FK off; the rows go, the tables stay so the
-/// next reload/sync refills them).
-let clearForRebuildData () : unit =
-  Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatementSync
-  for t in rebuildClearTables do
-    Sql.query (sprintf "DELETE FROM \"%s\"" t) |> Sql.executeStatementSync
+/// Step 2: run every step this store has not run, in order. `steps` carry new COLUMNS, which `IF NOT
+/// EXISTS` cannot. Called after the schema bootstrap, so on a fresh store every step is a no-op that
+/// records itself.
+///
+/// There is no test suite over this. Each step's guard (`addColumnIfMissing`, `tableExists`) is what
+/// makes it safe to run against a store of any age, so a new step that skips those has nothing
+/// checking it.
+let runPending () : unit =
+  // A step's name is its identity in `system_migrations_v0`, so two steps sharing one would run as
+  // one and record as one, silently. Refused here, where every store passes on startup, because no
+  // test constructs this list.
+  let duplicates =
+    steps
+    |> List.countBy _.name
+    |> List.filter (fun (_, n) -> n > 1)
+    |> List.map fst
 
-
-/// Apply one Release step. A CLEAN-BREAK (`clearForRebuild`) clears the package dataset so it rebuilds
-/// from source/peer (disposable pre-Release data). Otherwise it's the durable path: the canonical
-/// copy-swap `.sql` (if any), then the op-format remap (if any, which marks the log unapplied so startup
-/// refolds projections from the new bytes).
-let applyRelease (r : Release) : unit =
-  if r.clearForRebuild then
-    print
-      $"Release {r.n}: clean-break boundary — clearing the package dataset; it rebuilds from source / re-pulls from a same-Release peer."
-    clearForRebuildData ()
-  else
-    if r.sql <> "" then Sql.query r.sql |> Sql.executeStatementSync
-    match r.reserialize with
-    | Some remap ->
-      reserializeLog remap
-      Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementSync
-    | None -> ()
-
-
-// ── The boot guard + forward migrator ──
-
-
-/// What `applyPending` decides to do, factored out of the DB-mutating path so the guard is a **pure,
-/// unit-testable** function of (storedRelease, codeRelease).
-type ReleaseAction =
-  /// no stored Release → stamp `code` (a fresh store, or a pre-tracking store already at the current format)
-  | StampFresh
-  /// store == code → nothing to do (the steady state)
-  | UpToDate
-  /// store > code → REFUSE: a newer store; older code would misread the op format
-  | RefuseNewer of storeN : int
-  /// store < code → apply these steps in order, then stamp `code`
-  | Migrate of Release list
-
-
-/// Pure: reconcile the store's Release with this binary's. See `ReleaseAction`. Total over the four cases;
-/// no DB access — `applyPending` reads/writes the store around it.
-let planRelease
-  (registry : Release list)
-  (stored : int option)
-  (codeRelease : int)
-  : ReleaseAction =
-  match stored with
-  | None -> StampFresh
-  | Some s when s = codeRelease -> UpToDate
-  | Some s when s > codeRelease -> RefuseNewer s
-  | Some s -> Migrate(pendingReleases registry s codeRelease)
-
-
-/// What the CLI should do with an EXISTING store, given the same (registry, stored, code) inputs as
-/// `planRelease`. The CLI has no package source to rebuild from, so its clean-break path RE-SEEDS from the
-/// embedded current-Release store (discarding + backing up the old data); a DURABLE migration instead runs
-/// the steps in place and PRESERVES the store.
-[<RequireQualifiedAccess>]
-type CliUpgrade =
-  | Proceed // already at the code Release
-  | RefuseNewer of storeN : int // a newer store — older code must not open it
-  | MigrateInPlace // every pending step is durable — migrate forward, keeping the data
-  | Reseed // a pending clean-break step, or a pre-tracking store of unknown format — discard + re-seed
-
-
-/// Pure: the CLI's upgrade decision. Reuses `planRelease`, then splits a `Migrate` on whether ANY pending
-/// step is a clean-break (`clearForRebuild`): a clean break invalidates the on-disk content (e.g. a hashing
-/// change), so it can't migrate in place — the CLI re-seeds; an all-durable run migrates forward in place.
-/// `StampFresh` here means a pre-tracking store (no Release stamp) — the CLI can't trust its on-disk format,
-/// so it re-seeds rather than assume it's already current.
-let planCliUpgrade
-  (registry : Release list)
-  (stored : int option)
-  (codeRelease : int)
-  : CliUpgrade =
-  match planRelease registry stored codeRelease with
-  | UpToDate -> CliUpgrade.Proceed
-  | RefuseNewer s -> CliUpgrade.RefuseNewer s
-  | StampFresh -> CliUpgrade.Reseed
-  | Migrate steps ->
-    if steps |> List.exists (fun r -> r.clearForRebuild) then
-      CliUpgrade.Reseed
-    else
-      CliUpgrade.MigrateInPlace
-
-
-/// Reconcile the store's Release with this binary's (`codeRelease = currentRelease`) and execute the
-/// decision. The *decision* is `planRelease` (pure, tested); this wraps it with the DB read/write.
-let applyPending (codeRelease : int) : unit =
-  if not (registryIsWellFormed releases codeRelease) then
+  if not (List.isEmpty duplicates) then
     Exception.raiseInternal
-      "Release registry is not well-formed (a gap, duplicate, or an entry above the code Release)"
-      [ "codeRelease", codeRelease ]
-  match planRelease releases (storedRelease ()) codeRelease with
-  | UpToDate -> ()
-  | StampFresh -> writeRelease codeRelease
-  | RefuseNewer s ->
-    Exception.raiseInternal
-      $"This store is on Release {s}; this Dark speaks Release {codeRelease}. Upgrade Dark to open it — never open a newer store with older code."
-      []
-  | Migrate steps ->
-    for r in steps do
-      let extra = if r.reserialize.IsSome then " + op re-serialize" else ""
-      print $"Applying Release {r.n} (schema{extra})…"
-      applyRelease r
-    writeRelease codeRelease
+      "duplicate release step name(s)"
+      [ "names", String.concat ", " duplicates ]
+
+  let done_ = alreadyRun ()
+
+  for step in steps do
+    if not (Set.contains step.name done_) then
+      print $"Running release step: {step.name}"
+      step.run ()
+
+      Sql.query
+        "INSERT INTO system_migrations_v0 (name, execution_date, sql)
+         VALUES (@name, CURRENT_TIMESTAMP, @sql)
+         ON CONFLICT(name) DO NOTHING"
+      |> Sql.parameters
+        [ "name", Sql.string step.name
+          // The `sql` column wants the statement that ran; a code step has no single statement, so name
+          // the step rather than leaving it empty.
+          "sql", Sql.string $"(release step: {step.name})" ]
+      |> Sql.executeStatementSync

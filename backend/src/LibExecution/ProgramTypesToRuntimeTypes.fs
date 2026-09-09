@@ -597,11 +597,8 @@ module Expr =
 
     | PT.EString(_id, segments) ->
       match segments with
-      // if there's only one segment, just load it directly
       | [ PT.StringText text ] -> justLoadDval (RT.DString text)
 
-      // otherwise, handle each segment separately
-      // and then create a string from the parts
       | segments ->
         let (rc, instrs, segments) =
           List.fold
@@ -1390,7 +1387,7 @@ module PackageManager =
 
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
-      isHarmful = fun _ _ -> false
+      isHarmful = fun _ -> false
 
       init = pm.init }
 

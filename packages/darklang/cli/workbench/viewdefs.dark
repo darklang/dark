@@ -11,6 +11,8 @@ let calendarItems () : List<BodyItem> = []
 let errorDetailLines (state: State) : List<String> = Stdlib.String.split (errorDetail state) "\n"
 let cronDetailLines (state: State) : List<String> = Stdlib.String.split (cronDetail state) "\n"
 let calendarDetailLines (_state: State) : List<String> = []
+let syncViewItems () : List<BodyItem> = loadSyncItems ()
+let syncViewDetailLines (state: State) : List<String> = Stdlib.String.split (syncDetail state) "\n"
 
 /// Extension views in stable index order. Workspaces place them in navigation.
 let extensionViews () : List<ViewDef> =
@@ -38,6 +40,14 @@ let extensionViews () : List<ViewDef> =
         render = renderCalendar
         detail = calendarDetailLines
         hints = calendarHints }
+    ViewDef
+      { id = "sync"
+        name = "Sync"
+        gateKey = ""
+        loadItems = syncViewItems
+        render = renderSync
+        detail = syncViewDetailLines
+        hints = syncHints }
     ViewDef
       { id = "builtins"
         name = "Builtins"

@@ -45,7 +45,9 @@ let formatLocation (location: PackageLocation) : String =
 /// The `=` separating name from definition arrives either as its own argument or
 /// attached to the front; both come off, leading ones only, since the `=` in
 /// `(x: Int64) : Int64 = x` is the body's. A lone `-` reads stdin, so the separate
-/// argument has to go first.
+/// argument has to go first. A lone argument naming a file that exists reads the
+/// file, the way `module` does; a definition is never one token, so the two cannot
+/// be confused.
 let definitionFromArgs (args: List<String>) : String =
   let withoutSeparator =
     match args with
@@ -54,6 +56,10 @@ let definitionFromArgs (args: List<String>) : String =
 
   match withoutSeparator with
   | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
+  | [ path ] when Stdlib.Cli.File.exists path ->
+    match Stdlib.Cli.File.readText path with
+    | Ok source -> source
+    | Error _ -> path
   | parts ->
     let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
 
@@ -61,3 +67,311 @@ let definitionFromArgs (args: List<String>) : String =
       Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
     else
       joined
+
+
+/// The "changed under you" heads-up, computed BEFORE an edit lands (afterwards the live
+/// binding is already the new version): when the version being replaced was authored by a
+/// colleague, one line naming them, the commit it arrived in, and how long ago it landed
+/// here. None for your own versions and unattributed ones.
+let peerHeadsUpLine
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  match SCM.PackageOps.peerAuthoredCurrent location with
+  | Some((author, message, mins)) ->
+    let who =
+      if Stdlib.String.startsWith author "inst-" then
+        Stdlib.String.slice author 0 13
+      else
+        author
+
+    let mins = if mins < 1L then 1L else mins
+
+    let age =
+      if mins < 120L then
+        (Stdlib.Int64.toString mins) ++ "m"
+      else if mins < 2880L then
+        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 60L)) ++ "h"
+      else
+        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 1440L)) ++ "d"
+
+    let subject = if message == "" then "no message" else message
+
+    Stdlib.Option.Option.Some(
+      Stdlib.Cli.UI.Colors.hint
+        $"  note: {who} changed this {age} ago ({subject}); your edit replaces their version"
+    )
+  | None -> Stdlib.Option.Option.None
+
+
+/// Every doc comment a declaration carries, as (part, text): its own, plus one per parameter,
+/// record field or enum case.
+///
+/// Both sides of the comparison are built by this, so "what did the author write" and "what does
+/// this name say now" are the same question asked of two declarations.
+let docsOfFn
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  let params =
+    fn.parameters
+    |> Stdlib.List.indexedMap (fun i p ->
+      (LanguageTools.ProgramTypes.DocPart.Parameter i, p.description))
+
+  Stdlib.List.append
+    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description) ]
+    params
+
+
+let docsOfType
+  (t: LanguageTools.ProgramTypes.PackageType.PackageType)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  let nested =
+    match t.declaration.definition with
+    | Record fields ->
+      fields
+      |> Stdlib.List.map (fun f ->
+        (LanguageTools.ProgramTypes.DocPart.RecordField f.name, f.description))
+    | Enum cases ->
+      cases
+      |> Stdlib.List.map (fun c ->
+        (LanguageTools.ProgramTypes.DocPart.EnumCase c.name, c.description))
+    | Alias _ -> []
+
+  Stdlib.List.append
+    [ (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description) ]
+    nested
+
+
+/// Every doc these authored ops carry, for the item they declare.
+let authoredDocs
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | AddFn fn -> Stdlib.Option.Option.Some(docsOfFn fn)
+    | AddType t -> Stdlib.Option.Option.Some(docsOfType t)
+    | AddValue v ->
+      Stdlib.Option.Option.Some(
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
+      )
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+
+
+/// What <param location> says NOW at each part: its own words where it has said any, and its
+/// declaration's where it has not.
+let currentDocs
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : List<(LanguageTools.ProgramTypes.DocPart * String)> =
+  let declared =
+    match kind with
+    | Fn ->
+      LanguageTools.PackageManager.Function.get hash
+      |> Stdlib.Option.map (fun fn -> docsOfFn fn)
+      |> Stdlib.Option.withDefault []
+    | Type ->
+      LanguageTools.PackageManager.Type.get hash
+      |> Stdlib.Option.map (fun t -> docsOfType t)
+      |> Stdlib.Option.withDefault []
+    | Value ->
+      LanguageTools.PackageManager.Value.get hash
+      |> Stdlib.Option.map (fun v ->
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
+      |> Stdlib.Option.withDefault []
+
+  SCM.Docs.overlay branchId location declared
+
+
+/// The text <param part> holds in <param docs>, or None when it names nothing there.
+let docAt
+  (docs: List<(LanguageTools.ProgramTypes.DocPart * String)>)
+  (part: LanguageTools.ProgramTypes.DocPart)
+  : Stdlib.Option.Option<String> =
+  docs
+  |> Stdlib.List.findFirst (fun pair ->
+    let (p, _) = pair
+    p == part)
+  |> Stdlib.Option.map (fun pair ->
+    let (_, text) = pair
+    text)
+
+
+/// Author an `UpdateDoc` for every doc that changed, and say whether there was one.
+///
+/// Called once the save has landed on <param hash>: if that is a hash the location already had,
+/// nothing about the VERSION moved, so the ops just authored folded to nothing and a changed doc
+/// comment is the only thing left that could have been meant.
+///
+/// One op per changed PART, each naming the text it replaces. Naming it is what lets the far side
+/// tell an edit made on top of its own words from one made without ever seeing them.
+let updateDocsThatChanged
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Bool =
+  let current = currentDocs branchId location kind hash
+  let written = authoredDocs ops
+
+  let updates =
+    written
+    |> Stdlib.List.filterMap (fun pair ->
+      let (part, text) = pair
+
+      match docAt current part with
+      // A part the declaration does not have is not an edit to anything.
+      | None -> Stdlib.Option.Option.None
+      | Some currentText ->
+        if currentText == text then
+          Stdlib.Option.Option.None
+        // Silence is not a statement that the existing words are wrong. Clearing a doc is sayable
+        // (the op takes an empty text), just not by omitting one.
+        else if text == "" then
+          Stdlib.Option.Option.None
+        else
+          let previous =
+            if currentText == "" then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some(
+                LanguageTools.ProgramTypes.hashOfText currentText
+              )
+
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.PackageOp.UpdateDoc(
+              location,
+              part,
+              text,
+              previous,
+              Stdlib.Option.Option.None
+            )
+          ))
+
+  if Stdlib.List.isEmpty updates then
+    false
+  else
+    match SCM.PackageOps.add branchId updates with
+    | Ok _ -> true
+    | Error _ -> false
+
+
+/// Shared tail of the fn/type/val authoring flow: build the name-resolution
+/// context, convert the written declaration, check unresolved names, take the
+/// previous hashes, save, report, and repoint dependents. `kindWord` fills the
+/// output lines ("function" | "type" | "value"); `failState` is what a failed
+/// save returns (fn sets the exit code, type/val historically don't).
+let saveAuthored
+  (state: Cli.AppState)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (kindWord: String)
+  (failState: Cli.AppState)
+  (convert:
+    LanguageTools.NameResolver.NRContext
+      -> (List<LanguageTools.ProgramTypes.PackageOp>
+          * LanguageTools.ProgramTypes.Hash
+          * List<LanguageTools.Parser.Range
+              * List<String>
+              * LanguageTools.ProgramTypes.NameResolutionError>))
+  : Cli.AppState =
+  let pm = LanguageTools.PackageManager.pm ()
+
+  let ctx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+        pm = pm
+        branchId = state.currentBranchId
+        owner = location.owner
+        currentModule = location.modules }
+
+  let (ops, hash, unresolvedNames) = convert ctx
+
+  if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+    state
+  else
+    let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location kind
+    let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+
+    // Read BEFORE the save: after it, the live binding IS the new version.
+    let peerHeadsUp =
+      if isUpdate then peerHeadsUpLine location
+      else Stdlib.Option.Option.None
+
+    match SCM.PackageOps.addAuthored state.currentBranchId ops with
+    | Ok report ->
+      AtRestCheck.printSaveReport state.currentBranchId report
+
+      // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
+      // stabilized inside the save, so the value in hand until now is a placeholder. Everything
+      // below that names a version -- the permission summary, the doc-only note -- needs the
+      // real one.
+      let boundHash =
+        match Packages.Rename.referenceAt state.currentBranchId location with
+        | Some reference -> LanguageTools.ProgramTypes.Reference.hash reference
+        | None -> hash
+
+      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+      // Decided here rather than before the save, because this is where the stabilized hash is
+      // finally known: the one in hand until now is the parser's placeholder.
+      let movedVersion =
+        Stdlib.Bool.not (Stdlib.List.member previousHashes boundHash)
+
+      let docOnly =
+        (isUpdate && (Stdlib.Bool.not movedVersion))
+        && (updateDocsThatChanged state.currentBranchId location kind boundHash ops)
+
+      // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
+      // it already had and carries no new text saved NOTHING, and re-running the same authoring
+      // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
+      let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion
+
+      Stdlib.printLine ""
+
+      if landed then
+        let action = if isUpdate then "Updated" else "Created"
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
+      else
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged: nothing saved.")
+
+      let _ =
+        if docOnly then
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              "  documentation only -- the version is unchanged, so nothing was repointed.")
+        else
+          ()
+
+      match peerHeadsUp with
+      | Some line -> Stdlib.printLine line
+      | None -> ()
+
+      // Repoint dependents NOW, into the draft, so you can run them against this change before
+      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
+      if isUpdate && (Stdlib.Bool.not docOnly) then
+        Propagate.repointNow state.currentBranchId location previousHashes hash kind
+
+      // A fn's transitive permission requirements, named at the save so the author
+      // learns what a caller must be allowed BEFORE anyone runs it and gets denied.
+      match kind with
+      | Fn ->
+        Fn.printFunctionPermissionSummary
+          (LanguageTools.ProgramTypes.hashToString boundHash)
+      | _ -> ()
+
+      Stdlib.printLine ""
+      state
+
+    | Error msg ->
+      [ ""
+        (Stdlib.Cli.UI.Colors.error $"✗ Failed to add {kindWord}: {msg}")
+        "" ]
+      |> Stdlib.printLines
+
+      failState

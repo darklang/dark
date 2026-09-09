@@ -111,7 +111,7 @@ export class BranchManagerPanel {
             });
             if (newName && newName !== message.branchName) {
               try {
-                await client.sendRequest("dark/renameBranch", { branchId: message.branchId, newName });
+                await client.sendRequest("dark/renameBranch", { branchId: message.branchId, name: newName });
                 vscode.window.showInformationMessage(`Renamed branch to "${newName}"`);
                 this._update();
               } catch (error) {

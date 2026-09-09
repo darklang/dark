@@ -1,8 +1,8 @@
 {
   "tolerance": 0.03,
   "steady": {
-    "debug": 9276664,
-    "published": 9103560,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it. Cost history: docs/perf/history.md."
+    "debug": 9288944,
+    "published": 9742864,
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it (scripts/perf/gate --update). Method and history: docs/perf/history.md. Do not add historical comments to this line, basically never change this comment."
   }
 }

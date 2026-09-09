@@ -85,12 +85,28 @@
 
 ### SQL migrations
 
-- structural changes go in `backend/migrations/schema.sql`, which is hashed and
-  replayed. Data backfills and additive transforms go in
-  `backend/migrations/incremental/`, one file each, run once. The distinction and
-  its trap are written up in `backend/migrations/incremental/README.md`
+- there are exactly two places, and which one you want depends on whether the store
+  already exists:
 
-- `scripts/migrations/new <tag>` creates the file in the right place
+  - `backend/migrations/schema/*.sql` declares the shape a NEW store is born with.
+    Ordered by filename, concatenated, hashed; a change drops the regenerable
+    projections and replays. Every statement is `IF NOT EXISTS`, so it adds nothing
+    to a table that is already there.
+
+  - `backend/src/LibDB/Releases.fs` is how a change reaches a store that ALREADY
+    exists: an append-only list of named steps, each safe to run against a store of
+    any age, recorded in `system_migrations_v0`. A new column, a new table, a
+    backfill -- all of it goes here, in addition to declaring it in `schema/`.
+
+  There used to be a third (`migrations/incremental/*.sql`) with no written rule for
+  choosing, which is how one migration got written twice and failed both ways. A raw
+  `.sql` file cannot look at the store before acting, and every change to an existing
+  store has to.
+
+- `scripts/migrations/new <tag>` scaffolds BOTH halves and cross-references them, which is
+  the point: forgetting the second is the mistake this is built to stop. A new column goes
+  in its table's numbered subsystem file rather than the stamped one, so a table stays
+  defined in one place.
 
 - they run as part of `scripts/dev/build`; there's no separate step
 

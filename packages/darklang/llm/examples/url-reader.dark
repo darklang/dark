@@ -18,7 +18,7 @@ val baseAgent =
   |> Agent.withTemperature 0.2
 
 /// URL reader agent
-val agent = baseAgent |> Agent.withWebFetch
+let agent () : Darklang.LLM.Agent.Agent = baseAgent |> Agent.withWebFetch
 
 /// Agent with citations enabled
 val citationAgent = baseAgent |> Agent.withWebFetchCitations
@@ -26,14 +26,14 @@ val citationAgent = baseAgent |> Agent.withWebFetchCitations
 
 /// Summarize a URL
 let summarize (url: String) : String =
-  match Agent.run agent $"Fetch and summarize: {url}" with
+  match Agent.run (agent ()) $"Fetch and summarize: {url}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 
 
 /// Ask a question about a URL's content
 let ask (url: String) (question: String) : String =
-  match Agent.run agent $"Fetch {url} and answer: {question}" with
+  match Agent.run (agent ()) $"Fetch {url} and answer: {question}" with
   | Ok result -> result.response
   | Error e -> $"Error: {e}"
 

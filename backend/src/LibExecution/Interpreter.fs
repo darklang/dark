@@ -976,7 +976,22 @@ let private invokeBuiltin
     else
       0L
   if not (Set.isEmpty fn.callEffects) then
-    PermissionCheck.requireBuiltinEffects exeState vm fn.callEffects fn.name.name
+    // `Native` names what no rule can scope, so a policy grants it whole or not at all --
+    // which would put `dark status` behind `permissions allow native` on a stock install,
+    // since the SCM reads its own store through raw SQLite. Bundled first-party code is
+    // trusted for it instead, the same boundary the private-network sync transport uses;
+    // a pulled package calling the same builtin still needs the grant. Every other effect
+    // is checked for everyone.
+    let effects =
+      if
+        Set.contains Effects.Effect.Native fn.callEffects
+        && PermissionCheck.callerIsBundled exeState vm
+      then
+        Set.remove Effects.Effect.Native fn.callEffects
+      else
+        fn.callEffects
+    if not (Set.isEmpty effects) then
+      PermissionCheck.requireBuiltinEffects exeState vm effects fn.name.name
 
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L

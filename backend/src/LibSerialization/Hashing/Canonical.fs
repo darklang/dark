@@ -1,7 +1,13 @@
 /// Canonical serializers for content-addressable hashing.
 ///
 /// Produces deterministic bytes by skipping identity-irrelevant fields
-/// (AST node IDs, description, deprecated, originalName).
+/// (AST node IDs, deprecated, originalName).
+///
+/// The doc comment is NOT one of them: what an item says about itself is not what it does, so two
+/// bodies differing only in their docs are one item and a typo fix in a widely-called function
+/// repoints nobody. The current text is carried by the `Describe` op instead, which is what makes a
+/// doc-only edit representable at all -- ops are content-addressed, so an `AddFn` differing only in
+/// its docs would fold to nothing.
 /// Re-uses leaf serializers from the existing binary format.
 module rec LibSerialization.Hashing.Canonical
 
@@ -75,10 +81,16 @@ let private isSccRef
 // Name resolution writers
 // =====================
 
-/// Skip originalName and location (location is a substitution-lookup
-/// key, not part of the canonical content); only write resolved
-/// value (or error). The value writer receives the NR's location so
-/// it can drive `resolveHash` / `isSccRef`.
+/// A resolved reference hashes by what it resolved TO; its originalName and
+/// location are skipped (location is a substitution-lookup key, not content).
+/// The value writer receives the NR's location so it can drive `resolveHash` /
+/// `isSccRef`.
+///
+/// An UNRESOLVED reference has nothing but its name, so the name is written. Without
+/// it, `f x = A.b x` and `g x = C.d x` are one content hash while neither resolves,
+/// and the store is content-addressed: whichever is inserted first owns the hash, and
+/// the second name is bound to the first body. Drafts are unresolved routinely (a
+/// caller authored before its callee), so this is an everyday collision, not a corner.
 let writeNameResolution
   (writeValue : BinaryWriter -> Option<PT.PackageLocation> -> 'a -> unit)
   (w : BinaryWriter)
@@ -91,6 +103,8 @@ let writeNameResolution
   | Error error ->
     w.Write(1uy)
     PTC.NameResolutionError.write w error
+    w.Write(List.length nr.originalName)
+    nr.originalName |> List.iter (fun segment -> w.Write(segment : string))
 
 
 /// Write FQTypeName, resolving deps and checking SCC substitution
@@ -561,7 +575,7 @@ let writeTypeDeclaration
 // Top-level item writers (used by both compute*Hash and SCC batch hashing)
 // =====================
 
-/// Write a PackageType's hash-relevant content (skip hash, description, deprecated)
+/// Write a PackageType's hash-relevant content: its declaration.
 let writeType
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -570,7 +584,7 @@ let writeType
   w.Write(0uy) // tag: type
   writeTypeDeclaration mode w t.declaration
 
-/// Write a PackageFn's hash-relevant content (skip hash, description, deprecated)
+/// Write a PackageFn's hash-relevant content: everything a caller can observe, and nothing else.
 let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn) =
   w.Write(1uy) // tag: fn
   writeExpr mode w fn.body
@@ -587,7 +601,7 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
 
-/// Write a PackageValue's hash-relevant content (skip hash, description, deprecated)
+/// Write a PackageValue's hash-relevant content: its body.
 let writeValue
   (mode : HashRefMode)
   (w : BinaryWriter)

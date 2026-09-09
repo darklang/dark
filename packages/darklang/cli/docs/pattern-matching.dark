@@ -17,14 +17,14 @@ let content () : String =
 ## Tuples
   | (a, b) -> a + b
 
-## Constructor patterns: bare vs parenthesized
-A bare `Ok x` works only as a top-level arm. When a constructor pattern is
-NESTED — inside a tuple, or as another constructor's argument — use the
-immediate-paren form `Ctor(x)` with NO space before the `(`. The bare form
-collides with the surrounding commas/arguments and fails to parse.
-  | (Ok(x), Ok(y)) -> x + y     # tuple of constructors — parenthesize each
-  | (Some(n), None) -> n        # bare/no-arg cases are fine alongside
-  # NOT: | (Ok x, Ok y) ->      # fails to parse
+## Constructor patterns
+Bare or parenthesized both parse, nested or not: `| (Ok x, Ok y) ->` and
+`| (Ok(x), Ok(y)) ->` are the same pattern. The one real trap is a TUPLE
+payload: `Some((a, b))` needs its inner parens -- `Some(a, b)` parses and
+then silently matches nothing, a runtime surprise rather than a parse error.
+  | (Ok x, Ok y) -> x + y
+  | Some(Ok v) -> v
+  | Some((a, b)) -> a + b       # NOT Some(a, b), which never matches
 
 ## Lists
   | [] -> "empty"
@@ -39,8 +39,8 @@ collides with the surrounding commas/arguments and fails to parse.
   | _ -> default
 
 ## Nested
-  | Some(Ok(v)) -> v            # no space; parenthesize each constructor
+  | Some(Ok v) -> v             # bare or parenthesized, spaced or not: all parse
 
 ## Constructor wrapping a tuple
-  | Some((a, b)) -> a + b       # Ctor((tuple)) — no space before the paren
-  # NOT: | Some ((a, b)) ->     # the space makes it fail to parse"""
+  | Some((a, b)) -> a + b       # Ctor((tuple)): the inner parens are the pattern
+  # NOT: | Some(a, b) ->        # parses, then silently never matches"""

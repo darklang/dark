@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Render every relay route and diff it against the golden copies in rundir/matter-golden.
+#
+# The relay's pages are built by string concatenation in `packages/darklang/sync/relay/`. Refactoring that
+# has no test to lean on, so this is the net: capture the pages, change the code, compare byte for byte.
+#
+# Digit runs are normalised to `N` before comparing. The pages show live counts (items, ops, types) and
+# those move whenever packages reload, which is every build -- comparing them would make the net cry wolf
+# on its own. What is being checked is the STRUCTURE a refactor must preserve.
+#
+#   scripts/testing/matter-render-diff            compare against the goldens
+#   scripts/testing/matter-render-diff --capture  overwrite the goldens with what renders now
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+set -uo pipefail
+
+PORT=${PORT:-9097}
+GOLDEN=rundir/matter-golden
+CAPTURE=false
+[[ "${1:-}" == "--capture" ]] && CAPTURE=true
+
+ROUTES=(
+  "/"
+  "/owners"
+  "/stats"
+  "/ping"
+  "/search?q=map"
+  "/m?name=Darklang.Stdlib.List"
+  "/p?name=Darklang.Stdlib.List.map"
+  "/sync/head"
+)
+
+backend/Build/out/Cli/Debug/net10.0/Cli serve Darklang.Matter.router --port "$PORT" > /tmp/matter-render.log 2>&1 &
+SERVER=$!
+trap 'kill $SERVER 2>/dev/null' EXIT
+
+up=false
+for _ in $(seq 1 40); do
+  [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && { up=true; break; }
+  sleep 1
+done
+# Without this, `--capture` against a relay that never bound rewrites every golden as an empty file
+# and reports success.
+[[ "$up" == "true" ]] || { echo "the relay never came up on $PORT" >&2; exit 2; }
+
+mkdir -p "$GOLDEN"
+failures=0
+for r in "${ROUTES[@]}"; do
+  name=$(echo "$r" | tr '/?=&' '____')
+  out=$(mktemp)
+  # Pill lists and card grids collapse to one marker each: their contents move with the store (an
+  # item's callers, `/owners`, the landing grid), and the header's digit rule already covers counts
+  # -- structure is what this net checks. The `[^>]*` matters: the landing grid's div carries a
+  # `style` attribute, and a pattern anchored on bare `<div class="grid">` misses it.
+  curl -s --max-time 15 "http://localhost:$PORT$r" \
+    | sed -E 's/[0-9]+/N/g' \
+    | sed -E 's|(<div class="pills">).*?(</div>)|\1PILLS\2|g' \
+    | sed -E 's|(<div class="grid")[^>]*>.*(</div>)|\1>CARDS\2|g' > "$out"
+  if [[ "$CAPTURE" == "true" ]]; then
+    cp "$out" "$GOLDEN/$name.html"
+    echo "  captured $r ($(wc -c < "$out") bytes)"
+  elif diff -q "$GOLDEN/$name.html" "$out" > /dev/null 2>&1; then
+    echo "  ok   $r"
+  else
+    echo "  DIFF $r"
+    diff "$GOLDEN/$name.html" "$out" | head -15
+    failures=$((failures + 1))
+  fi
+  rm -f "$out"
+done
+
+if [[ "$CAPTURE" == "true" ]]; then
+  echo "goldens updated."
+elif [[ $failures -gt 0 ]]; then
+  echo "$failures route(s) render differently."
+  exit 1
+else
+  echo "every route renders identically."
+fi

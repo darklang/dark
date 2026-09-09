@@ -1002,9 +1002,7 @@ module Expr =
       (ProgramTypes.Expr.EInfix(gid (), infix, left, right), unresolvedNames)
 
     | ELambda(_, pats, body, _, _) ->
-      // Start with a clean argMap to prevent lambda params from being converted
-      // to EArg. Enclosing function args become locals so this lambda closes over
-      // them and they continue to shadow package names.
+      // Same clean-argMap treatment as the EPipeLambda case above.
       let lambdaContext =
         Context
           { currentFnName = context.currentFnName
@@ -1201,7 +1199,7 @@ module TypeDeclaration =
       (ProgramTypes.TypeDeclaration.RecordField
         { name = name
           typ = typ
-          description = "" },
+          description = f.description },
         unresolvedNames)
 
 
@@ -1240,7 +1238,7 @@ module TypeDeclaration =
       (ProgramTypes.TypeDeclaration.EnumCase
         { name = name
           fields = fields
-          description = "" },
+          description = c.description },
         unresolvedNames |> Stdlib.List.flatten)
 
   module Definition =
@@ -1348,7 +1346,7 @@ module FunctionDeclaration =
         (ProgramTypes.PackageFn.Parameter
           { name = p.name.name
             typ = typ
-            description = "" },
+            description = p.description },
           unresolvedNames)
 
   /// Walk a PT TypeReference collecting all TVariable names. Used to
@@ -1493,7 +1491,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddType pt
-            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType pt.hash) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType pt.hash, Stdlib.Option.Option.None) ]
 
         Stdlib.Option.Option.Some((pt, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1523,7 +1521,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddValue pv
-            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue pv.hash) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue pv.hash, Stdlib.Option.Option.None) ]
 
         Stdlib.Option.Option.Some((pv, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1553,7 +1551,7 @@ let moduleDeclarationWithOpsHelper
 
         let ops =
           [ ProgramTypes.PackageOp.AddFn pf
-            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash) ]
+            ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
 
         Stdlib.Option.Option.Some((pf, ops, unresolvedNames))
       | _ -> Stdlib.Option.Option.None)
@@ -1658,7 +1656,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddType t
-        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType t.hash) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType t.hash, Stdlib.Option.Option.None) ]
 
     (ProgramTypes.SourceFile.Declaration.Type t, ops, unresolvedNames)
 
@@ -1676,7 +1674,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddValue v
-        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue v.hash) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue v.hash, Stdlib.Option.Option.None) ]
 
     (ProgramTypes.SourceFile.Declaration.Value v, ops, unresolvedNames)
 
@@ -1695,7 +1693,7 @@ let declarationsToPT
 
     let ops =
       [ ProgramTypes.PackageOp.AddFn f
-        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn f.hash) ]
+        ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn f.hash, Stdlib.Option.Option.None) ]
 
     (ProgramTypes.SourceFile.Declaration.Function f, ops, unresolvedNames)
 
@@ -1710,7 +1708,11 @@ let declarationsToPT
     (ProgramTypes.SourceFile.Declaration.Module defs, ops, unresolvedNames)
 
 
+/// Lower a whole parsed file against <param branchId>. Branch by parameter, for the same
+/// reason `parsePTExprInContext` takes one: what a name resolves to must not depend on what the process
+/// happened to be doing at the time.
 let parsedFileAsSourceFile
+  (branchId: Uuid)
   (parsedFile: WrittenTypes.ParsedFile)
   : (
     ProgramTypes.SourceFile.SourceFile *
@@ -1719,7 +1721,6 @@ let parsedFileAsSourceFile
   )
   =
   let pm = LanguageTools.PackageManager.pm ()
-  let branchId = Darklang.SCM.Branch.mainBranchId
   let ctx =
     NameResolver.NRContext
       { onMissing = NameResolver.OnMissing.Allow

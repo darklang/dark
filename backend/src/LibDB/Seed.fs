@@ -2,8 +2,8 @@
 ///
 /// A seed is a copy of data.db with the projection tables emptied and its ops marked unapplied (it carries
 /// the full schema, so it works directly as a data.db). Export copies data.db, strips derived data, VACUUMs;
-/// grow folds the unapplied ops back into the projections + evaluates values — runs on CLI startup, a single
-/// SELECT COUNT when nothing's pending.
+/// grow folds the unapplied ops back into the projections and evaluates values. Grow runs on CLI startup,
+/// and is a single SELECT COUNT when nothing is pending.
 ///
 /// The op log (`package_ops`) is canonical; the package tables are regenerable projections folded from it.
 /// `applyUnappliedOps` folds pending ops (the `applied` flag is the append/fold seam); `rebuildProjections`
@@ -25,17 +25,23 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
-module Blob = LibExecution.Blob
 module BS = LibSerialization.Binary.Serialization
 module Permission = LibExecution.Permissions
+
+
+/// Whether this process has already said that the store holds ops it cannot read.
+///
+/// Said once per process, not once per fold: a single command folds more than once, and the note is
+/// context for whatever the command was asked to do, not an event worth repeating before every answer.
+let mutable private warnedAboutUnreadableOps = false
 
 
 // ---------------------
 // Export
 // ---------------------
 
-/// Export a seed database to the given output path.
-/// Copies the full source DB, then strips derived data and archived branches.
+/// Export a seed database to the given output path: copy the full source DB, then strip everything
+/// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
 let export (outputPath : string) : Task<unit> =
   task {
     let sourcePath = LibConfig.Config.dbPath
@@ -73,19 +79,60 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_dependencies;
       DELETE FROM deprecations;
 
-      DELETE FROM package_ops WHERE branch_id IN (
-        SELECT id FROM branches WHERE archived_at IS NOT NULL);
-      DELETE FROM commits WHERE branch_id IN (
-        SELECT id FROM branches WHERE archived_at IS NOT NULL);
-      DELETE FROM branches WHERE archived_at IS NOT NULL;
+      -- The builder's BRANCHES are not canon. A branch's ops live in `package_ops` at effective = 0 and are
+      -- tagged in `op_branches`, so both halves have to go and the ops have to go FIRST -- dropping the tags
+      -- alone would leave untagged effective = 0 ops that no fold ever applies and nothing accounts for.
+      -- Otherwise every install grown from this seed opens with somebody else's half-finished work in
+      -- `dark branches`.
+      DELETE FROM package_ops WHERE id IN (SELECT op_id FROM op_branches);
+      DELETE FROM op_branches;
+      DELETE FROM branch_name_bases;
+      -- All of them: main is not a row here, so there is nothing to preserve.
+      DELETE FROM branches;
 
-      -- Execution traces are dev telemetry, never part of a seed. Leaving them in bloats the shipped seed
-      -- (trace_fn_calls alone was 268 MB of a 305 MB dev store); strip them so the seed is just canon.
+      -- Ownership is a RELAY's index of which instance pushed which op: per-instance
+      -- by definition, and a fresh install has never been pushed to. Readers join
+      -- through package_ops, so stale rows fail to join silently -- and they are
+      -- large.
+      DELETE FROM op_owners;
+      DELETE FROM relay_branches;
+
+      -- A conflict is a finding about two peers' versions of one name. Same reasoning as `sync_bases`
+      -- below: inheriting the builder's would be inheriting an argument between machines you have never met.
+      DELETE FROM conflicts;
+
+      -- Execution traces are dev telemetry, never part of a seed. They dominate a dev store by size
+      -- (`trace_fn_calls` alone runs to hundreds of MB), so strip them and the seed is just canon.
       DELETE FROM trace_fn_calls;
       DELETE FROM traces;
 
+      -- ALL of it: `config_v0` is per-install by construction, and nothing needs a
+      -- value to boot (`entry_point` unset falls back to the shipped CLI).
+      --
+      -- A deny-list can't work: sync keys are named per peer (`sync.cursor.<url>`,
+      -- ...), unknowable in advance. Costs if shipped: a shared INSTANCE ID means
+      -- two peers that cannot sync or be told apart; a CURSOR skips ops the install
+      -- has never seen; a CURRENT BRANCH dangles; all leak the builder's addresses.
+      DELETE FROM config_v0;
+
+      -- A sync base is a RELATIONSHIP with a specific peer. A fresh install has none, and inheriting the
+      -- builder's would make it believe it had already agreed with machines it has never met.
+      DELETE FROM sync_bases;
+
+      -- Same reasoning: what a relay HOLDS of the builder's ops is the builder's relationship with that
+      -- relay. Shipped, every fresh install would believe that relay already had its ops and never push.
+      DELETE FROM sync_pushed;
+
+      -- The builder's DRAFT: a seed is committed history by definition
+      -- (`check-seed-carries-refs` asserts it), and an uncommitted op is instance
+      -- state like the rows above. Stripped HERE rather than left to the guard: the
+      -- F# suite leaves fixtures in main's draft, so a release build would otherwise
+      -- refuse or not depending on what ran last. The bindings need no separate
+      -- delete; every projection went above.
+      DELETE FROM package_ops
+      WHERE commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches);
+
       UPDATE package_ops SET applied = 0;
-      UPDATE branch_ops SET applied = 1;
       """
     cleanCmd.ExecuteNonQuery() |> ignore<int>
 
@@ -101,53 +148,87 @@ let export (outputPath : string) : Task<unit> =
 // Grow
 // ---------------------
 
-/// Apply all unapplied package_ops in the database.
-/// Returns the count of ops applied.
-let applyUnappliedOps () : Task<int64> =
+/// The pending set: every op that is effective and not yet folded, as raw (id, blob) rows. The
+/// fold's half is `foldRead`; `applyUnappliedOpsPass` is the two in sequence. Split so a test can put a
+/// concurrent write between them, which is the case the by-id sweep in `foldRead` exists for.
+///
+/// TEST SEAM: public for `MultiInstance.Tests`, like `useStoreForTesting`. Nothing else calls the halves.
+let readPending () : Task<List<System.Guid * byte[]>> =
   task {
     // Fast check: are there any unapplied ops? Avoids loading blobs when count is 0.
     let! count =
-      Sql.query "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0"
+      Sql.query
+        "SELECT COUNT(*) as n FROM package_ops WHERE applied = 0 AND effective = 1"
       |> Sql.executeRowAsync (fun read -> read.int64 "n")
 
     if count = 0L then
-      return 0L
+      return []
     else
-
-      let! unappliedOps =
+      // Read the raw (id, blob) rows WITHOUT deserializing in the reader: a malformed op_blob
+      // (corrupt / truncated on the wire, or a poisoned push) must not throw here and brick the
+      // whole fold -- AND every fold after it, since the op stays applied=0 and gets re-read.
+      return!
         Sql.query
           """
-        SELECT id, op_blob, branch_id, commit_hash
+        SELECT id, op_blob
         FROM package_ops
-        WHERE applied = 0
+        WHERE applied = 0 AND effective = 1
+        -- effective = 1: only ops main RUNS fold into the live projections. A branch's op, or one a
+        -- client pushed to a relay, sits at applied = 0, effective = 0 -- present in the log, never
+        -- folded, until a merge flips it effective.
         -- rowid breaks ties: created_at is second-resolution so a batch's ops share it. The fold's final
         -- state is order-independent, but a deterministic replay order keeps re-folds byte-identical.
         ORDER BY created_at ASC, rowid ASC
         """
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          let branchId : PT.BranchId = read.uuid "branch_id"
-          let commitHash = read.stringOrNone "commit_hash"
-          let op = BS.PT.PackageOp.deserialize opId opBlob
-          (opId, op, branchId, commitHash))
+        |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytes "op_blob"))
+  }
+
+/// Fold the rows `readPending` returned, and mark exactly those applied. Returns the count folded.
+/// TEST SEAM, as `readPending`.
+let foldRead (rawOps : List<System.Guid * byte[]>) : Task<int64> =
+  task {
+    if List.isEmpty rawOps then
+      return 0L
+    else
+
+      // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
+      // store. They stay `applied = 0`, which is the truth -- nothing folded them -- and means a build
+      // that CAN read them still will. Marking them applied would be faster (they are re-read every fold)
+      // and would make an op unreadable by an older binary permanently invisible to a newer one.
+      let mutable skipped : List<System.Guid> = []
+
+      let unappliedOps =
+        rawOps
+        |> List.choose (fun (opId, opBlob) ->
+          match BS.PT.PackageOp.tryDeserialize opId opBlob with
+          | Some op -> Some(opId, op)
+          | None ->
+            skipped <- opId :: skipped
+            None)
+
+      // ONE line, not one per op. These ops are deliberately left unapplied so a later build can read
+      // them, which means they are re-examined on every startup: a line each would put a wall of
+      // warnings ahead of every command's real output, on every command, forever.
+      match skipped with
+      | [] -> ()
+      | _ when warnedAboutUnreadableOps -> ()
+      | ids ->
+        warnedAboutUnreadableOps <- true
+        System.Console.Error.WriteLine(
+          $"note: {List.length ids} op(s) in this store were written in a format this build cannot "
+          + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
+        )
 
       if List.isEmpty unappliedOps then
+        // Every pending op was unparseable. Nothing folded, so nothing is marked applied and the caller's
+        // loop stops on the zero. They are re-read next fold, which is the point: a newer build reads them.
         return 0L
       else
-        let groups =
-          unappliedOps
-          |> List.groupBy (fun (_, _, branchId, commitHash) ->
-            (branchId, commitHash))
-          |> Map.toList
-
-        // Apply every group + the applied=1 sweep in ONE transaction with synchronous=OFF: for 9000+ ops
-        // this collapses ~20k WAL commits into one (apply phase ~5s → sub-second). Not crash-safe by design —
-        // an aborted run leaves applied=0 and the next boot replays; replay isn't byte-idempotent (fresh Guid
-        // ids) but the final projection is equivalent (crashed-run rows get superseded like a normal re-add).
-        // FK enforcement is off for the load — replaying ops out of topological order trips FKs (e.g. a
-        // location before the branch it references) — so we `PRAGMA foreign_key_check` after commit and fail
-        // loudly on any real violation.
+        // Apply all ops + the applied=1 sweep in ONE transaction: for 9000+ ops that collapses ~20k WAL
+        // commits into one. Not crash-safe by design -- an aborted run leaves applied=0 and the next boot
+        // replays; replay isn't byte-idempotent (fresh Guid ids) but the final projection is equivalent.
+        // FK enforcement is off for the load, because replaying ops out of topological order trips FKs, so
+        // `PRAGMA foreign_key_check` runs after commit and fails loudly on a real violation.
         use conn = new SqliteConnection(LibDB.Sqlite.connString)
         do! conn.OpenAsync()
         let runRaw (sql : string) : Task<unit> =
@@ -157,18 +238,13 @@ let applyUnappliedOps () : Task<int64> =
             let! _ = cmd.ExecuteNonQueryAsync()
             return ()
           }
-        // PRAGMAs that affect transaction semantics must run *outside* a
-        // transaction. foreign_keys=OFF in particular only takes effect
-        // when not in a tx.
+        // PRAGMAs affecting transaction semantics must run OUTSIDE a transaction; foreign_keys=OFF in
+        // particular only takes effect when not in one.
         //
-        // synchronous=NORMAL (not OFF): OFF lets the writer skip syncing
-        // the change-counter update to disk, which poisons the page cache
-        // of any concurrent reader on a different connection — that
-        // reader then returns SQLITE_CORRUPT ("database disk image is
-        // malformed") even though PRAGMA integrity_check is clean. NORMAL
-        // keeps the WAL-mode coherence guarantee at the cost of one fsync
-        // per checkpoint; the bulk-grow win still comes from collapsing
-        // 9000+ commits into one transaction.
+        // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter update, which
+        // poisons the page cache of a concurrent reader on another connection -- that reader then returns
+        // SQLITE_CORRUPT even though `PRAGMA integrity_check` is clean. The bulk-grow win comes from
+        // collapsing 9000+ commits into one transaction, not from OFF.
         do!
           runRaw
             "PRAGMA journal_mode=WAL; \
@@ -179,28 +255,30 @@ let applyUnappliedOps () : Task<int64> =
         use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
         use tx = conn.BeginTransaction()
 
-        for ((branchId, commitHash), ops) in groups do
-          let opsOnly = ops |> List.map (fun (_, op, _, _) -> op)
-          do! PackageOpPlayback.applyOpsOnConnection conn branchId commitHash opsOnly
+        let opsOnly = unappliedOps |> List.map (fun (_, op) -> op)
+        // Mark applied BEFORE folding, in the same transaction so a throw rolls both back and the ops
+        // stay retryable.
+        //
+        // By ID, never by predicate. The SELECT above ran on another connection, outside this
+        // transaction; a `serve` committing an op between it and here matches `applied = 0 AND
+        // effective = 1` too, and a predicate sweep marked it applied with nothing having folded it, and
+        // nothing ever re-read it. By id it stays applied = 0 and the next pass takes it. The same
+        // argument covers the fold's own side effects (a merge event flipping a frontier effective
+        // mid-fold) and the skipped, unreadable ops, which are simply not in the list.
+        for chunk in unappliedOps |> List.map fst |> List.chunkBySize 500 do
+          let quoted = chunk |> List.map (fun g -> $"'{g}'") |> String.concat ", "
+          do! runRaw $"UPDATE package_ops SET applied = 1 WHERE id IN ({quoted})"
 
-        // Mark all loaded ops applied in a single statement (inside the same
-        // outer transaction).
-        do! runRaw "UPDATE package_ops SET applied = 1 WHERE applied = 0"
+        do! PackageOpPlayback.applyOpsOnConnection conn opsOnly
 
         tx.Commit()
 
-        // Integrity check. `PRAGMA foreign_key_check` runs regardless of
-        // the per-connection `foreign_keys` setting — it scans every FK in
-        // every table and returns a row per violation (or nothing when the
-        // DB is clean). Anything here is a real data bug: either the seed
-        // was inconsistent or our op-replay produced dangling refs.
-        // Surface it loudly rather than persisting a silently-broken
-        // projection.
+        // `PRAGMA foreign_key_check` runs regardless of the per-connection `foreign_keys` setting, and
+        // returns a row per violation. Anything here is a real data bug -- an inconsistent seed, or a
+        // replay that produced dangling refs -- so surface it rather than persist a broken projection.
         //
-        // We don't bother flipping `foreign_keys` back on first — the
-        // pragma is per-connection-instance, and this connection is about
-        // to be closed. The next connection picks up the connection-string
-        // default (`Foreign Keys=True`) on its own.
+        // No need to flip `foreign_keys` back on: the pragma is per-connection and this one is about to
+        // close.
         let violations = ResizeArray<string * string * string * string>()
         use checkCmd = conn.CreateCommand()
         checkCmd.CommandText <- "PRAGMA foreign_key_check"
@@ -224,7 +302,7 @@ let applyUnappliedOps () : Task<int64> =
           let summary =
             violations
             |> Seq.truncate 5
-            |> Seq.map (fun (t, r, p, f) -> $"  {t} rowid={r} → {p} (fk_id={f})")
+            |> Seq.map (fun (t, r, p, f) -> $"  {t} rowid={r} -> {p} (fk_id={f})")
             |> String.concat "\n"
           Exception.raiseInternal
             $"foreign_key_check reported {violations.Count} \
@@ -235,243 +313,77 @@ let applyUnappliedOps () : Task<int64> =
   }
 
 
-/// The committed events after `cursor` (≤ `limit`), the commits they reference, and the new cursor — what a
-/// peer serves.
+/// One pass: fold everything currently unapplied-and-effective. `applyUnappliedOps` repeats this,
+/// because folding an op can make OTHER ops effective.
+let private applyUnappliedOpsPass () : Task<int64> =
+  task {
+    let! pending = readPending ()
+    return! foldRead pending
+  }
+
+/// Fold every op that is unapplied and effective, until there are none left.
 ///
-/// The cursor is `committed_seq`, NOT `rowid`. `rowid` is an op's AUTHORING order, but an op only becomes
-/// syncable when it's COMMITTED, which can happen much later than it was authored (e.g. a WIP op on branch X
-/// while branch Y is committed + synced). `committed_seq` is assigned when the op is committed (or received),
-/// so it reflects COMMIT order: a late commit of an early-authored op gets a high seq and is served after the
-/// cursor has passed the earlier commits — never skipped. Native so a large batch is milliseconds. Event =
-/// (id, opBlobHex, branchId, commitHash, originTs); commit = (hash, message, branchId, accountId, createdAt).
-let eventsSince
-  (cursor : int64)
-  (limit : int64)
-  : Task<List<string * string * string * string * string> *
-    List<string * string * string * string * string> *
-    int64>
-  =
+/// Repeats because folding an op can MAKE other ops effective: a merge event flips
+/// its branch's frontier, and those ops are not in the pass that folded the event.
+///
+/// Terminates because every pass marks what it folded as applied, so the set strictly shrinks; an op
+/// this build cannot read stays pending but counts as nothing folded, so a pass that meets only those
+/// returns 0 and stops the loop. The bound is a backstop against a future op kind that makes work
+/// faster than this drains it, not an expected case; it is deliberately loud rather than silent if it
+/// is ever hit.
+let applyUnappliedOps () : Task<int64> =
   task {
-    let! opRows =
-      Sql.query
-        $"SELECT committed_seq AS cseq, id, hex(op_blob) AS blob, branch_id, commit_hash, origin_ts
-          FROM package_ops
-          WHERE committed_seq > {cursor} AND commit_hash IS NOT NULL
-          ORDER BY committed_seq
-          LIMIT {limit}"
-      |> Sql.executeAsync (fun read ->
-        (read.int64 "cseq",
-         read.string "id",
-         read.string "blob",
-         read.string "branch_id",
-         read.string "commit_hash",
-         read.string "origin_ts"))
+    let mutable total = 0L
+    let mutable pass = 0
+    let mutable keepGoing = true
 
-    let events =
-      opRows |> List.map (fun (_, id, blob, br, ch, ts) -> (id, blob, br, ch, ts))
+    while keepGoing do
+      let! n = applyUnappliedOpsPass ()
+      total <- total + n
+      pass <- pass + 1
 
-    let newCursor =
-      match opRows with
-      | [] -> cursor
-      | rows -> rows |> List.map (fun (cseq, _, _, _, _, _) -> cseq) |> List.max
+      if n > 0L && pass >= 10 then
+        Exception.raiseInternal
+          "applyUnappliedOps did not settle: an op kind is making ops effective \
+           faster than the fold applies them"
+          [ "passes", pass; "applied", total ]
 
-    // Only the commits the batch's ops reference (committed_seq in (cursor, newCursor]) — a bounded event
-    // batch carries a bounded set of commits, never the whole commit history.
-    let! commits =
-      Sql.query
-        $"SELECT DISTINCT c.hash AS hash, c.message AS message, c.branch_id AS branch_id,
-            c.account_id AS account_id, c.created_at AS created_at
-          FROM commits c
-          JOIN package_ops o ON o.commit_hash = c.hash
-          WHERE o.committed_seq > {cursor} AND o.committed_seq <= {newCursor}"
-      |> Sql.executeAsync (fun read ->
-        (read.string "hash",
-         read.string "message",
-         read.string "branch_id",
-         read.string "account_id",
-         read.string "created_at"))
+      keepGoing <- n > 0L
 
-    return (commits, events, newCursor)
-  }
-
-/// The branch ops after `cursor` as (id, opBlobHex, originTs) + the new cursor. Branch ops carry their
-/// structure (branch/commit/merge/…) in the blob, so — unlike package events — they need no side metadata
-/// beyond the authoring stamp. Ordered by rowid so a receiver applies them in order (CreateBranch first).
-let branchOpsSince
-  (cursor : int64)
-  (limit : int64)
-  : Task<List<string * string * string> * int64> =
-  task {
-    let! rows =
-      Sql.query
-        $"SELECT rowid AS rid, id, hex(op_blob) AS blob, origin_ts
-          FROM branch_ops
-          WHERE rowid > {cursor}
-          ORDER BY rowid
-          LIMIT {limit}"
-      |> Sql.executeAsync (fun read ->
-        (read.int64 "rid",
-         read.string "id",
-         read.string "blob",
-         read.string "origin_ts"))
-
-    // each event carries origin_ts so the receiver's structural LWW (rebase) converges by creation time
-    let events = rows |> List.map (fun (_, id, blob, ts) -> (id, blob, ts))
-
-    let newCursor =
-      match rows with
-      | [] -> cursor
-      | _ -> rows |> List.map (fun (rid, _, _, _) -> rid) |> List.max
-
-    return (events, newCursor)
-  }
-
-/// Apply branch ops RECEIVED from a peer: deserialize each blob → BranchOp → insertAndApply (idempotent,
-/// content-addressed by hash). Applied in order, so CreateBranch lands before the commits/merges that depend
-/// on it. Returns the count processed (branch ops are low-volume; the puller advances a per-peer cursor, so a
-/// re-pull doesn't re-count in practice).
-let receiveBranchOps (events : List<string * byte[] * string>) : Task<int64> =
-  task {
-    let mutable applied = 0L
-
-    for (id, opBlob, originTs) in events do
-      // Count only NEWLY-applied ops (idempotent on the content-addressed id), so the puller's "Pulled N"
-      // is honest on a re-pull / shared-base pull — matching the package-op count.
-      let existed =
-        Sql.query "SELECT 1 FROM branch_ops WHERE id = @id"
-        |> Sql.parameters [ "id", Sql.string id ]
-        |> Sql.executeExistsSync
-      let op = BS.PT.BranchOp.deserialize id opBlob
-      // PRESERVE the peer's origin_ts (not a fresh stamp) so the structural LWW converges the same everywhere
-      do! BranchOpPlayback.insertAndApplyWithTs op originTs
-      if not existed then applied <- applied + 1L
-
-    return applied
-  }
-
-/// Append peer-received events into the local op log, then fold them into the projections. Unlike the
-/// local-authoring path, this PRESERVES each op's original `origin_ts` — the timestamp-LWW needs it to
-/// converge the same on every instance regardless of arrival order. Idempotent (`INSERT OR IGNORE` on the
-/// content-addressed id; only unapplied ops fold). Returns the count NEWLY applied, so a puller reports the
-/// real change count.
-let receiveOps
-  (commits : List<string * string * System.Guid * System.Guid * string>)
-  (events : List<System.Guid * byte[] * System.Guid * string * string>)
-  : Task<int64> =
-  task {
-    if List.isEmpty events then
-      return 0L
-    else
-      // Do not let synced data claim the `Darklang` owner used for trusted
-      // bundled functions.
-      let incomingOps =
-        events
-        |> List.map (fun (opId, opBlob, _, _, _) ->
-          BS.PT.PackageOp.deserialize opId opBlob)
-      match Inserts.reservedOwnerViolation incomingOps with
-      | Some reason ->
-        raise (System.InvalidOperationException $"rejecting synced ops: {reason}")
-      | None -> ()
-
-      // Insert the referenced commits FIRST (same transaction, in order) so the ops' commit_hash FK is
-      // satisfied — a synced op belongs to a commit that must exist on the receiver. INSERT OR IGNORE dedups.
-      // TODO(sync-accounts): a synced commit carries an account_id but accounts don't sync. Today the 5
-      // well-known accounts are seeded identically on every instance so it always resolves; FKs are off so a
-      // missing one wouldn't throw (it'd insert a dangling account_id). When accounts become dynamic, sync
-      // them (or create-on-receive) rather than assuming the author exists locally.
-      let commitInserts =
-        commits
-        |> List.map (fun (hash, message, branchId, accountId, createdAt) ->
-          let sql =
-            """
-          INSERT OR IGNORE INTO commits (hash, message, branch_id, account_id, created_at)
-          VALUES (@hash, @message, @branch_id, @account_id, @created_at)
-          """
-          let ps =
-            [ "hash", Sql.string hash
-              "message", Sql.string message
-              "branch_id", Sql.uuid branchId
-              "account_id", Sql.uuid accountId
-              "created_at", Sql.string createdAt ]
-          (sql, [ ps ]))
-
-      // A received op arrives already committed, so it gets a `committed_seq` on insert (a monotonic
-      // COMMIT-order stamp local to this store) — that's what this instance serves onward by. Kept on
-      // CONFLICT so a re-pulled op keeps its original seq. Single-writer, so MAX+i is race-free.
-      let! seqBase =
-        Sql.query "SELECT COALESCE(MAX(committed_seq), 0) AS m FROM package_ops"
-        |> Sql.executeRowAsync (fun read -> read.int64 "m")
-
-      let opInserts =
-        events
-        |> List.mapi (fun i (opId, opBlob, branchId, commitHash, originTs) ->
-          // Convergence fix (canonical origin_ts): the op id is content-only, so two instances that
-          // independently author the SAME op stamp it with different local `origin_ts`. If we kept
-          // first-writer's stamp (INSERT OR IGNORE), a later competing edit could resolve differently on each
-          // instance → permanent divergence. Instead reconcile to the MIN stamp (deterministic on every
-          // instance), and if that LOWERS an already-applied op's stamp, mark it unapplied so the fold re-runs
-          // and the binding's `locations.origin_ts` is refreshed to the reconciled value.
-          let sql =
-            """
-            INSERT INTO package_ops
-              (id, op_blob, branch_id, applied, commit_hash, propagation_id, origin_ts, committed_seq)
-            VALUES (@id, @op_blob, @branch_id, @applied, @commit_hash, @propagation_id, @origin_ts, @committed_seq)
-            ON CONFLICT(id, branch_id) DO UPDATE SET
-              origin_ts = MIN(package_ops.origin_ts, excluded.origin_ts),
-              applied =
-                CASE WHEN excluded.origin_ts < package_ops.origin_ts THEN 0
-                    ELSE package_ops.applied END
-            """
-          let ps =
-            [ "id", Sql.uuid opId
-              "op_blob", Sql.bytes opBlob
-              "branch_id", Sql.uuid branchId
-              "applied", Sql.bool false
-              "commit_hash", Sql.string commitHash
-              "propagation_id", Sql.dbnull
-              "origin_ts", Sql.string originTs
-              "committed_seq", Sql.int64 (seqBase + int64 (i + 1)) ]
-          (sql, [ ps ]))
-
-      let _ = (commitInserts @ opInserts) |> Sql.executeTransactionSync
-      // TODO(receive-atomicity): the insert above, detectDivergences below, and applyUnappliedOps run in
-      // three separate transactions. A mid-fold throw can leave conflicts recorded for ops that never
-      // folded — transiently inconsistent, though it self-heals on the next grow. The fix is to thread a
-      // single transaction/connection through detect + fold.
-      // Record any divergences BEFORE the fold: an incoming SetName that rebinds a name already bound
-      // locally to a different hash is a sync conflict (auto-resolved by LWW). Recorded so it's reviewable.
-      do! Conflicts.detectDivergences events
-      // Honest change count = ops that actually FOLD — newly inserted, plus any the MIN-reconcile above
-      // lowered (marked unapplied) so they re-fold. A pure re-pull folds nothing → 0. (Insert rows-affected
-      // can't be used now that the op insert is an upsert: a DO UPDATE counts even a no-op re-pull.)
-      let! foldedCount = applyUnappliedOps ()
-      // The fold just re-derived bindings by LWW, which CLOBBERS the resolution overlay (a human keep-mine /
-      // keep-theirs decision). Restore it, so a manual resolution DOMINATES the auto (LWW) pick — locally and
-      // on any peer that synced the resolution in. This is the pull-path counterpart of the reapply that
-      // rebuildProjections / growIfNeeded do after their folds; without it a synced-in "keep theirs" is lost
-      // the moment the op it overrides folds (esp. when the overlay was applied BEFORE that op, so its own
-      // apply was an idempotent no-op), and the two peers DIVERGE. Effective binding = fold[LWW] -> overlay.
-      if foldedCount > 0L then do! Resolutions.reapplyAll ()
-      return foldedCount
+    return total
   }
 
 
-/// The regenerable projections — every table the op-fold writes. `deprecations` is one: it's folded
+/// The regenerable projections: every table the op-fold writes. `deprecations` is one: it's folded
 /// from `Deprecate`/`Undeprecate` ops (its `annotation_blob` reconstructs from the op), so it's
-/// regenerable and `export` strips it like the others. NOT `package_blobs` (canonical content —
-/// op-playback never writes it), nor the op log / branch / commit / account state.
+/// regenerable and `export` strips it like the others. NOT `package_blobs` (canonical content that
+/// op-playback never writes), nor the op log / branch / commit / account state.
 let projectionTables : List<string> =
   [ "package_functions"
     "package_types"
     "package_values"
     "locations"
     "package_dependencies"
-    "deprecations" ]
+    "deprecations"
+    // Folded from `Decision` ops; nothing else writes it. Being here is what makes it genuinely derived
+    // rather than a second source of truth about the same decisions.
+    "propagation_policy" ]
+
 
 /// Drop every projection table and re-fold the whole `package_ops` log to rebuild them.
-/// Projections are regenerable from the ops — losing one costs only the CPU to
-/// re-fold; the op log is the canonical durable state and is never touched here. This is the schema-change /
-/// durable-canon path (drop projections, re-fold). Returns the count of ops re-applied.
+///
+/// The op log is canonical and untouched here; projections are a cache over it, so losing one costs only
+/// the CPU to re-fold. That claim is what the storage model rests on, and `OpsProjections.Tests` asserts
+/// the re-folded result is identical.
+///
+/// Triggered automatically by a SCHEMA CHANGE: `Migrations.fs` drops the same tables from this same list
+/// and marks the log unapplied, and the next `growIfNeeded` re-folds and re-evaluates values.
+///
+/// No user-facing "rebuild" verb, deliberately. Re-folding cannot fix hashes that moved (those are IN the
+/// ops) or a corrupt log (it IS the log), so a button mostly invites people to reach for it when something
+/// else is wrong.
+///
+/// Returns the count of ops re-applied.
 let rebuildProjections () : Task<int64> =
   task {
     // 1. clear the regenerable projection tables (single source of truth = projectionTables).
@@ -481,9 +393,10 @@ let rebuildProjections () : Task<int64> =
     do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
     // 3. re-fold ops -> projections via the existing playback path
     let! folded = applyUnappliedOps ()
-    // 4. re-apply the resolutions overlay — the fold only replays package_ops, so without this a human
-    //    override would be lost on rebuild ("effective binding = fold → then apply resolutions").
-    do! Resolutions.reapplyAll ()
+    // 4. branch-scoped propagation policy, which step 3 can't reach (effective = 0 by design)
+    do! Branches.refoldBranchDecides ()
+    // Nothing extra to reapply for resolutions: an `Override` decision is an op, so re-folding the log
+    // rebuilds the `source = 'resolution'` rows in `locations` along with everything else.
     return folded
   }
 
@@ -587,7 +500,6 @@ module ValueEvaluationError =
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
   (authority : EvaluationAuthority)
-  (branchId : PT.BranchId)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : Task<Result<unit, List<ValueEvaluationError>>> =
@@ -610,7 +522,6 @@ let evaluateAllValues
         Execution.noTracing
         sendException
         notify
-        branchId
         program
       |> configureFor authority
 
@@ -748,12 +659,16 @@ let growIfNeeded
     use _span = Telemetry.span "seed.growIfNeeded" []
     let! appliedCount =
       Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
-    // A store can have every op applied yet still hold unevaluated values (rt_dval NULL) — e.g. after a
+    // The fold above reads effective=1 only, so branch-scoped Decisions (a branch's propagation
+    // pins) never pass through it. After a projection drop (the migrations path defers here),
+    // skipping this would silently delete every branch pin; refolding is idempotent and
+    // origin_ts-guarded, so run it whenever the fold actually folded something.
+    if appliedCount > 0 then do! Branches.refoldBranchDecides ()
+    // A store can have every op applied yet still hold unevaluated values (rt_dval NULL): after a
     // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
     // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values
-    // NULL forever, so the value is unusable ("value not found" — or, before the null-safe read in
-    // RuntimeTypes.Value.get, an internal NULL crash). Evaluate whenever any value is unevaluated so the
-    // store self-heals on startup. Refs only need regenerating when we actually applied new ops.
+    // NULL forever, and a NULL `rt_dval` reads as "value not found". Evaluate whenever any value is
+    // unevaluated so the store self-heals on startup.
     let! hasUnevaluatedValues =
       Sql.query
         "SELECT EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS has_null"
@@ -762,29 +677,20 @@ let growIfNeeded
     if appliedCount > 0L then
       log $"Growing package DB from ops ({appliedCount} ops to apply)..."
       Telemetry.event "seed.applyOps.count" [ ("count", string appliedCount) ]
-      // The incremental fold just re-derived bindings by LWW from the newly-applied ops — which CLOBBERS any
-      // resolution overlay (a human / keep-local "keep theirs" decision). Re-apply the overlay, exactly like
-      // rebuildProjections does after a full re-fold: without this, a synced-in resolution is silently reverted
-      // to the LWW loser on the next grow, so two peers that agreed via a resolution DIVERGE. (Effective
-      // binding = fold(package_ops)[LWW] -> then apply resolutions.)
-      do!
-        Telemetry.timeTask "seed.reapplyResolutions" [] (fun () ->
-          Resolutions.reapplyAll ())
-      do!
-        Telemetry.timeTask "seed.generateRefs" [] (fun () ->
-          task {
-            do! PackageRefsGenerator.generate ()
-            LibExecution.PackageRefs.reloadHashes ()
-          })
+    // ABI type identities are PINNED: the committed package-ref-hashes.txt is authoritative, loaded by
+    // PackageRefs on first access, and nothing here regenerates it. Regenerating on boot would let the
+    // kernel's type identities float on whatever the local store happened to hash to. The generator is a
+    // DEV tool (reload-packages / LocalExec fill), where regenerating produces a reviewable git diff,
+    // which is what a re-pin should be.
     if appliedCount > 0L || hasUnevaluatedValues then
       let! _evalResult =
         Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
-          evaluateAllValues authority PT.mainBranchId (getBuiltins ()) pm)
+          evaluateAllValues authority (getBuiltins ()) pm)
       do!
         Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
           Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)
       // Announce only when we grew from real op work; a pure self-heal (evaluating stray unevaluated values
-      // with no new ops) is silent maintenance — it must not print to stdout, or it pollutes captured CLI
+      // with no new ops) is silent maintenance, and must not print to stdout, or it pollutes captured CLI
       // output (e.g. a caller comparing exact command output).
       if appliedCount > 0L then log "Package DB ready"
       return true

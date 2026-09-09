@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+# The workbench on a store where nothing needs you: commits, no conflicts, no draft. Home's selection
+# then lands on a COMMIT, and the commit-detail pane renders on open -- a path `_workbench-scm.expect`
+# never reaches, because its fixture always has a conflict to select first.
+set timeout 45
+log_user 0
+proc fail {msg} { puts "FAIL: $msg"; exit 1 }
+proc want {pattern what} {
+  expect {
+    -re $pattern { puts "  ok: $what"; return $expect_out(buffer) }
+    timeout { fail "timed out waiting for $what" }
+    eof { fail "process exited while waiting for $what" }
+  }
+}
+proc press {key} { sleep 1; send $key }
+set exe [lindex $argv 0]
+set env(DARK_CONFIG_RUNDIR) [lindex $argv 1]
+spawn $exe
+want "instance:" "the workbench on startup"
+want "recent commits" "Home lists the commits"
+want "workbench quiet fixtur" "including the one this fixture made"
+# `refreshCommitDetail` runs for the selected commit on open. A runtime error prints instead of the
+# frame, so two seconds with no such text is the assertion.
+set timeout 3
+expect {
+  -re "Runtime Error|expects .* but got" { fail "the home screen printed a runtime error" }
+  timeout { puts "  ok: and no runtime error rendered for the selected commit's detail" }
+}
+set timeout 45
+press "q"
+expect {
+  eof { puts "workbench: a quiet store opens on a commit and renders its detail." }
+  timeout { fail "q did not exit the workbench" }
+}

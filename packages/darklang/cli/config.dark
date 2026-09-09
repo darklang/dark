@@ -1,15 +1,13 @@
 module Darklang.Cli.Config
 
-// The config lives next to this instance's store (`localDbPath`), so the path is absolute and its directory
-// always exists — independent of the process CWD and of install mode. (The old portable path,
-// "rundir/cli-config.json", was CWD-relative: `login` silently no-op'd — printed "Logged in" but persisted
-// nothing — whenever the CLI ran from a directory without a `rundir/` subdir, e.g. a released exe run from $HOME.)
+// The config lives next to this instance's store (`localDbPath`), so the path is absolute and its
+// directory always exists -- independent of the process CWD and of install mode. A CWD-relative
+// path here makes `login` silently persist nothing.
 let configFilePath () : String =
-  let dbPath = Darklang.Sync.localDbPath ()
+  let dbPath = Stdlib.LocalStore.path ()
   let dir = Stdlib.String.join (Stdlib.List.dropLast (Stdlib.String.split dbPath "/")) "/"
   $"{dir}/cli-config.json"
 
-// Read config from disk
 let readConfig () : Dict<String, String> =
   match Stdlib.Cli.FileSystem.pathExists (configFilePath ()) with
   | true ->
@@ -26,7 +24,6 @@ let readConfig () : Dict<String, String> =
   | false -> Dict {}
 
 
-// Write config to disk
 let writeConfig (config: Dict<String, String>) : Unit =
   let json = Stdlib.Json.serialize<Dict<String, String>> config
   let jsonBytes = Stdlib.String.toBlob json
@@ -34,7 +31,6 @@ let writeConfig (config: Dict<String, String>) : Unit =
   ()
 
 
-// Helper to get a single config value
 let get (key: String) : Stdlib.Option.Option<String> =
   let config = readConfig ()
   Stdlib.Dict.get config key
@@ -90,6 +86,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
     |> Stdlib.printLines
+    state
+
+  // The CLI entry point: a per-user pointer stored in the db (config_v0, NOT synced), read by the F# boot.
+  // Malleable -- set your own CLI and it runs next launch. (Distinct from the json config above, which is
+  // being unified into the db later.)
+  // One `printLine` over an `if`, rather than a match whose arms each print: a trailing `state` after an
+  // inner match parses as part of that match's last arm, so the arm's value is an AppState where Unit is
+  // wanted, and the branch blows up at runtime the moment it's taken.
+  | ["entry"] ->
+    let current = Stdlib.LocalStore.configGet "entry_point"
+    let line =
+      if current == "" then
+        "entry point: (default - the shipped CLI)"
+      else
+        $"entry point: {current}"
+    Stdlib.printLine line
+    state
+
+  | ["set-entry", fnName] ->
+    let _ = Stdlib.LocalStore.configSet "entry_point" fnName
+    let msg =
+      if Stdlib.String.isEmpty fnName then
+        "Reverted the entry point to the shipped CLI."
+      else
+        $"Set entry point to {fnName}. It runs on next launch (`dark config set-entry \"\"` reverts)."
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
     state
 
   | _ ->

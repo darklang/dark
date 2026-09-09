@@ -16,8 +16,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       [
         (Stdlib.Cli.UI.Colors.error "Error: Function body required")
         ""
-        "Pass the body inline, or `-` to read from stdin (for multi-line):"
+        "Pass the body inline, a file that holds it, or `-` to read from stdin:"
         "  fn <location> <parameters and body>"
+        "  fn <location> <source-file>"
         "  fn <location> -    (read body from stdin)"
         ""
         "Examples:"
@@ -99,87 +100,35 @@ let createFnInline
           (Stdlib.Cli.UI.Colors.hint
             ($"Rename it to `let {location.name} ...`, or change the "
              ++ "fn target."))
-        state
+        // Nothing was saved: an agent's authoring loop branches on the exit.
+        { state with exitCode = 1 }
 
       | Some writtenFn ->
-        // Convert to ProgramTypes.PackageFn
-        let pm = LanguageTools.PackageManager.pm ()
+        let failState = { state with exitCode = 1 }
 
-        let ctx =
-          LanguageTools.NameResolver.NRContext
-            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
-              pm = pm
-              branchId = state.currentBranchId
-              owner = location.owner
-              currentModule = location.modules }
-
-        let (packageFn, unresolvedNames) =
-          LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
-            ctx
-            writtenFn
-
-        // Check for unresolved names
-        if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
+        Packages.saveAuthored
           state
-        // no unresolved names - keep going
-        else
-          // Check if this is an update (has previous versions)
-          let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location LanguageTools.ProgramTypes.ItemKind.Fn
-          let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+          location
+          LanguageTools.ProgramTypes.ItemKind.Fn
+          "function"
+          failState
+          (fun ctx ->
+            let (packageFn, unresolvedNames) =
+              LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+                ctx
+                writtenFn
 
-          // Create ops: AddFn and SetName, with stabilized hashes.
-          let ops =
-            LanguageTools.PackageManager.stabilizeHashes
+            let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
+                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
 
-          // The stabilized hash is what propagation and the requirements
-          // summary must use; the parser's placeholder names nothing stored.
-          let finalHash =
-            LanguageTools.WrittenTypesToProgramTypes.fnHashBoundAt ops location
-            |> Stdlib.Option.withDefault packageFn.hash
-
-          match SCM.PackageOps.addAuthored state.currentBranchId ops with
-          | Ok report ->
-            AtRestCheck.printSaveReport state.currentBranchId report
-
-            // Show success message
-            let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-            let action = if isUpdate then "Updated" else "Created"
-
-            Stdlib.printLine ""
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} function: {fullPath}")
-
-            // Auto-propagate if this is an update
-            if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location finalHash LanguageTools.ProgramTypes.ItemKind.Fn
-              printFunctionPermissionSummary
-                (LanguageTools.ProgramTypes.hashToString finalHash)
-              // Pins do not move on their own: whoever pinned the previous
-              // version keeps it until they review this one.
-              Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.hint
-                  $"  anyone pinned to the previous version keeps it until they run `permissions update {fullPath}`")
-            else
-              printFunctionPermissionSummary
-                (LanguageTools.ProgramTypes.hashToString finalHash)
-
-            Stdlib.printLine ""
-            state
-
-          | Error msg ->
-            [ ""
-              (Stdlib.Cli.UI.Colors.error $"✗ Failed to add function: {msg}")
-              "" ]
-            |> Stdlib.printLines
-
-            state
+            (ops, packageFn.hash, unresolvedNames))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the
         // generic hint on top of it
         if hasParseError then
-          state
+          { state with exitCode = 1 }
         else
           [
             (Stdlib.Cli.UI.Colors.error "Expected exactly one function declaration")
@@ -189,7 +138,7 @@ let createFnInline
             "  fn greet (name: String): String = \"Hello, \" ++ name"
             ""
           ] |> Stdlib.printLines
-          state
+          { state with exitCode = 1 }
     | None ->
       [
         (Stdlib.Cli.UI.Colors.error "Failed to parse function definition")
@@ -199,10 +148,10 @@ let createFnInline
         "  fn greet (name: String): String = \"Hello, \" ++ name"
         ""
       ] |> Stdlib.printLines
-      state
+      { state with exitCode = 1 }
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
-    state
+    { state with exitCode = 1 }
 
 
 let help (_state: Cli.AppState) : String =
@@ -210,6 +159,8 @@ let help (_state: Cli.AppState) : String =
     "Create or update a function"
     ""
     "Usage: fn <location> <parameters and body>"
+    "       fn <location> <source-file>"
+    "       fn <location> -"
     ""
     "When updating an existing function, dependents are automatically updated"
     "to use the new version."
@@ -227,7 +178,7 @@ let help (_state: Cli.AppState) : String =
     "  # Boolean function:"
     "  fn isPositive (x: Int): Bool = x > 0"
     ""
-    "  # Multi-line body via stdin (run from shell, not the REPL — '-' reads stdin):"
+    "  # Multi-line body via stdin (run from shell, not the REPL -- '-' reads stdin):"
     "  ./scripts/run-cli fn fib - <<'EOF'"
     "  let fib (n: Int): Int ="
     "    if n < 2 then n"

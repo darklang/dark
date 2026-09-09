@@ -149,9 +149,36 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "relay"
+          description = "The optional sync server: setup, the write secret, smoke tests"
+          aliases = [ "matter", "server", "sync-server" ]
+          context = "cli"
+          content = Docs.Relay.content
+          subtopics = [] }
+
+      DocTopic
         { name = "scm"
-          description = "Version control for packages"
-          aliases = [ "git", "vcs", "commits" ]
+          description = "Source control: edits, propagation, branches, merge, conflicts, sync"
+          // Every noun someone would reach for lands here, because the model is one thing and splitting it
+          // into six topics would mean six places to learn a quarter of it.
+          aliases =
+            [ "git"
+              "vcs"
+              "commits"
+              "commit"
+              "propagate"
+              "propagation"
+              "branch"
+              "branches"
+              "merge"
+              "rebase"
+              "conflicts"
+              "sync"
+              "constraints"
+              "draft"
+              // NOT "ops" -- `operators` already claims that alias, and `findTopic` resolves in list
+              // order, so adding it here would be a silent no-op rather than an ambiguity anyone notices.
+              "undo" ]
           context = "cli"
           content = Docs.SCM.content
           subtopics = [] }
@@ -188,7 +215,6 @@ module Topics =
     let topics = allTopics ()
     let lowerName = Stdlib.String.toLowercase name
 
-    // Check exact name match
     let byName =
       topics
       |> Stdlib.List.findFirst (fun t -> Stdlib.String.toLowercase t.name == lowerName)
@@ -196,7 +222,6 @@ module Topics =
     match byName with
     | Some t -> Stdlib.Option.Option.Some t
     | None ->
-      // Check aliases
       topics
       |> Stdlib.List.findFirst (fun t ->
         t.aliases
@@ -293,13 +318,11 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    // Complete topic names
     let topics = Topics.allTopics ()
 
     topics
     |> Stdlib.List.map (fun t -> Cli.Completion.withDescription t.name t.description)
   | [ partial ] ->
-    // Filter topics by partial match
     let topics = Topics.allTopics ()
     let lowerPartial = Stdlib.String.toLowercase partial
 

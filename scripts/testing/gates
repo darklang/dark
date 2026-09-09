@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# One entry point for the gate scripts: the end-to-end checks the F# suite structurally cannot
+# make (a published binary outside the tree, a TTY, a relay over HTTP, the LSP loop). What earns
+# a gate its place is a PROCESS boundary, not a store -- F# owns stores fine, MultiInstance
+# copies one per instance. Each gate says which boundary it crosses, above its function.
+#
+#     gates list        every gate, one line each
+#     gates <name>      one gate; extra arguments go to the gate (first-day takes an artifact)
+#     gates ci          the CI subset, each bounded by its own `timeout 5m`
+#     gates all         every gate except gates-are-clean, which re-runs the rest itself
+#
+# The gates live beside this file in _gates-sync, _gates-ui, _gates-store and _gates-meta, one
+# bash function each. `all` and `ci` give every gate its own PROCESS by re-invoking this
+# script, so a gate keeps its own `set -e`, its own traps and its own exit -- the same
+# isolation the standalone files had.
+
+set -uo pipefail
+
+[[ -f scripts/testing/gates ]] || { echo "gates: run from the repo root" >&2; exit 2; }
+
+GATES=(
+  setup
+  relay-routes
+  sync-hostile-relay
+  sync-multi-instance
+  lsp-branches
+  workbench-scm
+  workbench-views
+  first-day
+  backups-restore
+  reload-is-reproducible
+  gates-are-clean
+)
+
+# What CI runs, in one config line: the three gates it has always run, the ones that need only
+# the debug build already in backend/Build. first-day wants a published artifact and the sync
+# gates add minutes; those run locally, by name or via `all`.
+CI_GATES=(relay-routes workbench-scm workbench-views)
+
+describe() {
+  # shellcheck disable=SC2016  # the backticks are prose, not expansion
+  case "$1" in
+    setup)                  echo '`dark sync setup`, end to end, own rundir' ;;
+    relay-routes)           echo "the relay's HTTP surface, given bad input" ;;
+    sync-hostile-relay)     echo 'the sync/branch CLIENTS, given a relay that lies' ;;
+    sync-multi-instance)    echo 'four instances, branches, review queues, agents' ;;
+    lsp-branches)           echo 'the `dark/*` branch surface, as an editor drives it' ;;
+    workbench-scm)          echo 'the workbench SCM views with real work in the store' ;;
+    workbench-views)        echo 'every workbench view, one session each' ;;
+    first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
+    backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
+    reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
+    gates-are-clean)        echo 'no gate touches the shared dev store (slow: re-runs the rest)' ;;
+    *)                      echo '?' ;;
+  esac
+}
+
+known() {
+  local g
+  for g in "${GATES[@]}"; do [[ "$g" == "$1" ]] && return 0; done
+  return 1
+}
+
+# One gate, in this process. The domain files only define functions, so sourcing all four is
+# cheap and keeps the dispatch a name-mangle away.
+run_gate() {
+  local name="$1"; shift
+  # shellcheck source=scripts/testing/_gates-sync
+  . scripts/testing/_gates-sync
+  # shellcheck source=scripts/testing/_gates-ui
+  . scripts/testing/_gates-ui
+  # shellcheck source=scripts/testing/_gates-store
+  . scripts/testing/_gates-store
+  # shellcheck source=scripts/testing/_gates-meta
+  . scripts/testing/_gates-meta
+  "gate_${name//-/_}" "$@"
+}
+
+run_many() {  # run_many <bound|unbound> <name...> -- serial, with per-gate timing
+  local bound="$1"; shift
+  local total=$#
+  local failed=()
+  local g started took
+  for g in "$@"; do
+    echo "==> $g"
+    started=$SECONDS
+    if [[ "$bound" == "bound" ]]; then
+      timeout 5m "$0" "$g" || failed+=("$g")
+    else
+      "$0" "$g" || failed+=("$g")
+    fi
+    took=$((SECONDS - started))
+    printf '<== %s  %dm%02ds\n\n' "$g" $((took / 60)) $((took % 60))
+  done
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    echo "FAILED: ${failed[*]}"
+    exit 1
+  fi
+  echo "all $total gate(s) passed."
+}
+
+run_parallel() {  # run_parallel <name...> -- every gate at once; safe because each takes its own
+  # process, rundir and random ports, and nothing pkills beyond what it started. Wall time is the
+  # slowest gate instead of the sum. Output is buffered per gate so logs don't interleave.
+  local total=$#
+  local failed=()
+  local g started took
+  local outdir
+  outdir=$(mktemp -d)
+  declare -A pids
+  started=$SECONDS
+  for g in "$@"; do
+    "$0" "$g" >"$outdir/$g.log" 2>&1 &
+    pids[$g]=$!
+  done
+  for g in "$@"; do
+    if wait "${pids[$g]}"; then
+      printf '  ok    %s\n' "$g"
+    else
+      printf '  FAIL  %s\n' "$g"
+      failed+=("$g")
+    fi
+  done
+  took=$((SECONDS - started))
+  for g in "${failed[@]+"${failed[@]}"}"; do
+    echo; echo "---- $g output ----"
+    cat "$outdir/$g.log"
+  done
+  rm -rf "$outdir"
+  printf 'wall time %dm%02ds for %d gate(s)\n' $((took / 60)) $((took % 60)) "$total"
+  if [[ ${#failed[@]} -gt 0 ]]; then
+    echo "FAILED: ${failed[*]}"
+    exit 1
+  fi
+  echo "all $total gate(s) passed."
+}
+
+cmd=${1:-}
+[[ -n "$cmd" ]] || { echo "usage: gates list|all|ci|<name>  (gates list names them)" >&2; exit 2; }
+shift
+
+case "$cmd" in
+  list)
+    echo "gates (scripts/testing/gates <name>):"
+    for g in "${GATES[@]}"; do printf '  %-24s%s\n' "$g" "$(describe "$g")"; done
+    echo
+    echo "  ci  = ${CI_GATES[*]}"
+    echo "  all = every gate except gates-are-clean, in PARALLEL (--serial for one at a time"
+    echo "        with per-gate timings). Run gates-are-clean only when a gate itself changes."
+    echo
+    echo "hand tools, not gates: scripts/testing/matter-render-diff (render the relay's pages,"
+    echo "diff against golden HTML), scripts/testing/cross-machine (two real machines and a relay)."
+    ;;
+  all)
+    # Parallel by default: wall time is the slowest gate (~2m15s), not the sum (~8m).
+    # `gates all --serial` keeps the old one-at-a-time behavior with per-gate timings.
+    NAMES=()
+    for g in "${GATES[@]}"; do [[ "$g" == "gates-are-clean" ]] || NAMES+=("$g"); done
+    if [[ "${1:-}" == "--serial" ]]; then
+      run_many unbound "${NAMES[@]}"
+    else
+      run_parallel "${NAMES[@]}"
+    fi
+    ;;
+  ci)
+    run_many bound "${CI_GATES[@]}"
+    ;;
+  *)
+    if ! known "$cmd"; then
+      { echo "gates: no gate named \"$cmd\". Valid: list, all, ci,"
+        echo "  ${GATES[*]}"; } >&2
+      exit 2
+    fi
+    run_gate "$cmd" "$@"
+    ;;
+esac

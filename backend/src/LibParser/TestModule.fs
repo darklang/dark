@@ -147,14 +147,16 @@ let toPT
       m.types
       |> Ply.List.mapSequentially (fun wtType ->
         uply {
-          let! ptType =
-            WT2PT.PackageType.toPT pm onMissing PT.mainBranchId currentModule wtType
+          let! ptType = WT2PT.PackageType.toPT pm onMissing currentModule wtType
           let hash = Hashing.computeTypeHash Hashing.Normal ptType
           return
             [ PT.PackageOp.AddType ptType
+              // A parser has no store to ask what this name used to point at, so `previous` is None
+              // here and filled in downstream where it IS known.
               PT.PackageOp.SetName(
                 WT2PT.PackageType.Name.toLocation wtType.name,
-                PT.PackageType hash
+                PT.PackageType hash,
+                None
               ) ]
         })
       |> Ply.map List.flatten
@@ -164,18 +166,13 @@ let toPT
       |> Ply.List.mapSequentially (fun wtValue ->
         uply {
           let! ptValue =
-            WT2PT.PackageValue.toPT
-              builtins
-              pm
-              onMissing
-              PT.mainBranchId
-              currentModule
-              wtValue
+            WT2PT.PackageValue.toPT builtins pm onMissing currentModule wtValue
           return
             [ PT.PackageOp.AddValue ptValue
               PT.PackageOp.SetName(
                 WT2PT.PackageValue.Name.toLocation wtValue.name,
-                PT.PackageValue(Hashing.computeValueHash Hashing.Normal ptValue)
+                PT.PackageValue(Hashing.computeValueHash Hashing.Normal ptValue),
+                None
               ) ]
         })
       |> Ply.map List.flatten
@@ -184,29 +181,20 @@ let toPT
       m.fns
       |> Ply.List.mapSequentially (fun wtFn ->
         uply {
-          let! ptFn =
-            WT2PT.PackageFn.toPT
-              builtins
-              pm
-              onMissing
-              PT.mainBranchId
-              currentModule
-              wtFn
+          let! ptFn = WT2PT.PackageFn.toPT builtins pm onMissing currentModule wtFn
           let hash = Hashing.computeFnHash Hashing.Normal ptFn
           return
             [ PT.PackageOp.AddFn ptFn
               PT.PackageOp.SetName(
                 WT2PT.PackageFn.Name.toLocation wtFn.name,
-                PT.PackageFn hash
+                PT.PackageFn hash,
+                None
               ) ]
         })
       |> Ply.map List.flatten
 
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (
-        WT2PT.DB.toPT pm onMissing PT.mainBranchId currentModule
-      )
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
     let! (tests : List<PTTest>) =
       m.tests
@@ -216,14 +204,7 @@ let toPT
             { WT2PT.Context.currentFnName = None
               WT2PT.Context.argMap = Map.empty
               WT2PT.Context.localBindings = Set.empty }
-          let exprToPT =
-            WT2PT.Expr.toPT
-              builtins
-              pm
-              onMissing
-              PT.mainBranchId
-              currentModule
-              context
+          let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule context
           let! actual = exprToPT test.actual
           let! expected =
             uply {

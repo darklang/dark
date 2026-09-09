@@ -1,0 +1,232 @@
+// The sync WIRE codec: what an op bundle says about itself, and what a reader does with a version it
+// doesn't know.
+//
+// Exactly ONE version is readable. Older bundles are not carried, deliberately: nothing predates this
+// build that is worth reading, and a decoder per retired shape is cost with no payer. What the rules still
+// have to do is distinguish "this is from the future, upgrade" from "this file is damaged" -- only one of
+// those is fixed by upgrading, so collapsing them into one error sends people looking in the wrong place.
+
+module Helpers =
+  let decode (json: String) : Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String> =
+    Darklang.SCM.Wire.wireDecode (Stdlib.String.toBlob json)
+
+  let isError (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>) : Bool =
+    match r with
+    | Ok _ -> false
+    | Error _ -> true
+
+  let errorText (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>) : String =
+    match r with
+    | Ok _ -> ""
+    | Error e -> e
+
+  /// A current-shape bundle carrying no ops. Takes the version so a wrong one can be exercised.
+  let bundleAtVersion (version: String) : String =
+    $"""{{"formatVersion":{version},"darkBuild":"abc123","kernelHash":"deadbeef","owner":"inst-1","cursor":0,"ops":[],"commits":[]}}"""
+
+
+module CurrentVersion =
+  // The version this build speaks. Bumping it is a deliberate act, so it's worth asserting rather than
+  // letting a stray edit move it.
+  Darklang.SCM.Wire.currentWireVersion = 1L
+
+
+module RoundTrip =
+  // What we write, we read.
+  (Helpers.decode (Darklang.SCM.Wire.wireEncode [])
+   |> Stdlib.Result.map (fun b -> b.formatVersion)) = Stdlib.Result.Result.Ok 1L
+
+  // Every bundle self-identifies with the ABI that produced it, so someone holding nothing but the file
+  // and sqlite can tell whether their build can read it.
+  ((Helpers.decode (Darklang.SCM.Wire.wireEncode [])
+    |> Stdlib.Result.map (fun b -> b.kernelHash == ""))
+   |> Stdlib.Result.withDefault true) = false
+
+  // The server's position round-trips, which is what makes a paged pull resumable.
+  (Helpers.decode (Darklang.SCM.Wire.wireEncodeAt 4200L [])
+   |> Stdlib.Result.map (fun b -> b.cursor)) = Stdlib.Result.Result.Ok 4200L
+
+
+module RejectsWhatItCannotRead =
+  // A bundle from a NEWER build is an error, and the error says to upgrade rather than half-read it.
+  (Helpers.isError (Helpers.decode (Helpers.bundleAtVersion "99"))) = true
+
+  (Stdlib.String.contains (Helpers.errorText (Helpers.decode (Helpers.bundleAtVersion "99"))) "v99") = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode (Helpers.bundleAtVersion "99")))
+    "not understood by this build") = true
+
+  // An OLDER version is refused the same way, which is the point of dropping the legacy decoders: no
+  // silent half-read of a shape this build no longer understands.
+  (Helpers.isError (Helpers.decode (Helpers.bundleAtVersion "0"))) = true
+
+  // Dispatch is on the version the bundle CLAIMS, never on whichever shape happens to parse. This fixture
+  // is structurally identical to a readable bundle and differs only in its version, so it can only be
+  // caught by reading the version first.
+  (Helpers.isError (Helpers.decode (Helpers.bundleAtVersion "2"))) = true
+
+
+module RejectsDamage =
+  // Not JSON at all.
+  (Helpers.isError (Helpers.decode "this is not a bundle")) = true
+
+  // JSON, but not a bundle. Distinct from the version error above: this one means the file is damaged,
+  // that one means you're behind, and only one of them is fixed by upgrading.
+  (Helpers.isError (Helpers.decode """{"hello":"world"}""")) = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode """{"hello":"world"}"""))
+    "unparseable") = true
+
+  // Empty body.
+  (Helpers.isError (Helpers.decode "")) = true
+
+
+module HeadCodec =
+  // The cheap "are we in sync?" check. Count plus cursor, no op transfer.
+  (Darklang.SCM.Wire.headDecode
+    (Stdlib.String.toBlob (Darklang.SCM.Wire.headEncode (Darklang.SCM.Wire.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })))
+   |> Stdlib.Result.map (fun h -> h.count)) = Stdlib.Result.Result.Ok 7L
+
+  (Darklang.SCM.Wire.headDecode (Stdlib.String.toBlob "not json")) =
+    Stdlib.Result.Result.Error "unparseable head"
+
+  // The stamp is what gets remembered between pulls, so "nothing moved" is a string compare rather than
+  // a transfer.
+  (Darklang.SCM.Wire.headStamp (Darklang.SCM.Wire.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })) =
+    "7@2026-01-02T00:00:00.000Z"
+
+
+// The relay answers `/ops` from TWO writers -- native for a whole-log page, Dark for an owner-filtered
+// one -- and a client meets both on the same endpoint. So their ENVELOPES have to be the same shape with
+// the same values, and nothing in either language says so; drift shows up as a peer that can suddenly
+// only half-sync.
+//
+// Asked past the end of the log on purpose. An empty page still carries a full envelope, so this compares
+// the thing that can drift without decoding two thousand ops to do it.
+module BothWritersAgree =
+  val pastTheEnd = 999999999L
+
+  /// Both writers stamp `owner` from `PackageOps.identity ()`, which reads a config store this harness
+  /// does not keep, so each call here mints a fresh id. That is a property of running under the testfile
+  /// runner, not of either writer -- under a real CLI the two calls agree -- and it is not what this is
+  /// comparing, so it is blanked on both sides rather than asserted.
+  let sameShape
+    (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>)
+    : Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String> =
+    r |> Stdlib.Result.map (fun b -> { b with owner = "" })
+
+  let native () : Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String> =
+    let (json, _cursor) = Darklang.SCM.Wire.exportPageJsonSince BothWritersAgree.pastTheEnd
+    Darklang.SCM.Wire.wireDecode (Stdlib.String.toBlob json)
+
+  let inDark () : Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String> =
+    Darklang.SCM.Wire.wireDecode
+      (Stdlib.String.toBlob
+        (Darklang.SCM.Wire.wireEncodeAt BothWritersAgree.pastTheEnd []))
+
+  (BothWritersAgree.sameShape (BothWritersAgree.native ())) =
+    (BothWritersAgree.sameShape (BothWritersAgree.inDark ()))
+
+  // And the native writer's page really is readable, rather than both sides failing to decode in the
+  // same way -- which the equality above would happily accept.
+  (match BothWritersAgree.native () with
+   | Ok _ -> true
+   | Error _ -> false) = true
+
+
+// The OP encoders, not only the envelope. Three ops go in through the relay's store path under an owner
+// nobody else uses; the native page and the Dark owner-filtered page must then describe each op
+// identically, field for field, and both must hand back the commit row the ops name. The envelope test
+// above compares empty pages, so a writer that mangled `blobHex` or dropped `author` passed it.
+module BothWritersAgreeOnOps =
+  /// A commit two of the three ops belong to where they were "authored"; the third was never committed.
+  let commitHash () : String = "c0ffee01" ++ (Stdlib.String.first (Stdlib.Uuid.toString (Stdlib.Uuid.generate ())) 8)
+
+  let op (n: Int64) (commit: String) : Darklang.SCM.Wire.SyncOp =
+    Darklang.SCM.Wire.SyncOp
+      { id = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())
+        blobHex = Stdlib.Blob.toHex (Stdlib.String.toBlob $"wire-op-{Stdlib.Int64.toString n}")
+        ts = $"2026-01-0{Stdlib.Int64.toString n}T00:00:00.000Z"
+        author = ""
+        commit = commit }
+
+  let fields (o: Darklang.SCM.Wire.SyncOp) : (String * String * String * String * String) =
+    (o.id, o.blobHex, o.ts, o.author, o.commit)
+
+  let compare () : String =
+    let owner = $"wire-test-{Stdlib.Uuid.toString (Stdlib.Uuid.generate ())}"
+    let c = BothWritersAgreeOnOps.commitHash ()
+    let ops =
+      [ BothWritersAgreeOnOps.op 1L c
+        BothWritersAgreeOnOps.op 2L c
+        BothWritersAgreeOnOps.op 3L "" ]
+    let commits =
+      [ Darklang.SCM.PackageOps.BranchBundleCommit
+          { hash = c; message = "wire test"; author = "tester"; originTs = "2026-01-01T00:00:00.000Z"; parent = "" } ]
+    let ids = ops |> Stdlib.List.map (fun o -> o.id)
+    let before = Darklang.SCM.Wire.localMaxRowid ()
+
+    match Darklang.SCM.Wire.storeWithOwner owner ops commits with
+    | Error e -> $"store failed: {e}"
+    | Ok stored ->
+      // The runner runs files in parallel, so the native page is filtered to these ids rather than assumed
+      // to hold only them.
+      let (json, _) = Darklang.SCM.Wire.exportPageJsonSince before
+      let nativeBundle = Darklang.SCM.Wire.wireDecode (Stdlib.String.toBlob json)
+      let native =
+        match nativeBundle with
+        | Ok b -> b.ops |> Stdlib.List.filter (fun o -> Stdlib.List.``member`` ids o.id)
+        | Error _ -> []
+      let nativeHasCommit =
+        match nativeBundle with
+        | Ok b -> b.commits |> Stdlib.List.any (fun r -> r.hash == c && r.message == "wire test")
+        | Error _ -> false
+
+      let (owned, cursor) = Darklang.SCM.Wire.exportOwnedSince owner before
+      let darkBundle =
+        Darklang.SCM.Wire.wireDecode
+          (Stdlib.String.toBlob (Darklang.SCM.Wire.wireEncodeAt cursor owned))
+      let viaDark =
+        match darkBundle with
+        | Ok b -> b.ops
+        | Error _ -> []
+      let darkHasCommit =
+        match darkBundle with
+        | Ok b -> b.commits |> Stdlib.List.any (fun r -> r.hash == c && r.message == "wire test")
+        | Error _ -> false
+
+      // Clean up before judging, so a failing assertion does not leave the rows for the next run.
+      let db = Darklang.SCM.PackageOps.localDb ()
+      let _ =
+        ids
+        |> Stdlib.List.map (fun id ->
+          Stdlib.Sqlite.execP db "DELETE FROM package_ops WHERE id = @p0" [ id ])
+      let _ = Stdlib.Sqlite.execP db "DELETE FROM op_owners WHERE owner = @p0" [ owner ]
+      let _ = Stdlib.Sqlite.execP db "DELETE FROM commits WHERE hash = @p0" [ c ]
+
+      let n = Stdlib.List.map native BothWritersAgreeOnOps.fields
+      let d = Stdlib.List.map viaDark BothWritersAgreeOnOps.fields
+
+      if stored != 3 then
+        $"stored {Stdlib.Int.toString stored}, not 3"
+      else if (Stdlib.List.length n) != 3 then
+        $"native served {Stdlib.Int.toString (Stdlib.List.length n)} of ours"
+      else if (Stdlib.List.length d) != 3 then
+        $"dark served {Stdlib.Int.toString (Stdlib.List.length d)} of ours"
+      else if n != d then
+        let show (t: (String * String * String * String * String)) : String =
+          let (i, b, ts, a, cm) = t
+          $"{Stdlib.String.first i 8}/{Stdlib.String.first b 12}/{ts}/{a}/{Stdlib.String.first cm 8}"
+        $"the two writers disagree: native={Stdlib.String.join (Stdlib.List.map n show) ","} dark={Stdlib.String.join (Stdlib.List.map d show) ","}"
+      else if (d |> Stdlib.List.all (fun (_, _, _, a, _) -> a == owner)) |> Stdlib.Bool.not then
+        "author is not the owner"
+      else if (d |> Stdlib.List.filter (fun (_, _, _, _, cm) -> cm == c) |> Stdlib.List.length) != 2 then
+        "the ops lost their commit through the relay's store"
+      else if Stdlib.Bool.not (nativeHasCommit && darkHasCommit) then
+        $"the commit row travelled native={Stdlib.Bool.toString nativeHasCommit} dark={Stdlib.Bool.toString darkHasCommit}"
+      else
+        "3 ops, every field agrees, author is the owner, the commit rides along"
+
+  (BothWritersAgreeOnOps.compare ()) = "3 ops, every field agrees, author is the owner, the commit rides along"

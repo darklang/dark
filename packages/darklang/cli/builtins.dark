@@ -45,7 +45,6 @@ let extractGroup (name: String): String =
     Stdlib.String.fromList groupChars
 
 
-// Get display name for a group
 let getDisplayName (prefix: String): String =
   let found =
     Stdlib.List.findFirst knownGroups (fun (groupPrefix, _) -> groupPrefix == prefix)
@@ -55,7 +54,6 @@ let getDisplayName (prefix: String): String =
   | None -> Stdlib.String.toUppercase prefix
 
 
-// Check if a group is in the known list
 let isKnownGroup (prefix: String): Bool =
   Stdlib.List.any knownGroups (fun (groupPrefix, _) -> groupPrefix == prefix)
 
@@ -97,7 +95,6 @@ let sortGroups
 let execute (state: AppState) (args: List<String>): AppState =
   let allBuiltins = LanguageTools.allBuiltinFns ()
 
-  // Parse flags
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
   let withPurity = Stdlib.List.any args (fun arg -> arg == "--with-purity")
 
@@ -112,7 +109,6 @@ let execute (state: AppState) (args: List<String>): AppState =
     | [ pattern ] -> Stdlib.Option.Option.Some pattern
     | _ -> Stdlib.Option.Option.None
 
-  // Group by prefix
   let grouped =
     allBuiltins
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc fn ->
@@ -132,7 +128,6 @@ let execute (state: AppState) (args: List<String>): AppState =
 
   let sortedGroups = sortGroups allGroups
 
-  // Apply filter if provided
   let filteredGroups =
     match filter with
     | None -> sortedGroups
@@ -153,7 +148,6 @@ let execute (state: AppState) (args: List<String>): AppState =
         else
           Stdlib.Option.Option.Some ((group, matchingFns)))
 
-  // Format and display
   if withSigs then
     filteredGroups
     |> Stdlib.List.iter (fun pair ->

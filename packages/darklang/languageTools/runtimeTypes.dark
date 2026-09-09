@@ -220,7 +220,7 @@ type Instructions =
 
 
 type LambdaImpl =
-  { exprId: ID
+  { exprId: UInt64
     patterns: List<LetPattern>
     registersToCloseOver: List<(Register * Register)>
     selfRegister: Option<Register>
@@ -232,7 +232,7 @@ type ApplicableNamedFn =
     argsSoFar: List<Dval> }
 
 type ApplicableLambda =
-  { exprId: ID
+  { exprId: UInt64
     closedRegisters: List<(Register * Dval)>
     typeSymbolTable: TypeSymbolTable
     argsSoFar: List<Dval> }

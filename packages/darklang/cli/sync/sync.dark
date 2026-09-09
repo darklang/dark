@@ -1,0 +1,191 @@
+module Darklang.Cli.Sync
+
+// Moving ops between instances: over a relay (`push` / `pull` / `sync`) or through a file
+// (`sync export` / `sync import`), plus the review queues that stage someone else's ops for approval.
+//
+// All op-log SQL is siloed in `SCM.PackageOps`; nothing here writes any, it only formats the typed
+// values that silo returns and moves them over the wire codec.
+//
+// This file is the command surface: dispatch, help, completion. The work lives beside it, one file
+// per subject:
+//
+//   syncTransport   every request to a relay, and the secret handling
+//   syncPushPull    push, pull, paging, and what each reports
+//   syncReview      a peer's ops staged inert, approved or rejected
+//   syncStatus      identity, status, connect, and the file-based export/import
+
+let help (_state: AppState) : String =
+  [ ""
+    "  dark sync setup         name this instance, point it at a relay, push once"
+    "  dark sync [url]         push then pull. url optional after connect."
+    "  dark sync status [url]  compare with the relay (in sync? no full transfer)"
+    "  dark sync export <f>    write the log to a file (backup, offline)"
+    "  dark sync import <f>    read ops from a file (they take effect)"
+    ""
+    "  Also at the root:"
+    "  dark push [url]         push your ops to the relay"
+    "  dark pull [url]         pull ops (incremental; they take effect)"
+    "  dark connect <url>      remember a relay and push (start here)"
+    "  dark whoami             show this instance's sync identity"
+    "  dark identity <name>    name this instance (an id is minted if not)"
+    "  dark review             stage someone else's ops for op-level approval"
+    "  dark branch push/pull   the same, for a branch instead of your main"
+    ""
+    "  `dark config set sync.branches all` makes `sync` move every branch"
+    "  too: yours pushed and pulled, colleagues' pulled (they arrive"
+    "  isolated). The auto-sync daemon (`dark apps enable sync`) honors it."
+    "" ]
+  |> Stdlib.String.join "\n"
+
+/// `dark sync ...`
+///
+/// An unknown flag is REFUSED rather than read as a url, which would report "bad url" about a flag.
+let execute (state: AppState) (args: List<String>) : AppState =
+  let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then
+    let f = Stdlib.String.join flags " "
+    Cli.printErr $"sync takes no flags, and {f} isn't a url."
+    Cli.printHint "  `dark sync help` lists what it does take."
+    state
+  else
+
+  match args with
+  | [] -> executeSync state (SCM.PackageOps.relay ())
+  | [ "status" ] -> executeStatus state (SCM.PackageOps.relay ())
+  | [ "status", url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeStatus state url
+  | [ "export", path ] -> executeExport state path
+  | [ "import", path ] -> executeImport state path
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executeSync state url
+  | _ ->
+    Stdlib.printLine (help state)
+    state
+
+/// `dark push [url]`
+let executePushCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executePush state (SCM.PackageOps.relay ())
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePush state url
+  | _ ->
+    Cli.printErr "usage: dark push [url]"
+    state
+
+/// `dark pull [url]`
+let executePullCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executePull state (SCM.PackageOps.relay ())
+  | [ url ] ->
+    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePull state url
+  | _ ->
+    Cli.printErr "usage: dark pull [url]"
+    state
+
+/// `dark connect <url>`
+let executeConnectCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  // A dash-led "url" is a mistyped flag. Stored, it became the relay every later `push` tried to reach.
+  | [ url ] when Cli.refuseDashLedName "relay url" url -> state
+  | [ url ] -> executeConnect state url
+  // Stored per relay in local config; see `hasRelaySecret`. Typing it here does put it in shell history.
+  | [ url, "--secret", secret ] ->
+    // A short secret DEFEATS the leak guard rather than triggering it: `opsLeaking` searches op bytes for
+    // it, and a few characters of hex turn up by chance in a store of any size, so every push is refused.
+    // 12 is not a security threshold, it is the length at which a chance match stops happening.
+    if Stdlib.String.length secret < 12 then
+      Cli.printErr "that secret is too short to use safely (needs 12+ characters)."
+
+      Cli.printHint
+        "  Short secrets turn up inside ops by chance, and the guard that stops you publishing"
+
+      Cli.printHint
+        "  the secret cannot tell a real leak from a coincidence, so every push would be refused."
+
+      state
+    else
+      setRelaySecret url secret
+      Cli.printOk $"write secret stored for {url} (local config only; it never syncs)."
+      executeConnect state url
+  | _ ->
+    Cli.printErr "usage: dark connect <url> [--secret <secret>]"
+    Cli.printHint "  the url of a relay, e.g. https://matter.darklang.com"
+    Cli.printHint "  --secret is needed to WRITE; reading a relay never needs one"
+    state
+
+/// `dark whoami`
+let executeWhoamiCmd (state: AppState) (_args: List<String>) : AppState =
+  executeWhoami state
+
+/// `dark identity [<name>]`. With no name it reports rather than clears, because clearing an identity by
+/// typing one word less is not something anyone means to do.
+let executeIdentityCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executeWhoami state
+  // Everything else is the NAME, so a mistyped flag would become one. The name goes out on every push,
+  // which makes a slip here visible to everyone else before it is visible to you.
+  | [ name ] when Stdlib.String.startsWith name "-" ->
+    Cli.printErr $"\"{name}\" starts with a dash, so it's a flag rather than an instance name."
+    Cli.printHint "  `dark identity <name>`, or bare `dark identity` to see the current one."
+    state
+  | [ name ] -> setIdentity state name
+  | _ ->
+    Cli.printErr "usage: dark identity <name>"
+    state
+
+/// `dark review ...`
+let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (helpReview state)
+    state
+  // The `--from` forms come FIRST: match arms are ordered, and `[ "pull"; url; queue ]` has the same
+  // shape as `[ "pull"; "--from"; who ]`, so a general arm above it binds url="--from".
+  | [ "pull", "--from", who ] ->
+    executeReviewPullFrom state (SCM.PackageOps.relay ()) "review" who
+  | [ "pull", queue, "--from", who ] ->
+    executeReviewPullFrom state (SCM.PackageOps.relay ()) queue who
+  | [ "pull", url, queue, "--from", who ] ->
+    executeReviewPullFrom state url queue who
+  | [ "pull" ] -> executeReviewPull state (SCM.PackageOps.relay ()) "review"
+  // A single argument that is not a url is the QUEUE, against the remembered relay (`helpReview`:
+  // `review pull [url] [queue]`). Same guard `branch pull` uses.
+  | [ "pull", arg ] ->
+    if Cli.Branch.looksLikeRelayUrl arg then
+      executeReviewPull state arg "review"
+    else
+      executeReviewPull state (SCM.PackageOps.relay ()) arg
+  | [ "pull", url, queue ] -> executeReviewPull state url queue
+  | [ "import", path ] -> executeReviewImport state path "review"
+  | [ "import", path, queue ] -> executeReviewImport state path queue
+  | [ "approve", queue ] -> executeApprove state queue
+  | [ "reject", queue ] -> executeReject state queue false
+  | [ "reject", queue, "-y" ] | [ "reject", queue, "--yes" ] ->
+    executeReject state queue true
+  // A bare `approve`/`reject` gets the default queue "review" (as the help says); without these
+  // arms the verb itself is read as a queue name by the single-word arm below.
+  | [ "approve" ] -> executeApprove state "review"
+  | [ "reject" ] -> executeReject state "review" false
+  | [ "reject", "-y" ] | [ "reject", "--yes" ] -> executeReject state "review" true
+  // `import` has no default queue to fall back on: it takes a file, so refuse a missing one here.
+  | [ "import" ] ->
+    Cli.printErr "dark review import <file> [queue] -- which file?"
+    state
+  | [ queue ] ->
+    match Cli.Branch.resolveRef queue with
+    | Some queueId -> Cli.printOk (SCM.PackageOps.branchDiff queueId)
+    | None -> ()
+
+    state
+  | _ ->
+    Stdlib.printLine (helpReview state)
+    state
+
+/// Shared by every sync verb. Their arguments are urls, queue names and file paths -- none of which the
+/// CLI can enumerate -- so there is nothing to offer.
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

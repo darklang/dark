@@ -266,18 +266,18 @@ let reviewVersion
           return Ok(Review.Approvable policies)
   }
 
-/// What [approveAndPinFunctionVersion] did with a request that storage accepted.
+/// What [approveVersionForName] did with a request that storage accepted.
 [<RequireQualifiedAccess>]
-type PinOutcome =
-  /// The pin now points at the requested version.
-  | Pinned
-  /// The pin was left where it was; see [Review.ContractChanged]. The caller
-  /// shows these, obtains the review, and calls again with the acknowledgment.
+type ApprovalOutcome =
+  /// The name now resolves to the requested version.
+  | Approved
+  /// The approval was left where it was; see [Review.ContractChanged]. The caller shows these,
+  /// obtains the review, and calls again with the acknowledgment.
   | ContractChanged of List<string>
 
-/// Review, approve, and pin a named immutable version atomically. Analysis and
-/// contract checks happen before storage installs the closure approval and pin.
-let approveAndPinFunctionVersion
+/// Review a named immutable version and, if it passes, approve it for that name -- atomically.
+/// Analysis and contract checks happen before storage installs the closure approval.
+let approveVersionForName
   (loadFn : LoadFn)
   (callEffectsFor : CallEffectsFor)
   (accountID : Option<System.Guid>)
@@ -287,9 +287,9 @@ let approveAndPinFunctionVersion
   (acknowledgeIncomplete : bool)
   (acknowledgeContractChange : bool)
   (fingerprint : string)
-  : Ply<Result<PinOutcome, string>> =
+  : Ply<Result<ApprovalOutcome, string>> =
   uply {
-    let current = LibDB.PolicyStore.pinnedFunction accountID location
+    let current = LibDB.PolicyStore.approvedVersion accountID location
     match!
       reviewVersion
         loadFn
@@ -302,10 +302,10 @@ let approveAndPinFunctionVersion
     with
     | Error message -> return Error message
     | Ok(Review.ContractChanged differences) ->
-      return Ok(PinOutcome.ContractChanged differences)
+      return Ok(ApprovalOutcome.ContractChanged differences)
     | Ok(Review.Approvable policies) ->
       return
-        LibDB.PolicyStore.recordApprovalAndMovePin
+        LibDB.PolicyStore.recordApprovalAndMoveVersion
           accountID
           hash
           policies
@@ -314,5 +314,5 @@ let approveAndPinFunctionVersion
           location
           current
           hash
-        |> Result.map (fun () -> PinOutcome.Pinned)
+        |> Result.map (fun () -> ApprovalOutcome.Approved)
   }

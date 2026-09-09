@@ -1,0 +1,761 @@
+module Darklang.Cli.Conflicts
+
+// `dark conflicts` -- review what a reconciliation auto-resolved.
+//
+// A conflict is recorded when a merge, a rebase, or a sync-import found that BOTH sides moved the same name
+// since the base they last agreed on. Reconciliation never halts and never asks: it applies the deterministic
+// origin_ts LWW, keeps the loser in the record, and moves on. This command is the "and then a human looks"
+// half. Nothing here re-runs detection except `--branch`, which previews a merge that hasn't happened yet.
+//
+// All conflict SQL is siloed in `SCM.Conflicts`; this file writes NO SQL, it only formats.
+
+/// Put the name back on a definition the pretty-printer couldn't name.
+///
+/// The printer names a definition by looking its hash up in `locations`, and exactly one side of a conflict
+/// has a live binding there -- that is what a conflict IS -- so the loser renders as `let <hash:06859b27>`
+/// in a view whose whole job is to sit the two side by side.
+///
+/// Only `let <hash:X>`, and only for THIS candidate's own hash: a `<hash:...>` inside the body is a
+/// genuinely unresolvable reference, and naming those would be inventing information. `replaceAll` is safe
+/// because one rendering defines one thing, so that pattern occurs at most once.
+let nameTheDefinition (name: String) (hash: String) (rendered: String) : String =
+  let short =
+    LanguageTools.ProgramTypes.hashToShort (LanguageTools.ProgramTypes.Hash.Hash hash)
+
+  Stdlib.String.replaceAll rendered $"let <hash:{short}>" $"let {name}"
+
+/// Render the actual source of one candidate, so `show` compares CODE rather than two hex strings.
+/// A hash we don't hold locally is normal (a peer's version can arrive as a name binding before its content),
+/// so say so plainly instead of failing.
+let renderItem
+  (branchId: Uuid)
+  (itemType: String)
+  (hash: String)
+  (name: String)
+  : String =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+  let h = LanguageTools.ProgramTypes.Hash.Hash hash
+  let named (s: String) : String = nameTheDefinition name hash s
+
+  // Each kind, tried in turn rather than only the one the conflict is filed under. A conflict CAN have
+  // sides of different kinds -- a name that was a value on one machine and a fn on the other is exactly
+  // the sort of divergence worth looking at -- and dispatching on the filed kind alone would render the
+  // odd side out as "isn't stored locally", the same words a genuinely absent version gets.
+  let asFn () : Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.Function.get h
+    |> Stdlib.Option.map (fun f -> named (PrettyPrinter.ProgramTypes.packageFn ctx f))
+
+  let asType () : Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.Type.get h
+    |> Stdlib.Option.map (fun t -> named (PrettyPrinter.ProgramTypes.packageType ctx t))
+
+  let asValue () : Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.Value.get h
+    |> Stdlib.Option.map (fun v -> named (PrettyPrinter.ProgramTypes.packageValue ctx v))
+
+  let attempts =
+    match itemType with
+    | "fn" -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()) ]
+    | "type" -> [ ("type", asType ()), ("fn", asFn ()), ("value", asValue ()) ]
+    | "value" -> [ ("value", asValue ()), ("fn", asFn ()), ("type", asType ()) ]
+    | _ -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()) ]
+
+  let found =
+    attempts
+    |> Stdlib.List.filterMap (fun a ->
+      let (kind, rendered) = a
+
+      match rendered with
+      | Some r -> Stdlib.Option.Option.Some((kind, r))
+      | None -> Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+
+  match found with
+  | None -> "(this version isn't stored locally)"
+  // The `Some` carries a TUPLE, so it needs its own parens; `Some(a, b)` reads as a two-field case.
+  | Some((kind, rendered)) ->
+    if kind == itemType then
+      rendered
+    else
+      // Worth saying out loud: the two sides are not the same kind of thing.
+      $"({kind}, not {itemType} -- the sides differ in kind)\n{rendered}"
+
+/// A candidate's whole definition flattened onto one line, clipped, for the inline preview.
+let previewLine (branchId: Uuid) (itemType: String) (hash: String) (name: String) : String =
+  let flattened =
+    renderItem branchId itemType hash name
+    |> Stdlib.String.splitOnNewline
+    |> Stdlib.List.map Stdlib.String.trim
+    |> Stdlib.List.filter (fun l ->
+      (l != "") && (Stdlib.Bool.not (Stdlib.String.startsWith l "//")))
+    |> (fun ls -> Stdlib.String.join ls " ")
+
+  if flattened == "" then
+    "(nothing to show)"
+  else
+    Stdlib.Cli.Tui.Text.clipToWidth flattened 72
+
+
+/// The same flattening as <fn previewLine>, unclipped, so a caller comparing two candidates can find
+/// where they split before deciding what to clip.
+let previewFlat (branchId: Uuid) (itemType: String) (hash: String) (name: String) : String =
+  renderItem branchId itemType hash name
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.map Stdlib.String.trim
+  |> Stdlib.List.filter (fun l ->
+    (l != "") && (Stdlib.Bool.not (Stdlib.String.startsWith l "//")))
+  |> (fun ls -> Stdlib.String.join ls " ")
+
+/// The index at which two strings first differ (their common-prefix length).
+let firstDivergence (a: String) (b: String) : Int =
+  let la = Stdlib.String.toList a
+  let lb = Stdlib.String.toList b
+
+  Stdlib.List.zipShortest la lb
+  |> Stdlib.List.findFirstIndex (fun pair ->
+    let (ca, cb) = pair
+    ca != cb)
+  |> Stdlib.Option.withDefault (Stdlib.Int.min (Stdlib.List.length la) (Stdlib.List.length lb))
+
+/// Whose version a candidate is, in the words all three views use.
+///
+/// Off `side` and the recorded author, never off the candidate's position, so it stays true if the
+/// candidate order ever stops being local-first. A peer that named itself keeps its name; one that
+/// didn't is "theirs". <param me> is this instance's identity, read ONCE by the caller: it is a store
+/// read, and the alternative is one per candidate row.
+let whoseCandidate (me: String) (cand: SCM.Conflicts.Candidate) : String =
+  if cand.side == "local" then "yours"
+  else if cand.author == "" then "theirs"
+  else if cand.author == me then "yours"
+  else cand.author
+
+/// The labels for a whole conflict's candidates. A MERGE conflict's incoming side carries the branch
+/// name in `side` (sync's carries "incoming"), and both sides of a local merge are yours -- so
+/// "yours" against a branch name says nothing. Label the local side by WHERE it lives instead:
+/// <param hereName> is the branch the listing is scoped to (main, usually). "yours"/"theirs" stays
+/// for sync, where it is true and useful.
+let candidateLabels
+  (me: String)
+  (hereName: String)
+  (c: SCM.Conflicts.Conflict)
+  : List<String> =
+  // A merge conflict names the BRANCH as the incoming candidate's author (a sync conflict names a
+  // peer identity there). When the other side is one of this store's own branches, both versions
+  // are yours, and "yours vs tune" reads as three people; say WHERE instead: main vs the branch.
+  let localBranchNames = SCM.Branches.list () |> Stdlib.List.map (fun b -> b.name)
+
+  let isMergeShaped =
+    c.candidates
+    |> Stdlib.List.any (fun cand ->
+      (cand.author != "") && (Stdlib.List.member localBranchNames cand.author))
+
+  c.candidates
+  |> Stdlib.List.map (fun cand ->
+    if isMergeShaped then
+      (if cand.side == "local" then hereName
+       else if cand.author != "" then cand.author
+       else cand.side)
+    else
+      whoseCandidate me cand)
+
+/// Indent a rendered block so it sits under its candidate line.
+let indentBlock (s: String) : String =
+  s
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.map (fun line -> $"       {line}")
+  |> (fun lines -> Stdlib.String.join lines "\n")
+
+/// The pending list: one line each, plus how to act on them.
+let executeList (state: AppState) : AppState =
+  match SCM.Conflicts.pending () with
+  | [] ->
+    Cli.printOk "no conflicts pending."
+    state
+  | cs ->
+    let n = Stdlib.Int.toString (Stdlib.List.length cs)
+    Cli.printOk $"{n} pending"
+
+    // Once for the whole list, not once per candidate row: both are store reads.
+    let me = SCM.PackageOps.identity ()
+    let hereName = SCM.PackageOps.branchName (SCM.Conflicts.onBranch ())
+
+    cs
+    |> Stdlib.List.iter (fun c ->
+      Stdlib.printLine (SCM.Conflicts.summaryLine c)
+
+      // BOTH sides inline, in the order `override` takes them, so the list answers "does this matter"
+      // without a second command. Each row says WHOSE and WHAT HAPPENED, rather than leaving both to a
+      // legend printed after the rows it explains.
+      let whoseLabels = candidateLabels me hereName c
+
+      // The previews exist to SHOW the difference. Clipping both at the same column cut them at an
+      // identical prefix (identical text labeled kept/lost reads as a tool bug), so the pair is
+      // windowed at its first divergence -- and when the two sides render to IDENTICAL text (same
+      // source whose dependency reference moved), the hash rides along as the only visible difference.
+      let flats =
+        c.candidates
+        |> Stdlib.List.map (fun cand ->
+          previewFlat state.currentBranchId c.itemType cand.hash c.name)
+
+      let (windowStart, textsEqual) =
+        match flats with
+        | [ a, b ] ->
+          // Equal texts have no divergence to window (firstDivergence returns their full length);
+          // the hash suffix is their story, from the start of the line.
+          if a == b then
+            (0, true)
+          else
+            let d = firstDivergence a b
+            ((if d > 48 then d - 24 else 0), false)
+        | _ -> (0, false)
+
+      c.candidates
+      |> Stdlib.List.indexedMap (fun i cand ->
+        let label = if i == 0 then "A" else "B"
+
+        let whose =
+          Stdlib.List.getAt whoseLabels i |> Stdlib.Option.withDefault (whoseCandidate me cand)
+
+        // "lost", not "over": the summary above already promises the losing version is kept rather than
+        // dropped, and an abbreviation nobody expands is not a word.
+        let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
+
+        let tag = Stdlib.String.padEndToWidth $"({whose}, {mark})" 16
+
+        let flat =
+          Stdlib.List.getAt flats i |> Stdlib.Option.withDefault "(nothing to show)"
+
+        let windowed =
+          if windowStart == 0 then flat else "..." ++ (Stdlib.String.dropFirst flat windowStart)
+
+        let suffixed =
+          if textsEqual then
+            $"{windowed}  [{SCM.Conflicts.shortHash cand.hash}]"
+          else
+            windowed
+
+        let preview =
+          if suffixed == "" then "(nothing to show)"
+          else Stdlib.Cli.Tui.Text.clipToWidth suffixed 72
+
+        $"      {label} {tag} {preview}")
+      |> Stdlib.List.iter (fun l -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText l)))
+
+    Stdlib.printLine ""
+
+    // `A|B` reads as "the two sides" and says nothing about WHICH, which is why each row above carries
+    // "yours" or "theirs" rather than the reader having to hold an ordering in their head.
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  dark conflicts show <id>      see both versions")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  dark conflicts ack <id>       keep the auto-pick")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  dark conflicts override <id> A|B   take the other")
+    state
+
+/// One conflict in full: both versions as CODE, which side the fold kept, and why.
+let executeShow (state: AppState) (idPrefix: String) : AppState =
+  match SCM.Conflicts.getByIdPrefix idPrefix with
+  | None ->
+    Cli.printErr $"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them."
+    { state with exitCode = 1 }
+  | Some c ->
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+    let aboutABinding = SCM.Conflicts.aboutABinding c.kind
+
+    if aboutABinding then
+      Cli.printOk $"#{c.id}  {dotted}  [{c.itemType}] -- two live versions"
+    else
+      Cli.printOk $"#{c.id}  {dotted}  [{c.part}] -- two wordings"
+
+    // Once for both candidates, not once each: it is a store read.
+    let me = SCM.PackageOps.identity ()
+
+    c.candidates
+    |> Stdlib.List.indexedMap (fun i cand ->
+      let label = if i == 0 then "A" else "B"
+      let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
+      // "yours"/"theirs" is a rendering decision made HERE, against who this instance is. The record
+      // keeps the raw identity, so `--json` can still tell two machines apart.
+      let who = whoseCandidate me cand
+
+      // A version is shown by rendering it; a WORDING is the thing itself, and a reader choosing
+      // between two sentences needs the sentences, not the hashes of them.
+      if aboutABinding then
+        let header =
+          $"  {label} ({mark})  {who}  hash {SCM.Conflicts.shortHash cand.hash}  stamped {cand.originTs}"
+
+        $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}"
+      else
+        let header = $"  {label} ({mark})  {who}  stamped {cand.originTs}"
+        $"{header}\n{indentBlock cand.text}")
+    |> Stdlib.List.iter (fun block -> Stdlib.printLine block)
+
+    if aboutABinding then
+      Stdlib.printLine
+        $"  auto-resolution: {SCM.Conflicts.shortHash c.autoResolvedTo}, by {c.reason}  [{c.status}]"
+    else
+      Stdlib.printLine $"  auto-resolution: by {c.reason}  [{c.status}]"
+
+    state
+
+/// ACK: the auto-pick stands. Closes the conflict without touching any binding -- the fold already did the
+/// only thing that changes state, and agreeing with it is not itself an edit.
+let executeAck (state: AppState) (idPrefix: String) : AppState =
+  match SCM.Conflicts.getByIdPrefix idPrefix with
+  | None ->
+    Cli.printErr $"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them."
+    { state with exitCode = 1 }
+  | Some c ->
+    SCM.Conflicts.setStatus c.id "acked" ""
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+    Cli.printOk $"acked #{c.id} ({dotted}) -- the auto-pick stands."
+    state
+
+/// The candidate a user meant by "A" / "B" / a hash prefix.
+let pickCandidate
+  (c: SCM.Conflicts.Conflict)
+  (choice: String)
+  : Stdlib.Option.Option<SCM.Conflicts.Candidate> =
+  match choice with
+  | "A" -> Stdlib.List.head c.candidates
+  | "a" -> Stdlib.List.head c.candidates
+  | "B" -> Stdlib.List.getAt c.candidates 1
+  | "b" -> Stdlib.List.getAt c.candidates 1
+  | prefix ->
+    c.candidates
+    |> Stdlib.List.findFirst (fun cand -> Stdlib.String.startsWith cand.hash prefix)
+
+/// OVERRIDE: take the version the fold did NOT pick.
+///
+/// The override authors a `Resolve` op, so the choice is data in the log rather than a local opinion: it
+/// syncs, a peer folding it lands on the same binding, `discard` skips it (source='resolution'), and
+/// re-folding the ops that caused the conflict can't quietly undo it.
+let executeOverride
+  (state: AppState)
+  (idPrefix: String)
+  (choice: String)
+  : AppState =
+  match SCM.Conflicts.getByIdPrefix idPrefix with
+  | None ->
+    Cli.printErr $"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them."
+    { state with exitCode = 1 }
+  | Some c when Stdlib.Bool.not (SCM.Conflicts.aboutABinding c.kind) ->
+    // A wording disagreement is settled by SAYING something, not by binding a name: `override A|B`
+    // takes one of the two texts, and `override -` shows both and hands the doc back to you, for
+    // the case where the answer is a third wording made out of both.
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+
+    if choice == "-" then
+      Cli.printOk $"#{c.id}  {dotted} -- hand-authoring. Both wordings:"
+      let _ = executeShow state idPrefix
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"  write the wording you want, then `dark conflicts ack {c.id}`.")
+
+      state
+    else
+      match pickCandidate c choice with
+      | None ->
+        Cli.printErr
+          $"no candidate \"{choice}\" on #{c.id} -- use A, B, or - to write a third wording."
+
+        { state with exitCode = 1 }
+      | Some cand ->
+        match SCM.Conflicts.settleWording state.currentBranchId c cand.text with
+        | Ok _ ->
+          Cli.printOk $"overrode #{c.id}: {dotted} now says \"{cand.text}\"."
+
+          Cli.printHint
+            "  it's an op, so the choice syncs and holds."
+
+          state
+        | Error e ->
+          Cli.printErr $"override failed: {e}"
+          { state with exitCode = 1 }
+
+  | Some c ->
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+
+    if choice == "-" then
+      // Hand-author: show both versions and hand back the name. Deliberately does NOT close the conflict --
+      // it closes when you've actually written the merged version and acked it.
+      Cli.printOk $"#{c.id}  {dotted} -- hand-authoring. Both versions:"
+      let _ = executeShow state idPrefix
+      Stdlib.printLine ""
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"  write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")
+      state
+    else
+      match pickCandidate c choice with
+      | None ->
+        Cli.printErr $"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author."
+        state
+      | Some cand ->
+        if cand.hash == c.autoResolvedTo then
+          Cli.printOk
+            $"#{c.id}: that's already the auto-pick. Nothing to override -- `dark conflicts ack {c.id}` if it's right."
+          state
+        else
+          match SCM.PackageOps.settleConflict state.currentBranchId c cand.hash with
+          | Ok _ ->
+            Cli.printOk
+              $"overrode #{c.id}: {dotted} now binds {SCM.Conflicts.shortHash cand.hash}. It's an op, so the choice syncs and holds."
+            state
+          | Error e ->
+            Cli.printErr $"override failed: {e}"
+            state
+
+/// PREVIEW a branch: what a merge WOULD reconcile. Nothing is recorded by looking; a conflict is only written
+/// when a reconciliation actually happens.
+let executeBranchPreview (state: AppState) (branchRef: String) : AppState =
+  // "would merge cleanly" for a branch that doesn't exist is the sentence a real, clean branch gets, so a
+  // typo has to be refused rather than answered.
+  match Cli.Branch.resolveRef branchRef with
+  | None -> state
+  | Some branchId ->
+    match SCM.PackageOps.branchPreview branchId with
+    | [] ->
+      Cli.printOk $"\"{branchRef}\" would merge cleanly -- neither side moved a name the other did."
+      state
+    | cs ->
+      let n = Cli.Text.plural (Stdlib.List.length cs) "conflict"
+      Cli.printOk $"{n} a merge of \"{branchRef}\" would auto-resolve (not recorded until it does):"
+
+      cs
+      |> Stdlib.List.iter (fun c ->
+        Stdlib.printLine (Stdlib.String.join (SCM.Conflicts.detailLines c) "\n"))
+
+      state
+
+let help (_state: AppState) : String =
+  [ "dark conflicts - review what a reconciliation auto-resolved."
+    ""
+    "A conflict is recorded when a merge, rebase or sync-import finds that BOTH"
+    "sides moved the same name since the base they last agreed on. It never"
+    "blocks: the fold picks the later version, keeps the loser in the record,"
+    "and leaves the call to you."
+    ""
+    "  dark conflicts                step through them, deciding each"
+    "  dark conflicts walk           the same, even when stdin isn't a terminal"
+    "  dark conflicts list           the pending ones, both sides inline"
+    "  dark conflicts show <ref>     both versions as code, and which was kept"
+    "  dark conflicts ack <ref>      the auto-pick stands; close it"
+    "  dark conflicts override <ref> A|B  take the other version. It is a"
+    "                                     Resolve op, so the choice syncs."
+    "                                     A is yours, B is what arrived."
+    "  dark conflicts override <ref> -    hand-author the merge, then ack"
+    "  dark conflicts branch <name>  preview a merge (records nothing)"
+    ""
+    "  <ref> is a conflict id (`#509907c8`, or any prefix) OR the name in"
+    "  front of you (`Stachu.Thing.foo`, or just `foo`)."
+    ""
+    "  Bare `dark conflicts` lists instead of stepping when there's no"
+    "  terminal to answer, so scripts and pipes get the report."
+    ""
+    "  --json    the same data, typed, on any of the above" ]
+  |> Stdlib.String.join "\n"
+
+/// A structured "that didn't work" for the --json path.
+let jsonFailure (id: String) (msg: String) : Unit =
+  Stdlib.printLine (
+    ScmJson.conflictActionJson (
+      ScmJson.ConflictActionJson
+        { id = id; ok = false; status = ""; resolvedTo = ""; error = msg }
+    )
+  )
+
+/// Its "that worked" twin.
+let jsonSuccess (id: String) (status: String) (resolvedTo: String) : Unit =
+  Stdlib.printLine (
+    ScmJson.conflictActionJson (
+      ScmJson.ConflictActionJson
+        { id = id; ok = true; status = status; resolvedTo = resolvedTo; error = "" }
+    )
+  )
+
+/// The typed conflict list, as both listing arms print it.
+let printConflictList (cs: List<SCM.Conflicts.Conflict>) : Unit =
+  Stdlib.printLine (
+    ScmJson.conflictListJson (
+      ScmJson.ConflictListJson
+        { pending = Stdlib.List.length cs
+          conflicts = cs |> Stdlib.List.map ScmJson.conflictWithFqn }
+    )
+  )
+
+let failureUnknown (state: AppState) : AppState =
+  jsonFailure "" "unknown `dark conflicts` subcommand"
+  state
+
+
+/// The --json half. Same data the pretty view formats, never re-derived.
+let executeJson (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | []
+  | [ "list" ] ->
+    printConflictList (SCM.Conflicts.pending ())
+    state
+
+  | [ "branch", branchRef ] ->
+    // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
+    match Cli.Branch.resolveRef branchRef with
+    | None -> state
+    | Some branchId ->
+      printConflictList (SCM.PackageOps.branchPreview branchId)
+      state
+
+  | [ "show", id ] ->
+    match SCM.Conflicts.getByIdPrefix id with
+    | Some c ->
+      Stdlib.printLine (ScmJson.conflictJson c)
+      state
+    | None ->
+      jsonFailure id "no conflict matching that id"
+      state
+
+
+  | [ "ack", id ] ->
+    match SCM.Conflicts.getByIdPrefix id with
+    | Some c ->
+      SCM.Conflicts.setStatus c.id "acked" ""
+      jsonSuccess c.id "acked" c.autoResolvedTo
+      state
+    | None ->
+      jsonFailure id "no conflict matching that id"
+      state
+
+
+  | [ "override", id, choice ] ->
+    match SCM.Conflicts.getByIdPrefix id with
+    | None ->
+      jsonFailure id "no conflict matching that id"
+      { state with exitCode = 1 }
+    | Some c ->
+      match pickCandidate c choice with
+      | None ->
+        jsonFailure id $"no candidate \"{choice}\" -- use A, B or a hash prefix"
+        { state with exitCode = 1 }
+      | Some cand ->
+        // Through `settleConflict`, never `applyResolution` bare: settling also cascades, so the
+        // callers that had followed the losing version come along, and it refuses an empty hash.
+        match SCM.PackageOps.settleConflict state.currentBranchId c cand.hash with
+        | Ok _ ->
+          jsonSuccess c.id "overridden" cand.hash
+          state
+        | Error e ->
+          jsonFailure id e
+          { state with exitCode = 1 }
+
+  | _ -> failureUnknown state
+
+/// One conflict, presented for a decision, then whatever the answer was applied.
+///
+/// Returns whether to keep going: quitting part-way is a normal thing to want, and the ones you have
+/// already settled stay settled.
+let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) : Bool =
+  let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+  let pos = $"{Stdlib.Int.toString n}/{Stdlib.Int.toString total}"
+  Stdlib.printLine ""
+  Cli.printOk $"  [{pos}]  {dotted}  [{c.itemType}]"
+
+  // Once for both candidates; see `whoseCandidate`.
+  let me = SCM.PackageOps.identity ()
+
+  c.candidates
+  |> Stdlib.List.indexedMap (fun i cand ->
+    let label = if i == 0 then "A" else "B"
+    let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
+    let who = whoseCandidate me cand
+    let header = $"    {label} ({mark})  {who}  stamped {cand.originTs}"
+    $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}")
+  |> Stdlib.List.iter (fun block -> Stdlib.printLine block)
+
+  // A and B are SIDES, not verbs: the auto-pick is whichever of them won on recency, and it can be
+  // either. Labelling `a` as "keep" would read as though yours always was the kept one.
+  Stdlib.print (
+    Stdlib.Cli.UI.Colors.hint
+      "    [a] take yours / [b] take theirs / [enter] keep the auto-pick / [s] skip / [q] quit: "
+  )
+
+  let answer =
+    Stdlib.String.trim (Stdlib.String.toLowercase (Stdlib.Cli.Stdin.readLine ()))
+
+  let apply (choice: String) (label: String) : Unit =
+    match pickCandidate c choice with
+    | None -> Cli.printErr "    couldn't tell which side you meant; left it pending."
+    | Some cand ->
+      if cand.hash == c.autoResolvedTo then
+        // Agreeing with the fold changes no binding, so it is an ack rather than a new op.
+        SCM.Conflicts.setStatus c.id "acked" ""
+        Cli.printOk $"    {label} was already the auto-pick; closed without a new op."
+      else
+        // `settleConflict`, not bare `applyResolution`: the cascade is part of the act (see the
+        // non-interactive override above).
+        match SCM.PackageOps.settleConflict state.currentBranchId c cand.hash with
+        | Ok _ ->
+          Cli.printOk $"    took {label}; {dotted} now binds {SCM.Conflicts.shortHash cand.hash}."
+        | Error e -> Cli.printErr $"    couldn't apply that: {e}"
+
+  /// The side the auto-pick kept, as the letter this prompt uses.
+  let foldPick () : String =
+    match SCM.Conflicts.candidateFor c "local" with
+    | Some local -> if local.hash == c.autoResolvedTo then "A" else "B"
+    | None -> "B"
+
+  match answer with
+  | "q" -> false
+  | "s" ->
+    Cli.printOk "    skipped; still pending."
+    true
+  | "" ->
+    // Enter is the safe answer, and the safe answer is the one already made. Name the SIDE it kept, so
+    // the line below says which one you got.
+    let letter = foldPick ()
+    apply letter (if letter == "A" then "yours" else "theirs")
+    true
+  | "a" ->
+    apply "A" "yours"
+    true
+  | "b" ->
+    apply "B" "theirs"
+    true
+  | other ->
+    Cli.printErr $"    \"{other}\" isn't one of a/b/s/q; left it pending."
+    true
+
+
+/// `dark conflicts` in a terminal: step through the pending ones, deciding each.
+///
+/// The list is a report; this is the thing that gets them to zero. It exists because the alternative is
+/// reading a list, copying an id, running `show`, then running `override`, per conflict.
+let executeWalk (state: AppState) : AppState =
+  match SCM.Conflicts.pending () with
+  | [] ->
+    Cli.printOk "no conflicts pending."
+    state
+  | cs ->
+    let total = Stdlib.List.length cs
+    Cli.printOk $"{Stdlib.Int.toString total} to review. A is yours, B is what arrived."
+
+    let _ =
+      cs
+      |> Stdlib.List.indexedMap (fun i c -> (i, c))
+      |> Stdlib.List.fold true (fun keepGoing pair ->
+        let (i, c) = pair
+
+        if keepGoing then
+          walkOne state c (i + 1) total
+        else
+          false)
+
+    Stdlib.printLine ""
+
+    match SCM.Conflicts.pending () with
+    | [] -> Cli.printOk "all settled."
+    | left ->
+      let n = Stdlib.Int.toString (Stdlib.List.length left)
+      Cli.printOk $"{n} still pending -- `dark conflicts` picks up where you left off."
+
+    state
+
+
+let executePretty (state: AppState) (args: List<String>) : AppState =
+  match args with
+  // Bare `dark conflicts` steps through them when there is someone to answer; piped or scripted, it
+  // stays the report it always was. `list` always lists.
+  | [] ->
+    if Cli.Prompt.interactive () then
+      executeWalk state
+    else
+      executeList state
+  | [ "list" ] -> executeList state
+  | [ "walk" ] -> executeWalk state
+  | [ "show", id ] -> executeShow state id
+  // Variadic, like `dark ack`: acking is bulk by design ("leave it, I have seen it" means one
+  // thing for every conflict), and this sibling taking exactly one ref was a trap.
+  | "ack" :: id :: rest ->
+    Stdlib.List.append [ id ] rest
+    |> Stdlib.List.fold state (fun st i -> executeAck st i)
+  | [ "override", id, choice ] -> executeOverride state id choice
+  | [ "branch", branchId ] -> executeBranchPreview state branchId
+
+  // A verb typed without its argument is a slip, not a request for the manual: the one line that would
+  // fix it should not be buried in `help`.
+  | [ "show" ] ->
+    Cli.printErr "show needs a conflict id."
+    Cli.printHint "  `dark conflicts` lists them, ids first."
+    state
+  | [ "ack" ] ->
+    Cli.printErr "ack needs a conflict id."
+    Cli.printHint "  `dark conflicts` lists them, ids first."
+    state
+  | [ "override", _id ] ->
+    Cli.printErr "override needs a side: A, B, or a hash prefix."
+    Cli.printHint "  `dark conflicts show <id>` prints both versions with their hashes."
+    state
+  | [ "override" ] ->
+    Cli.printErr "override needs a conflict id and a side."
+    Cli.printHint "  `dark conflicts` lists them; `show <id>` prints both versions."
+    state
+  | [ "branch" ] ->
+    Cli.printErr "branch needs a branch to preview."
+    Cli.printHint "  `dark branches` lists them."
+    state
+
+  // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
+  // command that ran and found nothing.
+  | bad :: _ ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
+
+    Stdlib.printLine (help state)
+    state
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let stripped = ScmJson.stripJson args
+
+  if ScmJson.wantsJson args then
+    executeJson state stripped
+  else
+    executePretty state stripped
+
+/// Ids are offered at the width they're printed at, since that's what people copy off the list.
+let complete
+  (_state: AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  let subcommands = [ "list", "show", "ack", "override", "branch" ]
+
+  let matching
+    (options: List<String>)
+    (partial: String)
+    : List<Completion.CompletionItem> =
+    options
+    |> Stdlib.List.filter (fun o -> Stdlib.String.startsWith o partial)
+    |> Stdlib.List.map Completion.simple
+
+  match args with
+  | [] -> matching subcommands ""
+  | [ partial ] -> matching subcommands partial
+  | [ sub, partial ] ->
+    if sub == "show" || sub == "ack" || sub == "override" then
+      SCM.Conflicts.pending ()
+      |> Stdlib.List.map (fun c ->
+        (Stdlib.String.first c.id 8, SCM.Conflicts.fqn c.owner c.modules c.name))
+      |> Stdlib.List.filter (fun pair ->
+        let (id, _) = pair
+        Stdlib.String.startsWith id partial)
+      |> Stdlib.List.map (fun pair ->
+        let (id, name) = pair
+        Completion.withDescription id name)
+    else if sub == "branch" then
+      SCM.Branches.list ()
+      |> Stdlib.List.map (fun b -> b.name)
+      |> Stdlib.List.filter (fun n ->
+        n != "" && Stdlib.String.startsWith n partial)
+      |> Stdlib.List.map Completion.simple
+    else
+      []
+  | [ "override", _id, partial ] -> matching [ "A", "B" ] partial
+  | _ -> []

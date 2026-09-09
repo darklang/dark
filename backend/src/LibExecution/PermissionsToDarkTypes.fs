@@ -212,9 +212,11 @@ module Policy =
         (D.list Rule.fromDT (D.field "deny" fields))
     | _ -> Exception.raiseInternal "Invalid Permissions.Policy" [ "dval", dval ]
 
-module PinFailure =
+module ApprovalFailure =
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.pinFailure ())
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Permissions.approvalFailure ()
+    )
   let knownType () = KTCustomType(typeName (), [])
 
   let private make caseName fields =

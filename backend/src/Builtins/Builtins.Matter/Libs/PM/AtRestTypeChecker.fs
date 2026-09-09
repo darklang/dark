@@ -50,10 +50,12 @@ let private candidateItems
         (PT.Reference.PackageFn fn.hash :: items,
          { closure with functions = Map.add fn.hash fn closure.functions })
       | PT.PackageOp.SetName _
+      | PT.PackageOp.Unbind _
       | PT.PackageOp.Deprecate _
       | PT.PackageOp.Undeprecate _
-      | PT.PackageOp.PropagateUpdate _
-      | PT.PackageOp.RevertPropagation _ -> items, closure)
+      | PT.PackageOp.UpdateDoc _
+      | PT.PackageOp.Decision _
+      | PT.PackageOp.BranchEvent _ -> items, closure)
     ([], emptyClosure)
   |> fun (items, closure) -> List.rev items, closure
 
@@ -249,11 +251,11 @@ let checkPackageOps
       return aggregate (Set.ofList candidateRefs) batch
   }
 
-let checkBranch
-  (pm : PT.PackageManager)
-  (builtins : Builtins)
-  (branchId : PT.BranchId)
-  : Ply<CheckReport> =
+/// Check every declaration the given package manager can see.
+///
+/// No branch parameter: a branch is an overlay carried by the pm itself, so `pm` decides what the
+/// search below reaches.
+let checkBranch (pm : PT.PackageManager) (builtins : Builtins) : Ply<CheckReport> =
   uply {
     let query : PT.Search.SearchQuery =
       { currentModule = []
@@ -261,7 +263,7 @@ let checkBranch
         searchDepth = PT.Search.AllDescendants
         entityTypes = []
         exactMatch = false }
-    let! results = pm.search (branchId, query)
+    let! results = pm.search query
     let ops =
       List.concat
         [ results.types |> List.map (fun item -> PT.PackageOp.AddType item.entity)
@@ -643,7 +645,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "atRestCheckBranch" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch to check" ]
+      parameters = [ Param.make "branchId" TUuid "the branch a caller means" ]
       returnType = TCustomType(NR.ok (DarkTypes.reportName ()), [])
       description =
         "Checks every visible package declaration on a branch without persisting anything."
@@ -652,7 +654,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | exeState, _, _, [| DUuid branchId |] ->
           uply {
             try
-              let! report = checkBranch pm exeState.builtins branchId
+              // The branch's own overlay, not this builtin set's pm (which is main's): on a branch
+              // the check has to see the branch's declarations, or it type-checks main and calls
+              // it the branch.
+              let branchPm =
+                LibDB.PackageManager.ptForBranch (PT.BranchId.Id branchId)
+
+              let! report = checkBranch branchPm exeState.builtins
               return DarkTypes.reportToDT report
             with ex ->
               return

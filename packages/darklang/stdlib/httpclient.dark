@@ -54,7 +54,7 @@ type Response =
 /// A streaming HTTP response. Headers arrive immediately; `body` is a
 /// lazy `Stream<UInt8>` that pulls bytes as they arrive on the wire.
 /// The underlying HTTP response is released when the stream is
-/// drained to completion or `Builtin.streamClose`d.
+/// drained to completion or `Stdlib.Stream.close`d.
 type StreamResponse =
   { statusCode: Int
     headers: List<(String * String)>
@@ -110,11 +110,11 @@ let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
 
 /// Make a streaming HTTP call to <param uri>. The response's body is
 /// a lazy `Stream<UInt8>` — bytes arrive as the server writes them.
-/// Drain with `Builtin.streamToList`, `Builtin.streamToBlob`, or
-/// compose with `Builtin.streamMap` / `Builtin.streamFilter` etc.
+/// Drain with `Stdlib.Stream.toList`, `Stdlib.Stream.toBlob`, or
+/// compose with `Stdlib.Stream.map` / `Stdlib.Stream.filter` etc.
 ///
 /// The underlying socket is released when the body stream drains to
-/// completion or is explicitly closed with `Builtin.streamClose`.
+/// completion or is explicitly closed with `Stdlib.Stream.close`.
 let stream
   (method: String)
   (uri: String)
@@ -161,7 +161,7 @@ module Sse =
   //     HttpClient.stream "GET" url headers
   //     |> Stdlib.Result.map (fun r -> HttpClient.Sse.parse r.body)
   //
-  // Implemented as a true streaming parser via `Builtin.streamUnfold`:
+  // Implemented as a true streaming parser via `Stdlib.Stream.unfold`:
   // one `Event` is emitted as soon as its terminating blank line
   // arrives on the wire, rather than buffering the entire response.
 

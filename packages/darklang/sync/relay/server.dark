@@ -1,0 +1,385 @@
+/// matter.darklang.com: a MINIMAL Dark-on-Dark op-sync relay + landing page.
+///
+/// Run with: `dark serve Darklang.Matter.router --port 8080`
+///
+/// A relay is a DUMB store-and-forward for the op log: it holds ops and hands them back
+/// out; it never folds or resolves them, so it never runs anyone's code. A client that
+/// pulls for review sees every op before it lands, so the worst a relay can do is
+/// withhold one. It reuses the SCM.Wire codec, so the relay's own store IS an op log like
+/// any instance's.
+///
+/// `handlers`, near the bottom, is the route table.
+module Darklang.Matter
+
+type HttpResponse = Stdlib.Http.Response
+type HttpRequest = Stdlib.Http.Request
+type Handler = Stdlib.HttpServer.Handler
+
+// tiny route helpers so the handler list reads as routes, not Handler-record boilerplate.
+let get (route: String) (fn: HttpRequest -> HttpResponse) : Handler =
+  Handler { route = route; method = "GET"; handler = fn }
+
+let post (route: String) (fn: HttpRequest -> HttpResponse) : Handler =
+  Handler { route = route; method = "POST"; handler = fn }
+
+
+let db () : String = Stdlib.LocalStore.path ()
+
+
+/// A `COUNT(...) AS n` query, as the number. A failed query counts as zero.
+let countQ (sql: String) : Int64 =
+  Stdlib.Sqlite.scalarInt (db ()) sql "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+/// Like <fn countQ>, with injection-safe params.
+let countQP (sql: String) (params: List<String>) : Int64 =
+  Stdlib.Sqlite.scalarIntP (db ()) sql params "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+/// The live items of one kind, which the stats page counts once per kind.
+let countItemsOfType (t: String) : Int64 =
+  countQP
+    "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL AND item_type = @p0"
+    [ t ]
+
+
+/// Run <param sql> and keep the rows <param extract> recognises. An errored query reads as no rows,
+/// so a page renders an empty section rather than failing.
+let queryMapped
+  (sql: String)
+  (params: List<String>)
+  (extract: Dict<String, Stdlib.Sqlite.Value> -> Stdlib.Option.Option<'a>)
+  : List<'a> =
+  match Stdlib.Sqlite.queryP (db ()) sql params with
+  | Ok rows -> rows |> Stdlib.List.filterMap extract
+  | Error _ -> []
+
+
+/// A row selected as `m, n` (a name and a count), which is what every grouped listing here selects.
+let nameCountRow
+  (r: Dict<String, Stdlib.Sqlite.Value>)
+  : Stdlib.Option.Option<(String * Int64)> =
+  match (Stdlib.Sqlite.textField r "m", Stdlib.Sqlite.intField r "n") with
+  | (Some m, Some n) -> Stdlib.Option.Option.Some((m, n))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// The owners with packages here, biggest first.
+let owners () : List<(String * Int64)> =
+  queryMapped
+    "SELECT owner AS m, COUNT(*) n FROM locations WHERE unlisted_at IS NULL
+     GROUP BY owner ORDER BY n DESC"
+    []
+    nameCountRow
+
+
+/// The biggest modules, which is the closest thing to "what is here" that a stranger can skim.
+let topModules (limit: Int64) : List<(String * Int64)> =
+  queryMapped
+    "SELECT owner || '.' || modules AS m, COUNT(*) n FROM locations
+     WHERE unlisted_at IS NULL AND modules <> ''
+     GROUP BY m ORDER BY n DESC LIMIT @p0"
+    [ Stdlib.Int64.toString limit ]
+    nameCountRow
+
+
+let totalItems () : Int64 =
+  countQ "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL"
+
+
+let publisherCount () : Int64 =
+  countQ "SELECT COUNT(DISTINCT owner) AS n FROM locations WHERE unlisted_at IS NULL"
+
+
+/// The items in one module, by kind and then by name.
+let itemsIn (modulePath: String) : List<(String * String * String)> =
+  let parts = Stdlib.String.split modulePath "."
+
+  match parts with
+  | [] -> []
+  | owner :: rest ->
+    let mods = Stdlib.String.join rest "."
+
+    queryMapped
+      "SELECT name, item_type, item_hash FROM locations
+       WHERE owner = @p0 AND modules = @p1 AND unlisted_at IS NULL
+       ORDER BY item_type, name"
+      [ owner, mods ]
+      (fun r ->
+        match
+          (Stdlib.Sqlite.textField r "name",
+           Stdlib.Sqlite.textField r "item_type",
+           Stdlib.Sqlite.textField r "item_hash")
+        with
+        | (Some n, Some t, Some h) -> Stdlib.Option.Option.Some((n, t, h))
+        | _ -> Stdlib.Option.Option.None)
+
+
+/// The modules directly under <param path>, with how many items each holds.
+///
+/// SQLite has no "split on dots", so this asks for every module BELOW the path and cuts each one back to
+/// its next segment in Dark. Cheap enough at this size, and it keeps the SQL to one statement.
+let submodulesOf (path: String) : List<(String * Int64)> =
+  let prefix = $"{path}."
+
+  let rows =
+    queryMapped
+      "SELECT owner || '.' || modules AS m, COUNT(*) n FROM locations
+       WHERE unlisted_at IS NULL AND modules <> '' AND (owner || '.' || modules) LIKE @p0
+       GROUP BY m"
+      [ $"{prefix}%" ]
+      nameCountRow
+
+  rows
+  |> Stdlib.List.filterMap (fun pair ->
+    let (m, n) = pair
+    let rest = Stdlib.String.dropFirst m (Stdlib.String.length prefix)
+
+    match Stdlib.String.split rest "." with
+    | seg :: _ -> Stdlib.Option.Option.Some(($"{prefix}{seg}", n))
+    | [] -> Stdlib.Option.Option.None)
+  // One row per module BELOW us collapses to one row per direct child, so the counts add up.
+  |> Stdlib.List.fold [] (fun acc pair ->
+    let (nm, n) = pair
+
+    match Stdlib.List.findFirst acc (fun e -> let (en, _) = e in en == nm) with
+    | Some _ ->
+      acc
+      |> Stdlib.List.map (fun e ->
+        let (en, ec) = e
+        if en == nm then (en, ec + n) else (en, ec))
+    | None -> Stdlib.List.append acc [ (nm, n) ])
+  |> Stdlib.List.sortBy (fun e -> let (en, _) = e in en)
+
+
+/// The doc comment for an item, which is the only prose the store holds about it.
+let descriptionOf (kind: String) (hash: String) : String =
+  let table =
+    match kind with
+    | "fn" -> "package_functions"
+    | "type" -> "package_types"
+    | _ -> "package_values"
+
+  match
+    Stdlib.Sqlite.queryOneP
+      (db ())
+      $"SELECT description FROM {table} WHERE hash = @p0"
+      [ hash ]
+  with
+  | Some r -> Stdlib.Sqlite.textField r "description" |> Stdlib.Option.withDefault ""
+  | None -> ""
+
+
+/// A row selected as `o, m, n, t` (owner, modules, name, item type), as the item's full path, kind and
+/// module path. The dependency queries and search all select this shape so they read it the same way;
+/// the dependency callers drop the module path.
+let pathAndKind
+  (r: Dict<String, Stdlib.Sqlite.Value>)
+  : Stdlib.Option.Option<(String * String * String)> =
+  match
+    (Stdlib.Sqlite.textField r "o",
+     Stdlib.Sqlite.textField r "m",
+     Stdlib.Sqlite.textField r "n",
+     Stdlib.Sqlite.textField r "t")
+  with
+  | (Some o, Some m, Some n, Some t) ->
+    let full = if m == "" then $"{o}.{n}" else $"{o}.{m}.{n}"
+    Stdlib.Option.Option.Some((full, t, m))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// What this item calls. Recorded by the fold, so it is the real call graph rather than a guess from text.
+let dependenciesOf (hash: String) : List<(String * String)> =
+  let rows =
+    queryMapped
+      "SELECT DISTINCT depends_on_owner o, depends_on_modules m, depends_on_name n, depends_on_item_type t
+       FROM package_dependencies
+       WHERE item_hash = @p0 AND depends_on_name IS NOT NULL
+       ORDER BY o, m, n"
+      [ hash ]
+      pathAndKind
+
+  rows |> Stdlib.List.map (fun x -> let (full, t, _m) = x in (full, t))
+
+
+/// How many callers a page will fetch at most. Past this, the page says so rather than pretending the
+/// list it drew is the whole of it.
+val dependentsFetchLimit = 200L
+
+/// How many live items call <param hash>, uncapped.
+///
+/// Asked separately from `dependentsOf`, which stops at `dependentsFetchLimit`: a page showing twenty of
+/// four hundred callers should say four hundred. A COUNT over the same join is cheap next to rendering.
+let dependentsCountOf (hash: String) : Int64 =
+  countQP
+    "SELECT count(*) AS n FROM (
+       SELECT DISTINCT l.owner, l.modules, l.name
+       FROM package_dependencies d
+       JOIN locations l ON l.item_hash = d.item_hash
+       WHERE d.depends_on_hash = @p0 AND l.unlisted_at IS NULL)"
+    [ hash ]
+
+
+/// Who calls this item. The direction nobody can work out by reading the code in front of them, and the
+/// one that decides whether a change is safe.
+///
+/// Capped: a page is not the place to read four hundred names, and `dependentsCountOf` carries the honest
+/// total for the ones that go past this.
+let dependentsOf (hash: String) : List<(String * String)> =
+  let rows =
+    queryMapped
+      ("SELECT DISTINCT l.owner o, l.modules m, l.name n, l.item_type t
+       FROM package_dependencies d
+       JOIN locations l ON l.item_hash = d.item_hash
+       WHERE d.depends_on_hash = @p0 AND l.unlisted_at IS NULL
+       ORDER BY o, m, n
+       LIMIT "
+       ++ Stdlib.Int64.toString dependentsFetchLimit)
+      [ hash ]
+      pathAndKind
+
+  rows |> Stdlib.List.map (fun x -> let (full, t, _m) = x in (full, t))
+
+
+/// Whether this exact content is deprecated. Keyed on the hash, so it says nothing about later versions
+/// of the same name -- which is the point: a deprecation is about content, not about a place.
+let isDeprecated (hash: String) : Bool =
+  let n =
+    countQP "SELECT COUNT(*) AS n FROM deprecations WHERE item_hash = @p0" [ hash ]
+
+  n > 0L
+
+
+/// How many results a search will fetch. Past this the page says so, and says the real total.
+///
+/// Bounded because this is a public page and the store is large enough that an unbounded LIKE would
+/// be a way to make the relay do work for free.
+val searchFetchLimit = 100L
+
+/// How many items match <param q>, uncapped.
+let searchCount (q: String) : Int64 =
+  countQP
+    "SELECT count(*) AS n FROM locations l
+     WHERE l.unlisted_at IS NULL
+       AND (l.owner || '.' || l.modules || '.' || l.name) LIKE @p0"
+    [ $"%{q}%" ]
+
+
+/// The items whose full path contains <param q>, best match first, up to `searchFetchLimit`.
+let searchItems (q: String) : List<(String * String * String)> =
+  // Ranked before it is sorted: someone searching "map" wants `List.map`, not the shortest name that
+  // happens to contain those letters. Exact leaf name, then leaf prefix, then a hit anywhere in the
+  // leaf, then everything else -- which is a match in the owner or module path.
+  queryMapped
+    ("SELECT l.owner o, l.modules m, l.name n, l.item_type t
+     FROM locations l
+     WHERE l.unlisted_at IS NULL
+       AND (l.owner || '.' || l.modules || '.' || l.name) LIKE @p0
+     ORDER BY
+       CASE
+         WHEN lower(l.name) = lower(@p1) THEN 0
+         WHEN lower(l.name) LIKE lower(@p1) || '%' THEN 1
+         WHEN lower(l.name) LIKE '%' || lower(@p1) || '%' THEN 2
+         ELSE 3
+       END,
+       LENGTH(l.owner || l.modules || l.name), o, m, n
+     LIMIT "
+     ++ Stdlib.Int64.toString searchFetchLimit)
+    [ $"%{q}%", q ]
+    pathAndKind
+
+
+/// Everyone who has published here, which on a shared relay is also the list of people you are working
+/// with. Counts only; who pushed which op is the relay's business and not a visitor's.
+let ownersHandlerFn (_req: HttpRequest) : HttpResponse =
+  let rows =
+    owners ()
+    |> Stdlib.List.map (fun o ->
+      let (name, n) = o
+      card name name n)
+    |> (fun l -> Stdlib.String.join l "")
+
+  page
+    "Publishers"
+    ("<h1>Publishers</h1><p class=\"lede\">Who owns the packages this relay serves. Code pushed here by "
+     ++ "other machines is held and handed back on request, but it is not folded into what the relay runs, "
+     ++ "so it does not appear here. <a href=\"/stats\">Why</a>.</p>"
+     ++ $"<div class=\"grid\">{rows}</div>")
+
+
+/// What the relay holds, in numbers. Aggregates only -- a visitor learns the shape of the store without
+/// learning who pushed what, which is the one thing here that is nobody else's business.
+let statsHandlerFn (_req: HttpRequest) : HttpResponse =
+  let ops = countQ "SELECT COUNT(*) AS n FROM package_ops"
+  let fns = countItemsOfType "fn"
+  let types = countItemsOfType "type"
+  let values = countItemsOfType "value"
+  let edges = countQ "SELECT COUNT(*) AS n FROM package_dependencies"
+
+  let stat (k: Int64) (l: String) : String =
+    $"<div><span class=\"k\">{num k}</span><span class=\"l\">{l}</span></div>"
+
+  let opsStat = stat ops "ops"
+  let fnStat = stat fns "functions"
+  let typeStat = stat types "types"
+  let valueStat = stat values "values"
+  let edgeStat = stat edges "dependency edges"
+
+  page
+    "What this relay holds"
+    ("<h1>What this relay holds</h1>"
+     ++ "<p class=\"lede\">Every op ever pushed here is kept. Nothing is overwritten, so the op count only goes up.</p>"
+     ++ $"<div class=\"stat\">{opsStat}{fnStat}{typeStat}{valueStat}{edgeStat}</div>"
+     ++ "<h2>Two numbers, two different things</h2>"
+     ++ "<p class=\"lede\">The op count is everything anyone has ever pushed here. The function, type and "
+     ++ "value counts are smaller and mean something else: they are what this relay itself RUNS and can "
+     ++ "therefore show you source for.</p>"
+     ++ "<p class=\"lede\">A relay stores what you push without folding it into its own package set. That "
+     ++ "is deliberate, and it is the whole reason a relay is safe to point a machine at: pushing code here "
+     ++ "cannot change what this server runs, so nobody can push a new version of the relay to the relay. "
+     ++ "The cost is that hosted code is held, served back to whoever pulls it, and not browsable on these "
+     ++ "pages. What you can browse here is the package set this build ships with.</p>"
+     ++ "<h2>What an op is</h2>"
+     ++ "<p class=\"lede\">One recorded change: publishing a function, moving a name, deprecating "
+     ++ "something. Every version of everything is still here, which is why the op count runs so far ahead "
+     ++ "of the item count. That is the point of the store, not an accident of it.</p>")
+
+
+/// The relay's own surface: pages to read, and the sync endpoints a CLI talks to.
+val handlers =
+  [ get "/" landingHandlerFn
+    get "/m" moduleHandlerFn
+    get "/p" itemHandlerFn
+    get "/search" searchHandlerFn
+    get "/owners" ownersHandlerFn
+    get "/stats" statsHandlerFn
+    get "/ping" Darklang.Matter.Relay.pingHandlerFn
+    get "/sync/head" Darklang.Matter.Relay.headHandlerFn
+    get "/sync/pull" Darklang.Matter.Relay.pullHandlerFn
+    post "/sync/push" Darklang.Matter.Relay.pushHandlerFn
+    post "/branch/push" Darklang.Matter.Relay.branchPushHandlerFn
+    get "/branch/pull" Darklang.Matter.Relay.branchPullHandlerFn
+    get "/branch/list" Darklang.Matter.Relay.branchListHandlerFn
+    get "/branch/owners" Darklang.Matter.Relay.branchOwnersHandlerFn ]
+
+/// One server, two audiences.
+///
+/// `handlers` above is for people and for the CLI. The package-server routes appended here are the JSON
+/// darklang.com's package pages fetch, so one deployment is both the thing you read and the thing the
+/// site reads.
+///
+/// Matter's own routes come FIRST so it keeps `/ping` and its own paths; the package server has a
+/// `/:location` catch-all at the end of its list that would otherwise swallow them.
+let router (req: HttpRequest) : HttpResponse =
+  Stdlib.HttpServer.routeRequest
+    // Minus its write endpoint. `POST /ops` folds ops straight into the store with NO authentication --
+    // its own header says to wrap it in an auth check before exposing it publicly -- and this router is
+    // public. `/sync/push` is the authenticated way in, and nothing calls `/ops`.
+    (Stdlib.List.append
+      handlers
+      (Darklang.Internal.DarkPackages.handlers
+       |> Stdlib.List.filter (fun h ->
+         Stdlib.Bool.not ((h.route == "/ops") && (h.method == "POST")))))
+    req

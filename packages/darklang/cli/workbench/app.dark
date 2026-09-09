@@ -34,7 +34,11 @@ module Darklang.Cli.Workbench
 /// while drawing. Home's cursor is kept off its section headers here too,
 /// since any transition can reload the list under it.
 let refresh (previous: State) (next: State) : State =
-  fixHomeSelection (refreshCommitDetail (refreshPeek (refreshBadges previous next)))
+  // SCM status FIRST: the tree's wip badges read it rather than doing their own draft query, so
+  // refreshing them against last frame's status would draw a dot one keypress behind the truth.
+  fixHomeSelection (
+    refreshCommitDetail (refreshPeek (refreshBadges previous (refreshScmStatus previous next)))
+  )
 
 let onKey
   (state: State)
@@ -49,7 +53,10 @@ let onKey
   | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch(s, cmd)
   | ToPrompt s -> Darklang.Cli.Component.Step.ToPrompt s
 
-val component =
+/// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
+/// instructions live in the execution that created it, so a stored one is a dangling reference that
+/// dies when applied in a later process. Rebuilt per call instead.
+let component () : Cli.Component.Component<Cli.Workbench.State> =
   Darklang.Cli.Component.Component
     { view = viewAtSize
       onKey = onKey
@@ -101,6 +108,7 @@ let initialState
         filter = ""
         wipNames = []
         deprecatedNames = []
+        scmStatus = emptyScmStatus ()
         renderPeek = ""
         commitDetail = ("", [])
         branchId = branchId }
@@ -109,14 +117,18 @@ let initialState
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
   match Darklang.Stdlib.Cli.Tui.TerminalSupport.current () with
   | Unavailable reason ->
-    // Don't seize the alternate screen when there's nothing there to seize. Piping `dark` used to dump the
-    // whole frame, escape sequences and all, into whatever was reading it.
-    //
-    // Report and stop here rather than falling through to the prompt: falling through works for the no-args
-    // path (the prompt says the same thing) but would leave an explicit `dark wb` silent, and it prints the
-    // message twice when it does fire.
+    // Don't seize the alternate screen when there's no terminal -- piping `dark` would
+    // dump raw escape sequences into the reader. Report and stop rather than falling
+    // through to the prompt: the no-args path would print the same message twice, and
+    // an explicit `dark wb` would stay silent.
     Stdlib.printLine
       (Darklang.Stdlib.Cli.Tui.TerminalSupport.unavailableMessage reason)
+    // Say where to go next. Without a terminal this is a dead end otherwise, and the callers that land
+    // here most often are scripts and agents, which have no way to guess that everything the workbench
+    // does is also a command.
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "  Everything it shows is a command too: `dark help`, or `dark docs for-ai`.")
     { cliState with isExiting = true }
   | Available ->
 
@@ -143,9 +155,13 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
   let state = refreshCommitDetail { state with wipNames = wip; deprecatedNames = deprecated }
+  // Seed the SCM status too: Home picks its welcome off `commits == 0 && wip == 0 && no
+  // relay`, and an unseeded status reads as all three, flashing "Welcome to Darklang" at
+  // a returning user for one frame.
+  let state = refreshScmStatus state state
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
   // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
-  Darklang.Cli.Component.launchOrExit cliState component state
+  Darklang.Cli.Component.launchOrExit cliState (component ()) state
 
 let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: workbench"

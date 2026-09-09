@@ -132,7 +132,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             // It binds `http://*:port`. Saying "localhost" read as local-only, and there is
             // no flag to change what it binds because there does not need to be.
             let tail =
-              [ Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
+              [ Stdlib.Cli.UI.Colors.hint $"  http://localhost:{portStr} here, or this machine's address from anywhere else."
+                Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
                 "Press Ctrl+C to stop"
                 "" ]
 
@@ -144,7 +145,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state
         | Error msg ->
           Stdlib.printLine (
-            Stdlib.Cli.UI.Colors.error $"{msg} — is it defined and committed on this branch?")
+            Stdlib.Cli.UI.Colors.error $"{msg} -- is it defined and committed on this branch?")
 
           state
 

@@ -76,11 +76,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Ok None -> state
     | Error message ->
       Stdlib.printLine $"Error: {message}"
-      state
+      { state with exitCode = 1 }
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
-  // For eval completion, we could potentially complete function names, but for now keep it simple
   []
 
 

@@ -96,6 +96,23 @@ module RoundtripTests =
           PT2DT.Hash.fromDT
           None
 
+        // `fromDT` returns an option (a Dval that is not a PackageOp is not a crash, it is a `None`),
+        // so it is unwrapped here rather than given its own helper. Every `Decision` kind, both
+        // `BranchEvent` kinds and a `SetName` carrying a predecessor cross this boundary whenever
+        // Dark reads the log, and the `| _ -> None` on `previous` accepts a mis-typed one silently,
+        // so each shape has to be asserted rather than inferred from its neighbours.
+        testRoundtripList
+          "PT.PackageOp"
+          (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ()))
+          V.ProgramTypes.packageOps
+          PT2DT.PackageOp.toDT
+          (fun dv ->
+            match PT2DT.PackageOp.fromDT dv with
+            | Some op -> op
+            | None ->
+              Exception.raiseInternal "PackageOp.fromDT rejected its own toDT" [])
+          None
+
         testRoundtripList
           "PT.PackageLocation"
           (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.packageLocation ()))
@@ -196,10 +213,8 @@ module RoundtripTests =
           (Some Expect.RT.equalDval)
 
 
-        // CLEANUP consider adding roundtrip tests here around
-        // RuntimeErrors, which consume these types.
-        // We don't always have F# models for these types, though,
-        // so it's not clear how to do this or if it's even useful
+        // CLEANUP: consider roundtripping RuntimeErrors here; blocked on F#
+        // models existing for them.
         ]
 
 

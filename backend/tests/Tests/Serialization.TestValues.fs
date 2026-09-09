@@ -755,4 +755,97 @@ module ProgramTypes =
       { owner = "MyOrg"; modules = []; name = "helper" }
       { owner = "Test"; modules = [ "Nested"; "Module" ]; name = "value" } ]
 
+  /// Every `PackageOp` case, and every shape within a case that the writer branches on.
+  ///
+  /// This is the format two machines must agree on byte for byte to converge, and the fold covers it
+  /// only indirectly: a case the fold never reaches (a `Decision` kind, a `BranchEvent`, a `SetName`
+  /// carrying a predecessor) needs its value here or it is asserted nowhere.
+  ///
+  /// The shapes that matter, beyond one of each case: `SetName`/`Unbind` with and without `previous`,
+  /// which is a presence byte rather than a sentinel hash; all three `DecisionKind`s; both
+  /// `BranchEventKind`s, one of which carries a list of ids; and a `Hash` that is not 64 hex
+  /// characters, which takes the writer's fallback branch.
+  let packageOps : List<PackageOp> =
+    let loc = packageLocation
+    let otherLoc : PackageLocation =
+      { owner = "MyOrg"; modules = []; name = "helper" }
+    let shortHash = Hash "beef"
+    let branchId =
+      PT.BranchId.Id(System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3301")
+
+    [ AddType packageTypes[0]
+      AddValue packageValues[0]
+      AddFn packageFns[0]
+
+      SetName(loc, Reference.PackageFn hashPT, None)
+      SetName(loc, Reference.PackageFn hashPT, Some hashPT)
+      SetName(otherLoc, Reference.PackageType hashPT, Some shortHash)
+      SetName(otherLoc, Reference.PackageValue shortHash, None)
+
+      Unbind(loc, None)
+      Unbind(otherLoc, Some hashPT)
+
+      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Obsolete, "gone")
+      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Harmful, "")
+      Deprecate(
+        Reference.PackageType hashPT,
+        DeprecationKind.SupersededBy(Reference.PackageType shortHash),
+        "use the other one"
+      )
+      Undeprecate(Reference.PackageValue hashPT)
+      UpdateDoc(loc, DocPart.WholeItem, "What it says about itself.", None, None)
+      // The empty text is a real op: it is how a doc is cleared.
+      UpdateDoc(loc, DocPart.WholeItem, "", Some shortHash, None)
+      // A restatement: the same text said again, made a distinct op by its stamp.
+      UpdateDoc(
+        loc,
+        DocPart.WholeItem,
+        "What it says about itself.",
+        None,
+        Some "2026-09-08T22:00:00.000Z"
+      )
+      // One per nested part, because each carries a name or an index the whole-item case does not,
+      // and a serializer that dropped it would still round-trip the ones above.
+      UpdateDoc(
+        loc,
+        DocPart.RecordField "theField",
+        "what the field is for",
+        Some hashPT,
+        None
+      )
+      UpdateDoc(
+        loc,
+        DocPart.EnumCase "TheCase",
+        "when this case applies",
+        None,
+        None
+      )
+      UpdateDoc(loc, DocPart.Parameter 2, "what to pass", Some shortHash, None)
+
+      Decision(
+        "d1",
+        loc,
+        "kept mine",
+        DecisionKind.Override(Reference.PackageFn hashPT)
+      )
+      Decision("d2", loc, "", DecisionKind.Ack "finding-7")
+      Decision(
+        "d3",
+        otherLoc,
+        "pinned",
+        DecisionKind.Propagation PropagationPolicy.Pin
+      )
+      Decision("d4", otherLoc, "", DecisionKind.Propagation PropagationPolicy.Follow)
+      Decision("d5", otherLoc, "", DecisionKind.Propagation PropagationPolicy.Unset)
+
+      BranchEvent(branchId, BranchEventKind.Archived, "2026-01-01T00:00:00.000Z")
+      BranchEvent(branchId, BranchEventKind.Merged [], "2026-01-01T00:00:00.000Z")
+      BranchEvent(
+        branchId,
+        BranchEventKind.Merged
+          [ System.Guid.Parse "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+            System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3300" ],
+        "2026-01-01T00:00:00.000Z"
+      ) ]
+
   let toplevels : List<DB.T> = [ userDB ]

@@ -1,15 +1,21 @@
-/// Raw, general-purpose SQLite access from Darklang — the `Stdlib.Sqlite` floor primitive that lets policy
-/// live in Dark over an ordinary database. (The internal sync machinery — op-log read/append, blob channel,
-/// store path + Release coordinate — lives in `Libs/Sync.fs`, not here.)
+/// Raw, general-purpose SQLite access from Darklang: the `Stdlib.Sqlite` floor primitive that lets policy
+/// live in Dark over an ordinary database.
 ///
 /// `sqliteExec` (DDL/DML → rows affected) and `sqliteQuery` (SELECT → each row as a typed `Dict<Value>`)
 /// are the two primitives; the `.dark` wrappers add the with/without-params convenience so there's one
-/// builtin per operation rather than four. SQL can open secondary files via
-/// ATTACH/VACUUM and therefore cannot honestly uphold path-scoped file rules;
-/// both primitives require the deliberately broad Native permission.
+/// builtin per operation rather than four. `sqliteExecBatch` is the third: several statements in one
+/// transaction, so a decision that lives in Dark can write atomically rather than one statement at a
+/// time.
 ///
-/// Deferred: binding typed params (params are string-only today; results already carry types via `Value`),
-/// an opaque connection handle, and `transact`.
+/// What they require depends on the call, decided in the body rather than declared (`requireSqlite`):
+/// SQL can open secondary files via ATTACH and so cannot honestly uphold path-scoped rules, which
+/// makes the broad `Native` right in general -- but a statement against THIS instance's store that
+/// cannot ATTACH out of it is package-read/write and nothing more. Without that, the SCM being Dark
+/// would mean `dark status` demanding `allow native` on a stock install.
+///
+/// Deferred (not needed yet): scoping the grant to an arbitrary path/glob (only the store is
+/// special-cased), binding typed params (params are string-only today; results already carry types
+/// via `Value`), and an opaque connection handle.
 module Builtins.Matter.Libs.Sqlite
 
 open FSharp.Control.Tasks
@@ -134,6 +140,97 @@ let private queryImpl
   }
 
 
+/// Run several statements in ONE transaction, each with zero or more parameter rows.
+///
+/// Returns rows-affected per PARAMETER ROW, in order, flattened across statements. Not a total: the
+/// caller has to tell a real insert from an `INSERT OR IGNORE` that deduped, and a sum cannot express
+/// that. A statement with no parameter rows runs once and contributes one count.
+///
+/// Either everything lands or nothing does. This is the primitive that lets a decision in Dark write
+/// safely; without it, Dark can only issue statements one at a time and a failure halfway leaves the
+/// store in a state no reader expects.
+let private execBatchImpl
+  (path : string)
+  (statements : List<string * List<List<string>>>)
+  : Ply<Dval> =
+  let retKT = KTList(ValueType.Known KTInt)
+
+  uply {
+    try
+      use conn = new SqliteConnection(connStr path)
+      do! conn.OpenAsync()
+      use tx = conn.BeginTransaction()
+      let counts = ResizeArray<Dval>()
+
+      for (sql, paramRows) in statements do
+        use cmd = conn.CreateCommand()
+        cmd.Transaction <- tx
+        cmd.CommandText <- sql
+        // No rows still means run it once: DDL and unparameterised DML have no rows to bind.
+        let rows = if List.isEmpty paramRows then [ [] ] else paramRows
+
+        for row in rows do
+          cmd.Parameters.Clear()
+          bindParams cmd row
+          let! affected = cmd.ExecuteNonQueryAsync()
+          counts.Add(Dval.int (bigint affected))
+
+      tx.Commit()
+      return Dval.resultOk retKT KTString (Dval.list KTInt (List.ofSeq counts))
+    with e ->
+      return Dval.resultError retKT KTString (DString e.Message)
+  }
+
+
+/// The instance's own package store, resolved once. The SCM library is Dark code that reads and
+/// writes THIS file; everything else a caller might open is another database entirely.
+let private storePath : string = System.IO.Path.GetFullPath LibConfig.Config.dbPath
+
+/// Is this call about the package store rather than an arbitrary database?
+///
+/// `Native` is the honest effect for raw SQLite in general: the SQL can `ATTACH` any file on the
+/// machine, so a path check alone would pretend to confine what the runtime cannot see. Two things
+/// have to hold for the store case: the path IS the store, and the statement cannot reach outside
+/// it. `ATTACH` is what would, so a statement carrying one falls back to `Native`.
+///
+/// This is what keeps `dark status` working on a stock install. The SCM is Dark, so its reads are
+/// sqlite calls, and requiring `allow native` for them would mean handing over the keys to run
+/// version control.
+let private isStoreScoped (path : string) (sql : string) : bool =
+  (try
+    System.IO.Path.GetFullPath path = storePath
+   with _ ->
+     false)
+  && not (System.Text.RegularExpressions.Regex.IsMatch(sql, @"(?i)\battach\b"))
+
+/// The effects a store-scoped call actually has, or `Native` when it is not store-scoped.
+let private effectsFor (write : bool) (path : string) (sql : string) : Set<Effect> =
+  if isStoreScoped path sql then
+    if write then
+      set [ Effect.PackageRead; Effect.PackageWrite ]
+    else
+      set [ Effect.PackageRead ]
+  else
+    set [ Effect.Native ]
+
+/// Check the call's real effects before running it. Declared `callEffects` are static, so the
+/// interpreter's up-front check cannot see the path; these builtins declare nothing there and
+/// ask here instead, where both arguments are in hand.
+let private requireSqlite
+  (state : ExecutionState)
+  (vm : VMState)
+  (write : bool)
+  (path : string)
+  (sql : string)
+  (builtinName : string)
+  : unit =
+  LibExecution.PermissionCheck.requireBuiltinEffects
+    state
+    vm
+    (effectsFor write path sql)
+    builtinName
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "sqliteExec" 0
       typeParams = []
@@ -155,12 +252,72 @@ let fns () : List<BuiltInFn> =
         + "none). Ok = rows affected; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
+        | state, vm, _, [| DString path; DString sql; DList(_, ps) |] ->
+          requireSqlite state vm true path sql "sqliteExec"
           execImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.Native ]
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "sqliteExecBatch" 0
+      typeParams = []
+      parameters =
+        [ Param.make "path" TString "the SQLite file to open"
+          Param.make
+            "statements"
+            (TList(TTuple(TString, TList(TList TString), [])))
+            ("each statement, with the parameter rows to run it for; [] rows runs "
+             + "it once with no parameters") ]
+      returnType = TypeReference.result (TList TInt) TString
+      description =
+        "Opens the SQLite file at <param path> and runs <param statements> in ONE "
+        + "transaction: either all of it lands or none does. Ok = rows affected per "
+        + "parameter row, in order, flattened across statements; Error = the SQLite "
+        + "message. A well-formed call never throws; a mis-shaped params tuple is a type error raised before the try."
+      fn =
+        (function
+        | state, vm, _, [| DString path; DList(_, stmts) |] ->
+          // A batch is many statements; any one of them carrying ATTACH makes
+          // the whole call unscopable, so they are checked joined.
+          requireSqlite
+            state
+            vm
+            true
+            path
+            (stmts
+             |> List.map (fun stmt ->
+               match stmt with
+               | DTuple(DString sql, _, []) -> sql
+               | _ -> "")
+             |> String.concat ";")
+            "sqliteExecBatch"
+          let decoded =
+            stmts
+            |> List.map (fun stmt ->
+              match stmt with
+              | DTuple(DString sql, DList(_, rows), []) ->
+                let paramRows =
+                  rows
+                  |> List.map (fun row ->
+                    match row with
+                    | DList(_, cells) -> paramStrings cells
+                    | other -> [ string other ])
+                (sql, paramRows)
+              | other ->
+                Exception.raiseInternal
+                  "sqliteExecBatch: expected (sql, paramRows) tuples"
+                  [ "got", string other ])
+          execBatchImpl path decoded
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0
@@ -182,12 +339,15 @@ let fns () : List<BuiltInFn> =
         + "value; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
+        | state, vm, _, [| DString path; DString sql; DList(_, ps) |] ->
+          requireSqlite state vm false path sql "sqliteQuery"
           queryImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.Native ]
+      // Declared empty on purpose: the real effects depend on WHICH database and
+      // whether the SQL can leave it, so `requireSqlite` decides in the body.
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

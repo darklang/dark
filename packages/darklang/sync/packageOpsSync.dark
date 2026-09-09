@@ -1,0 +1,207 @@
+// Lives in sync/ because sync sits ON TOP of SCM; the module name is unchanged.
+module Darklang.SCM.PackageOps
+
+// The INCOMING side of a sync: what an import will reconcile, and what to record once it has.
+//
+// Same module as `packageOps.dark`; see the note there. Its own file because planning an import is its
+// own concern, and the biggest one.
+
+
+/// The same fold over WIRE records (id, hex-encoded op_blob, origin_ts) -- the incoming side of a sync-import,
+/// read BEFORE the ops are inserted, since afterwards the fold has already moved the local side.
+/// Records must arrive oldest-first, like the wire itself produces them.
+let bindingsFromWireRecords
+  (records: List<Wire.SyncOp>)
+  : List<Conflicts.Binding> =
+  let entries =
+    records
+    |> Stdlib.List.filterMap (fun record ->
+      match (Stdlib.Uuid.parse record.id, Stdlib.Blob.fromHex record.blobHex) with
+      | (Ok id, Ok blob) ->
+        // Asked BEFORE decoding. Only a SetName or a Decision can produce a binding, and the ops that
+        // cannot are the ASTs, so this skips the expensive decodes rather than doing them and discarding
+        // the answer. Measured a fifth off a pull.
+        if Stdlib.Bool.not (opBindsAName blob) then
+          Stdlib.Option.Option.None
+        else
+
+        // One blob this build cannot read must not take the whole pull down with it.
+        match tryDecodeOp id blob with
+        | None -> Stdlib.Option.Option.None
+        | Some op ->
+          // The op carries WHO wrote it, so the binding does too -- otherwise the incoming side of a
+          // conflict is labelled with the source it arrived through, naming a relay rather than a person.
+          (bindingFromOp op record.ts)
+          |> Stdlib.Option.map (fun pair ->
+            let (k, b) = pair
+            (k, { b with author = record.author }))
+      | _ -> Stdlib.Option.Option.None)
+
+  Stdlib.Dict.values (Stdlib.Dict.fromListOverwritingDuplicates entries)
+
+
+/// The records in <param records> we don't already have.
+///
+/// "Incoming" must mean this, or conflicts are hidden: a relay round-trips your own pushed ops back to
+/// you and they are the newest, so reading the batch latest-wins reports YOUR version as incoming --
+/// identical to your local binding, and nothing ever looks like a conflict.
+///
+/// Chunked, because the id list can be the whole batch and SQLite has a parameter limit.
+let unknownRecords
+  (records: List<Wire.SyncOp>)
+  : List<Wire.SyncOp> =
+  // Bigger than `Conflicts.inChunkSize`, and deliberately: that one is sized for the old 999-parameter
+  // cap because its callers are cold paths where the margin is free, while this is an import's inner
+  // loop against the linked build's 32,766. With the Dict lookup below the per-chunk cost is linear, so
+  // a larger chunk is purely fewer round trips (15.0s against 20.1s on a 10,833-op bundle).
+  let chunks =
+    match Stdlib.List.chunkBySize records 2000 with
+    | Ok cs -> cs
+    | Error _ -> [ records ]
+
+  chunks
+  |> Stdlib.List.map (fun chunk ->
+    let ids = chunk |> Stdlib.List.map (fun r -> r.id)
+
+    let known =
+      Stdlib.Sqlite.columnP
+        (localDb ())
+        ("SELECT id FROM package_ops WHERE id IN (" ++ (Conflicts.inPlaceholders ids) ++ ")")
+        ids
+        "id"
+
+    // Dict, not `List.member`: membership by linear scan inside a filter is O(chunk^2), which on a
+    // 10,833-op bundle was ~47s of a 50s import against ~2.4s to parse the same bundle.
+    let knownSet =
+      known
+      |> Stdlib.List.map (fun k -> (k, true))
+      |> Stdlib.Dict.fromListOverwritingDuplicates
+
+    chunk
+    |> Stdlib.List.filter (fun r ->
+      match Stdlib.Dict.get knownSet r.id with
+      | Some _ -> false
+      | None -> true))
+  |> Stdlib.List.flatten
+
+
+/// PLAN a sync-import: the detector runs BEFORE the ops are inserted, since afterwards the fold has moved
+/// the local side and the comparison is meaningless.
+///
+/// The FIRST reconciliation with a source declines to detect: nothing can be "both sides moved since we
+/// agreed" when we have never agreed, so it adopts wholesale and records the whole projection as the base.
+/// Every later import detects however big it is -- a size cap would stop looking exactly when there is
+/// finally something to find.
+let planSyncImport
+  (sourceId: String)
+  (records: List<Wire.SyncOp>)
+  : SyncPlan =
+  if sourceId == "" then
+    // No source identity: nothing to reconcile against and nothing to say about it.
+    SyncPlan { conflicts = []; bulk = false; detected = true }
+  else
+    // Only what actually ARRIVED counts as incoming -- see `unknownRecords`. The same three reads feed
+    // both arms; what differs is the base they are compared against.
+    let incoming = bindingsFromWireRecords (unknownRecords records)
+    let names = incoming |> Stdlib.List.map (fun b -> b.name)
+    let local = Conflicts.localBindingsFor names
+
+    // The local side is labelled with this instance's IDENTITY, because the label is STORED and handed to
+    // `--json`, where "yours" tells a reader nothing and can't tell two machines apart. Rendering it as
+    // "yours" is the renderer's decision, which it makes by comparing against this same identity.
+    let me = identity ()
+
+    if Conflicts.hasSyncBases sourceId then
+      let conflicts =
+        Conflicts.detect me sourceId local incoming (Conflicts.syncBases sourceId)
+
+      SyncPlan { conflicts = conflicts; bulk = false; detected = true }
+    else
+      // A first reconciliation has no agreed base, but "both sides replaced the same parent" needs none:
+      // the two ops say so themselves. That is the case an instance which pushed but never pulled lands
+      // in (`dark connect` pushes without pulling).
+      //
+      // Filtered to `same-name-different-hash`, the kind the same-parent rule produces. The
+      // independent-creation rule deliberately does NOT run here: it fires on two bindings recording no
+      // predecessor, and "no predecessor" also means "none recorded", so first contact against a store
+      // of unfamiliar names would file conflicts by the thousand.
+      let diverged =
+        Conflicts.detect me sourceId local incoming []
+        |> Stdlib.List.filter (fun c -> c.kind == "same-name-different-hash")
+
+      SyncPlan { conflicts = diverged; bulk = true; detected = false }
+
+
+/// FINISH a sync-import, AFTER the ops have been inserted and folded: record the conflicts the plan found.
+///
+/// Advancing the bases is `recordSyncBases`, which runs once per pull rather than once per page, so it is
+/// not folded in here.
+let finishSyncImport (sourceId: String) (plan: SyncPlan) : Unit =
+  if sourceId == "" then
+    ()
+  else
+    // Reported, not assumed: the caller tells the user the loser was kept.
+    // Filed against MAIN, which is where a sync import folds whatever branch the process stands on:
+    // `scmImportOps` inserts effective and the fold projects into main's tables.
+    let recorded = Conflicts.record SCM.Branch.mainBranchId plan.conflicts
+
+    let _ =
+      if recorded < Stdlib.List.length plan.conflicts then
+        Stdlib.printLine
+          (Stdlib.String.append
+            "warning: some conflicts could not be recorded -- the losing versions are still in the log, "
+            "but `dark conflicts` won't list them.")
+      else
+        ()
+
+    ()
+
+
+/// Record the per-name bases for <param sourceId>: what we and it now agree on.
+///
+/// Bases are recorded for EVERY name we currently bind, not only names whose ops arrived as new. A name
+/// the peer merely echoes back is not an arrival, so narrowing leaves it without a base and a later
+/// genuine divergence on it cannot be detected. The extra names are harmless: a base for a name the peer
+/// lacks says "we agree", and if they create it independently only one side has moved.
+///
+/// Called ONCE per pull, after the last page, not once per page. It is an upsert over every live name
+/// that writes the CURRENT state, so running it twenty times and running it once leave the store
+/// identical, and per page it would cost O(pages x names) for a result only the last page decides. On a
+/// FIRST sync it also matters for correctness: bases laid down after page 1 would have pages 2 onward
+/// detecting against them, instead of the whole pull adopting wholesale as a first sync is meant to.
+let recordSyncBases (sourceId: String) : Unit =
+  if sourceId == "" then
+    ()
+  else
+    Conflicts.recordAllSyncBases sourceId
+
+
+/// Record who wrote each arriving op, from what the wire said.
+///
+/// The relay records this on PUSH (`op_owners`) and hands the author back on every op it exports. Keeping
+/// it on import costs one insert per batch and is what makes "a decision of YOURS was superseded"
+/// answerable locally; drop it and `op_owners` is empty on every client, for every op.
+///
+/// A locally-authored op gets no row, so "no row" means "mine" and a row means "arrived from them".
+let recordOpAuthors (records: List<Wire.SyncOp>) : Unit =
+  let me = identity ()
+
+  // Not our own. A pull hands back everything the relay holds, including what THIS instance pushed, so
+  // without this an instance records itself as the author of its own ops and "arrived from someone else"
+  // stops meaning anything.
+  let owned =
+    records
+    |> Stdlib.List.filter (fun r -> (r.author != "") && (r.author != me))
+
+  if Stdlib.List.isEmpty owned then
+    ()
+  else
+    let _ =
+      owned
+      |> Stdlib.List.map (fun r ->
+        Stdlib.Sqlite.execP
+          (localDb ())
+          "INSERT OR IGNORE INTO op_owners (op_id, owner) VALUES (@p0, @p1)"
+          [ r.id, r.author ])
+
+    ()

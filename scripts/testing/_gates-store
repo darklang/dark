@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+# _gates-store: the store from nothing, backups, and reload determinism
+#
+# Sourced by scripts/testing/gates -- not run directly. Each gate is one self-contained bash
+# function (helpers and all), and the runner gives every invocation its own process, so a
+# gate's `set -e`, traps and exits stay its own.
+# shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
+
+# --- first-day: a new user's first day, on a PUBLISHED binary and a store that does not exist ---
+# Every other gate copies rundir/data.db, a developer's store, which skips the whole bootstrap
+# path (the embedded seed, the package-DB grow, the first commit against an empty history); when
+# that breaks, the binary works inside the source tree and dies outside it. So: author, commit,
+# branch, merge, diverge, resolve, discard, pin, on a binary a user would download, from an
+# empty home. Deliberately no relay: sync has its own gates. Optional argument: the artifact to
+# test; otherwise the newest in clis/, refused if older than the tree.
+#
+# Gate, not an F#/.dark test: the thing under test is a published artifact, which does not exist
+# inside the tree, run against a $HOME that has never seen Darklang.
+gate_first_day() {
+  set -euo pipefail
+
+  ARTIFACT=${1:-}
+  if [[ -z "$ARTIFACT" ]]; then
+    # shellcheck disable=SC2012  # need mtime order; no filename here has a space
+    ARTIFACT=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
+    AUTO_PICKED=1
+  fi
+  [[ -x "$ARTIFACT" ]] || { echo "first-day: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+
+  if [[ -n "${AUTO_PICKED:-}" ]]; then
+    # An artifact older than the packages it is supposed to contain tests the LAST build, and says nothing
+    # about the tree. Worse, it does not fail like a stale binary: it fails like a broken product, with
+    # "Function <hash> couldn't be found" on every command, because the refs the binary was pinned to are not
+    # in the seed it shipped. Only checked when we picked the artifact ourselves: an explicitly passed one
+    # is the caller's business, and CI passes the one it just built.
+    newest_source=$(find packages backend/src -newer "$ARTIFACT" -type f \( -name '*.dark' -o -name '*.fs' \) -print -quit 2>/dev/null || true)
+    if [[ -n "$newest_source" ]]; then
+      echo "first-day: $(basename "$ARTIFACT") is older than $newest_source" >&2
+      echo "  Rebuild it, or this gate reports on a binary that predates your change:" >&2
+      echo "    scripts/build/build-release-cli-exes.sh" >&2
+      exit 2
+    fi
+  fi
+
+  # Absolute BEFORE the cd below: `$PWD` inside the subshell is the temp home, not the repo.
+  ARTIFACT=$(readlink -f "$ARTIFACT")
+
+  HOMEDIR=$(mktemp -d)
+  trap 'rm -rf "$HOMEDIR"' EXIT
+
+  failures=0
+
+  # DARK_CONFIG_RUNDIR, not just HOME: the container sets it for every process and it WINS over the
+  # `<home>/.darklang` default, so HOME alone runs this against the shared dev store.
+  # The gates-are-clean gate has the full story.
+  dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_CONFIG_RUNDIR="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
+  clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  wantnot() {  # wantnot <name> <pattern> <command...> -- the pattern must NOT appear
+    local name="$1" pat="$2"; shift 2
+    local out
+    out=$(dark "$@" | clean) || true
+    if grep -qE "Encountered a Runtime Error|No matching case found|couldn't be found" <<<"$out"; then
+      echo "  FAIL $name: the command errored:"
+      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      failures=$((failures + 1))
+    elif grep -qE "$pat" <<<"$out"; then
+      echo "  FAIL $name: /$pat/ appeared:"
+      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      failures=$((failures + 1))
+    else
+      echo "  ok   $name"
+    fi
+  }
+
+  want() {  # want <name> <pattern> <command...>
+    local name="$1" pat="$2"; shift 2
+    local out
+    out=$(dark "$@" | clean) || true
+    # A refusal must never satisfy a pattern. Patterns here are anchored for that reason (a bare "commit"
+    # matches "commit failed", a bare "conflict" matches "Conflict detection did not run") and this is the
+    # backstop for the ones that cannot be.
+    if grep -qE "Encountered a Runtime Error|No matching case found|couldn't be found" <<<"$out"; then
+      echo "  FAIL $name: the command errored:"
+      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      failures=$((failures + 1))
+    elif grep -qE "$pat" <<<"$out"; then
+      echo "  ok   $name"
+    else
+      echo "  FAIL $name: wanted /$pat/, got:"
+      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      failures=$((failures + 1))
+    fi
+  }
+
+  echo "First day on $(basename "$ARTIFACT"), from an empty home:"
+
+  # 1. First run at all. This is where the seed is unpacked and the package DB grown from ops.
+  want "first run reports a clean tree" "^(clean:|draft:)" status
+
+  # 2. Author something and run it. The thing the language is for.
+  want "authoring a fn"    "Created function: FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " ++ name'
+  want "and running it"    "hi world"        eval 'FirstDay.Hello.greet "world"'
+  want "status sees it"    "^draft: 1 item"  status
+
+  # 3. Commit it, and read the commit back.
+  want "committing"        "^ *commit [0-9a-f]{8} -- [0-9]+ op" commit "first day" -y
+  want "commits lists it"  "first day"       commits
+  want "tree is clean"     "^clean:"         status
+
+  # 4. A branch, isolated from main.
+  want "starting a branch" "^(started|switched|on) .*firstday" branch create firstday
+  want "authoring on it"   "Created function: FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
+  want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
+
+  # 5. Merge it, and main can.
+  want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
+  want "merging"           "Merged"          --branch firstday merge firstday
+  want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
+
+  # 6. A real divergence: both sides move one name, merge records a conflict.
+  dark branch create clash >/dev/null 2>&1 || true
+  dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " ++ name' >/dev/null 2>&1 || true
+  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " ++ name' >/dev/null 2>&1 || true
+  want "merge records a conflict" "[0-9]+ conflict" --branch clash merge clash
+  want "conflicts --json lists it" '"pending":[1-9]' --branch main conflicts --json
+
+  # 6b. An override you made, then YOUR OWN later edit: last-writer-wins as designed, and NOT a finding.
+  #
+  # The superseded-decision report is for the daemon case: a PEER's edit beats your override while nobody
+  # is at the keyboard (`supersededOverrides` checks authorship through `op_owners`, which only a sync
+  # import writes). Your own later edit is a change of mind. The peer case needs two stores and lives in
+  # `MultiInstance.Tests.fs` (`supersededReportsCheckAuthorship`).
+  CID=$(dark --branch main conflicts --json 2>/dev/null | grep -oE '"id":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
+  dark --branch main conflicts override "$CID" B >/dev/null 2>&1 || true
+  want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet "x"'
+  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "later " ++ name' >/dev/null 2>&1 || true
+  want "a later edit wins"       "later "     --branch main eval 'FirstDay.Hello.greet "x"'
+  wantnot "and your own change of mind is not reported" "overrode this|decision-superseded" --branch main constraints
+
+  # 6c. A deprecation is a commit like any other.
+  #
+  # `dark delete` authors a `Deprecate` op, which binds no NAME. So "is the draft empty" cannot be answered
+  # from the changed-BINDINGS list: that answer leaves the deprecation uncommitted forever, where it ships
+  # inside the release seed as somebody else's mystery op.
+  dark --branch main fn /FirstDay.Hello.doomed '() : Int64 = 1L' >/dev/null 2>&1 || true
+  dark --branch main commit "before deleting" -y >/dev/null 2>&1 || true
+  want "delete deprecates it"   "^ *[Dd]eprecated "  --branch main delete fn FirstDay.Hello.doomed -y
+  want "and it is committable"  "^ *commit [0-9a-f]{8} -- [0-9]+ op" --branch main commit "retire it" -y
+  want "leaving a clean tree"   "^clean:"        --branch main status
+
+  # 7. And you can walk away from a draft.
+  dark fn /FirstDay.Hello.scratch '() : Int64 = 5L' >/dev/null 2>&1 || true
+  want "discard drops the draft" "discarded"  discard -y
+  want "and it is gone"          "not found"  eval 'FirstDay.Hello.scratch ()'
+
+  # 8. A pin BEFORE committing un-stages the repoint rather than authoring one back.
+  #
+  # The one step of the two-machine walk no other gate covered, and it is single-instance
+  # behaviour, so it belongs here rather than in the multi-instance gate.
+  dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 1L' >/dev/null 2>&1 || true
+  dark fn /FirstDay.Chain.p2 '(x: Int64): Int64 = (FirstDay.Chain.p1 x) + 1L' >/dev/null 2>&1 || true
+  dark commit "chain" -y >/dev/null 2>&1 || true
+  dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 50L' >/dev/null 2>&1 || true
+  want "the dependent followed"   "followed"            status
+  want "pin drops the repoint"    "dropped the staged"  propagate pin FirstDay.Chain.p2
+  want "and nothing followed now" "1 item changed"      status
+  # The point of the whole step: p2 is back on the OLD p1, so 0 -> 2, not 0 -> 51.
+  want "the pin actually holds"   "^2$"                 eval 'FirstDay.Chain.p2 0L'
+
+  if [[ "$failures" -gt 0 ]]; then
+    echo "$failures first-day step(s) failed."
+    exit 1
+  fi
+  echo "first day: author, run, commit, branch, merge, conflict, discard and pinning all work from an empty home."
+}
+
+# --- backups-restore: a backup holds what the store holds, and a wiped store comes back ---------
+# The one thing this proves: a copy of data.db alone is not a backup of a WAL-mode store --
+# recent writes sit in data.db-wal until a checkpoint, so `backups now` folds the WAL first, and
+# only a gate that authored a fn, backed up, wiped and restored checks it did. The two
+# destructive verbs must ask first. Its own rundir: everything here is destructive.
+#
+# Gate, not an F#/.dark test: it has to be allowed to destroy a store, which is a bad thing to
+# hand a suite that shares one.
+gate_backups_restore() {
+  set -uo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  ROOT=rundir/backups-test
+  pass=0; fail=0
+  ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+  bad() { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 200 <<<"$2" | tr '\n' ' ')"; }
+  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
+  scripts/testing/_copy-store "$ROOT/data.db"
+  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
+  x() { DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+
+  echo "== a backup holds what the store holds, WAL included"
+  x fn /BK.T.kept '() : Int64 = 4242L' > /dev/null
+  want "the fn is live" "^4242$" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "a backup is taken" "^copied the store to " "$(x backups now)"
+  name=$(x backups | grep -oE 'data\.db\.manual-[0-9TZ]+' | head -1)
+  if [[ -n "$name" ]]; then ok "and it is listed ($name)"; else bad "and it is listed" "$(x backups)"; fi
+
+  echo "== a wiped store comes back from it"
+  # Wipe: the fn is gone. Then restore, and it is back. `-y`, since a piped stdin cannot answer.
+  x discard -y > /dev/null
+  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "restore asks first" "kept\." "$(x backups restore "$name" < /dev/null)"
+  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "restore with -y" "^restored $name" "$(x backups restore "$name" -y)"
+  want "and the fn is back" "^4242$" "$(x eval 'BK.T.kept ()' | tail -1)"
+  want "and the wiped store was put aside, not lost" "pre-restore" "$(x backups)"
+
+  echo "== prune asks first"
+  want "prune asks" "kept\." "$(x backups prune 0 < /dev/null)"
+  want "and deleted nothing" "manual-" "$(x backups)"
+  want "prune -y deletes" "^deleted [1-9]" "$(x backups prune 0 -y)"
+  want "nothing left" "no backups|0 backup" "$(x backups)"
+
+  echo
+  echo "passed: $pass   failed: $fail"
+  [[ "$fail" -eq 0 ]]
+}
+
+# --- reload-is-reproducible: two reloads of one tree must agree on every op id ------------------
+# The parser mints ephemeral node ids into every expression; an Add op whose id hashes a
+# serialization carrying them changes id on every reload, so every upgrade grows every store and
+# two machines authoring the same fn make two ops. Own rundir, never the shared dev store: a
+# reload is a purge-and-refill and drops whatever draft was open, which the gates-are-clean
+# fingerprint cannot see (two reloads leave the same COUNTS behind). Main's ops only.
+#
+# Gate, not an F#/.dark test, on the weakest grounds of any of them: it COULD be an F# test. Two
+# full reloads cost about 70s, and as a gate they run beside the rest instead of lengthening the
+# suite. Pragmatic, not structural.
+gate_reload_is_reproducible() {
+  set -euo pipefail
+
+  WORK=rundir/reload-reproducible
+  rm -rf "$WORK"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+
+  ids() {
+    sqlite3 "$WORK/data.db" \
+      "SELECT id FROM package_ops WHERE id NOT IN (SELECT op_id FROM op_branches) ORDER BY id"
+  }
+
+  ./scripts/build/reload-packages > /dev/null 2>&1
+  first=$(ids)
+  ./scripts/build/reload-packages > /dev/null 2>&1
+  second=$(ids)
+
+  n=$(wc -l <<<"$second")
+  differ=$(comm -3 <(echo "$first") <(echo "$second") | wc -l)
+  if [[ "$differ" -ne 0 ]]; then
+    echo "reload-is-reproducible: $differ of $n op ids differ between two reloads of one tree"
+    exit 1
+  fi
+  echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
+}

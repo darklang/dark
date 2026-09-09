@@ -1,0 +1,615 @@
+module Darklang.SCM.Propagation
+
+// The `propagation_policy` data-access silo.
+//
+// Propagation runs on every edit; this is where you choose what it does to you. The default is deliberately
+// dumb (follow within your own owner) because the point is not to guess well, it is that an explicit row
+// always beats the guess.
+
+let localDb () : String = Stdlib.LocalStore.path ()
+
+
+/// Repoint every caller of one of <param previousHashes> at <param currentHash>, on <param branchId>,
+/// and say which names moved. The cascade behind every edit, and the one place the builtin is named.
+///
+/// Lives here rather than in the CLI because a RESOLUTION needs it too: overriding a conflict rebinds
+/// a name, and a rebind that does not repoint its callers leaves the name saying one thing and
+/// everything that calls it doing another.
+let repointDependents
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
+  Builtin.pmPropagate branchId location itemKind previousHashes currentHash
+
+type Policy =
+  | Follow
+  | Pin
+
+/// `Policy` is what the propagation_policy table holds and what callers read; the op carries the
+/// runtime's own spelling. Converted here rather than stringified, so the op can't be authored with a
+/// policy nothing recognises.
+let toOpPolicy (p: Policy) : LanguageTools.ProgramTypes.PropagationPolicy =
+  match p with
+  | Follow -> LanguageTools.ProgramTypes.PropagationPolicy.Follow
+  | Pin -> LanguageTools.ProgramTypes.PropagationPolicy.Pin
+
+let policyToString (p: Policy) : String =
+  match p with
+  | Follow -> "follow"
+  | Pin -> "pin"
+
+let policyFromString (s: String) : Stdlib.Option.Option<Policy> =
+  match s with
+  | "follow" -> Stdlib.Option.Option.Some(Policy.Follow)
+  | "pin" -> Stdlib.Option.Option.Some(Policy.Pin)
+  | _ -> Stdlib.Option.Option.None
+
+
+/// An explicit choice someone made, and why.
+type Choice =
+  { owner: String
+    /// dotted; "" for an owner-wide choice
+    modules: String
+    /// "" when this covers a whole MODULE rather than one item
+    name: String
+    policy: Policy
+    note: String
+    originTs: String }
+
+
+let modulesOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  Stdlib.String.join loc.modules "."
+
+
+let choiceFromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Choice> =
+  match policyFromString (Stdlib.Sqlite.textOr row "policy") with
+  | Some p ->
+    Stdlib.Option.Option.Some(
+      Choice
+        { owner = Stdlib.Sqlite.textOr row "owner"
+          modules = Stdlib.Sqlite.textOr row "modules"
+          name = Stdlib.Sqlite.textOr row "name"
+          policy = p
+          note = Stdlib.Sqlite.textOr row "note"
+          originTs = Stdlib.Sqlite.textOr row "origin_ts" }
+    )
+  | None -> Stdlib.Option.Option.None
+
+
+/// Every explicit choice that applies HERE: the current branch's rows, then main's.
+///
+/// A branch inherits main's choices and can override them. Both sets come back, branch first, and the
+/// resolvers take the first match -- so a branch row wins for the same name without either being deleted.
+let allChoices () : List<Choice> =
+  let branch = SCM.PackageOps.currentBranch ()
+
+  let rows (branchId: Uuid) : List<Choice> =
+    match
+      Stdlib.Sqlite.queryP
+        (localDb ())
+        "SELECT owner, modules, name, policy, note, origin_ts
+         FROM propagation_policy WHERE branch_id = @p0
+         ORDER BY owner, modules, (CASE WHEN name = '' THEN 1 ELSE 0 END), name"
+        [ Stdlib.Uuid.toString branchId ]
+    with
+    | Ok rs -> rs |> Stdlib.List.filterMap choiceFromRow
+    // RAISE, not `[]`. Every reader of this list treats "no row" as FOLLOW, so a failed read would turn
+    // every pin in the store into a follow and propagation would repoint the things someone explicitly
+    // told it to leave alone -- silently, with the pin still showing in `dark propagate`. A pin that
+    // cannot be read is not a pin that is absent, and the only honest answer is to stop.
+    | Error e ->
+      Builtin.unwrap
+        (Stdlib.Result.Result.Error
+          $"couldn't read propagation policy, so no pin can be trusted: {e}")
+
+  // The WHOLE chain, nearest first: this branch, its parent, and so on to main. Resolution walks
+  // the chain, so a listing that read only "here and main" told a child of a pinned branch that
+  // nothing was pinned while the pin governed it. Nearest first is also what makes a nearer
+  // branch's choice win the resolvers' first-match.
+  let chainFrom (branchId: Uuid) (acc: List<Uuid>) : List<Uuid> =
+    if SCM.Branch.isMain branchId then
+      Stdlib.List.append acc [ SCM.Branch.mainBranchId ]
+    else
+      chainFrom
+        (SCM.PackageOps.branchParentOf branchId)
+        (Stdlib.List.append acc [ branchId ])
+
+  chainFrom branch [] |> Stdlib.List.map rows |> Stdlib.List.flatten
+
+
+/// The explicit choices that could cover <param loc>: the item itself, its module, then each parent module,
+/// then owner-wide. Returned MOST SPECIFIC FIRST, so the caller just takes the head -- the same resolution
+/// shape names already have.
+let candidateKeys
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : List<(String * String)> =
+  let mods = loc.modules
+
+  // ["A"; "B"; "C"] -> ["A.B.C"; "A.B"; "A"], the module chain from innermost out; owner-wide ("")
+  // is appended below, since it is not a module.
+  let chain =
+    mods
+    |> Stdlib.List.fold [] (fun acc _ ->
+      let depth = (Stdlib.List.length mods) - (Stdlib.List.length acc)
+
+      let prefix =
+        mods |> Stdlib.List.take depth |> (fun ms -> Stdlib.String.join ms ".")
+
+      Stdlib.List.append acc [ prefix ])
+
+  let moduleKeys =
+    (Stdlib.List.append chain [ "" ])
+    |> Stdlib.List.map (fun m -> (m, ""))
+
+  // the item itself first, then the module chain outward
+  Stdlib.List.append [ (modulesOf loc, loc.name) ] moduleKeys
+
+
+/// The effective policy for <param loc>, given a set of choices already read. Split out from
+/// `explicitPolicyFor` so a caller asking about MANY locations reads the table once instead of once per
+/// location -- `Constraints.pending` does that, on the `dark status` path.
+let explicitPolicyIn
+  (choices: List<Choice>)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<Choice> =
+  let mine = choices |> Stdlib.List.filter (fun c -> c.owner == loc.owner)
+
+  candidateKeys loc
+  |> Stdlib.List.filterMap (fun key ->
+    let (m, n) = key
+
+    mine
+    |> Stdlib.List.findFirst (fun c -> c.modules == m && c.name == n))
+  |> Stdlib.List.head
+
+
+/// The effective policy for <param loc>: the most specific explicit choice, or None if nobody has said.
+///
+/// None is NOT "follow" -- the caller decides the default, because the default differs by caller (the
+/// cascade defaults to follow within your own owner; a report may want to show "unset" as its own thing).
+let explicitPolicyFor
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<Choice> =
+  explicitPolicyIn (allChoices ()) loc
+
+
+/// Would the cascade repoint <param loc>, given choices already read? See `explicitPolicyIn`.
+let shouldFollowIn
+  (choices: List<Choice>)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Bool =
+  match explicitPolicyIn choices loc with
+  | Some c ->
+    match c.policy with
+    | Pin -> false
+    | Follow -> true
+  | None -> true
+
+
+/// Would the cascade repoint <param loc>? The default is follow, so only an explicit `pin` stops it.
+///
+/// Ownership does NOT appear here, nor in the F# cascade, which reports every dependent it finds and leaves
+/// the choosing to a person. Ownership can be LAYERED on top, but this table is what decides.
+let shouldFollow (loc: LanguageTools.ProgramTypes.PackageLocation) : Bool =
+  shouldFollowIn (allChoices ()) loc
+
+
+/// Is there anything at this location? An item name, or at least one live item under the module.
+///
+/// The parser falls back to reading an unresolvable path as a MODULE, so `/Zz.Nope.f` arrives as owner=Zz,
+/// modules="Nope.f", name="" -- and without this check every policy verb reports acting on "everything in
+/// Zz.Nope.f". Typo in, success out.
+let targetExists (owner: String) (modules: String) (name: String) : Bool =
+  if name != "" then
+    // An item: the one branch-aware read.
+    let loc =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner
+          modules = if modules == "" then [] else Stdlib.String.split modules "."
+          name = name }
+
+    (SCM.PackageOps.liveBindingAt loc) |> Stdlib.Option.isSome
+  else
+    // A module: anything live under it, on the branch chain first -- a module that exists only on the
+    // branch has no `locations` row -- then main.
+    let onBranch =
+      match SCM.PackageOps.currentBranch () with
+      | id when SCM.Branch.isMain id -> false
+      | branch ->
+        SCM.PackageOps.chainBindings branch
+        |> Stdlib.List.findFirst (fun b ->
+          (b.owner == owner)
+          && ((b.modules == modules) || (Stdlib.String.startsWith b.modules $"{modules}.")))
+        |> Stdlib.Option.isSome
+
+    if onBranch then
+      true
+    else
+      // main-scoped: the chain above ends at main, and this is main's half.
+      match
+        Stdlib.Sqlite.queryOneP
+          (localDb ())
+          "SELECT 1 AS n FROM locations
+           WHERE owner = @p0 AND (modules = @p1 OR modules LIKE @p2) AND unlisted_at IS NULL LIMIT 1"
+          [ owner, modules, $"{modules}.%" ]
+      with
+      | Some _ -> true
+      | None -> false
+
+
+/// Record a pin or a follow as an op.
+///
+/// Goes in the LOG rather than straight into the table: a decision that does not travel is half a decision,
+/// and the fold writes `propagation_policy` from the op, keeping that table derived like every projection.
+///
+/// A `Decision`, not a `SetName` (see `SCM.PackageOps.applyResolution`); stamped so repeated decisions
+/// stay distinct ops.
+let setPolicy
+  (branchId: Uuid)
+  (owner: String)
+  (modules: String)
+  (name: String)
+  (policy: Policy)
+  (note: String)
+  : Stdlib.Result.Result<Unit, String> =
+  authorPolicyOp branchId owner modules name note (toOpPolicy policy)
+
+
+/// Author one propagation `Decision` op: the shared act behind <fn setPolicy> and
+/// <fn clearPolicy>, which differ only in the op-level policy they record.
+///
+/// Stamped, because pin -> unset -> pin is three decisions and the third must not dedup
+/// into the first: content-addressed ops make an unstamped repeat BE the original, which
+/// then loses to the unset between them under last-writer-wins.
+let authorPolicyOp
+  (branchId: Uuid)
+  (owner: String)
+  (modules: String)
+  (name: String)
+  (note: String)
+  (policy: LanguageTools.ProgramTypes.PropagationPolicy)
+  : Stdlib.Result.Result<Unit, String> =
+  let loc = Deps.locationOf owner modules name
+  let now = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+
+  let op =
+    LanguageTools.ProgramTypes.PackageOp.Decision(
+      $"propagation:{owner}.{modules}.{name}:{now}",
+      loc,
+      note,
+      LanguageTools.ProgramTypes.DecisionKind.Propagation policy
+    )
+
+  match SCM.PackageOps.add branchId [ op ] with
+  | Ok _ -> Stdlib.Result.Result.Ok(())
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Forget a choice entirely, so whatever covers it more broadly applies again.
+///
+/// An op like the others, not a DELETE: clearing straight into the table would stop it being derived from
+/// the log, and a later re-pin would compete with a row nothing in the log explains. `unset` is a decision.
+let clearPolicy
+  (branchId: Uuid)
+  (owner: String)
+  (modules: String)
+  (name: String)
+  : Stdlib.Result.Result<Unit, String> =
+  // `Unset` is not a `Policy` case, which is why this can't just call `setPolicy`:
+  // the shared helper takes the op-level policy instead.
+  authorPolicyOp
+    branchId
+    owner
+    modules
+    name
+    ""
+    LanguageTools.ProgramTypes.PropagationPolicy.Unset
+
+
+/// What <param loc> would go back to if you undid the most recent change to it.
+///
+/// This is what makes a pin RETROACTIVE: propagation already ran when you edited, so pinning is mostly a
+/// request to undo a repoint that already happened. None when the name has never changed.
+///
+/// EXCLUDES the currently-live hash, since a pin/follow round trip leaves the live version with an unlisted
+/// row of its own and a second pin would "roll back" to where it already is. Orders by rowid, not
+/// `unlisted_at`, which is one-second granularity and cannot separate round trips inside a second.
+let mainPreviousHash
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  // main-scoped: `previousHash` dispatches here only on main.
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      // `source <> 'unbind'` skips an unbind's tombstone, which is a marker for the fold and not a binding.
+      "SELECT item_hash FROM locations
+       WHERE owner = @p0 AND modules = @p1 AND name = @p2
+         AND unlisted_at IS NOT NULL AND source <> 'unbind'
+         AND item_hash <> COALESCE(
+           (SELECT item_hash FROM locations
+            WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND unlisted_at IS NULL
+            LIMIT 1), '')
+       ORDER BY rowid DESC
+       LIMIT 1"
+      [ loc.owner, modulesOf loc, loc.name ]
+  with
+  | Some row ->
+    match Stdlib.Sqlite.textField row "item_hash" with
+    | Some h ->
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash h)
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// The hash the branch it forked from held at this name when the branch first touched it. None on main,
+/// and None for a name the branch has never touched.
+let forkBaseOf
+  (branchId: Uuid)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  if SCM.Branch.isMain branchId then
+    Stdlib.Option.Option.None
+  else
+    SCM.Conflicts.branchBases branchId
+    |> Stdlib.List.findFirst (fun b ->
+      (b.owner == loc.owner) && (b.modules == modulesOf loc) && (b.name == loc.name))
+    |> Stdlib.Option.map (fun b -> b.baseHash)
+
+
+/// The version before the live one. On a branch that is the branch's OWN history, which starts at the
+/// fork base: main's `locations` rows after the fork are main's story, not this branch's, and answering
+/// from them rolls a branch back to a version main authored after the fork.
+let previousHash
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  match SCM.PackageOps.currentBranch () with
+  | id when SCM.Branch.isMain id -> mainPreviousHash loc
+  | branch ->
+    let live =
+      currentHash loc
+      |> Stdlib.Option.map LanguageTools.ProgramTypes.hashToString
+      |> Stdlib.Option.withDefault ""
+
+    let base = forkBaseOf branch loc |> Stdlib.Option.toList
+    let own = SCM.PackageOps.branchHashHistoryFor branch loc.owner (modulesOf loc) loc.name
+
+    Stdlib.List.append base own
+    |> Stdlib.List.filter (fun h -> h != live)
+    |> Stdlib.List.last
+    |> Stdlib.Option.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+
+
+/// Un-stage the repoint the DRAFT holds for <param loc>, and report how many ops that dropped.
+///
+/// 0 means nothing was staged: the binding is already committed, or you authored it by hand rather than it
+/// having followed something. The caller then rolls back against committed history instead.
+///
+/// The pre-commit half of what a pin means. Dropping the staged repoint says it never happened; authoring a
+/// rebinding op instead leaves the intermediate version named in the log forever.
+let unstageRepoint
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Result.Result<Int, String> =
+  SCM.Draft.unstageRepoint loc
+
+
+/// Point <param loc> back at <param hash>, as an ordinary SetName op.
+let rebind
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmSetName loc kind hash
+
+
+/// What kind of item lives at this name, if anything does. The CLI takes an FQN from a human, who does not
+/// type "fn" after it.
+let kindAt
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.ItemKind> =
+  SCM.PackageOps.liveBindingAt loc
+  |> Stdlib.Option.map (fun b -> Deps.kindOf b.itemType)
+
+
+/// The hash currently live at this name, on the branch you're on.
+let currentHash
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  SCM.PackageOps.liveBindingAt loc
+  |> Stdlib.Option.map (fun b -> LanguageTools.ProgramTypes.Hash.Hash b.hash)
+
+
+/// The dependencies of <param loc> that have MOVED since it last referenced them: (their location, their
+/// kind, the hash this item still points at, the hash the name means now).
+///
+/// This is what a `follow` has to act on. Un-pinning something is only half an answer if it then sits at a
+/// version nobody uses any more; the other half is catching it up, and this says what catching up means.
+let staleDependencies
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.Hash)> =
+  match currentHash loc with
+  | None -> []
+  | Some self ->
+    Deps.dependencyEdges self
+    |> Stdlib.List.filterMap (fun dep ->
+      let (depHash, depKind, depLoc) = dep
+
+      match currentHash depLoc with
+      | Some live ->
+        if live == depHash then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some((depLoc, depKind, depHash, live))
+      | None -> Stdlib.Option.Option.None)
+
+
+/// One item that moved because something it depends on moved, both of them in the current draft.
+type ImpactRow =
+  { item: LanguageTools.ProgramTypes.PackageLocation
+    kind: LanguageTools.ProgramTypes.ItemKind
+    /// the changed dependency it followed
+    because: LanguageTools.ProgramTypes.PackageLocation
+    /// the version it's on now
+    at: LanguageTools.ProgramTypes.Hash
+    /// false when an explicit pin is holding it
+    following: Bool }
+
+
+/// What your draft did to the things above it.
+///
+/// Propagation has already run, so the draft holds both what you edited and everything that followed. A row
+/// is a draft item with a dependency edge onto another draft item.
+///
+/// Computed rather than recorded: marking repoints when made would be a second source of truth, stale the
+/// moment anything is pinned or rolled back.
+let draftImpact () : List<ImpactRow> =
+  let draft = SCM.PackageOps.draftBindings ()
+
+  let draftLocs =
+    draft
+    |> Stdlib.List.map (fun b ->
+      $"{b.owner}|{b.modules}|{b.name}")
+
+  // Dict, not `List.member`: this tests every dependency edge of every draft item against the draft's own
+  // locations, so a linear scan is quadratic in draft size. Same shape as `packageOps.unknownRecords`.
+  let draftLocSet =
+    draftLocs
+    |> Stdlib.List.map (fun k -> (k, true))
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+  draft
+  |> Stdlib.List.filterMap (fun b ->
+    let loc = Deps.locationOf b.owner b.modules b.name
+    let hash = LanguageTools.ProgramTypes.Hash.Hash b.hash
+
+    let causes =
+      Deps.dependencyEdges hash
+      |> Stdlib.List.filter (fun e ->
+        let (_, _, depLoc) = e
+        let dm = modulesOf depLoc
+        let key = $"{depLoc.owner}|{dm}|{depLoc.name}"
+        match Stdlib.Dict.get draftLocSet key with
+        | Some _ -> true
+        | None -> false)
+
+    match causes with
+    | [] -> Stdlib.Option.Option.None
+    | first :: _ ->
+      let (_, _, becauseLoc) = first
+
+      Stdlib.Option.Option.Some(
+        ImpactRow
+          { item = loc
+            kind = Deps.kindOf b.itemType
+            because = becauseLoc
+            at = hash
+            following = shouldFollow loc }
+      ))
+
+
+/// The versions of this name in AUTHORING order, oldest first.
+///
+/// `locations` accumulates a row per binding; rebinds (undo, a pin's rollback, a conflict override) are
+/// marked `source = 'resolution'` while ordinary authoring is `'op'`. Filtering to 'op' recovers the order
+/// versions were WRITTEN in, which rowid preserves and a rebind cannot disturb -- it appends, never reorders.
+///
+/// Undo needs "where am I in the sequence", not "what was most recently unlisted", which after an undo is
+/// the version just stepped off.
+let authoringOrder
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : List<String> =
+  let fromMain =
+    // main-scoped: main's half of the sequence, cut at the fork below when on a branch.
+    Stdlib.Sqlite.columnP
+      (localDb ())
+      "SELECT item_hash FROM locations
+       WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND source = 'op'
+       ORDER BY rowid"
+      [ loc.owner, modulesOf loc, loc.name ]
+      "item_hash"
+
+  // On a branch the sequence CONTINUES into the branch's own ops: main's rows UP TO THE FORK are the
+  // history you forked from, the branch's edits are what you did after. Stopping at the fork leaves a
+  // branch-authored version with nowhere to step back to; running past it makes `undo` step onto a
+  // version main authored after you forked, which the branch never had.
+  match SCM.PackageOps.currentBranch () with
+  | id when SCM.Branch.isMain id -> fromMain
+  | branch ->
+    let fromBranch =
+      SCM.PackageOps.branchHashHistoryFor branch loc.owner (modulesOf loc) loc.name
+
+    let mainUpToFork =
+      match forkBaseOf branch loc with
+      | None -> fromMain
+      | Some base ->
+        // Through the LAST occurrence of the base: a name can return to a hash it held before.
+        let lastAt =
+          fromMain
+          |> Stdlib.List.indexedMap (fun i h -> (i, h))
+          |> Stdlib.List.filter (fun (_, h) -> h == base)
+          |> Stdlib.List.last
+          |> Stdlib.Option.map (fun (i, _) -> i)
+
+        match lastAt with
+        | Some i -> Stdlib.List.take fromMain (i + 1)
+        | None -> fromMain
+
+    Stdlib.List.append
+      mainUpToFork
+      (fromBranch |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.member mainUpToFork h)))
+
+
+/// The version authored immediately before the one that's live now. None at the start of the sequence.
+///
+/// Works however many times you step back, because it locates the CURRENT hash within the authoring order
+/// rather than asking what changed most recently. Undoing to v2 then asking again correctly yields v1.
+let previousAuthored
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  match currentHash loc with
+  | None -> Stdlib.Option.Option.None
+  | Some live ->
+    let liveStr = LanguageTools.ProgramTypes.hashToString live
+    let versions = authoringOrder loc
+
+    match Stdlib.List.findFirstIndex versions (fun h -> h == liveStr) with
+    | None ->
+      // The live binding isn't in the authored sequence at all -- it came from somewhere else entirely
+      // (a merge, a synced peer's version). Stepping "back" has no defined meaning there.
+      Stdlib.Option.Option.None
+    | Some 0 -> Stdlib.Option.Option.None
+    | Some i ->
+      match Stdlib.List.getAt versions (i - 1) with
+      | Some h -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash h)
+      | None -> Stdlib.Option.Option.None
+
+
+/// Every hash that has ever been bound at <param loc> on MAIN, newest first.
+///
+/// Grouped by hash, ordered by when each stopped being live -- the one still live sorts first because a
+/// NULL `unlisted_at` stands in as a date past every real one. A name that has been rebound and rebound
+/// again has a row per binding, and the caller wants the versions, not the rebinds.
+///
+/// Main only, and the caller is expected to know it: `locations` has no `branch_id`, so on a branch this
+/// is the history you FORKED FROM. `Cli.Packages.Propagate.getAllPreviousHashes` appends the branch's own
+/// versions to it.
+let everBoundHashes
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  let itemType = Deps.kindString itemKind
+
+  // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
+  Stdlib.Sqlite.rowsP
+    (localDb ())
+    "SELECT item_hash FROM locations
+     WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND item_type = @p3
+       AND source <> 'unbind'
+     GROUP BY item_hash
+     ORDER BY MAX(CASE WHEN unlisted_at IS NULL THEN '9999-12-31' ELSE unlisted_at END) DESC"
+    [ loc.owner, modulesOf loc, loc.name, itemType ]
+    (fun row ->
+      Stdlib.Sqlite.textField row "item_hash"
+      |> Stdlib.Option.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h))

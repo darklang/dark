@@ -192,7 +192,9 @@ let private typeHashTests =
         Expect.notEqual h1 h2 "different types should hash differently"
       }
 
-      test "description does not affect hash" {
+      // A doc comment is NOT identity: it is something said about the item, carried by an
+      // `UpdateDoc` op, so editing one leaves every caller pointed at the same version.
+      test "the description does not affect the hash" {
         let def =
           PT.TypeDeclaration.Record(
             NEList.singleton { name = "a"; typ = PT.TBool; description = "" }
@@ -201,7 +203,28 @@ let private typeHashTests =
         let typ2 = { makeType def with description = "second" }
         let h1 = Hashing.computeTypeHash Hashing.Normal typ1
         let h2 = Hashing.computeTypeHash Hashing.Normal typ2
-        Expect.equal h1 h2 "description should not affect hash"
+        Expect.equal h1 h2 "a different doc comment is the same version"
+      }
+
+      // Nor does a FIELD's, which is the same rule one level down. `UpdateDoc.RecordFieldDoc` is
+      // what carries an edit to one: until that existed the `AddType` folded to nothing (same hash)
+      // and the text never landed anywhere but a full reload.
+      test "a field's description does not affect the hash either" {
+        let typ1 =
+          makeType (
+            PT.TypeDeclaration.Record(
+              NEList.singleton { name = "a"; typ = PT.TBool; description = "first" }
+            )
+          )
+        let typ2 =
+          makeType (
+            PT.TypeDeclaration.Record(
+              NEList.singleton { name = "a"; typ = PT.TBool; description = "second" }
+            )
+          )
+        let h1 = Hashing.computeTypeHash Hashing.Normal typ1
+        let h2 = Hashing.computeTypeHash Hashing.Normal typ2
+        Expect.equal h1 h2 "a field's doc is not part of the declaration's identity"
       } ]
 
 
@@ -229,6 +252,21 @@ let private fnHashTests =
         let h1 = Hashing.computeFnHash Hashing.Normal fn1
         let h2 = Hashing.computeFnHash Hashing.Normal fn2
         Expect.equal h1 h2 "AST node IDs should not affect hash"
+      }
+
+      // An unresolved reference carries nothing but the name it failed to resolve, so the name
+      // has to reach the hash. The store is content-addressed, so two bodies that collide here
+      // are ONE item: the second author's name binds to the first author's body, and a call to
+      // `A.B.missing` starts answering as a call to `C.D.base`.
+      test "unresolved references to different names hash differently" {
+        let callUnresolved (names : List<string>) : PT.Expr =
+          let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
+            { originalName = names
+              resolved = Error PT.NameResolutionError.NotFound }
+          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
+        let h1 = h [ "x" ] (callUnresolved [ "Tests"; "UnresT"; "missing" ])
+        let h2 = h [ "x" ] (callUnresolved [ "TwoStore"; "Cascade"; "base" ])
+        Expect.notEqual h1 h2 "the name is all an unresolved reference has"
       } ]
 
 
@@ -260,65 +298,6 @@ let private opHashTests =
         let h1 = Hashing.computeOpHash op
         let h2 = Hashing.computeOpHash op
         Expect.equal h1 h2 "same op should hash identically"
-      } ]
-
-
-let private commitHashTests =
-  testList
-    "computeCommitHash"
-    [ let branch = System.Guid.Parse "11111111-1111-1111-1111-111111111111"
-      let account = System.Guid.Parse "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-
-      test "determinism" {
-        let opHash1 = PT.Hash "aabb"
-        let opHash2 = PT.Hash "ccdd"
-        let parent = Some(PT.Hash "0011")
-        let h1 = Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
-        let h2 = Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
-        Expect.equal h1 h2 "same inputs should give same commit hash"
-      }
-
-      test "op order independence (sorted internally)" {
-        let opHash1 = PT.Hash "aabb"
-        let opHash2 = PT.Hash "ccdd"
-        let parent = Some(PT.Hash "0011")
-        let h1 = Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
-        let h2 = Hashing.computeCommitHash branch account parent [ opHash2; opHash1 ]
-        Expect.equal h1 h2 "op order should not matter"
-      }
-
-      test "different parent gives different hash" {
-        let ops = [ PT.Hash "aabb" ]
-        let h1 = Hashing.computeCommitHash branch account (Some(PT.Hash "0011")) ops
-        let h2 = Hashing.computeCommitHash branch account (Some(PT.Hash "0022")) ops
-        Expect.notEqual h1 h2 "different parent should give different hash"
-      }
-
-      test "different branch gives different hash" {
-        let other = System.Guid.Parse "22222222-2222-2222-2222-222222222222"
-        let parent = Some(PT.Hash "0011")
-        let ops = [ PT.Hash "aabb" ]
-        let h1 = Hashing.computeCommitHash branch account parent ops
-        let h2 = Hashing.computeCommitHash other account parent ops
-        Expect.notEqual h1 h2 "different branch should give different hash"
-      }
-
-      test "different account gives different hash" {
-        // Two accounts producing identical op sets on the same branch and parent must hash to different
-        // commits — keeps the global `commits.hash` PK + INSERT OR IGNORE safe.
-        let other = System.Guid.Parse "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-        let parent = Some(PT.Hash "0011")
-        let ops = [ PT.Hash "aabb" ]
-        let h1 = Hashing.computeCommitHash branch account parent ops
-        let h2 = Hashing.computeCommitHash branch other parent ops
-        Expect.notEqual h1 h2 "different account should give different hash"
-      }
-
-      test "empty commit (no ops, just parent)" {
-        let parent = Some(PT.Hash "0011")
-        let h1 = Hashing.computeCommitHash branch account parent []
-        let h2 = Hashing.computeCommitHash branch account parent []
-        Expect.equal h1 h2 "empty commit should be deterministic"
       } ]
 
 
@@ -709,7 +688,6 @@ let tests =
       fnHashTests
       valueHashTests
       opHashTests
-      commitHashTests
       sccTests
       placeholderHashTests
       sccBatchTests

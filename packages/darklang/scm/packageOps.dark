@@ -1,41 +1,56 @@
 module Darklang.SCM.PackageOps
 
+// Authoring is live-on-write: `add` appends ops that take effect the moment they fold. `add` and
+// `getRecent` are the substrate everything else here is built on.
+//
+// This file is the substrate: authoring (`add`, `addAuthored`), this instance's identity, and the
+// relay it is pointed at. The rest of the module lives beside it, one file per subject:
+//
+//   packageOpsBindings   what an op says about a name, and what a name holds now
+//   packageOpsDraft      stamping a draft into a commit, and dropping one
+//   packageOpsRepoints   which dependents an edit would move, and which it left behind
+//   packageOpsMerge      commit, merge, rebase, archive, settle a conflict
+//   packageOpsBundles    a branch as a bundle, for a relay to store and forward
+//   packageOpsBranch     branch registry and frontier reads
+//   packageOpsCommits    the commit rows themselves
+//   packageOpsSync       in `../sync/`, since sync sits on top of SCM
+//
+// Dark lets several files contribute to one module and see each other's definitions unqualified, so
+// the split is physical only: no new silo, and `package_ops` still has exactly one owner. It is a
+// split rather than one file because one file was 1,750 lines and 67 functions, which is past the
+// point where anyone finds anything.
 
-/// A commit on a branch
-type Commit =
-  { hash: LanguageTools.ProgramTypes.Hash
-    message: String
-    createdAt: DateTime
-    opCount: Int
-    branchId: Uuid
-    branchName: String
-    committerId: Uuid
-    committerName: String }
 
-
-/// Store raw WIP ops without type checking. Authored declarations use
-/// `addAuthored`; sync, rename, and deprecation use this path. Returns the number
-/// inserted, excluding duplicates.
+/// Add a list of package ops to the database (immediately live on the given branch).
+/// Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
 let add
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int, String> =
-  Builtin.scmAddOps branchId ops
+  Builtin.scmAddOps branchId (Lineage.recordPrevious branchId ops)
 
 
-/// Stabilize and store authored declarations as one WIP graph, then return their
-/// type-check report. Type errors do not block saving; duplicate names and storage
-/// failures do. `commit` is the type-error gate.
+/// THE authoring boundary: stabilize a batch and store it, refusing what stabilization would corrupt.
+///
+/// Ordered deliberately. Duplicate names are checked FIRST, because `stabilizeHashes` keys by name: a
+/// batch declaring one name twice would store one body under the other's hash, and whichever landed
+/// second would silently become the first. Then the at-rest check runs over what was actually stored,
+/// so its report describes the store rather than the request.
+///
+/// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
+/// commands, the workbench, and the LSP's file provider.
 let addAuthored
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
+
   if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
     Stdlib.Result.Result.Error(
       "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
   else
     let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+
     match add branchId stabilizedOps with
     | Ok _ ->
       Stdlib.Result.Result.Ok(
@@ -43,215 +58,124 @@ let addAuthored
     | Error message -> Stdlib.Result.Result.Error message
 
 
-/// Get recent package ops from the database
-let getRecent (limit: Int) : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetRecentOps limit
+// the op-log DATA-ACCESS SILO
+// This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor, sync) go
+// through the typed functions below and never hand-roll SQL. There should be no op-log SQL outside here.
+
+let localDb () : String = Stdlib.LocalStore.path ()
+
+// Identity here is a NAME, not an authentication. There is no crypto and no proof: it is a string you
+// reuse across machines so a relay can attribute ops to you, trusted by convention, stored in per-install
+// config. Anything that needs to be un-forgeable needs something this is not.
 
 
-/// Get all WIP (uncommitted) ops on a branch
-let getWip (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
-  branchId |> getWipWithIds |> Stdlib.List.map (fun e -> e.op)
-
-
-/// A WIP package op with its DB row id and optional propagation batch id.
-type WipOpEntry =
-  { id: Uuid
-    op: LanguageTools.ProgramTypes.PackageOp
-    propagationId: Stdlib.Option.Option<Uuid> }
-
-
-/// Get all WIP ops on a branch as `WipOpEntry` records (op + DB id + batch).
-let getWipWithIds (branchId: Uuid) : List<WipOpEntry> =
-  branchId
-  |> Builtin.scmGetWipOpsWithIds
-  |> Stdlib.List.map (fun tuple ->
-    let (id, op, propId) = tuple
-    WipOpEntry { id = id; op = op; propagationId = propId })
-
-
-/// Render a PackageLocation as its dotted FQN string. Mirrors
-/// `LibDB.PackageLocation.toFQN` on the F# side so CLI-side name matching
-/// agrees with what `getWipItems` returns.
-let locationToFqn (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  if Stdlib.List.isEmpty loc.modules then
-    $"{loc.owner}.{loc.name}"
-  else
-    let modStr = Stdlib.String.join loc.modules "."
-    $"{loc.owner}.{modStr}.{loc.name}"
-
-
-/// Summary of WIP (uncommitted) changes on a branch
-type WipSummary =
-  { types: Int
-    values: Int
-    fns: Int
-    renames: Int
-    deprecations: Int
-    total: Int }
-
-/// Get a count from a Dict, defaulting to 0
-let getCount (d: Dict<String, Int>) (key: String) : Int =
-  match Stdlib.Dict.get d key with
-  | Some v -> v
-  | None -> 0
-
-/// Get summary of WIP ops on a branch (counts by type)
-let getWipSummary (branchId: Uuid) : WipSummary =
-  let d = Builtin.scmGetWipSummary branchId
-
-  WipSummary
-    { types = getCount d "types"
-      values = getCount d "values"
-      fns = getCount d "fns"
-      renames = getCount d "renames"
-      deprecations = getCount d "deprecations"
-      total = getCount d "total" }
-
-/// Fast count of WIP ops on a branch (no deserialization)
-let getWipOpCount (branchId: Uuid) : Int =
-  Builtin.scmGetWipOpCount branchId
-
-/// Fast count of commits on a branch (no deserialization)
-let getCommitCount (branchId: Uuid) : Int =
-  Builtin.scmGetCommitCount branchId
-
-/// Get WIP items on a branch (excludes auto-propagated ops)
-let getWipItems (branchId: Uuid) : List<Dict<String, String>> =
-  Builtin.scmGetWipItems branchId
-
-
-type CommitError =
-  /// Declarations in the commit have definite type errors. Nothing was committed.
-  /// Fix them (or `undo`/`discard`), or commit with `allowTypeErrors` to take
-  /// them anyway.
-  | TypeCheckFailed of LanguageTools.AtRestTypeChecker.Report
-  /// Storage refused the commit.
-  | CommitFailed of String
-
-/// One line for a `CommitError`, for callers with nowhere to show a full report.
-let commitErrorMessage (error: CommitError) : String =
-  match error with
-  | TypeCheckFailed report ->
-    let count = Stdlib.List.length report.diagnostics
-    $"at-rest type check failed ({Stdlib.Int.toString count} type errors); "
-    ++ "fix them or commit with --allow-type-errors"
-  | CommitFailed message -> message
-
-
-/// Commit all WIP ops, refusing definite type errors unless
-/// <param allowTypeErrors> is set.
-let commit
-  (accountId: Uuid)
-  (branchId: Uuid)
-  (message: String)
-  (allowTypeErrors: Bool)
-  : Stdlib.Result.Result<String, CommitError> =
-  // Full commit means committing every WIP op id.
-  let opIds =
-    branchId |> getWipWithIds |> Stdlib.List.map (fun e -> e.id)
-
-  if Stdlib.List.isEmpty opIds then
-    Stdlib.Result.Result.Error(CommitError.CommitFailed "Nothing to commit")
-  else
-    commitOpIds accountId branchId message opIds allowTypeErrors
-
-
-/// Include declaration bodies published by selected `SetName` ops, preventing a
-/// partial commit from checking only location rows.
-let opsForCommitTypeCheck
-  (allWipOps: List<LanguageTools.ProgramTypes.PackageOp>)
-  (selectedOps: List<LanguageTools.ProgramTypes.PackageOp>)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
-  let selectedTargets =
-    selectedOps
-    |> Stdlib.List.filterMap (fun op ->
-      match op with
-      | SetName (_, target) -> Stdlib.Option.Option.Some target
-      | _ -> Stdlib.Option.Option.None)
-
-  let referencedAdds =
-    allWipOps
-    |> Stdlib.List.filter (fun op ->
-      let target =
-        match op with
-        | AddType typ ->
-          Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageType typ.hash)
-        | AddValue value ->
-          Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageValue value.hash)
-        | AddFn fn ->
-          Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
-        | _ -> Stdlib.Option.Option.None
-
-      match target with
-      | Some target -> Stdlib.List.member selectedTargets target
-      | None -> false)
-
-  Stdlib.List.append selectedOps referencedAdds
-
-
-/// Commit selected WIP ops after rechecking them as one batch. Selected names pull
-/// in their WIP bodies so a location cannot publish unchecked content.
-let commitOpIds
-  (accountId: Uuid)
-  (branchId: Uuid)
-  (message: String)
-  (opIds: List<Uuid>)
-  (allowTypeErrors: Bool)
-  : Stdlib.Result.Result<String, CommitError> =
-  let store () : Stdlib.Result.Result<String, CommitError> =
-    match Builtin.scmCommitWipOpsByIds accountId branchId message opIds with
-    | Ok commitHash -> Stdlib.Result.Result.Ok commitHash
-    | Error message -> Stdlib.Result.Result.Error(CommitError.CommitFailed message)
-
-  if allowTypeErrors then
-    store ()
-  else
-    let allWip = getWipWithIds branchId
-    let selectedOps =
-      allWip
-      |> Stdlib.List.filter (fun e -> Stdlib.List.member opIds e.id)
-      |> Stdlib.List.map (fun e -> e.op)
-    let allWipOps = allWip |> Stdlib.List.map (fun e -> e.op)
-    let checkOps = opsForCommitTypeCheck allWipOps selectedOps
-    let report = LanguageTools.AtRestTypeChecker.checkPackageOps checkOps
-    match report.verdict with
-    | Failed -> Stdlib.Result.Result.Error(CommitError.TypeCheckFailed report)
-    | Checked
-    | Incomplete -> store ()
-
-
-/// Discard all WIP ops on a branch
-/// Returns the count of discarded ops on success, or an error message on failure
-let discard (branchId: Uuid) : Stdlib.Result.Result<Int, String> =
-  Builtin.scmDiscard branchId
-
-
-/// Get commit log for a branch ordered by date descending
-let getCommits (branchId: Uuid) (limit: Int) : List<Commit> =
-  Builtin.scmGetCommits branchId limit
-
-
-/// Get commit log across the entire branch chain (current + ancestors),
-/// ordered by date descending.
-let getCommitsWithAncestors (branchId: Uuid) (limit: Int) : List<Commit> =
-  Builtin.scmGetCommitsForBranchChain branchId limit
-
-
-/// Get ops for a specific commit
-let getCommitOps (commitHash: String) : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetCommitOps commitHash
-
-
-/// The ops in a commit that name or deprecate something, capped at <param limit>, with the total
-/// count of them alongside.
+/// This instance's sync identity, minted on first use.
 ///
-/// <fn getCommitOps> turns every op in the commit into a Dark value, and the init commit holds tens
-/// of thousands of them. Rendering a twelve-line summary that way took over a second.
-let getCommitNamedOps
-  (commitHash: String)
-  (limit: Int)
-  : (List<LanguageTools.ProgramTypes.PackageOp> * Int) =
-  Builtin.scmGetCommitNamedOps commitHash limit
+/// An instance is a STORE, not a person or a machine: two clones of a store are two instances. Copying a
+/// database copies its config, so the id is stamped with where it was minted and re-minted when that no
+/// longer matches -- two peers sharing an id cannot sync or record a conflict against each other.
+///
+/// Gap: a store copied to the same PATH on another machine keeps its id. Closing that needs a hostname
+/// builtin that doesn't exist.
+let identity () : String =
+  let here = Stdlib.LocalStore.path ()
+  let stored = Stdlib.LocalStore.configGet "sync.identity"
+  let mintedAt = Stdlib.LocalStore.configGet "sync.identity.origin"
+
+  // Only an AUTO-MINTED id is ever replaced: a name someone chose deliberately (`dark identity alice`) is
+  // theirs and survives being copied.
+  let autoMinted = Stdlib.String.startsWith stored "inst-"
+
+  if (stored != "") && ((mintedAt == here) || (autoMinted |> Stdlib.Bool.not)) then
+    stored
+  else
+    let generated = $"inst-{Stdlib.Uuid.toString (Stdlib.Uuid.generate ())}"
+    Stdlib.LocalStore.configSet "sync.identity" generated
+    Stdlib.LocalStore.configSet "sync.identity.origin" here
+    generated
+
+
+/// Whether <param name> can be an instance identity, and why not when it cannot.
+///
+/// An identity travels as a query parameter and comes back in the relay's owner listing, one owner
+/// per line. So a space makes that listing unparseable and every peer's automatic branch sync
+/// silently skips you, and an `&` is read as a second parameter, which files your ops under two
+/// owners and makes your branches unpullable by name. Neither fails loudly anywhere.
+///
+/// Letters, digits, dot, dash and underscore. Narrow on purpose: an identity is a name you retype on
+/// another machine, and the auto-minted `inst-<uuid>` fits well inside it.
+let identityProblem (name: String) : Stdlib.Option.Option<String> =
+  if name == "" then
+    Stdlib.Option.Option.Some "an identity can't be empty"
+  else
+    let bad =
+      name
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        let ok =
+          (Stdlib.Char.isAlphanumeric c)
+          || (c == '.')
+          || (c == '-')
+          || (c == '_')
+
+        Stdlib.Bool.not ok)
+
+    match bad with
+    | [] -> Stdlib.Option.Option.None
+    | c :: _ ->
+      let shown = Stdlib.Char.toString c
+      Stdlib.Option.Option.Some
+        $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
+
+
+/// Set (or change) this instance's sync identity. Refuses one that cannot survive the round trip.
+let setIdentity (name: String) : Stdlib.Result.Result<Unit, String> =
+  match identityProblem name with
+  | Some why -> Stdlib.Result.Result.Error why
+  | None ->
+    let _ = Stdlib.LocalStore.configSet "sync.identity" name
+    Stdlib.Result.Result.Ok()
+
+
+/// The remembered default relay URL, or "" if none (so `dark sync` needs no url).
+let relay () : String = Stdlib.LocalStore.configGet "sync.relay"
+
+let setRelay (url: String) : Unit =
+  let _ = Stdlib.LocalStore.configSet "sync.relay" url
+  ()
+
+
+/// What a sync-import from <param sourceId> will reconcile. `conflicts` are detected but NOT yet recorded,
+/// and `names` are the names the import touches (they become the new bases once the fold lands).
+/// `bulk` means the import was ADOPTED WHOLESALE without per-name detection; `detected` says whether the
+/// detector actually ran, so a caller never reports "no conflicts" when it really means "didn't look".
+type SyncPlan =
+  { conflicts: List<Conflicts.Conflict>
+    bulk: Bool
+    detected: Bool }
+
+
+/// A lightweight op-log row for display (no op_blob decode): what `dark ops` shows.
+type OpSummary =
+  { id: String
+    sizeBytes: Int64
+    ts: String
+    /// The op itself, so a listing can say what the op DOES rather than how many bytes it
+    /// is. `None` for an op this build's deserializer cannot read, which a synced store
+    /// holds on purpose; the row still lists, it just cannot describe itself.
+    op: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> }
+
+
+/// What a branch REF resolved to. A DU rather than an Option because "no such branch" and "that could be
+/// several branches" want different words from the caller, and an Option would flatten them into one.
+type BranchRefResult =
+  | Found of Uuid
+  /// Not a live name, not an id, not a prefix: a name this store has never had. The ONE miss a write
+  /// verb may answer by starting a branch.
+  | NotFound
+  /// A full id, and no branch here has it: a peer's, or a mispaste. Never something to start a branch
+  /// named after.
+  | UnknownId of Uuid
+  /// The prefix matched more than one branch.
+  | Ambiguous
+

@@ -44,8 +44,44 @@ let asBytes (v: Value) : Stdlib.Option.Option<Blob> =
 let execP (dbPath: String) (sql: String) (params: List<String>) : Stdlib.Result.Result<Int, String> =
   Builtin.sqliteExec dbPath sql params
 
+/// Run several statements against <param dbPath> in ONE transaction: either all of it lands or none
+/// does.
+///
+/// Each entry is a statement and the parameter rows to run it for, so one statement can be run many
+/// times (the bulk-insert shape). A statement with no rows runs once with no parameters.
+///
+/// Returns rows affected per PARAMETER ROW, in order, flattened across statements. Not a total: a
+/// caller has to be able to tell a real insert from an `INSERT OR IGNORE` that deduped, and a sum
+/// cannot express that.
+let execBatch
+  (dbPath: String)
+  (statements: List<(String * List<List<String>>)>)
+  : Stdlib.Result.Result<List<Int>, String> =
+  Builtin.sqliteExecBatch dbPath statements
+
+
 let exec (dbPath: String) (sql: String) : Stdlib.Result.Result<Int, String> =
   execP dbPath sql []
+
+/// <fn execP> for a write the caller has no way to recover from: a failure RAISES, carrying SQLite's
+/// message, rather than coming back as a Result to be dropped on the floor.
+///
+/// `let _ = Stdlib.Sqlite.execP ...` is the shape this exists to replace: a write whose failure goes
+/// nowhere, with the caller printing "archived" or "recorded" on the strength of the call returning at
+/// all. A write that fails and says nothing is worse than one that crashes, because the crash at least
+/// tells you the store and your belief about it have parted ways.
+///
+/// Use <fn execP> when a failure is a case the caller handles. Use this when it is not.
+let mustExec (dbPath: String) (sql: String) (params: List<String>) : Int =
+  Builtin.unwrap (execP dbPath sql params)
+
+
+/// <fn execBatch>, raising on failure. Same reasoning as <fn mustExec>.
+let mustExecBatch
+  (dbPath: String)
+  (statements: List<(String * List<List<String>>)>)
+  : List<Int> =
+  Builtin.unwrap (execBatch dbPath statements)
 
 /// Like <fn query> but binds <param params> to @p0..@pN placeholders (injection-safe). The single caller of
 /// the query builtin — <fn query> delegates here.
@@ -80,6 +116,12 @@ let textField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<St
 let intField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<Int64> =
   match Stdlib.Dict.get row col with
   | Some v -> asInt v
+  | None -> Stdlib.Option.Option.None
+
+/// The Blob value of column <param col> in <param row>, or None if missing/non-blob.
+let bytesField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<Blob> =
+  match Stdlib.Dict.get row col with
+  | Some v -> asBytes v
   | None -> Stdlib.Option.Option.None
 
 /// The first row of <param sql> (or None if it returned no rows / errored).
@@ -123,4 +165,67 @@ let scalarIntP
   : Stdlib.Option.Option<Int64> =
   match queryOneP dbPath sql params with
   | Some row -> intField row col
+  | None -> Stdlib.Option.Option.None
+
+
+/// Every row of <param sql> (with <param params> bound), decoded by <param decode>;
+/// rows the decoder declines are dropped, and a failed query gives []. The scaffolding
+/// behind most read paths: the SQL, the params and the per-row decode stay at the
+/// call site, the match around them lives here.
+let rowsP
+  (dbPath: String)
+  (sql: String)
+  (params: List<String>)
+  (decode: Dict<String, Value> -> Stdlib.Option.Option<'a>)
+  : List<'a> =
+  match queryP dbPath sql params with
+  | Ok rows -> Stdlib.List.filterMap rows decode
+  | Error _ -> []
+
+/// The raw rows of <param sql>, [] on a failed query -- for callers that hand whole
+/// rows to a shared decoder rather than decoding per column at the call site.
+let rowsOrEmptyP
+  (dbPath: String)
+  (sql: String)
+  (params: List<String>)
+  : List<Dict<String, Value>> =
+  match queryP dbPath sql params with
+  | Ok rows -> rows
+  | Error _ -> []
+
+/// <fn column> with injection-safe params.
+let columnP
+  (dbPath: String)
+  (sql: String)
+  (params: List<String>)
+  (col: String)
+  : List<String> =
+  rowsP dbPath sql params (fun row -> textField row col)
+
+/// <fn scalarIntP>'s text twin: the text in <param col> of the first row, or
+/// <param dflt> when the query fails, returns no rows, or the cell isn't text.
+let scalarTextP
+  (dbPath: String)
+  (sql: String)
+  (params: List<String>)
+  (col: String)
+  (dflt: String)
+  : String =
+  match queryOneP dbPath sql params with
+  | Some row -> textField row col |> Stdlib.Option.withDefault dflt
+  | None -> dflt
+
+/// <fn textField> with a "" default -- for decoders where a missing/non-text cell
+/// reads as empty rather than as a skipped row.
+let textOr (row: Dict<String, Value>) (col: String) : String =
+  textField row col |> Stdlib.Option.withDefault ""
+
+/// <fn textField> parsed as a Uuid: None on a missing/non-text cell or an id that
+/// doesn't parse.
+let uuidField (row: Dict<String, Value>) (col: String) : Stdlib.Option.Option<Uuid> =
+  match textField row col with
+  | Some s ->
+    match Stdlib.Uuid.parse s with
+    | Ok u -> Stdlib.Option.Option.Some u
+    | Error _ -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
