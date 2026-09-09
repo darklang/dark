@@ -185,7 +185,10 @@ let steps : List<Step> =
     // Without this the resolution path could name the conflict but not what it was about.
     { name = "20260909_000002_conflicts_part"
       run =
-        fun () -> addColumnIfMissing "conflicts" "part" "TEXT NOT NULL DEFAULT ''" } ]
+        fun () -> addColumnIfMissing "conflicts" "part" "TEXT NOT NULL DEFAULT ''" }
+
+    // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
+    ]
 
 
 let private alreadyRun () : Set<string> =

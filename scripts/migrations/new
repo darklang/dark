@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Start a schema change, scaffolding BOTH halves of it.
+#
+#   scripts/migrations/new add_thing
+#
+# A schema change is always two things, and forgetting the second is the whole reason this
+# script exists:
+#
+#   1. backend/migrations/schema/<YYYYMMDD-HHMMSS>-<tag>.sql -- the shape a NEW store is born
+#      with. Hyphens, to match the numbered subsystem files beside it.
+#      Read in filename order and concatenated, so a stamped file applies after the numbered
+#      subsystem files, which is the right order for anything that builds on them.
+#
+#   2. a step in backend/src/LibDB/Releases.fs -- how the change reaches a store that ALREADY
+#      exists. `CREATE TABLE IF NOT EXISTS` no-ops against a table that is already there, so
+#      nothing in (1) ever reaches an existing store on its own.
+#
+# Each names the other in a comment, so the two halves of one change are greppable as a pair.
+#
+# Where to put WHAT:
+#   - a new TABLE or INDEX          -> the stamped .sql, and create it in the step too
+#   - a new COLUMN on an existing table -> that table's numbered subsystem file, so the table
+#     stays defined in one place, and `addColumnIfMissing` in the step
+#
+# The step's name is its identity in system_migrations_v0: renaming one re-runs it, and the
+# list is append-only for that reason.
+
+case "${1:-}" in
+  -h|--help) sed -n '6,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  # A tag is a name, not a flag. Without this, `new --help` cheerfully created
+  # <stamp>---help.sql.
+  -*) echo "Not a tag: $1. Try --help" >&2; exit 1 ;;
+  "") echo "usage: $0 <short_tag>" >&2; exit 1 ;;
+esac
+[[ "$#" -eq 1 ]] || { echo "usage: $0 <short_tag>" >&2; exit 1; }
+
+NAME="$1"
+STAMP=$(date -u +%Y%m%d-%H%M%S)
+# Hyphens in the filename, to match the numbered subsystem files beside it; underscores in the
+# step name, to match the fourteen already in the list. Each names the other, so the pair greps.
+STEP="$(date -u +%Y%m%d_%H%M%S)_${NAME}"
+TAG="${NAME//_/-}"
+SQL="backend/migrations/schema/${STAMP}-${TAG}.sql"
+RELEASES="backend/src/LibDB/Releases.fs"
+ANCHOR="    // NEW STEPS GO ABOVE THIS LINE"
+
+grep -q "$ANCHOR" "$RELEASES" || {
+  echo "Can't find the anchor comment in $RELEASES; add it back or edit the list by hand." >&2
+  exit 1
+}
+
+cat > "$SQL" <<EOF
+-- <what this change is, in a line>
+--
+-- The from-scratch half. A new store gets this; an existing one gets the matching step
+-- "${STEP}" in backend/src/LibDB/Releases.fs.
+--
+-- A new COLUMN belongs in its table's numbered file instead, so the table stays defined in one
+-- place. This file is for a new table or index.
+EOF
+
+# Inserted above the anchor, so the list stays append-only and nothing else in the file moves.
+python3 - "$RELEASES" "$ANCHOR" "$STEP" "$SQL" <<'PY'
+import sys
+path, anchor, name, sql = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+src = open(path).read()
+step = (
+    '    // <what this change is, and why it is safe against a store that already has it>\n'
+    f'    // Declared for a fresh store in {sql}.\n'
+    f'    {{ name = "{name}"\n'
+    '      run = fun () -> () }\n\n'
+)
+assert anchor in src
+open(path, 'w').write(src.replace(anchor, step + anchor, 1))
+PY
+
+git add "$SQL" "$RELEASES"
+
+echo "Created ${SQL}"
+echo "Added step \"${STEP}\" to ${RELEASES}"
+echo
+echo "Fill in both. The .sql is what a fresh store is born with; the step is how an existing"
+echo "store gets there. They run on the next scripts/dev/build."

@@ -103,6 +103,11 @@
   `.sql` file cannot look at the store before acting, and every change to an existing
   store has to.
 
+- `scripts/migrations/new <tag>` scaffolds BOTH halves and cross-references them, which is
+  the point: forgetting the second is the mistake this is built to stop. A new column goes
+  in its table's numbered subsystem file rather than the stamped one, so a table stays
+  defined in one place.
+
 - they run as part of `scripts/dev/build`; there's no separate step
 
 ### Initialization
