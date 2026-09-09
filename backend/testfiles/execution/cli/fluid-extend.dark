@@ -540,3 +540,58 @@ module ACollapseTheKernelDoesNotKnow =
 
   // A spec that says nothing still gets nothing: the kernel invents no survivor of its own.
   (ACollapseTheKernelDoesNotKnow.target false) = "none"
+
+
+module AnUndoTheKernelDoesNotKnow =
+  // The other half of collapsing. `collapsesTo` answers "which child survives when the KEYWORD is
+  // deleted"; this answers the same question for a construct that has no keyword, where what says "I did
+  // not want this" is the trailing hole being empty. That was three arms naming EInfix, MPListCons and
+  // EPipe, with a doc comment above them already stating the general rule.
+  //
+  // `Acme.Pair` is nothing Darklang defines: `<a> ~ <b>`, collapsing to its left when the right is
+  // emptied. It gets the backspace because its spec says which slot triggers and which survives.
+  let pairKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Pair"
+
+  let sideExpect () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Prims.intKind ()) "side"
+
+  let emptyPair () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (AnUndoTheKernelDoesNotKnow.pairKind ())
+      [ ("first", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(AnUndoTheKernelDoesNotKnow.sideExpect ())))
+        ("second", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(AnUndoTheKernelDoesNotKnow.sideExpect ()))) ]
+
+  let spec (collapses: Bool) : Darklang.Fluid.Spec =
+    let base =
+      Darklang.Fluid.Spec.simple
+        (AnUndoTheKernelDoesNotKnow.pairKind ())
+        [ Darklang.Fluid.Piece.Slot "first"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Punct "~"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Slot "second" ]
+        (AnUndoTheKernelDoesNotKnow.emptyPair ())
+
+    if collapses then
+      Darklang.Fluid.Spec.collapsingWhenEmptied base "second" "first"
+    else
+      base
+
+  let screen (collapses: Bool) (keys: List<String>) : String =
+    let reg =
+      Darklang.Fluid.Registry.ofList
+        (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ AnUndoTheKernelDoesNotKnow.spec collapses ] ])
+
+    Darklang.Fluid.Test.runFrom
+      reg
+      (Darklang.Fluid.Slot.Filled(AnUndoTheKernelDoesNotKnow.emptyPair ()))
+      60
+      (Darklang.Fluid.Caret.inSlot [] "first" 0)
+      keys
+
+  // Fill both sides, delete the right one back to a hole, then backspace again: the pair is gone and the
+  // left operand is what is left.
+  (AnUndoTheKernelDoesNotKnow.screen true [ "1", "<Tab>", "2", "<BS>", "<BS>" ]) = "1~"
+
+  // A spec that says nothing keeps its hole. The kernel invents no survivor of its own.
+  (AnUndoTheKernelDoesNotKnow.screen false [ "1", "<Tab>", "2", "<BS>", "<BS>" ]) = "1 ~ ~⟨side⟩"

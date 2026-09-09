@@ -290,6 +290,18 @@ type Spec =
     /// no fields), and says in its own comment that anything a DSL builds the same way gets the key for
     /// free. This half was a list of four kind names, so it did not.
     collapsesTo: Stdlib.Option.Option<String>
+    /// `(trigger, survivor)`: emptying `trigger` and pressing backspace again collapses this node to
+    /// `survivor`. An infix `1 + <>` goes back to `1`, a cons `h :: <>` to `h`, a pipe `a |> <>` to `a`.
+    ///
+    /// Its neighbour `collapsesTo` answers the same question -- which child survives -- for a different
+    /// trigger, the KEYWORD being deleted. This one is for constructs that have no keyword to delete,
+    /// where what says "I did not want this after all" is the trailing hole being empty. Three arms of a
+    /// match on kind names, and the doc comment above them already stated the general rule while the
+    /// code beside it listed EInfix, MPListCons and EPipe.
+    ///
+    /// `trigger` may be a `One` slot or a `Many` field; the Many case fires when it holds exactly one
+    /// item and that item is empty, which is what a fresh pipe stage looks like.
+    collapsesWhenEmptied: Stdlib.Option.Option<(String * String)>
     /// Does a hole of this kind INTRODUCE a name rather than reference one?
     ///
     /// A space or a Tab commits an unambiguous keyword PREFIX, which is how `le` becomes `let`. That is
@@ -364,6 +376,7 @@ module Spec =
         closer = Stdlib.Option.Option.None
         operands = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
+        collapsesWhenEmptied = Stdlib.Option.Option.None
         bindsNames = false
         completions = []
         complete = noCompletions
@@ -406,6 +419,10 @@ module Spec =
   /// A spec that says which of its children survives when the construct is deleted.
   let collapsingTo (spec: Spec) (slot: String) : Spec =
     { spec with collapsesTo = Stdlib.Option.Option.Some slot }
+
+  /// A spec that collapses to `survivor` when `trigger` is emptied and backspaced again.
+  let collapsingWhenEmptied (spec: Spec) (trigger: String) (survivor: String) : Spec =
+    { spec with collapsesWhenEmptied = Stdlib.Option.Option.Some((trigger, survivor)) }
 
   /// A spec whose holes introduce names rather than reference them.
   let bindsItsNames (spec: Spec) : Spec = { spec with bindsNames = true }

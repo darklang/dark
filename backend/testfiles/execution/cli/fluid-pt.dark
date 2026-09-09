@@ -1134,7 +1134,7 @@ module PutChecksWhatTheSlotWants =
   (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "y", "j", "p" ]) =
     "can't put EString into step || \"a\" |> f"
   (PutChecksWhatTheSlotWants.after "\"a\" |> f" [ "<Esc>", "j", "j", "y", "k", "p" ]) =
-    "can't put EPipeVariable into first || \"a\" |> f"
+    "can't put EPipeVariable into value || \"a\" |> f"
 
   // An expression onto an expression is still just a put.
   (PutChecksWhatTheSlotWants.after "1 + 2" [ "<Esc>", "j", "y", "j", "p" ]) = "put EInt || 1 + 1"
@@ -1831,3 +1831,36 @@ module AMatchGuardIsSpacedLikeThePrinter =
 
   (AMatchGuardIsSpacedLikeThePrinter.drawn "match n with\n| Some v when v > 2 -> v\n| _ -> 0") =
     "match n with\n| Some(v) when v > 2 -> v\n| _ -> 0"
+
+
+module TypingAConstructorResolvesIt =
+  // Type `Stdlib.Option.Some 1` into Fluid and it comes back as `Option.Some(1)`. That looks like a
+  // round-trip failure and is not one.
+  //
+  // The parser does not resolve an enum's TYPE name: `toDoc` on parsed source stores the qualifier you
+  // typed, verbatim, with an empty hash, and the printer echoes it back. Fluid's completion goes through
+  // the package store, so it stores the resolved location and a real hash -- and then prints it the way
+  // `PrettyPrinter.shortenName` prints any resolved name, which for `Darklang.Stdlib.Option.Option` is
+  // bare `Option` (the resolver gives Option and Result an unconditional stdlib fallback, so the
+  // shortening is safe).
+  //
+  // So the two spellings are the printer agreeing with itself about two different inputs, one resolved
+  // and one not. Both parse back to the same program, which is what the second pin here checks.
+  //
+  // Recording it because I chased it once as a bug in Fluid's naming, and the shape -- a completion that
+  // stores a shortened name -- is a bug I DID have twice, in EFnName and EValue.
+  let typed (src: String) : String =
+    Darklang.Fluid.PT.Test.program
+      (Darklang.Fluid.App.defaultRegistry ())
+      (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
+      (Stdlib.List.append
+        (Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c))
+        [ "<Esc>" ])
+
+  (TypingAConstructorResolvesIt.typed "Stdlib.Option.Some 1") = "Option.Some(1)"
+  (TypingAConstructorResolvesIt.typed "Stdlib.Option.None ") = "Option.None"
+  (TypingAConstructorResolvesIt.typed "Stdlib.Result.Ok 1") = "Result.Ok(1)"
+
+  // ...and the short spelling is real source: it parses, and printing it again is stable.
+  (Fixtures.roundTrip "Option.Some(1)") = "Option.Some(1)"
+  (Fixtures.roundTrip "Result.Ok(1)") = "Result.Ok(1)"

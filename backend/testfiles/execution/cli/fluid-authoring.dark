@@ -202,7 +202,7 @@ module DeleteKeyword =
 
   // Backspacing the name doesn't nuke the let -- the value and body stand; the emptied name just returns
   // to a hole (like any single-value leaf), so you can retype it.
-  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨pattern⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
 
   // Collapse nests: an empty `if` in a let body collapses to a hole, and you keep typing the body.
   (Fixtures.program [ "l", "e", "t", " ", "x", " ", "1", " ", "i", "f", " ", "<BS>", "x", "<Esc>" ]) = "let x = 1\nx"
@@ -457,7 +457,7 @@ module LeafBackspaceRevertsToHole =
   (Fixtures.screen [ "1", "2", "<BS>" ]) = "1~"
   (Fixtures.screen [ "1", ".", "5", "<BS>" ]) = "1.~fraction"
   // An operand emptied inside an infix becomes a clean hole, not a zombie.
-  (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨expression⟩"
+  (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = "1 + ~⟨right⟩"
 
 
 module OrChainAssociates =
@@ -1915,12 +1915,12 @@ module BackspaceAfterAClosingBracketStepsInside =
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"abc\"") [ "<BS>" ])) = "\"abc~\""
 
   // And then it deletes, so holding the key does the obvious thing.
-  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>", "<BS>" ])) = "[~⟨expression⟩]"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>", "<BS>" ])) = "[~⟨item⟩]"
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "\"ab\"") [ "<BS>", "<BS>", "<BS>" ])) = "~⟨expression⟩"
 
   // Backspace where there IS text behind the caret is untouched.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "s.width") [ "<BS>" ])) = "s.widt~"
-  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1+2") [ "<BS>" ])) = "1 + ~⟨expression⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1+2") [ "<BS>" ])) = "1 + ~⟨right⟩"
 
 
 module AnEmptyCollectionBackspacesAway =
@@ -2551,3 +2551,24 @@ module AnEmptyContainerIsAValueNotAHole =
 
   // This one always worked, and says why the others did not: the rule only ever inspects the LAST item.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "[(), 1]") [ "<Esc>" ])) = "[(), 1]"
+
+
+module AHoleRemembersWhatGoesInIt =
+  // Two ways to empty a slot -- backspace out the last character, or `x` on the node -- used to leave
+  // holes that said different things. Backspace built an Expect from the DELETED node's kind plus a label
+  // sniffed out of the type name ("Pattern" in it, or else "expression"); `x` asked the parent. So `[1`
+  // backspaced gave `[⟨expression⟩]` where clearing it gave `[⟨item⟩]`, and the label is not cosmetic: it
+  // is what the hole completes to.
+  //
+  // Both ask `expectForSlot` now, and it gained the case it was missing. A FILLED slot has no Expect on
+  // it -- the Expect belonged to the Empty that got replaced -- so the fallback was the slot's NAME,
+  // which is close enough to look right and is not the same thing. The spec's template node is the same
+  // node with every slot empty, so the declared expectation is still there to be read.
+  (Fixtures.screen [ "1", "+", "2", "<BS>" ]) = (Fixtures.screen [ "1", "+", "2", "<Esc>", "x" ])
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "[1]") [ "<BS>", "<BS>" ])) = "[~⟨item⟩]"
+
+  // A let's binder is the slot `pat` and the hole says `⟨name⟩`, which is what typing `let` gives you.
+  // Backspacing back to empty puts the slot back the way it started.
+  (Fixtures.screen [ "l", "e", "t", " ", "x", "<BS>" ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "Stdlib.List.length xs") [ "<Esc>", "x" ])) =
+    "Stdlib.List.length ~⟨arg⟩"

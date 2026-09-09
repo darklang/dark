@@ -917,6 +917,16 @@ let expectForSlot (st: State) (path: Path) : Expect =
           | Some(Item(slot, _)) ->
             nodeAtPath st.root pp
             |> Stdlib.Option.andThen (fun n -> Node.itemExpect n slot)
+          // What a FILLED slot expects is nowhere on the node: the Expect lived on the Empty that got
+          // replaced. The spec still has it, because its template is the same node with every slot empty,
+          // so the declared label survives being typed into. The fallback below is the slot's NAME, which
+          // is close enough to look right and is not the same thing -- a let's binder is the slot `pat`
+          // and the hole says `⟨name⟩`.
+          | Some(Into slot) ->
+            nodeAtPath st.root pp
+            |> Stdlib.Option.andThen (fun n -> Registry.find st.reg n.kind)
+            |> Stdlib.Option.andThen (fun spec -> Node.slot spec.empty slot)
+            |> Stdlib.Option.andThen (fun sl -> Slot.expect sl)
           | _ -> Stdlib.Option.Option.None
         | None -> Stdlib.Option.Option.None
       match fromParent with
@@ -1167,6 +1177,12 @@ let operandsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String
   | None -> Stdlib.Option.Option.None
 
 let isBinary (reg: Registry) (n: Node) : Bool = Stdlib.Option.isSome (operandsOf reg n)
+
+/// The `(trigger, survivor)` pair this node's spec declares for a collapse-on-empty, if it has one.
+let emptiedCollapseOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String)> =
+  match Registry.find reg n.kind with
+  | Some spec -> spec.collapsesWhenEmptied
+  | None -> Stdlib.Option.Option.None
 
 /// The closing behaviour this node's spec declares, if it has one. See `Spec.Closer`.
 ///
@@ -3107,6 +3123,9 @@ let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
 /// Backspace on the empty trailing hole of a binary construct collapses it to its primary operand: an
 /// infix `1 + ⟨⟩` back to `1`, a cons `h :: ⟨⟩` to `h`, a fresh pipe `a |> ⟨⟩` to `a`. So deleting the
 /// right operand then pressing backspace again undoes the operator, rather than stranding an empty hole.
+///
+/// Which slot triggers it and which survives comes from `collapsesWhenEmptied`. This comment stated the
+/// general rule for a while; the code under it was three arms naming EInfix, MPListCons and EPipe.
 let tryCollapseBinary (st: State) : Stdlib.Option.Option<State> =
   let caret = st.caret
   if caret.offset != 0 then
@@ -3129,22 +3148,26 @@ let tryCollapseBinary (st: State) : Stdlib.Option.Option<State> =
             | None -> navCaretFor st1.root caret.node
           Stdlib.Option.Option.Some { st1 with caret = caret2; mode = Mode.Insert }
         | None -> Stdlib.Option.Option.None
-      match n.kind.case with
-      | Some "EInfix" -> if onEmptySlot "right" then collapseTo "left" else Stdlib.Option.Option.None
-      | Some "MPListCons" -> if onEmptySlot "tail" then collapseTo "head" else Stdlib.Option.Option.None
-      | Some "EPipe" ->
-        // A pipe with a single empty stage collapses to what was being piped.
-        let steps = Node.items n "steps"
-        let onEmptyStep =
-          (match caret.part with
-           | InItem(s, _) -> s == "steps"
-           | _ -> false)
-          && ((Stdlib.List.length steps) == 1)
-          && (match Stdlib.List.head steps with
-              | Some(Empty _) -> true
-              | _ -> false)
-        if onEmptyStep then collapseTo "first" else Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None
+      // A `Many` trigger fires only when it holds exactly ONE item and that item is empty, which is what
+      // a fresh pipe stage looks like. Emptying the last of several steps is a step being deleted, not
+      // the pipe being undone.
+      let onEmptyItems (slotName: String) : Bool =
+        let items = Node.items n slotName
+        (match caret.part with
+         | InItem(s, _) -> s == slotName
+         | _ -> false)
+        && ((Stdlib.List.length items) == 1)
+        && (match Stdlib.List.head items with
+            | Some(Empty _) -> true
+            | _ -> false)
+      match emptiedCollapseOf st.reg n with
+      | Some pair ->
+        let (trigger, survivor) = pair
+        if (onEmptySlot trigger) || (onEmptyItems trigger) then
+          collapseTo survivor
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None
 
 /// Backspace in an empty `${}` interpolation removes it and merges the text segments on either side back
@@ -3237,9 +3260,12 @@ let backspace (st: State) : State =
       if (slot == "op") && (n.kind.case == Stdlib.Option.Option.Some "EInfix") && ((Stdlib.String.length old) <= 1) then
         collapseInfix st caret.node n
       elif (caret.offset > 0) && (updated == "") && onlyEditable then
-        let label = if Stdlib.String.contains (Kind.typeName n.kind) "Pattern" then "pattern" else "expression"
-        let e = Expect.ofKind (Kind.named (Kind.typeName n.kind)) label
-        let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty e) ] caret
+        // What the hole left behind EXPECTS is the parent's question, and `expectForSlot` is where it is
+        // already answered -- it is what `x` uses. This built its own instead, from the deleted node's
+        // own kind plus a label sniffed out of the type name, so the two paths to the same empty slot
+        // disagreed: `[1` backspaced gave `[⟨expression⟩]` where clearing it gave `[⟨item⟩]`, and the
+        // wrong one is not just a label, it is what completes there.
+        let st1 = commit st [ Edit.Replace(caret.node, Slot.Empty(expectForSlot st caret.node)) ] caret
         { st1 with caret = navCaretFor st1.root caret.node; mode = Mode.Insert }
       elif caret.offset <= 0 then
         st

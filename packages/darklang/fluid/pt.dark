@@ -1801,6 +1801,7 @@ let pipeTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
+      collapsesWhenEmptied = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
@@ -2204,6 +2205,7 @@ let exprTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
+      collapsesWhenEmptied = Stdlib.Option.Option.None
       bindsNames = false
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps"; continuesText = false }
@@ -2294,6 +2296,7 @@ let letPatTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
+      collapsesWhenEmptied = Stdlib.Option.Option.None
       bindsNames = true
       completions =
         [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
@@ -2361,6 +2364,7 @@ let matchPatTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
+      collapsesWhenEmptied = Stdlib.Option.Option.None
       bindsNames = true
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts"; continuesText = false }
@@ -2451,6 +2455,7 @@ let moreSpecs () : List<Spec> =
       (simpleOf (matchPatKind "MPList") (bracketedPieces "[" "items" "]") (Node.make (matchPatKind "MPList") [ ("items", Field.Many([], matchPatExpect "pattern")) ]))
       (Closer { char = "]"; slot = "items"; whenEmpty = Stdlib.Option.Option.None; soloIsGroup = false })
     simpleOf (matchPatKind "MPListCons") [ Piece.Slot "head", Piece.Space, Piece.Punct "::", Piece.Space, Piece.Slot "tail" ] (Node.make (matchPatKind "MPListCons") [ ("head", Field.One(Slot.Empty(matchPatExpect "head"))), ("tail", Field.One(Slot.Empty(matchPatExpect "tail"))) ])
+    |> fun sp -> Spec.collapsingWhenEmptied sp "tail" "head"
     Spec.closesWith
       (simpleOf (matchPatKind "MPTuple") (bracketedPieces "(" "items" ")") (Node.make (matchPatKind "MPTuple") [ ("items", Field.Many([ Slot.Empty(matchPatExpect "a"), Slot.Empty(matchPatExpect "b") ], matchPatExpect "pattern")) ]))
       (Closer { char = ")"; slot = "items"; whenEmpty = Stdlib.Option.Option.Some "MPUnit"; soloIsGroup = true })
@@ -2485,6 +2490,7 @@ let moreSpecs () : List<Spec> =
           [ Piece.Slot "first"
             Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
+    |> fun sp -> Spec.collapsingWhenEmptied sp "steps" "first"
     Spec.withWrapRules
       (simpleOf (pipeKind "EPipeVariable") [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
       [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false } ]
@@ -2710,6 +2716,7 @@ let baseSpecs () : List<Spec> =
         [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ]))
       "left"
       "right"
+    |> fun sp -> Spec.collapsingWhenEmptied sp "right" "left"
     simpleExpr
       "ELambda"
       // Parenthesised for the same reason a lambda pipe step is: a bare `fun x -> ...` runs to the end of
@@ -2990,6 +2997,7 @@ module Types =
         closer = Stdlib.Option.Option.None
         operands = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
+        collapsesWhenEmptied = Stdlib.Option.Option.None
         bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
