@@ -1,0 +1,191 @@
+module Darklang.Cli.Sync
+
+// The review queue: a peer's ops staged INERT on a review branch, approved or rejected by hand.
+//
+// Staged ops are stored with `effective = 0`, so they are present and unrunnable until somebody
+// says otherwise. Approving folds them; rejecting archives the branch and leaves them stored.
+
+/// Stage an op bundle on a review branch (pending, inert) instead of applying it, so you can inspect it
+/// and approve it deliberately. `dark review approve <queue>` applies it, `dark review reject <queue>`
+/// drops it.
+let executeReviewImport (state: AppState) (path: String) (queue: String) : AppState =
+  match Stdlib.Cli.File.readText path with
+  | Ok json ->
+    match SCM.Wire.wireDecode (Stdlib.String.toBlob json) with
+    | Ok bundle ->
+      match SCM.Wire.reviewImportTo queue bundle.ops bundle.commits with
+      | Ok n ->
+        Cli.printOk
+          $"Staged {Stdlib.Int.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
+      | Error e -> Cli.printErr $"Review import failed: {e}"
+
+      state
+    | Error e ->
+      Cli.printErr $"Couldn't read the sync file: {e}"
+      state
+  | Error _ ->
+    Cli.printErr $"Couldn't read {path}"
+    state
+
+/// Drain every page, staging each on <param queue>. Returns the total staged, or -1 if a page failed.
+///
+/// Every page, because the relay serves in its OWN arrival order (see `executePullPages`): page 1
+/// routinely holds nothing new while the ops you want sit on page 7, so a one-page pull stages
+/// nothing and reads as up to date.
+///
+/// <param since> is threaded rather than re-read per page, because the cursor is only PERSISTED on an
+/// unfiltered drain. Advancing the shared cursor after staging one person's ops with `--from` would skip
+/// everyone else's permanently: nothing re-serves what the cursor has passed.
+let executeReviewPullPages
+  (state: AppState)
+  (url: String)
+  (queue: String)
+  (ownerParam: String)
+  (since: Int64)
+  (page: Int64)
+  : Int =
+  match
+    relayGet $"{url}/sync/pull?{ownerParam}sinceSeq={Stdlib.Int64.toString since}"
+  with
+  | Error e ->
+    Cli.printErr $"  page {Stdlib.Int64.toString (page + 1L)} failed: {e}"
+    -1
+  | Ok body ->
+    match SCM.Wire.wireDecode body with
+    | Error e ->
+      Cli.printErr $"  Couldn't read what {url} sent: {e}"
+      -1
+    | Ok bundle ->
+      match bundle.ops with
+      | [] -> 0
+      | ops ->
+        // A cursor that does not advance would page forever. The relay's own pull advances it; this is
+        // the guard for one that does not, since a hang with output is harder to diagnose than a stop.
+        if bundle.cursor <= since then
+          Cli.printErr
+            "  the relay stopped advancing its cursor -- stopping rather than asking for the same page again."
+          -1
+        else
+          match SCM.Wire.reviewImportTo queue ops bundle.commits with
+          | Error e ->
+            Cli.printErr $"  page staging failed: {e}"
+            -1
+          | Ok n ->
+            // Only after a page STAGED does its position count, and only when nothing was filtered out.
+            let _ =
+              if ownerParam == "" then
+                SCM.Wire.setPullCursor url bundle.cursor
+              else
+                ()
+
+            let _ =
+              if n > 0 then
+                Cli.printOk
+                  $"  +{Stdlib.Int.toString n} op(s) staged (page {Stdlib.Int64.toString (page + 1L)})"
+              else
+                ()
+
+            let rest =
+              executeReviewPullPages state url queue ownerParam bundle.cursor (page + 1L)
+
+            if rest < 0 then -1 else n + rest
+
+
+/// Fetch your ops from a relay but STAGE them on a review branch (pending) for op-level approval, instead
+/// of auto-applying like `pull`. The queue defaults to "review"; pass a name to keep separate peers or
+/// agents in separate review branches.
+let executeReviewPullFrom
+  (state: AppState)
+  (url: String)
+  (queue: String)
+  (owner: String)
+  : AppState =
+  if url == "" then
+    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    // No `owner=` unless one was asked for: the point is staging what a PEER sent. `--from you` is how
+    // you review your own other machine.
+    let ownerParam = if owner == "" then "" else $"owner={owner}&"
+
+    match
+      executeReviewPullPages
+        state
+        url
+        queue
+        ownerParam
+        (SCM.Wire.pullCursor url)
+        0L
+    with
+    | -1 -> ()
+    // Nothing staged is not the same shape of answer as something staged, and it has one cause
+    // worth naming: `pull` and `review pull` share ONE cursor per relay, so anything an ordinary
+    // pull has already applied can never be staged for review afterwards. Reported as "Staged 0",
+    // it reads like success and leaves you approving an empty queue.
+    | 0 ->
+      Cli.printOk $"Nothing new to stage from {url}."
+      Cli.printHint
+        "  `review pull` stages only what has not arrived yet, and an ordinary `dark pull` consumes the same cursor."
+    | n ->
+      Cli.printOk
+        $"Staged {Stdlib.Int.toString n} op(s) from {url} on branch \"{queue}\" (pending). `dark diff {queue}` then `dark review approve {queue}`."
+
+  state
+
+/// Stage whatever is new on a review queue, whoever wrote it.
+let executeReviewPull (state: AppState) (url: String) (queue: String) : AppState =
+  executeReviewPullFrom state url queue ""
+
+/// APPROVE a review queue (op-level approval): fold its staged ops into main. Same gate as `merge` --
+/// rebase or resolve any conflicts first.
+let executeApprove (state: AppState) (queue: String) : AppState =
+  // A queue is a branch, named the way any branch is; `reviewImportTo` stages it under a minted id, so
+  // the typed name has to be resolved to that id.
+  match Cli.Branch.resolveRef queue with
+  | None -> state
+  | Some queueId ->
+
+  match SCM.PackageOps.mergeBranch queueId with
+  | Ok outcome ->
+    Cli.printOk $"Approved {Stdlib.Int.toString outcome.merged} op(s) from \"{queue}\" into main."
+    reportConflicts outcome.conflicts
+  | Error e ->
+    // An empty queue isn't a failure -- it means everything was already approved, rejected, or
+    // resolved-to-theirs. Report it plainly so agents don't read it as an error.
+    if Stdlib.String.contains e "nothing to merge" then
+      Cli.printOk
+        $"Nothing to approve in \"{queue}\" -- no pending changes (all reviewed ops were approved, rejected, or reconciled to the local version)."
+    else
+      Cli.printErr $"Approve failed: {e}"
+
+  state
+
+/// REJECT a review queue: discard its staged (unapproved) ops.
+///
+/// That is `branch archive` under another name, so it goes straight there and asks the same way: what
+/// would go, then an explicit yes a pipe cannot give. The question earns its place here especially,
+/// because `resolveRef` matches ANY branch by name -- `dark review reject my-feature` reaches a feature
+/// branch's unmerged work just as readily as a queue.
+let executeReject
+  (state: AppState)
+  (queue: String)
+  (autoConfirm: Bool)
+  : AppState =
+  Cli.Branch.executeArchive state queue autoConfirm
+
+
+let helpReview (_state: AppState) : String =
+  [ "dark review - stage incoming ops on a review branch and approve them deliberately."
+    ""
+    "  dark review pull [url] [queue]   stage on a review branch instead"
+    "                                   of applying"
+    "  dark review pull [queue] --from <who>   just that person's ops"
+    "  dark review import <f> [queue]   stage a file's ops on a queue"
+    "  dark review approve <queue>      fold a queue's ops into main"
+    "  dark review reject <queue>       discard a queue's staged ops"
+    "  dark review <queue>              show what a queue would change (same as `dark diff <queue>`)"
+    ""
+    "  The queue defaults to \"review\". Separate peers or agents get separate queues by name."
+    "  A queue IS a branch, so `dark branches`, `dark log <queue>` and"
+    "  `dark conflicts branch <queue>` all work on it." ]
+  |> Stdlib.String.join "\n"
+

@@ -1,0 +1,279 @@
+module Darklang.SCM.PackageOps
+
+// Turning op rows into bindings: what each op says about a name, and what a name holds NOW.
+//
+// The half the fold and the branch overlay both lean on. A binding is not stored anywhere for a
+// branch -- `locations` is main-only, which is the isolation guarantee -- so a branch's answer to
+// "what does this name hold" is computed here, by walking its chain and folding the ops it finds.
+
+/// The ONE Dark call into the op-blob decoder, and it answers None when this build cannot read the
+/// blob. The binary op format isn't Dark-decodable, so this single primitive is all F# has to hand
+/// over for reading ops; the queries and folding are Dark on top of it.
+///
+/// What an unreadable op MEANS belongs to `SCM.StoreHealth`, which counts them. Not to whichever
+/// reader touches one first.
+let tryDecodeOp
+  (id: Uuid)
+  (blob: Blob)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
+  Builtin.packageOpFromBlobOption id blob
+
+
+/// Whether an op binds a NAME, read from its tag without decoding it.
+///
+/// Worth having only because of what it saves: an import decodes every arriving op to learn which names
+/// moved, and content ops (the `Add*` family, which are whole ASTs and so the expensive ones) move none.
+/// Asking first turns most of that decoding into a byte comparison.
+let opBindsAName (blob: Blob) : Bool = Builtin.packageOpBindsAName blob
+
+
+/// (id text, ts, decoded op) per decodable row -- the one id/blob/ts decode behind every
+/// op-log read. A row whose id won't parse or whose blob this build can't read is
+/// skipped; a row without a `ts` column reads as "". The QUERY is Dark; only the
+/// per-row blob decode is a builtin, so there's no read builtin at all.
+let decodeOpRowEntries
+  (rows: List<Dict<String, Stdlib.Sqlite.Value>>)
+  : List<(String * String * LanguageTools.ProgramTypes.PackageOp)> =
+  rows
+  |> Stdlib.List.filterMap (fun row ->
+    match
+      (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
+    with
+    | (Some idStr, Some blob) ->
+      match Stdlib.Uuid.parse idStr with
+      | Ok id ->
+        tryDecodeOp id blob
+        |> Stdlib.Option.map (fun op -> (idStr, Stdlib.Sqlite.textOr row "ts", op))
+      | Error _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// Decode op-log rows (id, op_blob) into fully-decoded PackageOps.
+let decodeOpRows
+  (rows: List<Dict<String, Stdlib.Sqlite.Value>>)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  decodeOpRowEntries rows |> Stdlib.List.map (fun (_id, _ts, op) -> op)
+
+
+// reading an INCOMING side (op blobs -> the names they bind)
+
+
+/// A decoded op + its stamp -> the name it BINDS, keyed for the latest-wins fold.
+///
+/// TWO ops bind a name: `SetName`, and a `Decision` whose kind is `Override`. Everything else is
+/// content, which is content-addressed and so can never contend.
+///
+/// The override must be included. The F# fold (`PackageOpPlayback.applySetNameFrom`) and the in-memory
+/// overlay (`PackageManager.createInMemoryOver`) both treat it as a binding; omitting it here makes Dark
+/// report the last SetName while execution runs the override.
+let bindingFromOp
+  (op: LanguageTools.ProgramTypes.PackageOp)
+  (ts: String)
+  : Stdlib.Option.Option<(String * Conflicts.Binding)> =
+  // Split because only a SetName carries a predecessor. An Override is a human overriding a binding, and
+  // "what it replaced" is the version the fold picked, which is not lineage in the sense this asks about.
+  let previous =
+    match op with
+    | SetName(_, _, Some h) ->
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString h)
+    | _ -> Stdlib.Option.Option.None
+
+  match op with
+  | Decision(_, location, _, Override target)
+  | SetName(location, target, _) ->
+    let modules = Stdlib.String.join location.modules "."
+
+    let itemType =
+      Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
+
+    let hash =
+      LanguageTools.ProgramTypes.hashToString
+        (LanguageTools.ProgramTypes.Reference.hash target)
+
+    let binding =
+      Conflicts.Binding
+        { owner = location.owner
+          modules = modules
+          name = location.name
+          itemType = itemType
+          hash = hash
+          originTs = ts
+          // Filled in by the wire path when the sender told us; a local fold has nobody to name.
+          author = ""
+          previous = previous }
+
+    Stdlib.Option.Option.Some((Conflicts.bindingKey location.owner modules location.name, binding))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// A run of ops' last word on one name: `binding` is what the name ends up bound to, or None for a name
+/// left unbound, which hides whatever is underneath.
+type NameWord =
+  { owner: String
+    modules: String
+    name: String
+    binding: Stdlib.Option.Option<Conflicts.Binding> }
+
+
+/// Fold a run of (op, origin_ts) rows into what the run BINDS, latest-stamp-wins per name. The rows must
+/// arrive oldest-first; the later SetName then overwrites the earlier, which is the binding the fold lands
+/// on. An `Unbind` is the name's latest word too: it takes the name out, until a later op binds it again.
+let bindingEntriesFromOpRows
+  (rows: List<Dict<String, Stdlib.Sqlite.Value>>)
+  : List<NameWord> =
+  let entries =
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match
+        (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
+      with
+      | (Some idStr, Some blob) ->
+        match Stdlib.Uuid.parse idStr with
+        | Ok id ->
+          let ts = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+
+          match tryDecodeOp id blob with
+          | Some(Unbind(location, _)) ->
+            let modules = Stdlib.String.join location.modules "."
+            Stdlib.Option.Option.Some(
+              (Conflicts.bindingKey location.owner modules location.name,
+               NameWord
+                 { owner = location.owner
+                   modules = modules
+                   name = location.name
+                   binding = Stdlib.Option.Option.None })
+            )
+          | Some op ->
+            bindingFromOp op ts
+            |> Stdlib.Option.map (fun pair ->
+              let (k, b) = pair
+              (k,
+               NameWord
+                 { owner = b.owner
+                   modules = b.modules
+                   name = b.name
+                   binding = Stdlib.Option.Option.Some b }))
+          | None -> Stdlib.Option.Option.None
+        | Error _ -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+
+  Stdlib.Dict.values (Stdlib.Dict.fromListOverwritingDuplicates entries)
+
+
+/// <fn bindingEntriesFromOpRows>, keeping only the names that end up bound.
+let bindingsFromOpRows (rows: List<Dict<String, Stdlib.Sqlite.Value>>) : List<Conflicts.Binding> =
+  bindingEntriesFromOpRows rows |> Stdlib.List.filterMap (fun w -> w.binding)
+
+
+/// What a branch CHAIN binds (the branch, then its ancestors up to main), for a non-main parent -- which is
+/// never materialized in `locations`, only ever an overlay. The Dark mirror of the F# overlay walk in
+/// `LibDB.Branches.chainOverlayOps`, so a name resolves the same whichever side asks.
+///
+/// `@p1` is main's ID, bound, never the literal "main". `SCM.Branch.mainBranchId` exists to enforce exactly that, and
+/// SQL is where it drifts unnoticed, because no type checker reads a string: against a store whose
+/// `parent_id` holds main's uuid, comparing to `'main'` is true for every row and the recursion walks
+/// past main instead of stopping at it.
+let chainBindingEntries (branchId: Uuid) : List<NameWord> =
+  bindingEntriesFromOpRows (chainOpRows branchId)
+
+
+/// The parent-chain walk: @p0 = the branch, @p1 = main's id. Spliced into each chain
+/// statement (`chainOpRows`, `visibleWhere`, `parentCommitFor`), never edited in
+/// place -- the one copy of the walk every chain query shares.
+val chainCteSql =
+  "WITH RECURSIVE chain(bid) AS (
+     SELECT @p0
+     UNION
+     SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
+     WHERE b.parent_id != @p1
+   )"
+
+
+/// The chain's op rows (the chain CTE plus the id/op_blob/ts SELECT), oldest first --
+/// the one query behind <fn chainBindingEntries> and `branchHashHistoryFor`.
+let chainOpRows (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
+  Stdlib.Sqlite.rowsOrEmptyP
+    (localDb ())
+    (chainCteSql
+     ++ " SELECT p.id, p.op_blob, p.origin_ts AS ts
+          FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
+          WHERE ob.branch_id IN (SELECT bid FROM chain)
+          ORDER BY p.origin_ts, p.rowid")
+    [ Stdlib.Uuid.toString branchId
+      Stdlib.Uuid.toString SCM.Branch.mainBranchId ]
+
+
+/// <fn chainBindingEntries>, keeping only the names the chain leaves bound.
+let chainBindings (branchId: Uuid) : List<Conflicts.Binding> =
+  chainBindingEntries branchId |> Stdlib.List.filterMap (fun w -> w.binding)
+
+
+/// What <param loc> resolves to on <param branchId>: the chain overlay first, then main's projection,
+/// which is where every chain ends. THE branch-aware read of a live binding.
+///
+/// `locations` is main's projection and a branch's SetName never folds into it, so a read that goes
+/// straight to the table answers about MAIN while you stand on a branch, and answers plausibly. Every
+/// "what is live at this name" question goes through here; a direct read of `locations` is for a
+/// question that is genuinely about main, and says so.
+///
+/// Its own three-key query rather than `Conflicts.localBindingsFor`, which matches on bare name across
+/// owners. A caller asking about N names builds `chainBindings` once and looks up, the way
+/// `Deps.branchOverlayBindings` does; this is the one-name form.
+let liveBindingFor
+  (branchId: Uuid)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<Conflicts.Binding> =
+  let modules = Stdlib.String.join loc.modules "."
+
+  // The chain's last word on the name: bound to something, unbound (an `Unbind` with no later binding,
+  // which hides whatever main holds), or nothing said.
+  let onBranch =
+    if SCM.Branch.isMain branchId then
+      Stdlib.Option.Option.None
+    else
+      chainBindingEntries branchId
+      |> Stdlib.List.findFirst (fun w ->
+        (w.owner == loc.owner) && (w.modules == modules) && (w.name == loc.name))
+
+  match onBranch with
+  | Some w -> w.binding
+  | None ->
+    match
+      // main-scoped: the fallback half of THE branch-aware read, after the chain overlay above.
+      //
+      // From a BRANCH, committed bindings only: a parent's draft is invisible downstream. Main
+      // authors live-on-write, so its `locations` carry uncommitted work too, and without the
+      // clause a branch resolves names through whatever main has half-written -- and a rebase
+      // then repoints the branch's callers at it.
+      //
+      // From MAIN, no such clause: main's draft IS main's live state, and hiding it would have
+      // `status`, `view` and `eval` disagree with the edit just made.
+      Stdlib.Sqlite.queryOneP
+        (localDb ())
+        (if SCM.Branch.isMain branchId then
+           "SELECT owner, modules, name, item_type, item_hash,
+                   COALESCE(origin_ts,'') AS ts, previous
+            FROM locations
+            WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND unlisted_at IS NULL
+            LIMIT 1"
+         else
+           "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash,
+                   COALESCE(l.origin_ts,'') AS ts, l.previous
+            FROM locations l
+            JOIN package_ops p ON p.id = l.op_id
+            WHERE l.owner = @p0 AND l.modules = @p1 AND l.name = @p2
+              AND l.unlisted_at IS NULL
+              AND p.commit_hash IS NOT NULL
+            LIMIT 1")
+        [ loc.owner, modules, loc.name ]
+    with
+    | Some row -> Conflicts.bindingFromRow row
+    | None -> Stdlib.Option.Option.None
+
+
+/// <fn liveBindingFor> on the branch this process stands on.
+let liveBindingAt
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<Conflicts.Binding> =
+  liveBindingFor (currentBranch ()) loc
+

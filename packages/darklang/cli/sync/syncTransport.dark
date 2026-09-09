@@ -1,0 +1,90 @@
+module Darklang.Cli.Sync
+
+// The network surface, and nothing else. Every request to a relay goes through here.
+//
+// The write secret never reaches Dark: F# attaches it per configured origin, and `opsLeaking`
+// refuses any outbound bundle that contains one anyway. A relay read needs no secret at all.
+
+// Relay transport, and the whole network surface of sync. A relay sits behind loopback / LAN / tailnet,
+// which the safe HttpClient bans, so these use the sync transport (SSRF guards relaxed for local nets,
+// cloud-metadata still blocked).
+let relayGet (url: String) : Stdlib.Result.Result<Blob, String> =
+  Builtin.httpGetUnsafeBytes url
+
+/// Begin a relay GET without waiting for it; collect it with `Builtin.httpAwaitBytes`.
+///
+/// A pull starts the NEXT page before importing the one in hand, so the fetch and the import overlap
+/// instead of alternating. The request is on the wire by the time this returns.
+let relayGetStart (url: String) : Stdlib.Result.Result<Uuid, String> =
+  Builtin.httpGetUnsafeBytesStart url
+
+/// A GET that carries the relay's write secret, for reads that are not public.
+///
+/// Branch endpoints hand back unmerged work, so they take the same secret as a write. The headers list is
+/// empty because the transport attaches the credential itself -- Dark never holds it; see
+/// `hasRelaySecret`.
+let relayGetAuthed
+  (baseUrl: String)
+  (path: String)
+  : Stdlib.Result.Result<Blob, String> =
+  Builtin.httpGetUnsafeBytesWithHeaders $"{baseUrl}{path}" []
+
+/// Whether a write secret is stored for <param url>. NOT the secret itself.
+///
+/// Dark cannot read the secret, and that is the point. `configGet` carries no capability, so any Dark the
+/// CLI runs -- including a package pulled from a peer -- could read the credential and push ops as you.
+/// The transport attaches it natively and the leak scan runs natively; Dark keeps only the decision of
+/// WHEN to push.
+///
+/// Per relay, and in LOCAL CONFIG, the only place it can safely live: `config_v0` never syncs and is
+/// stripped from an exported seed, so it cannot travel. A relay serves its own package store as public
+/// HTML at `/m` and `/p`, so a secret that ever became an op would be readable by anyone.
+let hasRelaySecret (url: String) : Bool = Builtin.relaySecretIsSet url
+
+/// Store the write secret for <param url>. Write-only from Dark's side; see `hasRelaySecret`.
+let setRelaySecret (url: String) (secret: String) : Unit =
+  let _ = Stdlib.LocalStore.configSet $"sync.secret.{url}" secret
+  ()
+
+/// Ops whose bytes contain the write secret stored for <param url>, as short hashes. Empty when none do,
+/// which is the normal case.
+///
+/// THE LAST GATE before a secret becomes public. An op carrying the write secret becomes a page anyone
+/// can read, and nothing else would notice: the op is valid, it folds, it syncs, it looks like ordinary
+/// code. Searches the wire bytes rather than the source, because the bytes are what is leaving.
+/// Native, because the needle is the write secret and Dark cannot be handed it.
+let opsLeaking (url: String) (ops: List<SCM.Wire.SyncOp>) : List<String> =
+  Builtin.relaySecretLeakingOps
+    url
+    (ops |> Stdlib.List.map (fun op -> op.blobHex))
+    (ops |> Stdlib.List.map (fun op -> op.id))
+
+
+/// POST to <param path> on the relay at <param baseUrl>.
+///
+/// The base is passed separately rather than parsed back out of the full URL: the secret is keyed on the
+/// base, and a lookup that silently missed would send an unauthenticated push.
+let relayPostTo
+  (baseUrl: String)
+  (path: String)
+  (body: Blob)
+  : Stdlib.Result.Result<Blob, String> =
+  Builtin.httpPostUnsafeBytes $"{baseUrl}{path}" body []
+
+/// How many ops the relay says it actually stored, from its `{"stored": N, ...}` reply. None when
+/// the reply is not that shape.
+///
+/// None makes the push a FAILURE: the caller leaves its "already pushed" marker alone and re-sends next
+/// time. A relay that answered with something unreadable has not said it stored anything, and recording
+/// the push as done on the strength of a 200 is how ops go missing with both sides reporting success.
+let storedCountOf (reply: String) : Stdlib.Option.Option<Int> =
+  match Stdlib.AltJson.parse reply with
+  | Ok (Object fields) ->
+    match Stdlib.List.findFirst fields (fun pair ->
+      let (k, _) = pair
+      k == "stored")
+    with
+    | Some ((_, Number n)) -> Stdlib.Option.Option.Some (Stdlib.Float.truncate n)
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+

@@ -1,0 +1,453 @@
+module Darklang.SCM.PackageOps
+
+// Sealing work and moving it between branches: commit, merge, rebase, archive, and settling a
+// conflict by binding the version a person chose.
+//
+// All of it is ordinary ops. There is no merge op and no propagation op: a merge flips its
+// frontier effective and records a `BranchEvent`, and a resolution authors a `Decision`.
+
+/// Authors a `Decision` op with an `Override`, which is why that op exists. Ops are content-addressed, so
+/// re-authoring the losing SetName reproduces the op already in the log: it INSERT-OR-IGNOREs and folds
+/// nothing, and there is no way to say "the same binding, but now I mean it" as a plain op. Carrying the
+/// conflict id makes it distinct and makes re-resolving idempotent.
+///
+/// Authoring alone. `settleConflict` is the whole act (author, close the record, cascade); a caller that
+/// wants a settled conflict goes there.
+///
+/// Being an op is what makes the choice TRAVEL: a peer folding it lands on the same binding rather than
+/// re-deriving its own auto-pick.
+let applyResolution
+  (branchId: Uuid)
+  (c: Conflicts.Conflict)
+  (hash: String)
+  : Stdlib.Result.Result<Int, String> =
+  let location = Deps.locationOf c.owner c.modules c.name
+  let h = LanguageTools.ProgramTypes.Hash.Hash hash
+
+  let reference =
+    match c.itemType with
+    | "type" -> LanguageTools.ProgramTypes.Reference.PackageType h
+    | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
+    | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
+
+  add
+    branchId
+    [ LanguageTools.ProgramTypes.PackageOp.Decision(
+        c.id,
+        location,
+        "",
+        LanguageTools.ProgramTypes.DecisionKind.Override reference
+      ) ]
+
+
+/// Settle a conflict on <param hash>: author the resolution AND close the record, together.
+///
+/// One function because they are one act. Split across callers, they drift into a conflict left open with
+/// its resolution authored, or closed with nothing behind it.
+///
+/// Refuses an empty hash rather than binding a name to nothing: `Hash ""` corrupts the binding in a way no
+/// later fold undoes.
+let settleConflict
+  (branchId: Uuid)
+  (c: Conflicts.Conflict)
+  (hash: String)
+  : Stdlib.Result.Result<Unit, String> =
+  if hash == "" then
+    Stdlib.Result.Result.Error
+      "no version to keep: that side of the conflict has no recorded hash"
+  else
+    match applyResolution branchId c hash with
+    | Ok _ ->
+      let _ = Conflicts.setStatus c.id "overridden" hash
+
+      // Cascade, the way an edit does. An override rebinds the NAME; without this the callers that
+      // had followed the losing version go on calling it by hash, so the name says one thing and
+      // everything that uses it does another, on every machine the override reaches.
+      let location = Deps.locationOf c.owner c.modules c.name
+      let kind = Deps.kindOf c.itemType
+      let losers =
+        c.candidates
+        |> Stdlib.List.filterMap (fun cand ->
+          if (cand.hash == hash) || (cand.hash == "") then
+            Stdlib.Option.Option.None
+          else
+            Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash cand.hash))
+      let _ =
+        Propagation.repointDependents
+          branchId
+          location
+          kind
+          losers
+          (LanguageTools.ProgramTypes.Hash.Hash hash)
+
+      Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Commit the draft on <param branchId> under <param message>. Returns the new commit's hash.
+///
+/// Refuses when something in the draft references a name that does not resolve. The gate is on the
+/// OPERATION, not on one command: there is more than one way to commit, and a draft must not be
+/// committable from one surface and refused from another.
+///
+/// The commit row is created first and deleted again if nothing is stamped, since a commit naming no ops
+/// shows up in `log` claiming work that isn't there.
+///
+/// The workbench's commit. The CLI has its own path (`Cli.Commit`), which additionally offers
+/// `--allow-type-errors` and `--allow-unresolved`; there is no way to type a flag at the workbench's
+/// commit prompt, so this refuses outright rather than offering an override it cannot take.
+let commitDraft
+  (author: String)
+  (branchId: Uuid)
+  (message: String)
+  : Stdlib.Result.Result<String, String> =
+  let typeReport = typeCheckDraft branchId
+
+  match typeReport.verdict with
+  | Failed ->
+    let count =
+      Stdlib.List.length
+        (Stdlib.List.append typeReport.diagnostics typeReport.blockers)
+
+    Stdlib.Result.Result.Error(
+      $"the at-rest type check found {Stdlib.Int.toString count} definite error(s); "
+      ++ "`dark constraints` and `dark typecheck` show them")
+  | Checked
+  | Incomplete ->
+
+  match unresolvedInDraft branchId with
+  | [] ->
+    match draftOpCountFor branchId with
+    | 0L -> Stdlib.Result.Result.Error "nothing to commit"
+    | _ ->
+      // The ids and the parent are read BEFORE the stamp, because stamping is what takes them out of the
+      // draft: ask afterwards and the answer is empty.
+      let opIds = draftOpIdsFor branchId
+      let parent = parentCommitFor branchId
+      let hash = Commits.create message author opIds parent
+      let committed = stampDraftFor branchId hash
+
+      if committed == 0L then
+        let _ = Commits.delete hash
+        Stdlib.Result.Result.Error "nothing was committed"
+      else
+        Stdlib.Result.Result.Ok hash
+  | broken ->
+    let names =
+      broken
+      |> Stdlib.List.map (fun (label, _) -> label)
+      |> Stdlib.String.join ", "
+
+    Stdlib.Result.Result.Error
+      $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved"
+
+
+/// Drop the draft for <param branchId>, whichever kind of draft that is. Returns how many ops went.
+let discardDraftFor (branchId: Uuid) : Int =
+  if SCM.Branch.isMain branchId then
+    match discardMainDraft () with
+    | Ok n -> n
+    | Error _ -> 0
+  else
+    Stdlib.Int.fromInt64 (discardBranchDraft branchId)
+
+
+/// Commit, on main, whichever of <param opIds> are still in main's draft, under <param message>. Nothing
+/// happens when none are. For the ops a branch verb lands in main by itself -- a merge's frontier and
+/// its event, an archive's event -- which nobody typed and so nobody will think to commit.
+///
+/// Exactly these ids, never "whatever is uncommitted": that would sweep a half-written fn into a commit
+/// about a branch.
+let commitMainOps (message: String) (fallbackAuthor: String) (opIds: List<String>) : Unit =
+  // "In the draft" here means landed on main and uncommitted -- NOT `draftWhere`, whose
+  // op_branches exclusion would drop any op a sibling branch still tags. A merge lands
+  // content-addressed ops that a review queue may genuinely share; they are main's now,
+  // and this commit is their commit.
+  let toStamp =
+    if Stdlib.List.isEmpty opIds then
+      []
+    else
+      let rows =
+        Stdlib.Sqlite.rowsOrEmptyP
+          (localDb ())
+          "SELECT id FROM package_ops WHERE commit_hash IS NULL AND effective = 1"
+          []
+
+      let landed =
+        rows
+        |> Stdlib.List.filterMap (fun row -> Stdlib.Sqlite.textField row "id")
+
+      opIds |> Stdlib.List.filter (fun id -> Stdlib.List.``member`` landed id)
+
+  if Stdlib.List.isEmpty toStamp then
+    ()
+  else
+    let author =
+      match identity () with
+      | "" -> fallbackAuthor
+      | id -> id
+
+    let hash =
+      Commits.create
+        message
+        author
+        (Stdlib.List.sort toStamp)
+        (parentCommitFor SCM.Branch.mainBranchId)
+
+    let _ = stampLandedOps hash toStamp
+    ()
+
+
+/// What a merge did: how many ops moved, and what it auto-resolved on the way.
+type MergeOutcome =
+  { merged: Int
+    conflicts: List<Conflicts.Conflict> }
+
+
+/// Merge a branch into its parent. Decides whether it MAY (`Branches.canMerge`), then has the builtin do
+/// it: flip the frontier effective, fold into main, evaluate merged values, clear the frontier, mark
+/// merged. The gate is here and the mechanism is there, which is the line this module draws everywhere.
+///
+/// Conflicts do not BLOCK the merge. They are detected first (the fold is about to move the local side,
+/// after which the comparison is meaningless), auto-resolved by origin_ts LWW, and recorded once the merge
+/// succeeds, so the loser is reviewable rather than silently gone.
+let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, String> =
+  match Branches.canMerge branchId with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok _ ->
+
+  let conflicts = branchPreview branchId
+
+  let parent = branchParentOf branchId
+
+  // What the merge moves, read now: both arms drop the tags, and the event that tells the other
+  // machine has to name exactly these, so a peer holding more of the branch keeps its own.
+  let moved = Branches.frontierIds branchId
+
+  // Which arm: into MAIN the frontier flips effective and folds; into a branch-off-a-branch it only
+  // retags onto the parent, whose own overlay folds it later. Folding there would leak the child's work
+  // into main, which nobody asked to merge.
+  let merged =
+    if SCM.Branch.isMain parent then
+      // Flip the frontier effective, fold it into main, then close the branch. The fold is the F# half;
+      // the order, and stopping if any step fails, is the decision.
+      Branches.markMergedEffective branchId
+      |> Stdlib.Result.andThen (fun n ->
+        Builtin.scmApplyMergedOps ()
+        |> Stdlib.Result.andThen (fun _ ->
+          Branches.finishMerge branchId |> Stdlib.Result.map (fun _ -> n)))
+    else
+      Branches.retagFrontierToParent branchId parent
+
+  match merged with
+  | Ok n ->
+    // Say so in the log too, so the machine your colleague is on learns the branch is finished. The
+    // local projections are already updated by the arm above; this is only how the OTHER machine learns.
+    let eventId = Builtin.scmRecordBranchMerged branchId moved
+
+    // A merge into main COMMITS what it landed: the branch's ops that were not committed here (a pulled
+    // branch's ops arrive uncommitted, since a bundle carries no commits) and the event itself. Left in
+    // main's draft, they read as "1 item changed" that nobody edited, and the next unrelated commit
+    // sweeps them up under its message. A merge into a branch retags; the parent's own merge commits.
+    let _ =
+      if SCM.Branch.isMain parent then
+        let landed =
+          Stdlib.List.append
+            (moved |> Stdlib.List.map (fun id -> Stdlib.Uuid.toString id))
+            [ Stdlib.Uuid.toString eventId ]
+
+        commitMainOps $"merged branch \"{branchName branchId}\"" "merge" landed
+      else
+        ()
+
+    // Filed against the PARENT, not against `branchId`: the merge folded into the parent's projection and
+    // the branch it came from is finished. `parent_id` and a branch id spell main the same way, so the id
+    // goes through as-is; translated, main's conflict list would never see them.
+    let _ = Conflicts.record parent conflicts
+
+    (MergeOutcome { merged = n; conflicts = conflicts })
+    |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// What a rebase did: the parent's message, and what the rebase reconciled.
+type RebaseOutcome =
+  { message: String
+    conflicts: List<Conflicts.Conflict> }
+
+
+/// What a rebase reconciled, said to the person who ran it.
+///
+/// Names the parent by NAME, never by id: a bare uuid where a branch name belongs is exactly what the
+/// boundary rule exists to prevent, and main's id renders as one.
+let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
+  let parentName = branchName parentId
+
+  // Two different things happened, and the advice differs: a divergence is yours to settle, a repoint
+  // already agrees with the parent and needs nothing from you.
+  let divergedPart =
+    match rebased.diverged with
+    | [] -> []
+    | names ->
+      let n = Stdlib.Int.toString (Stdlib.List.length names)
+      let listed = Stdlib.String.join names "\n  "
+      [ $"it had changed {n} name(s) you also touched:\n  {listed}\nyour branch's versions win by recency on merge -- re-author any you want to take the parent's version of." ]
+
+  let repointedPart =
+    match rebased.repointed with
+    | [] -> []
+    | names ->
+      let n = Stdlib.Int.toString (Stdlib.List.length names)
+      let listed = Stdlib.String.join names "\n  "
+      [ $"it had moved names this branch calls; {n} caller(s) now point at the parent's version:\n  {listed}" ]
+
+  match Stdlib.List.append divergedPart repointedPart with
+  | [] ->
+    $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
+  | parts ->
+    $"rebased onto \"{parentName}\". " ++ (Stdlib.String.join parts "\n")
+
+
+/// Rebase a branch: accept the parent's current state as the new base; reports the names the parent changed
+/// since the fork, so the branch's own ops layer on top (LWW). Records what it reconciled, same as merge.
+let rebaseBranch (branchId: Uuid) : Stdlib.Result.Result<RebaseOutcome, String> =
+  if SCM.Branch.isMain branchId then
+    // Main has no parent to rebase onto, so this is not a thing you can do rather than a thing that found
+    // nothing to do. The rewrite loops over `branch_name_bases`, and main has no rows there.
+    Stdlib.Result.Result.Error
+      "main is the trunk -- rebase moves a BRANCH onto its parent, and main has none."
+  else
+
+  let conflicts = branchPreview branchId
+
+  match Branches.rebaseDetailed branchId with
+  | Ok rebased ->
+    let msg = rebaseMessage (branchParentOf branchId) rebased
+    // The mirror of merge: a rebase folds the PARENT's work into the branch, so the conflict is the
+    // branch's to answer and stays with it.
+    let _ = Conflicts.record branchId conflicts
+
+    (RebaseOutcome { message = msg; conflicts = conflicts })
+    |> Stdlib.Result.Result.Ok
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// A display of all active branches (one line each: name (id) <- parent [status]).
+let branchList (includeMerged: Bool) : String =
+  let hidden = if includeMerged then 0L else Branches.mergedCount ()
+
+  let footer =
+    if hidden == 0L then
+      ""
+    else
+      $"\n\n{Stdlib.Int64.toString hidden} merged -- `dark branches --all` shows them."
+
+  match Branches.listLines includeMerged with
+  | [] ->
+    if hidden == 0L then
+      "no branches -- `dark switch <name>` starts one."
+    else
+      $"no live branches.{footer}"
+  | lines ->
+    // Newest first, capped: a long-lived store accretes dozens of finished experiments, and the one
+    // live branch you care about should not be buried in them. `--all` uncaps along with unhiding.
+    let cap = 20
+
+    let shown =
+      if includeMerged || (Stdlib.List.length lines) <= cap then
+        lines
+      else
+        let more = (Stdlib.List.length lines) - cap
+
+        Stdlib.List.append
+          (Stdlib.List.take lines cap)
+          [ $"+ {Stdlib.Int.toString more} more -- `dark branches --all` lists every branch." ]
+
+    (Stdlib.String.join shown "\n") ++ footer
+
+
+/// Present everything a branch changes vs its parent (+ new, ~ changed) -- the review-before-merge diff.
+let branchDiff (branchId: Uuid) : String =
+  match branchDiffLines branchId with
+  | [] -> $"\"{branchName branchId}\" changes nothing vs its parent."
+  | lines ->
+    let n = Stdlib.Int.toString (Stdlib.List.length lines)
+    let body = Stdlib.String.join lines "\n"
+    $"\"{branchName branchId}\" changes {n} name(s) vs its parent:\n\n{body}"
+
+
+/// Resolve a conflicted name on a branch: choice = "mine" (keep the branch's) or "theirs" (take parent's).
+let resolveConflict
+  (branchId: Uuid)
+  (name: String)
+  (choice: String)
+  : Stdlib.Result.Result<String, String> =
+  let resolved =
+    match choice with
+    | "mine" ->
+      Branches.resolveKeepMine branchId name
+      |> Stdlib.Result.map (fun _ ->
+        $"kept the branch's {name} (it now wins on merge)")
+    | "theirs" ->
+      Branches.resolveTakeTheirs branchId name
+      |> Stdlib.Result.map (fun _ ->
+        $"took the parent's {name} (dropped the branch's binding)")
+    | other ->
+      Stdlib.Result.Result.Error
+        $"unknown choice \"{other}\" -- use \"mine\" or \"theirs\""
+
+  match resolved with
+  | Ok kept ->
+    // The branch by NAME: this line is read by a person, and the id is a uuid.
+    Stdlib.Result.Result.Ok
+      $"resolved {name} on \"{branchName branchId}\": {kept}."
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Archive (soft-delete) a branch, discarding its unmerged ops.
+let archiveBranch (branchId: Uuid) : Stdlib.Result.Result<String, String> =
+  // Read before the archive: afterwards the branch has no name to put in the message.
+  let handle = branchName branchId
+
+  // The event is authored only if the local archive actually happened. It travels, so recording one for
+  // an archive that failed here archives the branch on every other machine and nowhere on this one.
+  match Branches.archive branchId with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok() ->
+    // ...and say so in the log, so the machine your colleague is on stops showing it as live work. The
+    // local projection is already updated by the line above; this is only how the OTHER machine learns.
+    let eventId = Builtin.scmRecordBranchArchived branchId
+
+    // And COMMIT that event, for the same reason a merge commits what it lands. A `BranchEvent` binds
+    // no name, so `status` (which counts bindings) reads clean while `commit` (which counts ops) finds
+    // one; left in main's draft it sits there until some unrelated commit sweeps it up under a message
+    // about something else.
+    //
+    // Exactly this event, by id. Committing "whatever is uncommitted" would sweep up a half-written fn
+    // that has nothing to do with archiving a branch.
+    let _ =
+      commitMainOps $"archived branch \"{handle}\"" "archive" [ Stdlib.Uuid.toString eventId ]
+
+    Stdlib.Result.Result.Ok $"archived branch \"{handle}\"."
+
+
+/// The id of the branch NAMED <param name>, starting it off <param parentId> if no live branch has that
+/// name. `switch` uses this, so a branch started while on another branch is parented to it (branches off
+/// branches). Returns (id, wasCreated).
+let ensureBranch (name: String) (parentId: Uuid) : (Uuid * Bool) =
+  resolveBranch name parentId
+
+
+/// One name a branch changes vs its parent.
+type BranchDiffEntry =
+  { /// Dotted, as a person reads it.
+    name: String
+    /// "fn" / "type" / "value" -- named `kind`, as every other JSON surface spells it.
+    kind: String
+    /// "new" when the parent does not have this name at all, "changed" when it has a different version.
+    change: String
+    /// What the parent binds. "" when the name is new there.
+    parentHash: String
+    /// What the branch binds.
+    hash: String }
+

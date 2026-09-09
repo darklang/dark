@@ -1,0 +1,358 @@
+module Darklang.SCM.PackageOps
+
+// A branch as a BUNDLE: its registry row, its frontier ops and the commits they belong to, shaped
+// for a relay to store and forward.
+//
+// The relay never folds what it hosts, so everything here is store-and-forward: bytes in, the same
+// bytes out. `importBranch` is the only half that folds, and it runs on the receiving instance.
+
+/// Store <param records> as ops on <param branchId>, registering the branch if this store has never
+/// heard of it. Returns how many op rows were new.
+///
+/// The two callers are the two ways a branch's ops arrive from somebody else: a branch bundle
+/// (`importBranch`) and a review queue (`Wire.reviewImportTo`). Both land ops inert and tagged, for
+/// later merge or approval; neither folds anything.
+///
+/// <param parent> is TEXT rather than a Uuid on purpose. On the bundle path it arrives inside a peer's
+/// JSON and may be anything at all, so the builtin parses it and treats what it cannot read as main.
+/// A review queue's parent is main by construction and spells it out.
+let stageOpsOnBranch
+  (branchId: Uuid)
+  (name: String)
+  (parent: String)
+  (records: List<(String * String * String)>)
+  : Stdlib.Result.Result<Int, String> =
+  Builtin.scmImportBranchOps branchId name parent records
+
+
+// branch transfer (a branch as a portable unit)
+// A branch bundle = its registry (id/name/parent) + its frontier ops. Name-bases are re-derived
+// against the DESTINATION's main on import (the fork point that matters is the receiver's).
+
+
+/// An op inside a branch bundle: no author, deliberately. A branch bundle is a file you hand someone, and
+/// the conflict detector does not read authorship off it, so reusing `Wire.SyncOp` would attach a field nothing
+/// here reads. Branch authorship, if wanted later, gets its own field and its own version bump.
+type BranchBundleOp =
+  { id: String
+    blobHex: String
+    ts: String
+    /// The commit the op belongs to on the sender, or "" for an uncommitted one. Without it a pulled
+    /// branch arrives wholly uncommitted and the puller's next `commit` sweeps the author's finished work
+    /// into its own: the same op under a different commit on each machine.
+    commit: String }
+
+
+/// A commit row, as it travels with a branch bundle. Same fields as `Commits.Commit` minus the local
+/// `createdAt`; the hash is the sender's and is kept, since it is derived from what the commit holds.
+type BranchBundleCommit =
+  { hash: String
+    message: String
+    author: String
+    originTs: String
+    parent: String }
+
+type BranchBundle =
+  { branchId: Uuid
+    name: String
+    parent: String
+    ops: List<BranchBundleOp>
+    commits: List<BranchBundleCommit> }
+
+
+/// The commit rows behind a list of commit hashes ("" and duplicates dropped), in the shape both
+/// bundles ship. What a sender attaches so the receiver can file ops under the author's commits.
+let commitRowsFor (hashes: List<String>) : List<BranchBundleCommit> =
+  let wanted = hashes |> Stdlib.List.filter (fun h -> h != "") |> Stdlib.List.unique
+
+  if Stdlib.List.isEmpty wanted then
+    []
+  else
+    Stdlib.Sqlite.rowsP
+      (localDb ())
+      "SELECT hash, message, author, origin_ts, COALESCE(parent, '') AS parent FROM commits
+       WHERE hash IN (SELECT value FROM json_each(@p0))"
+      [ Stdlib.Json.serialize<List<String>> wanted ]
+      (fun row ->
+        match
+          (Stdlib.Sqlite.textField row "hash",
+           Stdlib.Sqlite.textField row "message",
+           Stdlib.Sqlite.textField row "author",
+           Stdlib.Sqlite.textField row "origin_ts",
+           Stdlib.Sqlite.textField row "parent")
+        with
+        | (Some hash, Some message, Some author, Some originTs, Some parent) ->
+          Stdlib.Option.Option.Some(
+            BranchBundleCommit
+              { hash = hash
+                message = message
+                author = author
+                originTs = originTs
+                parent = parent }
+          )
+        | _ -> Stdlib.Option.Option.None)
+
+
+/// Take on a sender's commits: the rows first, then each op stamped with its author's commit, but only
+/// where <param onlyReplacing> currently stands ("" for an op with no commit yet). An op already
+/// committed under something else keeps it: a branch pulled before its merge event arrives keeps the
+/// branch's commits when the event lands.
+let adoptCommitsWhere
+  (onlyReplacing: String)
+  (commits: List<BranchBundleCommit>)
+  (opCommits: List<(String * String)>)
+  : Unit =
+  let stamps =
+    opCommits
+    |> Stdlib.List.filter (fun pair ->
+      let (_, commit) = pair
+      commit != "")
+    |> Stdlib.List.map (fun pair ->
+      let (id, commit) = pair
+      [ commit, id, onlyReplacing ])
+
+  if Stdlib.List.isEmpty commits && Stdlib.List.isEmpty stamps then
+    ()
+  else
+    let _ =
+      Stdlib.Sqlite.mustExecBatch
+        (localDb ())
+        [ ("INSERT OR IGNORE INTO commits (hash, message, author, origin_ts, parent)
+            VALUES (@p0, @p1, @p2, @p3, @p4)",
+           commits
+           |> Stdlib.List.map (fun c -> [ c.hash, c.message, c.author, c.originTs, c.parent ]))
+          ("UPDATE package_ops SET commit_hash = @p0
+            WHERE id = @p1 AND COALESCE(commit_hash, '') = @p2",
+           stamps) ]
+    ()
+
+/// <fn adoptCommitsWhere> for ops that have no commit here yet: a pulled branch, a relay storing a push.
+let adoptCommits (commits: List<BranchBundleCommit>) (opCommits: List<(String * String)>) : Unit =
+  adoptCommitsWhere "" commits opCommits
+
+/// <fn adoptCommitsWhere> for ops an import just filed under <param importCommit>: they move to the
+/// author's commit, and whatever the import committed on its own stays.
+let adoptCommitsOver
+  (importCommit: String)
+  (commits: List<BranchBundleCommit>)
+  (opCommits: List<(String * String)>)
+  : Unit =
+  adoptCommitsWhere importCommit commits opCommits
+
+
+/// One column from the branches row for a branch (or a default).
+let branchField (branchId: Uuid) (col: String) (dflt: String) : String =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      ("SELECT " ++ col ++ " AS v FROM branches WHERE id = @p0")
+      [ Stdlib.Uuid.toString branchId ]
+  with
+  | Ok rows ->
+    (match rows with
+     | [ row ] -> Stdlib.Sqlite.textField row "v" |> Stdlib.Option.withDefault dflt
+     | _ -> dflt)
+  | Error _ -> dflt
+
+
+/// The id of the `Add*` op that adds content <param hash> of <param kind> ("fn", "type", "value"). An
+/// Add op is identified by what it adds, so the id follows from the two alone.
+let contentOpId (kind: String) (hash: String) : Uuid = Builtin.scmContentOpId kind hash
+
+
+/// Export a single branch as a portable bundle (registry + frontier ops, plus the content its names
+/// point at).
+///
+/// A branch's frontier is its TAGGED ops, and an `Add` is tagged only when the branch was the first to
+/// hold that content. A body main already had under another name is main's op, untagged; the branch
+/// holds only the `SetName` naming it. The receiver may not hold that content (its main may be behind),
+/// and a name pointing at content it does not have is "couldn't be found". So the bundle carries the Add
+/// for every hash a frontier `SetName` binds, whether or not the branch was the one to add it; the
+/// receiver ignores what it already has.
+let exportBranch (branchId: Uuid) : String =
+  let frontier =
+    Wire.rowsToSyncOps (
+      Stdlib.Sqlite.rowsOrEmptyP
+        (localDb ())
+        // `author` is borrowed to carry the commit hash through `rowsToSyncOps`; it moves to `commit`
+        // below.
+        "SELECT p.id, p.op_blob, p.origin_ts AS ts, COALESCE(p.commit_hash, '') AS author
+         FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
+         WHERE ob.branch_id = @p0 ORDER BY p.rowid ASC"
+        [ Stdlib.Uuid.toString branchId ])
+
+  let frontierIds = frontier |> Stdlib.List.map (fun o -> o.id)
+
+  let contentIds =
+    Branches.ownFrontierOps branchId
+    |> Stdlib.List.filterMap (fun entry ->
+      let (_, op) = entry
+
+      match op with
+      | SetName(_, target, _) ->
+        let hash = LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target)
+        let kind = Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
+        Stdlib.Option.Option.Some(Stdlib.Uuid.toString (contentOpId kind hash))
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.``member`` frontierIds id))
+    |> Stdlib.List.unique
+
+  let content =
+    if Stdlib.List.isEmpty contentIds then
+      []
+    else
+      Wire.rowsToSyncOps (
+        Stdlib.Sqlite.rowsOrEmptyP
+          (localDb ())
+          "SELECT p.id, p.op_blob, p.origin_ts AS ts FROM package_ops p
+           WHERE p.id IN (SELECT value FROM json_each(@p0)) ORDER BY p.rowid ASC"
+          [ Stdlib.Json.serialize<List<String>> contentIds ])
+
+  // Content first, so a receiver folding in order has the body before the name. Borrowed content is
+  // main's and travels uncommitted here; the receiver's main decides its commit, as for any content.
+  let bundleOps =
+    Stdlib.List.append
+      (content
+       |> Stdlib.List.map (fun o ->
+         BranchBundleOp { id = o.id; blobHex = o.blobHex; ts = o.ts; commit = "" }))
+      (frontier
+       |> Stdlib.List.map (fun o ->
+         BranchBundleOp { id = o.id; blobHex = o.blobHex; ts = o.ts; commit = o.author }))
+
+  let commits = commitRowsFor (frontier |> Stdlib.List.map (fun o -> o.author))
+
+  Stdlib.Json.serialize<BranchBundle> (
+    BranchBundle
+      { branchId = branchId
+        name = branchField branchId "name" ""
+        // The bundle is JSON, so the parent travels as text like every other field in it.
+        parent = branchField branchId "parent_id" (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+        ops = bundleOps
+        commits = commits })
+
+
+// relay branch storage (silo wrappers over the F# store; used by the matter relay)
+
+
+// relay branch storage (silo wrappers over the F# store; used by the matter relay)
+/// Host a pushed branch bundle. `false` when the relay already holds a newer one and kept it.
+///
+/// The comparison is made here rather than in the silo because the bundle's shape is known here:
+/// the newest stamp among its ops, and how many there are.
+let relayStoreBranch (owner: String) (branchId: Uuid) (bundle: String) : Bool =
+  match Stdlib.Json.parse<BranchBundle> bundle with
+  | Ok b ->
+    let maxTs =
+      b.ops
+      |> Stdlib.List.map (fun op -> op.ts)
+      |> Stdlib.List.fold "" (fun acc ts ->
+        if SCM.Conflicts.stringGt ts acc then ts else acc)
+
+    Branches.relayStoreBundle
+      owner
+      branchId
+      bundle
+      maxTs
+      (Stdlib.Int.toInt64 (Stdlib.List.length b.ops)
+       |> Stdlib.Option.withDefault 0L)
+  | Error _ -> false
+
+let relayGetBranch (owner: String) (branchId: Uuid) : String =
+  Branches.relayGetBundle owner branchId
+
+let relayListBranches (owner: String) : String =
+  Stdlib.String.join (Branches.relayListBranches owner) "\n"
+
+
+/// `owner branch-id` per hosted bundle, one per line: the discovery listing `/branch/owners` serves.
+let relayListAllBranches () : String =
+  Branches.relayListOwners ()
+  |> Stdlib.List.map (fun entry ->
+    let (owner, _n) = entry
+
+    Branches.relayListBranches owner
+    |> Stdlib.List.map (fun bid -> $"{owner} {bid}"))
+  |> Stdlib.List.flatten
+  |> (fun lines -> Stdlib.String.join lines "\n")
+
+
+/// The op ids a branch bundle CARRIES, without importing it.
+///
+/// What `branch pull` records as held by the relay's bundle channel: the ops that actually came
+/// over the wire. The branch's own local ops are not in it, and recording those as sent is how a
+/// local-only commit went missing from a colleague's pull.
+let bundleOpIds (json: String) : List<String> =
+  match Stdlib.Json.parse<BranchBundle> json with
+  | Ok b -> b.ops |> Stdlib.List.map (fun op -> op.id)
+  | Error _ -> []
+
+
+/// Import a branch bundle: register + store its ops effective=0 + tag + re-base against local main.
+let importBranch (json: String) : Stdlib.Result.Result<String, String> =
+  match Stdlib.Json.parse<BranchBundle> json with
+  | Ok b ->
+    let records = b.ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
+
+    // A name is an alias; the id is the identity. Two people can each start a `fix-auth` and both survive
+    // (`branches` deliberately has no unique index on names), but `switch <name>` has to land on ONE of
+    // them. A colliding import therefore keeps its own name plus a short id: unambiguous and switchable,
+    // rather than silently answering for the other branch of the same name.
+    let taken =
+      SCM.Branches.list ()
+      |> Stdlib.List.any (fun r -> r.name == b.name && r.id != b.branchId)
+
+    let importName =
+      if b.name != "" && taken then
+        $"{b.name}~{Stdlib.String.first (Stdlib.Uuid.toString b.branchId) 8}"
+      else
+        b.name
+
+    // A bundle for a branch this store has MERGED must not revive it, unless the peer kept working on it
+    // and the bundle carries ops this store lacks. The builtin registers through `createBranch`, whose
+    // upsert clears `merged_at`; that is right for a branch that is alive somewhere and wrong for one
+    // that is finished here and merely re-sent.
+    let knownHere =
+      Stdlib.Sqlite.scalarIntP
+        (localDb ())
+        "SELECT count(*) AS n FROM package_ops WHERE id IN (SELECT value FROM json_each(@p0))"
+        [ Stdlib.Json.serialize<List<String>> (b.ops |> Stdlib.List.map (fun op -> op.id)) ]
+        "n"
+      |> Stdlib.Option.withDefault 0L
+
+    let nothingNew = (Stdlib.Int.fromInt64 knownHere) == (Stdlib.List.length b.ops)
+
+    if (branchIsMerged b.branchId) && nothingNew then
+      let handle = if importName == "" then Stdlib.Uuid.toString b.branchId else importName
+      Stdlib.Result.Result.Ok
+        $"branch \"{handle}\" is already merged here, and the bundle carries nothing new; left as merged."
+    else
+
+    // Known before this import? The message below tells a re-pull that found nothing apart from a
+    // first pull whose ops happened to be here already (a retargeted bundle, say).
+    let knownBranch = Stdlib.Option.isSome (SCM.Branch.get b.branchId)
+
+    match stageOpsOnBranch b.branchId importName b.parent records with
+    | Ok n ->
+      // The sender's commits come with the ops, so a pulled branch shows the author's commits under the
+      // author's messages, and the puller's next `commit` takes only the puller's own work. An op this
+      // store already had committed keeps its commit.
+      adoptCommits b.commits (b.ops |> Stdlib.List.map (fun op -> (op.id, op.commit)))
+
+      // Falls back to the ID when the bundle carries no name. A branch CAN have an empty name -- one first
+      // registered by authoring rather than by `switch` gets `""` -- and the hint below has to be typeable.
+      let handle =
+        if importName == "" then
+          Stdlib.Uuid.toString b.branchId
+        else
+          importName
+
+      // Say what happened, not what was asked. A pull that finds nothing new is the common case for
+      // anything that polls (a sync loop runs this every half minute), and "imported branch X (0 ops)"
+      // thirty times an hour is a log nobody reads.
+      if n == 0 && knownBranch then
+        Stdlib.Result.Result.Ok $"branch \"{handle}\" is up to date."
+      else
+        Stdlib.Result.Result.Ok
+          $"imported branch \"{handle}\" ({Stdlib.Int.toString n} op(s)). `dark switch {handle}` to use it."
+    | Error e -> Stdlib.Result.Result.Error e
+  | Error _ -> Stdlib.Result.Result.Error "unparseable branch bundle"
