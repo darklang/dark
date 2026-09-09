@@ -217,11 +217,11 @@ let createInMemoryOver
     | PT.PackageOp.AddFn _ -> ()
 
     // None of these change what a name points at -- an ack or a policy records what a person decided ABOUT a
-    // name, a Describe changes what an item says about itself (`described` applies those), a
+    // name, an UpdateDoc changes what an item says about itself (`described` applies those), a
     // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
-    | PT.PackageOp.Describe _
+    | PT.PackageOp.UpdateDoc _
     | PT.PackageOp.Decision(_,
                             _,
                             _,
@@ -551,68 +551,77 @@ let hide
                     fns = shown r.fns }
             } }
 
-/// The text each `Describe` in <param ops> sets, last one winning.
-let private describedBy (ops : List<PT.PackageOp>) : Map<Hash, string> =
+/// What each `UpdateDoc` in <param ops> says, grouped by the item it is about and in the order it
+/// must be applied: later ops last, and one entry per target, so restating a target replaces its
+/// earlier text rather than stacking behind it.
+let private describedBy
+  (ops : List<PT.PackageOp>)
+  : Map<Hash, List<PT.DocTarget * string>> =
   ops
   |> List.fold
     (fun acc op ->
       match op with
-      | PT.PackageOp.Describe(target, text) -> Map.add target.hash text acc
+      | PT.PackageOp.UpdateDoc(target, text, _, _) ->
+        let hash = target.reference.hash
+        let standing =
+          Map.tryFind hash acc
+          |> Option.defaultValue []
+          |> List.filter (fun (t, _) -> t <> target)
+        Map.add hash (standing @ [ target, text ]) acc
       | _ -> acc)
     Map.empty
 
 /// <param pm>, with <param texts> applied to whatever it hands back.
 ///
-/// A branch's `Describe` must not reach main's stored blob -- the fold is main-only for exactly
+/// A branch's `UpdateDoc` must not reach main's stored blob -- the fold is main-only for exactly
 /// that reason -- so the branch's own text is applied as the item is read, over whichever layer
 /// answered. At this seam rather than inside the overlay's item map, because a branch usually
 /// describes something MAIN holds, and the overlay has no copy of that to patch.
 let private described
-  (texts : Map<Hash, string>)
+  (texts : Map<Hash, List<PT.DocTarget * string>>)
   (pm : PT.PackageManager)
   : PT.PackageManager =
   if Map.isEmpty texts then
     pm
   else
-    /// The item, with this overlay's text for it, or unchanged when the overlay is silent.
-    let redescribe (hash : Hash) (set : 'item -> string -> 'item) (item : 'item) =
+    /// The item, with every doc this overlay sets on it, or unchanged when the overlay is silent.
+    let redescribe
+      (hash : Hash)
+      (set : PT.DocTarget -> string -> 'item -> 'item)
+      (item : 'item)
+      =
       match Map.tryFind hash texts with
-      | Some text -> set item text
+      | Some docs ->
+        docs |> List.fold (fun acc (target, text) -> set target text acc) item
       | None -> item
 
     let inResults
       (items : List<PT.LocatedItem<'item>>)
       (hashOf : 'item -> Hash)
-      (set : 'item -> string -> 'item)
+      (set : PT.DocTarget -> string -> 'item -> 'item)
       : List<PT.LocatedItem<'item>> =
       items
       |> List.map (fun i ->
         { i with entity = redescribe (hashOf i.entity) set i.entity })
-
-    let typeText (t : PT.PackageType.PackageType) text =
-      { t with description = text }
-    let valueText (v : PT.PackageValue.PackageValue) text =
-      { v with description = text }
-    let fnText (f : PT.PackageFn.PackageFn) text = { f with description = text }
 
     { pm with
         getType =
           fun h ->
             uply {
               let! r = pm.getType h
-              return r |> Option.map (redescribe h typeText)
+              return r |> Option.map (redescribe h PT.DocTarget.onType)
             }
         getValue =
           fun h ->
             uply {
               let! r = pm.getValue h
-              return r |> Option.map (redescribe h valueText)
+              return r |> Option.map (redescribe h PT.DocTarget.onValue)
             }
         getFn =
           fun h ->
             uply {
               let! r = pm.getFn h
-              return r |> Option.map (redescribe h fnText)
+              return r |> Option.map (redescribe h PT.DocTarget.onFn)
             }
         search =
           fun query ->
@@ -620,9 +629,10 @@ let private described
               let! r = pm.search query
               return
                 { r with
-                    types = inResults r.types (fun t -> t.hash) typeText
-                    values = inResults r.values (fun v -> v.hash) valueText
-                    fns = inResults r.fns (fun f -> f.hash) fnText }
+                    types = inResults r.types (fun t -> t.hash) PT.DocTarget.onType
+                    values =
+                      inResults r.values (fun v -> v.hash) PT.DocTarget.onValue
+                    fns = inResults r.fns (fun f -> f.hash) PT.DocTarget.onFn }
             } }
 
 

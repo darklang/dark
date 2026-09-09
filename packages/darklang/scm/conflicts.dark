@@ -473,6 +473,15 @@ let record (branchId: Uuid) (conflicts: List<Conflict>) : Int =
     | Ok _ -> written + 1
     | Error _ -> written)
 
+/// Is this conflict about WHICH VERSION a name holds?
+///
+/// The two divergence kinds are; a `doc-divergence` is about the prose said on one piece of content,
+/// and its candidates are hashes of text rather than of items. Anything keyed on the live binding
+/// has to ask this first.
+let aboutABinding (kind: String) : Bool =
+  Stdlib.List.``member`` [ "same-name-different-hash", "independent-creation" ] kind
+
+
 /// Conflicts awaiting a human ON THIS BRANCH, oldest first.
 ///
 /// Scoped, because a conflict is a divergence in one line of work: settling main's while standing on a
@@ -498,16 +507,24 @@ let pending () : List<Conflict> =
   |> Stdlib.List.filter (fun c ->
     let loc = Deps.locationOf c.owner c.modules c.name
 
-    match PackageOps.liveBindingFor branchId loc with
-    | Some live ->
-      let stillACandidate = c.candidates |> Stdlib.List.any (fun cand -> cand.hash == live.hash)
+    // The sweep asks "does the name still hold one of these versions", so it only applies to a
+    // conflict that is ABOUT which version a name holds. A `doc-divergence` is about the prose on a
+    // piece of content: its candidates are hashes of TEXT, which no binding will ever equal, so
+    // sweeping it superseded every one of them the moment it was noticed and none was ever shown.
+    if Stdlib.Bool.not (aboutABinding c.kind) then
+      true
+    else
+      match PackageOps.liveBindingFor branchId loc with
+      | Some live ->
+        let stillACandidate =
+          c.candidates |> Stdlib.List.any (fun cand -> cand.hash == live.hash)
 
-      if stillACandidate then
-        true
-      else
-        setStatus c.id "superseded" live.hash
-        false
-    | None -> true)
+        if stillACandidate then
+          true
+        else
+          setStatus c.id "superseded" live.hash
+          false
+      | None -> true)
 
 /// How many conflicts are waiting -- the number `dark status` and `dark commit` surface. Runs the same
 /// sweep as `pending`, so the count and the list never disagree about a superseded one.

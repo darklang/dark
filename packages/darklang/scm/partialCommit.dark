@@ -199,8 +199,11 @@ let contentIdIfWanted
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
     // Same as a deprecation: it says something ABOUT content, so `--include=` finds it by the
     // name that content is bound to.
-    | Describe(target, _) ->
-      Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
+    | UpdateDoc(target, _, _, _) ->
+      let reference = LanguageTools.ProgramTypes.DocTarget.reference target
+      Stdlib.Option.Option.Some(
+        hashOf (LanguageTools.ProgramTypes.Reference.hash reference)
+      )
     | _ -> Stdlib.Option.Option.None
 
   match target with

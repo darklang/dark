@@ -84,6 +84,62 @@ let private notCurrentlyBound (ops : List<PT.PackageOp>) : Task<List<PT.PackageO
   }
 
 
+/// Which of these doc ops say something the target does NOT currently say.
+///
+/// The doc half of the same question `notCurrentlyBound` asks about names. A doc op the log already
+/// holds is either a re-run of the same command (the register already says this, nothing to do) or a
+/// RESTATEMENT -- putting the text back to something it held before, which is unsayable as itself
+/// because ops are content-addressed. The register is what tells them apart.
+///
+/// A target with no register row has never been edited: its text came in on the item's own `Add*`,
+/// so an op saying something else about it is new, not a restatement of the register.
+let private docsNotCurrentlySaid
+  (ops : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp>> =
+  task {
+    let candidates =
+      ops
+      |> List.choose (fun op ->
+        match op with
+        | PT.PackageOp.UpdateDoc(target, text, _, _) -> Some(op, target, text)
+        | _ -> None)
+
+    if List.isEmpty candidates then
+      return []
+    else
+      let keyParams =
+        candidates
+        |> List.mapi (fun i (_, target : PT.DocTarget, _) ->
+          let (Hash h) = target.reference.hash
+          ($"key_{i}",
+           Sql.string (String.concat "\u0000" [ h; target.part; target.within ])))
+
+      let keyClause =
+        candidates |> List.mapi (fun i _ -> $"@key_{i}") |> String.concat ", "
+
+      let! rows =
+        Sql.query
+          $"""
+          SELECT item_hash, part, within, text
+          FROM item_docs
+          WHERE item_hash || char(0) || part || char(0) || within IN ({keyClause})
+          """
+        |> Sql.parameters keyParams
+        |> Sql.executeAsync (fun read ->
+          ((read.string "item_hash", read.string "part", read.string "within"),
+           read.string "text"))
+
+      let said = Map.ofList rows
+
+      return
+        candidates
+        |> List.filter (fun (_, target, text) ->
+          let (Hash h) = target.reference.hash
+          Map.tryFind (h, target.part, target.within) said <> Some text)
+        |> List.map (fun (op, _, _) -> op)
+  }
+
+
 let rec insertAndApplyOpsWith
   (tsFor : System.Guid -> string)
   (commitFor : System.Guid -> string option)
@@ -171,15 +227,19 @@ let rec insertAndApplyOpsWith
       do! PackageOpPlayback.recordDependenciesOnly ignored
 
       // A `SetName` already in the log, for a name bound to something else right now, is a revert:
-      // unsayable as a `SetName` (`PT.restatingBinding`), so it is re-authored as the decision it
-      // is. Never recurses -- what goes back in is a `Decision`, and only `SetName` produces one.
-      let! toRestate = notCurrentlyBound ignored
+      // unsayable as a `SetName` (`PT.restating`), so it is re-authored as the decision it is. An
+      // `UpdateDoc` already in the log, saying something the target does not currently say, is the
+      // same thing one level down, and goes back in stamped. Recursion terminates: a `SetName`
+      // becomes a `Decision`, and a stamped `UpdateDoc` is a new op id, so neither is ignored again.
+      let! toRestateNames = notCurrentlyBound ignored
+      let! toRestateDocs = docsNotCurrentlySaid ignored
+      let toRestate = toRestateNames @ toRestateDocs
       let! restated =
         if List.isEmpty toRestate then
           Task.FromResult 0L
         else
           toRestate
-          |> List.choose (PT.restatingBinding (nextOriginTs ()))
+          |> List.choose (PT.restating (nextOriginTs ()))
           |> insertAndApplyOpsWith tsFor commitFor source
 
       // Bookkeeping only: the fold above already ran, so a failure here costs a redundant re-fold on

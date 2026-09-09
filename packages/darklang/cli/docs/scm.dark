@@ -22,7 +22,7 @@ so read the first section below before the command list.
 
    A doc comment is not part of that: it is something said ABOUT the item, so
    editing one leaves the hash alone and repoints nobody. It is still a real
-   change that commits and syncs (a `Describe` op), and `view` shows it.
+   change that commits and syncs (an `UpdateDoc` op), and `view` shows it.
 
 A name is a separate thing from the item it points at. `Ux.Money.cents` is a
 binding, and editing the fn rebinds the name to the new version. That's why

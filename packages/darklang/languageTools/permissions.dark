@@ -70,13 +70,12 @@ type Policy =
   { allow: List<Permissions.Rule>
     deny: List<Permissions.Rule> }
 
-/// Why approving and pinning a version did not happen. An approval outcome
-/// rather than a policy type; it lives here because the host builtin that
-/// returns it addresses Dark types through the `LanguageTools.Permissions`
-/// package ref.
-type PinFailure =
-  /// The permission contract differs from the current pin's: the
-  /// human-readable differences, for a second explicit review.
+/// Why approving a version for a name did not happen. An approval outcome rather than a policy
+/// type; it lives here because the host builtin that returns it addresses Dark types through the
+/// `LanguageTools.Permissions` package ref.
+type ApprovalFailure =
+  /// The permission contract differs from the currently approved version's: the human-readable
+  /// differences, for a second explicit review.
   | ContractChanged of List<String>
   /// The version cannot be approved as asked: an unknown hash, an
   /// unacknowledged incomplete analysis, rules that never allow an effect it

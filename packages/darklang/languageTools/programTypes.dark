@@ -375,6 +375,18 @@ let hashToShort (hash: Hash) : String =
   let h = hashToString hash
   Stdlib.String.first h 8
 
+/// The hash of a piece of PROSE, which is not content and so is not hashed the way an item is.
+///
+/// `UpdateDoc.previous` names the text it replaces, and naming it needs a way to say WHICH text
+/// without carrying it. Same construction as an item hash (SHA-256, lowercase hex) so the two are
+/// indistinguishable in a column, and deliberately not the same function: an item hash is over a
+/// canonical serialization and this is over the bytes of a string. Must agree with
+/// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
+let hashOfText (text: String) : Hash =
+  (Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob text)))
+  |> Stdlib.String.toLowercase
+  |> Hash.Hash
+
 /// A package entity paired with its location
 type LocatedItem<'entity> =
   { entity: 'entity
@@ -530,6 +542,38 @@ type PropagationPolicy =
   | Follow
   | Unset
 
+/// WHICH piece of prose an `UpdateDoc` sets. One op with a target rather than a family of ops: the
+/// fold and the conflict path are identical for every case, and only the reach into the declaration
+/// differs. The nested cases are the point -- a doc comment on a field, a case or a parameter is not
+/// part of identity either, so before this there was no op that could carry an edit to one.
+type DocTarget =
+  | ItemDoc of target: Reference
+  | RecordFieldDoc of target: Reference * fieldName: String
+  | EnumCaseDoc of target: Reference * caseName: String
+  /// By POSITION, not by name: a parameter's name is not part of the identity hash (a body
+  /// references parameters by position), so two functions differing only in parameter names are one
+  /// item and a name would not identify anything.
+  | ParameterDoc of target: Reference * parameterIndex: Int
+
+module DocTarget =
+  /// The content the prose is about. Every case carries one; only the reach into the declaration
+  /// differs.
+  let reference (t: DocTarget) : Reference =
+    match t with
+    | ItemDoc r -> r
+    | RecordFieldDoc(r, _) -> r
+    | EnumCaseDoc(r, _) -> r
+    | ParameterDoc(r, _) -> r
+
+  /// How it reads in a listing: what part of the item is being described.
+  let describe (t: DocTarget) : String =
+    match t with
+    | ItemDoc _ -> "the item"
+    | RecordFieldDoc(_, name) -> $"field {name}"
+    | EnumCaseDoc(_, name) -> $"case {name}"
+    | ParameterDoc(_, index) -> $"parameter {Stdlib.Int.toString (index + 1)}"
+
+
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
@@ -552,11 +596,23 @@ type PackageOp =
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
-  /// What an item SAYS about itself. A doc comment is not behaviour, so it is not in the identity
-  /// hash: editing one leaves the hash alone and every caller keeps resolving to the same item.
-  /// That needs an op of its own, because an `AddFn` differing only in its docs IS the earlier
-  /// `AddFn` and folds to nothing. Keyed on content, like `Deprecate`; last one wins.
-  | Describe of target: Reference * text: String
+  /// What an item, or one named part of it, SAYS about itself. A doc comment is not behaviour, so it
+  /// is not in the identity hash: editing one leaves the hash alone and every caller keeps resolving
+  /// to the same item. That needs an op of its own, because an `AddFn` differing only in its docs IS
+  /// the earlier `AddFn` and folds to nothing. Keyed on content, like `Deprecate`.
+  ///
+  /// `previous` is the hash of the text being replaced, or None when there was nothing there. It is
+  /// what lets two people editing one doc comment produce a recorded conflict rather than one of
+  /// them losing their words silently.
+  ///
+  /// `restating` is empty except on one path and is never read: it is what makes a RESTATEMENT a
+  /// distinct op, since putting a doc back to text it held before otherwise produces the op that
+  /// set it then, which dedupes and folds nothing.
+  | UpdateDoc of
+      target: DocTarget *
+      text: String *
+      previous: Stdlib.Option.Option<Hash> *
+      restating: Stdlib.Option.Option<String>
   /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding, acking a
   /// finding and choosing a propagation policy are one class of act -- someone decided something about
   /// a location, and it has to hold on every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,

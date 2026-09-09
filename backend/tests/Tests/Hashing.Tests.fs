@@ -192,8 +192,8 @@ let private typeHashTests =
         Expect.notEqual h1 h2 "different types should hash differently"
       }
 
-      // A doc comment is NOT identity: it is something said about the item, carried by a
-      // `Describe` op, so editing one leaves every caller pointed at the same version.
+      // A doc comment is NOT identity: it is something said about the item, carried by an
+      // `UpdateDoc` op, so editing one leaves every caller pointed at the same version.
       test "the description does not affect the hash" {
         let def =
           PT.TypeDeclaration.Record(
@@ -206,13 +206,9 @@ let private typeHashTests =
         Expect.equal h1 h2 "a different doc comment is the same version"
       }
 
-      // Nor does a FIELD's, which is the same rule one level down and has always been true here.
-      //
-      // KNOWN GAP: `Describe` carries the item's own text, so an edit to a field's doc alone has no
-      // op that can carry it -- same hash, so the `AddType` folds to nothing and the text never
-      // lands. A full reload picks it up (it re-folds every op) and nothing else does. The fix is
-      // the same one the op's TODO names: docs as values pointing at what they describe, which
-      // reaches a field as easily as an item.
+      // Nor does a FIELD's, which is the same rule one level down. `UpdateDoc.RecordFieldDoc` is
+      // what carries an edit to one: until that existed the `AddType` folded to nothing (same hash)
+      // and the text never landed anywhere but a full reload.
       test "a field's description does not affect the hash either" {
         let typ1 =
           makeType (

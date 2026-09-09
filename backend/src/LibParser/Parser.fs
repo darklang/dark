@@ -2685,7 +2685,15 @@ and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
       else
         errUnclosed state afterTyp ")" "(" lparen
         (zeroWidthAtEnd (rng state afterTyp), afterTyp)
-    (WT.FPNormal(span lparen rparen, nameId, typ, lparen, colon, rparen), afterRP)
+    // A `///` for a parameter attaches to whichever token follows it: the `(` when the comment is
+    // written above the whole parameter, the NAME when it is written just inside the paren. Both
+    // spellings occur, so both are read.
+    let description =
+      let atParen = docOf state i
+      if atParen <> "" then atParen else docOf state (i + 1)
+
+    (WT.FPNormal(span lparen rparen, nameId, typ, lparen, colon, rparen, description),
+     afterRP)
 
 // A declaration-scope function (`let f (p: T) … : R = body`) or value
 // (`val x = body`). Legacy module-level `let x = body` also comes through here
@@ -2747,7 +2755,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
       if kk2 = kk then more <- false else kk <- kk2
     for parameter in ps do
       match parameter with
-      | WT.FPNormal(_, name, _, _, _, _) when name.name = "" ->
+      | WT.FPNormal(_, name, _, _, _, _, _) when name.name = "" ->
         state.diagnostics.Add
           { code = DiagnosticCode.pattern
             severity = DiagError
@@ -2868,6 +2876,7 @@ and parseRecordDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
         { range = span fnameR (WT.typeReferenceRange typ)
           name = (fnameR, fname)
           typ = typ
+          description = docOf state k
           symbolColon = colon }
       if tok state k2 = TSemicolon || tok state k2 = TComma then
         fields.Add(field, Some(rng state k2))
@@ -2935,6 +2944,9 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
     if tok state k <> TBar && not first then
       go <- false
     else
+      // A `///` above a case attaches to whichever token starts it: the leading `|` usually, or the
+      // case name itself when the first case omits its bar (`type X = A | B`).
+      let barDoc = docOf state k
       let barRange =
         if tok state k = TBar then
           (let r = rng state k in
@@ -2946,6 +2958,7 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
       | TIdent cname when cname.Length > 0 && System.Char.IsUpper cname[0] ->
         first <- false
         let cnameR = rng state k
+        let cnameIdx = k
         k <- k + 1
         let fields = System.Collections.Generic.List<WT.EnumFieldSyntax>()
         let mutable kwOf = None
@@ -2966,6 +2979,7 @@ and parseEnumDef (state : ParserState) (i : int) : WT.TypeDefinition * int =
           { range = span cnameR lastR
             name = (cnameR, cname)
             fields = List.ofSeq fields
+            description = (if barDoc <> "" then barDoc else docOf state cnameIdx)
             keywordOf = kwOf }
         )
       | _ -> go <- false

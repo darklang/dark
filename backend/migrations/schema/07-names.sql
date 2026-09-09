@@ -68,6 +68,26 @@ CREATE INDEX IF NOT EXISTS idx_deprecations_lookup
   ON deprecations(item_hash, item_kind) WHERE unlisted_at IS NULL;
 
 
+-- What an item, or one named part of it, currently says about itself. Projection of UpdateDoc ops.
+--
+-- The prose itself lives in the item's serialized declaration, where every reader already looks;
+-- this table is the LWW REGISTER that decides whether an arriving op gets to rewrite it. Without a
+-- register there is nowhere to keep the doc's own origin_ts, so a stale op arriving late overwrote
+-- a newer one, and nothing could tell an edit that descends from what we hold (apply it) from one
+-- made against a text we never had (a divergence, which gets a conflict row).
+CREATE TABLE IF NOT EXISTS item_docs (
+  item_hash TEXT NOT NULL,
+  -- 'item' | 'record-field' | 'enum-case' | 'parameter': WHICH kind of part.
+  part TEXT NOT NULL,
+  -- WHICH part, by its name in the declaration; '' for the item's own doc.
+  within TEXT NOT NULL,
+  text TEXT NOT NULL,
+  -- The origin_ts of the op that wrote this text, so the newest STATEMENT wins rather than the last
+  -- to arrive.
+  origin_ts TEXT NOT NULL,
+  PRIMARY KEY (item_hash, part, within)
+);
+
 
 -- Dependency edges between package items. Records the user-typed FQN alongside the content hash, so
 -- two distinct FQNs sharing a hash (e.g. multiple `val ... = 200L`) stay separate edges rather than

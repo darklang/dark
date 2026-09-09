@@ -106,6 +106,42 @@ module DecisionKind =
     | b -> raiseFormatError $"Invalid DecisionKind tag: {b}"
 
 
+// -- DocTarget --
+
+module DocTarget =
+  let write (w : BinaryWriter) (target : DocTarget) : unit =
+    match target with
+    | DocTarget.ItemDoc r ->
+      w.Write(0uy)
+      Reference.write w r
+    | DocTarget.RecordFieldDoc(r, name) ->
+      w.Write(1uy)
+      Reference.write w r
+      String.write w name
+    | DocTarget.EnumCaseDoc(r, name) ->
+      w.Write(2uy)
+      Reference.write w r
+      String.write w name
+    | DocTarget.ParameterDoc(r, index) ->
+      w.Write(3uy)
+      Reference.write w r
+      w.Write(index)
+
+  let read (r : BinaryReader) : DocTarget =
+    match r.ReadByte() with
+    | 0uy -> DocTarget.ItemDoc(Reference.read r)
+    | 1uy ->
+      let reference = Reference.read r
+      DocTarget.RecordFieldDoc(reference, String.read r)
+    | 2uy ->
+      let reference = Reference.read r
+      DocTarget.EnumCaseDoc(reference, String.read r)
+    | 3uy ->
+      let reference = Reference.read r
+      DocTarget.ParameterDoc(reference, r.ReadInt32())
+    | b -> raiseFormatError $"Invalid DocTarget tag: {b}"
+
+
 // -- PackageOp --
 
 let write (w : BinaryWriter) (op : PackageOp) : unit =
@@ -146,13 +182,24 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.Undeprecate target ->
     w.Write(5uy)
     Reference.write w target
-  | PackageOp.Describe(target, text) ->
-    w.Write(13uy)
-    Reference.write w target
+  | PackageOp.UpdateDoc(target, text, previous, restating) ->
+    w.Write(14uy)
+    DocTarget.write w target
     String.write w text
-  // 11, not one of the retired 6-9. A retired tag is never recycled: an old blob would then decode
-  // as a DIFFERENT op rather than failing, and silently decoding as something else is the worst
-  // thing a format can do. Cheap to avoid -- tags are arbitrary and there is no shortage of them.
+    (match previous with
+     | None -> w.Write(0uy)
+     | Some(Hash h) ->
+       w.Write(1uy)
+       String.write w h)
+    match restating with
+    | None -> w.Write(0uy)
+    | Some stamp ->
+      w.Write(1uy)
+      String.write w stamp
+  // 11, not one of the retired 6-9 (nor 13, which was `Describe` before docs learned to name a
+  // predecessor). A retired tag is never recycled: an old blob would then decode as a DIFFERENT op
+  // rather than failing, and silently decoding as something else is the worst thing a format can
+  // do. Cheap to avoid -- tags are arbitrary and there is no shortage of them.
   | PackageOp.Decision(id, location, reason, kind) ->
     w.Write(11uy)
     String.write w id
@@ -201,10 +248,20 @@ let read (r : BinaryReader) : PackageOp =
   | 5uy ->
     let target = Reference.read r
     PackageOp.Undeprecate target
-  | 13uy ->
-    let target = Reference.read r
+  | 14uy ->
+    let target = DocTarget.read r
     let text = String.read r
-    PackageOp.Describe(target, text)
+    let previous =
+      match r.ReadByte() with
+      | 0uy -> None
+      | 1uy -> Some(Hash(String.read r))
+      | b -> raiseFormatError $"Invalid UpdateDoc previous tag: {b}"
+    let restating =
+      match r.ReadByte() with
+      | 0uy -> None
+      | 1uy -> Some(String.read r)
+      | b -> raiseFormatError $"Invalid UpdateDoc restating tag: {b}"
+    PackageOp.UpdateDoc(target, text, previous, restating)
   | 10uy ->
     let branchId = LibExecution.Branching.BranchId.Id(Guid.read r)
     let event = BranchEventKind.read r

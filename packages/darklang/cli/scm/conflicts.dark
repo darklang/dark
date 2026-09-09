@@ -322,6 +322,17 @@ let executeOverride
   | None ->
     Cli.printErr $"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them."
     { state with exitCode = 1 }
+  | Some c when Stdlib.Bool.not (SCM.Conflicts.aboutABinding c.kind) ->
+    // A doc divergence has no side to take: both candidates are TEXT, and binding a name to a text
+    // hash is not a thing. The way to settle one is to write the wording you want and ack it.
+    Cli.printErr
+      $"#{c.id} is a disagreement about wording, not about which version a name holds."
+
+    Cli.printHint
+      $"  write the wording you want (edit the doc comment), then `dark conflicts ack {c.id}`."
+
+    { state with exitCode = 1 }
+
   | Some c ->
     let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
 

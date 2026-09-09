@@ -547,59 +547,272 @@ let private applyUndeprecate
   writeDeprecationState ctx target ts "undeprecated" None
 
 
-/// Apply a Describe op: the item's stored text becomes <param text>.
+/// How to read and rewrite ONE doc target's prose inside a stored declaration.
 ///
-/// A rewrite in place rather than a row in a projection table, and that is only sound because the
-/// doc is not in the identity hash: the blob for hash H carries H's behaviour plus whatever H is
-/// currently said to be, and only the first half is what H means. So there is nothing to reconcile
-/// -- last writer wins by `origin_ts`, like every other fold here.
+/// A pair rather than two loose functions, so that "which text does this target name" cannot drift
+/// between the read that DECIDES (is this an edit of what we hold, or a divergence?) and the write
+/// that applies it.
+type private DocLens =
+  {
+    table : string
+    /// What the blob says at this target now. `None` when the target names a field, case or
+    /// parameter this declaration does not have.
+    read : byte[] -> Option<string>
+    /// The blob with this target's prose replaced. Unchanged when the target is not there.
+    write : byte[] -> string -> byte[]
+  }
+
+
+/// The lens for <param target>, over whichever table holds its item.
 ///
-/// Both the blob and the `description` column, because both are read: the column by the listings
-/// and search, the blob by anything that loads the item.
-let private applyDescribe
+/// The reach INTO the declaration is `PT.DocTarget`'s, shared with the branch overlay; what is here
+/// is only the serialization around it, which is the half that differs by table.
+let private lensFor (target : PT.DocTarget) : DocLens =
+  let hash = target.reference.hash
+  let (Hash hashStr) = hash
+
+  match target.reference.kind with
+  | PT.ItemKind.Fn ->
+    { table = "package_functions"
+      read =
+        fun bytes ->
+          PT.DocTarget.inFn target (BS.PT.PackageFn.deserialize hash bytes)
+      write =
+        fun bytes text ->
+          BS.PT.PackageFn.deserialize hash bytes
+          |> PT.DocTarget.onFn target text
+          |> BS.PT.PackageFn.serialize hashStr }
+
+  | PT.ItemKind.Type ->
+    { table = "package_types"
+      read =
+        fun bytes ->
+          PT.DocTarget.inType target (BS.PT.PackageType.deserialize hash bytes)
+      write =
+        fun bytes text ->
+          BS.PT.PackageType.deserialize hash bytes
+          |> PT.DocTarget.onType target text
+          |> BS.PT.PackageType.serialize hashStr }
+
+  | PT.ItemKind.Value ->
+    { table = "package_values"
+      read =
+        fun bytes ->
+          PT.DocTarget.inValue target (BS.PT.PackageValue.deserialize hash bytes)
+      write =
+        fun bytes text ->
+          BS.PT.PackageValue.deserialize hash bytes
+          |> PT.DocTarget.onValue target text
+          |> BS.PT.PackageValue.serialize hashStr }
+
+
+/// Any live name for <param hashStr>, as (owner, dotted modules, name).
+///
+/// A conflict row is keyed by a NAME, because a name is what a person resolves; prose is keyed by
+/// CONTENT. So filing a doc conflict needs a join that cannot always succeed, and an item nothing
+/// currently names gets empty strings rather than no record: the divergence is real either way, and
+/// dropping it would be the silent loss this op exists to end.
+let private aLiveNameFor
   (ctx : Ctx)
-  (target : PT.Reference)
-  (text : string)
+  (hashStr : string)
+  : Task<string * string * string> =
+  task {
+    let cmd =
+      command
+        ctx
+        "SELECT owner, modules, name FROM locations
+         WHERE item_hash = $hash AND unlisted_at IS NULL AND source <> 'unbind'
+         ORDER BY created_at LIMIT 1"
+    cmd.Parameters.Clear()
+    p cmd "$hash" hashStr
+    use! reader = cmd.ExecuteReaderAsync()
+    let! hasRow = reader.ReadAsync()
+    if hasRow then
+      return (reader.GetString 0, reader.GetString 1, reader.GetString 2)
+    else
+      return ("", "", "")
+  }
+
+
+/// Record that two people wrote different prose for one target, neither having seen the other's.
+///
+/// Auto-resolved and pending, exactly like a name divergence: the newer statement is applied so the
+/// store stays usable, and the row is what makes the loser's words findable instead of gone. The
+/// id is derived from both texts, so both instances mint the same one and re-folding the same pair
+/// updates one row rather than piling up duplicates.
+let private recordDocConflict
+  (ctx : Ctx)
+  (branchId : PT.BranchId)
+  (ts : string)
+  (target : PT.DocTarget)
+  (ours : string)
+  (standingTs : string)
+  (theirs : string)
+  (incomingWins : bool)
   : Task<unit> =
   task {
-    let (Hash hashStr) = target.hash
+    let (Hash hashStr) = target.reference.hash
+    let (Hash ourText) = Hash.ofText ours
+    let (Hash theirText) = Hash.ofText theirs
+    let! (owner, modules, name) = aLiveNameFor ctx hashStr
 
-    let table, reserialize =
-      match target.kind with
-      | PT.ItemKind.Fn ->
-        "package_functions",
-        (fun (bytes : byte[]) ->
-          let fn = BS.PT.PackageFn.deserialize target.hash bytes
-          BS.PT.PackageFn.serialize hashStr { fn with description = text })
-      | PT.ItemKind.Type ->
-        "package_types",
-        (fun bytes ->
-          let t = BS.PT.PackageType.deserialize target.hash bytes
-          BS.PT.PackageType.serialize hashStr { t with description = text })
-      | PT.ItemKind.Value ->
-        "package_values",
-        (fun bytes ->
-          let v = BS.PT.PackageValue.deserialize target.hash bytes
-          BS.PT.PackageValue.serialize hashStr { v with description = text })
+    let material =
+      let sorted = List.sort [ ourText; theirText ]
+      $"{hashStr}/{target.part}/{target.within}|" + String.concat "," sorted
+
+    let id =
+      material
+      |> System.Text.Encoding.UTF8.GetBytes
+      |> System.Security.Cryptography.SHA256.HashData
+      |> System.Convert.ToHexString
+      |> fun h -> "doc" + h.Substring(0, 8).ToLowerInvariant()
+
+    // The candidate hashes are of the TEXTS, not of items -- there is no item to point at, since a
+    // doc edit never moves the hash. Same field names as a name divergence's candidates, because the
+    // same reader decodes both and a listing that cannot find its own sides says "auto" for every row.
+    // Built by hand: the reflection serializer is disabled under AOT.
+    let candidate (side : string) (hash : string) (ts : string) =
+      $"""{{"side":"{side}","hash":"{hash}","originTs":"{ts}","author":""}}"""
+
+    let candidates =
+      "["
+      + candidate "local" ourText standingTs
+      + ","
+      + candidate "incoming" theirText ts
+      + "]"
+
+    do!
+      exec ctx "INSERT INTO conflicts
+           (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason,
+            status, origin_ts, branch_id)
+         VALUES ($id, $owner, $modules, $name, $item_type, 'doc-divergence', $candidates,
+                 $winner, $reason, 'pending', $ts, $branch)
+         ON CONFLICT(id) DO UPDATE SET
+           auto_resolved_to = excluded.auto_resolved_to,
+           reason = excluded.reason,
+           origin_ts = excluded.origin_ts" (fun cmd ->
+        p cmd "$id" id
+        p cmd "$owner" owner
+        p cmd "$modules" modules
+        p cmd "$name" name
+        p cmd "$item_type" (target.reference.kind.toString ())
+        p cmd "$candidates" candidates
+        p cmd "$winner" (if incomingWins then theirText else ourText)
+        p
+          cmd
+          "$reason"
+          $"two texts for {target.describe}, neither made from the other"
+        p cmd "$ts" ts
+        p cmd "$branch" (string branchId))
+  }
+
+
+/// Apply an `UpdateDoc`: the prose at <param target> becomes <param text>.
+///
+/// A rewrite of the stored declaration rather than a row in a projection nothing reads, and that is
+/// only sound because a doc is not in the identity hash: the blob for hash H carries H's behaviour
+/// plus whatever H is currently said to be, and only the first half is what H MEANS.
+///
+/// Two things decide whether the rewrite happens, and they are different questions:
+///   - WHO IS NEWER, by the ops' own `origin_ts`, so that two machines folding the same pair in
+///     different orders land in the same place. An older statement arriving late is a late arrival,
+///     not a new decision.
+///   - WHETHER THE WRITER SAW WHAT WE HOLD, by `previous`. An edit made on top of our text is
+///     collaboration and applies quietly. One made against a text we never had is a divergence:
+///     the newer text still wins, and the conflict record is what keeps the loser's words findable.
+///
+/// For the item's own doc, both the blob and the `description` column, because both are read: the
+/// column by the listings and search, the blob by anything that loads the item. A field's, case's
+/// or parameter's doc lives only in the blob, which is why it needed a lens rather than an UPDATE.
+let private applyUpdateDoc
+  (ctx : Ctx)
+  (branchId : PT.BranchId)
+  (ts : string)
+  (target : PT.DocTarget)
+  (text : string)
+  (previous : Option<Hash>)
+  : Task<unit> =
+  task {
+    let lens = lensFor target
+    let (Hash hashStr) = target.reference.hash
 
     let! stored =
-      bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
-        p cmd "$hash" hashStr)
+      bytesOption
+        ctx
+        $"SELECT pt_def FROM {lens.table} WHERE hash = $hash"
+        (fun cmd -> p cmd "$hash" hashStr)
 
-    // Nothing here to describe: the item has not arrived (a Describe can travel ahead of the
-    // AddFn that carries its subject). Dropped rather than stored, the same as every other op
-    // whose target this store does not hold.
-    match stored with
+    // Nothing here to describe: either the item has not arrived (a doc op can travel ahead of the
+    // `AddFn` that carries its subject) or the declaration has no part by that name. Dropped, the
+    // same as every other op whose target this store does not hold.
+    let atTarget =
+      stored
+      |> Option.bind (fun bytes -> lens.read bytes |> Option.map (fun t -> bytes, t))
+
+    match atTarget with
     | None -> return ()
-    | Some bytes ->
-      do!
-        exec
-          ctx
-          $"UPDATE {table} SET pt_def = $pt_def, description = $description WHERE hash = $hash"
-          (fun cmd ->
+    | Some(_bytes, current) when current = text -> return ()
+    | Some(bytes, current) ->
+      let! standing =
+        textOption ctx "SELECT origin_ts FROM item_docs
+           WHERE item_hash = $hash AND part = $part AND within = $within" (fun cmd ->
+          p cmd "$hash" hashStr
+          p cmd "$part" target.part
+          p cmd "$within" target.within)
+
+      // "" for a doc that arrived on its item's `AddFn` and has never been edited: there is no
+      // register row yet, so there is no statement for this one to be older than.
+      let standing = standing |> Option.defaultValue ""
+      let stale = standing <> "" && ts < standing
+
+      // Did whoever wrote this see the text we hold? `previous` naming its hash says yes. None
+      // says the writer found nothing there, which is only consistent with what we hold if we
+      // have nothing either.
+      let descends =
+        match previous with
+        | Some p -> p = Hash.ofText current
+        | None -> current = ""
+
+      // A divergence needs TWO statements. An empty local doc is not a quiet disagreement, it is
+      // nobody here having said anything -- which is the ordinary case for a doc op arriving ahead
+      // of the one that set the text its author was looking at. Recording those as conflicts filled
+      // the list with pairs where one side had no words in it.
+      if not descends && current <> "" then
+        do!
+          recordDocConflict ctx branchId ts target current standing text (not stale)
+
+      if stale then
+        return ()
+      else
+        do!
+          exec
+            ctx
+            $"UPDATE {lens.table} SET pt_def = $pt_def WHERE hash = $hash"
+            (fun cmd ->
+              p cmd "$hash" hashStr
+              p cmd "$pt_def" (lens.write bytes text))
+
+        match target with
+        | PT.ItemDoc _ ->
+          do!
+            exec
+              ctx
+              $"UPDATE {lens.table} SET description = $description WHERE hash = $hash"
+              (fun cmd ->
+                p cmd "$hash" hashStr
+                p cmd "$description" text)
+        | _ -> ()
+
+        do!
+          exec ctx "INSERT INTO item_docs (item_hash, part, within, text, origin_ts)
+             VALUES ($hash, $part, $within, $text, $ts)
+             ON CONFLICT(item_hash, part, within) DO UPDATE SET
+               text = excluded.text, origin_ts = excluded.origin_ts" (fun cmd ->
             p cmd "$hash" hashStr
-            p cmd "$pt_def" (reserialize bytes)
-            p cmd "$description" text)
+            p cmd "$part" target.part
+            p cmd "$within" target.within
+            p cmd "$text" text
+            p cmd "$ts" ts)
   }
 
 
@@ -948,7 +1161,19 @@ let private applyOp
     | PT.PackageOp.Undeprecate target ->
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
       do! applyUndeprecate ctx ts target
-    | PT.PackageOp.Describe(target, text) -> do! applyDescribe ctx target text
+    | PT.PackageOp.UpdateDoc(target, text, previous, _) ->
+      // The op's own time, so the NEWEST statement wins rather than the last to arrive.
+      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
+      // This fold is main's: a branch keeps its own wording as a delta op and applies it as an
+      // overlay (`PackageManager.described`), so a conflict recorded here is main's too.
+      do!
+        applyUpdateDoc
+          ctx
+          PT.BranchId.Main
+          (Option.defaultValue "" ts)
+          target
+          text
+          previous
     | PT.PackageOp.Decision(id, loc, reason, kind) ->
       match kind with
       | PT.DecisionKind.Override target ->

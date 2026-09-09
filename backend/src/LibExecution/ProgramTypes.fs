@@ -37,6 +37,19 @@ module Hash =
   let empty : Hash = Hash ""
   let toHexString (Hash h) : string = h
 
+  /// The hash of a piece of PROSE, which is not content and so is not hashed by `Canonical`.
+  ///
+  /// `UpdateDoc.previous` names the text it replaced, and naming it needs a way to say which text
+  /// without carrying it. Same construction as an item hash (SHA-256, lowercase hex) so that the two
+  /// are indistinguishable in a column, and deliberately NOT the same function: an item hash is over
+  /// a canonical serialization and this is over the bytes of a string.
+  let ofText (text : string) : Hash =
+    text
+    |> System.Text.Encoding.UTF8.GetBytes
+    |> System.Security.Cryptography.SHA256.HashData
+    |> System.Convert.ToHexString
+    |> fun s -> Hash(s.ToLowerInvariant())
+
 // Branch identity lives in `Branching` because `RuntimeTypes` needs it too and compiles first. This
 // abbreviation is what lets everything keep saying `PT.BranchId`.
 type BranchId = Branching.BranchId
@@ -742,7 +755,8 @@ type PackageOp =
   //   shouldn't silently un-Harmful on merge).
   | Undeprecate of target : Reference
 
-  /// What an item SAYS about itself, as a thing said about content rather than part of it.
+  /// What an item, or one named part of it, SAYS about itself: prose said ABOUT content rather
+  /// than being part of it.
   ///
   /// A doc comment is not behaviour, so it is not in the identity hash (see `Canonical`): editing
   /// one leaves the hash alone, and every caller keeps resolving to the same item. That is only
@@ -751,17 +765,28 @@ type PackageOp =
   /// to be reported as saved and then dropped.
   ///
   /// Keyed on content, like `Deprecate`: every name bound to this body describes the same thing.
-  /// Last one wins by `origin_ts`, and a branch's own text overlays main's.
+  ///
+  /// `previous` is the hash of the text this one replaces, or None when there was nothing there.
+  /// It plays the role `SetName.previous` plays: without it, two people editing one doc comment are
+  /// indistinguishable from one of them editing after seeing the other, and the loser's words
+  /// vanish with nothing recorded. With it, the fold can tell an edit that DESCENDS from what this
+  /// store holds (apply it) from one that does not (apply the newer, and record a conflict).
   ///
   /// TODO: the shape this wants to become is a package VALUE of a broadly-known type, roughly
   /// `{ text: String; reference: PackageThing }`, so that examples, deprecation notes and a third
   /// party's annotations of code they do not own are all the same mechanism. This op is the same
   /// idea with the vocabulary we have.
   ///
-  /// It also leaves one gap that shape would close: this carries the ITEM's text, and a field's doc
-  /// comment has never been part of identity either, so editing one alone has no op to ride on. A
-  /// reload picks it up and nothing else does.
-  | Describe of target : Reference * text : string
+  /// `restating` is empty except on one path, and is never read by the fold: it is what makes a
+  /// RESTATEMENT a distinct op. Ops are content-addressed, so "put this doc back to what it said
+  /// before" produces the op that already exists, which dedupes and folds nothing -- the same hole
+  /// `Decision.id` exists to fill for a name. `Inserts` fills it with a stamp when it sees a doc op
+  /// that is already held and does not match what the target says now.
+  | UpdateDoc of
+    target : DocTarget *
+    text : string *
+    previous : Option<Hash> *
+    restating : Option<string>
 
   /// A human's judgment about a NAME, recorded so that it travels.
   ///
@@ -866,6 +891,66 @@ and Reference =
     | ItemKind.Fn -> PackageFn h
 
 
+/// WHICH piece of prose an `UpdateDoc` sets.
+///
+/// One op with a target rather than a family of ops: the fold, the serializer, the LWW register and
+/// the conflict path are identical for every case, and only the reach into the declaration differs.
+///
+/// The nested cases are why this exists at all. A doc comment on a FIELD, a case or a parameter has
+/// never been part of identity either, so before this there was no op that could carry an edit to
+/// one: the save reported success, the hash did not move, and the words were gone by the next read.
+and DocTarget =
+  /// The item's own doc comment.
+  | ItemDoc of target : Reference
+
+  /// One record field's, by field name.
+  | RecordFieldDoc of target : Reference * fieldName : string
+
+  /// One enum case's, by case name.
+  | EnumCaseDoc of target : Reference * caseName : string
+
+  /// One function parameter's, BY POSITION.
+  ///
+  /// Not by name, unlike the other two: a record field's name and an enum case's name are part of
+  /// the identity hash, and a parameter's is not (a body references parameters by position, so the
+  /// name is cosmetic). Two functions differing only in their parameter names are therefore ONE
+  /// item, and a name-keyed target would name a parameter the stored declaration does not have.
+  | ParameterDoc of target : Reference * parameterIndex : int
+
+  /// The content this prose is about.
+  member this.reference : Reference =
+    match this with
+    | ItemDoc r
+    | RecordFieldDoc(r, _)
+    | EnumCaseDoc(r, _)
+    | ParameterDoc(r, _) -> r
+
+  /// Which KIND of part, as the register stores it.
+  member this.part : string =
+    match this with
+    | ItemDoc _ -> "item"
+    | RecordFieldDoc _ -> "record-field"
+    | EnumCaseDoc _ -> "enum-case"
+    | ParameterDoc _ -> "parameter"
+
+  /// WHICH part, by the name it has in the declaration; "" for the item itself. With `part`, the
+  /// key one doc is stored under.
+  member this.within : string =
+    match this with
+    | ItemDoc _ -> ""
+    | RecordFieldDoc(_, n)
+    | EnumCaseDoc(_, n) -> n
+    | ParameterDoc(_, i) -> string i
+
+  /// How it reads in a listing: `Some.Fn` or `Some.Type.fieldName`.
+  member this.describe : string =
+    match this with
+    | ItemDoc _ -> "the item"
+    | RecordFieldDoc(_, n) -> $"field {n}"
+    | EnumCaseDoc(_, n) -> $"case {n}"
+    | ParameterDoc(_, i) -> $"parameter {i + 1}"
+
+
 /// What a `Decision` DID. The shared part of a decision (who, where, why) lives on the op; this is the
 /// part that varies, so that a decision which binds a name and one which only closes a finding cannot be
 /// confused for each other.
@@ -925,6 +1010,121 @@ and PropagateRepoint =
   { location : PackageLocation; fromRef : Reference; toRef : Reference }
 
 
+/// Reading and writing the prose a `DocTarget` names, inside a declaration.
+///
+/// One implementation, shared by the fold (which reaches through a serialized blob) and by the
+/// branch overlay (which reaches through a loaded item). Two would drift, and it is the READ that
+/// decides whether an incoming edit descends from what a store holds or diverges from it, so a
+/// disagreement between them would be a disagreement about what is a conflict.
+///
+/// Every read answers `None` when the target does not fit -- a record field on a function, a
+/// parameter the signature does not have. That is what makes an op for a part that no longer exists
+/// fold to nothing rather than raise: such an op can only arrive from another instance, and one bad
+/// op must not refuse the batch it came in.
+module DocTarget =
+  let private named
+    (name : string)
+    (nameOf : 'a -> string)
+    (docOf : 'a -> string)
+    (items : NEList<'a>)
+    : Option<string> =
+    items |> NEList.find (fun i -> nameOf i = name) |> Option.map docOf
+
+  let private redoc
+    (name : string)
+    (nameOf : 'a -> string)
+    (setDoc : 'a -> 'a)
+    (items : NEList<'a>)
+    : NEList<'a> =
+    items |> NEList.map (fun i -> if nameOf i = name then setDoc i else i)
+
+  let inFn (target : DocTarget) (fn : PackageFn.PackageFn) : Option<string> =
+    match target with
+    | ItemDoc _ -> Some fn.description
+    | ParameterDoc(_, index) ->
+      fn.parameters
+      |> NEList.toList
+      |> List.tryItem index
+      |> Option.map (fun p -> p.description)
+    | RecordFieldDoc _
+    | EnumCaseDoc _ -> None
+
+  let onFn
+    (target : DocTarget)
+    (text : string)
+    (fn : PackageFn.PackageFn)
+    : PackageFn.PackageFn =
+    match target with
+    | ItemDoc _ -> { fn with description = text }
+    | ParameterDoc(_, index) ->
+      { fn with
+          parameters =
+            fn.parameters
+            |> NEList.mapWithIndex (fun i p ->
+              if i = index then { p with description = text } else p) }
+    | RecordFieldDoc _
+    | EnumCaseDoc _ -> fn
+
+  let inType (target : DocTarget) (t : PackageType.PackageType) : Option<string> =
+    match target, t.declaration.definition with
+    | ItemDoc _, _ -> Some t.description
+    | RecordFieldDoc(_, name), TypeDeclaration.Record fields ->
+      named
+        name
+        (fun (f : TypeDeclaration.RecordField) -> f.name)
+        (fun f -> f.description)
+        fields
+    | EnumCaseDoc(_, name), TypeDeclaration.Enum cases ->
+      named
+        name
+        (fun (c : TypeDeclaration.EnumCase) -> c.name)
+        (fun c -> c.description)
+        cases
+    | _ -> None
+
+  let onType
+    (target : DocTarget)
+    (text : string)
+    (t : PackageType.PackageType)
+    : PackageType.PackageType =
+    let redefine definition =
+      { t with declaration = { t.declaration with definition = definition } }
+
+    match target, t.declaration.definition with
+    | ItemDoc _, _ -> { t with description = text }
+    | RecordFieldDoc(_, name), TypeDeclaration.Record fields ->
+      redoc
+        name
+        (fun (f : TypeDeclaration.RecordField) -> f.name)
+        (fun f -> { f with description = text })
+        fields
+      |> TypeDeclaration.Record
+      |> redefine
+    | EnumCaseDoc(_, name), TypeDeclaration.Enum cases ->
+      redoc
+        name
+        (fun (c : TypeDeclaration.EnumCase) -> c.name)
+        (fun c -> { c with description = text })
+        cases
+      |> TypeDeclaration.Enum
+      |> redefine
+    | _ -> t
+
+  let inValue (target : DocTarget) (v : PackageValue.PackageValue) : Option<string> =
+    match target with
+    | ItemDoc _ -> Some v.description
+    | _ -> None
+
+  let onValue
+    (target : DocTarget)
+    (text : string)
+    (v : PackageValue.PackageValue)
+    : PackageValue.PackageValue =
+    match target with
+    | ItemDoc _ -> { v with description = text }
+    | _ -> v
+
+
 /// A package entity paired with its location
 /// The op that says a binding AGAIN, or `None` for an op that is not a binding.
 ///
@@ -937,7 +1137,11 @@ and PropagateRepoint =
 ///
 /// Here rather than beside a writer, because main authoring and a branch's must say it identically
 /// or a restatement syncs as a different op than the one that was made.
-let restatingBinding (ts : string) (op : PackageOp) : Option<PackageOp> =
+///
+/// A doc restatement is the same shape one level down -- putting a doc back to text it held before
+/// produces the op that set it then -- and is said by stamping the op's own `restating` field,
+/// since prose is about CONTENT and there is no location for a `Decision` to answer about.
+let restating (ts : string) (op : PackageOp) : Option<PackageOp> =
   match op with
   | PackageOp.SetName(location, target, _) ->
     let (Hash h) = target.hash
@@ -951,6 +1155,8 @@ let restatingBinding (ts : string) (op : PackageOp) : Option<PackageOp> =
         DecisionKind.Override target
       )
     )
+  | PackageOp.UpdateDoc(target, text, previous, _) ->
+    Some(PackageOp.UpdateDoc(target, text, previous, Some ts))
   | _ -> None
 
 

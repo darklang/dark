@@ -143,7 +143,24 @@ let steps : List<Step> =
       run =
         fun () ->
           addColumnIfMissing "relay_branches" "max_ts" "TEXT NOT NULL DEFAULT ''"
-          addColumnIfMissing "relay_branches" "op_count" "INTEGER NOT NULL DEFAULT 0" } ]
+          addColumnIfMissing "relay_branches" "op_count" "INTEGER NOT NULL DEFAULT 0" }
+
+    // The LWW register for doc comments. A whole table rather than a column, so `IF NOT EXISTS`
+    // WOULD have reached an existing store from the schema -- but only because the bootstrap
+    // replays it, which it does not promise to. Named here so the store records having got it, and
+    // so the answer to "how does a shape change reach an existing store" stays one answer.
+    { name = "20260908_000002_item_docs"
+      run =
+        fun () ->
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS item_docs (
+               item_hash TEXT NOT NULL,
+               part TEXT NOT NULL,
+               within TEXT NOT NULL,
+               text TEXT NOT NULL,
+               origin_ts TEXT NOT NULL,
+               PRIMARY KEY (item_hash, part, within))"
+          |> Sql.executeStatementSync } ]
 
 
 let private alreadyRun () : Set<string> =

@@ -95,7 +95,7 @@ let surgicallyUndoable
   | Unbind(_, _) -> false
   | Deprecate(_, _, _) -> false
   | Undeprecate _ -> false
-  | Describe(_, _) -> false
+  | UpdateDoc(_, _, _, _) -> false
   | BranchEvent(_, _, _) -> false
 
 

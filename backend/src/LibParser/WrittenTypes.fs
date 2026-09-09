@@ -393,6 +393,10 @@ and PipeExpr =
   | EPipeVariableOrFnCall of Range * string
 
 /// A function parameter: `(name: Type)` or a `()` unit parameter.
+///
+/// `description` is the `///` written above it. A parameter's doc is not part of the item's identity
+/// hash, so it needs an `UpdateDoc` to travel -- but it has to be READ first, and until this field
+/// existed the lexer's doc comment was attached to the `(` token and then dropped on the floor.
 type FnParam =
   | FPUnit of Range
   | FPNormal of
@@ -401,7 +405,8 @@ type FnParam =
     typ : TypeReference *
     symbolLeftParen : Range *
     symbolColon : Range *
-    symbolRightParen : Range
+    symbolRightParen : Range *
+    description : string
 
 /// `let name (p: T) … :{Effect, …} Ret = body`
 type FnDecl =
@@ -442,7 +447,14 @@ type ValueDecl =
 // --- type declarations ---
 
 type RecordFieldSyntax =
-  { range : Range; name : Range * string; typ : TypeReference; symbolColon : Range }
+  {
+    range : Range
+    name : Range * string
+    typ : TypeReference
+    /// The `///` written above the field. See `FnParam` for why it is kept.
+    description : string
+    symbolColon : Range
+  }
 
 type EnumFieldSyntax =
   { range : Range
@@ -451,10 +463,14 @@ type EnumFieldSyntax =
     symbolColon : Option<Range> }
 
 type EnumCaseSyntax =
-  { range : Range
+  {
+    range : Range
     name : Range * string
     fields : List<EnumFieldSyntax>
-    keywordOf : Option<Range> }
+    /// The `///` written above the case. See `FnParam` for why it is kept.
+    description : string
+    keywordOf : Option<Range>
+  }
 
 type TypeDefinition =
   | TDAlias of TypeReference
@@ -642,11 +658,11 @@ let private fnParamNorm (p : FnParam) : PackageFn.Parameter =
   match p with
   // A unit parameter is named "_".
   | FPUnit _ -> { name = "_"; typ = TUnit synthRange; description = "" }
-  | FPNormal(_, name, typ, _, _, _) ->
-    { name = name.name; typ = typ; description = "" }
+  | FPNormal(_, name, typ, _, _, _, description) ->
+    { name = name.name; typ = typ; description = description }
 
 let private recordFieldNorm (f : RecordFieldSyntax) : TypeDeclaration.RecordField =
-  { name = snd f.name; typ = f.typ; description = "" }
+  { name = snd f.name; typ = f.typ; description = f.description }
 
 let private enumFieldNorm (f : EnumFieldSyntax) : TypeDeclaration.EnumField =
   { typ = f.typ; label = f.label |> Option.map snd; description = "" }
@@ -654,7 +670,7 @@ let private enumFieldNorm (f : EnumFieldSyntax) : TypeDeclaration.EnumField =
 let private enumCaseNorm (c : EnumCaseSyntax) : TypeDeclaration.EnumCase =
   { name = snd c.name
     fields = c.fields |> List.map enumFieldNorm
-    description = "" }
+    description = c.description }
 
 let typeDefinitionNorm (d : TypeDefinition) : TypeDeclaration.Definition =
   match d with

@@ -360,7 +360,7 @@ let deprecateAndUndeprecate =
 
 /// Ocean's 3, and the shape it settled into. A doc comment is not behaviour, so editing one leaves
 /// the item's hash alone -- which means the edit cannot ride on an `AddFn` (ops are
-/// content-addressed, so that op IS the earlier one and folds to nothing) and rides on a `Describe`
+/// content-addressed, so that op IS the earlier one and folds to nothing) and rides on an `UpdateDoc`
 /// instead.
 let aDocOnlyEditKeepsTheVersionAndStillLands =
   cliTestOnMain
@@ -388,7 +388,7 @@ let aDocOnlyEditKeepsTheVersionAndStillLands =
             [ "view"; "Tests.Docs.f" ]
             "Returns seven"
             "and the new text is what you read"
-        do! shows state [ "ops" ] "Describe" "the op log says what happened"
+        do! shows state [ "ops" ] "UpdateDoc" "the op log says what happened"
         do! dirty state "an uncommitted doc edit is not a clean tree"
         do! evals state "Tests.Docs.caller ()" "8" "its caller is untouched"
 
@@ -450,6 +450,239 @@ let aBranchesDocEditStaysOnTheBranch =
             "the merge brings it over"
         do! discardAll state
       })
+
+/// The nested targets, which are the ones that used to be dropped on the floor.
+///
+/// A record field's, an enum case's and a parameter's doc are all outside the identity hash, so an
+/// edit to one alone leaves the item's version exactly where it was -- and before `UpdateDoc` there
+/// was no op that could carry it, so the CLI said "unchanged: nothing saved" and the words went
+/// nowhere. Each is asserted separately because each reaches a different part of the declaration.
+let aFieldsDocEditLands =
+  cliTestOnMain "editing only a record field's doc saves it" (fun state ->
+    task {
+      do! start state
+      do!
+        run
+          state
+          [ "type"
+            "Tests.FieldDocs.Coord"
+            "{\n  /// how far along\n  alongwards: Int64\n}" ]
+      do! commit state "add Coord"
+
+      let! before = runCliPlain state [ "hash"; "Tests.FieldDocs.Coord" ]
+
+      do!
+        run
+          state
+          [ "type"
+            "Tests.FieldDocs.Coord"
+            "{\n  /// distance along the axis\n  alongwards: Int64\n}" ]
+
+      let! after = runCliPlain state [ "hash"; "Tests.FieldDocs.Coord" ]
+      Expect.equal
+        after
+        before
+        $"the version did not move, got {after} from {before}"
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.FieldDocs.Coord" ]
+          "distance along the axis"
+          "the field's new wording is what you read"
+      do!
+        shows state [ "ops" ] "field alongwards" "and the op names WHICH doc it set"
+      do! dirty state "an uncommitted field-doc edit is not a clean tree"
+      do! commit state "reword the field"
+      do!
+        shows
+          state
+          [ "view"; "Tests.FieldDocs.Coord" ]
+          "distance along the axis"
+          "and it survives the commit"
+      do! discardAll state
+    })
+
+let anEnumCasesDocEditLands =
+  cliTestOnMain "editing only an enum case's doc saves it" (fun state ->
+    task {
+      do! start state
+      do!
+        run
+          state
+          [ "type"
+            "Tests.CaseDocs.Signal"
+            "| /// stop here\n  Halting\n| /// carry on\n  Proceeding" ]
+      do! commit state "add Signal"
+
+      let! before = runCliPlain state [ "hash"; "Tests.CaseDocs.Signal" ]
+
+      do!
+        run
+          state
+          [ "type"
+            "Tests.CaseDocs.Signal"
+            "| /// come to a full stop\n  Halting\n| /// carry on\n  Proceeding" ]
+
+      let! after = runCliPlain state [ "hash"; "Tests.CaseDocs.Signal" ]
+      Expect.equal
+        after
+        before
+        $"the version did not move, got {after} from {before}"
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.CaseDocs.Signal" ]
+          "come to a full stop"
+          "the case's new wording is what you read"
+      do! shows state [ "ops" ] "case Halting" "and the op names WHICH case"
+      do! discardAll state
+    })
+
+/// A parameter's doc, which is the one addressed by POSITION rather than by name: a parameter name
+/// is not in the identity hash, so two functions differing only in their parameter names are one
+/// item and a name would not identify anything.
+let aParametersDocEditLands =
+  cliTestOnMain "editing only a parameter's doc saves it" (fun state ->
+    task {
+      do! start state
+      do!
+        fn
+          state
+          "Tests.ParamDocs.scale"
+          "/// scales\nlet scale (/// the multiplier\n           factorly: Int64) : Int64 =\n  factorly"
+      do! commit state "add scale"
+
+      let! before = runCliPlain state [ "hash"; "Tests.ParamDocs.scale" ]
+
+      do!
+        fn
+          state
+          "Tests.ParamDocs.scale"
+          "/// scales\nlet scale (/// what to multiply by\n           factorly: Int64) : Int64 =\n  factorly"
+
+      let! after = runCliPlain state [ "hash"; "Tests.ParamDocs.scale" ]
+      Expect.equal
+        after
+        before
+        $"the version did not move, got {after} from {before}"
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.ParamDocs.scale" ]
+          "what to multiply by"
+          "the parameter's new wording is what you read"
+      do!
+        shows
+          state
+          [ "ops" ]
+          "parameter 1"
+          "and the op names the parameter by position, since its name is not identity"
+      do! discardAll state
+    })
+
+
+/// Two people writing different prose for one doc, neither having seen the other's.
+///
+/// `previous` is what makes this detectable: an incoming doc op that names a text this store never
+/// held was not written on top of what we hold. The newer text still wins, so the store stays
+/// usable, and the record is what keeps the loser's words findable instead of gone.
+///
+/// The op is authored here rather than synced because the sync gates cover the transport; what
+/// needs asserting is the FOLD's answer, which is the same either way.
+let twoWordingsForOneDocRecordAConflict =
+  cliTestOnMain
+    "a doc edit made against a text this store never had is a conflict"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.DocClash.f"
+            "/// ours, written here\nlet f (): Int64 =\n  5101L"
+        do! commit state "add f, documented"
+
+        let! hashLine = runCliPlain state [ "hash"; "Tests.DocClash.f"; "--full" ]
+        let hash = hashLine.Trim().Split(' ') |> Array.last
+
+        // What a peer's op looks like on arrival: it names a predecessor nobody here ever wrote.
+        let theirs =
+          "Darklang.SCM.PackageOps.add (Builtin.scmCurrentBranch ()) "
+          + "[Darklang.LanguageTools.ProgramTypes.PackageOp.UpdateDoc("
+          + "Darklang.LanguageTools.ProgramTypes.DocTarget.ItemDoc("
+          + "Darklang.LanguageTools.ProgramTypes.Reference.PackageFn "
+          + $"(Darklang.LanguageTools.ProgramTypes.Hash.Hash \"{hash}\")), "
+          + "\"theirs, written somewhere else\", "
+          + "Stdlib.Option.Option.Some (Darklang.LanguageTools.ProgramTypes.hashOfText "
+          + "\"a text this store never had\"), Stdlib.Option.Option.None)]"
+
+        do! run state [ "eval"; theirs ]
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocClash.f" ]
+            "theirs, written somewhere else"
+            "the newer wording wins, so the store stays usable"
+        do!
+          showsAll
+            state
+            [ "conflicts" ]
+            [ "Tests.DocClash.f"; "neither made from the other" ]
+            "and the divergence is recorded rather than swallowed"
+
+        // A doc divergence has no side to take -- both candidates are TEXT -- so `override` says so
+        // instead of trying to bind a name to the hash of a sentence.
+        let! listed = runCliPlain state [ "conflicts" ]
+        let id =
+          listed.Split('#')
+          |> Array.item 1
+          |> fun rest -> rest.Split(' ') |> Array.head
+
+        do!
+          refuses
+            state
+            [ "conflicts"; "override"; id; "A" ]
+            "not about which version a name holds"
+            "now binds"
+            "override has no side to take on a wording disagreement"
+
+        do! run state [ "conflicts"; "ack"; id ]
+        do! discardAll state
+      })
+
+
+/// Writing a declaration without a `///` does not wipe the doc that is there.
+///
+/// Content is shared: two functions with the same body are ONE item, and a doc is said about the
+/// item. So omitting a doc comment cannot mean "nobody's words apply any more" -- it means this
+/// author did not write any.
+let authoringWithoutADocDoesNotClearOne =
+  cliTestOnMain
+    "saving a declaration with no doc comment leaves the existing one alone"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.DocKeep.f"
+            "/// what it is for\nlet f (): Int64 =\n  5201L"
+        do! commit state "add f, documented"
+
+        do! fn state "Tests.DocKeep.f" "() : Int64 = 5201L"
+        do!
+          shows
+            state
+            [ "view"; "Tests.DocKeep.f" ]
+            "what it is for"
+            "the doc survives a save that did not mention it"
+        do! discardAll state
+      })
+
 
 /// Re-authoring the same source before committing, which is what an editor's save button does.
 ///
@@ -548,6 +781,11 @@ let tests : List<Test> =
     deprecateAndUndeprecate
     renameIsVisibleToEverythingThatReads
     aDocOnlyEditKeepsTheVersionAndStillLands
+    aFieldsDocEditLands
+    anEnumCasesDocEditLands
+    aParametersDocEditLands
     aBranchesDocEditStaysOnTheBranch
     reAuthoringTheSameSourceSurvivesTheCommit
-    aVersionMovedAndMovedBackKeepsTheLastNaming ]
+    aVersionMovedAndMovedBackKeepsTheLastNaming
+    twoWordingsForOneDocRecordAConflict
+    authoringWithoutADocDoesNotClearOne ]
