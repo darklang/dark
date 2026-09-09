@@ -1935,3 +1935,38 @@ module TypingThePrintedFormBack =
   // that is a real ambiguity with the terse style rather than a bug (05-). The paren spelling works and
   // is here:
   (TypingThePrintedFormBack.check "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)") = ""
+
+
+module ANestedScrutineeNestsUnderItsMatch =
+  // A `match` whose scrutinee is a call too long for one line. Fluid nests the arguments under the
+  // `match`; the PRINTER puts them level with it, so they read as statements of the branch above rather
+  // than as arguments:
+  //
+  //     | Ok(data) ->                      | Ok(data) ->
+  //       match Store.save                   match Store.save
+  //         documents          fluid         documents        printer
+  //         activeDocId                      activeDocId
+  //
+  // At the top level the two agree, which is the tell: the printer's nesting inside a scrutinee is
+  // absolute rather than relative, so it only shows up once the match is itself indented. Second thing
+  // in this file where Fluid is the correct side and the printer's tests are outside the filter this
+  // branch runs, after the `(earg).field` parens.
+  //
+  // Pinned because nothing else holds it: the store sweep counts this as a difference and says nothing
+  // about which side is right.
+  let drawn (w: Int) (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) w (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  (ANestedScrutineeNestsUnderItsMatch.drawn
+    60
+    "match outer with\n| Ok(data) ->\n  match Store.save documents activeDocId nextDocId (stamp ()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2") =
+    "match outer with\n| Ok(data) ->\n  match Store.save\n    documents\n    activeDocId\n    nextDocId\n    (stamp ()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2"
+
+  // ...and at the top level, where the two agree, so the pin above is about NESTING and not about how a
+  // long scrutinee breaks.
+  (ANestedScrutineeNestsUnderItsMatch.drawn
+    60
+    "match Store.save documents activeDocId nextDocId (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0") =
+    "match Store.save\n  documents\n  activeDocId\n  nextDocId\n  (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0"
