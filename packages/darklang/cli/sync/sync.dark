@@ -24,7 +24,7 @@ let help (_state: AppState) : String =
     ""
     "  Also at the root:"
     "  dark push [url]         push your ops to the relay"
-    "  dark pull [url]         pull ops (incremental; they take effect)"
+    "  dark pull [url] [--all] pull ops (incremental; --all rewinds and re-pulls everything)"
     "  dark connect <url>      remember a relay and push (start here)"
     "  dark whoami             show this instance's sync identity"
     "  dark identity <name>    name this instance (an id is minted if not)"
@@ -73,14 +73,32 @@ let executePushCmd (state: AppState) (args: List<String>) : AppState =
     Cli.printErr "usage: dark push [url]"
     state
 
-/// `dark pull [url]`
+/// `dark pull [url] [--all]`
+///
+/// `--all` rewinds this relay's cursor to 0 first, so the next pull walks the whole log. It is the
+/// answer to "I think I missed something": the cursor is a position in the relay's arrival order,
+/// and a wrong one is silent -- everything before it simply never arrives again.
 let executePullCmd (state: AppState) (args: List<String>) : AppState =
-  match args with
-  | [] -> executePull state (SCM.PackageOps.relay ())
+  let (flags, rest) = Stdlib.List.partition args (fun a -> Stdlib.String.startsWith a "--")
+  let all = Stdlib.List.member flags "--all"
+  let unknown = flags |> Stdlib.List.filter (fun f -> f != "--all")
+
+  match unknown with
+  | bad :: _ ->
+    Cli.printErr $"unknown flag: {bad}"
+    Cli.printHint "usage: dark pull [url] [--all]"
+    { state with exitCode = 1 }
+  | [] ->
+
+  match rest with
+  | [] -> pullMaybeAll state (SCM.PackageOps.relay ()) all
   | [ url ] ->
-    if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePull state url
+    if refuseIfNotARelayUrl url then
+      { state with exitCode = 1 }
+    else
+      pullMaybeAll state url all
   | _ ->
-    Cli.printErr "usage: dark pull [url]"
+    Cli.printErr "usage: dark pull [url] [--all]"
     state
 
 /// `dark connect <url>`
