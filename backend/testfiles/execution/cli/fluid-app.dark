@@ -870,3 +870,52 @@ module TextModeKeepsItsKeysOnScreen =
       Darklang.Stdlib.Cli.Stdin.Key.Key.NoName
       (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false })
       (Stdlib.Option.Option.Some "3"))) = ""
+
+
+module ThePanelShowsWhereYouAre =
+  // The panel answered "what is this" for the node under the caret and said nothing about where it SITS.
+  // Opening a document lands you on the root, and Stachu's words for that were "it's not immediately
+  // clear what the top-level node I'm selecting is, and why" -- the why is the position, and the position
+  // was only ever in the frame's one-line breadcrumb.
+  //
+  // TREE is the chain down from the root, the node you are on marked in the margin, and what hangs off it
+  // with the SLOT name in front, because the slot is what says what a child is for: `pat`, `rhs`, `when`
+  // on a match arm.
+  //
+  // Read only. Navigating the tree itself is a second caret to keep in step with the first, and a much
+  // bigger thing; this is the half that answers the question without committing to that.
+  let plain () : Darklang.Fluid.Theme.Theme =
+    { (Darklang.Fluid.Theme.mono ()) with
+        plain = ""
+        keyword = ""
+        punct = ""
+        literal = ""
+        name = ""
+        label = ""
+        hole = ""
+        partial = ""
+        dim = ""
+        error = ""
+        hint = ""
+        selection = "" }
+
+  let treeOf (src: String) (keys: List<String>) : String =
+    let st = TheNavSelectionIsARange.ed src keys
+
+    Darklang.Fluid.Widget.treeRows (ThePanelShowsWhereYouAre.plain ()) st
+    |> Stdlib.List.map (fun r -> Stdlib.String.replaceAll r Stdlib.Cli.UI.Colors.reset "")
+    |> Stdlib.String.join "\n"
+
+  // At the root: the node, then its children, each with the slot it fills.
+  (ThePanelShowsWhereYouAre.treeOf "if a then b else c" []) =
+    "> EIf\n    cond  EVariable\n    then  EVariable\n    else[0]  ElseBranch"
+
+  // One step in, and the chain above it appears. The marker is in the MARGIN as well as the colour,
+  // because the panel gets read on an e-ink screen where hue is noise.
+  (ThePanelShowsWhereYouAre.treeOf "if a then b else c" [ "j" ]) =
+    "  EIf\n>   EVariable\n      name  a"
+
+  // A hole says what it wants rather than naming a kind that is not there. Standing on one used to print
+  // `-`, because the row asked for the NODE and a hole has none -- and a hole is most of what editing is.
+  (ThePanelShowsWhereYouAre.treeOf "if a then b else c" [ "j", "x" ]) =
+    "  EIf\n>   <cond>"

@@ -284,6 +284,85 @@ let inspector
 /// action someone asked for, not something a render should set off. And docs are a fact about DARKLANG
 /// packages -- this widget draws whatever language the registry describes, so it must not know what a
 /// package is.
+/// The document around the caret, as a tree: the chain down from the root, the node you are on, and what
+/// hangs off it.
+///
+/// The panel answers "what is this" for the node under the caret and said nothing about where it SITS.
+/// Opening a document lands you on the root with everything selected, and Stachu's words for that were
+/// "it's not immediately clear what the top-level node I'm selecting is, and why" -- the why is the
+/// position, and the position was only ever in the frame's one-line breadcrumb.
+///
+/// Read only. He also floated navigating the tree itself, which is a second caret to keep in step with
+/// the first and a much bigger thing; this is the half that answers the question without committing to
+/// that.
+///
+/// Each child is `slot  Kind`, because the slot name is what says what the child is FOR: `pat`, `rhs`,
+/// `when` on a match arm. A hole shows what it wants instead.
+let treeRows (theme: Theme.Theme) (st: Editor.State) : List<String> =
+  let dim (s: String) : String = Stdlib.Cli.UI.Colors.colorize theme.dim s
+  let here = Editor.navPath st
+  let depth = Stdlib.List.length here
+  let pad (n: Int) : String = Stdlib.String.repeat "  " n
+
+  // Asked of the SLOT, not the node: standing on a hole, there is no node to name and the row said `-`.
+  // A hole is a real place to be standing -- it is most of what editing is -- so it says what it wants,
+  // the same as the children below do.
+  let nameAt (p: Darklang.Fluid.Path) : String =
+    match Darklang.Fluid.slotAtPath st.root p with
+    | Some(Filled n) -> Editor.crumbName n
+    | Some(Empty e) -> "<" ++ e.label ++ ">"
+    | Some(Partial(t, _)) -> t ++ "..."
+    | None -> "-"
+
+  // Root down to the parent, one line each, indented by depth.
+  let ancestors =
+    Stdlib.List.range 0 depth
+    |> Stdlib.List.filter (fun i -> i < depth)
+    |> Stdlib.List.map (fun i -> dim ("  " ++ (pad i) ++ (nameAt (Stdlib.List.take here i))))
+
+  // Marked in the margin as well as coloured. The panel is read on an e-ink screen where hue is noise,
+  // and "which of these lines am I on" is the whole question this section answers.
+  let selfRow =
+    Stdlib.Cli.UI.Colors.colorize theme.hint ("> " ++ (pad depth) ++ (nameAt here))
+
+  let childRows =
+    match Darklang.Fluid.nodeAtPath st.root here with
+    | Some n ->
+      n.fields
+      |> Stdlib.List.filter (fun f ->
+        let (name, _) = f
+        Stdlib.Bool.not (Stdlib.String.startsWith name "_"))
+      |> Stdlib.List.map (fun f ->
+        let (name, fld) = f
+        // A value long enough to run off the panel tells you less than one you can read the end of: the
+        // panel is a fixed third of the screen and cannot wrap a dotted name at anything.
+        let clip (t: String) : String =
+          if (Stdlib.String.length t) > 18 then (Stdlib.String.slice t 0 15) ++ "..." else t
+
+        let describe (sl: Darklang.Fluid.Slot) : String =
+          match sl with
+          | Filled c -> Editor.crumbName c
+          | Empty e -> "<" ++ e.label ++ ">"
+          | Partial(t, _) -> clip (t ++ "...")
+        match fld with
+        | Text t -> [ dim ("  " ++ (pad (depth + 1)) ++ name ++ "  " ++ (if t == "" then "<empty>" else clip t)) ]
+        | One sl -> [ dim ("  " ++ (pad (depth + 1)) ++ name ++ "  " ++ (describe sl)) ]
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.indexedMap (fun i sl ->
+            dim ("  " ++ (pad (depth + 1)) ++ name ++ "[" ++ (Stdlib.Int.toString i) ++ "]  " ++ (describe sl))))
+      |> Stdlib.List.flatten
+    | None -> []
+
+  // Capped: the panel is a third of the screen and a wide record would push everything under it off.
+  let shown = childRows |> Stdlib.List.take 8
+  let hidden = (Stdlib.List.length childRows) - 8
+  let tail =
+    if hidden > 0 then [ dim ("  " ++ (pad (depth + 1)) ++ "+" ++ (Stdlib.Int.toString hidden) ++ " more") ]
+    else []
+
+  Stdlib.List.flatten [ ancestors, [ selfRow ], shown, tail ]
+
 let inspectorWith
   (theme: Theme.Theme)
   (st: Editor.State)
@@ -389,8 +468,18 @@ let inspectorWith
         dim "  ^E     edit as text"
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
+  // TREE before ACTIONS: where you are is what you read first when you open the panel, and what you can
+  // do here only means something once you know what "here" is.
   let rows =
-    Stdlib.List.flatten [ headerRows, extraRows, [ head "ACTIONS" ], actionLines, keyRows ]
+    Stdlib.List.flatten
+      [ headerRows
+        extraRows
+        [ head "TREE" ]
+        treeRows theme st
+        [ "" ]
+        [ head "ACTIONS" ]
+        actionLines
+        keyRows ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])
