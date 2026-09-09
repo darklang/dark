@@ -7,8 +7,7 @@ module Darklang.Cli.Discard
 // is already committed is never touched, which is what makes this safe to reach for.
 
 let help (_state: AppState) : String =
-  [ "dark discard - drop your draft: everything authored since the last commit."
-    ""
+  [ ""
     "  dark discard          review what would go, then confirm"
     "  dark discard -y       skip the confirmation"
     "  dark discard <name>   drop just that item from your draft"

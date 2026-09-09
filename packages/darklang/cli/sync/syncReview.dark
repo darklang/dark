@@ -172,8 +172,7 @@ let executeReject
 
 
 let helpReview (_state: AppState) : String =
-  [ "dark review - stage incoming ops on a review branch and approve them deliberately."
-    ""
+  [ ""
     "  dark review pull [url] [queue]   stage on a review branch instead"
     "                                   of applying"
     "  dark review pull [queue] --from <who>   just that person's ops"

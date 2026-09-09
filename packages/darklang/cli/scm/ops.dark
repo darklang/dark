@@ -91,8 +91,7 @@ let executeList (state: AppState) (limit: Int64) : AppState =
   state
 
 let help (_state: AppState) : String =
-  [ "dark ops - read this branch's op log (the rows that ARE your packages)."
-    ""
+  [ ""
     "  dark ops              the 20 most recent ops on this branch"
     "  dark ops <n>          the n most recent"
     "  dark ops show <id>    pretty-print what an op does (by id-prefix)"

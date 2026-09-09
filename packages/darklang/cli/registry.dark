@@ -168,7 +168,31 @@ module Registry =
       match handler.aliases with
       | [] -> ""
       | aliases -> "\n\nAliases: " ++ (Stdlib.String.join aliases ", ")
-    Stdlib.printLine ((helpFn state) ++ aliasSuffix)
+
+    let body = helpFn state
+
+    // Every `--help` opens with what the command IS. Several help texts are shared by a family
+    // (`whoami`, `push` and `pull` all print the sync list) or start straight in on `Usage:`, so
+    // asking about one told you about a group, or about syntax before purpose. The registry
+    // description is that sentence and every command already has one.
+    let firstLine =
+      Stdlib.String.splitOnNewline body
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+      |> Stdlib.String.trim
+
+    let alreadySummarised =
+      (firstLine != "")
+      && (Stdlib.Bool.not (Stdlib.String.startsWith firstLine "Usage:"))
+      && (Stdlib.Bool.not (Stdlib.String.startsWith firstLine "dark "))
+
+    let summarised =
+      if alreadySummarised then
+        body
+      else
+        $"{handler.description}\n{body}"
+
+    Stdlib.printLine (summarised ++ aliasSuffix)
     state
 
   // Command groups organized by category (shared between compact and detailed views)

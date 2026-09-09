@@ -116,8 +116,7 @@ let executeDetailed (state: AppState) (limit: Int64) (showAll: Bool) : AppState 
     state
 
 let help (_state: AppState) : String =
-  [ "dark commits - your commits, newest first."
-    ""
+  [ ""
     "  dark commits           the 20 most recent"
     "  dark commits <n>       the n most recent"
     "  dark commits --detailed   each commit followed by its ops"
@@ -220,8 +219,7 @@ let showCommit (state: AppState) (c: SCM.Commits.Commit) : Unit =
       $"  showing the first 50 of {Stdlib.Int64.toString n} -- `dark ops` walks the log in full."
 
 let helpShow (_state: AppState) : String =
-  [ "dark show <id> - what a commit contains, or what one op does."
-    ""
+  [     ""
     "  dark show <commit>     the commit's message, author, and the ops in it"
     "  dark show <op-id>      pretty-print one op"
     ""

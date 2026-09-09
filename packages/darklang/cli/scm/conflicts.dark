@@ -429,8 +429,7 @@ let executeBranchPreview (state: AppState) (branchRef: String) : AppState =
       state
 
 let help (_state: AppState) : String =
-  [ "dark conflicts - review what a reconciliation auto-resolved."
-    ""
+  [ ""
     "A conflict is recorded when a merge, rebase or sync-import finds that BOTH"
     "sides moved the same name since the base they last agreed on. It never"
     "blocks: the fold picks the later version, keeps the loser in the record,"
