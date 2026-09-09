@@ -41,11 +41,11 @@ let line (f: SCM.Constraints.Finding) : String =
     let was = SCM.Deps.kindString f.dependencyKind
     $"  #{f.id}  {u}\n         uses {d} as a {was}; that name is something else now (still resolves, by hash)"
   | (StaleUsage, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n         uses {d} @ {Cli.shortHash using}, current is {Cli.shortHash current}"
+    $"  #{f.id}  {u}\n         still on the version it was written against ({Cli.shortHash using}); {d} is at {Cli.shortHash current} now"
   // Its own sentence: `dependency` is the location itself here, so the stale-usage phrasing ("uses X")
   // would read as if the name called itself.
   | (DecisionSuperseded, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n         you overrode this to {Cli.shortHash using}; a later edit rebound it to {Cli.shortHash current}"
+    $"  #{f.id}  {u}\n         you overrode this to the version you chose ({Cli.shortHash using}); a later edit rebound it to {Cli.shortHash current}"
   | (DecisionSuperseded, PolicyReplaced(was, now, by)) ->
     let whose = if by == "" then "a later choice" else by
 

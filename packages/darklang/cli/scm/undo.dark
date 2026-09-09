@@ -72,7 +72,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
               state
             | Ok _ ->
               Cli.printOk
-                $"{PropagateCmd.dotted loc} is back on {Cli.shortHash prev}."
+                $"{PropagateCmd.dotted loc} is back on the version before that edit ({Cli.shortHash prev})."
 
               // Anything above it followed the version we just stepped off, so it comes back down too --
               // otherwise the undo fixes one item and leaves its callers on something you just undid.

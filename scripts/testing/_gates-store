@@ -115,14 +115,14 @@ gate_first_day() {
 
   # 5. Merge it, and main can.
   want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
-  want "merging"           "Merged"          --branch firstday merge firstday
+  want "merging"           "Merged"          --branch firstday merge firstday -y
   want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
 
   # 6. A real divergence: both sides move one name, merge records a conflict.
   dark branch create clash >/dev/null 2>&1 || true
   dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " ++ name' >/dev/null 2>&1 || true
   dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " ++ name' >/dev/null 2>&1 || true
-  want "merge records a conflict" "[0-9]+ conflict" --branch clash merge clash
+  want "merge records a conflict" "[0-9]+ conflict" --branch clash merge clash -y
   want "conflicts --json lists it" '"pending":[1-9]' --branch main conflicts --json
 
   # 6b. An override you made, then YOUR OWN later edit: last-writer-wins as designed, and NOT a finding.

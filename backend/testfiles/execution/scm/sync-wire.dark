@@ -198,7 +198,7 @@ module BothWritersAgreeOnOps =
         | Error _ -> false
 
       // Clean up before judging, so a failing assertion does not leave the rows for the next run.
-      let db = Darklang.SCM.PackageOps.localDb ()
+      let db = Darklang.SCM.localDb ()
       let _ =
         ids
         |> Stdlib.List.map (fun id ->

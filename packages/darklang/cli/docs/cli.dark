@@ -7,6 +7,22 @@ let content () : String =
 sentence of context each; `docs scm` is the one to read for how source control
 WORKS, because that model is not git's.
 
+## The four words
+
+Four ideas, one word each, so the docs and the output agree:
+
+  item       one fn, type or value. Content-addressed, so anything with the
+             same body IS the same item, shared by everyone who wrote it
+  location   a name bound to an item: owner, module path, name. Branch-scoped,
+             which is what lets two branches disagree about what a name means
+  op         one recorded change. The log of them IS the program; everything
+             else is folded from it
+  matter     all of it -- items plus locations, folded from ops -- and the
+             substrate that stores and moves them
+
+`packages` means the published set, not the content. `entity` is not a word we
+use; it was a fifth name for `item`.
+
 ## Global flags
   --branch <name>   run ONE command on a branch, without switching to it
   --safe            ignore the stored entry point, run the shipped CLI
@@ -64,7 +80,7 @@ Your edits are LIVE as soon as you write them. There is no build step.
   diff <name>       what it changes vs its parent
   log [<name>]      its ops (on main: the commits)
   rebase <name>     take the parent's current state
-  merge <name>      fold it into its parent
+  merge <name> [-y] fold it into its parent
   resolve <branch> <name> mine|theirs
   (see: docs scm)
 

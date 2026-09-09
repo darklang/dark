@@ -3,14 +3,17 @@ module Darklang.Cli.Prompt
 /// Is stdin a terminal? Both confirmations need it, and a builtin gets one wrapper.
 let interactive () : Bool = Stdlib.Cli.Stdin.isInteractive ()
 
-/// Ask a yes/no question. `-y`, an empty answer, and non-interactive stdin all proceed.
+/// Ask a yes/no question. `-y` and an empty answer proceed; a stdin nobody is holding does not.
 ///
-/// CI gets a pty, so this asks, then waits for someone who isn't there. Pass `-y`.
+/// "Nobody is there" used to read as yes, which is the one direction a confirmation must not fail
+/// in: an unattended run that meant to go ahead can say `-y`, and one that did not meant to be
+/// stopped. CI gets a pty, so `interactive ()` answers YES there and this waits for a person who
+/// is not coming; pass `-y` for anything unattended.
 let confirm (autoConfirm: Bool) (question: String) : Bool =
   if autoConfirm then
     true
   else if Stdlib.Bool.not (interactive ()) then
-    true
+    false
   else
     Stdlib.printLine question
     let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())

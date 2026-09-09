@@ -125,7 +125,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
               message = "merged into parent" }
       | Error e ->
         Step.Continue
-          { state with input = Stdlib.Option.Option.None; message = "merge failed: " ++ e }
+          { state with
+              input = Stdlib.Option.Option.None
+              message = "merge failed: " ++ (SCM.PackageOps.mergeErrorMessage e) }
   else if inp.action == "rebase" then
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }

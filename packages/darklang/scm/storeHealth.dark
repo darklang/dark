@@ -12,7 +12,6 @@ module Darklang.SCM.StoreHealth
 // NOT a command -- a health check you have to think of is one nobody runs, so `dark status` reports these
 // when non-zero. Read-only: this reports, it never repairs.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// A count from one diagnostic query, 0 when it can't be answered.
 let scalar (sql: String) : Int64 =

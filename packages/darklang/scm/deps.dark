@@ -9,7 +9,6 @@ module Darklang.SCM.Deps
 // names that happen to share a hash stay distinct here. That distinction is load-bearing: identical content
 // IS one item, so a hash routinely lives at several names, and collapsing them loses dependents.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
   match s with

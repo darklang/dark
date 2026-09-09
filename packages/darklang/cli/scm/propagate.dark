@@ -193,7 +193,7 @@ let applyPin
     | Ok n when n > 0 ->
       let at =
         match SCM.Propagation.currentHash loc with
-        | Some h -> $" -- back on {Cli.shortHash h}"
+        | Some h -> $" -- back on the version it was pinned at ({Cli.shortHash h})"
         | None -> ""
 
       $"pinned {dotted loc}, dropped the staged repoint{at}"
@@ -206,7 +206,7 @@ let applyPin
       | Error e -> $"pinned {dotted loc}, but couldn't roll it back: {e}"
       | Ok _ ->
         cascadeAndForceQuiet branchId loc kind wasAt prev
-        $"pinned {dotted loc}, rolled back to {Cli.shortHash prev}"
+        $"pinned {dotted loc}, rolled back to the version before the edit ({Cli.shortHash prev})"
 
 
 /// Clear the pin on an ITEM and catch it up on what it missed. Returns a summary; see `applyPin`.
@@ -330,7 +330,7 @@ let executeShow (state: AppState) (arg: String) : AppState =
 
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.hint
-            $"    {dotted depLoc}: using {Cli.shortHash have}, current is {Cli.shortHash live}"))
+            $"    {dotted depLoc}: pinned at {Cli.shortHash have}, current is {Cli.shortHash live}"))
 
     state
 

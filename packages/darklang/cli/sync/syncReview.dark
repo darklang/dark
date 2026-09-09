@@ -148,14 +148,12 @@ let executeApprove (state: AppState) (queue: String) : AppState =
   | Ok outcome ->
     Cli.printOk $"Approved {Stdlib.Int.toString outcome.merged} op(s) from \"{queue}\" into main."
     reportConflicts outcome.conflicts
-  | Error e ->
-    // An empty queue isn't a failure -- it means everything was already approved, rejected, or
-    // resolved-to-theirs. Report it plainly so agents don't read it as an error.
-    if Stdlib.String.contains e "nothing to merge" then
-      Cli.printOk
-        $"Nothing to approve in \"{queue}\" -- no pending changes (all reviewed ops were approved, rejected, or reconciled to the local version)."
-    else
-      Cli.printErr $"Approve failed: {e}"
+  // An empty queue isn't a failure -- it means everything was already approved, rejected, or
+  // resolved-to-theirs. Report it plainly so agents don't read it as an error.
+  | Error(Refused NothingToMerge) ->
+    Cli.printOk
+      $"Nothing to approve in \"{queue}\" -- no pending changes (all reviewed ops were approved, rejected, or reconciled to the local version)."
+  | Error e -> Cli.printErr $"Approve failed: {SCM.PackageOps.mergeErrorMessage e}"
 
   state
 

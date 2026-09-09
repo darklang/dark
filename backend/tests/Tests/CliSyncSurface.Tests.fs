@@ -102,6 +102,29 @@ let connectRefusesSomethingThatIsNotAUrl =
       do! shows state [ "sync"; "status" ] "no relay" "nothing was remembered"
     })
 
+/// `pull --all` rewinds this relay's cursor before pulling, so it has to be a flag the verb knows
+/// rather than something it takes for a url. With no relay there is nothing to rewind, and the
+/// answer is the same "no relay" every other sync verb gives.
+let pullKnowsItsOwnFlags =
+  cliTest "pull takes --all, and refuses a flag it does not know" (fun state ->
+    task {
+      do!
+        refuses
+          state
+          [ "pull"; "--nope" ]
+          "unknown flag"
+          "re-pulling"
+          "an unknown flag is named, not read as a url"
+      do! exits state [ "pull"; "--nope" ] 1L "and it is a failed command"
+
+      do!
+        shows
+          state
+          [ "pull"; "--all" ]
+          "no relay"
+          "--all is understood, and there is still nowhere to pull from"
+    })
+
 let syncHelpNamesItsVerbs =
   cliTest "sync help names the verbs it has" (fun state ->
     task {
@@ -169,6 +192,7 @@ let tests : List<Test> =
     everySyncVerbSaysThereIsNoRelayYet
     aVerbInTheUrlPositionIsRefusedThere
     connectRefusesSomethingThatIsNotAUrl
+    pullKnowsItsOwnFlags
     syncHelpNamesItsVerbs
     exportSeedExplainsItself
     anIdentityIsRefusedIfItCannotTravel ]

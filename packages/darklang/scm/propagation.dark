@@ -6,8 +6,6 @@ module Darklang.SCM.Propagation
 // dumb (follow within your own owner) because the point is not to guess well, it is that an explicit row
 // always beats the guess.
 
-let localDb () : String = Stdlib.LocalStore.path ()
-
 
 /// Repoint every caller of one of <param previousHashes> at <param currentHash>, on <param branchId>,
 /// and say which names moved. The cascade behind every edit, and the one place the builtin is named.

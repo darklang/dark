@@ -10,7 +10,6 @@ module Darklang.SCM.Commits
 // Membership is `package_ops.commit_hash` (NULL = draft). This module OWNS the `commits` table; the
 // `package_ops` side of it (the draft query, the stamping) belongs to `SCM.PackageOps`.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 type Commit =
   { hash: String

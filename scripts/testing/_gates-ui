@@ -42,7 +42,7 @@ gate_workbench_scm() {
   "$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222L' >/dev/null 2>&1
   "$PWD/$CLI" --branch wb-scm commit "wb-scm diverges" -y >/dev/null 2>&1
   "$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111L' >/dev/null 2>&1
-  "$PWD/$CLI" --branch wb-scm merge wb-scm >/dev/null 2>&1
+  "$PWD/$CLI" --branch wb-scm merge wb-scm -y >/dev/null 2>&1
 
   # and an uncommitted draft on main, for Changes
   "$PWD/$CLI" switch main >/dev/null 2>&1
@@ -95,7 +95,7 @@ gate_workbench_views() {
   run branch create wbv
   run --branch wbv fn /WbV.T.base '() : Int64 = 222L'
   run --branch main fn /WbV.T.base '() : Int64 = 111L'
-  run --branch wbv merge wbv
+  run --branch wbv merge wbv -y
   run switch main
 
   # an uncommitted draft, for Changes and the Home status box

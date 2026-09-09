@@ -515,15 +515,26 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "diff", id ] -> executeDiff state id false
   | [ "diff", id, "--source" ] -> executeDiff state id true
   | [ "log", id ] -> executeLog state id
-  | [ "merge", id ] -> executeMerge state id false
-  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id true
+  | [ "merge", id ] -> executeMerge state id false false
+  | [ "merge", id, "-y" ] | [ "merge", id, "--yes" ] ->
+    executeMerge state id true false
+  | [ "merge", id, "--allow-type-errors" ] -> executeMerge state id false true
+  | [ "merge", id, "--allow-type-errors", "-y" ]
+  | [ "merge", id, "-y", "--allow-type-errors" ] -> executeMerge state id true true
   | [ "merge", id, "--dry-run" ] -> executeMergeDryRun state id
   | [ "rebase", id ] -> executeRebase state id
   | [ "resolve", id, name, choice ] -> executeResolve state id name choice
   | [ "export", id, path ] -> executeExport state id path
   | [ "import", path ] -> executeImport state path
   | [ "push", id ] -> executePush state id (SCM.PackageOps.relay ())
-  | [ "push", id, url ] -> executePush state id url
+  // Guarded like `pull` is: an unguarded url argument takes any bare word, so a typo'd branch name
+  // in the url slot became the relay the push tried to reach.
+  | [ "push", id, url ] when looksLikeRelayUrl url -> executePush state id url
+  | [ "push", _id, arg ] ->
+    Cli.printErr $"`dark branch push` takes a relay url, and \"{arg}\" isn't one."
+    Cli.printHint "  to the relay you are connected to:  dark branch push <branch>"
+    Cli.printHint "  to another:                         dark branch push <branch> <url>"
+    { state with exitCode = 1 }
   | [ "pull" ] -> executePull state (SCM.PackageOps.relay ())
   | [ "pull", "--from", owner ] ->
     executePullFrom state (SCM.PackageOps.relay ()) owner

@@ -20,7 +20,6 @@ module Darklang.SCM.PartialCommit
 // What this deliberately does NOT do is let you commit an item while excluding something it depends on. That is
 // expressible, and it is always wrong, so the closure is automatic and reported rather than optional.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// One draft naming, with the row that wrote it.
 type Selected =
@@ -142,7 +141,7 @@ let closeOverDepFqns (names: List<String>) : List<String> =
 
         let byHash (hash: String) : List<Dict<String, Stdlib.Sqlite.Value>> =
           Stdlib.Sqlite.rowsOrEmptyP
-            (SCM.PackageOps.localDb ())
+            (SCM.localDb ())
             "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
              FROM package_dependencies d
              WHERE d.item_hash = @p0 AND d.depends_on_name <> ''"
@@ -152,7 +151,7 @@ let closeOverDepFqns (names: List<String>) : List<String> =
          | Some hash -> byHash hash
          | None ->
            Stdlib.Sqlite.rowsOrEmptyP
-             (SCM.PackageOps.localDb ())
+             (SCM.localDb ())
              "SELECT d.depends_on_owner AS o, d.depends_on_modules AS m, d.depends_on_name AS n
               FROM package_dependencies d
               JOIN locations l ON l.item_hash = d.item_hash

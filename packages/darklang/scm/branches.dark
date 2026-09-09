@@ -9,7 +9,6 @@ module Darklang.SCM.Branches
 // `storeDeltaOps`, which needs the binary codec. `markMergedEffective` and `finishMerge` are here: the
 // fold between them (`scmApplyMergedOps`) is F#, the SQL on either side of it is not.
 
-let localDb () : String = Stdlib.LocalStore.path ()
 
 /// The branch this process is on. This is an ID: `--branch <name>` and `DARK_BRANCH` are resolved to one in
 /// the CLI entry point before any Dark runs, and the persistent `current_branch` already holds one.
@@ -115,6 +114,32 @@ let relayListBranches (owner: String) : List<String> =
     "branch_id"
 
 
+/// Why a merge may not go ahead.
+///
+/// A DU rather than a sentence because one caller has to tell the empty case apart from the rest:
+/// approving a review queue that holds nothing pending is a normal outcome, not a failure, and it
+/// used to be recognised by searching the message for "nothing to merge".
+type MergeRefusal =
+  /// Main is the trunk; there is nothing above it to merge into.
+  | IsMain
+  /// The branch holds no ops, so a merge would move nothing.
+  | NothingToMerge
+  /// The children query failed. A guard that cannot see must not wave the merge through.
+  | CouldNotCheckChildren
+  /// Unmerged, unarchived branches sit under this one.
+  | HasActiveChildren
+
+/// The sentence a person reads, kept beside the cases so the two cannot drift.
+let refusalMessage (r: MergeRefusal) : String =
+  match r with
+  | IsMain ->
+    "main is the trunk -- merge moves a BRANCH into its parent. `dark branches` lists them."
+  | NothingToMerge -> "nothing to merge (the branch has no changes)"
+  | CouldNotCheckChildren ->
+    "couldn't check whether this branch has children, so it isn't safe to merge it. Try again."
+  | HasActiveChildren -> "branch has active children -- merge or archive them first"
+
+
 /// Can this branch merge into its parent? Two structural preconditions: it has changes, and it has no
 /// active (unmerged, unarchived) children.
 ///
@@ -124,10 +149,9 @@ let relayListBranches (owner: String) : List<String> =
 ///
 /// The DECISION is here; the merge MECHANISM (flipping ops effective, folding, retagging) is transactional
 /// and stays in F#.
-let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
+let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
   if SCM.Branch.isMain branchId then
-    Stdlib.Result.Result.Error
-      "main is the trunk -- merge moves a BRANCH into its parent. `dark branches` lists them."
+    Stdlib.Result.Result.Error MergeRefusal.IsMain
   else
 
   let changes =
@@ -139,7 +163,7 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
     |> Stdlib.Option.withDefault 0L
 
   if changes == 0L then
-    Stdlib.Result.Result.Error "nothing to merge (the branch has no changes)"
+    Stdlib.Result.Result.Error MergeRefusal.NothingToMerge
   else
     // "Active" must mean the same here as in the message below, which tells you to merge OR ARCHIVE the
     // children -- counting archived ones as active makes that advice a dead end.
@@ -154,13 +178,10 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
         [ Stdlib.Uuid.toString branchId ]
         "n"
     with
-    | None ->
-      Stdlib.Result.Result.Error
-        "couldn't check whether this branch has children, so it isn't safe to merge it. Try again."
+    | None -> Stdlib.Result.Result.Error MergeRefusal.CouldNotCheckChildren
     | Some activeChildren ->
       if activeChildren > 0L then
-        Stdlib.Result.Result.Error
-          "branch has active children -- merge or archive them first"
+        Stdlib.Result.Result.Error MergeRefusal.HasActiveChildren
       else
         Stdlib.Result.Result.Ok()
 

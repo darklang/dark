@@ -188,7 +188,13 @@ let nodeToString (node: Node) : String =
 /// Creates an HTML comment node.
 ///
 /// Example: `comment "This is a comment"` produces `<!-- This is a comment -->`
-let comment (s: String) : Node = stringNode $"<!-- {s} -->"
+///
+/// `--` is the only sequence that can escape a comment, and the grammar gives no way to escape it,
+/// so the content is rewritten rather than encoded: a string holding `-->` would close the comment
+/// early and spill the rest onto the page as markup.
+let comment (s: String) : Node =
+  let safe = Stdlib.String.replaceAll s "--" "- -"
+  stringNode $"<!-- {safe} -->"
 
 
 // Helper functions for common attribute patterns

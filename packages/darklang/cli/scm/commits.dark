@@ -29,7 +29,7 @@ let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
   // This branch's commits, not the store's: on a branch, main's commits are not "mine", and the workbench
   // lists the same set for the same branch.
   let branchId = state.currentBranchId
-  let total = Stdlib.List.length (SCM.PackageOps.commitsOnBranch branchId 100000L)
+  let total = Stdlib.Int.fromInt64 (SCM.PackageOps.commitCountOnBranch branchId)
 
   // Housekeeping commits (archive markers with no authored work) are hidden by default: on an old
   // store they dominate the listing. `--all` shows them. The overscan bounds how many rows get

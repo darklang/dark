@@ -443,6 +443,21 @@ let executePull (state: AppState) (url: String) : AppState =
 /// a colleague's arrive isolated (to look at, merge or discard), exactly as `branch pull --from`
 /// would bring them. Off by default because a hosted bundle has no change stamp, so the pull side
 /// re-downloads whole bundles every time; fine for a small team's relay, not free.
+/// `pull`, optionally after rewinding this relay's cursor to the start.
+///
+/// Separate from `executePull` because the rewind is a WRITE, and a pull that reports "nothing new"
+/// should not have moved anything on the way to saying so.
+let pullMaybeAll (state: AppState) (url: String) (all: Bool) : AppState =
+  let _ =
+    if all && url != "" then
+      Cli.printHint $"re-pulling {url} from the start."
+      SCM.Wire.setPullCursor url 0L
+    else
+      ()
+
+  executePull state url
+
+
 let syncAllBranches (state: AppState) (url: String) : AppState =
   let afterPush =
     SCM.Wire.unpushedBranches url
