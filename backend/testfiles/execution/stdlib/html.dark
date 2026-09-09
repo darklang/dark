@@ -36,6 +36,14 @@ let tidyHtml (html: String) : String =
 // -- testing of simple html node helpers
 (Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
 
+// `--` is the only sequence that can end a comment, and the grammar gives no way to escape it, so
+// content carrying one is rewritten. Without this, everything after `-->` lands on the page as
+// markup rather than staying inside the comment.
+(Stdlib.Html.comment "a --> b") |> nodeToString = "<!-- a - -> b -->"
+
+(Stdlib.Html.comment "<script>alert(1)</script> -- and more")
+|> nodeToString = "<!-- <script>alert(1)</script> - - and more -->"
+
 // -- testing HTML escaping
 Stdlib.Html.escapeHtml "<script>alert('xss')</script>" = "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;"
 
