@@ -3,6 +3,6 @@
   "steady": {
     "debug": 9288944,
     "published": 9742864,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it (scripts/perf/gate --update). Method and history: docs/perf/history.md. Raised 2026-09-09 for the SCM+sync branch (debug 9.28 -> 9.3, published 9.10 -> 9.7). The published jump is NOT attributed: it is steady across runs, so not a one-off projection rebuild, and it is much larger than the debug one. Attributing it wants a bisect with a published build per commit; until someone does that this is a ceiling nobody has justified."
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it (scripts/perf/gate --update). Method and history: docs/perf/history.md. Do not add historical comments to this line, basically never change this comment."
   }
 }
