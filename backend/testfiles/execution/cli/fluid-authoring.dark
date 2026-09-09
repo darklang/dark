@@ -337,6 +337,12 @@ module MatchPatterns =
 module FloatLiterals =
   // A `.` after an integer's digits makes a float and drops into the fraction -- it does NOT wrap the
   // number in a field access. (This is the counterpart to `.` after a NAME, which is a field access.)
+  //
+  // A spec wrap rule on EInt and MPInt, not a kernel branch. It had been the last of the number
+  // promotions still named in the kernel: the width suffixes beside it (`1L`, `1y`) were spec data
+  // already, through the same mechanism, and `wrapRuleFor` asks a KIND's own rules before the type's
+  // for exactly this reason -- a character that means one thing after digits and something else
+  // everywhere else. `EInt`, `MPInt`, `EFloat` and `MPFloat` all left the kernel with it.
   (Fixtures.program [ "1", ".", "5", "<Esc>" ]) = "1.5"
   (Fixtures.program [ "3", ".", "1", "4", "<Esc>" ]) = "3.14"
   (Fixtures.screen [ "1", "." ]) = "1.~fraction"

@@ -2344,16 +2344,6 @@ let typeOneRaw (st: State) (c: String) : State =
       // character means whatever it means after a filled list) and it must actually be a Many.
       let openFields =
         if atEnd then opensItemSlot st.reg n c else Stdlib.Option.Option.None
-      // A `.` at the end of an integer's digits makes it a float and drops into the fraction, so `1.5`
-      // types straight through -- rather than the generic `.`-field-access wrapping the number in `(1).5`.
-      let floatKind =
-        if (c == ".") && atEnd && (slot == "digits") then
-          match n.kind.case with
-          | Some "EInt" -> Stdlib.Option.Option.Some(Kind.ofCase (Kind.typeName n.kind) "EFloat")
-          | Some "MPInt" -> Stdlib.Option.Option.Some(Kind.ofCase (Kind.typeName n.kind) "MPFloat")
-          | _ -> Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.None
       // Space at the end of a completed leaf means "done here" -> advance to the next hole, so you can type
       // `let x <space> 1 <space> body` close to writing it as text. A STRING body (slot "body") keeps its
       // spaces; everything else (names, digits, float parts) treats space as "next".
@@ -2362,11 +2352,6 @@ let typeOneRaw (st: State) (c: String) : State =
         let each = Node.itemExpect n itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
         let st1 = commit st [ Edit.InsertItem(caret.node, itemSlot, 0, Slot.Empty each) ] caret
         { st1 with caret = Caret.inItem caret.node itemSlot 0 0 }
-      elif Stdlib.Option.isSome floatKind then
-        let fk = floatKind |> Stdlib.Option.withDefault n.kind
-        let fnode = Node.make fk [ ("whole", Field.Text old), ("fraction", Field.Text "") ]
-        let st1 = commit st [ Edit.Replace(caret.node, Slot.Filled fnode) ] caret
-        { st1 with caret = Caret.inText caret.node "fraction" 0 }
       elif (Stdlib.Bool.not (isIdentChar c)) && (Stdlib.Option.isSome (clearsDrawnKeyword st)) then
         // The keyword the editor already drew, typed again. See `clearsDrawnKeyword`, which Enter asks
         // the same question of.

@@ -1156,6 +1156,21 @@ let widthSuffix (signed: String) (unsigned: String) (n: Node) (c: String) : Node
   Node.make (exprKind kind) [ text "digits" (digitsWithoutMarker n) ]
 
 let toInt8OrUInt8 (n: Node) (c: String) : Node = widthSuffix "EInt8" "EUInt8" n c
+
+/// `.` at the end of a whole number makes it a float and drops into the fraction, so `1.5` types
+/// straight through instead of the generic `.` wrapping the number in a field access as `(1).5`.
+///
+/// This was a branch in the kernel naming EInt, MPInt, EFloat and MPFloat, sitting next to the width
+/// suffixes -- which had been spec data all along, through the same mechanism. `wrapRuleFor` asks the
+/// KIND's own rules before the type's, and its own comment says that is what the distinction is for: a
+/// character that means one thing after a number and something else everywhere else.
+let toFraction (caseName: String) (n: Node) (_c: String) : Node =
+  Node.make
+    (Kind.ofCase (Kind.typeName n.kind) caseName)
+    [ text "whole" (textOf n "digits"), text "fraction" "" ]
+
+let intToFloat (n: Node) (c: String) : Node = toFraction "EFloat" n c
+let intPatToFloat (n: Node) (c: String) : Node = toFraction "MPFloat" n c
 let toInt16OrUInt16 (n: Node) (c: String) : Node = widthSuffix "EInt16" "EUInt16" n c
 let toInt32OrUInt32 (n: Node) (c: String) : Node = widthSuffix "EInt32" "EUInt32" n c
 let toInt64OrUInt64 (n: Node) (c: String) : Node = widthSuffix "EInt64" "EUInt64" n c
@@ -2443,7 +2458,9 @@ let moreSpecs () : List<Spec> =
     simpleOf (matchPatKind "MPUnit") [ Piece.Label "()" ] (Node.make (matchPatKind "MPUnit") [])
     simpleOf (matchPatKind "MPBool") [ Piece.Text("value", Layout.Style.Keyword) ] (Node.make (matchPatKind "MPBool") [ text "value" "false" ])
     Spec.withTextClasses
-      (simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ]))
+      (Spec.withWrapRules
+        (simpleOf (matchPatKind "MPInt") [ Piece.Text("digits", Layout.Style.Literal) ] (Node.make (matchPatKind "MPInt") [ text "digits" "" ]))
+        [ WrapRule { onChar = "."; wrap = intPatToFloat; opSlot = ""; nextSlot = ""; continuesText = true } ])
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
     simpleOf (matchPatKind "MPInt64") [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (matchPatKind "MPInt64") [ text "digits" "" ])
     Spec.withTextClasses
@@ -2596,7 +2613,11 @@ let baseSpecs () : List<Spec> =
           WrapRule { onChar = "l"; wrap = toInt32OrUInt32; opSlot = ""; nextSlot = ""; continuesText = true }
           WrapRule { onChar = "L"; wrap = toInt64OrUInt64; opSlot = ""; nextSlot = ""; continuesText = true }
           WrapRule { onChar = "Q"; wrap = toInt128; opSlot = ""; nextSlot = ""; continuesText = true }
-          WrapRule { onChar = "Z"; wrap = toUInt128; opSlot = ""; nextSlot = ""; continuesText = true } ])
+          WrapRule { onChar = "Z"; wrap = toUInt128; opSlot = ""; nextSlot = ""; continuesText = true }
+          // Not a suffix, the same shape: a character that means one thing typed against digits and
+          // something else anywhere else. `continuesText` is what keeps `let a = 1` from turning the
+          // next line's `.` into a fraction.
+          WrapRule { onChar = "."; wrap = intToFloat; opSlot = ""; nextSlot = ""; continuesText = true } ])
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<intSuffixChar>"))) ]
     Spec.withTextClasses
       (simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ]))
