@@ -248,8 +248,6 @@ else
   sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
   scripts/run-local-exec export-seed rundir/seed.db
 fi
-# The project embeds `rundir/seed.db`, not `rundir/data.db`; never write the seed over the
-# developer's working store (branches, config and all).
 echo "Embedded seed ready ($(du -h rundir/seed.db | cut -f1))"
 
 # AOT-published CLIs statically link libe_sqlite3 (DirectPInvoke binding in
