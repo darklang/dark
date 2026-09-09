@@ -498,7 +498,7 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
            SELECT b.parent_id FROM branches b JOIN chain c ON b.id = c.bid
            WHERE b.parent_id <> @mainId
          )
-         SELECT p.id, p.op_blob
+         SELECT p.id, p.op_blob, p.origin_ts AS ts
          FROM package_ops p
          JOIN op_branches ob ON ob.op_id = p.id
          WHERE ob.branch_id IN (SELECT bid FROM chain)
@@ -510,10 +510,9 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
          -- tied exactly, and showed different code. An op id is a content hash, so this order is
          -- the same everywhere.
          --
-         -- Not yet the same tie-break as the FOLD, which compares the bound item's hash
-         -- (`Lww.isStale`): a branch and main can still disagree on an exact tie until the overlay
-         -- learns that rule. Same-stamp ties need two authorings in the same instant, so this is
-         -- the ordering half of the fix, not the whole of it.
+         -- The FOLD's tie-break is finer still (`Lww.isStale` compares the bound item's hash), so
+         -- the sort below re-orders what this returns. The stamp is selected only to sort by and
+         -- then dropped, which is why the signature is unchanged.
          ORDER BY p.origin_ts, p.id"
       // `@mainId`, never the literal 'main': `parent_id` holds main's UUID, so comparing against the
       // NAME is true of every row, and the walk then terminates only because main has no `branches`
@@ -523,8 +522,24 @@ let chainOverlayOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
         [ "start", Sql.string (string branchId)
           "mainId", Sql.string (string PT.BranchId.Main) ]
       |> Sql.executeAsync (fun read ->
-        BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob"))
-    return decoded |> List.choose (fun o -> o)
+        (read.string "ts",
+         BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob")))
+
+    // Sorted the way `Lww.isStale` breaks a tie, so every reader of this overlay lands where the
+    // fold would: later stamp wins, an equal stamp goes to the greater bound hash, and a binding
+    // beats an `Unbind` (`unbindBeatsBinding` is a strict `>`). SQL cannot do this half -- the bound
+    // hash is inside the blob -- so it happens here, on a branch's ops, which are bounded.
+    let sortKey (ts : string, op : PT.PackageOp) : string * string * string =
+      match op with
+      | PT.PackageOp.SetName(_, target, _) -> (ts, "1", string target.hash)
+      | PT.PackageOp.Unbind _ -> (ts, "0", "")
+      | _ -> (ts, "1", "")
+
+    return
+      decoded
+      |> List.choose (fun (ts, o) -> o |> Option.map (fun op -> (ts, op)))
+      |> List.sortBy sortKey
+      |> List.map snd
   }
 
 /// Re-arm every branch event <param branchId>'s bundle may have been waiting on, so

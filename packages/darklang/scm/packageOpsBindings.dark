@@ -115,9 +115,25 @@ type NameWord =
     binding: Stdlib.Option.Option<Conflicts.Binding> }
 
 
-/// Fold a run of (op, origin_ts) rows into what the run BINDS, latest-stamp-wins per name. The rows must
-/// arrive oldest-first; the later SetName then overwrites the earlier, which is the binding the fold lands
-/// on. An `Unbind` is the name's latest word too: it takes the name out, until a later op binds it again.
+/// The overlay's tie-break, made to match the fold's.
+///
+/// Later wins, so the key sorts the WINNER last. Equal stamps break the way `LibDB.Lww` breaks them:
+/// the greater bound hash wins (`isStale`), and a binding beats an `Unbind` (`unbindBeatsBinding` is
+/// strict `>`). Without this the overlay fell back on SQL order, whose tie-break is `rowid` -- arrival
+/// order, so two machines given the same two ops in opposite orders disagreed about what a branch
+/// binds, while agreeing about main.
+///
+/// One string rather than a tuple because the stamp is fixed-width ISO, so lexical IS chronological
+/// and the rank and hash simply follow it.
+let bindingSortKey (ts: String) (isBinding: Bool) (hash: String) : String =
+  let rank = if isBinding then "1" else "0"
+  $"{ts}|{rank}|{hash}"
+
+
+/// Fold a run of (op, origin_ts) rows into what the run BINDS, latest-stamp-wins per name.
+///
+/// Sorted by <fn bindingSortKey> first, so the answer is the same whatever order the rows arrived in.
+/// An `Unbind` is the name's latest word too: it takes the name out, until a later op binds it again.
 let bindingEntriesFromOpRows
   (rows: List<Dict<String, Stdlib.Sqlite.Value>>)
   : List<NameWord> =
@@ -136,7 +152,8 @@ let bindingEntriesFromOpRows
           | Some(Unbind(location, _)) ->
             let modules = Stdlib.String.join location.modules "."
             Stdlib.Option.Option.Some(
-              (Conflicts.bindingKey location.owner modules location.name,
+              (bindingSortKey ts false "",
+               Conflicts.bindingKey location.owner modules location.name,
                NameWord
                  { owner = location.owner
                    modules = modules
@@ -147,7 +164,8 @@ let bindingEntriesFromOpRows
             bindingFromOp op ts
             |> Stdlib.Option.map (fun pair ->
               let (k, b) = pair
-              (k,
+              (bindingSortKey b.originTs true b.hash,
+               k,
                NameWord
                  { owner = b.owner
                    modules = b.modules
@@ -157,7 +175,15 @@ let bindingEntriesFromOpRows
         | Error _ -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None)
 
-  Stdlib.Dict.values (Stdlib.Dict.fromListOverwritingDuplicates entries)
+  entries
+  |> Stdlib.List.sortBy (fun e ->
+    let (sortKey, _k, _w) = e
+    sortKey)
+  |> Stdlib.List.map (fun e ->
+    let (_sortKey, k, w) = e
+    (k, w))
+  |> Stdlib.Dict.fromListOverwritingDuplicates
+  |> Stdlib.Dict.values
 
 
 /// <fn bindingEntriesFromOpRows>, keeping only the names that end up bound.
