@@ -11,8 +11,9 @@ module Darklang.Stdlib.Cli.FileSystem
 type FileError =
   /// File or directory at the given path doesn't exist.
   | NotFound
-  /// Caller lacks permission to read/write the path.
-  | PermissionDenied
+  /// The OS refused access to the path (EACCES). A policy denial never
+  /// appears here: it raises before the operation runs.
+  | OsAccessDenied
   /// Any other I/O failure — carries the original message.
   | Other of String
 
@@ -23,7 +24,7 @@ module FileError =
   let toString (err: FileError) : String =
     match err with
     | NotFound -> "File not found"
-    | PermissionDenied -> "Permission denied"
+    | OsAccessDenied -> "Permission denied"
     | Other msg -> msg
 
 

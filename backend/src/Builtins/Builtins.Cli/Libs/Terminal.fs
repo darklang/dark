@@ -90,7 +90,7 @@ let private getDimension
 
 /// Read the kernel's current terminal window size without a process spawn.
 let private tryUnixTerminalSize () : (int64 * int64) option =
-  [ 1; 0; 2 ] |> List.tryPick LibExecution.HostLibc.tryTerminalWindowSize
+  [ 1; 0; 2 ] |> List.tryPick LibExecution.Host.terminalWindowSize
 
 
 /// Return the current terminal size.

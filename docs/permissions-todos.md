@@ -16,6 +16,12 @@ resolve.
   set is computed from the mutable `owner` column, so anything that writes
   the package DB directly can forge trust. The insert-time guard protects
   the package APIs only.
+- Per-blob confidentiality in a shared blob store. Dereferencing a persistent
+  blob is ambient (docs/effects.md): content addressing stops a caller
+  fabricating a hash, but gives no confidentiality once a hash leaks, and no
+  per-blob authorization. Harmless while each store is single-tenant; under a
+  shared `package_blobs` it needs provenance-keyed authorization, which a call
+  effect cannot express (it gates the operation, not which content).
 
 ## Language and analysis
 

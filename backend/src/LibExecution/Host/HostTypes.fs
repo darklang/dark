@@ -6,6 +6,17 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
+/// A flag for the C library's open() call, named rather than numbered.
+/// `Host.openFlag` turns it into the platform's number.
+[<RequireQualifiedAccess>]
+type OpenFlag =
+  | ReadOnly
+  | WriteOnly
+  | ReadWrite
+  | Create
+  | Truncate
+  | Append
+
 /// Posix operations with a scoped resource (a path, env name, or spawn). The
 /// libc twins of the .NET operations exist because libc semantics differ (the
 /// libc environment vs the CLR cache, fork/exec details), so they keep their
@@ -171,10 +182,7 @@ type FailureKind =
   | NotFound
   /// The OS refused (EACCES, UnauthorizedAccessException) — not a policy
   /// denial, which raises before the operation runs and never appears here.
-  // CLEANUP consider renaming to OsAccessDenied: three different things are
-  // called PermissionDenied (this OS failure, the policy-denial RTE, and the
-  // CLI's ExecutionError.Denied), and this one is the odd one out.
-  | PermissionDenied
+  | OsAccessDenied
   | Other
 
 /// An OS-level failure after the policy check passed. Guest-visible as a

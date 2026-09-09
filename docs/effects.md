@@ -218,6 +218,16 @@ scoping: `package-read`, `package-write`, `trace-read` and `trace-write` are
 ambient effects, granted or denied as a whole like `stdout`. Datastores keep a
 per-table rule.
 
+Blob dereferencing is deliberately effect-free value materialization. An
+ephemeral blob carries its bytes; a persistent blob loads the same immutable
+bytes by content hash from the host-owned `package_blobs` store. The latter
+is ambient local storage, but does not require `PackageRead` or `FileRead`:
+passing a blob to an effect-free function must work regardless of its storage
+representation. This does not grant arbitrary SQL or filesystem access, and
+does not provide per-blob authorization or confidentiality within the local
+store. Operations that load or persist enclosing packages, traces, or database
+values retain their own permission checks.
+
 Policies are allowlists with optional explicit denies:
 
 1. A matching deny always wins inside a policy.
@@ -258,6 +268,11 @@ other approved root still needs.
 
 ## Checked host boundary
 
+The host modules live in `LibExecution/Host/` and compile before
+`RuntimeTypes.fs`; they depend on the effect and policy vocabulary, not VM state. This keeps the dependency direction suitable for a later assembly
+split. Today the separation is enforced by F# compile order and the compiled IL scan below. A separate assembly could also hide subsystem implementations
+behind `internal`; it would need to take the shared effect/policy types with it so the interpreter can depend on the host without a cycle.
+
 The boundary is one door: `LibExecution.Host`. A converted builtin never
 touches the OS; it constructs an `Operation` — the full description of one
 host action — and hands it to `Host.perform`, which derives the exact
@@ -278,8 +293,10 @@ The libc-backed posix twins route through it too, with the libc bridge
 (paths, env names, spawns) go through `Host.perform`; an answer that is a
 path (the working directory, the home directory, a file's owner, the running
 binary) is checked as a read of that path. Raw fds, pids and spawns are
-`Native`. Plain host facts (uname, pid, uid, cpu count, terminal size) are
-effect-free and call `HostLibc` directly. Native-gated operations that do go
+`Native`. Plain host facts (uname, pid, uid, cpu count) are effect-free and
+call `HostLibc` directly; the terminal size and the open() flag values are
+handed out by `Host` itself, so those builtins name only the door. Native-gated
+operations that do go
 through the boundary (fd reads, process I/O) are checked once, at the
 interpreter's gate; the boundary executes and audits them without a second
 decision. HTTP server binds
@@ -337,6 +354,31 @@ granting the deliberately broad native boundary. New APIs should use opaque,
 execution-owned handles so they can carry narrower access.
 
 ## Policy administration
+
+`permissions profile` lists named starting policies. `default` restores the
+installation default. `read-only <ABSOLUTE-ROOT>` permits reads under that
+directory, local-store reads, stdio, clock, randomness, and HTTPS GET to any
+host on port 443. `local-dev <ABSOLUTE-ROOT>` also permits writes under the
+directory, local-store writes, and HTTP serving on any port. Neither grants
+environment access, process execution, or Native. HTTP transport restrictions
+still apply; a profile does not bypass SSRF checks.
+
+Profiles expand to ordinary typed rules and carry no authority of their own.
+The command previews the full expansion; adding `--yes` applies it through the
+same host-only writer as `permissions set`. Application replaces the entire
+instance policy, including explicit denies. Package approvals, pins, run
+restrictions and author ceilings remain independent.
+
+```text
+permissions profile
+permissions profile read-only /home/me/project
+permissions profile local-dev /home/me/project --yes
+permissions allow http GET https://api.example.com/v1
+```
+
+The typed rule grammar, `permissions list`/`show`, and exact denial hints are
+the current editing loop. A future TUI editor can use those same policy types
+and host checks; it does not need a second permissions model.
 
 Guest code cannot change instance, run, or package approval policy. The
 policy builtins are host-only (`ExecutionState.canManagePolicies`), granted

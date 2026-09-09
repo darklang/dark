@@ -35,7 +35,7 @@ module FileError =
     let (caseName, fields) =
       match failure.kind with
       | Host.FailureKind.NotFound -> "NotFound", []
-      | Host.FailureKind.PermissionDenied -> "PermissionDenied", []
+      | Host.FailureKind.OsAccessDenied -> "OsAccessDenied", []
       | Host.FailureKind.Other -> "Other", [ DString failure.message ]
     DEnum(typeName, typeName, [], caseName, fields)
 

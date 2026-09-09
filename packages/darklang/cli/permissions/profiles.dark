@@ -1,0 +1,110 @@
+/// Named starting policies. Profiles expand to ordinary typed rules; only
+/// Command.writePolicy can install one through the host administration API.
+module Darklang.Cli.Permissions.Profiles
+
+type Profile =
+  { name: String
+    description: String
+    needsRoot: Bool }
+
+val all =
+  [ Profile
+      { name = "default"
+        description =
+          "the installation default: local stores, stdio, clock and random"
+        needsRoot = false }
+    Profile
+      { name = "read-only"
+        description =
+          "read a directory and local stores; HTTPS GET, stdio, clock and random"
+        needsRoot = true }
+    Profile
+      { name = "local-dev"
+        description =
+          "read/write a directory and local stores; HTTPS GET and HTTP serving"
+        needsRoot = true } ]
+
+val readEffects =
+  [ LanguageTools.Permissions.Effect.PackageRead
+    LanguageTools.Permissions.Effect.DbRead
+    LanguageTools.Permissions.Effect.TraceRead
+    LanguageTools.Permissions.Effect.Stdin
+    LanguageTools.Permissions.Effect.Stdout
+    LanguageTools.Permissions.Effect.Clock
+    LanguageTools.Permissions.Effect.Random ]
+
+/// Kept aligned with the host's defaultInstance by the CLI integration test.
+val defaultEffects =
+  Stdlib.List.append
+    Profiles.readEffects
+    [ LanguageTools.Permissions.Effect.DbWrite
+      LanguageTools.Permissions.Effect.TraceWrite ]
+
+val httpsGet =
+  LanguageTools.Permissions.Rule.Http(
+    LanguageTools.Permissions.HttpRule
+      { method = LanguageTools.Permissions.Scope.Only "GET"
+        scheme = LanguageTools.Permissions.Scope.Only "https"
+        host = LanguageTools.Permissions.HostRule.Any
+        port = LanguageTools.Permissions.Scope.Only 443
+        pathPrefix = LanguageTools.Permissions.Scope.All
+        query = LanguageTools.Permissions.Scope.All })
+
+let fromEffects
+  (effects: List<LanguageTools.Permissions.Effect>)
+  : LanguageTools.Permissions.Policy =
+  LanguageTools.Permissions.Policy
+    { allow =
+        effects
+        |> Stdlib.List.map (fun e -> LanguageTools.Permissions.Rule.Effect e)
+      deny = [] }
+
+let usage (profile: Profiles.Profile) : String =
+  "permissions profile " ++ profile.name
+  ++ (if profile.needsRoot then " <ABSOLUTE-ROOT>" else "")
+  ++ " [--yes]"
+
+val listing =
+  Stdlib.List.append
+    [ "Permission profiles (preview first; --yes applies):" ]
+    (Profiles.all |> Stdlib.List.map (fun profile ->
+      "  " ++ Profiles.usage profile ++ "\n    " ++ profile.description))
+
+/// Validate the complete command before constructing a policy. The root stays
+/// a single typed field, so quotes, spaces and semicolons cannot inject rules.
+let resolve
+  (name: String)
+  (args: List<String>)
+  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
+  let found =
+    Profiles.all |> Stdlib.List.findFirst (fun profile -> profile.name == name)
+  match found with
+  | None -> Stdlib.Result.Result.Error $"unknown permission profile: {name}"
+  | Some profile ->
+    match (profile.needsRoot, args) with
+    | (false, []) ->
+      Stdlib.Result.Result.Ok(Profiles.fromEffects Profiles.defaultEffects)
+    | (true, [ root ]) ->
+      if Stdlib.Bool.not (LanguageTools.Permissions.isAbsolutePath root) then
+        Stdlib.Result.Result.Error
+          "profile root must be an absolute directory path; ~ and * are not expanded"
+      else
+        let read = LanguageTools.Permissions.Rule.FileRead(
+          LanguageTools.Permissions.Scope.Only root)
+        let policy =
+          if name == "read-only" then Profiles.fromEffects Profiles.readEffects
+          else Profiles.fromEffects Profiles.defaultEffects
+        let rules =
+          if name == "read-only" then [ read, Profiles.httpsGet ]
+          else
+            [ read
+              LanguageTools.Permissions.Rule.FileWrite(
+                LanguageTools.Permissions.Scope.Only root)
+              Profiles.httpsGet
+              LanguageTools.Permissions.Rule.HttpServer
+                LanguageTools.Permissions.Scope.All
+              LanguageTools.Permissions.Rule.Effect
+                LanguageTools.Permissions.Effect.PackageWrite ]
+        Stdlib.Result.Result.Ok
+          { policy with allow = Stdlib.List.append policy.allow rules }
+    | _ -> Stdlib.Result.Result.Error ("usage: " ++ Profiles.usage profile)

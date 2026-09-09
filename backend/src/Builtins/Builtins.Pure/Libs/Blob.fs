@@ -11,10 +11,9 @@ module Dval = LibExecution.Dval
 module Blob = LibExecution.Blob
 
 
-// CLEANUP these builtins declare no callEffects, but `Blob.readBytes` on a
-// Persistent ref reads the local blob store. If that's deliberate (ambient
-// local storage, like package reads), docs/effects.md should say so; if not,
-// the persistent-read path needs an effect.
+// Blob dereferencing is value materialization, including reads of persistent
+// bytes from the host-owned blob store. It has no call effect; see
+// docs/effects.md for the local-storage boundary and its limits.
 let fns () : List<BuiltInFn> =
   [
 

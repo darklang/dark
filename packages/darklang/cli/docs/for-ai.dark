@@ -93,9 +93,12 @@ installation permits package/local-store access, stdio, clock, and randomness;
 rules allow (or deny) additional effects and resources:
 
   permissions list
+  permissions profile                         # list starting policies
+  permissions profile read-only /home/me/project       # preview: reads, HTTPS GET
+  permissions profile local-dev /home/me/project --yes # apply: adds writes, serving
   permissions allow clock
   permissions allow http GET https://api.stripe.com/v1
-  permissions allow file write /srv/app/data     # roots are absolute; ~ is not expanded
+  permissions allow file write /home/me/project/data   # absolute; ~ not expanded
   permissions deny http POST https://api.stripe.com/v1
   permissions allow native             # raw fds, process handles, SQL against another
                                        # database: cannot be scoped, so it is granted

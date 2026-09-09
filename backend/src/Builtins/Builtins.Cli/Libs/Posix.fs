@@ -622,18 +622,18 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString flag |] ->
-          let value =
+          let flag =
             match flag with
-            | "rdonly" -> HostLibc.O_RDONLY
-            | "wronly" -> HostLibc.O_WRONLY
-            | "rdwr" -> HostLibc.O_RDWR
-            | "creat" -> HostLibc.O_CREAT
-            | "trunc" -> HostLibc.O_TRUNC
-            | "append" -> HostLibc.O_APPEND
+            | "rdonly" -> HostTypes.OpenFlag.ReadOnly
+            | "wronly" -> HostTypes.OpenFlag.WriteOnly
+            | "rdwr" -> HostTypes.OpenFlag.ReadWrite
+            | "creat" -> HostTypes.OpenFlag.Create
+            | "trunc" -> HostTypes.OpenFlag.Truncate
+            | "append" -> HostTypes.OpenFlag.Append
             | other ->
               RuntimeError.UncaughtException($"unknown open() flag `{other}`", [])
               |> raiseUntargetedRTE
-          Dval.int (bigint value) |> Ply
+          Dval.int (bigint (Host.openFlag flag)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

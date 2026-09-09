@@ -666,7 +666,10 @@ let private nonexistentTargets : List<string * List<string>> =
     "propagate pin", [ "propagate"; "pin"; "Zzz.Nope.nope" ]
     "propagate follow", [ "propagate"; "follow"; "Zzz.Nope.nope" ]
     "constraints resolve", [ "constraints"; "resolve"; "zzznope" ]
-    "ack", [ "ack"; "zzznope" ] ]
+    "ack", [ "ack"; "zzznope" ]
+    "permissions requirements", [ "permissions"; "requirements"; "Zzz.Nope.nope" ]
+    "permissions show", [ "permissions"; "show"; "Zzz.Nope.nope" ]
+    "permissions approve", [ "permissions"; "approve"; "--yes"; "Zzz.Nope.nope" ] ]
 
 let private missingTargetsAreNamed =
   cliTestOnMain

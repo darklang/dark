@@ -411,6 +411,28 @@ let takeYesFlag (args: List<String>) : (Bool * List<String>) =
   let rest = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (isYesFlag a))
   (yes, rest)
 
+/// Show the full replacement before any write. Previewing never prompts or
+/// edits policy; --yes uses the same host-only writer as `permissions set`.
+let profile (args: List<String>) : Unit =
+  match args with
+  | [] -> Stdlib.printLines Profiles.listing
+  | _ ->
+    match Command.takeYesFlag args with
+    | (_, []) ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "profile needs a name")
+    | (apply, name :: rest) ->
+      match Profiles.resolve name rest with
+      | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+      | Ok policy ->
+        Stdlib.printLine
+          $"Profile {name} replaces the entire instance policy, including denies:"
+        Stdlib.printLines (Command.indentedPolicyLines policy)
+        if apply then
+          Command.writePolicy policy
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ applied profile {name}")
+        else
+          Stdlib.printLine "Preview only. Repeat with --yes to apply."
+
 /// The rules given after a name on `approve`/`update`, `;`-separated like
 /// `set`. Ok None when there are none.
 let parseApprovalRules
@@ -616,6 +638,7 @@ let printListOrNone (items: List<String>) : Unit =
 /// missing-argument arm and `complete`.
 val subcommands =
   [ ("list", Stdlib.Option.Option.None)
+    ("profile", Stdlib.Option.Option.None)
     ("allow", Stdlib.Option.Option.Some "allow <rule>")
     ("deny", Stdlib.Option.Option.Some "deny <rule>")
     ("remove", Stdlib.Option.Option.Some "remove <rule>")
@@ -643,6 +666,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | []
   | [ "list" ] -> Stdlib.printLines (Command.instancePolicyLines ())
   | [ "help" ] -> Stdlib.printLine (Command.help state)
+  | "profile" :: args -> Command.profile args
   // Before the `<subcommand> :: args` arms: a subcommand given with no
   // argument must report usage, not run with an empty argument list (`set`
   // with nothing would replace the policy with deny-all).
@@ -733,14 +757,23 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let complete
   (_state: Cli.AppState)
-  (_args: List<String>)
+  (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
-  Command.subcommands
-  |> Stdlib.List.map (fun (name, _usage) -> Cli.Completion.simple name)
+  match args with
+  | [ "profile" ] ->
+    Profiles.all |> Stdlib.List.map (fun profile -> Cli.Completion.simple profile.name)
+  | [ "profile", "default" ]
+  | [ "profile", "read-only", _root ]
+  | [ "profile", "local-dev", _root ] -> [ Cli.Completion.simple "--yes" ]
+  | "profile" :: _ -> []
+  | _ ->
+    Command.subcommands
+    |> Stdlib.List.map (fun (name, _usage) -> Cli.Completion.simple name)
 
 let help (_state: Cli.AppState) : String =
   [ "Usage: permissions [list] | allow <rule> | deny <rule> | remove <rule>"
     "                   | set <rule>;… | clear"
+    "                   | profile [name [ABSOLUTE-ROOT] [--yes]]"
     "                   | approve <fn> [rule,…] | update <fn> [rule,…] | unapprove <fn>"
     "                   | approved"
     "                   | requirements <fn|hash> | show <fn|hash>"
@@ -748,6 +781,15 @@ let help (_state: Cli.AppState) : String =
     ""
     "The instance policy is local and deny-by-default. Every actual host operation"
     "must be allowed by the instance, run and package layers."
+    ""
+    "Profiles:"
+    "  profile                         list the available presets"
+    "  profile default                 preview the installation default"
+    "  profile read-only <ROOT>        directory/store reads and HTTPS GET"
+    "  profile local-dev <ROOT>        directory/store writes and HTTP serving too"
+    "  Add --yes to apply. Replaces the entire instance policy, including denies."
+    "  ROOT must be absolute; no process, native or environment access is granted."
+    "  HTTPS GET permits any host on port 443; HTTP serving permits any port."
     ""
     "Named approvals (account-scoped):"
     "  --yes, -y      skip the confirmation; required for an unattended run,"

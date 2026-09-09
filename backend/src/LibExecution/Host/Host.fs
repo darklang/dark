@@ -142,7 +142,7 @@ let failureOfErrno (errno : int, message : string) : Failure =
     match errno with
     | 2 -> FailureKind.NotFound
     | 1
-    | 13 -> FailureKind.PermissionDenied
+    | 13 -> FailureKind.OsAccessDenied
     | _ -> FailureKind.Other
   { kind = kind; errno = errno; message = message }
 
@@ -188,15 +188,23 @@ let private bindHttpServer (port : int) : Result<Response, int * string> =
     else
       Error(e.ErrorCode, $"couldn't listen on port {port}: {e.Message}")
 
-/// A .NET failure; there is no errno to report.
+/// An exception out of an execution. `HostLibc.openSafely` reports an open
+/// failure as a `Win32Exception` carrying the errno, so on Linux every file
+/// read that fails comes through here that way; read the kind off the errno
+/// as `failureOfErrno` does, or ENOENT and EACCES both collapse into `Other`.
+/// A .NET exception has no errno to report.
 let private classify (e : exn) : Failure =
-  let kind =
-    match e with
-    | :? System.IO.FileNotFoundException
-    | :? System.IO.DirectoryNotFoundException -> FailureKind.NotFound
-    | :? System.UnauthorizedAccessException -> FailureKind.PermissionDenied
-    | _ -> FailureKind.Other
-  { kind = kind; errno = -1; message = e.Message }
+  match e with
+  | :? System.ComponentModel.Win32Exception as e ->
+    failureOfErrno (e.NativeErrorCode, e.Message)
+  | _ ->
+    let kind =
+      match e with
+      | :? System.IO.FileNotFoundException
+      | :? System.IO.DirectoryNotFoundException -> FailureKind.NotFound
+      | :? System.UnauthorizedAccessException -> FailureKind.OsAccessDenied
+      | _ -> FailureKind.Other
+    { kind = kind; errno = -1; message = e.Message }
 
 // ── input normalization ───────────────────────────────────────────────────────
 
@@ -866,3 +874,21 @@ let httpStreamRead (handle : int64) (maxBytes : int) : Task<Option<byte[]>> =
   }
 
 let httpStreamClose (handle : int64) : unit = HostHttp.closeStream handle
+
+// ── host facts ────────────────────────────────────────────────────────────────
+
+/// The platform value of one open() flag.
+let openFlag (flag : HostTypes.OpenFlag) : int =
+  match flag with
+  | HostTypes.OpenFlag.ReadOnly -> HostLibc.O_RDONLY
+  | HostTypes.OpenFlag.WriteOnly -> HostLibc.O_WRONLY
+  | HostTypes.OpenFlag.ReadWrite -> HostLibc.O_RDWR
+  | HostTypes.OpenFlag.Create -> HostLibc.O_CREAT
+  | HostTypes.OpenFlag.Truncate -> HostLibc.O_TRUNC
+  | HostTypes.OpenFlag.Append -> HostLibc.O_APPEND
+
+/// The kernel's current window size for a terminal descriptor, as
+/// (columns, rows). None when the descriptor is not a terminal, on Windows,
+/// and on macOS, where the ioctl bridge is unsafe (see `HostLibc`).
+let terminalWindowSize (fd : int) : Option<int64 * int64> =
+  HostLibc.tryTerminalWindowSize fd
