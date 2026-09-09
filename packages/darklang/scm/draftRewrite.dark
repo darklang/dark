@@ -386,20 +386,35 @@ let collapse () : Stdlib.Result.Result<Int, String> =
     let nameKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
       loc.owner ++ "|" ++ (Stdlib.String.join loc.modules ".") ++ "|" ++ loc.name
 
-    // The id of the LAST naming for each name, in authoring order.
+    // The naming to KEEP for each name: the one that WROTE the row the name currently has.
+    //
+    // Not simply the last. A rebind to the hash a name already holds folds to nothing -- no new
+    // `locations` row -- so the last of a run of namings that all say the same hash wrote nothing,
+    // and keeping IT while dropping the run's first deletes the only row there is. Re-authoring the
+    // same source twice before committing does exactly that, and the name stopped existing on
+    // commit.
+    //
+    // So: walk in authoring order and move the keeper on only when the hash CHANGES. A -> A keeps
+    // the first; A -> B -> A keeps the third, which is the one whose fold rebound the name.
     let step =
       (fun acc d ->
         match d.op with
-        | SetName(loc, _, _) ->
-          Stdlib.Dict.setOverridingDuplicates acc (nameKey loc) d.id
+        | SetName(loc, target, _) ->
+          let key = nameKey loc
+          let hash = referenceHash target
+
+          match Stdlib.Dict.get acc key with
+          | Some((_, standingHash)) when standingHash == hash -> acc
+          | _ -> Stdlib.Dict.setOverridingDuplicates acc key ((d.id, hash))
         | _ -> acc)
 
-    let lastForName = draft |> Stdlib.List.fold Stdlib.Dict.empty step
+    let keeperForName = draft |> Stdlib.List.fold Stdlib.Dict.empty step
 
     draft
     |> Stdlib.List.filter (fun d ->
       match d.op with
       | SetName(loc, _, _) ->
-        (Stdlib.Dict.get lastForName (nameKey loc))
-        == (Stdlib.Option.Option.Some d.id)
+        match Stdlib.Dict.get keeperForName (nameKey loc) with
+        | Some((keeperId, _)) -> keeperId == d.id
+        | None -> true
       | _ -> true))

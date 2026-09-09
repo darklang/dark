@@ -451,6 +451,55 @@ let aBranchesDocEditStaysOnTheBranch =
         do! discardAll state
       })
 
+/// Re-authoring the same source before committing, which is what an editor's save button does.
+///
+/// A rebind to the hash a name already holds folds to nothing -- no new `locations` row -- so the
+/// draft ends with two namings and only the FIRST wrote anything. Collapse keeps one naming per
+/// name at commit, and keeping the wrong one of those two deleted the only row: the commit
+/// reported success and the function stopped existing.
+let reAuthoringTheSameSourceSurvivesTheCommit =
+  cliTestOnMain
+    "authoring the same source twice, then committing, keeps the name"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Twice.f" "() : Int64 = 4901L"
+        do! fn state "Tests.Twice.f" "() : Int64 = 4901L"
+        do! commit state "add f, said twice"
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.Twice.f" ]
+            "4901"
+            "the name still holds what was authored"
+        do! evals state "Tests.Twice.f ()" "4901" "and it still runs"
+        do! discardAll state
+      })
+
+/// The other half of the same rule: when the hash really does move and move back inside one draft,
+/// the LAST naming is the one that wrote the live row, and it is the one to keep.
+let aVersionMovedAndMovedBackKeepsTheLastNaming =
+  cliTestOnMain
+    "editing a function and putting it back, then committing, keeps the version put back"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902L"
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4903L"
+        do! fn state "Tests.ThereAndBack.f" "() : Int64 = 4902L"
+        do! commit state "there and back"
+
+        do!
+          evals
+            state
+            "Tests.ThereAndBack.f ()"
+            "4902"
+            "the name holds the version it was put back to"
+        do! discardAll state
+      })
+
+
 let renameIsVisibleToEverythingThatReads =
   cliTestOnMain
     "a renamed item is readable at its new name, by every reader"
@@ -499,4 +548,6 @@ let tests : List<Test> =
     deprecateAndUndeprecate
     renameIsVisibleToEverythingThatReads
     aDocOnlyEditKeepsTheVersionAndStillLands
-    aBranchesDocEditStaysOnTheBranch ]
+    aBranchesDocEditStaysOnTheBranch
+    reAuthoringTheSameSourceSurvivesTheCommit
+    aVersionMovedAndMovedBackKeepsTheLastNaming ]
