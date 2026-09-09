@@ -91,6 +91,13 @@ let buildState () : Task<RT.ExecutionState> =
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
   }
 
+/// How long one CLI command may take before the test says so.
+///
+/// A command reading stdin with nobody there waits rather than fails, with `Console.SetOut`
+/// redirected, so the hang is silent and the log names no culprit. Generous on purpose: this turns
+/// "forever" into a named failure, it does not police speed.
+let private runCliTimeout = System.TimeSpan.FromMinutes 2.0
+
 /// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return
 /// the trimmed captured stdout, with `Console.Out` redirected to a `StringWriter` for
 /// the duration. The surrounding `testSequenced` keeps the process-global
@@ -108,7 +115,22 @@ let runCli (state : RT.ExecutionState) (args : string list) : Task<string> =
     let originalOut = System.Console.Out
     try
       System.Console.SetOut(captured)
-      let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+      let execution = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+
+      // Bounds the WAIT, not the work: the call is not cancellable, so it finishes into a
+      // StringWriter nobody reads while the test fails with the command's name.
+      let! finished = Task.WhenAny(execution, Task.Delay runCliTimeout)
+
+      if not (System.Object.ReferenceEquals(finished, execution :> Task)) then
+        System.Console.SetOut(originalOut)
+
+        return
+          Tests.failtestf
+            "runCli timed out after %A: dark %s"
+            runCliTimeout
+            (String.concat " " args)
+
+      let! result = execution
       // `Stdlib.printLine` queues to a background thread; drain before
       // reading the StringWriter or we capture nothing.
       NonBlockingConsole.wait ()

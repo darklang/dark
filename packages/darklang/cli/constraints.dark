@@ -110,17 +110,37 @@ let kindArgChecked (args: List<String>) : Stdlib.Result.Result<Unit, String> =
 
 
 let executeJson (state: AppState) (args: List<String>) : AppState =
-  let findings = SCM.Constraints.pending () |> (fun fs -> selectKind fs args)
+  let detected = SCM.Constraints.pending ()
+  let findings = selectKind detected.findings args
   let body = findings |> Stdlib.List.map toJson |> (fun ls -> Stdlib.String.join ls ",")
-  Stdlib.printLine $"{{\"findings\":[{body}]}}"
+
+  // Add-only, normally `[]`. Without it an agent reads "we didn't look" as "nothing to see".
+  let blocked =
+    detected.blocked
+    |> Stdlib.List.map (fun b -> Stdlib.Json.serialize<String> b)
+    |> (fun ls -> Stdlib.String.join ls ",")
+
+  Stdlib.printLine $"{{\"findings\":[{body}],\"blocked\":[{blocked}]}}"
   state
 
 
 let executeList (state: AppState) (args: List<String>) : AppState =
-  match SCM.Constraints.pending () |> (fun fs -> selectKind fs args) with
+  let detected = SCM.Constraints.pending ()
+
+  // Before the findings: "no constraints" is a claim about what was checked.
+  let _ =
+    detected.blocked
+    |> Stdlib.List.iter (fun b ->
+      Cli.printErr $"couldn't check everything: {b}")
+
+  match selectKind detected.findings args with
   | [] ->
     // Says what was CHECKED, not just that nothing turned up, and short enough for a narrow terminal.
-    Cli.printOk "no constraints: nothing has drifted off its current version."
+    if Stdlib.List.isEmpty detected.blocked then
+      Cli.printOk "no constraints: nothing has drifted off its current version."
+    else
+      Cli.printOk "nothing found by the checks that DID run."
+
     state
   | findings ->
     Cli.printOk (Cli.Text.plural (Stdlib.List.length findings) "constraint")
@@ -154,9 +174,9 @@ let selectTargets
   // `detectAll` re-runs detection so a prefix can match a finding that has never been listed; `pending`
   // is enough for `--all`, which means "everything currently outstanding".
   if Stdlib.List.member ids "--all" then
-    (SCM.Constraints.pending (), [])
+    ((SCM.Constraints.pending ()).findings, [])
   else
-    let all = SCM.Constraints.detectAll ()
+    let all = (SCM.Constraints.detectAll ()).findings
 
     // Findings are printed as `#1d8740cd`, so a pasted id arrives with the `#`. Accept what we print.
     let normalize (i: String) : String =

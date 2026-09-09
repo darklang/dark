@@ -240,61 +240,65 @@ let ackedIds () : List<String> =
 /// The `Finding` fields are the stale-usage ones reused: `dependency` is the location ITSELF, because the
 /// thing whose version moved is this name rather than something it calls. That is the one field here that
 /// reads oddly, and it is why `line` in the CLI prints this kind separately.
-let detectSupersededDecisions () : List<Finding> =
+let detectSupersededDecisions () : Stdlib.Result.Result<List<Finding>, String> =
   SCM.PackageOps.supersededOverrides ()
-  |> Stdlib.List.map (fun entry ->
-    let (loc, chosen, live) = entry
+  |> Stdlib.Result.map (fun entries ->
+    entries
+    |> Stdlib.List.map (fun entry ->
+      let (loc, chosen, live) = entry
 
-    // The item's REAL kind, from the live binding: a hardcoded Fn feeds `--json` the wrong kind for a
-    // decision on a type or value.
-    let kind =
-      SCM.Propagation.kindAt loc
-      |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
+      // The item's REAL kind, from the live binding: a hardcoded Fn feeds `--json` the wrong kind for a
+      // decision on a type or value.
+      let kind =
+        SCM.Propagation.kindAt loc
+        |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
 
-    Finding
-      { kind = Kind.DecisionSuperseded
-        id = findingId loc loc chosen
-        usage = loc
-        usageKind = kind
-        dependency = loc
-        dependencyKind = kind
-        detail =
-          FindingDetail.Versions(
-            LanguageTools.ProgramTypes.Hash.Hash chosen,
-            LanguageTools.ProgramTypes.Hash.Hash live
-          ) })
+      Finding
+        { kind = Kind.DecisionSuperseded
+          id = findingId loc loc chosen
+          usage = loc
+          usageKind = kind
+          dependency = loc
+          dependencyKind = kind
+          detail =
+            FindingDetail.Versions(
+              LanguageTools.ProgramTypes.Hash.Hash chosen,
+              LanguageTools.ProgramTypes.Hash.Hash live
+            ) }))
 
 
 /// A propagation choice of yours that a peer's later choice replaced. The silent half of
 /// last-writer-wins, made visible; see `SCM.PackageOps.supersededPolicies` for why only a peer counts.
-let detectSupersededPolicies () : List<Finding> =
+let detectSupersededPolicies () : Stdlib.Result.Result<List<Finding>, String> =
   SCM.PackageOps.supersededPolicies ()
-  |> Stdlib.List.map (fun entry ->
-    let (loc, mine, now, by) = entry
-    // A policy row carries no kind, so ask what the name IS: main-scoped is right here, since a
-    // policy names a live binding. Fn only when nothing is bound (the finding still reads).
-    let kind =
-      match Stdlib.Sqlite.queryP
-              (SCM.localDb ())
-              "SELECT item_type FROM locations
-               WHERE owner = @p0 AND modules = @p1 AND name = @p2
-                 AND unlisted_at IS NULL AND source <> 'unbind' LIMIT 1"
-              [ loc.owner, (Stdlib.String.join loc.modules "."), loc.name ]
-      with
-      | Ok [ row ] ->
-        (match Stdlib.Sqlite.textField row "item_type" with
-         | Some t -> Deps.kindOf t
-         | None -> LanguageTools.ProgramTypes.ItemKind.Fn)
-      | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
+  |> Stdlib.Result.map (fun entries ->
+    entries
+    |> Stdlib.List.map (fun entry ->
+      let (loc, mine, now, by) = entry
+      // A policy row carries no kind, so ask what the name IS: main-scoped is right here, since a
+      // policy names a live binding. Fn only when nothing is bound (the finding still reads).
+      let kind =
+        match Stdlib.Sqlite.queryP
+                (SCM.localDb ())
+                "SELECT item_type FROM locations
+                 WHERE owner = @p0 AND modules = @p1 AND name = @p2
+                   AND unlisted_at IS NULL AND source <> 'unbind' LIMIT 1"
+                [ loc.owner, (Stdlib.String.join loc.modules "."), loc.name ]
+        with
+        | Ok [ row ] ->
+          (match Stdlib.Sqlite.textField row "item_type" with
+           | Some t -> Deps.kindOf t
+           | None -> LanguageTools.ProgramTypes.ItemKind.Fn)
+        | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
 
-    Finding
-      { kind = Kind.DecisionSuperseded
-        id = findingId loc loc $"policy|{by}"
-        usage = loc
-        usageKind = kind
-        dependency = loc
-        dependencyKind = kind
-        detail = FindingDetail.PolicyReplaced(mine, now, by) })
+      Finding
+        { kind = Kind.DecisionSuperseded
+          id = findingId loc loc $"policy|{by}"
+          usage = loc
+          usageKind = kind
+          dependency = loc
+          dependencyKind = kind
+          detail = FindingDetail.PolicyReplaced(mine, now, by) }))
 
 
 /// The same finding, for what the BRANCH binds.
@@ -350,15 +354,37 @@ let detectOutdatedUsagesOn (branchId: Uuid) : List<Finding> =
     |> Stdlib.List.flatten
 
 
-let detectAll () : List<Finding> =
+/// Everything detection turned up, and everything it could not look at.
+///
+/// Two of these detectors read the op log, and a failed read used to come back empty. A caller that
+/// prints "no constraints" has to be able to tell that from "nothing found".
+type Detection =
+  { findings: List<Finding>
+    /// One sentence per detector that could not run. Empty is the normal case.
+    blocked: List<String> }
+
+let detectAll () : Detection =
   // The ack lifecycle, the ids, the CLI and the `dark status` count are all kind-agnostic, so a kind
   // appends here and needs nothing else. The one thing that is NOT kind-agnostic is pin-suppression, in
   // `pending` below.
-  Stdlib.List.flatten
-    [ detectOutdatedUsages ()
-      detectOutdatedUsagesOn (PackageOps.currentBranch ())
-      detectSupersededDecisions ()
-      detectSupersededPolicies () ]
+  let (decisions, decisionsBlocked) =
+    match detectSupersededDecisions () with
+    | Ok fs -> (fs, [])
+    | Error e -> ([], [ e ])
+
+  let (policies, policiesBlocked) =
+    match detectSupersededPolicies () with
+    | Ok fs -> (fs, [])
+    | Error e -> ([], [ e ])
+
+  Detection
+    { findings =
+        Stdlib.List.flatten
+          [ detectOutdatedUsages ()
+            detectOutdatedUsagesOn (PackageOps.currentBranch ())
+            decisions
+            policies ]
+      blocked = Stdlib.List.append decisionsBlocked policiesBlocked }
 
 
 /// The findings a human still has to look at: detection minus the two ways of having already answered.
@@ -368,26 +394,31 @@ let detectAll () : List<Finding> =
 ///
 /// `dark status` calls this on every invocation, so it reads each table ONCE rather than per finding --
 /// `shouldFollow` re-queries `propagation_policy` every time it is asked.
-let pending () : List<Finding> =
+let pending () : Detection =
   let ackedSet =
     ackedIds ()
     |> Stdlib.List.map (fun a -> (a, true))
     |> Stdlib.Dict.fromListOverwritingDuplicates
 
   let choices = Propagation.allChoices ()
+  let detected = detectAll ()
 
-  detectAll ()
-  |> Stdlib.List.filter (fun s ->
-    let isAcked =
-      match Stdlib.Dict.get ackedSet s.id with
-      | Some _ -> true
-      | None -> false
+  // Blockers pass through: an ack answers a finding, and a detector that never ran produced none.
+  Detection
+    { findings =
+        detected.findings
+        |> Stdlib.List.filter (fun s ->
+          let isAcked =
+            match Stdlib.Dict.get ackedSet s.id with
+            | Some _ -> true
+            | None -> false
 
-    let isPinned =
-      pinSuppresses s.kind
-      && (Propagation.shouldFollowIn choices s.usage |> Stdlib.Bool.not)
+          let isPinned =
+            pinSuppresses s.kind
+            && (Propagation.shouldFollowIn choices s.usage |> Stdlib.Bool.not)
 
-    (isAcked || isPinned) |> Stdlib.Bool.not)
+          (isAcked || isPinned) |> Stdlib.Bool.not)
+      blocked = detected.blocked }
 
 
 /// Record "I've seen this one, leave it" -- as an OP, so the ack travels. An ack that lives only on the

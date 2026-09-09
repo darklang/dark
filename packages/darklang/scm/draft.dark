@@ -40,7 +40,7 @@ let read (unit: Unit) : Picture =
       repoints = SCM.PackageOps.draftRepoints bindings
       leftBehind = SCM.PackageOps.draftLeftBehind bindings
       conflicts = SCM.Conflicts.pending ()
-      constraints = Stdlib.List.length (SCM.Constraints.pending ())
+      constraints = Stdlib.List.length (SCM.Constraints.pending ()).findings
       ops = SCM.PackageOps.draftOpCount () }
 
 /// Just the counts, for the hot path.
@@ -63,7 +63,7 @@ type Counts =
 let counts (unit: Unit) : Counts =
   let bindings = SCM.PackageOps.draftBindings ()
   let propagated = SCM.PackageOps.propagatedNames ()
-  let pendingConstraints = SCM.Constraints.pending ()
+  let pendingConstraints = (SCM.Constraints.pending ()).findings
   let draftNames =
     bindings |> Stdlib.List.map (fun b -> SCM.Conflicts.fqn b.owner b.modules b.name)
   let fromDraft =

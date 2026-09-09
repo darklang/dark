@@ -96,6 +96,10 @@ let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppSta
   Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"  RESTORING {name} replaces the store.")
   Cli.printHint "  the store as it is now is copied aside first, so this is undoable."
 
+  // Credentials are deliberately not in a backup: it is a file people copy around. The cost is
+  // this sentence, because a restore onto a fresh machine cannot bring the secret back.
+  Cli.printHint "  a backup holds no credentials; re-set a relay secret with `dark connect <url> --secret ...`"
+
   let confirmed =
     Cli.Prompt.confirmExplicit autoConfirm (Stdlib.Cli.UI.Colors.warning "\n  Restore it? [y/N]: ")
 

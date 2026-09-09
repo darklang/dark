@@ -460,7 +460,7 @@ let supersededReportsCheckAuthorship =
                AND substr(op_blob, 9, 1) = X'0B'"
         let! (policies : string) =
           darkOn
-            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.List.length |> Stdlib.Int.toString"
+            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.Int.toString"
         Expect.equal
           policies
           "DString \"0\""
@@ -491,7 +491,7 @@ let supersededReportsCheckAuthorship =
             "module TwoStore.Sup\n\nlet g (x: Int64) : Int64 = x + 2L\n"
         let! (overrides : string) =
           darkOn
-            "Darklang.SCM.PackageOps.supersededOverrides () |> Stdlib.List.length |> Stdlib.Int.toString"
+            "Darklang.SCM.PackageOps.supersededOverrides () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.Int.toString"
         Expect.equal
           overrides
           "DString \"0\""

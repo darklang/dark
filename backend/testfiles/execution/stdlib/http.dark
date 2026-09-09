@@ -150,6 +150,19 @@ module QueryParams =
     Stdlib.Http.Request
       { url = "/s?a=1?b=2"; headers = []; body = Stdlib.Blob.empty })) = [ ("a", "1?b=2") ]
 
+  // An encoded separator stays inside its value. The server hands over the RAW url so `urlDecode`
+  // here is the only decoder; decoded twice, `%26` becomes a real `&` and this reads as two.
+  (Stdlib.Http.Request.queryParams (
+    Stdlib.Http.Request
+      { url = "/s?owner=a%26b"; headers = []; body = Stdlib.Blob.empty }))
+  = [ ("owner", "a&b") ]
+
+  // Same for an encoded `=`: it belongs to the value, not to the key/value split.
+  (Stdlib.Http.Request.queryParam
+    (Stdlib.Http.Request
+      { url = "/s?q=a%3Db"; headers = []; body = Stdlib.Blob.empty })
+    "q") = Stdlib.Option.Option.Some "a=b"
+
 
 module RequestHeader =
   // Case-insensitive, as HTTP requires: one stored casing, three asked-for casings.

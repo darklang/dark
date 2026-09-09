@@ -209,21 +209,24 @@ let decisionKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 /// an owner". A choice you changed yourself is not reported: that is not a surprise.
 ///
 /// Returns (location, the policy you chose, the policy in force now, who replaced it).
+///
+/// A `Result` because "none" and "could not look" are different answers. A failed query used to read
+/// as an empty list, so `dark constraints` reported no drift when it had not checked.
 let supersededPolicies
   ()
-  : List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PropagationPolicy * LanguageTools.ProgramTypes.PropagationPolicy * String)> =
-  let anyPolicies =
+  : Stdlib.Result.Result<List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PropagationPolicy * LanguageTools.ProgramTypes.PropagationPolicy * String)>, String> =
+  match
     Stdlib.Sqlite.scalarInt
       (localDb ())
       // Not 'unset' rows: clearing a choice leaves a tombstone (see the fold), and a store whose
       // every choice has been cleared has no choices.
       "SELECT COUNT(*) AS n FROM propagation_policy WHERE policy <> 'unset'"
       "n"
-    |> Stdlib.Option.withDefault 0L
-
-  if anyPolicies == 0L then
-    []
-  else
+  with
+  | None ->
+    Stdlib.Result.Result.Error "couldn't count propagation choices (the store did not answer)"
+  | Some 0L -> Stdlib.Result.Result.Ok []
+  | Some _ ->
     match
       Stdlib.Sqlite.query
         (localDb ())
@@ -232,7 +235,8 @@ let supersededPolicies
          FROM package_ops p
          WHERE p.effective = 1 ORDER BY p.origin_ts, p.rowid"
     with
-    | Error _ -> []
+    | Error e ->
+      Stdlib.Result.Result.Error $"couldn't read the op log for superseded choices: {e}"
     | Ok rows ->
       // Per name: the last choice YOU made with nobody having replaced it yet, then whether a later one
       // arrived from a peer with a different answer.
@@ -280,6 +284,7 @@ let supersededPolicies
       |> Stdlib.List.filter (fun entry ->
         let (_loc, mine, now, by) = entry
         (by != "") && (mine != now))
+      |> Stdlib.Result.Result.Ok
 
 
 /// Where a human's OVERRIDE was later undone by an ordinary edit.
@@ -295,17 +300,20 @@ let supersededPolicies
 ///
 /// Guarded on the `conflicts` projection first, which is small and usually empty of overrides, so the
 /// op-log decode below costs nothing on the common path.
-let supersededOverrides () : List<(LanguageTools.ProgramTypes.PackageLocation * String * String)> =
-  let anyOverrides =
+/// A `Result` for the same reason as <fn supersededPolicies>: a failed query is not "none".
+let supersededOverrides
+  ()
+  : Stdlib.Result.Result<List<(LanguageTools.ProgramTypes.PackageLocation * String * String)>, String> =
+  match
     Stdlib.Sqlite.scalarInt
       (localDb ())
       "SELECT COUNT(*) AS n FROM conflicts WHERE status = 'overridden'"
       "n"
-    |> Stdlib.Option.withDefault 0L
-
-  if anyOverrides == 0L then
-    []
-  else
+  with
+  | None ->
+    Stdlib.Result.Result.Error "couldn't count overridden conflicts (the store did not answer)"
+  | Some 0L -> Stdlib.Result.Result.Ok []
+  | Some _ ->
     match
       Stdlib.Sqlite.query
         (localDb ())
@@ -314,7 +322,8 @@ let supersededOverrides () : List<(LanguageTools.ProgramTypes.PackageLocation * 
          FROM package_ops
          WHERE effective = 1 ORDER BY origin_ts, rowid"
     with
-    | Error _ -> []
+    | Error e ->
+      Stdlib.Result.Result.Error $"couldn't read the op log for superseded overrides: {e}"
     | Ok rows ->
       // Fold the log in order, remembering per location: the hash the last LOCAL override chose, and
       // the hash bound now. Order is the fold's own (origin_ts, rowid), so "later" means what the fold
@@ -369,6 +378,7 @@ let supersededOverrides () : List<(LanguageTools.ProgramTypes.PackageLocation * 
       |> Stdlib.List.filter (fun entry ->
         let (_loc, chosen, live) = entry
         chosen != live)
+      |> Stdlib.Result.Result.Ok
 
 
 /// The at-rest type check over what the DRAFT holds, on <param branchId>.
