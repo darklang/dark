@@ -1612,6 +1612,79 @@ let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
       | _ -> p
   climbUp path
 
+/// Group rightward: `1 - 3 + 2` becomes `1 - (3 + 2)`.
+///
+/// Stachu asked for this and there was no way to do it. You cannot select `3 + 2` and wrap it, because
+/// in `(1 - 3) + 2` there IS no `3 + 2` node. What looks like "put parens here" is a RE-ASSOCIATION, and
+/// in text those are the same gesture, which is why its absence reads as a bug rather than a gap.
+///
+/// The rotation is the mirror of the one `reassocGrown` already does for precedence. There, a left
+/// rotation turns `a == (b && r)` into `(a == b) && r`; here a right rotation on A whose left child L is
+/// itself an infix:
+///
+///     A.left  <- L.right          (1 - 3) + 2
+///     L.right <- A            ->   1 - (3 + 2)
+///     result  <- L
+///
+/// The caret does not have to be standing on A. Walk up to the first ancestor infix whose LEFT child is
+/// an infix and contains the caret, so standing on the `3` and standing on the outer `+` both mean the
+/// same thing -- two readings of "put parens around 3 + 2" landing on one rotation.
+///
+/// Unlike the parens the drawing adds and removes for precedence, this CHANGES THE PROGRAM.
+/// `1 - (3 + 2)` is not `(1 - 3) + 2`, so it is a real edit: it commits, and undo takes it back.
+let regroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
+  let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+
+  // Standing ON the infix is the same request as standing inside its left operand, and has to be checked
+  // FIRST: at the root there is no parent to walk up to, so the climb alone answers None for the caret
+  // position a person is most likely to be in after pressing `h`.
+  let hereRotates =
+    match nodeAtPath st.root from with
+    | Some n ->
+      if isInfix n then
+        (match Node.slot n "left" with
+         | Some(Filled l) -> isInfix l
+         | _ -> false)
+      else
+        false
+    | None -> false
+
+  if hereRotates then
+    Stdlib.Option.Option.Some from
+  else
+
+  match Path.parent from with
+  | None -> Stdlib.Option.Option.None
+  | Some parentPath ->
+    (match (Path.last from, nodeAtPath st.root parentPath) with
+     | (Some(Into "left"), Some pn) ->
+       (match nodeAtPath st.root from with
+        | Some child ->
+          if (isInfix pn) && (isInfix child) then
+            Stdlib.Option.Option.Some parentPath
+          else
+            regroupTarget st parentPath
+        | None -> regroupTarget st parentPath)
+     | _ -> regroupTarget st parentPath)
+
+let regroupRight (st: State) : Stdlib.Option.Option<State> =
+  match regroupTarget st (navPath st) with
+  | None -> Stdlib.Option.Option.None
+  | Some aPath ->
+    (match nodeAtPath st.root aPath with
+     | None -> Stdlib.Option.Option.None
+     | Some a ->
+       (match Node.slot a "left" with
+        | Some(Filled l) ->
+          (match (Node.slot l "right", Node.slot a "right") with
+           | (Some lRight, Some _) ->
+             let newA = Node.setField a "left" (Field.One lRight)
+             let rotated = Node.setField l "right" (Field.One(Slot.Filled newA))
+             let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
+             Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
+           | _ -> Stdlib.Option.Option.None)
+        | _ -> Stdlib.Option.Option.None))
+
 /// The enclosing interpolated string and the segment index the caret is under, if any. Handles both being
 /// directly in a text segment and being down inside an interpolation's expression.
 let enclosingStringSeg (root: Slot) (path: Path) : Stdlib.Option.Option<(Path * Int)> =
@@ -4295,7 +4368,13 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       match actionForKey st ch with
       | Some a -> handled (applyAction st a)
       | None ->
-        if ch == "j" then handled (navBy st 1)
+        if ch == "(" then
+          // Group rightward. Unbound in NAV until now, and `(` already means "open a group" in INSERT,
+          // so the meaning carries rather than competes.
+          (match regroupRight st with
+           | Some s2 -> handled s2
+           | None -> handled { st with message = "nothing to group here" })
+        elif ch == "j" then handled (navBy st 1)
         elif ch == "k" then handled (navBy st (-1))
         elif ch == "h" then handled (navParent st)
         elif ch == "l" then handled (navChild st)

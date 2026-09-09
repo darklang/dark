@@ -2344,3 +2344,40 @@ module APipeStageCanBeALocal =
   // scope.
   (Fixtures.screen (Fixtures.chars "le ")) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen (Fixtures.chars "fun ")) = "(fun ~⟨param⟩ -> ⟨body⟩)"
+
+
+module GroupingIsARotation =
+  // "I typed `let x = 1 - 3 + 2`, now let me put parens around `3 + 2`." There was no way to do it.
+  //
+  // You cannot select `3 + 2` and wrap it, because in `(1 - 3) + 2` there IS no `3 + 2` node. What looks
+  // like "put parens here" is a RE-ASSOCIATION. In text those are the same gesture, which is why the
+  // absence reads as a bug rather than a missing feature.
+  //
+  // The rotation is the mirror of the one `reassocGrown` already does for precedence, which turns
+  // `a == (b && r)` into `(a == b) && r`. Bound to `(` in NAV: unbound before, and `(` already means
+  // "open a group" in INSERT, so the meaning carries rather than competes.
+  //
+  // Unlike the parens the drawing adds and removes for precedence, this CHANGES THE PROGRAM, so it
+  // commits and undo takes it back.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "(" ])) = "~1 - (3 + 2)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "(" ])) = "1 - (3 + 2)"
+
+  // It works from anywhere in the expression, not only from the infix itself. Standing on the `2` climbs
+  // to the root; standing ON the root rotates directly. Both are "put parens around 3 + 2", and the
+  // climb alone answered None at the root, where `Path.parent` is None -- which is exactly where you
+  // land after `h`.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "h", "h", "h", "(" ])) =
+    "1 - (3 + 2)"
+
+  // It terminates on its own: after the rotation the root's left is `1`, not an infix, so there is
+  // nothing left to group and a second `(` declines rather than spinning.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "(", "(" ])) = "~1 - (3 + 2)"
+
+  // Undo takes it back, because it is a real edit.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 - 3 + 2") [ "<Esc>", "(", "u" ])) = "1 - 3 + ~2"
+
+  // Nothing to group: the left operand is a leaf, so the key declines and the program is untouched.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<Esc>", "(" ])) = "1 + ~2"
+
+  // And it really is a different program, not a redrawing: `8 / 4 / 2` is 1, `8 / (4 / 2)` is 4.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "8 / 4 / 2") [ "<Esc>", "(" ])) = "8 / (4 / 2)"
