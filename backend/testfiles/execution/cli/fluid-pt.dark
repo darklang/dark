@@ -1389,7 +1389,9 @@ module ATextSlotSaysWhatItHolds =
 
   // Names still take name characters, on the field-after-`.` path as well as the plain one.
   (Fixtures.run [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(" ]) = "user.name~"
-  (ATextSlotSaysWhatItHolds.msg [ "x", "(" ]) = "`(` isn't part of a name"
+  // `?`, not `(`: a `(` after a name opens an argument list now, so it is no longer a character with
+  // nowhere to go. `?` still is.
+  (ATextSlotSaysWhatItHolds.msg [ "x", "?" ]) = "`?` isn't part of a name"
 
   // A float's two halves are digits too, which is one spec declaring two slots.
   (Fixtures.run [ "1", ".", "5", "z" ]) = "1.5~"
@@ -1453,8 +1455,8 @@ module TheMergePathAsksTheSameQuestion =
   (Fixtures.run [ "a", "b", "<Esc>", "i", "<Home>", "1" ]) = "~ab"
   (TheMergePathAsksTheSameQuestion.msg [ "a", "b", "<Esc>", "i", "<Home>", "1" ]) = "a name can't start with `1`"
 
-  // Which half turned the character away decides what is said: `(` is not a name character anywhere.
-  (TheMergePathAsksTheSameQuestion.msg [ "x", "(" ]) = "`(` isn't part of a name"
+  // Which half turned the character away decides what is said: `?` is not a name character anywhere.
+  (TheMergePathAsksTheSameQuestion.msg [ "x", "?" ]) = "`?` isn't part of a name"
 
   // A number wants the same shape for a different reason: it may open with a sign and may not carry one
   // anywhere else. Asking the whole text rather than the character is what turned this up -- `-5` has a

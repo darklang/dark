@@ -2088,8 +2088,12 @@ let typeOne (st: State) (c: String) : State =
   // a filled node pushes the caret down into itself, so the tuple is its parent, while a PARTIAL leaves
   // the caret on the tuple as `InItem`. Looking only upwards meant `((a)` matched the OUTER tuple and
   // collapsed the wrong one, so `((a))` stopped at `(a, <item>)` while `((1 + 2))` went all the way.
+  // ...and not when the closer belongs to an ARGUMENT list the caret is inside. A `)` closes the
+  // innermost bracketed thing, and an arg list is bracketed even though its brackets are not drawn, so
+  // looking straight past it to an ancestor tuple closed the wrong one: `(parse(t)` collapsed the tuple
+  // to a group and came out as `parse t`.
   let soloTuple =
-    if c != ")" then
+    if (c != ")") || (closesAnArgList st caret c) then
       Stdlib.Option.Option.None
     else
       match caret.part with
@@ -2196,7 +2200,13 @@ let typeOne (st: State) (c: String) : State =
               (match nodeAtPath st.root parentPath with
                | Some pn -> drawsPunct st pn c
                | None -> false)
-            | None -> false))
+            | None -> false)
+        // ...or it closes an ARGUMENT list, which is the one bracketed list the editor draws without its
+        // brackets. `parse(t` opens the arguments and the drawing is `parse t`, so there is no `)` on
+        // screen for the two tests above to find, and `parse(t) + 1` put the `+ 1` inside the argument.
+        // The pairing is a fact about the language rather than about the drawing, so the syntax table
+        // answers it.
+        || (closesAnArgList st caret c))
   then
     // Step past the closer by landing after the whole construct it closes: a string is the node the caret
     // sits in; a `]`/`)`/`}` closes the enclosing list/tuple. From there a comma or a new element targets
@@ -4203,6 +4213,14 @@ let inSpaceSepList (st: State) (sp: Path) : Bool =
 /// one after another -- and a RESOLVED call hid the difference, because its args are capped at its arity
 /// and Enter found the sibling refused anyway. Applying a bare name has no arity to cap, and Enter there
 /// grew the arguments for ever: `add 1 2` then Enter gave `add 1 2 ⟨arg⟩` with no way to say "done".
+/// Does typing `ch` close the ARGUMENT list the caret is in? See `Syntax.bracketPairs`.
+let closesAnArgList (st: State) (c: Caret) (ch: String) : Bool =
+  (inArgSlotsList st c)
+  && (st.reg.syntax.bracketPairs
+      |> Stdlib.List.any (fun pair ->
+        let (_open, close) = pair
+        close == ch))
+
 let inArgSlotsList (st: State) (c: Caret) : Bool =
   match enclosingListItem c with
   | Some((parentPath, slot, _)) ->

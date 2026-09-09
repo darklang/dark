@@ -2535,7 +2535,8 @@ let moreSpecs () : List<Spec> =
     |> fun sp -> Spec.collapsingWhenEmptied sp "steps" "first"
     Spec.withWrapRules
       (simpleOf (pipeKind "EPipeVariable") [ Piece.NameText("name", Layout.Style.Name), Piece.Nest(2, [ Piece.ArgSlots("args", [ Piece.Line ]) ]) ] (Node.make (pipeKind "EPipeVariable") [ text "name" "", ("args", Field.Many([], exprExpect "arg")) ]))
-      [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false } ]
+      [ WrapRule { onChar = "<apply>"; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = false }
+        WrapRule { onChar = "("; wrap = argToPipeVariable; opSlot = ""; nextSlot = "args"; continuesText = true } ]
     simpleOf
       (pipeKind "EPipeFnCall")
       [ Piece.Group
@@ -2714,7 +2715,16 @@ let baseSpecs () : List<Spec> =
       (Spec.withWrapRules
         (simpleExpr "EVariable" [ Piece.Text("name", Layout.Style.Name) ] (Node.make (exprKind "EVariable") [ text "name" "" ]))
         [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = ""; continuesText = false }
-          WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args"; continuesText = false } ])
+          WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args"; continuesText = false }
+          // `parse(t)` is how this language spells a call, and it did nothing at all: the `(` was refused
+          // with "`(` isn't part of a name" and the argument then joined the name, giving `parset`. A
+          // STORE function has always taken it -- `Stdlib.List.map(` commits the completion and opens the
+          // arguments -- so the spelling worked for everything except the thing you wrote yourself.
+          //
+          // `continuesText = true` is the whole distinction: `parse(` is typed against the name and opens
+          // its arguments, while `parse (` has left the name behind and still opens a GROUP, which is what
+          // `f (a + b)` needs.
+          WrapRule { onChar = "("; wrap = applyFromValue; opSlot = ""; nextSlot = "args"; continuesText = true } ])
       [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
     |> fun sp -> Spec.withTextSlot sp "name"
     simpleExpr

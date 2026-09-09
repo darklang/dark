@@ -669,7 +669,12 @@ module NamesStayNames =
   // through the wrap path, not the plain one), and both refuse now.
   (Fixtures.screen [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(" ]) = "user.name~"
   (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "(", "<Esc>", "<Esc>" ]) = "user.name"
-  (Fixtures.screen [ "O", "k", "(", "1" ]) = "Ok1~"
+  // `Ok(1` now opens an argument list, because `(` after a name is how this language spells a call.
+  // Still not the enum constructor someone reaching for `Ok(` means: the candidate's label is the
+  // qualified `Stdlib.Result.Ok`, so the bare `Ok` matches nothing exactly and settles as a variable.
+  // A ranking question, written up separately. `Ok 1` is at least a program; `Ok1` was a variable whose
+  // name no parser would take.
+  (Fixtures.screen [ "O", "k", "(", "1" ]) = "Ok 1~"
   // Digits and underscores are part of a name, so they still go in.
   (Fixtures.program [ "u", "s", "e", "r", ".", "n", "a", "m", "e", "2", "<Esc>", "<Esc>" ]) = "user.name2"
   (Fixtures.program [ "m", "y", "_", "v", "a", "r", " ", "<Esc>", "<Esc>" ]) = "my_var"
@@ -2741,3 +2746,48 @@ module MovingAlongTheListItIsIn =
   // swapping them changes what the program means for every operator that is not commutative, and that
   // deserves its own decision rather than falling out of a key.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<C-Left>" ])) = "1 + 2~"
+
+
+module ACallToSomethingLocalCanBeSpelledWithParens =
+  // `parse(t)` is how this language spells a call, and it did nothing at all: the `(` was refused with
+  // "`(` isn't part of a name" and the argument then joined the name, giving `parset`. A STORE function
+  // has always taken it -- `Stdlib.List.map(` commits the completion and opens the arguments -- so the
+  // spelling worked for everything except the thing you wrote yourself.
+  //
+  // That mattered beyond tidiness. `parse t` with a SPACE is right at the top level and in a list, and
+  // wrong everywhere the construct has a hole waiting further along, because a value typed after a
+  // settled node fills the next hole rather than becoming an argument. Written up in 05- as a design
+  // question, because both readings are wanted and nothing in the document separates them: `-> v None 0`
+  // is the terse two-arm form and `-> parse t` is a call, and they are the same keystrokes. This is the
+  // answer that costs nothing -- give the other spelling its meaning, and leave the space alone.
+  //
+  // `continuesText = true` is the whole distinction: `parse(` is typed against the name and opens its
+  // arguments, `parse (` has left the name behind and still opens a GROUP, which is what `f (a + b)`
+  // needs.
+  (Fixtures.screen (Fixtures.chars "parse(")) = "parse ~⟨arg⟩"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "parse(t") [ "<Esc>", "<Esc>" ])) = "parse t"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "parse(t, u") [ "<Esc>", "<Esc>" ])) = "parse t u"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "mk(go(t), 1") [ "<Esc>", "<Esc>" ])) = "mk (go t) 1"
+
+  // The four places the spaced spelling could not reach.
+  // The `)` closes the innermost bracketed thing. An argument list is bracketed even though its brackets
+  // are not drawn, so looking straight past it to an ancestor tuple closed the wrong one and
+  // `(parse(t)` collapsed the tuple to a group.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(parse(t), 1") [ "<Esc>", "<Esc>" ])) = "(parse t, 1)"
+  (Fixtures.screen (Fixtures.chars "if b then parse(t")) = "if b then parse t~ else ⟨else⟩"
+  (Fixtures.screen (Fixtures.chars "let a = parse(t")) = "let a = parse t~\n⟨body⟩"
+  (Fixtures.screen (Fixtures.chars "match n with 0 -> parse(t")) = "match n with\n| 0 -> parse t~"
+
+  // The closing bracket leaves the argument list. An argument list is the one bracketed list the editor
+  // draws WITHOUT its brackets, so there is no `)` on screen to type past and the syntax table has to say
+  // which closer goes with which opener. Without it `parse(t) + 1` put the `+ 1` inside the argument.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "parse(t) + 1") [ "<Esc>", "<Esc>" ])) = "parse t + 1"
+
+  // A space after the name is still a GROUP, not an argument list.
+  (Fixtures.screen (Fixtures.chars "parse (t")) = "parse (t~, ⟨item⟩)"
+
+  // ...and the readings that already worked, unchanged.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs (fun x -> x)") [ "<Esc>", "<Esc>" ])) =
+    "Stdlib.List.map xs (fun x -> x)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork(1") [ "<Esc>", "<Esc>" ])) = "xs |> (zork 1)"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.Some(1") [ "<Esc>", "<Esc>" ])) = "Option.Some(1)"

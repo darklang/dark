@@ -59,7 +59,8 @@ module SyntaxIsTheLanguages =
         separators = [ ":" ]
         stringDelimiter = "\""
         interpolationOpen = "["
-        interpolationClose = "]" }
+        interpolationClose = "]"
+        bracketPairs = [ ("(", ")"), ("[", "]"), ("{", "}") ] }
 
   let custom () : Darklang.Fluid.Registry =
     Darklang.Fluid.Registry.withSyntax (SyntaxIsTheLanguages.base_ ()) (SyntaxIsTheLanguages.mine ())

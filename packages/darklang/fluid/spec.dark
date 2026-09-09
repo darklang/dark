@@ -514,7 +514,15 @@ type Syntax =
     /// What opens and closes an interpolation inside a string. These were spelled `{` and `}` in the
     /// kernel, so a language whose strings interpolate with something else could not say so.
     interpolationOpen: String
-    interpolationClose: String }
+    interpolationClose: String
+
+    /// Which closer goes with which opener, as (open, close) pairs.
+    ///
+    /// Everything else about brackets is answered by the DRAWING -- the closer is on screen, so typing it
+    /// steps past it. An argument list is the one that is not: `parse(t)` opens the arguments with a `(`
+    /// and the editor draws `parse t`, with no bracket anywhere for the `)` to match against. So the
+    /// pairing has to be said out loud, and this is where a language says it.
+    bracketPairs: List<(String * String)> }
 
 module Syntax =
   /// How Darklang spells itself.
@@ -525,7 +533,8 @@ module Syntax =
         separators = [ "=", ":" ]
         stringDelimiter = "\""
         interpolationOpen = "{"
-        interpolationClose = "}" }
+        interpolationClose = "}"
+        bracketPairs = [ ("(", ")"), ("[", "]"), ("{", "}") ] }
 
 /// The specs in play, the punctuation they are spelled with, and WHERE the document being edited sits.
 ///
