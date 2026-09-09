@@ -143,28 +143,32 @@ let executeMerge
     Cli.printOk $"\"{branchRef}\" is already merged into its parent."
     state
   | Some branchId when mergeRefusal branchId branchRef allowTypeErrors -> state
-  // Structural refusals are reported BEFORE the question. Asking "merge it?" about a branch that
-  // cannot merge is a question with one answer, and on a pipe the refusal would be reported as a
-  // declined prompt rather than as the reason.
-  | Some branchId when Stdlib.Result.isError (SCM.Branches.canMerge branchId) ->
-    match SCM.Branches.canMerge branchId with
-    | Error r ->
-      Cli.printErr $"couldn't merge: {SCM.Branches.refusalMessage r}"
-      state
-    | Ok _ -> state
-  | Some branchId when
+  | Some branchId ->
+
+  // The structural gate runs BEFORE the question. Asking "merge it?" about a branch that cannot
+  // merge is a question with one answer, and on a pipe the refusal would come back as a declined
+  // prompt rather than as the reason. `mergeBranch` asks the same gate again and is the authority;
+  // this is only about which sentence the person reads.
+  match SCM.Branches.canMerge branchId with
+  | Error r ->
+    Cli.printErr $"couldn't merge: {SCM.Branches.refusalMessage r}"
+    state
+  | Ok _ ->
+
+  if
     Stdlib.Bool.not (
       Cli.Prompt.confirmExplicit
         autoConfirm
         (Stdlib.Cli.UI.Colors.warning
           $"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")
     )
-    ->
+  then
     Cli.printOk
       $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)"
 
     state
-  | Some branchId ->
+  else
+
     match SCM.PackageOps.mergeBranch branchId with
     | Ok outcome ->
       // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
