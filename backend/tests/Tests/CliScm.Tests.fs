@@ -2059,6 +2059,41 @@ let private branchBundleKeepsWhatItCannotRead =
         do! archiveBranches state [ "importedbr"; "bundlebr" ]
       })
 
+/// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
+/// stdin nobody is holding counts as no.
+///
+/// The piped case is the one that matters and the one a test can reach: naming the branch is not the
+/// confirmation, so `merge <name>` on a pipe has to refuse and say how to mean it. A structural
+/// refusal still reports the REASON rather than a declined prompt, which is why the gates above test
+/// what they test.
+let private mergeAsksBeforeItGoes =
+  cliTestOnMain
+    "a merge on a pipe refuses without -y, and goes with it"
+    (fun state ->
+      task {
+        do! switch state "askbr"
+        do! fn state "Tests.Ask.a" "() : Int64 = 31L"
+        do! commit state "ask work"
+        do! onMain state
+
+        do!
+          refuses
+            state
+            [ "merge"; "askbr" ]
+            "not merged"
+            "Merged"
+            "a piped merge with no -y refuses, and does not claim it merged"
+
+        // Refusing has to mean the branch is still there to merge. A refusal that half-merged would
+        // pass the assertion above and lose the work anyway.
+        do!
+          shows
+            state
+            [ "merge"; "askbr"; "-y" ]
+            "Merged"
+            "and -y merges the same branch, so the refusal changed nothing"
+      })
+
 /// Whether a merge is ALLOWED is a decision, so it is decided in Dark; the builtin only does the work.
 ///
 /// Two structural gates. Conflicts deliberately do NOT gate: they are auto-resolved by the fold's
@@ -2597,7 +2632,8 @@ let private mergeCommitsWhatASiblingStillTags =
         do! commit state "shared2 work"
         do! switch state "main"
 
-        do! shows state [ "merge"; "shared1"; "-y" ] "erged" "the merge went through"
+        do!
+          shows state [ "merge"; "shared1"; "-y" ] "erged" "the merge went through"
 
         // The shared content op is tagged by shared2 still; it must carry the merge's commit.
         let! unstamped =
@@ -2802,6 +2838,7 @@ let tests : List<Test> =
     conflictsBelongToTheBranchTheyHappenedOn
     discardOnABranchLeavesMainAlone
     diffAndLogAnswerInJson
+    mergeAsksBeforeItGoes
     mergeGatesAreDecidedInDark
     branchBundleKeepsWhatItCannotRead
     bareDiffShowsTheDraft
