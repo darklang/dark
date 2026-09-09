@@ -156,6 +156,22 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
       | None -> Stdlib.Option.Option.None)
 
 
+/// How many commits this branch has, without decoding any of them.
+///
+/// The same predicate `commitsOnBranch` selects with, counted in SQLite. The listing used to get
+/// this by asking for a hundred thousand commits and taking the length, which decodes every row of
+/// a store's whole history to print one number above twenty lines.
+let commitCountOnBranch (branchId: Uuid) : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (localDb ())
+    ("SELECT count(*) AS n FROM commits c
+      WHERE c.hash IN (SELECT DISTINCT p.commit_hash FROM package_ops p
+                       WHERE p.commit_hash IS NOT NULL AND " ++ (ownedWhere branchId) ++ ")")
+    (ownedParams branchId)
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
 /// The commits whose ops live on <param branchId>, newest first.
 ///
 /// `commits` has no branch column, and cannot: a commit is not ON a branch, its OPS are. So the question
