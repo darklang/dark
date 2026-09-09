@@ -1138,8 +1138,23 @@ let soloTupleAncestor (st: State) (from: Path) : Stdlib.Option.Option<Path> =
         | Some sl -> Stdlib.Bool.not (Slot.isEmpty sl)
         | None -> false
 
-      if isTuple && (slot == "items") && caretItemFilled && ((Stdlib.List.length filled) == 1) then
-        Stdlib.Option.Option.Some parent
+      // Stop at the first ancestor that IS a tuple, whether or not it turns out to be solo.
+      //
+      // The climb exists because the caret is usually not standing on the tuple: after `(1 + 2` it is
+      // inside the EInfix, so non-tuple ancestors have to be walked through. It was walking through
+      // TUPLES too, and that is a different thing. Closing the inner bracket of `((1, 2), 3)` found the
+      // inner tuple holding two items, decided it was not the one, and carried on to the outer, which
+      // held exactly one filled item (the inner tuple) and so looked solo. The `)` typed for the inner
+      // bracket collapsed the outer one, and `((1, 2), 3)` came out `(1, 2)`.
+      //
+      // `(1, (2, 3))` always worked, which is the tell: by the time the inner closes there, the outer
+      // already holds two filled items and never looks solo. The bug needed a tuple nested as the FIRST
+      // item, closed before the later items exist. Patterns had it too, via `MPTuple`.
+      if isTuple && (slot == "items") then
+        if caretItemFilled && ((Stdlib.List.length filled) == 1) then
+          Stdlib.Option.Option.Some parent
+        else
+          Stdlib.Option.Option.None
       else
         soloTupleAncestor st parent
     | _ -> soloTupleAncestor st parent

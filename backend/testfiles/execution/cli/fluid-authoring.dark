@@ -2268,3 +2268,29 @@ module RealisticProgramsTypeStraightThrough =
     "let (a, b) = pair\na"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.filter xs (fun x -> x > 0)") [ "<Esc>", "<Esc>" ])) =
     "Stdlib.List.filter xs (fun x -> x > 0)"
+
+
+module ACloseBracketClosesTheInnermostOne =
+  // `((1, 2), 3)` came out `(1, 2)`. The `)` typed for the INNER bracket collapsed the OUTER one.
+  //
+  // `soloTupleAncestor` walks up from the caret looking for a tuple holding exactly one filled item, so
+  // `)` can collapse a grouping paren to its content. The climb is needed: after `(1 + 2` the caret is
+  // down inside the EInfix, so non-tuple ancestors have to be walked through. It was walking through
+  // TUPLES too. Closing the inner bracket found the inner tuple holding two items, decided it was not
+  // the one, and carried on to the outer, which at that moment held exactly one filled item (the inner
+  // tuple) and so looked solo.
+  //
+  // `(1, (2, 3))` always worked, which is the tell: by then the outer already holds two filled items
+  // and never looks solo. The bug needed a tuple nested as the FIRST item, closed before the later
+  // items exist.
+  (Fixtures.program (Fixtures.chars "((1, 2), 3)")) = "((1, 2), 3)"
+  (Fixtures.program (Fixtures.chars "(1, (2, 3))")) = "(1, (2, 3))"
+
+  // Patterns had it too, through `MPTuple`, which the same function tests alongside `ETuple`.
+  (Fixtures.program (Fixtures.chars "match n with ((a, b), c) -> a ")) = "match n with\n| ((a, b), c) -> a"
+
+  // What the climb is FOR still works: a bracket around one thing is a group and collapses, however
+  // many levels deep, and a real two-item tuple is left alone.
+  (Fixtures.program (Fixtures.chars "((1 + 2))")) = "1 + 2"
+  (Fixtures.program (Fixtures.chars "((1, 2))")) = "(1, 2)"
+  (Fixtures.program (Fixtures.chars "(1, 2)")) = "(1, 2)"
