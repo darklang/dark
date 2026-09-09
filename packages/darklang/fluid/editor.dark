@@ -23,7 +23,12 @@ type State =
     width: Int
     history: List<Snapshot>
     future: List<Snapshot>
-    /// Which candidate is selected when the caret is on a partial with completions.
+    /// Which candidate is selected, or NOTHING CHOSEN when negative.
+    ///
+    /// A blank arrives with nothing chosen. The menu on a fresh hole is "everything that could go here",
+    /// and a highlighted first row there is a promise the editor should not make: Enter would either take
+    /// something arbitrary, or -- as it did -- refuse, while the status line said `Enter accept`. Typing
+    /// picks the first match, because typing is intent; arrowing picks one; until then, none.
     completionIndex: Int
     /// The completion menu for the current caret, computed once per keystroke (a store search is
     /// expensive and was being run several times a frame). Read this everywhere; refresh it after a key.
@@ -84,7 +89,8 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       width = width
       history = []
       future = []
-      completionIndex = 0
+      // A blank starts with nothing chosen; see the field.
+      completionIndex = -1
       menu = []
       menuDismissed = false
       paletteOpen = false
@@ -159,7 +165,8 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
       docVersion = st1.docVersion + 1
       caret = caret
       message = ""
-      completionIndex = 0
+      // A structural edit lands somewhere new, usually a blank, so nothing is chosen there yet.
+      completionIndex = -1
       lastTyped = Stdlib.Option.Option.None
       menuDismissed = false
       // An edit invalidates the `h`/`l` trail: it is a path into a tree that has just changed shape.
@@ -3529,7 +3536,20 @@ let selectedCandidate (st: State) : Stdlib.Option.Option<Candidate> =
   let cs = candidates st
   match cs with
   | [] -> Stdlib.Option.Option.None
-  | _ -> Stdlib.List.getAt cs (Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1))
+  | _ ->
+    // Negative is "nothing chosen", which is what a blank starts as, so nothing can be committed by
+    // accident before you have said anything.
+    //
+    // Except an OFFER. `fromContext` candidates are the cases of the scrutinee's type, the fields of the
+    // record you just named -- a short list that IS the answer to where you are, not the generic
+    // "everything that could go here". Arriving in one of those is already a choice of sorts, and Enter
+    // taking the first has been the behaviour and is pinned. The generic menu is what must not presume.
+    if st.completionIndex < 0 then
+      (match Stdlib.List.head cs with
+       | Some c -> if c.fromContext then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None
+       | None -> Stdlib.Option.Option.None)
+    else
+      Stdlib.List.getAt cs (Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1))
 
 /// After committing a candidate: its first hole if it has one, else the end of its text.
 let landAfterCommit (path: Path) (n: Node) : Caret =
@@ -3644,8 +3664,26 @@ let commitNamed (st: State) (c: Candidate) : State =
 
 let cycleCandidate (st: State) (delta: Int) : State =
   let n = Stdlib.List.length (candidates st)
-  if n == 0 then st
-  else { st with completionIndex = Stdlib.Int.remainder (st.completionIndex + delta + n) n |> Stdlib.Result.withDefault 0 }
+
+  // Where the selection EFFECTIVELY is. An offer already shows its first row as chosen, so moving from
+  // it has to start there and land on the second; a generic menu shows nothing chosen, and moving into
+  // it lands on the first. Reading `completionIndex` raw made Down on an offer re-select the row it was
+  // already on.
+  let effective =
+    if st.completionIndex >= 0 then
+      st.completionIndex
+    else
+      (match Stdlib.List.head (candidates st) with
+       | Some c -> if c.fromContext then 0 else -1
+       | None -> -1)
+
+  if n == 0 then
+    st
+  else if effective < 0 then
+    // Entering a generic list from "nothing chosen": down takes the first, up takes the last.
+    { st with completionIndex = (if delta > 0 then 0 else n - 1) }
+  else
+    { st with completionIndex = Stdlib.Int.remainder (effective + delta + n) n |> Stdlib.Result.withDefault 0 }
 
 
 /// The list the caret is inside, as (node holding the list, slot, index of the current item). Used by
@@ -4263,9 +4301,17 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
     // is about the GENERIC menu, which on a fresh hole is mostly "everything that could go here" and whose
     // first entry Enter must NOT take; these are not that. Showing you the cases and not letting you pick
     // one is worse than not showing them.
-    if completing
-       && (Stdlib.Bool.not (onPartial st))
-       && (selectedCandidate st |> Stdlib.Option.map (fun c -> c.fromContext) |> Stdlib.Option.withDefault false) then
+    // Enter ACCEPTS the choice, wherever the menu came from.
+    //
+    // It used to take one only when the candidate was `fromContext` -- a match's offered cases -- so the
+    // same two keystrokes worked in one menu and silently stepped past another, with the status line
+    // promising `Enter accept` in both. The rule that made that necessary was the defensive one: a
+    // highlighted first row on a fresh hole must not be committable, because the generic menu there is
+    // "everything that could go here".
+    //
+    // That is fixed at the source instead: a blank now starts with NOTHING chosen, so there is no default
+    // to take by accident and Enter can mean one thing everywhere.
+    if completing && (Stdlib.Bool.not (onPartial st)) && (Stdlib.Option.isSome (selectedCandidate st)) then
       handled (commitCandidate st)
     else
 

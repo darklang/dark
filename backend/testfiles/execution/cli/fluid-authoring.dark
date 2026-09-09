@@ -2475,3 +2475,37 @@ module AQualifiedRecordDoesNotCommitOnASpace =
 
   // An enum constructor still commits on a space: it has no delimiter of its own to wait for.
   (Fixtures.program (Fixtures.chars "Stdlib.Option.Some 1 ")) = "Option.Some(1)"
+
+
+module ABlankChoosesNothingUntilYouSaySo =
+  // Arrowing down to a type and pressing Enter did NOTHING, while the status line said
+  // `Enter accept  Up/Down choose`. Enter took a candidate only when it was `fromContext` -- a match's
+  // offered cases -- so the same two keystrokes worked in one menu and silently stepped past another.
+  //
+  // The rule that made that necessary was defensive: on a fresh hole the generic menu is "everything
+  // that could go here", and Enter taking its first row unasked would drop an arbitrary construct
+  // wherever you pressed Enter.
+  //
+  // Fixed at the source instead. A blank starts with NOTHING chosen, so there is no default to take by
+  // accident and Enter can mean one thing everywhere. Typing chooses the first match, because typing is
+  // intent; arrowing chooses; until then, none. The invariant is that a HIGHLIGHTED row is always
+  // committable, and an unhighlighted menu is offering rather than promising.
+  let typeHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(
+      Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named "Darklang.LanguageTools.ProgramTypes.TypeReference") "type")
+
+  let ty (ks: List<String>) : String =
+    Darklang.Fluid.Test.run (Fixtures.reg ()) (ABlankChoosesNothingUntilYouSaySo.typeHole ()) 60 ks
+
+  // Enter on an untouched blank takes nothing: no default to commit.
+  (ABlankChoosesNothingUntilYouSaySo.ty [ "<Enter>" ]) = "~<type>"
+
+  // Arrow into the list and Enter takes what you chose.
+  (ABlankChoosesNothingUntilYouSaySo.ty [ "<Down>", "<Enter>" ]) = "~Unit"
+  (ABlankChoosesNothingUntilYouSaySo.ty [ "<Down>", "<Down>", "<Enter>" ]) = "~Bool"
+
+  // Typing is intent, so it selects the first match and Enter takes that.
+  (ABlankChoosesNothingUntilYouSaySo.ty [ "I", "n", "<Enter>" ]) = "~Int8"
+
+  // An expression blank is the same: the generic menu presumes nothing.
+  (Fixtures.screen [ "<Enter>" ]) = "~⟨expression⟩"

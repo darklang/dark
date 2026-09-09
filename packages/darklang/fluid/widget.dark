@@ -167,7 +167,16 @@ let popover
       // Same fact as the horizontal clip marker, one axis over: keep the selection inside the window.
       // Stateless, because there is nowhere to keep a popover scroll and nothing needs one -- the window
       // is a function of where the selection is.
-      let selected = Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1)
+      // No row highlighted while nothing is chosen: the menu offers without promising. An OFFER still
+      // highlights its first row, because Enter takes it -- the highlight and what Enter does have to
+      // agree, which is the whole complaint this fixes.
+      let selected =
+        if st.completionIndex >= 0 then
+          Stdlib.Int.clamp st.completionIndex 0 ((Stdlib.List.length cs) - 1)
+        else
+          (match Stdlib.List.head cs with
+           | Some c -> if c.fromContext then 0 else -1
+           | None -> -1)
       let start = if selected < maxPopoverRows then 0 else selected - maxPopoverRows + 1
       let shown = cs |> Stdlib.List.drop start |> Stdlib.List.take maxPopoverRows
       let extra = (Stdlib.List.length cs) - start - (Stdlib.List.length shown)
