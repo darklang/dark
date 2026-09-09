@@ -182,7 +182,6 @@ type FailureKind =
   | NotFound
   /// The OS refused (EACCES, UnauthorizedAccessException) — not a policy
   /// denial, which raises before the operation runs and never appears here.
-  /// The OS refused access after the runtime policy allowed the operation.
   | OsAccessDenied
   | Other
 

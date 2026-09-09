@@ -188,15 +188,23 @@ let private bindHttpServer (port : int) : Result<Response, int * string> =
     else
       Error(e.ErrorCode, $"couldn't listen on port {port}: {e.Message}")
 
-/// A .NET failure; there is no errno to report.
+/// An exception out of an execution. `HostLibc.openSafely` reports an open
+/// failure as a `Win32Exception` carrying the errno, so on Linux every file
+/// read that fails comes through here that way; read the kind off the errno
+/// as `failureOfErrno` does, or ENOENT and EACCES both collapse into `Other`.
+/// A .NET exception has no errno to report.
 let private classify (e : exn) : Failure =
-  let kind =
-    match e with
-    | :? System.IO.FileNotFoundException
-    | :? System.IO.DirectoryNotFoundException -> FailureKind.NotFound
-    | :? System.UnauthorizedAccessException -> FailureKind.OsAccessDenied
-    | _ -> FailureKind.Other
-  { kind = kind; errno = -1; message = e.Message }
+  match e with
+  | :? System.ComponentModel.Win32Exception as e ->
+    failureOfErrno (e.NativeErrorCode, e.Message)
+  | _ ->
+    let kind =
+      match e with
+      | :? System.IO.FileNotFoundException
+      | :? System.IO.DirectoryNotFoundException -> FailureKind.NotFound
+      | :? System.UnauthorizedAccessException -> FailureKind.OsAccessDenied
+      | _ -> FailureKind.Other
+    { kind = kind; errno = -1; message = e.Message }
 
 // ── input normalization ───────────────────────────────────────────────────────
 

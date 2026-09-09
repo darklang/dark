@@ -123,7 +123,7 @@ let executeScript
         |> Stdlib.printLines
       else
         Stdlib.printLine $"Script not found: {scriptPath}"
-    | PermissionDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
+    | OsAccessDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
     | Other msg -> Stdlib.printLine $"Could not read script {scriptPath}: {msg}"
     state
   | Ok script ->
