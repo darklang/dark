@@ -1,0 +1,36 @@
+// `--include=` is how a partial commit names what it takes, and the parse is the whole of it: get it
+// wrong and the wrong ops are sealed under somebody's message. It accepts repeats, commas, spaces and
+// duplicates, and every one of those was covered by cli testfiles that were deleted in the rewrite.
+//
+// Through `parseInclude` rather than through `dark commit`, because these are questions about the
+// string, and a commit per case would need a draft per case.
+
+module Include =
+  let parse (args: List<String>) : List<String> =
+    Darklang.Cli.Commit.parseInclude args
+
+// One flag, one name.
+Include.parse [ "--include=A.b" ] = [ "A.b" ]
+
+// Comma-separated inside one flag.
+Include.parse [ "--include=A.b,C.d" ] = [ "A.b", "C.d" ]
+
+// Repeated flags, flattened in order. `--include=A,B --include=C` is three names.
+Include.parse [ "--include=A.b,C.d", "--include=E.f" ] = [ "A.b", "C.d", "E.f" ]
+
+// Spaces around a name are the shell's, not the user's intent.
+Include.parse [ "--include=A.b, C.d" ] = [ "A.b", "C.d" ]
+
+// An empty entry is dropped rather than becoming a name nothing matches. A trailing comma is the
+// common way to produce one.
+Include.parse [ "--include=A.b,,C.d," ] = [ "A.b", "C.d" ]
+
+// Named twice is named once: the closure is computed per name, and a duplicate would report the same
+// dependency being pulled in twice.
+Include.parse [ "--include=A.b,A.b", "--include=A.b" ] = [ "A.b" ]
+
+// Other flags are not includes.
+Include.parse [ "-y", "--json", "--include=A.b", "--allow-type-errors" ] = [ "A.b" ]
+
+// No flag, no names -- which is what makes a commit whole-draft rather than partial.
+Include.parse [ "a message", "-y" ] = []
