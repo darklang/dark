@@ -2865,14 +2865,17 @@ module AKeywordOpensTheSlotItIntroduces =
       let t = Stdlib.Char.toString ch
       if t == "\n" then "<Enter>" else t)
 
+  let typed (src: String) : String =
+    Fixtures.program (Stdlib.List.append (AKeywordOpensTheSlotItIntroduces.keys src) [ "<Esc>", "<Esc>" ])
+
   (Fixtures.screen (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when ")) =
     "match n with\n| x when ~⟨when⟩ -> ⟨rhs⟩"
   (Fixtures.screen (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when x > 0")) =
     "match n with\n| x when x > 0~ -> ⟨rhs⟩"
 
-  // Tab reaches the right-hand side, the way it reaches any hole. Typing `->` there does NOT work and is
-  // written up: after a PATTERN a `-` has nowhere to go so it skips to the arrow, and in the guard's
-  // EXPRESSION slot it is a subtraction, which is a real reading of a real character.
+  // ...and the arrow after it, which needed the second half of this. Tab still works and is the way
+  // every other hole is reached.
+  (AKeywordOpensTheSlotItIntroduces.typed "match n with\n| x when x > 0 -> 1") = "match n with\n| x when x > 0 -> 1"
   (Fixtures.program
     (Stdlib.List.flatten
       [ (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x when x > 0")
@@ -2896,3 +2899,50 @@ module AKeywordOpensTheSlotItIntroduces =
   (Fixtures.program (Stdlib.List.append (AKeywordOpensTheSlotItIntroduces.keys "match n with\n| x -> 1") [ "<Esc>", "<Esc>" ])) =
     "match n with\n| x -> 1"
   (Fixtures.screen (Fixtures.chars "let when = 1")) = "let when = 1~\n⟨body⟩"
+
+
+module AnOpTextOnItsWayToNothing =
+  // A match arm and a lambda draw the `->` for you, and it is two OPERATOR characters. So typing the
+  // arrow after an expression grew an operator no parser would take: a guard typed as
+  // `| x when x > 0 -> 1` lowered as "not an operator: ->".
+  //
+  // The first character is genuinely ambiguous -- `x > 0 - 1 -> 2` is a real program and the `-` there is
+  // a subtraction -- so nothing can be decided until the second one arrives. By then it is decided: the
+  // op slot's text class lists this language's operators, `<` is on its way to `<` or `<=` and `-` to
+  // `-`, and `->` is on its way to neither.
+  //
+  // Refused, and then: if the construct the caret stands in DRAWS that punctuation, the drawn one is what
+  // was meant, so the operator collapses back to its operand and the caret goes to the next hole. Asked
+  // of the spec rather than of the screen, because reading the drawing finds nothing from inside an op
+  // slot -- the hole for the right operand sits between the caret and the arrow.
+  let keys (src: String) : List<String> =
+    Stdlib.String.toList src
+    |> Stdlib.List.map (fun ch ->
+      let t = Stdlib.Char.toString ch
+      if t == "\n" then "<Enter>" else t)
+
+  let typed (src: String) : String =
+    Fixtures.program (Stdlib.List.append (AnOpTextOnItsWayToNothing.keys src) [ "<Esc>", "<Esc>" ])
+
+  (AnOpTextOnItsWayToNothing.typed "match n with\n| x when x > 0 -> 1") = "match n with\n| x when x > 0 -> 1"
+  (AnOpTextOnItsWayToNothing.typed "match n with\n| x when x > 0 -> 1\n| _ -> 0") =
+    "match n with\n| x when x > 0 -> 1\n| _ -> 0"
+
+  // The reading it must NOT take. A subtraction inside a guard is a subtraction, and the arrow after it
+  // is still the arrow.
+  (AnOpTextOnItsWayToNothing.typed "match n with\n| x when x > 0 - 1 -> 2") =
+    "match n with\n| x when x > 0 - 1 -> 2"
+
+  // Every operator this language has, unchanged. `<` and `>` are the ones with a longer sibling.
+  (AnOpTextOnItsWayToNothing.typed "1 - 2") = "1 - 2"
+  (AnOpTextOnItsWayToNothing.typed "a >= b") = "a >= b"
+  (AnOpTextOnItsWayToNothing.typed "a <= b") = "a <= b"
+  (AnOpTextOnItsWayToNothing.typed "a != b") = "a != b"
+  (AnOpTextOnItsWayToNothing.typed "a == b") = "a == b"
+  (AnOpTextOnItsWayToNothing.typed "\"a\" ++ \"b\"") = "\"a\" ++ \"b\""
+  (AnOpTextOnItsWayToNothing.typed "a && b || c") = "a && b || c"
+  (AnOpTextOnItsWayToNothing.typed "Stdlib.List.map xs (fun x -> x - 1)") = "Stdlib.List.map xs (fun x -> x - 1)"
+
+  // A second operator character that is on its way to nothing AND is not drawn anywhere is simply
+  // refused, the way any other character with nowhere to go is. It used to grow `+*`.
+  (Fixtures.screen (Fixtures.chars "1 +* 2")) = "1 + 2~"

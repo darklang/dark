@@ -1751,6 +1751,8 @@ let prevPunctIn (rows: List<Layout.Row>) (st: State) : Stdlib.Option.Option<Stri
 
 
 let prevPunct (st: State) : Stdlib.Option.Option<String> = prevPunctIn (layout st) st
+
+let nextPunct (st: State) : Stdlib.Option.Option<String> = nextPunctIn (layout st) st
 /// Separators you can type to skip forward to the next hole, the way you'd type past punctuation that's
 /// already on screen: `=` between a let's name and value, `:` before a record value or a type annotation.
 
@@ -2498,6 +2500,38 @@ let typeOneRaw (st: State) (c: String) : State =
              | None -> st)
         else if isOperatorChar st.reg.syntax c then
           let updated = TextEdit.insertAt old caret.offset c
+          // An op text on its way to nothing. The slot's class lists the operators this language has, so
+          // `-` is on its way to `-` and `<` to `<` or `<=`, and `->` is on its way to neither.
+          //
+          // That is the arrow a match arm and a lambda draw for you, and it is two operator characters,
+          // so an expression followed by one grew an operator no parser would take: a guard typed as
+          // `| x when x > 0 -> 1` lowered as "not an operator: ->". The FIRST character is genuinely
+          // ambiguous -- `x > 0 - 1 -> 2` is a real program -- so nothing can be decided until the second
+          // one arrives, and by then it is decided.
+          //
+          // Only when the drawn punctuation ahead is exactly the text we refused. Otherwise the character
+          // is simply wrong here and says so, the way every other refused character does.
+          if Stdlib.Option.isSome (textSlotRejection st.reg n slot c updated) then
+            // Asked of the SPEC, not of the screen. `nextPunctIn` reads the drawing and finds nothing from
+            // inside an op slot -- the hole for the right operand sits between the caret and the arrow --
+            // so the question goes to the construct the caret is standing in, which is the one that draws
+            // the arrow in the first place.
+            let drawnAhead =
+              match enclosingListItem caret with
+              | Some((parentPath, _, _)) ->
+                (match nodeAtPath st.root parentPath with
+                 | Some pn -> drawsPunct st pn updated
+                 | None -> false)
+              | None -> false
+
+            if drawnAhead then
+              let collapsed = collapseInfix st caret.node n
+              nextHole collapsed
+            else
+              (match textSlotRejection st.reg n slot c updated with
+               | Some msg -> { st with message = msg }
+               | None -> st)
+          else
           let grown =
             commitRun st ((Path.toString caret.node) ++ "|op|" ++ slot) [ Edit.SetText(caret.node, slot, updated) ] { caret with offset = caret.offset + (Stdlib.String.length c) }
           // The operator is only now complete, so this is the first moment its real power is known.

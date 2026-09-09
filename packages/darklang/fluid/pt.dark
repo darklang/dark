@@ -359,6 +359,19 @@ let fnNameResolution
 let infixText (i: Darklang.LanguageTools.ProgramTypes.Infix) : String =
   Darklang.LanguageTools.Precedence.infix i
 
+/// Every operator text this language has, for the `op` slot's text class.
+///
+/// `TextClass.OneOf` keeps a slot's text a PREFIX of one of these, which is how a keyword slot stays a
+/// keyword while it is typed a letter at a time, and it is the right shape for an operator too: `<` is on
+/// its way to `<` or `<=`, and `-` to `-`. What it rules out is the text that is on its way to NOTHING.
+/// `->` is the one that matters -- the arrow a match arm and a lambda draw for you is two operator
+/// characters, and typing it after an expression grew an operator that no parser would take.
+///
+/// Written beside `infixOfText` so the two cannot drift: one says which texts are operators and the other
+/// says which are on their way to being one, and they are the same list.
+let infixTexts () : List<String> =
+  [ "+", "-", "*", "/", "%", "^", ">", ">=", "<", "<=", "==", "!=", "++", "&&", "||" ]
+
 let infixOfText (s: String) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =
   let fn (n: Darklang.LanguageTools.ProgramTypes.InfixFnName) : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Infix> =
     Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall n)
@@ -2549,7 +2562,9 @@ let moreSpecs () : List<Spec> =
     // pipe stages after it. The printer has always written the parens and says why over its own case.
     simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Punct "(", Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]), Piece.Punct ")" ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
     |> fun sp -> Spec.withBinders sp lambdaBinders
-    simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ])
+    Spec.withTextClasses
+      (simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]))
+      [ ("op", Darklang.Fluid.TextClass.OneOf(infixTexts ())) ]
     simpleOf (pipeKind "EPipeEnum") [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ] (Node.make (pipeKind "EPipeEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
     // A record's fields and a dict's pairs are drawn one per line between braces, so a statement inside
     // one of them draws where the reader sees the NEXT field. Enter at the end of the last one has
@@ -2767,12 +2782,14 @@ let baseSpecs () : List<Spec> =
     |> fun sp -> { sp with actions = ifActions (); maxItems = elseMaxItems }
     |> fun sp -> Spec.collapsingTo sp "then"
     Spec.withOperands
-      (simpleExpr
-        "EInfix"
-        [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
-      (Node.make
-        (exprKind "EInfix")
-        [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ]))
+      (Spec.withTextClasses
+        (simpleExpr
+          "EInfix"
+          [ Piece.Group [ Piece.OperandSlot("left", false), Piece.Space, Piece.Text("op", Layout.Style.Punct), Piece.Line, Piece.OperandSlot("right", true) ] ]
+          (Node.make
+            (exprKind "EInfix")
+            [ ("left", Field.One(Slot.Empty(exprExpect "left"))), text "op" "+", ("right", Field.One(Slot.Empty(exprExpect "right"))) ]))
+        [ ("op", Darklang.Fluid.TextClass.OneOf(infixTexts ())) ])
       "left"
       "right"
     |> fun sp -> Spec.collapsingWhenEmptied sp "right" "left"
