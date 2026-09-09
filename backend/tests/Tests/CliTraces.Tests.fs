@@ -733,6 +733,8 @@ let tests =
      @ Tests.CliScmRegression.tests
      @ Tests.CliPackages.tests
      @ Tests.CliWorkspace.tests
+     @ Tests.CliJson.tests
+     @ Tests.CliAuthoring.tests
      @ Tests.CliSyncSurface.tests
      @ Tests.CliScmRound2.tests
      @ [ testVersionCommand
