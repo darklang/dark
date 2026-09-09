@@ -13,6 +13,9 @@
 # branch, merge, diverge, resolve, discard, pin, on a binary a user would download, from an
 # empty home. Deliberately no relay: sync has its own gates. Optional argument: the artifact to
 # test; otherwise the newest in clis/, refused if older than the tree.
+#
+# Gate, not an F#/.dark test: the thing under test is a published artifact, which does not exist
+# inside the tree, run against a $HOME that has never seen Darklang.
 gate_first_day() {
   set -euo pipefail
 
@@ -177,6 +180,9 @@ gate_first_day() {
 # recent writes sit in data.db-wal until a checkpoint, so `backups now` folds the WAL first, and
 # only a gate that authored a fn, backed up, wiped and restored checks it did. The two
 # destructive verbs must ask first. Its own rundir: everything here is destructive.
+#
+# Gate, not an F#/.dark test: it has to be allowed to destroy a store, which is a bad thing to
+# hand a suite that shares one.
 gate_backups_restore() {
   set -uo pipefail
 
@@ -226,6 +232,10 @@ gate_backups_restore() {
 # two machines authoring the same fn make two ops. Own rundir, never the shared dev store: a
 # reload is a purge-and-refill and drops whatever draft was open, which the gates-are-clean
 # fingerprint cannot see (two reloads leave the same COUNTS behind). Main's ops only.
+#
+# Gate, not an F#/.dark test, on the weakest grounds of any of them: it COULD be an F# test. Two
+# full reloads cost about 70s, and as a gate they run beside the rest instead of lengthening the
+# suite. Pragmatic, not structural.
 gate_reload_is_reproducible() {
   set -euo pipefail
 

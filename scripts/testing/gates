@@ -2,7 +2,9 @@
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 # One entry point for the gate scripts: the end-to-end checks the F# suite structurally cannot
-# make (a published binary outside the tree, a TTY, a relay over HTTP, the LSP loop).
+# make (a published binary outside the tree, a TTY, a relay over HTTP, the LSP loop). What earns
+# a gate its place is a PROCESS boundary, not a store -- F# owns stores fine, MultiInstance
+# copies one per instance. Each gate says which boundary it crosses, above its function.
 #
 #     gates list        every gate, one line each
 #     gates <name>      one gate; extra arguments go to the gate (first-day takes an artifact)

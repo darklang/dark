@@ -13,6 +13,8 @@
 # turns up later as unrelated flakes in other gates, so: fingerprint the store, run each other
 # gate, require the fingerprint identical afterwards. META-gate, SLOW (runs every other gate end
 # to end); run it when you add or change one, not on every loop.
+#
+# Gate, not an F#/.dark test: it runs every other gate, each of which is a process of its own.
 gate_gates_are_clean() {
   set -uo pipefail
 

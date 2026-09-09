@@ -12,6 +12,9 @@
 # a branch and a recorded conflict, and check each reaches the screen; then a QUIET store
 # (commits only), so Home's commit-detail-on-open path renders too. Every row asserted on comes
 # from an SCM API, so the data path is under test as much as the drawing.
+#
+# Gate, not an F#/.dark test: it runs under a pty. The views render fine when called directly;
+# what needs a terminal is the keyboard, the alternate screen and the frame the workbench paints.
 gate_workbench_scm() {
   set -euo pipefail
 
@@ -65,6 +68,9 @@ gate_workbench_scm() {
 # down). Fill the store first -- draft, commits, a branch, a conflict, traces, an identity --
 # then visit every view on its DEFAULT section. Reaching a non-default section is
 # workbench-scm's job; the two are complementary rather than one subsuming the other.
+#
+# Gate, not an F#/.dark test: a pty again, same as workbench-scm. A view called directly returns
+# a value; only under a terminal does it become a frame anyone could have read wrong.
 gate_workbench_views() {
   set -euo pipefail
 
@@ -111,6 +117,9 @@ gate_workbench_views() {
 # and the LSP sits between them, exercised only by a real editor. A dispatcher/handler type
 # mismatch takes the whole server down and no other test notices. Both forms a client
 # legitimately sends are tested: a name a person typed, and an id from `dark/getBranches`.
+#
+# Gate, not an F#/.dark test: a protocol loop over stdio is a subprocess by nature. Testing the
+# handlers in-process covers everything except the loop, which is where the extension broke once.
 gate_lsp_branches() {
   set -euo pipefail
 

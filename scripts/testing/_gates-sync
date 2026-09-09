@@ -21,6 +21,10 @@ relay_grants() {
 # a command that just asks a list of questions there is nothing to react to. The relay is
 # deliberately unreachable: what matters is that setup stores what it was told and reports the
 # failed push instead of losing it.
+#
+# Gate, not an F#/.dark test: it runs under `script -qec`, which allocates a pty.
+# `stdinIsInteractive` is false on a pipe and the test binary's stdin is never a terminal, so on
+# a pipe the prompts block forever.
 gate_setup() {
   set -euo pipefail
 
@@ -90,6 +94,9 @@ gate_setup() {
 # error to a caller, and a page that says "not found" must ANSWER 404. `/nope` is deliberately
 # not asserted: the DarkPackages API composed onto the same server has a `/:location` catch-all
 # that legitimately answers an empty result.
+#
+# Gate, not an F#/.dark test: a real relay on a real port, answering real requests. An HTTP
+# status and a leaked error body are properties of a request, not of a function call.
 gate_relay_routes() {
   set -euo pipefail
 
@@ -224,6 +231,9 @@ gate_relay_routes() {
 # completed push (the data-loss case); nothing crashes, hangs, or leaks an interpreter error;
 # and what the relay SAYS is not trusted (junk branch ids, a cursor past what the store holds, a
 # page that never landed). The relay is fixtures/hostile-relay.py, one failure mode per port.
+#
+# Gate, not an F#/.dark test: a real relay on a real port, with the CLI as a separate process.
+# A client that trusts a bad reply only misbehaves across the wire, not across a function call.
 gate_sync_hostile_relay() {
   set -euo pipefail
 
@@ -379,6 +389,9 @@ gate_sync_hostile_relay() {
 # pushed, pulled, merged, edited and finished; a review queue staging work inert until approved;
 # four agents on four branches merged into one main. Every scenario is isolated -- its own
 # relay, its own port, its own stores.
+#
+# Gate, not an F#/.dark test: several CLI processes and a live relay between them. Not because
+# of the stores -- F# owns stores fine -- but because the boundary crossed here is the network.
 gate_sync_multi_instance() {
   set -uo pipefail
 
