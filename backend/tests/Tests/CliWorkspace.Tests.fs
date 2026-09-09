@@ -176,23 +176,6 @@ let anApprovedVersionIsWhatRuns =
         do! discardAll state
       })
 
-/// `unpin` was the old spelling. Keeping it working costs one arm and saves everyone's muscle
-/// memory and notes.
-let unpinStillWorksAsUnapprove =
-  cliTestOnMain "the old `unpin` spelling still withdraws an approval" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Appr.legacy" "() : Int64 = 6103L"
-      do! commit state "legacy v1"
-      do! run state [ "permissions"; "approve"; "Tests.Appr.legacy"; "--yes" ]
-      do! fn state "Tests.Appr.legacy" "() : Int64 = 6104L"
-      do! commit state "legacy v2"
-      do! evals state "Tests.Appr.legacy ()" "6103" "the approved version stands"
-      do! run state [ "permissions"; "unpin"; "Tests.Appr.legacy" ]
-      do! evals state "Tests.Appr.legacy ()" "6104" "and `unpin` withdraws it"
-      do! discardAll state
-    })
-
 /// Withdrawing what was never approved says so, rather than reporting a release that did not
 /// happen.
 let unapprovingAnUnapprovedNameSaysSo =
@@ -284,7 +267,6 @@ let tests : List<Test> =
     appsInstalledLists
     permissionsLists
     anApprovedVersionIsWhatRuns
-    unpinStillWorksAsUnapprove
     unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer
     opsAndCommitsDescribeTheLog

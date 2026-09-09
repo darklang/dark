@@ -626,11 +626,7 @@ val subcommands =
     ("approve", Stdlib.Option.Option.Some "approve <fn> [rule,…]")
     ("update", Stdlib.Option.Option.Some "update <fn> [rule,…]")
     ("unapprove", Stdlib.Option.Option.Some "unapprove <fn>")
-    // Kept as an alias: `pin`/`unpin` was the old spelling and is what anyone's notes and shell
-    // history still say. It does the same thing and prints the same lines.
-    ("unpin", Stdlib.Option.Option.Some "unapprove <fn>")
     ("approved", Stdlib.Option.Option.None)
-    ("pins", Stdlib.Option.Option.None)
     ("requirements", Stdlib.Option.Option.Some "requirements <fn|hash>")
     ("show", Stdlib.Option.Option.Some "show <fn|hash>")
     ("approvals", Stdlib.Option.Option.None)
@@ -688,8 +684,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Command.updateNamed state acceptWithoutPrompt name rules
     | (_, []) ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
-  | [ "unapprove", name ]
-  | [ "unpin", name ] ->
+  | [ "unapprove", name ] ->
     // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
     // say so rather than report a release that did not happen.
     let approvedNames =
@@ -704,8 +699,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (
         Stdlib.Cli.UI.Colors.error
           $"{name} has no approved version; `permissions approved` lists the ones that do")
-  | [ "approved" ]
-  | [ "pins" ] ->
+  | [ "approved" ] ->
     Command.printListOrNone
       ((Command.approvedVersions state.accountID)
        |> Stdlib.List.map (fun pair ->
@@ -767,7 +761,6 @@ let help (_state: Cli.AppState) : String =
     "                 one; a changed permission contract asks again. Rules given on"
     "                 approve carry over unless new ones are given"
     "  unapprove <fn> withdraw the approval; the name follows the latest version again"
-    "                 (`unpin` is the old spelling and still works)"
     "  approved       the names with an approved version, and which version"
     "  approvals      the approved versions (hashes); revoke-package drops one and"
     "                 the dependencies nothing else needs"
