@@ -109,6 +109,7 @@ let recordSpec
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate (shortName typeName) "record" empty ]
       complete = Spec.noCompletions
@@ -181,6 +182,7 @@ let caseSpec
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = false
       completions = []
       complete = Spec.noCompletions
@@ -222,6 +224,7 @@ let enumTypeSpec
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = false
       completions = candidates
       complete = Spec.noCompletions

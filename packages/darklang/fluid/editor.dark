@@ -2212,7 +2212,7 @@ let typeOne (st: State) (c: String) : State =
     && (Stdlib.Bool.not inStringBody)
     && (match nodeAtPath st.root caret.node with
         | Some n ->
-          (match mergeSlotOf n with
+          (match mergeSlotOf st.reg n with
            | Some sn -> (Node.text n sn |> Stdlib.Option.withDefault "") == "-"
            | None -> false)
         | None -> false)
@@ -2770,12 +2770,10 @@ let typeChar (st: State) (c: String) : State =
 
 /// The text slot a leaf carries its content in, if it's the kind we can merge by concatenation: an int's
 /// digits, a variable's name. Anything else (or a non-leaf) returns None and won't be merged.
-let mergeSlotOf (n: Node) : Stdlib.Option.Option<String> =
-  match n.kind.case with
-  | Some "EInt" -> Stdlib.Option.Option.Some "digits"
-  | Some "EInt64" -> Stdlib.Option.Option.Some "digits"
-  | Some "EVariable" -> Stdlib.Option.Option.Some "name"
-  | _ -> Stdlib.Option.Option.None
+let mergeSlotOf (reg: Registry) (n: Node) : Stdlib.Option.Option<String> =
+  match Registry.find reg n.kind with
+  | Some spec -> spec.textSlot
+  | None -> Stdlib.Option.Option.None
 
 let isIdentifierChar (c: String) : Bool =
   (TextEdit.isLetterString c) || (TextEdit.isDigitString c) || (c == "_")
@@ -2901,12 +2899,12 @@ let textSlotRejection (reg: Registry) (n: Node) (slot: String) (c: String) (next
 
 /// A mergeable operand contributes (kind, slot-name, text): a filled int/variable by its content, a
 /// partial (a name still being typed) by its text with no committed kind. A hole or anything else, None.
-let operandMerge (s: Slot) : Stdlib.Option.Option<(Stdlib.Option.Option<Kind> * Stdlib.Option.Option<String> * String)> =
+let operandMerge (reg: Registry) (s: Slot) : Stdlib.Option.Option<(Stdlib.Option.Option<Kind> * Stdlib.Option.Option<String> * String)> =
   match s with
   | Filled n ->
-    match mergeSlotOf n with
+    match mergeSlotOf reg n with
     | Some sn ->
-      Stdlib.Option.Option.Some((Stdlib.Option.Option.Some n.kind, mergeSlotOf n, Node.text n sn |> Stdlib.Option.withDefault ""))
+      Stdlib.Option.Option.Some((Stdlib.Option.Option.Some n.kind, mergeSlotOf reg n, Node.text n sn |> Stdlib.Option.withDefault ""))
     | None -> Stdlib.Option.Option.None
   | Partial(t, _) -> Stdlib.Option.Option.Some((Stdlib.Option.Option.None, Stdlib.Option.Option.None, t))
   | Empty _ -> Stdlib.Option.Option.None
@@ -2932,7 +2930,7 @@ let mergedTextValid (reg: Registry) (k: Kind) (slot: String) (t: String) : Bool 
 /// `12`/`34` -> `1234` at 2, `foo`/`bar` -> `foobar`. None when they don't fuse -- differing kinds (an
 /// int and a bool), two kindless partials, or text that wouldn't parse as the target (`1` and `t`).
 let mergeSlots (reg: Registry) (a: Slot) (b: Slot) : Stdlib.Option.Option<(Node * Int)> =
-  match (operandMerge a, operandMerge b) with
+  match (operandMerge reg a, operandMerge reg b) with
   | (Some((ak, asn, at_)), Some((bk, bsn, bt))) ->
     let kind = if Stdlib.Option.isSome ak then ak else bk
     let sn = if Stdlib.Option.isSome asn then asn else bsn
@@ -2967,7 +2965,7 @@ let collapseInfix (st: State) (p: Path) (n: Node) : State =
     | _ -> true
   match mergeSlots st.reg leftSlot rightSlot with
   | Some((merged, off)) ->
-    let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
+    let sn = mergeSlotOf st.reg merged |> Stdlib.Option.withDefault "digits"
     let st1 = commit st [ Edit.Replace(p, Slot.Filled merged) ] st.caret
     { st1 with caret = Caret.inText p sn off }
   | None ->
@@ -3093,7 +3091,7 @@ let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
                 else
                   match mergeSlots st.reg prev cur with
                   | Some((merged, off)) ->
-                    let sn = mergeSlotOf merged |> Stdlib.Option.withDefault "digits"
+                    let sn = mergeSlotOf st.reg merged |> Stdlib.Option.withDefault "digits"
                     let prevPath = Path.item parentPath slot (i - 1)
                     let st1 =
                       commit st [ Edit.Replace(prevPath, Slot.Filled merged), Edit.RemoveItem(parentPath, slot, i) ] caret
@@ -4187,7 +4185,7 @@ let labelForSlot (st: State) (sp: Path) : Stdlib.Option.Option<String> =
 let slotLeafText (st: State) (sp: Path) : Stdlib.Option.Option<String> =
   match slotAtPath st.root sp with
   | Some(Partial(t, _)) -> Stdlib.Option.Option.Some t
-  | Some(Filled n) -> mergeSlotOf n |> Stdlib.Option.andThen (fun ms -> Node.text n ms)
+  | Some(Filled n) -> mergeSlotOf st.reg n |> Stdlib.Option.andThen (fun ms -> Node.text n ms)
   | _ -> Stdlib.Option.Option.None
 
 /// The slot the caret is working in, whether it is standing in one, typing in a leaf inside one, or

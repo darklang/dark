@@ -595,3 +595,55 @@ module AnUndoTheKernelDoesNotKnow =
 
   // A spec that says nothing keeps its hole. The kernel invents no survivor of its own.
   (AnUndoTheKernelDoesNotKnow.screen false [ "1", "<Tab>", "2", "<BS>", "<BS>" ]) = "1 ~ ~⟨side⟩"
+
+
+module AMergeTheKernelDoesNotKnow =
+  // Delete the operator between two leaves and they fuse: `12 + 34` is `1234`, `foo + bar` is `foobar`,
+  // with the caret at the seam. WHICH slot they fuse through was three kind names in the kernel -- an
+  // int's `digits`, an int64's `digits`, a variable's `name` -- so a DSL leaf could not fuse at all.
+  //
+  // It also had the gap a list of names always has: the pattern kinds look like they want it and nobody
+  // put them there. That is a line in a spec now rather than an edit to the editor.
+  //
+  // `Acme.Word` is nothing Darklang defines. Note that it needs BOTH halves: `textClasses` says the
+  // joined text is still a legal Word, and `textSlot` says which slot to join through. The control below
+  // keeps the first and drops the second, which is what makes the new field the load-bearing one.
+  let wordKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Word"
+
+  let word (s: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (AMergeTheKernelDoesNotKnow.wordKind ())
+      [ ("chars", Darklang.Fluid.Field.Text s) ]
+
+  let spec (declares: Bool) : Darklang.Fluid.Spec =
+    let base =
+      Darklang.Fluid.Spec.withTextClasses
+        (Darklang.Fluid.Spec.simple
+          (AMergeTheKernelDoesNotKnow.wordKind ())
+          [ Darklang.Fluid.Piece.Text("chars", Darklang.Fluid.Layout.Style.Literal) ]
+          (AMergeTheKernelDoesNotKnow.word ""))
+        [ ("chars", Darklang.Fluid.TextClass.Chars "<identifier>") ]
+
+    if declares then
+      Darklang.Fluid.Spec.withTextSlot base "chars"
+    else
+      base
+
+  let merged (declares: Bool) : String =
+    let reg = Darklang.Fluid.Registry.ofList [ AMergeTheKernelDoesNotKnow.spec declares ]
+
+    match
+      Darklang.Fluid.Editor.mergeSlots
+        reg
+        (Darklang.Fluid.Slot.Filled(AMergeTheKernelDoesNotKnow.word "ab"))
+        (Darklang.Fluid.Slot.Filled(AMergeTheKernelDoesNotKnow.word "cd"))
+      with
+    | Some pair ->
+      let (n, off) = pair
+      (Darklang.Fluid.Node.text n "chars" |> Stdlib.Option.withDefault "?")
+      ++ " at "
+      ++ (Stdlib.Int.toString off)
+    | None -> "no merge"
+
+  (AMergeTheKernelDoesNotKnow.merged true) = "abcd at 2"
+  (AMergeTheKernelDoesNotKnow.merged false) = "no merge"

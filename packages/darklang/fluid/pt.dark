@@ -1817,6 +1817,7 @@ let pipeTypeSpec () : Spec =
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate "fun" "lambda step" (emptyPipeLambda ()) ]
       complete = completePipeStep
@@ -2221,6 +2222,7 @@ let exprTypeSpec () : Spec =
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = false
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapPipe; opSlot = ""; nextSlot = "steps"; continuesText = false }
@@ -2312,6 +2314,7 @@ let letPatTypeSpec () : Spec =
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = true
       completions =
         [ Spec.candidate "()" "unit pattern" (Node.make (letPatKind "LPUnit") []) ]
@@ -2380,6 +2383,7 @@ let matchPatTypeSpec () : Spec =
       operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
+      textSlot = Stdlib.Option.Option.None
       bindsNames = true
       wrapRules =
         [ WrapRule { onChar = "|"; wrap = wrapMatchOr; opSlot = ""; nextSlot = "alts"; continuesText = false }
@@ -2619,9 +2623,11 @@ let baseSpecs () : List<Spec> =
           // next line's `.` into a fraction.
           WrapRule { onChar = "."; wrap = intToFloat; opSlot = ""; nextSlot = ""; continuesText = true } ])
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<intSuffixChar>"))) ]
+    |> fun sp -> Spec.withTextSlot sp "digits"
     Spec.withTextClasses
       (simpleExpr "EInt64" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "L" ] (Node.make (exprKind "EInt64") [ text "digits" "" ]))
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
+    |> fun sp -> Spec.withTextSlot sp "digits"
     Spec.withTextClasses
       (simpleExpr "EInt8" [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct "y" ] (Node.make (exprKind "EInt8") [ text "digits" "" ]))
       [ ("digits", Darklang.Fluid.TextClass.Word(("<numberStart>", "<digit>"))) ]
@@ -2689,6 +2695,7 @@ let baseSpecs () : List<Spec> =
         [ WrapRule { onChar = "{"; wrap = recordFromName; opSlot = ""; nextSlot = ""; continuesText = false }
           WrapRule { onChar = "<apply>"; wrap = applyFromValue; opSlot = ""; nextSlot = "args"; continuesText = false } ])
       [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
+    |> fun sp -> Spec.withTextSlot sp "name"
     simpleExpr
       "ELet"
       [ Piece.Keyword "let"
@@ -3019,6 +3026,7 @@ module Types =
         operands = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         collapsesWhenEmptied = Stdlib.Option.Option.None
+        textSlot = Stdlib.Option.Option.None
         bindsNames = false
         completions = Stdlib.List.append (primCandidates ()) (containerCandidates ())
         complete = completeType
