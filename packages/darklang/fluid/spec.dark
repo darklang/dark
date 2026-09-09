@@ -275,6 +275,13 @@ type Spec =
     opensItems: List<(String * String)>
     /// What this node's closing character does, when it has one. See `Closer`.
     closer: Stdlib.Option.Option<Closer>
+    /// The slots holding a binary operator's operands, left first.
+    ///
+    /// Precedence is already spec data, so the kernel knows how tightly things bind. What the ROTATIONS
+    /// additionally need is which slots swap, and that is a fact about this node's shape rather than
+    /// about the language's arithmetic. With both, a DSL that declares its own infix gets the precedence
+    /// parenthesising and the `(`/`)` grouping without the kernel naming it.
+    operands: Stdlib.Option.Option<(String * String)>
     /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
     /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
     /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
@@ -355,6 +362,7 @@ module Spec =
         noSequence = []
         opensItems = []
         closer = Stdlib.Option.Option.None
+        operands = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         bindsNames = false
         completions = []
@@ -390,6 +398,10 @@ module Spec =
 
   /// A spec that says what its closing character does.
   let closesWith (spec: Spec) (cl: Closer) : Spec = { spec with closer = Stdlib.Option.Option.Some cl }
+
+  /// A spec that says which of its slots are the operands of a binary operator.
+  let withOperands (spec: Spec) (left: String) (right: String) : Spec =
+    { spec with operands = Stdlib.Option.Option.Some((left, right)) }
 
   /// A spec that says which of its children survives when the construct is deleted.
   let collapsingTo (spec: Spec) (slot: String) : Spec =

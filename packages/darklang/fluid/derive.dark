@@ -106,6 +106,7 @@ let recordSpec
       noSequence = []
       opensItems = []
       closer = Stdlib.Option.Option.None
+      operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       completions = [ Spec.candidate (shortName typeName) "record" empty ]
@@ -176,6 +177,7 @@ let caseSpec
       noSequence = []
       opensItems = []
       closer = Stdlib.Option.Option.None
+      operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       completions = []
@@ -215,6 +217,7 @@ let enumTypeSpec
       noSequence = []
       opensItems = []
       closer = Stdlib.Option.Option.None
+      operands = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       bindsNames = false
       completions = candidates

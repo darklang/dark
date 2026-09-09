@@ -2534,3 +2534,20 @@ module AContainerSaysWhatItsCloserDoes =
   // Patterns get it from the same field, through `MPTuple` and `MPList`, which no longer appear here.
   (Fixtures.program (Fixtures.chars "match n with () -> 1 ")) = "match n with\n| () -> 1"
   (Fixtures.program (Fixtures.chars "match n with [] -> 1 ")) = "match n with\n| [] -> 1"
+
+
+module AnEmptyContainerIsAValueNotAHole =
+  // `(1, ())` came out `(1)`. The closing bracket drops a trailing item nothing was typed into -- right,
+  // and there because the printer puts its `]` on a line of its own, so transcribing one ends with a
+  // break that starts an item and the closer then finds it empty.
+  //
+  // It asked `isAllHoles`, which folds `List.all` over the node's fields. `()` has NO fields and an empty
+  // list has NO items, so `List.all` over nothing was true and both were dropped as untouched.
+  //
+  // A node has to HAVE a hole before it can be all holes. An empty container is the value you meant.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "(1, ())") [ "<Esc>" ])) = "(1, ())"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "((), [])") [ "<Esc>" ])) = "((), [])"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[[], ()]") [ "<Esc>" ])) = "[[], ()]"
+
+  // This one always worked, and says why the others did not: the rule only ever inspects the LAST item.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "[(), 1]") [ "<Esc>" ])) = "[(), 1]"

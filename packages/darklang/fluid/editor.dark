@@ -1047,7 +1047,7 @@ let ruleMatches (syn: Syntax) (rule: HoleRule) (c: String) : Bool = charClassMat
 let applyWrap (st: State) (caret: Caret) (n: Node) (rule: WrapRule) (c: String) : State =
   let targetPath =
     if rule.opSlot == "op" then
-      reassocTarget st.root caret.node c
+      reassocTarget st.reg st.root caret.node c
     else if (Project.nodePower (rule.wrap n c)) == Darklang.LanguageTools.Precedence.swallowingPower then
       statementTarget st caret.node
     else
@@ -1156,6 +1156,18 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// The caret has to be in the FILLED item, which is what separates `(1 + 2` then `)` from `(1, ` then
 /// `)`. In the second the comma was deliberate and the caret sits in the empty item: a tuple with a hole
 /// left in it, not a group.
+/// The slots this node's spec calls its operands, if it is a binary operator.
+///
+/// `isInfix` was four hand-written copies of `kind.case == Some "EInfix"`, in the two functions that
+/// reassociate by precedence and the two that rotate on request. Precedence itself is already spec data;
+/// this is the other half, which slots swap.
+let operandsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String)> =
+  match Registry.find reg n.kind with
+  | Some spec -> spec.operands
+  | None -> Stdlib.Option.Option.None
+
+let isBinary (reg: Registry) (n: Node) : Bool = Stdlib.Option.isSome (operandsOf reg n)
+
 /// The closing behaviour this node's spec declares, if it has one. See `Spec.Closer`.
 ///
 /// Three questions used to be answered here by naming kinds: `)` in an untouched tuple is `()`, `]` in an
@@ -1240,7 +1252,7 @@ let reassocGrown (st: State) (opPath: Path) : (State * Path) =
   | (Some parentPath, Some n) ->
     (match (Path.last opPath, nodeAtPath st.root parentPath) with
      | (Some(Into "right"), Some pn) ->
-       let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+       let isInfix (x: Node) : Bool = isBinary st.reg x
 
        if (isInfix n) && (isInfix pn) then
          let (newPow, newRight) = Project.infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
@@ -1659,7 +1671,7 @@ let prevPunct (st: State) : Stdlib.Option.Option<String> = prevPunctIn (layout s
 /// A looser operator takes the tighter subtree as its left: `+` after `1 * 2` wraps the whole `1 * 2`,
 /// while `*` after `1 + 2` wraps just the `2`. Walks up the right spine while the ancestor infix binds at
 /// least as tightly (strictly tighter for a right-associative new operator, so `2 ^ 3 ^ 2` stays right).
-let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
+let reassocTarget (reg: Registry) (root: Slot) (path: Path) (newOp: String) : Path =
   let (newPow, newRight) = Project.infixPowerOf newOp
   let climbUp (p: Path) : Path =
     match Path.parent p with
@@ -1669,7 +1681,7 @@ let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
       | Some(Into "right") ->
         match nodeAtPath root parent with
         | Some pn ->
-          if pn.kind.case == Stdlib.Option.Option.Some "EInfix" then
+          if isBinary reg pn then
             let (pPow, _) = Project.infixPowerOf (Node.text pn "op" |> Stdlib.Option.withDefault "+")
             let climb = if newRight then pPow > newPow else pPow >= newPow
             if climb then climbUp parent else p
@@ -1699,7 +1711,7 @@ let reassocTarget (root: Slot) (path: Path) (newOp: String) : Path =
 /// Unlike the parens the drawing adds and removes for precedence, this CHANGES THE PROGRAM.
 /// `1 - (3 + 2)` is not `(1 - 3) + 2`, so it is a real edit: it commits, and undo takes it back.
 let regroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
-  let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+  let isInfix (x: Node) : Bool = isBinary st.reg x
 
   // Standing ON the infix is the same request as standing inside its left operand, and has to be checked
   // FIRST: at the root there is no parent to walk up to, so the climb alone answers None for the caret
@@ -1751,7 +1763,7 @@ let regroupRight (st: State) : Stdlib.Option.Option<State> =
 /// Undo already reverses a grouping you just made. What this adds is regrouping code you did NOT write:
 /// opening `1 - (3 + 2)` from the store and wanting the other reading. Undo cannot reach that.
 let ungroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
-  let isInfix (x: Node) : Bool = x.kind.case == Stdlib.Option.Option.Some "EInfix"
+  let isInfix (x: Node) : Bool = isBinary st.reg x
 
   let hereRotates =
     match nodeAtPath st.root from with
@@ -2080,7 +2092,7 @@ let typeOne (st: State) (c: String) : State =
         // Unwrap the accidental pipe back to its operand, then wrap with `||` at the node precedence says
         // it should take (left-associative), so `x || y || z` is `(x || y) || z` and prints without parens.
         let firstSlot = Node.slot pn "first" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
-        let target = reassocTarget st.root caret.node "||"
+        let target = reassocTarget st.reg st.root caret.node "||"
         let st0 = commit st [ Edit.Replace(caret.node, firstSlot) ] caret
         match nodeAtPath st0.root target with
         | Some targetNode ->
@@ -3783,19 +3795,39 @@ let leadsItemsWith (st: State) (parent: Node) (slot: String) (c: String) : Bool 
   | None -> false
 
 /// Is every leaf of this node still a hole? A freshly added list item is; one you have typed into isn't.
+/// Is every part of this node still a hole?
+///
+/// A node with NOTHING in it is not "all holes", it is finished. `()` has no fields at all and an empty
+/// list has no items, so `List.all` was vacuously true for both and the closing-bracket rule that drops
+/// an untouched trailing item dropped them: `(1, ())` came out `(1)`, `[[], ()]` came out `[[]]`, and
+/// `((), [])` came out `(())`. An empty container IS the value you meant.
+///
+/// So a node has to HAVE a hole before it can be all holes. `hasAny` is what separates "nothing was typed
+/// here" from "what was typed here is empty".
 let isAllHoles (n: Node) : Bool =
   let slotEmpty (s: Slot) : Bool =
     match s with
     | Empty _ -> true
     | Partial(_, _) -> false
     | Filled c -> isAllHoles c
-  n.fields
-  |> Stdlib.List.all (fun f ->
-    let (name, fld) = f
-    match fld with
-    | Text t -> t == ""
-    | One s -> slotEmpty s
-    | Many(items, _) -> items |> Stdlib.List.all (fun s -> slotEmpty s))
+
+  let hasAny =
+    n.fields
+    |> Stdlib.List.any (fun f ->
+      let (_name, fld) = f
+      match fld with
+      | Text _ -> true
+      | One _ -> true
+      | Many(items, _) -> Stdlib.Bool.not (Stdlib.List.isEmpty items))
+
+  hasAny
+  && (n.fields
+      |> Stdlib.List.all (fun f ->
+        let (name, fld) = f
+        match fld with
+        | Text t -> t == ""
+        | One s -> slotEmpty s
+        | Many(items, _) -> items |> Stdlib.List.all (fun s -> slotEmpty s)))
 
 /// The last node in an item's subtree, in reading order -- where the caret was when the lead punct that
 /// made the next item was typed.
@@ -3866,7 +3898,7 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
         | Some p ->
           // Precedence picks WHICH node the operator takes, the same way typing it normally would, so
           // `1 + 2` then the doubled punct is `(1 + 2) || _` rather than `1 + (2 || _)`.
-          let targetPath = reassocTarget st.root p (c ++ c)
+          let targetPath = reassocTarget st.reg st.root p (c ++ c)
           match nodeAtPath st.root targetPath with
           | Some target ->
             // Repeating it is an infix (`||`); continuing it is whatever rule the LEAD punct has of its own
