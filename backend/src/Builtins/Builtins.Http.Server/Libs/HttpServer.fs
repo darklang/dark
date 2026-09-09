@@ -275,7 +275,13 @@ let private handleRequest
           do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
         | Ok reqBody ->
           let reqHeaders = extractHeaders ctx.Request
-          let rawUrl = ctx.Request.Url.ToString()
+          // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
+          // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
+          // absolute form is rebuilt around it.
+          let rawUrl =
+            match ctx.Request.RawUrl with
+            | null -> ctx.Request.Url.ToString()
+            | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
           let url =
             if canonicalizeFromForwardedProto then
               canonicalizeUrlFromForwardedProto rawUrl reqHeaders

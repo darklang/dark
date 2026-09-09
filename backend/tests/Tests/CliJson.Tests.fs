@@ -191,9 +191,19 @@ let propagateKeepsItsShapeWhenThereIsNothingToChoose =
         do! hasKeys state [ "propagate"; "--json" ] [ "choices" ]
       })
 
+/// `findings: []` means "nothing is wrong" only when nothing stopped a detector from looking.
 let constraintsKeepsItsShape =
   cliTest "constraints --json keeps its keys" (fun state ->
-    hasKeys state [ "constraints"; "--json" ] [ "findings" ])
+    task {
+      do! hasKeys state [ "constraints"; "--json" ] [ "findings"; "blocked" ]
+
+      let! root = parsed state [ "constraints"; "--json" ]
+
+      Expect.equal
+        (root.GetProperty("blocked").ValueKind)
+        System.Text.Json.JsonValueKind.Array
+        "blocked is an array, empty in the normal case rather than absent"
+    })
 
 let depsAnswersBothDirections =
   cliTestOnMain "deps --json answers with both directions" (fun state ->
