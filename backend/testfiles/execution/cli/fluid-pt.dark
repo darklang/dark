@@ -1970,3 +1970,37 @@ module ANestedScrutineeNestsUnderItsMatch =
     60
     "match Store.save documents activeDocId nextDocId (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0") =
     "match Store.save\n  documents\n  activeDocId\n  nextDocId\n  (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0"
+
+
+module ARecordUpdateFitsTheWidth =
+  // A record update is the one construct the PRINTER does not break: at 40 columns it emits a 111-column
+  // line, and at 80 the same. Fluid lays it out like every other container and stays inside the width.
+  //
+  // Third place in this file where Fluid is the correct side, after the `(earg).field` parens and the
+  // nesting of a match's scrutinee. Worth pinning together, because the store sweep counts all three as
+  // "Fluid differs from the printer" and that reads as Fluid being wrong.
+  let drawn (w: Int) (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) w (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  /// The longest line, which is the property that actually matters here.
+  let widest (s: String) : Int =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.map (fun l -> Stdlib.String.length l)
+    |> Stdlib.List.fold 0 (fun a b -> Stdlib.Int.max a b)
+
+  let src () : String =
+    "{ outline with nodes = Stdlib.Dict.remove outline.nodes k; structure = Stdlib.Dict.remove outline.structure k }"
+
+  (ARecordUpdateFitsTheWidth.drawn 40 (ARecordUpdateFitsTheWidth.src ())) =
+    "{ outline with\n  nodes = Stdlib.Dict.remove\n    outline.nodes\n    k;\n  structure = Stdlib.Dict.remove\n    outline.structure\n    k\n}"
+
+  // The property, at three widths. One line of 111 columns is what the printer gives for all of them.
+  (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 40 (ARecordUpdateFitsTheWidth.src ()))) = 32
+  (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 80 (ARecordUpdateFitsTheWidth.src ()))) = 52
+  (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 200 (ARecordUpdateFitsTheWidth.src ()))) = 111
+
+  // A short one still fits on its line, so the pin above is about the WIDTH and not about updates always
+  // breaking.
+  (ARecordUpdateFitsTheWidth.drawn 80 "{ st with x = 1 }") = "{ st with x = 1 }"
