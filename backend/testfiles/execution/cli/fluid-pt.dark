@@ -1985,15 +1985,22 @@ module TypingThePrintedFormBack =
   (TypingThePrintedFormBack.check "match xs with\n| h :: t -> h\n| [] -> 0") = ""
   (TypingThePrintedFormBack.check "match n with\n| 0 -> a\n| 1 -> x || y") = ""
 
-  // Two things this corpus deliberately does NOT contain, both written up rather than pinned:
+  // Two things this corpus does not contain, both re-RUN rather than re-read -- twice now an exclusion
+  // here has turned out to be a bug or a stale repair, so the comments below say what was measured.
   //
-  // A qualified enum constructor. `Stdlib.Option.Some(1)` types back as `Option.Some(1)`, because the
-  // parser leaves an enum's type name unresolved and Fluid resolves it -- the printer agreeing with
-  // itself about two different inputs. `TypingAConstructorResolvesIt` carries that.
+  // Both omissions are real and both are NARROWER than they were first written.
   //
-  // A call to a LOCAL function written with a space. `-> parse rest` fills the next hole instead, and
-  // that is a real ambiguity with the terse style rather than a bug (05-). The paren spelling works and
-  // is here:
+  // 1. Not "a qualified enum constructor". `Stdlib.Option.Some(1)` types back as `Option.Some(1)`,
+  //    because the parser leaves an enum's type name unresolved and Fluid resolves it -- the printer
+  //    agreeing with itself about two different inputs, which `TypingAConstructorResolvesIt` carries.
+  //    Other qualified constructors are fine, so they belong here rather than in the excuse:
+  (TypingThePrintedFormBack.check "Option.Some(1)") = ""
+  (TypingThePrintedFormBack.check "Stdlib.Result.Result.Ok(1)") = ""
+
+  // 2. Not "a local call written with a space". At the top level a spaced call is fine; what fails is a
+  //    spaced call as a match arm's RHS, where `parse rest` fills the next hole instead. That is the
+  //    ambiguity with the terse style written up in 05-, and it is one position rather than a spelling:
+  (TypingThePrintedFormBack.check "let parse = (fun x -> x)\nparse args") = ""
   (TypingThePrintedFormBack.check "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)") = ""
 
 
