@@ -473,7 +473,21 @@ let pairToDoc (p: (Expr * Expr)) : Node =
 
 let segmentToDoc (seg: StringSegment) : Node =
   match seg with
-  | StringText t -> Node.make (segmentKind "StringText") [ text "text" (PrettyPrinter.escapeSpecialCharacters t) ]
+  // Inside `$"..."` a brace OPENS an interpolation, so a literal one is written doubled -- the printer has
+  // always done this and Fluid did not, which meant its drawing of a string containing a `{` was a
+  // different program: `$"{{\"event\"}}"` drew as `$"{\"event\"}"`, whose `{` reads as an interpolation.
+  // It did not merely look different, it reparsed wrong, which is the invariant this whole editor rests on.
+  //
+  // Doubled in the DOCUMENT rather than only at draw time, so what you edit is what a text editor would
+  // show you, and `segmentFromDoc` undoes it on the way back out.
+  | StringText t ->
+    Node.make
+      (segmentKind "StringText")
+      [ text
+          "text"
+          (PrettyPrinter.escapeSpecialCharacters t
+           |> fun e -> Stdlib.String.replaceAll e "{" "{{"
+           |> fun e -> Stdlib.String.replaceAll e "}" "}}") ]
   | StringInterpolation e -> Node.make (segmentKind "StringInterpolation") [ one "expr" (toDoc e) ]
 
 let pipeToDoc (p: PipeExpr) : Node =
@@ -819,7 +833,14 @@ let pairFromDoc (n: Node) : Stdlib.Result.Result<(Expr * Expr), String> =
 let segmentFromDoc (n: Node) : Stdlib.Result.Result<StringSegment, String> =
   match n.kind.case with
   | Some "StringText" ->
-    Stdlib.Result.Result.Ok(StringSegment.StringText(PrettyPrinter.unescapeStringContent (textOf n "text")))
+    // Undoing what `segmentToDoc` did: the doubled braces come back to single ones before the escapes are
+    // undone, in the reverse order they were applied.
+    Stdlib.Result.Result.Ok(
+      StringSegment.StringText(
+        textOf n "text"
+        |> fun t -> Stdlib.String.replaceAll t "{{" "{"
+        |> fun t -> Stdlib.String.replaceAll t "}}" "}"
+        |> fun t -> PrettyPrinter.unescapeStringContent t))
   | Some "StringInterpolation" -> slotExpr n "expr" |> Stdlib.Result.map (fun e -> StringSegment.StringInterpolation e)
   | _ -> Stdlib.Result.Result.Error "not a string segment"
 
