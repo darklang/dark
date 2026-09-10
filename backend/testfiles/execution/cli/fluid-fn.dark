@@ -535,3 +535,48 @@ module AFunctionYouTypeCanBeSaved =
   (AFunctionYouTypeCanBeSaved.lowers
     (Stdlib.List.flatten [ [ "<Esc>", "j", "j", "j", "c" ], AFunctionYouTypeCanBeSaved.ch "String", [ "<Esc>", "<Esc>" ] ])) =
     "let <hash:deadbeef> (n: Int): String =\n  n + 1"
+
+module TypingAWholeFunction =
+  // The third document kind gets the whole-body treatment. Expressions found a real bug this way,
+  // declarations found nothing; this found one thing, and it is about the PRINTED form rather than the
+  // editor being broken.
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs ()
+          Darklang.Fluid.PT.Fn.specs (), Darklang.Fluid.PT.TypeDecl.specs () ])
+
+  let ch (src: String) : List<String> =
+    Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let screen (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TypingAWholeFunction.reg ()) (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "inc")) 70 keys
+
+  // What the printer writes for a ONE-parameter signature, typed back character for character.
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int): Int")) =
+    "let inc (n: Int): Int~ =\n  ⟨body⟩"
+
+  // ...and the whole function, signature and body.
+  (TypingAWholeFunction.screen (Stdlib.List.flatten
+    [ TypingAWholeFunction.ch "(n Int", [ "<Tab>" ], TypingAWholeFunction.ch "Int", [ "<Tab>" ], TypingAWholeFunction.ch "n + 1" ])) =
+    "let inc (n: Int): Int =\n  n + 1~"
+
+  // A SECOND parameter is reachable two ways, both from NAV on the function itself: the `(` its own
+  // actions list offers, and `o`, which adds another item to the list the caret is in.
+  (TypingAWholeFunction.screen (Stdlib.List.flatten
+    [ TypingAWholeFunction.ch "(n Int", [ "<Esc>", "<Esc>", "h", "h", "(" ] ])) =
+    "let inc (n: Int) (~⟨name⟩: <type>): <return> =\n  ⟨body⟩"
+
+  (TypingAWholeFunction.screen (Stdlib.List.flatten
+    [ TypingAWholeFunction.ch "(n Int", [ "<Esc>", "<Esc>", "h", "o" ] ])) =
+    "let inc (n: Int) (~⟨name⟩: <type>): <return> =\n  ⟨body⟩"
+
+  // What it CANNOT do, pinned as the wrong answer it currently gives so the day it changes is visible.
+  //
+  // The printer writes a two-parameter signature `(n: Int) (m: Int): Int`, and typing that gives nonsense.
+  // The `)` is fine -- it closes the parameter and lands in the return slot -- but `(` THERE means a tuple
+  // type, because a function may perfectly well return one, and nothing can tell the two apart at the
+  // moment the bracket arrives. It is 05-open-questions' spaced-call problem in another costume: the
+  // printed form is not typeable.
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int) (m: Int): Int")) =
+    "let inc (n: Int): ('m: * Int) =\n  :Int~"
