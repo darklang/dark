@@ -85,11 +85,30 @@ let argNeedsParens (n: Node) : Bool =
 let operandNeedsParens (operand: Node) (parentPower: Int) (parentRightAssoc: Bool) (isRight: Bool) : Bool =
   Darklang.LanguageTools.Precedence.operandNeedsParensAt (nodePower operand) parentPower parentRightAssoc isRight
 
+/// A parenthesised doc, its continuation lined up one past the opening bracket, which is what the
+/// printer's own `parens` helper does.
+///
+/// This used to NOT nest, and the note explaining why said that copying the printer put an extra column on
+/// expressions -- a match inside an `if` condition came out with every arm indented one space. That was a
+/// true observation with the wrong cause attached. The printer does not parenthesise a match in an `if`
+/// condition AT ALL; Fluid does, and on purpose, because the bare form is a sentence you have to parse
+/// yourself. So copying the nest applied it to a bracket the printer never draws, and the orphaned column
+/// was the tell.
+///
+/// The two questions are separate and now answered separately: this one nests, and `ParenLowSlot` -- the
+/// one place Fluid draws a bracket the printer would not -- uses `parenNoNest` below. Measured rather than
+/// argued: this is 85 of the 89 functions in a 1,070-function store sweep that drew differently, about 8%
+/// of the store, all of it a single column on an argument's continuation lines.
 let parenIf (cond: Bool) (d: Layout.Doc) : Layout.Doc =
-  // No nest here, deliberately. The printer's `parens` nests by 1, and copying that put the extra column
-  // on EXPRESSIONS too -- a match inside an `if` condition came out with every arm indented one space.
-  // Where the extra column is actually wanted (a tuple's continuation lining up under its opening paren)
-  // the spec says so itself, with a Nest(1) around the items.
+  if cond then
+    Layout.concatAll [ Layout.punct "(", Layout.nest 1 d, Layout.punct ")" ]
+  else
+    d
+
+/// Parentheses that do NOT indent what they hold. For a bracket Fluid draws and the printer does not: the
+/// column would have no counterpart in the printed form, which is where the extra space on a match's arms
+/// came from.
+let parenNoNest (cond: Bool) (d: Layout.Doc) : Layout.Doc =
   if cond then Layout.concatAll [ Layout.punct "(", d, Layout.punct ")" ] else d
 
 /// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
@@ -555,7 +574,7 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
         match Slot.node s with
         | Some child -> (nodePower child) == 0
         | None -> false
-      parenIf needs d
+      parenNoNest needs d
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | FieldTargetSlot slotName ->
