@@ -570,6 +570,23 @@ let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) :
   | StringInterpolation interpolationExpr -> $"{{{expr ctx interpolationExpr}}}"
 
 /// Parenthesize a Doc and indent its broken layout past the opening paren.
+/// A match pattern as a Doc, so an OR-pattern can break.
+///
+/// `matchPattern` is a String function and gets spliced into the arm's header, which means the alternation
+/// has no break point in it at all: `ProgramTypes.toID` matches thirty-six cases and printed them as a
+/// single 400-column line. Fluid breaks after each `|` and was right.
+///
+/// Only the or-pattern needs a Doc -- every other pattern is a leaf or a bracketed form that fits or does
+/// not -- so the rest falls through to the string version rather than duplicating it.
+let matchPatternDoc (mp: LanguageTools.ProgramTypes.MatchPattern) : Stdlib.Pretty.Doc =
+  match mp with
+  | MPOr(_id, patterns) ->
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.join
+        (patterns |> Stdlib.List.map (fun pat -> Stdlib.Pretty.text (matchPattern pat)))
+        (Stdlib.Pretty.concat (Stdlib.Pretty.text " |") Stdlib.Pretty.line))
+  | _ -> Stdlib.Pretty.text (matchPattern mp)
+
 let parens (d: Stdlib.Pretty.Doc) : Stdlib.Pretty.Doc =
   Stdlib.Pretty.concat
     (Stdlib.Pretty.text "(")
@@ -734,10 +751,16 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           | Some cond -> $" when {expr ctx cond}"
           | None -> ""
 
-        Stdlib.Pretty.group (
-          Stdlib.Pretty.concat
-            (txt $"| {matchPattern case.pat}{whenPart} ->")
-            (Stdlib.Pretty.nest 2 (
+        // The right-hand side gets its OWN group, so a pattern that had to break does not drag the body
+        // down with it. One group over both meant that once the alternation of `toID` broke, every Line
+        // inside it broke too, and a one-word body went onto a line of its own for no reason. Fluid keeps
+        // it up, and reads better for it.
+        Stdlib.Pretty.concat
+          (Stdlib.Pretty.concat
+            (txt "| ")
+            (Stdlib.Pretty.concat (matchPatternDoc case.pat) (txt $"{whenPart} ->")))
+          (Stdlib.Pretty.group (
+            Stdlib.Pretty.nest 2 (
               Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx case.rhs)))))
       |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
 
