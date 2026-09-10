@@ -3372,9 +3372,17 @@ let tryMergeListItems (st: State) : Stdlib.Option.Option<State> =
         | Some parentPath ->
           match nodeAtPath st.root parentPath with
           | Some parent ->
-            // Only list literals merge this way. A tuple can't drop below two elements, and args / match
-            // arms / record fields aren't text to concatenate.
-            match (if parent.kind.case == Stdlib.Option.Option.Some "EList" then Node.field parent slot else Stdlib.Option.Option.None) with
+            // Which lists merge this way, asked of the spec rather than named. Two facts and the `closer`
+            // carries both: it is a BRACKETED list, which rules out a call's arguments and a match's arms
+            // and a record's fields -- none of which is text to concatenate -- and its one-element form is
+            // still a list rather than a grouping, which rules out the tuple. `soloIsGroup` was written
+            // for the `)` that collapses `(1 + 2)`, and it is the same distinction: a container that
+            // cannot drop below two elements cannot have two of them fused into one.
+            let mergesByConcat =
+              match closerOf st.reg parent with
+              | Some cl -> (cl.slot == slot) && (Stdlib.Bool.not cl.soloIsGroup)
+              | None -> false
+            match (if mergesByConcat then Node.field parent slot else Stdlib.Option.Option.None) with
             | Some(Many(items, _)) ->
               // Only from the very start of item i, and only if it and its neighbour actually fuse.
               let atStart =
