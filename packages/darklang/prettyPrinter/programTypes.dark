@@ -1010,9 +1010,14 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
 
-    // TODO: only sometimes need to wrap exprPart in parens
+    // Anything that already renders as a bare name binds tighter than the dot and needs no parens.
+    // `EArg` was missing from that list and renders as the PARAMETER NAME, so every `state.focus` in a
+    // function that reads a parameter's field came out `(state).focus` -- 26 of the 126 functions with a
+    // function-typed parameter, and Fluid drew all of them the way a person writes them. Found by
+    // comparing the two projections against the store rather than by reading either one.
     match e with
     | EVariable(_, _)
+    | EArg(_, _)
     | ERecordFieldAccess(_, _, _) ->
       $"{exprPart}.{PrettyPrinter.formatFieldName fieldName}"
     | _ -> $"({exprPart}).{PrettyPrinter.formatFieldName fieldName}"
