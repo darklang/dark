@@ -4854,10 +4854,60 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           match selectedCandidate st with
           | Some c -> Stdlib.Bool.not (Stdlib.List.isEmpty (blanks (Slot.Filled c.node)))
           | None -> false
-        if (Stdlib.Option.isSome (exactCandidate st)) && (Stdlib.Bool.not leavesHoles) then
+        // A candidate you did not name EXACTLY, which arrives with blanks in it, and which you have barely
+        // typed any of, is not what you were reaching for -- it is a construct, and every construct has
+        // its own way in. `| 0 -> c` then
+        // Enter to start the next arm replaced the `c` with `''`, because `char` was the one thing in the
+        // menu starting with a `c`. Seven of the twenty-six letters did this: c f i l m s t, which are
+        // char, fun, if, let, match, string and tuple, and are also the names anyone gives a variable.
+        //
+        // The other three combinations stay as they were. Named exactly and complete: commit and move on.
+        // Named exactly and with holes: you asked for it, commit and stay inside it. Not exact but
+        // complete: a store function you were part-way through (`List.len` -> `Stdlib.List.length`),
+        // accept it and stay.
+        let namedIt = Stdlib.Option.isSome (exactCandidate st)
+        // How much of the candidate you actually typed, as a PROPORTION of it. An absolute threshold does
+        // not work: `fun` and `let` are three characters long, so every prefix of them is short, and `fu`
+        // is plainly reaching for `fun`. Half is the line -- more than half of it and you meant it.
+        //
+        //     fu / fun               0.67   meant it
+        //     le / let               0.67   meant it
+        //     Stdlib.List.leng       0.89   meant it
+        //     i  / if                0.5    did not
+        //     c  / char              0.25   did not
+        //     l  / let               0.33   did not
+        //
+        // A candidate the DOCUMENT implied is exempt whatever its length: the cases of the enum this match
+        // is on, the fields of the record you typed a `.` after. `S` for `Some` is a quarter of the label
+        // and is still a specific answer to a specific question, which is what `fromContext` means.
+        let barelyTyped =
+          match selectedCandidate st with
+          | Some cand ->
+            if cand.fromContext then
+              false
+            else
+              // Compared on the LAST segment of each, because a completion fills in the qualifier for you:
+              // `Size` becomes `Stdlib.Cli.Tui.Size`, and against the whole label four characters looks
+              // like a fifth of it when it is in fact the entire part anyone types. `Stdlib.List.leng`
+              // reduces to `leng` against `length` and is still two thirds.
+              let lastSegment (t: String) : String =
+                Stdlib.String.split t "." |> Stdlib.List.last |> Stdlib.Option.withDefault t
+              (match Caret.slotPath st.caret |> Stdlib.Option.andThen (fun sp -> slotLeafText st sp) with
+               | Some typed ->
+                 ((Stdlib.String.length (lastSegment typed)) * 2) <= (Stdlib.String.length (lastSegment cand.label))
+               | None -> false)
+          | None -> false
+        if namedIt && (Stdlib.Bool.not leavesHoles) then
           match addSibling committed with
           | Some added -> handled added
           | None -> handled committed
+        elif (Stdlib.Bool.not namedIt) && leavesHoles && barelyTyped then
+          match addSiblingOnEnter settled with
+          | Some added -> handled added
+          | None ->
+            match sequenceHere settled with
+            | Some seq -> handled seq
+            | None -> handled settled
         else
           handled committed
       else
