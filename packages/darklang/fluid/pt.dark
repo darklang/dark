@@ -3241,11 +3241,21 @@ module Fn =
   let paramSpec () : Spec =
     { (Spec.simple
         (paramKind ())
+        // The type hangs off the colon rather than sitting behind a hard space, which is the printer's
+        // `hang 2 "name:" [type]`. A parameter whose type does not fit puts the WHOLE type on the next
+        // line, indented two; with a hard space there was no break point here at all, so the only thing
+        // that could give was the type's own internals and `(onKey: 's ->` split mid-arrow where the
+        // printer had written `(onKey:` and then the type.
         [ Piece.Punct "("
-          Piece.Text("name", Layout.Style.Name)
-          Piece.Punct ":"
-          Piece.Space
-          Piece.Slot "type"
+          // `Nest(1)` for the open bracket, the way a tuple's continuation lines up under its own `(`.
+          // The printer's `parens` helper does this for every parenthesised doc it builds; here the spec
+          // says it, which is the idiom `Project.parenIf` deliberately leaves to the spec rather than
+          // adding a column to every paren in the language.
+          Piece.Nest(
+            1,
+            [ Piece.Text("name", Layout.Style.Name)
+              Piece.Punct ":"
+              Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "type" ]) ] ])
           Piece.Punct ")" ]
         (Node.make (paramKind ()) [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
         summary = PT.exprSummary }
