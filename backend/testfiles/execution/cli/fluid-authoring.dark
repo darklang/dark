@@ -3076,3 +3076,30 @@ module EnterDoesNotEatWhatYouTyped =
   // And the keyword-on-space rule is untouched: a letter and a space still builds the construct.
   (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "match n with", [ "<Enter>" ], Fixtures.chars "0 -> l " ])) =
     "match n with\n| 0 ->\n  let ~⟨name⟩ = ⟨value⟩\n  ⟨body⟩"
+
+module ANestedListCanBeLeft =
+  // A match inside a match arm types fine. What could not happen was coming back OUT of it: `|` and Enter
+  // both continue the INNER arms, which is the only thing typing can mean there, and NAV had no way to
+  // grow a list at all. Every sibling in this editor is made by pressing Enter at the end of the last one,
+  // and `addSibling` walks outward to the NEAREST enclosing item -- which, once anything is nested, is
+  // always the inner one. The caret could sit on exactly the right node with nothing to press.
+  let inner () : List<String> =
+    Stdlib.List.flatten
+      [ Fixtures.chars "match a with", [ "<Enter>" ], Fixtures.chars "0 -> match b with", [ "<Enter>" ]
+        Fixtures.chars "1 -> c" ]
+
+  // Enter continues the inner match. This is right, and it is why `o` had to exist.
+  (Fixtures.screen (Stdlib.List.append (ANestedListCanBeLeft.inner ()) [ "<Enter>" ])) =
+    "match a with\n| 0 ->\n  match b with\n  | 1 -> c\n  | ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // Two Escapes to reach NAV -- one settles the text and stays in insert -- then out to the outer arm,
+  // then `o`. The new arm is at the OUTER indentation, which is the whole point.
+  (Fixtures.screen (Stdlib.List.flatten [ ANestedListCanBeLeft.inner (), [ "<Esc>", "<Esc>", "h", "h", "o" ] ])) =
+    "match a with\n| 0 ->\n  match b with\n  | 1 -> c\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // ...and it lands in INSERT, so the next thing you type goes in rather than being read as a command.
+  (Fixtures.screen (Stdlib.List.flatten [ ANestedListCanBeLeft.inner (), [ "<Esc>", "<Esc>", "h", "h", "o" ], Fixtures.chars "2 -> d" ])) =
+    "match a with\n| 0 ->\n  match b with\n  | 1 -> c\n| 2 -> d~"
+
+  // On a node that is in no list, `o` changes nothing.
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "1 + 2", [ "<Esc>", "<Esc>", "o" ] ])) = "1 + ~2"
