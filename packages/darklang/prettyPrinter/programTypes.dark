@@ -813,12 +813,20 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       else
         inner
 
+    // A LINE after the operator, not a hard space. With the space there was no break point at an infix at
+    // all, so a chain that did not fit had to break inside an operand -- and when the operand had no break
+    // point of its own, nothing gave and the line simply ran past the width. `contextToStringWith` came out
+    // 100 columns wide at width 80.
+    //
+    // The operator stays on the line it ends, which is the shape Fluid's EInfix spec already draws:
+    // `Group [ left, Space, op, Line, right ]`. Flat renders a Line as a space, so an infix that fits is
+    // byte-for-byte what it was.
     Stdlib.Pretty.group (
       Stdlib.Pretty.concat
         (side left false)
         (Stdlib.Pretty.concat
-          (txt $" {infix infixOp} ")
-          (side right true)))
+          (txt $" {infix infixOp}")
+          (Stdlib.Pretty.concat Stdlib.Pretty.line (side right true))))
 
   | EApply(_id, fnName, typeArgs, args) ->
     let head =
