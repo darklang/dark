@@ -2581,7 +2581,13 @@ let moreSpecs () : List<Spec> =
     // Parenthesised, and not for looks. Without them the drawing says something the document does not:
     // `xs |> fun a -> a |> g` reads back as `xs |> (fun a -> a |> g)`, because a bare lambda swallows the
     // pipe stages after it. The printer has always written the parens and says why over its own case.
-    simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Punct "(", Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]), Piece.Punct ")" ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
+    // `Nest(1)` for the open bracket, and ONLY here. The printer builds a pipe's lambda with its `parens`
+    // helper, which indents what it holds one past the `(`, and then hangs the body two more -- so its
+    // body sits three columns in where Fluid's sat two. An ordinary ELambda gets no such column: `exprDoc`
+    // writes its `(fun ... ->` inline and nests the body by two, which is what Fluid's ELambda already
+    // does. Two constructs that look identical in the spec and are built differently on the other side,
+    // which is why applying this to both of them made the sweep four times worse.
+    simpleOf (pipeKind "EPipeLambda") [ Piece.Group [ Piece.Punct "(", Piece.Nest(1, [ Piece.Keyword "fun", Piece.Space, Piece.Each("params", [ Piece.Space ]), Piece.Space, Piece.Punct "->", Piece.Nest(2, [ Piece.Line, Piece.Slot "body" ]) ]), Piece.Punct ")" ] ] (Node.make (pipeKind "EPipeLambda") [ ("params", Field.Many([ Slot.Empty(letPatExpect "param") ], letPatExpect "param")), ("body", Field.One(Slot.Empty(exprExpect "body"))) ])
     |> fun sp -> Spec.withBinders sp lambdaBinders
     Spec.withTextClasses
       (simpleOf (pipeKind "EPipeInfix") [ Piece.Punct "(", Piece.Text("op", Layout.Style.Punct), Piece.Punct ")", Piece.Space, Piece.Slot "expr" ] (Node.make (pipeKind "EPipeInfix") [ text "op" "+", ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]))
