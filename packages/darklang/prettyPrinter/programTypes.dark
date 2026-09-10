@@ -885,6 +885,34 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
     Stdlib.Pretty.concat head (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
 
+  // A record UPDATE breaks the same way a record literal does. It was not in the Doc layer at all, so it
+  // fell through to the string printer, which renders a subexpression STANDALONE at the full width and
+  // hands back one flat blob -- `{ state with lastError = ...; result = ...; isDone = true }` came out at
+  // 100 columns inside a branch already indented eight. The same shape as the match scrutinee: a construct
+  // measured somewhere other than where it sits.
+  | ERecordUpdate(_id, record, updates) ->
+    let parts =
+      updates
+      |> Stdlib.List.map (fun pair ->
+        let (name, value) = pair
+        Stdlib.Pretty.concat
+          (txt $"{PrettyPrinter.formatFieldName name} = ")
+          (exprDoc ctx value))
+
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (txt "{ ")
+        (Stdlib.Pretty.concat
+          (exprDoc ctx record)
+          (Stdlib.Pretty.concat
+            (txt " with")
+            (Stdlib.Pretty.concat
+              (Stdlib.Pretty.nest 2 (
+                Stdlib.Pretty.concat
+                  Stdlib.Pretty.line
+                  (Stdlib.Pretty.join parts (Stdlib.Pretty.concat (txt ";") Stdlib.Pretty.line))))
+              (Stdlib.Pretty.concat Stdlib.Pretty.line (txt "}"))))))
+
   // Dicts and enum payloads break like the other collections. A lambda's body is nested and hard-lined,
   // since `fun x ->` followed by its body on the same line only reads well when the body is tiny, and
   // the group above it already decides that. `EStatement` is always a hard line: that is what it means.
