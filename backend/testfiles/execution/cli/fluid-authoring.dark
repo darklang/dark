@@ -3010,3 +3010,27 @@ module MovingAlongEitherAxis =
 
   // A plain Up still chooses in the menu rather than moving anything.
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "l") [ "<Up>" ])) = "l~"
+
+module ARefusalSaysWhyItRefused =
+  // A key the slot will not take leaves the screen exactly as it was, so the screen alone cannot tell a
+  // key that did nothing from a key that was refused. The message is the other half of the answer, and it
+  // had no coverage at all -- which is how I spent a tick convinced a feature was missing when the editor
+  // had already told me what was wrong and I had read the wrong rows off a terminal.
+  let said (keys: List<String>) : String =
+    Darklang.Fluid.Test.messageAfter (Fixtures.reg ()) (Fixtures.hole ()) 60 keys
+
+  (Fixtures.screen (Fixtures.chars "12x")) = "12~"
+  (ARefusalSaysWhyItRefused.said (Fixtures.chars "12x")) = "`x` isn't part of a number"
+
+  // ...and it clears once a key is accepted, so the line describes the LAST thing that happened rather
+  // than the last thing that went wrong.
+  (ARefusalSaysWhyItRefused.said (Fixtures.chars "12x3")) = ""
+
+  // Nothing refused, nothing said. Worth pinning: a message that appeared for ordinary typing would be
+  // noise on every keystroke, and the class this reads is per-slot for exactly that reason.
+  (ARefusalSaysWhyItRefused.said (Fixtures.chars "12")) = ""
+
+  // `true` is still a NAME while you are typing it -- it becomes a Bool when it settles -- so a letter
+  // after it is a longer name, not a refusal. The bool's own class only starts judging once it is one.
+  (Fixtures.screen (Fixtures.chars "truex")) = "truex~"
+  (ARefusalSaysWhyItRefused.said (Fixtures.chars "truex")) = ""

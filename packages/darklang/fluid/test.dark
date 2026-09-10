@@ -99,6 +99,14 @@ let runFrom (reg: Registry) (root: Slot) (width: Int) (caret: Caret) (keys: List
   Debug.withCaret final.reg final.width final.root final.caret
 
 /// The mode after the keys, for the tests that are about it.
+/// The MESSAGE after the keys, for the tests that are about what the editor said.
+///
+/// The screen and the message are two different answers and a test that reads only the first cannot tell
+/// a key that did nothing from a key that was refused and explained. That distinction cost a whole tick
+/// when I read a refusal off a terminal capture that did not include the message row.
+let messageAfter (reg: Registry) (root: Slot) (width: Int) (keys: List<String>) : String =
+  (drive (Editor.init reg root width) keys).message
+
 let modeAfter (reg: Registry) (root: Slot) (width: Int) (keys: List<String>) : String =
   let final = drive (Editor.init reg root width) keys
   match final.mode with

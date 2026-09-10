@@ -1931,9 +1931,9 @@ module TypingThePrintedFormBack =
   // from every other `;` here.
   //
   // Checked by hand first, in a terminal, and it looked broken: typing `;` at the end of the last field
-  // did nothing at all. It was not broken. `i` on a RecordField lands in the field's NAME, not its value,
-  // so the `;` I typed went into a name slot that rejects it -- silently, because a text slot refusing a
-  // character says nothing. The editor was right and the driving was wrong.
+  // did nothing. It was not broken, and the editor said so at the time -- `i` on a RecordField lands in
+  // the field's NAME, the `;` went there, and the message line read "`;` isn't part of a name". I had
+  // captured the rows with the code on them and not the one with the answer on it.
   (TypingThePrintedFormBack.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3 }") = ""
   (TypingThePrintedFormBack.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3; height = 4 }") = ""
   (TypingThePrintedFormBack.check "xs |> Stdlib.List.map f") = ""
