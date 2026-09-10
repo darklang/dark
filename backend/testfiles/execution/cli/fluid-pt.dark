@@ -2029,6 +2029,28 @@ module TypingAWholeBody =
   (TypingAWholeBody.check "match n with\n| x when x > 0 -> a\n| _ -> b") = ""
   (TypingAWholeBody.check "let n = \"x\"\n$\"hi {n}\"") = ""
 
+  // Nine more, from widening the same net.
+  (TypingAWholeBody.check "Stdlib.List.fold xs 0 (fun acc x -> acc + x)") = ""
+  (TypingAWholeBody.check "let t = (1, 2)\nt") = ""
+  (TypingAWholeBody.check "[Stdlib.Cli.Tui.Size { width = 1; height = 2 }]") = ""
+  (TypingAWholeBody.check "if a then 1 else if b then 2 else 3") = ""
+  (TypingAWholeBody.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\nr.width + r.height") = ""
+  (TypingAWholeBody.check "match xs |> Stdlib.List.length with\n| 0 -> a\n| _ -> b") = ""
+  (TypingAWholeBody.check "let s = \"a\\nb\"\ns") = ""
+  (TypingAWholeBody.check "match n with\n| 0 | 1 -> a\n| _ -> b") = ""
+  (TypingAWholeBody.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3 }") = ""
+
+  // Two more are absent, both measured rather than assumed, and both are about the editor rather than the
+  // check. They are in 05-open-questions with the numbers.
+  //
+  // A spaced-NAME argument in any position but the top level. `let a = f x` gives `let a = f` and puts the
+  // `x` in the let's BODY, because a space in a slot that has a next hole means "next hole" and beats
+  // "open an argument". `f(x)` works everywhere, and a spaced argument works at the top level, so this is
+  // one rule losing to another rather than a missing feature.
+  //
+  // A match nested inside a match arm. Fluid refuses it with "hole: rhs" whether the source is indented or
+  // not, so it is not the leading whitespace a person would never type.
+
   // A STATEMENT body is deliberately absent, and not because Fluid gets it wrong -- it types
   // `Stdlib.printLine "a"` then `1` correctly. `parsePTExpr` refuses the source with "Expected exactly one
   // expression to be parsed", so the control this corpus compares against cannot be built for it. A
