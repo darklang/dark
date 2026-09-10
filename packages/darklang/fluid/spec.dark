@@ -293,6 +293,22 @@ type Spec =
     /// about the language's arithmetic. With both, a DSL that declares its own infix gets the precedence
     /// parenthesising and the `(`/`)` grouping without the kernel naming it.
     operands: Stdlib.Option.Option<(String * String)>
+
+    /// A construct whose CONTENT is a list of alternating literal-text and embedded-expression parts:
+    /// the list slot, then the kind-case that holds the literal text.
+    ///
+    /// Darklang's is the interpolated string, `$"a{x}b"`. It is not only Darklang's -- a template
+    /// language, a query with bind parameters, a document with embedded code are all the same shape: text
+    /// with holes in it, where a character opens a hole and another closes it. The two characters are on
+    /// the registry already (`interpolationOpen` / `interpolationClose`), because they belong to the
+    /// language rather than to the construct; what was left in the kernel was WHICH construct and WHICH of
+    /// its cases holds the text, and those belong here.
+    ///
+    /// Four kernel branches asked one of those two questions: find the enclosing construct, split a text
+    /// part in two around a new hole, step out of a hole into the text after it, and fold two text parts
+    /// back together when the hole between them goes. All four are about the shape and none is about
+    /// strings.
+    segments: Stdlib.Option.Option<(String * String)>
     /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
     /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
     /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
@@ -398,6 +414,7 @@ module Spec =
         opensItems = []
         closer = Stdlib.Option.Option.None
         operands = Stdlib.Option.Option.None
+        segments = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         collapsesWhenEmptied = Stdlib.Option.Option.None
         textSlot = Stdlib.Option.Option.None
@@ -439,6 +456,10 @@ module Spec =
   /// A spec that says which of its slots are the operands of a binary operator.
   let withOperands (spec: Spec) (left: String) (right: String) : Spec =
     { spec with operands = Stdlib.Option.Option.Some((left, right)) }
+
+  /// A spec that says its content is text with embedded holes: the list slot, and the case holding text.
+  let withSegments (spec: Spec) (slot: String) (textCase: String) : Spec =
+    { spec with segments = Stdlib.Option.Option.Some((slot, textCase)) }
 
   /// A spec that says which of its children survives when the construct is deleted.
   let collapsingTo (spec: Spec) (slot: String) : Spec =

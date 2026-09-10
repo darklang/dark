@@ -107,6 +107,7 @@ let recordSpec
       opensItems = []
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
+      segments = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -180,6 +181,7 @@ let caseSpec
       opensItems = []
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
+      segments = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -222,6 +224,7 @@ let enumTypeSpec
       opensItems = []
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
+      segments = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None

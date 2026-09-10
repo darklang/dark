@@ -1943,17 +1943,22 @@ let ungroupLeft (st: State) : Stdlib.Option.Option<State> =
 
 /// The enclosing interpolated string and the segment index the caret is under, if any. Handles both being
 /// directly in a text segment and being down inside an interpolation's expression.
-let enclosingStringSeg (root: Slot) (path: Path) : Stdlib.Option.Option<(Path * Int)> =
+let enclosingStringSeg (reg: Registry) (root: Slot) (path: Path) : Stdlib.Option.Option<(Path * Int)> =
   let (_, found) =
     Stdlib.List.fold path ((0, Stdlib.Option.Option.None)) (fun acc step ->
       let (idx, best) = acc
       match step with
-      | Item("segments", i) ->
+      // The slot NAME comes off the spec too, not just the kind: a DSL that calls its parts `pieces` is
+      // the same construct, and hard-coding "segments" would have found nothing in it.
+      | Item(slot, i) ->
         let prefix = Stdlib.List.take path idx
         match nodeAtPath root prefix with
         | Some n ->
-          if n.kind.case == Stdlib.Option.Option.Some "EStringI" then (idx + 1, Stdlib.Option.Option.Some((prefix, i)))
-          else (idx + 1, best)
+          (match segmentsOf reg n with
+           | Some pair ->
+             let (segSlot, _textCase) = pair
+             if segSlot == slot then (idx + 1, Stdlib.Option.Option.Some((prefix, i))) else (idx + 1, best)
+           | None -> (idx + 1, best))
         | None -> (idx + 1, best)
       | _ -> (idx + 1, best))
   found
@@ -1963,7 +1968,7 @@ let enclosingStringSeg (root: Slot) (path: Path) : Stdlib.Option.Option<(Path * 
 /// string (a leading `"` right after `$` is swallowed). Returns None when the caret isn't in a string.
 let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
   let caret = st.caret
-  match enclosingStringSeg st.root caret.node with
+  match enclosingStringSeg st.reg st.root caret.node with
   | None -> Stdlib.Option.Option.None
   | Some((ePath, i)) ->
     match nodeAtPath st.root ePath with
@@ -1983,7 +1988,7 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
       let segNode = Stdlib.List.getAt (Node.items eNode "segments") i |> Stdlib.Option.andThen (fun s -> Slot.node s)
       let isText =
         match segNode with
-        | Some sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText"
+        | Some sn -> isTextSegment st.reg eNode sn
         | None -> false
       if (c == st.reg.syntax.stringDelimiter) && directText then
         let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
@@ -2013,7 +2018,7 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
         let nextIsText =
           Stdlib.List.getAt (Node.items eNode "segments") (i + 1)
           |> Stdlib.Option.andThen (fun s -> Slot.node s)
-          |> Stdlib.Option.map (fun sn -> sn.kind.case == Stdlib.Option.Option.Some "StringText")
+          |> Stdlib.Option.map (fun sn -> isTextSegment st.reg eNode sn)
           |> Stdlib.Option.withDefault false
         if nextIsText then
           // Stepping out settles what was typed inside the interpolation. Without this, `$"hi {name}"`
@@ -3457,7 +3462,7 @@ let tryCollapseInterp (st: State) : Stdlib.Option.Option<State> =
   if Stdlib.Bool.not inEmptyExpr then
     Stdlib.Option.Option.None
   else
-    match enclosingStringSeg st.root caret.node with
+    match enclosingStringSeg st.reg st.root caret.node with
     | None -> Stdlib.Option.Option.None
     | Some((ePath, i)) ->
       if i < 1 then
@@ -3470,7 +3475,7 @@ let tryCollapseInterp (st: State) : Stdlib.Option.Option<State> =
             Stdlib.List.getAt segs j |> Stdlib.Option.andThen (fun s -> Slot.node s)
           let isText (j: Int) : Bool =
             match segAt j with
-            | Some n -> n.kind.case == Stdlib.Option.Option.Some "StringText"
+            | Some n -> isTextSegment st.reg eNode n
             | None -> false
           // Only fold when both neighbours are text segments (the shape a split leaves behind).
           if (isText (i - 1)) && (isText (i + 1)) then
@@ -4502,6 +4507,24 @@ let itemHasHoles (st: State) (c: Caret) : Bool =
 let addSiblingOnEnter (st: State) : Stdlib.Option.Option<State> =
   if (inArgSlotsList st st.caret) || (itemIsBlank st st.caret) then Stdlib.Option.Option.None
   else addSibling st
+
+/// The (list slot, text case) of a construct whose content is text with embedded holes, if it is one.
+let segmentsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String)> =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<(String * String)> =
+    match spec with
+    | Some sp -> sp.segments
+    | None -> Stdlib.Option.Option.None
+  match fromSpec (Registry.findExact reg n.kind) with
+  | Some p -> Stdlib.Option.Option.Some p
+  | None -> fromSpec (Registry.findTypeLevel reg n.kind)
+
+/// Is `n` the literal-TEXT part of the segmented construct `parent`, rather than an embedded hole?
+let isTextSegment (reg: Registry) (parent: Node) (n: Node) : Bool =
+  match segmentsOf reg parent with
+  | Some pair ->
+    let (_slot, textCase) = pair
+    n.kind.case == Stdlib.Option.Option.Some textCase
+  | None -> false
 
 /// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to
 /// recognise the closer it drew.
