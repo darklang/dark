@@ -1924,6 +1924,18 @@ module TypingThePrintedFormBack =
   (TypingThePrintedFormBack.check "let a = 1\nlet b = 2\na + b") = ""
   (TypingThePrintedFormBack.check "let f = (fun x -> x * 2)\nf 21") = ""
   (TypingThePrintedFormBack.check "Stdlib.Cli.Tui.Size { width = 80; height = 24 }") = ""
+
+  // A record UPDATE, which is the one record shape this corpus had never asked about. Its fields are the
+  // only list in the language whose length is genuinely free -- a record literal's come from its type --
+  // so the `;` between them has to ADD one rather than step to the next, and that is a different code path
+  // from every other `;` here.
+  //
+  // Checked by hand first, in a terminal, and it looked broken: typing `;` at the end of the last field
+  // did nothing at all. It was not broken. `i` on a RecordField lands in the field's NAME, not its value,
+  // so the `;` I typed went into a name slot that rejects it -- silently, because a text slot refusing a
+  // character says nothing. The editor was right and the driving was wrong.
+  (TypingThePrintedFormBack.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3 }") = ""
+  (TypingThePrintedFormBack.check "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3; height = 4 }") = ""
   (TypingThePrintedFormBack.check "xs |> Stdlib.List.map f") = ""
   (TypingThePrintedFormBack.check "xs |> Stdlib.List.filter (fun x -> x > 0) |> Stdlib.List.map (fun x -> x * 2)") = ""
   (TypingThePrintedFormBack.check "Stdlib.List.fold xs 0 (fun acc x -> acc + x)") = ""
