@@ -88,7 +88,16 @@ module Parens =
   (Parens.show "Stdlib.List.map xs (fun x -> x + 1)") = "Stdlib.List.map xs (fun x -> x + 1)"
 
   // A swallowing construct in a keyword position (a match as an if condition, an if as a match
-  // scrutinee) is parenthesised so the trailing keyword can't run onto it -- better than the printer.
+  // scrutinee) is parenthesised, and the printer writes it bare. A deliberate divergence, but not for
+  // the reason first written here: the claim was that the trailing keyword would otherwise run onto it,
+  // and that is simply false. Checked all six pairs (a pipe, an if, a let, a match, in both an if
+  // condition and a match scrutinee): every one parses bare and survives a print-parse-print round trip
+  // unchanged. The parens are not load-bearing.
+  //
+  // They are kept because they are easier to READ. `if match x with | _ -> b then 1 else 2` is a
+  // sentence you have to parse yourself. The one case where that argument does not hold is a pipe --
+  // `match a |> b with` reads perfectly well -- and Fluid parenthesises it anyway, which is the one
+  // place the two drawings still disagree about anything other than indentation.
   (Parens.show "if (match x with\n| _ -> b) then 1 else 2") = "if (match x with\n| _ -> b) then\n  1\nelse\n  2"
   // A plain condition needs no parens.
   (Parens.show "if a then 1 else 2") = "if a then 1 else 2"
