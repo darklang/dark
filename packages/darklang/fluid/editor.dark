@@ -849,6 +849,48 @@ let navBy (st: State) (delta: Int) : State =
 
   | None -> navByReadingOrder st delta
 
+/// The next or previous SIBLING: another child of the same parent, in drawing order.
+///
+/// `j`/`k` walk READING order, which goes into everything. In a function anyone would call realistic that
+/// is one press per node: getting from the signature of a twenty-line function to its body is dozens of
+/// keys, and there was no coarser motion in the editor at all -- found by opening a real store function in
+/// a terminal and trying to get anywhere in it.
+///
+/// `h` climbs to the parent and this walks the parent's children, which together are the motion that makes
+/// a big document navigable. Siblings are read off the same reading-order walk `j` uses, so a slot, a list
+/// item and a text field are all siblings if the spec draws them under the same node -- no second notion of
+/// what a child is, and a DSL gets it for nothing.
+///
+/// At either end it stays put. `h` is the key for going out, and a sibling walk that silently climbed would
+/// do something different every few presses when you held it down.
+let navSibling (st: State) (delta: Int) : State =
+  let st = { st with descent = Stdlib.Option.Option.None }
+  let here = navPath st
+
+  match Path.parent here with
+  | Some parentPath ->
+    let sibs =
+      nodePaths st.root
+      |> Stdlib.List.filter (fun p -> (Path.parent p) == (Stdlib.Option.Option.Some parentPath))
+
+    let idx =
+      sibs
+      |> Stdlib.List.indexedMap (fun i p -> (i, p))
+      |> Stdlib.List.findFirst (fun ip ->
+        let (_, p) = ip
+        p == here)
+      |> Stdlib.Option.map (fun ip ->
+        let (i, _) = ip
+        i)
+
+    (match idx with
+     | Some i ->
+       (match Stdlib.List.getAt sibs (i + delta) with
+        | Some p -> { st with caret = navCaretFor st.root p }
+        | None -> st)
+     | None -> st)
+  | None -> st
+
 let navParent (st: State) : State =
   match tableColumnTarget st (-1) with
   | Some p -> { st with caret = navCaretFor st.root p }
@@ -4947,6 +4989,9 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
            | None -> handled { st with message = "nothing to ungroup here" })
         elif ch == "j" then handled (navBy st 1)
         elif ch == "k" then handled (navBy st (-1))
+        // Shifted, next to the keys they are the coarse version of.
+        elif ch == "J" then handled (navSibling st 1)
+        elif ch == "K" then handled (navSibling st (-1))
         elif ch == "h" then handled (navParent st)
         elif ch == "l" then handled (navChild st)
         elif ch == "i" then handled (enterInsert st)

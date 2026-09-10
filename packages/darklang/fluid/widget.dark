@@ -439,6 +439,7 @@ let inspectorWith
       [ ""
         head "KEYS"
         dim "  j/k    next/prev"
+        dim "  J/K    next/prev sibling"
         dim "  h/l    out/in"
         // Tab moves between HOLES in nav too, which is how you get to the next thing that needs filling
         // rather than the next node in reading order. It was listed for INSERT and not here, so the panel

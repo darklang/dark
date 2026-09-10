@@ -117,6 +117,40 @@ module Nav =
 
   (Darklang.Fluid.Test.modeAfter (Fixtures.reg ()) (Fixtures.color ()) 80 [ "<Tab>" ]) = "insert"
 
+  // J and K walk SIBLINGS -- the other children of the same parent -- where j and k walk reading order and
+  // go into everything. Found by opening a real store function in a terminal: reaching the body of a
+  // twenty-line function meant one press per node in between, dozens of them, and the editor had no
+  // coarser motion at all.
+  //
+  // From the first field, J is the next field. Reading order would have gone INTO the 255 first.
+  (Fixtures.run [ "j", "J" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "j", "J", "J" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ~⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // ...and K comes back.
+  (Fixtures.run [ "j", "J", "J", "K" ]) =
+    "Acme.Color { r = 255; g = ~⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // At either end it stays put rather than climbing. `h` is the key for going out, and a sibling walk that
+  // silently climbed would do something different every few presses when held down.
+  (Fixtures.run [ "j", "K", "K" ]) =
+    "Acme.Color { r = ~255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // On the root there is no parent and nothing to walk.
+  (Fixtures.run [ "J" ]) =
+    "~Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ⟨tag⟩] }"
+
+  // A list's ITEMS are siblings of the slots beside them, because siblings are read off the same walk `j`
+  // uses rather than from a second notion of what a child is. So J out of `name` lands in the tags list
+  // and keeps going along it, and a DSL's own Many gets this for nothing.
+  (Fixtures.run [ "j", "J", "J", "J" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"~warm\", ⟨tag⟩] }"
+
+  (Fixtures.run [ "j", "J", "J", "J", "J" ]) =
+    "Acme.Color { r = 255; g = ⟨Int⟩; name = ⟨String⟩; tags = [\"warm\", ~⟨tag⟩] }"
+
 
 module YankAndPut =
   // `y` copies the node under the caret, `p` puts it over whatever the caret is on -- a hole, a partial, or
