@@ -45,6 +45,7 @@
     <!-- cloud stuff /-->
     <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="Toplevels.Tests.fs" />
+    <Compile Include="CliInstance.fs" />
     <Compile Include="CliTestHarness.fs" />
     <Compile Include="CliDsl.fs" />
     <Compile Include="CliSurface.Tests.fs" />

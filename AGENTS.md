@@ -81,6 +81,7 @@ tell you the tree has moved on rather than silently running a stale binary.
 ## Tests
 
     ./scripts/run-backend-tests                       all of them, a few minutes
+    scripts/dev/build --optimize --test               the same, published and much faster
     ./scripts/run-backend-tests --groups              the tree, with counts
     ./scripts/run-backend-tests --groups Interpreter  just that part of it
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
@@ -96,6 +97,12 @@ tell you the tree has moved on rather than silently running a stale binary.
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
+
+Run the WHOLE suite published. Debug compiles F# with optimisations off, and the interpreter
+the suite spends its time in is F#, so the suite takes several times longer in Debug than the
+extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` will say the debug
+tree is behind until the next plain build. While iterating on one group, stay in Debug -- a
+filtered run is seconds either way.
 
 `run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
 already there, so an `.fs` change you have not built yet is simply not in the run. It looks

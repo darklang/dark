@@ -6,7 +6,12 @@ module Darklang.Cli.Tests
 type TestFunction = Unit -> TestResult
 
 let allTests (): List<String * TestFunction> =
-  [ ("Help", fun () -> testHelpCommand ())
+  [ ("Instance Answers", fun () -> testInstanceAnswers ())
+    ("Instances Are Isolated", fun () -> testInstancesAreIsolated ())
+    ("Dispose Removes The Store", fun () -> testDisposeRemovesTheStore ())
+    ("Workbench Paints", fun () -> testWorkbenchPaints ())
+
+    ("Help", fun () -> testHelpCommand ())
     ("Version", fun () -> testVersionCommand ())
     ("Status", fun () -> testStatusCommand ())
     ("Merge Round Trip", fun () -> testMergeRoundTrip ())

@@ -28,40 +28,53 @@ module RTT = LibExecution.RuntimeTypes
 // entry that starts parsing cleanly again is flagged stale by the rot-guard.
 let private corpusAllowlist : Set<string> = Set.empty
 
+let private corpusRoot : Option<string> =
+  [ "../packages/darklang"; "packages/darklang"; "/home/dark/app/packages/darklang" ]
+  |> List.tryFind System.IO.Directory.Exists
+
+/// Every `.dark` file under `packages/darklang`, parsed once: `(path, relative path,
+/// parse result or the message it threw)`.
+///
+/// Two tests below walk the whole corpus, one checking that it parses cleanly and one
+/// checking range containment, and parsing is the expensive half of both. Sharing the
+/// parse halves the work; doing it in parallel means neither test is a single-threaded
+/// minute in the middle of an otherwise parallel suite.
+let private parsedCorpus =
+  lazy
+    (match corpusRoot with
+     | None -> [||] // no package dir (not a CI environment) -- nothing to gate
+     | Some root ->
+       System.IO.Directory.GetFiles(
+         root,
+         "*.dark",
+         System.IO.SearchOption.AllDirectories
+       )
+       |> Array.Parallel.map (fun f ->
+         let rel = f.Substring(root.Length).TrimStart('/', '\\').Replace('\\', '/')
+         let parsed =
+           try
+             Ok(LibParser.Parser.parse (System.IO.File.ReadAllText f))
+           with e ->
+             Error("THREW: " + e.Message)
+         (f, rel, parsed)))
+
 let private corpusTests =
   testList
     "parser-corpus"
     [ testCase "the parser cleanly parses every valid .dark package file" (fun _ ->
-        let root =
-          [ "../packages/darklang"
-            "packages/darklang"
-            "/home/dark/app/packages/darklang" ]
-          |> List.tryFind System.IO.Directory.Exists
-        match root with
-        | None -> () // package dir not found (not a CI environment) — nothing to gate
-        | Some root ->
-          let relOf (f : string) =
-            f.Substring(root.Length).TrimStart('/', '\\').Replace('\\', '/')
-          let files =
-            System.IO.Directory.GetFiles(
-              root,
-              "*.dark",
-              System.IO.SearchOption.AllDirectories
-            )
+        match corpusRoot with
+        | None -> ()
+        | Some _ ->
           // (relPath, first-diagnostic-message) for every file that does NOT parse cleanly
           let failures =
-            files
-            |> Array.choose (fun f ->
-              let rel = relOf f
-              try
-                match
-                  (LibParser.Parser.parse (System.IO.File.ReadAllText f))
-                    .diagnostics
-                with
+            parsedCorpus.Value
+            |> Array.choose (fun (_, rel, parsed) ->
+              match parsed with
+              | Error msg -> Some(rel, msg)
+              | Ok r ->
+                match r.diagnostics with
                 | [] -> None
-                | d :: _ -> Some(rel, d.message)
-              with e ->
-                Some(rel, "THREW: " + e.Message))
+                | d :: _ -> Some(rel, d.message))
           // regression gate: every non-allowlisted file must parse cleanly
           let unexpected =
             failures
@@ -1755,27 +1768,21 @@ let private rangeInvariantTests =
     [ testCase
         "child expr ranges are contained in their parents (whole corpus)"
         (fun _ ->
-          let root =
-            [ "../packages/darklang"
-              "packages/darklang"
-              "/home/dark/app/packages/darklang" ]
-            |> List.tryFind System.IO.Directory.Exists
-          match root with
+          match corpusRoot with
           | None -> ()
-          | Some root ->
+          | Some _ ->
             let violations = ResizeArray<string>()
-            for f in
-              System.IO.Directory.GetFiles(
-                root,
-                "*.dark",
-                System.IO.SearchOption.AllDirectories
-              ) do
-              match (P.parse (System.IO.File.ReadAllText f)).parsed with
-              | Some(WT.SourceFile sf) ->
-                for e in
-                  (sf.declarations |> List.collect declExprs) @ sf.exprsToEval do
-                  check f violations e
-              | None -> ()
+            // A file that threw is reported by `parser-corpus` above, not here.
+            for (f, _, parsed) in parsedCorpus.Value do
+              match parsed with
+              | Ok r ->
+                match r.parsed with
+                | Some(WT.SourceFile sf) ->
+                  for e in
+                    (sf.declarations |> List.collect declExprs) @ sf.exprsToEval do
+                    check f violations e
+                | _ -> ()
+              | Error _ -> ()
             if violations.Count > 0 then
               let detail = violations |> Seq.truncate 10 |> String.concat "\n"
               failtest $"{violations.Count} range-containment violations:\n{detail}") ]

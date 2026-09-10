@@ -25,7 +25,7 @@ open Tests.CliDsl
 // ─── looking around ───────────────────────────────────────────────────────
 
 let lsNamesWhatIsThere =
-  cliTest "ls names what a module holds" (fun state ->
+  instanceTest "ls names what a module holds" (fun state ->
     task {
       do!
         showsAll
@@ -42,7 +42,7 @@ let lsNamesWhatIsThere =
     })
 
 let treeShowsDescendants =
-  cliTest "tree shows a module's descendants" (fun state ->
+  instanceTest "tree shows a module's descendants" (fun state ->
     task {
       do!
         showsAll
@@ -53,7 +53,7 @@ let treeShowsDescendants =
     })
 
 let viewPrintsSource =
-  cliTest "view prints an item's source" (fun state ->
+  instanceTest "view prints an item's source" (fun state ->
     task {
       do!
         shows
@@ -70,7 +70,7 @@ let viewPrintsSource =
     })
 
 let viewRefusesWhatIsNotThere =
-  cliTest "view refuses a name that holds nothing" (fun state ->
+  instanceTest "view refuses a name that holds nothing" (fun state ->
     task {
       do!
         shows
@@ -89,7 +89,7 @@ let viewRefusesWhatIsNotThere =
     })
 
 let searchFindsByText =
-  cliTest "search finds items by text" (fun state ->
+  instanceTest "search finds items by text" (fun state ->
     task {
       do!
         showsAll
@@ -100,7 +100,7 @@ let searchFindsByText =
     })
 
 let depsNamesWhatAnItemUses =
-  cliTest "deps names what an item uses" (fun state ->
+  instanceTest "deps names what an item uses" (fun state ->
     task {
       do!
         shows
@@ -121,7 +121,7 @@ let depsNamesWhatAnItemUses =
 /// about a name `view` prints. It traverses now, like everything else that takes a
 /// name.
 let hashResolvesNamesLikeViewDoes =
-  cliTest "hash takes the same names view takes" (fun state ->
+  instanceTest "hash takes the same names view takes" (fun state ->
     task {
       do!
         shows
@@ -140,7 +140,7 @@ let hashResolvesNamesLikeViewDoes =
     })
 
 let hashLongIsTheShortOneSpelledOut =
-  cliTest "hash --long extends the short hash" (fun state ->
+  instanceTest "hash --long extends the short hash" (fun state ->
     task {
       let! short = runCli state [ "hash"; "Stdlib.List.head" ]
       let! long = runCli state [ "hash"; "--long"; "Stdlib.List.head" ]
@@ -151,7 +151,7 @@ let hashLongIsTheShortOneSpelledOut =
     })
 
 let hashOfAModuleSaysSo =
-  cliTest "hash of a module explains itself" (fun state ->
+  instanceTest "hash of a module explains itself" (fun state ->
     task {
       do!
         shows
@@ -170,7 +170,7 @@ let hashOfAModuleSaysSo =
 /// `dark nav X` moves for the length of that one command, like a shell's cwd inside a subshell.
 /// The move has to SAY so, or the next `dark ls` disagreeing with it is how you find out.
 let navIsHonestAboutHowLongItLasts =
-  cliTest "nav moves, and says how long the move lasts" (fun state ->
+  instanceTest "nav moves, and says how long the move lasts" (fun state ->
     task {
       do!
         showsAll
@@ -202,7 +202,7 @@ let navIsHonestAboutHowLongItLasts =
 
 /// Regression, same family as `hash`: find-values split the type name itself.
 let findValuesTakesTheSameNames =
-  cliTest "find-values takes the same names view takes" (fun state ->
+  instanceTest "find-values takes the same names view takes" (fun state ->
     task {
       do!
         lacks
@@ -218,7 +218,7 @@ let findValuesTakesTheSameNames =
     })
 
 let referenceCommandsAnswer =
-  cliTest "the reference commands answer" (fun state ->
+  instanceTest "the reference commands answer" (fun state ->
     task {
       do! shows state [ "builtins" ] "Int:" "builtins lists them by module"
       do! shows state [ "commands" ] "nav" "commands lists the registry"
@@ -236,7 +236,7 @@ let referenceCommandsAnswer =
 // ─── authoring ────────────────────────────────────────────────────────────
 
 let authoringRoundTrips =
-  cliTestOnMain "what you author is what you read back" (fun state ->
+  instanceTest "what you author is what you read back" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Round.answer" "() : Int64 = 42L"
@@ -252,7 +252,7 @@ let authoringRoundTrips =
     })
 
 let valuesRoundTrip =
-  cliTestOnMain "a value round-trips too" (fun state ->
+  instanceTest "a value round-trips too" (fun state ->
     task {
       do! start state
       do! value state "Tests.Round.eleven" "11L"
@@ -264,7 +264,7 @@ let valuesRoundTrip =
 /// and something that called it yesterday still has to resolve. So the observable
 /// effect is the deprecation badge, and `restore` takes it off again.
 let deleteAndRestore =
-  cliTestOnMain "delete retires an item, restore brings it back" (fun state ->
+  instanceTest "delete retires an item, restore brings it back" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Retire.f" "() : Int64 = 50505L"
@@ -321,7 +321,7 @@ let deleteAndRestore =
     })
 
 let deleteRefusesWhatIsNotThere =
-  cliTest "delete refuses a name that holds nothing" (fun state ->
+  instanceTest "delete refuses a name that holds nothing" (fun state ->
     task {
       do!
         refuses
@@ -333,7 +333,7 @@ let deleteRefusesWhatIsNotThere =
     })
 
 let deprecateAndUndeprecate =
-  cliTestOnMain "deprecate marks an item, undeprecate clears it" (fun state ->
+  instanceTest "deprecate marks an item, undeprecate clears it" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Dep.old" "() : Int64 = 1L"
@@ -363,7 +363,7 @@ let deprecateAndUndeprecate =
 /// content-addressed, so that op IS the earlier one and folds to nothing) and rides on an `UpdateDoc`
 /// instead.
 let aDocOnlyEditKeepsTheVersionAndStillLands =
-  cliTestOnMain
+  instanceTest
     "editing only the docs changes the docs and nothing else"
     (fun state ->
       task {
@@ -404,7 +404,7 @@ let aDocOnlyEditKeepsTheVersionAndStillLands =
 
 /// The other half: a doc edit made on a branch is the branch's opinion until it merges.
 let aBranchesDocEditStaysOnTheBranch =
-  cliTestOnMain
+  instanceTest
     "a doc edit on a branch is invisible to main until it merges"
     (fun state ->
       task {
@@ -458,7 +458,7 @@ let aBranchesDocEditStaysOnTheBranch =
 /// was no op that could carry it, so the CLI said "unchanged: nothing saved" and the words went
 /// nowhere. Each is asserted separately because each reaches a different part of the declaration.
 let aFieldsDocEditLands =
-  cliTestOnMain "editing only a record field's doc saves it" (fun state ->
+  instanceTest "editing only a record field's doc saves it" (fun state ->
     task {
       do! start state
       do!
@@ -508,7 +508,7 @@ let aFieldsDocEditLands =
     })
 
 let anEnumCasesDocEditLands =
-  cliTestOnMain "editing only an enum case's doc saves it" (fun state ->
+  instanceTest "editing only an enum case's doc saves it" (fun state ->
     task {
       do! start state
       do!
@@ -553,7 +553,7 @@ let anEnumCasesDocEditLands =
 /// is not in the identity hash, so two functions differing only in their parameter names are one
 /// item and a name would not identify anything.
 let aParametersDocEditLands =
-  cliTestOnMain "editing only a parameter's doc saves it" (fun state ->
+  instanceTest "editing only a parameter's doc saves it" (fun state ->
     task {
       do! start state
       do!
@@ -607,7 +607,7 @@ let aParametersDocEditLands =
 /// `Int64.ParseError` means is not what `UInt64.ParseError` means, so one doc for the item cannot
 /// be right. A doc edit at one name must not be visible at the other.
 let twoNamesHoldingOneItemHaveTheirOwnDocs =
-  cliTestOnMain "two names holding one item document it separately" (fun state ->
+  instanceTest "two names holding one item document it separately" (fun state ->
     task {
       do! start state
       do! fn state "Tests.DocOne.f" "() : Int64 = 5301L"
@@ -650,7 +650,7 @@ let twoNamesHoldingOneItemHaveTheirOwnDocs =
 
 
 let twoWordingsForOneDocRecordAConflict =
-  cliTestOnMain
+  instanceTest
     "a doc edit made against a text this store never had is a conflict"
     (fun state ->
       task {
@@ -743,7 +743,7 @@ let twoWordingsForOneDocRecordAConflict =
 /// item. So omitting a doc comment cannot mean "nobody's words apply any more" -- it means this
 /// author did not write any.
 let authoringWithoutADocDoesNotClearOne =
-  cliTestOnMain
+  instanceTest
     "saving a declaration with no doc comment leaves the existing one alone"
     (fun state ->
       task {
@@ -773,7 +773,7 @@ let authoringWithoutADocDoesNotClearOne =
 /// name at commit, and keeping the wrong one of those two deleted the only row: the commit
 /// reported success and the function stopped existing.
 let reAuthoringTheSameSourceSurvivesTheCommit =
-  cliTestOnMain
+  instanceTest
     "authoring the same source twice, then committing, keeps the name"
     (fun state ->
       task {
@@ -795,7 +795,7 @@ let reAuthoringTheSameSourceSurvivesTheCommit =
 /// The other half of the same rule: when the hash really does move and move back inside one draft,
 /// the LAST naming is the one that wrote the live row, and it is the one to keep.
 let aVersionMovedAndMovedBackKeepsTheLastNaming =
-  cliTestOnMain
+  instanceTest
     "editing a function and putting it back, then committing, keeps the version put back"
     (fun state ->
       task {
@@ -816,7 +816,7 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
 
 
 let renameIsVisibleToEverythingThatReads =
-  cliTestOnMain
+  instanceTest
     "a renamed item is readable at its new name, by every reader"
     (fun state ->
       task {

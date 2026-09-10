@@ -174,17 +174,40 @@ let private packagesText : Lazy<string> =
 let private repoDarkText : Lazy<string> = lazy (darkTextUnder (findRepoRoot ()))
 
 
-/// Count textual references to `Builtin.<name>` (or `Builtin.<name>_v<n>`)
-/// across packages/. The `(?![a-zA-Z0-9_])` lookahead prevents matching
-/// `Builtin.dictGet` against the prefix of `Builtin.dictGetItem`.
-let private countReferencesIn (corpus : string) (builtinName : string) : int =
-  let escaped = Regex.Escape builtinName
-  let pattern = $@"Builtin\.{escaped}(?:_v[0-9]+)?(?![a-zA-Z0-9_])"
-  let regex = Regex(pattern, RegexOptions.Compiled)
-  regex.Matches(corpus).Count
+/// How many times each builtin name appears as `Builtin.<name>` in a corpus.
+///
+/// One regex and one pass for the whole corpus, rather than a compiled regex per
+/// builtin name: there are about a thousand builtins and the corpus is megabytes,
+/// and asking the question one name at a time made these the two slowest tests in
+/// the suite by a wide margin.
+///
+/// `Builtin.foo_v0` counts towards `foo`, and towards a builtin actually named
+/// `foo_v0` if one exists. Both were true of the per-name patterns this replaced.
+let private referenceCounts (corpus : string) : Map<string, int> =
+  let token = Regex(@"Builtin\.([A-Za-z0-9_]+)", RegexOptions.Compiled)
+  let versionSuffix = Regex(@"_v[0-9]+$")
+
+  let mutable counts = Map.empty
+  let bump (name : string) =
+    counts <-
+      Map.add name (1 + (counts |> Map.tryFind name |> Option.defaultValue 0)) counts
+
+  for m in token.Matches corpus do
+    let name = m.Groups[1].Value
+    bump name
+    let stripped = versionSuffix.Replace(name, "")
+    if stripped <> name then bump stripped
+
+  counts
+
+let private packagesRefCounts : Lazy<Map<string, int>> =
+  lazy (referenceCounts packagesText.Value)
+
+let private repoRefCounts : Lazy<Map<string, int>> =
+  lazy (referenceCounts repoDarkText.Value)
 
 let private countReferences (builtinName : string) : int =
-  countReferencesIn packagesText.Value builtinName
+  packagesRefCounts.Value |> Map.tryFind builtinName |> Option.defaultValue 0
 
 
 let builtinAccessInPackageMatter =
@@ -244,7 +267,7 @@ let everyBuiltinIsReferenced =
       |> Seq.filter (fun name ->
         not (Set.contains name unusedAllowlist)
         && not (Set.contains name infixDispatched)
-        && countReferencesIn repoDarkText.Value name = 0)
+        && not (Map.containsKey name repoRefCounts.Value))
       |> List.ofSeq
 
     if not (List.isEmpty unused) then

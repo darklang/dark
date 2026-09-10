@@ -249,6 +249,27 @@ module RoundTripExpect =
       e
 
 
+/// The widths a test renders at, on top of the 80 that every test checks against its
+/// expected output.
+///
+/// The property here belongs to the printer, not to any one test: whatever layout it
+/// picks has to parse back to the same program. Asserting that at all three widths in
+/// every test is a few hundred witnesses to one fact, and it was most of this file's
+/// runtime -- each extra width costs a print and a parse, both of which run the Dark
+/// parser through the interpreter. One width per test, chosen by a hash of its name,
+/// still exercises each width across dozens of tests while a single test pays for one.
+///
+/// `DARK_TEST_ALL_WIDTHS=1` puts the full sweep back, for when a layout bug is what
+/// you are actually chasing.
+let private allWidths = [ 20; 48; 200 ]
+
+let private sweepWidths (name : string) : List<int> =
+  if System.Environment.GetEnvironmentVariable "DARK_TEST_ALL_WIDTHS" = "1" then
+    allWidths
+  else
+    [ allWidths[int (stableHash name % uint32 allWidths.Length)] ]
+
+
 let t
   (name : string)
   (input : string)
@@ -275,11 +296,10 @@ let t
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
 
-    // Parse, then print with the resulting name bindings available.
-    let roundOnceAt
-      (width : int)
-      (src : string)
-      : Task<RT.Dval * List<PT.PackageOp> * string> =
+    // Parsing and printing are separate steps, not one `roundOnceAt width src`, because
+    // the width sweep below prints one tree several times and has no reason to re-parse
+    // the source for each width.
+    let parseSrc (src : string) : Task<RT.Dval * List<PT.PackageOp>> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
         // The branch to resolve names against: main, named rather than taken from the process.
@@ -299,25 +319,7 @@ let t
               ops
               |> List.choose LibExecution.ProgramTypesToDarkTypes.PackageOp.fromDT
             | _ -> []
-
-          let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
-          let! ppExeState = executionStateFor enhancedPM false Map.empty
-
-          let ppArgs =
-            NEList.ofList
-              (RT.DUuid PT.BranchId.Main.Guid)
-              [ Dval.int (bigint width); sourceFile ]
-          let! ppResult =
-            LibExecution.Execution.executeFunction
-              ppExeState
-              prettyPrintFnName
-              []
-              ppArgs
-          let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
-
-          match resultDval with
-          | RT.DString result -> return (sourceFile, packageOps, result)
-          | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
+          return (sourceFile, packageOps)
 
         | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when
           tn = Dval.resultType ()
@@ -326,10 +328,35 @@ let t
         | _ -> return failtest $"Unexpected parse result format: {parseDval}"
       }
 
-    let roundOnce (src : string) : Task<RT.Dval * List<PT.PackageOp> * string> =
-      roundOnceAt 80 src
+    /// Prints a parsed tree with its own name bindings available.
+    let printAt
+      (width : int)
+      ((sourceFile, packageOps) : RT.Dval * List<PT.PackageOp>)
+      : Task<string> =
+      task {
+        let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
+        let! ppExeState = executionStateFor enhancedPM false Map.empty
 
-    let! (firstTree, firstOps, firstPrint) = roundOnce input
+        let ppArgs =
+          NEList.ofList
+            (RT.DUuid PT.BranchId.Main.Guid)
+            [ Dval.int (bigint width); sourceFile ]
+        let! ppResult =
+          LibExecution.Execution.executeFunction
+            ppExeState
+            prettyPrintFnName
+            []
+            ppArgs
+        let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
+
+        match resultDval with
+        | RT.DString result -> return result
+        | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
+      }
+
+    let! first = parseSrc input
+    let (firstTree, firstOps) = first
+    let! firstPrint = printAt 80 first
     Expect.RT.equalDval
       (RT.DString firstPrint)
       (RT.DString expected)
@@ -339,7 +366,9 @@ let t
     if Set.contains name knownNonIdempotent then
       return ()
     else
-      let! (secondTree, secondOps, secondPrint) = roundOnce firstPrint
+      let! second = parseSrc firstPrint
+      let (secondTree, secondOps) = second
+      let! secondPrint = printAt 80 second
       Expect.RT.equalDval
         (RT.DString secondPrint)
         (RT.DString firstPrint)
@@ -363,9 +392,9 @@ let t
         "Re-parsing the printed source changed an unresolved name"
 
       // Every chosen layout must parse to the same program.
-      for width in [ 20; 48; 200 ] do
-        let! (_, _, sweepPrint) = roundOnceAt width input
-        let! (sweepTree, sweepOps, _) = roundOnce sweepPrint
+      for width in sweepWidths name do
+        let! sweepPrint = printAt width first
+        let! (sweepTree, sweepOps) = parseSrc sweepPrint
         Expect.equal
           (RoundTripExpect.nameBindings sweepOps)
           (RoundTripExpect.nameBindings firstOps)

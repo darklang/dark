@@ -106,19 +106,46 @@ let testHttpConfig : LibExecution.HostHttp.Configuration =
 let installTestHttpConfig () : unit =
   LibExecution.HostHttp.setGuestConfig testHttpConfig
 
+/// FNV-1a over a test's name. .NET's own string hash is randomised per process, so it
+/// cannot be used to decide anything two processes have to agree on: which shard owns a
+/// test, or which width a test sweeps at.
+let stableHash (s : string) : uint32 =
+  let mutable h = 2166136261u
+  for b in System.Text.Encoding.UTF8.GetBytes s do
+    h <- (h ^^^ uint32 b) * 16777619u
+  h
+
+
+/// The builtin table for a package manager, built once per manager.
+///
+/// Building it is not free: `Builtin.combine` validates every builtin and rebuilds two
+/// maps over roughly a thousand of them. `executionStateFor` asks for one per call, and
+/// the testfile suite alone calls that once per case, so this was thousands of rebuilds
+/// of a table that only ever varies with `pm`.
+///
+/// Weak-keyed rather than a dictionary because the round-trip parser tests construct a
+/// fresh package manager per print; those should die with the test, not accumulate for
+/// the life of the run.
+let private builtinsByPm =
+  System.Runtime.CompilerServices.ConditionalWeakTable<PT.PackageManager, RT.Builtins>()
+
 let builtins (pm : PT.PackageManager) : RT.Builtins =
   installTestHttpConfig ()
-  LibExecution.Builtin.combine
-    [ LibTest.builtins ()
-      Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins ()
-      Builtins.Language.Builtin.builtins ()
-      Builtins.Matter.Builtin.builtins pm
-      Builtins.Http.Server.Builtin.builtins ()
-      Builtins.Cli.Builtin.builtins ()
-      Builtins.Time.Builtin.builtins ()
-      Builtins.Random.Builtin.builtins () ]
-    []
+  builtinsByPm.GetValue(
+    pm,
+    fun pm ->
+      LibExecution.Builtin.combine
+        [ LibTest.builtins ()
+          Builtins.Pure.Builtin.builtins ()
+          Builtins.Http.Client.Builtin.builtins ()
+          Builtins.Language.Builtin.builtins ()
+          Builtins.Matter.Builtin.builtins pm
+          Builtins.Http.Server.Builtin.builtins ()
+          Builtins.Cli.Builtin.builtins ()
+          Builtins.Time.Builtin.builtins ()
+          Builtins.Random.Builtin.builtins () ]
+        []
+  )
 
 /// Compatibility alias for existing test call sites.
 let localBuiltIns (pm : PT.PackageManager) = builtins pm

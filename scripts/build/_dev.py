@@ -173,6 +173,15 @@ def cmd_build(args):
     return 1
 
   files, why = choose_files(paths)
+
+  # A Release publish is a different set of outputs from a Debug build, and the plan is
+  # made by comparing SOURCE. So an up-to-date Debug tree plans nothing for `--optimize`
+  # and leaves whatever publish was lying around for `--test` to run.
+  if "--optimize" in args and not paths:
+    stale = _buildstate.optimized_outputs_stale()
+    if stale:
+      files, why = FULL_BUILD_FILES, f"--optimize, and {stale} is missing or older than the debug build"
+
   if not files:
     print(why)
     return 0

@@ -5,6 +5,14 @@
 #   scripts/dev/build backend/src/...    just these paths
 #   scripts/dev/build --test             ... and run the tests afterwards
 #   scripts/dev/build --force            ... even though the watcher is running
+#   scripts/dev/build --optimize         Release, published, INSTEAD of Debug
+#
+# `--optimize` before a full test run, and not otherwise. Debug compiles F# with
+# optimisations OFF and the interpreter the suite spends its time in IS F#, so the whole
+# suite is worth minutes published and the extra build is worth about one. Pair it with
+# `--test`, which then runs `run-backend-tests --published`. It leaves the debug tree
+# behind, so `run-cli` will say so until the next plain build; a filtered test run is
+# seconds either way, so stay in debug while iterating.
 #
 # Prints its plan before starting, exits nonzero if any step fails, and records the
 # outcome in rundir/build-state.json so everything downstream can stop guessing.

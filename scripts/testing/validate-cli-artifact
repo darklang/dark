@@ -227,6 +227,11 @@ mkdir -p "$WORKDIR/suite"
 # store is $WORKDIR's).
 DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1 || true
+# The instance-backed cases start the CLI under test in a store of their own, and the env
+# goes in front of it: `env K=V ... dark ...`. That is a process the guest has to be allowed
+# to run, same grant shape as the variable above.
+DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
+  "$ARTIFACT" permissions allow process /usr/bin/env > /dev/null 2>&1 || true
 suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
 

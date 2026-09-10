@@ -26,7 +26,7 @@ let plain (output : string) : string =
 
 
 /// `runCli`, with the colour stripped.
-let runCliPlain (state : RT.ExecutionState) (args : List<string>) : Task<string> =
+let runCliPlain (state : Target) (args : List<string>) : Task<string> =
   task {
     let! out = runCli state args
     return plain out
@@ -37,58 +37,53 @@ let runCliPlain (state : RT.ExecutionState) (args : List<string>) : Task<string>
 
 /// Run a command for its EFFECT, discarding what it printed. The workhorse the rest
 /// are built on.
-let run (state : RT.ExecutionState) (args : List<string>) : Task<unit> =
+let run (state : Target) (args : List<string>) : Task<unit> =
   task {
     let! _ = runCli state args
     return ()
   }
 
 /// Author a function. `body` is the source after the name, as you would type it.
-let fn (state : RT.ExecutionState) (name : string) (body : string) : Task<unit> =
+let fn (state : Target) (name : string) (body : string) : Task<unit> =
   run state [ "fn"; name; body ]
 
 /// Author a value.
-let value (state : RT.ExecutionState) (name : string) (body : string) : Task<unit> =
+let value (state : Target) (name : string) (body : string) : Task<unit> =
   run state [ "val"; name; body ]
 
 /// Commit the whole draft. `-y` always: a test that waits on a prompt hangs the
 /// suite, and CI gives the run a pty, so "nobody is there" is not a refusal it can
 /// rely on.
-let commit (state : RT.ExecutionState) (message : string) : Task<unit> =
+let commit (state : Target) (message : string) : Task<unit> =
   run state [ "commit"; message; "-y" ]
 
 /// Commit part of the draft, by name.
-let commitOnly
-  (state : RT.ExecutionState)
-  (message : string)
-  (names : string)
-  : Task<unit> =
+let commitOnly (state : Target) (message : string) (names : string) : Task<unit> =
   run state [ "commit"; message; $"--include={names}"; "-y" ]
 
 /// Move onto a branch, starting it if it is new.
-let switch (state : RT.ExecutionState) (branch : string) : Task<unit> =
+let switch (state : Target) (branch : string) : Task<unit> =
   run state [ "switch"; branch ]
 
-let onMain (state : RT.ExecutionState) : Task<unit> = switch state "main"
+let onMain (state : Target) : Task<unit> = switch state "main"
 
 /// Drop the whole draft.
-let discardAll (state : RT.ExecutionState) : Task<unit> =
-  run state [ "discard"; "-y" ]
+let discardAll (state : Target) : Task<unit> = run state [ "discard"; "-y" ]
 
 /// Drop one name from the draft.
-let discardName (state : RT.ExecutionState) (name : string) : Task<unit> =
+let discardName (state : Target) (name : string) : Task<unit> =
   run state [ "discard"; name; "-y" ]
 
-let merge (state : RT.ExecutionState) (branch : string) : Task<unit> =
+let merge (state : Target) (branch : string) : Task<unit> =
   run state [ "merge"; branch; "-y" ]
 
-let rebase (state : RT.ExecutionState) (branch : string) : Task<unit> =
+let rebase (state : Target) (branch : string) : Task<unit> =
   run state [ "rebase"; branch ]
 
-let deprecate (state : RT.ExecutionState) (name : string) : Task<unit> =
+let deprecate (state : Target) (name : string) : Task<unit> =
   run state [ "deprecate"; "fn"; name; "--kind"; "obsolete"; "-y" ]
 
-let pin (state : RT.ExecutionState) (name : string) : Task<unit> =
+let pin (state : Target) (name : string) : Task<unit> =
   run state [ "propagate"; "pin"; name ]
 
 /// A clean slate on main: no draft, standing where every test expects to start.
@@ -98,7 +93,7 @@ let pin (state : RT.ExecutionState) (name : string) : Task<unit> =
 /// (`Tests.<ThisTest>.<x>`) -- two tests sharing `Tests.Gone.f` meant one test's
 /// caller counted as a live dependent of the other's item, and the `delete` under
 /// test refused for a reason nothing in that test could explain.
-let start (state : RT.ExecutionState) : Task<unit> =
+let start (state : Target) : Task<unit> =
   task {
     do! onMain state
     do! discardAll state
@@ -112,7 +107,7 @@ let start (state : RT.ExecutionState) : Task<unit> =
 /// run the thing by hand to learn anything, and these commands are not cheap to re-
 /// run.
 let shows
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : string)
   (why : string)
@@ -124,7 +119,7 @@ let shows
 
 /// This command's output does NOT contain `unexpected`.
 let lacks
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (unexpected : string)
   (why : string)
@@ -137,7 +132,7 @@ let lacks
 /// Case-insensitive `shows`, for output whose casing is a display decision rather
 /// than a fact (a "DEPRECATED" banner, say).
 let showsAnyCase
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : string)
   (why : string)
@@ -148,7 +143,7 @@ let showsAnyCase
   }
 
 let lacksAnyCase
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (unexpected : string)
   (why : string)
@@ -164,7 +159,7 @@ let lacksAnyCase
 /// how a test says "and the code actually does this now", which is the only claim
 /// that cannot be faked by a message.
 let evals
-  (state : RT.ExecutionState)
+  (state : Target)
   (expr : string)
   (expected : string)
   (why : string)
@@ -173,18 +168,14 @@ let evals
 
 /// `expr` does not resolve. Spelled out rather than `evals ... "not found"` so the
 /// intent survives a change to the wording.
-let notFound
-  (state : RT.ExecutionState)
-  (expr : string)
-  (why : string)
-  : Task<unit> =
+let notFound (state : Target) (expr : string) (why : string) : Task<unit> =
   shows state [ "eval"; expr ] "not found" why
 
 /// This command REFUSES, saying `reason`, and does not also claim to have done the
 /// thing. The second half matters: several bugs here printed a refusal and a success
 /// in the same breath.
 let refuses
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (reason : string)
   (claimOfSuccess : string)
@@ -203,14 +194,14 @@ let refuses
 /// Asked of `--json`, not of the prose. `status`'s summary line also reports store-wide standing
 /// facts -- conflicts and constraints -- and every CLI test shares one store, so a test that reads
 /// the word "clean" is really asserting that no OTHER test left a divergence anywhere.
-let clean (state : RT.ExecutionState) (why : string) : Task<unit> =
+let clean (state : Target) (why : string) : Task<unit> =
   task {
     let! out = runCliPlain state [ "status"; "--json" ]
     Expect.stringContains out "\"draftOps\":0" $"{why}, got: {out}"
   }
 
 /// The draft holds something.
-let dirty (state : RT.ExecutionState) (why : string) : Task<unit> =
+let dirty (state : Target) (why : string) : Task<unit> =
   task {
     let! out = runCliPlain state [ "status"; "--json" ]
     Expect.isFalse (out.Contains "\"draftOps\":0") $"{why}, got: {out}"
@@ -220,7 +211,7 @@ let dirty (state : RT.ExecutionState) (why : string) : Task<unit> =
 /// per command, and this is for the commands whose output IS several claims (a
 /// listing with a header and a row).
 let showsAll
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : List<string>)
   (why : string)
@@ -235,7 +226,7 @@ let showsAll
 /// prints an error and exits 0 is a command that passes `set -e`, so the printed
 /// half is not the whole claim.
 let exits
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : int64)
   (why : string)
@@ -252,11 +243,7 @@ let exits
 /// time, so a rename anywhere in `packages/` leaves holes that only running the
 /// command finds -- and most of the CLI's surface has no stronger claim worth
 /// pinning than "this still runs and says something".
-let sane
-  (state : RT.ExecutionState)
-  (args : List<string>)
-  (why : string)
-  : Task<unit> =
+let sane (state : Target) (args : List<string>) (why : string) : Task<unit> =
   task {
     let! result = runCliCatching state args
     match result with

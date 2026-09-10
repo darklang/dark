@@ -293,6 +293,51 @@ let inline private timed (label : string) (f : unit -> 'a) : 'a =
   timings.Add(label, System.Diagnostics.Stopwatch.GetTimestamp() - t0)
   r
 
+/// Which build last reconciled this store with its own embedded seed.
+///
+/// `reseedFromEmbedded` decompresses the whole embedded store to a temp file and diffs its ops
+/// against this one, to answer a question whose answer is almost always "nothing". On a
+/// NativeAOT build, where there is no JIT to hide behind, that is most of what `dark` spends
+/// before it does anything at all, on every command.
+///
+/// The seed is fixed per binary and the top-up only ever adds the binary's own ops, so a store
+/// this same build has already topped up cannot need topping up again. Nothing external can
+/// create that need.
+///
+/// The stamp lives IN the store rather than beside it, so it travels with the file: a store
+/// copied elsewhere reads as unstamped, which is the safe answer.
+let private stampTable =
+  "CREATE TABLE IF NOT EXISTS store_stamp_v0 (id INTEGER PRIMARY KEY CHECK (id = 0), build TEXT NOT NULL)"
+
+let private storeStamp (dbPath : string) : string option =
+  try
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- stampTable
+    cmd.ExecuteNonQuery() |> ignore<int>
+    use read = conn.CreateCommand()
+    read.CommandText <- "SELECT build FROM store_stamp_v0 WHERE id = 0"
+    match read.ExecuteScalar() with
+    | null -> None
+    | v -> Some(string v)
+  with _ ->
+    None // an unreadable store is not one we should claim is up to date
+
+let private recordStoreStamp (dbPath : string) (build : string) : unit =
+  try
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      stampTable
+      + "; INSERT OR REPLACE INTO store_stamp_v0 (id, build) VALUES (0, $build)"
+    cmd.Parameters.AddWithValue("$build", build)
+    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    cmd.ExecuteNonQuery() |> ignore<int>
+  with _ ->
+    () // failing to record it costs the next run the top-up it just did, nothing worse
+
 let extract () : unit =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
   // file exists and grow/init proceeds against the local copy.
@@ -351,10 +396,18 @@ let extract () : unit =
       let logsDir = Path.Combine(darklangDir, "logs")
       Directory.CreateDirectory(logsDir) |> ignore
 
+      // A store just written from this binary's own seed is by definition reconciled with it.
+      recordStoreStamp dbPath LibConfig.Config.buildHash
+
       printfn "CLI data directory setup complete"
     // Top up an existing store with this binary's own package code (see
     // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
     // it; without this, upgrading the binary would mean wiping the store.
     else
-      // The backup happens inside the top-up, once it knows there is something to top up.
-      timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
+      // A build with no hash of its own cannot claim anything, so it does the work every time,
+      // which is what every build did before.
+      let build = LibConfig.Config.buildHash
+      if build = "dev" || storeStamp dbPath <> Some build then
+        // The backup happens inside the top-up, once it knows there is something to top up.
+        timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
+        if build <> "dev" then recordStoreStamp dbPath build

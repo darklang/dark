@@ -23,7 +23,7 @@ open Tests.CliDsl
 /// save: the type has to be resolvable by NAME from a declaration written separately, which is a
 /// different path from the one a whole file takes.
 let aTypeIsUsableByAFunctionAuthoredAfterIt =
-  cliTestOnMain
+  instanceTest
     "a type authored on its own is usable by a function authored after it"
     (fun state ->
       task {
@@ -55,7 +55,7 @@ let aTypeIsUsableByAFunctionAuthoredAfterIt =
 /// A parse error changes NOTHING. The refusal is easy; the part worth pinning is that the draft is
 /// exactly as it was, because a partial save is unrecoverable by anything the CLI offers.
 let aParseErrorChangesNothing =
-  cliTestOnMain "a parse error saves nothing and exits nonzero" (fun state ->
+  instanceTest "a parse error saves nothing and exits nonzero" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Auth.solid" "() : Int64 = 7403L"
@@ -94,7 +94,7 @@ let aParseErrorChangesNothing =
 /// message, because either one could be the typo and the message is the only thing that says which
 /// is which.
 let aNameThatDisagreesWithTheDeclarationIsRefused =
-  cliTestOnMain
+  instanceTest
     "a declaration whose name disagrees with the target is refused, naming both"
     (fun state ->
       task {
@@ -116,7 +116,7 @@ let aNameThatDisagreesWithTheDeclarationIsRefused =
 /// the other item off the shelf as a side effect -- hence the refusal, and hence the assertion that
 /// BOTH survive.
 let renameOntoALiveNameIsRefusedAndBothSurvive =
-  cliTestOnMain
+  instanceTest
     "rename onto a name that already holds something is refused, and both survive"
     (fun state ->
       task {
@@ -142,7 +142,7 @@ let renameOntoALiveNameIsRefusedAndBothSurvive =
 /// documented way past it -- which retires the name without breaking the caller, because the caller
 /// references content and content does not go anywhere.
 let deleteRefusesWhileSomethingStillCallsIt =
-  cliTestOnMain
+  instanceTest
     "delete refuses while something still calls it, and --ignore-dependents proceeds"
     (fun state ->
       task {
@@ -182,7 +182,7 @@ let deleteRefusesWhileSomethingStillCallsIt =
 /// `undo` steps back one version at a time and stops at the first, saying so rather than removing
 /// the item -- which is what `discard` is for, and what the message points at.
 let undoStepsBackAndStopsAtTheFirstVersion =
-  cliTestOnMain
+  instanceTest
     "undo steps back one version at a time, and says when there is no further back"
     (fun state ->
       task {
@@ -226,7 +226,7 @@ let undoStepsBackAndStopsAtTheFirstVersion =
 /// Reporting it as an update is how a dropped edit hides: "Updated" is what you would see whether
 /// the store took your change or ignored it.
 let authoringIdenticalSourceReportsUnchanged =
-  cliTestOnMain
+  instanceTest
     "authoring the same source twice reports that nothing was saved"
     (fun state ->
       task {
