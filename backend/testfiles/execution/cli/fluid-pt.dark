@@ -1657,9 +1657,8 @@ module EveryDrawingIsTheProgram =
   // Two things are excluded, both deliberately. A body lifted out of its function is not always standalone
   // source (a recursive call prints as `ESelf`, the parameters as `earg0`), so the PRINTER's own rendering
   // has to read back before Fluid's is asked; without that control the first run of this reported 1339
-  // failures, all of them noise. And a string containing a BACKSLASH is still excluded, which is the one
-  // known limitation left; the doubled brace used to be excluded beside it and is not any more, because
-  // that exclusion was hiding a real bug rather than working around a limitation.
+  // failures, all of them noise. That control stays. The two content exclusions that used to sit beside it
+  // are both gone, and neither turned out to be what it claimed: see `verdict`.
   let ctx80 () : Darklang.PrettyPrinter.ProgramTypes.Context =
     { (Darklang.Fluid.PT.printerContext ()) with width = 80 }
 
@@ -1684,12 +1683,12 @@ module EveryDrawingIsTheProgram =
 
     if Stdlib.Bool.not (EveryDrawingIsTheProgram.survives e printed) then
       ""
-    // The doubled brace used to be excluded here alongside the backslash, and it was excluded because
-    // Fluid got it WRONG: it drew a literal `{` singly, which reparses as the start of an interpolation
-    // and gives a different program. So the corpus was stepping around the bug it existed to find, and
-    // the bug survived until a whole-store sweep turned it up. The exclusion goes with the fix.
-    else if Stdlib.String.contains printed "\\" then
-      ""
+    // Nothing is excluded any more. There were two, a backslash and the doubled brace of an interpolated
+    // string, both described as known limitations. The brace was a real BUG that the exclusion was hiding.
+    // The backslash was simply stale: every escape works -- `\n`, `\t`, `\"`, `\\`, and a backslash inside
+    // an interpolated string -- and nine bodies in this sample contain one, all of which pass. So the
+    // guard was subtracting nine real cases from the sweep to work around something that had been fixed
+    // and never rechecked.
     else
       let drawn =
         Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
@@ -1722,6 +1721,14 @@ module EveryDrawingIsTheProgram =
   // A brace with no interpolation beside it, and one on its own.
   (EveryDrawingIsTheProgram.fixedCase "$\"{{}}\"") = ""
   (EveryDrawingIsTheProgram.fixedCase "let x = 1\n$\"a{{b}}c{x}d\"") = ""
+
+  // The escapes, for the same reason the braces are here: the sample reaches nine of these and none of
+  // them is the awkward one, so the shapes worth naming get named.
+  (EveryDrawingIsTheProgram.fixedCase "\"a\\nb\"") = ""
+  (EveryDrawingIsTheProgram.fixedCase "\"a\\tb\"") = ""
+  (EveryDrawingIsTheProgram.fixedCase "\"say \\\"hi\\\"\"") = ""
+  (EveryDrawingIsTheProgram.fixedCase "\"a\\\\b\"") = ""
+  (EveryDrawingIsTheProgram.fixedCase "let x = 1\n$\"a\\nb{x}\"") = ""
 
   let sample () : List<Darklang.LanguageTools.ProgramTypes.Expr> =
     let (_m, _t, _v, fns) =
