@@ -446,7 +446,10 @@ let inspectorWith
         // said it did not exist in the mode you are in when you open a document.
         dim "  Tab    next hole"
         dim "  i c    edit / change"
-        dim "  o      another item in this list"
+        // Short enough to fit: the panel is a third of the screen and the row above it, `^arrows move along
+        // its list` at 29 columns, is the widest thing that survives. The first version of this said
+        // "another item in this list" and came out "another item in this li".
+        dim "  o      another list item"
         dim "  x      clear"
         dim "  y p    copy / paste"
         // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
