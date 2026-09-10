@@ -493,3 +493,45 @@ module AParametersTypeReachesItsBody =
   (AParametersTypeReachesItsBody.run
     (AParametersTypeReachesItsBody.built [ "sz", ".", "w", "<Enter>", "|", ">", "Stdlib.Int.toString", "<Enter>", "<BS>" ])) =
     "let report (sz: Stdlib.Cli.Tui.Size): String =\n  sz.width |> Stdlib.Int.toString~"
+
+
+module AFunctionYouTypeCanBeSaved =
+  // The third of the three document kinds to get this question, after `TypingThePrintedFormBack` for
+  // expressions and `ATypeYouTypeCanBeSaved` for declarations. It exists because a bug hid in exactly the
+  // gap it covers: an enum field typed by hand drew perfectly and lowered as "unresolved", and every test
+  // in that file either CONSTRUCTED the declaration or picked its type from the completion menu, so
+  // nothing ever typed one and then asked whether it saved.
+  //
+  // A function shell has three places to type a TYPE -- a new parameter, an existing parameter's type,
+  // the return type -- and all three are fine. They are here so they stay fine, and so the next document
+  // kind gets the question asked of it too.
+  let ch (src: String) : List<String> =
+    Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  /// Drive `keys` and print what the function lowers to, or why it will not.
+  let lowers (keys: List<String>) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.doc ()) 70) keys
+
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.PT.Fn.fromDoc (Fixtures.inc ()) n with
+       | Ok pair ->
+         let (_nm, f2) = pair
+         Darklang.PrettyPrinter.ProgramTypes.packageFn (Darklang.Fluid.PT.printerContext ()) f2
+       | Error e -> "ERR " ++ e)
+    | _ -> "no root"
+
+  // A second parameter, name and type both typed. `j` lands on the first Param, Enter adds a sibling.
+  (AFunctionYouTypeCanBeSaved.lowers
+    (Stdlib.List.flatten [ [ "<Esc>", "j", "i", "<Enter>" ], AFunctionYouTypeCanBeSaved.ch "m String", [ "<Esc>", "<Esc>" ] ])) =
+    "let <hash:deadbeef> (n: Int) (m: String): Int =\n  n + 1"
+
+  // An existing parameter's type, retyped from scratch.
+  (AFunctionYouTypeCanBeSaved.lowers
+    (Stdlib.List.flatten [ [ "<Esc>", "j", "j", "c" ], AFunctionYouTypeCanBeSaved.ch "String", [ "<Esc>", "<Esc>" ] ])) =
+    "let <hash:deadbeef> (n: String): Int =\n  n + 1"
+
+  // ...and the return type.
+  (AFunctionYouTypeCanBeSaved.lowers
+    (Stdlib.List.flatten [ [ "<Esc>", "j", "j", "j", "c" ], AFunctionYouTypeCanBeSaved.ch "String", [ "<Esc>", "<Esc>" ] ])) =
+    "let <hash:deadbeef> (n: Int): String =\n  n + 1"
