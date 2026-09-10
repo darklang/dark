@@ -83,6 +83,17 @@ type Piece =
   /// The static queries below (separators, lead punctuation, table columns) read BOTH branches, because
   /// they ask what a spec can say rather than what it says for one node. Only the projection picks.
   | Choose of slot: String * pick: (Node -> Bool) * whenTrue: List<Piece> * whenFalse: List<Piece>
+  /// Two layouts for one node, picked by whether a LIST slot is empty.
+  ///
+  /// `Choose` answers a question about a single child and cannot do this: it reads `Node.slot`, which
+  /// only answers for a One, so a Many always took the false branch. Emptiness is a different question and
+  /// gets its own piece rather than a second meaning for that one.
+  ///
+  /// What it is for: the empty form of a bracketed construct. `Dict {}` has nothing between its braces,
+  /// where the full form puts a Line on each side of the pairs -- and a Line is a SPACE when flat, so with
+  /// no pairs both survived and it drew `Dict {  }`. Every language has a few of these and a DSL with its
+  /// own brackets will want the same.
+  | WhenEmpty of slot: String * whenEmpty: List<Piece> * otherwise: List<Piece>
   /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
   /// hole item still shows what it is.
   | EachWith of slot: String * before: List<Piece> * sep: List<Piece>

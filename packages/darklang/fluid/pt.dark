@@ -2636,15 +2636,21 @@ let moreSpecs () : List<Spec> =
       [ Piece.NameText("type", Layout.Style.Name), Piece.Punct ".", Piece.Text("case", Layout.Style.Name), Piece.EachWrapped("fields", "(", listSepPieces (), ")") ]
       (Node.make (exprKind "EEnum") [ text "type" "", text "_typeHash" "", text "case" "", ("fields", Field.Many([], exprExpect "field")) ])
      |> fun sp -> { sp with maxItems = enumMaxItems })
+    // An EMPTY dict is `Dict {}`, nothing between the braces. The full form puts a `Line` on each side of
+    // the pairs, and a Line is a SPACE when flat, so with no pairs at all both survived and it drew
+    // `Dict {  }` -- two spaces, which is not what the printer writes.
     simpleExpr
       "EDict"
-      [ Piece.Group
-          [ Piece.Keyword "Dict"
-            Piece.Space
-            Piece.Punct "{"
-            Piece.Nest(2, [ Piece.Line, Piece.Each("pairs", [ Piece.Punct ";", Piece.Line ]) ])
-            Piece.Line
-            Piece.Punct "}" ] ]
+      [ Piece.WhenEmpty(
+          "pairs",
+          [ Piece.Keyword "Dict", Piece.Space, Piece.Punct "{", Piece.Punct "}" ],
+          [ Piece.Group
+              [ Piece.Keyword "Dict"
+                Piece.Space
+                Piece.Punct "{"
+                Piece.Nest(2, [ Piece.Line, Piece.Each("pairs", [ Piece.Punct ";", Piece.Line ]) ])
+                Piece.Line
+                Piece.Punct "}" ] ]) ]
       (Node.make (exprKind "EDict") [ ("pairs", Field.Many([], pairExpect ())) ])
     Spec.withOffers
       (Spec.withTextClasses

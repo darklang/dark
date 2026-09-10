@@ -122,6 +122,7 @@ let tableColumnsFor (ps: List<Piece>) (slotName: String) : List<String> =
     | Table(s, cols) -> if s == slotName then cols else []
     | Group inner -> tableColumnsFor inner slotName
     | Choose(_, _, a, b) -> tableColumnsFor (Stdlib.List.append a b) slotName
+    | WhenEmpty(_, a, b) -> tableColumnsFor (Stdlib.List.append a b) slotName
     | Flat inner -> tableColumnsFor inner slotName
     | Nest(_, inner) -> tableColumnsFor inner slotName
     | _ -> [])
@@ -146,6 +147,7 @@ let itemLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<St
         []
     | Group inner -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
     | Choose(_, _, a, b) -> (itemLeadPunct (Stdlib.List.append a b) slotName) |> Stdlib.Option.toList
+    | WhenEmpty(_, a, b) -> (itemLeadPunct (Stdlib.List.append a b) slotName) |> Stdlib.Option.toList
     | Flat inner -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
     | Nest(_, inner) -> (itemLeadPunct inner slotName) |> Stdlib.Option.toList
     | _ -> [])
@@ -172,6 +174,7 @@ let itemSepPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<Str
     | ArgSlots(s, sep) -> if s == slotName then firstPunct sep else []
     | Group inner -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
     | Choose(_, _, a, b) -> (itemSepPunct (Stdlib.List.append a b) slotName) |> Stdlib.Option.toList
+    | WhenEmpty(_, a, b) -> (itemSepPunct (Stdlib.List.append a b) slotName) |> Stdlib.Option.toList
     | Flat inner -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
     | Nest(_, inner) -> (itemSepPunct inner slotName) |> Stdlib.Option.toList
     | _ -> [])
@@ -208,6 +211,7 @@ let itemSepIsSpace (ps: List<Piece>) (slotName: String) : Bool =
     | ArgSlots(s, sep) -> if s == slotName then [ spaceOnly sep ] else []
     | Group inner -> [ itemSepIsSpace inner slotName ]
     | Choose(_, _, a, b) -> [ itemSepIsSpace (Stdlib.List.append a b) slotName ]
+    | WhenEmpty(_, a, b) -> [ itemSepIsSpace (Stdlib.List.append a b) slotName ]
     | Flat inner -> [ itemSepIsSpace inner slotName ]
     | Nest(_, inner) -> [ itemSepIsSpace inner slotName ]
     | _ -> [])
@@ -227,6 +231,7 @@ let isArgSlots (ps: List<Piece>) (slotName: String) : Bool =
     | ArgSlots(s, _) -> s == slotName
     | Group inner -> isArgSlots inner slotName
     | Choose(_, _, a, b) -> isArgSlots (Stdlib.List.append a b) slotName
+    | WhenEmpty(_, a, b) -> isArgSlots (Stdlib.List.append a b) slotName
     | Flat inner -> isArgSlots inner slotName
     | Nest(_, inner) -> isArgSlots inner slotName
     | _ -> false)
@@ -244,6 +249,7 @@ let punctTexts (ps: List<Piece>) : List<String> =
     | ArgSlots(_, sep) -> punctTexts sep
     | Group inner -> punctTexts inner
     | Choose(_, _, a, b) -> punctTexts (Stdlib.List.append a b)
+    | WhenEmpty(_, a, b) -> punctTexts (Stdlib.List.append a b)
     | Flat inner -> punctTexts inner
     | Nest(_, inner) -> punctTexts inner
     | _ -> [])
@@ -271,6 +277,7 @@ let labelScan
       | Slot s -> if s == valueSlot then (last, last) else (last, found)
       | Group inner -> labelScan inner valueSlot last
       | Choose(_, _, a, b) -> labelScan (Stdlib.List.append a b) valueSlot last
+      | WhenEmpty(_, a, b) -> labelScan (Stdlib.List.append a b) valueSlot last
       | Flat inner -> labelScan inner valueSlot last
       | Nest(_, inner) -> labelScan inner valueSlot last
       | _ -> acc)
@@ -304,6 +311,7 @@ let slotPunctScan
       | Slot s -> if s == slotName then (last, last) else (Stdlib.Option.Option.None, found)
       | Group inner -> slotPunctScan inner slotName last
       | Choose(_, _, a, b) -> slotPunctScan (Stdlib.List.append a b) slotName last
+      | WhenEmpty(_, a, b) -> slotPunctScan (Stdlib.List.append a b) slotName last
       | Flat inner -> slotPunctScan inner slotName last
       | Nest(_, inner) -> slotPunctScan inner slotName last
       | _ -> acc)
@@ -323,6 +331,7 @@ let tableSlots (ps: List<Piece>) : List<String> =
     | Table(slotName, _) -> [ slotName ]
     | Group inner -> tableSlots inner
     | Choose(_, _, a, b) -> tableSlots (Stdlib.List.append a b)
+    | WhenEmpty(_, a, b) -> tableSlots (Stdlib.List.append a b)
     | Flat inner -> tableSlots inner
     | Nest(_, inner) -> tableSlots inner
     | _ -> [])
@@ -598,6 +607,10 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
 
   // The one place a Choose actually chooses. An unfilled slot takes the `whenFalse` shape: a hole is not
   // an `if`, and the layout a hole gets should be the one the value that replaces it will usually get.
+  | WhenEmpty(slotName, whenEmpty, otherwise) ->
+    let empty = Stdlib.List.isEmpty (Node.items n slotName)
+    pieces reg path n (if empty then whenEmpty else otherwise)
+
   | Choose(slotName, pick, whenTrue, whenFalse) ->
     let chosen =
       match Node.slot n slotName with

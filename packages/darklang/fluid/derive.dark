@@ -354,6 +354,11 @@ let pieceSource (p: Piece) : String =
     "(* a LineOrHard on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
   | Choose(slot, _, _, _) ->
     "(* a Choose on " ++ (quoted slot) ++ " -- its predicate is a function, write it here *)"
+  // WhenEmpty carries no function, so unlike its neighbours here it could be printed in full. It is not,
+  // because `pieceSource` prints ONE piece and this one holds two lists of them; the recursion that would
+  // need is worth writing when something actually derives one.
+  | WhenEmpty(slot, _, _) ->
+    "(* a WhenEmpty on " ++ (quoted slot) ++ " -- two layouts, write them here *)"
 
 /// A whole editable editor module for `typeName`: a `val` of type Spec that starts from the derived spec
 /// and overrides `pieces` with the derived layout inlined, so a person edits the layout and keeps the
