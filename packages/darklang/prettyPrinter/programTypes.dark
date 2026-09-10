@@ -583,8 +583,30 @@ let matchPatternDoc (mp: LanguageTools.ProgramTypes.MatchPattern) : Stdlib.Prett
   | MPOr(_id, patterns) ->
     Stdlib.Pretty.group (
       Stdlib.Pretty.join
-        (patterns |> Stdlib.List.map (fun pat -> Stdlib.Pretty.text (matchPattern pat)))
+        (patterns |> Stdlib.List.map (fun pat -> matchPatternDoc pat))
         (Stdlib.Pretty.concat (Stdlib.Pretty.text " |") Stdlib.Pretty.line))
+
+  // The bracketed patterns break the way the bracketed EXPRESSIONS beside them do, which is what Fluid
+  // draws for them: `bracketedPieces` for a tuple, `EachWrapped` for a constructor's fields. Without this
+  // `MPTuple(_range, first, symbolComma, second, rest, symbolOpenParen, symbolCloseParen)` is one
+  // hundred-column token in an arm header.
+  | MPTuple(_, first, second, theRest) ->
+    let parts =
+      (Stdlib.List.append [ first, second ] theRest)
+      |> Stdlib.List.map (fun item -> matchPatternDoc item)
+    wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
+
+  | MPList(_id, pats) ->
+    wrapExprs "[" "]" "," Stdlib.Pretty.softLine (pats |> Stdlib.List.map (fun p -> matchPatternDoc p))
+
+  | MPEnum(_id, caseName, fieldPats) ->
+    match fieldPats with
+    | [] -> Stdlib.Pretty.text caseName
+    | fieldPats ->
+      Stdlib.Pretty.concat
+        (Stdlib.Pretty.text caseName)
+        (wrapExprs "(" ")" "," Stdlib.Pretty.softLine (fieldPats |> Stdlib.List.map (fun p -> matchPatternDoc p)))
+
   | _ -> Stdlib.Pretty.text (matchPattern mp)
 
 let parens (d: Stdlib.Pretty.Doc) : Stdlib.Pretty.Doc =
