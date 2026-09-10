@@ -3034,3 +3034,45 @@ module ARefusalSaysWhyItRefused =
   // after it is a longer name, not a refusal. The bool's own class only starts judging once it is one.
   (Fixtures.screen (Fixtures.chars "truex")) = "truex~"
   (ARefusalSaysWhyItRefused.said (Fixtures.chars "truex")) = ""
+
+module EnterDoesNotEatWhatYouTyped =
+  // Enter in a sequence settles what you typed and starts the next item. It used to accept the completion
+  // menu instead, and on a ONE-LETTER name the menu is whatever construct starts with that letter -- so
+  // `| 0 -> c` and Enter to start the next arm replaced the `c` with `''`.
+  //
+  // Seven of the twenty-six letters did it: c f i l m s t, which are char fun if let match string tuple,
+  // and are also the names anyone gives a variable. Found by typing a whole function body rather than one
+  // construct, which is what everything else in this file does.
+  let arm (rhs: String) : String =
+    Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "match n with", [ "<Enter>" ], Fixtures.chars ("0 -> " ++ rhs), [ "<Enter>" ] ])
+
+  let survives (rhs: String) : String =
+    "match n with\n| 0 -> " ++ rhs ++ "\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  (EnterDoesNotEatWhatYouTyped.arm "c") = (EnterDoesNotEatWhatYouTyped.survives "c")
+  (EnterDoesNotEatWhatYouTyped.arm "f") = (EnterDoesNotEatWhatYouTyped.survives "f")
+  (EnterDoesNotEatWhatYouTyped.arm "i") = (EnterDoesNotEatWhatYouTyped.survives "i")
+  (EnterDoesNotEatWhatYouTyped.arm "l") = (EnterDoesNotEatWhatYouTyped.survives "l")
+  (EnterDoesNotEatWhatYouTyped.arm "m") = (EnterDoesNotEatWhatYouTyped.survives "m")
+  (EnterDoesNotEatWhatYouTyped.arm "s") = (EnterDoesNotEatWhatYouTyped.survives "s")
+  (EnterDoesNotEatWhatYouTyped.arm "t") = (EnterDoesNotEatWhatYouTyped.survives "t")
+
+  // A letter with nothing in the menu behind it always worked, and still does.
+  (EnterDoesNotEatWhatYouTyped.arm "x") = (EnterDoesNotEatWhatYouTyped.survives "x")
+
+  // The other side of the rule, which is what made this take four attempts. Each of these is a completion
+  // Enter must still TAKE, and each broke a different wrong version of "barely typed".
+  //
+  // More than half the last segment: `fu` is two thirds of `fun`.
+  (EnterDoesNotEatWhatYouTyped.arm "fun") = "match n with\n| 0 -> (fun ~⟨param⟩ -> ⟨body⟩)"
+
+  // A completion fills in the QUALIFIER, so `leng` against `length` is the comparison, not
+  // `Stdlib.List.leng` against the whole label.
+  (EnterDoesNotEatWhatYouTyped.arm "Stdlib.List.leng") = "match n with\n| 0 -> Stdlib.List.length ~⟨list⟩"
+
+  // Outside a sequence there is no next item to start, so Enter accepts as it always did.
+  (Fixtures.screen (Stdlib.List.append (Fixtures.chars "le") [ "<Enter>" ])) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
+
+  // And the keyword-on-space rule is untouched: a letter and a space still builds the construct.
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "match n with", [ "<Enter>" ], Fixtures.chars "0 -> l " ])) =
+    "match n with\n| 0 ->\n  let ~⟨name⟩ = ⟨value⟩\n  ⟨body⟩"
