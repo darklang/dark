@@ -1657,8 +1657,9 @@ module EveryDrawingIsTheProgram =
   // Two things are excluded, both deliberately. A body lifted out of its function is not always standalone
   // source (a recursive call prints as `ESelf`, the parameters as `earg0`), so the PRINTER's own rendering
   // has to read back before Fluid's is asked; without that control the first run of this reported 1339
-  // failures, all of them noise. And a string with an escape in it is the one known limitation: a
-  // backslash, or the doubled brace an interpolated string uses.
+  // failures, all of them noise. And a string containing a BACKSLASH is still excluded, which is the one
+  // known limitation left; the doubled brace used to be excluded beside it and is not any more, because
+  // that exclusion was hiding a real bug rather than working around a limitation.
   let ctx80 () : Darklang.PrettyPrinter.ProgramTypes.Context =
     { (Darklang.Fluid.PT.printerContext ()) with width = 80 }
 
@@ -1683,13 +1684,44 @@ module EveryDrawingIsTheProgram =
 
     if Stdlib.Bool.not (EveryDrawingIsTheProgram.survives e printed) then
       ""
-    else if (Stdlib.String.contains printed "\\") || (Stdlib.String.contains printed "{{") then
+    // The doubled brace used to be excluded here alongside the backslash, and it was excluded because
+    // Fluid got it WRONG: it drew a literal `{` singly, which reparses as the start of an interpolation
+    // and gives a different program. So the corpus was stepping around the bug it existed to find, and
+    // the bug survived until a whole-store sweep turned it up. The exclusion goes with the fix.
+    else if Stdlib.String.contains printed "\\" then
       ""
     else
       let drawn =
         Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
 
       if EveryDrawingIsTheProgram.survives e drawn then "" else printed
+
+  /// "" when this source's drawing is the same program; both renderings otherwise.
+  ///
+  /// Written out rather than sampled, because the sample cannot reach it: every fortieth body in the store
+  /// contains ZERO interpolated strings with a literal brace and no backslash. A class the sample cannot
+  /// see needs a case with its name on it, or the corpus goes on saying "" about a question it is not
+  /// asking.
+  let fixedCase (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let drawn =
+        Darklang.Fluid.Debug.render (Fixtures.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+      if EveryDrawingIsTheProgram.survives e drawn then
+        ""
+      else
+        "drawn: " ++ drawn
+    | Error err -> "PARSE ERR " ++ err
+
+  // A literal brace inside `$"..."`. Fluid drew it singly, which reparses as the start of an
+  // interpolation and takes the rest of the string with it -- a DIFFERENT program from a drawing that
+  // looked almost right. This corpus had the case excluded by name, so it stepped around the bug it exists
+  // to find, and the bug survived until a whole-store sweep turned it up.
+  (EveryDrawingIsTheProgram.fixedCase "let label = \"a\"\n$\"{{\\\"event\\\":\\\"{label}\\\"}}\"") = ""
+
+  // A brace with no interpolation beside it, and one on its own.
+  (EveryDrawingIsTheProgram.fixedCase "$\"{{}}\"") = ""
+  (EveryDrawingIsTheProgram.fixedCase "let x = 1\n$\"a{{b}}c{x}d\"") = ""
 
   let sample () : List<Darklang.LanguageTools.ProgramTypes.Expr> =
     let (_m, _t, _v, fns) =
