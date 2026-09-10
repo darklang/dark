@@ -741,8 +741,16 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
               Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx case.rhs)))))
       |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
 
+    // The scrutinee as a DOC, not as a string spliced into one. `expr ctx arg` renders it standalone at the
+    // full width and knows nothing about the `match ` in front of it, the ` with` behind it, or the column
+    // it starts at, so a scrutinee that only just fits on its own produced a line over the width:
+    // `match Stdlib.Cli.Posix.openFile path flags Stdlib.Cli.Posix.Modes.defaultFile with` came out at 84
+    // columns at width 80. Fluid draws the same three pieces and breaks correctly, which is how this was
+    // found.
     Stdlib.Pretty.concat
-      (txt $"match {expr ctx arg} with")
+      (Stdlib.Pretty.concat
+        (txt "match ")
+        (Stdlib.Pretty.concat (exprDoc ctx arg) (txt " with")))
       (Stdlib.Pretty.concat Stdlib.Pretty.hardLine arms)
 
   // `if c then a else b` on one line when it fits. An `else if` chain keeps the `else if` together
@@ -758,7 +766,10 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
     let head =
       Stdlib.Pretty.concat
-        (txt $"if {expr ctx cond} then")
+        // Same as the match scrutinee: a doc, so the condition is measured where it actually sits.
+        (Stdlib.Pretty.concat
+          (txt "if ")
+          (Stdlib.Pretty.concat (exprDoc ctx cond) (txt " then")))
         (Stdlib.Pretty.nest 2 (Stdlib.Pretty.concat thenSep (exprDoc ctx thenBranch)))
 
     match elseBranch with
