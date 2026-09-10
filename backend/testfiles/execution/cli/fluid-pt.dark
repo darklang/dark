@@ -2004,6 +2004,37 @@ module TypingThePrintedFormBack =
   (TypingThePrintedFormBack.check "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)") = ""
 
 
+module TypingAWholeBody =
+  // `TypingThePrintedFormBack` above types ONE construct at a time. Every case in it starts a couple of
+  // nodes from what it is testing, and the bugs that are left are not in the constructs -- they are in the
+  // joins between them.
+  //
+  // This types a whole function BODY, start to finish, the way a person writes one. The first run of it
+  // found that Enter after a one-letter name accepted the completion menu, so `| 0 -> if a then b else c`
+  // came out `else ''` -- seven of the twenty-six letters, and the flow is about as ordinary as this
+  // editor has. Nothing that tests one construct could have reached it.
+  //
+  // Same shape as the module above: computed against the printer, so it cannot drift out of step.
+  let check (src: String) : String = TypingThePrintedFormBack.check src
+
+  (TypingAWholeBody.check "let xs = [1, 2, 3]\nmatch xs with\n| [] -> 0\n| h :: t -> h") = ""
+  (TypingAWholeBody.check "let a = Stdlib.List.length [1]\nlet b = a + 1\nb") = ""
+  (TypingAWholeBody.check "xs |> Stdlib.List.filter (fun x -> x > 0) |> Stdlib.List.length") = ""
+
+  // The one that found the Enter bug. The `c` is what it is about: a one-letter name in an ordinary place,
+  // with a construct sharing its first letter.
+  (TypingAWholeBody.check "match n with\n| 0 -> if a then b else c\n| _ -> d") = ""
+
+  (TypingAWholeBody.check "let s = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\ns.width") = ""
+  (TypingAWholeBody.check "match n with\n| x when x > 0 -> a\n| _ -> b") = ""
+  (TypingAWholeBody.check "let n = \"x\"\n$\"hi {n}\"") = ""
+
+  // A STATEMENT body is deliberately absent, and not because Fluid gets it wrong -- it types
+  // `Stdlib.printLine "a"` then `1` correctly. `parsePTExpr` refuses the source with "Expected exactly one
+  // expression to be parsed", so the control this corpus compares against cannot be built for it. A
+  // limitation of the check, written down rather than left as a gap someone rediscovers.
+
+
 module ANestedScrutineeNestsUnderItsMatch =
   // A `match` whose scrutinee is a call too long for one line. Fluid nests the arguments under the
   // `match`; the PRINTER puts them level with it, so they read as statements of the branch above rather
