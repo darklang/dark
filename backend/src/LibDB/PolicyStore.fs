@@ -597,6 +597,19 @@ let guestState
     match Map.tryFind hash approved with
     | Some policy -> Some policy
     | None -> if bundled hash then Some P.Policy.allowAll else None
+  // A guest gets the floor its host set, if it set one: a smaller builtin set, plus the map that
+  // lets the interpreter say "Sqlite is not active" rather than "no such function". The host keeps
+  // everything, because it has to print the answer.
+  let state =
+    match state.guestFloor () with
+    | None -> state
+    | Some(floorBuiltins, inactive) ->
+      { state with
+          builtins = floorBuiltins
+          fns = { state.fns with builtIn = floorBuiltins.fns }
+          values = { state.values with builtIn = floorBuiltins.values }
+          inactiveBuiltins = inactive }
+
   { state with
       accountID = accountID
       canManagePolicies = false

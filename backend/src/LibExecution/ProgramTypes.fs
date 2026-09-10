@@ -20,7 +20,9 @@ let assertBuiltin
   (nameValidator : string -> unit)
   : unit =
   nameValidator name
-  assert_ "version can't be negative" [ "version", version ] (version >= 0)
+  // Eager metadata again; see `RuntimeTypes.assertBuiltin`.
+  if version < 0 then
+    Exception.raiseInternal "version can't be negative" [ "version", version ]
 
 
 
@@ -103,7 +105,7 @@ module FQFnName =
     | Package of Package
 
   let assertFnName (name : string) : unit =
-    assertRe $"Fn name must match" fnNamePattern name
+    assertRe "Fn name must match" fnNamePattern name
 
   let builtIn (name : string) (version : int) : Builtin =
     assertBuiltin name version assertFnName
@@ -534,6 +536,17 @@ module InfixFnName =
 
   /// The unary-minus builtin the parser lowers `-x` (non-literal) to.
   let negateBuiltinName = "negate"
+
+  /// Is this builtin reached through operator syntax rather than by name?
+  ///
+  /// Such a builtin has no textual `Builtin.x` reference anywhere in `packages/`, which otherwise
+  /// reads as "nothing calls it". Anything counting builtin references has to know that, and
+  /// deriving it from the table above is the only version that cannot go stale: the alternative is
+  /// a hand-copied list with a comment asking the next person to keep it in step, which is what
+  /// this replaced.
+  let isOperatorDispatched (builtinName : string) : bool =
+    builtinName = negateBuiltinName
+    || (tryFromBuiltinName builtinName |> Option.isSome)
 
 
 module Expr =

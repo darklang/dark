@@ -408,7 +408,7 @@ let private makeStoreLambdaResult
 ///     could fill the disk on its own; truncate + tag the row)
 ///   - background sweeper that drops trace rows older than N days,
 ///     or trims to the most recent K traces per handler
-/// `Builtins.Matter/Libs/Traces.fs` already has a `clear-before`
+/// `Builtins.Data/Libs/Traces.fs` already has a `clear-before`
 /// command path; the missing piece is the policy + a default cadence.
 module TraceStorage =
   open LibDB.Sqlite

@@ -1,5 +1,5 @@
 /// Builtin functions for accessing and manipulating user datastores
-module Builtins.Matter.Libs.DB
+module Builtins.Data.Libs.DB
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -543,21 +543,6 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.DbRead ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dbGenerateKey" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
-      description = "Returns a random key suitable for use as a DB key"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> System.Guid.NewGuid() |> string |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated }
 
 

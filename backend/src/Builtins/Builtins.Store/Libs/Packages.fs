@@ -4,7 +4,7 @@
 /// The PM is taken as a parameter so each runtime supplies its own. It backs the
 /// parser flow and pretty-printing, which run constantly, so lookups need to be
 /// reasonably fast.
-module Builtins.Matter.Libs.PM.Packages
+module Builtins.Store.Libs.Packages
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -263,44 +263,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
-      deprecated = NotDeprecated }
-
-
-    // Evaluate a package value by its UUID
-    { name = fn "pmEvaluateValue" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "valueHash"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "Hash of the package value to evaluate" ]
-      returnType = TypeReference.option (TVariable "a")
-      description =
-        "Evaluates a package value by its hash and returns the result. "
-        + "Returns None if the value doesn't exist or fails to evaluate."
-      fn =
-        (function
-        | exeState, _, _, [| hashDval |] ->
-          uply {
-            let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
-            let valueName = FQValueName.Package(Hash hash)
-            let instrs : Instructions =
-              { registerCount = 1
-                instructions = [ LoadValue(0, valueName) ]
-                resultIn = 0 }
-
-            let! result = Execution.executeExpr exeState instrs
-            match result with
-            | Ok dval ->
-              match Dval.toValueType dval with
-              | ValueType.Known kt -> return Dval.optionSome kt dval
-              | ValueType.Unknown -> return Dval.optionSome KTUnit dval
-            | Error _ -> return Dval.optionNone KTUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.PackageRead; Effect.Native ]
       deprecated = NotDeprecated }
 
 
@@ -825,12 +787,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects =
-        set
-          [ Effect.PackageRead
-            Effect.PackageWrite
-            // Generates a revert id via Guid.NewGuid (non-deterministic).
-            Effect.Random ]
+      // No `Random`, despite the plausible reading that this "generates a revert id via
+      // Guid.NewGuid". Nothing on this path does. `Propagation.propagate` constructs only `AddType`/`AddFn`/
+      // `AddValue`/`SetName`, all content-addressed, and never a `Decision` (the one op kind that
+      // carries a minted id); neither it nor `Inserts` calls `Guid.NewGuid` at all. The GUIDs the
+      // fold does mint are `location_id` and `deprecation_id`, projection primary keys that no
+      // query ever selects, so no entropy reaches a guest. Every other op-writing builtin
+      // (`scmAddOps`, `pmSetName`, `scmStoreOps`) goes through that same fold and declares nothing.
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -927,6 +891,108 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 Dval.optionSome
                   tupleKT
                   (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "platformsNeededBy" 0
+      typeParams = []
+      parameters = [ Param.make "fnName" TString "e.g. Darklang.Stdlib.List.map" ]
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TList TString,
+            TList TString,
+            [ TBool; TInt64 ]
+          )
+        )
+      description =
+        "The MINIMUM set of platforms needed to run <param fnName>, by walking its call graph: "
+        + "(platform names, builtin names, whether the walk was complete, package fns visited). "
+        + "<returns>None</returns> if no package function has that name. The question `platforms` "
+        + "answers from the binary's end, asked from the program's end instead: what someone "
+        + "else's Dark will be able to reach, without running it."
+      fn =
+        (function
+        | exeState, _, _, [| DString fnName |] ->
+          uply {
+            let tupleKT =
+              KTTuple(
+                VT.known (KTList(VT.known KTString)),
+                VT.known (KTList(VT.known KTString)),
+                [ VT.known KTBool; VT.int64 ]
+              )
+
+            // `Owner.Module.name`: last segment is the name, first is the owner.
+            let location =
+              match List.rev (fnName.Split('.') |> Array.toList) with
+              | []
+              | [ _ ] -> None
+              | name :: revRest ->
+                match List.rev revRest with
+                | owner :: modules ->
+                  Some
+                    ({ owner = owner; modules = modules; name = name }
+                    : PT.PackageLocation)
+                | [] -> None
+
+            match location with
+            | None -> return Dval.optionNone tupleKT
+            | Some location ->
+              match! pm.findFn location with
+              | None -> return Dval.optionNone tupleKT
+              | Some root ->
+                let! closure =
+                  LibDB.PackagePermissions.loadClosure LibDB.ProgramTypes.Fn.get root
+
+                // Every builtin named anywhere in the closure, and whether any member's
+                // analysis had to give up (a call through a function-typed parameter is
+                // unknowable statically, and saying so is the point).
+                let builtinNames, complete =
+                  closure
+                  |> Map.toList
+                  |> List.fold
+                    (fun (names, complete) (_, (_, analysis)) ->
+                      let found =
+                        analysis.names
+                        |> List.choose (function
+                          | PT.FQFnName.Builtin b -> Some b.name
+                          | PT.FQFnName.Package _ -> None)
+                      (Set.union names (Set.ofList found),
+                       complete && analysis.complete))
+                    (Set.empty, true)
+
+                // Which platforms in THIS runtime declare them. A builtin no platform here
+                // declares is reported as `(not installed)`, which is its own answer.
+                let platformNames =
+                  builtinNames
+                  |> Set.toList
+                  |> List.map (fun name ->
+                    match
+                      exeState.platforms
+                      |> List.tryFind (fun p ->
+                        p.builtins.fns.Keys |> Seq.exists (fun k -> k.name = name))
+                    with
+                    | Some p -> p.name
+                    | None -> "(not installed)")
+                  |> List.distinct
+                  |> List.sort
+
+                return
+                  Dval.optionSome
+                    tupleKT
+                    (DTuple(
+                      DList(VT.string, platformNames |> List.map DString),
+                      DList(
+                        VT.string,
+                        builtinNames |> Set.toList |> List.sort |> List.map DString
+                      ),
+                      [ DBool complete; DInt64(int64 (Map.count closure)) ]
+                    ))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

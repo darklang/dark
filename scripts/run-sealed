@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# The one-platform host. See backend/src/SealedHost/SealedHost.fs: it links `Core` and nothing
+# else, which is what keeps "a platform set composes apart" a fact rather than a claim.
+EXE="backend/Build/out/SealedHost/Debug/net10.0/SealedHost"
+if [[ "${1:-}" == "--published" ]]; then
+  shift
+  EXE="backend/Build/out/SealedHost/Release/net10.0/publish/SealedHost"
+fi
+
+"${EXE}" "$@"

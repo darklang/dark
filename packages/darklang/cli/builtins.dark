@@ -54,6 +54,11 @@ let getDisplayName (prefix: String): String =
   | None -> Stdlib.String.toUppercase prefix
 
 
+/// Group label. Platform names are already display-ready; prefixes need the table.
+let getDisplayNameFor (byPlatform: Bool) (prefix: String) : String =
+  if byPlatform then prefix else getDisplayName prefix
+
+
 let isKnownGroup (prefix: String): Bool =
   Stdlib.List.any knownGroups (fun (groupPrefix, _) -> groupPrefix == prefix)
 
@@ -92,16 +97,32 @@ let sortGroups
   Stdlib.List.append knownInOrder unknown
 
 
+/// Builtin name -> the platform that declares it.
+///
+/// Derived from the installed platforms rather than from a table of name prefixes. A prefix table
+/// has no way to learn about a builtin added after it was written, and no way to be wrong out
+/// loud when it guesses a module that does not exist.
+let platformOf (name: String) : String =
+  let owning =
+    LanguageTools.platforms ()
+    |> Stdlib.List.findFirst (fun p -> Stdlib.List.``member`` p.fns name)
+
+  match owning with
+  | Some p -> p.name
+  | None -> "(no platform)"
+
+
 let execute (state: AppState) (args: List<String>): AppState =
   let allBuiltins = LanguageTools.allBuiltinFns ()
 
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
   let withPurity = Stdlib.List.any args (fun arg -> arg == "--with-purity")
+  let byPlatform = Stdlib.List.any args (fun arg -> arg == "--by-platform")
 
   let filterArgs =
     args
     |> Stdlib.List.filter (fun arg ->
-      arg != "--with-sigs" && arg != "--with-purity")
+      arg != "--with-sigs" && arg != "--with-purity" && arg != "--by-platform")
 
   let filter =
     match filterArgs with
@@ -112,7 +133,11 @@ let execute (state: AppState) (args: List<String>): AppState =
   let grouped =
     allBuiltins
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc fn ->
-      let group = extractGroup fn.name.name
+      let group =
+        if byPlatform then
+          platformOf fn.name.name
+        else
+          extractGroup fn.name.name
 
       let existing =
         match Stdlib.Dict.get acc group with
@@ -126,7 +151,16 @@ let execute (state: AppState) (args: List<String>): AppState =
 
   let allGroups = Stdlib.Dict.toList grouped
 
-  let sortedGroups = sortGroups allGroups
+  // Platform names have no canonical display order, so sort them by size: the biggest platform is
+  // the one worth looking at first, and how much of the total `Core` is says what shape the whole
+  // floor has.
+  let sortedGroups =
+    if byPlatform then
+      allGroups
+      |> Stdlib.List.sortBy (fun pair ->
+        0 - (Stdlib.List.length (Stdlib.Tuple2.second pair)))
+    else
+      sortGroups allGroups
 
   let filteredGroups =
     match filter with
@@ -154,7 +188,10 @@ let execute (state: AppState) (args: List<String>): AppState =
       let group = Stdlib.Tuple2.first pair
       let fns = Stdlib.Tuple2.second pair
       Stdlib.printLine ""
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold (getDisplayName group))
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.colorize
+          Stdlib.Cli.UI.Colors.bold
+          (getDisplayNameFor byPlatform group))
 
       fns
       |> Stdlib.List.iter (fun fn ->
@@ -191,7 +228,12 @@ let execute (state: AppState) (args: List<String>): AppState =
         |> Stdlib.String.join ", "
 
       Stdlib.printLine ""
-      Stdlib.printLine $"{Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold (getDisplayName group)}: {names}")
+      let label =
+        Stdlib.Cli.UI.Colors.colorize
+          Stdlib.Cli.UI.Colors.bold
+          (getDisplayNameFor byPlatform group)
+
+      Stdlib.printLine $"{label}: {names}")
 
   let totalCount =
     filteredGroups
@@ -215,11 +257,17 @@ let execute (state: AppState) (args: List<String>): AppState =
 
 
 let help (_state: AppState) : String =
-  [ "Usage: builtins [--with-sigs] [--with-purity] [filter]"
+  [ "Usage: builtins [--by-platform] [--with-sigs] [--with-purity] [filter]"
     ""
-    "Lists all builtin functions grouped by category."
+    "Lists all builtin functions, grouped by name prefix."
     ""
     "Options:"
+    "  --by-platform  Group by the platform that declares each fn, biggest first,"
+    "                 instead of by name prefix. The prefixes are a display"
+    "                 convention; the platforms are what a binary actually links"
+    "                 and what a policy actually grants. They disagree in places"
+    "                 worth seeing: `intRandom` looks like an Int function and is"
+    "                 in `Random`."
     "  --with-sigs    Show full function signatures with parameter types"
     "  --with-purity  Tag each fn with [pure] / [impure-previewable] / [impure]"
     ""
@@ -228,6 +276,7 @@ let help (_state: AppState) : String =
     ""
     "Examples:"
     "  builtins                                - List all builtins (compact)"
+    "  builtins --by-platform                  - Grouped by platform"
     "  builtins --with-sigs                    - List all builtins with signatures"
     "  builtins --with-purity                  - Compact + purity tag"
     "  builtins --with-sigs --with-purity http - HTTP fns, sigs + purity"

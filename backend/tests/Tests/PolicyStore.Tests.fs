@@ -10,6 +10,7 @@ module Permission = LibExecution.Permissions
 module PT = LibExecution.ProgramTypes
 module PackagePermissions = LibDB.PackagePermissions
 module PolicyStore = LibDB.PolicyStore
+module Activation = LibDB.Activation
 module LocalFile = LibDB.LocalFile
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
@@ -496,10 +497,86 @@ let reapprovingOneRootLeavesOthersStale =
       "every root now reviewed under f2"
   }
 
+// ── platform activation ───────────────────────────────────────────────────────
+
+let activationRoundTrips =
+  test "an activation renders and parses back to the same names" {
+    let names = Set.ofList [ "Core"; "Store"; "Terminal" ]
+    Expect.equal (Activation.parse (Activation.render names)) names "round trip"
+  }
+
+let activationOfAnEmptyChoiceIsNotEverything =
+  test "an activation that chose nothing parses as nothing, not as everything" {
+    // The distinction the whole feature rests on: a file listing no platforms means "I chose
+    // almost nothing", and only the file's ABSENCE means "I have not chosen". If these collapsed,
+    // narrowing to the floor would read as running wide open.
+    Expect.equal (Activation.parse (Activation.render Set.empty)) Set.empty "empty stays empty"
+  }
+
+let activationFailsClosedOnGarbage =
+  test "an activation file we cannot read the header of grants nothing" {
+    // Failing OPEN here would mean one corrupted byte silently re-enables every platform the
+    // instance had switched off. Same posture as an unparseable policy file reading as deny-all.
+    Expect.equal (Activation.parse "Terminal\nSqlite\n") Set.empty "no header, no names"
+    Expect.equal (Activation.parse "") Set.empty "empty file"
+    Expect.equal (Activation.parse "DARK-PLATFORM-ACTIVATION 99\nTerminal") Set.empty "wrong version"
+  }
+
+let activationIgnoresBlankAndCommentLines =
+  test "an activation file may be hand-edited with blanks and comments" {
+    let text = "DARK-PLATFORM-ACTIVATION 1\n\n# why Sqlite is off\nCore\n  Store  \n"
+    Expect.equal
+      (Activation.parse text)
+      (Set.ofList [ "Core"; "Store" ])
+      "blanks, comments and surrounding space are not platform names"
+  }
+
+let activationSwitchesCompose =
+  test "two switches against an isolated directory compose rather than clobber" {
+    // `activate` and `deactivate` are read-modify-write. Reading outside the lock and writing
+    // inside it, which is what they did first, means two concurrent switches each compute from
+    // the same starting set and the second write drops the first one's platform. This is the
+    // sequential version of that: if the read did not see the previous write, the second switch
+    // would come back with everything-minus-one instead of everything-minus-two.
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-activation-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+    try
+      let shipped = Set.ofList [ "Core"; "Clock"; "Sqlite"; "Terminal" ]
+      Expect.equal (Activation.get ()) None "a fresh directory has never chosen"
+      Activation.deactivate shipped "Clock"
+      Activation.deactivate shipped "Sqlite"
+      Expect.equal
+        (Activation.get ())
+        (Some(Set.ofList [ "Core"; "Terminal" ]))
+        "the second switch built on the first"
+      Activation.activate shipped "Clock"
+      Expect.equal
+        (Activation.get ())
+        (Some(Set.ofList [ "Core"; "Clock"; "Terminal" ]))
+        "and activating puts back exactly one"
+      Activation.set None
+      Expect.equal (Activation.get ()) None "clearing returns to never chosen"
+    finally
+      restore.Dispose()
+      System.IO.Directory.Delete(dir, true)
+  }
+
 let tests =
   testList
     "policyStore"
-    [ policyStoreRoundTripsVersionedPolicies
+    // Sequenced, because it overrides the policy DIRECTORY and that is process-global. Every
+    // other test in this file is pure codec work over in-memory values and does not care.
+    [ testSequenced activationSwitchesCompose
+      activationRoundTrips
+      activationOfAnEmptyChoiceIsNotEverything
+      activationFailsClosedOnGarbage
+      activationIgnoresBlankAndCommentLines
+      policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
       reapprovingASharedHashKeepsTheOtherNamesPinned
       instanceEditsAddAndRemoveInOnePass

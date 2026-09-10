@@ -64,7 +64,7 @@ let sqrt (a: UInt64) : Float = Builtin.uint64Sqrt a
 
 
 /// Converts an <type UInt64> to a <type Float>
-let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
+let toFloat (a: UInt64) : Float = Builtin.convert<Float> a
 
 /// Converts a <type Float> to an <type UInt64>
 let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
@@ -125,44 +125,44 @@ let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
 
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromInt8 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts a <type UInt8> to an <type UInt64>.
-let fromUInt8 (i: UInt8) : UInt64 = Builtin.uint64FromUInt8 i
+let fromUInt8 (i: UInt8) : UInt64 = Builtin.convert<UInt64> i
 
 
 /// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromInt16 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts a <type UInt16> to an <type UInt64>
-let fromUInt16 (i: UInt16) : UInt64 = Builtin.uint64FromUInt16 i
+let fromUInt16 (i: UInt16) : UInt64 = Builtin.convert<UInt64> i
 
 
 /// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromInt32 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts a <type UInt32> to an <type UInt64>.
-let fromUInt32 (i: UInt32) : UInt64 = Builtin.uint64FromUInt32 i
+let fromUInt32 (i: UInt32) : UInt64 = Builtin.convert<UInt64> i
 
 
 /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromInt64 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
 let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromInt128 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
 let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt64> =
-  Builtin.uint64FromUInt128 i
+  Builtin.tryConvert<UInt64> i
 
 
 /// Bitwise AND on two <type UInt64> values

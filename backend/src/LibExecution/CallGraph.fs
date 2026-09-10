@@ -20,7 +20,11 @@ type Analysis =
 /// fingerprints include this so an analyzer fix cannot silently bless an old,
 /// narrower review.
 /// Version 3 traverses dictionary keys; skipping them hid calls from analysis.
-let analysisVersion = 3
+/// Version 4 records the builtin behind an infix operator. `a + b` is an
+/// `EInfix` here and only becomes `Builtin.add` at RT, so every operator was
+/// invisible to this walk and therefore to approval analysis. Harmless while
+/// every infix builtin is pure, which is now a test rather than a coincidence.
+let analysisVersion = 4
 
 module private Analysis =
   let empty : Analysis = { names = []; complete = true; escapesOwnCallback = false }
@@ -55,6 +59,27 @@ let private nameRef (nr : PT.NameResolution<PT.FQFnName.FQFnName>) : Analysis =
     { names = [ resolved.name ]; complete = true; escapesOwnCallback = false }
   | Error _ -> Analysis.unresolved
 
+/// The builtin an operator lowers to.
+///
+/// `a + b` is an `EInfix` here and becomes `Builtin.add` only in
+/// `ProgramTypesToRuntimeTypes`. Without this the analysis reports that half the
+/// corpus calls no builtin at all, which is wrong in two directions: it made
+/// `platforms unreachable` list every operator as dead, and, more seriously, it
+/// meant `LibDB.PackagePermissions` could not have seen an effectful operator if
+/// one existed. It never has, and
+/// `Tests.Platform.operatorDispatchedBuiltinsArePure` keeps it that way, but the
+/// analysis should not depend on that to be sound.
+///
+/// `BinOp` (`&&`, `||`) lowers to `RT.And`/`RT.Or` instructions rather than to a
+/// builtin, so there is nothing to record for it.
+let private infixOwnRefs (infix : PT.Infix) : Analysis =
+  match infix with
+  | PT.InfixFnCall name ->
+    let builtin = PT.FQFnName.fqBuiltIn (PT.InfixFnName.toBuiltinName name) 0
+    { names = [ builtin ]; complete = true; escapesOwnCallback = false }
+  | PT.BinOp _ -> Analysis.empty
+
+
 /// What a pipe part itself references, beyond its nested expressions.
 let private pipeOwnRefs (pe : PT.PipeExpr) : Analysis =
   match pe with
@@ -62,8 +87,8 @@ let private pipeOwnRefs (pe : PT.PipeExpr) : Analysis =
   // A function held in a variable can be an effectful callback whose target
   // is not statically known here.
   | PT.EPipeVariable _ -> Analysis.unresolved
+  | PT.EPipeInfix(_, infix, _) -> infixOwnRefs infix
   | PT.EPipeLambda _
-  | PT.EPipeInfix _
   | PT.EPipeEnum _ -> Analysis.empty
 
 /// Find function-typed parameters by their `EArg` positions. A callback can be
@@ -96,6 +121,7 @@ let rec analyze (callbacks : Set<int>) (expr : PT.Expr) : Analysis =
     // treating the reference as complete would let returned executable code be
     // approved as effect-free.
     | PT.EValue _ -> Analysis.unresolved
+    | PT.EInfix(_, infix, _, _) -> infixOwnRefs infix
     | PT.EPipe(_, _, parts) -> Analysis.collect pipeOwnRefs parts
     | PT.EApply(_, fnExpr, _, _) ->
       match fnExpr with

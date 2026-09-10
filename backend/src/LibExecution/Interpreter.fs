@@ -2217,7 +2217,20 @@ let private applyInstruction
         // implements IDictionary, so the byref overload is available here too.
         let mutable found = Unchecked.defaultof<BuiltInFn>
         if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-          RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+          // Only on a miss, so the hit path is unchanged. A builtin the runtime links but this
+          // session has not activated gets its own error: "not turned on" and "no such name" have
+          // different remedies and should not read alike.
+          let mutable inactive = Unchecked.defaultof<Platform>
+          if exeState.inactiveBuiltins.TryGetValue(builtin, &inactive) then
+            let effects =
+              inactive.builtins.fns.Values
+              |> Seq.fold (fun acc f -> Set.union acc f.callEffects) inactive.dynamicEffects
+              |> Set.toList
+              |> List.map Effects.name
+              |> List.sort
+            RTE.BuiltinNotActive(builtin, inactive.name, effects) |> raiseRTE vm.threadID
+          else
+            RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
         else
           let fn = found
           recordStage vm ApplyStage.BiFnLookup biLookupAlloc

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Libs/AtRestTypeChecker.fs" />
+    <Compile Include="Libs/PackageOps.fs" />
+    <Compile Include="Libs/Packages.fs" />
+    <Compile Include="Builtin.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../LibSerialization/LibSerialization.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

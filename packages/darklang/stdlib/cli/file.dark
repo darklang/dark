@@ -1,16 +1,30 @@
 module Darklang.Stdlib.Cli.File
 
 
+/// Translate the scoped file builtins' error into this module's `Posix.Error`.
+///
+/// The whole point of the functions below going through `FileSystem` rather than through raw
+/// descriptors is that `Builtin.fileRead` and friends hand the PATH to the permission check, so a
+/// policy can say "may read /a/b" and have it mean something. `Posix.openFile` hands over a
+/// descriptor number, which is granted whole or not at all.
+///
+/// The signatures here do not change, so callers do not either. The errno values are the real ones
+/// (ENOENT, EACCES) so anything matching on them still works; `Other` has no errno of its own and
+/// keeps the -1 this module already used for "something else went wrong".
+let ofFileError (e: FileSystem.FileError) : Posix.Error =
+  match e with
+  | NotFound -> Posix.Error { errno = 2; message = "No such file or directory" }
+  | PermissionDenied -> Posix.Error { errno = 13; message = "Permission denied" }
+  | Other msg -> Posix.Error { errno = -1; message = msg }
+
+
 /// Delete a file.
 let delete (path: String) : Result.Result<Unit, Posix.Error> =
-  Posix.unlink path
+  FileSystem.deleteFile path |> Stdlib.Result.mapError ofFileError
 
 
 /// Check if a file or directory exists at the given path.
-let exists (path: String) : Bool =
-  match Posix.stat path with
-  | Ok _ -> true
-  | Error _ -> false
+let exists (path: String) : Bool = FileSystem.pathExists path
 
 
 /// Get the size of a file in bytes.
@@ -68,32 +82,19 @@ let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
 
 /// Read the entire contents of a file as a Blob.
 let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
-  | Ok fd ->
-    let result = Posix.fdReadAll fd []
-
-    let _ = Posix.fdClose fd
-    result
-  | Error e -> Stdlib.Result.Result.Error e
+  FileSystem.readFile path |> Stdlib.Result.mapError ofFileError
 
 
 /// Read the entire contents of a file as a string.
 let readText (path: String) : Result.Result<String, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
-  | Ok fd ->
-    let result = Posix.fdReadAll fd []
-
-    let _ = Posix.fdClose fd
-
-    match result with
-    | Ok blob ->
-      match Stdlib.Blob.toString blob with
-      | Ok s -> Stdlib.Result.Result.Ok s
-      | Error msg ->
-        Stdlib.Result.Result.Error
-          (Posix.Error { errno = -1; message = $"File contents not valid UTF-8: {msg}" })
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
+  match FileSystem.readFile path with
+  | Ok blob ->
+    match Stdlib.Blob.toString blob with
+    | Ok s -> Stdlib.Result.Result.Ok s
+    | Error msg ->
+      Stdlib.Result.Result.Error
+        (Posix.Error { errno = -1; message = $"File contents not valid UTF-8: {msg}" })
+  | Error e -> Stdlib.Result.Result.Error(ofFileError e)
 
 
 /// Read the entire contents of a file as a list of lines.
@@ -220,46 +221,13 @@ let readLastLines
 
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
-  let flags =
-    Stdlib.Int.bitwiseOr
-      (Stdlib.Int.bitwiseOr
-        (Posix.OpenFlags.wronly ())
-        (Posix.OpenFlags.creat ()))
-      (Posix.OpenFlags.trunc ())
-
-  match Posix.openFile path flags Posix.Modes.defaultFile with
-  | Ok fd ->
-    let blob = Stdlib.String.toBlob content
-    let result = Posix.fdWrite fd blob
-
-    let _ = Posix.fdClose fd
-
-    match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
+  FileSystem.overwriteFile path (Stdlib.String.toBlob content)
+  |> Stdlib.Result.mapError ofFileError
 
 
 /// Append text to a file, creating it if it doesn't exist.
 let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
-  let flags =
-    Stdlib.Int.bitwiseOr
-      (Stdlib.Int.bitwiseOr
-        (Posix.OpenFlags.wronly ())
-        (Posix.OpenFlags.creat ()))
-      (Posix.OpenFlags.append ())
-
-  match Posix.openFile path flags Posix.Modes.defaultFile with
-  | Ok fd ->
-    let blob = Stdlib.String.toBlob content
-    let result = Posix.fdWrite fd blob
-
-    let _ = Posix.fdClose fd
-
-    match result with
-    | Ok _ -> Stdlib.Result.Result.Ok()
-    | Error e -> Stdlib.Result.Result.Error e
-  | Error e -> Stdlib.Result.Result.Error e
+  FileSystem.appendToFile path content |> Stdlib.Result.mapError ofFileError
 
 
 /// Create a file if it doesn't exist, or update its modification time if it does.

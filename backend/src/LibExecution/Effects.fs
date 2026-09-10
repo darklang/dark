@@ -7,8 +7,19 @@ module LibExecution.Effects
 
 open Prelude
 
-/// A deliberately small initial vocabulary. Add a case only when callers need
-/// to distinguish it for typechecking, preview, replay, or scheduling.
+/// The well-known vocabulary, plus `Custom` for anything a platform outside this repo needs to
+/// name.
+///
+/// The well-known cases are the ones the runtime itself understands: the host boundary builds a
+/// scoped `Request` for them, the policy grammar has resource-shaped rules for several, and the
+/// permission check knows what each one means. Add one only when callers need to distinguish it for
+/// typechecking, preview, replay, or scheduling.
+///
+/// `Custom` exists because the goal is that a LIBRARY can bring capabilities, and a capability
+/// vocabulary only its authors may extend is not one. Before this the choices open to a platform
+/// with a genuinely new capability -- a serial port, a vendor SDK -- were to mislabel itself as an
+/// existing effect or to declare `Native`, which announces "granting this hands over the machine"
+/// and is the opposite of advertising something narrow.
 [<RequireQualifiedAccess>]
 type Effect =
   | Http
@@ -41,6 +52,14 @@ type Effect =
   /// grants it whole, with `allow native`, or not at all.
   | Native
 
+  /// An effect named by a platform this runtime did not ship, as `owner/name`.
+  ///
+  /// Namespaced, and enforced by `custom`: two vendors must not be able to collide on `serial`,
+  /// and a custom effect must never be mistakable for a well-known one. Whole-or-nothing at the
+  /// policy layer for the same reason `Native` is -- the runtime cannot build a scoped request for
+  /// a resource it knows nothing about, so it will not pretend to confine one.
+  | Custom of string
+
 let name (effect : Effect) : string =
   match effect with
   | Effect.Http -> "http"
@@ -61,8 +80,10 @@ let name (effect : Effect) : string =
   | Effect.TraceRead -> "trace-read"
   | Effect.TraceWrite -> "trace-write"
   | Effect.Native -> "native"
+  | Effect.Custom name -> name
 
-/// Every effect, in declaration order.
+/// Every WELL-KNOWN effect, in declaration order. Custom effects are not enumerable: they exist
+/// because a platform declared one, so the platform set is what knows them.
 let all : List<Effect> =
   [ Effect.Http
     Effect.HttpServer
@@ -83,8 +104,28 @@ let all : List<Effect> =
     Effect.TraceWrite
     Effect.Native ]
 
+/// The shape a custom effect name must have: `owner/name`, both segments lowercase alphanumeric
+/// with dashes. The slash is what makes a collision with a well-known name impossible, since none
+/// of those contain one.
+let private customNamePattern =
+  System.Text.RegularExpressions.Regex(
+    @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?/[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
+/// Build a custom effect, or `None` if the name is not `owner/name`.
+///
+/// The only way to make one, deliberately: an unvalidated `Custom "http"` would shadow a
+/// well-known effect in every comparison and every policy rule, and nothing downstream would
+/// notice.
+let custom (name : string) : Option<Effect> =
+  if customNamePattern.IsMatch name then Some(Effect.Custom name) else None
+
+/// Resolve a name to an effect: a well-known one, or a validated custom one.
 let fromName (wanted : string) : Option<Effect> =
-  all |> List.tryFind (fun effect -> name effect = wanted)
+  match all |> List.tryFind (fun effect -> name effect = wanted) with
+  | Some wellKnown -> Some wellKnown
+  | None -> custom wanted
 
 /// A scoped effect names a resource (a path, a URL, a table, an executable),
 /// so its exact request can only be built by the builtin body — or, for the
@@ -110,4 +151,7 @@ let isScoped (effect : Effect) : bool =
   | Effect.PackageWrite
   | Effect.TraceRead
   | Effect.TraceWrite
-  | Effect.Native -> false
+  | Effect.Native
+  // A runtime that has never heard of this effect cannot build a request naming the resource it
+  // is about, so it grants the whole thing or nothing. Same honesty as `Native`.
+  | Effect.Custom _ -> false

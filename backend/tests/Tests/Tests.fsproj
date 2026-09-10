@@ -14,7 +14,10 @@
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Matter/Builtins.Matter.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Store/Builtins.Store.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Admin/Builtins.Admin.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Data/Builtins.Data.fsproj" />
+    <ProjectReference Include="../../src/Platforms/Platforms.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
 
     <!-- cross-cutting -->
@@ -30,6 +33,7 @@
 
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
+    <Compile Include="Platform.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="HostBoundary.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />

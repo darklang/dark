@@ -10,7 +10,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // lives in AtRest.Types; the entry points that run it live in AtRestTypeChecker.
 module Checker = LibExecution.AtRest.Types
 module CheckerApi = LibExecution.AtRestTypeChecker
-module AuthoringChecker = Builtins.Matter.Libs.PM.AtRestTypeChecker
+module AuthoringChecker = Builtins.Store.Libs.AtRestTypeChecker
 module HashStabilization = LibDB.HashStabilization
 module CheckerRefs = LibExecution.PackageRefs.Type.LanguageTools.AtRestTypeChecker
 

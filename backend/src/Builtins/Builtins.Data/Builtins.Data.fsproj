@@ -6,25 +6,10 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-
-    <!-- DB -->
     <Compile Include="Libs/DB.fs" />
-
-    <!-- PM -->
-    <Compile Include="Libs/PM/AtRestTypeChecker.fs" />
-    <Compile Include="Libs/PM/PackageOps.fs" />
-    <Compile Include="Libs/PM/Packages.fs" />
-    <Compile Include="Libs/PM/Seed.fs" />
-    <Compile Include="Libs/PM/Permissions.fs" />
-    <Compile Include="Libs/PM/Store.fs" />
-
-    <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />
-
-    <!-- Accounts -->
     <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Sqlite.fs" />
-
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

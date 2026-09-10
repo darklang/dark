@@ -32,6 +32,7 @@ let main (args : string array) : int =
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
+        Tests.Platform.tests
         Tests.Builtin.tests
         Tests.HostBoundary.tests
         Tests.DvalReprInternalQueryable.tests

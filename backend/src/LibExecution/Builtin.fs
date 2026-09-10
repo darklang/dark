@@ -51,22 +51,42 @@ let checkFn (fn : BuiltInFn) : unit =
 
 
 let private byName (items : List<'a>) (name : 'a -> 'k) : Dictionary<'k, 'a> =
-  let d = Dictionary<'k, 'a>()
+  let d = Dictionary<'k, 'a>(List.length items)
   items |> List.iter (fun item -> d[name item] <- item)
   d
 
 
-/// Provided a list of library contents, combine them (handling renames)
+/// Provided a list of library contents, combine them (handling renames).
+///
+/// Straight from the source dictionaries into a pre-sized target one, with no F# list in between.
+/// That matters because this runs at every nesting level: `Libs.List.builtins ()` builds a
+/// `Dictionary` via `make`, `Builtins.Pure.Builtin.builtins ()` combines a couple of dozen of those,
+/// and `PlatformSet.make` combines every one of THOSE. Materialising `lib.fns.Values |> List.ofSeq`
+/// at each level costs every builtin a cons cell per level, and letting the target dictionary grow
+/// from empty rehashes the whole set two or three times on the way up.
+///
+/// The rename path is unchanged and deliberately still list-based: `fnRenames` is empty everywhere
+/// today, so the cost of converting to a list and back is paid by nobody, and the semantics there
+/// (a rename whose target is itself the target of an earlier rename) are worth not re-deriving.
 let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
-  let fns = libs |> List.collect (fun lib -> lib.fns.Values |> List.ofSeq)
+  let fnCount = libs |> List.sumBy (fun lib -> lib.fns.Count)
+  let valueCount = libs |> List.sumBy (fun lib -> lib.values.Count)
 
-  fns |> List.iter checkFn
+  let fns = Dictionary<FQFnName.Builtin, BuiltInFn>(fnCount)
+  let values = Dictionary<FQValueName.Builtin, BuiltInValue>(valueCount)
 
-  { values =
-      byName
-        (libs |> List.collect (fun lib -> lib.values.Values |> List.ofSeq))
-        _.name
-    fns = byName (fns |> renameFunctions fnRenames) _.name }
+  for lib in libs do
+    for fn in lib.fns.Values do
+      checkFn fn
+      fns[fn.name] <- fn
+    for value in lib.values.Values do
+      values[value.name] <- value
+
+  if List.isEmpty fnRenames then
+    { values = values; fns = fns }
+  else
+    let renamed = fns.Values |> List.ofSeq |> renameFunctions fnRenames
+    { values = values; fns = byName renamed _.name }
 
 
 let make (values : List<BuiltInValue>) (fns : List<BuiltInFn>) : Builtins =

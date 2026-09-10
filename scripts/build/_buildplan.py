@@ -286,3 +286,57 @@ def changed_since(when, roots=None, root="."):
     except FileNotFoundError:
       continue
   return sorted(changed)
+
+# Files whose change cannot alter what `reload-packages` would write into the package
+# database, and files whose change alters it only if the BUILTIN MANIFEST moved.
+#
+# The reload re-parses every `.dark`, lowers it to ProgramTypes, hashes it, converts to
+# RuntimeTypes and evaluates package values. So anything touching the parser, the PT/RT
+# types, the conversion, the hashing, the serializers, or the code that writes the
+# projections can change the bytes that land, and must force a reload. That is the
+# default, and this list is the exception to it, not the rule.
+#
+# `backend/src/Cli` and `backend/src/Wasm` are hosts. They consume the package database
+# and never produce it.
+PACKAGE_NEUTRAL_PREFIXES = (
+  "backend/src/Cli/",
+  "backend/src/Wasm/",
+)
+
+# Builtins are the interesting case, and the reason the platform manifest has a
+# fingerprint at all. The reload resolves names against the builtin SET, so a builtin's
+# name, version, signature or effects changing can change what a package resolves to,
+# while a change to a builtin's BODY cannot. Paths cannot tell those apart. The
+# fingerprint can, so these are neutral exactly when it has not moved.
+PACKAGE_NEUTRAL_IF_MANIFEST_UNCHANGED = (
+  "backend/src/Builtins/",
+  "backend/src/Platforms/",
+)
+
+
+def reload_is_redundant(files, manifest_unchanged, unrouted=()):
+  """Can the package reload be skipped for this set of changed files?
+
+  Conservative by construction: the answer is False unless every changed file is
+  positively known to be harmless. A wrong True here means running against a stale
+  package database, which shows up as a plausible answer rather than an error, and that
+  is the worst failure this build system has.
+
+  `manifest_unchanged` comes from comparing the freshly built binary's builtin
+  fingerprint against the one recorded at the last successful reload. It is only
+  consulted for the builtin paths.
+  """
+  # Files the planner routed to no action at all (docs, a budget file, a test fixture) cannot
+  # affect what the reload writes, by definition: `Should.unrouted` is exactly the set that asks
+  # for nothing. Without this, editing a note beside a `.fs` file blocks the skip, which is most
+  # of the times a person edits anything.
+  routed = [f for f in files if f not in set(unrouted)]
+  if not routed:
+    return False
+  for f in routed:
+    if f.startswith(PACKAGE_NEUTRAL_PREFIXES):
+      continue
+    if f.startswith(PACKAGE_NEUTRAL_IF_MANIFEST_UNCHANGED) and manifest_unchanged:
+      continue
+    return False
+  return True

@@ -80,11 +80,11 @@ let sqrt (a: Int) : Float = Builtin.intSqrt a
 
 
 /// Converts an <type Int> to a <type Float>
-let toFloat (a: Int) : Float = Builtin.intToFloat a
+let toFloat (a: Int) : Float = Builtin.convert<Float> a
 
 
 /// Converts a <type Float> to an <type Int>, truncating toward zero.
-let fromFloat (a: Float) : Int = Builtin.intFromFloat a
+let fromFloat (a: Float) : Int = Builtin.convert<Int> a
 
 
 /// Returns the sum of all the ints in the list
@@ -127,69 +127,69 @@ let toString (int: Int) : String = Builtin.intToString int
 // Conversions from the fixed-width integer types into `Int` (always succeed).
 
 /// Converts an <type Int8> to an arbitrary-precision <type Int>
-let fromInt8 (a: Int8) : Int = Builtin.intFromInt8 a
+let fromInt8 (a: Int8) : Int = Builtin.convert<Int> a
 
 /// Converts a <type UInt8> to an arbitrary-precision <type Int>
-let fromUInt8 (a: UInt8) : Int = Builtin.intFromUInt8 a
+let fromUInt8 (a: UInt8) : Int = Builtin.convert<Int> a
 
 /// Converts an <type Int16> to an arbitrary-precision <type Int>
-let fromInt16 (a: Int16) : Int = Builtin.intFromInt16 a
+let fromInt16 (a: Int16) : Int = Builtin.convert<Int> a
 
 /// Converts a <type UInt16> to an arbitrary-precision <type Int>
-let fromUInt16 (a: UInt16) : Int = Builtin.intFromUInt16 a
+let fromUInt16 (a: UInt16) : Int = Builtin.convert<Int> a
 
 /// Converts an <type Int32> to an arbitrary-precision <type Int>
-let fromInt32 (a: Int32) : Int = Builtin.intFromInt32 a
+let fromInt32 (a: Int32) : Int = Builtin.convert<Int> a
 
 /// Converts a <type UInt32> to an arbitrary-precision <type Int>
-let fromUInt32 (a: UInt32) : Int = Builtin.intFromUInt32 a
+let fromUInt32 (a: UInt32) : Int = Builtin.convert<Int> a
 
 /// Converts an <type Int64> to an arbitrary-precision <type Int>
-let fromInt64 (a: Int64) : Int = Builtin.intFromInt64 a
+let fromInt64 (a: Int64) : Int = Builtin.convert<Int> a
 
 /// Converts a <type UInt64> to an arbitrary-precision <type Int>
-let fromUInt64 (a: UInt64) : Int = Builtin.intFromUInt64 a
+let fromUInt64 (a: UInt64) : Int = Builtin.convert<Int> a
 
 /// Converts an <type Int128> to an arbitrary-precision <type Int>
-let fromInt128 (a: Int128) : Int = Builtin.intFromInt128 a
+let fromInt128 (a: Int128) : Int = Builtin.convert<Int> a
 
 /// Converts a <type UInt128> to an arbitrary-precision <type Int>
-let fromUInt128 (a: UInt128) : Int = Builtin.intFromUInt128 a
+let fromUInt128 (a: UInt128) : Int = Builtin.convert<Int> a
 
 
 // Conversions from `Int` into the fixed-width integer types, returning {{None}}
 // if the value doesn't fit the target range.
 
 /// Converts an <type Int> to an <type Int8>, returning {{None}} if it doesn't fit
-let toInt8 (a: Int) : Stdlib.Option.Option<Int8> = Builtin.intToInt8 a
+let toInt8 (a: Int) : Stdlib.Option.Option<Int8> = Builtin.tryConvert<Int8> a
 
 /// Converts an <type Int> to a <type UInt8>, returning {{None}} if it doesn't fit
-let toUInt8 (a: Int) : Stdlib.Option.Option<UInt8> = Builtin.intToUInt8 a
+let toUInt8 (a: Int) : Stdlib.Option.Option<UInt8> = Builtin.tryConvert<UInt8> a
 
 /// Converts an <type Int> to an <type Int16>, returning {{None}} if it doesn't fit
-let toInt16 (a: Int) : Stdlib.Option.Option<Int16> = Builtin.intToInt16 a
+let toInt16 (a: Int) : Stdlib.Option.Option<Int16> = Builtin.tryConvert<Int16> a
 
 /// Converts an <type Int> to a <type UInt16>, returning {{None}} if it doesn't fit
-let toUInt16 (a: Int) : Stdlib.Option.Option<UInt16> = Builtin.intToUInt16 a
+let toUInt16 (a: Int) : Stdlib.Option.Option<UInt16> = Builtin.tryConvert<UInt16> a
 
 /// Converts an <type Int> to an <type Int32>, returning {{None}} if it doesn't fit
-let toInt32 (a: Int) : Stdlib.Option.Option<Int32> = Builtin.intToInt32 a
+let toInt32 (a: Int) : Stdlib.Option.Option<Int32> = Builtin.tryConvert<Int32> a
 
 /// Converts an <type Int> to a <type UInt32>, returning {{None}} if it doesn't fit
-let toUInt32 (a: Int) : Stdlib.Option.Option<UInt32> = Builtin.intToUInt32 a
+let toUInt32 (a: Int) : Stdlib.Option.Option<UInt32> = Builtin.tryConvert<UInt32> a
 
 /// Converts an <type Int> to an <type Int64>, returning {{None}} if it doesn't
 /// fit the 64-bit range
-let toInt64 (a: Int) : Stdlib.Option.Option<Int64> = Builtin.intToInt64 a
+let toInt64 (a: Int) : Stdlib.Option.Option<Int64> = Builtin.tryConvert<Int64> a
 
 /// Converts an <type Int> to a <type UInt64>, returning {{None}} if it doesn't fit
-let toUInt64 (a: Int) : Stdlib.Option.Option<UInt64> = Builtin.intToUInt64 a
+let toUInt64 (a: Int) : Stdlib.Option.Option<UInt64> = Builtin.tryConvert<UInt64> a
 
 /// Converts an <type Int> to an <type Int128>, returning {{None}} if it doesn't fit
-let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
+let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.tryConvert<Int128> a
 
 /// Converts an <type Int> to a <type UInt128>, returning {{None}} if it doesn't fit
-let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
+let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.tryConvert<UInt128> a
 
 
 let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b

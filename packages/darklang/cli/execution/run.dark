@@ -239,7 +239,28 @@ let runScript
           printScriptError state (ExecutionError.ExecutionError.Denied denied)
       | None -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
     | _ -> printScriptError state (ExecutionError.ExecutionError.Denied denied)
-  | Error e -> printScriptError state e
+  | Error e ->
+    // Same offer `eval` makes, for the same reason: the script reached for a platform this session
+    // does not have, and the useful next move is to switch it on rather than to read a command and
+    // type it yourself. `promptsLeft` bounds this the way it bounds the permission prompt, so a
+    // script needing three platforms asks about the first and then stops nagging.
+    match Platforms.inactiveIn e with
+    | Some((platform, effects)) when promptsLeft > 0 ->
+      if Platforms.offerActivation platform effects then
+        runScript
+          state
+          scriptPath
+          code
+          args
+          allowHarmful
+          sandbox
+          warnPermissions
+          sessionAllow
+          (promptsLeft - 1)
+      else
+        printScriptError state e
+
+    | _ -> printScriptError state e
 
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =

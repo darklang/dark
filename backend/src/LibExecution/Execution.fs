@@ -43,6 +43,13 @@ let createState
     program = program
 
     builtins = builtins
+    // Not known here: `createState` is handed a combined `Builtins`, which has lost which platform
+    // contributed what. A host that composed from a `PlatformSet` sets this afterwards.
+    // Everything the runtime links is active unless a host says otherwise. A host that wants a
+    // near-pure default session composes the split itself and sets both of these.
+    guestFloor = fun () -> None
+    inactiveBuiltins = System.Collections.Generic.Dictionary()
+    platforms = []
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
     blobs = { get = pm.getBlob; persist = pm.persistBlob }

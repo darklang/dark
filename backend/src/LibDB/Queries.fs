@@ -854,3 +854,36 @@ let getPropagationFollows
   (branchId : PT.BranchId)
   : Task<Set<string * string * string>> =
   getPropagationPolicy branchId "follow"
+
+
+/// Every listed function whose fully-qualified name starts with `prefix`, as
+/// (location, hash). Dev tooling: `LocalExec.PlatformReport.Audit` walks a call
+/// graph per row, so this is a thing you run when asking a question rather than
+/// anything on a hot path.
+///
+/// `unlisted_at IS NULL` matters. An unlisted location is a name that has moved
+/// or been deleted, and auditing those reports findings against code nobody can
+/// call any more.
+let listedFnLocations
+  (prefix : string)
+  : Ply<List<PT.PackageLocation * PT.Hash>> =
+  uply {
+    let! rows =
+      Sql.query
+        """
+        SELECT owner, modules, name, item_hash
+        FROM locations
+        WHERE item_type = 'fn'
+          AND unlisted_at IS NULL
+          AND (owner || '.' || modules || '.' || name) LIKE @prefix
+        """
+      |> Sql.parameters [ "prefix", Sql.string (prefix + "%") ]
+      |> Sql.executeAsync (fun read ->
+        let modulesStr = read.string "modules"
+        let location : PT.PackageLocation =
+          { owner = read.string "owner"
+            modules = modulesStr.Split('.') |> Array.toList
+            name = read.string "name" }
+        (location, PT.Hash(read.string "item_hash")))
+    return rows
+  }

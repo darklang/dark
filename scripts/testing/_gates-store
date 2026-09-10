@@ -110,7 +110,14 @@ gate_first_day() {
   want "authoring on it"   "Created function: FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
   want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
 
-  # 5. Merge it, and main can.
+  # 5. Commit the branch, then merge it, and main can see it.
+  #
+  # The commit is not decoration. `mergeRefusal` in packages/darklang/cli/scm/branchMerge.dark
+  # refuses a branch with uncommitted ops, deliberately and with its reasoning written out: merging
+  # them moves unreviewed work into the parent with no commit of its own, so it arrives as somebody
+  # else's history and the message explaining it never gets written. This gate used to merge
+  # straight from the draft and had been red ever since that gate landed.
+  want "committing the branch" "^ *commit [0-9a-f]{8} -- [0-9]+ op" --branch firstday commit "the only function" -y
   want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
   want "merging"           "Merged"          --branch firstday merge firstday
   want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
@@ -118,6 +125,7 @@ gate_first_day() {
   # 6. A real divergence: both sides move one name, merge records a conflict.
   dark branch create clash >/dev/null 2>&1 || true
   dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " ++ name' >/dev/null 2>&1 || true
+  dark --branch clash commit "greet, one way" -y >/dev/null 2>&1 || true
   dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " ++ name' >/dev/null 2>&1 || true
   want "merge records a conflict" "[0-9]+ conflict" --branch clash merge clash
   want "conflicts --json lists it" '"pending":[1-9]' --branch main conflicts --json

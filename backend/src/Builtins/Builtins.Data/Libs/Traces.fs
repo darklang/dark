@@ -1,6 +1,6 @@
 /// Builtin functions for querying the trace store.
 /// Companion to `LibDB.Tracing` (the recorder side).
-module Builtins.Matter.Libs.Traces
+module Builtins.Data.Libs.Traces
 
 open Prelude
 open LibExecution.RuntimeTypes

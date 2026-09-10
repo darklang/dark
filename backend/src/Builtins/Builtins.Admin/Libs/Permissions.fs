@@ -1,5 +1,5 @@
 /// Trusted policy administration and package-effect inspection.
-module Builtins.Matter.Libs.PM.Permissions
+module Builtins.Admin.Libs.Permissions
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -15,6 +15,7 @@ module CommonToDT = LibExecution.CommonToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 module PackagePermissions = LibDB.PackagePermissions
 module PolicyStore = LibDB.PolicyStore
+module Activation = LibDB.Activation
 
 open Builtin.Shortcuts
 
@@ -108,8 +109,125 @@ let private hostOnly
 let private accountParam = Param.make "accountID" (TypeReference.option TUuid) ""
 let private locationParam = Param.make "location" TString "Logical function name"
 
+/// The platform names this build shipped, which is the set an activation is a subset of.
+let private shipped (state : ExecutionState) : Set<string> =
+  state.platforms |> List.map _.name |> Set.ofList
+
 let fns : List<BuiltInFn> =
   [ policyFn
+      "pmPlatformsActivated"
+      [ Param.make "unit" TUnit "" ]
+      (TypeReference.option (TList TString))
+      ("The platforms this instance has switched on, or None when it has never chosen -- which "
+       + "means all of them. None and an empty list are different answers.")
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          uply {
+            return
+              Activation.get ()
+              |> CommonToDT.Option.toDT
+                (fun names ->
+                  DList(VT.string, names |> Set.toList |> List.map DString))
+                (KTList VT.string)
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsActivate"
+      [ Param.make "name" TString "The platform to switch on" ]
+      (TypeReference.result TUnit TString)
+      ("Switch a platform on for this instance, durably. Host-only: package code must not be "
+       + "able to activate the platform that would give it what it wants.")
+      (fun state args ->
+        match args with
+        | [| DString name |] ->
+          uply {
+            let shipped = shipped state
+            if Set.contains name shipped then
+              Activation.activate shipped name
+              return Dval.resultOk KTUnit KTString DUnit
+            else
+              // A typo must not be storable. An activation naming a platform that does not
+              // exist would read as a working choice and quietly do nothing.
+              return
+                Dval.resultError
+                  KTUnit
+                  KTString
+                  (DString $"No platform named '{name}' in this build.")
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsDeactivate"
+      [ Param.make "name" TString "The platform to switch off" ]
+      (TypeReference.result TUnit TString)
+      ("Switch a platform off for this instance, durably. Deactivating from 'never chosen' "
+       + "records everything else as on, so it narrows by exactly one.")
+      (fun state args ->
+        match args with
+        | [| DString name |] ->
+          uply {
+            let shipped = shipped state
+            if Set.contains name shipped then
+              Activation.deactivate shipped name
+              return Dval.resultOk KTUnit KTString DUnit
+            else
+              return
+                Dval.resultError
+                  KTUnit
+                  KTString
+                  (DString $"No platform named '{name}' in this build.")
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsSet"
+      [ Param.make "names" (TList TString) "The complete set to switch on" ]
+      (TypeReference.result TUnit TString)
+      ("Replace this instance's platform choice wholesale. Host-only. Refuses a name this build "
+       + "does not ship, so a typo cannot be stored as a working choice.")
+      (fun state args ->
+        match args with
+        | [| DList(_, names) |] ->
+          uply {
+            let shipped = shipped state
+            let wanted =
+              names
+              |> List.choose (fun d ->
+                match d with
+                | DString s -> Some s
+                | _ -> None)
+            match wanted |> List.filter (fun n -> not (Set.contains n shipped)) with
+            | [] ->
+              Activation.set (Some(Set.ofList wanted))
+              return Dval.resultOk KTUnit KTString DUnit
+            | unknown ->
+              let rendered = unknown |> List.sort |> String.concat ", "
+              return
+                Dval.resultError
+                  KTUnit
+                  KTString
+                  (DString $"No platform named '{rendered}' in this build.")
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsActivateAll"
+      [ Param.make "unit" TUnit "" ]
+      TUnit
+      ("Clear this instance's platform choice, so every platform this build shipped is on "
+       + "again. The way back from a narrowing you regret.")
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          uply {
+            Activation.set None
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
       "pmPolicyGetInstance"
       [ Param.make "unit" TUnit "" ]
       policyType

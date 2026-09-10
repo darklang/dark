@@ -1,0 +1,411 @@
+/// Platforms: the named, versioned unit a runtime is assembled from.
+///
+/// A **platform** is a bundle of builtins plus the effects they may perform, and a statement of
+/// whether it needs a store on disk. An executable is a choice of platforms; that choice is a
+/// `PlatformSet`, and its `fingerprint` is what everything downstream compares against.
+///
+/// This module owns the vocabulary only. WHICH platforms exist is a `Platforms` concern (that
+/// assembly references the `Builtins.*` ones; this one cannot, since they reference us).
+///
+/// Why this exists rather than a hardcoded `Builtin.combine [ ... ]` list per executable:
+///
+///  1. **A collision becomes an error.** `Builtin.combine` is last-write-wins over a `Dictionary`,
+///     so two libraries claiming one name silently pick one. Inside a single curated set that is
+///     survivable. Across independently shipped platforms it is the bug that eats an afternoon, so
+///     `PlatformSet.make` refuses instead, and names both platforms.
+///  2. **The set gets an identity.** `fingerprint` is a content hash of every builtin's owner,
+///     identity, signature and effects. That one string answers "is the primitive floor the same as
+///     when this was compiled / approved / cached?", which is the question behind the package
+///     reload, the approval-staleness check, and any future instruction cache.
+///  3. **Composition is data.** `run-local-exec platforms` lists what a build ships, and a smaller
+///     executable is a shorter list rather than an edit to four files. `Wasm/Repl.fs` is the worked
+///     example: it composes `Core` + `HttpClient` + one of its own without linking the catalog.
+///
+/// Effects vs permissions, restated because the distinction is the whole safety story: a platform
+/// DECLARES what its builtins may do (`Effects.Effect`, static, part of the fingerprint). It never
+/// GRANTS anything. Grants live in `LibDB.PolicyStore`, outside the package database, and a
+/// platform cannot write them.
+///
+/// **A platform has to earn its assembly.** Build cost here is linear in the number of projects in
+/// the closure you ask for, measured at about 1.4 seconds each and paid whether or not anything
+/// changed, so every split adds that to every build that reaches it. Splitting `Matter` into
+/// `Store`, `Data` and `Admin` earned it: they have different effect surfaces, different audiences,
+/// and `Store` stopped dragging `LibCloud`. Splitting four instrumentation functions out of `Lang`
+/// would not. The test is whether the pieces are wanted apart, not whether they are different.
+///
+/// A platform's builtins do NOT have to be one assembly forever, either. `HttpClient` and
+/// `HttpServer` are separate platforms over separate assemblies because they are separate risks;
+/// nothing stops a future platform spanning two assemblies or two platforms sharing one, and the
+/// record is what says which.
+module LibExecution.Platform
+
+open Prelude
+open LibExecution.RuntimeTypes
+
+module Builtin = LibExecution.Builtin
+
+
+/// A platform's linear version. Forward-only, one integer, same shape as the store's `Release`: a
+/// binary refuses a platform version it does not know rather than guessing at the difference.
+type Version = int
+
+
+/// `Platform` itself is `RuntimeTypes.Platform`, so that `ExecutionState` can carry one. Aliased
+/// here so `LibExecution.Platform.Platform` keeps working: that is the name every platform record
+/// annotates itself with, and it reads better at those sites than the runtime-types path does.
+type Platform = RuntimeTypes.Platform
+
+
+module Platform =
+  /// Everything this platform's builtins may do. The install-time review surface: what a person is
+  /// agreeing to when they add it, before any policy narrows it.
+  ///
+  /// A union over the whole platform, so it is deliberately coarser than any single call. `Native`
+  /// appearing here means the platform contains something nobody can scope (see `Effects.Native`),
+  /// and the honest summary is that granting it hands over the machine.
+  let effectSurface (p : Platform) : Set<Effects.Effect> =
+    p.builtins.fns.Values
+    |> Seq.fold (fun acc fn -> Set.union acc fn.callEffects) p.dynamicEffects
+
+  /// For each effect this platform reaches, which of its builtins declare it.
+  ///
+  /// The tightening report, and the reason it is worth having: an effect declared by exactly ONE
+  /// builtin is an effect the whole platform could lose by moving or narrowing that one function.
+  /// `Store` reached `file-write` because of `pmSeedExport` and nothing else, and nobody was going
+  /// to notice that by reading ten files.
+  ///
+  /// `dynamicEffects` are attributed to the platform itself under the name `(dynamic)`, since no
+  /// single builtin declares them.
+  let effectContributors (p : Platform) : Map<Effects.Effect, List<string>> =
+    let fromFns =
+      p.builtins.fns.Values
+      |> Seq.collect (fun fn ->
+        fn.callEffects |> Set.toList |> List.map (fun e -> (e, fn.name.name)))
+      |> List.ofSeq
+    let fromDynamic =
+      p.dynamicEffects |> Set.toList |> List.map (fun e -> (e, "(dynamic)"))
+    (fromFns @ fromDynamic)
+    // Prelude's `List.groupBy` answers a `Map`, not F#'s list of pairs.
+    |> List.groupBy fst
+    |> Map.map (fun pairs -> pairs |> List.map snd |> List.distinct |> List.sort)
+
+  /// Does this platform reach the operating system at all?
+  let isPure (p : Platform) : bool = Set.isEmpty (effectSurface p)
+
+  let fnCount (p : Platform) : int = p.builtins.fns.Count
+  let valueCount (p : Platform) : int = p.builtins.values.Count
+
+  /// `Name@version`.
+  let coordinate (p : Platform) : string = $"{p.name}@{p.version}"
+
+  /// One line per builtin this platform contributes: name, version, type parameters, parameter
+  /// types, return type and effects. The same fields `PlatformSet`'s manifest uses, and
+  /// deliberately the same omissions (descriptions, parameter names, `sqlSpec`), so a doc fix does
+  /// not move it.
+  ///
+  /// `dynamicEffects` is in it too. A platform whose builtins decide their effects by argument is
+  /// a different platform from one that does not, even with identical signatures, and that is
+  /// exactly the difference a consumer deciding whether to trust it would want to see move.
+  let private manifestText (p : Platform) : string =
+    let typ (t : TypeReference) : string = string t
+
+    let fnLine (name : FQFnName.Builtin, fn : BuiltInFn) : string =
+      let ps = fn.parameters |> List.map (fun p -> typ p.typ) |> String.concat ","
+      let tps = fn.typeParams |> String.concat ","
+      let effects =
+        fn.callEffects
+        |> Set.toList
+        |> List.map Effects.name
+        |> List.sort
+        |> String.concat ","
+      $"fn {name.name}@{name.version}<{tps}>({ps}):{typ fn.returnType} [{effects}]"
+
+    let valueLine (name : FQValueName.Builtin, v : BuiltInValue) : string =
+      $"val {name.name}@{name.version}:{typ v.typ}"
+
+    let dynamic =
+      p.dynamicEffects
+      |> Set.toList
+      |> List.map Effects.name
+      |> List.sort
+      |> String.concat ","
+
+    let requires = p.requires |> List.sort |> String.concat ","
+
+    ([ $"platform {coordinate p} requires [{requires}] dynamic [{dynamic}] store {p.requiresStore}" ]
+     @ (p.builtins.fns |> Dictionary.toSortedList |> List.map fnLine)
+     @ (p.builtins.values |> Dictionary.toSortedList |> List.map valueLine))
+    |> String.concat "\n"
+
+  /// 16 hex characters of SHA-256 over this ONE platform's manifest.
+  ///
+  /// The set's fingerprint answers "is the whole floor the same". This answers "is THIS piece the
+  /// same", which is the question a consumer of somebody else's platform has: they did not choose
+  /// the rest of your binary and should not be told their dependency moved when it did not.
+  ///
+  /// Computed rather than stored: nothing is gained by a number a platform asserts about itself,
+  /// and a stored one can lie.
+  let fingerprint (p : Platform) : string =
+    use sha = System.Security.Cryptography.SHA256.Create()
+    sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(manifestText p))
+    |> Array.take 8
+    |> Array.map (fun b -> b.ToString "x2")
+    |> String.concat ""
+
+
+/// A chosen set of platforms, and the single `Builtins` an `ExecutionState` runs against.
+///
+/// Build one with `PlatformSet.make`. The combined `builtins` is computed once: it is read on every
+/// builtin call, so it is a `Dictionary`, and rebuilding it per call site is what the old
+/// three-hardcoded-lists arrangement did (the CLI combined the same libraries three times over).
+type PlatformSet =
+  {
+    platforms : List<Platform>
+    builtins : Builtins
+    /// Deferred: hashing every signature in the set costs more than most CLI commands do, and only the reload
+    /// gate, the approval check and `run-local-exec platforms` ever ask. Read it via `.fingerprint`.
+    fingerprintLazy : Lazy<string>
+  }
+
+  member this.fingerprint : string = this.fingerprintLazy.Force()
+
+
+module PlatformSet =
+
+  /// The canonical text a fingerprint is taken over. One line per builtin, sorted, plus one line
+  /// per platform coordinate.
+  ///
+  /// **What is in it:** the platform coordinates, and for every builtin its name, version, type
+  /// parameters, parameter types, return type and effects. Those are the things a package compiled
+  /// against this floor can observe.
+  ///
+  /// **What is deliberately not:** descriptions, parameter *names*, and `sqlSpec`. A doc fix must
+  /// not invalidate every cached package and every capability approval on the machine; that is a
+  /// re-review nobody reads, which is worse than no re-review at all. If a parameter rename ever
+  /// becomes observable (named arguments), it moves into the fingerprint that day.
+  ///
+  /// **Every line names its owning platform**, and that is load-bearing rather than decorative. It
+  /// is what lets the qualified form `Files#fileRead` stay a DERIVED name instead of a stored one:
+  /// the concern with deriving it is that `fileRead` could silently come to mean a different
+  /// platform's function, and with the owner in the fingerprint that move changes the fingerprint
+  /// even when the signature is identical. Take the owner out and stored qualifiers become the only
+  /// safe option, at the price of rehashing every package that calls a builtin.
+  /// The manifest covers the COMBINED set, not the union of the members, so a builtin that only
+  /// exists after `renames` synthesized it is still in there. Those have no declaring platform and
+  /// are attributed to `renames`, which is the truth: the set as a whole made them, not any member.
+  let private manifestText
+    (platforms : List<Platform>)
+    (combined : Builtins)
+    : string =
+    let typ (t : TypeReference) : string = string t
+
+    let fnOwner = System.Collections.Generic.Dictionary<FQFnName.Builtin, string>()
+    let valueOwner =
+      System.Collections.Generic.Dictionary<FQValueName.Builtin, string>()
+    platforms
+    |> List.iter (fun p ->
+      let coord = Platform.coordinate p
+      p.builtins.fns.Keys |> Seq.iter (fun k -> fnOwner[k] <- coord)
+      p.builtins.values.Keys |> Seq.iter (fun k -> valueOwner[k] <- coord))
+
+    let ownerOfFn (k : FQFnName.Builtin) : string =
+      match fnOwner.TryGetValue k with
+      | true, owner -> owner
+      | false, _ -> "renames"
+
+    let ownerOfValue (k : FQValueName.Builtin) : string =
+      match valueOwner.TryGetValue k with
+      | true, owner -> owner
+      | false, _ -> "renames"
+
+    let fnLine (name : FQFnName.Builtin, fn : BuiltInFn) : string =
+      let ps = fn.parameters |> List.map (fun p -> typ p.typ) |> String.concat ","
+      let tps = fn.typeParams |> String.concat ","
+      let effects =
+        fn.callEffects
+        |> Set.toList
+        |> List.map Effects.name
+        |> List.sort
+        |> String.concat ","
+      let owner = ownerOfFn name
+      $"fn {owner}#{name.name}@{name.version}<{tps}>({ps}):{typ fn.returnType} [{effects}]"
+
+    let valueLine (name : FQValueName.Builtin, v : BuiltInValue) : string =
+      $"val {ownerOfValue name}#{name.name}@{name.version}:{typ v.typ}"
+
+    ((combined.fns |> Dictionary.toSortedList |> List.map fnLine)
+     @ (combined.values |> Dictionary.toSortedList |> List.map valueLine))
+    |> String.concat "\n"
+
+
+  /// 16 hex characters of SHA-256 over `manifestText`. Short enough to print in a status line,
+  /// long enough that a collision is not a thing that happens.
+  let private hashOf (text : string) : string =
+    use sha = System.Security.Cryptography.SHA256.Create()
+    sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes text)
+    |> Array.take 8
+    |> Array.map (fun b -> b.ToString "x2")
+    |> String.concat ""
+
+
+  /// Is any builtin name claimed by more than one platform?
+  ///
+  /// Runs on every process start, so the answer path allocates two `HashSet`s of names and nothing
+  /// else: no per-name string, no per-name list. Keying a `Dictionary` on an interpolated name
+  /// costs a measurable fraction of a whole CLI command to answer "no" once per builtin.
+  ///
+  /// Naming WHICH names collided is the caller's problem, and `describeCollisions` does it at the
+  /// cost of the allocation this avoids. That only runs when the process is about to raise anyway.
+  let private hasCollision (platforms : List<Platform>) : bool =
+    let fnSeen = System.Collections.Generic.HashSet<FQFnName.Builtin>()
+    let valueSeen = System.Collections.Generic.HashSet<FQValueName.Builtin>()
+    let mutable found = false
+    for p in platforms do
+      for k in p.builtins.fns.Keys do
+        if not (fnSeen.Add k) then found <- true
+      for k in p.builtins.values.Keys do
+        if not (valueSeen.Add k) then found <- true
+    found
+
+
+  /// Every builtin name claimed by more than one platform, with the platforms that claim it.
+  /// Only reached when `hasCollision` already said yes.
+  let private describeCollisions
+    (platforms : List<Platform>)
+    : List<string * List<string>> =
+    let claims = System.Collections.Generic.Dictionary<string, ResizeArray<string>>()
+    let claim (key : string) (owner : string) =
+      match claims.TryGetValue key with
+      | true, owners -> owners.Add owner
+      | false, _ ->
+        let owners = ResizeArray<string>()
+        owners.Add owner
+        claims[key] <- owners
+    platforms
+    |> List.iter (fun p ->
+      p.builtins.fns.Keys
+      |> Seq.iter (fun k -> claim $"fn {k.name}@{k.version}" p.name)
+      p.builtins.values.Keys
+      |> Seq.iter (fun k -> claim $"val {k.name}@{k.version}" p.name))
+    claims
+    |> Dictionary.toSortedList
+    |> List.choose (fun (key, owners) ->
+      if owners.Count > 1 then Some(key, List.ofSeq owners) else None)
+
+
+  /// Platform names a member requires that the set does not contain.
+  let private missingRequirements
+    (platforms : List<Platform>)
+    : List<string * string> =
+    let present = platforms |> List.map _.name |> Set.ofList
+    platforms
+    |> List.collect (fun p ->
+      p.requires
+      |> List.filter (fun r -> not (Set.contains r present))
+      |> List.map (fun r -> (p.name, r)))
+
+
+  /// Assemble a set. Raises on a name claimed by two platforms, or on a missing requirement.
+  ///
+  /// Both are internal errors rather than runtime errors on purpose: they are decided by which
+  /// platforms this executable was built or configured with, not by anything a guest can reach, so
+  /// the only useful moment to find out is startup.
+  let make (platforms : List<Platform>) (renames : Builtin.FnRenames) : PlatformSet =
+    if hasCollision platforms then
+      let rendered =
+        describeCollisions platforms
+        |> List.map (fun (key, owners) ->
+          let names = String.concat ", " owners
+          $"{key} claimed by {names}")
+        |> String.concat "; "
+      Exception.raiseInternal
+        "two platforms claim the same builtin name"
+        [ "collisions", rendered ]
+
+    match missingRequirements platforms with
+    | [] -> ()
+    | missing ->
+      let rendered =
+        missing |> List.map (fun (p, r) -> $"{p} requires {r}") |> String.concat "; "
+      Exception.raiseInternal
+        "a platform in this set is missing something it requires"
+        [ "missing", rendered ]
+
+    let combined = Builtin.combine (platforms |> List.map _.builtins) renames
+    { platforms = platforms
+      builtins = combined
+      fingerprintLazy = lazy (hashOf (manifestText platforms combined)) }
+
+
+  /// Does any platform in this set need a store on disk?
+  let needsStore (set : PlatformSet) : bool =
+    set.platforms |> List.exists _.requiresStore
+
+  /// Is this platform in the set?
+  let contains (name : string) (set : PlatformSet) : bool =
+    set.platforms |> List.exists (fun p -> p.name = name)
+
+  let tryFind (name : string) (set : PlatformSet) : Option<Platform> =
+    set.platforms |> List.tryFind (fun p -> p.name = name)
+
+  /// Everything the set's builtins may do: the union of the members' surfaces.
+  let effectSurface (set : PlatformSet) : Set<Effects.Effect> =
+    set.platforms
+    |> List.fold (fun acc p -> Set.union acc (Platform.effectSurface p)) Set.empty
+
+  /// `Core@0, Host@0, Net@0` — for a status line.
+  let coordinates (set : PlatformSet) : string =
+    set.platforms |> List.map Platform.coordinate |> List.sort |> String.concat ", "
+
+
+  /// Which platform declares this builtin function, by bare name.
+  ///
+  /// `PlatformSet.make` has already refused a set where two platforms claim one name, so at most one
+  /// answer exists. This is what makes `Files#fileRead` a name you can WRITE without storing the
+  /// qualifier anywhere: the manifest resolves it, and the fingerprint notices if the answer moves.
+  let ownerOf (fnName : string) (set : PlatformSet) : Option<Platform> =
+    set.platforms
+    |> List.tryFind (fun p ->
+      p.builtins.fns.Keys |> Seq.exists (fun k -> k.name = fnName))
+
+  /// `Files#fileRead`, or the bare name when nothing in the set declares it.
+  let qualify (fnName : string) (set : PlatformSet) : string =
+    match ownerOf fnName set with
+    | Some p -> $"{p.name}#{fnName}"
+    | None -> fnName
+
+  /// Resolve a qualified name. `None` when the platform is absent from the set, or present and does
+  /// not declare that function — the two cases a person writing `Files#fileRead` can get wrong, and
+  /// the reason to resolve rather than to split the string and hope.
+  let resolveQualified
+    (qualified : string)
+    (set : PlatformSet)
+    : Option<FQFnName.Builtin> =
+    match qualified.Split('#') with
+    | [| platformName; fnName |] ->
+      set.platforms
+      |> List.tryFind (fun p -> p.name = platformName)
+      |> Option.bind (fun p ->
+        p.builtins.fns.Keys |> Seq.tryFind (fun k -> k.name = fnName))
+    | _ -> None
+
+  /// Which platforms introduce each effect, sorted.
+  ///
+  /// The install-time review ("adding Host adds file-read, file-write, process, native") read one
+  /// way, and the dead-rule check read the other: a policy naming an effect no installed platform
+  /// can produce is a rule that will never fire, which is usually a typo rather than caution.
+  let effectOrigins (set : PlatformSet) : Map<Effects.Effect, List<string>> =
+    set.platforms
+    |> List.collect (fun p ->
+      Platform.effectSurface p |> Set.toList |> List.map (fun e -> (e, p.name)))
+    // Prelude's `List.groupBy` answers a `Map`, not F#'s list of pairs.
+    |> List.groupBy fst
+    |> Map.map (fun pairs -> pairs |> List.map snd |> List.sort)
+
+  /// Effects named in a policy that nothing in this set can produce.
+  let unreachableEffects
+    (named : Set<Effects.Effect>)
+    (set : PlatformSet)
+    : List<Effects.Effect> =
+    let reachable = effectSurface set
+    named |> Set.toList |> List.filter (fun e -> not (Set.contains e reachable))

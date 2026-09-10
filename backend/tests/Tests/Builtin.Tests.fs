@@ -15,16 +15,22 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module PackageSurface = TestUtils.PackageSurface
 
 open TestUtils.TestUtils
 
 
-/// Every builtin library a running `darklang` has. `localBuiltIns` is the set
-/// the tests execute with, which leaves out CliHost -- `dark eval`, script
-/// running, the CLI's own entry points -- so the checks below would otherwise
-/// ignore that whole library.
+/// Every builtin a running `darklang` has, plus `LibTest`.
+///
+/// One entry, not two. `localBuiltIns` is the whole platform catalog, `Darklang` (CliHost)
+/// included, so appending CliHost beside it would count those builtins twice, which the
+/// duplicate-name check below says out loud.
+///
+/// `LibTest` has to be in here even though it ships in nothing: `packages/darklang/test` calls
+/// `testRaiseException` and `testRuntimeError`, so a set without it reports those as builtins that
+/// package code calls and that do not exist.
 let private allBuiltinSets () : List<RT.Builtins> =
-  [ localBuiltIns PT.PackageManager.empty; Builtins.CliHost.Builtin.builtins () ]
+  [ localBuiltIns PT.PackageManager.empty ]
 
 
 let oldFunctionsAreDeprecated =
@@ -76,115 +82,26 @@ let private allBuiltinNames () : List<string> =
 // A builtin should have one package wrapper, and callers should go through
 // it. The allowlist names the cases where direct multi-use is intentional.
 //
-// Infix-dispatched builtins (`+`, `==`, etc.) are dispatched through
-// operator syntax, so they have no textual `Builtin.X` references.
+// Infix-dispatched builtins (`+`, `==`, etc.) reach the runtime through operator syntax, so they
+// have no textual `Builtin.X` reference. `PT.InfixFnName.isOperatorDispatched` answers that from
+// the lowering table itself, so there is no second copy of the list here to keep in step.
 
-/// Builtins that are language IDIOM rather than library calls, so "one wrapper, everyone through it"
-/// does not apply to them. Distinct from the allowlist below, which is for builtins that could be
-/// wrapped and deliberately are not.
-let private languageIdioms : Set<string> =
-  Set.ofList
-    [ // `unwrap` reads as syntax and appears in 60-odd places. A generic Dark wrapper typechecks
-      // (`let unwrap (value: 'optOrRes) : 'a` works for both Option and Result) and buys nothing: it
-      // has no shape to type and nothing to document that the name does not say, and it puts itself
-      // at the bottom of every unwrap failure's call stack, one frame below the code that had the
-      // None. That frame is the reason, and it is a reason about error messages, not about layering.
-      "unwrap" ]
+let private languageIdioms = PackageSurface.languageIdioms
 
-/// Builtins called via infix operators rather than `Builtin.X` syntax.
-/// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName
-/// for binary ops; LibParser/Parser.fs lowers unary `-x` to Builtin.negate.
-let private infixDispatched : Set<string> =
-  Set.ofList
-    [ // Polymorphic numeric operators
-      "add"
-      "subtract"
-      "multiply"
-      "divide"
-      "modulo"
-      "power"
-      "greaterThan"
-      "greaterThanOrEqualTo"
-      "lessThan"
-      "lessThanOrEqualTo"
-      "negate"
-      "stringAppend"
-      "equals"
-      "notEquals" ]
+/// `convert` and `tryConvert` are the two builtins that replaced 116 typed width conversions
+/// (`Int8.fromInt64`, `UInt32.toFloat` and the rest). Every one of those wrappers still exists with
+/// its old name and signature and delegates to one of these, so there are many call sites by
+/// construction and the one-wrapper rule does not apply: the wrappers ARE the per-type surface, and
+/// these two are the primitive underneath them. Wrapping the primitive again would just add one
+/// more name for the same thing.
+let private multiUseAllowlist : Set<string> = Set.ofList [ "convert"; "tryConvert" ]
 
 
-/// Builtins intentionally referenced from more than one place in `packages/`.
-///
-/// EMPTY, and worth keeping that way: when a builtin picks up a second caller, wrap it.
-/// Before adding an entry, check whether a wrapper already exists and the new caller
-/// simply has not been pointed at it. "A wrapper would just name the thing it already
-/// is" is not a reason -- that is what a wrapper is.
-let private multiUseAllowlist : Set<string> = Set.empty
-
-
-/// The repo root: the first directory at or above CWD holding `packages/darklang/`.
-let private findRepoRoot () : string =
-  let rec walk (dir : string) : string option =
-    if System.String.IsNullOrEmpty dir then
-      None
-    else
-      let candidate = Path.Combine(dir, "packages", "darklang")
-      if Directory.Exists candidate then
-        Some dir
-      else
-        walk (Path.GetDirectoryName dir)
-
-  match walk (Directory.GetCurrentDirectory()) with
-  | Some d -> d
-  | None ->
-    Exception.raiseInternal
-      "Couldn't find packages/ walking up from CWD"
-      [ "cwd", Directory.GetCurrentDirectory() ]
-
-
-/// Read every .dark file under <root>, minus whole-line comments, as one string.
-/// Build output is skipped: it holds copies of files we've already read.
-let private darkTextUnder (root : string) : string =
-  Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
-  |> Seq.filter (fun path ->
-    let sep = Path.DirectorySeparatorChar
-    not (path.Contains $"{sep}Build{sep}"))
-  |> Seq.map File.ReadAllText
-  |> String.concat "\n"
-  |> String.splitOnNewline
-  |> List.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
-  |> String.concat "\n"
-
-
-/// Concatenate every .dark file under packages/ into one string, minus whole-line
-/// comments. Cached.
-///
-/// The comments go because the count below is textual: naming a builtin in a doc
-/// comment, which is a reasonable thing to do next to the one fn that wraps it,
-/// otherwise reads as a second caller and fails this test. Only lines that are
-/// entirely a comment are dropped, so a `//` inside a string literal can't swallow
-/// real code after it on the same line.
-let private packagesText : Lazy<string> =
-  lazy (darkTextUnder (Path.Combine(findRepoRoot (), "packages")))
-
-
-/// Every .dark file in the repo, minus whole-line comments. Wider than
-/// `packagesText`: it also covers test files, perf workloads and sample
-/// scripts, which is the difference between "shipped once" and "dead".
-let private repoDarkText : Lazy<string> = lazy (darkTextUnder (findRepoRoot ()))
-
-
-/// Count textual references to `Builtin.<name>` (or `Builtin.<name>_v<n>`)
-/// across packages/. The `(?![a-zA-Z0-9_])` lookahead prevents matching
-/// `Builtin.dictGet` against the prefix of `Builtin.dictGetItem`.
-let private countReferencesIn (corpus : string) (builtinName : string) : int =
-  let escaped = Regex.Escape builtinName
-  let pattern = $@"Builtin\.{escaped}(?:_v[0-9]+)?(?![a-zA-Z0-9_])"
-  let regex = Regex(pattern, RegexOptions.Compiled)
-  regex.Matches(corpus).Count
-
-let private countReferences (builtinName : string) : int =
-  countReferencesIn packagesText.Value builtinName
+let private findRepoRoot = PackageSurface.findRepoRoot
+let private packagesText = PackageSurface.packagesText
+let private repoDarkText = PackageSurface.repoDarkText
+let private countReferencesIn = PackageSurface.countReferencesIn
+let private countReferences = PackageSurface.countReferences
 
 
 let builtinAccessInPackageMatter =
@@ -196,7 +113,7 @@ let builtinAccessInPackageMatter =
           None
         elif Set.contains name languageIdioms then
           None
-        elif Set.contains name infixDispatched then
+        elif PT.InfixFnName.isOperatorDispatched name then
           None
         else
           let count = countReferences name
@@ -243,7 +160,7 @@ let everyBuiltinIsReferenced =
       allBuiltinNames ()
       |> Seq.filter (fun name ->
         not (Set.contains name unusedAllowlist)
-        && not (Set.contains name infixDispatched)
+        && not (PT.InfixFnName.isOperatorDispatched name)
         && countReferencesIn repoDarkText.Value name = 0)
       |> List.ofSeq
 
@@ -413,8 +330,13 @@ let everyCliHelpReturnsText =
 // store operations use PermissionCheck.
 
 
-let private storeBuiltinsRoot () =
-  Path.Combine(findRepoRoot (), "backend", "src", "Builtins", "Builtins.Matter")
+/// The two assemblies carved out of the former `Builtins.Matter`: the package store, and the
+/// user database plus the raw SQLite floor. Both, because a scoped store effect can be declared in
+/// either half.
+let private storeBuiltinsRoots () =
+  let builtins = Path.Combine(findRepoRoot (), "backend", "src", "Builtins")
+  [ Path.Combine(builtins, "Builtins.Store")
+    Path.Combine(builtins, "Builtins.Data") ]
 
 let private storeScopedEffectRegex =
   Regex(@"\bEffect\.(FileRead|FileWrite|DbRead|DbWrite)\b", RegexOptions.Compiled)
@@ -424,7 +346,9 @@ let storeScopedEffectsRequireTargetChecks =
     let root = findRepoRoot ()
     let nameRegex = Regex(@"^""(?<name>[^""]+)""", RegexOptions.Compiled)
     let missing =
-      Directory.GetFiles(storeBuiltinsRoot (), "*.fs", SearchOption.AllDirectories)
+      storeBuiltinsRoots ()
+      |> List.collect (fun dir ->
+        Directory.GetFiles(dir, "*.fs", SearchOption.AllDirectories) |> List.ofArray)
       |> Seq.collect (fun file ->
         File
           .ReadAllText(file)
@@ -460,7 +384,9 @@ let storeScopedEffectsRequireTargetChecks =
 let scopedEffectInventoryRegexIsLive =
   test "scoped-effect inventory regex matches source" {
     let matches =
-      Directory.GetFiles(storeBuiltinsRoot (), "*.fs", SearchOption.AllDirectories)
+      storeBuiltinsRoots ()
+      |> List.collect (fun dir ->
+        Directory.GetFiles(dir, "*.fs", SearchOption.AllDirectories) |> List.ofArray)
       |> Seq.filter (fun file ->
         storeScopedEffectRegex.IsMatch(File.ReadAllText file))
       |> Seq.length

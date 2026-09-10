@@ -1,0 +1,42 @@
+module Darklang.Cli.Lsp
+
+/// `dark lsp`: run the language server, speaking LSP over stdin and stdout.
+///
+/// This exists because the alternative was `dark eval
+/// 'Darklang.LanguageTools.LspServer.runServerCli ()'`, which is what editors had to do and which
+/// does not work. `eval` deliberately creates a RESTRICTED guest state, and under it every file
+/// write is denied; the server's first act is to open its log, a policy denial unwinds past the
+/// `Result` that write returns, and the process dies before answering a single request. The editor
+/// sees a dead pipe rather than an error.
+///
+/// A registered CLI command is trusted host code and runs under the CLI's own policy, so the log
+/// write succeeds. The fix is the entry point, not the logging.
+let execute (state: AppState) (args: List<String>) : AppState =
+  // An editor invokes this bare and speaks LSP over the pipe. An argument means a person typed it,
+  // and the useful answer to a person is what this thing is, not a silent wait for frames that are
+  // not coming.
+  match args with
+  | [] ->
+    let _exitCode = LanguageTools.LspServer.runServerCli ()
+    state
+  | _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "lsp takes no arguments.")
+    Stdlib.printLine (help state)
+    state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : String =
+  [ "Usage: lsp"
+    ""
+    "Runs the Darklang language server, reading LSP requests from stdin and"
+    "writing responses to stdout. Editors run this; you rarely run it by hand."
+    ""
+    "It logs every message to rundir/logs/lsp-server.log." ]
+  |> Stdlib.String.join "\n"

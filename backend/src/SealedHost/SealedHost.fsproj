@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>SealedHost</AssemblyName>
+    <IsTrimmable>true</IsTrimmable>
+
+    <!-- The same publish tuning `Cli.fsproj` carries, and for the same reasons; see the comments
+         there. Duplicated rather than factored into Directory.Build.props on purpose: these are
+         decisions about what an EXECUTABLE ships, and the libraries in this tree should not inherit
+         them by being built alongside one. If a third shipping exe appears, factor it then.
+
+         It also keeps the size comparison between this and the CLI honest. Without these, this
+         binary would look smaller for reasons that have nothing to do with linking one platform. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <TrimMode>link</TrimMode>
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <TieredPGO>false</TieredPGO>
+
+    <DebuggerSupport>false</DebuggerSupport>
+    <EventSourceSupport>false</EventSourceSupport>
+    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <StartupHookSupport>false</StartupHookSupport>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <AutoreleasePoolSupport>false</AutoreleasePoolSupport>
+    <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+    <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+    <CustomResourceTypesSupport>false</CustomResourceTypesSupport>
+
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="SealedHost.fs" />
+  </ItemGroup>
+  <!-- The whole point of this project is the shortness of this list. Anything added here that is
+       not `Builtins.Pure` needs to justify itself: `Platforms` in particular must never appear,
+       since it references every platform we ship. -->
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

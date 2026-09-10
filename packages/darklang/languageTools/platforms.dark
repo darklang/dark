@@ -1,0 +1,68 @@
+module Darklang.LanguageTools
+
+/// One platform this runtime was composed from.
+///
+/// A platform is a named, versioned bundle of builtins plus the effects those builtins may perform.
+/// Every executable is a choice of platforms; `dark platforms` reports the choice this one was
+/// built with. `effects` is the union over the platform's builtins, plus anything they can request
+/// from inside their own bodies, so it is the whole surface rather than what any single call does.
+type Platform =
+  { name: String
+    version: Int64
+    /// 16 hex characters over this platform's own builtins: their names, signatures and effects.
+    /// The thing to pin when the platform is somebody else's, and the thing that moves when what
+    /// you pinned changed underneath you. Not the SET's fingerprint, which also moves when an
+    /// unrelated platform in the same binary changes.
+    fingerprint: String
+    description: String
+    /// Effect names, sorted. Empty for a platform that reaches nothing.
+    effects: List<String>
+    /// How many builtin functions this platform contributes.
+    fnCount: Int64
+    /// Their names, sorted. `dark builtins --by-platform` groups on these.
+    fns: List<String>
+    /// Does it need a package or user store on disk?
+    requiresStore: Bool }
+
+
+/// The platforms this runtime was composed from, sorted by name.
+///
+/// The single wrapper for `Builtin.platformsInstalled`, per the one-wrapper rule. Empty when the
+/// host did not record them, which is not the same as a runtime with no builtins: `dark platforms`
+/// says so rather than reporting an empty build.
+let platforms () : List<Platform> = Builtin.platformsInstalled ()
+
+
+/// What one package function needs in order to run.
+///
+/// The question `platforms ()` answers from the binary's end, asked from the program's end
+/// instead. Produced by walking the function's call graph, so it says what someone else's Dark
+/// will be able to reach without running it, which is what an install-time review is.
+type PlatformNeeds =
+  { /// Platform names, sorted. `(not installed)` appears when a builtin the function calls belongs
+    /// to no platform in this runtime, which means it cannot run here at all.
+    platforms: List<String>
+    /// Every builtin named anywhere in the closure, sorted.
+    builtins: List<String>
+    /// False when some call leaves through a function-typed parameter, which no static walk can
+    /// follow. Treat the rest as a lower bound when this is false.
+    complete: Bool
+    /// How many package functions the walk visited.
+    packageFns: Int64 }
+
+
+/// The minimum platform set `fnName` (e.g. `Darklang.Stdlib.List.map`) needs in order to run.
+///
+/// `None` when no package function has that name. The single wrapper for
+/// `Builtin.platformsNeededBy`, per the one-wrapper rule.
+let platformsNeededBy (fnName: String) : Stdlib.Option.Option<PlatformNeeds> =
+  match Builtin.platformsNeededBy fnName with
+  | None -> Stdlib.Option.Option.None
+  | Some((platforms, builtins, complete, packageFns)) ->
+    Stdlib.Option.Option.Some(
+      PlatformNeeds
+        { platforms = platforms
+          builtins = builtins
+          complete = complete
+          packageFns = packageFns }
+    )

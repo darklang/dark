@@ -17,7 +17,7 @@ type Json = Stdlib.AltJson.Json
 /// to `rundir/logs/lsp-server.log`, for local debugging.
 let runServerCli (u: Unit) : Int =
   // clear `lsp-server.log`, and write a timestamp of the start-up
-  let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
+  let _deleted = Stdlib.Cli.FileSystem.deleteFile (logFilePath ())
 
   (Stdlib.DateTime.now ())
   |> Stdlib.DateTime.toString
@@ -66,6 +66,19 @@ let runServerCliLoop (state: LspState) : Int =
 
   let incomingMessageRaw = readMessageFromClient ()
   logIncomingRequest incomingMessageRaw
+
+  // An empty read means the client is GONE, not that it sent something odd. `Stdin.readLine`
+  // answers "" at end of stream and `tryReadHeader` reports that as a missing Content-Length, so
+  // without this check it falls through to the parse-error branch and recurses: read "", log it,
+  // write a JSON-RPC parse error to a pipe nobody is holding, read "" again, forever. That spin
+  // grows the log it is writing to and takes the machine's memory with it.
+  //
+  // A real client never sends an empty message. A malformed one still arrives as a non-empty
+  // string and still gets its parse error, which is what that branch is for.
+  if incomingMessageRaw == "" then
+    log "client closed the connection; shutting down"
+    0
+  else
 
   let updatedState =
     // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant

@@ -752,7 +752,10 @@ let private requireElementSeparator
   then
     errExpected state nextIndex expected
 
-/// The effect names a `:{…}` row may use: the `Effects.Effect` case names.
+/// The bare names a `:{…}` row may use: the `Effects.Effect` case names.
+///
+/// A capability this runtime did not ship is written as a quoted `"owner/name"` instead, because
+/// it has no case name to be an identifier and a slash is not one either.
 let private effectCaseNames : List<string> =
   LibExecution.Effects.all |> List.map (fun effect -> $"%A{effect}")
 
@@ -2704,25 +2707,44 @@ and parseEffectRow
     let mutable j = i + 1
     let mutable more = tok state j <> TRBrace
     while more do
-      match tok state j with
-      | TIdent name ->
-        if not (List.contains name effectCaseNames) then
-          let known = String.concat ", " effectCaseNames
-          err
-            state
-            DiagnosticCode.effect
-            j
-            $"unknown effect '{name}'; effects are {known}"
-        names.Add { range = rng state j; name = name }
+      // One entry: a well-known effect's case name, or a quoted `"owner/name"` for a capability
+      // this runtime did not ship (a slash is not an identifier, so it has to be a string). Both
+      // are stored BARE, so everything downstream resolves a name one way and the quotes stay
+      // source syntax.
+      let named =
+        match tok state j with
+        | TIdent name ->
+          if not (List.contains name effectCaseNames) then
+            let known = String.concat ", " effectCaseNames
+            err
+              state
+              DiagnosticCode.effect
+              j
+              $"unknown effect '{name}'; effects are {known}, or a quoted \"owner/name\""
+          names.Add { range = rng state j; name = name }
+          true
+        | TStringLit name ->
+          if (LibExecution.Effects.custom name).IsNone then
+            err
+              state
+              DiagnosticCode.effect
+              j
+              $"'{name}' is not a capability name; those are lowercase 'owner/name'"
+          names.Add { range = rng state j; name = name }
+          true
+        | _ ->
+          errExpected state j "an effect name"
+          false
+
+      if not named then
+        more <- false
+      else
         j <- j + 1
         if tok state j = TComma then
           j <- j + 1
         elif tok state j <> TRBrace then
           errExpected state j "',' or '}' in the effect row"
           more <- false
-      | _ ->
-        errExpected state j "an effect name"
-        more <- false
       if tok state j = TRBrace then more <- false
     let close = if tok state j = TRBrace then j + 1 else j
     (Some(List.ofSeq names), close)

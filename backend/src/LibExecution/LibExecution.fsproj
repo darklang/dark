@@ -44,6 +44,7 @@
     <Compile Include="Stream.fs" />
     <Compile Include="Dval.fs" />
     <Compile Include="Builtin.fs" />
+    <Compile Include="Platform.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="FastOps.fs" />
     <Compile Include="Interpreter.fs" />

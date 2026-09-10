@@ -269,9 +269,12 @@ let assertFn3
       [ "arg1", arg1 :> obj; "arg2", arg2 :> obj; "arg3", arg3 :> obj ]
 
 
+/// `IsMatch`, not `Match`: this only ever asks whether the input matched, and `Match` builds a
+/// `Match` object with its capture groups to answer it. That is invisible almost everywhere and is
+/// not here: every builtin name is asserted against a pattern as the builtin is constructed, once
+/// per builtin before a CLI command does anything, and the objects are discarded immediately.
 let assertRe (msg : string) (pattern : string) (input : string) : unit =
-  let m = System.Text.RegularExpressions.Regex.Match(input, pattern)
-  if m.Success then
+  if System.Text.RegularExpressions.Regex.IsMatch(input, pattern) then
     ()
   else
     Exception.raiseInternal

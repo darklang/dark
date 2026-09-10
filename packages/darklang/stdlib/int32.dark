@@ -103,7 +103,7 @@ let sqrt (a: Int32) : Float = Builtin.int32Sqrt a
 
 
 /// Converts an <type Int32> to a <type Float>
-let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
+let toFloat (a: Int32) : Float = Builtin.convert<Float> a
 
 
 /// Returns the sum of all the ints in the list
@@ -157,44 +157,44 @@ let toString (int: Int32) : String = Builtin.int32ToString int
 
 
 /// Converts an <type Int8> to a <type Int32>.
-let fromInt8 (i: Int8) : Int32 = Builtin.int32FromInt8 i
+let fromInt8 (i: Int8) : Int32 = Builtin.convert<Int32> i
 
 
 /// Converts a <type UInt8> to a <type Int32>.
-let fromUInt8 (i: UInt8) : Int32 = Builtin.int32FromUInt8 i
+let fromUInt8 (i: UInt8) : Int32 = Builtin.convert<Int32> i
 
 
 /// Converts an <type Int16> to a <type Int32>.
-let fromInt16 (i: Int16) : Int32 = Builtin.int32FromInt16 i
+let fromInt16 (i: Int16) : Int32 = Builtin.convert<Int32> i
 
 
 /// Converts a <type UInt16> to a <type Int32>.
-let fromUInt16 (i: UInt16) : Int32 = Builtin.int32FromUInt16 i
+let fromUInt16 (i: UInt16) : Int32 = Builtin.convert<Int32> i
 
 
 /// Converts a <type UInt32> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
 let fromUInt32 (i: UInt32) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt32 i
+  Builtin.tryConvert<Int32> i
 
 
 /// Converts an <type Int64> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
 let fromInt64 (i: Int64) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromInt64 i
+  Builtin.tryConvert<Int32> i
 
 
 /// Converts a <type UInt64> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
 let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt64 i
+  Builtin.tryConvert<Int32> i
 
 
 /// Converts an <type Int128> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
 let fromInt128 (i: Int128) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromInt128 i
+  Builtin.tryConvert<Int32> i
 
 
 /// Converts a <type UInt128> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
 let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int32> =
-  Builtin.int32FromUInt128 i
+  Builtin.tryConvert<Int32> i
 
 
 /// Bitwise AND on two <type Int32> values

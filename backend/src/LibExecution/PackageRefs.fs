@@ -267,6 +267,7 @@ module Type =
     let builtinFnParam = p [] "BuiltinFunctionParameter"
     let builtinFn = p [] "BuiltinFunction"
     let builtinFnPurity = p [] "BuiltinFunctionPurity"
+    let platform = p [] "Platform"
 
     /// The structured runtime policy — the F#/Dark wire form.
     module Permissions =

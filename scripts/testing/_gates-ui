@@ -175,7 +175,11 @@ gate_lsp_branches() {
     req '{"jsonrpc":"2.0","id":13,"method":"dark/switchBranch","params":{"branchId":"main"}}'
     req '{"jsonrpc":"2.0","id":14,"method":"dark/scm/getWipSummary"}'
     sleep 3
-  } | timeout 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
+  # `dark lsp`, not `dark eval '...runServerCli ()'`. `eval` builds a restricted guest state, and
+  # under it the server's own log write is denied; a denial unwinds past the `Result` that write
+  # returns, so the server died before answering anything and this gate had been red ever since.
+  # A registered command is trusted host code. See packages/darklang/cli/lsp.dark.
+  } | timeout 120 "$PWD/$CLI" lsp > "$OUT" 2>&1 || true
 
   # A type error here does not just fail one request: it takes the server's loop down with it, which is
   # what made this invisible -- the editor sees a dead process, not a bad response.

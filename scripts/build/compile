@@ -211,6 +211,50 @@ def run_migrations():
   return run_backend(start, f"scripts/build/run-migrations {configuration}")
 
 
+# Where the builtin manifest fingerprint from the last successful reload is kept. Its own
+# file rather than build-state.json, because it is a property of the package DATABASE
+# (what the packages in it were loaded against), not of a build, and it has to survive
+# builds that never reload.
+MANIFEST_FILE = os.path.join(os.getenv("DARK_CONFIG_RUNDIR", "rundir"),
+                             "package-manifest.txt")
+
+
+def current_manifest_fingerprint():
+  """The freshly built binary's builtin manifest hash, or None if it cannot be read.
+
+  None means "do not skip". Every failure here (LocalExec missing, a nonzero exit, a
+  first run) has to land on the safe side, because the only thing this gates is whether
+  to run a step that is always correct to run.
+  """
+  try:
+    out = subprocess.run(
+      ["scripts/run-local-exec", "platform-fingerprint"],
+      capture_output=True, text=True, timeout=120)
+  except (OSError, subprocess.SubprocessError):
+    return None
+  if out.returncode != 0:
+    return None
+  line = out.stdout.strip().splitlines()[-1].strip() if out.stdout.strip() else ""
+  # 16 lowercase hex, per PlatformSet.hashOf. Anything else is a message, not a hash.
+  return line if len(line) == 16 and all(c in "0123456789abcdef" for c in line) else None
+
+
+def recorded_manifest_fingerprint():
+  try:
+    with open(MANIFEST_FILE) as f:
+      return f.read().strip()
+  except OSError:
+    return None
+
+
+def record_manifest_fingerprint(value):
+  if not value:
+    return
+  os.makedirs(os.path.dirname(MANIFEST_FILE), exist_ok=True)
+  with open(MANIFEST_FILE, "w") as f:
+    f.write(value + "\n")
+
+
 def reload_all_packages():
   start = time.time()
   if optimize:
@@ -231,6 +275,9 @@ class Outcome:
     self.ran = []
     self.succeeded = set()
     self.skipped = []
+    # Skipped because running it would have changed nothing, as opposed to skipped
+    # because an earlier step failed. Only the second means the build fell short.
+    self.redundant = []
     self.failed = None
 
   def record(self, name, ok):
@@ -241,13 +288,29 @@ class Outcome:
       self.failed = name
     return ok
 
-  def skip(self, name):
+  def skip_redundant(self, name, reason):
+    """A step deliberately not run, because it would have been a no-op."""
     self.skipped.append(name)
-    print(f"skipping {name}: an earlier step failed")
+    self.redundant.append(name)
+    print(f"skipping {name}: {reason}")
+
+  def skip(self, name, reason="an earlier step failed"):
+    """Record a step that did not run, and say why.
+
+    The reason is a parameter because there are now two kinds. A step skipped because
+    the chain broke is a consequence of a failure; a step skipped because it would have
+    been redundant is a healthy build doing less. Printing the first message for the
+    second reads as an error on a build that succeeded.
+    """
+    self.skipped.append(name)
+    print(f"skipping {name}: {reason}")
 
 
-def execute(should, outcome):
+def execute(should, outcome, files):
   """Run the chosen actions. Returns whether everything that ran succeeded.
+
+  `files` is what changed, and is used for one decision only: whether the package reload
+  can be skipped. See the comment at that step.
 
   The backend chain is ordered and each step consumes the last one's output, so a
   failure stops the rest of it: reloading packages into a binary that didn't build
@@ -296,8 +359,40 @@ def execute(should, outcome):
       if not packages_from_seed:
         should.reload_all_packages = True
 
+  # The reload re-parses 456 `.dark` files and is the largest step in the loop, and an F#
+  # build asks for it unconditionally because a `.fs` change CAN change what it writes.
+  # Most cannot. Skipped only when every changed file is positively known to be harmless
+  # (see `_buildplan.reload_is_redundant`), and for builtin changes only when the manifest
+  # fingerprint has not moved, which is the one thing that distinguishes a builtin's
+  # signature changing from its body changing.
+  #
+  # Computed AFTER the build, so it is the new binary's manifest being compared.
+  reload_fingerprint = None
   if should.reload_all_packages:
-    step("reload_all_packages", reload_all_packages)
+    # Ask the cheap question first. `reload_is_redundant` with `manifest_unchanged=True` is the
+    # OPTIMISTIC answer: if it is False even then, no fingerprint could rescue it, and computing one
+    # costs a second of LocalExec startup on a build that was always going to reload. Only when the
+    # paths allow a skip is it worth asking whether the builtins moved.
+    if _buildplan.reload_is_redundant(files, True, should.unrouted):
+      reload_fingerprint = current_manifest_fingerprint()
+      recorded = recorded_manifest_fingerprint()
+      manifest_unchanged = (reload_fingerprint is not None
+                            and reload_fingerprint == recorded)
+    else:
+      manifest_unchanged = False
+
+    if _buildplan.reload_is_redundant(files, manifest_unchanged, should.unrouted):
+      outcome.skip_redundant(
+        "reload_all_packages",
+        "nothing changed that it would write "
+        f"(builtin manifest {reload_fingerprint} unchanged)")
+      should.reload_all_packages = False
+
+  if should.reload_all_packages:
+    if step("reload_all_packages", reload_all_packages):
+      # Only after a reload that actually succeeded: the database now matches this
+      # binary's builtins, which is exactly what the recorded value means.
+      record_manifest_fingerprint(reload_fingerprint or current_manifest_fingerprint())
 
   # Gated here rather than inside backend_test(), so a build that skipped the tests
   # doesn't list running them among the things it did.
@@ -370,14 +465,14 @@ def main():
 
   outcome = Outcome()
   try:
-    ok = execute(should, outcome)
+    ok = execute(should, outcome, files)
   except BaseException:
     _buildstate.finish(False, outcome.ran, outcome.failed or "interrupted", 1,
-                       outcome.skipped)
+                       outcome.skipped, outcome.redundant)
     raise
 
   _buildstate.finish(ok, outcome.ran, outcome.failed, 0 if ok else 1,
-                     outcome.skipped)
+                     outcome.skipped, outcome.redundant)
 
   # A file counts as built only if everything it needed succeeded. The actions are
   # whole-tree (a quick build compiles the whole solution, a reload reloads every
@@ -391,7 +486,7 @@ def main():
   # action only ever runs when they themselves change (paket.dependencies wants
   # `paket install`, which a from-scratch build has no reason to run).
   whole_tree = ({"backend_quick_build", "reload_all_packages"}.issubset(satisfied)
-                and not outcome.skipped)
+                and not (set(outcome.skipped) - set(outcome.redundant)))
   bootstrap = previous_index is None and whole_tree
 
   def covered(rel):

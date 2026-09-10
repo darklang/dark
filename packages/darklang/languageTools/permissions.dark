@@ -53,6 +53,11 @@ type Effect =
   | TraceWrite
   | Native
 
+  /// A capability named by a platform this runtime did not ship, as `owner/name`.
+  /// Whole-or-nothing at the policy layer: nothing here knows what it is about, so
+  /// nothing here can honestly scope it. Build one with `Permissions.customEffect`.
+  | Custom of String
+
 type Rule =
   | All
   | Effect of Permissions.Effect
@@ -114,41 +119,104 @@ val effectCases =
     (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
     (Permissions.Effect.Native, "Native", "native") ]
 
-/// The `effectCases` row an effect is in. Every effect has one, so the
-/// fallback is unreachable; it keeps the lookups total without an Option.
+/// One segment of a custom effect name: lowercase alphanumeric with inner dashes.
+let isEffectSegment (segment: String) : Bool =
+  let chars = Stdlib.String.toList segment
+
+  // `Stdlib.Char` predicates, not string comparison: Dark's `>=` is numeric, so the obvious
+  // `"a" <= s && s <= "z"` is a runtime error rather than a false. Nothing in Dark called this
+  // until `permissions allow acme/serial` did, so it went unnoticed until the surface existed.
+  let allowed =
+    chars
+    |> Stdlib.List.all (fun c ->
+      (Stdlib.Char.isASCIILetter c && Stdlib.Char.isLowercase c)
+      || Stdlib.Char.isDigit c
+      || (Stdlib.Char.toString c) == "-")
+
+  (Stdlib.String.isEmpty segment |> Stdlib.Bool.not)
+  && allowed
+  && (Stdlib.String.startsWith segment "-" |> Stdlib.Bool.not)
+  && (Stdlib.String.endsWith segment "-" |> Stdlib.Bool.not)
+
+/// Build a custom effect, or None if the name is not `owner/name`.
+///
+/// The namespace is what stops two vendors colliding on `serial`, and the slash is what
+/// stops a custom effect ever being mistaken for a well-known one, since none of those
+/// contain one. Mirrors `Effects.custom` in F#; both are the only way to make one.
+let customEffect (name: String) : Stdlib.Option.Option<Permissions.Effect> =
+  match Stdlib.String.split name "/" with
+  | [ owner, capability ] ->
+    if
+      Permissions.isEffectSegment owner && Permissions.isEffectSegment capability
+    then
+      Stdlib.Option.Option.Some(Permissions.Effect.Custom name)
+    else
+      Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// The `effectCases` row an effect is in. Every well-known effect has one, so the
+/// fallback is unreachable; it keeps the lookups total without an Option. Custom
+/// effects are not in the table and never reach here.
 let effectRow (effect: Permissions.Effect) : (Permissions.Effect * String * String) =
   Permissions.effectCases
   |> Stdlib.List.findFirst (fun (e, _case, _name) -> e == effect)
   |> Stdlib.Option.withDefault (effect, "Unknown", "unknown")
 
-/// The rule name of an effect: `FileRead` -> `"file-read"`.
+/// The rule name of an effect: `FileRead` -> `"file-read"`. A custom effect is its
+/// own rule name, which is the point of namespacing it.
 let effectName (effect: Permissions.Effect) : String =
-  let (_e, _case, name) = Permissions.effectRow effect
-  name
+  match effect with
+  | Custom name -> name
+  | _ ->
+    let (_e, _case, name) = Permissions.effectRow effect
+    name
 
 /// The source case name of an effect: `FileRead` -> `"FileRead"`.
+///
+/// A custom effect has no source spelling yet: `:{Http, Clock}` ceilings are parsed
+/// against a fixed list of case names in `LibParser`, so a function cannot declare one.
+/// Until that changes, a custom effect renders in a ceiling as its quoted name, which
+/// will not parse back, and is honest about that rather than silently dropping it.
 let effectCaseName (effect: Permissions.Effect) : String =
-  let (_e, case, _name) = Permissions.effectRow effect
-  case
+  match effect with
+  | Custom name -> name
+  | _ ->
+    let (_e, case, _name) = Permissions.effectRow effect
+    case
 
-/// `"file-read"` -> `FileRead`; None for an unknown rule name.
+
+/// How an effect is WRITTEN inside `:{Http, Clock}`. A well-known effect is its case name; a
+/// capability from a platform we did not ship is quoted, because a slash is not an identifier.
+let effectSourceSpelling (effect: Permissions.Effect) : String =
+  match effect with
+  | Custom name -> "\"" ++ name ++ "\""
+  | _ -> Permissions.effectCaseName effect
+
+/// `"file-read"` -> `FileRead`, `"acme/serial"` -> `Custom "acme/serial"`; None for an
+/// unknown rule name.
 let effectOfName (name: String) : Stdlib.Option.Option<Permissions.Effect> =
-  Permissions.effectCases
-  |> Stdlib.List.findFirst (fun (_e, _case, n) -> n == name)
-  |> Stdlib.Option.map (fun (e, _case, _name) -> e)
+  match
+    Permissions.effectCases
+    |> Stdlib.List.findFirst (fun (_e, _case, n) -> n == name)
+  with
+  | Some((e, _case, _name)) -> Stdlib.Option.Option.Some e
+  | None -> Permissions.customEffect name
 
 /// `"FileRead"` -> `FileRead`; None for an unknown case name.
 let effectOfCase (case: String) : Stdlib.Option.Option<Permissions.Effect> =
-  Permissions.effectCases
-  |> Stdlib.List.findFirst (fun (_e, c, _name) -> c == case)
-  |> Stdlib.Option.map (fun (e, _case, _name) -> e)
+  match
+    Permissions.effectCases |> Stdlib.List.findFirst (fun (_e, c, _name) -> c == case)
+  with
+  | Some((e, _case, _name)) -> Stdlib.Option.Option.Some e
+  // The parser stores a quoted `"acme/serial"` bare, so what arrives here is a name either way.
+  | None -> Permissions.customEffect case
 
 /// The source form of a ceiling: `{Http, Clock}`, or `""` when none is declared.
 let ceilingRow (ceiling: Stdlib.Option.Option<List<Permissions.Effect>>) : String =
   match ceiling with
   | None -> ""
   | Some effects ->
-    let cases = effects |> Stdlib.List.map Permissions.effectCaseName
+    let cases = effects |> Stdlib.List.map Permissions.effectSourceSpelling
     "{" ++ (Stdlib.String.join cases ", ") ++ "}"
 
 let empty () : Permissions.Policy =

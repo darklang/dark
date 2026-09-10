@@ -354,6 +354,42 @@ let private parserStructureTests =
             Expect.stringContains diagnostic.message "Telepathy" "names the effect"
           | other -> failtest $"expected one diagnostic, got {other}")
 
+      testCase
+        "an effect row can name a capability this runtime did not ship"
+        (fun _ ->
+          // The last closed door in the capability story: a builtin from somebody else's platform
+          // could declare `acme/serial` and have it enforced, but a Dark function on top of it
+          // could not narrow itself to one. It is quoted because a slash is not an identifier, and
+          // stored bare because everything downstream resolves a name one way.
+          let result =
+            P.parse
+              "module M =\n  let f (x: Int64) :{Clock, \"acme/serial\"} Int64 = x"
+          Expect.isEmpty result.diagnostics "no diagnostics"
+          match result.parsed with
+          | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+            match m.declarations with
+            | [ WT.DFunction f ] ->
+              Expect.equal
+                (f.effects |> Option.map (List.map (fun id -> id.name)))
+                (Some [ "Clock"; "acme/serial" ])
+                "the quoted capability sits beside the well-known one, unquoted"
+            | other -> failtest $"fn decl: {other}"
+          | other -> failtest $"fn decl: {other}")
+
+      testCase
+        "a quoted effect that is not owner/name is a diagnostic"
+        (fun _ ->
+          // Same fail-closed posture as an unknown case name. An unvalidated capability would be
+          // a name nothing grants and nothing reports, silently narrowing the function to
+          // something unreachable.
+          let result =
+            P.parse "module M =\n  let f (x: Int64) :{\"Acme/Serial\"} Int64 = x"
+          match result.diagnostics with
+          | [ diagnostic ] ->
+            Expect.equal diagnostic.code P.DiagnosticCode.effect "diagnostic code"
+            Expect.stringContains diagnostic.message "Acme/Serial" "names it"
+          | other -> failtest $"expected one diagnostic, got {other}")
+
       testCase "val cannot declare a function" (fun _ ->
         let result = P.parse "val f (x: Int64) : Int64 = x"
         Expect.exists

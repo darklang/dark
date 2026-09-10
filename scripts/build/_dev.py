@@ -289,6 +289,108 @@ def cmd_check(args):
   return 1 if fatal else 0
 
 
+TYPECHECK_LOG = os.path.join(_buildstate.rundir(), "logs", "typecheck.log")
+
+# More than this many projects and the whole-solution build is cheaper: MSBuild pays its
+# per-project evaluation either way, and the solution build gets to overlap them.
+TYPECHECK_PROJECT_LIMIT = 4
+
+
+def _owning_project(path):
+  """The nearest .fsproj at or above `path`, repo-relative to backend/."""
+  d = os.path.dirname(path)
+  while d and d != os.sep:
+    found = sorted(f for f in os.listdir(d) if f.endswith(".fsproj")) if os.path.isdir(d) else []
+    if found:
+      return os.path.relpath(os.path.join(d, found[0]), "backend")
+    d = os.path.dirname(d)
+  return None
+
+
+def cmd_typecheck(args):
+  """Compile ONLY the projects owning the given files. Fast feedback, no artifacts claimed.
+
+  Measured on this machine: a no-op whole-solution build is 33.5s and one platform's own
+  project is 9.9s. The 33.5s is MSBuild evaluating 23 projects, paid whether or not
+  anything changed, so a leaf edit costs the same as no edit at all. Building less is the
+  only lever that moves it.
+
+  Recorded in build-state.json like everything else, but as `fsharp_typecheck`, which is
+  deliberately NOT in `_buildstate.BUILD_ACTIONS`. That is the same mechanism a lint-only
+  build already uses: the run is remembered, and `status` will show it, but the
+  last-success mark does not move, so the tree still reads as behind and `run-cli` still
+  says so. A typecheck answers "does this compile", not "is this built".
+  """
+  paths = [a for a in args if not a.startswith("-")]
+  if not paths:
+    # No "work out what changed" default on purpose. The obvious source, git diff HEAD, is
+    # wrong exactly when it matters: on a branch carrying a large uncommitted change it
+    # implicates every project, and building 19 of them took 186s against the solution
+    # build's 34s. Naming what you are working on is faster and honest about what got checked.
+    print("usage: scripts/dev/typecheck <paths>", file=sys.stderr)
+    print("       scripts/dev/build             build everything, properly", file=sys.stderr)
+    return 2
+
+  projects = sorted({p for p in (_owning_project(x) for x in paths if os.path.exists(x)) if p})
+  if not projects:
+    print("typecheck: no .fsproj owns any of those files", file=sys.stderr)
+    return 2
+
+  # Same guard `build` has, and for the same reason. A typecheck writes real assemblies into
+  # `Build/out`, so typechecking `Tests.fsproj` while the suite is running takes the file lock and
+  # kills the run mid-way. It looks like a hang, or worse like a truncated green result: the log
+  # just stops. Cost me two suites before I connected the two.
+  pid = testrun_pid()
+  if pid and "--force" not in args:
+    for line in [
+      f"Tests are running in this clone (pid {pid}). A typecheck writes assemblies too,",
+      "so it would take the file lock and kill them. Wait for them, or pass --force.",
+    ]:
+      print(line, file=sys.stderr)
+    return 1
+
+  if len(projects) > TYPECHECK_PROJECT_LIMIT:
+    print(f"typecheck: {len(projects)} projects implicated; "
+          "scripts/dev/build is cheaper than this", file=sys.stderr)
+    for proj in projects:
+      print(f"  {proj}", file=sys.stderr)
+    return 2
+
+  print(f"typechecking: {' '.join(projects)}")
+  actions = ["fsharp_typecheck"]
+  _buildstate.begin(actions, paths, "typecheck", log=TYPECHECK_LOG)
+
+  os.makedirs(os.path.dirname(TYPECHECK_LOG), exist_ok=True)
+  # One project per invocation: `dotnet build` takes a single project, and passing two
+  # fails with MSB1008 rather than building both. The second build is nearly free, since
+  # the first already brought the shared dependencies up to date.
+  rc = 0
+  with open(TYPECHECK_LOG, "w") as log:
+    for proj in projects:
+      cmd = ["./scripts/build/_dotnet-wrapper", "build", "/clp:ForceConsoleColor",
+             "--no-restore", "--verbosity", "minimal", "--configuration", "Debug", proj]
+      proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, bufsize=1)
+      for line in proc.stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        log.write(line)
+      proc.wait()
+      if proc.returncode != 0:
+        rc = proc.returncode
+        break
+
+  ok = rc == 0
+  _buildstate.finish(ok, actions,
+                     failed_action=None if ok else "fsharp_typecheck",
+                     exit_code=rc)
+  if ok:
+    print()
+    print("typechecked only. The CLI was not relinked; run scripts/dev/build "
+          "before running anything.")
+  return rc
+
+
 def cmd_stale(args):
   changed = _buildstate.stale()
   if changed:
@@ -302,6 +404,7 @@ COMMANDS = {
   "status": cmd_status,
   "watch": cmd_watch,
   "check": cmd_check,
+  "typecheck": cmd_typecheck,
   "stale": cmd_stale,
 }
 
@@ -316,6 +419,7 @@ KNOWN_FLAGS = {
   "watch": set(),
   "check": set(),
   "stale": set(),
+  "typecheck": {"--force"},
 }
 
 

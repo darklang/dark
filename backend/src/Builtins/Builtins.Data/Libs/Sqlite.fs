@@ -16,7 +16,7 @@
 /// Deferred (not needed yet): scoping the grant to an arbitrary path/glob (only the store is
 /// special-cased), binding typed params (params are string-only today; results already carry types
 /// via `Value`), and an opaque connection handle.
-module Builtins.Matter.Libs.Sqlite
+module Builtins.Data.Libs.Sqlite
 
 open FSharp.Control.Tasks
 
@@ -212,6 +212,16 @@ let private effectsFor (write : bool) (path : string) (sql : string) : Set<Effec
       set [ Effect.PackageRead ]
   else
     set [ Effect.Native ]
+
+/// Everything `effectsFor` can answer, as a set.
+///
+/// The static `callEffects` on these builtins is empty on purpose, so nothing else in the runtime
+/// can see what they may do. `Builtins.Data.Builtin.platform` unions this into the platform's
+/// surface, which is what an install-time review reads. Keep it equal to `effectsFor`'s range;
+/// `Tests.Platform.declaredEffectsMatchReality` compares the platform total against its written
+/// declaration, so a set that drifts here shows up there.
+let dynamicEffects : Set<Effect> =
+  set [ Effect.PackageRead; Effect.PackageWrite; Effect.Native ]
 
 /// Check the call's real effects before running it. Declared `callEffects` are static, so the
 /// interpreter's up-front check cannot see the path; these builtins declare nothing there and

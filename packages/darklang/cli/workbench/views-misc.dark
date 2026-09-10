@@ -76,14 +76,27 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
         let marker = if b.id == state.branchId then Stdlib.Cli.UI.Colors.boldText b.name else Stdlib.Cli.UI.Colors.dimText b.name
         "   " ++ marker ++ "     " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString b.ops) ++ (if b.ops == 1L then " op" else " ops"))))
 
+  // What this instance's code starts with, and only when that is not the default. Same rule the
+  // `dark status` line follows: an instance nobody has narrowed says nothing, because a line
+  // reading "20 of 20 platforms" on every screen is a line you stop seeing.
+  let platformLines =
+    match Darklang.Cli.Platforms.activated () with
+    | None -> []
+    | Some names ->
+      let n = Stdlib.Int.toString (Stdlib.List.length names)
+      [ "   "
+        ++ (Stdlib.Cli.UI.Colors.dimText
+          (n ++ " platforms active  ·  `dark platforms`")) ]
+
   boxedLines
     region
     "Devices"
     (Stdlib.List.flatten
       [ [ hdr "This instance"
           "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")"
-          "   " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString ops) ++ " ops in the log"))
-          ""
+          "   " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString ops) ++ " ops in the log")) ]
+        platformLines
+        [ ""
           hdr "Relay" ]
         relayLines
         [ ""

@@ -987,8 +987,22 @@ let fns () : List<BuiltInFn> =
                             )
                           )
                       | other ->
+                        // A call stack answers "where did my code go wrong". `BuiltinNotActive`
+                        // is not that: it is a fact about how this session is configured, the
+                        // message already names the platform and the command that fixes it, and
+                        // the CLI may be about to ask whether to switch it on. Printing frames
+                        // above that question is noise in front of a prompt -- the same reason
+                        // `Denied` carries its stack instead of printing it.
+                        let isConfiguration =
+                          match e with
+                          | RT.RuntimeError.BuiltinNotActive _ -> true
+                          | _ -> false
                         // Only when the stack names a function: see `hasReadableFrames`.
-                        if hasReadableFrames callStack && csString <> "" then
+                        if
+                          not isConfiguration
+                          && hasReadableFrames callStack
+                          && csString <> ""
+                        then
                           print
                             $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
@@ -1004,29 +1018,51 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Evaluate a stored package value by hash.
+    //
+    // Lives here rather than beside the other `pm*` builtins because of what it DOES: it runs
+    // Dark, which is what this platform is for, and it touches no package manager. In
+    // `Builtins.Store` it would be the only reason that platform declared `native`, and `Store` is
+    // the platform every program links in order to resolve a name, so one function there costs
+    // every program the machine.
+    { name = fn "pmEvaluateValue" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "valueHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the package value to evaluate" ]
+      returnType = TypeReference.option (TVariable "a")
+      description =
+        "Evaluates a package value by its hash and returns the result. "
+        + "Returns None if the value doesn't exist or fails to evaluate."
+      fn =
+        (function
+        | exeState, _, _, [| hashDval |] ->
+          uply {
+            let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
+            let valueName = FQValueName.Package(Hash hash)
+            let instrs : Instructions =
+              { registerCount = 1
+                instructions = [ LoadValue(0, valueName) ]
+                resultIn = 0 }
+
+            let! result = Exe.executeExpr exeState instrs
+            match result with
+            | Ok dval ->
+              match Dval.toValueType dval with
+              | ValueType.Known kt -> return Dval.optionSome kt dval
+              | ValueType.Unknown -> return Dval.optionSome KTUnit dval
+            | Error _ -> return Dval.optionNone KTUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead; Effect.Native ]
+      deprecated = NotDeprecated }
+
+
     ]
-
-
-/// All builtins the outer CLI execution state needs: this module's own
-/// fns (so nested `eval`/`run` dispatches recursively) plus every
-/// `Builtins.*` library the CLI surface depends on.
-///
-/// Guest HTTP runs under `HostHttp`'s default guest configuration: SSRF
-/// guards on (loopback / RFC1918 / metadata blocked). A host that must reach
-/// private targets replaces it with `LibExecution.HostHttp.setGuestConfig`.
-let builtinsToUse () : RT.Builtins =
-  let ptPM = LibDB.PackageManager.pt
-  LibExecution.Builtin.combine
-    [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins ()
-      Builtins.Language.Builtin.builtins ()
-      Builtins.Cli.Builtin.builtins ()
-      Builtins.Time.Builtin.builtins ()
-      Builtins.Random.Builtin.builtins ()
-      Builtins.Matter.Builtin.builtins ptPM
-      Builtins.Http.Server.Builtin.builtins ()
-      LibExecution.Builtin.make [] (fns ()) ]
-    []
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

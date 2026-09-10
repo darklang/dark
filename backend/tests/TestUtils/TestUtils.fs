@@ -106,18 +106,17 @@ let testHttpConfig : LibExecution.HostHttp.Configuration =
 let installTestHttpConfig () : unit =
   LibExecution.HostHttp.setGuestConfig testHttpConfig
 
+/// The shipped platform set over the caller's package manager, plus `LibTest`.
+///
+/// The `pm` is load-bearing: `Store`'s builtins resolve names through whatever package manager they
+/// are given, and tests hand in an ephemeral one carrying the declarations of the file under test.
+///
+/// `LibTest` is not a platform. It ships in no executable, and a platform record would put it in
+/// the catalog, where `dark platforms` would offer to install it.
 let builtins (pm : PT.PackageManager) : RT.Builtins =
   installTestHttpConfig ()
   LibExecution.Builtin.combine
-    [ LibTest.builtins ()
-      Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins ()
-      Builtins.Language.Builtin.builtins ()
-      Builtins.Matter.Builtin.builtins pm
-      Builtins.Http.Server.Builtin.builtins ()
-      Builtins.Cli.Builtin.builtins ()
-      Builtins.Time.Builtin.builtins ()
-      Builtins.Random.Builtin.builtins () ]
+    [ LibTest.builtins (); (Platforms.Sets.everythingFor pm).builtins ]
     []
 
 /// Compatibility alias for existing test call sites.

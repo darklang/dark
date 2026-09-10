@@ -17,6 +17,104 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 
+
+// ── numeric conversion, once instead of 116 times ────────────────────────────
+//
+// `Int8.fromInt64`, `UInt32.toFloat`, `Int.fromUInt128` and the rest of the tower were a builtin
+// each: every integer type against every source, in both directions, each one a cast and a range
+// check written out longhand. `convert` and `tryConvert` replace all of them, and the split
+// between the two is the only thing that needed thinking about.
+//
+// Some conversions WIDEN and cannot fail (`Int64.fromInt8`); they return the value.
+// Others NARROW and can (`Int8.fromInt64` is None outside -128..127); they return an Option.
+// One builtin cannot be both without either making the widening half lossy at every call site or
+// having a return type that depends on the type argument, which Dark does not have. So: two.
+//
+// The Dark wrappers keep their exact names and signatures and delegate to whichever is right, so
+// `Stdlib.Int8.fromInt64` still returns an Option because its own signature says so, and no caller
+// changes.
+
+// BigInteger <-> 128-bit: no `bigint`/cast operator covers these. Same idiom as `Libs/Int.fs`,
+// which needed them first.
+let private i128ToBig (a : System.Int128) : bigint =
+  System.Numerics.BigInteger.op_Implicit a
+let private u128ToBig (a : System.UInt128) : bigint =
+  System.Numerics.BigInteger.op_Implicit a
+let private bigToI128 (b : bigint) : System.Int128 =
+  System.Numerics.BigInteger.op_Explicit b
+let private bigToU128 (b : bigint) : System.UInt128 =
+  System.Numerics.BigInteger.op_Explicit b
+
+/// Every numeric Dval as a bigint. `None` for a non-numeric, and for `Float`, which is not an
+/// integer and is handled separately at both ends.
+let private numericAsBigInt (d : Dval) : Option<bigint> =
+  match d with
+  | DInt8 v -> Some(bigint v)
+  | DUInt8 v -> Some(bigint v)
+  | DInt16 v -> Some(bigint v)
+  | DUInt16 v -> Some(bigint v)
+  | DInt32 v -> Some(bigint v)
+  | DUInt32 v -> Some(bigint v)
+  | DInt64 v -> Some(bigint v)
+  | DUInt64 v -> Some(bigint v)
+  | DInt128 v -> Some(i128ToBig v)
+  | DUInt128 v -> Some(u128ToBig v)
+  | DInt di -> Some(DarkInt.toBigInt di)
+  | _ -> None
+
+/// The `KnownType` an Option of the target carries. Separate from `ofBigInt` because a `None`
+/// still has to say what it is a `None` OF, and at that point there is no value to read it from.
+let private knownTypeOf (target : TypeReference) : Option<KnownType> =
+  match target with
+  | TInt8 -> Some KTInt8
+  | TUInt8 -> Some KTUInt8
+  | TInt16 -> Some KTInt16
+  | TUInt16 -> Some KTUInt16
+  | TInt32 -> Some KTInt32
+  | TUInt32 -> Some KTUInt32
+  | TInt64 -> Some KTInt64
+  | TUInt64 -> Some KTUInt64
+  | TInt128 -> Some KTInt128
+  | TUInt128 -> Some KTUInt128
+  | TInt -> Some KTInt
+  | TFloat -> Some KTFloat
+  | _ -> None
+
+// Range bounds as bigints, built ONCE. Writing `bigint System.SByte.MinValue` inline inside
+// `ofBigInt` allocates two BigIntegers on every conversion, and conversions are on a hot path.
+let private i8Lo, i8Hi = bigint System.SByte.MinValue, bigint System.SByte.MaxValue
+let private u8Lo, u8Hi = bigint System.Byte.MinValue, bigint System.Byte.MaxValue
+let private i16Lo, i16Hi = bigint System.Int16.MinValue, bigint System.Int16.MaxValue
+let private u16Lo, u16Hi = bigint System.UInt16.MinValue, bigint System.UInt16.MaxValue
+let private i32Lo, i32Hi = bigint System.Int32.MinValue, bigint System.Int32.MaxValue
+let private u32Lo, u32Hi = bigint System.UInt32.MinValue, bigint System.UInt32.MaxValue
+let private i64Lo, i64Hi = bigint System.Int64.MinValue, bigint System.Int64.MaxValue
+let private u64Lo, u64Hi = bigint System.UInt64.MinValue, bigint System.UInt64.MaxValue
+let private i128Lo, i128Hi =
+  i128ToBig System.Int128.MinValue, i128ToBig System.Int128.MaxValue
+let private u128Lo, u128Hi =
+  u128ToBig System.UInt128.MinValue, u128ToBig System.UInt128.MaxValue
+
+/// Build a value of the target type from a bigint, `None` when it does not fit.
+///
+/// `TInt` never fails: it is arbitrary precision. `TFloat` never fails either, though it can lose
+/// precision, which is what a float conversion is.
+let private ofBigInt (target : TypeReference) (b : bigint) : Option<Dval> =
+  match target with
+  | TInt8 -> if b >= i8Lo && b <= i8Hi then Some(DInt8(sbyte b)) else None
+  | TUInt8 -> if b >= u8Lo && b <= u8Hi then Some(DUInt8(uint8 b)) else None
+  | TInt16 -> if b >= i16Lo && b <= i16Hi then Some(DInt16(int16 b)) else None
+  | TUInt16 -> if b >= u16Lo && b <= u16Hi then Some(DUInt16(uint16 b)) else None
+  | TInt32 -> if b >= i32Lo && b <= i32Hi then Some(DInt32(int32 b)) else None
+  | TUInt32 -> if b >= u32Lo && b <= u32Hi then Some(DUInt32(uint32 b)) else None
+  | TInt64 -> if b >= i64Lo && b <= i64Hi then Some(Dval.dint64 (int64 b)) else None
+  | TUInt64 -> if b >= u64Lo && b <= u64Hi then Some(DUInt64(uint64 b)) else None
+  | TInt128 -> if b >= i128Lo && b <= i128Hi then Some(DInt128(bigToI128 b)) else None
+  | TUInt128 -> if b >= u128Lo && b <= u128Hi then Some(DUInt128(bigToU128 b)) else None
+  | TInt -> Some(Dval.dint (DarkInt.ofBigInt b))
+  | TFloat -> Some(DFloat(float b))
+  | _ -> None
+
 /// Shared body for `equals` / `notEquals` builtins — VT-merge type
 /// check + structural compare.
 let private equalsBuiltinImpl (vm : VMState) (a : Dval) (b : Dval) : bool =
@@ -611,6 +709,65 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
+
+    { name = fn "convert" 0
+      typeParams = [ "target" ]
+      parameters = [ Param.make "a" varA "" ]
+      returnType = TVariable "target"
+      description =
+        "Converts a number to another numeric type that is guaranteed to hold it. Use <fn "
+        + "tryConvert> when the target is narrower than the source and the conversion can fail."
+      fn =
+        (function
+        | _, vm, [ target ], [| a |] ->
+          match a, target with
+          // A float target never fails and is the only case that is not an integer at both
+          // ends, so it is here rather than inside `ofBigInt`'s integer path.
+          | DFloat f, TFloat -> Ply(DFloat f)
+          | DFloat f, TInt ->
+            // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity guard so
+            // those raise an Int error rather than a host exception. Same as `intFromFloat` did.
+            roundedToInt vm f
+          | _ ->
+            match numericAsBigInt a with
+            | None -> incorrectArgs ()
+            | Some b ->
+              match ofBigInt target b with
+              | Some converted -> Ply converted
+              | None ->
+                // The caller asked for a widening that is not one. A Dark wrapper picks
+                // `convert` or `tryConvert` from its own signature, so reaching this means the
+                // wrapper is wrong, not the program.
+                RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "tryConvert" 0
+      typeParams = [ "target" ]
+      parameters = [ Param.make "a" varA "" ]
+      returnType = TypeReference.option (TVariable "target")
+      description =
+        "Converts a number to a narrower numeric type, answering {{None}} when it does not fit. "
+        + "Use <fn convert> when the target is guaranteed to hold the value."
+      fn =
+        (function
+        | _, _, [ target ], [| a |] ->
+          match numericAsBigInt a, knownTypeOf target with
+          | None, _
+          | _, None -> incorrectArgs ()
+          | Some b, Some kt ->
+            match ofBigInt target b with
+            | Some converted -> Dval.optionSome kt converted |> Ply
+            | None -> Dval.optionNone kt |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
 
     ]
 

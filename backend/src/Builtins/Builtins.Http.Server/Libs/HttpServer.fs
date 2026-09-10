@@ -610,8 +610,23 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      // `HttpServer` only. Clock and stdout are used ONLY when `logRequests` is on, and the body
+      // already checks them there (`requireBuiltinEffectsWithAccess`, above) against the child
+      // guest's access rather than the outer CLI's. Declaring them here as well meant the
+      // interpreter's up-front gate demanded both on every `serve`, so an instance that denies
+      // stdout could not run a server that prints nothing. Same shape as `Libs.Sqlite`: what a call
+      // may do depends on its arguments, so the static declaration carries the unconditional part
+      // and the body decides the rest. `dynamicEffects` below keeps the platform's review surface
+      // honest about it.
+      callEffects = set [ Effect.HttpServer ]
       deprecated = NotDeprecated } ]
+
+
+/// What `httpServerServe` can additionally request from inside its body, when request logging is
+/// on. `Builtins.Http.Server.Builtin.platform` unions this into the platform's surface, so an
+/// install-time review still says the server may print and read the clock. Keep it equal to the set
+/// passed to `requireBuiltinEffectsWithAccess` above.
+let dynamicEffects : Set<Effect> = set [ Effect.Clock; Effect.Stdout ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

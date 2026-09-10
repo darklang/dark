@@ -11,7 +11,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
-module BuiltinCli = Builtins.Cli.Builtin
+module Platform = LibExecution.Platform
 
 // Log to stderr and, when possible, to cli.log.
 let private logError (message : string) : unit =
@@ -59,18 +59,81 @@ let info () =
 
 /// Deferred deliberately, and this must stay a `lazy`.
 ///
-/// Constructing the builtins resolves PackageRefs, and on a first run the hash file is still empty
-/// at that point -- `Seed.growIfNeeded` regenerates it. A plain module-level value is built by F#'s
-/// per-file static initializer, before `main` runs at all, so every ref would resolve to "" and the
-/// builtins would disagree with the freshly grown package DB. Force it after the grow.
-let private builtinsLazy : Lazy<RT.Builtins> =
-  lazy
-    (LibExecution.Builtin.combine
-      [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
-        Builtins.CliHost.Builtin.builtins ()
-        BuiltinCli.builtins () ]
-      [])
+/// Constructing the platform set resolves PackageRefs. On a first run the hash file is still empty at
+/// that point: `Seed.growIfNeeded` is what regenerates it and calls `PackageRefs.reloadHashes`. A plain
+/// module-level value is built by F#'s per-file static initializer, which runs before `main` does
+/// anything at all, so every ref would resolve to "" -- silently tolerated, by design, so that a fresh
+/// clone can load -- and the builtins would then disagree with the freshly grown package DB. The first
+/// command fails with `Apply` (or `FnNotFound (Package (Hash ""))`). Forced after the grow instead.
+/// This is the same invariant that makes `growIfNeeded` take `getBuiltins` as a function; see Seed.fs.
+///
+/// The set itself is `Platforms.Sets.cli ()`, which is the one place the full list lives.
+/// Which platforms this session activates, beyond the always-on floor.
+///
+/// The stored answer (`~/.darklang/policy/activated`, written by `dark platforms activate`) is the
+/// real one; `DARK_PLATFORMS` overrides it for a single run and is how tests and development ask
+/// for a shape without touching the instance. Unset in both means every platform, which is what
+/// every existing invocation gets and why nothing changes.
+///
+/// Env unset -> stored; `DARK_PLATFORMS=` (empty) -> the near-pure session the goal describes; a
+/// comma list -> exactly those.
+///
+/// Deferred deliberately, and this must stay a `lazy`, for the same reason `platformSetLazy` is:
+/// a module-level value is built by F#'s static initializer, which runs before `main` has called
+/// `setPolicyDirectory`. Read eagerly it would look in `$HOME/.darklang/policy` rather than this
+/// instance's own directory, find nothing, and silently report "never chosen" -- which reads as
+/// "everything is on" and would make a stored narrowing do nothing at all.
+///
+/// Read per state rather than once per process, so `dark platforms activate` inside a REPL, or a
+/// prompt that offers to switch a platform on and retry, takes effect on the next command instead
+/// of the next process. It is one small file read; the expensive part, building the restricted
+/// builtin set, is cached below and rebuilt only when the answer actually changes.
+let private currentActivation () : Option<List<string>> =
+  match System.Environment.GetEnvironmentVariable "DARK_PLATFORMS" with
+  | null -> LibDB.Activation.get () |> Option.map Set.toList
+  | "" -> Some []
+  | names ->
+    names.Split(',')
+    |> Array.toList
+    |> List.map (fun s -> s.Trim())
+    |> List.filter (fun s -> s <> "")
+    |> Some
 
+/// The HOST always links and activates everything. It has to: the CLI is a Dark program, and it
+/// reaches for `Terminal` to print your answer and `Instance` for the store path before your code
+/// runs at all. Restricting the process starves the thing that would tell you why.
+let private platformSetLazy : Lazy<Platform.PlatformSet> =
+  lazy (Platforms.Sets.cli ())
+
+let private builtinsLazy : Lazy<RT.Builtins> =
+  lazy (platformSetLazy.Force()).builtins
+
+type private GuestFloor =
+  Option<RT.Builtins * System.Collections.Generic.Dictionary<RT.FQFnName.Builtin, RT.Platform>>
+
+/// What a GUEST gets: `None` unless this instance, or this run, asked for something narrower.
+///
+/// Memoized on the activation itself rather than built once, because the activation can change
+/// inside a process now. The common case -- an instance that has never narrowed -- computes
+/// nothing at all and hits the `None` branch every time.
+let private guestFloorLock = obj ()
+
+let mutable private guestFloorCache : Option<Option<List<string>> * GuestFloor> = None
+
+let private guestFloor () : GuestFloor =
+  let wanted = currentActivation () |> Option.map List.sort
+  lock guestFloorLock (fun () ->
+    match guestFloorCache with
+    | Some(cached, floor) when cached = wanted -> floor
+    | _ ->
+      let floor =
+        match wanted with
+        | None -> None
+        | Some wanted ->
+          let active, inactive = Platforms.Sets.activating wanted
+          Some(active.builtins, inactive)
+      guestFloorCache <- Some(wanted, floor)
+      floor)
 
 
 let state (packageManager : RT.PackageManager) =
@@ -99,13 +162,18 @@ let state (packageManager : RT.PackageManager) =
       | _ -> printException "Internal error" metadata exn
     }
 
-  Exe.createState
-    (builtinsLazy.Force())
-    packageManager
-    Exe.noTracing
-    sendException
-    notify
-    program
+  // The platforms come from the set, not from `createState`, which is handed a combined `Builtins`
+  // that has lost which platform contributed what. Recording them is what lets `dark platforms`
+  // answer from inside a running CLI rather than only from `run-local-exec`.
+  { Exe.createState
+      (builtinsLazy.Force())
+      packageManager
+      Exe.noTracing
+      sendException
+      notify
+      program with
+      platforms = (platformSetLazy.Force()).platforms
+      guestFloor = guestFloor }
 
 
 
@@ -370,8 +438,38 @@ let main (args : string[]) =
 
     // After the grow, never before: see the comment on `builtinsLazy`. Forced explicitly so its cost
     // lands in a span of its own rather than inside `cli.execute`.
-    Telemetry.time "cli.builtinsInit" [] (fun () ->
-      builtinsLazy.Force().fns.Count |> ignore<int>)
+    //
+    // Allocation as well as time, because this is fixed cost every invocation pays before it does
+    // anything, and time on a step this short is mostly noise. `GetAllocatedBytesForCurrentThread`
+    // rather than the process-wide counter: a background finalizer would swamp a number this size.
+    // The span records the count of builtins alongside, so the two are comparable across a change
+    // that adds or removes some.
+    //
+    // Two measurements, not one. Forcing the platform set also forces `LibDB.PackageManager.pt`,
+    // which `Builtins.Store` reads through, and attributing the package manager's cost to "builtins"
+    // would overstate the case for making builtins lazy by however much the PM costs. So the PM is
+    // forced first, on its own line, and the second number is the platform set alone.
+    // `Telemetry.event` checks whether telemetry is on, but only AFTER its argument list has been
+    // built, and building that list allocates on every invocation whether anyone is recording or
+    // not. Same trap this whole exercise has been finding elsewhere, so: guarded at the call site.
+    let measuring = Telemetry.isEnabled ()
+    let allocNow () =
+      if measuring then System.GC.GetAllocatedBytesForCurrentThread() else 0L
+
+    let pmBefore = allocNow ()
+    LibDB.PackageManager.pt |> ignore<PT.PackageManager>
+    let pmBytes = allocNow () - pmBefore
+
+    let allocBefore = allocNow ()
+    let builtinCount =
+      Telemetry.time "cli.builtinsInit" [] (fun () -> builtinsLazy.Force().fns.Count)
+    if measuring then
+      Telemetry.event
+        "cli.builtinsInit.alloc"
+        [ "bytes", string (allocNow () - allocBefore)
+          "pmBytes", string pmBytes
+          "builtins", string builtinCount
+          "platforms", string (List.length (platformSetLazy.Force()).platforms) ]
 
     // After the fold, and only after it: an edit of yours that the build also ships has just lost
     // the name to the build's newer stamp, and this puts it back. Said out loud, since it is a

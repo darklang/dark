@@ -1,0 +1,607 @@
+module Darklang.Cli.Platforms
+
+/// `dark platforms`: what this build is made of, and what of it is switched on.
+///
+/// A platform is a named, versioned bundle of builtins plus the effects those builtins may perform,
+/// and an executable is a choice of platforms. Every shipped binary links all of them, because
+/// NativeAOT is a closed world and there is no loading one later. What you choose is not what is
+/// LINKED but what is ACTIVE: a session starts with what you have switched on, and a program that
+/// reaches for anything else is told which platform would provide it and what that would cost.
+///
+/// Activation is not a permission. A permission answers "may this code touch that"; activation
+/// answers "is that even here". They meet only in the message you get when the answer is no.
+
+// Builtin wrappers.
+// Each activation builtin has exactly this one Dark caller (tests/builtin).
+
+/// The platforms this instance has switched on, or None when it has never chosen, which means
+/// all of them. None and an empty list are different answers.
+let activated () : Stdlib.Option.Option<List<String>> =
+  Builtin.pmPlatformsActivated ()
+
+let activate (name: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmPlatformsActivate name
+
+let deactivate (name: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmPlatformsDeactivate name
+
+/// Replace the choice wholesale. Refuses a name this build does not ship.
+let setActive (names: List<String>) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmPlatformsSet names
+
+/// Clear the choice, so everything this build shipped is on again.
+let activateAll () : Unit =
+  Builtin.pmPlatformsActivateAll ()
+
+/// The platforms a session gets whether it asked for them or not, so switching one off would be
+/// a stored choice the runtime overrides -- a listing that says `off` next to something that is
+/// on. `Core` because nothing computes without it; `Store` because Dark's own error printer is
+/// Dark and needs `package-read` to turn a hash back into a name.
+///
+/// Mirrors `Platforms.Sets.alwaysOn`, and an F# test pins the two together.
+val alwaysOn = [ "Core", "Store" ]
+
+
+/// Is this platform switched on? "Never chosen" is on.
+let isOn (active: Stdlib.Option.Option<List<String>>) (name: String) : Bool =
+  match active with
+  | None -> true
+  | Some names -> Stdlib.List.``member`` names name
+
+
+/// One row of `dark platforms`.
+///
+/// <param gutter> reserves four columns for an `off` marker, and is false unless something in
+/// this build actually is off. A marker column that is blank on every line is four characters of
+/// nothing on twenty rows, so the default listing does not pay for a state it is not in.
+let formatOne
+  (active: Stdlib.Option.Option<List<String>>)
+  (gutter: Bool)
+  (p: LanguageTools.Platform)
+  : String =
+  let coordinate = $"{p.name}@{Stdlib.Int64.toString p.version}"
+  let fns = Cli.Text.plural (Stdlib.Int.fromInt64 p.fnCount) "fn"
+
+  let effects =
+    if Stdlib.List.isEmpty p.effects then
+      "reaches nothing"
+    else
+      Stdlib.String.join p.effects " "
+
+  let mark =
+    if Stdlib.Bool.not gutter then ""
+    else if Platforms.isOn active p.name then "    "
+    else "off "
+
+  $"  {mark}{coordinate}  {fns}  [{effects}]"
+
+
+/// If this failure is "you reached for a platform that is off", the platform and what turning it
+/// on would reach. None for every other failure.
+///
+/// The shape of the goal in one function: a session starts near-pure, and only when your code
+/// actually reaches for something does the question of activating it come up.
+let inactiveIn
+  (err: ExecutionError.ExecutionError)
+  : Stdlib.Option.Option<(String * List<String>)> =
+  match err with
+  | Runtime rte ->
+    match rte with
+    | BuiltinNotActive(_name, platform, effects) ->
+      Stdlib.Option.Option.Some((platform, effects))
+    | _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Ask whether to switch a platform on, and do it. True if the caller should retry.
+///
+/// Deliberately two choices rather than the three a permission prompt offers, and the missing one
+/// is "just this once". Activation is not a grant: turning a platform on does not let code do
+/// anything the policy still forbids, it only makes asking possible. So the value of a temporary
+/// yes is much lower here than it is for `allow`, and the undo is one word.
+let offerActivation (platform: String) (effects: List<String>) : Bool =
+  let facts = Stdlib.Cli.Tui.TerminalSupport.currentFacts ()
+
+  if Stdlib.Bool.not facts.inputIsTerminal then
+    false
+  else
+    let reaches =
+      if Stdlib.List.isEmpty effects then
+        "nothing"
+      else
+        Stdlib.String.join effects " "
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.warning
+        $"This needs {platform}, which is off in this session.")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        $"    Turning it on lets your code ask for: {reaches}")
+
+    // The labels do not repeat the question ("1. Activate HttpClient" under "Activate HttpClient?"
+    // is a line of screen spent saying nothing), and the yes states its SCOPE.
+    //
+    // The permission prompt next door offers "once" precisely so a distracted yes cannot widen an
+    // instance forever. Activation has no "once" (it would mean threading a per-run set through the
+    // guest-state builtin, and activation is not a grant, so a temporary one buys less), which
+    // makes saying the scope out loud the least this prompt owes someone who narrowed on purpose.
+    let yes = "Turn it on for this instance"
+    let no = "Leave it off"
+
+    if (Stdlib.Cli.UI.Prompt.select $"Turn {platform} on?" [ yes, no ]) == yes then
+      match Platforms.activate platform with
+      | Ok _ -> true
+      | Error message ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+        false
+    else
+      false
+
+
+/// `dark platforms activate|deactivate <Name>`: change what this instance starts with.
+let executeSwitch (state: AppState) (verb: String) (name: String) : AppState =
+  if (verb == "deactivate") && (Stdlib.List.``member`` Platforms.alwaysOn name) then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"{name} cannot be switched off.")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "    Every session gets it: Core is what computes, and Store is what turns a hash")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "    back into a name, including in the message that would tell you it was missing.")
+
+    { state with exitCode = 1 }
+  else
+
+  let outcome =
+    if verb == "activate" then
+      Platforms.activate name
+    else
+      Platforms.deactivate name
+
+  match outcome with
+  | Error message ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint "    `dark platforms` lists what this build has.")
+
+    state
+
+  | Ok _ ->
+    // What changed, then what that means for the code you run. The second line is the one worth
+    // having: "Sqlite is off" alone does not say whether your scripts stop working.
+    let reaches =
+      LanguageTools.platforms ()
+      |> Stdlib.List.filter (fun p -> p.name == name)
+      |> Stdlib.List.map (fun p -> p.effects)
+      |> Stdlib.List.flatten
+
+    let surface =
+      if Stdlib.List.isEmpty reaches then
+        "reaches nothing"
+      else
+        Stdlib.String.join reaches " "
+
+    if verb == "activate" then
+      Stdlib.printLine $"{name} is on."
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint $"    Your code can now ask for: {surface}")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "    Asking is not being allowed; the permission policy still decides.")
+    else
+      Stdlib.printLine $"{name} is off."
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"    Your code can no longer reach its builtins. `platforms activate {name}` undoes this.")
+
+    state
+
+
+/// `dark platforms needed <Owner.Module.fn>`: what one program requires, as against what this
+/// build contains. The gap between the two is the thing worth looking at: a command that calls one
+/// builtin should not need a platform that reaches eight effects.
+/// `--activate`: switch on exactly what this program needs, and nothing else.
+///
+/// The point of `needed` was always the gap between what a program uses and what granting its
+/// platforms costs. Reporting that gap and then making you close it by hand, one `activate` at a
+/// time, is a tool that stops one step short of being useful.
+///
+/// Refuses on an INCOMPLETE walk. A lower bound is fine to read and dangerous to act on: narrowing
+/// to it produces a session that fails somewhere the report did not mention, which reads as the
+/// activation feature being broken rather than as the analysis being partial.
+let narrowTo
+  (state: AppState)
+  (needed: List<String>)
+  (activate: Bool)
+  (complete: Bool)
+  : AppState =
+  if Stdlib.Bool.not activate then
+    state
+  else if Stdlib.Bool.not complete then
+    Stdlib.printLine ""
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        "    Not narrowing to a lower bound: this walk was incomplete.")
+
+    { state with exitCode = 1 }
+  else
+    // The floor is added rather than assumed: `Sets.activating` would put it back anyway, and a
+    // stored choice that omits it would print `off` next to platforms that are running.
+    let full =
+      Stdlib.List.append needed Platforms.alwaysOn
+      |> Stdlib.List.unique
+      |> Stdlib.List.sort
+
+    match Platforms.setActive full with
+    | Error message ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+      { state with exitCode = 1 }
+
+    | Ok _ ->
+      let total = Stdlib.List.length (LanguageTools.platforms ())
+      let on = Stdlib.List.length full
+
+      Stdlib.printLine ""
+
+      // The names that are ON, not the names that are off. Listing the eighteen you no longer have
+      // is a wall answering a question nobody asked; the two you DO have is the session you just
+      // made, and it is short enough to read.
+      Stdlib.printLine
+        $"""This instance now has {Cli.Text.plural on "platform"} of {Stdlib.Int.toString total}:"""
+
+      Platforms.printNames full
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint "    `platforms reset` turns everything back on.")
+
+      state
+
+
+let executeNeeded (state: AppState) (fnName: String) (activate: Bool) : AppState =
+  match LanguageTools.platformsNeededBy fnName with
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"No package function named '{fnName}'.")
+    { state with exitCode = 1 }
+
+  | Some needs ->
+    let installed = LanguageTools.platforms ()
+
+    let effects =
+      installed
+      |> Stdlib.List.filter (fun p ->
+        Stdlib.List.``member`` needs.platforms p.name)
+      |> Stdlib.List.map (fun p -> p.effects)
+      |> Stdlib.List.flatten
+      |> Stdlib.List.unique
+      |> Stdlib.List.sort
+
+    Stdlib.printLine $"{fnName} needs:"
+    Stdlib.printLine ""
+
+    needs.platforms
+    |> Stdlib.List.iter (fun name -> Stdlib.printLine $"    {name}")
+
+    Stdlib.printLine ""
+
+    let counts =
+      let p = Cli.Text.plural (Stdlib.List.length needs.platforms) "platform"
+      let b = Cli.Text.plural (Stdlib.List.length needs.builtins) "builtin"
+      let f = Cli.Text.plural (Stdlib.Int.fromInt64 needs.packageFns) "package fn"
+      $"    {p}, {b}, across {f}."
+
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint counts)
+
+    let effectLine =
+      if Stdlib.List.isEmpty effects then
+        "reaches nothing"
+      else
+        Stdlib.String.join effects " "
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        $"    Effect surface if you grant those platforms whole: {effectLine}")
+
+    if needs.complete then
+      Platforms.narrowTo state needs.platforms activate needs.complete
+    else
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "    INCOMPLETE: a call in this closure goes through a function-typed parameter,")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "    which no static walk can follow. The list above is a lower bound.")
+
+      Platforms.narrowTo state needs.platforms activate needs.complete
+
+
+let executeAll (state: AppState) : AppState =
+  let platforms = LanguageTools.platforms ()
+
+  if Stdlib.List.isEmpty platforms then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "This runtime did not record its platforms. (Only hosts composed from a PlatformSet do.)")
+
+    state
+  else
+    let active = Platforms.activated ()
+
+    let off =
+      platforms
+      |> Stdlib.List.filter (fun p ->
+        Platforms.isOn active p.name |> Stdlib.Bool.not)
+      |> Stdlib.List.length
+
+    let gutter = off > 0
+
+    Stdlib.printLine "Platforms in this build:"
+    Stdlib.printLine ""
+
+    platforms
+    |> Stdlib.List.iter (fun p ->
+      Stdlib.printLine (Platforms.formatOne active gutter p)
+
+      let indent = if gutter then "          " else "      "
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"{indent}{p.description}"))
+
+    let count = Stdlib.List.length platforms
+
+    let pure_ =
+      platforms
+      |> Stdlib.List.filter (fun p -> Stdlib.List.isEmpty p.effects)
+      |> Stdlib.List.length
+
+    Stdlib.printLine ""
+
+    // One summary line, not two. The second fact is only interesting when it is not the default,
+    // and a listing that ends in two dim sentences reads as a footer nobody finishes.
+    let summary =
+      $"{Cli.Text.plural count "platform"}, {Stdlib.Int.toString pure_} reaching nothing"
+
+    let line =
+      if off == 0 then
+        $"{summary}, all on. `platforms deactivate <Name>` narrows that."
+      else
+        $"{summary}, {Stdlib.Int.toString off} off. `platforms reset` turns everything back on."
+
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint line)
+
+    state
+
+
+/// Names in aligned columns, indented, sized to the terminal.
+///
+/// Aligned because these are lists you scan for a name rather than read, and ragged text defeats
+/// scanning. Sized to the terminal because `Core`'s longest builtin is 28 characters, so a fixed
+/// four columns wraps into nonsense on anything narrower than 120.
+let printNames (names: List<String>) : Unit =
+  let width =
+    names
+    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+  let (terminalWidth, _rows) = Terminal.getSize ()
+
+  let columns =
+    let fit = (terminalWidth - 4) / (width + 2)
+
+    if fit < 1 then 1
+    else if fit > 4 then 4
+    else fit
+
+  names
+  |> Stdlib.List.map (fun n ->
+    Stdlib.String.padEnd n " " width |> Stdlib.Result.withDefault n)
+  |> Stdlib.List.chunkBySize columns
+  |> Stdlib.Result.withDefault []
+  |> Stdlib.List.iter (fun row ->
+    let line = Stdlib.String.join row "  " |> Stdlib.String.trimEnd
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    {line}"))
+
+
+/// `platforms activate` with nothing after it: name the platforms rather than the grammar.
+/// A usage line that says `<Name>` when the whole list is twenty words long is a worse answer
+/// than the list.
+let usageFor (state: AppState) (verb: String) : AppState =
+  let active = Platforms.activated ()
+
+  let candidates =
+    LanguageTools.platforms ()
+    |> Stdlib.List.filter (fun p ->
+      if verb == "activate" then
+        Platforms.isOn active p.name |> Stdlib.Bool.not
+      else
+        (Platforms.isOn active p.name)
+        && ((Stdlib.List.``member`` Platforms.alwaysOn p.name) |> Stdlib.Bool.not))
+    |> Stdlib.List.map (fun p -> p.name)
+
+  if Stdlib.List.isEmpty candidates then
+    if verb == "activate" then
+      Stdlib.printLine "Everything in this build is already on."
+    else
+      Stdlib.printLine "Nothing is on to switch off."
+
+    state
+  else
+    Stdlib.printLine $"Usage: platforms {verb} <Name>"
+    Stdlib.printLine ""
+    Platforms.printNames candidates
+    { state with exitCode = 1 }
+
+
+/// `dark platforms <Name>`: one platform in full.
+///
+/// The listing is a survey; this is the page you read before deciding to trust something. It is
+/// also where `fingerprint` lives, because a column of twenty hashes in the listing would be
+/// twenty things nobody reads, and the one time you want a hash you want exactly one.
+let executeOne (state: AppState) (name: String) : AppState =
+  match
+    LanguageTools.platforms () |> Stdlib.List.findFirst (fun p -> p.name == name)
+  with
+  | None ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"No platform named '{name}' in this build.")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint "    `dark platforms` lists what this build has.")
+
+    { state with exitCode = 1 }
+
+  | Some p ->
+    let active = Platforms.activated ()
+    let state_ = if Platforms.isOn active p.name then "on" else "off"
+
+    Stdlib.printLine
+      $"{p.name}@{Stdlib.Int64.toString p.version}  {p.fingerprint}  ({state_})"
+
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {p.description}")
+    Stdlib.printLine ""
+
+    let effects =
+      if Stdlib.List.isEmpty p.effects then
+        "nothing"
+      else
+        Stdlib.String.join p.effects " "
+
+    Stdlib.printLine $"  reaches   {effects}"
+
+    Stdlib.printLine
+      $"""  needs     {if p.requiresStore then "a store on disk" else "no store"}"""
+
+    Stdlib.printLine
+      $"""  provides  {Cli.Text.plural (Stdlib.Int.fromInt64 p.fnCount) "builtin"}"""
+
+    Stdlib.printLine ""
+
+    // The builtin names, in aligned columns rather than one per line: this is a list you scan for
+    // a name, and ragged text defeats scanning as surely as a hundred-line column does.
+    //
+    // Capped, because `Core` alone would be several screens of them. The cap is the
+    // honest kind: it says how many it did not show and what to run to get them.
+    let cap = 48
+    let shown = p.fns |> Stdlib.List.take cap
+    let hidden = (Stdlib.List.length p.fns) - (Stdlib.List.length shown)
+
+    Platforms.printNames shown
+
+    if hidden > 0 then
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"    and {Stdlib.Int.toString hidden} more -> `dark builtins --by-platform`")
+
+    state
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executeAll state
+  | [ "needed" ] ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error "Usage: platforms needed <Owner.Module.fnName>")
+
+    { state with exitCode = 1 }
+  | [ "needed", fnName ] -> executeNeeded state fnName false
+  | [ "needed", fnName, "--activate" ] -> executeNeeded state fnName true
+  | [ "activate" ] -> Platforms.usageFor state "activate"
+  | [ "deactivate" ] -> Platforms.usageFor state "deactivate"
+  | [ "activate", name ] -> executeSwitch state "activate" name
+  | [ "deactivate", name ] -> executeSwitch state "deactivate" name
+  | [ "reset" ] ->
+    Platforms.activateAll ()
+    Stdlib.printLine "Every platform in this build is on."
+    state
+  // A bare word that is not a verb is a platform name. Last, so a future verb never becomes
+  // unreachable because somebody named a platform after it.
+  | [ name ] -> executeOne state name
+  | _ ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        "Usage: platforms [<Name> | needed <fn> [--activate] | activate <Name> | deactivate <Name> | reset]")
+
+    { state with exitCode = 1 }
+
+
+let help (_state: AppState) : String =
+  [ "Usage: platforms                     what this build is made of"
+    "       platforms <Name>              one of them in full"
+    "       platforms activate <Name>     switch it on for this instance"
+    "       platforms deactivate <Name>   switch it off"
+    "       platforms reset               everything on again"
+    "       platforms needed <fn>         what one function requires"
+    "       platforms needed <fn> --activate   turn on exactly that, nothing else"
+    ""
+    "A platform is a named, versioned bundle of builtins plus the effects they"
+    "may perform. `Core` reaches nothing. `Terminal` reaches stdout and stdin."
+    ""
+    "Every binary links all of them. What you choose is what is ACTIVE:"
+    "code you run gets the ones you have on, and asking for anything else"
+    "tells you which platform provides it and offers to turn it on."
+    ""
+    "Activation is not permission."
+    "  - active   means your code can ASK for those effects"
+    "  - allowed  means the policy lets the ask through (`dark permissions`)"
+    ""
+    "Deactivating from a fresh install records everything else as on, so it"
+    "narrows by exactly one. `reset` clears the choice."
+    ""
+    "`needed` asks from the other end: the minimum platform set one function"
+    "requires, by walking its call graph. Use it to see whether a program is"
+    "asking for more than it uses. `--activate` then narrows this instance to"
+    "exactly that; it refuses when the walk was incomplete, since a lower bound"
+    "is fine to read and dangerous to act on." ]
+  |> Stdlib.String.join "\n"
+
+
+/// Tab completion. The names are the point: `platforms deactivate ` should offer what is on, and
+/// `platforms activate ` what is off, because those are the only answers that do anything.
+let complete
+  (_state: AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  let active = Platforms.activated ()
+
+  let names (wantOn: Bool) : List<String> =
+    LanguageTools.platforms ()
+    |> Stdlib.List.filter (fun p ->
+      (Platforms.isOn active p.name == wantOn)
+      // Never offer something the next command would refuse.
+      && ((Stdlib.List.``member`` Platforms.alwaysOn p.name) |> Stdlib.Bool.not))
+    |> Stdlib.List.map (fun p -> p.name)
+
+  let matching (candidates: List<String>) (partial: String) : List<String> =
+    candidates |> Stdlib.List.filter (fun n -> Stdlib.String.startsWith n partial)
+
+  match args with
+  | [] ->
+    Stdlib.List.append
+      ([ "needed", "activate", "deactivate", "reset" ])
+      (names true)
+    |> Stdlib.List.map Completion.simple
+
+  | [ "activate" ] -> names false |> Stdlib.List.map Completion.simple
+  | [ "deactivate" ] -> names true |> Stdlib.List.map Completion.simple
+  | [ "activate", partial ] ->
+    matching (names false) partial |> Stdlib.List.map Completion.simple
+  | [ "deactivate", partial ] ->
+    matching (names true) partial |> Stdlib.List.map Completion.simple
+  | [ partial ] ->
+    Stdlib.List.append
+      (matching [ "needed", "activate", "deactivate", "reset" ] partial)
+      (matching (names true) partial)
+    |> Stdlib.List.map Completion.simple
+
+  | _ -> []

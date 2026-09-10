@@ -75,7 +75,7 @@ let sqrt (a: Int128) : Float = Builtin.int128Sqrt a
 
 
 /// Converts an <type Int128> to a <type Float>
-let toFloat (a: Int128) : Float = Builtin.int128ToFloat a
+let toFloat (a: Int128) : Float = Builtin.convert<Float> a
 
 
 /// Returns the sum of all the ints in the list
@@ -131,35 +131,35 @@ let parse
 
 
 /// Converts an <type Int8> to an <type Int128>.
-let fromInt8 (i: Int8) : Int128 = Builtin.int128FromInt8 i
+let fromInt8 (i: Int8) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts a <type UInt8> to an <type Int128>.
-let fromUInt8 (i: UInt8) : Int128 = Builtin.int128FromUInt8 i
+let fromUInt8 (i: UInt8) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts an <type Int16> to an <type Int128>.
-let fromInt16 (i: Int16) : Int128 = Builtin.int128FromInt16 i
+let fromInt16 (i: Int16) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts a <type UInt16> to an <type Int128>.
-let fromUInt16 (i: UInt16) : Int128 = Builtin.int128FromUInt16 i
+let fromUInt16 (i: UInt16) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts an <type Int32> to an <type Int128>.
-let fromInt32 (i: Int32) : Int128 = Builtin.int128FromInt32 i
+let fromInt32 (i: Int32) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts a <type UInt32> to an <type Int128>.
-let fromUInt32 (i: UInt32) : Int128 = Builtin.int128FromUInt32 i
+let fromUInt32 (i: UInt32) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts an <type Int64> to an <type Int128>.
-let fromInt64 (i: Int64) : Int128 = Builtin.int128FromInt64 i
+let fromInt64 (i: Int64) : Int128 = Builtin.convert<Int128> i
 
 
 /// Converts a <type UInt64> to an <type Int128>.
-let fromUInt64 (i: UInt64) : Int128 = Builtin.int128FromUInt64 i
+let fromUInt64 (i: UInt64) : Int128 = Builtin.convert<Int128> i
 
 
 /// Bitwise AND on two <type Int128> values

@@ -26,6 +26,7 @@ module Registry =
       ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
       ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
+      ("lsp", "Run the language server over stdio", [], Cli.Lsp.execute, Cli.Lsp.help, Cli.Lsp.complete)
       ("run-script", "Run a Dark script file", [ "run" ], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
       ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
@@ -69,6 +70,7 @@ module Registry =
       ("whoami", "Show this instance's sync identity", [], Cli.Sync.executeWhoamiCmd, Cli.Sync.help, Cli.Sync.complete)
       ("identity", "Name this instance (an id is minted automatically otherwise)", [], Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
+      ("platforms", "What this build is made of, and which of it your code gets", [], Platforms.execute, Platforms.help, Platforms.complete)
       ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
@@ -181,7 +183,10 @@ module Registry =
       ("Execution", [ "run-script", "eval", "scripts" ])
       ("Installation", [ "install", "update", "uninstall", "version" ])
       ("AI", [ "agent" ])
-      ("Security", [ "permissions" ])
+      // `platforms` is here rather than under Utilities because it decides what your code can
+      // reach. It is the other half of this concern: `permissions` answers "may this code touch
+      // that", `platforms` answers "is that even here".
+      ("Security", [ "permissions", "platforms" ])
       ("Network", [ "devices" ])
       ("Apps", [ "apps" ])
       ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "views", "workbench" ]) ]

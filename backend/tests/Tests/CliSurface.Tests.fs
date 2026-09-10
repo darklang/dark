@@ -484,7 +484,11 @@ let private notSweepable =
       "logout" // ditto
       "export-seed" // takes its argument as a path and writes a multi-MB database there
       "devices" // shells out to `tailscale`
-      "clear" ] // clears the screen, taking the sweep's own output with it
+      "clear" // clears the screen, taking the sweep's own output with it
+      // Not a command a person reads output from: it speaks LSP over stdin and stdout, and the
+      // correct answer to "no frames arrived" is to exit silently, which is exactly what these
+      // sweeps are written to catch in commands that DO talk to people. An editor runs this.
+      "lsp" ]
 
 let private everyExclusionIsReal =
   cliTest "every command excluded from the sweeps still exists" (fun state ->

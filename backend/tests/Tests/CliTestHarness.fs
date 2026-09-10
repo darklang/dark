@@ -23,7 +23,7 @@ open TestUtils.TestUtils
 let buildState () : Task<RT.ExecutionState> =
   task {
     let pmPTValue = pmPT
-    let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
+    let builtins = (Platforms.Sets.cli ()).builtins
     let pmRT = PT2RT.PackageManager.toRT builtins.values pmPTValue
     let program : RT.Program = { dbs = Map.empty }
 

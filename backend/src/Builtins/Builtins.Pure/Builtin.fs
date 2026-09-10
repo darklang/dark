@@ -49,3 +49,18 @@ let builtins () : Builtins =
       Libs.Crypto.builtins ()
       Libs.X509.builtins () ]
     fnRenames
+
+
+/// The floor: arithmetic, text, collections, encodings, crypto. No effects at all, which is what
+/// makes a `Core`-only executable a sealed computation engine rather than a small dangerous one.
+///
+/// Every other platform `requires` this, because every builtin that can fail returns an
+/// `Option`/`Result` whose Dark definitions live in Core's package modules.
+let platform : LibExecution.Platform.Platform =
+  { name = "Core"
+    version = 0
+    description = "Arithmetic, text, collections, JSON, crypto. No effects."
+    builtins = builtins ()
+    requires = []
+    dynamicEffects = Set.empty
+    requiresStore = false }

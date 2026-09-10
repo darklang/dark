@@ -60,6 +60,10 @@ type Request =
   | Package of access : AccessKind
   | Trace of access : AccessKind
   | Native of operation : string
+  /// A capability this runtime did not ship, named `owner/name` by the platform that
+  /// declared it. Ambient and whole-or-nothing for the same reason `Native` is: we cannot
+  /// build a request naming a resource we know nothing about.
+  | Custom of effect : string
 
 module Request =
   /// One shell-safe token for an actionable `permissions allow` command.
@@ -90,6 +94,7 @@ module Request =
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
     | Request.Native _ -> Effect.Effect.Native
+    | Request.Custom effect -> Effect.Effect.Custom effect
 
   /// Return the narrow `permissions allow <rule>` text that covers this
   /// request, or `None` when the effect has no scoped rule (such as Native).
@@ -123,6 +128,9 @@ module Request =
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
     | Request.Native _ -> None
+    // Unlike `Native`, which is keyed per builtin and grantable only as a whole, a custom
+    // effect IS the unit a platform advertises, so its own name is the rule.
+    | Request.Custom effect -> Some effect
 
   let httpServer (port : int) : Result<Request, string> =
     if port >= 0 && port <= 65535 then
@@ -198,6 +206,13 @@ module Request =
 
   let trace (access : AccessKind) : Request = Request.Trace access
 
+  /// A request for a platform-declared capability. Takes the effect, not a raw string, so
+  /// the `owner/name` validation in `Effects.custom` is the only way in.
+  let custom (effect : Effect.Effect) : Result<Request, string> =
+    match effect with
+    | Effect.Effect.Custom name -> Ok(Request.Custom name)
+    | other -> Error $"Not a custom effect: {Effect.name other}"
+
   let native (operation : string) : Result<Request, string> =
     if System.String.IsNullOrWhiteSpace operation then
       Error "Native operation cannot be empty"
@@ -218,6 +233,7 @@ module Request =
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
     | Effect.Effect.Native -> Request.Native builtinName
+    | Effect.Effect.Custom name -> Request.Custom name
     | scoped ->
       Exception.raiseInternal
         "scoped effect reached the ambient gate"

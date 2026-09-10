@@ -1,4 +1,4 @@
-module Builtins.Matter.Libs.PM.Seed
+module Builtins.Admin.Libs.Seed
 
 open Prelude
 open LibExecution.RuntimeTypes

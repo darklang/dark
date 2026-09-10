@@ -171,6 +171,96 @@ let main (args : string[]) : int =
         "sweeping orphan package_blobs rows"
         (HandleCommand.sweepBlobs ())
 
+    | [ "platforms" ] ->
+      print "Platforms in this build:"
+      Platforms.Sets.describe (Platforms.Sets.everything ()) |> List.iter print
+      print ""
+      print
+        $"fingerprint {(Platforms.Sets.everything ()).fingerprint}   (owner + identity + signature + effects)"
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "tighten" ] ->
+      // What is worth acting on: an effect with one contributor is one function away from being
+      // gone from that platform.
+      let set = Platforms.Sets.everything ()
+      print "Effects reached, and which builtins are responsible:"
+      print ""
+      Platforms.Sets.tighteningReport set |> List.iter print
+      print ""
+      print
+        "Impure builtins that declare no effects (deliberate for the sqlite ones):"
+      Platforms.Sets.undeclaredImpure set |> List.iter (fun l -> print $"    {l}")
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "wrappers" ] ->
+      print "Where each platform's builtins are wrapped on the Dark side:"
+      print ""
+      LocalExec.PlatformReport.report (Platforms.Sets.everything ())
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "cost" ] ->
+      LocalExec.PlatformReport.costReport () |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "audit"; prefix ] ->
+      (LocalExec.PlatformReport.Audit.report (Platforms.Sets.everything ()) prefix
+       |> Ply.toTask)
+        .Result
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "unreachable" ] ->
+      (LocalExec.PlatformReport.Unreachable.report (Platforms.Sets.everything ())
+       |> Ply.toTask)
+        .Result
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "collapsible" ] ->
+      LocalExec.PlatformReport.Collapsible.report (Platforms.Sets.everything ())
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "needed"; fnName ] ->
+      LocalExec.PlatformReport.Needed.report (Platforms.Sets.everything ()) fnName
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "unused" ] ->
+      (LocalExec.PlatformReport.unusedReport () |> Ply.toTask).Result
+      |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platform-fingerprint" ] ->
+      // Just the hash, on stdout, nothing else: the build reads this to decide whether the package
+      // reload can be skipped, so anything decorative here becomes a parsing bug there. Built over
+      // an EMPTY package manager so it needs no store and cannot be perturbed by one.
+      let set =
+        Platforms.Sets.everythingFor LibExecution.ProgramTypes.PackageManager.empty
+      print set.fingerprint
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "cost"; "parts" ] ->
+      LocalExec.PlatformReport.fnPartsReport () |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
+    | [ "platforms"; "cost"; "core" ] ->
+      LocalExec.PlatformReport.coreCostReport () |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
     | [ "bench" ] ->
       handleCommand
         "running allocation/timing benchmarks"
@@ -189,6 +279,18 @@ let main (args : string[]) : int =
       print "  migrations list"
       print "  export-seed <output-path>"
       print "  pm-sweep-blobs"
+      print "  platforms            what this build ships, and its fingerprint"
+      print "  platforms tighten    which builtins give each platform each effect"
+      print
+        "  platforms wrappers   which package areas wrap each platform's builtins"
+      print
+        "  platforms needed <Owner.Module.fn>   the minimum platform set that fn needs"
+      print
+        "  platforms collapsible   the numeric tower, and how much of it is replication"
+      print
+        "  platforms audit <Owner.Module>   functions reaching effects their module should not"
+      print
+        "  platforms unreachable   builtins no package function in this repo can reach"
       print "  bench"
       print "  bench-render"
       NonBlockingConsole.wait ()

@@ -1,7 +1,16 @@
 module Darklang.Stdlib.Cli.Log
 
-// All output goes to stdout — no stderr builtin exists yet.
+// All output goes to stdout, no stderr builtin exists yet.
 // When one is added, warn/error should switch to stderr.
+
+/// Where this instance writes its log files. Ends in a separator.
+///
+/// A FUNCTION, deliberately, and the only wrapper for `cliGetLogDir`. The log directory is host
+/// state: it moves with `DARK_CONFIG_RUNDIR`, so an instance with its own rundir has its own. A
+/// `val` would be evaluated once and stored in the package database, freezing whichever machine ran
+/// the reload into the shipped seed, which is the trap `AGENTS.md` names under "Package `val`s must
+/// not depend on the host".
+let directory () : String = Builtin.cliGetLogDir ()
 
 /// Log an info message (green prefix)
 let info (msg: String) : Unit =

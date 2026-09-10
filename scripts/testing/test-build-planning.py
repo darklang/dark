@@ -454,5 +454,90 @@ class TestReleaseImage(unittest.TestCase):
       "Dockerfile.build-base SDK version must match backend/global.json")
 
 
+
+class ReloadIsRedundant(unittest.TestCase):
+  """When the package reload can be skipped.
+
+  The bias in every one of these is the same: a wrong True means running against a stale
+  package database, which reads as a plausible answer rather than an error. So the
+  interesting cases are the ones that must say False.
+  """
+
+  def redundant(self, files, manifest_unchanged=True, unrouted=()):
+    return _buildplan.reload_is_redundant(files, manifest_unchanged, unrouted)
+
+  def test_unrouted_files_do_not_block_a_skip(self):
+    # Editing a note or a budget file beside a host-only change is the common case, and the
+    # planner already knows those ask for nothing.
+    self.assertTrue(self.redundant(
+      ["backend/src/Cli/Cli.fs", "scripts/perf/budget.json"],
+      unrouted=["scripts/perf/budget.json"]))
+
+  def test_unrouted_alone_is_still_not_a_skip(self):
+    self.assertFalse(self.redundant(
+      ["notes/something.md"], unrouted=["notes/something.md"]))
+
+  def test_host_only_changes_are_redundant(self):
+    self.assertTrue(self.redundant(["backend/src/Cli/Cli.fs"]))
+    self.assertTrue(self.redundant(["backend/src/Wasm/Repl.fs"]))
+
+  def test_builtin_change_is_redundant_only_if_the_manifest_held(self):
+    f = ["backend/src/Builtins/Builtins.Pure/Libs/List.fs"]
+    self.assertTrue(self.redundant(f, manifest_unchanged=True))
+    self.assertFalse(self.redundant(f, manifest_unchanged=False))
+
+  def test_the_catalog_is_a_builtin_change(self):
+    f = ["backend/src/Platforms/Sets.fs"]
+    self.assertTrue(self.redundant(f, manifest_unchanged=True))
+    self.assertFalse(self.redundant(f, manifest_unchanged=False))
+
+  def test_format_and_parser_changes_always_reload(self):
+    for f in ["backend/src/LibSerialization/Binary/Serialization.fs",
+              "backend/src/LibParser/Parser.fs",
+              "backend/src/LibExecution/ProgramTypes.fs",
+              "backend/src/LibExecution/ProgramTypesToRuntimeTypes.fs",
+              "backend/src/LibDB/PackageOpPlayback.fs",
+              "backend/src/LibExecution/Interpreter.fs"]:
+      self.assertFalse(self.redundant([f]), f)
+
+  def test_a_dark_change_always_reloads(self):
+    self.assertFalse(self.redundant(["packages/darklang/stdlib/list.dark"]))
+
+  def test_one_unsafe_file_spoils_a_safe_batch(self):
+    self.assertFalse(self.redundant(
+      ["backend/src/Cli/Cli.fs", "backend/src/LibParser/Parser.fs"]))
+
+  def test_libtest_is_not_neutral(self):
+    # It is in the builtin set the reload resolves against, but it is not under
+    # backend/src/Builtins, so the manifest fingerprint does not cover it.
+    self.assertFalse(self.redundant(["backend/tests/TestUtils/LibTest.fs"]))
+
+  def test_nothing_changed_is_not_redundant(self):
+    # An empty list means the caller does not know what changed, which is not the same
+    # as knowing that nothing relevant did.
+    self.assertFalse(self.redundant([]))
+
+
+class RedundantSkipsDoNotLookLikeFailures(unittest.TestCase):
+  """A skipped-because-redundant step still counts as a build that got all the way through.
+
+  Without this, every build that skipped the package reload would leave the tree looking
+  permanently behind, which is worse than the ~11s the skip saves.
+  """
+
+  def test_a_failure_skip_blocks_the_success_mark(self):
+    self.assertFalse(_buildstate.built_successfully(
+      ["backend_quick_build"], None, ["reload_all_packages"], []))
+
+  def test_a_redundant_skip_does_not(self):
+    self.assertTrue(_buildstate.built_successfully(
+      ["backend_quick_build"], None, ["reload_all_packages"],
+      ["reload_all_packages"]))
+
+  def test_a_redundant_skip_alongside_a_real_one_still_blocks(self):
+    self.assertFalse(_buildstate.built_successfully(
+      ["backend_quick_build"], None,
+      ["reload_all_packages", "run_migrations"], ["reload_all_packages"]))
+
 if __name__ == "__main__":
   unittest.main(verbosity=2)

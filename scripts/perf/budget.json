@@ -1,8 +1,8 @@
 {
   "tolerance": 0.03,
   "steady": {
-    "debug": 9276664,
-    "published": 9103560,
+    "debug": 8478848,
+    "published": 8732936,
     "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it (scripts/perf/gate --update). Method and history: docs/perf/history.md."
   }
 }

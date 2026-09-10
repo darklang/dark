@@ -13,21 +13,13 @@
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
-
-    <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Language/Builtins.Language.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Time/Builtins.Time.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Random/Builtins.Random.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.Matter/Builtins.Matter.fsproj" />
+    <ProjectReference Include="../Platforms/Platforms.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />
     <Compile Include="Builtins.fs" />
+    <Compile Include="PlatformReport.fs" />
     <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="BenchmarkScenarios.fs" />

@@ -52,6 +52,43 @@ let evaluate
     Stdlib.Result.Result.Error(ExecutionError.toString state.currentBranchId err)
 
 
+/// Evaluate, and at an interactive terminal offer to switch on a platform the expression reached
+/// for and did not have. <param retriesLeft> bounds it at one: a second inactive platform after a
+/// yes is a real answer, not a loop, and asking twice for the same expression is a nag.
+let evaluateOffering
+  (state: AppState)
+  (expr: String)
+  (allowHarmful: Bool)
+  (retriesLeft: Int)
+  : AppState =
+  let currentModule =
+    Packages.Traversal.getCurrentModulePath state.packageData.currentLocation
+
+  match
+    evaluateRaw state.accountID state.currentBranchId expr currentModule allowHarmful
+  with
+  | Ok(Some s) ->
+    Stdlib.printLine s
+    state
+  | Ok None -> state
+  | Error err ->
+    match Platforms.inactiveIn err with
+    | Some((platform, effects)) when retriesLeft > 0 ->
+      if Platforms.offerActivation platform effects then
+        // The host rebuilds the guest floor when the stored activation changes, so the retry runs
+        // against the platform that was just switched on rather than against the old floor.
+        Eval.evaluateOffering state expr allowHarmful (retriesLeft - 1)
+      else
+        Stdlib.printLine
+          $"Error: {ExecutionError.toString state.currentBranchId err}"
+
+        { state with exitCode = 1 }
+
+    | _ ->
+      Stdlib.printLine $"Error: {ExecutionError.toString state.currentBranchId err}"
+      { state with exitCode = 1 }
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member args "--allow-harmful"
@@ -69,14 +106,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match args with
       | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
       | parts -> Stdlib.String.join parts " "
-    match evaluate state expr allowHarmful with
-    | Ok (Some s) ->
-      Stdlib.printLine s
-      state
-    | Ok None -> state
-    | Error message ->
-      Stdlib.printLine $"Error: {message}"
-      { state with exitCode = 1 }
+
+    evaluateOffering state expr allowHarmful 1
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =

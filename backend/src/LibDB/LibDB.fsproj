@@ -44,6 +44,7 @@
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="EphemeralPackages.fs" />
     <Compile Include="LocalFile.fs" />
+    <Compile Include="Activation.fs" />
     <Compile Include="PolicyStore.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />

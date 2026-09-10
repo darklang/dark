@@ -46,15 +46,40 @@ Builds are explicit. Edit as many files as you like, then:
 
     scripts/dev/build            # what's changed since the last good build
     scripts/dev/build <paths>    # just these
+    scripts/dev/typecheck <paths> # compile ONLY the projects owning these files
     scripts/dev/plan             # what that would do, without doing it
     scripts/dev/status           # did it work, and is the tree ahead of it?
 
-`build` blocks, prints the steps it chose, and exits nonzero if any fails. Measured on
-an idle machine:
+`typecheck` is for the inner loop and produces nothing runnable. It IS recorded in
+`build-state.json`, as `fsharp_typecheck`, which is not in `_buildstate.BUILD_ACTIONS` -- the same
+mechanism a lint-only build uses, so the run is remembered but the last-success mark does not move
+and `status` still says the tree has moved on. It refuses while a test run is in flight, for the
+same reason `build` does: it writes assemblies, so it takes the file lock and kills the suite. That
+looks like a hang, or worse like a truncated pass, because the log simply stops.
 
-    .dark change    ~34s   the whole package set reloads, not just your file
-    .fs change      ~74s   39s compiling, then that same ~34s reload
-    nothing changed  0.2s  compared by content, so a `touch` or a branch switch is free
+**A typecheck followed by a revert strands the binary, and `build` will not fix it.** Because
+typecheck does not move the last-success mark, reverting leaves the source identical to the last
+successful build while the assembly on disk came from the edit you just undid; `build` compares
+source to last-success, sees nothing, and does nothing. `--force` does not help (it bypasses the
+tests-running guard, not change detection). `touch` the file and typecheck again. You reach this by
+editing, typechecking, and reverting, which is exactly what verifying a test's failure mode looks
+like.
+
+**Build cost is linear in the number of projects in the closure you ask for**, paid whether or not
+anything changed. A no-op `LibExecution` build is a second or two; a no-op solution build is tens of
+seconds, and the ordering between them is the project COUNT, not the depth. Touching
+`LibExecution/RuntimeTypes.fs`, which everything depends on, costs more than a no-op solution build.
+So building LESS is the only lever, and `typecheck` is it. Run `scripts/dev/plan` for the current
+numbers rather than trusting any written here. Node reuse is not available (the SDK disables it under
+`DOTNET_RUNNING_IN_CONTAINER`, and MSBuild nodes cannot outlive the `docker exec` anyway; measured,
+no difference).
+
+`build` blocks, prints the steps it chose, and exits nonzero if any fails. The shape of the cost,
+which matters more than the seconds:
+
+    .dark change      the whole package set reloads, not just your file
+    .fs change        compiling, then that same whole-package reload
+    nothing changed   near-instant; compared by content, so a `touch` or branch switch is free
 
 Note what the second line means: half the cost of any F# change is reloading packages
 that usually didn't need reloading. It's unconditional because a `.fs` change *can*
@@ -119,6 +144,9 @@ running commands, not by reading them, and always the same four ways:
 3. every command with valid arguments, on main AND on a branch
 4. every command with arguments a person would get wrong (missing, misspelled, wrong type)
 
+`scripts/testing/sweep-shape3` is a hand-curated sample of shape 3, which
+cannot be driven off the registry the way the others are.
+
 Grep the output for `Encountered a Runtime Error`, `expects .* but got`, `No matching case
 found`, `couldn't be found`. Shape 4 is the one people skip and it finds the most: a
 fall-through arm answers plausibly instead of refusing, so `dark commits zzznope` listed
@@ -177,8 +205,9 @@ Logs go to `rundir/logs/fsharp-tests.log`.
       LibParser/          # parser
       LibDB/              # package DB, branches, SCM ops, user DB, SQLite
                           # plumbing (LibDB.Sqlite), tracing recorder
-      Builtins/           # Cli, CliHost, Http.Client, Http.Server, Language,
-                          # Matter, Pure, Random, Time
+      Builtins/           # one assembly per platform: Pure, Time, Random, Cli,
+                          # Http.Client, Http.Server, Language, Store, Data, CliHost
+      Platforms/          # the catalog: the ONE place the full platform list lives
     packages/darklang/    # .dark files
       cli/                # the CLI app: registry, loop, workbench, outliner, etc.
       scm/                # SCM library (branches, merge, conflicts, propagation, packageOps)
@@ -211,11 +240,15 @@ Logs are for reading when something went wrong. For "did it work", use
 
 ## Adding a builtin (F#)
 
-Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Matter` (DB, package store,
-traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.Client`,
-`CliHost` (eval, script entry), `Cli` (file, terminal, other side effects), `Time`,
-`Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for
-the rebuild.
+Pick the right `Builtins` subproject: `Pure` (pure stdlib), `Store` (package store, ops,
+branches, approvals), `Data` (user DB, raw SQLite, traces, accounts), `Language` (reflection,
+parser, language tools), `Http.Server`, `Http.Client`, `CliHost` (eval, script entry), `Cli`
+(file, terminal, other side effects), `Time`, `Random`. Add the fn to the `fns` list in the
+relevant `Libs/<module>.fs`, save, wait for the rebuild.
+
+Each of those assemblies IS a platform, and declares one at the bottom of its `Builtin.fs`. A new
+assembly needs a `Platform` record there and a line in `Platforms/Sets.fs`; a new fn in an existing
+one needs neither.
 
 A builtin that touches a scoped OS resource goes through the host boundary, not directly to `System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and execution in `Host.fs`, and call `PermissionCheck.performHost state vm op`. If a resource cannot be scoped honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
 
@@ -239,6 +272,193 @@ simply not been pointed at, which is what a second `Builtin.x` reference usually
 1. `packages/darklang/cli/<name>.dark`
 2. Implement `execute`, `help`, `complete`
 3. Register in `Registry.allCommands` in `cli/registry.dark`
+
+## Platforms
+
+A **platform** is a named, versioned bundle of builtins plus the effects they may perform, and a
+statement of whether it needs a store on disk. Declared at the bottom of an assembly's `Builtin.fs`;
+`Platforms/Sets.fs` is the catalog, and the only place the full list lives. They range from `Core`,
+which is most of the builtins and reaches no effects, down to platforms with a single function.
+
+Which ones a SESSION gets is a separate question from which ones the binary links: see
+`docs/platforms.md`, and keep activation and permission apart when you touch either.
+
+**A platform is a value, not an assembly, and the two do not have to line up.** Four assemblies ship
+several platforms each, over subsets of their own `Libs`, sharing every line of implementation:
+
+    Builtins.Cli   -> Terminal, Files, Process, Posix
+    Builtins.Data  -> Db, Traces, Accounts, Sqlite
+    Builtins.Admin -> Instance, Seed, Policy
+    Builtins.Store -> Store, Authoring
+
+That is the lever when a platform is too coarse to grant: splitting the record costs nothing at build
+time, splitting the project costs a second or two on every build that reaches it. `Builtins.Store` splits on
+DECLARED EFFECTS rather than file layout, because reads and writes interleave in the same files;
+adding `PackageWrite` to a builtin there MOVES it between platforms, which is intended -- it changes
+the fingerprint and forces a re-review.
+
+    LibExecution/Platform.fs   the types, `PlatformSet.make`, the manifest fingerprint
+    Platforms/Sets.fs          the catalog and the named sets an executable runs
+    SealedHost/                an executable that links `Core` and nothing else. `scripts/run-sealed`.
+                               Its confinement is a LINK-TIME fact: there is no `fileRead` in the
+                               binary to deny. A test pins its four project references.
+
+Read-only reports, for deciding what to narrow next:
+
+    scripts/run-local-exec platforms            what ships, and the manifest fingerprint
+    scripts/run-local-exec platforms tighten    every effect a platform reaches, and which
+                                                builtins are responsible. An effect with ONE
+                                                contributor is one function away from being gone.
+    scripts/run-local-exec platforms wrappers   which package areas wrap each platform's builtins,
+                                                and which single builtins strayed elsewhere
+    scripts/run-local-exec platforms cost       what building the set allocates, per platform and
+                                                per fn. Startup cost every invocation pays.
+                                                `cost core` breaks Core down by library;
+                                                `cost parts` says what one BuiltInFn is made of.
+    scripts/run-local-exec platforms unused     builtins whose one Dark wrapper nothing calls.
+                                                Reads builtin refs off the compiled RT instructions,
+                                                so comments and strings cannot fool it.
+    scripts/run-local-exec platforms unreachable
+                                                builtins no package function in the repo reaches,
+                                                by walking every listed fn's call graph. Very few,
+                                                and the ones there are tend to be operators nobody
+                                                types. It also prints where the call graph and the
+                                                TEXTUAL scan (`PackageSurface.referencesBuiltin`,
+                                                which the wrapper-home test rests on) disagree.
+                                                Two methods for one question, with the
+                                                disagreement printed rather than one of them
+                                                picked, is the shape worth copying.
+    scripts/run-local-exec platforms audit <Owner.Module>
+                                                every function under that prefix reaching effects
+                                                its module's baseline does not allow. Walks a
+                                                call-graph closure per function, so it is slow and
+                                                deliberate. The baseline is a written table in
+                                                `PlatformReport.Audit`: opinionated on purpose,
+                                                since one derived from the code can never be
+                                                violated. Effects are per BUILTIN here, not per
+                                                platform, which is what makes it a layering question
+                                                rather than a granting one.
+    scripts/run-local-exec platforms collapsible
+                                                the numeric tower: how much of the builtin set is
+                                                one table copied per numeric type, and how much of
+                                                that already has a working polymorphic twin in
+                                                `NoModule`. Per operation, with a presence matrix.
+                                                Width conversions are not in it; `convert` and
+                                                `tryConvert` already cover those.
+    scripts/run-local-exec platforms needed <Owner.Module.fn>
+                                                the MINIMUM platform set that fn needs, by walking
+                                                its call graph. The question asked from the
+                                                program's end rather than the binary's, and the
+                                                install-time review surface. Says `INCOMPLETE` when
+                                                a call leaves through a function-typed parameter,
+                                                so treat those answers as lower bounds.
+
+`dark platforms` and `dark platforms needed <Owner.Module.fn>` ask the same two questions from the
+shipped CLI, over `Builtin.platformsInstalled` and `Builtin.platformsNeededBy`. Both are wrapped in
+`packages/darklang/languageTools/platforms.dark`, and the rendering is Dark, in
+`packages/darklang/cli/platforms.dark`.
+
+The gap between what `needed` reports and what granting a platform costs is the thing to watch, and
+the way to find them all at once is to sweep it over every command handler in
+`packages/darklang/cli/registry.dark` and sort by how many effects granting costs. That sweep is
+what found `Host` (a `dark clear` that calls one builtin was granted eight effects), `getBuildHash`
+sitting in `Posix` while declaring no effects at all, and `Store` handing `package-write` to
+thirteen commands that only read.
+
+Five tests hold the model to reality, all in `Platform.Tests.fs`, and all of them want a deliberate
+edit rather than a green light:
+
+- `declaredEffectsMatchReality` holds every platform to `promisedEffects`, a written list of what it
+  may reach, and fails in BOTH directions. An extra effect usually means a new builtin landed in the
+  wrong assembly; a missing one is a promise to delete.
+- `builtinsAreWrappedInTheirPlatformsHome` holds every builtin's Dark wrapper to its platform's
+  declared area, with the current exceptions pinned by name in `knownStrays`. Deleting a stray that
+  no longer exists is required, not optional.
+- `requiresIsJustCore` pins the fact that every platform but `Core` requires exactly `Core`. A new
+  entry has to be justified by naming the builtin that calls another platform's.
+- `operatorDispatchedBuiltinsArePure` pins that every builtin in the infix table is pure. That USED
+  to be the only thing making capability analysis sound; since `analysisVersion` 4 the analyzer sees
+  operators, so this is now the second line rather than the only one. Kept because it states an
+  intent (an operator should not act) and because it is what made the hole visible.
+- `sealedHostLinksOnlyCore` reads `SealedHost.fsproj` and pins its reference list. It reads the
+  PROJECT FILE rather than the compiled closure on purpose: the failure worth catching is somebody
+  adding a line because they wanted one function out of it.
+
+**Three ways to ask "does anything reference this builtin", with different blind spots.** Pick by
+what you are actually asking:
+
+    textual regex over `.dark`   `platforms wrappers`, wrapper-home test   blind to operators
+    RT instructions              `platforms unused`                        sees operators
+    PT call graph                `platforms needed`/`audit`/`unreachable`  sees them since v4
+
+For a question about what code REACHES, use the instruction stream or the call graph. Use the text
+only for questions about how code is WRITTEN, which is what the wrapper-home test asks (where does
+the wrapper live) and why a regex is right there. `platforms unreachable` prints where the first and
+third disagree, which in practice is operators and nothing else in either direction.
+
+**`gates lsp-branches` leaks the LSP server, and it is not small.** The gate starts
+`dark eval 'LspServer.runServerCli ()'`, which dies on its log write (see below) but leaves the
+PROCESS alive reading a pipe nobody writes to, growing without bound: left overnight one will eat
+**most of the machine's memory**. This box is Stachu's desktop, so after running that gate:
+
+    ps -eo pid,rss,etime,cmd --sort=-rss | head
+    # anything matching `Cli eval Darklang.LanguageTools.LspServer` is an orphan; kill it
+
+Attribute it to your clone first (`cat /proc/<pid>/cgroup`, then match the container's volumes to
+`dark_build_<clone>`), because every clone's processes are visible from the host.
+
+**A policy denial and an I/O failure leave a builtin by different doors.**
+`PermissionCheck.performHost` answers `Error failure` for an I/O failure, which Dark code matches on
+like any `Result`, but `Host.Outcome.Denied` calls `raiseDenial` and unwinds. So a builtin returning
+`Result<_, FileError>` looks as though every failure is catchable and denials are not. **Best-effort
+host access is therefore not expressible today**: `let _ = appendToFile path text` reads as
+best-effort and dies under a policy that says no. That is what kills the LSP server under
+`gates lsp-branches`. Deliberate (a program should not probe the policy by catching denials), but
+know it before writing anything that logs.
+
+**`CallGraph.analyze` records the builtin behind an operator, as of `analysisVersion` 4.** It did
+not before: `a + b` is an `EInfix` in ProgramTypes and lowers to `Builtin.add` only at RT, so every
+static walk built on `CallGraph` -- `platforms needed`, `platforms audit`, and crucially
+`LibDB.PackagePermissions`, which decides what a package fn is APPROVED for -- missed every operator.
+It was sound only because every builtin in the infix table is pure, which nothing was checking;
+`Tests.Platform.operatorDispatchedBuiltinsArePure` now does.
+
+Bumping `analysisVersion` invalidates every stored approval fingerprint, and that is the POINT of
+the constant rather than a cost of touching it: an analyzer that got better must not silently bless
+a review taken against the narrower one. Bump it whenever completeness or reachability changes.
+
+`PlatformSet.make` raises rather than composing when two platforms claim one builtin name, or when a
+member's `requires` names a platform the set does not contain. Neither is caught below it:
+`Builtin.combine` is last-write-wins over a `Dictionary`, so a collision there is silent.
+
+Two things to know before touching this:
+
+**The `pm` parameter is load-bearing.** `Platforms.Sets.everythingFor pm` threads a package manager
+into `Store`'s builtins, and the tests pass an ephemeral one holding the declarations of the file
+under test. Hardwiring `LibDB.PackageManager.pt` instead breaks the round-trip tests, and not with an
+error: names resolve to something plausible and the printer emits `<hash:Tests..M>` where a type name
+belongs.
+
+**Compose a subset at the call site rather than linking the catalog.** `Platforms` references every
+platform, including the ones whose SQLite and LibCloud dependencies a browser cannot link.
+`Wasm/Repl.fs` builds its own `PlatformSet` from the two platform records it references plus one of
+its own, and that is the pattern for any smaller executable.
+
+**`Wasm` is not in `fsdark.sln`, so nothing you build will tell you that you broke it.** It is the
+only executable that composes a SUBSET of platforms, which makes it the one that proves the split
+works, and also the one that silently rots: adding a field to `Platform` compiles everywhere and
+leaves `Wasm/Repl.fs` red until someone tries it months later. After changing `Platform`,
+`RuntimeTypes` or anything else `Wasm` links, check it:
+
+    ./scripts/run-in-docker dotnet build backend/src/Wasm/Wasm.fsproj -c Debug
+
+It builds in Debug without the wasm-tools workload; only `dotnet publish` needs that, which is why
+the project stays out of the solution.
+
+`PlatformSet.fingerprint` is a content hash of every builtin's owner, identity, signature and
+effects. Descriptions and parameter names are deliberately out of it: a doc fix must not invalidate
+every cached package and every capability approval on the machine.
+
 
 ## SCM / branches
 
@@ -312,6 +532,14 @@ plausibly, which is why it is hard to spot. Go through the overlay helpers in `S
 op log directly.
 
 ## Gotchas
+
+**`Prelude` shadows `List.groupBy` to answer a `Map`.** `List.groupBy f xs` here is
+`Map<'k, List<'a>>`, not F#'s `('k * List<'a>) list`, so the usual `|> List.map (fun (k, vs) -> ...)`
+after it fails to typecheck with an error naming a `Map` you never wrote. Use `Map.map` (Prelude's,
+which takes the value only). Same file redefines a few other List functions; check before assuming
+FSharp.Core semantics. In particular **`List.head` answers an `Option`**, so `xs |> List.head |> snd`
+does not compile and the error names an `Option` type you did not write, which reads as a mistake
+somewhere else entirely. `List.last` is the same.
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
 Empty is tolerated; non-empty with a missing key crashes at startup with "PackageRefs: X
