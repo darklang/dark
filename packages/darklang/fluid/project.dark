@@ -261,6 +261,39 @@ let labelTextSlot (ps: List<Piece>) (valueSlot: String) : Stdlib.Option.Option<S
   found
 
 
+/// The punctuation a spec draws IMMEDIATELY BEFORE `slotName`: the `::` of a cons pattern, the `->` of a
+/// match arm. `itemLeadPunct` is the same question for a list's items; this one is for a single slot.
+///
+/// "Immediately" ignores whitespace but not another slot, so `head :: tail` leads `tail` with `::` and
+/// nothing leads `head`. What it is for: recognising the punctuation the construct has already put on the
+/// screen, so typing the rest of it is a no-op rather than content.
+///
+/// Only a `Slot` piece counts as the target. A TEXT slot's leading punctuation is part of what you type
+/// into it -- a doc comment's `///` sits in front of prose that may perfectly well start with a slash.
+let slotPunctScan
+  (ps: List<Piece>)
+  (slotName: String)
+  (seen: Stdlib.Option.Option<String>)
+  : (Stdlib.Option.Option<String> * Stdlib.Option.Option<String>) =
+  Stdlib.List.fold ps ((seen, Stdlib.Option.Option.None)) (fun acc p ->
+    let (last, found) = acc
+    if Stdlib.Option.isSome found then
+      acc
+    else
+      match p with
+      | Punct t -> (Stdlib.Option.Option.Some t, found)
+      | Slot s -> if s == slotName then (last, last) else (Stdlib.Option.Option.None, found)
+      | Group inner -> slotPunctScan inner slotName last
+      | Choose(_, _, a, b) -> slotPunctScan (Stdlib.List.append a b) slotName last
+      | Flat inner -> slotPunctScan inner slotName last
+      | Nest(_, inner) -> slotPunctScan inner slotName last
+      | _ -> acc)
+
+let slotLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
+  let (_, found) = slotPunctScan ps slotName Stdlib.Option.Option.None
+  found
+
+
 /// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
 /// means "same column, next row" rather than "the next node in reading order", and the only thing that
 /// knows a slot is a grid is the spec that draws it.

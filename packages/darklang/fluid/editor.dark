@@ -2033,16 +2033,19 @@ let typeOne (st: State) (c: String) : State =
   // name that happened to be right for a string and wrong for a char.
   let inStringBody = inContentText st
   // `|` on an expression builds a pipe, which draws `|>` already; the `>` completing the arrow lands in
-  // the fresh step, so swallow it. Only at the very start of an empty pipe step, where a real `>` never
-  // begins a stage anyway.
+  // the fresh step, so swallow it. Only at the very start of an empty item, where a leading operator
+  // character can never mean anything else.
+  //
+  // Asked of the spec, which drew the `|>`. It used to name EPipe and the `steps` slot, so a DSL whose
+  // items are led by a two-character operator had to have this written for it in the kernel.
   let inFreshPipeStep =
-    (c == ">") && (caret.offset == 0)
+    (caret.offset == 0)
     && (match caret.part with
-        | InItem(s, _) -> s == "steps"
+        | InItem(s, _) ->
+          (match nodeAtPath st.root caret.node with
+           | Some n -> continuesDrawnPunct (leadPunctOf st n s) c
+           | None -> false)
         | _ -> false)
-    && (match nodeAtPath st.root caret.node with
-        | Some n -> n.kind.case == Stdlib.Option.Option.Some "EPipe"
-        | None -> false)
     && (match Caret.slotPath caret with
         | Some sp -> (match slotAtPath st.root sp with
                       | Some(Empty _) -> true
@@ -2052,14 +2055,20 @@ let typeOne (st: State) (c: String) : State =
   // stray literal: with the caret at `[1~]`, another `]` moves out of the list, matching how you'd close
   // a bracket you can already see.
   // The second `:` of `::` is already drawn by the cons the first `:` built, so swallow it (a fresh cons
-  // tail never legitimately starts with `:`).
+  // tail never legitimately starts with `:`). Same sentence as `inFreshPipeStep`, one slot over: there the
+  // construct leads each ITEM with the punct, here it draws it before a single slot.
   let inFreshConsTail =
-    (c == ":")
+    (caret.offset == 0)
     && (match caret.part with
-        | InSlot s -> s == "tail"
+        | InSlot s ->
+          (match nodeAtPath st.root caret.node with
+           | Some n -> continuesDrawnPunct (slotLeadPunctOf st n s) c
+           | None -> false)
         | _ -> false)
-    && (match nodeAtPath st.root caret.node with
-        | Some n -> n.kind.case == Stdlib.Option.Option.Some "MPListCons"
+    && (match Caret.slotPath caret with
+        | Some sp -> (match slotAtPath st.root sp with
+                      | Some(Empty _) -> true
+                      | _ -> false)
         | None -> false)
   // A `|` while already in a pipe step starts the NEXT stage (rather than nesting a pipe in the step), so
   // `x |> f |> g` chains flat. The `>` that follows is swallowed by inFreshPipeStep.
@@ -4040,6 +4049,29 @@ let leadPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option
   match fromSpec (Registry.findExact st.reg parent.kind) with
   | Some p -> Stdlib.Option.Option.Some p
   | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
+
+/// The punctuation `parent`'s spec draws immediately before `slot`, if it draws any.
+let slotLeadPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option<String> =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<String> =
+    match spec with
+    | Some sp -> Project.slotLeadPunct sp.pieces slot
+    | None -> Stdlib.Option.Option.None
+  match fromSpec (Registry.findExact st.reg parent.kind) with
+  | Some p -> Stdlib.Option.Option.Some p
+  | None -> fromSpec (Registry.findTypeLevel st.reg parent.kind)
+
+/// Is `c` the REST of a multi-character punctuation the construct has already drawn just here?
+///
+/// `|` on an expression builds a pipe, and the pipe draws `|>` in full, so the `>` that completes the
+/// arrow lands at the start of the fresh empty stage where it is already on the screen. The `::` of a cons
+/// is the same sentence one slot over: the first `:` built the cons and the cons drew both colons.
+///
+/// The first character is deliberately NOT included -- that one is what built the construct, and typing it
+/// again means something (a second `|` is `||`). Only the tail is redundant by construction.
+let continuesDrawnPunct (lead: Stdlib.Option.Option<String>) (c: String) : Bool =
+  match lead with
+  | Some p -> ((Stdlib.String.length p) > 1) && (Stdlib.String.contains (Stdlib.String.dropFirst p 1) c)
+  | None -> false
 
 let leadsItemsWith (st: State) (parent: Node) (slot: String) (c: String) : Bool =
   match leadPunctOf st parent slot with

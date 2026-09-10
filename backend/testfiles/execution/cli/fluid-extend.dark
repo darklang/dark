@@ -849,3 +849,76 @@ module AKeywordSlotTheKernelDoesNotKnow =
   // The same spec with no WORD in front of the slot: there is no keyword to name, so `unless` is a name
   // being typed in the body and stays one.
   (AKeywordSlotTheKernelDoesNotKnow.screen false [ "u", "n", "l", "e", "s", "s", " " ]) = "ab => unless~"
+
+
+module ATwoCharacterOperatorTheKernelDoesNotKnow =
+  // A construct that draws a two-character operator has already put BOTH characters on the screen, so the
+  // second one, typed into the empty slot the first one led to, is a no-op rather than content. Darklang
+  // has two of these: the `>` of a pipe's `|>` and the second `:` of a cons pattern's `::`. Both used to be
+  // kernel branches naming EPipe and MPListCons, which is exactly the wall a DSL with its own two-character
+  // operator hits -- the rule existed and there was no way to claim it.
+  //
+  // Now it comes off the pieces. `Acme.Rule` is `name => body`, and nothing in Darklang defines it.
+  let wordKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.RuleWord"
+  let ruleKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Rule"
+
+  let wordExpect (label: String) : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind ()) label
+
+  let word (s: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind ())
+      [ ("chars", Darklang.Fluid.Field.Text s) ]
+
+  let rule () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ATwoCharacterOperatorTheKernelDoesNotKnow.ruleKind ())
+      [ ("name", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled(ATwoCharacterOperatorTheKernelDoesNotKnow.word "ab")))
+        ("body", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(ATwoCharacterOperatorTheKernelDoesNotKnow.wordExpect "body"))) ]
+
+  // The operator is a parameter, so the same construct can be re-spelled and the rule follows the spelling.
+  let specs (arrow: String) : List<Darklang.Fluid.Spec> =
+    let wordSpec =
+      Darklang.Fluid.Spec.simple
+        (ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind ())
+        [ Darklang.Fluid.Piece.Text("chars", Darklang.Fluid.Layout.Style.Name) ]
+        (ATwoCharacterOperatorTheKernelDoesNotKnow.word "")
+
+    let ruleSpec =
+      Darklang.Fluid.Spec.simple
+        (ATwoCharacterOperatorTheKernelDoesNotKnow.ruleKind ())
+        [ Darklang.Fluid.Piece.Slot "name"
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Punct arrow
+          Darklang.Fluid.Piece.Space
+          Darklang.Fluid.Piece.Slot "body" ]
+        (ATwoCharacterOperatorTheKernelDoesNotKnow.rule ())
+
+    [ wordSpec, ruleSpec ]
+
+  let screen (arrow: String) (keys: List<String>) : String =
+    Darklang.Fluid.Test.runFrom
+      (Darklang.Fluid.Registry.ofList (ATwoCharacterOperatorTheKernelDoesNotKnow.specs arrow))
+      (Darklang.Fluid.Slot.Filled(ATwoCharacterOperatorTheKernelDoesNotKnow.rule ()))
+      60
+      (Darklang.Fluid.Caret.inSlot [] "body" 0)
+      keys
+
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=>" []) = "ab => ~⟨body⟩"
+
+  // The tail of the operator: already drawn, so it goes nowhere.
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=>" [ ">" ]) = "ab => ~⟨body⟩"
+
+  // An operator with no meaning in Darklang at all gets the same treatment, which is the point.
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "~>" [ ">" ]) = "ab ~> ~⟨body⟩"
+
+  // Anything else is content.
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=>" [ "z" ]) = "ab => z~"
+
+  // The FIRST character is not swallowed. That one is what a person types to BUILD the construct, and
+  // typing it again means something (a second `|` on a fresh pipe is the `||` operator). Only the tail is
+  // redundant by construction.
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=>" [ "=" ]) = "ab => =~"
+
+  // A ONE-character operator has no tail, so nothing is swallowed after it.
+  (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=" [ ">" ]) = "ab = >~"
