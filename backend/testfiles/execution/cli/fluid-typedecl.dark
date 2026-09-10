@@ -707,3 +707,64 @@ module ATypeYouTypeCanBeSaved =
 
   // A type the store has to be asked about, rather than a prim.
   (ATypeYouTypeCanBeSaved.alias "Stdlib.Cli.Tui.Size") = "type <hash:beef> =\n  Stdlib.Cli.Tui.Size"
+
+module TypingAWholeDeclaration =
+  // `ATypeYouTypeCanBeSaved` above edits an EXISTING declaration -- it retypes a field's type, adds a case,
+  // and asks what that lowers to. Nothing in this file has ever started from an empty `type T = ⟨definition⟩`
+  // and typed the whole thing, which is what a person does when they write a new type.
+  //
+  // The same technique on the expression side found a real bug on its first run (Enter eating a one-letter
+  // name). Here it found nothing, which is worth having as a recorded result rather than an assumption.
+  //
+  // Worth knowing from writing it: a definition hole takes no punctuation at all. `{` and `|` just
+  // accumulate as text. The three shapes are reached by NAME -- the menu there offers exactly `record`,
+  // `enum`, `alias` -- which is a different way in from every other construct in the language and is not
+  // written down anywhere else.
+  let blank () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)
+
+  let lowers (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.emptyDocFor "T")) 70)
+        (Stdlib.List.append [ "<Tab>" ] keys)
+
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.PT.TypeDecl.fromDoc (TypingAWholeDeclaration.blank ()) n with
+       | Ok pair ->
+         let (_nm, pt) = pair
+         Darklang.PrettyPrinter.ProgramTypes.packageType (Darklang.Fluid.PT.printerContext ()) pt
+       | Error e -> "ERR " ++ e)
+    | _ -> "no root"
+
+  let ch (src: String) : List<String> =
+    Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let done_ (keys: List<String>) : List<String> = Stdlib.List.append keys [ "<Esc>", "<Esc>" ]
+
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "record", [ "<Enter>" ], TypingAWholeDeclaration.ch "n", [ "<Tab>" ], TypingAWholeDeclaration.ch "Int" ]))) =
+    "type <hash:beef> =\n  { n: Int }"
+
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "record", [ "<Enter>" ], TypingAWholeDeclaration.ch "n", [ "<Tab>" ], TypingAWholeDeclaration.ch "Int"
+      [ "<Enter>" ], TypingAWholeDeclaration.ch "m", [ "<Tab>" ], TypingAWholeDeclaration.ch "String" ]))) =
+    "type <hash:beef> =\n  { n: Int\n    m: String }"
+
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "enum", [ "<Enter>" ], TypingAWholeDeclaration.ch "Red", [ "<Enter>" ], TypingAWholeDeclaration.ch "Green" ]))) =
+    "type <hash:beef> =\n  | Red\n  | Green"
+
+  // The enum FIELD, which is the shape that was broken when this question was first asked of declarations.
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "enum", [ "<Enter>" ], TypingAWholeDeclaration.ch "Some Int" ]))) =
+    "type <hash:beef> =\n  | Some of Int"
+
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "alias", [ "<Enter>" ], TypingAWholeDeclaration.ch "Int" ]))) =
+    "type <hash:beef> =\n  Int"
+
+  (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
+    [ TypingAWholeDeclaration.ch "alias", [ "<Enter>" ], TypingAWholeDeclaration.ch "List<Int>" ]))) =
+    "type <hash:beef> =\n  List<Int>"
