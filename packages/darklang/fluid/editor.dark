@@ -3537,7 +3537,16 @@ let backspace (st: State) : State =
         |> Stdlib.List.all (fun f ->
           let (name, _) = f
           (name == slot) || (Stdlib.String.startsWith name "_"))
-      if (slot == "op") && (n.kind.case == Stdlib.Option.Option.Some "EInfix") && ((Stdlib.String.length old) <= 1) then
+      // The text slot being emptied is the OPERATOR of a binary construct: the spec says which slots are
+      // its operands, and a text field that is neither of them is the thing between them. `isBinary` and
+      // `operandsOf` were already here for the `(`/`)` rotations, which need the same fact.
+      let isTheOperator =
+        match operandsOf st.reg n with
+        | Some pair ->
+          let (l, r) = pair
+          (slot != l) && (slot != r)
+        | None -> false
+      if isTheOperator && ((Stdlib.String.length old) <= 1) then
         collapseInfix st caret.node n
       elif (caret.offset > 0) && (updated == "") && onlyEditable then
         // What the hole left behind EXPECTS is the parent's question, and `expectForSlot` is where it is
