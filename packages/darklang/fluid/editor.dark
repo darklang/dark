@@ -5084,6 +5084,22 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         elif ch == "K" then handled (navSibling st (-1))
         elif ch == "h" then handled (navParent st)
         elif ch == "l" then handled (navChild st)
+        // Add another item to the list the caret's node is IN, and land in it. NAV had no way to grow a
+        // list at all: every sibling in this editor is made by pressing Enter at the end of the last one,
+        // and `addSibling` walks OUTWARD to the nearest enclosing item -- which, once anything is nested,
+        // is always the inner list.
+        //
+        // So a match inside a match arm could be built and then never left: `|` and Enter both continue
+        // the INNER arms, and there was no key anywhere that meant "another arm of the outer one". NAV can
+        // already put the caret exactly on the outer arm; this gives that position something to do.
+        //
+        // `o` for the same reason vi uses it, and it was unbound.
+        elif ch == "o" then
+          // ...and drops into INSERT, the way vi's does. Landing in a fresh hole in NAV means the next
+          // thing you type is read as a command and thrown away, which is the whole reason the key exists.
+          (match addSibling st with
+           | Some s2 -> handled { s2 with mode = Mode.Insert }
+           | None -> handled { st with message = "nothing here is in a list" })
         elif ch == "i" then handled (enterInsert st)
         elif ch == "x" then handled (clearNode st)
         elif ch == "u" then handled (undo st)

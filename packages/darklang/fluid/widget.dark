@@ -446,6 +446,7 @@ let inspectorWith
         // said it did not exist in the mode you are in when you open a document.
         dim "  Tab    next hole"
         dim "  i c    edit / change"
+        dim "  o      another item in this list"
         dim "  x      clear"
         dim "  y p    copy / paste"
         // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
