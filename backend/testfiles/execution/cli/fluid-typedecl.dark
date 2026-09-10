@@ -647,3 +647,63 @@ module AnEnumFieldYouTypeCanBeSaved =
   // The other three ways a type starts.
   (AnEnumFieldYouTypeCanBeSaved.typed "Tri 'a") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of 'a"
   (AnEnumFieldYouTypeCanBeSaved.typed "Tri [Int") = "type <hash:beef> =\n  | Circle of Int\n  | Tri of List<Int>"
+
+
+module ATypeYouTypeCanBeSaved =
+  // The companion to `AnEnumFieldYouTypeCanBeSaved`, and the thing whose absence let that bug live: every
+  // test in this file either CONSTRUCTS a declaration or picks its type from the completion menu, so
+  // nothing typed a type by hand and then asked whether it saved. `| Tri of Int` drew perfectly and
+  // lowered as "unresolved: Int" for as long as this file has existed.
+  //
+  // So: type into each of the three definition shapes and assert what it LOWERS to, not what it draws.
+  // The expression side has `TypingThePrintedFormBack` for the same reason.
+  //
+  // Records and aliases turned out to be fine. Keeping them anyway -- the point is the question, and a
+  // corpus that only covers the shape that broke will not catch the next one.
+  let recDecl () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (
+      Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record [ Fixtures.field "r" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ])
+
+  let aliasDecl () : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+    Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias Darklang.LanguageTools.ProgramTypes.TypeReference.TInt)
+
+  /// Drive `keys` into `base_` and print what it lowers to, or why it will not.
+  let lowers (base_: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.TypeDecl.toDoc "X" base_)) 60)
+        keys
+
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.PT.TypeDecl.fromDoc base_ n with
+       | Ok pair ->
+         let (_nm, pt) = pair
+         Darklang.PrettyPrinter.ProgramTypes.packageType (Darklang.Fluid.PT.printerContext ()) pt
+       | Error e -> "ERR " ++ e)
+    | _ -> "no root"
+
+  let ch (src: String) : List<String> =
+    Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  /// A new record field, typed name and type.
+  let field (src: String) : String =
+    ATypeYouTypeCanBeSaved.lowers
+      (ATypeYouTypeCanBeSaved.recDecl ())
+      (Stdlib.List.flatten [ [ "<Esc>", "j", "j", "i", "<Enter>" ], ATypeYouTypeCanBeSaved.ch src, [ "<Esc>", "<Esc>" ] ])
+
+  /// The alias's type, retyped from scratch.
+  let alias (src: String) : String =
+    ATypeYouTypeCanBeSaved.lowers
+      (ATypeYouTypeCanBeSaved.aliasDecl ())
+      (Stdlib.List.flatten [ [ "<Esc>", "j", "j", "c" ], ATypeYouTypeCanBeSaved.ch src, [ "<Esc>", "<Esc>" ] ])
+
+  (ATypeYouTypeCanBeSaved.field "g Int") = "type <hash:beef> =\n  { r: Int\n    g: Int }"
+  (ATypeYouTypeCanBeSaved.field "g String") = "type <hash:beef> =\n  { r: Int\n    g: String }"
+
+  (ATypeYouTypeCanBeSaved.alias "String") = "type <hash:beef> =\n  String"
+  (ATypeYouTypeCanBeSaved.alias "[String") = "type <hash:beef> =\n  List<String>"
+  (ATypeYouTypeCanBeSaved.alias "'a") = "type <hash:beef> =\n  'a"
+
+  // A type the store has to be asked about, rather than a prim.
+  (ATypeYouTypeCanBeSaved.alias "Stdlib.Cli.Tui.Size") = "type <hash:beef> =\n  Stdlib.Cli.Tui.Size"
