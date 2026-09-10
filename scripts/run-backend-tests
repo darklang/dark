@@ -18,7 +18,7 @@ do
       PUBLISHED_FLAG=$i
       ;;
     --force) FORCE=true ;;
-    --filter|--filter-test-list|--filter-test-case|--run)
+    --filter|--filter-test-list|--filter-test-case|--run|--shard)
       FILTERED=true
       EXPECTO_ARGS+=("${i}")
       ;;
@@ -71,11 +71,26 @@ killall -9 Tests 2>/dev/null || true
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net10.0/publish/Tests
   LOCALEXEC=Build/out/LocalExec/Release/net10.0/publish/LocalExec
+  # The CLI the instance-backed tests drive as a child. Only this script knows which build
+  # a run is against, and a suite that silently tested the other one would be worse than
+  # one that fails to start.
+  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Release/net10.0/publish/Cli}"
 else
   EXE=Build/out/Tests/Debug/net10.0/Tests
   LOCALEXEC=Build/out/LocalExec/Debug/net10.0/LocalExec
+  # The debug build answers in about a second; the published one, which is what CI runs
+  # and what a user has, answers several times quicker. Nearly all of that difference is
+  # JIT. Point this at a publish build if you are timing these tests.
+  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Debug/net10.0/Cli}"
 fi
 
+
+# Debug compiles F# with optimisations off, and the interpreter the suite spends its time in
+# IS F#. Said once, only for a whole-suite run, where it is worth about five minutes.
+if [[ "$PUBLISHED" != "true" && "$FILTERED" != "true" ]]; then
+  echo "note: the whole suite is much faster published."
+  echo "      scripts/dev/build --optimize && ./scripts/run-backend-tests --published"
+fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
@@ -179,9 +194,12 @@ kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
 
 # Expecto reports a filter that matched nothing as "0 tests run - Success!" and exits
 # 0, which is the worst answer available: you believe you ran a suite you didn't.
+#
+# The count is THOUSANDS-SEPARATED once it passes a thousand, which only a shard ever is,
+# so a digits-only pattern here reads a passing shard as an empty one.
 if [[ "$STATUS" -eq 0 && "$FILTERED" == "true" ]]; then
   if ! sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "${TEST_LOG}" \
-       | grep -qE "EXPECTO! [1-9][0-9]* tests run"; then
+       | grep -qE "EXPECTO! [1-9][0-9,]* tests run"; then
     {
       echo
       echo "Your filter matched no tests, so nothing ran. Reporting that as a"

@@ -1,0 +1,131 @@
+/// Driving a full-screen CLI from a test.
+///
+/// Part of `Darklang.Cli.Tests`.
+///
+/// A spawned child gets pipes, not a terminal: `HostProcess.spawn` redirects all three
+/// standard streams, so a `dark` started that way reports no tty and the workbench
+/// correctly refuses to paint. Something has to allocate a pty, and in this container
+/// that something is `expect`, which is also what the gate scripts use.
+///
+/// The whole interaction is one script and one child, rather than a session a test pokes
+/// at: `expect` is built for exactly this, and a scripted round trip costs one process
+/// instead of one per keystroke.
+module Darklang.Cli.Tests.Interactive
+
+/// One step of an interaction.
+type Step =
+  /// Wait for this text to appear, or fail the whole run.
+  | Await of String
+  /// Send these keys. `expect`'s own notation, so "\r" is Enter and "\003" is Ctrl-C.
+  | Send of String
+
+
+let escape (s: String) : String =
+  s
+  |> Stdlib.String.replaceAll "\\" "\\\\"
+  |> Stdlib.String.replaceAll "\"" "\\\""
+
+
+/// A Tcl string literal. Built by concatenation rather than interpolation: an expect
+/// script is mostly braces and quotes, and both are interpolation syntax here.
+let quoted (s: String) : String =
+  let q = "\""
+  q ++ (escape s) ++ q
+
+
+let stepLine (step: Step) : String =
+  match step with
+  | Await text ->
+    // A timeout has to say WHAT it was waiting for, or a failure here reads as "the screen
+    // was wrong" with no screen attached.
+    let complaint = quoted ("\nTIMED OUT waiting for: " ++ text)
+
+    "expect { "
+    ++ (quoted text)
+    ++ " {} timeout { puts "
+    ++ complaint
+    ++ "; exit 2 } }"
+
+  | Send keys ->
+    // A key pressed while a frame is still painting is dropped, and the symptom is the
+    // NEXT `Await` timing out rather than "the key did nothing". An `Await` before each
+    // `Send` is the real fix and is how these should be written; the fifth of a second
+    // covers the gap between the marker appearing and the frame finishing.
+    "sleep 0.2\nsend -- " ++ (quoted keys)
+
+
+/// Whether this machine can run these tests. The dev container and CI both have expect;
+/// a bare checkout might not, and a test should say so rather than fail obscurely.
+let available () : Bool = Stdlib.Cli.Unix.isCommandAvailable "expect"
+
+
+/// Run `dark <args>` on a real terminal in `i`, walk `steps`, return the transcript.
+///
+/// The transcript is everything the child painted, escape sequences and all, which is
+/// what you want in a failure message and what `Stdlib.String.contains` is happy to
+/// search.
+let drive
+  (i: Instance.T)
+  (args: List<String>)
+  (steps: List<Step>)
+  (timeoutSeconds: Int)
+  : Stdlib.Result.Result<String, String> =
+  if Stdlib.Bool.not (available ()) then
+    Stdlib.Result.Result.Error "expect is not installed"
+  else
+    // Parenthesised: Dark parses pipes greedily, so `Instance.env i |> ...` reads the
+    // qualified name as the pipe's left-hand side and fails.
+    let envPrefix =
+      (Instance.env i)
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        $"{k}={escape v}")
+      |> Stdlib.String.join " "
+
+    let argString =
+      args |> Stdlib.List.map (fun a -> escape a) |> Stdlib.String.join " "
+
+    // The pane size is fixed so a layout assertion means the same thing on every machine;
+    // the workbench refuses to start below its minimum.
+    let header =
+      [ $"set timeout {Stdlib.Int.toString timeoutSeconds}",
+        "set env(LINES) 50",
+        "set env(COLUMNS) 200",
+        $"spawn /usr/bin/env {envPrefix} {i.cli} {argString}" ]
+
+    let body = steps |> Stdlib.List.map (fun s -> stepLine s)
+
+    // `wait` rather than `expect eof`: a TUI that is still painting when the last step
+    // passes should be shut down, not waited on forever.
+    let footer = [ "close", "wait", "exit 0" ]
+
+    let script =
+      (Stdlib.List.append header (Stdlib.List.append body footer))
+      |> Stdlib.String.join "\n"
+
+    let path = $"{i.dir}/drive.exp"
+
+    match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob script) with
+    | Error e -> Stdlib.Result.Result.Error $"could not write {path}: {e}"
+    | Ok _ ->
+      let outcome =
+        Stdlib.Cli.Unix.executeInDirectoryWithOutput "." $"expect -f {path} 2>&1"
+
+      if outcome.exitCode == 0 then
+        Stdlib.Result.Result.Ok outcome.stdout
+      else
+        Stdlib.Result.Result.Error outcome.stdout
+
+
+/// `drive`, as a test result.
+let expectSteps
+  (i: Instance.T)
+  (args: List<String>)
+  (steps: List<Step>)
+  (timeoutSeconds: Int)
+  : TestResult =
+  match drive i args steps timeoutSeconds with
+  | Ok _ -> TestResult.Pass
+  | Error transcript ->
+    let cmd = Stdlib.String.join args " "
+    TestResult.Fail $"interactive `{cmd}` did not do what was asked:\n{transcript}"

@@ -20,10 +20,18 @@ open TestUtils.TestUtils
 
 /// Build an ExecutionState wired up with the same builtin set the CLI uses in
 /// production. Re-built per test so trace-store side effects don't leak across tests.
+/// The CLI's builtin table, built once for the whole file.
+///
+/// `buildState` runs per test and `builtinsToUse` combines and revalidates about a
+/// thousand builtins every time it is called. Nothing here varies between tests: they all
+/// drive the same store through `LibDB.PackageManager.pt`, which is itself a singleton.
+let private cliBuiltins : Lazy<RT.Builtins> =
+  lazy (Builtins.CliHost.Libs.Cli.builtinsToUse ())
+
 let buildState () : Task<RT.ExecutionState> =
   task {
     let pmPTValue = pmPT
-    let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
+    let builtins = cliBuiltins.Force()
     // Read evaluated package values as the CLI does. The PT-to-RT value converter
     // handles literals only and turns computed values into Unit.
     let pmRT =
@@ -95,18 +103,57 @@ let buildState () : Task<RT.ExecutionState> =
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
   }
 
+/// What a CLI test drives.
+///
+/// `InProcess` dispatches `executeCliCommand` here, against the one store this process
+/// points at. That is the only way to reach F# state from a test -- the trace store, the
+/// policy store, a SQL assertion -- and the price is that every such test has to run alone.
+///
+/// `Instance` starts the real binary against a store of its own. A command costs a process
+/// start instead of a dispatch, and in exchange the test has nothing to share, so it runs
+/// beside every other test. Use it unless the test reaches into F#.
+type Target =
+  | InProcess of RT.ExecutionState
+  | Instance of Tests.CliInstance.T
+
+
+/// The execution state behind an in-process target.
+///
+/// A test that needs this -- to call a package fn directly, or to hand a narrowed state to
+/// the CLI -- has to be a `cliTest`. An instance is a separate process; there is no F#
+/// state of its to reach.
+let executionState (target : Target) : RT.ExecutionState =
+  match target with
+  | InProcess state -> state
+  | Instance _ ->
+    Expecto.Tests.failtestf
+      "this test reaches into F# execution state, so it must be a cliTest, not an instanceTest"
+
+
 /// How long one CLI command may take before the test says so.
 ///
-/// A command reading stdin with nobody there waits rather than fails, with `Console.SetOut`
-/// redirected, so the hang is silent and the log names no culprit. Generous on purpose: this turns
+/// A command reading stdin with nobody there waits rather than fails, and its output is being
+/// captured, so the hang is silent and the log names no culprit. Generous on purpose: this turns
 /// "forever" into a named failure, it does not police speed.
 let private runCliTimeout = System.TimeSpan.FromMinutes 2.0
 
-/// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return
-/// the trimmed captured stdout, with `Console.Out` redirected to a `StringWriter` for
-/// the duration. The surrounding `testSequenced` keeps the process-global
-/// `Console.SetOut` from racing across tests.
-let runCli (state : RT.ExecutionState) (args : string list) : Task<string> =
+/// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return the
+/// trimmed captured stdout.
+///
+/// `NonBlockingConsole`'s capture, not `Console.SetOut`. Everything the CLI prints goes
+/// through `Prelude.print`, so this catches the same text, and it catches only THIS flow's:
+/// `Console.SetOut` is process-global, so it also swallowed whatever the rest of the suite
+/// printed while it was open, which is why these tests had to be sequenced against every
+/// other test rather than only against each other.
+let rec runCli (target : Target) (args : string list) : Task<string> =
+  match target with
+  | Instance i -> Tests.CliInstance.run i args
+  | InProcess state -> runCliInProcess state args
+
+and private runCliInProcess
+  (state : RT.ExecutionState)
+  (args : string list)
+  : Task<string> =
   task {
     let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
     let fnName =
@@ -115,19 +162,17 @@ let runCli (state : RT.ExecutionState) (args : string list) : Task<string> =
     // Drain prior work queued in NonBlockingConsole, so it stays out of our capture.
     NonBlockingConsole.wait ()
 
-    let captured = new System.IO.StringWriter()
-    let originalOut = System.Console.Out
+    if not (NonBlockingConsole.startCapture ()) then
+      return Tests.failtestf "runCli: a capture was already open (nested runCli?)"
+
     try
-      System.Console.SetOut(captured)
       let execution = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
 
       // Bounds the WAIT, not the work: the call is not cancellable, so it finishes into a
-      // StringWriter nobody reads while the test fails with the command's name.
+      // buffer nobody reads while the test fails with the command's name.
       let! finished = Task.WhenAny(execution, Task.Delay runCliTimeout)
 
       if not (System.Object.ReferenceEquals(finished, execution :> Task)) then
-        System.Console.SetOut(originalOut)
-
         return
           Tests.failtestf
             "runCli timed out after %A: dark %s"
@@ -136,15 +181,13 @@ let runCli (state : RT.ExecutionState) (args : string list) : Task<string> =
 
       let! result = execution
       // `Stdlib.printLine` queues to a background thread; drain before
-      // reading the StringWriter or we capture nothing.
+      // reading the buffer or we capture nothing.
       NonBlockingConsole.wait ()
       match result with
-      | Ok _ -> return captured.ToString().Trim()
-      | Error(rte, _) ->
-        System.Console.SetOut(originalOut)
-        return Tests.failtestf "runCli errored: %A" rte
+      | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
+      | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
     finally
-      System.Console.SetOut(originalOut)
+      NonBlockingConsole.stopCapture () |> ignore<string>
   }
 
 /// `runCli`, but a runtime error is a result rather than the end of the test.
@@ -152,12 +195,12 @@ let runCli (state : RT.ExecutionState) (args : string list) : Task<string> =
 /// For the sweeps: one command that throws must not stop the other sixty from being checked,
 /// and WHICH command threw is the finding, so it has to come back as a value.
 let runCliCatching
-  (state : RT.ExecutionState)
+  (target : Target)
   (args : string list)
   : Task<Result<string, string>> =
   task {
     try
-      let! output = runCli state args
+      let! output = runCli target args
       return Ok output
     with e ->
       return Error(e.Message.Split('\n')[0])
@@ -165,20 +208,20 @@ let runCliCatching
 
 /// Author a fn through the CLI (`fn <name> <decl>`), discarding the output.
 /// For sites that assert on the authoring output itself, use `runCli` directly.
-let author (state : RT.ExecutionState) (name : string) (decl : string) : Task<unit> =
+let author (target : Target) (name : string) (decl : string) : Task<unit> =
   task {
-    let! _ = runCli state [ "fn"; name; decl ]
+    let! _ = runCli target [ "fn"; name; decl ]
     return ()
   }
 
 /// Teardown for tests that end off main: switch back, then archive each named
 /// branch with `-y`. Asserts nothing -- a test that checks the archive output
 /// keeps its own runCli + Expect.
-let archiveBranches (state : RT.ExecutionState) (names : List<string>) : Task<unit> =
+let archiveBranches (target : Target) (names : List<string>) : Task<unit> =
   task {
-    let! _ = runCli state [ "switch"; "main" ]
+    let! _ = runCli target [ "switch"; "main" ]
     for name in names do
-      let! _ = runCli state [ "branch"; "archive"; name; "-y" ]
+      let! _ = runCli target [ "branch"; "archive"; name; "-y" ]
       ()
   }
 
@@ -198,22 +241,39 @@ let parseTraceID (json : string) : string =
 // ─── Test builders ────────────────────────────────────────────────────────
 
 /// Wrap a fresh ExecutionState in a task.
-let withState (f : RT.ExecutionState -> Task<unit>) : Task<unit> =
+let withState (f : Target -> Task<unit>) : Task<unit> =
   task {
     let! state = buildState ()
-    do! f state
+    do! f (InProcess state)
   }
 
 /// `cliTest "name" body` collapses the `testTask "..." { do! withState ... }`
-/// boilerplate. Body receives the state and returns a Task<unit>.
-let cliTest (name : string) (body : RT.ExecutionState -> Task<unit>) : Test =
+/// boilerplate. Body receives the target and returns a Task<unit>.
+///
+/// In-process, so the whole list it lives in has to be sequenced. Prefer `instanceTest`
+/// for anything that only reads what a command printed.
+let cliTest (name : string) (body : Target -> Task<unit>) : Test =
   testTask name { do! withState body }
+
+/// `cliTest`, but the commands run as a child against a store of this test's own.
+///
+/// Nothing to serialise against, so these need no `testSequenced` and run as wide as the
+/// rest of the suite. The body cannot reach F# state; a test that needs to stays on
+/// `cliTest`.
+let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
+  testTask name {
+    let i = Tests.CliInstance.create ()
+    try
+      do! body (Instance i)
+    finally
+      Tests.CliInstance.dispose i
+  }
 
 /// For a test that must start on main and might not end there. The precondition is ASSERTED, not
 /// arranged: a test that silently switched itself back to main would hide whichever earlier test left
 /// the store on a branch, and that one is the bug. The switch back runs whether the body passed or not,
 /// so one polluter is named once rather than failing everything after it.
-let cliTestOnMain (name : string) (body : RT.ExecutionState -> Task<unit>) : Test =
+let cliTestOnMain (name : string) (body : Target -> Task<unit>) : Test =
   cliTest name (fun state ->
     task {
       let! where = runCli state [ "branch" ]
@@ -237,14 +297,25 @@ let cliTestOnMain (name : string) (body : RT.ExecutionState -> Task<unit>) : Tes
 
 /// Adds a `traces delete --all --yes` step before the body, so tests that examine
 /// the trace store start from a known-empty state.
-let cliTestWithFreshTraces
-  (name : string)
-  (body : RT.ExecutionState -> Task<unit>)
-  : Test =
+/// Turns recording ON and empties the trace store, so a test that examines traces starts from
+/// a known state, and turns it off again afterwards.
+///
+/// The recording level is carried HERE rather than by a test placed ahead of these in the
+/// list. A test that exists to set process state cannot survive sharding: `--shard` partitions
+/// by test, so the toggle and the tests it was meant to enable land on different nodes, and
+/// what you get is every trace assertion reading "Recording is OFF".
+///
+/// Safe to flip per test only because everything built on `cliTest` is `testSequenced`.
+let cliTestWithFreshTraces (name : string) (body : Target -> Task<unit>) : Test =
   cliTest name (fun state ->
     task {
-      let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-      do! body state
+      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+      try
+        // Recording is already on, so this clears the delete's own trace along with the rest.
+        let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+        do! body state
+      finally
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
     })
 
 
@@ -252,7 +323,15 @@ let cliTestWithFreshTraces
 
 /// A variant of `runCli` that also reports what the process would EXIT with. `executeCliCommand`
 /// returns it; plain `runCli` reads only the printed text.
-let runCliWithExit
+let rec runCliWithExit
+  (target : Target)
+  (args : string list)
+  : Task<string * int64> =
+  match target with
+  | Instance i -> Tests.CliInstance.runWithExit i args
+  | InProcess state -> runCliWithExitInProcess state args
+
+and private runCliWithExitInProcess
   (state : RT.ExecutionState)
   (args : string list)
   : Task<string * int64> =
@@ -261,24 +340,22 @@ let runCliWithExit
     let fnName =
       RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
     NonBlockingConsole.wait ()
-    let captured = new System.IO.StringWriter()
-    let originalOut = System.Console.Out
+
+    if not (NonBlockingConsole.startCapture ()) then
+      return Tests.failtestf "runCliWithExit: a capture was already open"
+
     try
-      System.Console.SetOut(captured)
       let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
       NonBlockingConsole.wait ()
+      let printed = (NonBlockingConsole.stopCapture ()).Trim()
       match result with
-      | Ok(RT.DInt64 code) -> return (captured.ToString().Trim(), code)
-      | Ok(RT.DInt code) ->
-        return (captured.ToString().Trim(), int64 (RT.DarkInt.toBigInt code))
+      | Ok(RT.DInt64 code) -> return (printed, code)
+      | Ok(RT.DInt code) -> return (printed, int64 (RT.DarkInt.toBigInt code))
       | Ok other ->
-        System.Console.SetOut(originalOut)
         return Tests.failtestf "executeCliCommand returned a non-int: %A" other
-      | Error(rte, _) ->
-        System.Console.SetOut(originalOut)
-        return Tests.failtestf "runCliWithExit errored: %A" rte
+      | Error(rte, _) -> return Tests.failtestf "runCliWithExit errored: %A" rte
     finally
-      System.Console.SetOut(originalOut)
+      NonBlockingConsole.stopCapture () |> ignore<string>
   }
 
 /// swallowed. Not `Call-stack:`: `eval` prints that on a user error, which is a refusal, not a crash.

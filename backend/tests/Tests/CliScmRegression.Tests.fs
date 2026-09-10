@@ -25,7 +25,7 @@ open Tests.CliDsl
 /// had rebound, then rewrote that name with main's body: the branch's own work, replaced by
 /// propagation.
 let private propagationLeavesBranchWorkAlone =
-  cliTestOnMain
+  instanceTest
     "a cascade on a branch does not overwrite what the branch rebound"
     (fun state ->
       task {
@@ -56,7 +56,7 @@ let private propagationLeavesBranchWorkAlone =
 /// Ocean #10. Rebase moved a branch's bases onto main's `locations`, which carry main's UNCOMMITTED
 /// draft, so a branch could be rebased onto work main had not committed and might still discard.
 let private rebaseIgnoresMainsDraft =
-  cliTestOnMain
+  instanceTest
     "rebase moves onto the parent's committed state, not its draft"
     (fun state ->
       task {
@@ -89,7 +89,7 @@ let private rebaseIgnoresMainsDraft =
 /// Ocean #11. Archiving a parent took its work out from under its children: their code stopped
 /// resolving and their listing showed a parent that is not in this store.
 let private archiveRefusesToOrphanAChild =
-  cliTestOnMain
+  instanceTest
     "archiving a parent with live children is refused, and names them"
     (fun state ->
       task {
@@ -127,7 +127,7 @@ let private archiveRefusesToOrphanAChild =
 /// under the child's id, where nothing consults them, so the parent's next edit repointed a caller
 /// the child had deliberately pinned.
 let private mergeCarriesPins =
-  cliTestOnMain "a merged branch's pins follow its ops to the parent" (fun state ->
+  instanceTest "a merged branch's pins follow its ops to the parent" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Pin.base" "() : Int64 = 10L"
@@ -157,7 +157,7 @@ let private mergeCarriesPins =
 /// on a branch never folded, so the branch went on calling the item live and only a merge made the
 /// deprecation visible anywhere.
 let private deprecateIsVisibleOnItsBranch =
-  cliTestOnMain
+  instanceTest
     "a deprecation authored on a branch shows there, and travels on merge"
     (fun state ->
       task {
@@ -200,7 +200,7 @@ let private deprecateIsVisibleOnItsBranch =
 /// Ocean #1. `discard <name>` on a branch dropped every op for that name, committed ones included,
 /// so the branch lost its last committed version and `status` then called it clean.
 let private branchDiscardKeepsCommittedWork =
-  cliTestOnMain
+  instanceTest
     "discard <name> on a branch spares what the branch already committed"
     (fun state ->
       task {
@@ -234,44 +234,38 @@ let private branchDiscardKeepsCommittedWork =
 /// Ocean #14. `--include=` selected namings by content hash, so an unrelated name that happened to
 /// hold an identical body rode along and was reported as needed by what you named.
 let private partialCommitTakesNamesNotBodies =
-  cliTestOnMain
-    "--include= leaves an unrelated name that shares a body"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Part.public" "() : Int64 = 987L"
-        do! fn state "Tests.Part.private" "() : Int64 = 987L"
+  instanceTest "--include= leaves an unrelated name that shares a body" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.Part.public" "() : Int64 = 987L"
+      do! fn state "Tests.Part.private" "() : Int64 = 987L"
 
-        // The preview lists the whole draft, which is right; what must not appear is the
-        // "also committed" line, which is where the unrelated name used to be reported as needed.
-        do!
-          lacks
-            state
-            [ "commit"; "public only"; "--include=Tests.Part.public"; "-y" ]
-            "also committed"
-            "nothing rides along on an identical body"
+      // The preview lists the whole draft, which is right; what must not appear is the
+      // "also committed" line, which is where the unrelated name used to be reported as needed.
+      do!
+        lacks
+          state
+          [ "commit"; "public only"; "--include=Tests.Part.public"; "-y" ]
+          "also committed"
+          "nothing rides along on an identical body"
 
-        // And the proof it was not committed silently: it is still a draft, and it is the one left.
-        do! dirty state "the unrelated name is still uncommitted"
-        do!
-          shows
-            state
-            [ "status" ]
-            "1 item changed"
-            "exactly one name is left behind"
-        do!
-          shows
-            state
-            [ "diff" ]
-            "Tests.Part.private"
-            "and it is that name specifically"
-        do! start state
-      })
+      // And the proof it was not committed silently: it is still a draft, and it is the one left.
+      do! dirty state "the unrelated name is still uncommitted"
+      do!
+        shows state [ "status" ] "1 item changed" "exactly one name is left behind"
+      do!
+        shows
+          state
+          [ "diff" ]
+          "Tests.Part.private"
+          "and it is that name specifically"
+      do! start state
+    })
 
 /// Ocean #15. `undo` writes a `Decision`, and `discard <name>` only recognised `SetName`, so it
 /// reported the change dropped and changed nothing.
 let private discardSeesWhatUndoWrote =
-  cliTestOnMain "discard <name> drops what undo staged" (fun state ->
+  instanceTest "discard <name> drops what undo staged" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Undo.f" "() : Int64 = 1L"
@@ -295,7 +289,7 @@ let private discardSeesWhatUndoWrote =
 /// Ocean #16. `discard` decided the draft was empty by counting changed NAME bindings, so a draft
 /// holding only a decision (a pin, a deprecation, an ack) read as empty and was left in place.
 let private discardCountsOpsNotNames =
-  cliTestOnMain "discard sees a draft that holds only a decision" (fun state ->
+  instanceTest "discard sees a draft that holds only a decision" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Dec.f" "() : Int64 = 1L"
@@ -319,7 +313,7 @@ let private discardCountsOpsNotNames =
 /// landing code that does not typecheck on main with nothing recorded. Merge asks what commit asks,
 /// and refuses uncommitted work outright.
 let private mergeIsGatedLikeCommit =
-  cliTestOnMain "merge refuses type errors and uncommitted work" (fun state ->
+  instanceTest "merge refuses type errors and uncommitted work" (fun state ->
     task {
       do! start state
       do! switch state "mergegate"
@@ -371,7 +365,7 @@ let private mergeIsGatedLikeCommit =
 /// this PR deleted, so it added a second name and kept the first; and there was no CLI rename at all.
 /// A rename is two ops: the old name ends, the same content binds at the new one.
 let private renameMovesANameNotItsContent =
-  cliTestOnMain "rename moves a name and leaves its callers alone" (fun state ->
+  instanceTest "rename moves a name and leaves its callers alone" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Rn.old" "() : Int64 = 42L"
@@ -393,7 +387,7 @@ let private renameMovesANameNotItsContent =
 
 /// The two refusals, which are the reason a rename cannot quietly take something off the shelf.
 let private renameRefusesTheBadCases =
-  cliTestOnMain "rename refuses a missing name and an occupied one" (fun state ->
+  instanceTest "rename refuses a missing name and an occupied one" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Rn2.a" "() : Int64 = 1L"
@@ -429,7 +423,7 @@ let private renameRefusesTheBadCases =
 /// clean, edit, see the cascade, commit again. Nothing exotic. It is here because every bug above
 /// was found by someone doing exactly this and reading what came back.
 let private theEverydayLoop =
-  cliTestOnMain "author, run, commit, edit, cascade, commit" (fun state ->
+  instanceTest "author, run, commit, edit, cascade, commit" (fun state ->
     task {
       do! start state
       do!
@@ -468,7 +462,7 @@ let private theEverydayLoop =
 /// A branch, end to end, from the outside: it starts, it holds work main cannot see, main's work
 /// stays visible to it, and merging moves the work over.
 let private theBranchLoop =
-  cliTestOnMain "a branch holds its own work, sees main's, and merges" (fun state ->
+  instanceTest "a branch holds its own work, sees main's, and merges" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Loop.shared" "() : Int64 = 1L"
@@ -491,7 +485,7 @@ let private theBranchLoop =
 /// answered wrongly at some point: a fall-through arm that reports success is the failure mode the
 /// CLI sweep exists to catch, and these are the specific cases worth pinning.
 let private theCommonRefusals =
-  cliTestOnMain
+  instanceTest
     "the everyday refusals say what is wrong, and do not claim success"
     (fun state ->
       task {

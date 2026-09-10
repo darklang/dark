@@ -242,7 +242,7 @@ let private testMkdirRecursiveUnderPolicyAncestor =
         | None -> Tests.failtestf "Stdlib.Cli.Dir.createRecursive not found"
       let createRecursive () =
         Exe.executeFunction
-          state
+          (executionState state)
           (RT.FQFnName.fqPackage hash)
           []
           (NEList.singleton (RT.DString target))
@@ -712,7 +712,8 @@ let private testPermissionProfiles =
         try
           // The harness state already manages policies, as the CLI's own control code does.
           let admin = state
-          let guest = { state with canManagePolicies = false }
+          let guest =
+            InProcess { executionState state with canManagePolicies = false }
           let initial =
             P.Policy.create
               [ P.Rule.All ]
@@ -858,26 +859,24 @@ let private slowCliTests =
       Tests.CliScm.partialCommitTakesOnlyWhatYouNamed
       Tests.CliScm.commitRefusesUnresolvedReferences ]
 
+/// Tracing costs more than anything else these tests do: it records every call's ARGUMENTS,
+/// so an `eval` pays to write whatever it materialises, and a page of sync ops is 2000
+/// records carrying hex-encoded blobs.
+///
+/// So it is on only for the tests that are ABOUT tracing, and each of those carries the
+/// setting itself, in `cliTestWithFreshTraces`. Do not put it back as a test at the head of
+/// this list: `--shard` partitions by test, so the toggle lands on one node and the tests it
+/// enabled land on another.
+///
+/// Assert on counts and identifiers here, not on op bodies; anything needing real blobs
+/// belongs in a suite that does not trace, like `MultiInstance`.
+
 let tests =
   testSequenced
   <| testList
     "CliTraces"
-    ([ // Tracing is ON for every test below, because most of them are about the trace surface itself.
-       // It records each call's ARGUMENTS, so an `eval` here pays to write whatever it materialises: a
-       // page of sync ops is 2000 records carrying hex-encoded blobs, which takes this list from four
-       // minutes to over nine. Assert on counts and identifiers here, not op bodies; anything needing
-       // real blobs belongs in a suite that does not trace, like `MultiInstance`.
-       test "set trace detail" {
-         LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
-       } ]
-     @ Tests.CliSurface.tests
+    (Tests.CliSurface.tests
      @ Tests.CliScm.tests
-     @ Tests.CliScmRegression.tests
-     @ Tests.CliPackages.tests
-     @ Tests.CliWorkspace.tests
-     @ Tests.CliJson.tests
-     @ Tests.CliAuthoring.tests
-     @ Tests.CliSyncSurface.tests
      @ [ testVersionCommand
          testStatusCommand
          testRunCases
@@ -889,8 +888,8 @@ let tests =
          testViewFunction
          testListTypes
          testHelpForRun
-         testHelpForLs
-         // Trace surface
+         testHelpForLs ]
+     @ [ // Trace surface
          testTracesHelp
          testTracesTailShowsLastEval
          testTracesDeleteEmpties

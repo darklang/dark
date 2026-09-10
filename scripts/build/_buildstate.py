@@ -160,6 +160,38 @@ EXPECTED_OUTPUTS = [
 ]
 
 
+# What `--optimize` is asking for. `missing_outputs` deliberately accepts either
+# configuration, because its question is "did something wipe backend/Build". This one's
+# question is narrower: is the PUBLISHED tree the thing a `--published` run would execute
+# actually here, and current.
+OPTIMIZED_OUTPUTS = [
+  "backend/Build/out/Tests/Release/net10.0/publish/Tests",
+  "backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec",
+  "backend/Build/out/Cli/Release/net10.0/publish/Cli",
+]
+
+
+def optimized_outputs_stale(root=".", newer_than=None):
+  """Whether a Release publish is absent, or older than the Debug build beside it.
+
+  Without this, `build --optimize` on a tree whose Debug build is current plans nothing,
+  says "nothing has changed", and leaves whatever Release publish happened to be lying
+  around -- which `--test` then runs. A stale pass looks exactly like a real one.
+  """
+  debug = os.path.join(root, "backend/Build/out/Tests/Debug/net10.0/Tests")
+  reference = newer_than
+  if reference is None and os.path.exists(debug):
+    reference = os.path.getmtime(debug)
+
+  for rel in OPTIMIZED_OUTPUTS:
+    path = os.path.join(root, rel)
+    if not os.path.exists(path):
+      return rel
+    if reference is not None and os.path.getmtime(path) < reference:
+      return rel
+  return None
+
+
 def missing_outputs(root="."):
   """Expected build outputs that aren't on disk.
 

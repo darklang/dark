@@ -39,7 +39,7 @@ let private testHelpCommand =
 /// `help` prints each as `  name (alias, ...) - description`, so a name is the first token of any
 /// indented line containing " - ". Parsing the human output is deliberate: a command that stops
 /// appearing on the surface a person sees has stopped existing.
-let private registeredCommands (state : RT.ExecutionState) : Task<List<string>> =
+let private registeredCommands (state : Target) : Task<List<string>> =
   task {
     let! output = runCli state [ "help" ]
 

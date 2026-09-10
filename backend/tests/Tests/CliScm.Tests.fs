@@ -983,6 +983,11 @@ let private commitRefusesDefiniteTypeErrors =
     "commit refuses a definite type error, and --allow-type-errors takes it"
     (fun state ->
       task {
+        // This counts the ops its own commit carries, so it needs the draft to hold only
+        // what it put there. Anything an earlier test left behind is counted too, and the
+        // failure reads as a wrong op count rather than as pollution.
+        do! discardAll state
+
         // A one-field enum case given two arguments. Definite, and cheap to state.
         let source =
           "type Wrapped = Wrap of (Int * String)\n\n"

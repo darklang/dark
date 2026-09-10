@@ -27,7 +27,7 @@ open Tests.CliDsl
 /// The command's output, parsed. The failure names the command and shows what it printed, because a
 /// parse failure here is usually prose that leaked onto stdout ahead of the payload.
 let private parsed
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   : Task<System.Text.Json.JsonElement> =
   task {
@@ -51,7 +51,7 @@ let private parsed
 /// Exactly these keys, no more and no fewer. Extra keys are as much a change as missing ones: a
 /// caller that switches on the shape sees a new one as an unknown variant.
 let private hasKeys
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : List<string>)
   : Task<unit> =
@@ -75,7 +75,7 @@ let private hasKeys
 
 /// The payload is an array. `commits`, `branches`, `diff` and `traces list` are lists, and a list
 /// that answers `{}` or `null` when it is empty is the same break as a missing key.
-let private isArray (state : RT.ExecutionState) (args : List<string>) : Task<unit> =
+let private isArray (state : Target) (args : List<string>) : Task<unit> =
   task {
     let! root = parsed state args
 
@@ -87,7 +87,7 @@ let private isArray (state : RT.ExecutionState) (args : List<string>) : Task<uni
 
 /// Every element of an array payload carries these keys.
 let private rowsHaveKeys
-  (state : RT.ExecutionState)
+  (state : Target)
   (args : List<string>)
   (expected : List<string>)
   : Task<unit> =
@@ -115,7 +115,7 @@ let private rowsHaveKeys
 /// `status` is the one an agent reads most, and the one whose empty case matters most: on a clean
 /// tree every collection here is empty, and every key still has to be present.
 let statusKeepsItsShapeWhenNothingChanged =
-  cliTestOnMain "status --json keeps every key on a clean tree" (fun state ->
+  instanceTest "status --json keeps every key on a clean tree" (fun state ->
     task {
       do! start state
       do!
@@ -143,7 +143,7 @@ let statusKeepsItsShapeWhenNothingChanged =
 /// And with something in it, because "the keys are there" is easy to satisfy by accident and
 /// "`changed` describes the change" is not.
 let statusDescribesADraft =
-  cliTestOnMain "status --json describes what is in the draft" (fun state ->
+  instanceTest "status --json describes what is in the draft" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Json.f" "() : Int64 = 7201L"
@@ -174,7 +174,7 @@ let statusDescribesADraft =
     })
 
 let conflictsKeepsItsShapeWhenThereAreNone =
-  cliTestOnMain
+  instanceTest
     "conflicts --json keeps its keys when nothing is pending"
     (fun state ->
       task {
@@ -183,7 +183,7 @@ let conflictsKeepsItsShapeWhenThereAreNone =
       })
 
 let propagateKeepsItsShapeWhenThereIsNothingToChoose =
-  cliTestOnMain
+  instanceTest
     "propagate --json keeps its keys when there is nothing to choose"
     (fun state ->
       task {
@@ -193,7 +193,7 @@ let propagateKeepsItsShapeWhenThereIsNothingToChoose =
 
 /// `findings: []` means "nothing is wrong" only when nothing stopped a detector from looking.
 let constraintsKeepsItsShape =
-  cliTest "constraints --json keeps its keys" (fun state ->
+  instanceTest "constraints --json keeps its keys" (fun state ->
     task {
       do! hasKeys state [ "constraints"; "--json" ] [ "findings"; "blocked" ]
 
@@ -206,7 +206,7 @@ let constraintsKeepsItsShape =
     })
 
 let depsAnswersBothDirections =
-  cliTestOnMain "deps --json answers with both directions" (fun state ->
+  instanceTest "deps --json answers with both directions" (fun state ->
     task {
       do! start state
       do! fn state "Tests.JsonDeps.leaf" "() : Int64 = 7202L"
@@ -236,7 +236,7 @@ let depsAnswersBothDirections =
     })
 
 let searchAnswersWithItsQuery =
-  cliTest "search --json echoes the query beside the results" (fun state ->
+  instanceTest "search --json echoes the query beside the results" (fun state ->
     task {
       do!
         hasKeys
@@ -257,7 +257,7 @@ let searchAnswersWithItsQuery =
 /// happen before deciding. So its refusals are data, not prose -- there must be nothing on stdout
 /// but the payload.
 let commitDryRunAnswersInJson =
-  cliTestOnMain
+  instanceTest
     "commit --json reviews without committing, and says so in the payload"
     (fun state ->
       task {
@@ -295,7 +295,7 @@ let commitDryRunAnswersInJson =
 // ─── the array-shaped answers ─────────────────────────────────────────────
 
 let commitsIsAnArrayOfCommits =
-  cliTestOnMain "commits --json is an array, with the documented row" (fun state ->
+  instanceTest "commits --json is an array, with the documented row" (fun state ->
     task {
       do! start state
       do! fn state "Tests.Json.h" "() : Int64 = 7204L"
@@ -310,7 +310,7 @@ let commitsIsAnArrayOfCommits =
     })
 
 let branchesIsAnArrayOfBranches =
-  cliTestOnMain "branches --json is an array, with the documented row" (fun state ->
+  instanceTest "branches --json is an array, with the documented row" (fun state ->
     task {
       do! start state
       do! switch state "jsonbr"
@@ -327,7 +327,7 @@ let branchesIsAnArrayOfBranches =
 /// An empty listing is still a listing. `traces list` on a store with no traces, and `diff` against
 /// a branch that has done nothing, both have to answer `[]`.
 let emptyListingsAreStillArrays =
-  cliTestOnMain
+  instanceTest
     "an empty listing answers with an empty array, not with prose"
     (fun state ->
       task {
@@ -344,7 +344,7 @@ let emptyListingsAreStillArrays =
 /// is safe to merge. Its five counters and its verdict are the whole contract; `items` carries the
 /// per-item rows, and stays an array when the audit found nothing to complain about.
 let typecheckAnswersWithItsCounts =
-  cliTestOnMain "typecheck --json answers with the audit's counts" (fun state ->
+  instanceTest "typecheck --json answers with the audit's counts" (fun state ->
     task {
       do! start state
 
@@ -377,18 +377,23 @@ let typecheckAnswersWithItsCounts =
 /// pretty output and letting a caller parse prose as a payload. `ops` is the one that came up: it
 /// takes no flags at all.
 let aCommandWithoutJsonRefusesTheFlag =
-  cliTest "a command with no --json says so instead of printing prose" (fun state ->
-    task {
-      do!
-        refuses
-          state
-          [ "ops"; "--json" ]
-          "doesn't understand --json"
-          "{"
-          "`ops` has no JSON form and says so"
-    })
+  instanceTest
+    "a command with no --json says so instead of printing prose"
+    (fun state ->
+      task {
+        do!
+          refuses
+            state
+            [ "ops"; "--json" ]
+            "doesn't understand --json"
+            "{"
+            "`ops` has no JSON form and says so"
+      })
 
 
+/// Each of these runs the CLI as a CHILD, against a store of its own, so this list is not
+/// in `CliTraces`'s sequenced pile and does not need to be. Nothing here reaches into F#;
+/// every claim is about what a command printed.
 let tests : List<Test> =
   [ statusKeepsItsShapeWhenNothingChanged
     statusDescribesADraft

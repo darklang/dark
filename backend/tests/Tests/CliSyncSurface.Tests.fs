@@ -20,7 +20,7 @@ open Tests.CliDsl
 
 
 let identityIsStableAndSharedBetweenBothNames =
-  cliTest "whoami and identity name the same instance" (fun state ->
+  instanceTest "whoami and identity name the same instance" (fun state ->
     task {
       let! whoami = runCli state [ "whoami" ]
       let! identity = runCli state [ "identity" ]
@@ -41,7 +41,7 @@ let identityIsStableAndSharedBetweenBothNames =
 /// fresh install has no relay, and each of these has to say so and say what to do
 /// about it, rather than erroring about a url it never had.
 let everySyncVerbSaysThereIsNoRelayYet =
-  cliTest "the sync verbs say there's no relay, and what to do" (fun state ->
+  instanceTest "the sync verbs say there's no relay, and what to do" (fun state ->
     task {
       do!
         showsAll
@@ -62,7 +62,7 @@ let everySyncVerbSaysThereIsNoRelayYet =
 /// reads its lone argument as a url. Carried to the http client it comes back as "push failed:
 /// bad url", which reads like a broken relay rather than a mistyped command.
 let aVerbInTheUrlPositionIsRefusedThere =
-  cliTest "a word in the url position is refused as a url" (fun state ->
+  instanceTest "a word in the url position is refused as a url" (fun state ->
     task {
       do!
         refuses
@@ -88,7 +88,7 @@ let aVerbInTheUrlPositionIsRefusedThere =
 /// that could never work. An unreachable url is kept on purpose (connecting offline
 /// is legitimate); one with no scheme is not a url at all.
 let connectRefusesSomethingThatIsNotAUrl =
-  cliTest "connect refuses a string that could never be a relay" (fun state ->
+  instanceTest "connect refuses a string that could never be a relay" (fun state ->
     task {
       do!
         refuses
@@ -106,7 +106,7 @@ let connectRefusesSomethingThatIsNotAUrl =
 /// rather than something it takes for a url. With no relay there is nothing to rewind, and the
 /// answer is the same "no relay" every other sync verb gives.
 let pullKnowsItsOwnFlags =
-  cliTest "pull takes --all, and refuses a flag it does not know" (fun state ->
+  instanceTest "pull takes --all, and refuses a flag it does not know" (fun state ->
     task {
       do!
         refuses
@@ -129,7 +129,7 @@ let pullKnowsItsOwnFlags =
 /// `config set sync.branches all`, which is a thing to remember rather than a thing to type when you
 /// sit down at the other machine.
 let syncTakesBranchesFlag =
-  cliTest
+  instanceTest
     "sync understands --branches, and still refuses one it doesn't"
     (fun state ->
       task {
@@ -153,7 +153,7 @@ let syncTakesBranchesFlag =
       })
 
 let syncHelpNamesItsVerbs =
-  cliTest "sync help names the verbs it has" (fun state ->
+  instanceTest "sync help names the verbs it has" (fun state ->
     task {
       do!
         showsAll
@@ -170,7 +170,7 @@ let syncHelpNamesItsVerbs =
     })
 
 let exportSeedExplainsItself =
-  cliTest "export-seed explains what it wants" (fun state ->
+  instanceTest "export-seed explains what it wants" (fun state ->
     task {
       do!
         showsAll
@@ -186,33 +186,36 @@ let exportSeedExplainsItself =
 /// `&` reads as a second parameter, so ops land under two owners. Both fail silently, which is why
 /// the refusal belongs at the point the name is chosen.
 let anIdentityIsRefusedIfItCannotTravel =
-  cliTest "an identity that would break sync is refused when it is set" (fun state ->
-    task {
-      do!
-        refuses
-          state
-          [ "identity"; "has a space" ]
-          "can't contain"
-          "is now"
-          "a space is refused"
-      do!
-        refuses
-          state
-          [ "identity"; "amp&sand" ]
-          "can't contain"
-          "is now"
-          "an ampersand is refused"
-      do! exits state [ "identity"; "has a space" ] 1L "and it is a failed command"
+  instanceTest
+    "an identity that would break sync is refused when it is set"
+    (fun state ->
+      task {
+        do!
+          refuses
+            state
+            [ "identity"; "has a space" ]
+            "can't contain"
+            "is now"
+            "a space is refused"
+        do!
+          refuses
+            state
+            [ "identity"; "amp&sand" ]
+            "can't contain"
+            "is now"
+            "an ampersand is refused"
+        do!
+          exits state [ "identity"; "has a space" ] 1L "and it is a failed command"
 
-      do!
-        shows
-          state
-          [ "identity"; "alice-laptop_2.0" ]
-          "alice-laptop_2.0"
-          "an ordinary name is taken"
-      // Leave the store as it was found: identity is per-instance config every later test reads.
-      do! run state [ "identity"; "inst-test-restored" ]
-    })
+        do!
+          shows
+            state
+            [ "identity"; "alice-laptop_2.0" ]
+            "alice-laptop_2.0"
+            "an ordinary name is taken"
+        // Leave the store as it was found: identity is per-instance config every later test reads.
+        do! run state [ "identity"; "inst-test-restored" ]
+      })
 
 let tests : List<Test> =
   [ identityIsStableAndSharedBetweenBothNames

@@ -1,0 +1,83 @@
+/// Tests of the throwaway-instance harness itself.
+///
+/// Part of `Darklang.Cli.Tests`. These are the proof that `Instance` gives a test a store
+/// of its own: if they pass, a CLI test written against it cannot see the developer's
+/// work and cannot be seen by the next test.
+module Darklang.Cli.Tests
+
+
+/// An instance answers at all, from its own directory.
+///
+/// `branches` rather than `version`: `version` checks GitHub for a newer release, so it
+/// would make this a test of the network.
+let testInstanceAnswers () : TestResult =
+  Instance.withInstance (fun i -> Instance.expectExit i [ "branches" ] 0)
+
+
+/// Two instances do not see each other's work.
+///
+/// A branch is the cheapest thing that is unmistakably a store write: no stdin, no
+/// authoring, and it shows up in a listing by name.
+let testInstancesAreIsolated () : TestResult =
+  match Instance.create () with
+  | Error e -> TestResult.Fail $"first instance: {e}"
+  | Ok a ->
+    match Instance.create () with
+    | Error e ->
+      let _ = Instance.dispose a
+      TestResult.Fail $"second instance: {e}"
+    | Ok b ->
+      let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+      let name = $"iso-{suffix}"
+
+      let _ = Instance.run a [ "branch", "create", name ]
+      let inA = Instance.output a [ "branches" ]
+      let inB = Instance.output b [ "branches" ]
+
+      let _ = Instance.dispose a
+      let _ = Instance.dispose b
+
+      if Stdlib.Bool.not (Stdlib.String.contains inA name) then
+        TestResult.Fail $"the branch is missing from the instance that made it: {inA}"
+      else if Stdlib.String.contains inB name then
+        TestResult.Fail $"the branch leaked into a second instance: {inB}"
+      else
+        TestResult.Pass
+
+
+/// Disposing an instance takes its store with it.
+let testDisposeRemovesTheStore () : TestResult =
+  match Instance.create () with
+  | Error e -> TestResult.Fail e
+  | Ok i ->
+    let store = $"{i.dir}/data.db"
+
+    if Stdlib.Bool.not (Stdlib.Cli.Unix.fileExists store) then
+      let _ = Instance.dispose i
+      TestResult.Fail $"a new instance has no store at {store}"
+    else
+      let _ = Instance.dispose i
+
+      if Stdlib.Cli.Unix.fileExists store then
+        TestResult.Fail $"dispose left {store} behind"
+      else
+        TestResult.Pass
+
+
+/// The workbench paints, on a terminal, in an instance of its own.
+///
+/// The only test here that needs a pty, which is the whole reason `Interactive` exists.
+/// `instance:` is the context row the workbench draws on startup, and the marker the gate
+/// scripts wait for too: the welcome panel only appears on a genuine first run, so it is
+/// not a reliable one.
+let testWorkbenchPaints () : TestResult =
+  if Stdlib.Bool.not (Interactive.available ()) then
+    TestResult.Fail "expect is not installed, so the interactive tests cannot run"
+  else
+    Instance.withInstance (fun i ->
+      Interactive.expectSteps
+        i
+        []
+        [ Interactive.Step.Await "instance:"
+          Interactive.Step.Send "q" ]
+        30)
