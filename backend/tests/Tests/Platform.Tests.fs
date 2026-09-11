@@ -1959,6 +1959,135 @@ let aCrashedPlatformIsAnErrorNotAHang =
       Platforms.Spawn.stop handle
   }
 
+// ── installing an external platform ───────────────────────────────────────────
+
+let private withPolicyDir (f : unit -> System.Threading.Tasks.Task<unit>) =
+  task {
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-install-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+    try
+      do! f ()
+    finally
+      restore.Dispose()
+      System.IO.Directory.Delete(dir, true)
+  }
+
+/// A manifest for the Python fixture, with its real artifact hash for this machine.
+let private echoManifestText () =
+  let bytes = System.IO.File.ReadAllBytes(echoPlatformPath ())
+  let hash = LibExecution.Blob.sha256Hex bytes
+  let text =
+    $"""DARK-PLATFORM-MANIFEST 1
+owner acme
+name EchoPlatform
+version 0
+description a platform in another process
+requires Core
+store no
+artifact test-rid {hash}
+
+fn echoCounter 0
+param unit Unit
+returns Int64
+effect acme/serial
+
+fn echoShout 0
+param text String
+returns String
+effect acme/serial
+"""
+  (text, hash, bytes)
+
+let installingAnExternalPlatformMakesItReconstructable =
+  testTask "installing records a manifest hash, and the platform rebuilds from it alone" {
+    do!
+      withPolicyDir (fun () ->
+        task {
+          let (text, artifactHash, artifactBytes) = echoManifestText ()
+          // The artifact has to be in the cache before the platform can be rebuilt, the same way a
+          // fetch would have put it there.
+          match Platforms.Artifacts.materialize artifactHash artifactBytes with
+          | Error e -> failtest e
+          | Ok _ -> ()
+
+          let! (installed :
+                 Result<string * External.Manifest, External.Rejection>) =
+            Platforms.Installed.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+          match installed with
+          | Error r -> failtest $"install: {r.problems}"
+          | Ok(manifestHash, manifest) ->
+            Expect.equal manifest.name "EchoPlatform" "what was installed"
+            Expect.equal
+              (Platforms.Installed.get () |> Map.tryFind "EchoPlatform")
+              (Some manifestHash)
+              "recorded against its manifest hash"
+
+          // Rebuilt from the record alone: name plus hash is enough, because the manifest is in
+          // the cache under that hash and the artifact hashes are inside the manifest.
+          let! (built, skipped) =
+            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
+          Expect.isEmpty skipped "nothing skipped"
+          match built with
+          | [ platform ] ->
+            Expect.equal platform.name "EchoPlatform" "rebuilt"
+            Expect.equal (Platform.fnCount platform) 2 "with its builtins"
+            Expect.isTrue
+              (Set.contains describedEffect (Platform.effectSurface platform))
+              "and its declared capability"
+          | other -> failtest $"expected one platform, got {List.length other}"
+        })
+  }
+
+let anInstallForAnotherMachineIsSkippedNotFatal =
+  testTask "a platform that does not build for this machine is skipped with a reason" {
+    // One broken or foreign install should not stop an instance starting, and should be visible
+    // rather than silent. Both halves matter.
+    do!
+      withPolicyDir (fun () ->
+        task {
+          let (text, artifactHash, artifactBytes) = echoManifestText ()
+          match Platforms.Artifacts.materialize artifactHash artifactBytes with
+          | Error e -> failtest e
+          | Ok _ -> ()
+          let! (_ : Result<string * External.Manifest, External.Rejection>) =
+            Platforms.Installed.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+
+          let! (built, skipped) =
+            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "some-other-rid"
+            |> Ply.toTask
+          Expect.isEmpty built "nothing built for a target it does not ship"
+          match skipped with
+          | [ (name, why) ] ->
+            Expect.equal name "EchoPlatform" "named"
+            Expect.stringContains why "some-other-rid" "with the target in the reason"
+          | other -> failtest $"expected one skip, got {other}"
+        })
+  }
+
+let aMissingArtifactIsSkippedNotFatal =
+  testTask "an install whose manifest was never cached is skipped, not fatal" {
+    do!
+      withPolicyDir (fun () ->
+        task {
+          // Recorded by hand, pointing at a manifest hash nothing ever cached: the shape an
+          // interrupted install or a hand-edited file would leave behind.
+          Platforms.Installed.add "Ghost" (String.replicate 64 "a")
+          let! (built, skipped) =
+            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
+          Expect.isEmpty built "nothing built"
+          match skipped with
+          | [ (name, why) ] ->
+            Expect.equal name "Ghost" "named"
+            Expect.stringContains why "cache" "and says what is missing"
+          | other -> failtest $"expected one skip, got {other}"
+        })
+  }
+
 
 let tests =
   testList
@@ -2023,6 +2152,9 @@ let tests =
       aSpawnedPlatformAnswers
       aSpawnedPlatformIsPermissionChecked
       aCrashedPlatformIsAnErrorNotAHang
+      testSequenced installingAnExternalPlatformMakesItReconstructable
+      testSequenced anInstallForAnotherMachineIsSkippedNotFatal
+      testSequenced aMissingArtifactIsSkippedNotFatal
       testSequenced anArtifactIsFetchedOnceAndReusedAfter
       testSequenced anUnavailableArtifactSaysWhatItMeans
       testSequenced aLyingSourceIsRefused ]

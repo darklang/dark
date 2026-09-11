@@ -10,6 +10,7 @@
     <Compile Include="Artifacts.fs" />
     <Compile Include="Install.fs" />
     <Compile Include="Spawn.fs" />
+    <Compile Include="Installed.fs" />
   </ItemGroup>
   <!-- This is the ONE assembly that references every platform, and the only reason it exists.
        An executable that wants a subset references those platforms directly and composes its own
