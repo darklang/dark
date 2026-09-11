@@ -949,13 +949,23 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
     wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
 
   | ERecord(_id, typeName, typeArgs, fields) ->
+    // `name = value` with a LINE between, not a hard space. It was `txt "{name} = "`, so the only thing
+    // that could give inside a field was the value's own internals, and a field whose value is a single
+    // long name has none: `searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirect...`
+    // went out at 86 columns at width 78 with no layout that would have fixed it.
+    //
+    // The same hard space the infix had, and the same fix. Nested by two so the value hangs under the
+    // field rather than starting at the record's own column.
     let parts =
       fields
       |> Stdlib.List.map (fun pair ->
         let (name, value) = pair
-        Stdlib.Pretty.concat
-          (txt $"{PrettyPrinter.formatFieldName name} = ")
-          (exprDoc ctx value))
+        Stdlib.Pretty.group (
+          Stdlib.Pretty.nest
+            2
+            (Stdlib.Pretty.concat
+              (txt $"{PrettyPrinter.formatFieldName name} =")
+              (Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx value)))))
 
     let head =
       Stdlib.Pretty.concat
@@ -974,9 +984,12 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       updates
       |> Stdlib.List.map (fun pair ->
         let (name, value) = pair
-        Stdlib.Pretty.concat
-          (txt $"{PrettyPrinter.formatFieldName name} = ")
-          (exprDoc ctx value))
+        Stdlib.Pretty.group (
+          Stdlib.Pretty.nest
+            2
+            (Stdlib.Pretty.concat
+              (txt $"{PrettyPrinter.formatFieldName name} =")
+              (Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx value)))))
 
     Stdlib.Pretty.group (
       Stdlib.Pretty.concat

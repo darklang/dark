@@ -2605,7 +2605,19 @@ let moreSpecs () : List<Spec> =
     // one of them draws where the reader sees the NEXT field. Enter at the end of the last one has
     // nothing to do, and doing nothing is the honest answer: the `}` that follows is the next key.
     { (Spec.withNoSequence
-        (simpleOf (Kind.named recordFieldType) [ Piece.FieldText("name", Layout.Style.Name), Piece.Space, Piece.Punct "=", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+        // The value hangs off the `=` rather than sitting behind a hard space, the same shape a parameter's
+        // type hangs off its colon. With a hard space the only thing that could give inside a field was
+        // the value's own internals, and a value that is a single long name has none:
+        // `searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants` ran past the
+        // width with no layout that would have fixed it. The printer had the same hard space and got the
+        // same fix; this keeps the two drawings together.
+        (simpleOf
+          (Kind.named recordFieldType)
+          [ Piece.FieldText("name", Layout.Style.Name)
+            Piece.Space
+            Piece.Punct "="
+            Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "value" ]) ] ]
+          (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
         [ "value" ]) with
         resolve = resolveRecordField }
     Spec.withNoSequence

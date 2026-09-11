@@ -2113,11 +2113,14 @@ module ARecordUpdateFitsTheWidth =
   let src () : String =
     "{ outline with nodes = Stdlib.Dict.remove outline.nodes k; structure = Stdlib.Dict.remove outline.structure k }"
 
+  // A field breaks after its `=` before it breaks its value apart, which is why `nodes` keeps its whole
+  // call on one line here and `structure`, two characters longer, does not. Before the field had a break
+  // point at all, both calls were split across three lines each.
   (ARecordUpdateFitsTheWidth.drawn 40 (ARecordUpdateFitsTheWidth.src ())) =
-    "{ outline with\n  nodes = Stdlib.Dict.remove\n    outline.nodes\n    k;\n  structure = Stdlib.Dict.remove\n    outline.structure\n    k\n}"
+    "{ outline with\n  nodes =\n    Stdlib.Dict.remove outline.nodes k;\n  structure =\n    Stdlib.Dict.remove\n      outline.structure\n      k\n}"
 
   // The property, at three widths. One line of 111 columns is what the printer gives for all of them.
-  (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 40 (ARecordUpdateFitsTheWidth.src ()))) = 32
+  (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 40 (ARecordUpdateFitsTheWidth.src ()))) = 39
   (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 80 (ARecordUpdateFitsTheWidth.src ()))) = 52
   (ARecordUpdateFitsTheWidth.widest (ARecordUpdateFitsTheWidth.drawn 200 (ARecordUpdateFitsTheWidth.src ()))) = 111
 
@@ -2329,3 +2332,55 @@ module APipeStageIsSpelledOneWay =
   // Two stages of the unresolved form still parse as two stages once the brackets are gone, which is the
   // thing the brackets could plausibly have been holding up.
   (APipeStageIsSpelledOneWay.printed "xs |> f y |> g z") = "xs |> f y |> g z"
+
+
+module ARecordFieldCanBreakAfterItsEquals =
+  // `name = value` was a hard space in both drawings, so the only thing that could give inside a field
+  // was the VALUE's own internals. A value that is a single long name has none, and nine record literals
+  // in the package tree are exactly that:
+  //
+  //     searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants;
+  //
+  // went out at 86 columns at width 78 with no layout that would have fixed it. The same hard space the
+  // infix had, and the same fix: a `line` inside a group, nested so the value hangs under the field
+  // rather than starting at the record's own column. A parameter's type already hung off its colon this
+  // way, which is where the shape came from.
+  let src () : String =
+    "Acme.Q { text = \"\"; searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }"
+
+  let printed (w: Int) (s: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr s with
+    | Ok e -> Stdlib.Pretty.render w (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let drawn (w: Int) (s: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr s with
+    | Ok e -> Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) w (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  let widest (s: String) : Int =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.map (fun l -> Stdlib.String.length l)
+    |> Stdlib.List.fold 0 (fun a b -> Stdlib.Int.max a b)
+
+  // The property, which is the reason for the change: it fits.
+  ((ARecordFieldCanBreakAfterItsEquals.widest (ARecordFieldCanBreakAfterItsEquals.printed 78 (ARecordFieldCanBreakAfterItsEquals.src ()))) <= 78) = true
+  ((ARecordFieldCanBreakAfterItsEquals.widest (ARecordFieldCanBreakAfterItsEquals.drawn 78 (ARecordFieldCanBreakAfterItsEquals.src ()))) <= 78) = true
+
+  // ...and the layout, so a later change that fits by some other means has to say so.
+  (ARecordFieldCanBreakAfterItsEquals.printed 78 (ARecordFieldCanBreakAfterItsEquals.src ())) =
+    "Acme.Q {\n  text = \"\";\n  searchDepth =\n    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants\n}"
+
+  // Both drawings, identical. The two projections keeping each other honest is the whole argument for
+  // having two, and this change came out of one of them going over the width while the other did not.
+  (ARecordFieldCanBreakAfterItsEquals.drawn 78 (ARecordFieldCanBreakAfterItsEquals.src ())) =
+    (ARecordFieldCanBreakAfterItsEquals.printed 78 (ARecordFieldCanBreakAfterItsEquals.src ()))
+
+  // A field that fits keeps its value beside the name, so the pin above is about the break and not about
+  // fields always breaking.
+  (ARecordFieldCanBreakAfterItsEquals.printed 78 "Acme.P { x = 1; y = 2 }") = "Acme.P { x = 1; y = 2 }"
+  (ARecordFieldCanBreakAfterItsEquals.drawn 78 "Acme.P { x = 1; y = 2 }") = "Acme.P { x = 1; y = 2 }"
+
+  // A record UPDATE has the same fields and got the same fix.
+  (ARecordFieldCanBreakAfterItsEquals.printed 40 "{ st with searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }") =
+    "{ st with\n  searchDepth =\n    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants\n}"
