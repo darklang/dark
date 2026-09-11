@@ -3103,3 +3103,46 @@ module ANestedListCanBeLeft =
 
   // On a node that is in no list, `o` changes nothing.
   (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "1 + 2", [ "<Esc>", "<Esc>", "o" ] ])) = "1 + ~2"
+
+module ASelectionCanBeARange =
+  // Classic Fluid had a character range over the token stream. Here that has no meaning -- half a node
+  // is not a thing you can select -- so the structural equivalent is a run of SIBLINGS: two statements,
+  // three list elements, two match arms.
+  //
+  // `V` sets the anchor to the caret's node or drops it. `J`/`K` already move between siblings, so they
+  // extend the range without knowing it exists.
+  let at (keys: List<String>) : List<String> =
+    Stdlib.List.flatten [ Fixtures.chars "[1, 2, 3", [ "<Esc>", "<Esc>", "K", "K" ], keys ]
+
+  let said (keys: List<String>) : String =
+    Darklang.Fluid.Test.messageAfter (Fixtures.reg ()) (Fixtures.hole ()) 60 (ASelectionCanBeARange.at keys)
+
+  (Fixtures.screen (ASelectionCanBeARange.at [])) = "[~1, 2, 3]"
+
+  // `V` alone changes nothing on screen; it is the anchor going down.
+  (ASelectionCanBeARange.said [ "V" ]) = "range from here; J/K to extend"
+  (ASelectionCanBeARange.said [ "V", "V" ]) = "range dropped"
+
+  // A range whose ends stop sharing a parent is not a range, so it collapses back to the single node
+  // rather than selecting whatever lies between them. `h` leaves the list.
+  (Fixtures.screen (ASelectionCanBeARange.at [ "V", "h" ])) = "[~1, 2, 3]"
+
+  // `x` on a range clears to ONE hole, not several: three statements deleted leaves the place they
+  // were, not three empty places.
+  (Fixtures.screen (ASelectionCanBeARange.at [ "V", "J", "x" ])) = "[~⟨item⟩, 3]"
+  (Fixtures.screen (ASelectionCanBeARange.at [ "V", "J", "J", "x" ])) = "[~⟨item⟩]"
+  (ASelectionCanBeARange.said [ "V", "J", "J", "x" ]) = "cleared 3 nodes"
+
+  // ...and one node still clears to one hole, which is the case that has to keep working for the two
+  // above to be saying anything.
+  (Fixtures.screen (ASelectionCanBeARange.at [ "x" ])) = "[~⟨item⟩, 2, 3]"
+
+  // `y` takes the whole run; `p` puts them back as SIBLINGS, the first over what is under the caret
+  // and the rest after it. A run of statements put back is a run of statements.
+  (ASelectionCanBeARange.said [ "V", "J", "y" ]) = "yanked 2 nodes"
+  (Fixtures.screen (ASelectionCanBeARange.at [ "V", "J", "y", "J", "J", "p" ])) = "[1, 2, ~1, 2]"
+
+  // Putting several where only one fits refuses and says so, rather than silently taking the first.
+  (Darklang.Fluid.Test.messageAfter (Fixtures.reg ()) (Fixtures.hole ()) 60
+    (Stdlib.List.flatten [ Fixtures.chars "[1, 2", [ "<Esc>", "<Esc>", "K", "V", "J", "y", "h", "h", "p" ] ])) =
+    "can't put 2 nodes here: expression takes one"
