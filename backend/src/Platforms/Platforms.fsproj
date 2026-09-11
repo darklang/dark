@@ -7,6 +7,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Sets.fs" />
+    <Compile Include="Artifacts.fs" />
     <Compile Include="Install.fs" />
   </ItemGroup>
   <!-- This is the ONE assembly that references every platform, and the only reason it exists.

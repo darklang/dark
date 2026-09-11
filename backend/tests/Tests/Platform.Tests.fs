@@ -1551,6 +1551,89 @@ let aManifestRefusesABadArtifactLine =
       "one target, one executable"
   }
 
+// ── the artifact cache ────────────────────────────────────────────────────────
+
+/// The cache lives under the policy directory, so these run under an isolated one.
+let private withArtifactCache (f : unit -> unit) =
+  let dir =
+    System.IO.Path.Combine(
+      System.IO.Path.GetTempPath(),
+      $"dark-artifacts-{System.Guid.NewGuid()}"
+    )
+  System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+  let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+  try
+    f ()
+  finally
+    restore.Dispose()
+    System.IO.Directory.Delete(dir, true)
+
+let anArtifactIsCachedUnderItsOwnHash =
+  test "an artifact lands under its hash and verifies" {
+    withArtifactCache (fun () ->
+      let bytes = System.Text.Encoding.UTF8.GetBytes "#!/bin/sh\necho hi\n"
+      let hash = LibExecution.Blob.sha256Hex bytes
+
+      match Platforms.Artifacts.verified hash with
+      | Ok present -> Expect.isFalse present "not there before it is written"
+      | Error e -> failtest e
+
+      match Platforms.Artifacts.materialize hash bytes with
+      | Error e -> failtest $"should have written: {e}"
+      | Ok file ->
+        Expect.isTrue (System.IO.File.Exists file) "the file is there"
+        Expect.stringEnds file hash "and the hash is the whole filename"
+
+      match Platforms.Artifacts.verified hash with
+      | Ok present -> Expect.isTrue present "and now it verifies"
+      | Error e -> failtest e)
+  }
+
+let anArtifactThatLiesIsRefusedBeforeTheWrite =
+  test "bytes that are not what they claim never reach the disk" {
+    withArtifactCache (fun () ->
+      let real = System.Text.Encoding.UTF8.GetBytes "the real thing"
+      let hash = LibExecution.Blob.sha256Hex real
+      let other = System.Text.Encoding.UTF8.GetBytes "something else entirely"
+
+      match Platforms.Artifacts.materialize hash other with
+      | Ok _ -> failtest "wrote bytes that do not match their hash"
+      | Error e -> Expect.stringContains e hash "the expected hash is in the message"
+
+      // Checked before the write, so nothing lands under a name that would later be trusted.
+      match Platforms.Artifacts.path hash with
+      | Ok file -> Expect.isFalse (System.IO.File.Exists file) "and nothing was written"
+      | Error e -> failtest e)
+  }
+
+let aTamperedArtifactFailsVerification =
+  test "an artifact swapped on disk stops verifying" {
+    // The reason verification is not just an install-time check. Anything that can write the cache
+    // could otherwise replace the executable a hash approved, and the filename would still agree.
+    withArtifactCache (fun () ->
+      let bytes = System.Text.Encoding.UTF8.GetBytes "the approved binary"
+      let hash = LibExecution.Blob.sha256Hex bytes
+      match Platforms.Artifacts.materialize hash bytes with
+      | Error e -> failtest e
+      | Ok file ->
+        System.IO.File.WriteAllBytes(file, System.Text.Encoding.UTF8.GetBytes "not that")
+        match Platforms.Artifacts.verified hash with
+        | Ok present -> Expect.isFalse present "a swapped file does not verify"
+        | Error e -> failtest e)
+  }
+
+let anArtifactHashCannotBeAPath =
+  test "a hash that is not a hash cannot name a file" {
+    // The hash reaches here from a manifest, which came from outside, so it is checked rather than
+    // trusted. Otherwise a manifest could name '../../../etc/cron.d/whatever'.
+    withArtifactCache (fun () ->
+      Expect.isError (Platforms.Artifacts.path "../../etc/passwd") "no traversal"
+      Expect.isError (Platforms.Artifacts.path "deadbeef") "too short"
+      Expect.isError
+        (Platforms.Artifacts.path (String.replicate 64 "A"))
+        "upper case is not the hash we store under")
+  }
+
 
 let tests =
   testList
@@ -1604,4 +1687,8 @@ let tests =
       aManifestResolvesAgainstTheRealStore
       aManifestNamingAMissingTypeSaysSo
       aManifestAddressesItsExecutablesByHash
-      aManifestRefusesABadArtifactLine ]
+      aManifestRefusesABadArtifactLine
+      testSequenced anArtifactIsCachedUnderItsOwnHash
+      testSequenced anArtifactThatLiesIsRefusedBeforeTheWrite
+      testSequenced aTamperedArtifactFailsVerification
+      testSequenced anArtifactHashCannotBeAPath ]
