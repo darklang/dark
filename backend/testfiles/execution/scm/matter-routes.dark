@@ -173,3 +173,42 @@ module Highlighting =
 
   // Unparseable source still renders, escaped, rather than rendering nothing.
   (Darklang.Matter.highlightHtml "«««") = "«««"
+
+
+module Blobs =
+  // `GET /blob/:hash` is how a platform's executable reaches a machine that does not have it.
+  // Unauthenticated, like every other relay read, so the interesting cases are the refusals: a
+  // relay that answered the wrong thing here is one a client would trust.
+
+  // A hash that is not a hash is a 400, not a 404. The hash is the whole request, so anything else
+  // is a client bug worth naming, and "not found" would say the relay has not got it, which is a
+  // different thing to believe.
+  (Helpers.status "/blob/not-a-hash" Darklang.Matter.Relay.blobGetHandlerFn) = 400
+
+  (Helpers.bodyHas
+    "/blob/not-a-hash"
+    Darklang.Matter.Relay.blobGetHandlerFn
+    "lowercase hex SHA-256") = true
+
+  // Upper case is refused too: the store files blobs under lowercase hex, so accepting this would
+  // be a 404 for bytes the relay is holding.
+  (Helpers.status
+    "/blob/B0FF240DDFBD91D30015B67773D88C06C8E80442D264448F2F9CFABF9BB9A628"
+    Darklang.Matter.Relay.blobGetHandlerFn) = 400
+
+  // Well formed and not held: 404.
+  (Helpers.status
+    "/blob/0000000000000000000000000000000000000000000000000000000000000000"
+    Darklang.Matter.Relay.blobGetHandlerFn) = 404
+
+  // The 200 path is deliberately NOT here. This tier runs against a package manager whose blob
+  // accessors answer None and drop writes, so a round trip through it would assert that the
+  // handler returns what the store gave it, which is 404, and would keep passing if the endpoint
+  // stopped serving bytes entirely. It is covered where a real store exists.
+  //
+  // What is here is the half that decides what a client will believe, and that half needs no
+  // store: a relay answering the wrong refusal is one a client would trust.
+
+  // `POST /blob` takes the ops write secret. With none configured the relay accepts no writes and
+  // says so, which is the fail-closed default a relay you stood up and walked away from needs.
+  (Helpers.status "/blob" Darklang.Matter.Relay.blobPutHandlerFn) = 401
