@@ -2550,7 +2550,11 @@ let typeOne (st: State) (c: String) : State =
     match target with
     | Some p -> { dropped with caret = Caret.afterNode p }
     | None -> moveRight dropped
-  elif (Stdlib.List.member st.reg.syntax.separators c) && (Stdlib.Bool.not inStringBody) && (nextNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c) then
+  elif
+    ((Stdlib.List.member st.reg.syntax.separators c) || (punctToNextSlot st c))
+    && (Stdlib.Bool.not inStringBody)
+    && (nextNonSpaceGlyphIn rows st == Stdlib.Option.Option.Some c)
+  then
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
     // still starts an operator as before.
@@ -2563,7 +2567,7 @@ let typeOne (st: State) (c: String) : State =
     // perfectly and refused to lower, "unresolved: b".
     nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
   elif
-    (Stdlib.List.member st.reg.syntax.separators c)
+    ((Stdlib.List.member st.reg.syntax.separators c) || (punctBeforeMySlot st c))
     && (Stdlib.Bool.not inStringBody)
     && (match slotUnder st with
         | Some(Empty _) -> true
@@ -4782,6 +4786,51 @@ let isTextSegment (reg: Registry) (parent: Node) (n: Node) : Bool =
   match segmentsOf reg parent with
   | Some seg -> n.kind.case == Stdlib.Option.Option.Some seg.textCase
   | None -> false
+
+/// Is `c` the punctuation this node draws BETWEEN the caret's slot and the next one?
+///
+/// The separator-skipping rule reads a fixed list on the registry -- `=` and `:`, a let's and an
+/// annotation's. That list cannot hold `,` without also claiming the comma that adds a list item, so a
+/// dict TYPE, drawn `Dict<key, value>`, had no way to step from its key to its value: the `,` went into
+/// the value as text.
+///
+/// Asked of the pieces instead, which is a narrower question and a truer one. It can only be yes between
+/// two SINGLE-child slots; a list's separator is `itemLeadPunct`'s business and is not this.
+let punctToNextSlot (st: State) (c: String) : Bool =
+  let fromSlot (slot: String) : Bool =
+    match nodeAtPath st.root st.caret.node with
+    | Some n ->
+      (match Registry.find st.reg n.kind with
+       | Some spec ->
+         (match Project.nextChildSlotAfter spec.pieces slot with
+          | Some next -> (Project.slotLeadPunct spec.pieces next) == Stdlib.Option.Option.Some c
+          | None -> false)
+       | None -> false)
+    | None -> false
+
+  match st.caret.part with
+  | InText slot -> fromSlot slot
+  | InSlot slot -> fromSlot slot
+  | _ -> false
+
+/// Is `c` the punctuation this node draws immediately BEFORE the caret's own slot?
+///
+/// The other side of the same question. `Dict<` puts the caret in the key with the `<` behind it, and
+/// typing the `<` you can see should be a no-op. The fixed separator list could not say so for the same
+/// reason it could not say so for the `,`.
+let punctBeforeMySlot (st: State) (c: String) : Bool =
+  let fromSlot (slot: String) : Bool =
+    match nodeAtPath st.root st.caret.node with
+    | Some n ->
+      (match Registry.find st.reg n.kind with
+       | Some spec -> (Project.slotLeadPunct spec.pieces slot) == Stdlib.Option.Option.Some c
+       | None -> false)
+    | None -> false
+
+  match st.caret.part with
+  | InText slot -> fromSlot slot
+  | InSlot slot -> fromSlot slot
+  | _ -> false
 
 /// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to
 /// recognise the closer it drew.

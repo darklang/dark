@@ -339,6 +339,35 @@ let slotPunctScan
         | Some s -> if s == slotName then (last, last) else (Stdlib.Option.Option.None, found)
         | None -> acc)
 
+/// Every single-child slot a spec draws, in the order it draws them.
+///
+/// Flattened through the layout wrappers, which carry no slots of their own.
+let childSlotsInOrder (ps: List<Piece>) : List<String> =
+  ps
+  |> Stdlib.List.map (fun p ->
+    match p with
+    | Group inner -> childSlotsInOrder inner
+    | Flat inner -> childSlotsInOrder inner
+    | Nest(_, inner) -> childSlotsInOrder inner
+    | _ ->
+      (match childSlotOf p with
+       | Some s -> [ s ]
+       | None -> []))
+  |> Stdlib.List.flatten
+
+/// The next single-child slot a spec draws AFTER `slotName`, if there is one.
+///
+/// For the question "is the character I just typed the punctuation between this slot and the next one".
+/// A dict TYPE draws `Dict<key, value>`: the `,` belongs to the construct, and typing it at the end of
+/// the key should step over it rather than landing in the value as text. The kernel answered that from a
+/// fixed list of separator characters, which could hold `=` and `:` and could not hold `,` without also
+/// claiming the comma that adds a list item.
+let nextChildSlotAfter (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
+  let all = childSlotsInOrder ps
+  match Stdlib.List.findFirstIndex all (fun s -> s == slotName) with
+  | Some i -> Stdlib.List.getAt all (i + 1)
+  | None -> Stdlib.Option.Option.None
+
 let slotLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
   let (_, found) = slotPunctScan ps slotName Stdlib.Option.Option.None
   found

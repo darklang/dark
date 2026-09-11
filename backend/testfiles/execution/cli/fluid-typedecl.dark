@@ -887,3 +887,27 @@ module TypingAFunctionType =
   (TypingAFunctionType.drawn "Int64") = "Int64"
   (TypingAFunctionType.drawn "(Int64 * String)") = "(Int64 * String)"
   (TypingAFunctionType.drawn "List<Int64>") = "List<Int64>"
+
+
+module PunctuationBetweenTwoSlotsIsSteppedOver =
+  // A dict TYPE draws `Dict<key, value>`, and there was no way to get from its key to its value: the `,`
+  // went into the value as text, so `Dict<String, Int64>` came out as nonsense.
+  //
+  // The rule for stepping over punctuation the editor has already drawn read a fixed list on the
+  // registry, `=` and `:`, a let's and an annotation's. That list cannot hold `,` without also claiming
+  // the comma that ADDS a list item, which is a different fact about a different kind of slot.
+  //
+  // So it asks the pieces: is this the punctuation drawn between my slot and the next one, or drawn
+  // immediately before mine. Both can only be yes between SINGLE-child slots; a list's separator is
+  // `itemLeadPunct`'s business.
+  let drawn (src: String) : String = TypingATypeDoesNotThrow.drawn src
+
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict ") = "Dict<<key>, <value>>"
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict String") = "Dict<String, <value>>"
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict String,") = "Dict<String, <value>>"
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict String, Int64") = "Dict<String, Int64>"
+
+  // The comma that adds a LIST item still adds one, which is what says this claimed a new fact rather
+  // than taking one that was already spoken for. A tuple TYPE's `*` is that kind of separator, and a
+  // second one after it opens a third element rather than stepping anywhere.
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "(Int64 * String") = "(Int64 * String)"

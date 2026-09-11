@@ -2460,6 +2460,19 @@ let emptyCase () : Node =
       ("when", Field.Many([], exprExpect "when"))
       ("rhs", Field.One(Slot.Empty(exprExpect "rhs"))) ]
 
+/// Does this node SWALLOW what follows it -- a `match`, an `if`, a `let`, a lambda?
+///
+/// For the slots where the PRINTER brackets one and so must Fluid. Handed to `ParenIfSlot` rather than
+/// drawn with `ParenLowSlot`, and the difference is one column: brackets that do not indent what they
+/// hold produce a shape the parser cannot read back.
+/// `Acme.Q { a = (if c then / 1 / else / 2); b = 3 }` with the `else` aligned under the `(` does not
+/// parse; indent the contents past the bracket and it does.
+///
+/// `ParenLowSlot` keeps `parenNoNest` and keeps its one job, the match scrutinee, which is the one place
+/// Fluid draws a bracket the printer would not -- so there is no printed column for it to match, which is
+/// the whole reason that piece does not nest.
+let isSwallowing (n: Node) : Bool = (Project.nodePower n) == 0
+
 /// `Dict { <key>: <value> }`, with one pair ready to fill.
 ///
 /// The printer writes `Dict { a: 1; b: 2 }` and nothing in the editor could type it back: `Dict` is drawn
@@ -2637,7 +2650,7 @@ let moreSpecs () : List<Spec> =
       // Found by the whole-store drawing sweep, which only reached this body because an unrelated edit
       // shifted which functions "every fortieth" picks. It had been true the whole time.
       [ Piece.Group
-          [ Piece.ParenLowSlot "first"
+          [ Piece.ParenIfSlot("first", isSwallowing)
             Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     |> fun sp -> Spec.collapsingWhenEmptied sp "steps" "first"
@@ -2686,7 +2699,7 @@ let moreSpecs () : List<Spec> =
           [ Piece.FieldText("name", Layout.Style.Name)
             Piece.Space
             Piece.Punct "="
-            Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.ParenLowSlot "value" ]) ] ]
+            Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.ParenIfSlot("value", isSwallowing) ]) ] ]
           (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
         [ "value" ]) with
         resolve = resolveRecordField }
@@ -2694,7 +2707,7 @@ let moreSpecs () : List<Spec> =
       // The value is a `ParenLowSlot` for the same reason a record field's is: a `match` here swallows
       // the `;` and the pair after it.
       ({ (Spec.withRules
-            (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.ParenLowSlot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+            (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.ParenIfSlot("value", isSwallowing) ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
             [ HoleRule { onChar = "\""; fill = HoleFill.WithChar pairFromKeyChar } ]) with
           resolve = resolveDictPair })
       [ "key", "value" ]
