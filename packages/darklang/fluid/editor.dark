@@ -2078,9 +2078,8 @@ let enclosingStringSeg (reg: Registry) (root: Slot) (path: Path) : Stdlib.Option
         match nodeAtPath root prefix with
         | Some n ->
           (match segmentsOf reg n with
-           | Some pair ->
-             let (segSlot, _textCase) = pair
-             if segSlot == slot then (idx + 1, Stdlib.Option.Option.Some((prefix, i))) else (idx + 1, best)
+           | Some seg ->
+             if seg.slot == slot then (idx + 1, Stdlib.Option.Option.Some((prefix, i))) else (idx + 1, best)
            | None -> (idx + 1, best))
         | None -> (idx + 1, best)
       | _ -> (idx + 1, best))
@@ -2097,49 +2096,57 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
     match nodeAtPath st.root ePath with
     | None -> Stdlib.Option.Option.None
     | Some eNode ->
+      // Every name below comes off the spec. Each one used to be a literal here, which meant a DSL could
+      // declare its content segmented and still only work if it happened to call its parts `segments`,
+      // its text `text` and its hole `expr`.
+      match segmentsOf st.reg eNode with
+      | None -> Stdlib.Option.Option.None
+      | Some seg ->
       let segType =
-        Node.itemExpect eNode "segments"
+        Node.itemExpect eNode seg.slot
         |> Stdlib.Option.andThen (fun e -> e.kind)
         |> Stdlib.Option.map (fun k -> Kind.typeName k)
-        |> Stdlib.Option.withDefault "Darklang.LanguageTools.ProgramTypes.StringSegment"
+        |> Stdlib.Option.withDefault (Kind.typeName eNode.kind)
       let exprTy = Kind.typeName eNode.kind
       // Directly in this segment's text? (as opposed to nested in an interpolation's expression)
       let directText =
         match caret.part with
-        | InText slot -> (slot == "text") && (Path.last caret.node == Stdlib.Option.Option.Some(Step.Item("segments", i)))
+        | InText slot -> (slot == seg.textSlot) && (Path.last caret.node == Stdlib.Option.Option.Some(Step.Item(seg.slot, i)))
         | _ -> false
-      let segNode = Stdlib.List.getAt (Node.items eNode "segments") i |> Stdlib.Option.andThen (fun s -> Slot.node s)
+      let segNode = Stdlib.List.getAt (Node.items eNode seg.slot) i |> Stdlib.Option.andThen (fun s -> Slot.node s)
       let isText =
         match segNode with
         | Some sn -> isTextSegment st.reg eNode sn
         | None -> false
       if (c == st.reg.syntax.stringDelimiter) && directText then
-        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
-        let onlySeg = (Stdlib.List.length (Node.items eNode "segments")) == 1
+        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) seg.textSlot |> Stdlib.Option.withDefault ""
+        let onlySeg = (Stdlib.List.length (Node.items eNode seg.slot)) == 1
         if (text == "") && onlySeg && (caret.offset == 0) then
           Stdlib.Option.Option.Some st
         else
           Stdlib.Option.Option.Some { st with caret = Caret.afterNode ePath }
       elif (c == st.reg.syntax.interpolationOpen) && directText then
-        let segPath = Path.item ePath "segments" i
-        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) "text" |> Stdlib.Option.withDefault ""
+        let segPath = Path.item ePath seg.slot i
+        let text = Node.text (segNode |> Stdlib.Option.withDefault eNode) seg.textSlot |> Stdlib.Option.withDefault ""
         let before = Stdlib.String.slice text 0 caret.offset
         let after = Stdlib.String.dropFirst text caret.offset
         let interp =
-          Node.make (Kind.ofCase segType "StringInterpolation") [ ("expr", Field.One(Slot.Empty(Expect.ofKind (Kind.named exprTy) "expr"))) ]
-        let tail = Node.make (Kind.ofCase segType "StringText") [ ("text", Field.Text after) ]
+          Node.make
+            (Kind.ofCase segType seg.holeCase)
+            [ (seg.holeSlot, Field.One(Slot.Empty(Expect.ofKind (Kind.named exprTy) seg.holeSlot))) ]
+        let tail = Node.make (Kind.ofCase segType seg.textCase) [ (seg.textSlot, Field.Text after) ]
         let st1 =
           commit
             st
-            [ Edit.SetText(segPath, "text", before)
-              Edit.InsertItem(ePath, "segments", i + 1, Slot.Filled interp)
-              Edit.InsertItem(ePath, "segments", i + 2, Slot.Filled tail) ]
+            [ Edit.SetText(segPath, seg.textSlot, before)
+              Edit.InsertItem(ePath, seg.slot, i + 1, Slot.Filled interp)
+              Edit.InsertItem(ePath, seg.slot, i + 2, Slot.Filled tail) ]
             caret
-        Stdlib.Option.Option.Some { st1 with caret = Caret.inSlot (Path.item ePath "segments" (i + 1)) "expr" 0 }
+        Stdlib.Option.Option.Some { st1 with caret = Caret.inSlot (Path.item ePath seg.slot (i + 1)) seg.holeSlot 0 }
       elif (c == st.reg.syntax.interpolationClose) && (Stdlib.Bool.not directText) && (Stdlib.Bool.not isText) then
         // Inside an interpolation's expression: step to the text segment after it.
         let nextIsText =
-          Stdlib.List.getAt (Node.items eNode "segments") (i + 1)
+          Stdlib.List.getAt (Node.items eNode seg.slot) (i + 1)
           |> Stdlib.Option.andThen (fun s -> Slot.node s)
           |> Stdlib.Option.map (fun sn -> isTextSegment st.reg eNode sn)
           |> Stdlib.Option.withDefault false
@@ -2148,7 +2155,7 @@ let handleStringI (st: State) (c: String) : Stdlib.Option.Option<State> =
           // left `name` an unresolved partial the caret had already left behind, and the whole document
           // refused to lower -- while the same string without the closing `}` lowered fine.
           let settled = resolvePartial st |> Stdlib.Option.withDefault st
-          Stdlib.Option.Option.Some { settled with caret = Caret.inText (Path.item ePath "segments" (i + 1)) "text" 0 }
+          Stdlib.Option.Option.Some { settled with caret = Caret.inText (Path.item ePath seg.slot (i + 1)) seg.textSlot 0 }
         else
           Stdlib.Option.Option.None
       else
@@ -3625,28 +3632,34 @@ let tryCollapseInterp (st: State) : Stdlib.Option.Option<State> =
       else
         match nodeAtPath st.root ePath with
         | Some eNode ->
-          let segs = Node.items eNode "segments"
-          let segAt (j: Int) : Stdlib.Option.Option<Node> =
-            Stdlib.List.getAt segs j |> Stdlib.Option.andThen (fun s -> Slot.node s)
-          let isText (j: Int) : Bool =
-            match segAt j with
-            | Some n -> isTextSegment st.reg eNode n
-            | None -> false
-          // Only fold when both neighbours are text segments (the shape a split leaves behind).
-          if (isText (i - 1)) && (isText (i + 1)) then
-            let before = segAt (i - 1) |> Stdlib.Option.andThen (fun n -> Node.text n "text") |> Stdlib.Option.withDefault ""
-            let after = segAt (i + 1) |> Stdlib.Option.andThen (fun n -> Node.text n "text") |> Stdlib.Option.withDefault ""
-            let prevPath = Path.item ePath "segments" (i - 1)
-            let st1 =
-              commit
-                st
-                [ Edit.SetText(prevPath, "text", before ++ after)
-                  Edit.RemoveItem(ePath, "segments", i + 1)
-                  Edit.RemoveItem(ePath, "segments", i) ]
-                caret
-            Stdlib.Option.Option.Some { st1 with caret = Caret.inText prevPath "text" (Stdlib.String.length before); mode = Mode.Insert }
-          else
-            Stdlib.Option.Option.None
+          (match segmentsOf st.reg eNode with
+           | None -> Stdlib.Option.Option.None
+           | Some seg ->
+             let segs = Node.items eNode seg.slot
+             let segAt (j: Int) : Stdlib.Option.Option<Node> =
+               Stdlib.List.getAt segs j |> Stdlib.Option.andThen (fun s -> Slot.node s)
+             let isText (j: Int) : Bool =
+               match segAt j with
+               | Some n -> isTextSegment st.reg eNode n
+               | None -> false
+             // Only fold when both neighbours are text segments (the shape a split leaves behind).
+             if (isText (i - 1)) && (isText (i + 1)) then
+               let before = segAt (i - 1) |> Stdlib.Option.andThen (fun n -> Node.text n seg.textSlot) |> Stdlib.Option.withDefault ""
+               let after = segAt (i + 1) |> Stdlib.Option.andThen (fun n -> Node.text n seg.textSlot) |> Stdlib.Option.withDefault ""
+               let prevPath = Path.item ePath seg.slot (i - 1)
+               let st1 =
+                 commit
+                   st
+                   [ Edit.SetText(prevPath, seg.textSlot, before ++ after)
+                     Edit.RemoveItem(ePath, seg.slot, i + 1)
+                     Edit.RemoveItem(ePath, seg.slot, i) ]
+                   caret
+               Stdlib.Option.Option.Some
+                 { st1 with
+                     caret = Caret.inText prevPath seg.textSlot (Stdlib.String.length before)
+                     mode = Mode.Insert }
+             else
+               Stdlib.Option.Option.None)
         | None -> Stdlib.Option.Option.None
 
 let backspace (st: State) : State =
@@ -4689,8 +4702,8 @@ let addSiblingOnEnter (st: State) : Stdlib.Option.Option<State> =
   else addSibling st
 
 /// The (list slot, text case) of a construct whose content is text with embedded holes, if it is one.
-let segmentsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String)> =
-  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<(String * String)> =
+let segmentsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<Segments> =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<Segments> =
     match spec with
     | Some sp -> sp.segments
     | None -> Stdlib.Option.Option.None
@@ -4701,9 +4714,7 @@ let segmentsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String
 /// Is `n` the literal-TEXT part of the segmented construct `parent`, rather than an embedded hole?
 let isTextSegment (reg: Registry) (parent: Node) (n: Node) : Bool =
   match segmentsOf reg parent with
-  | Some pair ->
-    let (_slot, textCase) = pair
-    n.kind.case == Stdlib.Option.Option.Some textCase
+  | Some seg -> n.kind.case == Stdlib.Option.Option.Some seg.textCase
   | None -> false
 
 /// Does this node's spec draw `c` as punctuation? Asked of the construct that encloses the caret, to

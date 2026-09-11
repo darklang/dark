@@ -206,6 +206,26 @@ type Action =
     applies: Node -> Bool
     run: Node -> Slot }
 
+/// Which construct is text with holes in it, and what its parts are called.
+///
+/// Darklang's is the interpolated string, `$"a{x}b"`. It is not only Darklang's: a template language, a
+/// query with bind parameters, a document with embedded code are all the same shape.
+///
+/// Every name here was once spelled in the kernel. The list slot came off first, then the text case; the
+/// rest -- the text slot, the hole case, the hole slot -- stayed, so a DSL could declare its content was
+/// segmented and still only work if it happened to call its parts `segments`, `StringText`, `text`,
+/// `StringInterpolation` and `expr`. Half-data is the shape a bug hides in: the construct looked
+/// declarable and was not.
+type Segments =
+  { /// The list slot holding the parts.
+    slot: String
+    /// The case of a part that is literal text, and the text slot inside it.
+    textCase: String
+    textSlot: String
+    /// The case of a part that is an embedded hole, and the slot inside it.
+    holeCase: String
+    holeSlot: String }
+
 /// As much of this is plain data as possible, so a spec can be derived from a type declaration at runtime,
 /// generated as source, or written by hand, and so it can sit in retained state. The two functions left
 /// (`complete`, `summary`) must be named package fns.
@@ -308,7 +328,7 @@ type Spec =
     /// part in two around a new hole, step out of a hole into the text after it, and fold two text parts
     /// back together when the hole between them goes. All four are about the shape and none is about
     /// strings.
-    segments: Stdlib.Option.Option<(String * String)>
+    segments: Stdlib.Option.Option<Segments>
 
     /// A construct that is a SEQUENCE of two: the slot holding what came before, then the slot holding
     /// what comes next. Darklang's is `EStatement`, which a newline builds.
@@ -471,9 +491,24 @@ module Spec =
   let withOperands (spec: Spec) (left: String) (right: String) : Spec =
     { spec with operands = Stdlib.Option.Option.Some((left, right)) }
 
-  /// A spec that says its content is text with embedded holes: the list slot, and the case holding text.
-  let withSegments (spec: Spec) (slot: String) (textCase: String) : Spec =
-    { spec with segments = Stdlib.Option.Option.Some((slot, textCase)) }
+  /// A spec that says its content is text with embedded holes.
+  let withSegments
+    (spec: Spec)
+    (slot: String)
+    (textCase: String)
+    (textSlot: String)
+    (holeCase: String)
+    (holeSlot: String)
+    : Spec =
+    { spec with
+        segments =
+          Stdlib.Option.Option.Some(
+            Segments
+              { slot = slot
+                textCase = textCase
+                textSlot = textSlot
+                holeCase = holeCase
+                holeSlot = holeSlot }) }
 
   /// A spec that says it is a sequence of two: what came before, then what comes next.
   let withSequence (spec: Spec) (before: String) (next: String) : Spec =

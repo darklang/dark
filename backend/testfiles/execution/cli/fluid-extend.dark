@@ -1008,3 +1008,86 @@ module ADocumentKeymap =
   (Darklang.Fluid.Test.messageAfter (ADocumentKeymap.byName ()) (ADocumentKeymap.hole ()) 60
     (Stdlib.List.flatten [ ADocumentKeymap.chars "[1, 2", [ "<Esc>", "<Esc>", "K", "K", "z" ] ])) =
     "no action here called convert to match"
+
+
+module ATemplateTheKernelDoesNotKnow =
+  // Text with holes in it is not Darklang's interpolated string. It is a template language, a query with
+  // bind parameters, a document with embedded code. The two characters that open and close a hole have
+  // been on the registry for a while, and the construct and its text case have been on the spec; the rest
+  // of the names stayed in the kernel, so a DSL could declare its content segmented and still only work
+  // if it happened to call its parts `segments`, its text `text` and its hole `expr`.
+  //
+  // `Acme.Template` is `<<text{hole}text>>` and shares none of those names.
+  let tplKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Template"
+  let pieceType () : String = "Acme.Piece"
+  let chunkKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.ofCase (ATemplateTheKernelDoesNotKnow.pieceType ()) "Chunk"
+  let holeKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.ofCase (ATemplateTheKernelDoesNotKnow.pieceType ()) "Hole"
+
+  let pieceExpect () : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (Darklang.Fluid.Kind.named (ATemplateTheKernelDoesNotKnow.pieceType ())) "piece"
+
+  let chunk (s: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make (ATemplateTheKernelDoesNotKnow.chunkKind ()) [ ("chars", Darklang.Fluid.Field.Text s) ]
+
+  let tpl () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ATemplateTheKernelDoesNotKnow.tplKind ())
+      [ ("pieces",
+         Darklang.Fluid.Field.Many(
+           [ Darklang.Fluid.Slot.Filled(ATemplateTheKernelDoesNotKnow.chunk "") ],
+           ATemplateTheKernelDoesNotKnow.pieceExpect ())) ]
+
+  let specs () : List<Darklang.Fluid.Spec> =
+    let tplSpec =
+      Darklang.Fluid.Spec.withSegments
+        (Darklang.Fluid.Spec.simple
+          (ATemplateTheKernelDoesNotKnow.tplKind ())
+          [ Darklang.Fluid.Piece.Flat
+              [ Darklang.Fluid.Piece.Punct "<<"
+                Darklang.Fluid.Piece.Each("pieces", [])
+                Darklang.Fluid.Piece.Punct ">>" ] ]
+          (ATemplateTheKernelDoesNotKnow.tpl ()))
+        "pieces"
+        "Chunk"
+        "chars"
+        "Hole"
+        "fill"
+
+    let chunkSpec =
+      Darklang.Fluid.Spec.simple
+        (ATemplateTheKernelDoesNotKnow.chunkKind ())
+        [ Darklang.Fluid.Piece.QuietText("chars", Darklang.Fluid.Layout.Style.Literal) ]
+        (ATemplateTheKernelDoesNotKnow.chunk "")
+
+    let holeSpec =
+      Darklang.Fluid.Spec.simple
+        (ATemplateTheKernelDoesNotKnow.holeKind ())
+        [ Darklang.Fluid.Piece.Punct "{", Darklang.Fluid.Piece.Slot "fill", Darklang.Fluid.Piece.Punct "}" ]
+        (Darklang.Fluid.Node.make
+          (ATemplateTheKernelDoesNotKnow.holeKind ())
+          [ ("fill", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.any "fill"))) ])
+
+    Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ tplSpec, chunkSpec, holeSpec ] ]
+
+  let screen (keys: List<String>) : String =
+    Darklang.Fluid.Test.runFrom
+      (Darklang.Fluid.Registry.ofList (ATemplateTheKernelDoesNotKnow.specs ()))
+      (Darklang.Fluid.Slot.Filled(ATemplateTheKernelDoesNotKnow.tpl ()))
+      60
+      (Darklang.Fluid.Caret.inText (Darklang.Fluid.Path.item [] "pieces" 0) "chars" 0)
+      keys
+
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  (ATemplateTheKernelDoesNotKnow.screen []) = "<<~>>"
+  (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi")) = "<<hi~>>"
+
+  // `{` splits the chunk and drops a hole between the halves. This is the branch that used to build a
+  // `StringInterpolation` with an `expr` slot and a `StringText` with a `text` slot, by name.
+  (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{")) = "<<hi{~⟨fill⟩}>>"
+  (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{1")) = "<<hi{1~}>>"
+
+  // `}` steps out of the hole into the chunk after it, and typing continues there.
+  (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{1}")) = "<<hi{1}~>>"
+  (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{1}yo")) = "<<hi{1}yo~>>"

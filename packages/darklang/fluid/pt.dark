@@ -2675,12 +2675,16 @@ let moreSpecs () : List<Spec> =
     // Flat, not Group: everything between the quotes is part of a string LITERAL, so a break inside it
     // would put a newline and an indent into the string's value.
     // `withSegments` is what tells the kernel this construct's content is text with holes in it: which
-    // slot holds the parts, and which case of them is the literal text. Four kernel branches used to name
-    // `EStringI` and `StringText` to work that out.
+    // slot holds the parts, which case of them is the literal text and where that text lives, and which
+    // case is an embedded hole and where the hole lives. Every one of those five names used to be spelled
+    // in the kernel.
     Spec.withSegments
       (simpleExpr "EStringI" [ Piece.Flat [ Piece.Punct "$\"", Piece.Each("segments", []), Piece.Punct "\"" ] ] (Node.make (exprKind "EStringI") [ ("segments", Field.Many([], segmentExpect ())) ]))
       "segments"
       "StringText"
+      "text"
+      "StringInterpolation"
+      "expr"
     simpleOf (segmentKind "StringText") [ Piece.QuietText("text", Layout.Style.Literal) ] (Node.make (segmentKind "StringText") [ text "text" "" ])
     simpleOf (segmentKind "StringInterpolation") [ Piece.Punct "{", Piece.Slot "expr", Piece.Punct "}" ] (Node.make (segmentKind "StringInterpolation") [ ("expr", Field.One(Slot.Empty(exprExpect "expr"))) ]) ]
 
