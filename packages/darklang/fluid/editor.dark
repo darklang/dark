@@ -2119,14 +2119,26 @@ let typeOne (st: State) (c: String) : State =
         | None -> false)
   // A `|` while already in a pipe step starts the NEXT stage (rather than nesting a pipe in the step), so
   // `x |> f |> g` chains flat. The `>` that follows is swallowed by inFreshPipeStep.
+  // Asked of the spec. Two facts, both already declared: this list's items are LED by the character you
+  // typed (`|>` for a pipe, and the first character of it is the key you press), and emptying the list
+  // collapses the construct back to the slot that held its operand -- which is exactly the undo this
+  // branch performs when the pipe turns out to have been an accident.
+  //
+  // Three specs declare `collapsesWhenEmptied` and only the pipe's names a LIST, so `InItem` plus the lead
+  // punct picks it out today; MPListCons and EInfix collapse a One slot and have no item lead at all. A
+  // DSL whose own led list collapses the same way gets this without a kernel branch.
   let inPipeSteps =
-    (c == "|")
-    && (match caret.part with
-        | InItem(s, _) -> s == "steps"
-        | _ -> false)
-    && (match nodeAtPath st.root caret.node with
-        | Some n -> n.kind.case == Stdlib.Option.Option.Some "EPipe"
+    (match caret.part with
+     | InItem(s, _) ->
+       (match nodeAtPath st.root caret.node with
+        | Some n ->
+          (match emptiedCollapseOf st.reg n with
+           | Some pair ->
+             let (emptiedSlot, _survivor) = pair
+             (emptiedSlot == s) && (leadsItemsWith st n s c)
+           | None -> false)
         | None -> false)
+     | _ -> false)
   // `)` while sitting in an untouched tuple is the unit literal `()`, not a one-element tuple: `(` opens a
   // tuple and an immediate `)` collapses it to unit.
   //
