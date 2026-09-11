@@ -1200,7 +1200,7 @@ module APipeStepTakesArguments =
   // nothing to build, because `EPipeVariable` already has the `args` slot and is already drawn with
   // `ArgSlots`. It only needed extending.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork 1") [ "<Esc>", "<Esc>" ])) =
-    "xs |> (zork 1)"
+    "xs |> zork 1"
 
   // But the caret waiting after the name is also where a list grows, so the `1` first grew the PIPE:
   // `xs |> zork |> 1`. Two readings of one position, and the node itself settles it. Growing a sibling is
@@ -2789,7 +2789,9 @@ module ACallToSomethingLocalCanBeSpelledWithParens =
   // ...and the readings that already worked, unchanged.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.List.map xs (fun x -> x)") [ "<Esc>", "<Esc>" ])) =
     "Stdlib.List.map xs (fun x -> x)"
-  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork(1") [ "<Esc>", "<Esc>" ])) = "xs |> (zork 1)"
+  // Both spellings of the call converge on the one the printer now writes: a pipe stage's brackets were
+  // dropped, so `zork(1)` and `zork 1` come out the same, which is what they always meant.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "xs |> zork(1") [ "<Esc>", "<Esc>" ])) = "xs |> zork 1"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "Stdlib.Option.Some(1") [ "<Esc>", "<Esc>" ])) = "Option.Some(1)"
 
 

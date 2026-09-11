@@ -642,9 +642,21 @@ let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib
 
   match p with
   | EPipeVariable(_id, varName, exprs) ->
+    // No parens, the same as `EPipeFnCall` right below. These are one construct, a call in a pipe stage,
+    // and they were spelled two ways: `xs |> Stdlib.List.map g` for a resolved name and `xs |> (f y)` for
+    // a variable holding a function. Nobody writes the second, and the parser reads both as the same
+    // thing, so the brackets were noise that depended on whether a name happened to resolve.
+    //
+    // Found by round-tripping the store: a body printed `|> inDeclaredOrder (declaredFieldOrder n)` and
+    // re-parsed, with no resolver in reach, to the variable form, which printed
+    // `|> (inDeclaredOrder (declaredFieldOrder n))`. Two spellings of one node is the only reason
+    // print-parse-print was not idempotent anywhere in the store.
+    //
+    // The lambda below keeps ITS parens for a real reason, written there: a bare lambda swallows the
+    // remaining stages. A call does not.
     match exprs with
     | [] -> txt varName
-    | exprs -> parens (applied (txt varName) exprs)
+    | exprs -> applied (txt varName) exprs
 
   | EPipeLambda(_id, pats, body) ->
     let argsPart =

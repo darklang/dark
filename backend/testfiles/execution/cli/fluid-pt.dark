@@ -2281,3 +2281,51 @@ module AnInterpolationIsNotABreakPoint =
      | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr"))) =
     "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
+
+
+module APipeStageIsSpelledOneWay =
+  // `EPipeVariable` and `EPipeFnCall` are one construct, a call in a pipe stage, and the printer spelled
+  // them two ways: `xs |> Stdlib.List.map g` for a resolved name and `xs |> (f y)` for a variable holding
+  // a function. Nobody writes the second, the parser reads both as the same thing, and which one you got
+  // depended on whether a name happened to resolve.
+  //
+  // Found by round-tripping every function body in the store. It was the only reason print-parse-print
+  // was not idempotent anywhere: a body printed `|> inDeclaredOrder (declaredFieldOrder n)` and, re-parsed
+  // with no resolver in reach, came back as the variable form and printed the brackets.
+  let printed (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Stdlib.Pretty.render 80 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let drawn (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  (APipeStageIsSpelledOneWay.printed "xs |> f y") = "xs |> f y"
+  (APipeStageIsSpelledOneWay.printed "xs |> f y z") = "xs |> f y z"
+  (APipeStageIsSpelledOneWay.printed "xs |> f") = "xs |> f"
+
+  // ...the same as the resolved form beside it, which is the point.
+  (APipeStageIsSpelledOneWay.printed "xs |> Stdlib.List.map g") = "xs |> Stdlib.List.map g"
+
+  // Brackets the source had are dropped, so the two spellings converge rather than both surviving.
+  (APipeStageIsSpelledOneWay.printed "xs |> (f y)") = "xs |> f y"
+
+  // A LAMBDA keeps its brackets, and for a reason written on that branch: a bare lambda swallows the
+  // stages after it. A call does not, which is why only one of the two needs them.
+  (APipeStageIsSpelledOneWay.printed "xs |> (fun a -> a + 1) |> g") = "xs |> (fun a -> a + 1) |> g"
+
+  // An infix section keeps its own brackets too: they are part of how the operator is named.
+  (APipeStageIsSpelledOneWay.printed "xs |> (+) 1") = "xs |> (+) 1"
+
+  // Fluid drew it without brackets all along, so this closes a printer/Fluid divergence as well as an
+  // idempotence one. Checked here rather than assumed, because "the other projection agrees" is the
+  // claim the whole two-drawings argument rests on.
+  (APipeStageIsSpelledOneWay.drawn "xs |> f y") = "xs |> f y"
+  (APipeStageIsSpelledOneWay.drawn "xs |> (fun a -> a + 1) |> g") = "xs |> (fun a -> a + 1) |> g"
+  (APipeStageIsSpelledOneWay.drawn "xs |> (+) 1") = "xs |> (+) 1"
+
+  // Two stages of the unresolved form still parse as two stages once the brackets are gone, which is the
+  // thing the brackets could plausibly have been holding up.
+  (APipeStageIsSpelledOneWay.printed "xs |> f y |> g z") = "xs |> f y |> g z"
