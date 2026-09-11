@@ -2384,3 +2384,86 @@ module ARecordFieldCanBreakAfterItsEquals =
   // A record UPDATE has the same fields and got the same fix.
   (ARecordFieldCanBreakAfterItsEquals.printed 40 "{ st with searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }") =
     "{ st with\n  searchDepth =\n    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants\n}"
+
+
+module AFullListSaysSoRatherThanDenyingItExists =
+  // `o` adds another item to the list the caret is in, and it refused with "nothing here is in a list"
+  // for BOTH of the reasons it can fail. One of them is a lie: a resolved record's fields are a list, and
+  // a full one, because a record literal carries exactly the fields its type declares. Standing on a
+  // field of a five-field record and being told there is no list here is the kind of refusal that makes
+  // you doubt the editor rather than the edit.
+  //
+  // Found by opening a real function in a terminal and pressing `o`, which is the only way it was going
+  // to turn up: every record in this corpus is an unresolved `Acme.*` with no declaration to count, so
+  // the cap never fires and the message never shows. Which is also why the fixture below has to use a
+  // type the store really has.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr")
+
+  let msg (src: String) (keys: List<String>) : String =
+    (Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (AFullListSaysSoRatherThanDenyingItExists.reg ()) (AFullListSaysSoRatherThanDenyingItExists.docOf src) 70) keys).message
+
+  let resolved () : String =
+    "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"a\"; modules = []; name = \"b\" }"
+
+  // A record whose type resolved: its fields are capped at what the declaration has, so `o` cannot grow
+  // it, and now says which of the two things is true.
+  (AFullListSaysSoRatherThanDenyingItExists.msg (AFullListSaysSoRatherThanDenyingItExists.resolved ()) [ "<Esc>", "j", "j", "o" ]) =
+    "that list takes no more items"
+
+  // The other reason still reads the way it always did, so the two are distinguishable rather than one
+  // message replacing the other.
+  (AFullListSaysSoRatherThanDenyingItExists.msg "1 + 2" [ "<Esc>", "o" ]) = "nothing here is in a list"
+
+  // And a list that CAN grow still grows, silently. This is the case that has to keep working for the
+  // two above to be about messages rather than about `o` having stopped working.
+  (AFullListSaysSoRatherThanDenyingItExists.msg "Acme.Q { a = 1; b = 2 }" [ "<Esc>", "j", "j", "o" ]) = ""
+
+
+module APipeHeadThatSwallowsIsBracketed =
+  // A pipe's first stage can be a construct that SWALLOWS what follows it. Fluid drew it bare, so the
+  // `|>` after it was read as part of that construct rather than as the pipe:
+  //
+  //     match m with | [] -> a | _ -> b |> Option.Some
+  //
+  // puts the pipe inside the LAST ARM. A different program, not a layout difference, and the one
+  // invariant the editor rests on.
+  //
+  // Found by the whole-store drawing sweep, and only because an unrelated edit shifted which functions
+  // "every fortieth" picks. It had been true the whole time, which is the argument for a sampling corpus
+  // whose sample moves.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let drawn (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Debug.render (APipeHeadThatSwallowsIsBracketed.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  /// Does the drawing read back as the same program?
+  let survives (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      (match Darklang.LanguageTools.Parser.Parse.parsePTExpr (APipeHeadThatSwallowsIsBracketed.drawn src) with
+       | Ok e2 ->
+         (Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e2)
+           == (Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e)
+       | Error _ -> false)
+    | Error _ -> false
+
+  // The property, which is the reason for the change.
+  (APipeHeadThatSwallowsIsBracketed.survives "(match m with | [] -> a | _ -> b) |> Option.Some") = true
+  (APipeHeadThatSwallowsIsBracketed.survives "(if c then a else b) |> f") = true
+  (APipeHeadThatSwallowsIsBracketed.survives "(let x = 1\nx) |> f") = true
+
+  // The brackets are there, on the construct that needs them.
+  (Stdlib.String.startsWith (APipeHeadThatSwallowsIsBracketed.drawn "(if c then a else b) |> f") "(if ") = true
+
+  // ...and NOT on a head that does not swallow, so the pin is about the swallow and not about a pipe
+  // head always being bracketed.
+  (APipeHeadThatSwallowsIsBracketed.drawn "xs |> f") = "xs |> f"
+  (APipeHeadThatSwallowsIsBracketed.drawn "(1 + 2) |> f") = "1 + 2 |> f"
+  (APipeHeadThatSwallowsIsBracketed.drawn "[1, 2] |> f") = "[1, 2] |> f"

@@ -4904,6 +4904,31 @@ let addSibling (st: State) : Stdlib.Option.Option<State> =
       let (parentPath, slot, i) = entry
       addSiblingAt st parentPath slot i)
 
+/// Why `addSibling` refused, in the words of what is actually true here.
+///
+/// It said "nothing here is in a list" for both of the reasons it can fail, and one of them is a lie. A
+/// resolved record's fields ARE a list, and it is a FULL one, because a record literal carries exactly
+/// the fields its type declares. Standing on `searchDepth` in a five-field record and being told there
+/// is no list here is the kind of refusal that makes you doubt the editor rather than the edit.
+///
+/// Found by opening a real function in a terminal and pressing `o`, which is the only way this was ever
+/// going to turn up: every record in the test corpus is an unresolved `Acme.*` with no declaration to
+/// count, so the cap never fires and the message never shows.
+let addSiblingRefusal (st: State) : String =
+  let entries = enclosingListItems st.caret
+
+  if Stdlib.List.isEmpty entries then
+    "nothing here is in a list"
+  else if
+    entries
+    |> Stdlib.List.any (fun e ->
+      let (parentPath, slot, _) = e
+      listIsFull st parentPath slot)
+  then
+    "that list takes no more items"
+  else
+    "nothing here is in a list"
+
 /// The same walk, stopping at the first list that is FULL rather than climbing past it.
 ///
 /// Enter wants the climb: at the end of `Ok(1)` in a match arm, Enter means the next arm, and the arm
@@ -5259,7 +5284,7 @@ let runCommand (st: State) (cmd: Command) : State =
   | AddSibling ->
     (match addSibling st with
      | Some s2 -> { s2 with mode = Mode.Insert }
-     | None -> { st with message = "nothing here is in a list" })
+     | None -> { st with message = addSiblingRefusal st })
   | Undo -> undo st
   | Redo -> redo st
   | ToggleAnchor -> toggleAnchor st
@@ -5342,7 +5367,7 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           // thing you type is read as a command and thrown away, which is the whole reason the key exists.
           (match addSibling st with
            | Some s2 -> handled { s2 with mode = Mode.Insert }
-           | None -> handled { st with message = "nothing here is in a list" })
+           | None -> handled { st with message = addSiblingRefusal st })
         elif ch == "i" then handled (enterInsert st)
         elif ch == "x" then handled (clearNode st)
         elif ch == "u" then handled (undo st)

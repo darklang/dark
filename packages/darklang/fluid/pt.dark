@@ -2570,8 +2570,15 @@ let moreSpecs () : List<Spec> =
       // The line belongs to the step, not between steps: as a separator it would have to be written
       // once more in front of the first one, which is the shape that leaves a space behind when a list
       // turns out to be empty.
+      // `ParenLowSlot`, not a bare slot: a pipe's first stage can be a construct that SWALLOWS what
+      // follows it, and then the `|>` after it is read as part of that construct rather than as the pipe.
+      // `(match m with | [] -> a | _ -> b) |> Option.Some` drew without the brackets and re-parsed with
+      // the `|> Option.Some` inside the last arm, which is a different program, not a layout difference.
+      //
+      // Found by the whole-store drawing sweep, which only reached this body because an unrelated edit
+      // shifted which functions "every fortieth" picks. It had been true the whole time.
       [ Piece.Group
-          [ Piece.Slot "first"
+          [ Piece.ParenLowSlot "first"
             Piece.EachWith("steps", [ Piece.Line, Piece.Punct "|>", Piece.Space ], []) ] ]
       (Node.make (exprKind "EPipe") [ ("first", Field.One(Slot.Empty(exprExpect "value"))), ("steps", Field.Many([ Slot.Empty(pipeExpect "step") ], pipeExpect "step")) ])
     |> fun sp -> Spec.collapsingWhenEmptied sp "steps" "first"
