@@ -68,6 +68,19 @@ type Request =
   /// build a request naming a resource we know nothing about.
   | Custom of effect : string
 
+  /// The WHOLE of a scoped effect, asked for by something whose resource this runtime cannot
+  /// see: a platform that runs in another process and performs its own I/O.
+  ///
+  /// A linked builtin reaching the network builds an `Http` request naming the method and URL,
+  /// and a narrow rule can answer it. An out-of-process platform makes the call inside its own
+  /// process, so the host never learns the URL and no narrow rule can honestly be checked
+  /// against it. Rather than skip the check, which is what happened before this existed, ask the
+  /// only question that can be answered: has the whole effect been granted.
+  ///
+  /// Deliberately NOT covered by scoped rules. `allow http GET 'https://api.example.com'` must
+  /// not satisfy this, because nothing would hold the platform to that URL.
+  | WholeEffect of effect : Effect.Effect
+
 module Request =
   /// One shell-safe token for an actionable `permissions allow` command.
   /// Always quote guest-controlled text: paths and URLs may contain spaces or
@@ -100,6 +113,7 @@ module Request =
     | Request.Policy AccessKind.Write -> Effect.Effect.PolicyWrite
     | Request.Native _ -> Effect.Effect.Native
     | Request.Custom effect -> Effect.Effect.Custom effect
+    | Request.WholeEffect effect -> effect
 
   /// Return the narrow `permissions allow <rule>` text that covers this
   /// request, or `None` when the effect has no scoped rule (such as Native).
@@ -150,6 +164,9 @@ module Request =
     // Unlike `Native`, which is keyed per builtin and grantable only as a whole, a custom
     // effect IS the unit a platform advertises, so its own name is the rule.
     | Request.Custom effect -> Some effect
+    // The unscoped spelling, and only that. A narrower rule would not cover this request, so
+    // suggesting one would send somebody round a loop where the fix they were handed does not fix it.
+    | Request.WholeEffect effect -> Some(Effect.name effect)
 
   let httpServer (port : int) : Result<Request, string> =
     if port >= 0 && port <= 65535 then
@@ -243,6 +260,9 @@ module Request =
   /// The request an ambient effect stands for, checked at the interpreter
   /// gate before a builtin body runs. `Native` is keyed by the builtin's name.
   /// Scoped effects name a resource and never reach the gate.
+  /// Ask for the whole of an effect, for a caller whose resource this runtime cannot see.
+  let wholeEffect (effect : Effect.Effect) : Request = Request.WholeEffect effect
+
   let ofAmbientEffect (effect : Effect.Effect) (builtinName : string) : Request =
     match effect with
     | Effect.Effect.Stdout -> Request.Stdout

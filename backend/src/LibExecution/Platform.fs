@@ -508,7 +508,14 @@ module External =
         callEffects = fn.effects
         fn =
           (function
-          | state, _, _, args -> invoke state fn.name (List.ofArray args)) })
+          | state, vm, _, args ->
+            // The gate the interpreter cannot run for us. Its ambient check skips SCOPED effects,
+            // because a linked builtin's body builds an `Operation` naming the resource and the
+            // host boundary checks that. There is no body here: the platform performs its own I/O
+            // in its own process, so the boundary is never reached and the declaration would go
+            // unchecked. Ask for the whole effect instead, which is the only honest question.
+            PermissionCheck.requireDescribedPlatformEffects state vm fn.effects fn.name
+            invoke state fn.name (List.ofArray args)) })
     |> Builtin.make []
 
 

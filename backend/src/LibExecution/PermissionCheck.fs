@@ -254,6 +254,41 @@ let requireBuiltinEffects
   : unit =
   requireBuiltinEffectsWithAccess state vm vm.activeAccess effects builtinName
 
+/// Check every effect an OUT-OF-PROCESS platform declared, before its process is asked to do
+/// anything.
+///
+/// The ambient check above deliberately skips scoped effects, because a linked builtin's body
+/// builds an `Operation` naming the resource and the host boundary checks that instead. A platform
+/// in another process has no body here. It performs its own I/O, inside itself, and the host never
+/// learns which URL or which path. So the boundary check never happens, and before this existed a
+/// manifest declaring `http` got the network with the policy never consulted.
+///
+/// The only question that can honestly be asked is whether the WHOLE effect was granted, and that
+/// is what `Request.WholeEffect` asks. A narrow rule deliberately does not satisfy it: nothing
+/// would hold the platform to the URL in the rule.
+///
+/// The cost is real and belongs to running somebody else's process, not to this check: an external
+/// platform that wants the network needs `permissions allow http`, where a linked one can be held
+/// to one host. That is a reason to prefer a linked platform for a scoped effect, which is true.
+let requireDescribedPlatformEffects
+  (state : ExecutionState)
+  (vm : VMState)
+  (effects : Set<Effect.Effect>)
+  (builtinName : string)
+  : unit =
+  for effect in effects do
+    let request =
+      if Effect.isScoped effect then
+        Permission.Request.wholeEffect effect
+      else
+        Permission.Request.ofAmbientEffect effect builtinName
+    checkRequestWithAccess
+      state
+      vm
+      vm.activeAccess
+      (fun () -> $"`{builtinName}` ({Effect.name effect})")
+      request
+
 // ── filesystem ────────────────────────────────────────────────────────────────
 // For the seed-export store builtin, which takes a path but does not go through
 // a host `Operation`. Same guards as the boundary's file arms.

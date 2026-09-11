@@ -443,6 +443,52 @@ let aShellRuleGrantsEverything =
     Expect.isFalse (allowsExactly "/bin/bash" [ "-c"; "ls -l" ]) "and nothing else, not even close"
   }
 
+let aWholeEffectNeedsTheWholeGrant =
+  test "a whole-effect request is not satisfied by a narrow rule" {
+    // What an out-of-process platform asks for. It performs its own I/O inside its own process,
+    // so the host never learns the URL and no narrow rule can honestly be checked against it.
+    // A scoped rule must therefore NOT satisfy it: nothing would hold the platform to that URL.
+    let narrow =
+      Permission.Policy.create
+        [ Permission.Rule.Http
+            { method = only "GET"
+              scheme = only "https"
+              host = Permission.HostRule.Exact "example.com"
+              port = only 443
+              pathPrefix = Permission.Scope.All
+              query = Permission.Scope.All } ]
+        []
+    let broad =
+      Permission.Policy.create [ Permission.Rule.Effect Effect.Effect.Http ] []
+    let everything = Permission.Policy.create [ Permission.Rule.All ] []
+    let denied =
+      Permission.Policy.create
+        [ Permission.Rule.Effect Effect.Effect.Http ]
+        [ Permission.Rule.Effect Effect.Effect.Http ]
+
+    let whole = Permission.Request.wholeEffect Effect.Effect.Http
+
+    Expect.isFalse
+      (Permission.Policy.allows whole narrow)
+      "one URL is not the whole effect, however generous the rest of the rule"
+    Expect.isTrue (Permission.Policy.allows whole broad) "`allow http` is"
+    Expect.isTrue (Permission.Policy.allows whole everything) "and so is `all`"
+    Expect.isFalse (Permission.Policy.allows whole denied) "deny still beats allow"
+
+    // The same narrow rule keeps working for a linked builtin, which names its resource.
+    match Permission.Request.http "GET" "https://example.com/" with
+    | Ok scoped ->
+      Expect.isTrue
+        (Permission.Policy.allows scoped narrow)
+        "the narrow rule still answers the request it was written for"
+    | Error e -> failtest e
+
+    Expect.equal
+      (Permission.Request.suggestRule whole)
+      (Some "http")
+      "and the suggestion is the unscoped spelling, since nothing narrower would fix it"
+  }
+
 let coverableEffectsFollowTheRules =
   test "the effects a policy can allow are read off its allow rules" {
     Expect.equal
@@ -567,6 +613,7 @@ let tests =
       fileRulesSeeThroughSymlinkedRoots
       processRulesPreserveArgumentOrder
       aShellRuleGrantsEverything
+      aWholeEffectNeedsTheWholeGrant
       coverableEffectsFollowTheRules
       suggestRuleIsActionable
       capturedAccessCannotWidenCaller

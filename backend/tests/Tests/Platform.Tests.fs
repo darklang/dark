@@ -974,6 +974,45 @@ let private runDescribed
       Exe.executeFunction state name [] (NEList.singleton RT.DUnit)
   }
 
+let aDescribedPlatformCannotSkipAScopedEffect =
+  testTask "a scoped effect an external platform declares is checked, not skipped" {
+    // The hole this closes. The interpreter's ambient gate skips SCOPED effects on purpose: a
+    // linked builtin's body builds an `Operation` naming the resource, and the host boundary
+    // checks that instead. A platform in another process has no body here. It performs its own
+    // I/O, so the boundary is never reached, and a manifest declaring `http` used to get the
+    // network with the policy never consulted.
+    let scoped = Set.singleton Effects.Effect.Http
+
+    // A narrow rule must NOT satisfy it. Nothing would hold the platform to that URL.
+    let narrow =
+      Permission.Policy.create
+        [ Permission.Rule.Http
+            { method = Permission.Scope.All
+              scheme = Permission.Scope.All
+              host = Permission.HostRule.Exact "example.com"
+              port = Permission.Scope.All
+              pathPrefix = Permission.Scope.All
+              query = Permission.Scope.All } ]
+        []
+    let! underNarrow = runDescribed scoped narrow
+    match underNarrow with
+    | Error _ -> ()
+    | Ok value ->
+      failtest $"a narrow http rule let an out-of-process platform through: {value}"
+
+    // The whole grant does, which is the cost of running somebody else's process and is the
+    // reason to prefer a linked platform when an effect can be scoped.
+    let! underWhole =
+      runDescribed
+        scoped
+        (Permission.Policy.create
+          [ Permission.Rule.Effect Effects.Effect.Http ]
+          [])
+    match underWhole with
+    | Ok(RT.DString "TAG-42") -> ()
+    | other -> failtest $"`allow http` should have been enough: {other}"
+  }
+
 let aDescribedPlatformComposes =
   test "a described platform composes and is indistinguishable in the manifest" {
     let core = Platforms.Sets.sealedCompute ()
@@ -2382,6 +2421,7 @@ let tests =
       aForeignEffectResolvesByName
       aForeignEffectIsGranted
       aForeignEffectSuggestsItsOwnRule
+      aDescribedPlatformCannotSkipAScopedEffect
       aCustomRequestNeedsACustomEffect
       alwaysOnListsAgree
       theFloorCanNameThings
