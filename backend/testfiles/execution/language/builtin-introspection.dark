@@ -43,3 +43,17 @@ module Documentation =
    |> Builtin.unwrap
    |> (fun f -> f.effects |> Stdlib.List.length))
    > 1 = true
+
+  // The second gate reaches Dark too, so a listing can show it. It is a call inside a body, so
+  // without this the only way to know is to read the builtin's source.
+  ((Builtin.getAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "httpGetUnsafeBytes")
+   |> Builtin.unwrap
+   |> (fun f -> f.firstPartyOnly))
+   = true
+
+  ((Builtin.getAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "httpClientRequest")
+   |> Builtin.unwrap
+   |> (fun f -> f.firstPartyOnly))
+   = false

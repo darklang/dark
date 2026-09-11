@@ -75,6 +75,14 @@ let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
   | Impure -> "[impure]"
 
 
+/// Marks a builtin that only bundled first-party Dark may call, whatever the policy says.
+///
+/// Always shown, not behind a flag. A second gate you have to ask for is a second gate nobody
+/// knows to ask about, and the whole point of listing it is that it was invisible.
+let trustTag (fn: LanguageTools.BuiltinFunction) : String =
+  if fn.firstPartyOnly then " *" else ""
+
+
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
   (groups: List<String * List<LanguageTools.BuiltinFunction>>)
@@ -254,7 +262,7 @@ let execute (state: AppState) (args: List<String>): AppState =
           if withPurity then $" {purityTag fn.purity}" else ""
 
         Stdlib.printLine
-          $"  {fn.name.name}{versionSuffix fn.name.version}({params}) -> {returnTypeStr}{suffix}"))
+          $"  {fn.name.name}{versionSuffix fn.name.version}({params}) -> {returnTypeStr}{suffix}{trustTag fn}"))
   else
     // Compact output: comma-separated names
     filteredGroups
@@ -267,7 +275,7 @@ let execute (state: AppState) (args: List<String>): AppState =
         |> Stdlib.List.map (fun fn ->
           let suffix =
             if withPurity then $" {purityTag fn.purity}" else ""
-          $"{fn.name.name}{versionSuffix fn.name.version}{suffix}")
+          $"{fn.name.name}{versionSuffix fn.name.version}{suffix}{trustTag fn}")
         |> Stdlib.String.join ", "
 
       Stdlib.printLine ""
@@ -302,6 +310,18 @@ let execute (state: AppState) (args: List<String>): AppState =
   [ ""
     Stdlib.Cli.UI.Colors.hint summary ]
   |> Stdlib.printLines
+
+  // Only when one is on screen. A legend for a mark nobody saw is noise on every other run.
+  let anyFirstParty =
+    filteredGroups
+    |> Stdlib.List.map (fun (_, fns) -> fns)
+    |> Stdlib.List.flatten
+    |> Stdlib.List.any (fun fn -> fn.firstPartyOnly)
+
+  if anyFirstParty then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "* only bundled first-party Dark may call this, whatever the policy says")
 
   if Stdlib.Bool.not withSigs then
     Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure")

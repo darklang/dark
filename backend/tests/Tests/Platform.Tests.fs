@@ -2027,16 +2027,15 @@ let theFirstPartyListMatchesTheSource =
 
     Expect.equal
       called
-      Platforms.Sets.firstPartyOnly
+      LibExecution.PermissionCheck.firstPartyOnly
       "every builtin that checks caller trust is listed, and nothing else is"
   }
 
 let aCollidingPlatformIsSkippedNotFatal =
   test "a platform claiming a name something else provides is skipped, not fatal" {
-    // Found by installing one. Before this, an external platform whose builtin collided with a
-    // linked one raised at startup, which bricked the CLI: the install could only be undone by a
-    // command, and the command no longer started. Recovering meant hand-editing a file in the
-    // policy directory.
+    // The bug this pins: an external platform whose builtin collided with a linked one raised at
+    // startup, which bricked the CLI. The install could only be undone by a command, and the
+    // command no longer started, so recovering meant hand-editing a file in the policy directory.
     //
     // A LINKED collision is still fatal, and should be: that is a build mistake, decided before
     // anybody ran anything. An INSTALLED one arrives afterwards, from somebody else's manifest.

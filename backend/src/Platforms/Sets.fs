@@ -112,9 +112,9 @@ let everythingFor (pm : LibExecution.ProgramTypes.PackageManager) : PlatformSet 
 
 /// What the shipped CLI runs.
 ///
-/// Currently the whole catalog. Kept as its own name anyway, because "what the CLI links" and "what
-/// this build knows how to link" are different questions that happen to have the same answer today,
-/// and the first one is the one that shrinks.
+/// The whole catalog. Kept as its own name rather than as a use of `everything`, because "what the
+/// CLI links" and "what this build knows how to link" are different questions that happen to share
+/// an answer, and only the first one is expected to shrink.
 let cli () : PlatformSet = everything ()
 
 
@@ -192,31 +192,6 @@ let undeclaredImpure (set : PlatformSet) : List<string> =
   |> List.sort
 
 
-/// Builtins that only BUNDLED first-party Dark may call, whatever the policy says.
-///
-/// The second gate, and until this list existed it was the invisible one. A builtin's effects are
-/// declared, checked before the body runs, printed by `dark permissions`, and carried in a
-/// manifest. This one is a call inside a body, so nothing outside that body knew it was there: a
-/// person reading what `Instance` reaches saw `package-read` and had no way to learn that two of
-/// those builtins refuse a pulled package outright.
-///
-/// It exists for the cases no rule can scope honestly. `localDbBackupTo` writes this instance's
-/// whole store to a path the caller names; the sync transport reaches loopback and the tailnet,
-/// which the safe HTTP client bans. Both would have to declare `native` to be honest in the effect
-/// vocabulary, and `native` is all-or-nothing, so a stock install would need `allow native` to run
-/// `dark sync`. Caller trust is the narrower answer, and this makes it a visible one.
-///
-/// Pinned by a test against the source, so the list cannot drift from the calls.
-let firstPartyOnly : Set<string> =
-  Set.ofList
-    [ "httpGetUnsafeBytes"
-      "httpGetUnsafeBytesStart"
-      "httpGetUnsafeBytesWithHeaders"
-      "httpPostUnsafeBytes"
-      "localDbBackupTo"
-      "localDbRestoreFrom" ]
-
-
 /// Every effect, with how many builtins reach it and which platforms they come from.
 ///
 /// The tightening report asks "what does this platform reach"; this asks the question the other way
@@ -270,7 +245,7 @@ let effectDoors (set : PlatformSet) : List<string> =
 
   let gatedTwice =
     doors
-    |> List.filter (fun (_, _, f) -> Set.contains f firstPartyOnly)
+    |> List.filter (fun (_, _, f) -> Set.contains f LibExecution.PermissionCheck.firstPartyOnly)
     |> List.map (fun (_, _, f) -> f)
     |> List.distinct
     |> List.sort
@@ -311,7 +286,7 @@ let doorsTo (set : PlatformSet) (effectName : string) : List<string> =
         | other -> string other
       let ps = fn.parameters |> List.map (fun p -> typ p.typ) |> String.concat ", "
       let trust =
-        if Set.contains fn.name.name firstPartyOnly then "  first-party only" else ""
+        if Set.contains fn.name.name LibExecution.PermissionCheck.firstPartyOnly then "  first-party only" else ""
       $"{p.name, -12} {fn.name.name, -32} ({ps}){trust}")
     |> List.ofSeq)
   |> List.sort

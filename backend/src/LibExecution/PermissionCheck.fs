@@ -165,6 +165,33 @@ let performHost
   : Ply<Result<Host.Response, Host.Failure>> =
   performHostWithAccess state vm vm.activeAccess op
 
+/// Builtins that only BUNDLED first-party Dark may call, whatever the policy says.
+///
+/// The second gate, and the one that is easy to miss. A builtin's effects are declared, checked
+/// before the body runs, printed by `dark permissions`, and carried in a manifest. This one is a
+/// call inside a body, so without a list of its own nothing outside that body can see it: someone
+/// reading what `Instance` reaches would see `package-read` and have no way to learn that some of
+/// those builtins refuse a pulled package outright.
+///
+/// It exists for the cases no rule can scope honestly. `localDbBackupTo` writes this instance's
+/// whole store to a path the caller names; the sync transport reaches loopback and the tailnet,
+/// which the safe HTTP client bans. Both would have to declare `native` to be honest in the effect
+/// vocabulary, and `native` is all-or-nothing, so a stock install would need `allow native` to run
+/// `dark sync`. Caller trust is the narrower answer, and this makes it a visible one.
+///
+/// Lives here rather than beside the catalog because it describes a RUNTIME trust mechanism, not
+/// a fact about which platform ships what, and because everything that has to read it sits below
+/// the catalog. Pinned by a test against the source, so the list cannot drift from the calls.
+let firstPartyOnly : Set<string> =
+  Set.ofList
+    [ "httpGetUnsafeBytes"
+      "httpGetUnsafeBytesStart"
+      "httpGetUnsafeBytesWithHeaders"
+      "httpPostUnsafeBytes"
+      "localDbBackupTo"
+      "localDbRestoreFrom" ]
+
+
 /// Is every non-root frame bundled first-party (Darklang) code?
 ///
 /// The trust question behind the two builtins nobody can scope honestly: the private-network

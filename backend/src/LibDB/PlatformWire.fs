@@ -7,8 +7,8 @@
 ///
 /// The envelope, ahead of every frame in both directions: a varint count, then that many entries of
 /// a hash (length-prefixed string), a varint byte count, and the bytes. After it comes the payload,
-/// in exactly the encoding it had before this existed, with every blob appearing as a PERSISTENT
-/// reference. A receiver rehydrates any reference whose hash is in the table.
+/// in the ordinary at-rest encoding, with every blob appearing as a PERSISTENT reference. A
+/// receiver rehydrates any reference whose hash is in the table.
 ///
 /// Keyed by content hash rather than by position, which buys two things for free. The same blob
 /// passed twice is one entry. And a hash that is NOT in the table is still meaningful: it is a

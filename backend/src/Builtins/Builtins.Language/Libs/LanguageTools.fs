@@ -157,7 +157,15 @@ let fns () : List<BuiltInFn> =
                   "parameters", parameters
                   "returnType", RT2DT.TypeReference.toDT data.returnType
                   "purity", purityToDT data.previewable
-                  "effects", effects ]
+                  "effects", effects
+                  // The second gate, which is a call inside a body and therefore invisible to
+                  // anything reading the registry. Surfaced here so a listing can say so.
+                  "firstPartyOnly",
+                  DBool(
+                    Set.contains
+                      name.name
+                      LibExecution.PermissionCheck.firstPartyOnly
+                  ) ]
 
               DRecord(builtinFn (), builtinFn (), [], Map fields))
 

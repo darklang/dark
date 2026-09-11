@@ -36,8 +36,17 @@ type BuiltinFunction =
     ///
     /// Per BUILTIN rather than per platform, which is the granularity the question is actually
     /// asked at: a platform's effect list is the union of its builtins', so it tells you that
-    /// `Files` reaches `file-write` and not which four functions are the reason.
-    effects: List<String> }
+    /// `Files` reaches `file-write` and not which of its functions are the reason.
+    effects: List<String>
+
+    /// Whether only bundled first-party Dark may call this, whatever the policy says.
+    ///
+    /// A second gate, for the cases no rule can scope honestly: a backup path is any path, and the
+    /// sync transport reaches loopback and the tailnet. Both would have to declare `native` to be
+    /// honest in the effect vocabulary, and `native` is all or nothing, so a stock install would
+    /// need `allow native` before `dark sync` worked. Caller trust is the narrower answer, and
+    /// this is what makes it a visible one.
+    firstPartyOnly: Bool }
 
 /// Every builtin fn this runtime has. The list is built fresh on each call,
 /// so hold onto it if you're looking up more than one name.
