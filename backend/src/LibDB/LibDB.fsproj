@@ -46,12 +46,16 @@
     <Compile Include="LocalFile.fs" />
     <Compile Include="Activation.fs" />
     <Compile Include="PolicyStore.fs" />
+    <Compile Include="PlatformArtifacts.fs" />
+    <Compile Include="PlatformSpawn.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />
     <Compile Include="Releases.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="PackagePermissions.fs" />
+    <Compile Include="PlatformInstall.fs" />
+    <Compile Include="InstalledPlatforms.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />

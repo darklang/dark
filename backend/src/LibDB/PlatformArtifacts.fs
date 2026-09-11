@@ -3,7 +3,7 @@
 /// The cache is keyed by the artifact's SHA-256, which is also the name the manifest gave it, so
 /// two platforms shipping the same bytes share one file and a changed artifact cannot land on top
 /// of the one it replaces. Nobody names a file: the hash is the name and the runtime owns the path.
-module Platforms.Artifacts
+module LibDB.PlatformArtifacts
 
 open System
 open Prelude

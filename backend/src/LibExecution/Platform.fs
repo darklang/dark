@@ -440,15 +440,18 @@ module External =
       description : string
     }
 
-  /// What actually performs the call: the builtin's INDEX in the platform's own list, and its
-  /// already-evaluated arguments.
+  /// What actually performs the call: the builtin's NAME, and its already-evaluated arguments.
   ///
-  /// An index rather than a name because that is what a wire protocol wants, and because it keeps
-  /// this module free of any opinion about transport. A test passes a function; a shipped platform
-  /// passes something that writes to a pipe.
-  type Invoke = int -> List<Dval> -> Ply<Dval>
+  /// By name rather than by position in the manifest, which is what this was first. Position is
+  /// the cheaper wire and it is a trap: a manifest listing its builtins in a different order from
+  /// the plugin silently binds every call to the wrong function, and the failure is a type error
+  /// somewhere else or, worse, a plausible answer. The manifest and the plugin already agree on
+  /// names, so names are what should cross.
+  ///
+  /// The cost is a short string per call, which measured as nothing next to the pipe round trip.
+  type Invoke = string -> List<Dval> -> Ply<Dval>
 
-  /// Describe-to-`Builtins`, pairing each description with its index.
+  /// Describe-to-`Builtins`.
   ///
   /// `previewable` is `Impure` for all of them, unconditionally. A described builtin cannot be
   /// shown to be pure: purity is a claim about a body we cannot see, and guessing generously here
@@ -457,7 +460,7 @@ module External =
   /// `sqlSpec` is `NotQueryable` for the same reason.
   let builtins (invoke : Invoke) (fns : List<Fn>) : Builtins =
     fns
-    |> List.mapi (fun index (fn : Fn) ->
+    |> List.map (fun (fn : Fn) ->
       { name = FQFnName.builtin fn.name fn.version
         typeParams = []
         parameters =
@@ -471,7 +474,7 @@ module External =
         callEffects = fn.effects
         fn =
           (function
-          | _, _, _, args -> invoke index (List.ofArray args)) })
+          | _, _, _, args -> invoke fn.name (List.ofArray args)) })
     |> Builtin.make []
 
 

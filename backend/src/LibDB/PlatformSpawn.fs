@@ -8,7 +8,7 @@
 /// refuses what cannot cross (streams, ephemeral blobs), and is what a plugin in another language
 /// has to implement either way. The encoding it has to speak is small: a tag byte, .NET's 7-bit
 /// varint for lengths, little-endian integers.
-module Platforms.Spawn
+module LibDB.PlatformSpawn
 
 open System
 open System.Diagnostics
@@ -97,14 +97,14 @@ let stop (handle : Handle) : unit =
 let private call
   (handle : Handle)
   (running : Running)
-  (index : int)
+  (name : string)
   (args : List<RT.Dval>)
   : Result<RT.Dval, string> =
   lock running.gate (fun () ->
     try
       use body = new MemoryStream()
       use bw = new BinaryWriter(body)
-      Varint.write bw index
+      LibSerialization.Binary.Serializers.Common.String.write bw name
       Varint.write bw (List.length args)
       for arg in args do
         DvalWire.writeDval bw arg
@@ -143,12 +143,12 @@ let private call
 /// falling over is an ordinary thing for a program to see: it is somebody else's executable and it
 /// is allowed to be broken.
 let invoke (handle : Handle) : Platform.External.Invoke =
-  fun index args ->
+  fun name args ->
     uply {
       match ensureRunning handle with
       | Error e -> return RT.RuntimeError.UncaughtException(e, []) |> RT.raiseUntargetedRTE
       | Ok running ->
-        match call handle running index args with
+        match call handle running name args with
         | Ok dval -> return dval
         | Error e ->
           // A broken pipe leaves the process useless, so drop it. The next call starts a fresh one

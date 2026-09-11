@@ -14,6 +14,9 @@ type Platform =
     /// you pinned changed underneath you. Not the SET's fingerprint, which also moves when an
     /// unrelated platform in the same binary changes.
     fingerprint: String
+    /// The SHA-256 of the executable this platform runs as on THIS machine, or None for a linked
+    /// platform, which is part of the binary rather than a file.
+    artifactHash: Stdlib.Option.Option<String>
     description: String
     /// Effect names, sorted. Empty for a platform that reaches nothing.
     effects: List<String>

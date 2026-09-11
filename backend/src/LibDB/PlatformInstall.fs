@@ -7,7 +7,7 @@
 /// That direction is the whole reason a manifest names types instead of carrying hashes. The same
 /// manifest resolves differently on two instances, and failing to resolve is information rather
 /// than an error in the manifest: this platform wants a type you do not have.
-module Platforms.Install
+module LibDB.PlatformInstall
 
 open Prelude
 

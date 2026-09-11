@@ -6,7 +6,7 @@
 ///
 /// The record is a name and a manifest hash. Everything else is in the manifest, and the manifest
 /// is in the artifact cache under that hash, so one line is enough to reconstruct a platform.
-module Platforms.Installed
+module LibDB.InstalledPlatforms
 
 open System
 open Prelude
@@ -90,10 +90,10 @@ let install
     | Error problems ->
       return Error { manifest = "(unparsed)"; problems = problems }
     | Ok written ->
-      match! Install.resolve pm written with
+      match! PlatformInstall.resolve pm written with
       | Error rejection -> return Error rejection
       | Ok manifest ->
-        match Artifacts.materialize hash bytes with
+        match PlatformArtifacts.materialize hash bytes with
         | Error e ->
           return
             Error
@@ -118,7 +118,7 @@ let platforms
     let mutable skipped = []
 
     for (name, manifestHash) in Map.toList (get ()) do
-      match Artifacts.path manifestHash with
+      match PlatformArtifacts.path manifestHash with
       | Error e -> skipped <- skipped @ [ (name, e) ]
       | Ok manifestFile ->
         if not (IO.File.Exists manifestFile) then
@@ -129,7 +129,7 @@ let platforms
           | Error problems ->
             skipped <- skipped @ [ (name, String.concat "; " problems) ]
           | Ok written ->
-            match! Install.resolve pm written with
+            match! PlatformInstall.resolve pm written with
             | Error rejection ->
               skipped <- skipped @ [ (name, String.concat "; " rejection.problems) ]
             | Ok manifest ->
@@ -137,12 +137,12 @@ let platforms
               | None ->
                 skipped <- skipped @ [ (name, $"it does not build for {rid}") ]
               | Some artifactHash ->
-                match Artifacts.path artifactHash with
+                match PlatformArtifacts.path artifactHash with
                 | Error e -> skipped <- skipped @ [ (name, e) ]
                 | Ok executable ->
-                  let handle = Spawn.handleFor manifest.name executable
+                  let handle = PlatformSpawn.handleFor manifest.name executable
                   match
-                    Platform.External.Manifest.toPlatform (Spawn.invoke handle) manifest
+                    Platform.External.Manifest.toPlatform (PlatformSpawn.invoke handle) manifest
                   with
                   | Error rejection ->
                     skipped <- skipped @ [ (name, String.concat "; " rejection.problems) ]
@@ -150,3 +150,37 @@ let platforms
 
     return (built, skipped)
   }
+
+
+
+
+/// This machine's runtime identifier, the key a manifest's `artifact` lines are written against.
+///
+/// .NET's own RID, so `linux-x64` and `osx-arm64` mean what a platform author expects them to: it
+/// is the same string they would name a `dotnet publish` with, and the same one a Rust or Go
+/// cross-build maps onto without a translation table of ours in between.
+let currentRid () : string =
+  System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier
+
+
+
+/// The artifact hash an installed platform needs on THIS machine, if it ships one.
+///
+/// Answers `None` for a linked platform too, which is right rather than a gap: a linked platform is
+/// part of the binary, so there is no file to name.
+let artifactHashOf (platformName : string) : Option<string> =
+  match Map.tryFind platformName (get ()) with
+  | None -> None
+  | Some manifestHash ->
+    match PlatformArtifacts.path manifestHash with
+    | Error _ -> None
+    | Ok manifestFile ->
+      if not (IO.File.Exists manifestFile) then
+        None
+      else
+        match Platform.Written.parse (IO.File.ReadAllText manifestFile) with
+        | Error _ -> None
+        | Ok written ->
+          written.artifacts
+          |> List.tryFind (fun (rid, _) -> rid = currentRid ())
+          |> Option.map snd

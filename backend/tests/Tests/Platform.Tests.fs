@@ -1426,19 +1426,19 @@ let manifestLocationsAreFullyQualified =
     // Note the doubled `Result`: the type lives in a module of the same name, so its fully
     // qualified name really is `Darklang.Stdlib.Result.Result`. A manifest has to write that,
     // which looks odd and is unambiguous, which is the trade a manifest should take.
-    match Platforms.Install.location "Darklang.Stdlib.Result.Result" with
+    match LibDB.PlatformInstall.location "Darklang.Stdlib.Result.Result" with
     | Some loc ->
       Expect.equal loc.owner "Darklang" "owner"
       Expect.equal loc.modules [ "Stdlib"; "Result" ] "modules"
       Expect.equal loc.name "Result" "name"
     | None -> failtest "should have split a fully qualified name"
 
-    match Platforms.Install.location "Acme.Serial.Deep.Config" with
+    match LibDB.PlatformInstall.location "Acme.Serial.Deep.Config" with
     | Some loc -> Expect.equal loc.modules [ "Serial"; "Deep" ] "nested modules"
     | None -> failtest "should have split a deeper name"
 
     // A bare name is refused rather than guessed at.
-    Expect.isNone (Platforms.Install.location "Result") "a bare name has no owner"
+    Expect.isNone (LibDB.PlatformInstall.location "Result") "a bare name has no owner"
   }
 
 let aManifestResolvesAgainstTheRealStore =
@@ -1463,7 +1463,7 @@ effect acme/serial
       | Error problems -> failtest $"parse: {problems}"
 
     let! (resolved : Result<External.Manifest, External.Rejection>) =
-      Platforms.Install.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
+      LibDB.PlatformInstall.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
     match resolved with
     | Error r -> failtest $"should have resolved against the real store: {r.problems}"
     | Ok manifest ->
@@ -1498,7 +1498,7 @@ effect acme/serial
       | Error problems -> failtest $"parse: {problems}"
 
     let! (resolved : Result<External.Manifest, External.Rejection>) =
-      Platforms.Install.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
+      LibDB.PlatformInstall.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
     match resolved with
     | Ok _ -> failtest "resolved a type the store does not have"
     | Error r ->
@@ -1578,17 +1578,17 @@ let anArtifactIsCachedUnderItsOwnHash =
       let bytes = System.Text.Encoding.UTF8.GetBytes "#!/bin/sh\necho hi\n"
       let hash = LibExecution.Blob.sha256Hex bytes
 
-      match Platforms.Artifacts.verified hash with
+      match LibDB.PlatformArtifacts.verified hash with
       | Ok present -> Expect.isFalse present "not there before it is written"
       | Error e -> failtest e
 
-      match Platforms.Artifacts.materialize hash bytes with
+      match LibDB.PlatformArtifacts.materialize hash bytes with
       | Error e -> failtest $"should have written: {e}"
       | Ok file ->
         Expect.isTrue (System.IO.File.Exists file) "the file is there"
         Expect.stringEnds file hash "and the hash is the whole filename"
 
-      match Platforms.Artifacts.verified hash with
+      match LibDB.PlatformArtifacts.verified hash with
       | Ok present -> Expect.isTrue present "and now it verifies"
       | Error e -> failtest e)
   }
@@ -1600,12 +1600,12 @@ let anArtifactThatLiesIsRefusedBeforeTheWrite =
       let hash = LibExecution.Blob.sha256Hex real
       let other = System.Text.Encoding.UTF8.GetBytes "something else entirely"
 
-      match Platforms.Artifacts.materialize hash other with
+      match LibDB.PlatformArtifacts.materialize hash other with
       | Ok _ -> failtest "wrote bytes that do not match their hash"
       | Error e -> Expect.stringContains e hash "the expected hash is in the message"
 
       // Checked before the write, so nothing lands under a name that would later be trusted.
-      match Platforms.Artifacts.path hash with
+      match LibDB.PlatformArtifacts.path hash with
       | Ok file -> Expect.isFalse (System.IO.File.Exists file) "and nothing was written"
       | Error e -> failtest e)
   }
@@ -1617,11 +1617,11 @@ let aTamperedArtifactFailsVerification =
     withArtifactCache (fun () ->
       let bytes = System.Text.Encoding.UTF8.GetBytes "the approved binary"
       let hash = LibExecution.Blob.sha256Hex bytes
-      match Platforms.Artifacts.materialize hash bytes with
+      match LibDB.PlatformArtifacts.materialize hash bytes with
       | Error e -> failtest e
       | Ok file ->
         System.IO.File.WriteAllBytes(file, System.Text.Encoding.UTF8.GetBytes "not that")
-        match Platforms.Artifacts.verified hash with
+        match LibDB.PlatformArtifacts.verified hash with
         | Ok present -> Expect.isFalse present "a swapped file does not verify"
         | Error e -> failtest e)
   }
@@ -1631,10 +1631,10 @@ let anArtifactHashCannotBeAPath =
     // The hash reaches here from a manifest, which came from outside, so it is checked rather than
     // trusted. Otherwise a manifest could name '../../../etc/cron.d/whatever'.
     withArtifactCache (fun () ->
-      Expect.isError (Platforms.Artifacts.path "../../etc/passwd") "no traversal"
-      Expect.isError (Platforms.Artifacts.path "deadbeef") "too short"
+      Expect.isError (LibDB.PlatformArtifacts.path "../../etc/passwd") "no traversal"
+      Expect.isError (LibDB.PlatformArtifacts.path "deadbeef") "too short"
       Expect.isError
-        (Platforms.Artifacts.path (String.replicate 64 "A"))
+        (LibDB.PlatformArtifacts.path (String.replicate 64 "A"))
         "upper case is not the hash we store under")
   }
 
@@ -1682,7 +1682,7 @@ returns String
 effect acme/serial
 """
     let! (result : Result<External.Manifest, External.Rejection>) =
-      Platforms.Install.manifestFrom (pmWithManifest (stringLiteral text)) manifestLocation
+      LibDB.PlatformInstall.manifestFrom (pmWithManifest (stringLiteral text)) manifestLocation
       |> Ply.toTask
     match result with
     | Error r -> failtest $"should have read the manifest: {r.problems}"
@@ -1701,7 +1701,7 @@ let aManifestMustBeALiteral =
     // expression that produces one.
     let computed = PT.EApply(0UL, stringLiteral "not", [], NEList.singleton (stringLiteral "ok"))
     let! (result : Result<External.Manifest, External.Rejection>) =
-      Platforms.Install.manifestFrom (pmWithManifest computed) manifestLocation |> Ply.toTask
+      LibDB.PlatformInstall.manifestFrom (pmWithManifest computed) manifestLocation |> Ply.toTask
     match result with
     | Ok _ -> failtest "accepted a manifest that was not a literal"
     | Error r ->
@@ -1713,7 +1713,7 @@ let aManifestMustBeALiteral =
 let aMissingManifestSaysSo =
   testTask "asking for a manifest that is not there says so rather than raising" {
     let! (result : Result<External.Manifest, External.Rejection>) =
-      Platforms.Install.manifestFrom TestValues.pm manifestLocation |> Ply.toTask
+      LibDB.PlatformInstall.manifestFrom TestValues.pm manifestLocation |> Ply.toTask
     match result with
     | Ok _ -> failtest "found a manifest in an empty store"
     | Error r -> Expect.isNonEmpty r.problems "with a reason"
@@ -1728,7 +1728,7 @@ let anArtifactIsFetchedOnceAndReusedAfter =
     let bytes = System.Text.Encoding.UTF8.GetBytes "the platform executable"
     let hash = LibExecution.Blob.sha256Hex bytes
     let mutable fetches = 0
-    let source : Platforms.Artifacts.Source =
+    let source : LibDB.PlatformArtifacts.Source =
       fun _ ->
         fetches <- fetches + 1
         Ply(Some bytes)
@@ -1741,23 +1741,23 @@ let anArtifactIsFetchedOnceAndReusedAfter =
     System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
     let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
     try
-      let! first = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      let! first = LibDB.PlatformArtifacts.ensure source hash |> Ply.toTask
       match first with
       | Error e -> failtest $"first fetch failed: {e}"
       | Ok file -> Expect.isTrue (System.IO.File.Exists file) "it landed"
       Expect.equal fetches 1 "fetched once"
 
-      let! second = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      let! second = LibDB.PlatformArtifacts.ensure source hash |> Ply.toTask
       Expect.isOk second "and is there the second time"
       Expect.equal fetches 1 "without asking the source again"
 
       // A swapped file is refetched rather than trusted, which is the whole reason the cache check
       // verifies instead of testing for existence.
-      match Platforms.Artifacts.path hash with
+      match LibDB.PlatformArtifacts.path hash with
       | Ok file ->
         System.IO.File.WriteAllBytes(file, System.Text.Encoding.UTF8.GetBytes "swapped")
       | Error e -> failtest e
-      let! third = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      let! third = LibDB.PlatformArtifacts.ensure source hash |> Ply.toTask
       Expect.isOk third "a swapped artifact is replaced"
       Expect.equal fetches 2 "by fetching it again"
     finally
@@ -1776,7 +1776,7 @@ let anUnavailableArtifactSaysWhatItMeans =
     let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
     try
       let hash = LibExecution.Blob.sha256Hex (System.Text.Encoding.UTF8.GetBytes "absent")
-      let! result = Platforms.Artifacts.ensure (fun _ -> Ply None) hash |> Ply.toTask
+      let! result = LibDB.PlatformArtifacts.ensure (fun _ -> Ply None) hash |> Ply.toTask
       match result with
       | Ok _ -> failtest "produced a file for bytes nobody has"
       | Error e ->
@@ -1802,13 +1802,13 @@ let aLyingSourceIsRefused =
     let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
     try
       let wanted = LibExecution.Blob.sha256Hex (System.Text.Encoding.UTF8.GetBytes "wanted")
-      let source : Platforms.Artifacts.Source =
+      let source : LibDB.PlatformArtifacts.Source =
         fun _ -> Ply(Some(System.Text.Encoding.UTF8.GetBytes "something else"))
-      let! result = Platforms.Artifacts.ensure source wanted |> Ply.toTask
+      let! result = LibDB.PlatformArtifacts.ensure source wanted |> Ply.toTask
       match result with
       | Ok _ -> failtest "accepted bytes that were not what was asked for"
       | Error e -> Expect.stringContains e "does not match its hash" "and says so"
-      match Platforms.Artifacts.path wanted with
+      match LibDB.PlatformArtifacts.path wanted with
       | Ok file -> Expect.isFalse (System.IO.File.Exists file) "nothing was written"
       | Error e -> failtest e
     finally
@@ -1851,17 +1851,17 @@ let private spawnedFns : List<External.Fn> =
       effects = Set.singleton describedEffect
       description = "exits without answering" } ]
 
-let private spawnedPlatform (handle : Platforms.Spawn.Handle) : Platform =
+let private spawnedPlatform (handle : LibDB.PlatformSpawn.Handle) : Platform =
   { name = "EchoPlatform"
     version = 0
     description = "a platform in another process"
-    builtins = External.builtins (Platforms.Spawn.invoke handle) spawnedFns
+    builtins = External.builtins (LibDB.PlatformSpawn.invoke handle) spawnedFns
     requires = [ "Core" ]
     dynamicEffects = Set.empty
     requiresStore = false }
 
 /// Call one builtin of the spawned platform, under a policy that grants its capability.
-let private callSpawned (handle : Platforms.Spawn.Handle) (name : string) (arg : RT.Dval) =
+let private callSpawned (handle : LibDB.PlatformSpawn.Handle) (name : string) (arg : RT.Dval) =
   task {
     let core = Platforms.Sets.sealedCompute ()
     let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
@@ -1885,7 +1885,7 @@ let private callSpawned (handle : Platforms.Spawn.Handle) (name : string) (arg :
 
 let aSpawnedPlatformAnswers =
   testTask "a platform in another process answers, and keeps its own state" {
-    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
     try
       // Its counter lives outside this runtime, so two calls to one process differ. That is the
       // proof it is really another process and not a clever closure.
@@ -1903,14 +1903,14 @@ let aSpawnedPlatformAnswers =
       | Ok(RT.DString "QUIET") -> ()
       | other -> failtest $"unexpected: {other}"
     finally
-      Platforms.Spawn.stop handle
+      LibDB.PlatformSpawn.stop handle
   }
 
 let aSpawnedPlatformIsPermissionChecked =
   testTask "a spawned platform's declared capability is enforced before it is called" {
     // The gate runs on what the platform DECLARED, before any bytes cross, so an ungranted
     // capability never reaches the process at all.
-    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
     try
       let core = Platforms.Sets.sealedCompute ()
       let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
@@ -1935,14 +1935,14 @@ let aSpawnedPlatformIsPermissionChecked =
       | Error _ -> ()
       | Ok other -> failtest $"ran without its capability granted: {other}"
     finally
-      Platforms.Spawn.stop handle
+      LibDB.PlatformSpawn.stop handle
   }
 
 let aCrashedPlatformIsAnErrorNotAHang =
   testTask "a platform that exits without answering is an error, not a hang" {
     // The spike found this and its harness did not handle it: a crashed plugin is a CLOSED PIPE
     // rather than any response. Left alone that is a CLI that never returns.
-    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
     try
       let! crashed = callSpawned handle "echoCrash" RT.DUnit
       match crashed with
@@ -1956,7 +1956,7 @@ let aCrashedPlatformIsAnErrorNotAHang =
       | Ok(RT.DInt64 1L) -> ()
       | other -> failtest $"did not recover after a crash: {other}"
     finally
-      Platforms.Spawn.stop handle
+      LibDB.PlatformSpawn.stop handle
   }
 
 // ── installing an external platform ───────────────────────────────────────────
@@ -2011,26 +2011,26 @@ let installingAnExternalPlatformMakesItReconstructable =
           let (text, artifactHash, artifactBytes) = echoManifestText ()
           // The artifact has to be in the cache before the platform can be rebuilt, the same way a
           // fetch would have put it there.
-          match Platforms.Artifacts.materialize artifactHash artifactBytes with
+          match LibDB.PlatformArtifacts.materialize artifactHash artifactBytes with
           | Error e -> failtest e
           | Ok _ -> ()
 
           let! (installed :
                  Result<string * External.Manifest, External.Rejection>) =
-            Platforms.Installed.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+            LibDB.InstalledPlatforms.install TestUtils.TestUtils.pmPT text |> Ply.toTask
           match installed with
           | Error r -> failtest $"install: {r.problems}"
           | Ok(manifestHash, manifest) ->
             Expect.equal manifest.name "EchoPlatform" "what was installed"
             Expect.equal
-              (Platforms.Installed.get () |> Map.tryFind "EchoPlatform")
+              (LibDB.InstalledPlatforms.get () |> Map.tryFind "EchoPlatform")
               (Some manifestHash)
               "recorded against its manifest hash"
 
           // Rebuilt from the record alone: name plus hash is enough, because the manifest is in
           // the cache under that hash and the artifact hashes are inside the manifest.
           let! (built, skipped) =
-            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
+            LibDB.InstalledPlatforms.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
           Expect.isEmpty skipped "nothing skipped"
           match built with
           | [ platform ] ->
@@ -2051,14 +2051,14 @@ let anInstallForAnotherMachineIsSkippedNotFatal =
       withPolicyDir (fun () ->
         task {
           let (text, artifactHash, artifactBytes) = echoManifestText ()
-          match Platforms.Artifacts.materialize artifactHash artifactBytes with
+          match LibDB.PlatformArtifacts.materialize artifactHash artifactBytes with
           | Error e -> failtest e
           | Ok _ -> ()
           let! (_ : Result<string * External.Manifest, External.Rejection>) =
-            Platforms.Installed.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+            LibDB.InstalledPlatforms.install TestUtils.TestUtils.pmPT text |> Ply.toTask
 
           let! (built, skipped) =
-            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "some-other-rid"
+            LibDB.InstalledPlatforms.platforms TestUtils.TestUtils.pmPT "some-other-rid"
             |> Ply.toTask
           Expect.isEmpty built "nothing built for a target it does not ship"
           match skipped with
@@ -2076,9 +2076,9 @@ let aMissingArtifactIsSkippedNotFatal =
         task {
           // Recorded by hand, pointing at a manifest hash nothing ever cached: the shape an
           // interrupted install or a hand-edited file would leave behind.
-          Platforms.Installed.add "Ghost" (String.replicate 64 "a")
+          LibDB.InstalledPlatforms.add "Ghost" (String.replicate 64 "a")
           let! (built, skipped) =
-            Platforms.Installed.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
+            LibDB.InstalledPlatforms.platforms TestUtils.TestUtils.pmPT "test-rid" |> Ply.toTask
           Expect.isEmpty built "nothing built"
           match skipped with
           | [ (name, why) ] ->

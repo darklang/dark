@@ -5,7 +5,8 @@ Python rather than C so this is a text fixture with nothing to build, and still 
 external: it speaks the wire and knows nothing about Dark.
 
 Wire, both directions: a 4-byte little-endian length, then that many bytes.
-  request  = varint builtin index, varint arg count, then each arg as a Dval
+  request  = the builtin NAME (varint length, then UTF-8), varint arg count,
+             then each arg as a Dval
   response = 1 status byte (0 ok, 1 error), then a Dval
 
 Dval encoding, only the cases this fixture needs:
@@ -26,6 +27,11 @@ def read_exact(n):
             return None
         buf += chunk
     return buf
+
+
+def read_string(data, pos):
+    length, pos = read_varint(data, pos)
+    return data[pos : pos + length].decode("utf-8"), pos + length
 
 
 def read_varint(data, pos):
@@ -69,7 +75,7 @@ def main():
         if body is None:
             return
 
-        fn, pos = read_varint(body, 0)
+        fn, pos = read_string(body, 0)
         argc, pos = read_varint(body, pos)
 
         out = bytearray()
@@ -77,22 +83,22 @@ def main():
 
         # argc is 1, not 0: a Dark builtin taking nothing still declares a `unit` parameter, so a
         # unit Dval (tag 0) arrives on the wire. Worth knowing before writing a plugin.
-        if fn == 0 and argc == 1:
+        if fn == "echoCounter" and argc == 1:
             # Impure on purpose: state living outside the runtime.
             counter += 1
             write_int64(out, counter)
-        elif fn == 1 and argc == 1 and body[pos] == 14:
+        elif fn == "echoShout" and argc == 1 and body[pos] == 14:
             pos += 1
             slen, pos = read_varint(body, pos)
             text = body[pos : pos + slen].decode("utf-8")
             write_string(out, text.upper())
-        elif fn == 2 and argc == 1:
+        elif fn == "echoCrash" and argc == 1:
             # Deliberately fall over, so the host's crash handling can be tested.
             sys.exit(1)
         else:
             out = bytearray()
             out.append(1)  # error
-            write_string(out, "no such builtin, or wrong arity")
+            write_string(out, f"no such builtin '{fn}', or wrong arity")
 
         sys.stdout.buffer.write(struct.pack("<I", len(out)))
         sys.stdout.buffer.write(bytes(out))

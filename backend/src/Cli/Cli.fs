@@ -102,8 +102,26 @@ let private currentActivation () : Option<List<string>> =
 /// The HOST always links and activates everything. It has to: the CLI is a Dark program, and it
 /// reaches for `Terminal` to print your answer and `Instance` for the store path before your code
 /// runs at all. Restricting the process starves the thing that would tell you why.
+///
+/// Installed EXTERNAL platforms are composed in here too, so an activated one is reachable the
+/// same way a linked one is. Nothing is spawned by this: building the set only describes what each
+/// platform provides, and a process starts on the first call to one of its builtins.
+///
+/// Skipped installs are held rather than printed, because this runs before the CLI has decided
+/// whether anyone is reading. `skippedInstalls` is what a command can show.
+let mutable private skipped : List<string * string> = []
+
+let skippedInstalls () : List<string * string> = skipped
+
 let private platformSetLazy : Lazy<Platform.PlatformSet> =
-  lazy (Platforms.Sets.cli ())
+  lazy
+    (let linked = Platforms.Sets.cli ()
+     let composed, problems =
+       Platforms.Compose.composedWith LibDB.PackageManager.pt linked
+       |> Ply.toTask
+       |> fun t -> t.Result
+     skipped <- problems
+     composed)
 
 let private builtinsLazy : Lazy<RT.Builtins> =
   lazy (platformSetLazy.Force()).builtins

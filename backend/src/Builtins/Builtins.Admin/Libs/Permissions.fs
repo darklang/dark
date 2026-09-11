@@ -16,6 +16,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module PackagePermissions = LibDB.PackagePermissions
 module PolicyStore = LibDB.PolicyStore
 module Activation = LibDB.Activation
+module InstalledPlatforms = LibDB.InstalledPlatforms
 
 open Builtin.Shortcuts
 
@@ -219,6 +220,104 @@ let fns : List<BuiltInFn> =
                   KTUnit
                   KTString
                   (DString $"No platform named '{rendered}' in this build.")
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsInstall"
+      [ Param.make "manifest" TString "The manifest text" ]
+      (TypeReference.result TString (TList TString))
+      ("Install an external platform from a manifest. Host-only. Returns the platform's name, or "
+       + "every problem with the manifest. Does not activate it: having a platform and letting "
+       + "your code use it are separate decisions.")
+      (fun _ args ->
+        match args with
+        | [| DString manifest |] ->
+          uply {
+            match! InstalledPlatforms.install LibDB.PackageManager.pt manifest with
+            | Ok(_hash, installed) ->
+              return Dval.resultOk KTString (KTList VT.string) (DString installed.name)
+            | Error rejection ->
+              // Every problem, not the first. A person fixing a manifest wants the list.
+              return
+                Dval.resultError
+                  KTString
+                  (KTList VT.string)
+                  (DList(VT.string, rejection.problems |> List.map DString))
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
+      "pmPlatformsArtifactHash"
+      [ Param.make "name" TString "An installed platform" ]
+      (TypeReference.option TString)
+      ("The SHA-256 of the executable that platform needs on THIS machine, or None if it ships "
+       + "none for this target. Read from the install record rather than the composed platform "
+       + "set, so a platform installed a moment ago answers rather than waiting for a restart.")
+      (fun _ args ->
+        match args with
+        | [| DString name |] ->
+          uply {
+            return
+              InstalledPlatforms.artifactHashOf name
+              |> Option.map DString
+              |> Dval.option KTString
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsCacheArtifact"
+      [ Param.make "hash" TString "The SHA-256 the manifest named"
+        Param.make "bytes" TBlob "The executable" ]
+      (TypeReference.result TUnit TString)
+      ("Put a platform's executable in the local cache, under the hash the manifest named. "
+       + "Host-only. Refuses bytes that are not what they claim, before anything is written.")
+      (fun state args ->
+        match args with
+        | [| DString hash; DBlob blob |] ->
+          uply {
+            // The bytes arrive from Dark, which is where reading a file or fetching a URL belongs:
+            // both are permissioned effects and the host's own network code already lives there.
+            // Verifying and caching is here, where the cache is. That split is the seam a relay
+            // fetch will use unchanged.
+            let! bytes = LibExecution.Blob.readBytes state blob
+            match LibDB.PlatformArtifacts.materialize hash bytes with
+            | Ok _ -> return Dval.resultOk KTUnit KTString DUnit
+            | Error e -> return Dval.resultError KTUnit KTString (DString e)
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
+      "pmPlatformsInstalled"
+      [ Param.make "unit" TUnit "" ]
+      (TList(TTuple(TString, TString, [])))
+      ("Every external platform this instance has installed, as (name, manifest hash). Linked "
+       + "platforms are not in here: they are part of the binary rather than a choice.")
+      (fun _ args ->
+        match args with
+        | [| DUnit |] ->
+          uply {
+            return
+              InstalledPlatforms.get ()
+              |> Map.toList
+              |> List.map (fun (name, hash) ->
+                DTuple(DString name, DString hash, []))
+              |> Dval.list (KTTuple(VT.string, VT.string, []))
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPlatformsUninstall"
+      [ Param.make "name" TString "The platform to forget" ]
+      TUnit
+      ("Forget an installed external platform. Host-only. Leaves its cached bytes alone, since "
+       + "they are addressed by content and another platform may share them.")
+      (fun _ args ->
+        match args with
+        | [| DString name |] ->
+          uply {
+            InstalledPlatforms.remove name
+            return DUnit
           }
         | _ -> incorrectArgs ())
 

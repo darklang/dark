@@ -71,6 +71,12 @@ let fns () : List<BuiltInFn> =
                   "version", DInt64(int64 p.version)
                   "fingerprint",
                   DString(LibExecution.Platform.Platform.fingerprint p)
+                  // Only an external platform has one. A linked platform is part of this binary,
+                  // so there is no file to name.
+                  "artifactHash",
+                  (LibDB.InstalledPlatforms.artifactHashOf p.name
+                   |> Option.map DString
+                   |> Dval.option KTString)
                   "description", DString p.description
                   "effects", DList(VT.string, effects)
                   "fnCount", DInt64(int64 p.builtins.fns.Count)

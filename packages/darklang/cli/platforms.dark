@@ -29,6 +29,29 @@ let deactivate (name: String) : Stdlib.Result.Result<Unit, String> =
 let setActive (names: List<String>) : Stdlib.Result.Result<Unit, String> =
   Builtin.pmPlatformsSet names
 
+/// The artifact hash this machine needs for an installed platform, if it ships one.
+///
+/// From the install record, not the composed platform set: the set was built at startup, so a
+/// platform installed a moment ago is not in it yet and would answer None for the wrong reason.
+let artifactHashFor (name: String) : Stdlib.Option.Option<String> =
+  Builtin.pmPlatformsArtifactHash name
+
+/// Install an external platform from manifest text. Returns its name, or every problem.
+let install (manifest: String) : Stdlib.Result.Result<String, List<String>> =
+  Builtin.pmPlatformsInstall manifest
+
+/// Every external platform this instance has installed, as (name, manifest hash).
+let installed () : List<(String * String)> =
+  Builtin.pmPlatformsInstalled ()
+
+/// Put a platform's executable in the local cache, checked against the hash the manifest named.
+let cacheArtifact (hash: String) (bytes: Blob) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmPlatformsCacheArtifact hash bytes
+
+/// Forget an installed external platform.
+let uninstall (name: String) : Unit =
+  Builtin.pmPlatformsUninstall name
+
 /// Clear the choice, so everything this build shipped is on again.
 let activateAll () : Unit =
   Builtin.pmPlatformsActivateAll ()
@@ -441,6 +464,71 @@ let usageFor (state: AppState) (verb: String) : AppState =
     { state with exitCode = 1 }
 
 
+/// `dark platforms install <path>`: add an external platform from a manifest file.
+///
+/// Installing is not activating. Having a platform and letting your code use it are separate
+/// decisions, and collapsing them would mean installing something turned it on.
+let executeInstall
+  (state: AppState)
+  (path: String)
+  (artifactPath: Stdlib.Option.Option<String>)
+  : AppState =
+  match Stdlib.Cli.File.readText path with
+  | Error _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not read {path}.")
+    { state with exitCode = 1 }
+
+  | Ok manifest ->
+    match Platforms.install manifest with
+    | Error problems ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "That manifest was refused:")
+      problems
+      |> Stdlib.List.iter (fun p ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {p}"))
+
+      { state with exitCode = 1 }
+
+    | Ok name ->
+      // The executable, if one was handed over. Reading it is a permissioned file read in Dark;
+      // checking it against the manifest's hash and caching it happens in the host. A relay fetch
+      // would replace only the first half.
+      let cached =
+        match artifactPath with
+        | None -> Stdlib.Result.Result.Ok false
+        | Some file ->
+          match Stdlib.Cli.File.readBytes file with
+          | Error _ ->
+            Stdlib.Result.Result.Error $"Could not read the executable at {file}."
+          | Ok bytes ->
+            match Platforms.artifactHashFor name with
+            | None ->
+              Stdlib.Result.Result.Error
+                $"{name} does not ship an executable for this machine, so there is nothing to install."
+            | Some hash ->
+              match Platforms.cacheArtifact hash bytes with
+              | Error e -> Stdlib.Result.Result.Error e
+              | Ok _ -> Stdlib.Result.Result.Ok true
+
+      match cached with
+      | Error e ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+        { state with exitCode = 1 }
+
+      | Ok wasCached ->
+        Stdlib.printLine $"{name} is installed."
+
+        if Stdlib.Bool.not wasCached then
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.hint
+              "    No executable yet. Pass one: `platforms install <manifest> <executable>`.")
+
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint
+            $"    It is not on yet. `platforms activate {name}` turns it on.")
+
+        state
+
+
 /// `dark platforms <Name>`: one platform in full.
 ///
 /// The listing is a survey; this is the page you read before deciding to trust something. It is
@@ -524,13 +612,33 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Platforms.activateAll ()
     Stdlib.printLine "Every platform in this build is on."
     state
+  | [ "install", path ] -> executeInstall state path Stdlib.Option.Option.None
+  | [ "install", path, artifact ] ->
+    executeInstall state path (Stdlib.Option.Option.Some artifact)
+  | [ "uninstall", name ] ->
+    if
+      Stdlib.List.any (Platforms.installed ()) (fun (n, _hash) -> n == name)
+    then
+      Platforms.uninstall name
+      Stdlib.printLine $"{name} is no longer installed."
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "    Its cached bytes stay: they are addressed by content, and another platform may share them.")
+
+      state
+    else
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"'{name}' is not an installed external platform.")
+
+      { state with exitCode = 1 }
   // A bare word that is not a verb is a platform name. Last, so a future verb never becomes
   // unreachable because somebody named a platform after it.
   | [ name ] -> executeOne state name
   | _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: platforms [<Name> | needed <fn> [--activate] | activate <Name> | deactivate <Name> | reset]")
+        "Usage: platforms [<Name> | needed <fn> [--activate] | activate <Name> | deactivate <Name> | reset | install <manifest> | uninstall <Name>]")
 
     { state with exitCode = 1 }
 
@@ -541,6 +649,9 @@ let help (_state: AppState) : String =
     "       platforms activate <Name>     switch it on for this instance"
     "       platforms deactivate <Name>   switch it off"
     "       platforms reset               everything on again"
+    "       platforms install <manifest> [<executable>]"
+    "                                     add an external platform"
+    "       platforms uninstall <Name>    forget one"
     "       platforms needed <fn>         what one function requires"
     "       platforms needed <fn> --activate   turn on exactly that, nothing else"
     ""
