@@ -2196,3 +2196,38 @@ module ADoubledPipeIsAnOperatorTheSpecNames =
   // A single `|` is still a pipe, and `|>` still continues it. The revision only fires on the double.
   (ADoubledPipeIsAnOperatorTheSpecNames.screen "x|") = "x |> ~⟨step⟩"
   (ADoubledPipeIsAnOperatorTheSpecNames.screen "x|>f") = "x |> f~"
+
+
+module AKeywordInsideAStringIsContent =
+  // `clearsDrawnKeyword` puts a hole back when you re-type a keyword the editor already drew for you, and
+  // it stood down inside content by naming two slots: `body` (a string's, a char pattern's) and `text` (a
+  // doc line's, a segment's). A DSL whose content slot is called anything else had its content eaten.
+  //
+  // It asks the PIECES now, which is the same sentence the nine `typeOne` branches already say: a slot
+  // drawn with `QuietText` is content, whatever it is called.
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let screen (src: String) : String =
+    Darklang.Fluid.Test.run (AKeywordInsideAStringIsContent.reg ()) (AKeywordInsideAStringIsContent.hole ()) 60
+      (AKeywordInsideAStringIsContent.chars src)
+
+  // A keyword typed inside a string is just letters.
+  (AKeywordInsideAStringIsContent.screen "\"with") = "\"with~\""
+  (AKeywordInsideAStringIsContent.screen "\"then") = "\"then~\""
+  (AKeywordInsideAStringIsContent.screen "$\"with") = "$\"with~\""
+
+  // ...and outside one it still clears the hole the editor drew, which is the behaviour this guard exists
+  // to let through. `match x with` then a space starts the first arm rather than leaving `with` typed.
+  (Darklang.Fluid.Test.run (AKeywordInsideAStringIsContent.reg ()) (AKeywordInsideAStringIsContent.hole ()) 60
+    (Stdlib.List.append (AKeywordInsideAStringIsContent.chars "match x with") [ " " ])) =
+    "match x with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+  (Darklang.Fluid.Test.run (AKeywordInsideAStringIsContent.reg ()) (AKeywordInsideAStringIsContent.hole ()) 60
+    (Stdlib.List.append (AKeywordInsideAStringIsContent.chars "match x with") [ "<Enter>" ])) =
+    "match x with\n| ~⟨pattern⟩ -> ⟨rhs⟩"

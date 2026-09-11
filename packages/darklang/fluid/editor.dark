@@ -1625,6 +1625,35 @@ let landSettled (st: State) (sp: Path) : State =
   else
     nextHole st
 
+/// Whether the spec draws `slot` with `QuietText` -- that is, whether it has already said every
+/// character in the slot is CONTENT and not syntax. Recurses the same way `drawsAsName` does.
+///
+/// Derived rather than repeated, for the reason `drawsAsName` gives above: the piece already carries the
+/// fact. The hand-written version of this was `slot == "body"`, which named the string's slot and missed
+/// the CHAR's, so `'` then `+` broke out of the literal and wrapped it as `'' + <right>`.
+let drawsAsContent (pieces: List<Piece>) (slot: String) : Bool =
+  pieces
+  |> Stdlib.List.any (fun p ->
+    match p with
+    | QuietText(s, _) -> s == slot
+    | Group ps -> drawsAsContent ps slot
+    | Flat ps -> drawsAsContent ps slot
+    | Nest(_, ps) -> drawsAsContent ps slot
+    | _ -> false)
+
+/// Is the caret inside a slot whose every character is content -- a string body, a char, a segment of an
+/// interpolated string? Nine rules in `typeOne` need to stand down when it is.
+let inContentText (st: State) : Bool =
+  match st.caret.part with
+  | InText slot ->
+    (match nodeAtPath st.root st.caret.node with
+     | Some n ->
+       (match Registry.findExact st.reg n.kind with
+        | Some spec -> drawsAsContent spec.pieces slot
+        | None -> false)
+     | None -> false)
+  | _ -> false
+
 /// The keyword the editor already drew, typed back into the slot it drew you into. `match n with` writes
 /// the `with` for you and lands the caret in the first arm's PATTERN, so typing `with` there is the same
 /// reflex that re-types a drawn `=` or a drawn `then`. Put the hole back and stay in it.
@@ -1637,7 +1666,11 @@ let landSettled (st: State) (sp: Path) : State =
 let clearsDrawnKeyword (st: State) : Stdlib.Option.Option<State> =
   match st.caret.part with
   | InText slot ->
-    if (slot == "body") || (slot == "text") then
+    // Asked of the PIECES, not of two slot names. `body` and `text` were the string's and the segment's,
+    // and a DSL whose string content slot is called anything else had its content eaten as a re-typed
+    // keyword. Same fix, and the same sentence, as the nine `typeOne` branches that already stand down
+    // inside content.
+    if inContentText st then
       Stdlib.Option.Option.None
     else
       (match nodeAtPath st.root st.caret.node with
@@ -3200,34 +3233,6 @@ let drawsAsName (pieces: List<Piece>) (slot: String) : Bool =
     | Nest(_, ps) -> drawsAsName ps slot
     | _ -> false)
 
-/// Whether the spec draws `slot` with `QuietText` -- that is, whether it has already said every
-/// character in the slot is CONTENT and not syntax. Recurses the same way `drawsAsName` does.
-///
-/// Derived rather than repeated, for the reason `drawsAsName` gives above: the piece already carries the
-/// fact. The hand-written version of this was `slot == "body"`, which named the string's slot and missed
-/// the CHAR's, so `'` then `+` broke out of the literal and wrapped it as `'' + <right>`.
-let drawsAsContent (pieces: List<Piece>) (slot: String) : Bool =
-  pieces
-  |> Stdlib.List.any (fun p ->
-    match p with
-    | QuietText(s, _) -> s == slot
-    | Group ps -> drawsAsContent ps slot
-    | Flat ps -> drawsAsContent ps slot
-    | Nest(_, ps) -> drawsAsContent ps slot
-    | _ -> false)
-
-/// Is the caret inside a slot whose every character is content -- a string body, a char, a segment of an
-/// interpolated string? Nine rules in `typeOne` need to stand down when it is.
-let inContentText (st: State) : Bool =
-  match st.caret.part with
-  | InText slot ->
-    (match nodeAtPath st.root st.caret.node with
-     | Some n ->
-       (match Registry.findExact st.reg n.kind with
-        | Some spec -> drawsAsContent spec.pieces slot
-        | None -> false)
-     | None -> false)
-  | _ -> false
 
 /// The optional slots a spec draws behind a KEYWORD, as (slot, keyword) pairs.
 ///
