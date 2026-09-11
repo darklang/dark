@@ -580,3 +580,172 @@ module External =
             dynamicEffects = Set.empty
             requiresStore = m.requiresStore }
       | problems -> Error { manifest = coordinate m; problems = problems }
+
+
+  /// A type as a manifest writes it: by NAME, never by hash.
+  ///
+  /// `TypeReference` cannot be what a manifest carries. Its `TCustomType` holds an `FQTypeName`,
+  /// and an `FQTypeName` is a content hash, so `Result<String, String>` would travel as the hash of
+  /// `Stdlib.Result` in the store that wrote it. A platform author cannot know that hash, it moves
+  /// whenever the type does, and a manifest carrying one is pinned to one corpus.
+  ///
+  /// So a manifest says `Stdlib.Result<String, String>` and the CONSUMER resolves it. A name that
+  /// does not resolve is a manifest problem, and a useful one: this platform wants a type you do
+  /// not have.
+  type NamedType =
+    | NBuiltin of string
+    | NList of NamedType
+    | NDict of NamedType * NamedType
+    | NTuple of List<NamedType>
+    | NCustom of name : string * args : List<NamedType>
+
+  module NamedType =
+    /// The types a manifest may name without qualification. Deliberately not every
+    /// `TypeReference`: what is missing is what cannot cross a pipe, which is the same rule 73
+    /// applies to a whole signature, stated here as a grammar rather than as a check.
+    let private scalars : Map<string, TypeReference> =
+      Map
+        [ "Unit", TUnit
+          "Bool", TBool
+          "Int8", TInt8
+          "UInt8", TUInt8
+          "Int16", TInt16
+          "UInt16", TUInt16
+          "Int32", TInt32
+          "UInt32", TUInt32
+          "Int64", TInt64
+          "UInt64", TUInt64
+          "Int128", TInt128
+          "UInt128", TUInt128
+          "Int", TInt
+          "Float", TFloat
+          "Char", TChar
+          "String", TString
+          "Uuid", TUuid
+          "DateTime", TDateTime
+          "Blob", TBlob ]
+
+    /// Parse `Stdlib.Result<String, List<Int64>>` and friends.
+    ///
+    /// Hand-written rather than reusing `LibParser`, because that one is Dark and needs a store to
+    /// run, and this has to work while deciding whether to accept a manifest at all. The grammar is
+    /// small enough that the cost is a few dozen lines and the benefit is no dependency.
+    let parse (input : string) : Result<NamedType, string> =
+      let mutable pos = 0
+      let text = input.Trim()
+
+      let peek () = if pos < text.Length then Some text[pos] else None
+      let skipSpace () =
+        while pos < text.Length && text[pos] = ' ' do
+          pos <- pos + 1
+
+      let ident () =
+        skipSpace ()
+        let start = pos
+        while pos < text.Length
+              && (System.Char.IsLetterOrDigit text[pos] || text[pos] = '.' || text[pos] = '_') do
+          pos <- pos + 1
+        text.Substring(start, pos - start)
+
+      let rec typ () : Result<NamedType, string> =
+        let name = ident ()
+        if name = "" then
+          Error $"expected a type name at offset {pos} of '{text}'"
+        else
+          skipSpace ()
+          match peek () with
+          | Some '<' ->
+            pos <- pos + 1
+            match args [] with
+            | Error e -> Error e
+            | Ok args ->
+              match name, args with
+              | "List", [ inner ] -> Ok(NList inner)
+              | "List", _ -> Error "List takes exactly one type argument"
+              | "Dict", [ k; v ] -> Ok(NDict(k, v))
+              | "Dict", _ -> Error "Dict takes exactly two type arguments"
+              | "Tuple", (_ :: _ :: _) -> Ok(NTuple args)
+              | "Tuple", _ -> Error "Tuple takes at least two type arguments"
+              | _, _ -> Ok(NCustom(name, args))
+          | _ ->
+            if Map.containsKey name scalars then Ok(NBuiltin name)
+            else Ok(NCustom(name, []))
+
+      and args (acc : List<NamedType>) : Result<List<NamedType>, string> =
+        match typ () with
+        | Error e -> Error e
+        | Ok one ->
+          skipSpace ()
+          match peek () with
+          | Some ',' ->
+            pos <- pos + 1
+            args (acc @ [ one ])
+          | Some '>' ->
+            pos <- pos + 1
+            Ok(acc @ [ one ])
+          | _ -> Error $"expected ',' or '>' at offset {pos} of '{text}'"
+
+      match typ () with
+      | Error e -> Error e
+      | Ok parsed ->
+        skipSpace ()
+        if pos < text.Length then
+          Error $"unexpected '{text.Substring pos}' after a complete type in '{text}'"
+        else
+          Ok parsed
+
+    /// Render back, so a round trip is checkable and `dark platforms` can show what was declared.
+    let rec render (t : NamedType) : string =
+      match t with
+      | NBuiltin name -> name
+      | NList inner -> $"List<{render inner}>"
+      | NDict(k, v) -> $"Dict<{render k}, {render v}>"
+      | NTuple items ->
+        let rendered = items |> List.map render |> String.concat ", "
+        $"Tuple<{rendered}>"
+      | NCustom(name, []) -> name
+      | NCustom(name, args) ->
+        let rendered = args |> List.map render |> String.concat ", "
+        $"{name}<{rendered}>"
+
+    /// Resolve names to a `TypeReference` against the consumer's store.
+    ///
+    /// `lookup` answers what a package type name resolves to here, and `None` is a real answer: the
+    /// platform wants a type this instance does not have, which is worth saying plainly rather than
+    /// failing later at a call site.
+    let rec resolve
+      (lookup : string -> Option<FQTypeName.FQTypeName>)
+      (t : NamedType)
+      : Result<TypeReference, string> =
+      let resolveAll ts =
+        ts
+        |> List.fold
+          (fun acc item ->
+            match acc, resolve lookup item with
+            | Error e, _ -> Error e
+            | _, Error e -> Error e
+            | Ok sofar, Ok r -> Ok(sofar @ [ r ]))
+          (Ok [])
+
+      match t with
+      | NBuiltin name ->
+        match Map.tryFind name scalars with
+        | Some typ -> Ok typ
+        | None -> Error $"'{name}' is not a builtin type"
+      | NList inner -> resolve lookup inner |> Result.map TList
+      | NDict(k, v) ->
+        match resolve lookup k, resolve lookup v with
+        | Ok k, Ok v -> Ok(TDict(k, v))
+        | Error e, _ -> Error e
+        | _, Error e -> Error e
+      | NTuple items ->
+        match resolveAll items with
+        | Error e -> Error e
+        | Ok(a :: b :: rest) -> Ok(TTuple(a, b, rest))
+        | Ok _ -> Error "a tuple needs at least two elements"
+      | NCustom(name, args) ->
+        match lookup name with
+        | None -> Error $"no type named '{name}' in this instance"
+        | Some fq ->
+          resolveAll args
+          |> Result.map (fun args -> TCustomType(NameResolution.ok fq, args))

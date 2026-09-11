@@ -1188,6 +1188,81 @@ let aManifestRefusesADuplicateBuiltin =
       "the duplicate is named"
   }
 
+// ── types a manifest names ────────────────────────────────────────────────────
+
+let private parseType (s : string) : External.NamedType =
+  match External.NamedType.parse s with
+  | Ok t -> t
+  | Error e -> failtest $"failed to parse '{s}': {e}"
+
+let namedTypesRoundTrip =
+  test "a named type parses and renders back to itself" {
+    // Round trip rather than structural assertions: the point of the syntax is that a person can
+    // write it and see it again, and `dark platforms` will show what was declared.
+    let cases =
+      [ "String"
+        "Unit"
+        "List<Int64>"
+        "Dict<String, Int64>"
+        "Tuple<Int64, String>"
+        "Tuple<Int64, String, Bool>"
+        "Stdlib.Result<String, String>"
+        "List<Stdlib.Option<Dict<String, List<UInt8>>>>"
+        "Acme.Serial.Config" ]
+    for case in cases do
+      Expect.equal (External.NamedType.render (parseType case)) case $"round trip of {case}"
+  }
+
+let namedTypeParseRefusesNonsense =
+  test "a named type refuses what it cannot read, with the offset" {
+    let refuses (s : string) =
+      match External.NamedType.parse s with
+      | Ok t ->
+        failtest $"parsed '{s}' as {External.NamedType.render t} when it should have refused"
+      | Error _ -> ()
+    refuses "List<"
+    refuses "List<Int64"
+    refuses "Dict<String>"
+    refuses "Dict<String, Int64, Bool>"
+    refuses "List<Int64> trailing"
+    refuses "Tuple<Int64>"
+    refuses ""
+  }
+
+let namedTypeResolvesAgainstTheConsumersStore =
+  test "a named type resolves package types through the consumer, and says so when it cannot" {
+    // The whole reason a manifest names types instead of carrying hashes. `lookup` stands in for
+    // the consumer's store: the SAME manifest resolves differently on two instances, and that is
+    // correct rather than alarming.
+    let hash = "0123456789abcdef"
+    let lookup name =
+      if name = "Stdlib.Result" then Some(RT.FQTypeName.fqPackage hash) else None
+
+    match External.NamedType.resolve lookup (parseType "Stdlib.Result<String, String>") with
+    | Error e -> failtest $"should have resolved: {e}"
+    | Ok(RT.TCustomType(nr, [ RT.TString; RT.TString ])) ->
+      match nr.resolved with
+      | Ok(RT.FQTypeName.Package(RT.Hash h)) ->
+        Expect.equal h hash "resolved to the consumer's hash for that type"
+      | Error e -> failtest $"name resolution carried an error: {e}"
+    | Ok other -> failtest $"resolved to the wrong thing: {other}"
+
+    match External.NamedType.resolve lookup (parseType "Acme.Unknown") with
+    | Ok _ -> failtest "resolved a type this instance does not have"
+    | Error e ->
+      Expect.stringContains e "Acme.Unknown" "the unresolvable name is in the message"
+
+    // And nesting resolves all the way down rather than only at the top.
+    match External.NamedType.resolve lookup (parseType "List<Acme.Unknown>") with
+    | Ok _ -> failtest "resolved a missing type nested inside a list"
+    | Error _ -> ()
+
+    match External.NamedType.resolve lookup (parseType "List<Dict<String, Int64>>") with
+    | Ok(RT.TList(RT.TDict(RT.TString, RT.TInt64))) -> ()
+    | Ok other -> failtest $"built the wrong type: {other}"
+    | Error e -> failtest $"should have resolved: {e}"
+  }
+
 
 let tests =
   testList
@@ -1228,4 +1303,7 @@ let tests =
       aGoodManifestBecomesAPlatform
       aManifestNamesEveryProblemAtOnce
       aManifestRefusesWhatCannotCross
-      aManifestRefusesADuplicateBuiltin ]
+      aManifestRefusesADuplicateBuiltin
+      namedTypesRoundTrip
+      namedTypeParseRefusesNonsense
+      namedTypeResolvesAgainstTheConsumersStore ]
