@@ -2124,3 +2124,41 @@ module ARecordUpdateFitsTheWidth =
   // A short one still fits on its line, so the pin above is about the WIDTH and not about updates always
   // breaking.
   (ARecordUpdateFitsTheWidth.drawn 80 "{ st with x = 1 }") = "{ st with x = 1 }"
+
+
+module AMatchGuardIsPartOfTheLayout =
+  // The last string spliced into the match printer. The scrutinee was moved off strings when a `match`
+  // came out at 84 columns at width 80, and the pattern beside the guard was moved off them for the
+  // or-pattern that printed 400. The guard was left because nothing in the store had one long enough,
+  // which is a worse reason than I would like: a comment explaining why something is not tested ages
+  // worse than the code beside it, because nothing executes it.
+  //
+  // What the splice did: `expr ctx cond` renders the guard STANDALONE at the full width. It knows
+  // nothing about the pattern in front of it or the `->` behind it, so a guard that fits on its own and
+  // not in place produced a line over the width, exactly as the scrutinee did.
+  let printed (w: Int) (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Stdlib.Pretty.render w (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let widest (s: String) : Int =
+    Stdlib.String.split s "\n"
+    |> Stdlib.List.map (fun l -> Stdlib.String.length l)
+    |> Stdlib.List.fold 0 (fun a b -> Stdlib.Int.max a b)
+
+  // A pattern that cannot break, so the guard is the only thing that can give. This came out at 81
+  // columns at width 80.
+  let src () : String =
+    "match x with\n| n when alphaBetaGammaDeltaEpsilon > zetaEtaThetaIotaKappa && muNuXiOmicronPi -> \"a\"\n| _ -> \"b\""
+
+  ((AMatchGuardIsPartOfTheLayout.widest (AMatchGuardIsPartOfTheLayout.printed 80 (AMatchGuardIsPartOfTheLayout.src ()))) <= 80) = true
+
+  // ...and it hangs under the arm rather than starting at column 0, where a continuation reads as a new
+  // statement. Only the guard is nested: the pattern carries its own indentation already.
+  (AMatchGuardIsPartOfTheLayout.printed 80 (AMatchGuardIsPartOfTheLayout.src ())) =
+    "match x with\n| n when alphaBetaGammaDeltaEpsilon > zetaEtaThetaIotaKappa &&\n    muNuXiOmicronPi -> \"a\"\n| _ -> \"b\""
+
+  // A guard that fits is untouched, so the pin above is about the width and not about guards always
+  // breaking.
+  (AMatchGuardIsPartOfTheLayout.printed 80 "match x with\n| n when n > 3 -> \"a\"\n| _ -> \"b\"") =
+    "match x with\n| n when n > 3 -> \"a\"\n| _ -> \"b\""

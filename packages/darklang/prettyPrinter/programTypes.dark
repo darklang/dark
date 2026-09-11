@@ -768,10 +768,19 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
     let arms =
       cases
       |> Stdlib.List.map (fun case ->
-        let whenPart =
+        // The guard as a DOC, not as a string spliced into one, for exactly the reason written under the
+        // scrutinee below: `expr ctx cond` renders it standalone at the full width and knows nothing about
+        // the pattern in front of it or the `->` behind it, so a long guard produced a line over the
+        // width. The pattern beside it was moved off strings for the same reason; the guard was left
+        // because nothing in the store had one long enough, which is a worse reason than I would like.
+        let whenDoc =
           match case.whenCondition with
-          | Some cond -> $" when {expr ctx cond}"
-          | None -> ""
+          | Some cond ->
+            // Nested so a guard that has to break hangs under the arm instead of starting at column 0,
+            // where it reads as a new statement. Only the guard: putting the nest around the whole arm
+            // header would also re-indent a broken PATTERN, which already carries its own.
+            Stdlib.Pretty.nest 4 (Stdlib.Pretty.concat (txt " when ") (exprDoc ctx cond))
+          | None -> Stdlib.Pretty.empty
 
         // The right-hand side gets its OWN group, so a pattern that had to break does not drag the body
         // down with it. One group over both meant that once the alternation of `toID` broke, every Line
@@ -780,7 +789,9 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
         Stdlib.Pretty.concat
           (Stdlib.Pretty.concat
             (txt "| ")
-            (Stdlib.Pretty.concat (matchPatternDoc case.pat) (txt $"{whenPart} ->")))
+            (Stdlib.Pretty.concat
+              (matchPatternDoc case.pat)
+              (Stdlib.Pretty.concat whenDoc (txt " ->"))))
           (Stdlib.Pretty.group (
             Stdlib.Pretty.nest 2 (
               Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx case.rhs)))))
