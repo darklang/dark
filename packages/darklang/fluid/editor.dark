@@ -1407,7 +1407,7 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
 /// `isInfix` was four hand-written copies of `kind.case == Some "EInfix"`, in the two functions that
 /// reassociate by precedence and the two that rotate on request. Precedence itself is already spec data;
 /// this is the other half, which slots swap.
-let operandsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<(String * String)> =
+let operandsOf (reg: Registry) (n: Node) : Stdlib.Option.Option<Operands> =
   match Registry.find reg n.kind with
   | Some spec -> spec.operands
   | None -> Stdlib.Option.Option.None
@@ -1503,28 +1503,29 @@ let reassocGrown (st: State) (opPath: Path) : (State * Path) =
   match (Path.parent opPath, nodeAtPath st.root opPath) with
   | (Some parentPath, Some n) ->
     (match (Path.last opPath, nodeAtPath st.root parentPath) with
-     | (Some(Into "right"), Some pn) ->
-       let isInfix (x: Node) : Bool = isBinary st.reg x
-
-       if (isInfix n) && (isInfix pn) then
-         let (newPow, newRight) = Project.infixPowerOf (Node.text n "op" |> Stdlib.Option.withDefault "+")
-         let (pPow, _) = Project.infixPowerOf (Node.text pn "op" |> Stdlib.Option.withDefault "+")
+     | (Some(Into step), Some pn) ->
+       // Slot names off the spec. All three rotations used to spell `left`, `right` and `op` here, so a
+       // DSL declaring its own binary construct got the precedence machinery only if it happened to name
+       // its slots the way Darklang names them.
+       (match (operandsOf st.reg n, operandsOf st.reg pn) with
+        | (Some ops, Some pOps) when step == pOps.right ->
+         let (newPow, newRight) = Project.infixPowerOf (Node.text n ops.op |> Stdlib.Option.withDefault "+")
+         let (pPow, _) = Project.infixPowerOf (Node.text pn pOps.op |> Stdlib.Option.withDefault "+")
          let climb = if newRight then pPow > newPow else pPow >= newPow
 
-         match (Node.slot n "left", isInfix n) with
-         | (Some myLeft, true) ->
+         (match Node.slot n ops.left with
+         | Some myLeft ->
            if climb then
              // The parent keeps everything to ITS left and adopts our left as its right; we take the
              // parent as our own left. Nothing else in the document moves.
-             let newLeft = Node.setField pn "right" (Field.One myLeft)
-             let rotated = Node.setField n "left" (Field.One(Slot.Filled newLeft))
+             let newLeft = Node.setField pn pOps.right (Field.One myLeft)
+             let rotated = Node.setField n ops.left (Field.One(Slot.Filled newLeft))
              let st1 = commit st [ Edit.Replace(parentPath, Slot.Filled rotated) ] st.caret
              reassocGrown st1 parentPath
            else
              (st, opPath)
-         | _ -> (st, opPath)
-       else
-         (st, opPath)
+         | _ -> (st, opPath))
+        | _ -> (st, opPath))
      | _ -> (st, opPath))
   | _ -> (st, opPath)
 
@@ -1981,12 +1982,12 @@ let regroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
   let hereRotates =
     match nodeAtPath st.root from with
     | Some n ->
-      if isInfix n then
-        (match Node.slot n "left" with
-         | Some(Filled l) -> isInfix l
-         | _ -> false)
-      else
-        false
+      (match operandsOf st.reg n with
+       | Some ops ->
+         (match Node.slot n ops.left with
+          | Some(Filled l) -> isInfix l
+          | _ -> false)
+       | None -> false)
     | None -> false
 
   if hereRotates then
@@ -2004,15 +2005,21 @@ let regroupRight (st: State) : Stdlib.Option.Option<State> =
     (match nodeAtPath st.root aPath with
      | None -> Stdlib.Option.Option.None
      | Some a ->
-       (match Node.slot a "left" with
-        | Some(Filled l) ->
-          (match (Node.slot l "right", Node.slot a "right") with
-           | (Some lRight, Some _) ->
-             let newA = Node.setField a "left" (Field.One lRight)
-             let rotated = Node.setField l "right" (Field.One(Slot.Filled newA))
-             let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
-             Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
-           | _ -> Stdlib.Option.Option.None)
+       (match operandsOf st.reg a with
+        | Some ops ->
+         (match Node.slot a ops.left with
+          | Some(Filled l) ->
+           (match (operandsOf st.reg l) with
+            | Some lOps ->
+             (match (Node.slot l lOps.right, Node.slot a ops.right) with
+              | (Some lRight, Some _) ->
+               let newA = Node.setField a ops.left (Field.One lRight)
+               let rotated = Node.setField l lOps.right (Field.One(Slot.Filled newA))
+               let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
+               Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
+              | _ -> Stdlib.Option.Option.None)
+            | None -> Stdlib.Option.Option.None)
+          | _ -> Stdlib.Option.Option.None)
         | _ -> Stdlib.Option.Option.None))
 
 /// Ungroup: `1 - (3 + 2)` becomes `(1 - 3) + 2`. The other direction, and the same rotation
@@ -2030,12 +2037,12 @@ let ungroupTarget (st: State) (from: Path) : Stdlib.Option.Option<Path> =
   let hereRotates =
     match nodeAtPath st.root from with
     | Some n ->
-      if isInfix n then
-        (match Node.slot n "right" with
-         | Some(Filled r) -> isInfix r
-         | _ -> false)
-      else
-        false
+      (match operandsOf st.reg n with
+       | Some ops ->
+         (match Node.slot n ops.right with
+          | Some(Filled r) -> isInfix r
+          | _ -> false)
+       | None -> false)
     | None -> false
 
   if hereRotates then
@@ -2053,15 +2060,21 @@ let ungroupLeft (st: State) : Stdlib.Option.Option<State> =
     (match nodeAtPath st.root aPath with
      | None -> Stdlib.Option.Option.None
      | Some a ->
-       (match Node.slot a "right" with
-        | Some(Filled r) ->
-          (match Node.slot r "left" with
-           | Some rLeft ->
-             let newA = Node.setField a "right" (Field.One rLeft)
-             let rotated = Node.setField r "left" (Field.One(Slot.Filled newA))
-             let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
-             Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
-           | _ -> Stdlib.Option.Option.None)
+       (match operandsOf st.reg a with
+        | Some ops ->
+         (match Node.slot a ops.right with
+          | Some(Filled r) ->
+           (match operandsOf st.reg r with
+            | Some rOps ->
+             (match Node.slot r rOps.left with
+              | Some rLeft ->
+               let newA = Node.setField a ops.right (Field.One rLeft)
+               let rotated = Node.setField r rOps.left (Field.One(Slot.Filled newA))
+               let st1 = commit st [ Edit.Replace(aPath, Slot.Filled rotated) ] st.caret
+               Stdlib.Option.Option.Some { st1 with caret = navCaretFor st1.root aPath }
+              | _ -> Stdlib.Option.Option.None)
+            | None -> Stdlib.Option.Option.None)
+          | _ -> Stdlib.Option.Option.None)
         | _ -> Stdlib.Option.Option.None))
 
 /// The enclosing interpolated string and the segment index the caret is under, if any. Handles both being
@@ -3710,9 +3723,7 @@ let backspace (st: State) : State =
       // `operandsOf` were already here for the `(`/`)` rotations, which need the same fact.
       let isTheOperator =
         match operandsOf st.reg n with
-        | Some pair ->
-          let (l, r) = pair
-          (slot != l) && (slot != r)
+        | Some ops -> slot == ops.op
         | None -> false
       if isTheOperator && ((Stdlib.String.length old) <= 1) then
         collapseInfix st caret.node n

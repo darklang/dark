@@ -1091,3 +1091,106 @@ module ATemplateTheKernelDoesNotKnow =
   // `}` steps out of the hole into the chunk after it, and typing continues there.
   (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{1}")) = "<<hi{1}~>>"
   (ATemplateTheKernelDoesNotKnow.screen (ATemplateTheKernelDoesNotKnow.chars "hi{1}yo")) = "<<hi{1}yo~>>"
+
+
+module ABinaryOperatorTheKernelDoesNotKnow =
+  // Precedence, association and the `(`/`)` rotations all used to spell `left`, `right` and `op` in the
+  // kernel. The operand PAIR had been spec data for a while and the operator slot had not, which is the
+  // same half-data shape `Segments` had: declarable in part, which reads as declarable and is not.
+  //
+  // `Acme.Join` is `a <> b` with its slots called `head`, `tail` and `glue`.
+  let atomKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Atom"
+  let joinKind () : Darklang.Fluid.Kind = Darklang.Fluid.Kind.named "Acme.Join"
+
+  let anyExpect (label: String) : Darklang.Fluid.Expect =
+    Darklang.Fluid.Expect.ofKind (ABinaryOperatorTheKernelDoesNotKnow.atomKind ()) label
+
+  let atom (s: String) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make (ABinaryOperatorTheKernelDoesNotKnow.atomKind ()) [ ("chars", Darklang.Fluid.Field.Text s) ]
+
+  let join (l: Darklang.Fluid.Node) (r: Darklang.Fluid.Node) : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (ABinaryOperatorTheKernelDoesNotKnow.joinKind ())
+      [ ("head", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled l))
+        ("glue", Darklang.Fluid.Field.Text "<>")
+        ("tail", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Filled r)) ]
+
+  let specs () : List<Darklang.Fluid.Spec> =
+    let atomSpec =
+      Darklang.Fluid.Spec.simple
+        (ABinaryOperatorTheKernelDoesNotKnow.atomKind ())
+        [ Darklang.Fluid.Piece.Text("chars", Darklang.Fluid.Layout.Style.Name) ]
+        (ABinaryOperatorTheKernelDoesNotKnow.atom "")
+
+    let joinSpec =
+      Darklang.Fluid.Spec.withOperands
+        (Darklang.Fluid.Spec.simple
+          (ABinaryOperatorTheKernelDoesNotKnow.joinKind ())
+          [ Darklang.Fluid.Piece.Slot "head"
+            Darklang.Fluid.Piece.Space
+            Darklang.Fluid.Piece.Text("glue", Darklang.Fluid.Layout.Style.Punct)
+            Darklang.Fluid.Piece.Space
+            Darklang.Fluid.Piece.Slot "tail" ]
+          (ABinaryOperatorTheKernelDoesNotKnow.join
+            (ABinaryOperatorTheKernelDoesNotKnow.atom "")
+            (ABinaryOperatorTheKernelDoesNotKnow.atom "")))
+        "head"
+        "tail"
+        "glue"
+
+    Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), [ atomSpec, joinSpec ] ]
+
+  // `a <> (b <> c)`, which is the shape `)` ungroups and `(` groups back.
+  let nested () : Darklang.Fluid.Node =
+    ABinaryOperatorTheKernelDoesNotKnow.join
+      (ABinaryOperatorTheKernelDoesNotKnow.atom "a")
+      (ABinaryOperatorTheKernelDoesNotKnow.join
+        (ABinaryOperatorTheKernelDoesNotKnow.atom "b")
+        (ABinaryOperatorTheKernelDoesNotKnow.atom "c"))
+
+  let leftLeaning () : Darklang.Fluid.Node =
+    ABinaryOperatorTheKernelDoesNotKnow.join
+      (ABinaryOperatorTheKernelDoesNotKnow.join
+        (ABinaryOperatorTheKernelDoesNotKnow.atom "a")
+        (ABinaryOperatorTheKernelDoesNotKnow.atom "b"))
+      (ABinaryOperatorTheKernelDoesNotKnow.atom "c")
+
+  let on (n: Darklang.Fluid.Node) (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.Registry.ofList (ABinaryOperatorTheKernelDoesNotKnow.specs ()))
+          (Darklang.Fluid.Slot.Filled n)
+          60)
+        keys
+    Darklang.Fluid.Debug.withCaret st.reg st.width st.root st.caret
+
+  // The drawings, so the rotations below are read against something.
+  (ABinaryOperatorTheKernelDoesNotKnow.on (ABinaryOperatorTheKernelDoesNotKnow.nested ()) [ "<Esc>" ]) = "~a <> b <> c"
+  (ABinaryOperatorTheKernelDoesNotKnow.on (ABinaryOperatorTheKernelDoesNotKnow.leftLeaning ()) [ "<Esc>" ]) = "~a <> b <> c"
+
+  // `)` ungroups: the right-leaning tree becomes the left-leaning one. Both PRINT the same here, because
+  // this spec draws no parens, so the test is that the EDIT lands rather than that the text changes.
+  (ABinaryOperatorTheKernelDoesNotKnow.on (ABinaryOperatorTheKernelDoesNotKnow.nested ()) [ "<Esc>", ")" ]) = "~a <> b <> c"
+
+  // ...and it is a real edit, so undo takes it back and the message does not say it refused.
+  (Darklang.Fluid.Test.messageAfter
+    (Darklang.Fluid.Registry.ofList (ABinaryOperatorTheKernelDoesNotKnow.specs ()))
+    (Darklang.Fluid.Slot.Filled(ABinaryOperatorTheKernelDoesNotKnow.nested ()))
+    60
+    [ "<Esc>", ")" ]) = ""
+
+  // `(` on the left-leaning one is the other direction.
+  (Darklang.Fluid.Test.messageAfter
+    (Darklang.Fluid.Registry.ofList (ABinaryOperatorTheKernelDoesNotKnow.specs ()))
+    (Darklang.Fluid.Slot.Filled(ABinaryOperatorTheKernelDoesNotKnow.leftLeaning ()))
+    60
+    [ "<Esc>", "(" ]) = ""
+
+  // A construct with no `operands` refuses both, which is what says the rotations are reading the spec
+  // rather than the shape of the tree.
+  (Darklang.Fluid.Test.messageAfter
+    (Darklang.Fluid.Registry.ofList (ABinaryOperatorTheKernelDoesNotKnow.specs ()))
+    (Darklang.Fluid.Slot.Filled(ABinaryOperatorTheKernelDoesNotKnow.atom "a"))
+    60
+    [ "<Esc>", ")" ]) = "nothing to ungroup here"

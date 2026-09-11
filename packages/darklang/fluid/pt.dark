@@ -2843,6 +2843,7 @@ let baseSpecs () : List<Spec> =
         [ ("op", Darklang.Fluid.TextClass.OneOf(infixTexts ())) ])
       "left"
       "right"
+      "op"
     |> fun sp -> Spec.collapsingWhenEmptied sp "right" "left"
     simpleExpr
       "ELambda"

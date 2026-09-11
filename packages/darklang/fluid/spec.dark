@@ -206,6 +206,17 @@ type Action =
     applies: Node -> Bool
     run: Node -> Slot }
 
+/// The slots of a binary operator: its two operands and the text between them.
+///
+/// The operand pair has been spec data for a while and the OPERATOR slot was still spelled `"op"` in the
+/// kernel, alongside `"left"` and `"right"` spelled there again in the three rotations. Same half-data
+/// shape as `Segments` before it: declarable in part, which reads as declarable and is not.
+type Operands =
+  { left: String
+    right: String
+    /// The text slot holding the operator itself.
+    op: String }
+
 /// Which construct is text with holes in it, and what its parts are called.
 ///
 /// Darklang's is the interpolated string, `$"a{x}b"`. It is not only Darklang's: a template language, a
@@ -312,7 +323,7 @@ type Spec =
     /// additionally need is which slots swap, and that is a fact about this node's shape rather than
     /// about the language's arithmetic. With both, a DSL that declares its own infix gets the precedence
     /// parenthesising and the `(`/`)` grouping without the kernel naming it.
-    operands: Stdlib.Option.Option<(String * String)>
+    operands: Stdlib.Option.Option<Operands>
 
     /// A construct whose CONTENT is a list of alternating literal-text and embedded-expression parts:
     /// the list slot, then the kind-case that holds the literal text.
@@ -487,9 +498,10 @@ module Spec =
   /// A spec that says what its closing character does.
   let closesWith (spec: Spec) (cl: Closer) : Spec = { spec with closer = Stdlib.Option.Option.Some cl }
 
-  /// A spec that says which of its slots are the operands of a binary operator.
-  let withOperands (spec: Spec) (left: String) (right: String) : Spec =
-    { spec with operands = Stdlib.Option.Option.Some((left, right)) }
+  /// A spec that says which of its slots are the operands of a binary operator, and which holds the
+  /// operator itself.
+  let withOperands (spec: Spec) (left: String) (right: String) (op: String) : Spec =
+    { spec with operands = Stdlib.Option.Option.Some(Operands { left = left; right = right; op = op }) }
 
   /// A spec that says its content is text with embedded holes.
   let withSegments
