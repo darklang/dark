@@ -2123,7 +2123,7 @@ module TheMenuNamesEverythingAHoleCanHold =
 
   (labels ()) =
     [ "let", "if", "match", "fun", "int", "string", "list", "tuple", "update", "char"
-      "interpolation", "true", "false", "()" ]
+      "interpolation", "Dict", "true", "false", "()" ]
 
   // The example that started this: `in` used to match nothing.
   // One word each, because a label is reached by TYPING it and a space settles the partial.
@@ -2426,8 +2426,13 @@ module UngroupingIsTheSameRotationBackwards =
   (Fixtures.screen (Stdlib.List.append (Fixtures.chars "1 + 2") [ "<Esc>", ")" ])) = "1 + ~2"
 
   // The climb finds the nearest ancestor that rotates, so it works from deep inside an operand.
-  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a - b + c * d") [ "<Esc>", "(" ])) =
-    "a - (b + c * d)"
+  //
+  // `e` rather than `d` as the last variable: `Dict` is a completion candidate now, and a candidate is
+  // matched case-insensitively, so a lone `d` prefers the construct. That is the same trade `int`,
+  // `list` and `tuple` already make for `i`, `l` and `t`, and it is written up as an open question
+  // rather than worked around here. This test is about regrouping and has no opinion on the name.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "a - b + c * e") [ "<Esc>", "(" ])) =
+    "a - (b + c * e)"
 
 
 module ExpandAndCollapseAreAPair =
@@ -3148,3 +3153,54 @@ module ASelectionCanBeARange =
   (Darklang.Fluid.Test.messageAfter (Fixtures.reg ()) (Fixtures.hole ()) 60
     (Stdlib.List.flatten [ Fixtures.chars "[1, 2", [ "<Esc>", "<Esc>", "K", "V", "J", "y", "h", "h", "p" ] ])) =
     "can't put 2 nodes here: expression takes one"
+
+
+module ADictTypesBackTheWayItIsPrinted =
+  // Both drawings write `Dict { a: 1; b: 2 }` and nothing in the editor could type it. Four separate
+  // things were missing, and the first one hid the rest:
+  //
+  // 1. `Dict` was drawn as a keyword by the dict's own spec and offered by nothing, so typing it left a
+  //    variable and the `{` after it opened a RECORD literal called `Dict`.
+  // 2. A pair hole had no `resolve`, so a name typed into it stayed a partial and the `:` went in as
+  //    text: `Dict { a:1 }` in one slot.
+  // 3. A pair hole had no rule for a QUOTE, which is how a dict key is usually written.
+  // 4. Stepping over a drawn separator did not settle what was being typed, so the second pair's key was
+  //    still a partial when the document lowered. That one is not about dicts at all, see below.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Dict { a: 1; b: 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Dict { a: 1; b: 2 }"
+
+  // The brackets are drawn for you, so the shape without them works too.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Dict a: 1; b: 2") [ "<Esc>", "<Esc>" ])) =
+    "Dict { a: 1; b: 2 }"
+
+  // String keys, which is what a dict usually holds.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Dict { \"a\": 1; \"b\": 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Dict { \"a\": 1; \"b\": 2 }"
+
+  // ...and a value that is itself a container, so the pair's slots are ordinary expression slots.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Dict { a: [1, 2] }") [ "<Esc>", "<Esc>" ])) =
+    "Dict { a: [1, 2] }"
+
+  // The keystroke by keystroke shape, because the screen is where this went wrong and the program is
+  // only the last of it.
+  (Fixtures.screen (Fixtures.chars "Dict ")) = "Dict { ~⟨pair⟩ }"
+  (Fixtures.screen (Fixtures.chars "Dict \"a")) = "Dict { \"a~\": ⟨value⟩ }"
+  (Fixtures.screen (Fixtures.chars "Dict { a: 1; b: 2")) = "Dict { a: 1; b: 2~ }"
+
+
+module SteppingOverASeparatorSettlesFirst =
+  // The fourth way out of a half-typed thing, and the third time this rule has had to be written down.
+  // Adding a sibling, closing a bracket and collapsing a group all settle what is being typed before the
+  // caret leaves it, because a name still being typed has nothing after it to resolve it. Stepping over a
+  // separator the editor had already drawn did not.
+  //
+  // It stayed invisible because every other separator sits behind a TEXT slot -- a let's name, a
+  // parameter's -- and only a dict key is an EXPRESSION. `Dict { a: 1; b: 2 }` drew perfectly and refused
+  // to lower, "unresolved: b".
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Dict { a: 1; b: 2 }") [ "<Esc>", "<Esc>" ])) =
+    "Dict { a: 1; b: 2 }"
+
+  // The constructs that already settled still do, which is what says this added a case rather than
+  // moving one.
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "Zork { x = 1 }") [ "<Esc>", "<Esc>" ])) = "Zork { x = 1 }"
+  (Fixtures.program (Stdlib.List.append (Fixtures.chars "let x = 1 x") [ "<Esc>", "<Esc>" ])) = "let x = 1\nx"

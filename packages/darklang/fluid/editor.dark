@@ -2539,7 +2539,14 @@ let typeOne (st: State) (c: String) : State =
     // The separator you typed is already drawn just ahead (a let's `=`, a `:`): skip to the next hole
     // instead of typing it into the name. In an expression hole nothing like that is drawn, so `=` there
     // still starts an operator as before.
-    nextHole st
+    //
+    // SETTLE first. This is the fourth way out of a half-typed thing and the third time the rule has had
+    // to be written down: adding a sibling, closing a bracket, collapsing a group, and now stepping over
+    // a separator all leave the caret somewhere else, and a name still being typed has nothing after it
+    // to resolve it. It never showed until a dict pair, because every other separator sits behind a TEXT
+    // slot (a let's name, a parameter's) and only a dict key is an expression: `Dict { a: 1; b: 2 }` drew
+    // perfectly and refused to lower, "unresolved: b".
+    nextHole (resolvePartial st |> Stdlib.Option.withDefault st)
   elif
     (Stdlib.List.member st.reg.syntax.separators c)
     && (Stdlib.Bool.not inStringBody)

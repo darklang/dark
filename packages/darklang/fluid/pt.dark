@@ -1217,6 +1217,21 @@ let toUInt128 (n: Node) (c: String) : Node = widthSuffix "EUInt128" "EUInt128" n
 
 let stringFromQuote (c: String) (e: Expect) : Node = Node.make (exprKind "EString") [ text "body" "" ]
 
+/// A dict pair opened by typing its KEY's first character, rather than by typing a name.
+///
+/// `resolveDictPair` covers a name, because a name arrives as a partial that something later settles. A
+/// literal does not: typing `"` in an expression hole builds an `EString` on the spot, and in a PAIR hole
+/// there was no rule at all, so `Dict { "a": 1 }` -- which is what a dict usually looks like -- went in as
+/// one long partial and refused to lower.
+///
+/// The key's own construction is delegated rather than repeated: whatever an expression hole would build
+/// from this character is what goes in the key.
+let pairFromKeyChar (c: String) (e: Expect) : Node =
+  Node.make
+    (Kind.named dictPairType)
+    [ ("key", Field.One(Slot.Filled(stringFromQuote c (exprExpect "key"))))
+      ("value", Field.One(Slot.Empty(exprExpect "value"))) ]
+
 /// `$` starts an interpolated string: an EStringI with one empty text segment to type into. Editor.dark
 /// handles the segment transitions (`{` splits in an interpolation, `"` ends the string).
 let stringInterpFromDollar (c: String) (e: Expect) : Node =
@@ -1793,6 +1808,21 @@ let resolveExprPartial (typed: String) : Stdlib.Option.Option<Node> =
   else
     Stdlib.Option.Option.None
 
+/// A bare name typed where a dict PAIR is expected: `Dict a` gives `Dict { a: <value> }`.
+///
+/// A record field's name is a text slot, so `resolveRecordField` builds the node straight from what was
+/// typed. A dict key is an EXPRESSION, so this hands the typed text to the expression resolver and wraps
+/// the answer in a pair. Without it, typing into a pair hole left a partial and the `:` after it went in
+/// as text: `Dict { a:1 }` in one slot, which lowers to nothing.
+let resolveDictPair (typed: String) : Stdlib.Option.Option<Node> =
+  match resolveExprPartial typed with
+  | Some key ->
+    Stdlib.Option.Option.Some(
+      Node.make
+        (Kind.named dictPairType)
+        [ ("key", Field.One(Slot.Filled key)), ("value", Field.One(Slot.Empty(exprExpect "value"))) ])
+  | None -> Stdlib.Option.Option.None
+
 /// `xs |> zork 1`: an argument after a settled pipe variable.
 ///
 /// Not a wrap, unlike the expression side's `<apply>` -- there is nothing to build. `EPipeVariable`
@@ -2320,6 +2350,9 @@ let exprTypeSpec () : Spec =
           Spec.suggestion "update" "{ r with f = v }   {" (recordUpdateFromBrace "{" (exprExpect "record"))
           Spec.suggestion "char" "one character   '" (Node.make (exprKind "EChar") [ text "char" "" ])
           Spec.suggestion "interpolation" "text with {holes}   $" (stringInterpFromDollar "$" (exprExpect "expr"))
+          // A candidate rather than a suggestion: `Dict` is the word the drawing already uses, so it is
+          // reached the way `let` and `match` are, by typing it and settling.
+          Spec.candidate "Dict" "a dict   Dict { k: v }" (emptyDict ())
           Spec.candidate "true" "Bool" (Node.make (exprKind "EBool") [ text "value" "true" ])
           Spec.candidate "false" "Bool" (Node.make (exprKind "EBool") [ text "value" "false" ])
           Spec.candidate "()" "Unit" (Node.make (exprKind "EUnit") []) ]
@@ -2411,6 +2444,17 @@ let emptyCase () : Node =
     [ ("pat", Field.One(Slot.Empty(matchPatExpect "pattern")))
       ("when", Field.Many([], exprExpect "when"))
       ("rhs", Field.One(Slot.Empty(exprExpect "rhs"))) ]
+
+/// `Dict { <key>: <value> }`, with one pair ready to fill.
+///
+/// The printer writes `Dict { a: 1; b: 2 }` and nothing in the editor could type it back: `Dict` is drawn
+/// as a KEYWORD by the dict's own spec, but no candidate offered it, so typing `Dict` left a variable and
+/// the `{` after it opened a RECORD literal called `Dict`. A different program, and one that does not
+/// resolve.
+let emptyDict () : Node =
+  Node.make
+    (exprKind "EDict")
+    [ ("pairs", Field.Many([ Slot.Empty(pairExpect ()) ], pairExpect ())) ]
 
 let emptyMatch () : Node =
   Node.make
@@ -2634,7 +2678,10 @@ let moreSpecs () : List<Spec> =
     Spec.withNoSequence
       // The value is a `ParenLowSlot` for the same reason a record field's is: a `match` here swallows
       // the `;` and the pair after it.
-      (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.ParenLowSlot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+      ({ (Spec.withRules
+            (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.ParenLowSlot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+            [ HoleRule { onChar = "\""; fill = HoleFill.WithChar pairFromKeyChar } ]) with
+          resolve = resolveDictPair })
       [ "key", "value" ]
     Spec.withOffers
       // Soft lines, not hard: a record goes on one line when it fits. This reverses a deliberate choice
