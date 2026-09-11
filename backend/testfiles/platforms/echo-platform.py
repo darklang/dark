@@ -5,6 +5,9 @@ Python rather than C so this is a text fixture with nothing to build, and still 
 external: it speaks the wire and knows nothing about Dark.
 
 Wire, both directions: a 4-byte little-endian length, then that many bytes.
+  hello    = varint wire version, platform name, varint type count,
+             then that many (symbolic type name, content hash) pairs
+  hi back  = varint wire version this plugin speaks
   frame    = blob table, then the payload
   request  = the builtin NAME (varint length, then UTF-8), varint arg count,
              then each arg as a Dval
@@ -15,11 +18,19 @@ The blob table is how BYTES cross: a varint count, then that many entries of a h
 payload is a REFERENCE to one of those hashes, and a reference whose hash is not in
 the table names bytes the receiver was expected to already hold.
 
+The hello frame is how a plugin can return anything but a primitive. A record or an
+enum carries the type's CONTENT HASH, which a plugin has no way to know: that is the
+same reason a manifest names types symbolically. The host resolves those names
+against its own store and hands the answers over once, at startup.
+
 Dval encoding, only the cases this fixture needs:
   DUnit   = 0
   DInt64  = 8,  then 8 bytes little-endian
   DString = 14, then varint byte length, then UTF-8
+  DEnum   = 21, then the source and runtime type hashes (each a string), then the
+            type arguments, then the case name, then the case's fields
   DBlob   = 24, then the hash as a string, then the length as 8 bytes little-endian
+A type argument is 0 for unknown, or 1 followed by a known type (14 is String).
 Varint is .NET's 7-bit encoded int: low 7 bits per byte, high bit means continue.
 """
 import hashlib
@@ -114,7 +125,46 @@ def write_blob(out, table, blob):
     out.extend(struct.pack("<q", len(blob)))
 
 
+def write_ok_string(out, result_hash, text):
+    """`Ok text` as a `Result<String, String>`, using the hash the host handed over."""
+    out.append(21)
+    encoded = result_hash.encode("utf-8")
+    write_varint(out, len(encoded))
+    out.extend(encoded)
+    write_varint(out, len(encoded))
+    out.extend(encoded)
+    write_varint(out, 2)  # two type arguments
+    out.extend([1, 14, 1, 14])  # each one known, each one String
+    write_varint(out, 2)
+    out.extend(b"Ok")
+    write_varint(out, 1)  # one field in this case
+    write_string(out, text)
+
+
+def hello():
+    """Read what the host says at startup, and say what we speak back."""
+    header = read_exact(4)
+    (length,) = struct.unpack("<I", header)
+    body = read_exact(length)
+    version, pos = read_varint(body, 0)
+    _name, pos = read_string(body, pos)
+    count, pos = read_varint(body, pos)
+    types = {}
+    for _ in range(count):
+        name, pos = read_string(body, pos)
+        hash_, pos = read_string(body, pos)
+        types[name] = hash_
+
+    reply = bytearray()
+    write_varint(reply, 1)
+    sys.stdout.buffer.write(struct.pack("<I", len(reply)))
+    sys.stdout.buffer.write(bytes(reply))
+    sys.stdout.buffer.flush()
+    return version, types
+
+
 def main():
+    _version, types = hello()
     counter = 0
     while True:
         header = read_exact(4)
@@ -149,6 +199,13 @@ def main():
             # the table exists for.
             blob, pos = read_blob_ref(body, pos, table)
             write_blob(out, returning, blob.upper())
+        elif fn == "echoResult" and argc == 1 and body[pos] == 14:
+            # A `Result`, which is an enum, which needs the type's hash. The manifest named
+            # `Darklang.Stdlib.Result.Result` and the host resolved it for us at startup.
+            pos += 1
+            slen, pos = read_varint(body, pos)
+            text = body[pos : pos + slen].decode("utf-8")
+            write_ok_string(out, types["Darklang.Stdlib.Result.Result"], text.upper())
         elif fn == "echoCrash" and argc == 1:
             # Deliberately fall over, so the host's crash handling can be tested.
             sys.exit(1)

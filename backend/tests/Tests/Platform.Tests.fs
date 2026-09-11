@@ -1104,6 +1104,7 @@ let private goodManifest : External.Manifest =
     requires = [ "Core" ]
     requiresStore = false
     artifacts = []
+    types = []
     fns = describedFns (Set.singleton describedEffect) }
 
 let private rejectionOf (m : External.Manifest) : List<string> =
@@ -1831,6 +1832,11 @@ let private echoPlatformPath () =
     "echo-platform.py"
   )
 
+/// What the host tells the fixture at startup: the type names its manifest used, and what this
+/// store made of them. `Result` is the whole point, since an enum on the wire carries a hash.
+let private echoTypes : List<string * RT.FQTypeName.FQTypeName> =
+  [ ("Darklang.Stdlib.Result.Result", LibExecution.Dval.resultType ()) ]
+
 let private spawnedFns : List<External.Fn> =
   [ { name = "echoCounter"
       version = 0
@@ -1844,6 +1850,12 @@ let private spawnedFns : List<External.Fn> =
       returnType = TString
       effects = Set.singleton describedEffect
       description = "reads a Dval as well as writing one" }
+    { name = "echoResult"
+      version = 0
+      parameters = [ ("text", TString) ]
+      returnType = TypeReference.result TString TString
+      effects = Set.singleton describedEffect
+      description = "returns something that is not a primitive" }
     { name = "echoBytes"
       version = 0
       parameters = [ ("bytes", TBlob) ]
@@ -1891,7 +1903,7 @@ let private callSpawned (handle : LibDB.PlatformSpawn.Handle) (name : string) (a
 
 let aSpawnedPlatformAnswers =
   testTask "a platform in another process answers, and keeps its own state" {
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
     try
       // Its counter lives outside this runtime, so two calls to one process differ. That is the
       // proof it is really another process and not a clever closure.
@@ -1912,6 +1924,27 @@ let aSpawnedPlatformAnswers =
       LibDB.PlatformSpawn.stop handle
   }
 
+let aSpawnedPlatformBuildsAnEnum =
+  testTask "a platform in another process returns a Result, not just a primitive" {
+    // The reason the startup handshake exists. An enum on the wire carries the type's CONTENT
+    // HASH, and a plugin has no way to know one: that is the same reason a manifest names types
+    // symbolically rather than carrying hashes. The host resolves the names and hands the answers
+    // over once, before the first call.
+    //
+    // Without it an external platform can only return primitives, which rules out anything
+    // answering with a `Result`, which is most of what a platform would want to answer with.
+    let handle =
+      LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+    try
+      let! answered = callSpawned handle "echoResult" (RT.DString "typed")
+      match answered with
+      | Ok(RT.DEnum(source, _, _, "Ok", [ RT.DString "TYPED" ])) ->
+        Expect.equal source (LibExecution.Dval.resultType ()) "built with the hash it was handed"
+      | other -> failtest $"unexpected: {other}"
+    finally
+      LibDB.PlatformSpawn.stop handle
+  }
+
 let aSpawnedPlatformCarriesBytes =
   testTask "bytes cross to another process and back" {
     // The case the at-rest `Dval` encoding cannot express, and rightly: at rest, bytes have to be
@@ -1920,7 +1953,7 @@ let aSpawnedPlatformCarriesBytes =
     //
     // Load-bearing rather than a curiosity: every `HttpClient` builtin returns freshly fetched
     // bytes, so a platform that cannot carry a blob cannot be `HttpClient`.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
     try
       let sent = System.Text.Encoding.UTF8.GetBytes "bytes over a pipe"
       let! answered = callSpawned handle "echoBytes" (LibExecution.Blob.newEphemeral sent)
@@ -1943,7 +1976,7 @@ let aSpawnedPlatformIsPermissionChecked =
   testTask "a spawned platform's declared capability is enforced before it is called" {
     // The gate runs on what the platform DECLARED, before any bytes cross, so an ungranted
     // capability never reaches the process at all.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
     try
       let core = Platforms.Sets.sealedCompute ()
       let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
@@ -1975,7 +2008,7 @@ let aCrashedPlatformIsAnErrorNotAHang =
   testTask "a platform that exits without answering is an error, not a hang" {
     // The spike found this and its harness did not handle it: a crashed plugin is a CLOSED PIPE
     // rather than any response. Left alone that is a CLI that never returns.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
     try
       let! crashed = callSpawned handle "echoCrash" RT.DUnit
       match crashed with
@@ -2183,6 +2216,7 @@ let tests =
       aManifestMustBeALiteral
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
+      aSpawnedPlatformBuildsAnEnum
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked
       aCrashedPlatformIsAnErrorNotAHang

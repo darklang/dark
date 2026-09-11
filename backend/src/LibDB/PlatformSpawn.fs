@@ -42,14 +42,71 @@ type Handle =
   private
     { executable : string
       platformName : string
+      types : List<string * RT.FQTypeName.FQTypeName>
       mutable running : Option<Running>
       startGate : obj }
 
-let handleFor (platformName : string) (executable : string) : Handle =
+let handleFor
+  (platformName : string)
+  (executable : string)
+  (types : List<string * RT.FQTypeName.FQTypeName>)
+  : Handle =
   { executable = executable
     platformName = platformName
+    types = types
     running = None
     startGate = obj () }
+
+/// What this side speaks. A plugin that answers with a different number is refused at startup
+/// rather than allowed to produce frames neither side can read.
+[<Literal>]
+let protocolVersion = 1
+
+/// Tell a freshly started platform what it needs to know before the first call.
+///
+/// One frame out, one frame back. The frame out is the protocol version, the platform's name, and
+/// what this instance's store made of every type name the manifest used. The frame back is the
+/// version the plugin speaks.
+///
+/// The type table is the point. A record or an enum on the wire carries the type's CONTENT HASH,
+/// and a plugin cannot know a hash: that is the same reason a manifest names types symbolically.
+/// Without this a platform can only return primitives, so no platform could return a `Result`.
+///
+/// A round trip at startup rather than a one-way announcement, because a version mismatch found
+/// here is one sentence, and found later is a corrupt frame in the middle of somebody's program.
+let private handshake (handle : Handle) (running : Running) : Result<unit, string> =
+  try
+    use body = new MemoryStream()
+    use bw = new BinaryWriter(body)
+    Varint.write bw protocolVersion
+    LibSerialization.Binary.Serializers.Common.String.write bw handle.platformName
+    Varint.write bw (List.length handle.types)
+    for (name, typeName) in handle.types do
+      LibSerialization.Binary.Serializers.Common.String.write bw name
+      let (RT.FQTypeName.Package(RT.Hash hash)) = typeName
+      LibSerialization.Binary.Serializers.Common.String.write bw hash
+    bw.Flush()
+    let bytes = body.ToArray()
+    running.writer.Write(int32 bytes.Length)
+    running.writer.Write bytes
+    running.writer.Flush()
+
+    let length = running.reader.ReadInt32()
+    let response = running.reader.ReadBytes length
+    use rs = new MemoryStream(response)
+    use br = new BinaryReader(rs)
+    let theirs = Varint.read br
+    if theirs = protocolVersion then
+      Ok()
+    else
+      Error
+        $"the {handle.platformName} platform speaks wire version {theirs}, and this build speaks {protocolVersion}"
+  with
+  | :? EndOfStreamException ->
+    Error
+      $"the {handle.platformName} platform exited during startup, without saying what it speaks"
+  | :? IOException as e ->
+    Error $"lost contact with the {handle.platformName} platform at startup: {e.Message}"
 
 let private start (handle : Handle) : Result<Running, string> =
   try
@@ -75,8 +132,15 @@ let private ensureRunning (handle : Handle) : Result<Running, string> =
       match start handle with
       | Error e -> Error e
       | Ok r ->
-        handle.running <- Some r
-        Ok r)
+        match handshake handle r with
+        | Error e ->
+          // Never recorded as running, so the next call starts fresh rather than talking to a
+          // process this one has already decided it cannot understand.
+          (try r.proc.Kill() with _ -> ())
+          Error e
+        | Ok() ->
+          handle.running <- Some r
+          Ok r)
 
 /// Stop it, if it is running. Closing stdin is the shutdown signal: the plugin's read loop ends.
 let stop (handle : Handle) : unit =

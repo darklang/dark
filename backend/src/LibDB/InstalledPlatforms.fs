@@ -140,7 +140,8 @@ let platforms
                 match PlatformArtifacts.path artifactHash with
                 | Error e -> skipped <- skipped @ [ (name, e) ]
                 | Ok executable ->
-                  let handle = PlatformSpawn.handleFor manifest.name executable
+                  let handle =
+                    PlatformSpawn.handleFor manifest.name executable manifest.types
                   match
                     Platform.External.Manifest.toPlatform (PlatformSpawn.invoke handle) manifest
                   with

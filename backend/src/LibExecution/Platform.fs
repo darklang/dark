@@ -506,6 +506,17 @@ module External =
       /// arrive however packages arrive, and are checked against the name they came under. You
       /// approve a hash rather than a host.
       artifacts : List<string * string>
+
+      /// What this instance's store made of the type names the manifest used, in the order the
+      /// manifest first named them.
+      ///
+      /// The resolution is already done by the time a `Manifest` exists, and this keeps it rather
+      /// than discarding it, because the PLUGIN needs it. A `DRecord` or a `DEnum` on the wire
+      /// carries the type's content hash, and a plugin cannot know a hash: that is the same reason
+      /// a manifest names types symbolically in the first place. So the host tells it, once, when
+      /// the process starts. Without this a platform can only return primitives, which rules out
+      /// anything returning a `Result`.
+      types : List<string * FQTypeName.FQTypeName>
     }
 
   /// Why a manifest was refused. Plural, because a person fixing one wants every problem at once
@@ -986,6 +997,21 @@ module Written =
     : Result<External.Manifest, External.Rejection> =
     let problems = ResizeArray<string>()
 
+    // What each name resolved to, remembered as the walk goes rather than recomputed: this is the
+    // table the plugin is handed at startup so it can build records and enums of its own.
+    let resolvedTypes = ResizeArray<string * FQTypeName.FQTypeName>()
+
+    let seen (name : string) (hash : FQTypeName.FQTypeName) =
+      if not (resolvedTypes |> Seq.exists (fun (n, _) -> n = name)) then
+        resolvedTypes.Add((name, hash))
+
+    let lookup (name : string) =
+      match lookup name with
+      | Some hash ->
+        seen name hash
+        Some hash
+      | None -> None
+
     let resolveType (context : string) (t : External.NamedType) : TypeReference =
       match External.NamedType.resolve lookup t with
       | Ok typ -> typ
@@ -1026,7 +1052,8 @@ module Written =
         requires = written.requires
         requiresStore = written.requiresStore
         artifacts = written.artifacts
-        fns = fns }
+        fns = fns
+        types = List.ofSeq resolvedTypes }
 
     let all = List.ofSeq problems @ External.Manifest.problems manifest
     if List.isEmpty all then
