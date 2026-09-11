@@ -1,0 +1,15 @@
+DARK-PLATFORM-MANIFEST 1
+owner darklang
+name Fetch
+version 0
+store no
+artifact linux-x64 015c8a8f3d50ec3180402a1dbe02d7b3d07bee7a095f083d2780b141a585471b
+description Outbound HTTP, in a process that is not the runtime.
+
+fn fetchRequest 0
+param method String
+param uri String
+param headers List<Tuple<String, String>>
+param body Blob
+returns Darklang.Stdlib.Result.Result<Darklang.Stdlib.HttpClient.Response, String>
+effect http
