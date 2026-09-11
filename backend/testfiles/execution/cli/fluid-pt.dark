@@ -2162,3 +2162,37 @@ module AMatchGuardIsPartOfTheLayout =
   // breaking.
   (AMatchGuardIsPartOfTheLayout.printed 80 "match x with\n| n when n > 3 -> \"a\"\n| _ -> \"b\"") =
     "match x with\n| n when n > 3 -> \"a\"\n| _ -> \"b\""
+
+
+module ADoubledPipeIsAnOperatorTheSpecNames =
+  // A second `|` on a FRESH pipe means `||`, the OR operator, not a second stage. The rule is right and
+  // the kernel used to carry it out by CONSTRUCTING an `EInfix` -- its kind and its `left`/`op`/`right`
+  // slots, all spelled in the kernel. It was the last place the kernel named a Darklang node case.
+  //
+  // It goes through the type-level spec's `<operator>` wrap rule now, which is the same route
+  // `leadPunctRevision` takes for the case where the fresh thing is a list item rather than a pipe step.
+  // These are regression pins: the behaviour is unchanged and that is the claim.
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let screen (src: String) : String =
+    Darklang.Fluid.Test.run (ADoubledPipeIsAnOperatorTheSpecNames.reg ()) (ADoubledPipeIsAnOperatorTheSpecNames.hole ()) 60
+      (ADoubledPipeIsAnOperatorTheSpecNames.chars src)
+
+  // The pipe the first `|` made is unwrapped back to its operand, and the operator takes it.
+  (ADoubledPipeIsAnOperatorTheSpecNames.screen "x||") = "x ||~ ⟨right⟩"
+  (ADoubledPipeIsAnOperatorTheSpecNames.screen "x||y") = "x || y~"
+
+  // Precedence picks WHICH node it takes, so `1 + 2 ||` is `(1 + 2) || _` and not `1 + (2 || _)`. This is
+  // the assertion that would go first if the wrap rule were looked up on the wrong node.
+  (ADoubledPipeIsAnOperatorTheSpecNames.screen "1+2||") = "1 + 2 ||~ ⟨right⟩"
+
+  // A single `|` is still a pipe, and `|>` still continues it. The revision only fires on the double.
+  (ADoubledPipeIsAnOperatorTheSpecNames.screen "x|") = "x |> ~⟨step⟩"
+  (ADoubledPipeIsAnOperatorTheSpecNames.screen "x|>f") = "x |> f~"

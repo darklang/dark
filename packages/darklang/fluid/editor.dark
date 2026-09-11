@@ -2382,20 +2382,32 @@ let typeOne (st: State) (c: String) : State =
       if fresh then
         // Unwrap the accidental pipe back to its operand, then wrap with `||` at the node precedence says
         // it should take (left-associative), so `x || y || z` is `(x || y) || z` and prints without parens.
+        // Through the spec's wrap rule for a doubled operator, not by building an `EInfix` here. This was
+        // the last place the kernel named a Darklang node case, and it built the node's slots (`left`,
+        // `op`, `right`) as well as its kind, so a DSL whose `|` doubled into something else got a
+        // Darklang infix. `leadPunctRevision` says the same sentence through the registry; this is that
+        // sentence for the case where the fresh thing is a pipe STEP rather than a list item.
         let firstSlot = Node.slot pn "first" |> Stdlib.Option.withDefault (Slot.Empty(Expect.any "left"))
-        let target = reassocTarget st.reg st.root caret.node "||"
+        let doubled = c ++ c
+        let target = reassocTarget st.reg st.root caret.node doubled
         let st0 = commit st [ Edit.Replace(caret.node, firstSlot) ] caret
         match nodeAtPath st0.root target with
         | Some targetNode ->
-          // The right operand expects an expression (same kind the pipe sits in), so a typed literal
-          // resolves the way an ordinary infix operand does.
-          let rightExpect = Expect.ofKind (Kind.named (Kind.typeName pn.kind)) "right"
-          let infix =
-            Node.make
-              (Kind.ofCase (Kind.typeName pn.kind) "EInfix")
-              [ ("left", Field.One(Slot.Filled targetNode)), ("op", Field.Text "||"), ("right", Field.One(Slot.Empty rightExpect)) ]
-          let st1 = commit st0 [ Edit.Replace(target, Slot.Filled infix) ] st0.caret
-          { st1 with caret = Caret.inText target "op" 2 }
+          let rules =
+            match Registry.findTypeLevel st.reg targetNode.kind with
+            | Some spec -> spec.wrapRules
+            | None -> []
+
+          (match rules |> Stdlib.List.findFirst (fun r -> r.onChar == "<operator>") with
+           | Some rule ->
+             let wrapped = rule.wrap targetNode doubled
+             let st1 = commit st0 [ Edit.Replace(target, Slot.Filled wrapped) ] st0.caret
+             if rule.opSlot == "" then
+               typeOne { st1 with caret = landAfterCommit target wrapped } c
+             else
+               let opLen = Node.text wrapped rule.opSlot |> Stdlib.Option.withDefault "" |> Stdlib.String.length
+               { st1 with caret = Caret.inText target rule.opSlot opLen }
+           | None -> st0)
         | None -> st0
       else
         let settled = resolvePartial st |> Stdlib.Option.withDefault st
