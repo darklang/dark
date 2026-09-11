@@ -903,6 +903,143 @@ let theFloorCanNameThings =
   }
 
 
+// ── a platform described rather than written ───────────────────────────────────
+//
+// Every platform in this repo is hand-written `BuiltInFn` records. One that arrives as an artifact
+// cannot be: nothing in this binary knows its names or signatures until it says so. `External`
+// turns that description into the same `Builtins`, and these ask whether the rest of the runtime
+// can tell the difference. It should not be able to.
+
+/// The capability our described platform claims. Nothing in this runtime ships it.
+let private describedEffect : Effects.Effect =
+  match Effects.custom "acme/serial" with
+  | Some effect -> effect
+  | None -> Exception.raiseInternal "acme/serial should be valid" []
+
+/// `readTag : Unit -> String`, described, answering from a counter the runtime cannot see.
+let private describedFns (effects : Set<Effects.Effect>) : List<External.Fn> =
+  [ { name = "acmeReadTag"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = effects
+      description = "described, not written" } ]
+
+let private describedPlatform (effects : Set<Effects.Effect>) (answer : string) : Platform =
+  { name = "AcmeSerial"
+    version = 0
+    description = "A platform this repo does not contain."
+    builtins =
+      External.builtins
+        // Stands in for the pipe. The point is that the runtime cannot tell.
+        (fun _index _args -> Ply(RT.DString answer))
+        (describedFns effects)
+    requires = [ "Core" ]
+    dynamicEffects = Set.empty
+    requiresStore = false }
+
+/// Call the described builtin against Core plus that platform, under `policy`.
+///
+/// By name through `executeFunction` rather than by parsing `Builtin.acmeReadTag ()`. The parser
+/// resolves builtin names against the state IT runs under, which is the real catalog and not the
+/// set composed here, so a described platform's builtins are invisible to it. That is a real gap
+/// and it is the next item on the plan; it is not what these tests are about.
+let private runDescribed
+  (effects : Set<Effects.Effect>)
+  (policy : Permission.Policy)
+  =
+  task {
+    let core = Platforms.Sets.sealedCompute ()
+    let set =
+      PlatformSet.make (core.platforms @ [ describedPlatform effects "TAG-42" ]) []
+    let pmRT =
+      PT2RT.PackageManager.toRT
+        set.builtins.values
+        LibExecution.ProgramTypes.PackageManager.empty
+    let state =
+      Exe.createState
+        set.builtins
+        pmRT
+        Exe.noTracing
+        RT.consoleReporter
+        RT.consoleNotifier
+        { dbs = Map.empty }
+      |> Exe.setInstancePolicy policy
+    let name = RT.FQFnName.FQFnName.Builtin(RT.FQFnName.builtin "acmeReadTag" 0)
+    return!
+      Exe.executeFunction state name [] (NEList.singleton RT.DUnit)
+  }
+
+let aDescribedPlatformComposes =
+  test "a described platform composes and is indistinguishable in the manifest" {
+    let core = Platforms.Sets.sealedCompute ()
+    let described = describedPlatform (Set.singleton describedEffect) "TAG-42"
+    let set = PlatformSet.make (core.platforms @ [ described ]) []
+    Expect.equal
+      (PlatformSet.qualify "acmeReadTag" set)
+      "AcmeSerial#acmeReadTag"
+      "the described builtin resolves to its platform"
+    Expect.isTrue
+      (Set.contains describedEffect (PlatformSet.effectSurface set))
+      "and its capability is in the set's effect surface"
+    Expect.equal (Platform.fnCount described) 1 "one builtin, counted like any other"
+
+    // The fingerprint comes out of the description for free, since `manifestText` hashes names,
+    // signatures and effects and the description is where a synthesized builtin's come from. Worth
+    // asserting rather than assuming: it is what makes a described platform pinnable.
+    let sameAgain = describedPlatform (Set.singleton describedEffect) "TAG-42"
+    Expect.equal
+      (Platform.fingerprint described)
+      (Platform.fingerprint sameAgain)
+      "the same description fingerprints the same"
+
+    let otherEffect =
+      match Effects.custom "acme/gpio" with
+      | Some effect -> effect
+      | None -> Exception.raiseInternal "acme/gpio should be valid" []
+    Expect.notEqual
+      (Platform.fingerprint described)
+      (Platform.fingerprint (describedPlatform (Set.singleton otherEffect) "TAG-42"))
+      "a description claiming a different capability fingerprints differently"
+
+    // And the body is NOT in it, which is the honest limit. Two platforms answering differently
+    // through the same declared surface are the same fingerprint, so the hash pins the CONTRACT.
+    // Pinning the artifact is the content hash's job, separately.
+    Expect.equal
+      (Platform.fingerprint described)
+      (Platform.fingerprint (describedPlatform (Set.singleton describedEffect) "TAG-99"))
+      "the answer is not in the fingerprint; the artifact hash is what pins that"
+  }
+
+let aDescribedBuiltinRuns =
+  testTask "a described builtin runs, and its declared effect is enforced" {
+    // The two halves that matter. It executes at all, and the ambient gate checks the effect it
+    // CLAIMED rather than anything about its body, which is the only thing a runtime can check
+    // about code it did not compile.
+    let granted = Permission.Policy.create [ Permission.Rule.Effect describedEffect ] []
+    let! allowed =
+      runDescribed (Set.singleton describedEffect) granted
+    match allowed with
+    | Ok(RT.DString "TAG-42") -> ()
+    | Ok other -> failtest $"described builtin answered wrongly: {other}"
+    | Error(rte, _) -> failtest $"described builtin raised: {rte}"
+  }
+
+let aDescribedBuiltinIsDeniedWithoutTheGrant =
+  testTask "a described builtin is refused when its capability is not granted" {
+    // Allow-everything-else on purpose: if the custom effect were reachable through any effect we
+    // already ship, declaring it separately would be theatre.
+    let everythingElse =
+      Permission.Policy.create (Effects.all |> List.map Permission.Rule.Effect) []
+    let! denied =
+      runDescribed (Set.singleton describedEffect) everythingElse
+    match denied with
+    | Error _ -> ()
+    | Ok other ->
+      failtest $"described builtin ran without a grant for its capability: {other}"
+  }
+
+
 let tests =
   testList
     "platform"
@@ -934,4 +1071,7 @@ let tests =
       aForeignEffectSuggestsItsOwnRule
       aCustomRequestNeedsACustomEffect
       alwaysOnListsAgree
-      theFloorCanNameThings ]
+      theFloorCanNameThings
+      aDescribedPlatformComposes
+      aDescribedBuiltinRuns
+      aDescribedBuiltinIsDeniedWithoutTheGrant ]

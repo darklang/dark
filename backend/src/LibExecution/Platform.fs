@@ -409,3 +409,67 @@ module PlatformSet =
     : List<Effects.Effect> =
     let reachable = effectSurface set
     named |> Set.toList |> List.filter (fun e -> not (Set.contains e reachable))
+
+
+/// A platform whose builtins are DESCRIBED rather than written.
+///
+/// Every platform in this repo is a list of `BuiltInFn` records written by hand in F#, which is
+/// fine while we are the only people shipping them. A platform that arrives as an artifact cannot
+/// be that: nothing in this binary knows its function names or its signatures until it says so.
+///
+/// So it says so as data, and this turns that data into the same `Builtins` a hand-written platform
+/// produces. Everything above stays identical, which is the point: `PlatformSet.make` composes it,
+/// the fingerprint covers it, the interpreter dispatches to it, and the permission gate checks its
+/// declared effects, all without knowing where it came from.
+module External =
+
+  /// One builtin, described the way a manifest would describe it.
+  ///
+  /// Parameter NAMES are for error messages; the TYPES are what a call site compiles against, and
+  /// are why the description has to reach the runtime before the platform is ever run.
+  type Fn =
+    {
+      name : string
+      version : int
+      parameters : List<string * TypeReference>
+      returnType : TypeReference
+      /// Everything a call may do, including `Effects.Effect.Custom` ones this binary has never
+      /// heard of. The ambient gate checks these before the body runs, so an undeclared effect is
+      /// not a loophole, it is a lie the platform told at install time.
+      effects : Set<Effects.Effect>
+      description : string
+    }
+
+  /// What actually performs the call: the builtin's INDEX in the platform's own list, and its
+  /// already-evaluated arguments.
+  ///
+  /// An index rather than a name because that is what a wire protocol wants, and because it keeps
+  /// this module free of any opinion about transport. A test passes a function; a shipped platform
+  /// passes something that writes to a pipe.
+  type Invoke = int -> List<Dval> -> Ply<Dval>
+
+  /// Describe-to-`Builtins`, pairing each description with its index.
+  ///
+  /// `previewable` is `Impure` for all of them, unconditionally. A described builtin cannot be
+  /// shown to be pure: purity is a claim about a body we cannot see, and guessing generously here
+  /// would let an analysis preview something with side effects.
+  ///
+  /// `sqlSpec` is `NotQueryable` for the same reason.
+  let builtins (invoke : Invoke) (fns : List<Fn>) : Builtins =
+    fns
+    |> List.mapi (fun index (fn : Fn) ->
+      { name = FQFnName.builtin fn.name fn.version
+        typeParams = []
+        parameters =
+          fn.parameters
+          |> List.map (fun (name, typ) -> BuiltInParam.make name typ "")
+        returnType = fn.returnType
+        description = fn.description
+        previewable = Impure
+        deprecated = NotDeprecated
+        sqlSpec = NotQueryable
+        callEffects = fn.effects
+        fn =
+          (function
+          | _, _, _, args -> invoke index (List.ofArray args)) })
+    |> Builtin.make []
