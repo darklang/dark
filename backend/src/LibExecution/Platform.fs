@@ -490,6 +490,15 @@ module External =
       requires : List<string>
       requiresStore : bool
       fns : List<Fn>
+
+      /// The executable to run, per runtime identifier (`linux-x64`, `osx-arm64`), each addressed
+      /// by the SHA-256 of its bytes.
+      ///
+      /// Hashes rather than paths or URLs, because that is what makes the delivery channel
+      /// uninteresting: the bytes live in the content-addressed blob store like everything else,
+      /// arrive however packages arrive, and are checked against the name they came under. You
+      /// approve a hash rather than a host.
+      artifacts : List<string * string>
     }
 
   /// Why a manifest was refused. Plural, because a person fixing one wants every problem at once
@@ -545,6 +554,31 @@ module External =
         |> List.map (fun ((name, version), _) ->
           $"builtin '{name}@{version}' is declared more than once")
 
+      let ridShape =
+        System.Text.RegularExpressions.Regex(
+          @"^[a-z0-9]+(-[a-z0-9]+)+$",
+          System.Text.RegularExpressions.RegexOptions.Compiled
+        )
+
+      let hashShape =
+        System.Text.RegularExpressions.Regex(
+          @"^[0-9a-f]{64}$",
+          System.Text.RegularExpressions.RegexOptions.Compiled
+        )
+
+      let artifacts =
+        [ for (rid, hash) in m.artifacts do
+            if not (ridShape.IsMatch rid) then
+              $"'{rid}' is not a runtime identifier, which looks like 'linux-x64'"
+            if not (hashShape.IsMatch hash) then
+              $"the artifact for '{rid}' is not addressed by a SHA-256"
+          // One executable per target. Two would mean the manifest does not say which runs.
+          yield!
+            m.artifacts
+            |> List.countBy fst
+            |> List.filter (fun (_, count) -> count > 1)
+            |> List.map (fun (rid, _) -> $"more than one artifact for '{rid}'") ]
+
       let perFn =
         m.fns
         |> List.collect (fun fn ->
@@ -557,7 +591,14 @@ module External =
             if not (travels fn.returnType) then
               $"builtin '{fn.name}' returns a type that cannot cross a process boundary" ])
 
-      platformNames @ duplicates @ perFn
+      platformNames @ artifacts @ duplicates @ perFn
+
+    /// The executable for a target, if this platform ships one.
+    ///
+    /// `None` is an ordinary answer rather than a problem: a platform may simply not build for
+    /// your machine, and that is worth saying at install rather than discovering at spawn.
+    let artifactFor (rid : string) (m : Manifest) : Option<string> =
+      m.artifacts |> List.tryFind (fun (r, _) -> r = rid) |> Option.map snd
 
     /// Turn a manifest into a platform, or say why not.
     ///
@@ -779,6 +820,7 @@ module Written =
       description : string
       requires : List<string>
       requiresStore : bool
+      artifacts : List<string * string>
       fns : List<Fn>
     }
 
@@ -801,6 +843,8 @@ module Written =
         for r in m.requires do
           yield $"requires {r}"
         yield "store " + (if m.requiresStore then "yes" else "no")
+        for (rid, hash) in m.artifacts do
+          yield $"artifact {rid} {hash}"
         for fn in m.fns do
           yield ""
           yield $"fn {fn.name} {fn.version}"
@@ -832,6 +876,7 @@ module Written =
     let mutable version = 0
     let mutable description = ""
     let requires = ResizeArray<string>()
+    let artifacts = ResizeArray<string * string>()
     let mutable requiresStore = false
     let fns = ResizeArray<Fn>()
 
@@ -869,6 +914,12 @@ module Written =
           | "name" -> name <- rest
           | "description" -> description <- rest
           | "requires" -> requires.Add rest
+          | "artifact" ->
+            match split rest with
+            | rid, hash when rid <> "" && hash <> "" -> artifacts.Add(rid, hash)
+            | _ ->
+              problems.Add
+                $"line {lineNo + 1}: 'artifact' wants a runtime identifier and a hash"
           | "version" ->
             match System.Int32.TryParse rest with
             | true, v -> version <- v
@@ -917,6 +968,7 @@ module Written =
               description = description
               requires = List.ofSeq requires
               requiresStore = requiresStore
+              artifacts = List.ofSeq artifacts
               fns = List.ofSeq fns }
 
   /// Resolve a written manifest against this instance: type names to hashes, effect names to
@@ -966,6 +1018,7 @@ module Written =
         description = written.description
         requires = written.requires
         requiresStore = written.requiresStore
+        artifacts = written.artifacts
         fns = fns }
 
     let all = List.ofSeq problems @ External.Manifest.problems manifest

@@ -1099,6 +1099,7 @@ let private goodManifest : External.Manifest =
     description = "A platform this repo does not contain."
     requires = [ "Core" ]
     requiresStore = false
+    artifacts = []
     fns = describedFns (Set.singleton describedEffect) }
 
 let private rejectionOf (m : External.Manifest) : List<string> =
@@ -1273,6 +1274,8 @@ version 0
 description Talking to a serial port.
 requires Core
 store no
+artifact linux-x64 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+artifact osx-arm64 a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b856
 
 # the one thing it does
 fn acmeReadTag 0
@@ -1305,6 +1308,7 @@ let aTextManifestParsesAndRoundTrips =
       Expect.equal written.name "AcmeSerial" "name"
       Expect.equal written.requires [ "Core" ] "requires"
       Expect.isFalse written.requiresStore "store no"
+      Expect.hasLength written.artifacts 2 "one executable per target"
       Expect.hasLength written.fns 2 "two functions"
 
       match written.fns with
@@ -1499,6 +1503,54 @@ effect acme/serial
         "the missing type is named in the problem"
   }
 
+// ── artifacts ─────────────────────────────────────────────────────────────────
+
+let private withArtifacts (artifacts : List<string * string>) =
+  { goodManifest with artifacts = artifacts }
+
+let aManifestAddressesItsExecutablesByHash =
+  test "a manifest names one executable per target, by hash" {
+    let real = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    let m = withArtifacts [ ("linux-x64", real); ("osx-arm64", real) ]
+    Expect.isEmpty (External.Manifest.problems m) "two targets is fine"
+    Expect.equal
+      (External.Manifest.artifactFor "linux-x64" m)
+      (Some real)
+      "and the one for this target is findable"
+
+    // Not building for a target is an ordinary answer, not a problem. A platform may simply not
+    // exist for your machine, which is worth saying at install rather than at spawn.
+    Expect.isNone
+      (External.Manifest.artifactFor "win-x64" m)
+      "a target it does not build for answers None"
+    Expect.isEmpty
+      (External.Manifest.problems (withArtifacts []))
+      "and a manifest with no artifacts at all is still well formed"
+  }
+
+let aManifestRefusesABadArtifactLine =
+  test "a manifest refuses an artifact that is not a target and a hash" {
+    let real = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    Expect.isNonEmpty
+      (External.Manifest.problems (withArtifacts [ ("linux", real) ]))
+      "a runtime identifier has two parts"
+    Expect.isNonEmpty
+      (External.Manifest.problems (withArtifacts [ ("Linux-X64", real) ]))
+      "and is lower case"
+    Expect.isNonEmpty
+      (External.Manifest.problems (withArtifacts [ ("linux-x64", "deadbeef") ]))
+      "a short hash is not a SHA-256"
+    Expect.isNonEmpty
+      (External.Manifest.problems (withArtifacts [ ("linux-x64", real.ToUpper()) ]))
+      "nor is an upper case one, since the hash is the name and names are exact"
+
+    // Two executables for one target would mean the manifest does not say which runs.
+    Expect.isNonEmpty
+      (External.Manifest.problems
+        (withArtifacts [ ("linux-x64", real); ("linux-x64", real) ]))
+      "one target, one executable"
+  }
+
 
 let tests =
   testList
@@ -1550,4 +1602,6 @@ let tests =
       aWrittenManifestReportsUnresolvableNames
       manifestLocationsAreFullyQualified
       aManifestResolvesAgainstTheRealStore
-      aManifestNamingAMissingTypeSaysSo ]
+      aManifestNamingAMissingTypeSaysSo
+      aManifestAddressesItsExecutablesByHash
+      aManifestRefusesABadArtifactLine ]
