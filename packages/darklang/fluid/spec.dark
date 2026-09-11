@@ -586,6 +586,37 @@ module Syntax =
         interpolationClose = "}"
         bracketPairs = [ ("(", ")"), ("[", "]"), ("{", "}") ] }
 
+/// A key bound at the DOCUMENT level rather than on a kind.
+///
+/// A spec's `Action` cannot express any of this. `Action.run` is `Node -> Slot`, so everything a spec can
+/// bind is a replacement of the node under the caret: no motions, no mode switches, and nothing that says
+/// "in THIS document, `d` means delete" regardless of what the caret is on.
+///
+/// `RunAction` is what keeps this list from having to grow forever. Anything a spec can already do stays
+/// in the spec and the keymap only names it.
+type Command =
+  | NavNext
+  | NavPrev
+  | NavParent
+  | NavChild
+  | NavSiblingNext
+  | NavSiblingPrev
+  | Delete
+  | Yank
+  | Put
+  | AddSibling
+  | Undo
+  | Redo
+  | ToggleAnchor
+  | EnterInsert
+  /// An action from the spec of the node under the caret, by name.
+  | RunAction of String
+
+type KeyBinding =
+  { key: String
+    command: Command }
+
+
 /// The specs in play, the punctuation they are spelled with, and WHERE the document being edited sits.
 ///
 /// `currentModule` is the module path of the thing on screen. Names are written the way someone standing
@@ -594,14 +625,25 @@ module Syntax =
 type Registry =
   { specs: List<Spec>
     syntax: Syntax
-    currentModule: List<String> }
+    currentModule: List<String>
+
+    /// Keys bound for the whole document, consulted AFTER the caret's own spec and before the kernel's
+    /// own chain. Specific beats general: a kind that binds a key on its own nodes is saying something
+    /// about those nodes, and a document keymap that silently overrode it would make that kind's actions
+    /// unreachable with nothing on screen to say why.
+    keymap: List<KeyBinding> }
 
 module Registry =
   let empty () : Registry =
-    Registry { specs = []; syntax = Syntax.darklang (); currentModule = [] }
+    Registry { specs = []; syntax = Syntax.darklang (); currentModule = []; keymap = [] }
 
   let ofList (specs: List<Spec>) : Registry =
-    Registry { specs = specs; syntax = Syntax.darklang (); currentModule = [] }
+    Registry { specs = specs; syntax = Syntax.darklang (); currentModule = []; keymap = [] }
+
+  /// The same specs, with `key` meaning `command` everywhere in the document. A later binding for the
+  /// same key shadows an earlier one.
+  let bind (reg: Registry) (key: String) (command: Command) : Registry =
+    { reg with keymap = Stdlib.List.append [ KeyBinding { key = key; command = command } ] reg.keymap }
 
   /// The same specs, spelled with different punctuation.
   let withSyntax (reg: Registry) (syntax: Syntax) : Registry =

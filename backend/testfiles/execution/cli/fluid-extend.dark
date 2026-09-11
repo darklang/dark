@@ -922,3 +922,89 @@ module ATwoCharacterOperatorTheKernelDoesNotKnow =
 
   // A ONE-character operator has no tail, so nothing is swallowed after it.
   (ATwoCharacterOperatorTheKernelDoesNotKnow.screen "=" [ ">" ]) = "ab = >~"
+
+
+module ADocumentKeymap =
+  // The half of the keymap a spec cannot reach. A spec's `Action.run` is `Node -> Slot`, so everything a
+  // kind can bind is a replacement of the node under the caret: no motions, no mode switches, and no way
+  // to say "in THIS document, `d` means delete" regardless of what the caret is on.
+  //
+  // `Registry.keymap` is document-level and sits next to `syntax`, which is the same move for the same
+  // reason: the kernel used to hard-code the brackets, and it still hard-codes `j`/`k`/`h`/`l`/`x`/`y` in
+  // one chain nothing outside it can reach.
+
+  let base () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let mapped () : Darklang.Fluid.Registry =
+    let r0 = Darklang.Fluid.Registry.bind (ADocumentKeymap.base ()) "d" Darklang.Fluid.Command.Delete
+    let r1 = Darklang.Fluid.Registry.bind r0 "n" Darklang.Fluid.Command.NavSiblingNext
+    // Deliberately over the palette, which must NOT give it up.
+    Darklang.Fluid.Registry.bind r1 ":" Darklang.Fluid.Command.Delete
+
+  let aList (keys: List<String>) : List<String> =
+    Stdlib.List.flatten [ ADocumentKeymap.chars "[1, 2, 3", [ "<Esc>", "<Esc>", "K", "K" ], keys ]
+
+  let plain (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (ADocumentKeymap.base ()) (ADocumentKeymap.hole ()) 60 (ADocumentKeymap.aList keys)
+
+  let bound (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (ADocumentKeymap.mapped ()) (ADocumentKeymap.hole ()) 60 (ADocumentKeymap.aList keys)
+
+  (ADocumentKeymap.plain []) = "[~1, 2, 3]"
+
+  // `d` is not a kernel key and no spec binds it, so without a keymap it does nothing at all. This is the
+  // case that makes the next one say something.
+  (ADocumentKeymap.plain [ "d" ]) = "[~1, 2, 3]"
+  (ADocumentKeymap.bound [ "d" ]) = "[~⟨item⟩, 2, 3]"
+
+  // A MOTION, which is the thing no `Action` can express: `n` moves to the next sibling and edits nothing.
+  (ADocumentKeymap.bound [ "n" ]) = "[1, ~2, 3]"
+  (ADocumentKeymap.bound [ "n", "d" ]) = "[1, ~⟨item⟩, 3]"
+
+  // Binding new keys does not take the kernel's away; the keymap sits in front of that chain, it does not
+  // replace it.
+  (ADocumentKeymap.bound [ "x" ]) = "[~⟨item⟩, 2, 3]"
+
+  // `:` is reserved here for the same reason it is reserved for spec bindings: the palette lists
+  // everything and has to keep working whatever has been bound.
+  ((Darklang.Fluid.Test.drive
+     (Darklang.Fluid.Editor.init (ADocumentKeymap.mapped ()) (ADocumentKeymap.hole ()) 60)
+     (ADocumentKeymap.aList [ ":" ])).paletteOpen) = true
+
+  // Specific beats general. `EIf` binds `m` to "convert to match" on its own nodes, and a document keymap
+  // that also binds `m` loses. The other order would make a kind's own actions unreachable with nothing on
+  // screen to say why.
+  let overM () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.bind (ADocumentKeymap.base ()) "m" Darklang.Fluid.Command.Delete
+
+  let anIf (keys: List<String>) : List<String> =
+    Stdlib.List.flatten [ ADocumentKeymap.chars "if ", [ "<Esc>", "<Esc>", "h" ], keys ]
+
+  (Darklang.Fluid.Test.run (ADocumentKeymap.overM ()) (ADocumentKeymap.hole ()) 60 (ADocumentKeymap.anIf [ "m" ]))
+    = "match ~⟨cond⟩ with\n| true -> ⟨then⟩\n| false -> ⟨else⟩"
+  (Darklang.Fluid.Test.messageAfter (ADocumentKeymap.overM ()) (ADocumentKeymap.hole ()) 60 (ADocumentKeymap.anIf [ "m" ]))
+    = "convert to match"
+
+  // `RunAction` is why the command list does not have to grow forever: anything a spec can already do
+  // stays in the spec, and the keymap gives it a different key.
+  let byName () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.bind (ADocumentKeymap.base ()) "z" (Darklang.Fluid.Command.RunAction "convert to match")
+
+  (Darklang.Fluid.Test.run (ADocumentKeymap.byName ()) (ADocumentKeymap.hole ()) 60 (ADocumentKeymap.anIf [ "z" ]))
+    = "match ~⟨cond⟩ with\n| true -> ⟨then⟩\n| false -> ⟨else⟩"
+
+  // ...and where the action does not exist it says so, rather than doing nothing. A key that was bound and
+  // did nothing is the failure mode worth a message.
+  (Darklang.Fluid.Test.run (ADocumentKeymap.byName ()) (ADocumentKeymap.hole ()) 60
+    (Stdlib.List.flatten [ ADocumentKeymap.chars "[1, 2", [ "<Esc>", "<Esc>", "K", "K", "z" ] ])) = "[~1, 2]"
+  (Darklang.Fluid.Test.messageAfter (ADocumentKeymap.byName ()) (ADocumentKeymap.hole ()) 60
+    (Stdlib.List.flatten [ ADocumentKeymap.chars "[1, 2", [ "<Esc>", "<Esc>", "K", "K", "z" ] ])) =
+    "no action here called convert to match"

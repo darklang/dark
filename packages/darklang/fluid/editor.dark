@@ -5192,6 +5192,45 @@ let onKeyPalette (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
           handled st
       | None -> handled st
 
+/// The document-level command bound to `ch`, if any.
+///
+/// Consulted after the caret's own spec and before the kernel's chain. `:` is reserved here for the same
+/// reason it is reserved for spec bindings: the palette lists everything and has to keep working whatever
+/// has been bound.
+let commandForKey (st: State) (ch: String) : Stdlib.Option.Option<Command> =
+  if ch == "" || ch == ":" then
+    Stdlib.Option.Option.None
+  else
+    st.reg.keymap
+    |> Stdlib.List.findFirst (fun b -> b.key == ch)
+    |> Stdlib.Option.map (fun b -> b.command)
+
+/// Run one bound command. The motions are the half of this that no `Action` can reach.
+let runCommand (st: State) (cmd: Command) : State =
+  match cmd with
+  | NavNext -> navBy st 1
+  | NavPrev -> navBy st (-1)
+  | NavParent -> navParent st
+  | NavChild -> navChild st
+  | NavSiblingNext -> navSibling st 1
+  | NavSiblingPrev -> navSibling st (-1)
+  | Delete -> clearNode st
+  | Yank -> yankNode st
+  | Put -> putNode st
+  | AddSibling ->
+    (match addSibling st with
+     | Some s2 -> { s2 with mode = Mode.Insert }
+     | None -> { st with message = "nothing here is in a list" })
+  | Undo -> undo st
+  | Redo -> redo st
+  | ToggleAnchor -> toggleAnchor st
+  | EnterInsert -> enterInsert st
+  | RunAction name ->
+    match paletteActions st |> Stdlib.List.findFirst (fun a -> a.name == name) with
+    | Some a -> applyAction st a
+    | None -> { st with message = "no action here called " ++ name }
+
+
 let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
   let handled (s: State) : Outcome = Stdlib.Cli.UI.Widget.Outcome.Handled s
   let ch = kp.char |> Stdlib.Option.withDefault ""
@@ -5214,9 +5253,22 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
     else
       // A spec's own key bindings are consulted BEFORE the kernel's, so a kind can rebind anything except
-      // the palette. The kernel's keys are the fallback, not the law.
-      match actionForKey st ch with
-      | Some a -> handled (applyAction st a)
+      // the palette, and the document's keymap sits between the two. The kernel's keys are the fallback,
+      // not the law.
+      //
+      // Written as an Option rather than nested matches so the chain below stays where it is: half of it
+      // is conditional or produces its own message on failure, and converting it wholesale into a default
+      // keymap is a bigger change than it reads like.
+      let bound =
+        match actionForKey st ch with
+        | Some a -> Stdlib.Option.Option.Some(applyAction st a)
+        | None ->
+          match commandForKey st ch with
+          | Some c -> Stdlib.Option.Option.Some(runCommand st c)
+          | None -> Stdlib.Option.Option.None
+
+      match bound with
+      | Some s2 -> handled s2
       | None ->
         if ch == "(" then
           // Group rightward. Unbound in NAV until now, and `(` already means "open a group" in INSERT,
