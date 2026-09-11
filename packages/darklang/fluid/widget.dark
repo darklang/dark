@@ -524,7 +524,24 @@ let inspectorWith
         // rendered at the same size the app does rather than at the size my probe used.
         boundRows
         keyRows ]
-  rows
+  // Say when the panel could not fit what it has, the way DOCS, VALUE and ACTIONS each already do for
+  // their own section. Every one of those carries the same reason written three ways: six rows of a
+  // longer answer with nothing after them reads as the whole answer.
+  //
+  // The panel as a WHOLE never did. The outer clip below just dropped whatever ran past the bottom, so
+  // on an ordinary 26-row terminal the last third of the KEYS list has always been missing with nothing
+  // to say so, and a deep enough TREE takes everything under it with no sign either. "Nothing hidden"
+  // was false in the one place whose whole job is to say what is possible here.
+  let overflow = (Stdlib.List.length rows) - region.rows
+  let fitted =
+    if overflow <= 0 then
+      rows
+    else
+      // The marker takes a row of its own, so it has to count itself.
+      Stdlib.List.append
+        (Stdlib.List.take rows (Stdlib.Int.max 0 (region.rows - 1)))
+        [ dim ("  +" ++ (Stdlib.Int.toString (overflow + 1)) ++ " more, taller window") ]
+  fitted
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])
   |> Stdlib.List.flatten

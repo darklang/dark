@@ -966,3 +966,33 @@ module TheDocumentsOwnKeysAreOnThePanel =
 
   (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      copy") = true
   (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      clear") = false
+
+
+module ThePanelSaysWhatItCouldNotFit =
+  // DOCS, VALUE and ACTIONS each cap their own section and say how much they dropped. The panel as a
+  // WHOLE never did: it just stopped drawing at the bottom of the region, so on an ordinary 26-row
+  // terminal the last third of the KEYS list has always been missing with nothing to say so, and a deep
+  // enough TREE takes everything under it the same way.
+  //
+  // Found by writing the keymap's panel test at the size the app actually runs at, which is how the
+  // BOUND HERE section turned out to be off the bottom.
+
+  let tall () : Darklang.Stdlib.Cli.Tui.Size =
+    Darklang.Stdlib.Cli.Tui.Size { width = 110; height = 44 }
+
+  let panelAt (size: Darklang.Stdlib.Cli.Tui.Size) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60) [ "<Esc>" ]
+    (Darklang.Fluid.App.view { (Fixtures.stateOf ed) with inspectorOpen = true } size).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // A normal terminal cannot fit the help, and now says so instead of ending mid-list.
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "more, taller window") = true
+
+  // The row it replaced is genuinely gone, so the marker is not sitting on top of content that fits.
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "q      quit") = false
+
+  // Give it the room and there is no marker and nothing missing. This is the assertion that stops the
+  // marker from becoming permanent furniture.
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "more, taller window") = false
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "q      quit") = true
