@@ -54,9 +54,10 @@ let getDisplayName (prefix: String): String =
   | None -> Stdlib.String.toUppercase prefix
 
 
-/// Group label. Platform names are already display-ready; prefixes need the table.
-let getDisplayNameFor (byPlatform: Bool) (prefix: String) : String =
-  if byPlatform then prefix else getDisplayName prefix
+/// Group label. Platform and effect names are already display-ready; module prefixes need the
+/// table.
+let getDisplayNameFor (alreadyADisplayName: Bool) (prefix: String) : String =
+  if alreadyADisplayName then prefix else getDisplayName prefix
 
 
 let isKnownGroup (prefix: String): Bool =
@@ -112,17 +113,35 @@ let platformOf (name: String) : String =
   | None -> "(no platform)"
 
 
+/// How many DISTINCT builtins these groups hold.
+///
+/// Not the sum of the group sizes: under `--by-effect` a function reaching two effects is listed
+/// under both, and adding the sizes would report more builtins than exist.
+let countDistinct
+  (groups: List<String * List<LanguageTools.BuiltinFunction>>)
+  : Int =
+  groups
+  |> Stdlib.List.map (fun (_, fns) -> fns |> Stdlib.List.map (fun fn -> fn.name.name))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.unique
+  |> Stdlib.List.length
+
+
 let execute (state: AppState) (args: List<String>): AppState =
   let allBuiltins = LanguageTools.allBuiltinFns ()
 
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
   let withPurity = Stdlib.List.any args (fun arg -> arg == "--with-purity")
   let byPlatform = Stdlib.List.any args (fun arg -> arg == "--by-platform")
+  let byEffect = Stdlib.List.any args (fun arg -> arg == "--by-effect")
 
   let filterArgs =
     args
     |> Stdlib.List.filter (fun arg ->
-      arg != "--with-sigs" && arg != "--with-purity" && arg != "--by-platform")
+      arg != "--with-sigs"
+      && arg != "--with-purity"
+      && arg != "--by-platform"
+      && arg != "--by-effect")
 
   let filter =
     match filterArgs with
@@ -130,15 +149,26 @@ let execute (state: AppState) (args: List<String>): AppState =
     | [ pattern ] -> Stdlib.Option.Option.Some pattern
     | _ -> Stdlib.Option.Option.None
 
-  let grouped =
+  // One builtin can land in SEVERAL groups, which is only true of `--by-effect`: a function that
+  // reaches two effects is a door to both, and counting it once under whichever came first would
+  // undercount exactly the functions worth looking at.
+  let placements =
     allBuiltins
-    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc fn ->
-      let group =
-        if byPlatform then
-          platformOf fn.name.name
+    |> Stdlib.List.map (fun fn ->
+      let groups =
+        if byEffect then
+          if Stdlib.List.isEmpty fn.effects then [ "(reaches nothing)" ] else fn.effects
+        else if byPlatform then
+          [ platformOf fn.name.name ]
         else
-          extractGroup fn.name.name
+          [ extractGroup fn.name.name ]
 
+      groups |> Stdlib.List.map (fun group -> (group, fn)))
+    |> Stdlib.List.flatten
+
+  let grouped =
+    placements
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (group, fn) ->
       let existing =
         match Stdlib.Dict.get acc group with
         | Some list -> list
@@ -155,7 +185,20 @@ let execute (state: AppState) (args: List<String>): AppState =
   // the one worth looking at first, and how much of the total `Core` is says what shape the whole
   // floor has.
   let sortedGroups =
-    if byPlatform then
+    if byEffect then
+      // Widest first. The effect with the most doors is the one a policy rule says least about,
+      // so it is the one worth reading, and "(reaches nothing)" sinks to the bottom on its own
+      // only if it is small, which it is not: it goes last explicitly.
+      let (nothing, reaching) =
+        allGroups
+        |> Stdlib.List.partition (fun (name, _) -> name == "(reaches nothing)")
+
+      Stdlib.List.append
+        (reaching
+         |> Stdlib.List.sortBy (fun pair ->
+           0 - (Stdlib.List.length (Stdlib.Tuple2.second pair))))
+        nothing
+    else if byPlatform then
       allGroups
       |> Stdlib.List.sortBy (fun pair ->
         0 - (Stdlib.List.length (Stdlib.Tuple2.second pair)))
@@ -191,7 +234,7 @@ let execute (state: AppState) (args: List<String>): AppState =
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.colorize
           Stdlib.Cli.UI.Colors.bold
-          (getDisplayNameFor byPlatform group))
+          (getDisplayNameFor (byPlatform || byEffect) group))
 
       fns
       |> Stdlib.List.iter (fun fn ->
@@ -231,20 +274,30 @@ let execute (state: AppState) (args: List<String>): AppState =
       let label =
         Stdlib.Cli.UI.Colors.colorize
           Stdlib.Cli.UI.Colors.bold
-          (getDisplayNameFor byPlatform group)
+          (getDisplayNameFor (byPlatform || byEffect) group)
 
       Stdlib.printLine $"{label}: {names}")
 
-  let totalCount =
+  // DISTINCT, not the sum of the groups: under `--by-effect` a function reaching two effects is
+  // listed under both, and adding the group sizes would report more builtins than exist.
+  let totalCount = Builtins.countDistinct filteredGroups
+
+  let reaching =
     filteredGroups
-    |> Stdlib.List.map (fun pair -> Stdlib.List.length (Stdlib.Tuple2.second pair))
-    |> Stdlib.List.fold 0 (fun acc n -> acc + n)
+    |> Stdlib.List.filter (fun (name, _) -> name != "(reaches nothing)")
+    |> Builtins.countDistinct
 
   let summary =
     match filter with
-    | None -> $"Total: {Stdlib.Int.toString totalCount} builtin functions"
     | Some pattern ->
       $"Showing {Stdlib.Int.toString totalCount} functions matching '{pattern}'"
+    | None ->
+      if byEffect then
+        // The number worth reading here is how much of the surface is a door at all. Most of it
+        // is arithmetic and string handling, and that is the encouraging half of the door count.
+        $"{Stdlib.Int.toString reaching} of {Stdlib.Int.toString totalCount} builtins reach an effect; the rest are doors to nothing"
+      else
+        $"Total: {Stdlib.Int.toString totalCount} builtin functions"
 
   [ ""
     Stdlib.Cli.UI.Colors.hint summary ]
@@ -257,11 +310,14 @@ let execute (state: AppState) (args: List<String>): AppState =
 
 
 let help (_state: AppState) : String =
-  [ "Usage: builtins [--by-platform] [--with-sigs] [--with-purity] [filter]"
+  [ "Usage: builtins [--by-platform | --by-effect] [--with-sigs] [--with-purity] [filter]"
     ""
     "Lists all builtin functions, grouped by name prefix."
     ""
     "Options:"
+    "  --by-effect    Group by what a fn may DO, widest effect first. A fn reaching two"
+    "                 effects appears under both, since it is a door to both. Read it to"
+    "                 see which effects are categories rather than capabilities."
     "  --by-platform  Group by the platform that declares each fn, biggest first,"
     "                 instead of by name prefix. The prefixes are a display"
     "                 convention; the platforms are what a binary actually links"

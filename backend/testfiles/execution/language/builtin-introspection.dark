@@ -20,3 +20,26 @@ module Documentation =
        Darklang.LanguageTools.BuiltinFunctionParameter
          { name = "b"
            ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ]
+
+  // Effects reach Dark per BUILTIN, not just per platform. Without this the door count and
+  // `builtins --by-effect` are computed from an empty list and quietly say nothing reaches
+  // anything, which is the failure that looks like success.
+  ((Builtin.getAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "httpClientRequest")
+   |> Builtin.unwrap
+   |> (fun f -> f.effects))
+   = [ "http" ]
+
+  // And a pure one says so with an empty list rather than being absent.
+  ((Builtin.getAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "int64Add")
+   |> Builtin.unwrap
+   |> (fun f -> f.effects))
+   = []
+
+  // A builtin reaching two effects reports both, which is what makes it a door to both.
+  ((Builtin.getAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "posixOpen")
+   |> Builtin.unwrap
+   |> (fun f -> f.effects |> Stdlib.List.length))
+   > 1 = true

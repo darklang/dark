@@ -140,12 +140,24 @@ let fns () : List<BuiltInFn> =
                   DRecord(builtinFnParam (), builtinFnParam (), [], Map fields))
                 |> Dval.list (KTCustomType(builtinFnParam (), []))
 
+              // Names rather than the structured `Effect`, matching how a platform's effects
+              // already reach Dark. A name is what a policy rule is written in and what the
+              // listing prints, so the structured form would be converted straight back.
+              let effects =
+                data.callEffects
+                |> Set.toList
+                |> List.map LibExecution.Effects.name
+                |> List.sort
+                |> List.map DString
+                |> Dval.list KTString
+
               let fields =
                 [ "name", RT2DT.FQFnName.Builtin.toDT name
                   "description", DString data.description
                   "parameters", parameters
                   "returnType", RT2DT.TypeReference.toDT data.returnType
-                  "purity", purityToDT data.previewable ]
+                  "purity", purityToDT data.previewable
+                  "effects", effects ]
 
               DRecord(builtinFn (), builtinFn (), [], Map fields))
 

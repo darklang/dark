@@ -30,7 +30,14 @@ type BuiltinFunction =
     description: String
     parameters: List<BuiltinFunctionParameter>
     returnType: RuntimeTypes.TypeReference
-    purity: BuiltinFunctionPurity }
+    purity: BuiltinFunctionPurity
+
+    /// What calling this may do, by effect name, or empty for one that reaches nothing.
+    ///
+    /// Per BUILTIN rather than per platform, which is the granularity the question is actually
+    /// asked at: a platform's effect list is the union of its builtins', so it tells you that
+    /// `Files` reaches `file-write` and not which four functions are the reason.
+    effects: List<String> }
 
 /// Every builtin fn this runtime has. The list is built fresh on each call,
 /// so hold onto it if you're looking up more than one name.
