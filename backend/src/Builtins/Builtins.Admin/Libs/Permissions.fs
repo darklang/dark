@@ -230,11 +230,20 @@ let fns : List<BuiltInFn> =
       ("Install an external platform from a manifest. Host-only. Returns the platform's name, or "
        + "every problem with the manifest. Does not activate it: having a platform and letting "
        + "your code use it are separate decisions.")
-      (fun _ args ->
+      (fun state args ->
         match args with
         | [| DString manifest |] ->
           uply {
-            match! InstalledPlatforms.install LibDB.PackageManager.pt manifest with
+            // What this session already has, which is linked plus anything installed before now.
+            let provider (name : string) (version : int) : Option<string> =
+              state.platforms
+              |> List.tryFind (fun p ->
+                p.builtins.fns.ContainsKey(FQFnName.builtin name version))
+              |> Option.map _.name
+
+            match!
+              InstalledPlatforms.install LibDB.PackageManager.pt provider manifest
+            with
             | Ok(_hash, installed) ->
               return Dval.resultOk KTString (KTList VT.string) (DString installed.name)
             | Error rejection ->
@@ -302,6 +311,43 @@ let fns : List<BuiltInFn> =
               |> Map.toList
               |> List.map (fun (name, hash) ->
                 DTuple(DString name, DString hash, []))
+              |> Dval.list (KTTuple(VT.string, VT.string, []))
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
+      "pmPlatformsSkipped"
+      [ Param.make "unit" TUnit "" ]
+      (TList(TTuple(TString, TString, [])))
+      ("Every installed platform this session is NOT running, with the reason. An install that "
+       + "quietly does nothing is the failure worth catching: the instance starts fine and has "
+       + "fewer platforms than the person thinks.")
+      (fun state args ->
+        match args with
+        | [| DUnit |] ->
+          uply {
+            let live = state.platforms |> List.map _.name |> Set.ofList
+            let! (rebuilt, broken) =
+              InstalledPlatforms.platforms
+                LibDB.PackageManager.pt
+                (InstalledPlatforms.currentRid ())
+
+            // Two kinds of skip, and they are found in different places. One could not be REBUILT
+            // at all, and `platforms` says why. The other rebuilt fine and then lost a name to
+            // something already providing it, which is only visible against the live set.
+            let clashing =
+              rebuilt
+              |> List.filter (fun p -> not (Set.contains p.name live))
+              |> List.map (fun p ->
+                let taken =
+                  LibExecution.Platform.PlatformSet.claimsTaken state.platforms p
+                  |> List.map (fun (key, owner) -> $"{key} is already provided by {owner}")
+                  |> String.concat "; "
+                (p.name, if taken = "" then "it is not in this session's set" else taken))
+
+            return
+              (broken @ clashing)
+              |> List.map (fun (name, why) -> DTuple(DString name, DString why, []))
               |> Dval.list (KTTuple(VT.string, VT.string, []))
           }
         | _ -> incorrectArgs ())

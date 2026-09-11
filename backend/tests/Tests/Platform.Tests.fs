@@ -1639,6 +1639,9 @@ let anArtifactHashCannotBeAPath =
         "upper case is not the hash we store under")
   }
 
+/// An instance that provides nothing, so an install is judged on the manifest alone.
+let private nothingProvidesIt : LibDB.InstalledPlatforms.Provider = fun _ _ -> None
+
 // ── a manifest stored as a package value ──────────────────────────────────────
 
 let private manifestLocation : PT.PackageLocation =
@@ -1924,6 +1927,37 @@ let aSpawnedPlatformAnswers =
       LibDB.PlatformSpawn.stop handle
   }
 
+let aCollidingPlatformIsSkippedNotFatal =
+  test "a platform claiming a name something else provides is skipped, not fatal" {
+    // Found by installing one. Before this, an external platform whose builtin collided with a
+    // linked one raised at startup, which bricked the CLI: the install could only be undone by a
+    // command, and the command no longer started. Recovering meant hand-editing a file in the
+    // policy directory.
+    //
+    // A LINKED collision is still fatal, and should be: that is a build mistake, decided before
+    // anybody ran anything. An INSTALLED one arrives afterwards, from somebody else's manifest.
+    let core = Platforms.Sets.sealedCompute ()
+    let claimed = core.platforms |> List.head
+    match claimed with
+    | None -> failtest "the compute floor ships no platforms"
+    | Some claimed ->
+      let stolen =
+        { claimed with
+            name = "Impostor"
+            version = 0
+            requires = [ "Core" ] }
+      match PlatformSet.claimsTaken core.platforms stolen with
+      | [] -> failtest "claiming every name of an existing platform should collide"
+      | taken ->
+        // Names WHAT collided and WHO has it, because "there was a collision" is not something a
+        // person can act on.
+        match List.head taken with
+        | None -> failtest "a non-empty list had no head"
+        | Some(key, owner) ->
+          Expect.stringContains key "fn " "the kind and the name"
+          Expect.equal owner claimed.name "and who already provides it"
+  }
+
 let aSpawnedPlatformBuildsAnEnum =
   testTask "a platform in another process returns a Result, not just a primitive" {
     // The reason the startup handshake exists. An enum on the wire carries the type's CONTENT
@@ -2083,7 +2117,11 @@ let installingAnExternalPlatformMakesItReconstructable =
 
           let! (installed :
                  Result<string * External.Manifest, External.Rejection>) =
-            LibDB.InstalledPlatforms.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+            LibDB.InstalledPlatforms.install
+              TestUtils.TestUtils.pmPT
+              nothingProvidesIt
+              text
+            |> Ply.toTask
           match installed with
           | Error r -> failtest $"install: {r.problems}"
           | Ok(manifestHash, manifest) ->
@@ -2121,7 +2159,11 @@ let anInstallForAnotherMachineIsSkippedNotFatal =
           | Error e -> failtest e
           | Ok _ -> ()
           let! (_ : Result<string * External.Manifest, External.Rejection>) =
-            LibDB.InstalledPlatforms.install TestUtils.TestUtils.pmPT text |> Ply.toTask
+            LibDB.InstalledPlatforms.install
+              TestUtils.TestUtils.pmPT
+              nothingProvidesIt
+              text
+            |> Ply.toTask
 
           let! (built, skipped) =
             LibDB.InstalledPlatforms.platforms TestUtils.TestUtils.pmPT "some-other-rid"
@@ -2216,6 +2258,7 @@ let tests =
       aManifestMustBeALiteral
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
+      aCollidingPlatformIsSkippedNotFatal
       aSpawnedPlatformBuildsAnEnum
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked

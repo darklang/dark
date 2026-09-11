@@ -95,6 +95,14 @@ let publishArtifact (bytes: Blob) : Stdlib.Result.Result<String, String> =
       | Ok hash -> Stdlib.Result.Result.Ok(Stdlib.String.trim hash)
 
 
+/// Every installed platform this session is not running, with the reason.
+///
+/// Worth a line of its own in the listing: an install that quietly does nothing is the failure
+/// mode to catch here, because the instance starts fine and has fewer platforms than you think.
+let skipped () : List<(String * String)> =
+  Builtin.pmPlatformsSkipped ()
+
+
 /// Forget an installed external platform.
 let uninstall (name: String) : Unit =
   Builtin.pmPlatformsUninstall name
@@ -447,6 +455,24 @@ let executeAll (state: AppState) : AppState =
         $"{summary}, {Stdlib.Int.toString off} off. `platforms reset` turns everything back on."
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.hint line)
+
+    // After the summary rather than inside the list, because these are platforms that are NOT
+    // here: putting them in the list would mean printing something you cannot call.
+    match Platforms.skipped () with
+    | [] -> ()
+    | skipped ->
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error "Installed, but not running in this session:")
+
+      skipped
+      |> Stdlib.List.iter (fun (name, why) ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {name}: {why}"))
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "    `platforms uninstall <Name>` forgets one.")
 
     state
 

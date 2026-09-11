@@ -293,6 +293,36 @@ module PlatformSet =
       if owners.Count > 1 then Some(key, List.ofSeq owners) else None)
 
 
+  /// Builtin names a candidate claims that these platforms already claim, and who claims them.
+  ///
+  /// Non-raising, unlike `make`, and that difference is the whole point. A LINKED collision is a
+  /// build mistake and should stop the process; an INSTALLED one arrives after the build, from
+  /// somebody else's manifest, and raising on it means an install nobody can undo, because the
+  /// command that would undo it is the one that no longer starts.
+  let claimsTaken
+    (existing : List<Platform>)
+    (candidate : Platform)
+    : List<string * string> =
+    let owners = System.Collections.Generic.Dictionary<string, string>()
+    for p in existing do
+      for k in p.builtins.fns.Keys do
+        owners[$"fn {k.name}@{k.version}"] <- p.name
+      for k in p.builtins.values.Keys do
+        owners[$"val {k.name}@{k.version}"] <- p.name
+
+    let taken (key : string) =
+      match owners.TryGetValue key with
+      | true, owner -> Some(key, owner)
+      | false, _ -> None
+
+    (candidate.builtins.fns.Keys
+     |> Seq.choose (fun k -> taken $"fn {k.name}@{k.version}")
+     |> List.ofSeq)
+    @ (candidate.builtins.values.Keys
+       |> Seq.choose (fun k -> taken $"val {k.name}@{k.version}")
+       |> List.ofSeq)
+
+
   /// Platform names a member requires that the set does not contain.
   let private missingRequirements
     (platforms : List<Platform>)

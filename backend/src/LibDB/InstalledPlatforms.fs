@@ -78,8 +78,14 @@ let remove (name : string) : unit = modify (Map.remove name)
 /// The manifest is cached the same way an artifact is, because it is the same kind of thing: bytes
 /// addressed by their hash. That means one cache, one verification path, and an install that can be
 /// reconstructed from the recorded hash alone.
+/// Who already provides this builtin name, if anybody. Supplied by the caller, because the
+/// catalog lives above this module and always will: the catalog references every builtin assembly,
+/// so the arrow cannot point back.
+type Provider = string -> int -> Option<string>
+
 let install
   (pm : PT.PackageManager)
+  (provider : Provider)
   (manifestText : string)
   : Ply.Ply<Result<string * Platform.External.Manifest, Platform.External.Rejection>> =
   uply {
@@ -93,6 +99,24 @@ let install
       match! PlatformInstall.resolve pm written with
       | Error rejection -> return Error rejection
       | Ok manifest ->
+        // Refused HERE, where a person is standing and can act on it, rather than at the next
+        // start. A name that two platforms provide has no good resolution: shadowing means a
+        // builtin somebody trusts quietly becomes somebody else's code, and skipping means an
+        // install that looked like it worked does nothing.
+        match
+          manifest.fns
+          |> List.choose (fun fn ->
+            provider fn.name fn.version
+            |> Option.map (fun owner ->
+              $"'{fn.name}' is already provided by {owner}, and two platforms cannot claim one name"))
+        with
+        | _ :: _ as clashes ->
+          return
+            Error
+              { manifest = Platform.External.Manifest.coordinate manifest
+                problems = clashes }
+        | [] ->
+
         match PlatformArtifacts.materialize hash bytes with
         | Error e ->
           return
