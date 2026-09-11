@@ -56,7 +56,15 @@ let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random (start: UInt64) (``end``: UInt64) : UInt64 =
-  Builtin.uint64Random start ``end``
+  // Through `Int.random` rather than `Int64.random`, and this is the one width where that
+  // matters: the top half of the UInt64 range does not fit in an Int64, so widening to Int64
+  // would silently lose it. `Int` is arbitrary precision and its draw is uniform over the
+  // range, so nothing else changes.
+  //
+  // The `None` cannot happen: the value came from a range whose endpoints are UInt64 values.
+  Stdlib.Int.random (Stdlib.Int.fromUInt64 start) (Stdlib.Int.fromUInt64 ``end``)
+  |> Stdlib.UInt64.fromInt
+  |> Stdlib.Option.withDefault start
 
 
 /// Get the square root of an <type UInt64>
@@ -148,6 +156,15 @@ let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt64> =
 
 /// Converts a <type UInt32> to an <type UInt64>.
 let fromUInt32 (i: UInt32) : UInt64 = Builtin.convert<UInt64> i
+
+
+/// Converts an <type Int> to an <type UInt64>. Returns {{None}} if the value does not fit.
+///
+/// The only conversion into this type from something WIDER than it, which is why it is the one
+/// `random` needs: an arbitrary-precision draw is the only kind that can cover the whole UInt64
+/// range without being truncated on the way in.
+let fromInt (i: Int) : Stdlib.Option.Option<UInt64> =
+  Builtin.tryConvert<UInt64> i
 
 
 /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0

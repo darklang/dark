@@ -59,7 +59,16 @@ let lessThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =
 
 /// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
 let random (start: UInt32) (``end``: UInt32) : UInt32 =
-  Builtin.uint32Random start ``end``
+  // One primitive, not one per width. The bounds always fit in an Int64, and `Int64.random` is
+  // already a uniform draw over an inclusive range, so widening and narrowing back changes
+  // nothing about the distribution: the reduction into the range happens where it always did.
+  //
+  // The `None` cannot happen. Its input came from a range whose endpoints are UInt32 values,
+  // so it is representable by construction. `start` is the fallback rather than a zero, so that
+  // even an impossible answer is inside the range that was asked for.
+  Stdlib.Int64.random (Stdlib.Int64.fromUInt32 start) (Stdlib.Int64.fromUInt32 ``end``)
+  |> Stdlib.UInt32.fromInt64
+  |> Stdlib.Option.withDefault start
 
 
 /// Get the square root of an <type UInt32>

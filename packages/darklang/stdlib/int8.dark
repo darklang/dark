@@ -95,7 +95,16 @@ let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
 let random (start: Int8) (``end``: Int8) : Int8 =
-  Builtin.int8Random start ``end``
+  // One primitive, not one per width. The bounds always fit in an Int64, and `Int64.random` is
+  // already a uniform draw over an inclusive range, so widening and narrowing back changes
+  // nothing about the distribution: the reduction into the range happens where it always did.
+  //
+  // The `None` cannot happen. Its input came from a range whose endpoints are Int8 values,
+  // so it is representable by construction. `start` is the fallback rather than a zero, so that
+  // even an impossible answer is inside the range that was asked for.
+  Stdlib.Int64.random (Stdlib.Int64.fromInt8 start) (Stdlib.Int64.fromInt8 ``end``)
+  |> Stdlib.Int8.fromInt64
+  |> Stdlib.Option.withDefault start
 
 
 /// Get the square root of an <type Int8>
