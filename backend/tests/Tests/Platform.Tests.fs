@@ -1263,6 +1263,152 @@ let namedTypeResolvesAgainstTheConsumersStore =
     | Error e -> failtest $"should have resolved: {e}"
   }
 
+// ── the text manifest ─────────────────────────────────────────────────────────
+
+let private manifestText =
+  """DARK-PLATFORM-MANIFEST 1
+owner acme
+name AcmeSerial
+version 0
+description Talking to a serial port.
+requires Core
+store no
+
+# the one thing it does
+fn acmeReadTag 0
+param port String
+returns String
+effect acme/serial
+doc Read the tag at a port.
+
+fn acmeWriteTag 0
+param port String
+param value String
+returns Stdlib.Result<Unit, String>
+effect acme/serial
+effect clock
+"""
+
+/// Stands in for the consumer's store.
+let private lookupResult (name : string) : Option<RT.FQTypeName.FQTypeName> =
+  if name = "Stdlib.Result" then
+    Some(RT.FQTypeName.fqPackage "0123456789abcdef")
+  else
+    None
+
+let aTextManifestParsesAndRoundTrips =
+  test "a written manifest parses, and rendering it back parses the same" {
+    match Written.parse manifestText with
+    | Error problems -> failtest $"failed to parse: {problems}"
+    | Ok written ->
+      Expect.equal written.owner "acme" "owner"
+      Expect.equal written.name "AcmeSerial" "name"
+      Expect.equal written.requires [ "Core" ] "requires"
+      Expect.isFalse written.requiresStore "store no"
+      Expect.hasLength written.fns 2 "two functions"
+
+      match written.fns with
+      | [ readTag; writeTag ] ->
+        Expect.hasLength readTag.parameters 1 "readTag takes one"
+        Expect.equal readTag.effects [ "acme/serial" ] "and declares its capability"
+        Expect.equal readTag.description "Read the tag at a port." "doc line attaches"
+        Expect.hasLength writeTag.parameters 2 "writeTag takes two"
+        Expect.equal writeTag.effects [ "acme/serial"; "clock" ] "two effects, in order"
+      | other -> failtest $"unexpected fns: {other}"
+
+      // Render and reparse rather than comparing text: the format is a contract about MEANING, and
+      // insisting the bytes match would pin the comment and blank-line layout too.
+      match Written.parse (Written.render written) with
+      | Error problems -> failtest $"rendered form did not parse: {problems}"
+      | Ok again -> Expect.equal again written "render then parse is identity"
+  }
+
+let aTextManifestCollectsEveryProblem =
+  test "a written manifest reports every bad line, with line numbers" {
+    let bad =
+      """DARK-PLATFORM-MANIFEST 1
+owner acme
+name AcmeSerial
+version zero
+store maybe
+nonsense here
+param orphan String
+fn goodFn 0
+param p List<
+"""
+    match Written.parse bad with
+    | Ok _ -> failtest "parsed a manifest full of problems"
+    | Error problems ->
+      // Every bad line, not the first, and each one says where.
+      Expect.hasLength problems 5 "five bad lines, five messages"
+      Expect.isTrue
+        (problems |> List.forall (fun p -> p.StartsWith "line "))
+        "every problem names its line"
+      Expect.isTrue
+        (problems |> List.exists (fun p -> p.Contains "unknown key 'nonsense'"))
+        "an unknown key is an error rather than ignored"
+      Expect.isTrue
+        (problems |> List.exists (fun p -> p.Contains "before any 'fn'"))
+        "a param with no function above it is caught"
+  }
+
+let aTextManifestNeedsItsHeader =
+  test "a written manifest without its header is refused outright" {
+    // Fail on the first line rather than trying to parse an arbitrary file as a manifest, so
+    // pointing this at the wrong path says so instead of reporting forty unknown keys.
+    match Written.parse "owner acme\nname AcmeSerial\n" with
+    | Ok _ -> failtest "parsed something with no header"
+    | Error problems -> Expect.hasLength problems 1 "one problem: the header"
+  }
+
+let aWrittenManifestResolvesToAPlatform =
+  testTask "a written manifest resolves against the consumer and runs" {
+    // The whole path in one test: text in, a platform out, a call through it.
+    match Written.parse manifestText with
+    | Error problems -> failtest $"parse: {problems}"
+    | Ok written ->
+      match Written.resolve lookupResult written with
+      | Error r -> failtest $"resolve: {r.problems}"
+      | Ok manifest ->
+        match
+          External.Manifest.toPlatform (fun _ _ -> Ply(RT.DString "TAG-42")) manifest
+        with
+        | Error r -> failtest $"toPlatform: {r.problems}"
+        | Ok platform ->
+          let core = Platforms.Sets.sealedCompute ()
+          let set = PlatformSet.make (core.platforms @ [ platform ]) []
+          Expect.equal
+            (PlatformSet.qualify "acmeReadTag" set)
+            "AcmeSerial#acmeReadTag"
+            "composed from text"
+          Expect.isTrue
+            (Set.contains describedEffect (PlatformSet.effectSurface set))
+            "its named capability became a real effect"
+  }
+
+let aWrittenManifestReportsUnresolvableNames =
+  test "a written manifest naming things this instance lacks says which" {
+    let written =
+      match Written.parse manifestText with
+      | Ok w -> w
+      | Error problems -> failtest $"parse: {problems}"
+    // A store without `Stdlib.Result`, and a capability that is not an effect at all.
+    let withBadEffect =
+      { written with
+          fns =
+            written.fns
+            |> List.map (fun fn -> { fn with effects = [ "Acme/Serial" ] }) }
+    match Written.resolve (fun _ -> None) withBadEffect with
+    | Ok _ -> failtest "resolved against a store that has neither"
+    | Error r ->
+      Expect.isTrue
+        (r.problems |> List.exists (fun p -> p.Contains "Stdlib.Result"))
+        "the missing type is named"
+      Expect.isTrue
+        (r.problems |> List.exists (fun p -> p.Contains "is not an effect"))
+        "and so is the thing that is not an effect"
+  }
+
 
 let tests =
   testList
@@ -1306,4 +1452,9 @@ let tests =
       aManifestRefusesADuplicateBuiltin
       namedTypesRoundTrip
       namedTypeParseRefusesNonsense
-      namedTypeResolvesAgainstTheConsumersStore ]
+      namedTypeResolvesAgainstTheConsumersStore
+      aTextManifestParsesAndRoundTrips
+      aTextManifestCollectsEveryProblem
+      aTextManifestNeedsItsHeader
+      aWrittenManifestResolvesToAPlatform
+      aWrittenManifestReportsUnresolvableNames ]

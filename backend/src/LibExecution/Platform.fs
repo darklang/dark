@@ -749,3 +749,227 @@ module External =
         | Some fq ->
           resolveAll args
           |> Result.map (fun args -> TCustomType(NameResolution.ok fq, args))
+
+
+
+/// A manifest as WRITTEN, before anything is resolved.
+///
+/// Same split the parser already makes between `WrittenTypes` and `ProgramTypes`, and for the
+/// same reason: what a person typed and what it means here are two things, and resolution can
+/// fail. A `Written.Manifest` names types and effects; a `Manifest` holds the resolved ones.
+module Written =
+  type Fn =
+    {
+      name : string
+      version : int
+      parameters : List<string * External.NamedType>
+      returnType : External.NamedType
+      /// Effect NAMES, well-known or `owner/name`. Resolved through `Effects.fromName`, so a
+      /// platform declaring a capability this runtime never shipped is ordinary rather than
+      /// special.
+      effects : List<string>
+      description : string
+    }
+
+  type Manifest =
+    {
+      owner : string
+      name : string
+      version : int
+      description : string
+      requires : List<string>
+      requiresStore : bool
+      fns : List<Fn>
+    }
+
+  let private header = "DARK-PLATFORM-MANIFEST 1"
+
+  /// Line-oriented, like the activation file, and for the same reason: a plugin author writes
+  /// this by hand or emits it from C with `fprintf`. A format needing a library to produce is a
+  /// format that makes the first platform in a new language a project rather than an afternoon.
+  ///
+  /// `key rest-of-line`, blank lines and `#` comments ignored. A `fn` line opens a function and
+  /// the `param`, `returns`, `effect` and `doc` lines after it belong to that one.
+  let render (m : Manifest) : string =
+    let lines =
+      [ yield header
+        yield $"owner {m.owner}"
+        yield $"name {m.name}"
+        yield $"version {m.version}"
+        if m.description <> "" then
+          yield $"description {m.description}"
+        for r in m.requires do
+          yield $"requires {r}"
+        yield "store " + (if m.requiresStore then "yes" else "no")
+        for fn in m.fns do
+          yield ""
+          yield $"fn {fn.name} {fn.version}"
+          for (paramName, typ) in fn.parameters do
+            yield $"param {paramName} {External.NamedType.render typ}"
+          yield $"returns {External.NamedType.render fn.returnType}"
+          for e in fn.effects do
+            yield $"effect {e}"
+          if fn.description <> "" then
+            yield $"doc {fn.description}" ]
+    String.concat "\n" lines + "\n"
+
+  /// Parse, collecting every problem rather than stopping at the first.
+  ///
+  /// Unknown keys are an error rather than ignored. A manifest is a contract, and silently
+  /// dropping a line somebody wrote is how a platform ends up doing less than it says.
+  let parse (text : string) : Result<Manifest, List<string>> =
+    let problems = ResizeArray<string>()
+
+    let lines =
+      text.Split('\n')
+      |> Array.toList
+      |> List.map (fun line -> line.Trim())
+      |> List.indexed
+      |> List.filter (fun (_, line) -> line <> "" && not (line.StartsWith "#"))
+
+    let mutable owner = ""
+    let mutable name = ""
+    let mutable version = 0
+    let mutable description = ""
+    let requires = ResizeArray<string>()
+    let mutable requiresStore = false
+    let fns = ResizeArray<Fn>()
+
+    let split (line : string) =
+      match line.IndexOf ' ' with
+      | -1 -> line, ""
+      | i -> line.Substring(0, i), line.Substring(i + 1).Trim()
+
+    let namedType (lineNo : int) (raw : string) : Option<External.NamedType> =
+      match External.NamedType.parse raw with
+      | Ok t -> Some t
+      | Error e ->
+        problems.Add $"line {lineNo + 1}: {e}"
+        None
+
+    match lines with
+    | [] -> Error [ "the manifest is empty" ]
+    | (headerLine, first) :: rest ->
+      if first <> header then
+        Error
+          [ $"line {headerLine + 1}: expected '{header}', found '{first}'" ]
+      else
+        for (lineNo, line) in rest do
+          let key, rest = split line
+          // A `fn` line opens a function; everything below attaches to the last one opened, so
+          // a `param` before any `fn` is a manifest that got its order wrong.
+          let onCurrentFn (f : Fn -> Fn) =
+            if fns.Count = 0 then
+              problems.Add $"line {lineNo + 1}: '{key}' before any 'fn' line"
+            else
+              fns[fns.Count - 1] <- f fns[fns.Count - 1]
+
+          match key with
+          | "owner" -> owner <- rest
+          | "name" -> name <- rest
+          | "description" -> description <- rest
+          | "requires" -> requires.Add rest
+          | "version" ->
+            match System.Int32.TryParse rest with
+            | true, v -> version <- v
+            | false, _ -> problems.Add $"line {lineNo + 1}: version '{rest}' is not a number"
+          | "store" ->
+            match rest with
+            | "yes" -> requiresStore <- true
+            | "no" -> requiresStore <- false
+            | other -> problems.Add $"line {lineNo + 1}: store must be yes or no, not '{other}'"
+          | "fn" ->
+            let fnName, fnVersion = split rest
+            match System.Int32.TryParse fnVersion with
+            | true, v ->
+              fns.Add
+                { name = fnName
+                  version = v
+                  parameters = []
+                  returnType = External.NBuiltin "Unit"
+                  effects = []
+                  description = "" }
+            | false, _ ->
+              problems.Add
+                $"line {lineNo + 1}: 'fn' wants a name and a version, found '{rest}'"
+          | "param" ->
+            let paramName, typeText = split rest
+            match namedType lineNo typeText with
+            | Some t ->
+              onCurrentFn (fun fn ->
+                { fn with parameters = fn.parameters @ [ (paramName, t) ] })
+            | None -> ()
+          | "returns" ->
+            match namedType lineNo rest with
+            | Some t -> onCurrentFn (fun fn -> { fn with returnType = t })
+            | None -> ()
+          | "effect" -> onCurrentFn (fun fn -> { fn with effects = fn.effects @ [ rest ] })
+          | "doc" -> onCurrentFn (fun fn -> { fn with description = rest })
+          | other -> problems.Add $"line {lineNo + 1}: unknown key '{other}'"
+
+        if problems.Count > 0 then
+          Error(List.ofSeq problems)
+        else
+          Ok
+            { owner = owner
+              name = name
+              version = version
+              description = description
+              requires = List.ofSeq requires
+              requiresStore = requiresStore
+              fns = List.ofSeq fns }
+
+  /// Resolve a written manifest against this instance: type names to hashes, effect names to
+  /// effects. Then `Manifest.problems` has the last word on whether it is acceptable.
+  let resolve
+    (lookup : string -> Option<FQTypeName.FQTypeName>)
+    (written : Manifest)
+    : Result<External.Manifest, External.Rejection> =
+    let problems = ResizeArray<string>()
+
+    let resolveType (context : string) (t : External.NamedType) : TypeReference =
+      match External.NamedType.resolve lookup t with
+      | Ok typ -> typ
+      | Error e ->
+        problems.Add $"{context}: {e}"
+        TUnit
+
+    let fns =
+      written.fns
+      |> List.map (fun fn ->
+        let effects =
+          fn.effects
+          |> List.choose (fun name ->
+            match Effects.fromName name with
+            | Some effect -> Some effect
+            | None ->
+              problems.Add $"builtin '{fn.name}': '{name}' is not an effect"
+              None)
+          |> Set.ofList
+
+        let resolved : External.Fn =
+          { name = fn.name
+            version = fn.version
+            parameters =
+              fn.parameters
+              |> List.map (fun (paramName, t) ->
+                (paramName, resolveType $"builtin '{fn.name}' parameter '{paramName}'" t))
+            returnType = resolveType $"builtin '{fn.name}' return type" fn.returnType
+            effects = effects
+            description = fn.description }
+        resolved)
+
+    let manifest : External.Manifest =
+      { owner = written.owner
+        name = written.name
+        version = written.version
+        description = written.description
+        requires = written.requires
+        requiresStore = written.requiresStore
+        fns = fns }
+
+    let all = List.ofSeq problems @ External.Manifest.problems manifest
+    if List.isEmpty all then
+      Ok manifest
+    else
+      Error { manifest = External.Manifest.coordinate manifest; problems = all }
