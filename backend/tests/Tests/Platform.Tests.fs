@@ -1409,6 +1409,96 @@ let aWrittenManifestReportsUnresolvableNames =
         "and so is the thing that is not an effect"
   }
 
+// ── resolving against a real store ────────────────────────────────────────────
+
+let manifestLocationsAreFullyQualified =
+  test "a manifest's type names are split fully, with no implicit owner" {
+    // Dark source has an implicit owner; a manifest deliberately does not, because a third
+    // party's manifest should not depend on whose shortcuts are in play.
+    // Note the doubled `Result`: the type lives in a module of the same name, so its fully
+    // qualified name really is `Darklang.Stdlib.Result.Result`. A manifest has to write that,
+    // which looks odd and is unambiguous, which is the trade a manifest should take.
+    match Platforms.Install.location "Darklang.Stdlib.Result.Result" with
+    | Some loc ->
+      Expect.equal loc.owner "Darklang" "owner"
+      Expect.equal loc.modules [ "Stdlib"; "Result" ] "modules"
+      Expect.equal loc.name "Result" "name"
+    | None -> failtest "should have split a fully qualified name"
+
+    match Platforms.Install.location "Acme.Serial.Deep.Config" with
+    | Some loc -> Expect.equal loc.modules [ "Serial"; "Deep" ] "nested modules"
+    | None -> failtest "should have split a deeper name"
+
+    // A bare name is refused rather than guessed at.
+    Expect.isNone (Platforms.Install.location "Result") "a bare name has no owner"
+  }
+
+let aManifestResolvesAgainstTheRealStore =
+  testTask "a manifest naming a real package type resolves against the store" {
+    // The point of naming rather than hashing: the SAME text resolves here, and would fail on an
+    // instance without that type.
+    let text =
+      """DARK-PLATFORM-MANIFEST 1
+owner acme
+name AcmeSerial
+version 0
+store no
+
+fn acmeReadTag 0
+param port String
+returns Darklang.Stdlib.Result.Result<String, String>
+effect acme/serial
+"""
+    let written =
+      match Written.parse text with
+      | Ok w -> w
+      | Error problems -> failtest $"parse: {problems}"
+
+    let! (resolved : Result<External.Manifest, External.Rejection>) =
+      Platforms.Install.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
+    match resolved with
+    | Error r -> failtest $"should have resolved against the real store: {r.problems}"
+    | Ok manifest ->
+      match manifest.fns with
+      | [ fn ] ->
+        match fn.returnType with
+        | RT.TCustomType(nr, [ RT.TString; RT.TString ]) ->
+          match nr.resolved with
+          | Ok _ -> ()
+          | Error e -> failtest $"resolved to an unresolved name: {e}"
+        | other -> failtest $"return type resolved wrongly: {other}"
+      | other -> failtest $"expected one fn, got {List.length other}"
+  }
+
+let aManifestNamingAMissingTypeSaysSo =
+  testTask "a manifest naming a type this instance lacks names it" {
+    let text =
+      """DARK-PLATFORM-MANIFEST 1
+owner acme
+name AcmeSerial
+version 0
+store no
+
+fn acmeReadTag 0
+param port String
+returns Acme.Serial.NoSuchType
+effect acme/serial
+"""
+    let written =
+      match Written.parse text with
+      | Ok w -> w
+      | Error problems -> failtest $"parse: {problems}"
+
+    let! (resolved : Result<External.Manifest, External.Rejection>) =
+      Platforms.Install.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
+    match resolved with
+    | Ok _ -> failtest "resolved a type the store does not have"
+    | Error r ->
+      Expect.isTrue
+        (r.problems |> List.exists (fun p -> p.Contains "Acme.Serial.NoSuchType"))
+        "the missing type is named in the problem"
+  }
+
 
 let tests =
   testList
@@ -1457,4 +1547,7 @@ let tests =
       aTextManifestCollectsEveryProblem
       aTextManifestNeedsItsHeader
       aWrittenManifestResolvesToAPlatform
-      aWrittenManifestReportsUnresolvableNames ]
+      aWrittenManifestReportsUnresolvableNames
+      manifestLocationsAreFullyQualified
+      aManifestResolvesAgainstTheRealStore
+      aManifestNamingAMissingTypeSaysSo ]
