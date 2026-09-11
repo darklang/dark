@@ -1816,6 +1816,149 @@ let aLyingSourceIsRefused =
       System.IO.Directory.Delete(dir, true)
   }
 
+// ── a platform in another process ─────────────────────────────────────────────
+//
+// The fixture is Python, so it is a text file with nothing to build, and it knows nothing about
+// Dark beyond the wire. What these assert is that a described platform backed by a real process
+// composes, runs, is permission-checked, and fails like a value rather than a hang.
+
+let private echoPlatformPath () =
+  System.IO.Path.Combine(
+    PackageSurface.findRepoRoot (),
+    "backend",
+    "testfiles",
+    "platforms",
+    "echo-platform.py"
+  )
+
+let private spawnedFns : List<External.Fn> =
+  [ { name = "echoCounter"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TInt64
+      effects = Set.singleton describedEffect
+      description = "state living outside the runtime" }
+    { name = "echoShout"
+      version = 0
+      parameters = [ ("text", TString) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "reads a Dval as well as writing one" }
+    { name = "echoCrash"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TUnit
+      effects = Set.singleton describedEffect
+      description = "exits without answering" } ]
+
+let private spawnedPlatform (handle : Platforms.Spawn.Handle) : Platform =
+  { name = "EchoPlatform"
+    version = 0
+    description = "a platform in another process"
+    builtins = External.builtins (Platforms.Spawn.invoke handle) spawnedFns
+    requires = [ "Core" ]
+    dynamicEffects = Set.empty
+    requiresStore = false }
+
+/// Call one builtin of the spawned platform, under a policy that grants its capability.
+let private callSpawned (handle : Platforms.Spawn.Handle) (name : string) (arg : RT.Dval) =
+  task {
+    let core = Platforms.Sets.sealedCompute ()
+    let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
+    let pmRT =
+      PT2RT.PackageManager.toRT
+        set.builtins.values
+        LibExecution.ProgramTypes.PackageManager.empty
+    let state =
+      Exe.createState
+        set.builtins
+        pmRT
+        Exe.noTracing
+        RT.consoleReporter
+        RT.consoleNotifier
+        { dbs = Map.empty }
+      |> Exe.setInstancePolicy
+        (Permission.Policy.create [ Permission.Rule.Effect describedEffect ] [])
+    let fnName = RT.FQFnName.FQFnName.Builtin(RT.FQFnName.builtin name 0)
+    return! Exe.executeFunction state fnName [] (NEList.singleton arg)
+  }
+
+let aSpawnedPlatformAnswers =
+  testTask "a platform in another process answers, and keeps its own state" {
+    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    try
+      // Its counter lives outside this runtime, so two calls to one process differ. That is the
+      // proof it is really another process and not a clever closure.
+      let! first = callSpawned handle "echoCounter" RT.DUnit
+      let! second = callSpawned handle "echoCounter" RT.DUnit
+      match first, second with
+      | Ok(RT.DInt64 a), Ok(RT.DInt64 b) ->
+        Expect.equal a 1L "the first call"
+        Expect.equal b 2L "and the second, from the same process"
+      | other -> failtest $"unexpected answers: %A{other}"
+
+      // And it READS a Dval as well as writing one.
+      let! shouted = callSpawned handle "echoShout" (RT.DString "quiet")
+      match shouted with
+      | Ok(RT.DString "QUIET") -> ()
+      | other -> failtest $"unexpected: {other}"
+    finally
+      Platforms.Spawn.stop handle
+  }
+
+let aSpawnedPlatformIsPermissionChecked =
+  testTask "a spawned platform's declared capability is enforced before it is called" {
+    // The gate runs on what the platform DECLARED, before any bytes cross, so an ungranted
+    // capability never reaches the process at all.
+    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    try
+      let core = Platforms.Sets.sealedCompute ()
+      let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
+      let pmRT =
+        PT2RT.PackageManager.toRT
+          set.builtins.values
+          LibExecution.ProgramTypes.PackageManager.empty
+      let everythingElse =
+        Permission.Policy.create (Effects.all |> List.map Permission.Rule.Effect) []
+      let state =
+        Exe.createState
+          set.builtins
+          pmRT
+          Exe.noTracing
+          RT.consoleReporter
+          RT.consoleNotifier
+          { dbs = Map.empty }
+        |> Exe.setInstancePolicy everythingElse
+      let fnName = RT.FQFnName.FQFnName.Builtin(RT.FQFnName.builtin "echoCounter" 0)
+      let! denied = Exe.executeFunction state fnName [] (NEList.singleton RT.DUnit)
+      match denied with
+      | Error _ -> ()
+      | Ok other -> failtest $"ran without its capability granted: {other}"
+    finally
+      Platforms.Spawn.stop handle
+  }
+
+let aCrashedPlatformIsAnErrorNotAHang =
+  testTask "a platform that exits without answering is an error, not a hang" {
+    // The spike found this and its harness did not handle it: a crashed plugin is a CLOSED PIPE
+    // rather than any response. Left alone that is a CLI that never returns.
+    let handle = Platforms.Spawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    try
+      let! crashed = callSpawned handle "echoCrash" RT.DUnit
+      match crashed with
+      | Error _ -> ()
+      | Ok other -> failtest $"a crashed platform answered: {other}"
+
+      // And the handle recovers: the dead process is dropped, so the next call starts a fresh one
+      // rather than talking into a pipe nobody holds.
+      let! after = callSpawned handle "echoCounter" RT.DUnit
+      match after with
+      | Ok(RT.DInt64 1L) -> ()
+      | other -> failtest $"did not recover after a crash: {other}"
+    finally
+      Platforms.Spawn.stop handle
+  }
+
 
 let tests =
   testList
@@ -1877,6 +2020,9 @@ let tests =
       aManifestInTheStoreResolves
       aManifestMustBeALiteral
       aMissingManifestSaysSo
+      aSpawnedPlatformAnswers
+      aSpawnedPlatformIsPermissionChecked
+      aCrashedPlatformIsAnErrorNotAHang
       testSequenced anArtifactIsFetchedOnceAndReusedAfter
       testSequenced anUnavailableArtifactSaysWhatItMeans
       testSequenced aLyingSourceIsRefused ]
