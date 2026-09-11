@@ -9,12 +9,20 @@ module Darklang.Fluid.Widget
 // Colour now comes from a `Theme`; see theme.dark. The kernel and layout stay monochrome.
 
 /// Is this cell part of the node the NAV caret is on?
+/// Is this cell inside the selection? The selection is the caret's node, or the whole sibling run
+/// between the caret and the anchor when `V` has started one.
 let underNavCaret (st: Editor.State) (c: Layout.Cell) : Bool =
   match st.mode with
   | Insert -> false
   | Nav ->
     match c.tag with
-    | Some t -> Layout.tagMatches t st.caret.node st.caret.part
+    | Some t ->
+      (match st.anchor with
+       | None -> Layout.tagMatches t st.caret.node st.caret.part
+       | Some _ ->
+         // A range is a set of whole nodes, so the PART does not narrow it the way it does for one.
+         Editor.selectedPaths st
+         |> Stdlib.List.any (fun p -> Darklang.Fluid.Path.isPrefixOf p t.node))
     | None -> false
 
 let renderCell (theme: Theme.Theme) (c: Layout.Cell) (selected: Bool) : String =
@@ -38,7 +46,8 @@ let renderCell (theme: Theme.Theme) (c: Layout.Cell) (selected: Bool) : String =
 /// thing marked -- which says only "you have not moved yet" and says it in the loudest way available.
 /// The frame's breadcrumb already names the node.
 let selectionWorthDrawing (st: Editor.State) : Bool =
-  Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.navPath st))
+  // ...unless a RANGE is being made, where marking is the whole point even at the root.
+  (Stdlib.Option.isSome st.anchor) || (Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.navPath st)))
 
 let renderRow (theme: Theme.Theme) (st: Editor.State) (row: Layout.Row) : String =
   let flags =
@@ -449,6 +458,7 @@ let inspectorWith
         // Short enough to fit: the panel is a third of the screen and the row above it, `^arrows move along
         // its list` at 29 columns, is the widest thing that survives. The first version of this said
         // "another item in this list" and came out "another item in this li".
+        dim "  V      select a range"
         dim "  o      another list item"
         dim "  x      clear"
         dim "  y p    copy / paste"

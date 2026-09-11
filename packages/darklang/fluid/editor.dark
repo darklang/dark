@@ -58,6 +58,17 @@ type State =
     docVersion: Int
     drawn: Stdlib.Option.Option<(Int * Int * List<Layout.Row>)>
 
+    /// The other end of a SIBLING RANGE, when one is being made. `V` sets it to the caret's own node;
+    /// `J`/`K` then move the caret and the selection is every sibling between the two.
+    ///
+    /// A range rather than a rectangle or a character span, because this is a tree: the things you can
+    /// sensibly select together are the items of ONE list. Two statements, three list elements, two
+    /// match arms. Classic Fluid had a character range over the token stream, which could select half a
+    /// node; here that has no meaning, and the sibling run is the honest structural equivalent.
+    ///
+    /// Cleared by anything that leaves the list, by Escape, and by any edit.
+    anchor: Stdlib.Option.Option<Path>
+
     /// The deepest path `h` has climbed out of, so `l` can climb back INTO it.
     ///
     /// `navChild` takes the first child, which from a `let` is the pattern -- a leaf. So expand then
@@ -112,6 +123,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       message = ""
       docVersion = 0
       drawn = Stdlib.Option.Option.None
+      anchor = Stdlib.Option.Option.None
       descent = Stdlib.Option.Option.None }
   |> fun s -> { s with menu = computeCandidates s }
 
@@ -184,6 +196,7 @@ let commit (st: State) (edits: List<Edit>) (caret: Caret) : State =
       lastChar = Stdlib.Option.Option.None
       menuDismissed = false
       // An edit invalidates the `h`/`l` trail: it is a path into a tree that has just changed shape.
+      anchor = Stdlib.Option.Option.None
       descent = Stdlib.Option.Option.None }
 
 /// Apply typing edits, coalescing consecutive characters in the SAME text run into one undo step. The
@@ -849,6 +862,51 @@ let navBy (st: State) (delta: Int) : State =
 
   | None -> navByReadingOrder st delta
 
+/// The paths currently selected: just the caret's node, or the whole run between it and the anchor.
+///
+/// Both ends must be children of the same parent. They always are while `V` and `J`/`K` are the only
+/// way to make one, but `h` or `j` can move the caret elsewhere, and a range whose ends are in
+/// different lists is not a range -- so that collapses back to the single node rather than selecting
+/// something arbitrary between them.
+let selectedPaths (st: State) : List<Path> =
+  let here = navPath st
+  match st.anchor with
+  | None -> [ here ]
+  | Some a ->
+    if (Path.parent a) != (Path.parent here) then
+      [ here ]
+    else
+      let sibs =
+        nodePaths st.root
+        |> Stdlib.List.filter (fun p -> (Path.parent p) == (Path.parent here))
+      let indexOf (target: Path) : Stdlib.Option.Option<Int> =
+        sibs
+        |> Stdlib.List.indexedMap (fun i p -> (i, p))
+        |> Stdlib.List.findFirst (fun ip -> let (_, p) = ip in p == target)
+        |> Stdlib.Option.map (fun ip -> let (i, _) = ip in i)
+      match (indexOf a, indexOf here) with
+      | (Some i, Some j) ->
+        let lo = Stdlib.Int.min i j
+        let hi = Stdlib.Int.max i j
+        sibs
+        |> Stdlib.List.indexedMap (fun k p -> (k, p))
+        |> Stdlib.List.filterMap (fun kp ->
+          let (k, p) = kp
+          if (k >= lo) && (k <= hi) then Stdlib.Option.Option.Some p else Stdlib.Option.Option.None)
+      | _ -> [ here ]
+
+/// Start a sibling range at the caret, or drop the one in progress.
+let toggleAnchor (st: State) : State =
+  match st.anchor with
+  | Some _ -> { st with anchor = Stdlib.Option.Option.None; message = "range dropped" }
+  | None ->
+    if Stdlib.List.isEmpty (navPath st) then
+      { st with message = "nothing to select here" }
+    else
+      { st with
+          anchor = Stdlib.Option.Option.Some(navPath st)
+          message = "range from here; J/K to extend" }
+
 /// The next or previous SIBLING: another child of the same parent, in drawing order.
 ///
 /// `j`/`k` walk READING order, which goes into everything. In a function anyone would call realistic that
@@ -1087,7 +1145,24 @@ let moveSibling (st: State) (delta: Int) : State =
 
 
 /// Copy the node under the caret into the clipboard (a whole subtree).
+/// Yank every node in the selection. One node is the ordinary case; a range is a run of siblings, and
+/// the clipboard holds only one node, so a range yanks the FIRST and says how many it could not take.
+///
+/// Deliberately not silently yanking one of several: a `y` that looks like it took three things and
+/// took one is worse than a `y` that says so.
 let yankNode (st: State) : State =
+  let paths = selectedPaths st
+  if (Stdlib.List.length paths) > 1 then
+    match Stdlib.List.head paths |> Stdlib.Option.andThen (fun p -> nodeAtPath st.root p) with
+    | Some n ->
+      { st with
+          clipboard = Stdlib.Option.Option.Some n
+          anchor = Stdlib.Option.Option.None
+          message =
+            "yanked " ++ (crumbName n) ++ " (the clipboard holds one node, "
+            ++ (Stdlib.Int.toString ((Stdlib.List.length paths) - 1)) ++ " not taken)" }
+    | None -> { st with message = "nothing to yank" }
+  else
   match nodeAtPath st.root (navPath st) with
   // The SHORT name, the one the breadcrumb uses. `Kind.toString` is the fully qualified type, so a yank
   // said "yanked Darklang.LanguageTools.ProgramTypes.Expr.EInt" for copying a `1`.
@@ -5122,6 +5197,7 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
         // already put the caret exactly on the outer arm; this gives that position something to do.
         //
         // `o` for the same reason vi uses it, and it was unbound.
+        elif ch == "V" then handled (toggleAnchor st)
         elif ch == "o" then
           // ...and drops into INSERT, the way vi's does. Landing in a fresh hole in NAV means the next
           // thing you type is read as a command and thrown away, which is the whole reason the key exists.
