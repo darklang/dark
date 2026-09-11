@@ -11,6 +11,15 @@ type ExecutionOutcome =
 
 
 /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
+///
+/// Runs THROUGH A SHELL (`$SHELL -c`, or `/bin/bash`), not as a program plus arguments. Pipes,
+/// globs, `;` and `$(...)` all work, which is usually why you want it and is also why a command
+/// built from untrusted input is a command injection. `Posix.spawnAndWait` takes a program and an
+/// argv and starts no shell.
+///
+/// It also shapes the permission you need: the request names the SHELL, so a rule granting the
+/// program alone would grant every command the shell can run. `dark permissions` suggests the
+/// full argv for this reason.
 let execute (command: String) : ExecutionOutcome = Builtin.cliExecute command
 
 

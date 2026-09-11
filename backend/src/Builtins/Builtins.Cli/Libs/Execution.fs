@@ -59,7 +59,12 @@ module OS =
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0
-      description = "Runs a process; return exitCode, stdout, and stderr"
+      description =
+        "Runs <param command> THROUGH A SHELL (`$SHELL -c`, or `/bin/bash`), returning exitCode, "
+        + "stdout and stderr. It is not a program and an argv: pipes, globs, `;` and `$(...)` all "
+        + "work, so a command built from untrusted input is a command injection. Use "
+        + "`Posix.spawnAndWait`, which takes a program and its arguments, when you do not want a "
+        + "shell."
       typeParams = []
       parameters = [ Param.make "command" TString "The command to execute" ]
       returnType = TCustomType(NR.ok (executionOutcomeTypeName ()), [])
@@ -116,7 +121,10 @@ let fns () : List<BuiltInFn> =
     // Sub-process-spawning and management. The process table is host-owned
     // (LibExecution.HostProcess); guest code sees only opaque handle ids.
     { name = fn "cliSpawnProcess" 0
-      description = "Spawns an interactive process and returns a handle ID"
+      description =
+        "Spawns <param command> THROUGH A SHELL (`$SHELL -c`, or `/bin/bash`) as an interactive "
+        + "process, returning a handle ID. Shell metacharacters apply, so a command built from "
+        + "untrusted input is a command injection."
       typeParams = []
       parameters = [ Param.make "command" TString "The command to execute" ]
       returnType = TInt

@@ -127,7 +127,19 @@ module Request =
     | Request.Stdout -> Some "stdout"
     | Request.Clock -> Some "clock"
     | Request.Random -> Some "random"
-    | Request.Process(executable, _) -> Some $"process {quoteRuleToken executable}"
+    // The ARGUMENTS, not just the program, and this is the case where that matters most. A rule
+    // naming an executable and nothing else scopes its arguments to `All`, which is the right
+    // default when a person writes one by hand and the wrong suggestion to hand them here: it is
+    // not narrow, and this function promises narrow.
+    //
+    // `cliExecute` is why. It does not run the command it is given, it runs `$SHELL -c <command>`,
+    // so the request names the shell and carries the whole command line in its arguments.
+    // Suggesting `process '/bin/bash'` would offer somebody a grant that reads as "may run bash"
+    // and means "may run anything", at the exact moment they are deciding whether to trust it.
+    | Request.Process(executable, args) ->
+      let rendered =
+        (executable :: args) |> List.map quoteRuleToken |> String.concat " "
+      Some $"process {rendered}"
     | Request.Package AccessKind.Read -> Some "package-read"
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
