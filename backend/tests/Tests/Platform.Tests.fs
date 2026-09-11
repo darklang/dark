@@ -1715,6 +1715,103 @@ let aMissingManifestSaysSo =
     | Error r -> Expect.isNonEmpty r.problems "with a reason"
   }
 
+// ── fetching an artifact ──────────────────────────────────────────────────────
+
+let anArtifactIsFetchedOnceAndReusedAfter =
+  testTask "an artifact is fetched when missing and reused when present" {
+    // Reused, not refetched: the point of the cache. Counting the source's calls is the only way
+    // to tell those apart from outside.
+    let bytes = System.Text.Encoding.UTF8.GetBytes "the platform executable"
+    let hash = LibExecution.Blob.sha256Hex bytes
+    let mutable fetches = 0
+    let source : Platforms.Artifacts.Source =
+      fun _ ->
+        fetches <- fetches + 1
+        Ply(Some bytes)
+
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-artifacts-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+    try
+      let! first = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      match first with
+      | Error e -> failtest $"first fetch failed: {e}"
+      | Ok file -> Expect.isTrue (System.IO.File.Exists file) "it landed"
+      Expect.equal fetches 1 "fetched once"
+
+      let! second = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      Expect.isOk second "and is there the second time"
+      Expect.equal fetches 1 "without asking the source again"
+
+      // A swapped file is refetched rather than trusted, which is the whole reason the cache check
+      // verifies instead of testing for existence.
+      match Platforms.Artifacts.path hash with
+      | Ok file ->
+        System.IO.File.WriteAllBytes(file, System.Text.Encoding.UTF8.GetBytes "swapped")
+      | Error e -> failtest e
+      let! third = Platforms.Artifacts.ensure source hash |> Ply.toTask
+      Expect.isOk third "a swapped artifact is replaced"
+      Expect.equal fetches 2 "by fetching it again"
+    finally
+      restore.Dispose()
+      System.IO.Directory.Delete(dir, true)
+  }
+
+let anUnavailableArtifactSaysWhatItMeans =
+  testTask "an artifact nobody has says what that means" {
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-artifacts-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+    try
+      let hash = LibExecution.Blob.sha256Hex (System.Text.Encoding.UTF8.GetBytes "absent")
+      let! result = Platforms.Artifacts.ensure (fun _ -> Ply None) hash |> Ply.toTask
+      match result with
+      | Ok _ -> failtest "produced a file for bytes nobody has"
+      | Error e ->
+        // Two plausible causes and the message names both, because at this layer we cannot tell
+        // them apart and guessing wrong sends someone looking in the wrong place.
+        Expect.stringContains e "fetched" "not fetched yet"
+        Expect.stringContains e "this machine" "or not built for this target"
+    finally
+      restore.Dispose()
+      System.IO.Directory.Delete(dir, true)
+  }
+
+let aLyingSourceIsRefused =
+  testTask "a source that returns the wrong bytes is refused" {
+    // The source is transport, and transport is not trusted. Whatever it hands back is checked
+    // against the hash that was asked for before anything touches the disk.
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-artifacts-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let restore = LibExecution.HostSecurity.policyDirectoryForTesting dir
+    try
+      let wanted = LibExecution.Blob.sha256Hex (System.Text.Encoding.UTF8.GetBytes "wanted")
+      let source : Platforms.Artifacts.Source =
+        fun _ -> Ply(Some(System.Text.Encoding.UTF8.GetBytes "something else"))
+      let! result = Platforms.Artifacts.ensure source wanted |> Ply.toTask
+      match result with
+      | Ok _ -> failtest "accepted bytes that were not what was asked for"
+      | Error e -> Expect.stringContains e "does not match its hash" "and says so"
+      match Platforms.Artifacts.path wanted with
+      | Ok file -> Expect.isFalse (System.IO.File.Exists file) "nothing was written"
+      | Error e -> failtest e
+    finally
+      restore.Dispose()
+      System.IO.Directory.Delete(dir, true)
+  }
+
 
 let tests =
   testList
@@ -1775,4 +1872,7 @@ let tests =
       testSequenced anArtifactHashCannotBeAPath
       aManifestInTheStoreResolves
       aManifestMustBeALiteral
-      aMissingManifestSaysSo ]
+      aMissingManifestSaysSo
+      testSequenced anArtifactIsFetchedOnceAndReusedAfter
+      testSequenced anUnavailableArtifactSaysWhatItMeans
+      testSequenced aLyingSourceIsRefused ]

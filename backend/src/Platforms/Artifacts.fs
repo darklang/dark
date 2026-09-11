@@ -77,3 +77,35 @@ let materialize (hash : string) (bytes : byte[]) : Result<string, string> =
         Ok file
       with e ->
         Error $"could not write the artifact: {e.Message}"
+
+
+/// Where artifact bytes can be found, given a hash.
+///
+/// A function rather than a concrete source, for the same reason `External.Invoke` and the manifest
+/// type lookup are: this module should not have an opinion about transport. The local blob store is
+/// one source; a relay fetch would be another, and neither needs this code to change.
+type Source = string -> Ply.Ply<Option<byte[]>>
+
+/// The local package store as a source. Bytes somebody already has.
+let fromStore (getBlob : string -> Ply.Ply<Option<byte[]>>) : Source = getBlob
+
+/// Make sure the artifact with this hash is on disk, fetching it if it is not.
+///
+/// The cache is consulted first and VERIFIED, not merely tested for existence, so a swapped file is
+/// refetched rather than trusted. Then the source, then a check of what the source returned, then
+/// the write. At no point does anything unverified reach a path that gets executed.
+let ensure (source : Source) (hash : string) : Ply.Ply<Result<string, string>> =
+  uply {
+    match verified hash with
+    | Error e -> return Error e
+    | Ok true ->
+      // Already here and still itself.
+      return path hash
+    | Ok false ->
+      match! source hash with
+      | None ->
+        return
+          Error
+            $"no artifact with hash {hash} is available here. It may not have been fetched yet, or this platform may not build for this machine."
+      | Some bytes -> return materialize hash bytes
+  }
