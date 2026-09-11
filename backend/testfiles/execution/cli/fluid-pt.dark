@@ -2231,3 +2231,53 @@ module AKeywordInsideAStringIsContent =
   (Darklang.Fluid.Test.run (AKeywordInsideAStringIsContent.reg ()) (AKeywordInsideAStringIsContent.hole ()) 60
     (Stdlib.List.append (AKeywordInsideAStringIsContent.chars "match x with") [ "<Enter>" ])) =
     "match x with\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+
+module AnInterpolationIsNotABreakPoint =
+  // A newline inside `$"..."` is not a layout line: it lands inside a string LITERAL in the source. The
+  // printer rendered each interpolation with `expr ctx`, which renders at `ctx.width` and knows nothing
+  // about the quotes around it, so an interpolation holding a call with three arguments broke at 80
+  // however wide the page actually was.
+  //
+  // The result did not read back. The parser stops at the newline and drops the rest of the call,
+  // silently: `$"Stream<{f a b c}>"` printed over five lines and re-parsed as `$"Stream<{f}>"`. This is
+  // the same splice as the match scrutinee and the arm guard and the only one of the three whose output
+  // is a DIFFERENT PROGRAM rather than a line over the width.
+  //
+  // Fluid was always right here, and its spec says why: the whole literal is drawn `Flat`. Found by the
+  // store sweep, which has been listing it for a while under a name I read as a layout difference.
+  let src () : String = "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
+
+  let printed (w: Int) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AnInterpolationIsNotABreakPoint.src ()) with
+    | Ok e -> Stdlib.Pretty.render w (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  // One line, at a width far narrower than the string. A string literal is one token: it is allowed to
+  // exceed the page, the same as any other literal too long to fit.
+  (Stdlib.List.length (Stdlib.String.split (AnInterpolationIsNotABreakPoint.printed 40) "\n")) = 1
+  (AnInterpolationIsNotABreakPoint.printed 40) = "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
+
+  // ...and the same at a width that fits, so the pin is about the break and not about the text.
+  (AnInterpolationIsNotABreakPoint.printed 200) = "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
+
+  // The property that actually matters: what comes out reads back as the same program. This is the
+  // assertion that fails if anyone puts a break point back in.
+  let roundTrips (w: Int) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AnInterpolationIsNotABreakPoint.printed w) with
+    | Ok e2 ->
+      (Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e2))
+        == (AnInterpolationIsNotABreakPoint.printed 200)
+    | Error _ -> false
+
+  (AnInterpolationIsNotABreakPoint.roundTrips 40) = true
+  (AnInterpolationIsNotABreakPoint.roundTrips 200) = true
+
+  // Fluid draws it the same way, which is how the two projections being different is useful at all.
+  (Darklang.Fluid.Debug.render
+    (Darklang.Fluid.App.defaultRegistry ())
+    40
+    (match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AnInterpolationIsNotABreakPoint.src ()) with
+     | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+     | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr"))) =
+    "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""

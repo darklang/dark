@@ -567,7 +567,18 @@ let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) :
     PrettyPrinter.escapeSpecialCharacters text
     |> fun t -> Stdlib.String.replaceAll t "{" "{{"
     |> fun t -> Stdlib.String.replaceAll t "}" "}}"
-  | StringInterpolation interpolationExpr -> $"{{{expr ctx interpolationExpr}}}"
+  // Rendered at a width nothing will break, because a newline here is not a layout line: it lands INSIDE
+  // a string literal in the source. `expr` renders at `ctx.width` and knows nothing about the quotes
+  // around it, so an interpolation holding a call with three arguments broke at 80 however wide the page
+  // actually was, and the result did not read back: the parser stops at the newline and drops the rest of
+  // the call, silently. `$"Stream<{f a b c}>"` printed over five lines and re-parsed as
+  // `$"Stream<{f}>"`.
+  //
+  // The same splice as the match scrutinee and the arm guard, and the only one of the three whose output
+  // is a DIFFERENT PROGRAM rather than a line over the width. Fluid draws the whole literal `Flat` and
+  // has the reason written on its spec; this is that reason, here.
+  | StringInterpolation interpolationExpr ->
+    $"{{{expr { ctx with width = 100000 } interpolationExpr}}}"
 
 /// Parenthesize a Doc and indent its broken layout past the opening paren.
 /// A match pattern as a Doc, so an OR-pattern can break.
