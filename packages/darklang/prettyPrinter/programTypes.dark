@@ -956,6 +956,12 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
     //
     // The same hard space the infix had, and the same fix. Nested by two so the value hangs under the
     // field rather than starting at the record's own column.
+    //
+    // ...and a low-power value is bracketed, for the reason the pipe head already is: a `match` as a
+    // field's value swallows the `;` and the field after it, so `{ a = match z with | _ -> b; b = 1 }`
+    // reads back with `b = 1` inside the arm. A different program, which is the only kind of difference
+    // that is not a matter of taste. Both drawings had this; found by asking the pipe head's question of
+    // every other slot in turn.
     let parts =
       fields
       |> Stdlib.List.map (fun pair ->
@@ -965,7 +971,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
             2
             (Stdlib.Pretty.concat
               (txt $"{PrettyPrinter.formatFieldName name} =")
-              (Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx value)))))
+              (Stdlib.Pretty.concat Stdlib.Pretty.line (if (exprPower value) == 0 then parens (exprDoc ctx value) else exprDoc ctx value)))))
 
     let head =
       Stdlib.Pretty.concat
@@ -989,7 +995,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
             2
             (Stdlib.Pretty.concat
               (txt $"{PrettyPrinter.formatFieldName name} =")
-              (Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx value)))))
+              (Stdlib.Pretty.concat Stdlib.Pretty.line (if (exprPower value) == 0 then parens (exprDoc ctx value) else exprDoc ctx value)))))
 
     Stdlib.Pretty.group (
       Stdlib.Pretty.concat
@@ -1013,9 +1019,11 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       pairs
       |> Stdlib.List.map (fun pair ->
         let (key, value) = pair
+        // A low-power value is bracketed, the same as a record field's and for the same reason: it would
+        // swallow the `;` and the pair after it.
         Stdlib.Pretty.concat
           (Stdlib.Pretty.concat (exprDoc ctx key) (txt ": "))
-          (exprDoc ctx value))
+          (if (exprPower value) == 0 then parens (exprDoc ctx value) else exprDoc ctx value))
 
     Stdlib.Pretty.concat (txt "Dict ") (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
 

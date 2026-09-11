@@ -2620,15 +2620,21 @@ let moreSpecs () : List<Spec> =
         // same fix; this keeps the two drawings together.
         (simpleOf
           (Kind.named recordFieldType)
+          //
+          // `ParenLowSlot`, for the reason the pipe head has one: a `match` as a field's value swallows
+          // the `;` and the field after it, so `{ a = match z with | _ -> b; b = 1 }` reads back with
+          // `b = 1` inside the arm. Both drawings had this, and the printer got the same fix.
           [ Piece.FieldText("name", Layout.Style.Name)
             Piece.Space
             Piece.Punct "="
-            Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "value" ]) ] ]
+            Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.ParenLowSlot "value" ]) ] ]
           (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
         [ "value" ]) with
         resolve = resolveRecordField }
     Spec.withNoSequence
-      (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
+      // The value is a `ParenLowSlot` for the same reason a record field's is: a `match` here swallows
+      // the `;` and the pair after it.
+      (simpleOf (Kind.named dictPairType) [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.ParenLowSlot "value" ] (Node.make (Kind.named dictPairType) [ ("key", Field.One(Slot.Empty(exprExpect "key"))), ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
       [ "key", "value" ]
     Spec.withOffers
       // Soft lines, not hard: a record goes on one line when it fits. This reverses a deliberate choice

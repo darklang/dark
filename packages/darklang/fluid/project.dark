@@ -255,6 +255,25 @@ let punctTexts (ps: List<Piece>) : List<String> =
     | _ -> [])
   |> Stdlib.List.flatten
 
+/// The single child slot a piece occupies, if it is one.
+///
+/// FIVE pieces draw one child: a plain `Slot` and the four that add parentheses under some condition.
+/// The scans below used to match `Slot` alone, so the moment a slot gained a paren rule it stopped being
+/// a slot as far as they were concerned: putting `ParenLowSlot` on a record field's value made the `=`
+/// in front of it invisible to `slotLeadPunct`, and typing the `=` the editor had already drawn built an
+/// infix instead of stepping over it.
+///
+/// A list slot is deliberately not here. `itemLeadPunct` asks the same question of `Each` and friends,
+/// and the answer is about the punctuation between ITEMS, which is a different fact.
+let childSlotOf (p: Piece) : Stdlib.Option.Option<String> =
+  match p with
+  | Slot s -> Stdlib.Option.Option.Some s
+  | ParenIfSlot(s, _) -> Stdlib.Option.Option.Some s
+  | OperandSlot(s, _) -> Stdlib.Option.Option.Some s
+  | ParenLowSlot s -> Stdlib.Option.Option.Some s
+  | FieldTargetSlot s -> Stdlib.Option.Option.Some s
+  | _ -> Stdlib.Option.Option.None
+
 /// The text slot a spec draws as the LABEL of `valueSlot`: the last name-ish text written before it.
 /// A record field draws `name = ⟨value⟩`, so the label of `value` is `name`.
 ///
@@ -274,13 +293,15 @@ let labelScan
       | NameText(s, _) -> (Stdlib.Option.Option.Some s, found)
       | FieldText(s, _) -> (Stdlib.Option.Option.Some s, found)
       | Text(s, _) -> (Stdlib.Option.Option.Some s, found)
-      | Slot s -> if s == valueSlot then (last, last) else (last, found)
       | Group inner -> labelScan inner valueSlot last
       | Choose(_, _, a, b) -> labelScan (Stdlib.List.append a b) valueSlot last
       | WhenEmpty(_, a, b) -> labelScan (Stdlib.List.append a b) valueSlot last
       | Flat inner -> labelScan inner valueSlot last
       | Nest(_, inner) -> labelScan inner valueSlot last
-      | _ -> acc)
+      | _ ->
+        match childSlotOf p with
+        | Some s -> if s == valueSlot then (last, last) else (last, found)
+        | None -> acc)
 
 let labelTextSlot (ps: List<Piece>) (valueSlot: String) : Stdlib.Option.Option<String> =
   let (_, found) = labelScan ps valueSlot Stdlib.Option.Option.None
@@ -308,13 +329,15 @@ let slotPunctScan
     else
       match p with
       | Punct t -> (Stdlib.Option.Option.Some t, found)
-      | Slot s -> if s == slotName then (last, last) else (Stdlib.Option.Option.None, found)
       | Group inner -> slotPunctScan inner slotName last
       | Choose(_, _, a, b) -> slotPunctScan (Stdlib.List.append a b) slotName last
       | WhenEmpty(_, a, b) -> slotPunctScan (Stdlib.List.append a b) slotName last
       | Flat inner -> slotPunctScan inner slotName last
       | Nest(_, inner) -> slotPunctScan inner slotName last
-      | _ -> acc)
+      | _ ->
+        match childSlotOf p with
+        | Some s -> if s == slotName then (last, last) else (Stdlib.Option.Option.None, found)
+        | None -> acc)
 
 let slotLeadPunct (ps: List<Piece>) (slotName: String) : Stdlib.Option.Option<String> =
   let (_, found) = slotPunctScan ps slotName Stdlib.Option.Option.None

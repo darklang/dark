@@ -2467,3 +2467,58 @@ module APipeHeadThatSwallowsIsBracketed =
   (APipeHeadThatSwallowsIsBracketed.drawn "xs |> f") = "xs |> f"
   (APipeHeadThatSwallowsIsBracketed.drawn "(1 + 2) |> f") = "1 + 2 |> f"
   (APipeHeadThatSwallowsIsBracketed.drawn "[1, 2] |> f") = "[1, 2] |> f"
+
+
+module ASwallowingValueIsBracketedWhereverItSits =
+  // The pipe head's question, asked of every other slot in turn. A construct that swallows what follows
+  // it -- a `match`, an `if`, a `let` -- must be bracketed anywhere the construct around it draws
+  // something AFTER the slot, or that something is read as part of the swallow.
+  //
+  // Thirteen positions checked, each by drawing it and reading the drawing back. Two were wrong, both in
+  // BOTH projections, and both are a separator: a record field's `;` and a dict pair's `;`.
+  //
+  //     Acme.Q { a = match z with | _ -> b; b = 1 }
+  //
+  // read back with `b = 1` inside the arm. A different program, which is the only kind of difference
+  // that is not a matter of taste.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let m () : String = "(match z with | [] -> a | _ -> b)"
+
+  /// Both drawings of `src`, each read back and compared as programs.
+  let survives (src: String) : (Bool * Bool) =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let want = Darklang.PrettyPrinter.ProgramTypes.expr (ASwallowingValueIsBracketedWhereverItSits.ctx ()) e
+      let readBack (text: String) : Bool =
+        match Darklang.LanguageTools.Parser.Parse.parsePTExpr text with
+        | Ok e2 -> (Darklang.PrettyPrinter.ProgramTypes.expr (ASwallowingValueIsBracketedWhereverItSits.ctx ()) e2) == want
+        | Error _ -> false
+      (readBack (Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (ASwallowingValueIsBracketedWhereverItSits.ctx ()) e)),
+       readBack (Darklang.Fluid.Debug.render (ASwallowingValueIsBracketedWhereverItSits.reg ()) 200 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))))
+    | Error _ -> (false, false)
+
+  // The two that were broken.
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("Acme.Q { a = " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ "; b = 1 }")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("Dict { a: " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ "; b: 1 }")) = (true, true)
+
+  // The pipe head, fixed in the same session and kept here so the class is one test rather than three.
+  (ASwallowingValueIsBracketedWhereverItSits.survives ((ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " |> f")) = (true, true)
+
+  // The ones that were already right. They are the reason to believe the rule rather than the patch:
+  // every position that draws something after a slot, checked the same way.
+  (ASwallowingValueIsBracketedWhereverItSits.survives ((ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " + 1")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ((ASwallowingValueIsBracketedWhereverItSits.m ()) ++ ".x")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("f " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " 2")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("[" ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ ", 1]")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("(" ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ ", 1)")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("match " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " with | _ -> 1")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("if " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " then 1 else 2")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("let q = " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ "\nq")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("Option.Some(" ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ ")")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("Dict { " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ ": 1; b: 2 }")) = (true, true)
+
+  // A LAST position swallows nothing, so it stays bare and the brackets do not spread.
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("match y with | 1 -> " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " | _ -> 2")) = (true, true)
+  (ASwallowingValueIsBracketedWhereverItSits.survives ("if c then " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " else 2")) = (true, true)
