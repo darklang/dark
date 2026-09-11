@@ -1950,6 +1950,23 @@ module TypingThePrintedFormBack =
     let want = TypingThePrintedFormBack.printed src
     if typed == want then "" else "typed: " ++ typed ++ "\nwant:  " ++ want
 
+  // One case per CONSTRUCT, before the interesting combinations below. This corpus grew case by case
+  // from whatever was being worked on, and the gap that left was not subtle: it had no dict in it, and a
+  // dict could not be typed at all -- `Dict { a: 1 }` gave a record literal called `Dict`, which does not
+  // resolve. Nothing here asked, so nothing said.
+  //
+  // The literals are the cheap half and are here for completeness; the containers are where the bugs
+  // have been.
+  (TypingThePrintedFormBack.check "()") = ""
+  (TypingThePrintedFormBack.check "true") = ""
+  (TypingThePrintedFormBack.check "1.5") = ""
+  (TypingThePrintedFormBack.check "'a'") = ""
+  (TypingThePrintedFormBack.check "\"hi\"") = ""
+  (TypingThePrintedFormBack.check "let n = 1\n$\"a{n}b\"") = ""
+  (TypingThePrintedFormBack.check "Dict { a: 1; b: 2 }") = ""
+  (TypingThePrintedFormBack.check "Dict { \"a\": 1 }") = ""
+  (TypingThePrintedFormBack.check "let r = Dict { a: 1 }\nr.a") = ""
+
   (TypingThePrintedFormBack.check "1 + 2 * 3") = ""
   (TypingThePrintedFormBack.check "(1 + 2) * 3") = ""
   (TypingThePrintedFormBack.check "1 - 3 + 2") = ""
