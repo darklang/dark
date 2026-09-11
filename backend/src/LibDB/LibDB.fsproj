@@ -47,6 +47,7 @@
     <Compile Include="Activation.fs" />
     <Compile Include="PolicyStore.fs" />
     <Compile Include="PlatformArtifacts.fs" />
+    <Compile Include="PlatformWire.fs" />
     <Compile Include="PlatformSpawn.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />

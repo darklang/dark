@@ -317,6 +317,9 @@ let fns : List<BuiltInFn> =
         | [| DString name |] ->
           uply {
             InstalledPlatforms.remove name
+            // And out of the activation choice, or the instance is left switched on to something
+            // that no longer exists. Nobody chose that, and it is not recoverable from the CLI.
+            Activation.forget name
             return DUnit
           }
         | _ -> incorrectArgs ())

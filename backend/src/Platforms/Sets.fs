@@ -229,12 +229,11 @@ let activatingFrom
 
   let isActive (p : Platform) = Set.contains p.name activeNames
 
-  let unknown = wanted |> List.filter (fun n -> available |> List.forall (fun p -> p.name <> n))
-  if not (List.isEmpty unknown) then
-    let known = String.concat ", " (available |> List.map _.name)
-    Exception.raiseInternal
-      "no such platform"
-      [ "requested", String.concat ", " unknown; "available", known ]
+  // A name nobody ships is SKIPPED here rather than refused, and the split is deliberate: a choice
+  // is validated when it is WRITTEN, so a typo cannot be stored, and by the time it is read the
+  // thing it named is allowed to have gone away. Uninstall a platform, or run a build that no
+  // longer ships one, and raising here would leave an instance that cannot run any command at all,
+  // including the one that would fix it. `dark platforms` shows what is actually on.
 
   let active = available |> List.filter isActive
   let inactive = available |> List.filter (isActive >> not)

@@ -449,7 +449,11 @@ module External =
   /// names, so names are what should cross.
   ///
   /// The cost is a short string per call, which measured as nothing next to the pipe round trip.
-  type Invoke = string -> List<Dval> -> Ply<Dval>
+  ///
+  /// Takes the `ExecutionState` because BYTES have to cross: a blob argument may be a reference
+  /// into the store, and the far side has no store to resolve it against, so the transport reads
+  /// it here.
+  type Invoke = ExecutionState -> string -> List<Dval> -> Ply<Dval>
 
   /// Describe-to-`Builtins`.
   ///
@@ -474,7 +478,7 @@ module External =
         callEffects = fn.effects
         fn =
           (function
-          | _, _, _, args -> invoke fn.name (List.ofArray args)) })
+          | state, _, _, args -> invoke state fn.name (List.ofArray args)) })
     |> Builtin.make []
 
 

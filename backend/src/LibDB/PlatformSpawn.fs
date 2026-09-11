@@ -1,8 +1,9 @@
 /// Running a platform that lives in another process.
 ///
 /// The wire, proven by the spike before any of this was written: a four-byte little-endian length
-/// and then that many bytes, both directions. A request is a varint builtin index, a varint
-/// argument count, and each argument as a `Dval`. A response is a status byte and a `Dval`.
+/// and then that many bytes, both directions. Inside a frame comes `PlatformWire`'s blob table,
+/// then the payload: a request is the builtin's name, a varint argument count, and each argument
+/// as a `Dval`; a response is a status byte and a `Dval`.
 ///
 /// `Dval` on the wire and not something new, because `Serializers.RT.Dval` already exists, already
 /// refuses what cannot cross (streams, ephemeral blobs), and is what a plugin in another language
@@ -18,6 +19,7 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module Platform = LibExecution.Platform
 module DvalWire = LibSerialization.Binary.Serializers.RT.Dval
+module Wire = LibDB.PlatformWire
 module Varint = LibSerialization.Binary.Serializers.Common.Varint
 
 /// One running platform process, and the lock that makes it usable.
@@ -98,12 +100,14 @@ let private call
   (handle : Handle)
   (running : Running)
   (name : string)
+  (blobs : Wire.Table)
   (args : List<RT.Dval>)
-  : Result<RT.Dval, string> =
+  : Result<RT.Dval * Wire.Table, string> =
   lock running.gate (fun () ->
     try
       use body = new MemoryStream()
       use bw = new BinaryWriter(body)
+      Wire.writeTable bw blobs
       LibSerialization.Binary.Serializers.Common.String.write bw name
       Varint.write bw (List.length args)
       for arg in args do
@@ -121,10 +125,11 @@ let private call
       else
         use rs = new MemoryStream(response)
         use br = new BinaryReader(rs)
+        let returned = Wire.readTable br
         let status = br.ReadByte()
         let dval = DvalWire.readDval br
         if status = 0uy then
-          Ok dval
+          Ok(dval, returned)
         else
           match dval with
           | RT.DString message -> Error $"{handle.platformName}: {message}"
@@ -143,13 +148,16 @@ let private call
 /// falling over is an ordinary thing for a program to see: it is somebody else's executable and it
 /// is allowed to be broken.
 let invoke (handle : Handle) : Platform.External.Invoke =
-  fun name args ->
+  fun state name args ->
     uply {
       match ensureRunning handle with
       | Error e -> return RT.RuntimeError.UncaughtException(e, []) |> RT.raiseUntargetedRTE
       | Ok running ->
-        match call handle running name args with
-        | Ok dval -> return dval
+        // Bytes leave the arguments here and travel beside them, because the at-rest encoding has
+        // nowhere to put an ephemeral blob and the far side has no store to look a reference up in.
+        let! (blobs, args) = Wire.collect state args
+        match call handle running name blobs args with
+        | Ok(dval, returned) -> return! Wire.rehydrate returned dval
         | Error e ->
           // A broken pipe leaves the process useless, so drop it. The next call starts a fresh one
           // rather than talking into a socket nobody is holding.

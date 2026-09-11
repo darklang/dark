@@ -116,3 +116,12 @@ let activate (shipped : Set<string>) (name : string) : unit =
 let deactivate (shipped : Set<string>) (name : string) : unit =
   modify (fun current ->
     Some(Set.remove name (current |> Option.defaultValue shipped)))
+
+/// Drop a name from the choice without recording one, for a platform that has gone away.
+///
+/// Different from `deactivate`, which is a decision: this is tidying up after the thing the choice
+/// named stopped existing. An instance that had never chosen still has not chosen, so `None` stays
+/// `None` rather than becoming "everything except that", which would silently narrow somebody who
+/// merely uninstalled something.
+let forget (name : string) : unit =
+  modify (fun current -> current |> Option.map (Set.remove name))

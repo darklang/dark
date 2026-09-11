@@ -936,7 +936,7 @@ let private describedPlatform (effects : Set<Effects.Effect>) (answer : string) 
     builtins =
       External.builtins
         // Stands in for the pipe. The point is that the runtime cannot tell.
-        (fun _index _args -> Ply(RT.DString answer))
+        (fun _state _name _args -> Ply(RT.DString answer))
         (describedFns effects)
     requires = [ "Core" ]
     dynamicEffects = Set.empty
@@ -1107,13 +1107,13 @@ let private goodManifest : External.Manifest =
     fns = describedFns (Set.singleton describedEffect) }
 
 let private rejectionOf (m : External.Manifest) : List<string> =
-  match External.Manifest.toPlatform (fun _ _ -> Ply RT.DUnit) m with
+  match External.Manifest.toPlatform (fun _ _ _ -> Ply RT.DUnit) m with
   | Ok _ -> failtest "expected this manifest to be refused"
   | Error r -> r.problems
 
 let aGoodManifestBecomesAPlatform =
   test "a well-formed manifest becomes a platform that composes" {
-    match External.Manifest.toPlatform (fun _ _ -> Ply(RT.DString "TAG-42")) goodManifest with
+    match External.Manifest.toPlatform (fun _ _ _ -> Ply(RT.DString "TAG-42")) goodManifest with
     | Error r -> failtest $"refused a good manifest: {r.problems}"
     | Ok platform ->
       let core = Platforms.Sets.sealedCompute ()
@@ -1172,7 +1172,7 @@ let aManifestRefusesWhatCannotCross =
     // And the control: ordinary nesting is fine, so the check is not just refusing everything.
     match
       External.Manifest.toPlatform
-        (fun _ _ -> Ply RT.DUnit)
+        (fun _ _ _ -> Ply RT.DUnit)
         (withParam (TList(TDict(TString, TInt64))))
     with
     | Ok _ -> ()
@@ -1379,7 +1379,7 @@ let aWrittenManifestResolvesToAPlatform =
       | Error r -> failtest $"resolve: {r.problems}"
       | Ok manifest ->
         match
-          External.Manifest.toPlatform (fun _ _ -> Ply(RT.DString "TAG-42")) manifest
+          External.Manifest.toPlatform (fun _ _ _ -> Ply(RT.DString "TAG-42")) manifest
         with
         | Error r -> failtest $"toPlatform: {r.problems}"
         | Ok platform ->
@@ -1844,6 +1844,12 @@ let private spawnedFns : List<External.Fn> =
       returnType = TString
       effects = Set.singleton describedEffect
       description = "reads a Dval as well as writing one" }
+    { name = "echoBytes"
+      version = 0
+      parameters = [ ("bytes", TBlob) ]
+      returnType = TBlob
+      effects = Set.singleton describedEffect
+      description = "bytes in and bytes out" }
     { name = "echoCrash"
       version = 0
       parameters = [ ("unit", TUnit) ]
@@ -1901,6 +1907,33 @@ let aSpawnedPlatformAnswers =
       let! shouted = callSpawned handle "echoShout" (RT.DString "quiet")
       match shouted with
       | Ok(RT.DString "QUIET") -> ()
+      | other -> failtest $"unexpected: {other}"
+    finally
+      LibDB.PlatformSpawn.stop handle
+  }
+
+let aSpawnedPlatformCarriesBytes =
+  testTask "bytes cross to another process and back" {
+    // The case the at-rest `Dval` encoding cannot express, and rightly: at rest, bytes have to be
+    // addressable, so an ephemeral blob has nowhere to point. A frame is not at rest, so the bytes
+    // travel beside it in a table and the payload holds a reference.
+    //
+    // Load-bearing rather than a curiosity: every `HttpClient` builtin returns freshly fetched
+    // bytes, so a platform that cannot carry a blob cannot be `HttpClient`.
+    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ())
+    try
+      let sent = System.Text.Encoding.UTF8.GetBytes "bytes over a pipe"
+      let! answered = callSpawned handle "echoBytes" (LibExecution.Blob.newEphemeral sent)
+      match answered with
+      | Ok(RT.DBlob(RT.Ephemeral got)) ->
+        Expect.equal
+          (System.Text.Encoding.UTF8.GetString got.bytes)
+          "BYTES OVER A PIPE"
+          "the far side read the bytes and sent its own back"
+      // Ephemeral rather than persistent on the way back, and that is the point: nothing was
+      // written to a store, and the receiving runtime owns what it was handed.
+      | Ok(RT.DBlob(RT.Persistent(hash, _))) ->
+        failtest $"came back as a reference to {hash} rather than as bytes"
       | other -> failtest $"unexpected: {other}"
     finally
       LibDB.PlatformSpawn.stop handle
@@ -2150,6 +2183,7 @@ let tests =
       aManifestMustBeALiteral
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
+      aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked
       aCrashedPlatformIsAnErrorNotAHang
       testSequenced installingAnExternalPlatformMakesItReconstructable
