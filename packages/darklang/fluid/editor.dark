@@ -2684,6 +2684,31 @@ let typeOne (st: State) (c: String) : State =
   else
     typeOneRaw st c
 
+/// After a name has settled onto a node, does `c` open one of that node's lists?
+///
+/// THREE places settle a name and all three have to ask. The comment on `opensItemSlot` says two, and it
+/// was right when it was written: typing at the end of a node that already exists, and resolving a
+/// partial into one. The third is COMMITTING A MENU CANDIDATE, and it did not ask, so `Option` typed and
+/// taken from the menu swallowed the `<` after it and gave `Stdlib.Option.OptionInt64` -- a name with its
+/// type arguments buried in it. A parameterised type could be read and never written.
+///
+/// Only when settling left nothing unfilled: a construct that came back with holes wants the caret in
+/// them instead.
+let openItemsAfterSettle (st: State) (sp: Path) (c: String) : Stdlib.Option.Option<State> =
+  match nodeAtPath st.root sp with
+  | Some rn ->
+    if Stdlib.List.isEmpty (blanks (Slot.Filled rn)) then
+      (match opensItemSlot st.reg rn c with
+       | Some itemSlot ->
+         let each = Node.itemExpect rn itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
+         let item = newItemForEach st each
+         let st1 = commit st [ Edit.InsertItem(sp, itemSlot, 0, item) ] st.caret
+         Stdlib.Option.Option.Some { st1 with caret = firstEditableIn (Path.item sp itemSlot 0) item }
+       | None -> Stdlib.Option.Option.None)
+    else
+      Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
 let typeOneRaw (st: State) (c: String) : State =
   let caret = st.caret
   match caret.part with
@@ -3126,10 +3151,12 @@ let typeOneRaw (st: State) (c: String) : State =
               | None -> Stdlib.List.head cands
 
             match taken with
-            | Some c ->
-              let committed = commitNamed st c
+            | Some cand ->
+              let committed = commitNamed st cand
 
-              (if onABlankNow committed then committed else landSettled committed sp)
+              (match openItemsAfterSettle committed sp c with
+               | Some opened -> opened
+               | None -> if onABlankNow committed then committed else landSettled committed sp)
             | None -> landSettled st sp
           else
             match resolvePartial st with
@@ -3137,18 +3164,8 @@ let typeOneRaw (st: State) (c: String) : State =
               // The name has just BECOME a node, so this is the first moment it can be asked whether the
               // character opens one of its lists. Only when resolving left nothing unfilled: a construct
               // that came back with holes wants the caret in them, and that is what `stayIfOnHole` is for.
-              (match nodeAtPath resolved.root sp with
-               | Some rn ->
-                 if Stdlib.List.isEmpty (blanks (Slot.Filled rn)) then
-                   (match opensItemSlot resolved.reg rn c with
-                    | Some itemSlot ->
-                      let each = Node.itemExpect rn itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
-                      let item = newItemForEach resolved each
-                      let st1 = commit resolved [ Edit.InsertItem(sp, itemSlot, 0, item) ] resolved.caret
-                      { st1 with caret = firstEditableIn (Path.item sp itemSlot 0) item }
-                    | None -> stayIfOnHole resolved (fun r -> landSettled r sp))
-                 else
-                   stayIfOnHole resolved (fun r -> landSettled r sp)
+              (match openItemsAfterSettle resolved sp c with
+               | Some opened -> opened
                | None -> stayIfOnHole resolved (fun r -> landSettled r sp))
             | None -> nextHole st
         elif dotOnName then
@@ -4281,7 +4298,18 @@ let enclosingListItems (c: Caret) : List<(Path * String * Int)> =
 let firstEditableIn (at: Path) (item: Slot) : Caret =
   match item with
   | Filled child -> firstEditable at child
-  | _ -> Caret.inSlot at "" 0
+  | _ ->
+    // An EMPTY item is not reached by `Caret.inSlot at ""`. That names a slot the drawing has no cell
+    // for, so the caret lands nowhere and the next character goes nowhere: `Option<` opened its type
+    // arguments correctly and then swallowed everything typed into the one it had just made.
+    //
+    // `addSiblingAt` has used `Caret.inItem` for this since it was written. Two ways to land in a fresh
+    // item, one of them right, and the wrong one was only ever reached by a list whose items are HOLES
+    // rather than wrapper nodes -- which is every type argument and no enum case, so the path that had
+    // this first never showed it.
+    match (Path.parent at, Path.last at) with
+    | (Some parent, Some(Item(slot, i))) -> Caret.inItem parent slot i 0
+    | _ -> Caret.inSlot at "" 0
 
 let newItemForEach (st: State) (each: Expect) : Slot =
   match Registry.forExpect st.reg each with

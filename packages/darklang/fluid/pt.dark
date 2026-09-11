@@ -3254,7 +3254,13 @@ module Types =
           // group over `join parts (" ->" ++ line)`. With hard spaces it could not break at all, and a
           // record field holding a four-argument function ran off the end of the line.
           simpleType "TFn" [ Piece.Group [ Piece.ParenIfEach("args", [ Piece.Space, Piece.Punct "->", Piece.Line ], isFnType), Piece.Space, Piece.Punct "->", Piece.Line, Piece.ParenIfSlot("ret", isFnType) ] ] (Node.make (typeKind "TFn") [ ("args", Field.Many([ Slot.Empty(typeExpect "arg") ], typeExpect "arg")), ("ret", Field.One(Slot.Empty(typeExpect "return"))) ])
-          simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Line ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]) ] ]
+          // `<` opens the type arguments, the same way `(` opens an enum case's fields. `EachWrapped`
+          // draws nothing when the list is empty, so there was no `<` on screen to step over and no rule
+          // to add one: `Option<Int64>` typed out as `Stdlib.Option.OptionInt64`, a name with the
+          // arguments buried in it. A parameterised type could be READ and never written.
+          Spec.opensItemsOn
+            (simpleType "TCustomType" [ Piece.NameText("name", Layout.Style.Name), Piece.EachWrapped("args", "<", [ Piece.Punct ",", Piece.Line ], ">") ] (Node.make (typeKind "TCustomType") [ PT.text "name" "", PT.text "_hash" "", ("args", Field.Many([], typeExpect "type arg")) ]))
+            [ ("<", "args") ] ] ]
 
 
 // ============================================================================

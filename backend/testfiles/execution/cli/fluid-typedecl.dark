@@ -805,3 +805,33 @@ module TypingATypeDoesNotThrow =
 
   // A tuple type, which is what `(` actually opens.
   (TypingATypeDoesNotThrow.drawn "(Int64 * String)") = "(Int64 * String)"
+
+
+module TypingAParameterisedType =
+  // `Option<Int64>` typed out as `Stdlib.Option.OptionInt64`: a name with its type arguments buried in
+  // it. A parameterised type could be READ and never written. Three separate things, each the same shape
+  // as something already solved somewhere else.
+  //
+  // 1. `TCustomType` draws its arguments with `EachWrapped`, which draws nothing when the list is empty,
+  //    so there was no `<` on screen to step over and no rule to add one. `opensItems` is that rule and
+  //    it existed; the spec just did not claim it.
+  // 2. THREE places settle a name onto a node and all three have to ask whether the character opens one
+  //    of its lists. `opensItemSlot`'s comment says two, and it was right when it was written: the third
+  //    is committing a menu candidate, which arrived later and did not ask.
+  // 3. `firstEditableIn` put the caret in a fresh EMPTY item with `Caret.inSlot at ""`, which names a
+  //    slot the drawing has no cell for, so the caret landed nowhere and the next character went
+  //    nowhere. `addSiblingAt` has used `Caret.inItem` for this since it was written. Two ways to land in
+  //    a fresh item, one right, and the wrong one is only reachable from a list whose items are HOLES
+  //    rather than wrapper nodes: every type argument, and no enum case.
+  (TypingATypeDoesNotThrow.drawn "Option<Int64>") = "Option<Int64>"
+  (TypingATypeDoesNotThrow.drawn "Option<String>") = "Option<String>"
+
+  // Two arguments, the second reached by the `,` the construct draws.
+  (TypingATypeDoesNotThrow.drawn "Result<Int64, String>") = "Result<Int64, String>"
+
+  // A qualified name settles to the same node and prints shortened, which is the printer agreeing with
+  // itself about two spellings rather than anything being lost. Same story as `Stdlib.Option.Some`.
+  (TypingATypeDoesNotThrow.drawn "Stdlib.Option.Option<Int64>") = "Option<Int64>"
+
+  // The `<` is only claimed while the list is EMPTY, so it does not fire again inside one.
+  (TypingATypeDoesNotThrow.drawn "Option<Option<Int64>>") = "Option<Option<Int64>>"
