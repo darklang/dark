@@ -3,10 +3,12 @@ module Darklang.Cli.Platforms
 /// `dark platforms`: what this build is made of, and what of it is switched on.
 ///
 /// A platform is a named, versioned bundle of builtins plus the effects those builtins may perform,
-/// and an executable is a choice of platforms. Every shipped binary links all of them, because
-/// NativeAOT is a closed world and there is no loading one later. What you choose is not what is
-/// LINKED but what is ACTIVE: a session starts with what you have switched on, and a program that
-/// reaches for anything else is told which platform would provide it and what that would cost.
+/// and an executable is a choice of platforms. A binary links every platform it shipped with,
+/// because NativeAOT is a closed world and there is no loading a managed one later; an INSTALLED
+/// platform is a separate process instead, so it adds to that set without being linked into it.
+/// Either way what you choose is not what is there but what is ACTIVE: a session starts with what
+/// you have switched on, and a program that reaches for anything else is told which platform would
+/// provide it and what that would cost.
 ///
 /// Activation is not a permission. A permission answers "may this code touch that"; activation
 /// answers "is that even here". They meet only in the message you get when the answer is no.
@@ -805,9 +807,10 @@ let help (_state: AppState) : String =
     "A platform is a named, versioned bundle of builtins plus the effects they"
     "may perform. `Core` reaches nothing. `Terminal` reaches stdout and stdin."
     ""
-    "Every binary links all of them. What you choose is what is ACTIVE:"
-    "code you run gets the ones you have on, and asking for anything else"
-    "tells you which platform provides it and offers to turn it on."
+    "A binary links the ones it shipped with, and installing adds to that."
+    "What you choose is what is ACTIVE: code you run gets the ones you have"
+    "on, and asking for anything else tells you which platform provides it"
+    "and offers to turn it on."
     ""
     "Activation is not permission."
     "  - active   means your code can ASK for those effects"
@@ -820,6 +823,10 @@ let help (_state: AppState) : String =
     "fetches it from the relay you are connected to and checks it against the hash"
     "the manifest names, so a relay that handed back the wrong bytes is refused"
     "rather than trusted."
+    ""
+    "What it declared is also what confines it: one that never asked for the"
+    "network is started without one. `platforms <Name>` says so on its `confined`"
+    "line, and a machine that cannot confine says that rather than pretending."
     ""
     "`needed` asks from the other end: the minimum platform set one function"
     "requires, by walking its call graph. Use it to see whether a program is"
