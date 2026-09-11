@@ -180,6 +180,17 @@ let main (args : string[]) : int =
       NonBlockingConsole.wait ()
       0
 
+    | [ "platforms"; "doors" ] ->
+      // The tightening report asks what each platform reaches. This asks how many builtins reach
+      // each effect, which is the number that has to come down before an effect can be granted per
+      // door rather than per category.
+      let set = Platforms.Sets.everything ()
+      print "Doors to each effect, widest first:"
+      print ""
+      Platforms.Sets.effectDoors set |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
     | [ "platforms"; "tighten" ] ->
       // What is worth acting on: an effect with one contributor is one function away from being
       // gone from that platform.
@@ -281,6 +292,7 @@ let main (args : string[]) : int =
       print "  pm-sweep-blobs"
       print "  platforms            what this build ships, and its fingerprint"
       print "  platforms tighten    which builtins give each platform each effect"
+      print "  platforms doors      how many builtins reach each effect, widest first"
       print
         "  platforms wrappers   which package areas wrap each platform's builtins"
       print

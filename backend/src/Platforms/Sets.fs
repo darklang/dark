@@ -192,6 +192,62 @@ let undeclaredImpure (set : PlatformSet) : List<string> =
   |> List.sort
 
 
+/// Every effect, with how many builtins reach it and which platforms they come from.
+///
+/// The tightening report asks "what does this platform reach"; this asks the question the other way
+/// round, which is the one that matters for shrinking the surface: how many DOORS are there to each
+/// effect, and where are they. An effect reached by two builtins is nearly grantable per door; one
+/// reached by forty is a category, and no policy rule over it will ever mean much.
+///
+/// Pure builtins are counted too, because "how much of this is not a door at all" is half the
+/// answer and the half that is easy to forget.
+let effectDoors (set : PlatformSet) : List<string> =
+  let doors =
+    set.platforms
+    |> List.collect (fun p ->
+      p.builtins.fns.Values
+      |> Seq.collect (fun fn ->
+        fn.callEffects |> Set.toList |> List.map (fun e -> (e, p.name, fn.name.name)))
+      |> List.ofSeq)
+
+  let byEffect =
+    doors
+    |> List.groupBy (fun (e, _, _) -> e)
+    |> Map.map (fun rows ->
+      let platforms = rows |> List.map (fun (_, p, _) -> p) |> List.distinct |> List.sort
+      let fns = rows |> List.map (fun (_, _, f) -> f) |> List.distinct |> List.sort
+      (platforms, fns))
+
+  let effectful =
+    set.platforms
+    |> List.collect (fun p -> p.builtins.fns.Values |> Seq.toList)
+    |> List.filter (fun fn -> not (Set.isEmpty fn.callEffects))
+    |> List.length
+
+  let total =
+    set.platforms |> List.sumBy (fun p -> p.builtins.fns.Count)
+
+  let lines =
+    byEffect
+    |> Map.toList
+    // Most doors first: that is the effect whose rules mean the least and the one worth splitting.
+    |> List.sortBy (fun (e, (_, fns)) -> (-(List.length fns), LibExecution.Effects.name e))
+    |> List.map (fun (e, (platforms, fns)) ->
+      let where = String.concat ", " platforms
+      let shown =
+        if List.length fns <= 6 then
+          String.concat ", " fns
+        else
+          String.concat ", " (List.truncate 6 fns) + $", +{List.length fns - 6} more"
+      let door = if List.length fns = 1 then "door " else "doors"
+      $"{LibExecution.Effects.name e, -14} {List.length fns, 4} {door}  ({where})
+                        {shown}")
+
+  lines
+  @ [ ""
+      $"{effectful} of {total} builtins declare an effect; the rest are doors to nothing." ]
+
+
 /// Split the catalog into the platforms a session ACTIVATES and the rest, for lazy activation.
 ///
 /// The binary links everything; this decides what a run can reach. Returns the active set plus a
