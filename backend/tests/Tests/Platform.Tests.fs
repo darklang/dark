@@ -300,9 +300,13 @@ let private promisedEffects : Map<string, Set<Effects.Effect>> =
           Effects.Effect.FileWrite
           Effects.Effect.Native ]
 
-      // Every builtin here is `Native`, and honestly so: policy gates every other platform, so the
-      // ability to edit it is the ability to do anything.
-      "Policy", set [ Effects.Effect.Native ]
+      // `policy-read` and `policy-write` rather than `Native`. The distinction these exist to draw:
+      // reading your own instance policy is not the same grant as handing over the machine, and
+      // `Native` said it was. Editing policy is still powerful, since policy gates every other
+      // platform, but powerful and unscopeable are different claims and only one of them is true
+      // here. `canManagePolicies` is what refuses guest code; the effect is what a POLICY can
+      // reason about.
+      "Policy", set [ Effects.Effect.PolicyRead; Effects.Effect.PolicyWrite ]
 
       // Four platforms over one assembly. `Native` and the package effects belong to two builtins
       // out of the set, and the cut is what makes them say so.

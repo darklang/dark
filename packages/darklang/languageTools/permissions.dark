@@ -51,6 +51,11 @@ type Effect =
   | PackageWrite
   | TraceRead
   | TraceWrite
+  /// Reading and writing the host's own permission state: the instance policy, package approvals,
+  /// function pins, and which platforms this instance has on. Ambient and unscoped, like the
+  /// package and trace effects, because the policy store is a host-owned whole.
+  | PolicyRead
+  | PolicyWrite
   | Native
 
   /// A capability named by a platform this runtime did not ship, as `owner/name`.
@@ -117,6 +122,8 @@ val effectCases =
     (Permissions.Effect.PackageWrite, "PackageWrite", "package-write")
     (Permissions.Effect.TraceRead, "TraceRead", "trace-read")
     (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
+    (Permissions.Effect.PolicyRead, "PolicyRead", "policy-read")
+    (Permissions.Effect.PolicyWrite, "PolicyWrite", "policy-write")
     (Permissions.Effect.Native, "Native", "native") ]
 
 /// One segment of a custom effect name: lowercase alphanumeric with inner dashes.

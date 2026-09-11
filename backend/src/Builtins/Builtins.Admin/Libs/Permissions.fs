@@ -89,7 +89,13 @@ let private policyFn
       | state, _, _, args -> impl state args)
     sqlSpec = NotQueryable
     previewable = Impure
-    callEffects = set [ Effect.Native ]
+    // `PolicyRead` rather than `Native`, which is what every one of these used to declare.
+    //
+    // `Native` means "granting this hands over the machine", which is true of `Sqlite.query` and
+    // false of reading the instance policy. Declaring it here made every command that so much as
+    // looks at an approval indistinguishable, to the effect system, from one that can open any
+    // file on the box. The WRITES add `PolicyWrite` on top; see `hostOnly`.
+    callEffects = set [ Effect.PolicyRead ]
     deprecated = NotDeprecated }
 
 /// A [policyFn] only the trusted `dark permissions` command may call: guest
@@ -102,9 +108,13 @@ let private hostOnly
   (description : string)
   (impl : ExecutionState -> Dval[] -> Ply<Dval>)
   : BuiltInFn =
-  policyFn name parameters returnType description (fun state args ->
+  let read = policyFn name parameters returnType description (fun state args ->
     if not state.canManagePolicies then policyAdminError ()
     impl state args)
+  // A host-only builtin is one that CHANGES host policy, so it declares the write as well as the
+  // read. `canManagePolicies` is still what refuses guest code outright; the effect is what a
+  // policy can reason about, and the two answer different questions.
+  { read with callEffects = Set.add Effect.PolicyWrite read.callEffects }
 
 let private accountParam = Param.make "accountID" (TypeReference.option TUuid) ""
 let private locationParam = Param.make "location" TString "Logical function name"

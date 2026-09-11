@@ -39,6 +39,19 @@ type Effect =
   | PackageWrite
   | TraceRead
   | TraceWrite
+
+  /// Reading and writing the HOST's own permission state: the instance policy, package approvals,
+  /// function pins, and which platforms this instance has switched on.
+  ///
+  /// Ambient and unscoped, exactly like `PackageRead` and `TraceRead`: the policy store is a
+  /// host-owned whole with no per-resource handle to name, so a rule grants it or does not.
+  ///
+  /// These exist so that reading your own policy is not the same grant as handing over the
+  /// machine. Every builtin here used to declare `Native`, which meant `dark permissions` and
+  /// anything touching an approval looked, to the effect system, exactly like `Sqlite.query`.
+  | PolicyRead
+  | PolicyWrite
+
   /// The effect for a builtin nobody can scope: it can reach anything on the
   /// host, and no rule could honestly say otherwise. `Sqlite.query` is the
   /// canonical case: it is given one database path, but the SQL it runs can
@@ -79,6 +92,8 @@ let name (effect : Effect) : string =
   | Effect.PackageWrite -> "package-write"
   | Effect.TraceRead -> "trace-read"
   | Effect.TraceWrite -> "trace-write"
+  | Effect.PolicyRead -> "policy-read"
+  | Effect.PolicyWrite -> "policy-write"
   | Effect.Native -> "native"
   | Effect.Custom name -> name
 
@@ -102,6 +117,8 @@ let all : List<Effect> =
     Effect.PackageWrite
     Effect.TraceRead
     Effect.TraceWrite
+    Effect.PolicyRead
+    Effect.PolicyWrite
     Effect.Native ]
 
 /// The shape a custom effect name must have: `owner/name`, both segments lowercase alphanumeric
@@ -151,6 +168,8 @@ let isScoped (effect : Effect) : bool =
   | Effect.PackageWrite
   | Effect.TraceRead
   | Effect.TraceWrite
+  | Effect.PolicyRead
+  | Effect.PolicyWrite
   | Effect.Native
   // A runtime that has never heard of this effect cannot build a request naming the resource it
   // is about, so it grants the whole thing or nothing. Same honesty as `Native`.

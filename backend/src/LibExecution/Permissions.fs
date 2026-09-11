@@ -59,6 +59,9 @@ type Request =
   /// per-resource scoping, so these are ambient effects like `Stdout`.
   | Package of access : AccessKind
   | Trace of access : AccessKind
+  /// The host's own permission state, ambient like `Package` and `Trace` for the same reason:
+  /// there is no per-resource handle to name inside it.
+  | Policy of access : AccessKind
   | Native of operation : string
   /// A capability this runtime did not ship, named `owner/name` by the platform that
   /// declared it. Ambient and whole-or-nothing for the same reason `Native` is: we cannot
@@ -93,6 +96,8 @@ module Request =
     | Request.Package AccessKind.Write -> Effect.Effect.PackageWrite
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
+    | Request.Policy AccessKind.Read -> Effect.Effect.PolicyRead
+    | Request.Policy AccessKind.Write -> Effect.Effect.PolicyWrite
     | Request.Native _ -> Effect.Effect.Native
     | Request.Custom effect -> Effect.Effect.Custom effect
 
@@ -127,6 +132,8 @@ module Request =
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
+    | Request.Policy AccessKind.Read -> Some "policy-read"
+    | Request.Policy AccessKind.Write -> Some "policy-write"
     | Request.Native _ -> None
     // Unlike `Native`, which is keyed per builtin and grantable only as a whole, a custom
     // effect IS the unit a platform advertises, so its own name is the rule.
@@ -206,6 +213,8 @@ module Request =
 
   let trace (access : AccessKind) : Request = Request.Trace access
 
+  let policy (access : AccessKind) : Request = Request.Policy access
+
   /// A request for a platform-declared capability. Takes the effect, not a raw string, so
   /// the `owner/name` validation in `Effects.custom` is the only way in.
   let custom (effect : Effect.Effect) : Result<Request, string> =
@@ -232,6 +241,8 @@ module Request =
     | Effect.Effect.PackageWrite -> Request.Package AccessKind.Write
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
+    | Effect.Effect.PolicyRead -> Request.Policy AccessKind.Read
+    | Effect.Effect.PolicyWrite -> Request.Policy AccessKind.Write
     | Effect.Effect.Native -> Request.Native builtinName
     | Effect.Effect.Custom name -> Request.Custom name
     | scoped ->
