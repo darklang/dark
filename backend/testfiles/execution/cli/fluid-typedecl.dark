@@ -768,3 +768,40 @@ module TypingAWholeDeclaration =
   (TypingAWholeDeclaration.lowers (TypingAWholeDeclaration.done_ (Stdlib.List.flatten
     [ TypingAWholeDeclaration.ch "alias", [ "<Enter>" ], TypingAWholeDeclaration.ch "List<Int>" ]))) =
     "type <hash:beef> =\n  List<Int>"
+
+
+module TypingATypeDoesNotThrow =
+  // The expression side has three corpora asking whether the printed form types back. The TYPE side had
+  // none, and it turns out to be much the weaker of the two: of twelve type references the printer can
+  // emit, five do not type back and one of them CRASHED the editor.
+  //
+  // The crash first, because a crash is worse than a wrong answer. `(` in a type hole opens a tuple, `->`
+  // is not a type so it stayed a partial, and the `)` arrived at a branch that drops a trailing item
+  // nothing was typed into. That branch matched a slot's Empty and Filled shapes and not its Partial one,
+  // so it did not refuse, it threw. A slot has three shapes; the match had two.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let typeHole () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.Types.typeExpect "type")
+
+  let chars (s: String) : List<String> =
+    Stdlib.String.toList s |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  let drawn (src: String) : String =
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TypingATypeDoesNotThrow.reg ()) (TypingATypeDoesNotThrow.typeHole ()) 80) (TypingATypeDoesNotThrow.chars src)
+    Darklang.Fluid.Debug.render st.reg 80 st.root
+
+  // The sequence that threw. What it draws is not what anyone wanted -- a function type cannot be typed
+  // at all yet, see fluid-TODOs -- but it draws SOMETHING, which is the whole assertion.
+  (TypingATypeDoesNotThrow.drawn "(Int64 -> String)") = "(Int64 * ->String)"
+
+  // The ones that do type back, so the crash fix is pinned next to the behaviour it must not disturb.
+  (TypingATypeDoesNotThrow.drawn "Int64") = "Int64"
+  (TypingATypeDoesNotThrow.drawn "String") = "String"
+  (TypingATypeDoesNotThrow.drawn "Bool") = "Bool"
+  (TypingATypeDoesNotThrow.drawn "Unit") = "Unit"
+  (TypingATypeDoesNotThrow.drawn "List<Int64>") = "List<Int64>"
+  (TypingATypeDoesNotThrow.drawn "'a") = "'a"
+
+  // A tuple type, which is what `(` actually opens.
+  (TypingATypeDoesNotThrow.drawn "(Int64 * String)") = "(Int64 * String)"

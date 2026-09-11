@@ -2529,6 +2529,12 @@ let typeOne (st: State) (c: String) : State =
               | Some(Filled child) ->
                 if isAllHoles child then commit settled [ Edit.RemoveItem(parentPath, slot, n - 1) ] settled.caret
                 else settled
+              // A PARTIAL is not an item nothing was typed into: something was typed into it and did not
+              // resolve. Keeping it is the only honest answer, and it is not why this case is here -- a
+              // slot has three shapes and this match had two, so `)` on an unresolvable last item did not
+              // refuse, it THREW. `(Int64 -> String)` in a type hole crashed the editor, because `(` there
+              // opens a tuple, `->` is not a type, and the closer arrived to find a partial.
+              | Some(Partial(_, _)) -> settled
               | None -> settled)
          | None -> settled)
       | None -> settled
