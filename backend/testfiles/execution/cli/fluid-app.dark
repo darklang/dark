@@ -919,3 +919,50 @@ module ThePanelShowsWhereYouAre =
   // `-`, because the row asked for the NODE and a hole has none -- and a hole is most of what editing is.
   (ThePanelShowsWhereYouAre.treeOf "if a then b else c" [ "j", "x" ]) =
     "  EIf\n>   <cond>"
+
+
+module TheDocumentsOwnKeysAreOnThePanel =
+  // The panel is the help: "nothing hidden; the panel and footer say what is possible here". The KEYS
+  // list is hard-coded text, so the one set of keys it could not tell you about was the set you bound
+  // yourself, which is the opposite of what that direction is for.
+
+  let mapped () : Darklang.Fluid.Registry =
+    let r0 = Darklang.Fluid.Registry.bind (Fixtures.reg ()) "d" Darklang.Fluid.Command.Delete
+    let r1 = Darklang.Fluid.Registry.bind r0 "n" Darklang.Fluid.Command.NavSiblingNext
+    Darklang.Fluid.Registry.bind r1 "z" (Darklang.Fluid.Command.RunAction "convert to match")
+
+  let panel (reg: Darklang.Fluid.Registry) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init reg (Fixtures.hole ()) 60) [ "<Esc>" ]
+    (Darklang.Fluid.App.view { (Fixtures.stateOf ed) with inspectorOpen = true } (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // No keymap, no section. An empty header would be worse than nothing: it says a facility exists and
+  // then says nothing about it.
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (Fixtures.reg ())) "BOUND HERE") = false
+
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "BOUND HERE") = true
+
+  // Each row is the key and what it does, in the kernel's own wording where it is the kernel's own
+  // command, so a rebound key reads as the key it replaced rather than as a second vocabulary.
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "d      clear") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "n      next sibling") = true
+
+  // A `RunAction` shows the action's own name, which is what the palette calls it.
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "z      convert to match") = true
+
+  // The kernel's own rows are still there under it. This is an addition to the help, not a replacement.
+  //
+  // Checked against `j/k` rather than something further down the list, because the panel is clipped at
+  // the region's height and the kernel's sixteen KEYS rows do not all fit on a 26-row terminal. That is
+  // true before this change too, and it is why the bound keys go ABOVE them: a section under a list
+  // that is already being cut is a section nobody sees.
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "j/k    next/prev") = true
+
+  // A rebound key is listed ONCE, as the binding that actually fires. A key with two meanings in the
+  // help is worse than a key missing from it.
+  let rebound () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.bind (TheDocumentsOwnKeysAreOnThePanel.mapped ()) "d" Darklang.Fluid.Command.Yank
+
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      copy") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      clear") = false

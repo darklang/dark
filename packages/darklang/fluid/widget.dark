@@ -483,6 +483,30 @@ let inspectorWith
         dim "  ^E     edit as text"
         dim "  ^S     save"
         dim "  Esc    back to nav" ]
+  // Keys the DOCUMENT bound. A hard-coded KEYS list means the one set of
+  // keys the panel cannot tell you about is the set you added yourself, which is the opposite of what
+  // "nothing hidden" is for. Shown in both modes, because a keymap is not a NAV thing; the keys simply
+  // do not fire until you are in NAV, the same as the kernel's.
+  let boundRows =
+    match st.reg.keymap with
+    | [] -> []
+    | bindings ->
+      // `bind` puts a new binding in FRONT so it shadows an earlier one for the same key, which makes the
+      // list most-recent-first and lets it name a key twice. The panel is help text, and a key listed
+      // twice with two meanings is worse than not listing it, so: each key once, the binding that
+      // actually fires, oldest live binding first. A rebound key therefore moves to where its NEW
+      // binding sits rather than staying where the one it replaced was.
+      let effective =
+        bindings
+        |> Stdlib.List.fold [] (fun acc b ->
+          if acc |> Stdlib.List.any (fun e -> e.key == b.key) then acc
+          else Stdlib.List.append [ b ] acc)
+      let rows =
+        effective
+        |> Stdlib.List.map (fun b ->
+          let key = Stdlib.String.padEndToWidth b.key 7
+          dim ("  " ++ key ++ (Command.label b.command)))
+      Stdlib.List.flatten [ [ "", head "BOUND HERE" ], rows ]
   // TREE before ACTIONS: where you are is what you read first when you open the panel, and what you can
   // do here only means something once you know what "here" is.
   let rows =
@@ -494,6 +518,11 @@ let inspectorWith
         [ "" ]
         [ head "ACTIONS" ]
         actionLines
+        // BEFORE the kernel's KEYS, not after. The panel is clipped at the region's height, and the
+        // kernel's list is sixteen rows: on a 26-row terminal a section after it is off the bottom, so
+        // the keys you bound yourself would be the ones you could never see. Found by a test that
+        // rendered at the same size the app does rather than at the size my probe used.
+        boundRows
         keyRows ]
   rows
   |> Stdlib.List.indexedMap (fun i line ->

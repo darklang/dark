@@ -616,6 +616,30 @@ type KeyBinding =
   { key: String
     command: Command }
 
+module Command =
+  /// What a bound command is called, for the panel. Short, because the panel is a third of the screen
+  /// and its widest surviving row is 29 columns.
+  ///
+  /// The wording matches the kernel's own rows where the command is the same thing, so a rebound key
+  /// reads as the key it replaced rather than as a second vocabulary.
+  let label (cmd: Command) : String =
+    match cmd with
+    | NavNext -> "next"
+    | NavPrev -> "prev"
+    | NavParent -> "out"
+    | NavChild -> "in"
+    | NavSiblingNext -> "next sibling"
+    | NavSiblingPrev -> "prev sibling"
+    | Delete -> "clear"
+    | Yank -> "copy"
+    | Put -> "paste"
+    | AddSibling -> "another list item"
+    | Undo -> "undo"
+    | Redo -> "redo"
+    | ToggleAnchor -> "select a range"
+    | EnterInsert -> "edit"
+    | RunAction name -> name
+
 
 /// The specs in play, the punctuation they are spelled with, and WHERE the document being edited sits.
 ///
