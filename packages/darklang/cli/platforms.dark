@@ -146,6 +146,7 @@ let isOn (active: Stdlib.Option.Option<List<String>>) (name: String) : Bool =
 let formatOne
   (active: Stdlib.Option.Option<List<String>>)
   (gutter: Bool)
+  (external: List<String>)
   (p: LanguageTools.Platform)
   : String =
   let coordinate = $"{p.name}@{Stdlib.Int64.toString p.version}"
@@ -162,7 +163,17 @@ let formatOne
     else if Platforms.isOn active p.name then "    "
     else "off "
 
-  $"  {mark}{coordinate}  {fns}  [{effects}]"
+  // Which of these is somebody else's binary is a fair question, and until this there was no
+  // glanceable answer: a linked platform and a spawned one were deliberately identical here. The
+  // symmetry was the right instinct about STATUS, an external platform is not second class, and
+  // the wrong answer about PROVENANCE, which is what a person is actually asking.
+  //
+  // The names come from the install record rather than from the artifact hash, because a platform
+  // can be external and ship nothing for this machine, and it is still not part of this binary.
+  let provenance =
+    if Stdlib.List.``member`` external p.name then "  *" else ""
+
+  $"  {mark}{coordinate}  {fns}  [{effects}]{provenance}"
 
 
 /// If this failure is "you reached for a platform that is off", the platform and what turning it
@@ -438,9 +449,12 @@ let executeAll (state: AppState) : AppState =
     Stdlib.printLine "Platforms in this build:"
     Stdlib.printLine ""
 
+    // Read once rather than per row: this is a file read behind a builtin.
+    let external = Platforms.installed () |> Stdlib.List.map (fun (n, _hash) -> n)
+
     platforms
     |> Stdlib.List.iter (fun p ->
-      Stdlib.printLine (Platforms.formatOne active gutter p)
+      Stdlib.printLine (Platforms.formatOne active gutter external p)
 
       let indent = if gutter then "          " else "      "
       Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"{indent}{p.description}"))
@@ -466,6 +480,13 @@ let executeAll (state: AppState) : AppState =
         $"{summary}, {Stdlib.Int.toString off} off. `platforms reset` turns everything back on."
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.hint line)
+
+    // Only when something on screen carries the mark. A legend for a glyph nobody saw is a line
+    // of noise on every run of the common case, which is an instance with nothing installed.
+    if Stdlib.Bool.not (Stdlib.List.isEmpty external) then
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          "* runs as a separate process, from a platform you installed")
 
     // After the summary rather than inside the list, because these are platforms that are NOT
     // here: putting them in the list would mean printing something you cannot call.
