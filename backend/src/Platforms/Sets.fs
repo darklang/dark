@@ -202,11 +202,19 @@ let undeclaredImpure (set : PlatformSet) : List<string> =
 /// without it does not compose, and a session that cannot add two numbers is not a useful default.
 /// Making that a rule here rather than a caller's responsibility means the near-pure default is
 /// expressible as `activate []`.
-let activating
+///
+/// Takes the catalog rather than reading it, because what is available is not always what this
+/// build links: an instance with external platforms installed composes them in, and an activation
+/// naming one has to resolve against the composed list or the platform a person just installed is
+/// "no such platform" the moment they switch it on.
+///
+/// There is deliberately no version that reads the catalog itself. Every caller wants the composed
+/// set, and one that silently got the linked set instead would be wrong only on the machines that
+/// had installed something, which is the worst place for it to be wrong.
+let activatingFrom
+  (available : List<Platform>)
   (wanted : List<string>)
   : PlatformSet * Dictionary<RT.FQFnName.Builtin, Platform> =
-  let available = catalog ()
-
   // The floor is `Core` and `Store`, not `Core` alone, and finding that out is what building this
   // was for. Every platform `requires` Core, so a set without it does not compose. `Store` is less
   // obvious: it is how a NAME resolves to a hash, so a session without it cannot call a package
@@ -239,3 +247,4 @@ let activating
       inactiveBuiltins[name] <- p
 
   PlatformSet.make active fnRenames, inactiveBuiltins
+

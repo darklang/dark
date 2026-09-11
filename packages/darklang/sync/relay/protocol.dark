@@ -255,3 +255,51 @@ let branchOwnersHandlerFn (req: HttpRequest) : HttpResponse =
   match branchAccessAllowed req with
   | Error why -> Stdlib.Http.responseWithText why 401
   | Ok _ -> Stdlib.Http.responseWithText (SCM.PackageOps.relayListAllBranches ()) 200
+
+
+/// Hand back a blob by hash, or 404. This is how a platform's executable reaches a machine that
+/// does not already have it.
+///
+/// Unauthenticated, like every other relay READ. The relay already serves its whole package store as
+/// HTML at `/m` and `/p`, so gating this would protect nothing, and knowing the hash is the only
+/// capability involved: you cannot browse for one here, and a client checks the bytes against the hash
+/// it asked for, so a relay that substituted bytes would simply be caught.
+let blobGetHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req "/blob/:hash" "hash" with
+  | None -> Stdlib.Http.badRequest "GET /blob/:hash needs a hash"
+  | Some hash ->
+    // Refused before it reaches the store rather than looked up and missed. A hash is the whole
+    // request here, so anything that is not one is a client bug worth naming, and "404" would read
+    // as "this relay doesn't have it".
+    if Stdlib.Bool.not (Stdlib.Regex.isMatch hash "^[0-9a-f]{64}$") then
+      Stdlib.Http.badRequest
+        $"\"{hash}\" isn't a blob hash; these are lowercase hex SHA-256"
+    else
+      match SCM.PackageOps.blobGet hash with
+      | None -> Stdlib.Http.responseWithText "no blob here with that hash" 404
+      | Some bytes ->
+        Stdlib.Http.responseWithHeaders
+          bytes
+          [ ("Content-Type", "application/octet-stream") ]
+          200
+
+
+/// Take a blob and store it, answering with the hash it was filed under.
+///
+/// The SAME write secret as ops, which is a decision with a cost worth stating: a relay operator who
+/// hands out the secret so somebody can push Dark has also let them ship an executable. The upgrade,
+/// if that ever bites, is a second secret, and it invalidates nothing here, because a client verifies
+/// hashes either way. This is about who may WRITE to a relay, not about what a client will believe.
+///
+/// The hash comes from the bytes, so there is no name to claim and nothing to overwrite: pushing the
+/// same blob twice is the same blob.
+let blobPutHandlerFn (req: HttpRequest) : HttpResponse =
+  match writeAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+    // An empty body would otherwise be stored happily, under the hash of nothing, and answered 200.
+    if Stdlib.Blob.length req.body == 0 then
+      Stdlib.Http.badRequest "POST /blob had an empty body"
+    else
+      let hash = SCM.PackageOps.blobPut req.body
+      Stdlib.Http.responseWithText hash 200

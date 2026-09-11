@@ -136,6 +136,23 @@ let setRelay (url: String) : Unit =
   ()
 
 
+/// Bytes from the content-addressed blob store, by hash, or None when this store does not hold them.
+///
+/// No branch and no owner, unlike the op queries beside it: a blob is addressed by the hash of its own
+/// bytes, so knowing the hash is the whole request. There is nothing else to ask for and nothing to
+/// scope it by, and a caller checks what it got against the hash it asked for anyway.
+let blobGet (hash: String) : Stdlib.Option.Option<Blob> =
+  Builtin.pmBlobGet hash
+
+
+/// Put bytes in the content-addressed blob store and hand back their hash.
+///
+/// The hash is COMPUTED from the bytes rather than taken as an argument, so a caller cannot file bytes
+/// under a name that is not theirs.
+let blobPut (bytes: Blob) : String =
+  Builtin.pmBlobPut bytes
+
+
 /// The ONE Dark call into the op-blob decoder, and it answers None when this build cannot read the
 /// blob. The binary op format isn't Dark-decodable, so this single primitive is all F# has to hand
 /// over for reading ops; the queries and folding are Dark on top of it.

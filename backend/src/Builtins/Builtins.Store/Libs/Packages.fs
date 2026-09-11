@@ -368,6 +368,54 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmBlobGet" 0
+      typeParams = []
+      parameters = [ Param.make "hash" TString "The SHA-256 of the bytes" ]
+      returnType = TypeReference.option TBlob
+      description =
+        "Bytes from the content-addressed blob store, by hash. None when this store does not hold "
+        + "them. Content-addressed, so the hash is the whole request: there is nothing else to "
+        + "ask for and nothing to scope."
+      fn =
+        function
+        | state, _, _, [| DString hash |] ->
+          uply {
+            match! state.blobs.get hash with
+            | None -> return Dval.optionNone KTBlob
+            | Some bytes ->
+              return Dval.optionSome KTBlob (LibExecution.Blob.newEphemeral bytes)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmBlobPut" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBlob "The bytes to store" ]
+      returnType = TString
+      description =
+        "Put bytes in the content-addressed blob store and return their hash. The hash is COMPUTED "
+        + "here rather than taken as an argument, so a caller cannot file bytes under a name that "
+        + "is not theirs."
+      fn =
+        function
+        | state, _, _, [| DBlob blob |] ->
+          uply {
+            let! bytes = LibExecution.Blob.readBytes state blob
+            let hash = LibExecution.Blob.sha256Hex bytes
+            do! state.blobs.persist hash bytes
+            return DString hash
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmOwnerHasItems" 0
       typeParams = []
       parameters =

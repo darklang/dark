@@ -48,6 +48,53 @@ let installed () : List<(String * String)> =
 let cacheArtifact (hash: String) (bytes: Blob) : Stdlib.Result.Result<Unit, String> =
   Builtin.pmPlatformsCacheArtifact hash bytes
 
+/// Fetch a platform's executable from the relay this instance is connected to, and cache it.
+///
+/// The hash is the whole request. There is no name on the wire, no owner and nothing to browse, so
+/// a relay learns only that somebody wanted bytes it was already serving. `cacheArtifact` checks
+/// what arrives against the hash the manifest named, which is why an unauthenticated read is safe:
+/// a relay that substituted bytes gets caught on this side, every time.
+///
+/// The fetch is Dark and the cache is native, and that seam is deliberate. Sync already makes its
+/// HTTP calls from Dark under the host's policy, and an artifact fetch is the same kind of call;
+/// what must not be in Dark is the decision that these bytes are the ones the manifest meant.
+let fetchArtifact (hash: String) : Stdlib.Result.Result<Unit, String> =
+  let relay = SCM.PackageOps.relay ()
+
+  if relay == "" then
+    Stdlib.Result.Result.Error
+      "this instance is not connected to a relay, so there is nowhere to fetch from. `dark connect <url>`, or pass the executable: `platforms install <manifest> <executable>`."
+  else
+    match Cli.Sync.relayGet $"{relay}/blob/{hash}" with
+    | Error e ->
+      Stdlib.Result.Result.Error $"{relay} could not hand over that executable: {e}"
+    | Ok bytes -> Platforms.cacheArtifact hash bytes
+
+
+/// Put an executable on the relay this instance is connected to, and hand back its hash.
+///
+/// The same write secret as ops, which has a cost worth saying out loud: whoever can push Dark here
+/// can also ship a binary. The hash comes back from the relay because the relay computes it from the
+/// bytes; that is the string a manifest names, so publishing tells you what to paste.
+let publishArtifact (bytes: Blob) : Stdlib.Result.Result<String, String> =
+  let relay = SCM.PackageOps.relay ()
+
+  if relay == "" then
+    Stdlib.Result.Result.Error
+      "this instance is not connected to a relay, so there is nowhere to publish to. `dark connect <url> --secret <secret>`."
+  else if Stdlib.Bool.not (Cli.Sync.hasRelaySecret relay) then
+    Stdlib.Result.Result.Error
+      $"no write secret stored for {relay}, and publishing needs one. `dark connect {relay} --secret <secret>`."
+  else
+    match Cli.Sync.relayPostTo relay "/blob" bytes with
+    | Error e -> Stdlib.Result.Result.Error $"{relay} refused it: {e}"
+    | Ok reply ->
+      match Stdlib.Blob.toString reply with
+      | Error _ ->
+        Stdlib.Result.Result.Error $"{relay} answered with something that was not a hash"
+      | Ok hash -> Stdlib.Result.Result.Ok(Stdlib.String.trim hash)
+
+
 /// Forget an installed external platform.
 let uninstall (name: String) : Unit =
   Builtin.pmPlatformsUninstall name
@@ -489,12 +536,30 @@ let executeInstall
       { state with exitCode = 1 }
 
     | Ok name ->
-      // The executable, if one was handed over. Reading it is a permissioned file read in Dark;
-      // checking it against the manifest's hash and caching it happens in the host. A relay fetch
-      // would replace only the first half.
+      // The executable, from a file if one was handed over and from the relay otherwise. Getting
+      // the bytes is Dark either way (a permissioned file read, or an HTTP call under the host's
+      // policy); checking them against the manifest's hash and caching them happens in the host.
+      // The two paths differ only in where the bytes come from.
       let cached =
         match artifactPath with
-        | None -> Stdlib.Result.Result.Ok false
+        | None ->
+          // Nothing handed over, so try the relay. A manifest that ships nothing for this machine
+          // is not a failure here: plenty of platforms are pure Dark or target something else.
+          (match Platforms.artifactHashFor name with
+           | None -> Stdlib.Result.Result.Ok false
+           | Some hash ->
+             match Platforms.fetchArtifact hash with
+             | Ok _ ->
+               Stdlib.printLine
+                 (Stdlib.Cli.UI.Colors.hint
+                   $"    Fetched its executable from {SCM.PackageOps.relay ()}.")
+
+               Stdlib.Result.Result.Ok true
+             // Not fatal either. The install stands, and the hint below says what is missing;
+             // an executable can arrive later, from a relay or from a file.
+             | Error e ->
+               Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    {e}")
+               Stdlib.Result.Result.Ok false)
         | Some file ->
           match Stdlib.Cli.File.readBytes file with
           | Error _ ->
@@ -615,6 +680,24 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "install", path ] -> executeInstall state path Stdlib.Option.Option.None
   | [ "install", path, artifact ] ->
     executeInstall state path (Stdlib.Option.Option.Some artifact)
+  | [ "publish", file ] ->
+    (match Stdlib.Cli.File.readBytes file with
+     | Error _ ->
+       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not read {file}.")
+       { state with exitCode = 1 }
+     | Ok bytes ->
+       match Platforms.publishArtifact bytes with
+       | Error e ->
+         Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+         { state with exitCode = 1 }
+       | Ok hash ->
+         Stdlib.printLine $"Published. {hash}"
+
+         Stdlib.printLine
+           (Stdlib.Cli.UI.Colors.hint
+             "    That is the hash a manifest names, and the only thing anyone needs to fetch it.")
+
+         state)
   | [ "uninstall", name ] ->
     if
       Stdlib.List.any (Platforms.installed ()) (fun (n, _hash) -> n == name)
@@ -638,7 +721,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: platforms [<Name> | needed <fn> [--activate] | activate <Name> | deactivate <Name> | reset | install <manifest> | uninstall <Name>]")
+        "Usage: platforms [<Name> | needed <fn> [--activate] | activate <Name> | deactivate <Name> | reset | install <manifest> | publish <executable> | uninstall <Name>]")
 
     { state with exitCode = 1 }
 
@@ -650,7 +733,10 @@ let help (_state: AppState) : String =
     "       platforms deactivate <Name>   switch it off"
     "       platforms reset               everything on again"
     "       platforms install <manifest> [<executable>]"
-    "                                     add an external platform"
+    "                                     add an external platform; without a file its"
+    "                                     executable comes from the relay"
+    "       platforms publish <executable>"
+    "                                     put one on the relay, for others to fetch"
     "       platforms uninstall <Name>    forget one"
     "       platforms needed <fn>         what one function requires"
     "       platforms needed <fn> --activate   turn on exactly that, nothing else"
@@ -668,6 +754,11 @@ let help (_state: AppState) : String =
     ""
     "Deactivating from a fresh install records everything else as on, so it"
     "narrows by exactly one. `reset` clears the choice."
+    ""
+    "An external platform's executable is content-addressed. `install` with no file"
+    "fetches it from the relay you are connected to and checks it against the hash"
+    "the manifest names, so a relay that handed back the wrong bytes is refused"
+    "rather than trusted."
     ""
     "`needed` asks from the other end: the minimum platform set one function"
     "requires, by walking its call graph. Use it to see whether a program is"
@@ -699,7 +790,7 @@ let complete
   match args with
   | [] ->
     Stdlib.List.append
-      ([ "needed", "activate", "deactivate", "reset" ])
+      ([ "needed", "activate", "deactivate", "reset", "publish" ])
       (names true)
     |> Stdlib.List.map Completion.simple
 
@@ -711,7 +802,7 @@ let complete
     matching (names true) partial |> Stdlib.List.map Completion.simple
   | [ partial ] ->
     Stdlib.List.append
-      (matching [ "needed", "activate", "deactivate", "reset" ] partial)
+      (matching [ "needed", "activate", "deactivate", "reset", "publish" ] partial)
       (matching (names true) partial)
     |> Stdlib.List.map Completion.simple
 

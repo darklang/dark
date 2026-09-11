@@ -148,7 +148,10 @@ let private guestFloor () : GuestFloor =
         match wanted with
         | None -> None
         | Some wanted ->
-          let active, inactive = Platforms.Sets.activating wanted
+          // From the COMPOSED catalog, not what this build links: an external platform you
+          // installed and then switched on is only reachable if activation can see it.
+          let active, inactive =
+            Platforms.Sets.activatingFrom (platformSetLazy.Force()).platforms wanted
           Some(active.builtins, inactive)
       guestFloorCache <- Some(wanted, floor)
       floor)
