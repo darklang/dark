@@ -201,7 +201,12 @@ let private call
         let status = br.ReadByte()
         let dval = DvalWire.readDval br
         if status = 0uy then
-          Ok(dval, returned)
+          // Before anything else looks at it. A well-formed frame can still carry a value that is
+          // not data but a handle into this runtime, and the type checker cannot see the
+          // difference for all of them.
+          match Wire.refuseForgedHandles handle.platformName dval with
+          | Error e -> Error e
+          | Ok() -> Ok(dval, returned)
         else
           match dval with
           | RT.DString message -> Error $"{handle.platformName}: {message}"

@@ -2159,6 +2159,39 @@ let aSpawnedPlatformBuildsAnEnum =
       LibDB.PlatformSpawn.stop handle
   }
 
+let aPlatformCannotForgeAHandle =
+  test "a value that names a resource here is refused, however deeply it is buried" {
+    // The wire can express every `Dval`, and some of them are not data. A `DDB` names a user
+    // database; a `DApplicable` names code to call. Neither was handed to the platform, so either
+    // arriving is a forgery rather than an answer.
+    //
+    // The type checker does not catch the first: `Dval.toValueType` maps `DDB` to
+    // `ValueType.Unknown`, which is honest, since a table name does not carry an element type, and
+    // which unifies with everything. A manifest promising `String` and a platform returning a
+    // `DDB` therefore type checks, and the confusion surfaces later as a .NET exception from
+    // inside some builtin that expected a string.
+    let refuse = LibDB.PlatformWire.refuseForgedHandles "AcmeSerial"
+
+    Expect.isOk (refuse (RT.DString "an ordinary answer")) "data crosses"
+    Expect.isError (refuse (RT.DDB "users")) "a database handle does not"
+
+    // Nested, because checking only the top level is a check you walk around by wrapping.
+    Expect.isError
+      (refuse (RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; RT.DDB "users" ])))
+      "inside a list"
+    Expect.isError
+      (refuse (
+        RT.DTuple(RT.DString "a", RT.DList(RT.ValueType.Unknown, [ RT.DDB "users" ]), [])
+      ))
+      "inside a list inside a tuple"
+
+    match refuse (RT.DDB "users") with
+    | Error message ->
+      Expect.stringContains message "AcmeSerial" "the message names the platform"
+      Expect.stringContains message "users" "and what it tried to name"
+    | Ok() -> failtest "expected a refusal"
+  }
+
 let aSpawnedPlatformCarriesBytes =
   testTask "bytes cross to another process and back" {
     // The case the at-rest `Dval` encoding cannot express, and rightly: at rest, bytes have to be
@@ -2459,6 +2492,7 @@ let tests =
       aCollidingPlatformIsSkippedNotFatal
       aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum
+      aPlatformCannotForgeAHandle
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked
       aCrashedPlatformIsAnErrorNotAHang

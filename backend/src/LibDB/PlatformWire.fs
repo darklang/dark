@@ -77,6 +77,47 @@ let rehydrate (table : Table) (dv : RT.Dval) : Ply.Ply<RT.Dval> =
         | None -> Ply.Ply None
       | _ -> Ply.Ply None)
 
+/// Values a platform may not MINT, however well formed the frame is.
+///
+/// The wire can express every `Dval`, but a platform is not this runtime and some values are not
+/// data: they are handles whose meaning is a resource here. A `DDB` names a user database; a
+/// `DApplicable` names a function to call. Neither was handed to the platform and neither can be,
+/// so either one arriving is a forged handle rather than an answer.
+///
+/// The type checker does not catch this. `Dval.toValueType` maps `DDB` to `ValueType.Unknown`,
+/// which is honest, since the element type cannot be recovered from a table name, and which
+/// unifies with everything. So a manifest promising `String` and a platform returning a `DDB` type
+/// checks, and the confusion surfaces much later as a .NET exception from deep inside a builtin.
+///
+/// Same rule as `DStream`, and the same reason: what cannot honestly cross does not cross. Applied
+/// only on the way IN, because a signature that could carry one out is already refused at install
+/// by `Manifest.travels`.
+let rec private forgedHandle (dv : RT.Dval) : Option<string> =
+  match dv with
+  | RT.DDB name ->
+    Some
+      $"named the database '{name}', which is a handle this runtime hands out and a platform cannot be given"
+  | RT.DApplicable _ ->
+    Some "returned a function, which names code in this runtime rather than data"
+  | RT.DList(_, items) -> items |> List.tryPick forgedHandle
+  | RT.DTuple(first, second, rest) ->
+    (first :: second :: rest) |> List.tryPick forgedHandle
+  | RT.DDict(_, _, entries) ->
+    entries |> Map.toList |> List.tryPick (snd >> forgedHandle)
+  | RT.DRecord(_, _, _, fields) ->
+    fields |> Map.toList |> List.tryPick (snd >> forgedHandle)
+  | RT.DEnum(_, _, _, _, fields) -> fields |> List.tryPick forgedHandle
+  | _ -> None
+
+/// Refuse a forged handle anywhere in a value a platform sent back.
+///
+/// Recursive, because a `DDB` inside a list or a record field is the same forgery with one more
+/// step: checking only the top level would be a check somebody could walk around by wrapping.
+let refuseForgedHandles (platformName : string) (dv : RT.Dval) : Result<unit, string> =
+  match forgedHandle dv with
+  | None -> Ok()
+  | Some what -> Error $"the {platformName} platform {what}"
+
 let writeTable (w : BinaryWriter) (table : Table) : unit =
   Varint.write w (Map.count table)
   for KeyValue(hash, bytes) in table do
