@@ -164,8 +164,18 @@ let platforms
                 match PlatformArtifacts.path artifactHash with
                 | Error e -> skipped <- skipped @ [ (name, e) ]
                 | Ok executable ->
+                  // Every effect the manifest declares anywhere, which is what the sandbox is
+                  // built from. A platform is confined by the union of what its builtins claim,
+                  // because any of them may be the first one called.
+                  let declared =
+                    manifest.fns |> List.map _.effects |> Set.unionMany
+
                   let handle =
-                    PlatformSpawn.handleFor manifest.name executable manifest.types
+                    PlatformSpawn.handleFor
+                      manifest.name
+                      executable
+                      declared
+                      manifest.types
                   match
                     Platform.External.Manifest.toPlatform (PlatformSpawn.invoke handle) manifest
                   with
@@ -187,6 +197,35 @@ let platforms
 let currentRid () : string =
   System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier
 
+
+
+/// Every effect an installed platform's manifest declares, anywhere in it.
+///
+/// The union across its builtins, because any of them may be the first one called and the process
+/// is started once. From the install record rather than the composed set, for the same reason
+/// `artifactHashOf` is: a platform installed a moment ago is not in the set yet.
+let declaredEffectsOf
+  (pm : PT.PackageManager)
+  (platformName : string)
+  : Ply.Ply<Option<Set<LibExecution.Effects.Effect>>> =
+  uply {
+    match Map.tryFind platformName (get ()) with
+    | None -> return None
+    | Some manifestHash ->
+      match PlatformArtifacts.path manifestHash with
+      | Error _ -> return None
+      | Ok file ->
+        if not (IO.File.Exists file) then
+          return None
+        else
+          match Platform.Written.parse (IO.File.ReadAllText file) with
+          | Error _ -> return None
+          | Ok written ->
+            match! PlatformInstall.resolve pm written with
+            | Error _ -> return None
+            | Ok manifest ->
+              return Some(manifest.fns |> List.map _.effects |> Set.unionMany)
+  }
 
 
 /// The artifact hash an installed platform needs on THIS machine, if it ships one.

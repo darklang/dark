@@ -95,6 +95,15 @@ let publishArtifact (bytes: Blob) : Stdlib.Result.Result<String, String> =
       | Ok hash -> Stdlib.Result.Result.Ok(Stdlib.String.trim hash)
 
 
+/// How this platform's process is confined, or None for one that does not run in a process.
+///
+/// The interesting half of a declaration. A manifest's effects are checked before every call, and
+/// they also decide what the process is allowed to reach at all: a platform that never mentioned
+/// the network is started without one, so its executable cannot phone home whatever its code says.
+let confinement (name: String) : Stdlib.Option.Option<String> =
+  Builtin.pmPlatformsConfinement name
+
+
 /// Every installed platform this session is not running, with the reason.
 ///
 /// Worth a line of its own in the listing: an install that quietly does nothing is the failure
@@ -661,6 +670,12 @@ let executeOne (state: AppState) (name: String) : AppState =
 
     Stdlib.printLine
       $"""  provides  {Cli.Text.plural (Stdlib.Int.fromInt64 p.fnCount) "builtin"}"""
+
+    // Only for a platform that runs in a process of its own. A linked one is this process, so
+    // there is nothing to confine and nothing honest to print.
+    match Platforms.confinement p.name with
+    | None -> ()
+    | Some how -> Stdlib.printLine $"  confined  {how}"
 
     Stdlib.printLine ""
 

@@ -40,22 +40,28 @@ type private Running =
 /// nobody calls costs one record and no process.
 type Handle =
   private
-    { executable : string
+    { plan : PlatformSandbox.Plan
       platformName : string
       types : List<string * RT.FQTypeName.FQTypeName>
       mutable running : Option<Running>
       startGate : obj }
 
+/// The effects are not decoration here: they decide how the process is CONFINED, so a platform
+/// that never mentioned the network is started somewhere it does not have one.
 let handleFor
   (platformName : string)
   (executable : string)
+  (effects : Set<LibExecution.Effects.Effect>)
   (types : List<string * RT.FQTypeName.FQTypeName>)
   : Handle =
-  { executable = executable
+  { plan = PlatformSandbox.plan effects executable
     platformName = platformName
     types = types
     running = None
     startGate = obj () }
+
+/// One sentence about how confined this platform is, for a person reading about it.
+let confinement (handle : Handle) : string = handle.plan.confinement
 
 /// What this side speaks. A plugin that answers with a different number is refused at startup
 /// rather than allowed to produce frames neither side can read.
@@ -110,7 +116,9 @@ let private handshake (handle : Handle) (running : Running) : Result<unit, strin
 
 let private start (handle : Handle) : Result<Running, string> =
   try
-    let psi = ProcessStartInfo(handle.executable)
+    let psi = ProcessStartInfo(handle.plan.executable)
+    for arg in handle.plan.arguments do
+      psi.ArgumentList.Add arg
     psi.RedirectStandardInput <- true
     psi.RedirectStandardOutput <- true
     psi.UseShellExecute <- false

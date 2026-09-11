@@ -34,6 +34,7 @@ A type argument is 0 for unknown, or 1 followed by a known type (14 is String).
 Varint is .NET's 7-bit encoded int: low 7 bits per byte, high bit means continue.
 """
 import hashlib
+import socket
 import struct
 import sys
 
@@ -206,6 +207,14 @@ def main():
             slen, pos = read_varint(body, pos)
             text = body[pos : pos + slen].decode("utf-8")
             write_ok_string(out, types["Darklang.Stdlib.Result.Result"], text.upper())
+        elif fn == "echoReach" and argc == 1:
+            # Tries the network, which this platform never asked for. What comes back says
+            # whether the host confined it.
+            try:
+                socket.create_connection(("1.1.1.1", 80), timeout=3).close()
+                write_string(out, "reached the network")
+            except OSError as e:
+                write_string(out, f"{e.errno}")
         elif fn == "echoCrash" and argc == 1:
             # Deliberately fall over, so the host's crash handling can be tested.
             sys.exit(1)

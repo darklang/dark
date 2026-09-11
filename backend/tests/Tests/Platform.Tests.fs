@@ -1853,6 +1853,12 @@ let private spawnedFns : List<External.Fn> =
       returnType = TString
       effects = Set.singleton describedEffect
       description = "reads a Dval as well as writing one" }
+    { name = "echoReach"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "tries the network it never asked for" }
     { name = "echoResult"
       version = 0
       parameters = [ ("text", TString) ]
@@ -1906,7 +1912,12 @@ let private callSpawned (handle : LibDB.PlatformSpawn.Handle) (name : string) (a
 
 let aSpawnedPlatformAnswers =
   testTask "a platform in another process answers, and keeps its own state" {
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
     try
       // Its counter lives outside this runtime, so two calls to one process differ. That is the
       // proof it is really another process and not a clever closure.
@@ -1958,6 +1969,40 @@ let aCollidingPlatformIsSkippedNotFatal =
           Expect.equal owner claimed.name "and who already provides it"
   }
 
+let aSpawnedPlatformIsConfinedToWhatItDeclared =
+  testTask "a platform that never asked for the network does not get one" {
+    // The one thing a separate process buys that nothing else can. The gate checks a manifest's
+    // effects before every call; this makes them CONFINE the process, so a platform whose
+    // executable decides to phone home cannot, whatever its own code says.
+    //
+    // The fixture declares one custom effect and no network, then tries to open a TCP connection.
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
+    try
+      let confinement = LibDB.PlatformSpawn.confinement handle
+      if not (confinement.StartsWith "no network") then
+        // Skipped rather than failed, and the reason is printed. This machine cannot confine a
+        // process without privileges, which is a fact about the machine and not about the code.
+        // Failing here would make the suite red on macOS for something that is working correctly.
+        print $"skipped: {confinement}"
+      else
+        let! reached = callSpawned handle "echoReach" RT.DUnit
+        match reached with
+        | Ok(RT.DString "reached the network") ->
+          failtest "the platform reached the network it never declared"
+        | Ok(RT.DString errno) ->
+          // ENETUNREACH, specifically. A timeout or a DNS failure would pass a weaker assertion
+          // while proving nothing, since a machine with no network at all gives those too.
+          Expect.equal errno "101" "the connection failed because there is no network to use"
+        | other -> failtest $"unexpected: {other}"
+    finally
+      LibDB.PlatformSpawn.stop handle
+  }
+
 let aSpawnedPlatformBuildsAnEnum =
   testTask "a platform in another process returns a Result, not just a primitive" {
     // The reason the startup handshake exists. An enum on the wire carries the type's CONTENT
@@ -1968,7 +2013,11 @@ let aSpawnedPlatformBuildsAnEnum =
     // Without it an external platform can only return primitives, which rules out anything
     // answering with a `Result`, which is most of what a platform would want to answer with.
     let handle =
-      LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
     try
       let! answered = callSpawned handle "echoResult" (RT.DString "typed")
       match answered with
@@ -1987,7 +2036,12 @@ let aSpawnedPlatformCarriesBytes =
     //
     // Load-bearing rather than a curiosity: every `HttpClient` builtin returns freshly fetched
     // bytes, so a platform that cannot carry a blob cannot be `HttpClient`.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
     try
       let sent = System.Text.Encoding.UTF8.GetBytes "bytes over a pipe"
       let! answered = callSpawned handle "echoBytes" (LibExecution.Blob.newEphemeral sent)
@@ -2010,7 +2064,12 @@ let aSpawnedPlatformIsPermissionChecked =
   testTask "a spawned platform's declared capability is enforced before it is called" {
     // The gate runs on what the platform DECLARED, before any bytes cross, so an ungranted
     // capability never reaches the process at all.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
     try
       let core = Platforms.Sets.sealedCompute ()
       let set = PlatformSet.make (core.platforms @ [ spawnedPlatform handle ]) []
@@ -2042,7 +2101,12 @@ let aCrashedPlatformIsAnErrorNotAHang =
   testTask "a platform that exits without answering is an error, not a hang" {
     // The spike found this and its harness did not handle it: a crashed plugin is a CLOSED PIPE
     // rather than any response. Left alone that is a CLI that never returns.
-    let handle = LibDB.PlatformSpawn.handleFor "EchoPlatform" (echoPlatformPath ()) echoTypes
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
     try
       let! crashed = callSpawned handle "echoCrash" RT.DUnit
       match crashed with
@@ -2259,6 +2323,7 @@ let tests =
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
       aCollidingPlatformIsSkippedNotFatal
+      aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked

@@ -316,6 +316,27 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     policyFn
+      "pmPlatformsConfinement"
+      [ Param.make "name" TString "An installed platform" ]
+      (TypeReference.option TString)
+      ("How the process for this platform is confined, in a sentence, or None for a platform "
+       + "that does not run in one. A manifest's effects are not only checked before a call; "
+       + "they decide what the process is allowed to reach at all.")
+      (fun _ args ->
+        match args with
+        | [| DString name |] ->
+          uply {
+            match! InstalledPlatforms.declaredEffectsOf LibDB.PackageManager.pt name with
+            | None -> return Dval.optionNone KTString
+            | Some effects ->
+              // The executable is irrelevant to the answer, so this does not need it on disk: the
+              // confinement is decided by what the manifest SAID, which is the whole point.
+              let plan = LibDB.PlatformSandbox.plan effects ""
+              return Dval.optionSome KTString (DString plan.confinement)
+          }
+        | _ -> incorrectArgs ())
+
+    policyFn
       "pmPlatformsSkipped"
       [ Param.make "unit" TUnit "" ]
       (TList(TTuple(TString, TString, [])))
