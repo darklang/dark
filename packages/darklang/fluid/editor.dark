@@ -1709,9 +1709,18 @@ let clearsPartialKeyword (st: State) : Stdlib.Option.Option<State> =
   | Some sp ->
     (match slotAtPath st.root sp with
      | Some(Partial(typed, was)) ->
+       // ...and only when what was typed is not also something you could MEAN here. The screen cannot
+       // tell the two apart: `match n with` draws a keyword, then punctuation, then the hole, and so does
+       // `List<`. The difference is that `with` is not a thing you can put in a pattern and `List` is
+       // exactly a thing you can put in a type.
+       //
+       // Without this, `List<List<Int64>>` lost its inner `List` the moment the `<` after it arrived: the
+       // keyword drawn before the caret was the OUTER `List`, the partial's text was `List`, and they
+       // matched by coincidence.
        if (typed != "")
           && (st.caret.offset >= (Stdlib.String.length typed))
-          && ((prevKeyword st) == Stdlib.Option.Option.Some typed) then
+          && ((prevKeyword st) == Stdlib.Option.Option.Some typed)
+          && (Stdlib.Option.isNone (exactCandidate st)) then
          let st1 = commit st [ Edit.Replace(sp, was) ] st.caret
          Stdlib.Option.Option.Some { st1 with caret = { st.caret with offset = 0 } }
        else

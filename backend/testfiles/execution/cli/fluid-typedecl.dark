@@ -835,3 +835,29 @@ module TypingAParameterisedType =
 
   // The `<` is only claimed while the list is EMPTY, so it does not fire again inside one.
   (TypingATypeDoesNotThrow.drawn "Option<Option<Int64>>") = "Option<Option<Int64>>"
+
+  // A NESTED `List`, which lost its inner name until the rule below learned to stand down. `List` draws
+  // itself as a keyword, so inside `List<` the keyword drawn before the caret is the outer one, and the
+  // partial's text matched it by coincidence.
+  (TypingATypeDoesNotThrow.drawn "List<List<Int64>>") = "List<List<Int64>>"
+  (TypingATypeDoesNotThrow.drawn "List<Option<Int64>>") = "List<Option<Int64>>"
+
+
+module AKeywordYouCouldHaveMeantIsNotRetyped =
+  // `clearsDrawnKeyword` puts a hole back when you re-type a keyword the editor already drew. The screen
+  // cannot tell that apart from typing a NAME that happens to equal the keyword in front of it: a
+  // construct draws a keyword, then punctuation, then a hole, and that is the shape of `match n with`
+  // and equally of `List<`.
+  //
+  // The difference is not on the screen. `with` is not something you can put in a pattern; `List` is
+  // exactly something you can put in a type. So the rule stands down when what was typed is an exact
+  // candidate here.
+  let drawn (src: String) : String = TypingATypeDoesNotThrow.drawn src
+
+  (AKeywordYouCouldHaveMeantIsNotRetyped.drawn "List<List<Int64>>") = "List<List<Int64>>"
+
+  // The cases the rule exists for are expression-side, where a drawn keyword is never a candidate, and
+  // they are pinned where they live: `AMatchWithTypedTwice` and the `if a then then` case in fluid-pt.
+  // What belongs here is the other half of the narrowing: a name that is NOT a candidate still clears.
+  // `Lis` is a prefix of `List` and not an exact match, so it is not something you could have meant.
+  (AKeywordYouCouldHaveMeantIsNotRetyped.drawn "List<Lis") = "List<Lis>"
