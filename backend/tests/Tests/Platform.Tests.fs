@@ -1039,6 +1039,57 @@ let aDescribedBuiltinIsDeniedWithoutTheGrant =
       failtest $"described builtin ran without a grant for its capability: {other}"
   }
 
+/// Parse AND run `Builtin.acmeReadTag ()` under a state whose catalog includes the described
+/// platform, which is what shipping one would actually mean.
+///
+/// The other described-platform tests call by name through `executeFunction`, because the shared
+/// parse helper runs under its own state carrying the stock catalog. This one asks the question
+/// that matters: does a platform composed into the HOST's set become visible to name resolution?
+let aDescribedBuiltinResolvesByName =
+  testTask "a described platform's builtin resolves at parse time when the host has it" {
+    let pm = TestUtils.TestUtils.pmPT
+    let described = describedPlatform (Set.singleton describedEffect) "TAG-42"
+    let set = PlatformSet.make ((Platforms.Sets.everythingFor pm).platforms @ [ described ]) []
+    let pmRT = PT2RT.PackageManager.toRT set.builtins.values pm
+    let state =
+      Exe.createState
+        set.builtins
+        pmRT
+        Exe.noTracing
+        RT.consoleReporter
+        RT.consoleNotifier
+        { dbs = Map.empty }
+      |> Exe.setInstancePolicy
+        (Permission.Policy.create [ Permission.Rule.All ] [])
+
+    // Parse under THIS state, not the shared helper's.
+    let parser =
+      RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
+    let! parsed =
+      Exe.executeFunction
+        state
+        parser
+        []
+        (NEList.singleton (RT.DString "Builtin.acmeReadTag ()"))
+
+    match parsed with
+    | Error(rte, _) -> failtest $"parsing raised: {rte}"
+    | Ok dval ->
+      match
+        LibExecution.CommonToDarkTypes.Result.fromDT
+          LibExecution.ProgramTypesToDarkTypes.Expr.fromDT
+          dval
+          identity
+      with
+      | Error _ -> failtest "the parser refused a described builtin's name"
+      | Ok ptExpr ->
+        let! ran = Exe.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
+        match ran with
+        | Ok(RT.DString "TAG-42") -> ()
+        | Ok other -> failtest $"resolved but answered wrongly: {other}"
+        | Error(rte, _) -> failtest $"resolved but raised: {rte}"
+  }
+
 
 let tests =
   testList
@@ -1074,4 +1125,5 @@ let tests =
       theFloorCanNameThings
       aDescribedPlatformComposes
       aDescribedBuiltinRuns
-      aDescribedBuiltinIsDeniedWithoutTheGrant ]
+      aDescribedBuiltinIsDeniedWithoutTheGrant
+      aDescribedBuiltinResolvesByName ]
