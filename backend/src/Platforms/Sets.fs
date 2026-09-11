@@ -175,21 +175,52 @@ let tighteningReport (set : PlatformSet) : List<string> =
     header :: lines)
 
 
-/// Builtins whose declared effects are empty but which are marked `Impure`.
+/// Does this builtin take a function, anywhere in its parameters?
 ///
-/// Not necessarily wrong: the sqlite builtins are deliberately in this state and decide in the body.
-/// But it is the shape an UNDER-declaration takes, and the list should be short enough to read.
+/// `List.map` is `Impure` because the lambda it is handed may be, not because mapping reaches
+/// anything. Same for every higher-order function and every stream combinator. They are the bulk of
+/// the empty-effects-but-impure set and they are all correct, so keeping them in one list with the
+/// genuine under-declarations means the genuine ones are never read.
+let private takesAFunction (fn : RT.BuiltInFn) : bool =
+  let rec hasFn (t : RT.TypeReference) : bool =
+    match t with
+    | RT.TFn _ -> true
+    | RT.TList inner -> hasFn inner
+    | RT.TDict(_, v) -> hasFn v
+    | RT.TTuple(a, b, rest) -> List.exists hasFn (a :: b :: rest)
+    | RT.TStream inner -> hasFn inner
+    | _ -> false
+  fn.parameters |> List.exists (fun p -> hasFn p.typ)
+
+
+/// Builtins whose declared effects are empty but which are marked `Impure`, split into the two
+/// kinds that hide in one list.
+///
+/// The first kind is a real question: a function that says it reaches nothing and is impure anyway
+/// is either under-declared or decides in its body, which the sqlite builtins deliberately do.
+/// The second kind is fine and always will be: anything taking a lambda is impure because the
+/// lambda might be.
 let undeclaredImpure (set : PlatformSet) : List<string> =
-  set.platforms
-  |> List.sortBy _.name
-  |> List.collect (fun p ->
-    p.builtins.fns.Values
-    |> Seq.filter (fun fn ->
-      Set.isEmpty fn.callEffects
-      && fn.previewable = LibExecution.RuntimeTypes.Impure)
-    |> Seq.map (fun fn -> $"{p.name}#{fn.name.name}")
-    |> List.ofSeq)
-  |> List.sort
+  let flagged (keep : RT.BuiltInFn -> bool) =
+    set.platforms
+    |> List.sortBy _.name
+    |> List.collect (fun p ->
+      p.builtins.fns.Values
+      |> Seq.filter (fun fn ->
+        Set.isEmpty fn.callEffects
+        && fn.previewable = LibExecution.RuntimeTypes.Impure
+        && keep fn)
+      |> Seq.map (fun fn -> $"{p.name}#{fn.name.name}")
+      |> List.ofSeq)
+    |> List.sort
+
+  let real = flagged (takesAFunction >> not)
+  let byLambda = flagged takesAFunction
+
+  real
+  @ [ ""
+      "Impure only because they take a lambda, which is correct and will not change:"
+      "    " + String.concat ", " byLambda ]
 
 
 /// Every effect, with how many builtins reach it and which platforms they come from.
