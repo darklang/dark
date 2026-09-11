@@ -639,13 +639,33 @@ let executeOne (state: AppState) (name: String) : AppState =
     LanguageTools.platforms () |> Stdlib.List.findFirst (fun p -> p.name == name)
   with
   | None ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"No platform named '{name}' in this build.")
+    // "You do not have that" and "you have it and it is not running" are different answers, and
+    // this is exactly the moment the second one is being asked for: you read the name in the
+    // listing's skipped section and typed it to find out more. Answering "no platform named that"
+    // would be the listing contradicting itself one command later.
+    match
+      Platforms.skipped () |> Stdlib.List.findFirst (fun (n, _) -> n == name)
+    with
+    | Some((_, why)) ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"{name} is installed, but is not running in this session.")
 
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.hint "    `dark platforms` lists what this build has.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {why}")
 
-    { state with exitCode = 1 }
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint
+          $"    Nothing it provides is callable until that is resolved. `platforms uninstall {name}` forgets it.")
+
+      { state with exitCode = 1 }
+
+    | None ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"No platform named '{name}' in this build.")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint "    `dark platforms` lists what this build has.")
+
+      { state with exitCode = 1 }
 
   | Some p ->
     let active = Platforms.activated ()
