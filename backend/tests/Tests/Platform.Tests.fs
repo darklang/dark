@@ -1938,6 +1938,38 @@ let aSpawnedPlatformAnswers =
       LibDB.PlatformSpawn.stop handle
   }
 
+let theFirstPartyListMatchesTheSource =
+  test "the first-party-only list is exactly the builtins that check caller trust" {
+    // Two gates exist and only one of them was ever visible. A builtin's effects are declared,
+    // checked before the body runs, printed by `dark permissions` and carried in a manifest. Caller
+    // trust is a call INSIDE a body, so nothing outside that body knew it was there.
+    //
+    // Pinned against the source rather than maintained by hand: a list of names beside the calls
+    // that enforce them is a list that drifts, and the drift is silent in the direction that
+    // matters, namely a new trust gate nobody can see.
+    let sources =
+      System.IO.Directory.EnumerateFiles(
+        System.IO.Path.Combine(PackageSurface.findRepoRoot (), "backend", "src"),
+        "*.fs",
+        System.IO.SearchOption.AllDirectories
+      )
+      |> Seq.map System.IO.File.ReadAllText
+      |> String.concat "\n"
+
+    let called =
+      System.Text.RegularExpressions.Regex.Matches(
+        sources,
+        @"requireBundledCaller\s+\w+\s+\w+\s+""(\w+)"""
+      )
+      |> Seq.map (fun m -> m.Groups[1].Value)
+      |> Set.ofSeq
+
+    Expect.equal
+      called
+      Platforms.Sets.firstPartyOnly
+      "every builtin that checks caller trust is listed, and nothing else is"
+  }
+
 let aCollidingPlatformIsSkippedNotFatal =
   test "a platform claiming a name something else provides is skipped, not fatal" {
     // Found by installing one. Before this, an external platform whose builtin collided with a
@@ -2322,6 +2354,7 @@ let tests =
       aManifestMustBeALiteral
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
+      theFirstPartyListMatchesTheSource
       aCollidingPlatformIsSkippedNotFatal
       aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum

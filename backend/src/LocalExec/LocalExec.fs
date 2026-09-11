@@ -191,6 +191,16 @@ let main (args : string[]) : int =
       NonBlockingConsole.wait ()
       0
 
+    | [ "platforms"; "doors"; effectName ] ->
+      // Every door to ONE effect, in full. The summary truncates, and the effect you want to split
+      // is exactly the one whose list was too long to show.
+      let set = Platforms.Sets.everything ()
+      print $"Every builtin that reaches {effectName}:"
+      print ""
+      Platforms.Sets.doorsTo set effectName |> List.iter print
+      NonBlockingConsole.wait ()
+      0
+
     | [ "platforms"; "tighten" ] ->
       // What is worth acting on: an effect with one contributor is one function away from being
       // gone from that platform.

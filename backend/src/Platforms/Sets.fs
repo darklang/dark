@@ -192,6 +192,31 @@ let undeclaredImpure (set : PlatformSet) : List<string> =
   |> List.sort
 
 
+/// Builtins that only BUNDLED first-party Dark may call, whatever the policy says.
+///
+/// The second gate, and until this list existed it was the invisible one. A builtin's effects are
+/// declared, checked before the body runs, printed by `dark permissions`, and carried in a
+/// manifest. This one is a call inside a body, so nothing outside that body knew it was there: a
+/// person reading what `Instance` reaches saw `package-read` and had no way to learn that two of
+/// those builtins refuse a pulled package outright.
+///
+/// It exists for the cases no rule can scope honestly. `localDbBackupTo` writes this instance's
+/// whole store to a path the caller names; the sync transport reaches loopback and the tailnet,
+/// which the safe HTTP client bans. Both would have to declare `native` to be honest in the effect
+/// vocabulary, and `native` is all-or-nothing, so a stock install would need `allow native` to run
+/// `dark sync`. Caller trust is the narrower answer, and this makes it a visible one.
+///
+/// Pinned by a test against the source, so the list cannot drift from the calls.
+let firstPartyOnly : Set<string> =
+  Set.ofList
+    [ "httpGetUnsafeBytes"
+      "httpGetUnsafeBytesStart"
+      "httpGetUnsafeBytesWithHeaders"
+      "httpPostUnsafeBytes"
+      "localDbBackupTo"
+      "localDbRestoreFrom" ]
+
+
 /// Every effect, with how many builtins reach it and which platforms they come from.
 ///
 /// The tightening report asks "what does this platform reach"; this asks the question the other way
@@ -243,9 +268,53 @@ let effectDoors (set : PlatformSet) : List<string> =
       $"{LibExecution.Effects.name e, -14} {List.length fns, 4} {door}  ({where})
                         {shown}")
 
+  let gatedTwice =
+    doors
+    |> List.filter (fun (_, _, f) -> Set.contains f firstPartyOnly)
+    |> List.map (fun (_, _, f) -> f)
+    |> List.distinct
+    |> List.sort
+
   lines
   @ [ ""
-      $"{effectful} of {total} builtins declare an effect; the rest are doors to nothing." ]
+      $"{effectful} of {total} builtins declare an effect; the rest are doors to nothing."
+      ""
+      "Gated a second time, by caller trust rather than by policy:"
+      "    " + String.concat ", " gatedTwice ]
+
+
+/// Every builtin that reaches one named effect, with its platform and its signature.
+///
+/// The summary truncates, and the effect worth splitting is always the one whose list was too long
+/// to print. Signatures are here because the question "could this be narrower" is usually answered
+/// by what the function takes: one that names a resource can be scoped, one that takes nothing
+/// cannot.
+let doorsTo (set : PlatformSet) (effectName : string) : List<string> =
+  set.platforms
+  |> List.sortBy _.name
+  |> List.collect (fun p ->
+    p.builtins.fns.Values
+    |> Seq.filter (fun fn ->
+      fn.callEffects
+      |> Set.exists (fun e -> LibExecution.Effects.name e = effectName))
+    |> Seq.map (fun fn ->
+      // A short rendering, not `string t`: a `TCustomType` prints its whole resolved hash record,
+      // which is several lines and drowns the thing being read.
+      let rec typ (t : RT.TypeReference) : string =
+        match t with
+        | RT.TCustomType _ -> "<type>"
+        | RT.TList inner -> $"List<{typ inner}>"
+        | RT.TDict(_, v) -> $"Dict<{typ v}>"
+        | RT.TTuple(a, b, rest) ->
+          let parts = (a :: b :: rest) |> List.map typ |> String.concat ", "
+          $"({parts})"
+        | other -> string other
+      let ps = fn.parameters |> List.map (fun p -> typ p.typ) |> String.concat ", "
+      let trust =
+        if Set.contains fn.name.name firstPartyOnly then "  first-party only" else ""
+      $"{p.name, -12} {fn.name.name, -32} ({ps}){trust}")
+    |> List.ofSeq)
+  |> List.sort
 
 
 /// Split the catalog into the platforms a session ACTIVATES and the rest, for lazy activation.
