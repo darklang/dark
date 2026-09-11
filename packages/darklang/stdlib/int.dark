@@ -206,5 +206,9 @@ let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
+///
+/// NOT cryptographic. The draw is seeded per call from the system generator, which makes it
+/// unpredictable but narrow: about 31 bits of entropy per call, whatever the width asked for.
+/// Good for sampling and shuffling; not for anything anyone would want to guess.
 let random (start: Int) (``end``: Int) : Int =
   Builtin.intRandom start ``end``

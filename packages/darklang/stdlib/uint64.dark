@@ -55,6 +55,10 @@ let lessThanOrEqualTo (a: UInt64) (b: UInt64) : Bool =
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
+///
+/// NOT cryptographic. The draw is seeded per call from the system generator, which makes it
+/// unpredictable but narrow: about 31 bits of entropy per call, whatever the width asked for.
+/// Good for sampling and shuffling; not for anything anyone would want to guess.
 let random (start: UInt64) (``end``: UInt64) : UInt64 =
   // Through `Int.random` rather than `Int64.random`, and this is the one width where that
   // matters: the top half of the UInt64 range does not fit in an Int64, so widening to Int64

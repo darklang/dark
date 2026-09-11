@@ -13,7 +13,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
-      description = "Generate a new <type Uuid> v4 according to RFC 4122"
+      description =
+        "Generate a new <type Uuid> v4 according to RFC 4122. Its bits come from the platform's "
+        + "own generator rather than from the seeded one the numeric draws use, so unlike those "
+        + "it is not guessable from a narrow seed."
       fn =
         (function
         | _, _, _, [| DUnit |] -> Ply(DUuid(System.Guid.NewGuid()))

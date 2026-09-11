@@ -28,7 +28,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "start" TInt64 ""; Param.make "end" TInt64 "" ]
       returnType = TInt64
       description =
-        "Returns a random integer between <param start> and <param end> (inclusive)"
+        "Returns a random integer between <param start> and <param end> (inclusive). "
+        + "NOT cryptographic: the draw comes from a generator seeded per call from the system "
+        + "RNG, so one call carries about 31 bits of entropy however wide its return type. Use "
+        + "it for sampling and shuffling, not for anything anyone would want to guess."
       fn =
         (function
         | _, _, _, [| DInt64 a; DInt64 b |] ->
@@ -50,7 +53,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
       description =
-        "Returns a random integer between <param start> and <param end> (inclusive)"
+        "Returns a random integer between <param start> and <param end> (inclusive), at "
+        + "arbitrary precision. NOT cryptographic, and the same roughly 31 bits of entropy per "
+        + "call as the fixed-width draws, whatever the width of the range asked for."
       fn =
         (function
         | _, _, _, [| DInt a; DInt b |] ->
@@ -81,7 +86,8 @@ let fns () : List<BuiltInFn> =
       description =
         "Returns {{Some <var randomValue>}}, where <var randomValue> is a "
         + "randomly selected value in <param list>. Returns {{None}} if <param "
-        + "list> is empty."
+        + "list> is empty. Unlike the numeric draws beside it, this one is "
+        + "CRYPTOGRAPHIC: the index comes straight from the system RNG."
       fn =
         let optType = VT.unknownTODO
         (function

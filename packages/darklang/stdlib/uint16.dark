@@ -58,6 +58,10 @@ let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
 
 
 /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
+///
+/// NOT cryptographic. The draw is seeded per call from the system generator, which makes it
+/// unpredictable but narrow: about 31 bits of entropy per call, whatever the width asked for.
+/// Good for sampling and shuffling; not for anything anyone would want to guess.
 let random (start: UInt16) (``end``: UInt16) : UInt16 =
   // One primitive, not one per width. The bounds always fit in an Int64, and `Int64.random` is
   // already a uniform draw over an inclusive range, so widening and narrowing back changes
