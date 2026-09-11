@@ -1090,6 +1090,104 @@ let aDescribedBuiltinResolvesByName =
         | Error(rte, _) -> failtest $"resolved but raised: {rte}"
   }
 
+// ── the manifest ──────────────────────────────────────────────────────────────
+
+let private goodManifest : External.Manifest =
+  { owner = "acme"
+    name = "AcmeSerial"
+    version = 0
+    description = "A platform this repo does not contain."
+    requires = [ "Core" ]
+    requiresStore = false
+    fns = describedFns (Set.singleton describedEffect) }
+
+let private rejectionOf (m : External.Manifest) : List<string> =
+  match External.Manifest.toPlatform (fun _ _ -> Ply RT.DUnit) m with
+  | Ok _ -> failtest "expected this manifest to be refused"
+  | Error r -> r.problems
+
+let aGoodManifestBecomesAPlatform =
+  test "a well-formed manifest becomes a platform that composes" {
+    match External.Manifest.toPlatform (fun _ _ -> Ply(RT.DString "TAG-42")) goodManifest with
+    | Error r -> failtest $"refused a good manifest: {r.problems}"
+    | Ok platform ->
+      let core = Platforms.Sets.sealedCompute ()
+      let set = PlatformSet.make (core.platforms @ [ platform ]) []
+      Expect.equal
+        (PlatformSet.qualify "acmeReadTag" set)
+        "AcmeSerial#acmeReadTag"
+        "composes like any other"
+      Expect.isTrue
+        (Set.contains describedEffect (PlatformSet.effectSurface set))
+        "and its declared capability is in the surface"
+  }
+
+let aManifestNamesEveryProblemAtOnce =
+  test "a bad manifest reports every problem, not the first" {
+    // Plural on purpose. One problem per attempt is a bad afternoon for whoever is writing the
+    // manifest, and the checks are independent so there is no reason to stop at the first.
+    let bad =
+      { goodManifest with
+          owner = "acme corp"
+          name = "Acme Serial"
+          version = -1 }
+    let problems = rejectionOf bad
+    Expect.hasLength problems 3 "three independent problems, three messages"
+    Expect.isTrue
+      (problems |> List.exists (fun p -> p.Contains "owner"))
+      "the owner is named"
+    Expect.isTrue
+      (problems |> List.exists (fun p -> p.Contains "version"))
+      "so is the version"
+  }
+
+let aManifestRefusesWhatCannotCross =
+  test "a manifest refuses parameters that cannot cross a process boundary" {
+    // A bare function parameter is the obvious case. The nested ones matter more, because the
+    // failure would otherwise wait until somebody actually passed a lambda.
+    let withParam (typ : TypeReference) =
+      { goodManifest with
+          fns =
+            [ { name = "acmeReadTag"
+                version = 0
+                parameters = [ ("f", typ) ]
+                returnType = TString
+                effects = Set.empty
+                description = "" } ] }
+
+    let fnType = TFn(NEList.singleton TInt64, TInt64)
+    Expect.isNonEmpty (rejectionOf (withParam fnType)) "a bare function"
+    Expect.isNonEmpty (rejectionOf (withParam (TList fnType))) "a list of functions"
+    Expect.isNonEmpty
+      (rejectionOf (withParam (TDict(TString, fnType))))
+      "a dict holding functions"
+    Expect.isNonEmpty (rejectionOf (withParam (TDB TString))) "a database handle"
+    Expect.isNonEmpty (rejectionOf (withParam (TStream TString))) "a stream"
+
+    // And the control: ordinary nesting is fine, so the check is not just refusing everything.
+    match
+      External.Manifest.toPlatform
+        (fun _ _ -> Ply RT.DUnit)
+        (withParam (TList(TDict(TString, TInt64))))
+    with
+    | Ok _ -> ()
+    | Error r -> failtest $"refused a type that travels fine: {r.problems}"
+  }
+
+let aManifestRefusesADuplicateBuiltin =
+  test "a manifest declaring one builtin twice is refused" {
+    // `Builtin.make` is last-write-wins over a dictionary, so without this the second silently
+    // wins and the manifest describes something the platform does not provide.
+    let fn =
+      match goodManifest.fns with
+      | [ only ] -> only
+      | other -> failtest $"expected one described fn, got {List.length other}"
+    let problems = rejectionOf { goodManifest with fns = [ fn; fn ] }
+    Expect.isTrue
+      (problems |> List.exists (fun p -> p.Contains "more than once"))
+      "the duplicate is named"
+  }
+
 
 let tests =
   testList
@@ -1126,4 +1224,8 @@ let tests =
       aDescribedPlatformComposes
       aDescribedBuiltinRuns
       aDescribedBuiltinIsDeniedWithoutTheGrant
-      aDescribedBuiltinResolvesByName ]
+      aDescribedBuiltinResolvesByName
+      aGoodManifestBecomesAPlatform
+      aManifestNamesEveryProblemAtOnce
+      aManifestRefusesWhatCannotCross
+      aManifestRefusesADuplicateBuiltin ]

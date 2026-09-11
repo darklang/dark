@@ -473,3 +473,110 @@ module External =
           (function
           | _, _, _, args -> invoke index (List.ofArray args)) })
     |> Builtin.make []
+
+
+  /// A whole platform, described. What arrives beside an artifact.
+  ///
+  /// Deliberately close to `Platform` itself, minus the one thing that cannot travel: the builtin
+  /// implementations. Everything else a `PlatformSet` needs to compose, fingerprint and review is
+  /// here, which is what lets the runtime decide whether to accept a platform before it has run a
+  /// line of its code.
+  type Manifest =
+    {
+      owner : string
+      name : string
+      version : int
+      description : string
+      requires : List<string>
+      requiresStore : bool
+      fns : List<Fn>
+    }
+
+  /// Why a manifest was refused. Plural, because a person fixing one wants every problem at once
+  /// rather than one per attempt.
+  type Rejection = { manifest : string; problems : List<string> }
+
+  module Manifest =
+    /// `owner/name`, the coordinate a consumer pins.
+    let coordinate (m : Manifest) : string = $"{m.owner}/{m.name}@{m.version}"
+
+    /// Can a value of this type cross a pipe?
+    ///
+    /// Recursive on purpose. A bare `TFn` parameter is the obvious case, but `List<Int -> Int>`
+    /// and a dict of them cannot travel either, and finding that out when somebody finally passes
+    /// a lambda is much worse than finding it out at install.
+    ///
+    /// `TDB` and `TStream` are refused for the same reason in different words: both are handles
+    /// into state this runtime owns, and their meaning does not survive leaving the process.
+    let rec private travels (typ : TypeReference) : bool =
+      match typ with
+      | TFn _ -> false
+      | TDB _ -> false
+      | TStream _ -> false
+      | TList inner -> travels inner
+      | TDict(key, value) -> travels key && travels value
+      | TTuple(a, b, rest) -> travels a && travels b && List.forall travels rest
+      | TCustomType(_, typeArgs) -> List.forall travels typeArgs
+      | _ -> true
+
+    let private nameShape =
+      System.Text.RegularExpressions.Regex(
+        @"^[a-zA-Z][a-zA-Z0-9_]*$",
+        System.Text.RegularExpressions.RegexOptions.Compiled
+      )
+
+    /// Every problem with a manifest, or an empty list.
+    ///
+    /// Checks the SHAPE, not the truth. That the platform can do what it claims is not knowable
+    /// from here and never will be; what is knowable is that the claim is well formed, that the
+    /// signatures can cross, and that the effects it names are effects.
+    let problems (m : Manifest) : List<string> =
+      let platformNames =
+        [ if not (nameShape.IsMatch m.name) then
+            $"platform name '{m.name}' is not a plain identifier"
+          if not (nameShape.IsMatch m.owner) then
+            $"owner '{m.owner}' is not a plain identifier"
+          if m.version < 0 then $"version {m.version} is negative" ]
+
+      let duplicates =
+        m.fns
+        |> List.countBy (fun fn -> (fn.name, fn.version))
+        |> List.filter (fun (_, count) -> count > 1)
+        |> List.map (fun ((name, version), _) ->
+          $"builtin '{name}@{version}' is declared more than once")
+
+      let perFn =
+        m.fns
+        |> List.collect (fun fn ->
+          [ if not (nameShape.IsMatch fn.name) then
+              $"builtin name '{fn.name}' is not a plain identifier"
+            if fn.version < 0 then $"builtin '{fn.name}' has a negative version"
+            for (paramName, typ) in fn.parameters do
+              if not (travels typ) then
+                $"builtin '{fn.name}' takes '{paramName}' of a type that cannot cross a process boundary"
+            if not (travels fn.returnType) then
+              $"builtin '{fn.name}' returns a type that cannot cross a process boundary" ])
+
+      platformNames @ duplicates @ perFn
+
+    /// Turn a manifest into a platform, or say why not.
+    ///
+    /// This is the whole reason a manifest is data. A call site compiles against a signature, so
+    /// the runtime has to know the signature; it cannot ask a process it has not started, and it
+    /// should not start one it has not checked.
+    ///
+    /// `dynamicEffects` is empty and there is no field for it. Those are effects a builtin requests
+    /// from inside its own body, which means from inside code this runtime is running. A platform
+    /// on the other side of a pipe has no such path: everything it can do is in `fns`.
+    let toPlatform (invoke : Invoke) (m : Manifest) : Result<Platform, Rejection> =
+      match problems m with
+      | [] ->
+        Ok
+          { name = m.name
+            version = m.version
+            description = m.description
+            builtins = builtins invoke m.fns
+            requires = m.requires
+            dynamicEffects = Set.empty
+            requiresStore = m.requiresStore }
+      | problems -> Error { manifest = coordinate m; problems = problems }
