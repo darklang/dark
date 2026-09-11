@@ -791,9 +791,11 @@ module TypingATypeDoesNotThrow =
     let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (TypingATypeDoesNotThrow.reg ()) (TypingATypeDoesNotThrow.typeHole ()) 80) (TypingATypeDoesNotThrow.chars src)
     Darklang.Fluid.Debug.render st.reg 80 st.root
 
-  // The sequence that threw. What it draws is not what anyone wanted -- a function type cannot be typed
-  // at all yet, see fluid-TODOs -- but it draws SOMETHING, which is the whole assertion.
-  (TypingATypeDoesNotThrow.drawn "(Int64 -> String)") = "(Int64 * ->String)"
+  // The sequence that threw. It draws the right TYPE now that an arrow wraps, and one redundant pair of
+  // brackets: `(` in a type hole opens a TUPLE, the arrow wraps its first element, and the `)` collapses
+  // a one-element tuple to a group that the drawing keeps. Recorded in fluid-TODOs with the two-parameter
+  // signature, which is the same `(`.
+  (TypingATypeDoesNotThrow.drawn "(Int64 -> String)") = "((Int64 -> String))"
 
   // The ones that do type back, so the crash fix is pinned next to the behaviour it must not disturb.
   (TypingATypeDoesNotThrow.drawn "Int64") = "Int64"
@@ -861,3 +863,27 @@ module AKeywordYouCouldHaveMeantIsNotRetyped =
   // What belongs here is the other half of the narrowing: a name that is NOT a candidate still clears.
   // `Lis` is a prefix of `List` and not an exact match, so it is not something you could have meant.
   (AKeywordYouCouldHaveMeantIsNotRetyped.drawn "List<Lis") = "List<Lis>"
+
+
+module TypingAFunctionType =
+  // A function type could be READ and never written: the `->` went nowhere and `Int64 -> String` typed
+  // out as `Int64`. The same shape an enum case in a type declaration had before `opensItems`, and it
+  // wants the same kind of answer -- a rule the language already has, claimed by the spec.
+  //
+  // A WRAP rule, not a hole rule, the same as a cons pattern: an arrow acts on a type you already have.
+  // The `>` after the `-` is swallowed by the rule that handles a two-character operator the construct
+  // has drawn for you, which is how `|>` and `::` already work.
+  let drawn (src: String) : String = TypingATypeDoesNotThrow.drawn src
+
+  (TypingAFunctionType.drawn "Int64 -") = "Int64 -> <return>"
+  (TypingAFunctionType.drawn "Int64 ->") = "Int64 -> <return>"
+  (TypingAFunctionType.drawn "Int64 -> String") = "Int64 -> String"
+
+  // An arrow chain nests to the RIGHT, which is what the arrow means, and Fluid brackets the nesting the
+  // way the printer does rather than flattening it.
+  (TypingAFunctionType.drawn "Int64 -> String -> Bool") = "Int64 -> (String -> Bool)"
+
+  // A type with no arrow in it is untouched, so the pin is about the wrap and not about `-`.
+  (TypingAFunctionType.drawn "Int64") = "Int64"
+  (TypingAFunctionType.drawn "(Int64 * String)") = "(Int64 * String)"
+  (TypingAFunctionType.drawn "List<Int64>") = "List<Int64>"

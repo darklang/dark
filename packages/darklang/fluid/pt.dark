@@ -1312,6 +1312,21 @@ let wrapMatchOr (pat: Node) (c: String) : Node =
 
 /// `::` makes a cons pattern: the current pattern is the head, a fresh hole the tail. `::` is
 /// right-associative, so `a :: b :: c` nests to the right, which is what typing it left-to-right builds.
+/// `Int64` then `-` gives `Int64 -> <return>`: the type you have becomes the function's first argument.
+///
+/// A WRAP rule rather than a hole rule, the same as a cons pattern next door, and for the same reason: an
+/// arrow acts on a type you already have. Without it a function type could be READ and never written --
+/// the `->` went nowhere and `Int64 -> String` typed out as `Int64`, which is the same shape the enum
+/// case in a type declaration had before `opensItems`.
+///
+/// The `>` after the `-` is swallowed by the rule that already handles a two-character operator the
+/// construct has drawn for you, which is how `|>` and `::` work.
+let wrapFnType (arg: Node) (c: String) : Node =
+  Node.make
+    (Types.typeKind "TFn")
+    [ ("args", Field.Many([ Slot.Filled arg ], Types.typeExpect "arg"))
+      ("ret", Field.One(Slot.Empty(Types.typeExpect "return"))) ]
+
 let wrapListCons (head: Node) (c: String) : Node =
   Node.make
     (matchPatKind "MPListCons")
@@ -3194,7 +3209,8 @@ module Types =
           [ HoleRule { onChar = "'"; fill = HoleFill.Node(Node.make (typeKind "TVariable") [ PT.text "name" "" ]) }
             HoleRule { onChar = "["; fill = HoleFill.Node(Node.make (typeKind "TList") [ ("arg", Field.One(Slot.Empty(typeExpect "item"))) ]) }
             HoleRule { onChar = "("; fill = HoleFill.Node(Node.make (typeKind "TTuple") [ ("items", Field.Many([ Slot.Empty(typeExpect "a"), Slot.Empty(typeExpect "b") ], typeExpect "type")) ]) } ]
-        wrapRules = []
+        wrapRules =
+          [ WrapRule { onChar = "-"; wrap = wrapFnType; opSlot = ""; nextSlot = "ret"; continuesText = false } ]
         textClasses = []
         maxItems = Spec.noMaxItems
         noSequence = []
