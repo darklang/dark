@@ -40,7 +40,10 @@ type State =
     paletteFilter: String
     paletteIndex: Int
     /// The last node yanked (NAV `y`), to put elsewhere (NAV `p`). A whole subtree, not text.
-    clipboard: Stdlib.Option.Option<Node>
+    /// The nodes last yanked or cut, to put elsewhere. A LIST, because a selection can be a run of
+    /// siblings; empty when there is nothing to put. One node is the ordinary case and stays a
+    /// one-element list rather than a separate shape.
+    clipboard: List<Node>
     /// The text run currently being typed into, so a run of characters is ONE undo step rather than one
     /// per keystroke. `None` outside a typing run; any structural edit or Esc clears it.
     lastTyped: Stdlib.Option.Option<String>
@@ -117,7 +120,7 @@ let init (reg: Registry) (root: Slot) (width: Int) : State =
       paletteOpen = false
       paletteFilter = ""
       paletteIndex = 0
-      clipboard = Stdlib.Option.Option.None
+      clipboard = []
       lastTyped = Stdlib.Option.Option.None
       lastChar = Stdlib.Option.Option.None
       message = ""
@@ -1075,6 +1078,35 @@ let changeNode (st: State) : State =
 
 /// Clear the current node back to a hole.
 let clearNode (st: State) : State =
+  let paths = selectedPaths st
+  if (Stdlib.List.length paths) > 1 then
+    // A RANGE clears to one hole rather than several. Three statements selected and deleted leaves the
+    // place they were, not three empty places: an empty slot is something still to fill, and a range
+    // delete is not a request for three of those. The first item becomes the hole and the rest are
+    // removed, highest index first so the earlier removals do not shift the later ones.
+    match (Stdlib.List.head paths, enclosingListItem st.caret) with
+    | (Some firstPath, Some _) ->
+      let e = expectForSlot st firstPath
+      let removals =
+        paths
+        |> Stdlib.List.tail
+        |> Stdlib.Option.withDefault []
+        |> Stdlib.List.reverse
+        |> Stdlib.List.filterMap (fun p ->
+          match (Path.parent p, Path.last p) with
+          | (Some par, Some(Item(slot, i))) -> Stdlib.Option.Option.Some(Edit.RemoveItem(par, slot, i))
+          | _ -> Stdlib.Option.Option.None)
+      let st1 =
+        commit
+          st
+          (Stdlib.List.append [ Edit.Replace(firstPath, Slot.Empty e) ] removals)
+          (navCaretFor st.root firstPath)
+      { st1 with
+          caret = navCaretFor st1.root firstPath
+          anchor = Stdlib.Option.Option.None
+          message = "cleared " ++ (Stdlib.Int.toString (Stdlib.List.length paths)) ++ " nodes" }
+    | _ -> { st with message = "nothing to clear" }
+  else
   let here = navPath st
   match slotAtPath st.root here with
   | Some(Filled _) ->
@@ -1145,29 +1177,25 @@ let moveSibling (st: State) (delta: Int) : State =
 
 
 /// Copy the node under the caret into the clipboard (a whole subtree).
-/// Yank every node in the selection. One node is the ordinary case; a range is a run of siblings, and
-/// the clipboard holds only one node, so a range yanks the FIRST and says how many it could not take.
-///
-/// Deliberately not silently yanking one of several: a `y` that looks like it took three things and
-/// took one is worse than a `y` that says so.
+/// What the selection names, as nodes. Empty if any of them cannot be read.
+let selectedNodes (st: State) : List<Node> =
+  selectedPaths st |> Stdlib.List.filterMap (fun p -> nodeAtPath st.root p)
+
+/// How to describe a yank or a cut: the node's own short name when there is one, a count when more.
+let clipboardSummary (ns: List<Node>) : String =
+  match ns with
+  | [ n ] -> crumbName n
+  | ns -> (Stdlib.Int.toString (Stdlib.List.length ns)) ++ " nodes"
+
+/// Yank every node in the selection. One node is the ordinary case; a range takes the whole run.
 let yankNode (st: State) : State =
-  let paths = selectedPaths st
-  if (Stdlib.List.length paths) > 1 then
-    match Stdlib.List.head paths |> Stdlib.Option.andThen (fun p -> nodeAtPath st.root p) with
-    | Some n ->
-      { st with
-          clipboard = Stdlib.Option.Option.Some n
-          anchor = Stdlib.Option.Option.None
-          message =
-            "yanked " ++ (crumbName n) ++ " (the clipboard holds one node, "
-            ++ (Stdlib.Int.toString ((Stdlib.List.length paths) - 1)) ++ " not taken)" }
-    | None -> { st with message = "nothing to yank" }
-  else
-  match nodeAtPath st.root (navPath st) with
-  // The SHORT name, the one the breadcrumb uses. `Kind.toString` is the fully qualified type, so a yank
-  // said "yanked Darklang.LanguageTools.ProgramTypes.Expr.EInt" for copying a `1`.
-  | Some n -> { st with clipboard = Stdlib.Option.Option.Some n; message = "yanked " ++ (crumbName n) }
-  | None -> { st with message = "nothing to yank" }
+  match selectedNodes st with
+  | [] -> { st with message = "nothing to yank" }
+  | ns ->
+    { st with
+        clipboard = ns
+        anchor = Stdlib.Option.Option.None
+        message = "yanked " ++ (clipboardSummary ns) }
 
 /// Put the clipboard node into the slot under the caret (a hole, a partial, or over a node).
 ///
@@ -1176,23 +1204,43 @@ let yankNode (st: State) : State =
 /// literal, which is not a shape the language has. An editor whose whole promise is that you cannot build
 /// something ill-formed by editing has to check this, and it is the same test a hole applies to a
 /// candidate: by kind TYPE, so any case of the right thing fits.
+/// Several nodes go in as SIBLINGS, which is the only reading that preserves what was cut: a run of
+/// statements put back is a run of statements. So the first replaces what is under the caret and the
+/// rest are inserted after it, which needs the caret to be in a list. Putting three nodes onto a
+/// single slot has no meaning and says so rather than silently taking the first.
 let putNode (st: State) : State =
   match st.clipboard with
-  | None -> { st with message = "clipboard is empty" }
-  | Some n ->
+  | [] -> { st with message = "clipboard is empty" }
+  | first :: rest ->
     let here = navPath st
     let e = expectForSlot st here
 
     let fits =
       match e.kind with
-      | Some k -> Kind.sameType n.kind k
+      | Some k -> Kind.sameType first.kind k
       | None -> true
 
-    if fits then
-      let st1 = commit st [ Edit.Replace(here, Slot.Filled n) ] st.caret
-      { st1 with caret = navCaretFor st1.root here; message = "put " ++ (crumbName n) }
+    if Stdlib.Bool.not fits then
+      { st with message = "can't put " ++ (crumbName first) ++ " into " ++ e.label }
+    elif Stdlib.List.isEmpty rest then
+      let st1 = commit st [ Edit.Replace(here, Slot.Filled first) ] st.caret
+      { st1 with caret = navCaretFor st1.root here; message = "put " ++ (crumbName first) }
     else
-      { st with message = "can't put " ++ (crumbName n) ++ " into " ++ e.label }
+      match enclosingListItem st.caret with
+      | None ->
+        { st with
+            message =
+              "can't put " ++ (Stdlib.Int.toString (Stdlib.List.length st.clipboard))
+              ++ " nodes here: " ++ e.label ++ " takes one" }
+      | Some entry ->
+        let (parentPath, slot, i) = entry
+        let inserts =
+          rest
+          |> Stdlib.List.indexedMap (fun k n -> Edit.InsertItem(parentPath, slot, i + k + 1, Slot.Filled n))
+        let st1 = commit st (Stdlib.List.append [ Edit.Replace(here, Slot.Filled first) ] inserts) st.caret
+        { st1 with
+            caret = navCaretFor st1.root here
+            message = "put " ++ (clipboardSummary st.clipboard) }
 
 
 // --- INSERT: typing ---
