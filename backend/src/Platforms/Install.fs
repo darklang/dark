@@ -75,3 +75,47 @@ let resolve
 
     return Platform.Written.resolve (fun name -> Map.tryFind name found) written
   }
+
+
+/// Read a platform manifest that lives in the package store as a `val`.
+///
+/// Manifests ride sync this way rather than through `package_blobs`, which does not sync: a
+/// persistent blob serializes as a hash and a length, and the bytes never leave the machine that
+/// wrote them. A package value is text, is content-addressed, is approvable and pinnable like any
+/// other package item, and is authored the way everything else is.
+///
+/// The ARTIFACTS do not ride this. They are large, per target, and lazily needed, so they are
+/// fetched by hash and verified (`Platforms.Artifacts`). A manifest is the small reviewable half
+/// and it is the half that should follow you between machines.
+let manifestFrom
+  (pm : PT.PackageManager)
+  (location : PT.PackageLocation)
+  : Ply<Result<Platform.External.Manifest, Platform.External.Rejection>> =
+  uply {
+    let notFound (why : string) =
+      let coordinate =
+        String.concat "." (location.owner :: location.modules @ [ location.name ])
+      Error
+        ({ manifest = coordinate; problems = [ why ] } : Platform.External.Rejection)
+
+    match! pm.findValue location with
+    | None -> return notFound "no such package value"
+    | Some hash ->
+      match! pm.getValue hash with
+      | None -> return notFound "the value resolved to a hash the store does not have"
+      | Some value ->
+        // A manifest is a string LITERAL, not an expression that computes one. Anything else would
+        // mean running package code to find out what a platform claims, which is the wrong order:
+        // the manifest is what you read BEFORE deciding to trust it.
+        match value.body with
+        | PT.EString(_, [ PT.StringText text ]) ->
+          match Platform.Written.parse text with
+          | Error problems ->
+            let coordinate =
+              String.concat "." (location.owner :: location.modules @ [ location.name ])
+            return
+              Error
+                ({ manifest = coordinate; problems = problems } : Platform.External.Rejection)
+          | Ok written -> return! resolve pm written
+        | _ -> return notFound "a manifest must be a plain string literal"
+  }

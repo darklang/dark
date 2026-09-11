@@ -1634,6 +1634,87 @@ let anArtifactHashCannotBeAPath =
         "upper case is not the hash we store under")
   }
 
+// ── a manifest stored as a package value ──────────────────────────────────────
+
+let private manifestLocation : PT.PackageLocation =
+  { owner = "acme"; modules = [ "AcmeSerial" ]; name = "manifest" }
+
+/// A package manager holding one manifest value, the way the store would after installing.
+let private pmWithManifest (body : PT.Expr) : PT.PackageManager =
+  let hash = PT.FQValueName.package "manifest-under-test"
+  { TestValues.pm with
+      findValue =
+        fun loc ->
+          if loc = manifestLocation then Ply(Some hash) else TestValues.pm.findValue loc
+      getValue =
+        fun h ->
+          if h = hash then
+            Ply(
+              Some
+                ({ hash = h; description = "a platform manifest"; body = body }
+                 : PT.PackageValue.PackageValue)
+            )
+          else
+            TestValues.pm.getValue h }
+
+let private stringLiteral (text : string) : PT.Expr =
+  PT.EString(0UL, [ PT.StringText text ])
+
+let aManifestInTheStoreResolves =
+  testTask "a manifest stored as a package value reads back and resolves" {
+    // Manifests ride sync this way rather than through package_blobs, which does not sync. A value
+    // is text, content-addressed, approvable and pinnable, and authored like everything else.
+    let text =
+      """DARK-PLATFORM-MANIFEST 1
+owner acme
+name AcmeSerial
+version 0
+store no
+artifact linux-x64 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+fn acmeReadTag 0
+param port String
+returns String
+effect acme/serial
+"""
+    let! (result : Result<External.Manifest, External.Rejection>) =
+      Platforms.Install.manifestFrom (pmWithManifest (stringLiteral text)) manifestLocation
+      |> Ply.toTask
+    match result with
+    | Error r -> failtest $"should have read the manifest: {r.problems}"
+    | Ok manifest ->
+      Expect.equal manifest.name "AcmeSerial" "the platform it describes"
+      Expect.equal
+        (External.Manifest.artifactFor "linux-x64" manifest)
+        (Some "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+        "and the executable it names for this target"
+  }
+
+let aManifestMustBeALiteral =
+  testTask "a manifest that is computed rather than written is refused" {
+    // Running package code to find out what a platform CLAIMS is the wrong order. The manifest is
+    // what you read before deciding to trust it, so it has to be a literal rather than an
+    // expression that produces one.
+    let computed = PT.EApply(0UL, stringLiteral "not", [], NEList.singleton (stringLiteral "ok"))
+    let! (result : Result<External.Manifest, External.Rejection>) =
+      Platforms.Install.manifestFrom (pmWithManifest computed) manifestLocation |> Ply.toTask
+    match result with
+    | Ok _ -> failtest "accepted a manifest that was not a literal"
+    | Error r ->
+      Expect.isTrue
+        (r.problems |> List.exists (fun p -> p.Contains "literal"))
+        "and says why"
+  }
+
+let aMissingManifestSaysSo =
+  testTask "asking for a manifest that is not there says so rather than raising" {
+    let! (result : Result<External.Manifest, External.Rejection>) =
+      Platforms.Install.manifestFrom TestValues.pm manifestLocation |> Ply.toTask
+    match result with
+    | Ok _ -> failtest "found a manifest in an empty store"
+    | Error r -> Expect.isNonEmpty r.problems "with a reason"
+  }
+
 
 let tests =
   testList
@@ -1691,4 +1772,7 @@ let tests =
       testSequenced anArtifactIsCachedUnderItsOwnHash
       testSequenced anArtifactThatLiesIsRefusedBeforeTheWrite
       testSequenced aTamperedArtifactFailsVerification
-      testSequenced anArtifactHashCannotBeAPath ]
+      testSequenced anArtifactHashCannotBeAPath
+      aManifestInTheStoreResolves
+      aManifestMustBeALiteral
+      aMissingManifestSaysSo ]
