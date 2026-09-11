@@ -309,6 +309,19 @@ type Spec =
     /// back together when the hole between them goes. All four are about the shape and none is about
     /// strings.
     segments: Stdlib.Option.Option<(String * String)>
+
+    /// A construct that is a SEQUENCE of two: the slot holding what came before, then the slot holding
+    /// what comes next. Darklang's is `EStatement`, which a newline builds.
+    ///
+    /// What needs it: an operator typed at the very start of the fresh second half was meant for the
+    /// FIRST half. `xs` then Enter then `|>` is the printer's own multi-line pipe, written whenever the
+    /// stages do not fit on one line; without this the `|` went in as text and gave `xs / |>List.length`.
+    ///
+    /// It cannot be read off the pieces, and that is the whole reason it is a field. "The last slot, with
+    /// a filled one before it" describes a let's BODY just as well as a statement's second half -- and
+    /// piping a let's VALUE from the body position would be wrong, because a body is not a continuation of
+    /// a value. Only the construct knows, so the construct says.
+    sequence: Stdlib.Option.Option<(String * String)>
     /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
     /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
     /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
@@ -415,6 +428,7 @@ module Spec =
         closer = Stdlib.Option.Option.None
         operands = Stdlib.Option.Option.None
         segments = Stdlib.Option.Option.None
+        sequence = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         collapsesWhenEmptied = Stdlib.Option.Option.None
         textSlot = Stdlib.Option.Option.None
@@ -460,6 +474,10 @@ module Spec =
   /// A spec that says its content is text with embedded holes: the list slot, and the case holding text.
   let withSegments (spec: Spec) (slot: String) (textCase: String) : Spec =
     { spec with segments = Stdlib.Option.Option.Some((slot, textCase)) }
+
+  /// A spec that says it is a sequence of two: what came before, then what comes next.
+  let withSequence (spec: Spec) (before: String) (next: String) : Spec =
+    { spec with sequence = Stdlib.Option.Option.Some((before, next)) }
 
   /// A spec that says which of its children survives when the construct is deleted.
   let collapsingTo (spec: Spec) (slot: String) : Spec =

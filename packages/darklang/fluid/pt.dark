@@ -1870,6 +1870,7 @@ let pipeTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       segments = Stdlib.Option.Option.None
+      sequence = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -2276,6 +2277,7 @@ let exprTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       segments = Stdlib.Option.Option.None
+      sequence = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -2369,6 +2371,7 @@ let letPatTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       segments = Stdlib.Option.Option.None
+      sequence = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -2439,6 +2442,7 @@ let matchPatTypeSpec () : Spec =
       closer = Stdlib.Option.Option.None
       operands = Stdlib.Option.Option.None
       segments = Stdlib.Option.Option.None
+      sequence = Stdlib.Option.Option.None
       collapsesTo = Stdlib.Option.Option.None
       collapsesWhenEmptied = Stdlib.Option.Option.None
       textSlot = Stdlib.Option.Option.None
@@ -2873,7 +2877,12 @@ let baseSpecs () : List<Spec> =
           ("args", Field.Many([ Slot.Empty(exprExpect "arg") ], exprExpect "arg")) ])
      |> fun sp -> { sp with maxItems = applyMaxItems })
     simpleExpr "EFnName" [ Piece.NameText("name", Layout.Style.Name) ] (Node.make (exprKind "EFnName") [ text "name" "", text "_hash" "" ])
-    simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ])
+    // `withSequence` is what tells the kernel this is two things in a row: an operator typed at the start
+    // of the fresh `next` was meant for whatever is in `first`.
+    Spec.withSequence
+      (simpleExpr "EStatement" [ Piece.Slot "first", Piece.HardLine, Piece.Slot "next" ] (Node.make (exprKind "EStatement") [ ("first", Field.One(Slot.Empty(exprExpect "first"))), ("next", Field.One(Slot.Empty(exprExpect "next"))) ]))
+      "first"
+      "next"
     simpleExpr "Opaque" [ Piece.Text("source", Layout.Style.Dim) ] (Node.make (exprKind "Opaque") [ text "source" "" ])
     simpleLetPat "LPUnit" [ Piece.Label "()" ] (Node.make (letPatKind "LPUnit") [])
     simpleLetPat "LPWildcard" [ Piece.Label "_" ] (Node.make (letPatKind "LPWildcard") [])
@@ -3116,6 +3125,7 @@ module Types =
         closer = Stdlib.Option.Option.None
         operands = Stdlib.Option.Option.None
         segments = Stdlib.Option.Option.None
+        sequence = Stdlib.Option.Option.None
         collapsesTo = Stdlib.Option.Option.None
         collapsesWhenEmptied = Stdlib.Option.Option.None
         textSlot = Stdlib.Option.Option.None

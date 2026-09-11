@@ -4208,15 +4208,31 @@ let lastNodePathUnder (root: Slot) (itemPath: Path) : Stdlib.Option.Option<Path>
 let statementPipeRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
   match st.caret.part with
   | InSlot slot ->
-    if (slot != "next") || (st.caret.offset != 0) then
+    if st.caret.offset != 0 then
       Stdlib.Option.Option.None
     else
       (match nodeAtPath st.root st.caret.node with
        | Some n ->
-         if n.kind.case != Stdlib.Option.Option.Some "EStatement" then
-           Stdlib.Option.Option.None
-         else
-           (match (Node.slot n "next", Node.slot n "first") with
+         // Which construct this is, and which of its slots is the fresh half, comes off the spec. It used
+         // to name EStatement and its two slots; a language whose statement sequence is spelled some other
+         // way could not have this at all.
+         let seq =
+           let fromSpec (spec: Stdlib.Option.Option<Spec>) : Stdlib.Option.Option<(String * String)> =
+             match spec with
+             | Some sp -> sp.sequence
+             | None -> Stdlib.Option.Option.None
+           match fromSpec (Registry.findExact st.reg n.kind) with
+           | Some p -> Stdlib.Option.Option.Some p
+           | None -> fromSpec (Registry.findTypeLevel st.reg n.kind)
+
+         match seq with
+         | None -> Stdlib.Option.Option.None
+         | Some pair ->
+           let (beforeSlot, nextSlot) = pair
+           if slot != nextSlot then
+             Stdlib.Option.Option.None
+           else
+           (match (Node.slot n nextSlot, Node.slot n beforeSlot) with
             | (Some(Empty _), Some(Filled firstNode)) ->
               (match wrapRuleFor st.reg firstNode c with
                | Some rule ->
