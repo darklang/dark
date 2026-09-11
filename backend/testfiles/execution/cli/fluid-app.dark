@@ -29,7 +29,8 @@ module Fixtures =
         confirmingExit = false
         pendingEdit = Stdlib.Option.Option.None
         demo = Stdlib.Option.Option.None
-        demoPick = Stdlib.Option.Option.None }
+        demoPick = Stdlib.Option.Option.None
+        helpOpen = false }
 
   let hole () : Darklang.Fluid.Slot =
     Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
@@ -986,13 +987,125 @@ module ThePanelSaysWhatItCouldNotFit =
     |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
     |> Stdlib.String.join "\n"
 
-  // A normal terminal cannot fit the help, and now says so instead of ending mid-list.
-  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "more, taller window") = true
+  // A normal terminal cannot fit the help, and now says so instead of ending mid-list. The marker names
+  // where the rest is: `?` from the open panel opens the full reference.
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "more, ? for all keys") = true
 
   // The row it replaced is genuinely gone, so the marker is not sitting on top of content that fits.
   (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "q      quit") = false
 
   // Give it the room and there is no marker and nothing missing. This is the assertion that stops the
   // marker from becoming permanent furniture.
-  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "more, taller window") = false
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "more, ? for all keys") = false
   (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "q      quit") = true
+
+
+module TheKeyReference =
+  // The panel could not fit the key list, so `+N more` had nowhere to point. This is where it points.
+  //
+  // Separate from the panel because the two are different things: the panel is CONTEXT (what you are on,
+  // what you can do here) and this is REFERENCE (everything there is, including the mode you are not in).
+  // A sidebar a third of the screen wide cannot hold both, which is the whole finding of the last tick.
+
+  let mapped () : Darklang.Fluid.Registry =
+    let r0 = Darklang.Fluid.Registry.bind (Fixtures.reg ()) "d" Darklang.Fluid.Command.Delete
+    Darklang.Fluid.Registry.bind r0 "z" (Darklang.Fluid.Command.RunAction "convert to match")
+
+  let shown (reg: Darklang.Fluid.Registry) : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init reg (Fixtures.hole ()) 60) [ "<Esc>" ]
+    (Darklang.Fluid.App.view
+      { (Fixtures.stateOf ed) with inspectorOpen = false; helpOpen = true }
+      (Fixtures.size ())).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  // Both modes at once. Which keys exist in the mode you are NOT in is exactly the question a reference
+  // gets opened to answer, and the panel only ever shows one of them.
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "NAV") = true
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "INSERT") = true
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "S-Tab") = true
+
+  // The whole NAV list, on a 26-row terminal, which the panel cannot do. `q quit` is the last row and is
+  // the one the panel drops first, so it is the one worth asserting.
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "q       quit") = true
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "more, taller window") = false
+
+  // The document's own bindings are in it, drawn from the same data the panel uses.
+  (Stdlib.String.contains (TheKeyReference.shown (TheKeyReference.mapped ())) "BOUND HERE") = true
+  (Stdlib.String.contains (TheKeyReference.shown (TheKeyReference.mapped ())) "z       convert to match") = true
+
+  // No keymap, no section, the same as the panel.
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "BOUND HERE") = false
+
+  // The completion menu is suppressed under it, the way it is under the demo gallery: two menus at once
+  // and neither obviously the one the keyboard is talking to.
+  (Stdlib.String.contains (TheKeyReference.shown (Fixtures.reg ())) "bind a name") = false
+
+
+module ThePanelAndTheReferenceCannotDrift =
+  // One list of pairs behind both drawings. This is the precedence lesson applied before it costs
+  // anything: the printer and Fluid each had their own copy of the operator table and the places they
+  // disagreed were found one bug at a time.
+  (Stdlib.List.length (Darklang.Fluid.Widget.navKeyHelp ()) > 0) = true
+  (Stdlib.List.length (Darklang.Fluid.Widget.insertKeyHelp ()) > 0) = true
+
+  // Every NAV pair the reference draws is a row the panel would draw too, given the room.
+  let panelTall () : String =
+    let ed = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.hole ()) 60) [ "<Esc>" ]
+    (Darklang.Fluid.App.view
+      { (Fixtures.stateOf ed) with inspectorOpen = true }
+      (Darklang.Stdlib.Cli.Tui.Size { width = 110; height = 44 })).rows
+    |> Stdlib.List.map (fun r -> Darklang.Stdlib.Cli.Tui.Text.stripSgr r)
+    |> Stdlib.String.join "\n"
+
+  (Darklang.Fluid.Widget.navKeyHelp ()
+   |> Stdlib.List.all (fun pair ->
+     let (k, what) = pair
+     Stdlib.String.contains (ThePanelAndTheReferenceCannotDrift.panelTall ()) what)) = true
+
+
+module QuestionMarkCycles =
+  // One key, three states, in the order you want them: the panel is what you want most of the time, the
+  // reference is what you want when the panel could not fit what it has, closed is where you started.
+
+  let press (st: Darklang.Fluid.App.State) (ch: String) : Darklang.Fluid.App.State =
+    match
+      Darklang.Fluid.App.onKey
+        st
+        Stdlib.Cli.Stdin.Key.Key.NoName
+        (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false })
+        (Stdlib.Option.Option.Some ch)
+    with
+    | Repaint s -> s
+    | Stay s -> s
+    | _ -> st
+
+  let start () : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "1 + 1") 60
+    { (Fixtures.stateOf ed) with editor = { ed with mode = Darklang.Fluid.Editor.Mode.Nav } }
+
+  let where (st: Darklang.Fluid.App.State) : String =
+    if st.helpOpen then "keys"
+    elif st.inspectorOpen then "panel"
+    else "closed"
+
+  (QuestionMarkCycles.where (QuestionMarkCycles.start ())) = "closed"
+  (QuestionMarkCycles.where (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?")) = "panel"
+  (QuestionMarkCycles.where
+    (QuestionMarkCycles.press (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?") "?")) = "keys"
+
+  // ...and any key at all closes it. A reference you have to work out how to close is a reference people
+  // stop opening, and there is nothing in it to interact with: it is a page, not a menu.
+  (QuestionMarkCycles.where
+    (QuestionMarkCycles.press
+      (QuestionMarkCycles.press (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?") "?") "?")) = "closed"
+  (QuestionMarkCycles.where
+    (QuestionMarkCycles.press
+      (QuestionMarkCycles.press (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?") "?") "j")) = "closed"
+
+  // The key that dismissed it does NOT also do its usual job. Closing is the whole press: a `j` that
+  // closed the reference and moved the caret would move it somewhere you could not see.
+  ((QuestionMarkCycles.press
+     (QuestionMarkCycles.press
+       (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?") "?") "j").editor.caret)
+    = (QuestionMarkCycles.start ()).editor.caret

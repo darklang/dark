@@ -372,6 +372,134 @@ let treeRows (theme: Theme.Theme) (st: Editor.State) : List<String> =
 
   Stdlib.List.flatten [ ancestors, [ selfRow ], shown, tail ]
 
+/// The key help, as data, so the panel and the full reference cannot drift apart. They did not yet; this
+/// is the same lesson the precedence table taught, applied before it costs anything.
+///
+/// Second element is short because the panel is a third of the screen and its widest surviving row is 29
+/// columns. The reference has room for more and deliberately does not use it: two wordings for one key is
+/// exactly the drift being avoided.
+let navKeyHelp () : List<(String * String)> =
+  [ ("j/k", "next/prev")
+    ("J/K", "next/prev sibling")
+    ("h/l", "out/in")
+    // Tab moves between HOLES in nav too, which is how you get to the next thing that needs filling
+    // rather than the next node in reading order. It was listed for INSERT and not here, so the panel
+    // said it did not exist in the mode you are in when you open a document.
+    ("Tab", "next hole")
+    ("i c", "edit / change")
+    ("V", "select a range")
+    ("o", "another list item")
+    ("x", "clear")
+    ("y p", "copy / paste")
+    // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
+    // worth a line here rather than only in the actions list.
+    ("^arrows", "move along its list")
+    ("u ^r", "undo / redo")
+    (":", "actions")
+    ("v", "evaluate this")
+    ("^E", "edit as text")
+    ("^S", "save")
+    ("?", "this list")
+    ("q", "quit") ]
+
+/// The bindings that actually fire, oldest live binding first.
+///
+/// `Registry.bind` puts a new binding in FRONT so it shadows an earlier one for the same key, which makes
+/// the raw list most-recent-first and lets it name a key twice. Help that gives one key two meanings is
+/// worse than help that omits it. A rebound key therefore moves to where its NEW binding sits rather than
+/// staying where the one it replaced was.
+let effectiveKeymap (reg: Registry) : List<KeyBinding> =
+  reg.keymap
+  |> Stdlib.List.fold [] (fun acc b ->
+    if acc |> Stdlib.List.any (fun e -> e.key == b.key) then acc
+    else Stdlib.List.append [ b ] acc)
+
+let insertKeyHelp () : List<(String * String)> =
+  [ ("Tab", "next hole")
+    ("S-Tab", "previous hole")
+    // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
+    // record field, a new row in a grid -- and that is the operation you reach for most in a table.
+    ("Enter", "accept / add an item")
+    ("^arrows", "move along its list")
+    ("^E", "edit as text")
+    ("^S", "save")
+    ("Esc", "back to nav") ]
+
+/// Every key there is, drawn over the document.
+///
+/// The panel is a sidebar and cannot hold this. Eighteen NAV rows plus a tree plus the actions list does
+/// not fit a 26-row terminal, which is why the panel's last row says how much it dropped; this is where
+/// that row points. The list itself is the same data the panel draws, so the two cannot drift.
+///
+/// Both modes at once, deliberately. Which keys exist in the mode you are NOT in is exactly the question
+/// a reference is opened to answer, and the panel already only ever shows one of them.
+let keyReference
+  (theme: Theme.Theme)
+  (st: Editor.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let dim (x: String) : String = Stdlib.Cli.UI.Colors.colorize theme.dim x
+  let head (x: String) : String = Stdlib.Cli.UI.Colors.colorize (theme.dim ++ Stdlib.Cli.UI.Colors.bold) x
+
+  let boundPairs =
+    effectiveKeymap st.reg
+    |> Stdlib.List.map (fun b -> (b.key, Command.label b.command))
+
+  let left = Stdlib.List.flatten [ [ ("NAV", "") ], navKeyHelp () ]
+  let right =
+    match boundPairs with
+    | [] -> Stdlib.List.flatten [ [ ("INSERT", "") ], insertKeyHelp () ]
+    | pairs ->
+      Stdlib.List.flatten
+        [ [ ("INSERT", "") ]
+          insertKeyHelp ()
+          [ ("", ""), ("BOUND HERE", "") ]
+          pairs ]
+
+  // The whole region's height, not a margin inside it. This exists because the panel could not fit the
+  // key list, so a reference that keeps a decorative gap and clips the last two rows would be the same
+  // bug wearing a box.
+  let rowsNeeded = (Stdlib.Int.max (Stdlib.List.length left) (Stdlib.List.length right)) + 2
+  let rows = Stdlib.Int.min rowsNeeded (Stdlib.Int.max 6 region.rows)
+  let cols = Stdlib.Int.min 72 (Stdlib.Int.max 24 (region.cols - 6))
+  let top = region.top + (Stdlib.Int.max 0 (Stdlib.Int.divide (region.rows - rows) 2))
+  let boxLeft = region.left + (Stdlib.Int.max 0 (Stdlib.Int.divide (region.cols - cols) 2))
+  let box = Stdlib.Cli.UI.Layout.Region { top = top; left = boxLeft; rows = rows; cols = cols }
+  let inner = Stdlib.Cli.UI.Box.inner box
+  let colWidth = Stdlib.Int.max 12 (Stdlib.Int.divide (inner.cols - 1) 2)
+
+  // A header is a header in both columns; only the key rows get the key/description shape.
+  let cell (pair: (String * String)) (width: Int) : String =
+    let (k, what) = pair
+    if k == "" then Stdlib.String.padEndToWidth "" width
+    elif what == "" then Stdlib.String.padEndToWidth (head k) (width + ((Stdlib.String.length (head k)) - (Stdlib.String.length k)))
+    else dim (Stdlib.String.padEndToWidth (" " ++ (Stdlib.String.padEndToWidth k 8) ++ what) width)
+
+  let lineCount = Stdlib.Int.max (Stdlib.List.length left) (Stdlib.List.length right)
+  let allRows =
+    Stdlib.List.range 0 (lineCount - 1)
+    |> Stdlib.List.map (fun i ->
+      let l = Stdlib.List.getAt left i |> Stdlib.Option.withDefault (("", ""))
+      let r = Stdlib.List.getAt right i |> Stdlib.Option.withDefault (("", ""))
+      (cell l colWidth) ++ " " ++ (cell r colWidth))
+  // ...and if even the whole screen is not enough, say so rather than stopping mid-list. Same convention
+  // as the panel, and for the same reason: the last row of a cut list reads as the end of the list.
+  let over = (Stdlib.List.length allRows) - inner.rows
+  let body =
+    if over <= 0 then
+      allRows
+    else
+      Stdlib.List.append
+        (Stdlib.List.take allRows (Stdlib.Int.max 0 (inner.rows - 1)))
+        [ dim (" +" ++ (Stdlib.Int.toString (over + 1)) ++ " more, taller window") ]
+
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Box.draw box "keys -- any key closes" true
+      body
+      |> Stdlib.List.indexedMap (fun i line ->
+        if i < inner.rows then Stdlib.Cli.UI.Layout.at inner i 0 line else [])
+      |> Stdlib.List.flatten ]
+
 let inspectorWith
   (theme: Theme.Theme)
   (st: Editor.State)
@@ -442,47 +570,15 @@ let inspectorWith
           [ "" ] ]
   // The panel is also the help: the status line carries only the keys you reach for constantly, and the
   // rest live here, which is what makes trimming that line honest rather than a loss.
+  let keyRow (pair: (String * String)) : String =
+    let (k, what) = pair
+    dim ("  " ++ (Stdlib.String.padEndToWidth k 7) ++ what)
   let keyRows =
-    match st.mode with
-    | Nav ->
-      [ ""
-        head "KEYS"
-        dim "  j/k    next/prev"
-        dim "  J/K    next/prev sibling"
-        dim "  h/l    out/in"
-        // Tab moves between HOLES in nav too, which is how you get to the next thing that needs filling
-        // rather than the next node in reading order. It was listed for INSERT and not here, so the panel
-        // said it did not exist in the mode you are in when you open a document.
-        dim "  Tab    next hole"
-        dim "  i c    edit / change"
-        // Short enough to fit: the panel is a third of the screen and the row above it, `^arrows move along
-        // its list` at 29 columns, is the widest thing that survives. The first version of this said
-        // "another item in this list" and came out "another item in this li".
-        dim "  V      select a range"
-        dim "  o      another list item"
-        dim "  x      clear"
-        dim "  y p    copy / paste"
-        // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
-        // worth a line here rather than only in the actions list.
-        dim "  ^arrows move along its list"
-        dim "  u ^r   undo / redo"
-        dim "  :      actions"
-        dim "  v      evaluate this"
-        dim "  ^E     edit as text"
-        dim "  ^S     save"
-        dim "  q      quit" ]
-    | Insert ->
-      [ ""
-        head "KEYS"
-        dim "  Tab    next hole"
-        dim "  S-Tab  previous hole"
-        // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
-        // record field, a new row in a grid -- and that is the operation you reach for most in a table.
-        dim "  Enter  accept / add an item"
-        dim "  ^arrows move along its list"
-        dim "  ^E     edit as text"
-        dim "  ^S     save"
-        dim "  Esc    back to nav" ]
+    let pairs =
+      match st.mode with
+      | Nav -> navKeyHelp ()
+      | Insert -> insertKeyHelp ()
+    Stdlib.List.flatten [ [ "", head "KEYS" ], pairs |> Stdlib.List.map keyRow ]
   // Keys the DOCUMENT bound. A hard-coded KEYS list means the one set of
   // keys the panel cannot tell you about is the set you added yourself, which is the opposite of what
   // "nothing hidden" is for. Shown in both modes, because a keymap is not a NAV thing; the keys simply
@@ -490,19 +586,9 @@ let inspectorWith
   let boundRows =
     match st.reg.keymap with
     | [] -> []
-    | bindings ->
-      // `bind` puts a new binding in FRONT so it shadows an earlier one for the same key, which makes the
-      // list most-recent-first and lets it name a key twice. The panel is help text, and a key listed
-      // twice with two meanings is worse than not listing it, so: each key once, the binding that
-      // actually fires, oldest live binding first. A rebound key therefore moves to where its NEW
-      // binding sits rather than staying where the one it replaced was.
-      let effective =
-        bindings
-        |> Stdlib.List.fold [] (fun acc b ->
-          if acc |> Stdlib.List.any (fun e -> e.key == b.key) then acc
-          else Stdlib.List.append [ b ] acc)
+    | _ ->
       let rows =
-        effective
+        effectiveKeymap st.reg
         |> Stdlib.List.map (fun b ->
           let key = Stdlib.String.padEndToWidth b.key 7
           dim ("  " ++ key ++ (Command.label b.command)))
@@ -540,7 +626,7 @@ let inspectorWith
       // The marker takes a row of its own, so it has to count itself.
       Stdlib.List.append
         (Stdlib.List.take rows (Stdlib.Int.max 0 (region.rows - 1)))
-        [ dim ("  +" ++ (Stdlib.Int.toString (overflow + 1)) ++ " more, taller window") ]
+        [ dim ("  +" ++ (Stdlib.Int.toString (overflow + 1)) ++ " more, ? for all keys") ]
   fitted
   |> Stdlib.List.indexedMap (fun i line ->
     if i < region.rows then Stdlib.Cli.UI.Layout.at region i 0 line else [])

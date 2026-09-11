@@ -120,7 +120,12 @@ type State =
 
     /// The gallery list, when it is showing. `Stdlib.Cli.UI.Picker` already does this job -- labels in, a
     /// chosen index out -- so this is the widget rather than another list-with-a-cursor.
-    demoPick: Stdlib.Option.Option<Stdlib.Cli.UI.Picker.State> }
+    demoPick: Stdlib.Option.Option<Stdlib.Cli.UI.Picker.State>
+
+    /// The full key reference, drawn over the document. Separate from `inspectorOpen` because the panel is
+    /// CONTEXT (what you are on, what you can do here) and this is REFERENCE (everything there is,
+    /// including the mode you are not in), and a sidebar a third of the screen wide cannot hold both.
+    helpOpen: Bool }
 
 /// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
 /// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
@@ -276,7 +281,8 @@ let loadDemo (st: State) (i: Int) : State =
         savedRoot = root
         evaluated = Stdlib.Option.Option.None
         demo = Stdlib.Option.Option.Some i
-        demoPick = Stdlib.Option.Option.None }
+        demoPick = Stdlib.Option.Option.None
+      helpOpen = false }
   | None -> st
 
 /// Launch a state that has already been prepared, for the gallery, which opens with a document loaded
@@ -521,7 +527,8 @@ let initialWith (reg: Registry) (title: String) (root: Slot) (target: Target) : 
       confirmingExit = false
       pendingEdit = Stdlib.Option.Option.None
       demo = Stdlib.Option.Option.None
-      demoPick = Stdlib.Option.Option.None }
+      demoPick = Stdlib.Option.Option.None
+      helpOpen = false }
 
 /// The module the document being edited lives in, so names on screen read the way they read in the
 /// source: standing in `Darklang.LanguageTools.ProgramTypes`, `Darklang.LanguageTools.ID` is `ID`. Every
@@ -553,7 +560,8 @@ let initialFor (title: String) (root: Slot) (target: Target) : State =
       confirmingExit = false
       pendingEdit = Stdlib.Option.Option.None
       demo = Stdlib.Option.Option.None
-      demoPick = Stdlib.Option.Option.None }
+      demoPick = Stdlib.Option.Option.None
+      helpOpen = false }
 
 let initial (title: String) (root: Slot) : State =
   initialFor title root Target.Scratch
@@ -585,7 +593,9 @@ let helpFor (st: State) : String =
     else
       let hasActions = Stdlib.Bool.not (Stdlib.List.isEmpty (Editor.paletteActions st.editor))
       let actionsKey = if hasActions then "  : actions" else ""
-      let panelKey = if st.inspectorOpen then "  ? hide" else "  ? panel"
+      // `?` cycles rather than toggles now, so the footer has to name the NEXT state or it lies: pressing
+      // `?` with the panel open no longer hides anything, it opens the full reference.
+      let panelKey = if st.inspectorOpen then "  ? keys" else "  ? panel"
       let evalKey = "  v value"
       // Only the keys reached for constantly. The rest are in the panel, which `?` opens -- the status
       // line used to run past the right edge and read `q qu`.
@@ -674,7 +684,9 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   // menu drew straight through the list behind it -- two menus at once, and neither obviously the one
   // the keyboard was talking to.
   let popoverSpans =
-    if Stdlib.Option.isSome st.demoPick then []
+    // The reference owns the screen the same way the gallery does, and for the same reason: two menus at
+    // once, neither obviously the one the keyboard is talking to.
+    if (Stdlib.Option.isSome st.demoPick) || st.helpOpen then []
     else Widget.popover st.theme st.editor region st.scroll st.hscroll
   let mainSpans =
     Stdlib.List.flatten
@@ -764,7 +776,9 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
         (Widget.inspectorWith st.theme st.editor (Stdlib.Cli.UI.Box.inner inspArea) (Stdlib.List.append docRows valueRows))
     else
       []
-  let body = Stdlib.List.append mainSpans inspSpans
+  let helpSpans =
+    if st.helpOpen then Widget.keyReference st.theme st.editor region else []
+  let body = Stdlib.List.flatten [ mainSpans, inspSpans, helpSpans ]
   let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
   match st.editor.mode with
   | Insert ->
@@ -1069,10 +1083,22 @@ let onKey
     let at = st.demo |> Stdlib.Option.withDefault 0
     let pick = Stdlib.Cli.UI.Picker.moveTo (Stdlib.Cli.UI.Picker.make (demoLabels ())) at
     Darklang.Cli.Component.Step.Stay { st with demoPick = Stdlib.Option.Option.Some pick }
+  elif st.helpOpen && (st.editor.mode == Editor.Mode.Nav) then
+    // The reference owns the keyboard while it is up, and ANY key dismisses it. A reference you have to
+    // work out how to close is a reference people stop opening, and there is nothing in it to interact
+    // with: it is a page, not a menu.
+    let closed = { st with helpOpen = false }
+    Darklang.Cli.Component.Step.Stay(afterKey closed closed.editor)
   elif (keyChar == Stdlib.Option.Option.Some "?") && (st.editor.mode == Editor.Mode.Nav) && (Stdlib.Bool.not st.editor.paletteOpen) then
     // NAV only: in INSERT a `?` is a character you are typing.
-    let toggled = { st with inspectorOpen = Stdlib.Bool.not st.inspectorOpen }
-    Darklang.Cli.Component.Step.Stay(afterKey toggled toggled.editor)
+    //
+    // One key, three states, in the order you want them: the panel is the thing you want most of the
+    // time, the reference is the thing you want when the panel could not fit what it has, and closed is
+    // where you started. The panel's overflow row says `? for all keys`, which is this.
+    let cycled =
+      if Stdlib.Bool.not st.inspectorOpen then { st with inspectorOpen = true }
+      else { st with inspectorOpen = false; helpOpen = true }
+    Darklang.Cli.Component.Step.Stay(afterKey cycled cycled.editor)
   elif modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.E) then
     let settled = Editor.resolvePartial st.editor |> Stdlib.Option.withDefault st.editor
     // From NAV, edit just the selected node; otherwise the whole document. Editing one branch of a big
