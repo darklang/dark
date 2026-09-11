@@ -1938,6 +1938,67 @@ let aSpawnedPlatformAnswers =
       LibDB.PlatformSpawn.stop handle
   }
 
+let theSandboxFollowsTheDeclaration =
+  test "what a platform declared decides how its process is confined" {
+    // Three branches, and the one that matters most is the third: a platform that can reach
+    // anything gets no confinement and is told so, rather than a namespace that would read as
+    // more than it is.
+    let confined = LibDB.PlatformSandbox.plan (Set.singleton describedEffect) "/x"
+    let asked =
+      LibDB.PlatformSandbox.plan (Set.singleton Effects.Effect.Http) "/x"
+    let unscopeable =
+      LibDB.PlatformSandbox.plan (Set.singleton Effects.Effect.Native) "/x"
+
+    // Only meaningful where a namespace can actually be entered; elsewhere all three say why not,
+    // which is the correct answer on that machine and not a failure.
+    if confined.confinement.StartsWith "no network" then
+      Expect.notEqual confined.executable "/x" "a confined platform is started through a wrapper"
+      Expect.equal asked.executable "/x" "one that asked for the network is started directly"
+      Expect.stringContains
+        asked.confinement
+        "asked for the network"
+        "and is told why it is not confined"
+
+    Expect.equal unscopeable.executable "/x" "`native` gets no wrapper"
+    Expect.stringContains
+      unscopeable.confinement
+      "not confined"
+      "and says so, rather than implying a sandbox it does not have"
+  }
+
+let theShippedFetchManifestStillResolves =
+  testTask "the Fetch pilot's manifest still parses and resolves against this store" {
+    // The pilot names `Stdlib.HttpClient.Response` and `Stdlib.Result.Result` symbolically, and
+    // resolves them against whatever store installs it. That is the design working, and it is also
+    // how the shipped manifest rots: rename either type and this manifest stops resolving, with
+    // nothing else to notice.
+    let path =
+      System.IO.Path.Combine(
+        PackageSurface.findRepoRoot (),
+        "backend",
+        "testfiles",
+        "platforms",
+        "fetch.manifest"
+      )
+    match LibExecution.Platform.Written.parse (System.IO.File.ReadAllText path) with
+    | Error problems -> failtest $"the shipped manifest does not parse: {problems}"
+    | Ok written ->
+      let! (resolved : Result<External.Manifest, External.Rejection>) =
+        LibDB.PlatformInstall.resolve TestUtils.TestUtils.pmPT written |> Ply.toTask
+      match resolved with
+      | Error r -> failtest $"the shipped manifest does not resolve here: {r.problems}"
+      | Ok manifest ->
+        Expect.equal manifest.name "Fetch" "the platform it describes"
+        // The handshake table, which is the thing that lets the plugin build a `Result` at all. An
+        // empty one would mean the plugin gets no hashes and can only answer with primitives.
+        Expect.isNonEmpty manifest.types "it resolved type names, and kept what they resolved to"
+        let declared = manifest.fns |> List.map _.effects |> Set.unionMany
+        Expect.equal
+          declared
+          (Set.singleton Effects.Effect.Http)
+          "and asks for exactly the network, which is why it is not confined"
+  }
+
 let theFirstPartyListMatchesTheSource =
   test "the first-party-only list is exactly the builtins that check caller trust" {
     // Two gates exist and only one of them was ever visible. A builtin's effects are declared,
@@ -2354,6 +2415,7 @@ let tests =
       aManifestMustBeALiteral
       aMissingManifestSaysSo
       aSpawnedPlatformAnswers
+      theSandboxFollowsTheDeclaration
       theFirstPartyListMatchesTheSource
       aCollidingPlatformIsSkippedNotFatal
       aSpawnedPlatformIsConfinedToWhatItDeclared
@@ -2361,6 +2423,7 @@ let tests =
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked
       aCrashedPlatformIsAnErrorNotAHang
+      testSequenced theShippedFetchManifestStillResolves
       testSequenced installingAnExternalPlatformMakesItReconstructable
       testSequenced anInstallForAnotherMachineIsSkippedNotFatal
       testSequenced aMissingArtifactIsSkippedNotFatal
