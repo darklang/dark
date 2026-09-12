@@ -1059,8 +1059,85 @@ let renameIsVisibleToEverythingThatReads =
       })
 
 
+/// `dark edit <module>` is the replacement for opening a `.dark` file, so the properties that
+/// matter are the ones a file gave you for free: everything applies together, and nothing you did
+/// not ask to remove goes away.
+///
+/// Driven through the FILE form, which needs no terminal. The editor form is the same code past
+/// the point where it has a file.
+let editModuleAppliesTogetherAndRemovesNothing =
+  instanceTest
+    "editing a module applies every declaration at once, and omitting one leaves it alone"
+    (fun state ->
+      task {
+        do! start state
+
+        let write (contents : string) : string =
+          let path = System.IO.Path.GetTempFileName() + ".dark"
+          System.IO.File.WriteAllText(path, contents)
+          path
+
+        do!
+          run
+            state
+            [ "module"
+              "/Tests.EditMod"
+              write "let one (): Int64 = 1L\nlet two (): Int64 = 2L\n" ]
+
+        // One changed, one untouched, applied as a batch.
+        do!
+          run
+            state
+            [ "edit"
+              "Tests.EditMod"
+              write "let one (): Int64 = 111L\nlet two (): Int64 = 2L\n" ]
+
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.one ()" ]
+            "111"
+            "the edited one landed"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.two ()" ]
+            "2"
+            "its sibling is untouched"
+
+        // Leaving a declaration OUT must not end it. Guessing the other way is where this command
+        // would lose work: one mis-parse that dropped an item from the render would unbind a name.
+        do!
+          shows
+            state
+            [ "edit"; "Tests.EditMod"; write "let one (): Int64 = 222L\n" ]
+            "left alone, not in your file"
+            "the omitted declaration is named back"
+
+        do! shows state [ "eval"; "Tests.EditMod.two ()" ] "2" "and is still bound"
+
+        // A declaration that does not parse lands NOTHING, not the half that did.
+        do!
+          run
+            state
+            [ "edit"
+              "Tests.EditMod"
+              write "let one (): Int64 = 999L\nlet bad (): Int64 = @@@\n" ]
+
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.one ()" ]
+            "222"
+            "a batch with one bad declaration applies none of it"
+
+        do! discardAll state
+      })
+
+
 let tests : List<Test> =
-  [ lsNamesWhatIsThere
+  [ editModuleAppliesTogetherAndRemovesNothing
+    lsNamesWhatIsThere
     treeShowsDescendants
     viewPrintsSource
     viewRefusesWhatIsNotThere
