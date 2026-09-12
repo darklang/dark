@@ -62,6 +62,19 @@ alter the serialized package format, and there's no cheap way to ask whether thi
 did. Narrowing it is the biggest remaining win in the loop, and it's entangled with
 `package-ref-hashes.txt`, so coordinate before starting.
 
+## Where the package set comes from
+
+`package-set.txt` at the root says which of two, and it ships `commit unset`, which
+means the first:
+
+    commit unset     built from `packages/` by reloading it, as always
+    commit <hash>    fetched as a seed from a package server, at that commit
+
+`scripts/build/prepare-package-set` is the one place that answers that question, and
+CI's package-reloading jobs go through it. `scripts/packages/pin` writes the pin;
+`dark docs packages` has the rest. The pinned path has never run against a deployed
+server, so treat it as written-and-unverified until it has.
+
 The container builds once when it starts. Rebuild-on-save is available but off by
 default, because a five-file change under a watcher pays for five rebuilds, four of them
 on half-finished states that produce real-looking failures:
