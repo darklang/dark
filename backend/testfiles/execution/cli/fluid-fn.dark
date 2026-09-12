@@ -618,3 +618,64 @@ module ATypeParameterCanBeWritten =
   // A shell with no type parameter draws none, so the brackets appear only when there is something in
   // them and the pin above is about opening the list rather than about the drawing.
   (ATypeParameterCanBeWritten.shell []) = "~let inc (): <return> =\n  ⟨body⟩"
+
+
+module AParameterReferenceIsAnEditableName =
+  // The notes have said for weeks that `EArg` and `ESelf` are opaque -- that they "draw as source text
+  // and cannot be edited structurally". In the FUNCTION SHELL neither is true, and the shell is the only
+  // place either can occur: a free-standing expression has no args and no self.
+  //
+  // `namedArgs` replaces `EArg i` with the i-th parameter's name and `ESelf` with the function's, as
+  // EVariables, before the body ever becomes a document. So a parameter reference is an ordinary variable
+  // node: it draws as `n`, the caret goes into it, and a rename is a rename. On save the body is printed
+  // with those names and the parser re-lowers them in context.
+  //
+  // Where they ARE opaque is a body drawn WITHOUT its shell, which is a harness situation rather than
+  // one a person can reach. Worth pinning the true half so the note stops being repeated.
+  let param (name: String) (t: Darklang.LanguageTools.ProgramTypes.TypeReference) : Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter { name = name; typ = t; description = "" }
+
+  /// `let inc (n: Int): Int = inc n + 1`, built from `ESelf` and `EArg` rather than from source, because
+  /// neither has a source spelling.
+  let recursive () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "deadbeef"
+        body =
+          Darklang.LanguageTools.ProgramTypes.Expr.EInfix(
+            1L,
+            Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus,
+            Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+              7L,
+              Darklang.LanguageTools.ProgramTypes.Expr.ESelf 8L,
+              [],
+              [ Darklang.LanguageTools.ProgramTypes.Expr.EArg(2L, 0) ]),
+            Darklang.LanguageTools.ProgramTypes.Expr.EInt(3L, 1))
+        typeParams = []
+        parameters = [ AParameterReferenceIsAnEditableName.param "n" Darklang.LanguageTools.ProgramTypes.TypeReference.TInt ]
+        returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        description = "" }
+
+  let doc () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.toDoc "inc" (AParameterReferenceIsAnEditableName.recursive ()))
+
+  // Both read as the names a person writes.
+  (Darklang.Fluid.Debug.render (Fixtures.reg ()) 70 (AParameterReferenceIsAnEditableName.doc ())) =
+    "let inc (n: Int): Int =\n  inc n + 1"
+
+  /// Every node kind in the body, so "editable" is checked rather than inferred from the drawing.
+  let bodyKinds () : String =
+    match AParameterReferenceIsAnEditableName.doc () with
+    | Filled n ->
+      (match Darklang.Fluid.Node.slot n "body" with
+       | Some(Filled b) ->
+         (match Darklang.Fluid.Node.slot b "left" with
+          | Some(Filled l) ->
+            (match (l.kind.case, Darklang.Fluid.Node.slot l "fn") with
+             | (Some c, Some(Filled f)) -> c ++ "/" ++ (f.kind.case |> Stdlib.Option.withDefault "?")
+             | _ -> "?")
+          | _ -> "?")
+       | _ -> "?")
+    | _ -> "?"
+
+  // `ESelf` is an EVariable inside an ordinary apply, not an opaque blob.
+  (AParameterReferenceIsAnEditableName.bodyKinds ()) = "EApply/EVariable"
