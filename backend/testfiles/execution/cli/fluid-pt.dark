@@ -1768,18 +1768,40 @@ module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
   // bind to the last part of it. Pinned because it is the one place a whole-function comparison against
   // the printer shows Fluid and the printer disagreeing on real code, and Fluid is the one that is right.
   //
-  // The printer's own rule is the same and its `ERecordFieldAccess` case says so, but its no-parens list
-  // is `EVariable` and `ERecordFieldAccess` and a stored function's PARAMETERS are `EArg`. So it writes
-  // `(state).promptTerminal` where the source says `state.promptTerminal`. There is a
-  // `// TODO: only sometimes need to wrap exprPart in parens` sitting on the line above.
+  // The printer's own rule is the same, and its no-parens list has had to learn the same lesson twice.
+  // It started as `EVariable` and `ERecordFieldAccess`; a stored function's PARAMETERS are `EArg`, which
+  // renders as the parameter's name, so it wrote `(state).promptTerminal`. That was added. `ESelf`
+  // renders as the FUNCTION'S OWN name and was not, so a recursive function reading a field off itself
+  // wrote `(myFn).x`, and that is added now too.
   //
-  // Not fixed here: that is printer output for every stored function that reads a parameter's field, and
-  // this loop cannot run the whole suite to see what else moves.
+  // Two node kinds that both render as a bare name, discovered a month apart, by the same probe asked
+  // twice. The note that used to sit here said the first one was "not fixed, this loop cannot run the
+  // whole suite" -- and it had in fact been fixed, weeks before I read the note. An excuse should be
+  // re-run, not re-read; that is five times now.
   (Fixtures.render "r.x" 60) = "r.x"
   (Fixtures.render "r.a.b" 60) = "r.a.b"
   (Fixtures.render "([1]).x" 60) = "([1]).x"
   (Fixtures.render "(f x).y" 60) = "(f x).y"
   (Fixtures.render "(if c then a else b).z" 60) = "(if c then a else b).z"
+
+  // Both projections, on the two kinds that render as a bare name. `EArg` and `ESelf` have no source
+  // spelling, so they are built rather than parsed.
+  let printed (e: Darklang.LanguageTools.ProgramTypes.Expr) : String =
+    Stdlib.Pretty.render 60 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+
+  let drawn (e: Darklang.LanguageTools.ProgramTypes.Expr) : String =
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 60 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+
+  let argField () : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(2L, Darklang.LanguageTools.ProgramTypes.Expr.EArg(1L, 0), "promptTerminal")
+
+  let selfField () : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(3L, Darklang.LanguageTools.ProgramTypes.Expr.ESelf 4L, "x")
+
+  (AFieldTargetIsParenthesisedOnlyWhenItMustBe.printed (AFieldTargetIsParenthesisedOnlyWhenItMustBe.argField ())) = "earg0.promptTerminal"
+  (AFieldTargetIsParenthesisedOnlyWhenItMustBe.drawn (AFieldTargetIsParenthesisedOnlyWhenItMustBe.argField ())) = "earg0.promptTerminal"
+  (AFieldTargetIsParenthesisedOnlyWhenItMustBe.printed (AFieldTargetIsParenthesisedOnlyWhenItMustBe.selfField ())) = "ESelf.x"
+  (AFieldTargetIsParenthesisedOnlyWhenItMustBe.drawn (AFieldTargetIsParenthesisedOnlyWhenItMustBe.selfField ())) = "ESelf.x"
 
 
 module AnElseIfChainDoesNotStairStep =

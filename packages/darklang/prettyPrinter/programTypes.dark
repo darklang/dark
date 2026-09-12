@@ -1162,11 +1162,17 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     // function that reads a parameter's field came out `(state).focus` -- 26 of the 126 functions with a
     // function-typed parameter, and Fluid drew all of them the way a person writes them. Found by
     // comparing the two projections against the store rather than by reading either one.
+    //
+    // ...and `ESelf` beside it, which was missed the same way and for the same reason: it renders as the
+    // FUNCTION'S OWN NAME, so a recursive function reading a field off itself came out `(myFn).x`. Two
+    // node kinds that both render as a bare name, one of them added to the list and the other not. The
+    // sibling probe would have caught it and I only found it by asking what else renders as a name.
     match e with
     | EVariable(_, _)
     | EArg(_, _)
-    | ERecordFieldAccess(_, _, _) ->
+    | ESelf _ ->
       $"{exprPart}.{PrettyPrinter.formatFieldName fieldName}"
+    | ERecordFieldAccess(_, _, _) -> $"{exprPart}.{PrettyPrinter.formatFieldName fieldName}"
     | _ -> $"({exprPart}).{PrettyPrinter.formatFieldName fieldName}"
 
   | EVariable(_id, name) -> name
