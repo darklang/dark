@@ -31,6 +31,23 @@ let evaluateRaw
     allowHarmful
 
 
+/// Evaluate `expr` and hand back the VALUE it produced, rather than a rendering of it.
+///
+/// The one call into <fn Builtin.cliEvaluateToDval>. `evaluateRaw` is the same evaluation ending in a
+/// printed string; this one ends in the `Dval`, for a caller that wants the value itself. Fluid is why
+/// it exists: it draws a value as an editable document, and would otherwise have to parse the rendering
+/// back into the thing the evaluator already had.
+let evaluateToDval
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  (expr: String)
+  (allowHarmful: Bool)
+  : Stdlib.Result.Result<
+      Darklang.LanguageTools.RuntimeTypes.Dval,
+      ExecutionError.ExecutionError> =
+  Builtin.cliEvaluateToDval accountID branchId expr allowHarmful
+
+
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
 /// that printed nothing, `Error message` for a failure. What the `eval`/REPL path uses - `execute` prints
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,

@@ -755,6 +755,98 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // `cliEvaluateExpression` has the raw result in hand and renders it to a string before returning,
+    // because printing is what every caller so far wanted. Fluid wants the VALUE: it draws a `Dval` as
+    // an editable document, and a rendering of one is text it would have to parse back.
+    //
+    // A sibling rather than a flag on that one: the two differ in return type, and the rendering path
+    // needs width and color that mean nothing here.
+    { name = fn "cliEvaluateToDval" 0
+      typeParams = []
+      parameters =
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchId" TUuid ""
+          Param.make "expression" TString ""
+          Param.make
+            "allowHarmful"
+            TBool
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
+      returnType =
+        TypeReference.result
+          (TCustomType(
+            { originalName = []
+              resolved =
+                Ok(
+                  FQTypeName.fqPackage (
+                    PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
+                  )
+                ) },
+            []
+          ))
+          (ExecutionError.typeRef ())
+      description =
+        "Evaluates a Dark expression and returns the resulting value itself, as a <type "
+        + "LanguageTools.RuntimeTypes.Dval>, rather than a rendering of it."
+      fn =
+        let errType = KTCustomType(ExecutionError.fqTypeName (), [])
+        let okKT =
+          KTCustomType(
+            FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()),
+            []
+          )
+        let resultOk = Dval.resultOk okKT errType
+        let resultError = Dval.resultError okKT errType
+        (function
+        | exeState, _vm, [], [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
+          uply {
+            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+            let exeState =
+              { exeState with
+                  accountID = accountID
+                  grantedCaps = LibDB.CapabilityGrants.hostCaps () }
+            let branchState = createBranchState exeState branchId allowHarmful
+
+            try
+              let! parseResult = parseCliExpr branchState expression
+              let! parsedScript =
+                match parseResult with
+                | Ok m -> Ply(Ok m)
+                | Error diags ->
+                  let pe =
+                    match diags with
+                    | d :: _ -> ParseError.Message(P.renderDiagnostic expression d)
+                    | [] -> ParseError.Message "Parse error"
+                  Ply(Error pe)
+
+              let! dbs = loadDBs ()
+
+              match parsedScript with
+              | Ok mod' ->
+                match! execute exeState branchId mod' [] dbs (EvalExpression expression) with
+                | Ok result -> return resultOk (RT2DT.Dval.toDT result)
+                | Error(e, callStack) ->
+                  let! csString = Exe.callStackString exeState callStack
+                  print $"Error when executing expression. Call-stack:\n{csString}\n"
+                  return resultError (ExecutionError.toDT (ExecutionError.Runtime e))
+              | Error pe -> return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+            with
+            | RuntimeErrorException(_, rte) ->
+              return resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
+            | e ->
+              return
+                resultError (
+                  ExecutionError.toDT (
+                    ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+                  )
+                )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     ]
 
 

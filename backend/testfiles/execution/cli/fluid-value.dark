@@ -303,3 +303,83 @@ module AHoleIsNotAValue =
     (Darklang.Fluid.Node.make
       (Darklang.Fluid.Kind.named "Opaque")
       [ ("source", Darklang.Fluid.Field.Text "<function>") ])) = "refuses: nothing to rebuild from: <function>"
+
+
+module AValueDocumentBringsItsOwnSpecs =
+  // A value's types are only knowable from the VALUE. `Some([1, 2])` needs an editor for `Option`, and
+  // nothing said so up front -- there is no declaration to read the list off, the way a function shell
+  // knows its own parameter types. So the entry point walks the document and derives what it finds.
+  //
+  // This is the difference between a value that draws and a value that draws as an unknown kind, which
+  // on screen is indistinguishable from a broken projection.
+  let bid () : Uuid = Darklang.SCM.Branch.mainBranchId
+
+  let namesIn (v: Darklang.LanguageTools.RuntimeTypes.Dval) : List<String> =
+    Darklang.Fluid.Value.typeNamesIn (Darklang.Fluid.Value.ofDval (AValueDocumentBringsItsOwnSpecs.bid ()) v)
+
+  // A prim mentions no named type at all, so nothing is derived and nothing needs to be.
+  (AValueDocumentBringsItsOwnSpecs.namesIn (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1)) = []
+
+  // The FULL location name, because that is what the derive lookup is keyed by.
+  (AValueDocumentBringsItsOwnSpecs.namesIn (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) =
+    [ "Darklang.Stdlib.Option.Option" ]
+
+  // Nested, and each type ONCE however often it appears -- two `Some`s derive one spec, not two.
+  //
+  // A list contributes nothing of its own: its kind is a PRIM, and `Prims` already ships the spec that
+  // draws it. Only a NAMED type has a declaration to derive from, which is the whole distinction the
+  // walk is making.
+  (AValueDocumentBringsItsOwnSpecs.namesIn
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1),
+        AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2) ]))) =
+    [ "Darklang.Stdlib.Option.Option" ]
+
+  // And the registry it builds draws that value, with no spec written or declared anywhere.
+  let drawn (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    let node = Darklang.Fluid.Value.ofDval (AValueDocumentBringsItsOwnSpecs.bid ()) v
+    Darklang.Fluid.Debug.render
+      (Darklang.Fluid.App.registryForValue (AValueDocumentBringsItsOwnSpecs.bid ()) node)
+      70
+      (Darklang.Fluid.Slot.Filled node)
+
+  (AValueDocumentBringsItsOwnSpecs.drawn (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) =
+    "Some(1)"
+
+
+module OpeningAValue =
+  // `fluid eval <expr>` is the first entry point that opens the OUTPUT of code rather than code.
+  // Everything else Fluid can open is a program: an expression, a declaration, a function shell.
+  //
+  // Pinned one step in, at `valueTargetFor`, because the evaluation itself cannot run here: the testfile
+  // harness registers every builtin group except `CliHost`, so `cliEvaluateToDval` does not exist in this
+  // process. Everything downstream of the evaluator is this, and it is the part with decisions in it.
+  let drawn (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    let (reg, root, _target) =
+      Darklang.Fluid.App.valueTargetFor (AValueIsADocument.bid ()) "<probe>" v
+    Darklang.Fluid.Debug.render reg 70 root
+
+  (OpeningAValue.drawn (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 3)) = "3"
+  (OpeningAValue.drawn (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi")) = "\"hi\""
+
+  (OpeningAValue.drawn
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+        Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ]))) = "[1, 2]"
+
+  // The one that matters: a stored type, drawn by a spec derived on the spot. `AValueOfAStoredType` has
+  // to build that registry by hand; here the entry point does it, which is the whole point of the slice.
+  (OpeningAValue.drawn (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) =
+    "Some(1)"
+
+  // The target says what it is, so save refuses for the right reason instead of telling you to try
+  // `fluid fn <name>`, which is what `Scratch` would have said.
+  let targetOf (source: String) (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    match Darklang.Fluid.App.valueTargetFor (AValueIsADocument.bid ()) source v with
+    | (_reg, _root, RuntimeValue src) -> "runtime value of: " ++ src
+    | _ -> "some other target"
+
+  (OpeningAValue.targetOf "1 + 2" (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 3)) =
+    "runtime value of: 1 + 2"

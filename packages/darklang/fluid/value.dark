@@ -270,3 +270,42 @@ let toDval (branchId: Uuid) (n: Node) : Stdlib.Result.Result<Dval, String> =
         |> Stdlib.Result.collect
         |> Stdlib.Result.map (fun pairs ->
           Dval.DRecord(hash, hash, [], Stdlib.Dict.fromListOverwritingDuplicates pairs))
+
+
+// ============================================================================
+// The specs a value document needs.
+// ============================================================================
+
+/// Every named type the document mentions, in the order it meets them.
+///
+/// A value drawn from a type nobody derived a spec for draws as an unknown kind -- which looks exactly
+/// like a bug in the projection, because the node is right and there is nothing to draw it with. So the
+/// entry point derives specs for the types the value ACTUALLY contains, which it can only know by
+/// walking the document; there is no declaration to read them off.
+///
+/// `Derive` is not wired into the registry as a fallback: `fluid generate` prints a spec, and the
+/// registry only ever holds specs that were written or discovered. Wiring it in as a fallback would be
+/// the bigger change -- every unknown kind would start hitting the store -- so this asks for the ones
+/// it needs instead.
+let typeNamesIn (n: Node) : List<String> =
+  let fromSlot (s: Slot) : List<String> =
+    match s with
+    | Filled child -> typeNamesIn child
+    | _ -> []
+
+  let here =
+    match n.kind.typ with
+    | Named name -> [ name ]
+    | Prim _ -> []
+
+  let below =
+    n.fields
+    |> Stdlib.List.map (fun f ->
+      let (_, fld) = f
+      match fld with
+      | Text _ -> []
+      | One s -> fromSlot s
+      | Many(items, _) -> items |> Stdlib.List.map fromSlot |> Stdlib.List.flatten)
+    |> Stdlib.List.flatten
+
+  Stdlib.List.append here below |> Stdlib.List.unique

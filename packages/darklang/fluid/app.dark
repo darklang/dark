@@ -20,6 +20,11 @@ type Target =
   | ValueDef of
     value: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue *
     location: Darklang.LanguageTools.ProgramTypes.PackageLocation
+  /// A RUNTIME value, drawn from what an expression produced. It has nowhere to save to, and that is
+  /// the open design question rather than an oversight: the other four targets are all CODE -- a
+  /// function body, a declaration, a value's body expression -- and a value is none of those. A case
+  /// of its own so the refusal can say that, instead of `Scratch` telling you to try `fluid fn`.
+  | RuntimeValue of source: String
 
 /// A type declaration to edit: an enum whose cases carry fields, which is the shape that could be READ
 /// and not written until `opensItems` landed.
@@ -369,6 +374,55 @@ let createValue
   let full = Stdlib.String.join (Stdlib.List.flatten [ [ location.owner ], location.modules, [ location.name ] ]) "."
   launchTarget cliState $"fluid: {full} (new)" root target
 
+/// The registry a VALUE document needs: the usual one, plus a derived spec for every named type the
+/// document actually contains.
+///
+/// Derived rather than declared, and derived from the DOCUMENT rather than from a type the caller named,
+/// because a value's types are only knowable by looking at the value: `Some([1, 2])` needs `Option`, and
+/// nothing said so up front. A type with no spec draws as an unknown kind, which on screen is
+/// indistinguishable from a projection bug.
+let registryForValue (branchId: Uuid) (n: Node) : Registry =
+  Registry.addAll
+    (registryFor branchId)
+    (Value.typeNamesIn n
+     |> Stdlib.List.map (fun tn -> Derive.specsForName branchId tn)
+     |> Stdlib.List.flatten)
+
+/// A value, ready to open: the document, the registry that draws it, and what save should say.
+///
+/// Split from `evalTarget` so it can be tested. The testfile harness registers every builtin group
+/// except `CliHost`, so anything that evaluates cannot run there at all -- and that would have left the
+/// whole entry point unpinned over one builtin call. This is the rest of it.
+let valueTargetFor (branchId: Uuid) (source: String) (dval: Darklang.LanguageTools.RuntimeTypes.Dval) : (Registry * Slot * Target) =
+  let node = Value.ofDval branchId dval
+  (registryForValue branchId node, Slot.Filled node, Target.RuntimeValue source)
+
+/// Evaluate `source` and open what it PRODUCED, as a document.
+///
+/// The other entry points all open code. This one opens the output of code, which is the half of the
+/// design that had a conversion (`Value.ofDval`) and no way to reach it.
+let evalTarget (source: String) : Stdlib.Result.Result<(Registry * Slot * Target), String> =
+  let branchId = Darklang.SCM.Branch.mainBranchId
+  match Darklang.Cli.Eval.evaluateToDval Stdlib.Option.Option.None branchId source false with
+  | Ok dval -> Stdlib.Result.Result.Ok(valueTargetFor branchId source dval)
+  | Error err -> Stdlib.Result.Result.Error(Darklang.Cli.ExecutionError.toString branchId err)
+
+/// `fluid eval <source>`: evaluate, then edit the value.
+let editEval (cliState: Darklang.Cli.AppState) (source: String) : Darklang.Cli.AppState =
+  match evalTarget source with
+  | Ok((reg, root, target)) ->
+    (match Stdlib.Cli.Tui.TerminalSupport.current () with
+     | Available ->
+       Darklang.Cli.Component.launch cliState component (initialWith reg $"fluid: {source}" root target)
+     | Unavailable reason ->
+       // Same fallback the other launchers use: without a terminal, say why and print the document.
+       Stdlib.printLine $"fluid needs a terminal: {reason}"
+       Stdlib.printLine (Debug.render reg 80 root)
+       cliState)
+  | Error err ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
+    cliState
+
 let typeTarget (name: String) : Stdlib.Result.Result<(Slot * Target), String> =
   let branchId = Darklang.SCM.Branch.mainBranchId
   let location = Darklang.LanguageTools.ProgramTypes.parsePackageLocation name
@@ -594,6 +648,7 @@ let moduleOf (target: Target) : List<String> =
   | FnBody(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
   | TypeDef(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
   | ValueDef(_, loc) -> Stdlib.List.append [ loc.owner ] loc.modules
+  | RuntimeValue _ -> []
 
 let initialFor (title: String) (root: Slot) (target: Target) : State =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
@@ -1232,6 +1287,9 @@ let onKey
       match st.target with
       // Nothing ran, so nothing wrote to the screen.
       | Scratch -> Darklang.Cli.Component.Step.Stay(afterKey st { e with message = "nothing to save this to (try `fluid fn <name>`)" })
+      | RuntimeValue _ ->
+        Darklang.Cli.Component.Step.Stay(
+          afterKey st { e with message = "a runtime value has nowhere to save to yet: every target is code" })
       | FnBody(fn, location) ->
         match saveFnBody fn location root with
         | Ok name ->
@@ -1306,6 +1364,10 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     | Error err ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: could not parse that expression: {err}")
       cliState
+  | [ "eval" ] ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "fluid: eval needs an expression to evaluate")
+    cliState
+  | "eval" :: rest -> editEval cliState (Stdlib.String.join rest " ")
   | [ "fn", name ] -> editFn cliState name
   | [ "type", name ] -> editType cliState name
   | [ "value", name ] -> editValue cliState name
@@ -1344,17 +1406,18 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
   | other ->
     let word = Stdlib.List.head other |> Stdlib.Option.withDefault ""
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: unknown argument \"{word}\"")
-    Stdlib.printLine "Try: fluid, fluid expr <source>, fluid fn|type|value <name>, fluid generate <Type>, fluid demo, fluid demo table."
+    Stdlib.printLine "Try: fluid, fluid expr <source>, fluid eval <source>, fluid fn|type|value <name>, fluid generate <Type>, fluid demo, fluid demo table."
     cliState
 
 let help (_state: Darklang.Cli.AppState) : String =
-  [ "Usage: fluid [expr [<source>] | fn <name> | type <name> | value <name> | generate <Type|Kind> | demo]"
+  [ "Usage: fluid [expr [<source>] | eval <source> | fn <name> | type <name> | value <name> | generate <Type|Kind> | demo]"
     "A structural editor for Darklang code. You edit a tree, not text; blanks are ⟨labelled⟩ and you"
     "fill them by typing or picking from the menu."
     ""
     "What you can edit:"
     "  fluid                  a scratch EXPRESSION (type a value: 5, \"hi\", let, if, a fn call)"
     "  fluid expr <source>    that expression, parsed, in the editor"
+    "  fluid eval <source>    the VALUE that expression produces, as a document you can edit"
     "  fluid fn <name>        a function: its name, typed parameters, return type, and body"
     "  fluid type <name>      a type declaration: record fields, enum cases, or an alias"
     "  fluid value <name>     a package value: its body expression"
