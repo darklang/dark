@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+# The package work on your dark branch, as a file that travels with your git branch.
+#
+#   scripts/packages/bundle export    write your dark branch to package-branch.json
+#   scripts/packages/bundle import    recreate that branch from the file
+#   scripts/packages/bundle show      what is in the file
+#
+# Why a file in the repo. An F# change can reference package code, and then the two have to
+# travel, merge and be abandoned together. Git already does that for the F#; this lets it do the
+# same for the package half, so one PR carries both and reviewing or dropping it is one act.
+#
+# EXPORT is explicit, like `git add`: producing it writes into your tree and that should be
+# something you asked for. Forgetting is caught rather than silent -- `refs check` fails the build
+# for anyone whose F# names package code they do not have.
+#
+# IMPORT is automatic (`scripts/build/prepare-package-set` runs it), because checking out the git
+# branch IS asking for that branch's package code. Importing is idempotent: ops are
+# content-addressed, so re-importing what you already have changes nothing.
+
+set -euo pipefail
+
+[[ -f package-set.txt ]] || { echo "bundle: run from the repo root" >&2; exit 2; }
+
+BUNDLE="${DARK_PACKAGE_BUNDLE:-package-branch.json}"
+CLI="${CLI:-./scripts/run-cli}"
+
+usage() { sed -n '3,19p' "$0" | sed 's/^# \?//'; }
+
+case "${1:-}" in
+  export)
+    branch=$("$CLI" branch 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | tail -1)
+    if [[ "$branch" == *"on main"* || -z "$branch" ]]; then
+      # Nothing to carry. Remove a stale bundle rather than leave one describing work that is
+      # now on main: a bundle outliving its branch is how somebody imports a branch that was
+      # merged weeks ago.
+      if [[ -f "$BUNDLE" ]]; then
+        rm -f "$BUNDLE"
+        echo "On dark main; removed $BUNDLE."
+      else
+        echo "On dark main; nothing to bundle."
+      fi
+      exit 0
+    fi
+
+    name=$(sed -E 's/^on branch "([^"]+)".*/\1/' <<<"$branch")
+    "$CLI" branch export "$name" "$BUNDLE" > /dev/null
+    echo "Wrote $BUNDLE from dark branch \"$name\" ($(wc -c < "$BUNDLE") bytes)."
+    echo "Commit it alongside the F# that needs it."
+    ;;
+
+  import)
+    if [[ ! -f "$BUNDLE" ]]; then
+      echo "No $BUNDLE; nothing to import."
+      exit 0
+    fi
+    "$CLI" branch import "$BUNDLE"
+    ;;
+
+  show)
+    [[ -f "$BUNDLE" ]] || { echo "No $BUNDLE." >&2; exit 1; }
+    python3 -c "
+import json,sys
+b=json.load(open('$BUNDLE'))
+print('branch:', b.get('name'), '(' + str(b.get('branchId','?'))[:8] + ')')
+print('ops:   ', len(b.get('ops', [])))
+print('commits:', len(b.get('commits', [])))
+"
+    ;;
+
+  -h|--help|"") usage ;;
+  *) echo "bundle: unknown argument $1" >&2; usage >&2; exit 2 ;;
+esac

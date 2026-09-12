@@ -26,11 +26,23 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# The branch bundle, if this git branch carries one. Imported whichever way the base package set
+# arrives, because checking out the git branch IS asking for that branch's package code, and the
+# F# in the tree may name items only the bundle has. Idempotent: ops are content-addressed, so
+# re-importing what is already here changes nothing.
+import_bundle() {
+  if [[ -f "${DARK_PACKAGE_BUNDLE:-package-branch.json}" ]]; then
+    scripts/packages/bundle import
+  fi
+}
+
 PIN=$(awk '$1 == "commit" { print $2 }' package-set.txt)
 
 if [[ -z "$PIN" || "$PIN" == "unset" ]]; then
   echo "No pin in package-set.txt; building the package set from packages/."
-  exec scripts/build/reload-packages
+  scripts/build/reload-packages
+  import_bundle
+  exit 0
 fi
 
 echo "Pinned to ${PIN}; fetching the seed rather than reloading packages/."
@@ -40,3 +52,5 @@ scripts/fetch-seed "${URL_ARGS[@]}" --force
 # projection of it. Without this step every kernel lookup resolves to "" and the binary fails on
 # its first command, somewhere that says nothing about why.
 scripts/run-local-exec refs generate
+
+import_bundle
