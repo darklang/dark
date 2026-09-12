@@ -97,6 +97,105 @@ gate_setup() {
 #
 # Gate, not an F#/.dark test: a real relay on a real port, answering real requests. An HTTP
 # status and a leaked error body are properties of a request, not of a function call.
+# --- the server folds what it is pushed --------------------------------------------------------
+#
+# Crosses a PROCESS boundary and a machine boundary: a real server on a port, a real client with
+# its own store, a real push over HTTP. Neither half can be faked in-process, because the whole
+# question is whether the SERVER's projection moved.
+#
+# It did not, until 2026-09-12. A pushed op was stored `effective = 0` and never folded, so the
+# server could not see what it hosted: the package browser said "Nothing here" for code every
+# client had, and no seed could be cut from the hosted set.
+#
+# The half that must NOT come back with it: a pushed op is folded but is NOT this store's draft.
+# `effective` was carrying both meanings and only the first was given up, so `op_owners` carries
+# the second. A discard that counted a peer's push as local work would delete their data.
+gate_server_folds() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/server-folds-test
+  PORT=${PORT:-9097}
+  SECRET='server-folds-secret'
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK/server/logs" "$WORK/client/logs"
+  scripts/testing/_copy-store "$WORK/server/data.db"
+  scripts/testing/_copy-store "$WORK/client/data.db"
+
+  cli() { env DARK_CONFIG_RUNDIR="$PWD/$WORK/client/" HOME="$PWD/$WORK/client" "$PWD/$CLI" "$@"; }
+
+  DARK_CONFIG_RUNDIR="$PWD/$WORK/server" relay_grants "$PWD/$CLI" "$PORT"
+  cli permissions allow package-write > /dev/null 2>&1
+
+  env DARK_CONFIG_RUNDIR="$PWD/$WORK/server/" HOME="$PWD/$WORK/server" \
+    DARK_MATTER_WRITE_SECRET="$SECRET" \
+    "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
+    > "$WORK/server/serve.log" 2>&1 &
+  SRV=$!
+  trap 'kill $SRV 2>/dev/null' EXIT
+
+  up=false
+  for _ in $(seq 1 40); do
+    [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && { up=true; break; }
+    sleep 1
+  done
+  [[ "$up" == "true" ]] || {
+    echo "the server never came up on $PORT (see $WORK/server/serve.log)" >&2
+    exit 2
+  }
+
+  failures=0
+  fail() { echo "  FAIL $1" >&2; failures=$((failures + 1)); }
+
+  name="Tests.ServerFolds.pushed"
+  cli fn "$name" '() : String = "pushedtoaserver"' > /dev/null 2>&1
+  cli commit "server-folds gate" -y > /dev/null 2>&1
+
+  before=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM locations WHERE name = 'pushed' AND modules LIKE '%ServerFolds%';")
+  [[ "$before" == "0" ]] || fail "the server already knew the name before the push ($before rows)"
+
+  cli connect "http://localhost:$PORT" --secret "$SECRET" > /dev/null 2>&1
+  cli push "http://localhost:$PORT" > /dev/null 2>&1
+
+  after=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM locations WHERE name = 'pushed' AND modules LIKE '%ServerFolds%';")
+  if [[ "$after" == "1" ]]; then
+    echo "  ok   a pushed op reaches the server's own projection"
+  else
+    fail "the server stored the push but did not fold it ($after location rows)"
+  fi
+
+  if curl -s --max-time 5 "http://localhost:$PORT/search?q=ServerFolds" | grep -q "ServerFolds"; then
+    echo "  ok   and the package browser can see it"
+  else
+    fail "the browser still cannot see a package the server hosts"
+  fi
+
+  # Folded, but not mine. Hosted ops carry an `op_owners` row, and every draft clause excludes
+  # them; without that a discard on the server deletes whatever its clients pushed.
+  hosted=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM package_ops p
+     WHERE p.id IN (SELECT op_id FROM op_owners)
+       AND p.effective = 1;")
+  [[ "$hosted" -gt 0 ]] || fail "no hosted op is effective, so nothing was folded at all"
+
+  draftable=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM package_ops
+     WHERE effective = 1 AND commit_hash IS NULL
+       AND id NOT IN (SELECT op_id FROM op_branches)
+       AND id IN (SELECT op_id FROM op_owners);")
+  if [[ "$draftable" == "0" ]]; then
+    echo "  ok   and a hosted op is not the server's own draft, so a discard leaves it alone"
+  else
+    fail "$draftable hosted op(s) look like this store's draft; a discard would delete them"
+  fi
+
+  [[ "$failures" == "0" ]] || exit 1
+  echo "server-folds: a push reaches the server's projection, and stays out of its draft."
+}
+
 gate_relay_routes() {
   set -euo pipefail
 
@@ -113,9 +212,9 @@ gate_relay_routes() {
   # the first space.
   SECRET='relay-test-Bearer secret'
 
-  # What a relay needs, under the effect/permission system: the port it binds, the env var its
+  # What a server needs, under the effect/permission system: the port it binds, the env var its
   # write secret arrives in, and the store it exists to hold. Granted per instance, and a gate is
-  # its own instance. Nothing here widens what the relay DOES: it still never folds what it hosts.
+  # its own instance.
   DARK_CONFIG_RUNDIR="$PWD/$WORK" relay_grants "$PWD/$CLI" "$PORT"
 
   DARK_CONFIG_RUNDIR="$PWD/$WORK" DARK_MATTER_WRITE_SECRET="$SECRET" \
