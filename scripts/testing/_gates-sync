@@ -236,8 +236,50 @@ gate_server_folds() {
     fail "the startup grow evaluated a pushed val's body"
   fi
 
+  # What a shared server's MAIN accepts from a stranger. Your own namespace takes a plain push;
+  # the reviewed one does not. This is `reservedOwners` reborn at the one edge where it belongs --
+  # the server -- rather than on every local write, where it used to be and was wrong.
+  cli fn '/Newcomer.MyApp.mine' '() : String = "mine"' > /dev/null 2>&1
+  cli commit "my own namespace" -y > /dev/null 2>&1
+  out=$(cli push "http://localhost:$PORT" 2>&1)
+
+  if [[ "$out" == *"Pushed"* ]]; then
+    echo "  ok   a push to your own namespace is accepted"
+  else
+    fail "a push to your own namespace was refused: $(head -c 200 <<<"$out")"
+  fi
+
+  # The whole log goes up, including the `Darklang.*` baseline every client is seeded with, so
+  # this only works because ops the server already HAS are skipped. Checking the raw batch
+  # refuses the first push anybody ever makes.
+  cli fn '/Darklang.Stdlib.List.sneakyGate' '() : Int64 = 1L' > /dev/null 2>&1
+  cli commit "reach into the shared namespace" -y > /dev/null 2>&1
+  out=$(cli push "http://localhost:$PORT" 2>&1)
+
+  if [[ "$out" == *"403"* && "$out" == *"sneakyGate"* ]]; then
+    echo "  ok   a push that binds a reserved name is refused, 403, and names it"
+  else
+    fail "a reserved-namespace push was not refused as expected: $(head -c 200 <<<"$out")"
+  fi
+
+  landed=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM locations WHERE name = 'sneakyGate';")
+  [[ "$landed" == "0" ]] || fail "the refused push landed anyway ($landed rows)"
+
+  # A branch carrying the same work is fine: a branch is isolated, nobody runs it, and review is
+  # what moves it to main.
+  cli branch gate-shared-fix > /dev/null 2>&1
+  cli --branch gate-shared-fix fn '/Darklang.Stdlib.List.viaGateBranch' '() : Int64 = 2L' > /dev/null 2>&1
+  out=$(cli branch push gate-shared-fix "http://localhost:$PORT" 2>&1)
+
+  if [[ "$out" == *"pushed branch"* ]]; then
+    echo "  ok   and the same work on a BRANCH is accepted"
+  else
+    fail "a branch push carrying reserved work was refused: $(head -c 200 <<<"$out")"
+  fi
+
   [[ "$failures" == "0" ]] || exit 1
-  echo "server-folds: a push reaches the server's projection, stays out of its draft, and is never run."
+  echo "server-folds: a push reaches the server's projection, stays out of its draft, is never run, and cannot rebind the reviewed namespace."
 }
 
 gate_relay_routes() {

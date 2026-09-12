@@ -131,6 +131,30 @@ let pushHandlerFn (req: HttpRequest) : HttpResponse =
 
   match SCM.Wire.wireDecode req.body with
   | Ok bundle ->
+    // What this server's MAIN will accept from a stranger. Your own namespace takes a plain push;
+    // the reviewed one does not, and a branch push is how that work arrives instead. 403 rather
+    // than 500: this is a refusal, and a client that reads it as a server fault retries forever.
+    let reserved = SCM.Wire.reservedBindingsIn bundle.ops
+
+    if reserved != [] then
+      let shown = reserved |> Stdlib.List.take 5 |> Stdlib.String.join ", "
+
+      let andMore =
+        let extra = (Stdlib.List.length reserved) - 5
+
+        if extra > 0 then
+          $" (and {Stdlib.Int.toString extra} more)"
+        else
+          ""
+
+      Stdlib.Http.responseWithText
+        ($"this server does not accept pushes that bind {shown}{andMore} into its main.
+"
+         ++ "That namespace is reviewed: `dark branch push` instead, and it lands on main when "
+         ++ "the change is merged. Your own namespace takes a plain `dark push`.")
+        403
+    else
+
     match SCM.Wire.storeWithOwner owner bundle.ops bundle.commits with
     | Ok n ->
       // A JSON body, not a sentence: the client acts on this count, and a protocol a client

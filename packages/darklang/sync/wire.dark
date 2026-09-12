@@ -208,6 +208,18 @@ let localMaxRowid () : Int64 =
 /// for code every client had: the server's own projection never saw what it hosted. Folding is what
 /// lets a seed be cut from the hosted set, and what makes pushing new code to a server able to change
 /// what it runs.
+/// The reserved names these ops would bind into this server's main, and that it will not accept.
+/// Empty means the push is fine.
+///
+/// Asked before storing, so a refusal can answer with a status that says "not allowed" rather than
+/// "the server broke" -- a client that sees a 500 has every reason to retry forever. The same rule
+/// is enforced inside the store path as the backstop.
+let reservedBindingsIn (ops: List<SyncOp>) : List<String> =
+  Builtin.scmReservedBindings (
+    ops |> Stdlib.List.map (fun op -> (op.id, op.blobHex, op.ts))
+  )
+
+
 let storeWithOwner
   (owner: String)
   (ops: List<SyncOp>)

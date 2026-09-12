@@ -506,6 +506,32 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     // projections. That also meant it could not see what it hosted: `/m` showed "Nothing here"
     // for packages every client had, a seed could not be cut from the hosted set, and pushing new
     // code to a server could never change what it ran. All three are wanted, so it folds.
+    // Asked BEFORE storing, so a refusal can be a refusal rather than a server error. The same
+    // rule is enforced inside `storeOpsWithOwner` as the backstop -- this exists so the answer can
+    // carry a status code and a list of names, not so the rule lives in two places.
+    { name = fn "scmReservedBindings" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "records"
+            (TList(TTuple(TString, TString, [ TString ])))
+            "(id, blobHex, originTs) triples" ]
+      returnType = TList TString
+      description =
+        "The reserved names these ops would bind into this store's main, and that it will not accept. Empty means the push is fine."
+      fn =
+        (function
+        | _, _, _, [| DList(_, records) |] ->
+          uply {
+            let! names = LibDB.Inserts.reservedBindingsIn (opRecords records)
+            return Dval.list KTString (names |> List.map Dval.string)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
     { name = fn "scmStoreOps" 0
       typeParams = []
       parameters =
