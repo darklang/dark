@@ -822,6 +822,71 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
 /// `grep` searches BODIES, which is the half `search` does not do. Scoped to one module on
 /// purpose: unscoped it renders every live item, and the point of the scope argument is that a
 /// test, like a person, usually knows roughly where to look.
+/// A revert is a rebinding, not a recovery: every version is still in the store, so pointing the
+/// name back at an old hash is the whole operation. Which is why it is symmetric.
+let revertPutsANameBackAndIsSymmetric =
+  instanceTest
+    "revert restores the version a commit held, and reverting twice is a no-op"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Rv.f" "() : Int64 = 111L"
+        do! commit state "rv one"
+
+        let! log = runCliPlain state [ "log" ]
+        // The newest commit is first, and that is the one holding 111.
+        let first =
+          log.Split('\n')
+          |> Array.tryPick (fun line ->
+            System.Text.RegularExpressions.Regex.Match(line, "[0-9a-f]{8}")
+            |> fun m -> if m.Success then Some m.Value else None)
+
+        let commitOfOne =
+          match first with
+          | Some c -> c
+          | None -> Tests.failtestf "no commit hash in `dark log`:\n%s" log
+
+        do! fn state "Tests.Rv.f" "() : Int64 = 222L"
+        do! commit state "rv two"
+        do! evals state "Tests.Rv.f ()" "222" "the newer version is live"
+
+        do! run state [ "revert"; "Tests.Rv.f"; commitOfOne ]
+        do! evals state "Tests.Rv.f ()" "111" "and the revert put the old one back"
+
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.f"; commitOfOne ]
+            "already holds"
+            "reverting to where it already is says so rather than authoring a no-op"
+        do! discardAll state
+      })
+
+/// The three ways to get it wrong, which is where a two-argument command earns its errors.
+let revertRefusesWhatItCannotFind =
+  instanceTest
+    "revert names what it could not find, for the name and for the commit"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.nothingHere"; "abc12345" ]
+            "nothing here is named"
+            "an unknown name"
+        do! fn state "Tests.Rv.known" "() : Int64 = 1L"
+        do! commit state "rv known"
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.known"; "ffffffffff" ]
+            "no single commit here starts with"
+            "an unknown commit"
+        do! shows state [ "revert" ] "usage: dark revert" "bare prints usage"
+        do! discardAll state
+      })
+
 let grepFindsSourceAndNotJustNames =
   instanceTest
     "grep matches a function body, and reports name and line"
@@ -1019,6 +1084,8 @@ let tests : List<Test> =
     grepAgreesWithItselfOnceCached
     grepSaysWhenItFindsNothing
     grepSeesTheBranchYouAreStandingOn
+    revertPutsANameBackAndIsSymmetric
+    revertRefusesWhatItCannotFind
     aDocOnlyEditKeepsTheVersionAndStillLands
     aFieldsDocEditLands
     anEnumCasesDocEditLands

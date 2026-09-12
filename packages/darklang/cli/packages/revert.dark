@@ -1,0 +1,147 @@
+module Darklang.Cli.Packages.Revert
+
+// `dark revert <name> <commit>` -- put a name back to what it held at a past commit.
+//
+// Nothing is undone and nothing is recovered: every version an item ever had is still in the
+// store, because content is content-addressed and never deleted. So a revert is a rebinding --
+// one `SetName`, pointing the name at a hash it used to point at.
+//
+// Which means it is symmetric. Reverting a revert is just another revert, and `dark log <name>`
+// still shows every version including the one you moved away from.
+//
+// "At that commit" means the commit or any of its ANCESTORS, not the ops that commit happens to
+// name. You give a commit to mean a point in time, and the version you want was usually bound by
+// something earlier.
+
+/// The op a revert authors: bind the name to the old hash, recording what it replaced.
+///
+/// `previous = Some current` is the lineage, and it is what stops a peer's merge from reading this
+/// as two machines inventing the same name from nothing.
+let ops
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (target: LanguageTools.ProgramTypes.Reference)
+  (current: LanguageTools.ProgramTypes.Hash)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  [ LanguageTools.ProgramTypes.PackageOp.SetName(
+      location,
+      target,
+      Stdlib.Option.Option.Some current
+    ) ]
+
+
+/// The same kind of reference the name holds now, pointing at <param hash>. A revert cannot change
+/// what KIND of thing a name holds -- a fn cannot become a type -- so the current binding decides.
+let referenceFor
+  (current: LanguageTools.ProgramTypes.Reference)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : LanguageTools.ProgramTypes.Reference =
+  match current with
+  | PackageFn _ -> LanguageTools.ProgramTypes.Reference.PackageFn hash
+  | PackageType _ -> LanguageTools.ProgramTypes.Reference.PackageType hash
+  | PackageValue _ -> LanguageTools.ProgramTypes.Reference.PackageValue hash
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ name, commit ] ->
+    let here = state.packageData.currentLocation
+
+    match Packages.Location.parseRelativeTo here name with
+    | Error e ->
+      Cli.printErr $"the name to revert: {e}"
+      { state with exitCode = 1 }
+
+    | Ok location ->
+      let dotted =
+        PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+      match Packages.Rename.referenceAt state.currentBranchId location with
+      | None ->
+        Cli.printErr $"nothing here is named {dotted}."
+        Cli.printHint "  `dark log` shows what has been committed; `dark ls` what is live."
+        { state with exitCode = 1 }
+
+      | Some current ->
+        let currentHash = LanguageTools.ProgramTypes.Reference.hash current
+
+        let currentHashText =
+          LanguageTools.ProgramTypes.hashToString currentHash
+
+        match SCM.PackageOps.resolveCommit commit with
+        | None ->
+          Cli.printErr $"no single commit here starts with {commit}."
+          Cli.printHint "  `dark log` lists them; a longer prefix disambiguates."
+          { state with exitCode = 1 }
+
+        | Some fullCommit ->
+
+        match SCM.PackageOps.bindingAsOfCommit location fullCommit with
+        | None ->
+          Cli.printErr $"{dotted} was not bound at {commit} or anywhere before it."
+          Cli.printHint $"  `dark log {name}` shows the commits that touched it."
+
+          Cli.printHint
+            "  a revert goes back to what the name held THEN, so one added later has nothing to go back to."
+
+          { state with exitCode = 1 }
+
+        | Some oldHash ->
+          if oldHash == currentHashText then
+            Cli.printOk
+              $"{dotted} already holds what it held at {commit} -- nothing to do."
+
+            state
+          else
+            let target =
+              referenceFor current (LanguageTools.ProgramTypes.Hash.Hash oldHash)
+
+            match
+              SCM.PackageOps.add
+                state.currentBranchId
+                (ops location target currentHash)
+            with
+            | Ok _ ->
+              let short = Stdlib.String.slice oldHash 0 8
+              Cli.printOk $"reverted {dotted} to the version it held at {commit} ({short})."
+
+              Cli.printHint
+                "  nothing was thrown away: the version you moved off is still in the store, and `dark log` still lists it."
+
+              Cli.printHint "  `dark status` shows the change; it travels when you sync."
+
+              state
+
+            | Error e ->
+              Cli.printErr $"couldn't revert: {e}"
+              { state with exitCode = 1 }
+
+  | _ ->
+    Cli.printErr "usage: dark revert <name> <commit>"
+    Cli.printHint "  reverts the name to what it held at that commit, or at any commit before it."
+    { state with exitCode = 1 }
+
+
+let help (_state: Cli.AppState) : String =
+  [ ""
+    "  dark revert <name> <commit>"
+    ""
+    "  Points a name back at the version it held at that commit. One `SetName`:"
+    "  nothing is undone and nothing is recovered, because every version is still"
+    "  in the store and a name is just a binding."
+    ""
+    "  \"At that commit\" includes every commit before it, so you can name a point"
+    "  in history rather than the exact commit that happened to rebind the name."
+    ""
+    "  Symmetric: reverting a revert is another revert, and `dark log` keeps"
+    "  showing every version either way." ]
+  |> Stdlib.String.join "\n"
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  match args with
+  | [] -> Packages.Nav.complete state args
+  | [ _ ] -> Packages.Nav.complete state args
+  | _ -> []

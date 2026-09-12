@@ -233,6 +233,63 @@ let chainBindings (branchId: Uuid) : List<Conflicts.Binding> =
   chainBindingEntries branchId |> Stdlib.List.filterMap (fun w -> w.binding)
 
 
+/// The full hash of the commit <param prefix> names, or None when nothing or more than one does.
+///
+/// People type what `dark log` printed, which is the short form. Ambiguity is None rather than a
+/// guess: two commits sharing a prefix is rare and picking one silently would revert a name to
+/// the wrong history.
+///
+/// main-scoped: commits are main's history. A branch's own work is in its overlay, not here.
+let resolveCommit (prefix: String) : Stdlib.Option.Option<String> =
+  let sql = "SELECT hash FROM commits WHERE hash LIKE @p0 || '%' LIMIT 2"
+
+  match Stdlib.Sqlite.queryP (Stdlib.LocalStore.path ()) sql [ prefix ] with
+  | Ok [ row ] -> Stdlib.Sqlite.textField row "hash"
+  | _ -> Stdlib.Option.Option.None
+
+
+/// What <param loc> was bound to AS OF <param commitHash>: the newest binding written by any op in
+/// that commit or one of its ancestors. `None` when the name was not bound anywhere in that history.
+///
+/// Ancestry rather than "ops in that commit": you ask about a commit to mean a point in time, and
+/// the name was usually bound by something earlier. `commits.parent` is the chain, and it exists
+/// because a commit's id is derived over its parent, the way git's is.
+///
+/// History is main's, so the read is main-scoped. A past binding is a fact about what was
+/// committed, and a branch has not committed anything -- its own work is in its overlay, which
+/// `chainBindingEntries` answers for and this deliberately does not.
+let bindingAsOfCommit
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (commitHash: String)
+  : Stdlib.Option.Option<String> =
+  let modules = Stdlib.String.join loc.modules "."
+
+  // main-scoped: this asks what main's history HELD, including bindings long superseded, so it
+  // reads unlisted rows too -- which is the one question `locations` is the right table for.
+  let sql =
+    "WITH RECURSIVE ancestry(h) AS (
+       SELECT @p0
+       UNION
+       SELECT c.parent FROM commits c JOIN ancestry a ON c.hash = a.h WHERE c.parent != ''
+     )
+     SELECT l.item_hash
+     FROM locations l JOIN package_ops p ON p.id = l.op_id
+     WHERE l.owner = @p1 AND l.modules = @p2 AND l.name = @p3
+       AND l.source != 'unbind'
+       AND p.commit_hash IN (SELECT h FROM ancestry)
+     ORDER BY l.origin_ts DESC, l.rowid DESC
+     LIMIT 1"
+
+  match
+    Stdlib.Sqlite.queryP
+      (Stdlib.LocalStore.path ())
+      sql
+      [ commitHash, loc.owner, modules, loc.name ]
+  with
+  | Ok (row :: _) -> Stdlib.Sqlite.textField row "item_hash"
+  | _ -> Stdlib.Option.Option.None
+
+
 /// EVERY name live on <param branchId>, as bindings. The enumerating form of <fn liveBindingFor>.
 ///
 /// Main's projection, then the chain overlay laid over it: a branch's SetName replaces main's entry
