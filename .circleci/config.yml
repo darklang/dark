@@ -490,6 +490,9 @@ jobs:
           name: Exercise libc-dependent builtins at the glibc floor
           command: |
             X64="$(ls clis/darklang-*-linux-x64)"
+            # `eval` is guest code under the deny-by-default instance policy.
+            # TODO: narrow to `file read /etc/hostname` (and whatever getcwd needs).
+            "$X64" permissions allow all > /dev/null
             "$X64" eval 'Builtin.posixStat "/etc/hostname"' | tee /tmp/stat.out
             grep -q "Ok(" /tmp/stat.out
             "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
