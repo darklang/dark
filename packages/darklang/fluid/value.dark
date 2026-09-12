@@ -23,7 +23,10 @@ type Dval = Darklang.LanguageTools.RuntimeTypes.Dval
 /// and a document that has forgotten is a document that cannot round trip. `_`-prefixed fields are
 /// skipped by the drawing and by `firstEditable`, which is how `_hash` and `_doc` already ride along.
 let intLeafOf (width: String) (s: String) : Node =
-  Node.make (Prims.intKind ()) [ ("digits", Field.Text s), ("_w", Field.Text width) ]
+  // One writer of the `_w` convention, in `Prims`, because the other writer is the editor: a digit
+  // typed into a sized slot has to produce the same node this does, or a value drawn and then edited
+  // stops round-tripping. They disagreed once already.
+  Prims.intNodeOfWidth (if width == "Int" then "" else width) s
 
 let intLeaf (s: String) : Node = intLeafOf "Int" s
 let strLeaf (s: String) : Node = Prims.stringNode s

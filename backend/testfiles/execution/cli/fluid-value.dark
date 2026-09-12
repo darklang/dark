@@ -383,3 +383,121 @@ module OpeningAValue =
 
   (OpeningAValue.targetOf "1 + 2" (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 3)) =
     "runtime value of: 1 + 2"
+
+
+module AWidthComesFromTheSlot =
+  // An integer draws the same digits at every width, so the width has nowhere to live in the projection
+  // and rides in a hidden `_w`. The question this module answers is where that field gets its VALUE when
+  // a person types the number rather than when `ofDval` builds it.
+  //
+  // Not from the old node. `c` CLEARS the slot to a hole before you type, so by the time a digit arrives
+  // the previous node is gone: an `Int8` retyped came back a plain `Int`, with the right digits on screen
+  // and the wrong type underneath. Found by driving it, invisible to every pin that reads the screen.
+  //
+  // From the SLOT, which is the only thing that knows: a hole carries the declared type of the field it
+  // is filling, and `Derive` puts it there.
+  let bid () : Uuid = Darklang.SCM.Branch.mainBranchId
+
+  let typed (t: Darklang.LanguageTools.ProgramTypes.TypeReference) (keys: List<String>) : String =
+    let root = Darklang.Fluid.Slot.Empty(Darklang.Fluid.Derive.expectFor t "reps")
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) root 60)
+        keys
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.Value.toDval (AWidthComesFromTheSlot.bid ()) n with
+       | Ok(DInt8 i) -> "DInt8 " ++ (Stdlib.Int8.toString i)
+       | Ok(DUInt64 i) -> "DUInt64 " ++ (Stdlib.UInt64.toString i)
+       | Ok(DInt i) -> "DInt " ++ (Stdlib.Int.toString i)
+       | Ok _ -> "some other case"
+       | Error e -> "ERR " ++ e)
+    | _ -> "not filled"
+
+  (AWidthComesFromTheSlot.typed Darklang.LanguageTools.ProgramTypes.TypeReference.TInt8 [ "9" ]) = "DInt8 9"
+  (AWidthComesFromTheSlot.typed Darklang.LanguageTools.ProgramTypes.TypeReference.TUInt64 [ "9" ]) = "DUInt64 9"
+  (AWidthComesFromTheSlot.typed Darklang.LanguageTools.ProgramTypes.TypeReference.TInt [ "9" ]) = "DInt 9"
+
+
+module RetypingAFieldKeepsItsWidth =
+  // The whole case, end to end: a record whose editor is derived from a declaration with an `Int8` field,
+  // the field changed with `c` and typed again. `Acme.Log` so nothing in Darklang is doing the work.
+  let decl () : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        definition =
+          Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+            [ Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+                { name = "reps"
+                  typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt8
+                  description = "" } ] }
+
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.addAll
+      (Darklang.Fluid.App.defaultRegistry ())
+      (Darklang.Fluid.Derive.specsFor "Acme.Log" (RetypingAFieldKeepsItsWidth.decl ()))
+
+  let root () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make
+        (Darklang.Fluid.Kind.named "Acme.Log")
+        [ ("reps",
+           Darklang.Fluid.Field.One(
+             Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNodeOfWidth "Int8" "7"))) ])
+
+  let after (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (RetypingAFieldKeepsItsWidth.reg ()) (RetypingAFieldKeepsItsWidth.root ()) 60)
+        keys
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.Node.slot n "reps" with
+       | Some(Filled leaf) ->
+         (match Darklang.Fluid.Value.toDval (AWidthComesFromTheSlot.bid ()) leaf with
+          | Ok(DInt8 i) -> "DInt8 " ++ (Stdlib.Int8.toString i)
+          | Ok(DInt i) -> "DInt " ++ (Stdlib.Int.toString i)
+          | Ok _ -> "some other case"
+          | Error e -> "ERR " ++ e)
+       | _ -> "field gone")
+    | _ -> "not filled"
+
+  (RetypingAFieldKeepsItsWidth.after []) = "DInt8 7"
+  (RetypingAFieldKeepsItsWidth.after [ "j", "c", "9", "9", "<Esc>" ]) = "DInt8 99"
+
+  // Typing INTO the leaf rather than replacing it always worked, because the node never went away.
+  (RetypingAFieldKeepsItsWidth.after [ "j", "i", "9", "<Esc>" ]) = "DInt8 97"
+
+  // The width is hidden, so none of this shows on screen. That is the point of pinning it here.
+  (Darklang.Fluid.Debug.render
+    (RetypingAFieldKeepsItsWidth.reg ())
+    60
+    (RetypingAFieldKeepsItsWidth.root ())) = "Log { reps = 7 }"
+
+
+module AWidthNeedsSomethingToComeFrom =
+  // The boundary, pinned deliberately rather than left to be discovered. A value opened on its own has
+  // nothing above it: `fluid eval "7y"` is a bare `Int8` and the root slot has no declared type, because
+  // there is no field it is filling. Replace it and the width is genuinely not recoverable.
+  //
+  // Left alone rather than papered over. Retyping the whole document IS saying "something else goes
+  // here", and inventing an `Int8` because that is what used to be there would be guessing. Every case
+  // that matters has a slot above it, which is where the answer lives.
+  let retyped (v: Darklang.LanguageTools.RuntimeTypes.Dval) (keys: List<String>) : String =
+    let root = Darklang.Fluid.Slot.Filled(Darklang.Fluid.Value.ofDval (AWidthComesFromTheSlot.bid ()) v)
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) root 60)
+        keys
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.Value.toDval (AWidthComesFromTheSlot.bid ()) n with
+       | Ok(DInt8 i) -> "DInt8 " ++ (Stdlib.Int8.toString i)
+       | Ok(DInt i) -> "DInt " ++ (Stdlib.Int.toString i)
+       | Ok _ -> "some other case"
+       | Error e -> "ERR " ++ e)
+    | _ -> "not filled"
+
+  (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) []) = "DInt8 7"
+  (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) [ "i", "9", "<Esc>" ]) = "DInt8 97"
+  (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) [ "c", "9", "9", "<Esc>" ]) = "DInt 99"

@@ -1,6 +1,8 @@
 /// Specs for the primitive kinds. Every client (PT, derived, generated) reuses these for its leaves.
 module Darklang.Fluid.Prims
 
+type TypeReference = Darklang.LanguageTools.ProgramTypes.TypeReference
+
 let intKind () : Kind = Kind.prim "Int"
 let stringKind () : Kind = Kind.prim "String"
 let boolKind () : Kind = Kind.prim "Bool"
@@ -13,10 +15,44 @@ let listKind () : Kind = Kind.prim "List"
 let intNode (digits: String) : Node =
   Node.make (intKind ()) [ ("digits", Field.Text digits) ]
 
+/// The width an integer leaf is being typed at, as a name `Value.intOfWidth` knows, or "" for a plain
+/// `Int`.
+///
+/// It comes from the SLOT, not from the node. Every width draws the same digits, so the projection has
+/// nowhere to put it, and the only thing that knows an `Int8` from an `Int` is the declared type of the
+/// field being filled. That is exactly what the hole's `Expect` carries.
+///
+/// This is why it has to work that way rather than by preserving the old node: `c` CLEARS the slot to a
+/// hole before you type, so by the time a digit arrives the previous node is gone. An `Int8` retyped
+/// came back a plain `Int` -- correct digits, wrong type, and nothing on screen to tell you.
+let intWidthOf (e: Expect) : String =
+  match e.typ with
+  | Some TInt8 -> "Int8"
+  | Some TUInt8 -> "UInt8"
+  | Some TInt16 -> "Int16"
+  | Some TUInt16 -> "UInt16"
+  | Some TInt32 -> "Int32"
+  | Some TUInt32 -> "UInt32"
+  | Some TInt64 -> "Int64"
+  | Some TUInt64 -> "UInt64"
+  | Some TInt128 -> "Int128"
+  | Some TUInt128 -> "UInt128"
+  | _ -> ""
+
+/// An integer leaf, carrying its width when it has one worth carrying.
+///
+/// Nothing is written for a plain `Int`, so a PT document's integer leaves are exactly what they were.
+/// A hidden field that is always present is a field every structural comparison has to know about.
+let intNodeOfWidth (width: String) (digits: String) : Node =
+  if width == "" then
+    intNode digits
+  else
+    Node.make (intKind ()) [ ("digits", Field.Text digits), ("_w", Field.Text width) ]
+
 let intSummary (n: Node) : String =
   Node.text n "digits" |> Stdlib.Option.withDefault ""
 
-let intFromDigit (c: String) (e: Expect) : Node = intNode c
+let intFromDigit (c: String) (e: Expect) : Node = intNodeOfWidth (intWidthOf e) c
 
 // --- String: quotes are punctuation, the body is one run ---
 
