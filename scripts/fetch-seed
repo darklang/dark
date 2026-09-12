@@ -3,9 +3,13 @@
 # Get a package seed, from a file or from a server, and install it as this rundir's store.
 #
 #   scripts/fetch-seed --from <path>            a seed already on disk
-#   scripts/fetch-seed --url <url>              that server's current main
+#   scripts/fetch-seed --url <url>              that server's main at the PIN, or its head
 #   scripts/fetch-seed --url <url> --commit <c> that server's main as of <c>
 #   scripts/fetch-seed                          DARK_SEED_URL, or the built-in default
+#
+# With no --commit, the commit comes from `package-set.txt`; `commit unset` there means no pin,
+# and the fetch takes the server's head. A pinned fetch also CHECKS the seed's format against the
+# pin, because a layout this build has never seen cannot be read by trying harder.
 #
 # A seed is ops, not projections, so the first open folds it (~seconds) and every store built
 # from the same seed agrees on every id.
@@ -28,6 +32,16 @@ FROM=""
 URL=""
 COMMIT=""
 FORCE=false
+
+# The pin, if this tree has one. Read before the arguments so an explicit --commit overrides it.
+PINFILE="${DARK_PACKAGE_SET:-package-set.txt}"
+PINNED_COMMIT=""
+PINNED_FORMAT=""
+if [[ -f "$PINFILE" ]]; then
+  PINNED_COMMIT=$(awk '$1 == "commit" { print $2 }' "$PINFILE")
+  PINNED_FORMAT=$(awk '$1 == "format" { print $2 }' "$PINFILE")
+  if [[ "$PINNED_COMMIT" == "unset" ]]; then PINNED_COMMIT=""; fi
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -58,6 +72,13 @@ else
   # `/seed/<commit>.db` is the route a server serves a pinned cut from; without a commit, its
   # current main. A bare url with no path is treated as already naming the seed, which is what
   # the R2 fallback is.
+  # An explicit --commit beats the pin; the pin beats the server's head. So a build in a pinned
+  # tree fetches the pinned set without anyone having to remember to ask for it.
+  if [[ -z "$COMMIT" && -n "$PINNED_COMMIT" ]]; then
+    COMMIT="$PINNED_COMMIT"
+    echo "Using the pin from ${PINFILE}: ${COMMIT}"
+  fi
+
   if [[ -n "$COMMIT" ]]; then
     SEED_URL="${URL:-$DEFAULT_URL}/seed/${COMMIT}.db"
   elif [[ -n "$URL" ]]; then
@@ -72,6 +93,21 @@ fi
 
 SEED_SIZE=$(du -h "$DEST_SEED" | cut -f1)
 echo "Seed at ${DEST_SEED} (${SEED_SIZE})"
+
+# Refuse a seed in a layout the pin did not expect, BEFORE installing it. A store is the only copy
+# of the ops in it, so the failure has to happen while the old one is still there.
+if [[ -n "$PINNED_FORMAT" ]] && command -v sqlite3 > /dev/null 2>&1; then
+  GOT_FORMAT=$(sqlite3 "$DEST_SEED" "SELECT value FROM store_meta WHERE key = 'format';" 2>/dev/null || echo "")
+  if [[ -n "$GOT_FORMAT" && "$GOT_FORMAT" != "$PINNED_FORMAT" ]]; then
+    {
+      echo
+      echo "That seed is in format ${GOT_FORMAT}; ${PINFILE} pins format ${PINNED_FORMAT}."
+      echo "Not installing it. Either the server moved formats or this tree's pin is stale;"
+      echo "re-pin with scripts/packages/pin, on a build that reads the new format."
+    } >&2
+    exit 1
+  fi
+fi
 
 if [[ -f "$DEST_DB" && "$FORCE" != "true" ]]; then
   {

@@ -1,0 +1,20 @@
+# The package set this kernel is pinned to.
+#
+# `scripts/packages/pin` writes this file; `scripts/fetch-seed`, CI and the dev container read it.
+# Its whole job is to make "which packages" a decision recorded in git rather than whatever the
+# tree happened to contain when a build ran.
+#
+# There is deliberately no URL here. A pin says WHICH package set, not where to get it: two
+# mirrors serving the same commit are interchangeable, and a URL in the repo is a deployment
+# detail that ages badly and belongs to whoever runs the server. The address comes from
+# `DARK_SEED_URL` in the environment, or `--url` on the command line.
+#
+#   commit   the SCM commit on the package server that this kernel was tested against. `unset`
+#            means there is no pin yet, and everything that reads this file falls back to
+#            building the package set from `packages/` -- which is what happens today.
+#   format   the op-blob layout the seed at that commit is written in. A fetch that gets a
+#            different one refuses rather than folding it, because a layout this binary has
+#            never seen cannot be read by trying harder.
+
+commit  unset
+format  1

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# Get this build's package set into the store, from whichever source `package-set.txt` names.
+#
+#   commit unset   reload `packages/` from disk, which is what has always happened
+#   commit <hash>  fetch the seed at that commit from the package server, and generate the
+#                  kernel's ref hashes from it
+#
+# One script rather than a branch in three CI jobs, because the two halves have to agree about what
+# "the package set" is or a build embeds one and tests another.
+#
+# The pinned path needs `DARK_SEED_URL` (or `--url`). It deliberately does NOT fall back to
+# reloading if the server is unreachable: a build that silently used the tree instead of the pin is
+# the exact failure the pin exists to prevent.
+
+set -euo pipefail
+
+[[ -f package-set.txt ]] || { echo "prepare-package-set: run from the repo root" >&2; exit 2; }
+
+URL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --url) URL_ARGS=(--url "${2:?--url needs a url}"); shift 2 ;;
+    -h|--help) sed -n '3,15p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) echo "prepare-package-set: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+
+PIN=$(awk '$1 == "commit" { print $2 }' package-set.txt)
+
+if [[ -z "$PIN" || "$PIN" == "unset" ]]; then
+  echo "No pin in package-set.txt; building the package set from packages/."
+  exec scripts/build/reload-packages
+fi
+
+echo "Pinned to ${PIN}; fetching the seed rather than reloading packages/."
+scripts/fetch-seed "${URL_ARGS[@]}" --force
+
+# The kernel resolves its entry points by HASH, and that file is not in the seed -- it is a
+# projection of it. Without this step every kernel lookup resolves to "" and the binary fails on
+# its first command, somewhere that says nothing about why.
+scripts/run-local-exec refs generate

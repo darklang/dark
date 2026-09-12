@@ -228,8 +228,8 @@ jobs:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
       - run:
           name: Export the seed the publish embeds
           command: scripts/run-local-exec export-seed rundir/seed.db
@@ -315,8 +315,8 @@ jobs:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
 
       - assert-clean-worktree
       # Just the host build, on main as much as anywhere else. This is a
@@ -379,14 +379,31 @@ jobs:
       - run:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
+      # Keyed on the PIN, not on the week: a pinned package set is immutable, so this hits on every
+      # release build until someone re-pins. Costs nothing when there is no pin -- `package-set.txt`
+      # then says `commit unset`, the key is stable, and the cached rundir is simply not used
+      # because the step below reloads instead.
+      - restore_cache:
+          keys:
+            - v1-seed-{{ checksum "package-set.txt" }}
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
       - run:
           name: Export the seed
           command: |
-            sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
-            scripts/run-local-exec export-seed rundir/seed.db
+            # A no-op on the pinned path, where the fetched file already IS the seed and is settled
+            # out of WAL. On the reload path the store is live and this is the cut.
+            if [[ -f rundir/seed.db ]] && [[ "$(awk '$1 == "commit" { print $2 }' package-set.txt)" != "unset" ]]; then
+              echo "using the fetched seed at the pin"
+            else
+              sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
+              scripts/run-local-exec export-seed rundir/seed.db
+            fi
+      - save_cache:
+          paths:
+            - rundir/seed.db
+          key: v1-seed-{{ checksum "package-set.txt" }}
       - persist_to_workspace:
           root: "."
           paths:

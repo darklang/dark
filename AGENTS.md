@@ -326,6 +326,11 @@ Empty is tolerated; non-empty with a missing key crashes at startup with "Packag
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
 
+It is a PROJECTION of the store, not a source file, which is why it is not tracked. A store
+that came from a seed has no `packages/` to reload, so regenerate it from the store instead:
+`scripts/run-local-exec refs generate`. `scripts/build/prepare-package-set` does that on the
+pinned path; see `package-set.txt`.
+
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
