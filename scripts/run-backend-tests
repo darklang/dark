@@ -141,12 +141,36 @@ if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
 else
   # Disk mode: reload packages from .dark files.
   #  Migrations already ran inline above
-  if [[ -v CI ]]; then
-    echo "Reloading packages"
-    ./scripts/build/reload-packages $PUBLISHED_FLAG
+  #
+  # Reloading is 11.9s of a ~16s startup, and most runs do not need it: editing a TESTFILE does not
+  # change a package. So keep a pristine snapshot taken right after a reload, stamped with the state of
+  # `packages/`, and copy it back when nothing there has moved. A 64MB copy against twelve seconds.
+  #
+  # A snapshot rather than reusing the database in place, because tests WRITE to the store -- authoring
+  # cases add declarations -- and the next run has to start from the same place this one did. That is
+  # what the delete above is for, and this keeps it.
+  PRISTINE_PATH="${DARK_CONFIG_RUNDIR}/test-data-pristine.db"
+  PRISTINE_STAMP="${DARK_CONFIG_RUNDIR}/test-data-pristine.stamp"
+  PACKAGES_STAMP=$(
+    { find packages -name '*.dark' -type f -printf '%T@ %s %p\n' 2>/dev/null | sort;
+      echo "published=${PUBLISHED_FLAG}"; } | sha256sum | cut -d' ' -f1
+  )
+
+  if [[ -f "$PRISTINE_PATH" && -f "$PRISTINE_STAMP" && "$(cat "$PRISTINE_STAMP")" == "$PACKAGES_STAMP" ]]; then
+    echo -e "Reusing package snapshot ${grey}(packages unchanged)${reset}"
+    cp "$PRISTINE_PATH" "$DB_PATH"
   else
-    echo "Reloading packages"
-    ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+    if [[ -v CI ]]; then
+      echo "Reloading packages"
+      ./scripts/build/reload-packages $PUBLISHED_FLAG
+    else
+      echo "Reloading packages"
+      ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+    fi
+    # Snapshot AFTER the reload and before any test has run, so what gets restored is what a reload
+    # produces. WAL and shm are checkpointed into the copy by copying all three.
+    cp "$DB_PATH" "$PRISTINE_PATH" 2>/dev/null || true
+    echo "$PACKAGES_STAMP" > "$PRISTINE_STAMP"
   fi
 fi
 
