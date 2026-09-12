@@ -330,6 +330,7 @@ gate_store_upgrade() {
   want "it rewrote the whole log" "$after_author_ops op\(s\) rewritten" "$out"
   want "it says where the old store is" "pre-v2" "$out"
   want "the stamp moved" "^2$" "$(fmt)"
+  want "and \`store\` names the way back" "store rollback 2" "$(v2 store)"
   want "no op was lost" "^$after_author_ops$" "$(ops)"
   if [[ -f "$ROOT/data.db.pre-v2" ]]; then ok "the pre-upgrade copy is on disk"; else bad "the pre-upgrade copy is on disk" "$(ls "$ROOT")"; fi
 

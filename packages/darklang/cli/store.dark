@@ -42,6 +42,19 @@ let showInfo (state: AppState) : AppState =
       let key = Stdlib.String.padEndToWidth k 8
       Stdlib.printLine $"{key}  {v}")
 
+    // Naming the verb here, because this is where someone looks after an upgrade went wrong and
+    // `dark backups` does not list the copy an upgrade takes. The verb knows its own filename; it
+    // says so plainly if there is no copy to put back.
+    let format = SCM.StoreMeta.get "format"
+
+    if (format != "") && (format != "1") then
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        $"  `store rollback {format}` puts back the copy taken on the way here."
+    else
+      ()
+
     state
 
 
