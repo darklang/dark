@@ -691,14 +691,14 @@ let hostedOpsAreNotThisStoresDraft =
             [ "id", Sql.string (string hostedId) ]
         Expect.equal stillThere 1L "and a discard leaves it where it is"
 
+        // Folded, not inert. A server that cannot fold cannot see or serve what it hosts, so it
+        // folds now -- and `op_owners`, not `effective`, is what keeps a peer's push out of this
+        // store's draft, which is the assertion above.
         let! effective =
           Sql.query "SELECT effective AS e FROM package_ops WHERE id = @id"
           |> Sql.parameters [ "id", Sql.string (string hostedId) ]
           |> Sql.executeRowAsync (fun read -> read.int64 "e")
-        Expect.equal
-          effective
-          0L
-          "still inert: a relay serves what it is handed, it does not run it"
+        Expect.equal effective 1L "and it is folded like any other arriving op"
       })
 
 

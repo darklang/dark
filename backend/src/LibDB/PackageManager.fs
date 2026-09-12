@@ -643,7 +643,26 @@ let mutable private currentBranchIdOpt : Option<PT.BranchId> = None
 /// branch's parser the moment you stood on one. Returns `None` for anything not bound here, and
 /// `PackageRefs` falls back to the pinned hash, so a store that predates a ref behaves as before.
 ///
-/// Off unless `DARK_REFS_BY_NAME=1`; see the note on `PackageRefs.resolveFnByName`.
+/// Whether two versions of a fn are interchangeable to an F# caller.
+///
+/// The kernel calls these seventeen and never takes one apart, so what has to hold is the
+/// SIGNATURE: parameter types in order, the return type, and how many type parameters. Names,
+/// descriptions and the body are the author's business.
+let private sameSignature
+  (expected : PT.PackageFn.PackageFn)
+  (candidate : PT.PackageFn.PackageFn)
+  : bool =
+  let paramTypes (fn : PT.PackageFn.PackageFn) =
+    fn.parameters |> NEList.toList |> List.map (fun p -> p.typ)
+
+  paramTypes expected = paramTypes candidate
+  && expected.returnType = candidate.returnType
+  && List.length expected.typeParams = List.length candidate.typeParams
+
+/// The net. Without it a bad rebind of `Cli.executeCliCommand` is a CLI that cannot start, and
+/// the only way back is an environment variable you have to know exists. With it, a rebind whose
+/// signature does not match what this build compiles against is refused, loudly, and the pinned
+/// version is used: a wrong edit degrades rather than bricks.
 let private resolveKernelFnByName
   (modules : string list)
   (name : string)
@@ -651,15 +670,48 @@ let private resolveKernelFnByName
   try
     let modulesStr = String.concat "." modules
 
-    Sql.query
-      "SELECT item_hash
-       FROM locations
-       WHERE owner = 'Darklang' AND modules = @modules AND name = @name
-         AND item_type = 'fn' AND unlisted_at IS NULL AND source != 'unbind'
-       LIMIT 1"
-    |> Sql.parameters [ "modules", Sql.string modulesStr; "name", Sql.string name ]
-    |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
-    |> fun t -> t.Result
+    let candidateHash =
+      Sql.query
+        "SELECT item_hash
+         FROM locations
+         WHERE owner = 'Darklang' AND modules = @modules AND name = @name
+           AND item_type = 'fn' AND unlisted_at IS NULL AND source != 'unbind'
+         LIMIT 1"
+      |> Sql.parameters [ "modules", Sql.string modulesStr; "name", Sql.string name ]
+      |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
+      |> fun t -> t.Result
+
+    match candidateHash with
+    | None -> None
+    | Some candidate ->
+      match LibExecution.PackageRefs.pinnedFnHash modules name with
+      // Nothing pinned to compare against, or the store already agrees with the pin. The second
+      // is the overwhelmingly common case and costs one string compare.
+      | None -> Some candidate
+      | Some pinned when pinned = candidate -> Some candidate
+      | Some pinned ->
+        let fnFor (h : string) = (PMPT.Fn.get (PT.Hash h) |> Ply.toTask).Result
+
+        match fnFor pinned, fnFor candidate with
+        | Some expected, Some actual when sameSignature expected actual ->
+          Some candidate
+        | Some _, Some _ ->
+          LibExecution.PackageRefs.sayOnce (
+            $"warning: the store binds Darklang.{modulesStr}.{name} to a version whose signature "
+            + "is not the one this build expects, so the built-in version is being used instead."
+          )
+          None
+        | _, None ->
+          // Bound to content this store does not hold: nothing to call.
+          LibExecution.PackageRefs.sayOnce (
+            $"warning: Darklang.{modulesStr}.{name} is bound to content this store does not have, "
+            + "so the built-in version is being used instead."
+          )
+          None
+        | None, _ ->
+          // The PINNED version is missing from the store. Nothing left to compare against, and
+          // refusing would leave no version at all, so trust the store.
+          Some candidate
   with _ ->
     // No store yet, or one without the table: migrations run before any of this exists, and a
     // ref resolved during them must fall back rather than fail the boot.

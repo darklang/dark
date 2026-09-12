@@ -137,6 +137,17 @@ let setHashes (hashes : Map<string, string>) : unit =
   hashGeneration <- hashGeneration + 1
 
 
+/// Say something once, however many refs trip over it. Public because the resolver that needs it
+/// lives in `LibDB`, on the other side of the dependency.
+let sayOnce (msg : string) : unit = warn msg
+
+/// The hash this BUILD pins for a fn ref, which is what "the signature this build expects" means:
+/// the pinned version is in the store too, because content is never deleted, so a candidate can be
+/// compared against it without pinning anything further.
+let pinnedFnHash (modules : string list) (name : string) : string option =
+  let fqn = $"""fn/{String.concat "." modules}.{name}"""
+  getHashes () |> Map.tryFind fqn
+
 /// How a FN ref resolves against the live store, when it does.
 ///
 /// Installed by whoever owns the store, because `LibDB` depends on `LibExecution` and not the
@@ -152,12 +163,15 @@ let setHashes (hashes : Map<string, string>) : unit =
 let mutable resolveFnByName : (string list -> string -> string option) =
   fun _ _ -> None
 
-/// Off by default. By-name resolution means the binary runs whatever the store currently binds
-/// `Cli.executeCliCommand` to, which is the intent -- and also means a store with a broken entry
-/// point produces a CLI that cannot start. Opt in with `DARK_REFS_BY_NAME=1` until that trade has
-/// been made deliberately.
+/// ON by default: the store is the source, and these seventeen are the places that matters most.
+/// Edit the pretty-printer and the binary you already have starts using it.
+///
+/// Safe to default because the resolver checks the candidate's SIGNATURE against the pinned
+/// version and refuses a mismatch, loudly, falling back to the pin -- so a wrong edit degrades
+/// rather than bricks the CLI. `DARK_REFS_BY_NAME=0` turns it off anyway, which is the escape
+/// hatch for a store broken in some way the signature check does not catch.
 let private byNameEnabled : Lazy<bool> =
-  lazy (System.Environment.GetEnvironmentVariable "DARK_REFS_BY_NAME" = "1")
+  lazy (System.Environment.GetEnvironmentVariable "DARK_REFS_BY_NAME" <> "0")
 
 /// Shared body of `Type.p` and `Fn.p`: a closure resolving `<kind>/<modules>.<name>`
 /// against the hash file. Resolution is cached once per hash generation: the answer

@@ -285,28 +285,18 @@ let rec insertAndApplyOpsWith
 /// op the store already runs counts 0. Insert with applied=false, fold, then mark applied=true, so a
 /// mid-fold failure leaves the ops identifiable and retryable. Commit-free: no commit_hash, so every
 /// op is live.
-/// The `owner` field is the first part of a package name, such as
-/// `Darklang.Stdlib.List.map`. Names beginning with `Darklang` are treated as
-/// bundled first-party code, so only trusted seeding may create those bindings;
-/// guest and sync writes reject them.
-let reservedOwners : Set<string> = Set.ofList [ "Darklang" ]
-
-/// The first operation that binds OR unbinds a name under a protected owner.
-/// `None` means no protected location is touched. (The old model also had to
-/// chase renames unlisting other bindings of a shared hash; that heuristic is
-/// gone -- a `SetName` changes exactly its own location, and retiring a name is
-/// an explicit `Unbind` -- so the location arms here are the whole surface.)
-let reservedOwnerViolation (ops : List<PT.PackageOp>) : Option<string> =
-  let ownersBound (op : PT.PackageOp) : List<string> =
-    match op with
-    | PT.PackageOp.SetName(loc, _, _) -> [ loc.owner ]
-    | PT.PackageOp.Unbind(loc, _) -> [ loc.owner ]
-    | _ -> []
-  ops
-  |> List.collect ownersBound
-  |> List.tryFind (fun owner -> Set.contains owner reservedOwners)
-  |> Option.map (fun owner ->
-    $"cannot bind a package name under the reserved owner \"{owner}\"; it is reserved for the bundled standard library")
+// No reserved owners. `Darklang` used to be refused here for every write that was not trusted
+// seeding, which meant guest `run` and arriving sync ops could not bind under it.
+//
+// Removed deliberately, 2026-09-12: the store is becoming the source, and the only sanctioned
+// writer to `Darklang.*` was the reload from `packages/` that the bootstrapping arc deletes. So
+// the protection had to go or the standard library would become uneditable.
+//
+// What it was defending, for whoever puts a security model back: a name binds last-writer-wins
+// across the whole store, so anything that could write could rebind anything -- including the
+// names the kernel itself resolves through, and including `Darklang.Matter.router`, which is
+// what a server serves. The replacement is an op's AUTHORITY, checked at fold time, and it does
+// not exist yet. Until it does, anyone who can write can rebind anything.
 
 /// Detect a parser placeholder instead of a real content hash. Placeholders
 /// are empty or contain the package location; real hashes contain only hex
@@ -354,16 +344,17 @@ let insertAndApplyOpsAsWip (ops : List<PT.PackageOp>) : Task<int64> =
 /// `effective = 1` is the same clause `Queries.getWipOps` carries and for the same reason: ops a client
 /// pushed to this store are inert, untagged and uncommitted, so without it a discard here deletes data
 /// this store is only holding for someone else.
-/// Safely insert package operations submitted by RUNNING Dark code -- a guest
-/// `run`, or ops that arrived over sync. Rejects protected `Darklang` bindings
-/// and unstabilized hashes before insertion; trusted seeding does not come
-/// through here.
+/// Insert package operations submitted by RUNNING Dark code -- a guest `run`, or ops that arrived
+/// over sync. Trusted seeding does not come through here.
+///
+/// The only check left is the placeholder-hash one, which is a correctness check rather than a
+/// permission: a parser that had no store to ask emits a location where a content hash belongs,
+/// and storing that would bind a name to something that does not exist.
 let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> =
   task {
-    match reservedOwnerViolation ops, placeholderHashViolation ops with
-    | Some reason, _
-    | None, Some reason -> return Error reason
-    | None, None ->
+    match placeholderHashViolation ops with
+    | Some reason -> return Error reason
+    | None ->
       let! count = insertAndApplyOpsAsWip ops
       return Ok count
   }
@@ -373,11 +364,13 @@ let draftDeletes : List<string> =
      AND op_id IN (SELECT id FROM package_ops
                    WHERE effective = 1
                      AND commit_hash IS NULL
-                     AND id NOT IN (SELECT op_id FROM op_branches))"
+                     AND id NOT IN (SELECT op_id FROM op_branches)
+                     AND id NOT IN (SELECT op_id FROM op_owners))"
     "DELETE FROM package_ops
      WHERE effective = 1
        AND commit_hash IS NULL
-       AND id NOT IN (SELECT op_id FROM op_branches)" ]
+       AND id NOT IN (SELECT op_id FROM op_branches)
+       AND id NOT IN (SELECT op_id FROM op_owners)" ]
 
 /// Every main op and what it wrote, EXCEPT the ids in `keep`: the ops this build cannot decode, which
 /// the caller has read by id. Deleting those would delete a peer's committed op for good because this
@@ -402,8 +395,8 @@ let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
     //
     // Main only. A branch's rows are keyed by its own id, and no main rewrite may touch them.
     $"DELETE FROM propagation_policy WHERE branch_id = '{PT.BranchId.Main}'"
-    // `effective = 1`: excludes client-pushed inert ops; see `draftDeletes`.
-    $"DELETE FROM package_ops WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches){keepUnreadable}" ]
+    // Hosted ops excluded via `op_owners`; see `draftDeletes` for why.
+    $"DELETE FROM package_ops WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches) AND id NOT IN (SELECT op_id FROM op_owners){keepUnreadable}" ]
 
 /// Main's op ids this build cannot decode. What `wholeMainDeletes` keeps.
 let unreadableMainOpIds () : Task<Set<System.Guid>> =
@@ -604,15 +597,23 @@ let storeOpsWithOwner
               "op_blob", Sql.bytes blob
               "origin_ts", Sql.string ts ])
 
-        // `effective = 0`: in the log, NEVER folded into this store's own main. Queued-for-folding
-        // is not enough, since `growIfNeeded` folds everything `applied = 0 AND effective = 1` on
-        // the next startup. A client pushes its whole log, package tree included, and names bind
-        // last-writer-wins over the whole store -- `Darklang.Matter.router` among them -- so anyone
-        // who could write to a relay could change what that relay itself runs. Hosted ops are DATA:
-        // the relay serves the blobs back verbatim and its own code stays what its binary seeded.
+        // `effective = 1`: pushed ops ARE folded into this store's main, like any other arriving
+        // op. The fold happens in the builtin that calls this, and `growIfNeeded` finishes any
+        // that were interrupted.
+        //
+        // This used to be `effective = 0`, so hosted ops were inert data the server served back
+        // verbatim and never ran. That was a privilege-escalation defence: a name binds
+        // last-writer-wins across the store, `Darklang.Matter.router` included, so anyone who
+        // could push could change what the server itself runs.
+        //
+        // Given up deliberately, 2026-09-12, with `reservedOwners`. A server that cannot fold
+        // cannot serve a seed of what it hosts, cannot show it in `/m`, and cannot be deployed to
+        // by pushing -- and all three are wanted. The replacement is an op's AUTHORITY checked at
+        // fold time, and it does not exist yet, so for now anyone who can push can rebind
+        // anything here.
         let insertOps =
           "INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts)
-           VALUES (@id, @op_blob, 0, 0, @origin_ts)"
+           VALUES (@id, @op_blob, 0, 1, @origin_ts)"
 
         let statements =
           if owner = "" then

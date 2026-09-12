@@ -500,8 +500,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // RELAY store: bulk-insert ops + record ownership (owner) in one transaction, NO fold
-    // (a relay serves blobs, not projections). The perf path for a relay recording pushes.
+    // SERVER store: bulk-insert ops + record ownership in one transaction, THEN fold.
+    //
+    // It folded nothing until 2026-09-12, on the grounds that a server serves blobs rather than
+    // projections. That also meant it could not see what it hosted: `/m` showed "Nothing here"
+    // for packages every client had, a seed could not be cut from the hosted set, and pushing new
+    // code to a server could never change what it ran. All three are wanted, so it folds.
     { name = fn "scmStoreOps" 0
       typeParams = []
       parameters =
@@ -524,6 +528,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             try
               let! n = LibDB.Inserts.storeOpsWithOwner owner (opRecords records)
+              // Fold what just arrived, so the projection a seed and `/m` read is current. Cheap:
+              // ~116us an op, and a push is tens of ops.
+              let! _ = LibDB.Seed.applyUnappliedOps ()
               return resultOk (Dval.int (bigint n))
             with ex ->
               return resultError (Dval.string ex.Message)

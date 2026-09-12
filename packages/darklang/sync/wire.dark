@@ -201,9 +201,13 @@ let localMaxRowid () : Int64 =
   |> Stdlib.Option.withDefault 0L
 
 
-/// RELAY side of a push: store the pushed ops AND record who pushed them, so the owner can pull their
-/// stuff back from any machine. Bulk (ops + ownership in one transaction) and store-only -- NO fold, since
-/// a relay serves op blobs, not projections. Returns the count of newly-stored ops.
+/// SERVER side of a push: store the pushed ops, record who pushed them so the owner can pull their
+/// stuff back from any machine, and FOLD them into main. Returns the count of newly-stored ops.
+///
+/// It stored without folding until 2026-09-12, which is why the package browser said "Nothing here"
+/// for code every client had: the server's own projection never saw what it hosted. Folding is what
+/// lets a seed be cut from the hosted set, and what makes pushing new code to a server able to change
+/// what it runs.
 let storeWithOwner
   (owner: String)
   (ops: List<SyncOp>)
@@ -213,8 +217,7 @@ let storeWithOwner
 
   match Builtin.scmStoreOps owner records with
   | Ok n ->
-    // The author's commits, kept beside the hosted ops so a pull hands them on. Stored, never folded,
-    // like the ops themselves: a hosted op is inert here whatever commit it names.
+    // The author's commits, kept beside the hosted ops so a pull hands them on.
     PackageOps.adoptCommits commits (ops |> Stdlib.List.map (fun op -> (op.id, op.commit)))
     Stdlib.Result.Result.Ok n
   | Error e -> Stdlib.Result.Result.Error e
