@@ -580,3 +580,41 @@ module TypingAWholeFunction =
   // printed form is not typeable.
   (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int) (m: Int): Int")) =
     "let inc (n: Int): ('m: * Int) =\n  :Int~"
+
+
+module ATypeParameterCanBeWritten =
+  // `<` on a function shell did nothing at all, so a generic signature could be read and never written:
+  // `let inc<'a> (n: 'a): 'a` swallowed the `<'a>` and gave `let inc (n: 'a): 'a`, silently.
+  //
+  // Three things, and the middle one is why the first looked like it worked.
+  //
+  // 1. No action claimed `<`. `(` has had one since the shell was written (`add a parameter`) and its
+  //    sibling was never added. An ACTION rather than `opensItems`, because the caret on a fresh shell is
+  //    ON THE NODE rather than at the end of a text slot, and `opensItems` is for the second of those.
+  // 2. A blank shell had no `typeParams` FIELD at all, where `toDoc` gives every function one. Two
+  //    constructors for one kind disagreeing about its shape -- and `Node.setField` only REPLACES a
+  //    field, it does not add one, so the action ran, reported that it had, and changed nothing.
+  // 3. The name slot had no text class, so the `'` the piece already draws went in as text: `<''a>`.
+  let shell (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (TypingAWholeFunction.reg ())
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.Fn.emptyDocFor "inc"))
+      70
+      keys
+
+  let ch (src: String) : List<String> =
+    Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+
+  (ATypeParameterCanBeWritten.shell (ATypeParameterCanBeWritten.ch "<")) =
+    "let inc<'~⟨name⟩> (): <return> =\n  ⟨body⟩"
+
+  (ATypeParameterCanBeWritten.shell (ATypeParameterCanBeWritten.ch "<'a")) =
+    "let inc<'a~> (): <return> =\n  ⟨body⟩"
+
+  // The `>` is already on screen, so typing the one you can see is a no-op rather than content.
+  (ATypeParameterCanBeWritten.shell (ATypeParameterCanBeWritten.ch "<'a>")) =
+    "let inc<'a~> (): <return> =\n  ⟨body⟩"
+
+  // A shell with no type parameter draws none, so the brackets appear only when there is something in
+  // them and the pin above is about opening the list rather than about the drawing.
+  (ATypeParameterCanBeWritten.shell []) = "~let inc (): <return> =\n  ⟨body⟩"

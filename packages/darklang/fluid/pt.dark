@@ -3452,6 +3452,11 @@ module Fn =
       [ PT.text "name" name
         PT.text "_hash" ""
         PT.emptyDocField ()
+        // A blank shell had no `typeParams` field at all, where `toDoc` gives every function one. Two
+        // constructors for one kind, disagreeing about its shape, and `Node.setField` only REPLACES a
+        // field -- it does not add one -- so the action that adds a type parameter ran, said it had, and
+        // changed nothing.
+        ("typeParams", Field.Many([], TypeDecl.paramExpect ()))
         ("params", Field.Many([ Slot.Filled(Node.make (unitParamKind ()) []) ], paramExpect ()))
         ("ret", Field.One(Slot.Empty(Types.typeExpect "return")))
         ("body", Field.One(Slot.Empty(PT.exprExpect "body"))) ]
@@ -3510,6 +3515,24 @@ module Fn =
 
     [ (bindings, [ "body" ]) ]
 
+  /// One more `'a` in the angle brackets, which are drawn only once there is something in them.
+  ///
+  /// The sibling of `addParam`, and it was missing. `<` typed on a function shell did nothing at all, so
+  /// `let inc<'a> (n: 'a): 'a` swallowed the `<'a>` and gave `let inc (n: 'a): 'a` -- a generic signature
+  /// could be read and never written, silently.
+  ///
+  /// An ACTION rather than `opensItems`, because the caret on a fresh shell is ON THE NODE rather than at
+  /// the end of a text slot, and `opensItems` is for the second of those. `(` is an action for the same
+  /// reason and this is next to it, which is where the gap was visible if anyone had looked.
+  let addTypeParam (n: Node) : Slot =
+    Slot.Filled(
+      Node.setField
+        n
+        "typeParams"
+        (Field.Many(
+          Stdlib.List.append (Node.items n "typeParams") [ Slot.Filled(TypeDecl.paramToDoc "") ],
+          TypeDecl.paramExpect ())))
+
   let fnActions () : List<Action> =
     [ Action
         { name = "add a parameter"
@@ -3517,6 +3540,12 @@ module Fn =
           doc = "one more (name: Type)"
           applies = (fun _ -> true)
           run = addParam }
+      Action
+        { name = "add a type parameter"
+          key = Stdlib.Option.Option.Some "<"
+          doc = "one more <'a>"
+          applies = (fun _ -> true)
+          run = addTypeParam }
       Action
         { name = "takes nothing"
           key = Stdlib.Option.Option.None
@@ -3557,6 +3586,11 @@ module Fn =
         (emptyDocFor "unnamed")) with
         actions = fnActions ()
         binders = fnBinders
+        // `<` opens the type parameters, the same rule `TCustomType` claims for its type ARGUMENTS.
+        // `EachWrapped` draws nothing when the list is empty, so there was no `<` on screen to step over
+        // and no rule to add one: a generic function's signature could be read and never written.
+        // `let inc<'a> (n: 'a): 'a` swallowed the `<'a>` and gave `let inc (n: 'a): 'a`, silently.
+        opensItems = [ ("<", "typeParams") ]
         summary = (fun n -> "let " ++ (PT.textOf n "name")) }
 
   let specs () : List<Spec> = [ fnSpec (), paramSpec (), unitParamSpec () ]
@@ -3779,7 +3813,13 @@ module TypeDecl =
         (emptyDocFor "Unnamed")
       // A declaration's own type params carry the quote too: the printer writes `type Option<'v>`, and
       // Fluid drew `type Option<v>`. The CASES were already right, because those are TypeReferences.
-      simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
+      // The name takes identifier characters only, so the `'` the piece already draws is REFUSED rather
+      // than doubled. Someone writing `<'a>` types the quote they can see, and without a class on the
+      // slot it went in as text: `<''a>`. A refusal that says why beats a silent second quote, and the
+      // class is the same one every other name slot uses.
+      Spec.withTextClasses
+        (simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ]))
+        [ ("name", Darklang.Fluid.TextClass.Word(("<nameStart>", "<identifier>"))) ]
       // definition: a hole here offers record / enum / alias
       { (Spec.simple (Kind.named (ns ++ ".Def")) [ Piece.Dim "?definition" ] (Node.make (k "Record") [ ("fields", Field.Many([], fieldExpect ())) ])) with
           // A definition hole took no punctuation at all: `{` and `|` accumulated as text, and the three

@@ -78,7 +78,7 @@ module ANodeWithNoCaseIsItsOwnTypeLevel =
 
     Darklang.Fluid.Editor.paletteActions st |> Stdlib.List.map (fun a -> a.name)
 
-  (fnActions ()) = [ "add a parameter", "takes nothing" ]
+  (fnActions ()) = [ "add a parameter", "add a type parameter", "takes nothing" ]
 
   // A node whose kind HAS a case must still get both: `convert to match` is the EIf spec's, and the
   // wraps and `pipe into` belong to the type-level Expr spec that every case shares.
