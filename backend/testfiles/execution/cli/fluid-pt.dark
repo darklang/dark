@@ -2655,3 +2655,55 @@ module AParenthesisedFieldTargetIndentsLikeThePrinter =
     (match Darklang.LanguageTools.Parser.Parse.parsePTExpr "(f a).x" with
      | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
      | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr"))) = "(f a).x"
+
+
+module EveryShapeSurvivesInEveryPosition =
+  // The dual of `ASwallowingValueIsBracketedWhereverItSits`. That one asks ONE construct in every slot
+  // that draws something after it; this asks EVERY construct in the two positions where brackets are
+  // decided by precedence rather than by the construct around them: a function argument and an infix
+  // operand.
+  //
+  // Both are the same question -- does the drawing read back as the same program -- and between them
+  // they cover the bracket rules from both sides. Twenty-one shapes here, and they pass; the point is
+  // that adding a twenty-second construct to the language asks the question automatically.
+  //
+  // The inner expression is BRACKETED in the source so the source says what it means. Without that,
+  // `f 1 + 2 2` is not "an infix as an argument", it is a different program, and the round trip fails for
+  // a reason that has nothing to do with either drawing. That cost a run.
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let survives (src: String) : Bool =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e ->
+      let want = Darklang.PrettyPrinter.ProgramTypes.expr (EveryShapeSurvivesInEveryPosition.ctx ()) e
+      let readBack (text: String) : Bool =
+        match Darklang.LanguageTools.Parser.Parse.parsePTExpr text with
+        | Ok e2 -> (Darklang.PrettyPrinter.ProgramTypes.expr (EveryShapeSurvivesInEveryPosition.ctx ()) e2) == want
+        | Error _ -> false
+      (readBack (Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (EveryShapeSurvivesInEveryPosition.ctx ()) e)))
+      && (readBack
+           (Darklang.Fluid.Debug.render
+             (Darklang.Fluid.App.defaultRegistry ())
+             200
+             (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))))
+    | Error _ -> false
+
+  let shapes () : List<String> =
+    [ "1", "\"s\"", "[1]", "(1, 2)", "Dict { a: 1 }"
+      "Stdlib.Cli.Tui.Size { width = 1; height = 2 }", "{ r with width = 3 }"
+      "Option.Some(1)", "Option.None", "r.x", "g 1", "1 + 2"
+      "if c then 1 else 2", "match m with | _ -> 1", "(fun x -> x)", "xs |> g"
+      "$\"a{b}c\"", "'c'", "()", "true", "1.5" ]
+
+  /// The shapes whose drawing does NOT read back, in either position. Empty is the assertion.
+  let failures () : List<String> =
+    EveryShapeSurvivesInEveryPosition.shapes ()
+    |> Stdlib.List.filter (fun inner ->
+      Stdlib.Bool.not
+        ((EveryShapeSurvivesInEveryPosition.survives ("f (" ++ inner ++ ") 2"))
+         && (EveryShapeSurvivesInEveryPosition.survives ("(" ++ inner ++ ") + 1"))))
+
+  (EveryShapeSurvivesInEveryPosition.failures ()) = []
+
+  // The guard against a vacuous pass: a list that shrank to nothing would be green and worthless.
+  ((Stdlib.List.length (EveryShapeSurvivesInEveryPosition.shapes ())) > 18) = true
