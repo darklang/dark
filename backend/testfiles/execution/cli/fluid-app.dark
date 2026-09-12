@@ -946,11 +946,13 @@ module TheDocumentsOwnKeysAreOnThePanel =
 
   // Each row is the key and what it does, in the kernel's own wording where it is the kernel's own
   // command, so a rebound key reads as the key it replaced rather than as a second vocabulary.
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "d      clear") = true
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "n      next sibling") = true
+  //
+  // The key column is eight wide, not seven: `^arrows` is exactly seven and touched its description.
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "d       clear") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "n       next sibling") = true
 
   // A `RunAction` shows the action's own name, which is what the palette calls it.
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "z      convert to match") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "z       convert to match") = true
 
   // The kernel's own rows are still there under it. This is an addition to the help, not a replacement.
   //
@@ -958,15 +960,15 @@ module TheDocumentsOwnKeysAreOnThePanel =
   // the region's height and the kernel's sixteen KEYS rows do not all fit on a 26-row terminal. That is
   // true before this change too, and it is why the bound keys go ABOVE them: a section under a list
   // that is already being cut is a section nobody sees.
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "j/k    next/prev") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.mapped ())) "j/k     next/prev") = true
 
   // A rebound key is listed ONCE, as the binding that actually fires. A key with two meanings in the
   // help is worse than a key missing from it.
   let rebound () : Darklang.Fluid.Registry =
     Darklang.Fluid.Registry.bind (TheDocumentsOwnKeysAreOnThePanel.mapped ()) "d" Darklang.Fluid.Command.Yank
 
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      copy") = true
-  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d      clear") = false
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d       copy") = true
+  (Stdlib.String.contains (TheDocumentsOwnKeysAreOnThePanel.panel (TheDocumentsOwnKeysAreOnThePanel.rebound ())) "d       clear") = false
 
 
 module ThePanelSaysWhatItCouldNotFit =
@@ -992,12 +994,12 @@ module ThePanelSaysWhatItCouldNotFit =
   (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "more, ? for all keys") = true
 
   // The row it replaced is genuinely gone, so the marker is not sitting on top of content that fits.
-  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "q      quit") = false
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (Fixtures.size ())) "q       quit") = false
 
   // Give it the room and there is no marker and nothing missing. This is the assertion that stops the
   // marker from becoming permanent furniture.
   (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "more, ? for all keys") = false
-  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "q      quit") = true
+  (Stdlib.String.contains (ThePanelSaysWhatItCouldNotFit.panelAt (ThePanelSaysWhatItCouldNotFit.tall ())) "q       quit") = true
 
 
 module TheKeyReference =

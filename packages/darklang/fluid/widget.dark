@@ -572,7 +572,10 @@ let inspectorWith
   // rest live here, which is what makes trimming that line honest rather than a loss.
   let keyRow (pair: (String * String)) : String =
     let (k, what) = pair
-    dim ("  " ++ (Stdlib.String.padEndToWidth k 7) ++ what)
+    // Eight, not seven. `^arrows` is exactly seven wide, so at seven it touched its own description:
+    // `^arrowsmove along its list`. The hard-coded rows this replaced had a literal space after it and
+    // therefore sat one column right of everything else; eight lines them all up and keeps the gap.
+    dim ("  " ++ (Stdlib.String.padEndToWidth k 8) ++ what)
   let keyRows =
     let pairs =
       match st.mode with
@@ -590,7 +593,7 @@ let inspectorWith
       let rows =
         effectiveKeymap st.reg
         |> Stdlib.List.map (fun b ->
-          let key = Stdlib.String.padEndToWidth b.key 7
+          let key = Stdlib.String.padEndToWidth b.key 8
           dim ("  " ++ key ++ (Command.label b.command)))
       Stdlib.List.flatten [ [ "", head "BOUND HERE" ], rows ]
   // TREE before ACTIONS: where you are is what you read first when you open the panel, and what you can
