@@ -8,18 +8,29 @@ PUBLISHED_FLAG=
 FORCE=false
 FILTERED=false
 
-# Sequenced by default, which is FASTER here rather than slower.
+# Parallel by default, which is now much faster. `--sequenced` puts it back.
 #
-# Every testfile case reaches the package database through one shared connection,
-# so running them in parallel does not divide the work, it multiplies the waiting.
-# Measured on the cli/fluid subtree, 991 tests:
+# It was sequenced, on this measurement over the cli/fluid subtree, 991 tests:
 #
 #   parallel    1702s wall    64,720s of per-test time
 #   sequenced    807s wall       787s of per-test time
 #
-# Twice as fast on the clock, eighty times less CPU, and it stops a run pinning
-# every core on the machine. `--parallel` puts it back.
-EXPECTO_ARGS=(--sequenced)
+# Eighty times the CPU for twice the wall clock is not a scheduling preference, it is
+# a bug, and the bug was the garbage collector. This interpreter allocates hard and the
+# test binary was using the WORKSTATION collector: one heap, every thread stopped for
+# every collection. The tell was that the parallel ceiling ignored the worker count --
+# 200 independent CPU-only cases took 5.37s with 8 Expecto workers and 5.52s with 32,
+# against 23.1s sequenced. A ceiling that does not move with workers is a serial section.
+#
+# `ServerGarbageCollection` in backend/tests/Tests/Tests.fsproj took those same 200 cases
+# to 2.06s, and the whole cli/fluid subtree from 311% CPU to ~2900%:
+#
+#   sequenced             ~34 min
+#   parallel + server GC    4:23     1,880 tests, all passing
+#
+# Files that share DB state stay sequenced where it matters: `LibExecution.Tests.fs` marks
+# the `/cloud` testfiles `testSequenced` itself, so this flag does not race them.
+EXPECTO_ARGS=()
 
 for i in "$@"
 do
@@ -29,8 +40,10 @@ do
       PUBLISHED_FLAG=$i
       ;;
     --force) FORCE=true ;;
-    # Opt back into parallel, undoing the --sequenced default above.
-    --parallel) EXPECTO_ARGS=() ;;
+    # Opt back into sequential, undoing the parallel default above.
+    --sequenced) EXPECTO_ARGS=(--sequenced) ;;
+    # Accepted and ignored: parallel is the default now.
+    --parallel) ;;
     --filter|--filter-test-list|--filter-test-case|--run)
       FILTERED=true
       EXPECTO_ARGS+=("${i}")

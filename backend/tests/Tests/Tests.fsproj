@@ -1,6 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- Server GC, because a parallel run stopped scaling at four cores.
+         200 independent CPU-only cases: 23.1s sequenced, 5.4s parallel, and the same 5.4s whether
+         Expecto gets 8 workers or 32. A ceiling that ignores the worker count is a serial section,
+         and in an interpreter that allocates as hard as this one the workstation collector is the
+         obvious suspect: one heap, and every thread stops for it. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <!-- core -->

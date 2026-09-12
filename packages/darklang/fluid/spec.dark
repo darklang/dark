@@ -702,14 +702,50 @@ type Registry =
     /// own chain. Specific beats general: a kind that binds a key on its own nodes is saying something
     /// about those nodes, and a document keymap that silently overrode it would make that kind's actions
     /// unreachable with nothing on screen to say why.
-    keymap: List<KeyBinding> }
+    keymap: List<KeyBinding>
+
+    /// `specs` again, keyed for lookup. Derived, never edited: `ofList` and `add` build it and nothing
+    /// else may set it.
+    ///
+    /// `find` runs for every node the layout draws, several times a keystroke, and it used to REVERSE
+    /// the whole spec list and scan it -- twice on a miss, since a miss falls through to the type level.
+    /// Half a millisecond a lookup, about half the cost of laying a document out.
+    index: Dict<String, Spec> }
 
 module Registry =
+  /// An unambiguous key for a kind.
+  ///
+  /// Not `Kind.toString`: that spells a case with a dot, so a named type `A.B` and the type `A` at case
+  /// `B` come out the same string. Fine for a message, not fine for a lookup table.
+  let indexKey (kind: Kind) : String =
+    let typ =
+      match kind.typ with
+      | Named n -> "n:" ++ n
+      | Prim p -> "p:" ++ p
+    match kind.case with
+    | Some c -> typ ++ "|" ++ c
+    | None -> typ
+
+  /// Later specs shadow earlier ones, which is what the reversed scan used to say.
+  ///
+  /// `setOverridingDuplicates`, not `set`: `set` REFUSES a key it already holds, and shadowing is the
+  /// whole point of the list order -- a discovered user spec is merged after the built-in one for the
+  /// same kind. With `set` the registry threw on construction the moment two specs shared a kind.
+  let indexOf (specs: List<Spec>) : Dict<String, Spec> =
+    specs
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc s ->
+      Stdlib.Dict.setOverridingDuplicates acc (Registry.indexKey s.kind) s)
+
   let empty () : Registry =
-    Registry { specs = []; syntax = Syntax.darklang (); currentModule = []; keymap = [] }
+    Registry { specs = []; syntax = Syntax.darklang (); currentModule = []; keymap = []; index = Stdlib.Dict.empty }
 
   let ofList (specs: List<Spec>) : Registry =
-    Registry { specs = specs; syntax = Syntax.darklang (); currentModule = []; keymap = [] }
+    Registry
+      { specs = specs
+        syntax = Syntax.darklang ()
+        currentModule = []
+        keymap = []
+        index = Registry.indexOf specs }
 
   /// The same specs, with `key` meaning `command` everywhere in the document. A later binding for the
   /// same key shadows an earlier one.
@@ -726,21 +762,19 @@ module Registry =
 
   /// Later specs shadow earlier ones with the same kind.
   let add (reg: Registry) (spec: Spec) : Registry =
-    { reg with specs = Stdlib.List.append reg.specs [ spec ] }
+    { reg with
+        specs = Stdlib.List.append reg.specs [ spec ]
+        index = Stdlib.Dict.setOverridingDuplicates reg.index (Registry.indexKey spec.kind) spec }
 
   let addAll (reg: Registry) (specs: List<Spec>) : Registry =
     { reg with specs = Stdlib.List.append reg.specs specs }
 
   let findExact (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
-    reg.specs
-    |> Stdlib.List.reverse
-    |> Stdlib.List.findFirst (fun s -> s.kind == kind)
+    Stdlib.Dict.get reg.index (Registry.indexKey kind)
 
   let findTypeLevel (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
     let typeLevel = Kind { typ = kind.typ; case = Stdlib.Option.Option.None }
-    reg.specs
-    |> Stdlib.List.reverse
-    |> Stdlib.List.findFirst (fun s -> s.kind == typeLevel)
+    Stdlib.Dict.get reg.index (Registry.indexKey typeLevel)
 
   /// Exact, then type-level.
   let find (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
