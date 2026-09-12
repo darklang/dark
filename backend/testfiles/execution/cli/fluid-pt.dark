@@ -2765,3 +2765,47 @@ module APipeStageHasNoCharacterRules =
     (APipeStageHasNoCharacterRules.reg ())
     (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
     [ "x", "s", "|", "f", "u", "<Enter>", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "xs |> (fun x -> x)"
+
+
+module EveryIntegerWidthTypesBack =
+  // Eleven integer widths and their suffixes. `EveryIntegerWidthIsItsOwnKind` above pins that each has a
+  // kind rather than falling through to Opaque; this pins that each can be TYPED, which is a different
+  // question and was never asked.
+  //
+  // Asked because the notes said "`EArg`/`ESelf` and a few rare int widths are opaque". Half of that was
+  // true and half was not: no width is opaque, all eleven draw as themselves and all eleven type back.
+  // Fifth stale claim re-run rather than re-read this week.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let printed (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (EveryIntegerWidthTypesBack.ctx ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let typedBack (src: String) : String =
+    Darklang.Fluid.PT.Test.program
+      (EveryIntegerWidthTypesBack.reg ())
+      (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
+      (Stdlib.List.append
+        (Stdlib.String.toList (EveryIntegerWidthTypesBack.printed src) |> Stdlib.List.map (fun c -> Stdlib.Char.toString c))
+        [ "<Esc>", "<Esc>" ])
+
+  let widths () : List<String> =
+    [ "1", "1y", "1uy", "1s", "1us", "1l", "1ul", "1L", "1UL", "1Q", "1Z" ]
+
+  /// The widths whose printed form does not type back. Empty is the assertion.
+  let failures () : List<String> =
+    EveryIntegerWidthTypesBack.widths ()
+    |> Stdlib.List.filter (fun w -> (EveryIntegerWidthTypesBack.typedBack w) != (EveryIntegerWidthTypesBack.printed w))
+
+  (EveryIntegerWidthTypesBack.failures ()) = []
+
+  // The guard against a vacuous pass.
+  ((Stdlib.List.length (EveryIntegerWidthTypesBack.widths ())) == 11) = true
+
+  // A float and a negative go through the same digit rules and are the two neighbours most likely to
+  // break when a suffix rule changes.
+  (EveryIntegerWidthTypesBack.typedBack "1.5") = "1.5"
+  (EveryIntegerWidthTypesBack.typedBack "-5") = "-5"
