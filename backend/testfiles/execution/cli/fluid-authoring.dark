@@ -409,6 +409,22 @@ module SpaceCommitDisambiguation =
   (Fixtures.screen [ "l", "e", " " ]) = "let ~⟨name⟩ = ⟨value⟩\n⟨body⟩"
   (Fixtures.screen [ "f", "u", "n", " " ]) = "(fun ~⟨param⟩ -> ⟨body⟩)"
 
+  // ...and a name actually IN SCOPE outranks a keyword it is merely a prefix of. `l` uniquely prefixes
+  // `let`, so with nothing bound it commits the construct; bind something called `l` and the same key
+  // is that variable, and a space after it takes an argument the way a settled name does.
+  //
+  // Keyed on an EXACT match against a bound name, not on any competing candidate, so an ordinary
+  // keyword prefix is untouched: `l ` is still `let` with `list` in scope, because nothing is named `l`.
+  //
+  // Decided rather than discovered, and the rule was already there -- this pins it so it stays.
+  (Fixtures.screen [ "l", " ", "2" ]) = "let 2~ = ⟨value⟩\n⟨body⟩"
+
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "let l = 1", [ "<Tab>" ], Fixtures.chars "l " ])) =
+    "let l = 1\nl~"
+
+  (Fixtures.screen (Stdlib.List.flatten [ Fixtures.chars "let l = 1", [ "<Tab>" ], Fixtures.chars "l 2" ])) =
+    "let l = 1\nl 2~"
+
 
 module CharLiterals =
   // `'` builds a character literal and drops into it; the closing quote is drawn and stepping past it is
