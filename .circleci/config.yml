@@ -410,13 +410,17 @@ jobs:
             - rundir/seed.db
             # Hand over the hash file too, not just the seed.
             #
-            # `reload-packages` above populates it, but it is gitignored, so the
-            # build jobs' own checkout has only the empty one MSBuild creates.
-            # They then embed THAT, and every ref in the shipped binary resolves
-            # to "" -> `FnNotFound` on every command. It goes unnoticed inside a
-            # source tree, because there the file on disk wins over the embedded
-            # copy and the first run regenerates it. A user running the artifact
-            # anywhere else has only the embedded copy.
+            # It is tracked now, so a checkout already has it; this carries the
+            # one the step above just PRODUCED, which is the one that matches the
+            # seed beside it. On the pinned path those can differ, and when they
+            # do the difference is the finding: the pin's package set is not the
+            # one this kernel was built against, and `assert-clean-worktree` in
+            # the build jobs is what says so.
+            #
+            # Embedding a mismatched one is not a loud failure. Every ref in the
+            # shipped binary resolves to "" -> `FnNotFound` on every command, and
+            # only OUTSIDE a source tree, because inside one the file on disk
+            # wins over the embedded copy and the first run regenerates it.
             - backend/src/LibExecution/package-ref-hashes.txt
 
   # All four linux artifacts from one x64 runner. The cross-compiles work

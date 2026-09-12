@@ -339,10 +339,16 @@ Empty is tolerated; non-empty with a missing key crashes at startup with "Packag
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
 
-It is a PROJECTION of the store, not a source file, which is why it is not tracked. A store
-that came from a seed has no `packages/` to reload, so regenerate it from the store instead:
-`scripts/run-local-exec refs generate`. `scripts/build/prepare-package-set` does that on the
-pinned path; see `package-set.txt`.
+It IS tracked, and it is a projection of the store, which is the awkward combination it has to
+be: committing it is what makes a kernel entry point changing identity visible in review, and
+`assert-clean-worktree` is what enforces it. So a PR that moves one of the 206 hashes has to
+carry the regenerated file.
+
+**Resolving a conflict in it: regenerate, never hand-merge.** Two branches that both touch
+packages will conflict here, and the lines are content hashes, so picking sides is meaningless.
+`git checkout --theirs` it, then `./scripts/build/reload-packages` (or, on a store that came
+from a seed and has no `packages/` to reload, `scripts/run-local-exec refs generate`) and commit
+what that produces.
 
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
