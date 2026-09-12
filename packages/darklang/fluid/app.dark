@@ -403,24 +403,87 @@ let editValue (cliState: Darklang.Cli.AppState) (name: String) : Darklang.Cli.Ap
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"fluid: {err}")
     cliState
 
+// --- Saving ---
+//
+// Three save paths that were the same eight lines three times, and carried the same bug three times:
+// `fromDoc` hands back the name the DOCUMENT spells and every caller dropped it on the floor. The source
+// is then printed through `packageFn`, whose name comes from the hash's locations, so you could retype a
+// function's name, watch the drawing follow along, save, and get the old name back with nothing on screen
+// saying so. The name slot is editable; discarding what is typed into it is data loss.
+
+/// Where a save writes. The name in the document wins: it is an editable slot, and what you typed there
+/// is what you meant. The location it was opened at is only the default, for a document whose name slot
+/// is empty (a shell that has not been named yet -- that is a hole, not a rename to "").
+///
+/// A rename BINDS the new name. It does not unbind the old one, because there is no op that does: names
+/// are bindings onto content-addressed items and `SetName` is the only one there is. So a rename in the
+/// editor leaves the old name pointing at the old content, which is the store's own rename semantics and
+/// not a thing this function gets to decide.
+let saveLocation
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (docName: String)
+  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  if docName == "" then location else { location with name = docName }
+
+/// The context a save prints through. `preferredLocation` is how `packageFn` learns which of a hash's
+/// names to write, and after a rename that is the NEW one.
+let saveContext
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  : Darklang.PrettyPrinter.ProgramTypes.Context =
+  { Darklang.PrettyPrinter.ProgramTypes.Context.forModule
+      Darklang.SCM.Branch.mainBranchId
+      (Stdlib.List.push location.modules location.owner) with
+      preferredLocation = Stdlib.Option.Option.Some location }
+
+/// Apply reconstructed source in place, through the same ops path `dark module` uses
+/// (`ModuleCommand.applySource`, which does not print). Returns the name it landed under.
+let applyAt
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (source: String)
+  : Stdlib.Result.Result<String, String> =
+  let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
+  match Darklang.Cli.Packages.ModuleCommand.applySource Darklang.SCM.Branch.mainBranchId moduleArg source with
+  | Ok _ -> Stdlib.Result.Result.Ok location.name
+  | Error err -> Stdlib.Result.Result.Error err
+
+/// The source a save would write, and where it would write it -- separated from the writing so the
+/// decision is checkable without a store round trip.
+let valueSourceFor
+  (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (root: Slot)
+  : Stdlib.Result.Result<(Darklang.LanguageTools.ProgramTypes.PackageLocation * String), String> =
+  match root with
+  | Filled n ->
+    match PT.Value.fromDoc pv n with
+    | Ok((name, updated)) ->
+      let target = saveLocation location name
+      Stdlib.Result.Result.Ok(
+        (target, Darklang.PrettyPrinter.ProgramTypes.packageValue (saveContext target) updated))
+    | Error err -> Stdlib.Result.Result.Error err
+  | _ -> Stdlib.Result.Result.Error "nothing to save"
+
 let saveValue
   (pv: Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue)
   (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
   (root: Slot)
   : Stdlib.Result.Result<String, String> =
+  match valueSourceFor pv location root with
+  | Ok((target, source)) -> applyAt target source
+  | Error err -> Stdlib.Result.Result.Error err
+
+let typeSourceFor
+  (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (root: Slot)
+  : Stdlib.Result.Result<(Darklang.LanguageTools.ProgramTypes.PackageLocation * String), String> =
   match root with
   | Filled n ->
-    match PT.Value.fromDoc pv n with
-    | Ok((_name, updated)) ->
-      let branchId = Darklang.SCM.Branch.mainBranchId
-      let ctx =
-        { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
-            preferredLocation = Stdlib.Option.Option.Some location }
-      let source = Darklang.PrettyPrinter.ProgramTypes.packageValue ctx updated
-      let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
-      match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
-      | Ok _ -> Stdlib.Result.Result.Ok location.name
-      | Error err -> Stdlib.Result.Result.Error err
+    match PT.TypeDecl.fromDoc pt n with
+    | Ok((name, updated)) ->
+      let target = saveLocation location name
+      Stdlib.Result.Result.Ok(
+        (target, Darklang.PrettyPrinter.ProgramTypes.packageType (saveContext target) updated))
     | Error err -> Stdlib.Result.Result.Error err
   | _ -> Stdlib.Result.Result.Error "nothing to save"
 
@@ -429,19 +492,23 @@ let saveType
   (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
   (root: Slot)
   : Stdlib.Result.Result<String, String> =
+  match typeSourceFor pt location root with
+  | Ok((target, source)) -> applyAt target source
+  | Error err -> Stdlib.Result.Result.Error err
+
+/// Reconstruct a package function's source with the edited signature and body, and say where it goes.
+let fnSourceFor
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
+  (root: Slot)
+  : Stdlib.Result.Result<(Darklang.LanguageTools.ProgramTypes.PackageLocation * String), String> =
   match root with
   | Filled n ->
-    match PT.TypeDecl.fromDoc pt n with
-    | Ok((_name, updated)) ->
-      let branchId = Darklang.SCM.Branch.mainBranchId
-      let ctx =
-        { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
-            preferredLocation = Stdlib.Option.Option.Some location }
-      let source = Darklang.PrettyPrinter.ProgramTypes.packageType ctx updated
-      let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
-      match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
-      | Ok _ -> Stdlib.Result.Result.Ok location.name
-      | Error err -> Stdlib.Result.Result.Error err
+    match PT.Fn.fromDoc fn n with
+    | Ok((name, updated)) ->
+      let target = saveLocation location name
+      Stdlib.Result.Result.Ok(
+        (target, Darklang.PrettyPrinter.ProgramTypes.packageFn (saveContext target) updated))
     | Error err -> Stdlib.Result.Result.Error err
   | _ -> Stdlib.Result.Result.Error "nothing to save"
 
@@ -452,21 +519,9 @@ let saveFnBody
   (location: Darklang.LanguageTools.ProgramTypes.PackageLocation)
   (root: Slot)
   : Stdlib.Result.Result<String, String> =
-  match root with
-  | Filled n ->
-    match PT.Fn.fromDoc fn n with
-    | Ok((_name, updated)) ->
-      let branchId = Darklang.SCM.Branch.mainBranchId
-      let ctx =
-        { Darklang.PrettyPrinter.ProgramTypes.Context.forModule branchId (Stdlib.List.push location.modules location.owner) with
-            preferredLocation = Stdlib.Option.Option.Some location }
-      let source = Darklang.PrettyPrinter.ProgramTypes.packageFn ctx updated
-      let moduleArg = "/" ++ (Stdlib.String.join (Stdlib.List.append [ location.owner ] location.modules) ".")
-      match Darklang.Cli.Packages.ModuleCommand.applySource branchId moduleArg source with
-      | Ok _ -> Stdlib.Result.Result.Ok location.name
-      | Error err -> Stdlib.Result.Result.Error err
-    | Error err -> Stdlib.Result.Result.Error err
-  | _ -> Stdlib.Result.Result.Error "nothing to save"
+  match fnSourceFor fn location root with
+  | Ok((target, source)) -> applyAt target source
+  | Error err -> Stdlib.Result.Result.Error err
 
 /// The three regions the editor draws into: the framed code pane, the context panel, and the document
 /// inside the pane. The panel is dropped on a narrow terminal so the code always has room, and an

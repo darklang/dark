@@ -407,6 +407,62 @@ module ANewFunctionPrintsUnderItsName =
     | None -> "not found")) = "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>"
 
 
+module RenamingReachesTheSavedSource =
+  // The name slot is editable, and what you typed into it was thrown away on the way out. `Fn.fromDoc`
+  // hands the document's name back; all three save paths bound it to `_name` and printed through
+  // `packageFn`, which names a definition from its hash's locations. So you could retype a function's
+  // name, watch the drawing follow along, press save, and get the old name back with nothing on screen
+  // saying so.
+  //
+  // Two halves, both pinned here: `saveLocation` decides WHERE it goes, and `atDefinition` now lets the
+  // caller's own name win over the store's -- at the definition site the name is not being resolved, it
+  // is being written.
+  let stored () : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Bool.not") with
+    | Some h ->
+      (match Darklang.LanguageTools.PackageManager.Function.get h with
+       | Some fn -> fn
+       | None -> Builtin.testDerrorMessage "no fn")
+    | None -> Builtin.testDerrorMessage "not found"
+
+  let loc () : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+    Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Bool.not"
+
+  let renamedTo (name: String) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.setField
+        (Darklang.Fluid.PT.Fn.toDoc "not" (RenamingReachesTheSavedSource.stored ()))
+        "name"
+        (Darklang.Fluid.Field.Text name))
+
+  /// Where the save goes, and the first line of the source it writes that is not a doc comment.
+  let saved (name: String) : String =
+    match Darklang.Fluid.App.fnSourceFor
+            (RenamingReachesTheSavedSource.stored ())
+            (RenamingReachesTheSavedSource.loc ())
+            (RenamingReachesTheSavedSource.renamedTo name) with
+    | Ok((target, source)) ->
+      let header =
+        source
+        |> Stdlib.String.split "\n"
+        |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith l "///"))
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault ""
+      target.name ++ " | " ++ header
+    | Error e -> "ERR " ++ e
+
+  (RenamingReachesTheSavedSource.saved "renamedToThis") =
+    "renamedToThis | let renamedToThis (b: Bool): Bool ="
+
+  // Unchanged, it still saves where it was opened. The rename path is not a different path.
+  (RenamingReachesTheSavedSource.saved "not") = "not | let not (b: Bool): Bool ="
+
+  // An empty name slot is a HOLE, not a rename to "". A shell you have not named yet saves where it was
+  // opened rather than binding the empty string.
+  (RenamingReachesTheSavedSource.saved "") = "not | let not (b: Bool): Bool ="
+
+
 module ParametersAreInScope =
   // A function's parameters were in scope NOWHERE. `scopeNames` walks each ancestor's `binders` and the
   // function shell had none, so writing a body offered no completion for the arguments you had just

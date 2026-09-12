@@ -60,6 +60,18 @@ type Context =
     /// Only `FQ*.Package.atDefinition` can use it: that is the one lookup whose hash
     /// is the subject's own. A name inside the body resolves against its own
     /// candidates, where this location does not appear.
+    ///
+    /// It wins outright there, over the store and over a name the hash is not bound to yet.
+    /// `pickLocation` refuses an unbound name, which is right for a REFERENCE -- spelling one by a name
+    /// that does not resolve is a lie -- and wrong at the definition site, where the name is not being
+    /// resolved but WRITTEN, and the caller saying which name it wants is the one editing it. A rename is
+    /// by definition a name the hash has never been bound to. Fluid's name slot is editable and its save
+    /// prints through here: with the refusal in the way you could retype a function's name, watch the
+    /// drawing follow along, save, and get the old name back with nothing on screen saying so.
+    ///
+    /// With no location at all it is also the answer: that is a definition being CREATED, and `<hash:>`
+    /// is a debug affordance rather than source. Printing a new function gave `let <hash:> (n: Int): Int =`,
+    /// so saving one back refused with "could not parse the reconstructed source".
     preferredLocation:
       Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> }
 
@@ -117,15 +129,11 @@ module FQTypeName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Type.locations ctx.branchId hash) with
+      // The caller's own name first, then the store's, then a debug affordance. See `preferredLocation`.
+      match ctx.preferredLocation with
       | Some l -> l.name
-      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
-      // like. The caller already said which location it is being shown under, and that is a better answer
-      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
-      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
-      // source".
       | None ->
-        match ctx.preferredLocation with
+        match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Type.locations ctx.branchId hash) with
         | Some l -> l.name
         | None -> shortHash hash
 
@@ -169,15 +177,11 @@ module FQValueName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQValueName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Value.locations ctx.branchId hash) with
+      // The caller's own name first, then the store's, then a debug affordance. See `preferredLocation`.
+      match ctx.preferredLocation with
       | Some l -> l.name
-      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
-      // like. The caller already said which location it is being shown under, and that is a better answer
-      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
-      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
-      // source".
       | None ->
-        match ctx.preferredLocation with
+        match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Value.locations ctx.branchId hash) with
         | Some l -> l.name
         | None -> shortHash hash
 
@@ -224,15 +228,11 @@ module FQFnName =
       (ctx: Context)
       (hash: LanguageTools.ProgramTypes.FQFnName.Package)
       : String =
-      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Function.locations ctx.branchId hash) with
+      // The caller's own name first, then the store's, then a debug affordance. See `preferredLocation`.
+      match ctx.preferredLocation with
       | Some l -> l.name
-      // No location for this hash: it is not in the store, which is what a definition being CREATED looks
-      // like. The caller already said which location it is being shown under, and that is a better answer
-      // than `<hash:>` -- which is a debug affordance and is not source. Printing a new function gave
-      // `let <hash:> (n: Int): Int =`, so saving one back refused with "could not parse the reconstructed
-      // source".
       | None ->
-        match ctx.preferredLocation with
+        match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Function.locations ctx.branchId hash) with
         | Some l -> l.name
         | None -> shortHash hash
 
