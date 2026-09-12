@@ -774,8 +774,19 @@ module Registry =
         specs = Stdlib.List.append reg.specs [ spec ]
         index = Stdlib.Dict.setOverridingDuplicates reg.index (Registry.indexKey spec.kind) spec }
 
+  /// Every writer of `specs` must write `index` too, and this one did not.
+  ///
+  /// The index is what `find` reads; `specs` is only the record of what went in. A spec added here was
+  /// invisible to every lookup, silently -- the node drew as an unknown kind, which is exactly what it
+  /// looks like when no spec exists. Found by adding derived specs for a value's types and watching them
+  /// do nothing.
   let addAll (reg: Registry) (specs: List<Spec>) : Registry =
-    { reg with specs = Stdlib.List.append reg.specs specs }
+    { reg with
+        specs = Stdlib.List.append reg.specs specs
+        index =
+          specs
+          |> Stdlib.List.fold reg.index (fun acc s ->
+            Stdlib.Dict.setOverridingDuplicates acc (Registry.indexKey s.kind) s) }
 
   let findExact (reg: Registry) (kind: Kind) : Stdlib.Option.Option<Spec> =
     Stdlib.Dict.get reg.index (Registry.indexKey kind)

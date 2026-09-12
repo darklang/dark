@@ -114,3 +114,192 @@ module ValueNamesAreShortened =
 
   // And what the printer writes for the same program, which is the point of shortening at all.
   (ValueNamesAreShortened.show "Stdlib.Cli.UI.Colors.yellow") = "Stdlib.Cli.UI.Colors.yellow"
+
+
+module AValueIsADocument =
+  // A runtime VALUE projected into a document. Everything else in Fluid projects a program -- an
+  // expression, a declaration, a function shell -- and this projects what a program produced.
+  //
+  // The design doc calls it out as the missing half (7.D, "editing a runtime value of type T needs
+  // Dval <-> Node") and it is why a value of your own type could be drawn in the demo and saved nowhere.
+  //
+  // No new specs. `Derive` already builds one for any type from its declaration and `Prims` covers the
+  // leaves, so a value document draws with what is there. This is the conversion only.
+  let bid () : Uuid = Darklang.SCM.Branch.mainBranchId
+
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let draw (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    Darklang.Fluid.Debug.render
+      (AValueIsADocument.reg ())
+      70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Value.ofDval (AValueIsADocument.bid ()) v))
+
+  (AValueIsADocument.draw (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 42)) = "42"
+  (AValueIsADocument.draw (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi")) = "\"hi\""
+  (AValueIsADocument.draw (Darklang.LanguageTools.RuntimeTypes.Dval.DBool true)) = "true"
+  (AValueIsADocument.draw Darklang.LanguageTools.RuntimeTypes.Dval.DUnit) = "()"
+
+  (AValueIsADocument.draw
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1, Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ]))) = "[1, 2]"
+
+  // Every integer width draws as the same leaf. On screen `1` is `1` whichever width it came from, and
+  // the width lives in the type; going back is where it matters.
+  (AValueIsADocument.draw (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y)) = "7"
+  (AValueIsADocument.draw (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 7L)) = "7"
+
+
+module AValueOfAStoredType =
+  // The case that matters: a value whose type is IN the store, so its kind resolves and `Derive` can
+  // build the spec that draws it. Nothing hand-written anywhere in this path.
+  let optionType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match
+      Darklang.LanguageTools.PackageManager.Type.find
+        (AValueIsADocument.bid ())
+        (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Option.Option")
+    with
+    | Some h ->
+      Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        Darklang.LanguageTools.RuntimeTypes.Hash.Hash(Darklang.LanguageTools.ProgramTypes.hashToString h))
+    | None -> Builtin.testDerrorMessage "Option is not in the store"
+
+  let some (v: Darklang.LanguageTools.RuntimeTypes.Dval) : Darklang.LanguageTools.RuntimeTypes.Dval =
+    Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+      AValueOfAStoredType.optionType (), AValueOfAStoredType.optionType (), [], "Some", [ v ])
+
+  /// The registry plus the specs `Derive` builds for this type. `Derive` is not wired into the registry
+  /// as a fallback yet -- `fluid generate` is its only caller -- so a value entry point has to add them,
+  /// which is the next slice.
+  let derivedReg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.addAll
+      (AValueIsADocument.reg ())
+      (Darklang.Fluid.Derive.specsForName (AValueIsADocument.bid ()) "Darklang.Stdlib.Option.Option")
+
+  let drawn (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    Darklang.Fluid.Debug.render
+      (AValueOfAStoredType.derivedReg ())
+      70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Value.ofDval (AValueIsADocument.bid ()) v))
+
+  // The kind carries the FULL location name, because that name is a KEY: `Derive.specsForName` hands it
+  // to `parsePackageLocation`, and `Option` does not resolve where `Darklang.Stdlib.Option.Option` does.
+  // The printer's `typeNameWith` shortens for display, which is a different job.
+  (Darklang.Fluid.Value.typeKeyName (AValueIsADocument.bid ()) (AValueOfAStoredType.optionType ())) =
+    "Darklang.Stdlib.Option.Option"
+
+  // Drawn by a spec derived from the declaration, with the field in it.
+  (AValueOfAStoredType.drawn (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) =
+    "Some(1)"
+
+  (AValueOfAStoredType.drawn
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+      AValueOfAStoredType.optionType (), AValueOfAStoredType.optionType (), [], "None", []))) = "None"
+
+
+module AValueGoesBack =
+  // The other direction: a document back to the value it came from. Slice 1 could draw a value and save
+  // it nowhere, which is half a feature -- an editor you cannot commit from is a viewer.
+  //
+  // Pinned as a round trip rather than by comparing documents, because equality on the VALUE is the thing
+  // that has to hold. A document that draws right and rebuilds wrong looks correct on screen.
+  let rt (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    let bid = Darklang.SCM.Branch.mainBranchId
+    match Darklang.Fluid.Value.toDval bid (Darklang.Fluid.Value.ofDval bid v) with
+    | Ok back -> if back == v then "same" else "CHANGED"
+    | Error e -> "ERR " ++ e
+
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 42)) = "same"
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi")) = "same"
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DBool true)) = "same"
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DBool false)) = "same"
+  (AValueGoesBack.rt Darklang.LanguageTools.RuntimeTypes.Dval.DUnit) = "same"
+
+  // Every width draws as the same `1` on screen, so the width rides along in a hidden `_w` slot -- the
+  // same `_`-prefix convention `_hash` and `_doc` use, skipped by drawing and by `firstEditable`.
+  // Without it an `Int8` came back an `Int`, which is a type error at the far end and nothing on screen.
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y)) = "same"
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 7L)) = "same"
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DUInt128 9Z)) = "same"
+
+  // The float leaf draws `whole` and `fraction` as two slots. Putting the whole rendering in the first
+  // one drew `1.5` correctly and rebuilt `1.5.0`, which is the exact failure the round trip is for.
+  (AValueGoesBack.rt (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1.5)) = "same"
+
+  (AValueGoesBack.rt
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1, Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ]))) = "same"
+
+  (AValueGoesBack.rt
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(
+      Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+      Darklang.LanguageTools.RuntimeTypes.Dval.DString "a",
+      []))) = "same"
+
+
+module StoredTypesGoBack =
+  // Records and enums, where the type has to be looked up by name in both directions. The kind carries
+  // the full location name for exactly this: going back needs the hash the name resolves to.
+  let errorType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match
+      Darklang.LanguageTools.PackageManager.Type.find
+        (AValueIsADocument.bid ())
+        (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Cli.Posix.Error")
+    with
+    | Some h ->
+      Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        Darklang.LanguageTools.RuntimeTypes.Hash.Hash(Darklang.LanguageTools.ProgramTypes.hashToString h))
+    | None -> Builtin.testDerrorMessage "Posix.Error is not in the store"
+
+  (AValueGoesBack.rt (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) = "same"
+
+  (AValueGoesBack.rt
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+      AValueOfAStoredType.optionType (), AValueOfAStoredType.optionType (), [], "None", []))) = "same"
+
+  // Nested: the enum's field is itself a document, rebuilt by the same recursion.
+  (AValueGoesBack.rt
+    (AValueOfAStoredType.some
+      (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+        Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+        [ Darklang.LanguageTools.RuntimeTypes.Dval.DString "a" ])))) = "same"
+
+  (AValueGoesBack.rt
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DRecord(
+      StoredTypesGoBack.errorType (),
+      StoredTypesGoBack.errorType (),
+      [],
+      Stdlib.Dict.fromListOverwritingDuplicates
+        [ ("errno", Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2),
+          ("message", Darklang.LanguageTools.RuntimeTypes.Dval.DString "nope") ]))) = "same"
+
+
+module AHoleIsNotAValue =
+  // Saving refuses rather than inventing. A zero for an empty integer slot would be a value nobody typed,
+  // and it would be indistinguishable from one they did -- the same contract `PT.Fn.fromDoc` holds to.
+  let verdict (n: Darklang.Fluid.Node) : String =
+    match Darklang.Fluid.Value.toDval Darklang.SCM.Branch.mainBranchId n with
+    | Ok _ -> "ACCEPTED"
+    | Error e -> "refuses: " ++ e
+
+  (AHoleIsNotAValue.verdict
+    (Darklang.Fluid.Node.make
+      (Darklang.Fluid.Kind.named "List")
+      [ ("items",
+         Darklang.Fluid.Field.Many(
+           [ Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.any "an item") ],
+           Darklang.Fluid.Expect.any "an item")) ])) = "refuses: hole: an item"
+
+  // A dict draws but cannot be rebuilt: a runtime dict key is a whole Dval, and Dark's own `Dict` is
+  // keyed by text, so there is no Dark value to rebuild into. Named, rather than falling through to
+  // "not a type in this branch: Dict".
+  (AHoleIsNotAValue.verdict (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.named "Dict") [])) =
+    "refuses: a dict cannot be rebuilt yet: its keys are values, not text"
+
+  // Same for the things that were never projected in the first place.
+  (AHoleIsNotAValue.verdict
+    (Darklang.Fluid.Node.make
+      (Darklang.Fluid.Kind.named "Opaque")
+      [ ("source", Darklang.Fluid.Field.Text "<function>") ])) = "refuses: nothing to rebuild from: <function>"
