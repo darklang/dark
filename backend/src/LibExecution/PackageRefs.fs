@@ -137,6 +137,28 @@ let setHashes (hashes : Map<string, string>) : unit =
   hashGeneration <- hashGeneration + 1
 
 
+/// How a FN ref resolves against the live store, when it does.
+///
+/// Installed by whoever owns the store, because `LibDB` depends on `LibExecution` and not the
+/// other way round: `PackageRefs` cannot read `locations` itself. `None` until installed, and
+/// `None` for a name the store does not bind.
+///
+/// Why fns and not types. F# only CALLS these seventeen; it never takes one apart. So the frozen
+/// contract is the name and the signature, and the newest committed binding may win -- which is
+/// what makes "the store is the source" true of the CLI's own entry points, rather than true of
+/// everything except them. A TYPE is different and must stay pinned: a `DRecord` the kernel
+/// builds carries its type's hash, so a store whose newest version of that type has a different
+/// shape would hand the kernel a value it cannot read.
+let mutable resolveFnByName : (string list -> string -> string option) =
+  fun _ _ -> None
+
+/// Off by default. By-name resolution means the binary runs whatever the store currently binds
+/// `Cli.executeCliCommand` to, which is the intent -- and also means a store with a broken entry
+/// point produces a CLI that cannot start. Opt in with `DARK_REFS_BY_NAME=1` until that trade has
+/// been made deliberately.
+let private byNameEnabled : Lazy<bool> =
+  lazy (System.Environment.GetEnvironmentVariable "DARK_REFS_BY_NAME" = "1")
+
 /// Shared body of `Type.p` and `Fn.p`: a closure resolving `<kind>/<modules>.<name>`
 /// against the hash file. Resolution is cached once per hash generation: the answer
 /// cannot change while the generation is stable, and resolving per call costs an
@@ -154,27 +176,42 @@ let private makeRef
   let mutable cached = ""
 
   fun () ->
-    let gen = currentGeneration ()
-    if gen = cachedGen then
-      cached
-    else
-      let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
-      let h = getHashes ()
-      match Map.tryFind fqn h with
-      | Some hash ->
-        record hash
-        cachedGen <- gen
-        cached <- hash
-        hash
-      | None ->
-        if Map.isEmpty h then
-          "" // Hash file not yet populated (CI before reload-packages)
-        else
-          // A non-empty file missing this ref is stale: a ref was added, or an older
-          // binary regenerated it in place (`growIfNeeded` rewrites it).
-          Exception.raiseInternal
-            $"PackageRefs: {kind} hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
-            [ "fqn", fqn ]
+    // The store's answer is NOT cached by generation: the generation tracks the hash file, and a
+    // rebinding moves the store without touching it. Cheap enough -- one indexed lookup, against
+    // the interpolated key and Map walk the pinned path pays anyway.
+    let fromStore =
+      if kind = "fn" && byNameEnabled.Force() then
+        resolveFnByName modules name
+      else
+        None
+
+    match fromStore with
+    | Some hash ->
+      record hash
+      hash
+    | None ->
+
+      let gen = currentGeneration ()
+      if gen = cachedGen then
+        cached
+      else
+        let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
+        let h = getHashes ()
+        match Map.tryFind fqn h with
+        | Some hash ->
+          record hash
+          cachedGen <- gen
+          cached <- hash
+          hash
+        | None ->
+          if Map.isEmpty h then
+            "" // Hash file not yet populated (CI before reload-packages)
+          else
+            // A non-empty file missing this ref is stale: a ref was added, or an older
+            // binary regenerated it in place (`growIfNeeded` rewrites it).
+            Exception.raiseInternal
+              $"PackageRefs: {kind} hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+              [ "fqn", fqn ]
 
 
 module Type =

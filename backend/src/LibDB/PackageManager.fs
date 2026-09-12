@@ -1,6 +1,8 @@
 module LibDB.PackageManager
 
 open Prelude
+open Fumble
+open LibDB.Sqlite
 open LibExecution.ProgramTypes
 
 module RT = LibExecution.RuntimeTypes
@@ -630,6 +632,42 @@ let mutable private currentBranchIdOpt : Option<PT.BranchId> = None
 
 /// Delta ops for branches OTHER than the active one, loaded on demand. Bounded by how many
 /// branches a process actually asks about, which for a CLI is one or two.
+/// Teach `PackageRefs` to resolve the kernel's seventeen FN refs against this store by NAME.
+///
+/// Installed here because `PackageRefs` lives in `LibExecution`, which knows nothing about a
+/// store: `LibDB` depends on it, not the reverse, so the dependency has to be handed down rather
+/// than reached for.
+///
+/// Main's committed projection only, and by design. These are the entry points the kernel calls
+/// into Dark through, so resolving them through a branch overlay would mean the binary ran a
+/// branch's parser the moment you stood on one. Returns `None` for anything not bound here, and
+/// `PackageRefs` falls back to the pinned hash, so a store that predates a ref behaves as before.
+///
+/// Off unless `DARK_REFS_BY_NAME=1`; see the note on `PackageRefs.resolveFnByName`.
+let private resolveKernelFnByName
+  (modules : string list)
+  (name : string)
+  : string option =
+  try
+    let modulesStr = String.concat "." modules
+
+    Sql.query
+      "SELECT item_hash
+       FROM locations
+       WHERE owner = 'Darklang' AND modules = @modules AND name = @name
+         AND item_type = 'fn' AND unlisted_at IS NULL AND source != 'unbind'
+       LIMIT 1"
+    |> Sql.parameters [ "modules", Sql.string modulesStr; "name", Sql.string name ]
+    |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
+    |> fun t -> t.Result
+  with _ ->
+    // No store yet, or one without the table: migrations run before any of this exists, and a
+    // ref resolved during them must fall back rather than fail the boot.
+    None
+
+LibExecution.PackageRefs.resolveFnByName <- resolveKernelFnByName
+
+
 let private otherBranchOps =
   System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, List<PT.PackageOp>>()
 
