@@ -47,6 +47,16 @@ let one (name: String) (n: Node) : (String * Field) = (name, Field.One(Slot.Fill
 let many (name: String) (ns: List<Node>) (each: Expect) : (String * Field) =
   (name, Field.Many(ns |> Stdlib.List.map (fun n -> Slot.Filled n), each))
 
+/// The characters a NAME takes: a letter or `_`, then identifier characters.
+///
+/// Every name slot in a DECLARATION took anything at all. You could type a space and a `!` into a
+/// function's name, watch `let  !before (n: Int): Int =` draw perfectly, and only find out at save time,
+/// where it came back "could not parse the reconstructed source" -- blaming the reconstruction for a
+/// character the editor should never have accepted. The pattern and let-binding names had the class
+/// already; the shells did not, and the shells are the ones whose name goes into the source header.
+let nameClass () : List<(String * TextClass)> =
+  [ ("name", TextClass.Word(("<nameStart>", "<identifier>"))) ]
+
 // --- Doc comments ---
 //
 // A description is carried as a LIST of lines rather than one text field, for the same reason an enum
@@ -2702,7 +2712,8 @@ let moreSpecs () : List<Spec> =
             Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.ParenIfSlot("value", isSwallowing) ]) ] ]
           (Node.make (Kind.named recordFieldType) [ text "name" "", ("value", Field.One(Slot.Empty(exprExpect "value"))) ]))
         [ "value" ]) with
-        resolve = resolveRecordField }
+        resolve = resolveRecordField
+        textClasses = PT.nameClass () }
     Spec.withNoSequence
       // The value is a `ParenLowSlot` for the same reason a record field's is: a `match` here swallows
       // the `;` and the pair after it.
@@ -3274,7 +3285,9 @@ module Types =
         [ // A type variable is written with its quote: the pretty-printer emits `'a` (programTypes.dark and
           // runtimeTypes.dark both do `"'" ++ varName`), and Fluid drew a bare `a`, so a generic signature on
           // screen wasn't the signature the printer would write.
-          simpleType "TVariable" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ])
+          Spec.withTextClasses
+            (simpleType "TVariable" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (typeKind "TVariable") [ PT.text "name" "" ]))
+            (PT.nameClass ())
           // `List<...>`, `Stream<...>`, `DB<...>` and `Dict<..., ...>` used to be written with hard brackets
           // and a hard space, so nothing in them could break: a long element type ran off the end of the
           // line instead of going to its own, and `List<(A * B)>` inside an enum case overflowed the width
@@ -3434,7 +3447,8 @@ module Fn =
               Piece.Group [ Piece.Nest(2, [ Piece.Line, Piece.Slot "type" ]) ] ])
           Piece.Punct ")" ]
         (Node.make (paramKind ()) [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
-        summary = PT.exprSummary }
+        summary = PT.exprSummary
+        textClasses = PT.nameClass () }
 
   /// The empty parameter list, drawn as it is written and parsed. No fields, like `EUnit` one level down.
   let unitParamSpec () : Spec =
@@ -3596,6 +3610,7 @@ module Fn =
         (emptyDocFor "unnamed")) with
         actions = fnActions ()
         binders = fnBinders
+        textClasses = PT.nameClass ()
         // `<` opens the type parameters, the same rule `TCustomType` claims for its type ARGUMENTS.
         // `EachWrapped` draws nothing when the list is empty, so there was no `<` on screen to step over
         // and no rule to add one: a generic function's signature could be read and never written.
@@ -3809,18 +3824,20 @@ module TypeDecl =
       Stdlib.Option.Option.None
 
   let specs () : List<Spec> =
-    [ simpleT
-        "Type"
-        [ Piece.Each("doc", [])
-          Piece.Group
-            [ Piece.Keyword "type"
-              Piece.Space
-              Piece.Text("name", Layout.Style.Name)
-              Piece.EachWrapped("params", "<", [ Piece.Punct ",", Piece.Space ], ">")
-              Piece.Space
-              Piece.Punct "=" ]
-          Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
-        (emptyDocFor "Unnamed")
+    [ Spec.withTextClasses
+        (simpleT
+          "Type"
+          [ Piece.Each("doc", [])
+            Piece.Group
+              [ Piece.Keyword "type"
+                Piece.Space
+                Piece.Text("name", Layout.Style.Name)
+                Piece.EachWrapped("params", "<", [ Piece.Punct ",", Piece.Space ], ">")
+                Piece.Space
+                Piece.Punct "=" ]
+            Piece.Nest(2, [ Piece.HardLine, Piece.Slot "def" ]) ]
+          (emptyDocFor "Unnamed"))
+        (PT.nameClass ())
       // A declaration's own type params carry the quote too: the printer writes `type Option<'v>`, and
       // Fluid drew `type Option<v>`. The CASES were already right, because those are TypeReferences.
       // The name takes identifier characters only, so the `'` the piece already draws is REFUSED rather
@@ -3869,7 +3886,8 @@ module TypeDecl =
           "RecordField"
           [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space, Piece.Slot "type" ]
           (Node.make (k "RecordField") [ PT.text "name" "", ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])) with
-          resolve = resolveField }
+          resolve = resolveField
+          textClasses = PT.nameClass () }
       // A space after the case name opens its first field, and the ` of` is DRAWN rather than typed:
       // `| Delayed` then a space gives `| Delayed of <type>`, and Enter from inside that field
       // adds the next one, separated by the `*` the spec draws. `of` is a keyword nobody has to spell.
@@ -3879,17 +3897,20 @@ module TypeDecl =
             [ Piece.Text("name", Layout.Style.Name), Piece.EachWrapped("fields", " of", [ Piece.Space, Piece.Punct "*", Piece.Line ], "") ]
             (Node.make (k "EnumCase") [ PT.text "name" "", ("fields", Field.Many([], efExpect ())) ]))
           [ (" ", "fields") ]) with
-          resolve = resolveCase }
+          resolve = resolveCase
+          textClasses = PT.nameClass () }
       simpleT
         "EnumField"
         // A function type in an enum case gets brackets: the case's fields are a `*` product, and
         // `| WithChar of String -> Expect -> Node` reads as one arrow chain rather than one field.
         [ Piece.Each("label", []), Piece.ParenIfSlot("type", Types.isFnType) ]
         (Node.make (k "EnumField") [ ("label", Field.Many([], efLabelExpect ())), ("type", Field.One(Slot.Empty(Types.typeExpect "type"))) ])
-      simpleT
-        "EnumFieldLabel"
-        [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
-        (Node.make (k "EnumFieldLabel") [ PT.text "name" "" ]) ]
+      Spec.withTextClasses
+        (simpleT
+          "EnumFieldLabel"
+          [ Piece.FieldText("name", Layout.Style.Name), Piece.Punct ":", Piece.Space ]
+          (Node.make (k "EnumFieldLabel") [ PT.text "name" "" ]))
+        (PT.nameClass ()) ]
 
 
 // ============================================================================
@@ -3947,4 +3968,5 @@ module Value =
                 Piece.Space
                 Piece.Slot "body" ] ]
           (emptyDocFor "unnamed")) with
-          summary = (fun n -> "val " ++ (PT.textOf n "name")) } ]
+          summary = (fun n -> "val " ++ (PT.textOf n "name"))
+          textClasses = PT.nameClass () } ]

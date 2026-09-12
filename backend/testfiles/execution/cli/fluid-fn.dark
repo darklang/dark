@@ -463,6 +463,80 @@ module RenamingReachesTheSavedSource =
   (RenamingReachesTheSavedSource.saved "") = "not | let not (b: Bool): Bool ="
 
 
+module ANameTakesOnlyNameCharacters =
+  // Every name slot in a DECLARATION took any character at all. You could type a space and a `!` into a
+  // function's name, watch `let  !before (n: Int): Int =` draw perfectly, and find out only at save time,
+  // where it came back "could not parse the reconstructed source" -- blaming the reconstruction for a
+  // character the editor should never have accepted. Found by renaming one in a terminal.
+  //
+  // The pattern and let-binding names had the class already. The shells did not, and the shells are the
+  // ones whose name goes into the source header.
+  let shell () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.PT.Fn.toDoc "not" (RenamingReachesTheSavedSource.stored ()))
+
+  let named (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ANameTakesOnlyNameCharacters.shell ()) 78)
+        keys
+    match st.root with
+    | Filled n -> (Darklang.Fluid.PT.textOf n "name") ++ " | " ++ st.message
+    | _ -> "not a node"
+
+  (ANameTakesOnlyNameCharacters.named [ "i", "X" ]) = "Xnot | "
+  (ANameTakesOnlyNameCharacters.named [ "i", " ", "!" ]) = "not | a name can't start with `!`"
+
+  // The refusal is at the START of the name too, which is where `let  !before` came from: the space went
+  // in first and nothing objected.
+  (ANameTakesOnlyNameCharacters.named [ "i", " " ]) = "not | a name can't start with ` `"
+
+  /// The same shell, drawn rather than lowered.
+  let drawn (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init (Darklang.Fluid.App.defaultRegistry ()) (ANameTakesOnlyNameCharacters.shell ()) 78)
+        keys
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 78 st.root
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith l "///"))
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault ""
+
+  // A key a spec claims still reaches the spec. `<` at the end of the name opens the type parameters, and
+  // it is not a name character -- so the class must be asked AFTER `opensItems`, not before.
+  (ANameTakesOnlyNameCharacters.drawn [ "i", "<Right>", "<Right>", "<Right>", "<" ]) =
+    "let not<'⟨name⟩> (b: Bool): Bool ="
+
+  // And `(` there, which no rule claims, is refused rather than typed into the name.
+  (ANameTakesOnlyNameCharacters.named [ "i", "<Right>", "<Right>", "<Right>", "(" ]) =
+    "not | `(` isn't part of a name"
+
+
+module APunctuatedNameStillStepsOver =
+  // The other half of the same question: a parameter's name is followed by a `:` the spec DRAWS, and
+  // typing it steps over it. A character class on the name must not eat that.
+  let param () : Darklang.Fluid.Node =
+    Darklang.Fluid.Node.make
+      (Darklang.Fluid.Kind.named "Darklang.Fluid.PT.Fn.Param")
+      [ ("name", Darklang.Fluid.Field.Text "n")
+        ("type", Darklang.Fluid.Field.One(Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.Types.typeExpect "type"))) ]
+
+  let drawn (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (Darklang.Fluid.Slot.Filled(APunctuatedNameStillStepsOver.param ()))
+          60)
+        keys
+    Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 60 st.root
+
+  (APunctuatedNameStillStepsOver.drawn []) = "(n: <type>)"
+  (APunctuatedNameStillStepsOver.drawn [ "i", "<Right>", ":" ]) = "(n: <type>)"
+  (APunctuatedNameStillStepsOver.drawn [ "i", "<Right>", ":", " ", "I", "n", "t" ]) = "(n: Int)"
+
+
 module ParametersAreInScope =
   // A function's parameters were in scope NOWHERE. `scopeNames` walks each ancestor's `binders` and the
   // function shell had none, so writing a body offered no completion for the arguments you had just
@@ -634,8 +708,12 @@ module TypingAWholeFunction =
   // type, because a function may perfectly well return one, and nothing can tell the two apart at the
   // moment the bracket arrives. It is 05-open-questions' spaced-call problem in another costume: the
   // printed form is not typeable.
+  //
+  // It got one character less wrong when the name slots grew a character class: the `:` after `'m` used
+  // to go into the type VARIABLE's name, giving `('m: * Int)`. A `:` is not a name character, so it is
+  // refused now and the nonsense is `('m * Int)` instead. Still nonsense, still pinned.
   (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int) (m: Int): Int")) =
-    "let inc (n: Int): ('m: * Int) =\n  :Int~"
+    "let inc (n: Int): ('m * Int) =\n  :Int~"
 
 
 module ATypeParameterCanBeWritten =
