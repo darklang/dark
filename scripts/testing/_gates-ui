@@ -136,6 +136,18 @@ gate_lsp_branches() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+
+  # The policy is per INSTANCE, and this gate is its own instance, so it has to grant what the
+  # server needs rather than inherit whatever the dev instance happens to allow. It used to
+  # inherit, which is why it passed on some machines and not others: the LSP writes a debug log,
+  # a denied effect raises, and a raise inside the server's loop takes the loop down -- so the
+  # gate's only symptom was every request going unanswered.
+  #
+  # `LspServer.logFilePath` is a hardcoded absolute container path, which is its own bug and not
+  # this gate's to fix; granting it by name is the honest way to depend on it until it moves.
+  "$PWD/$CLI" permissions allow file write "/home/dark/app/rundir/logs/lsp-server.log" >/dev/null 2>&1
+  "$PWD/$CLI" permissions allow package-write >/dev/null 2>&1
+
   "$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
   "$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1
 
