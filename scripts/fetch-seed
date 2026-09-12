@@ -101,9 +101,8 @@ else
     CACHED="${CACHE_DIR}/${COMMIT}.db"
   fi
 
-  if [[ -n "$CACHED" && -f "$CACHED" ]]; then
+  if [[ -n "$CACHED" && -r "$CACHED" ]] && cp "$CACHED" "$DEST_SEED" 2>/dev/null; then
     echo "Using the cached seed for ${COMMIT} (${CACHED})"
-    cp "$CACHED" "$DEST_SEED"
   else
     echo "Fetching seed from $SEED_URL"
     if ! curl -fL -o "$DEST_SEED" "$SEED_URL"; then
@@ -119,10 +118,16 @@ else
       exit 1
     fi
 
+    # Best-effort, always. The seed is already fetched and installed by this point, so a cache
+    # that cannot be written costs the NEXT fetch a download and nothing else. Failing here
+    # instead would turn an unwritable home directory into a failed build, which is what happened
+    # the first time this shipped.
     if [[ -n "$CACHED" ]]; then
-      mkdir -p "$CACHE_DIR"
-      cp "$DEST_SEED" "$CACHED"
-      echo "Cached for this machine at ${CACHED}"
+      if mkdir -p "$CACHE_DIR" 2>/dev/null && cp "$DEST_SEED" "$CACHED" 2>/dev/null; then
+        echo "Cached for this machine at ${CACHED}"
+      else
+        echo "(could not cache to ${CACHE_DIR}; the seed is installed regardless)"
+      fi
     fi
   fi
 fi
