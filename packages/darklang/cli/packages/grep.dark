@@ -155,17 +155,23 @@ let matchesIn (source: String) (pattern: String) : List<(Int * String)> =
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let acceptedTheWait =
+    args |> Stdlib.List.any (fun a -> a == "--all")
+
+  let positional =
+    args |> Stdlib.List.filter (fun a -> a != "--all")
+
   let (pattern, scope) =
-    match args with
+    match positional with
     | [ p ] -> (p, "")
     | [ p, sc ] -> (p, sc)
     | _ -> ("", "")
 
   if pattern == "" then
-    Cli.printErr "usage: dark grep <text> [module]"
+    Cli.printErr "usage: dark grep <text> [module] [--all]"
 
     Cli.printHint
-      "  with no module it searches everything live on your branch, which is slow the first time."
+      "  a module scopes the search and is much quicker; --all accepts the wait on a cold cache."
 
     { state with exitCode = 1 }
   else
@@ -182,9 +188,22 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | (h, _, _, _, _) :: _ -> (Stdlib.Dict.get warm h) != Stdlib.Option.Option.None
       | [] -> true
 
+    // An unscoped grep against a cold cache renders everything, which is minutes. Refused rather
+    // than done silently: a command that hangs for five minutes without saying why is one people
+    // stop trusting, and this one is also run by the registry sweep, where it cost nine minutes
+    // of the suite before it asked first.
+    if (scope == "") && (Stdlib.Bool.not anyCached) && (Stdlib.Bool.not acceptedTheWait) then
+      Cli.printErr
+        $"searching everything means rendering {Stdlib.Int.toString total} items, which takes minutes on this install."
+
+      Cli.printHint "  `dark grep <text> <module>` searches under one module and is quick."
+      Cli.printHint "  `dark grep <text> --all` does it anyway; the wait is paid once, then cached."
+      { state with exitCode = 1 }
+    else
+
     if Stdlib.Bool.not anyCached then
       Cli.printHint
-        $"  first grep on this install: rendering {Stdlib.Int.toString total} items. Later greps read the cache."
+        $"  rendering {Stdlib.Int.toString total} items. This is paid once; later greps read the cache."
 
     // Rendered per item, keeping the failures rather than dropping them: an item whose source
     // cannot be produced is NOT an item without matches, and a search tool that cannot tell you
@@ -239,7 +258,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let help (_state: Cli.AppState) : String =
   [ ""
-    "  dark grep <text>"
+    "  dark grep <text> [module] [--all]"
     ""
     "  Searches the SOURCE of everything live on your branch, and prints"
     "  name:line: for each hit. `dark search` searches names instead."
