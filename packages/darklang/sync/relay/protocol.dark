@@ -291,6 +291,56 @@ let headCommit () : String =
   | [] -> ""
 
 
+/// How many cut seeds this server keeps. At roughly twelve megabytes each, eight is about a
+/// hundred megabytes, and more than anybody browsing pins needs at once.
+val seedCacheKeep = 8
+
+
+/// Drop the oldest cuts past `seedCacheKeep`.
+///
+/// Not tidiness. `/seed/<commit>.db` is ANONYMOUS -- it has to be, because fetching a pinned
+/// package set is the one thing a contributor with no access must be able to do -- and it keeps a
+/// file per commit asked for. The commits are discoverable through the equally public
+/// `/sync/pull`, so without a bound a stranger can walk a store's history and make the server keep
+/// a twelve-megabyte file for every commit in it.
+///
+/// Oldest by modified time, which is "least recently asked for" because a cut is rewritten only
+/// when it is missing. Failures are ignored: this is housekeeping, and refusing to serve a seed
+/// because a stale file would not delete would be the wrong trade.
+let pruneSeedCache () : Unit =
+  let dir = Stdlib.Cli.Path.parent (seedCachePath "x")
+
+  match Stdlib.Cli.Dir.list dir with
+  | Error _ -> ()
+  | Ok entries ->
+    let cuts =
+      entries
+      |> Stdlib.List.filter (fun e -> Stdlib.String.endsWith e ".db")
+      |> Stdlib.List.filterMap (fun e ->
+        let full = Stdlib.Cli.Path.join [ dir, e ]
+
+        match Stdlib.Cli.File.getModifiedTime full with
+        | Ok t -> Stdlib.Option.Option.Some((t, full))
+        | Error _ -> Stdlib.Option.Option.None)
+
+    let total = Stdlib.List.length cuts
+
+    if total <= seedCacheKeep then
+      ()
+    else
+      // Oldest first, then delete exactly the excess. Ascending rather than descending because
+      // every count here is an `Int` and negating one to reverse the sort is how this got an
+      // Int/Int64 mismatch the first time, which raised inside the handler and turned every seed
+      // request into a 500.
+      cuts
+      |> Stdlib.List.sortBy (fun c -> let (t, _) = c in t)
+      |> Stdlib.List.take (total - seedCacheKeep)
+      |> Stdlib.List.iter (fun c ->
+        let (_, path) = c
+        let _ = Stdlib.Cli.File.delete path
+        ())
+
+
 /// Cut a seed at <param commit>, or hand back the one already cut there.
 let cutSeedAt (commit: String) : Stdlib.Result.Result<String, String> =
   let path = seedCachePath commit
@@ -305,7 +355,9 @@ let cutSeedAt (commit: String) : Stdlib.Result.Result<String, String> =
     | Ok _ ->
       match Stdlib.LocalStore.seedTo path (Stdlib.Option.Option.Some commit) with
       | Error e -> Stdlib.Result.Result.Error e
-      | Ok _ -> Stdlib.Result.Result.Ok path
+      | Ok _ ->
+        let _ = pruneSeedCache ()
+        Stdlib.Result.Result.Ok path
 
 
 /// What a seed cut from this relay says about itself, so a pin can be checked without downloading
