@@ -2707,3 +2707,61 @@ module EveryShapeSurvivesInEveryPosition =
 
   // The guard against a vacuous pass: a list that shrank to nothing would be green and worthless.
   ((Stdlib.List.length (EveryShapeSurvivesInEveryPosition.shapes ())) > 18) = true
+
+
+module APipeStageHasNoCharacterRules =
+  // The pipe-step hole's `holeRules` is empty. Every other hole in the language builds something from a
+  // character -- an expression hole takes `[`, `(`, `"`, `'`, a digit and a `-`; a match pattern takes
+  // five; a type hole takes three; a definition hole takes two as of this week. A pipe step takes none.
+  //
+  // Three of the five stage shapes are reachable anyway, through the name: a variable, a call, an enum
+  // constructor. The two the printer BRACKETS are not, and both are blocked on the same `(`:
+  //
+  //     xs |> (fun x -> x)      typed: ERR unresolved: (funx->x)
+  //     xs |> (+) 1             typed: ERR unresolved: (+)1
+  //
+  // A lambda stage is still reachable by name (`fu` and Enter), which is how the whole-body corpus writes
+  // one; it is the PRINTED form that cannot be typed. What `(` should mean here is a real question --
+  // the next character decides between a lambda and an infix section, and the printer brackets the
+  // lambda precisely because a bare one would swallow the stages after it -- so it is written up rather
+  // than guessed at.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let keys (src: String) : List<String> =
+    Stdlib.String.toList src
+    |> Stdlib.List.map (fun c ->
+      let t = Stdlib.Char.toString c
+      if t == "\n" then "<Enter>" else t)
+
+  let printed (src: String) : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (APipeStageHasNoCharacterRules.ctx ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let typedBack (src: String) : String =
+    Darklang.Fluid.PT.Test.program
+      (APipeStageHasNoCharacterRules.reg ())
+      (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
+      (Stdlib.List.append (APipeStageHasNoCharacterRules.keys (APipeStageHasNoCharacterRules.printed src)) [ "<Esc>", "<Esc>" ])
+
+  // The three that type back. Bare names rather than one-letter ones: `f` is a prefix of `fun`, which is
+  // the pipe step's only keyword candidate, and that collision is its own open question.
+  (APipeStageHasNoCharacterRules.typedBack "xs |> zork") = "xs |> zork"
+  (APipeStageHasNoCharacterRules.typedBack "xs |> zork 1") = "xs |> zork 1"
+  (APipeStageHasNoCharacterRules.typedBack "xs |> Stdlib.List.map g") = "xs |> Stdlib.List.map g"
+  (APipeStageHasNoCharacterRules.typedBack "xs |> Stdlib.Option.Some") = "xs |> Stdlib.Option.Some"
+  (APipeStageHasNoCharacterRules.typedBack "xs |> zork |> quux") = "xs |> zork |> quux"
+
+  // The two that do not, pinned as the WRONG answer they currently give so the day it changes is visible.
+  // This is the same device `TypingAWholeFunction` uses for the two-parameter signature.
+  (APipeStageHasNoCharacterRules.typedBack "xs |> (fun x -> x)") = "ERR unresolved: (funx->x)"
+  (APipeStageHasNoCharacterRules.typedBack "xs |> (+) 1") = "ERR unresolved: (+)1"
+
+  // ...and the lambda IS reachable by name, which is why this is a gap in the printed form rather than a
+  // missing capability.
+  (Darklang.Fluid.PT.Test.program
+    (APipeStageHasNoCharacterRules.reg ())
+    (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
+    [ "x", "s", "|", "f", "u", "<Enter>", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "xs |> (fun x -> x)"
