@@ -441,6 +441,39 @@ module NewShapesCompose =
     "Stdlib.Cli.Tui.Size { width = 80; height = ~⟨height⟩ }"
 
 
+module ABracketInAPipeStage =
+  // `(` groups here the way it groups everywhere else, which in a position holding exactly one thing is
+  // a no-op. So it is swallowed rather than drawn, and the language agrees: the parser reads
+  // `xs |> (Stdlib.Int.add 1)` and prints back `xs |> Stdlib.Int.add 1`. The only bracket a stage keeps
+  // is a lambda's, and the lambda draws its own.
+  //
+  // Before this a stage had NO character rules, so the bracket went into the name as a literal
+  // character: `xs |> (1 + 2)` came out as a stage called `(1+2)`.
+  //
+  // It needed a new kind of hole rule to say so. `HoleFill` could only name a node to build, and the
+  // answer here is "not an error, and not a thing" -- `HoleFill.Absorb`.
+  let reg () : Darklang.Fluid.Registry =
+    Darklang.Fluid.Registry.ofList
+      (Stdlib.List.flatten
+        [ Darklang.Fluid.Prims.specs (), Darklang.Fluid.PT.specs (), Darklang.Fluid.PT.Types.specs () ])
+
+  let hole () : Darklang.Fluid.Slot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression")
+
+  let typed (src: String) : String =
+    let keys = Stdlib.String.toList src |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+    let st = Darklang.Fluid.Test.drive (Darklang.Fluid.Editor.init (ABracketInAPipeStage.reg ()) (ABracketInAPipeStage.hole ()) 60) keys
+    Darklang.Fluid.Debug.render (ABracketInAPipeStage.reg ()) 60 st.root
+
+  // Swallowed: the hole is untouched and still says what it wants.
+  (ABracketInAPipeStage.typed "xs |> (") = "xs |> ⟨step⟩"
+
+  // The forms the printer writes, typed back character for character.
+  (ABracketInAPipeStage.typed "xs |> (Stdlib.Int.add 1)") = "xs |> Stdlib.Int.add 1"
+  (ABracketInAPipeStage.typed "xs |> Stdlib.Int.add 1") = "xs |> Stdlib.Int.add 1"
+  (ABracketInAPipeStage.typed "xs |> (fun x -> x)") = "xs |> (fun x -> x)"
+  (ABracketInAPipeStage.typed "xs |> fun x -> x") = "xs |> (fun x -> x)"
+
+
 module CompletionRanksByCase =
   // Matching stays case-insensitive, so `d` still reaches `Dict` and nothing becomes unreachable. The
   // case you typed decides the ORDER: types and constructors are always capitalised in this language and
@@ -2814,22 +2847,24 @@ module EveryShapeSurvivesInEveryPosition =
   ((Stdlib.List.length (EveryShapeSurvivesInEveryPosition.shapes ())) > 18) = true
 
 
-module APipeStageHasNoCharacterRules =
-  // The pipe-step hole's `holeRules` is empty. Every other hole in the language builds something from a
-  // character -- an expression hole takes `[`, `(`, `"`, `'`, a digit and a `-`; a match pattern takes
-  // five; a type hole takes three; a definition hole takes two as of this week. A pipe step takes none.
+module APipeStageHasACharacterRule =
+  // It has exactly one, and it is `(`.
   //
-  // Three of the five stage shapes are reachable anyway, through the name: a variable, a call, an enum
-  // constructor. The two the printer BRACKETS are not, and both are blocked on the same `(`:
+  // The hole used to have none, where every other hole in the language builds something from a
+  // character: an expression hole takes `[`, `(`, `"`, `'`, a digit and a `-`; a match pattern takes
+  // five; a type hole takes three. Three of the five stage shapes were reachable anyway through the
+  // name -- a variable, a call, an enum constructor -- and the two the printer BRACKETS were not.
   //
-  //     xs |> (fun x -> x)      typed: ERR unresolved: (funx->x)
-  //     xs |> (+) 1             typed: ERR unresolved: (+)1
+  // `(` groups, the same meaning it carries in every other slot, and grouping a position that holds
+  // exactly one thing is a no-op. So it is swallowed rather than drawn, which is what the language
+  // itself does: the parser reads `xs |> (Stdlib.Int.add 1)` and prints back `xs |> Stdlib.Int.add 1`.
+  // The one bracket a stage keeps is a lambda's, and the lambda draws its own.
   //
-  // A lambda stage is still reachable by name (`fu` and Enter), which is how the whole-body corpus writes
-  // one; it is the PRINTED form that cannot be typed. What `(` should mean here is a real question --
-  // the next character decides between a lambda and an infix section, and the printer brackets the
-  // lambda precisely because a bare one would swallow the stages after it -- so it is written up rather
-  // than guessed at.
+  // That needed a new kind of rule. `HoleFill` could only name a node to build, and the answer here is
+  // "not an error, and not a thing", so `HoleFill.Absorb` says it.
+  //
+  // The operator section `(+)` is still out of reach, and it is a different feature: a way of NAMING an
+  // operator rather than a bracket around a stage.
   let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
 
   let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
@@ -2842,32 +2877,36 @@ module APipeStageHasNoCharacterRules =
 
   let printed (src: String) : String =
     match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
-    | Ok e -> Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (APipeStageHasNoCharacterRules.ctx ()) e)
+    | Ok e -> Stdlib.Pretty.render 200 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (APipeStageHasACharacterRule.ctx ()) e)
     | Error err -> "parse ERR " ++ err
 
   let typedBack (src: String) : String =
     Darklang.Fluid.PT.Test.program
-      (APipeStageHasNoCharacterRules.reg ())
+      (APipeStageHasACharacterRule.reg ())
       (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
-      (Stdlib.List.append (APipeStageHasNoCharacterRules.keys (APipeStageHasNoCharacterRules.printed src)) [ "<Esc>", "<Esc>" ])
+      (Stdlib.List.append (APipeStageHasACharacterRule.keys (APipeStageHasACharacterRule.printed src)) [ "<Esc>", "<Esc>" ])
 
   // The three that type back. Bare names rather than one-letter ones: `f` is a prefix of `fun`, which is
   // the pipe step's only keyword candidate, and that collision is its own open question.
-  (APipeStageHasNoCharacterRules.typedBack "xs |> zork") = "xs |> zork"
-  (APipeStageHasNoCharacterRules.typedBack "xs |> zork 1") = "xs |> zork 1"
-  (APipeStageHasNoCharacterRules.typedBack "xs |> Stdlib.List.map g") = "xs |> Stdlib.List.map g"
-  (APipeStageHasNoCharacterRules.typedBack "xs |> Stdlib.Option.Some") = "xs |> Stdlib.Option.Some"
-  (APipeStageHasNoCharacterRules.typedBack "xs |> zork |> quux") = "xs |> zork |> quux"
+  (APipeStageHasACharacterRule.typedBack "xs |> zork") = "xs |> zork"
+  (APipeStageHasACharacterRule.typedBack "xs |> zork 1") = "xs |> zork 1"
+  (APipeStageHasACharacterRule.typedBack "xs |> Stdlib.List.map g") = "xs |> Stdlib.List.map g"
+  (APipeStageHasACharacterRule.typedBack "xs |> Stdlib.Option.Some") = "xs |> Stdlib.Option.Some"
+  (APipeStageHasACharacterRule.typedBack "xs |> zork |> quux") = "xs |> zork |> quux"
 
-  // The two that do not, pinned as the WRONG answer they currently give so the day it changes is visible.
-  // This is the same device `TypingAWholeFunction` uses for the two-parameter signature.
-  (APipeStageHasNoCharacterRules.typedBack "xs |> (fun x -> x)") = "ERR unresolved: (funx->x)"
-  (APipeStageHasNoCharacterRules.typedBack "xs |> (+) 1") = "ERR unresolved: (+)1"
+  // The lambda types back now. `(` is a rule on the stage: it groups, and grouping a position that
+  // holds exactly one thing is a no-op, so it is swallowed. The lambda then draws its own brackets.
+  (APipeStageHasACharacterRule.typedBack "xs |> (fun x -> x)") = "xs |> (fun x -> x)"
+
+  // The operator section does not, and it is a different feature -- `(+)` is a way of NAMING an
+  // operator, not a bracket around a stage. Pinned as the wrong answer it gives, which changed shape
+  // when the bracket started being swallowed: it used to keep the `(`.
+  (APipeStageHasACharacterRule.typedBack "xs |> (+) 1") = "ERR unresolved: +)1"
 
   // ...and the lambda IS reachable by name, which is why this is a gap in the printed form rather than a
   // missing capability.
   (Darklang.Fluid.PT.Test.program
-    (APipeStageHasNoCharacterRules.reg ())
+    (APipeStageHasACharacterRule.reg ())
     (Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expression"))
     [ "x", "s", "|", "f", "u", "<Enter>", "x", "<Tab>", "x", "<Esc>", "<Esc>" ]) = "xs |> (fun x -> x)"
 

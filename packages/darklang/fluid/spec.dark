@@ -159,6 +159,14 @@ type HoleFill =
   | Node of Node
   /// A named function of the character and the hole's expectation. The caret goes after the character.
   | WithChar of (String -> Expect -> Node)
+  /// Swallow the character and leave the hole alone.
+  ///
+  /// For punctuation a language writes but does not MEAN in this position. A pipe stage's bracket is
+  /// the case that wanted it: `xs |> (Stdlib.Int.add 1)` and `xs |> Stdlib.Int.add 1` are the same
+  /// program -- the parser reads the parens and prints nothing back -- so there is no node to build and
+  /// nothing to draw, and the alternative was the `(` going in as a literal character of the stage's
+  /// name. A rule that means "not an error, and not a thing" needs somewhere to say so.
+  | Absorb
 
 /// `onChar` is a literal grapheme, or `<digit>` / `<letter>`.
 type HoleRule =

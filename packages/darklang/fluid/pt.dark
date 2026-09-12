@@ -1916,7 +1916,14 @@ let pipeTypeSpec () : Spec =
   Spec
     { kind = Kind.named pipeExprType
       pieces = [ Piece.Dim "?step" ]
-      holeRules = []
+      // `(` groups here the way it groups everywhere else, and grouping a position that holds exactly
+      // one thing is a no-op -- so it is swallowed rather than drawn. The language agrees: the parser
+      // reads `xs |> (Stdlib.Int.add 1)` and prints back `xs |> Stdlib.Int.add 1`. The bracket the
+      // printer DOES write in a stage is a lambda's, and the lambda draws its own.
+      //
+      // Before this a stage had no character rules at all, so the `(` went into the name as a literal
+      // character and `xs |> (1 + 2)` came out as a stage called `(1+2)`.
+      holeRules = [ HoleRule { onChar = "("; fill = HoleFill.Absorb } ]
       wrapRules = []
       textClasses = []
       maxItems = Spec.noMaxItems

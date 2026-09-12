@@ -1383,11 +1383,29 @@ let holeFill (reg: Registry) (e: Expect) (c: String) : Stdlib.Option.Option<(Nod
   | Some spec ->
     spec.holeRules
     |> Stdlib.List.findFirst (fun r -> ruleMatches reg.syntax r c)
-    |> Stdlib.Option.map (fun r ->
+    |> Stdlib.Option.andThen (fun r ->
       match r.fill with
-      | Node n -> (n, false)
-      | WithChar f -> (f c e, true))
+      | Node n -> Stdlib.Option.Option.Some((n, false))
+      | WithChar f -> Stdlib.Option.Option.Some((f c e, true))
+      // Nothing to build. `holeAbsorbs` is the question for that, asked before this one.
+      | Absorb -> Stdlib.Option.Option.None)
   | None -> Stdlib.Option.Option.None
+
+/// Does a spec say this character is swallowed in this hole?
+///
+/// Separate from `holeFill` because that one answers "what does it BUILD", and the answer here is
+/// nothing. Kept apart so a hole with no rule at all still falls through to being typed as text, which
+/// is what every other character does.
+let holeAbsorbs (reg: Registry) (e: Expect) (c: String) : Bool =
+  match Registry.forExpect reg e with
+  | Some spec ->
+    (match spec.holeRules |> Stdlib.List.findFirst (fun r -> ruleMatches reg.syntax r c) with
+     | Some r ->
+       (match r.fill with
+        | Absorb -> true
+        | _ -> false)
+     | None -> false)
+  | None -> false
 
 /// The nearest enclosing tuple that holds exactly ONE thing, with the caret inside that thing.
 ///
@@ -3016,6 +3034,8 @@ let typeOneRaw (st: State) (c: String) : State =
         // to advance past, so swallow it. Without this, typing `[1, 2]` by hand gave the second item the
         // text " 2" -- the comma made the hole, and the space people naturally type after it landed in it.
         if c == " " then st
+        // Punctuation the language writes here and does not mean: swallowed, hole untouched.
+        elif holeAbsorbs st.reg e c then st
         else
         match holeFill st.reg e c with
         | Some((n, afterChar)) ->
