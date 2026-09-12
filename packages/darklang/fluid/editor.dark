@@ -3830,6 +3830,53 @@ let backspace (st: State) : State =
       | _ -> st
 
 
+/// Delete removes the character AFTER the caret.
+///
+/// There was no forward delete at all: the only way to remove a character was from the right of it, so
+/// replacing a name meant walking the caret to the end and backspacing through the whole thing. Renaming
+/// `before` to `after` in a terminal took eleven keystrokes, which is what made it worth writing down.
+///
+/// Deliberately none of Backspace's structural rules. Those all answer "there is nothing behind the
+/// caret in this text, so what did you mean?" -- collapse the empty construct, merge the list items,
+/// drop the operator. Forward from the END of a text run is a different question with no obvious answer
+/// (what does deleting the `)` you are sitting in front of mean?), and inventing one is how a key ends up
+/// doing something surprising. So: inside the text, exactly the character in front of you; at the end of
+/// it, say so rather than guess.
+let deleteForward (st: State) : State =
+  let caret = st.caret
+  match caret.part with
+  | InText slot ->
+    match nodeAtPath st.root caret.node with
+    | Some n ->
+      let old = Node.text n slot |> Stdlib.Option.withDefault ""
+      if caret.offset >= (Stdlib.String.length old) then
+        { st with message = "nothing after the caret to delete" }
+      else
+        // The caret does not move: the text closes up under it, which is what forward delete is.
+        commitRun
+          st
+          ((Path.toString caret.node) ++ "|" ++ slot ++ "|del")
+          [ Edit.SetText(caret.node, slot, TextEdit.removeAt old caret.offset) ]
+          caret
+    | None -> st
+  | _ ->
+    match Caret.slotPath caret with
+    | None -> { st with message = "Delete removes the character after the caret" }
+    | Some sp ->
+      match slotAtPath st.root sp with
+      | Some(Partial(text, was)) ->
+        if caret.offset >= (Stdlib.String.length text) then
+          { st with message = "nothing after the caret to delete" }
+        else
+          let updated = TextEdit.removeAt text caret.offset
+          if updated == "" then
+            let st1 = commit st [ Edit.Replace(sp, was) ] caret
+            { st1 with caret = { caret with offset = 0 } }
+          else
+            commitRun st ((Path.toString sp) ++ "|partial|del") [ Edit.Replace(sp, Slot.Partial(updated, was)) ] caret
+      | _ -> { st with message = "Delete removes the character after the caret" }
+
+
 // --- Completion ---
 
 let labelMatches (typed: String) (label: String) : Bool =
@@ -5324,6 +5371,7 @@ let onKeyInsert (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       | Some resolved -> handled (stayIfOnHole resolved nextHole)
       | None -> handled (nextHole st)
   | Backspace -> handled (backspace st)
+  | Delete -> handled (deleteForward st)
   | _ ->
     if kp.modifiers.ctrl then
       match kp.key with

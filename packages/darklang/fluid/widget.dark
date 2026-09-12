@@ -457,6 +457,9 @@ let effectiveKeymap (reg: Registry) : List<KeyBinding> =
 let insertKeyHelp () : List<(String * String)> =
   [ ("Tab", "next hole")
     ("S-Tab", "previous hole")
+    // Listed because it did not exist until someone renamed a function in a terminal and found that the
+    // only way to remove a character was from the right of it.
+    ("Del", "delete forwards")
     // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
     // record field, a new row in a grid -- and that is the operation you reach for most in a table.
     ("Enter", "accept / add an item")

@@ -513,6 +513,41 @@ module ANameTakesOnlyNameCharacters =
     "not | `(` isn't part of a name"
 
 
+module DeleteRemovesWhatIsInFront =
+  // There was no forward delete at all, so the only way to remove a character was from the right of it:
+  // replacing a name meant walking the caret to the end and backspacing through the whole thing. Renaming
+  // `before` to `after` in a terminal took eleven keystrokes, which is what made it worth writing down.
+  //
+  // Deliberately none of Backspace's structural rules -- no collapsing an empty construct, no merging
+  // list items. Those answer "there is nothing behind the caret, what did you mean?"; forward off the END
+  // of a text run is a different question with no obvious answer, so it says so instead of guessing.
+  let named (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.defaultRegistry ())
+          (ANameTakesOnlyNameCharacters.shell ())
+          78)
+        keys
+    match st.root with
+    | Filled n -> (Darklang.Fluid.PT.textOf n "name") ++ " | " ++ st.message
+    | _ -> "not a node"
+
+  // The whole point: rename without walking to the end first.
+  (DeleteRemovesWhatIsInFront.named [ "i", "<Del>", "<Del>", "<Del>", "a", "f", "t", "e", "r" ]) =
+    "after | "
+
+  // The caret does not move -- the text closes up under it.
+  (DeleteRemovesWhatIsInFront.named [ "i", "<Del>", "X" ]) = "Xot | "
+
+  // At the end of the text it refuses and says why, rather than reaching into the structure after it.
+  (DeleteRemovesWhatIsInFront.named [ "i", "<Right>", "<Right>", "<Right>", "<Del>" ]) =
+    "not | nothing after the caret to delete"
+
+  // One keystroke, one undo.
+  (DeleteRemovesWhatIsInFront.named [ "i", "<Del>", "<C-z>" ]) = "not | "
+
+
 module APunctuatedNameStillStepsOver =
   // The other half of the same question: a parameter's name is followed by a `:` the spec DRAWS, and
   // typing it steps over it. A character class on the name must not eat that.

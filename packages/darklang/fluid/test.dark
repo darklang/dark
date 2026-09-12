@@ -24,6 +24,7 @@ let keyOf (s: String) : Stdlib.Cli.UI.Widget.KeyPress =
   | "<Tab>" -> named Stdlib.Cli.Stdin.Key.Key.Tab false false
   | "<S-Tab>" -> named Stdlib.Cli.Stdin.Key.Key.Tab false true
   | "<BS>" -> named Stdlib.Cli.Stdin.Key.Key.Backspace false false
+  | "<Del>" -> named Stdlib.Cli.Stdin.Key.Key.Delete false false
   | "<Left>" -> named Stdlib.Cli.Stdin.Key.Key.LeftArrow false false
   | "<Right>" -> named Stdlib.Cli.Stdin.Key.Key.RightArrow false false
   | "<Up>" -> named Stdlib.Cli.Stdin.Key.Key.UpArrow false false
