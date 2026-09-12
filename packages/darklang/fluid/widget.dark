@@ -460,6 +460,9 @@ let insertKeyHelp () : List<(String * String)> =
     // Listed because it did not exist until someone renamed a function in a terminal and found that the
     // only way to remove a character was from the right of it.
     ("Del", "delete forwards")
+    // Both worked and neither was written down anywhere. Driving the editor in a terminal I walked a
+    // 285-character doc comment with 135 presses of Right, because nothing on screen said End was there.
+    ("Home/End", "start / end of the line")
     // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
     // record field, a new row in a grid -- and that is the operation you reach for most in a table.
     ("Enter", "accept / add an item")

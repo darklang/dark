@@ -441,6 +441,40 @@ module NewShapesCompose =
     "Stdlib.Cli.Tui.Size { width = 80; height = ~⟨height⟩ }"
 
 
+module HomeAndEndAreLineKeys =
+  // Both worked and neither was written down, so the INSERT panel now lists them -- and a key the panel
+  // advertises should have a test, which these did not. The panel itself is asserted only as
+  // "length > 0", so a row could be removed and nothing would notice; this pins the behaviour instead of
+  // the wording.
+  //
+  // They are LINE keys, not text-run keys. In `[11, 22, 33]` the whole list is one line, so End goes past
+  // the list; in a match each arm is its own line, so End stops at the end of that arm. That is what every
+  // editor does, and it is worth pinning because I mistook it for a bug twice in one tick.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let parsed (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Builtin.testDerrorMessage "parse failed"
+
+  let after (src: String) (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (HomeAndEndAreLineKeys.reg ()) (HomeAndEndAreLineKeys.parsed src) 70 keys
+
+  // A digit, so it is allowed where it lands. `l` steps onto the first element.
+  (HomeAndEndAreLineKeys.after "[11, 22, 33]" [ "l", "i", "9" ]) = "[9~11, 22, 33]"
+
+  // End: the end of the LINE, which here is the end of the last element.
+  (HomeAndEndAreLineKeys.after "[11, 22, 33]" [ "l", "i", "<End>", "9" ]) = "[11, 22, 339~]"
+
+  // Home from the SECOND element goes to the start of the line, not the start of that element.
+  (HomeAndEndAreLineKeys.after "[11, 22, 33]" [ "l", "j", "i", "<Home>", "9" ]) = "[9~11, 22, 33]"
+
+  // And on a document with real lines, End stops at the end of the arm the caret is in.
+  (HomeAndEndAreLineKeys.after "match x with\n| Ok(a) -> 11\n| Error(e) -> 22"
+    [ "l", "j", "j", "j", "j", "i", "<End>", "9" ]) =
+    "match x with\n| Ok(a) -> 119~\n| Error(e) -> 22"
+
+
 module BarStartsTheNextArm =
   // `|` at the end of a match arm's rhs starts the next arm, which is how anyone writing the source would
   // type it. It used to build a PIPE, so the natural keystroke gave you `2 |> ⟨step⟩` inside the arm.
