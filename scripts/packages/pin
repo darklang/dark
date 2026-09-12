@@ -86,5 +86,18 @@ OPS=$(field ops)
 set_field commit "$COMMIT"
 set_field format "$FORMAT"
 
+# The ref hashes move WITH the pin and only with it. That is what keeps them stable between
+# bumps, so ordinary package work never touches the file and two branches that both touch
+# packages never conflict in it. The diff this produces is the point: one reviewable list of
+# every kernel identity that moved.
+#
+# Best-effort. The pin is already written, and a store that cannot regenerate (no source tree,
+# say) should not lose it.
+if scripts/run-local-exec refs generate > /dev/null 2>&1; then
+  echo "Regenerated package-ref-hashes.txt for the new pin."
+else
+  echo "(could not regenerate package-ref-hashes.txt here; run \`refs generate\` where the store is)"
+fi
+
 echo "Pinned to $COMMIT (format $FORMAT, $OPS ops)."
 echo "Commit package-set.txt: the pin is the record of which package set this kernel was tested against."

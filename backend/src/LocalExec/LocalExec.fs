@@ -58,9 +58,11 @@ module HandleCommand =
       // work.
       let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
 
-      // Generate hash file BEFORE evaluating values, so that PackageRefs
-      // lookups resolve correctly during value evaluation.
-      do! LibDB.PackageRefsGenerator.generate ()
+      // Hashes in MEMORY before evaluating values, so that PackageRefs lookups resolve during
+      // it. Not written to disk: the file moves when the PIN moves, not on every reload, which
+      // is what stops two package-touching branches conflicting in it. `scripts/packages/pin`
+      // and `refs generate` write it.
+      do! LibDB.PackageRefsGenerator.refreshInMemory ()
       LibExecution.PackageRefs.reloadHashes ()
 
       // Evaluate all values now that all definitions are in the DB
