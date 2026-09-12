@@ -216,6 +216,17 @@ def main():
                 write_string(out, "reached the network")
             except OSError as e:
                 write_string(out, f"{e.errno}")
+        elif fn == "echoOversized" and argc == 1:
+            # Announce a frame far larger than the host will read, and send none of it. The length
+            # prefix is the PLATFORM's number, and nothing obliges it to be a sane one.
+            sys.stdout.buffer.write(struct.pack("<i", 200000000))
+            sys.stdout.buffer.flush()
+            time.sleep(3600)
+        elif fn == "echoNegative" and argc == 1:
+            # Not a size at all.
+            sys.stdout.buffer.write(struct.pack("<i", -1))
+            sys.stdout.buffer.flush()
+            time.sleep(3600)
         elif fn == "echoHang" and argc == 1:
             # Alive and silent, which is not the same failure as crashing. A crash closes the pipe
             # and the host sees the read end; this answers nothing at all, forever.

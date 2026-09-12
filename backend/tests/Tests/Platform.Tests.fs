@@ -1910,6 +1910,18 @@ let private spawnedFns : List<External.Fn> =
       returnType = TBlob
       effects = Set.singleton describedEffect
       description = "bytes in and bytes out" }
+    { name = "echoOversized"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "announces a frame bigger than the host will read" }
+    { name = "echoNegative"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "announces a frame length that is not a size" }
     { name = "echoHang"
       version = 0
       parameters = [ ("unit", TUnit) ]
@@ -2104,6 +2116,36 @@ let aCollidingPlatformIsSkippedNotFatal =
         | Some(key, owner) ->
           Expect.stringContains key "fn " "the kind and the name"
           Expect.equal owner claimed.name "and who already provides it"
+  }
+
+let aFrameLengthIsNotTrusted =
+  testTask "a platform does not get to choose how much the host allocates" {
+    // The length prefix is the PLATFORM's number, and everything after it is read on its say so.
+    // Two ways that goes wrong and neither is exotic: a length past anything sensible, and a
+    // NEGATIVE length, which is not a size at all and whose consequences are whatever the reader
+    // happens to do with nonsense. The second hung before this check existed.
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
+      |> LibDB.PlatformSpawn.withDeadline 5000
+    try
+      let! oversized = callSpawned handle "echoOversized" RT.DUnit
+      match oversized with
+      | Ok value -> failtest $"an oversized frame was accepted: {value}"
+      | Error(rte, _) ->
+        Expect.stringContains (string rte) "limit" "refused for being too large"
+
+      // A fresh process: the first call left one that will never be spoken to again.
+      let! negative = callSpawned handle "echoNegative" RT.DUnit
+      match negative with
+      | Ok value -> failtest $"a negative frame length was accepted: {value}"
+      | Error(rte, _) ->
+        Expect.stringContains (string rte) "not a size" "refused for not being a length"
+    finally
+      LibDB.PlatformSpawn.stop handle
   }
 
 let aSilentPlatformDoesNotWedgeTheCaller =
@@ -2532,6 +2574,7 @@ let tests =
       theSandboxFollowsTheDeclaration
       theFirstPartyListMatchesTheSource
       aCollidingPlatformIsSkippedNotFatal
+      aFrameLengthIsNotTrusted
       aSilentPlatformDoesNotWedgeTheCaller
       aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum

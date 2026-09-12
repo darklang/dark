@@ -48,6 +48,19 @@ type private Running =
 [<Literal>]
 let defaultDeadlineMs = 120_000
 
+/// The largest frame this host will read from a platform.
+///
+/// The length prefix is chosen by the PLATFORM, and everything after it is allocated on its say
+/// so. Unbounded, a platform announcing two gigabytes gets two gigabytes allocated before anybody
+/// checks what it actually sent, and a NEGATIVE length is worse than large: it is not a size at
+/// all, and what happens next is whatever the reader does with nonsense.
+///
+/// Sixty-four megabytes is far above any sensible answer and far below anything that hurts. A
+/// platform with more to say than this should be handing back a blob reference, which is what the
+/// table is for.
+[<Literal>]
+let maxFrameBytes = 64 * 1024 * 1024
+
 type Handle =
   private
     { plan : PlatformSandbox.Plan
@@ -101,11 +114,19 @@ let private readFramed
   let read =
     System.Threading.Tasks.Task.Run(fun () ->
       let length = running.reader.ReadInt32()
-      // `ReadBytes` stops at end of stream without complaining, so a platform that dies
-      // mid-answer returns a short buffer rather than raising. Compared here, where the promised
-      // length is still in hand.
-      let body = running.reader.ReadBytes length
-      if body.Length = length then Ok body else Error "stopped mid-answer")
+      // Checked BEFORE it is used to allocate. The platform chose this number and it is under no
+      // obligation to have chosen a sane one.
+      if length < 0 then
+        Error $"announced a frame of {length} bytes, which is not a size"
+      elif length > maxFrameBytes then
+        Error
+          $"announced a frame of {length} bytes, past the {maxFrameBytes / (1024 * 1024)}MB limit"
+      else
+        // `ReadBytes` stops at end of stream without complaining, so a platform that dies
+        // mid-answer returns a short buffer rather than raising. Compared here, where the promised
+        // length is still in hand.
+        let body = running.reader.ReadBytes length
+        if body.Length = length then Ok body else Error "stopped mid-answer")
   if read.Wait handle.deadlineMs then
     match read.Result with
     | Ok response -> Ok response
