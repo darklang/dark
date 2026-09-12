@@ -802,7 +802,16 @@ let afterKey (st: State) (editor: Editor.State) : State =
   // Before the caret is measured, not after: the row and column it reports are positions in the LAYOUT,
   // so measuring them at the old width and scrolling to them at the new one leaves the pane parked where
   // the text used to be. Which is what it did -- the reflowed lines were there, scrolled off to the left.
-  let ed = { editor with width = Stdlib.Int.max 20 docArea.cols }
+  // Any key at all cancels a pending "press again to discard", and the WARNING has to go with it. The
+  // flag was cleared here and the message was not, so the line kept saying the next key would throw your
+  // work away long after the next key had come and gone -- Escape out of INSERT sets it, and it then sat
+  // there through navigating, editing and evaluating.
+  //
+  // Only when the flag was actually set: a message written by anything else is not this one's to clear.
+  let cleared =
+    if st.confirmingExit then { editor with message = "" } else editor
+
+  let ed = { cleared with width = Stdlib.Int.max 20 docArea.cols }
   let row = Widget.caretRow ed
   let col = Widget.caretCol ed
 
@@ -812,7 +821,6 @@ let afterKey (st: State) (editor: Editor.State) : State =
       bodyCols = docArea.cols
       scroll = Widget.scrollFor row docArea.rows st.scroll
       hscroll = Widget.hscrollFor col docArea.cols st.hscroll
-      // Any key at all cancels a pending "press again to discard".
       confirmingExit = false }
 
 /// Is there work here that has not been saved?

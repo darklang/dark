@@ -1109,3 +1109,42 @@ module QuestionMarkCycles =
      (QuestionMarkCycles.press
        (QuestionMarkCycles.press (QuestionMarkCycles.start ()) "?") "?") "j").editor.caret)
     = (QuestionMarkCycles.start ()).editor.caret
+
+
+module TheExitWarningLeavesWithTheFlag =
+  // `q` and Escape both mean "leave", and with unsaved work the first press says what is at stake and
+  // the second goes through. Any key at all cancels the pending discard, and `afterKey` clears the FLAG
+  // for exactly that reason.
+  //
+  // It did not clear the WARNING. So the line kept saying the next key would throw your work away long
+  // after the next key had come and gone: Escape out of INSERT sets it, and it then sat there through
+  // navigating, editing and evaluating. Found by driving a real package value in a terminal and noticing
+  // the footer was threatening me while I pressed `v`.
+  let unsaved () : Darklang.Fluid.App.State =
+    let ed = Darklang.Fluid.Editor.init (Fixtures.reg ()) (Fixtures.docOf "1 + 2") 60
+    // `savedRoot` is a different document, so there is unsaved work and leaving asks.
+    { (Fixtures.stateOf { ed with mode = Darklang.Fluid.Editor.Mode.Nav }) with
+        savedRoot = Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr") }
+
+  let press (st: Darklang.Fluid.App.State) (k: Darklang.Stdlib.Cli.Stdin.Key.Key) (ch: Stdlib.Option.Option<String>) : Darklang.Fluid.App.State =
+    match
+      Darklang.Fluid.App.onKey st k (Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; alt = false; shift = false }) ch
+    with
+    | Repaint s -> s
+    | Stay s -> s
+    | Exit s -> s
+    | _ -> st
+
+  let asked () : Darklang.Fluid.App.State =
+    TheExitWarningLeavesWithTheFlag.press (TheExitWarningLeavesWithTheFlag.unsaved ()) Darklang.Stdlib.Cli.Stdin.Key.Key.Escape Stdlib.Option.Option.None
+
+  let thenMoved () : Darklang.Fluid.App.State =
+    TheExitWarningLeavesWithTheFlag.press (TheExitWarningLeavesWithTheFlag.asked ()) Darklang.Stdlib.Cli.Stdin.Key.Key.NoName (Stdlib.Option.Option.Some "j")
+
+  // The first press asks, and says so.
+  ((TheExitWarningLeavesWithTheFlag.asked ()).editor.message) = "unsaved: ^S to save, or press again to discard"
+  ((TheExitWarningLeavesWithTheFlag.asked ()).confirmingExit) = true
+
+  // The next key cancels it, and the line goes with it.
+  ((TheExitWarningLeavesWithTheFlag.thenMoved ()).editor.message) = ""
+  ((TheExitWarningLeavesWithTheFlag.thenMoved ()).confirmingExit) = false
