@@ -30,6 +30,17 @@ scripts/devcontainer/_create-app-directories
 scripts/devcontainer/_create-cache-directories
 scripts/devcontainer/_setup-hosts
 
+# In seed mode the store IS the source, so a fresh container fetches one rather than
+# producing it. Disk mode builds it from `packages/` during the build below, as always.
+if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" && ! -f rundir/data.db ]]; then
+  log "Seed mode and no store: fetching one."
+  if scripts/fetch-seed >> "$LOG_FILE" 2>&1; then
+    log "Seed installed."
+  else
+    log "Seed fetch FAILED. Install one by hand: scripts/fetch-seed --from <path>"
+  fi
+fi
+
 log "Building. Follow along: tail -F rundir/logs/build.log"
 if scripts/dev/build >> "$LOG_FILE" 2>&1; then
   log "Build succeeded. scripts/dev/status for details."

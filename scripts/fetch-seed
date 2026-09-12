@@ -1,14 +1,87 @@
 #!/usr/bin/env bash
+
+# Get a package seed, from a file or from a server, and install it as this rundir's store.
+#
+#   scripts/fetch-seed --from <path>            a seed already on disk
+#   scripts/fetch-seed --url <url>              that server's current main
+#   scripts/fetch-seed --url <url> --commit <c> that server's main as of <c>
+#   scripts/fetch-seed                          DARK_SEED_URL, or the built-in default
+#
+# A seed is ops, not projections, so the first open folds it (~seconds) and every store built
+# from the same seed agrees on every id.
+#
+# It REFUSES to replace a store that already exists unless you pass --force. The previous
+# version copied over `data.db` unconditionally, which silently discarded anything authored
+# locally or pulled from a peer; that is a bad thing for a command called "fetch" to do.
+
 set -euo pipefail
 
-SEED_URL="https://pub-d5f652ca1b90456f85840a19eafcb700.r2.dev/darklang-seeds/seeds/seed.db"
 RUNDIR="${DARK_CONFIG_RUNDIR:-rundir}"
+DEST_SEED="${RUNDIR}/seed.db"
+DEST_DB="${RUNDIR}/${DARK_CONFIG_DB_NAME:-data.db}"
 
-echo "Fetching latest seed from R2..."
-curl -L -o "${RUNDIR}/seed.db" "$SEED_URL"
+# The bucket the old hardcoded URL pointed at. Kept as the fallback so the no-argument form
+# still does something, but a real deployment passes --url or sets DARK_SEED_URL.
+DEFAULT_URL="${DARK_SEED_URL:-https://pub-d5f652ca1b90456f85840a19eafcb700.r2.dev/darklang-seeds/seeds/seed.db}"
 
-# Copy as data.db so CLI/tests can grow from it
-cp "${RUNDIR}/seed.db" "${RUNDIR}/data.db"
+FROM=""
+URL=""
+COMMIT=""
+FORCE=false
 
-SIZE=$(du -h "${RUNDIR}/data.db" | cut -f1)
-echo "Seed downloaded and installed as data.db ($SIZE)"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from)   FROM="${2:?--from needs a path}"; shift 2 ;;
+    --url)    URL="${2:?--url needs a url}"; shift 2 ;;
+    --commit) COMMIT="${2:?--commit needs a commit}"; shift 2 ;;
+    --force)  FORCE=true; shift ;;
+    -h|--help) sed -n '3,14p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) echo "fetch-seed: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ -n "$FROM" && -n "$URL" ]]; then
+  echo "fetch-seed: --from and --url are alternatives, not both" >&2
+  exit 2
+fi
+
+mkdir -p "$RUNDIR"
+
+if [[ -n "$FROM" ]]; then
+  if [[ ! -f "$FROM" ]]; then
+    echo "fetch-seed: no seed at $FROM" >&2
+    exit 1
+  fi
+  echo "Copying seed from $FROM"
+  cp "$FROM" "$DEST_SEED"
+else
+  # `/seed/<commit>.db` is the route a server serves a pinned cut from; without a commit, its
+  # current main. A bare url with no path is treated as already naming the seed, which is what
+  # the R2 fallback is.
+  if [[ -n "$COMMIT" ]]; then
+    SEED_URL="${URL:-$DEFAULT_URL}/seed/${COMMIT}.db"
+  elif [[ -n "$URL" ]]; then
+    SEED_URL="${URL}/seed/latest.db"
+  else
+    SEED_URL="$DEFAULT_URL"
+  fi
+
+  echo "Fetching seed from $SEED_URL"
+  curl -fL -o "$DEST_SEED" "$SEED_URL"
+fi
+
+SEED_SIZE=$(du -h "$DEST_SEED" | cut -f1)
+echo "Seed at ${DEST_SEED} (${SEED_SIZE})"
+
+if [[ -f "$DEST_DB" && "$FORCE" != "true" ]]; then
+  {
+    echo
+    echo "Not installing it: ${DEST_DB} already exists."
+    echo "Replacing it would discard anything authored locally or pulled from a peer."
+    echo "Pass --force if that is what you want."
+  } >&2
+  exit 0
+fi
+
+cp "$DEST_SEED" "$DEST_DB"
+echo "Installed as ${DEST_DB}. The first open folds it."
