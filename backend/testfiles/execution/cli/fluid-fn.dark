@@ -744,11 +744,29 @@ module TypingAWholeFunction =
   // moment the bracket arrives. It is 05-open-questions' spaced-call problem in another costume: the
   // printed form is not typeable.
   //
-  // It got one character less wrong when the name slots grew a character class: the `:` after `'m` used
-  // to go into the type VARIABLE's name, giving `('m: * Int)`. A `:` is not a name character, so it is
-  // refused now and the nonsense is `('m * Int)` instead. Still nonsense, still pinned.
+  // It works now. The `:` is what tells a second parameter from a tuple return type, and it arrives one
+  // keystroke after the bracket that cannot be told apart: `)` closes the first parameter and lands in
+  // the return slot, `(` there is a tuple because a function may return one, and the colon settles it.
+  // A tuple type has no `:` in it anywhere, so a colon in the first member of a tuple standing in a
+  // function's return slot can only mean the thing that was never a tuple.
   (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int) (m: Int): Int")) =
-    "let inc (n: Int): ('m * Int) =\n  :Int~"
+    "let inc (n: Int) (m: Int): Int~ =\n  ⟨body⟩"
+
+  // Three of them, so it is not a one-off between the first and second.
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(a: Int) (b: Int) (c: Int): Int")) =
+    "let inc (a: Int) (b: Int) (c: Int): Int~ =\n  ⟨body⟩"
+
+  // The step where it happens: the colon replaces the tuple with a parameter and lands in its type.
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int): (m:")) =
+    "let inc (n: Int) (m: ~<type>): <return> =\n  ⟨body⟩"
+
+  // A REAL tuple return type is untouched. There is no colon in it to fire on, and the members are
+  // filled rather than a lone name with the rest empty.
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int): (Int * String)")) =
+    "let inc (n: Int): (Int * String)~ =\n  ⟨body⟩"
+
+  (TypingAWholeFunction.screen (TypingAWholeFunction.ch "(n: Int): (Int")) =
+    "let inc (n: Int): (Int~ * <b>) =\n  ⟨body⟩"
 
 
 module ATypeParameterCanBeWritten =

@@ -2229,6 +2229,10 @@ let typeOne (st: State) (c: String) : State =
   match handleStringI st c with
   | Some handled -> handled
   | None ->
+  // `(m:` in a function's return slot is a second parameter, not a tuple type.
+  match paramFromTupleRevision st c with
+  | Some revised -> revised
+  | None ->
   // The lead punctuation typed again, in the fresh empty item it just made: the operator was meant.
   match leadPunctRevision st c with
   | Some revised -> revised
@@ -3887,12 +3891,28 @@ let labelMatches (typed: String) (label: String) : Bool =
 /// Prefix-match, then bring an exact-name match to the front so "Int" beats "Int8"; everything else keeps
 /// its declared order (enum cases, keywords), which is meaningful. A partition, not a sort, so ties are
 /// never reshuffled.
+/// Then, among those, the ones whose CASE matches what you typed come first. Matching stays
+/// case-insensitive -- `d` still reaches `Dict`, and nothing becomes unreachable -- but a lowercase
+/// prefix offers the lowercase names first and a capital offers the capitalised ones. Types and
+/// constructors are always capitalised in this language and keywords never are, so the case you typed is
+/// a real signal about which you meant. It decides the ORDER only: the slot Enter takes, not the menu.
 let rankCompletions (typed: String) (cs: List<Candidate>) : List<Candidate> =
   let t = Stdlib.String.toLowercase typed
   let matched = cs |> Stdlib.List.filter (fun c -> labelMatches typed c.label)
   let exact = matched |> Stdlib.List.filter (fun c -> (Stdlib.String.toLowercase c.label) == t)
-  let rest = matched |> Stdlib.List.filter (fun c -> (Stdlib.String.toLowercase c.label) != t)
-  Stdlib.List.append exact rest
+  let inexact = matched |> Stdlib.List.filter (fun c -> (Stdlib.String.toLowercase c.label) != t)
+  // Nothing typed says nothing about case, so leave the declared order alone.
+  if typed == "" then
+    Stdlib.List.append exact inexact
+  else
+    // Applied to the exact matches too, not just the rest: `dict` typed in full is an exact match for
+    // BOTH `dict` and `Dict`, and the one you spelled should be the one Enter takes.
+    let byCase (cands: List<Candidate>) : List<Candidate> =
+      let same = cands |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c.label typed)
+      let other =
+        cands |> Stdlib.List.filter (fun c -> Stdlib.Bool.not (Stdlib.String.startsWith c.label typed))
+      Stdlib.List.append same other
+    Stdlib.List.append (byCase exact) (byCase inexact)
 
 let candidatePool (st: State) (e: Expect) (typed: String) : List<Candidate> =
   let scoped = scopeCandidates st e typed
@@ -4540,6 +4560,91 @@ let statementPipeRevision (st: State) (c: String) : Stdlib.Option.Option<State> 
 /// the arm out and piped the PREVIOUS arm's right-hand side into a partial. `| [] -> opts` then a new arm
 /// then `"` then `+` gave `| [] -> opts |> +`. The empty string is what made the arm read as fresh, and
 /// the operator did the rest.
+/// `(m:` in a function's RETURN slot is a second parameter, not a tuple type.
+///
+/// The printer writes `let inc (n: Int) (m: Int): Int =`, and typing it back gave nonsense. `)` closes
+/// the first parameter and lands in the return slot; `(` there is a tuple type, because a function may
+/// return one, and nothing can tell the two apart at the moment the bracket arrives.
+///
+/// The `:` is what tells them apart, and it arrives one keystroke later. A tuple type has no `:` in it
+/// anywhere, so a colon typed into the first member of a tuple that is standing in a function's return
+/// slot can only mean the thing that was never a tuple. Same shape as `leadPunctRevision`: the last key
+/// made one thing, this key says you meant the other, and the first thing goes away rather than being
+/// left behind.
+///
+/// Deliberately narrow. The tuple must be the WHOLE return slot, its first member must be a name and its
+/// rest still empty, so `(Int * String)` as a real return type is untouched -- there is no colon in it to
+/// trigger on, and a colon typed into a filled tuple is refused as it always was.
+let paramFromTupleRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
+  if c != ":" then
+    Stdlib.Option.Option.None
+  else
+    // The caret is somewhere inside the return slot's tuple. Walk to the tuple and to the function.
+    let caret = st.caret
+    match (Path.parent caret.node, Path.last caret.node) with
+    | (Some tuplePath, Some(Item("items", 0))) ->
+      (match (Path.parent tuplePath, Path.last tuplePath) with
+       | (Some fnPath, Some(Into "ret")) ->
+         (match (nodeAtPath st.root fnPath, nodeAtPath st.root tuplePath) with
+          | (Some fnNode, Some tupleNode) ->
+            let isFn = fnNode.kind == PT.Fn.fnKind ()
+            let isTuple = tupleNode.kind == PT.Types.typeKind "TTuple"
+            // The name typed into the first member, however it settled: a bare partial, or the type
+            // variable a lone lowercase name becomes once the quote is drawn for it.
+            let typedName =
+              match Node.items tupleNode "items" |> Stdlib.List.head with
+              | Some(Partial(t, _)) -> t
+              | Some(Filled inner) -> Node.text inner "name" |> Stdlib.Option.withDefault ""
+              | _ -> ""
+            // Only while the REST of the tuple is untouched. A tuple somebody has actually filled in is a
+            // return type, not a parameter that has not happened yet.
+            let restEmpty =
+              Node.items tupleNode "items"
+              |> Stdlib.List.tail
+              |> Stdlib.Option.withDefault []
+              |> Stdlib.List.all (fun sl ->
+                match sl with
+                | Empty _ -> true
+                | _ -> false)
+
+            if isFn && isTuple && (typedName != "") && restEmpty && (PT.isIdentifier typedName) then
+              let param =
+                Slot.Filled(
+                  Node.make
+                    (PT.Fn.paramKind ())
+                    [ PT.text "name" typedName
+                      ("type", Field.One(Slot.Empty(PT.Types.typeExpect "type"))) ])
+              // `()` is one parameter named `_` of type Unit, and a real one replaces it rather than
+              // joining it -- the same rule `addParam` follows.
+              let existing = Node.items fnNode "params"
+              let kept =
+                if ((Stdlib.List.length existing) == 1) && (existing |> Stdlib.List.all PT.Fn.isUnitParam) then
+                  []
+                else
+                  existing
+              let idx = Stdlib.List.length kept
+              let st1 =
+                commit
+                  st
+                  [ Edit.SetSlot(fnPath, "params", Slot.Filled(Node.make (PT.Fn.paramKind ()) []))
+                    Edit.Replace(Path.child fnPath "ret", Slot.Empty(PT.Types.typeExpect "return")) ]
+                  caret
+              // The params list is rebuilt wholesale, because `Edit` has no "set a Many" op and appending
+              // one item at a time would need the `()` removed first anyway.
+              let withParams =
+                match nodeAtPath st1.root fnPath with
+                | Some n ->
+                  Node.setField n "params" (Field.Many(Stdlib.List.append kept [ param ], PT.Fn.paramExpect ()))
+                | None -> fnNode
+              let st2 = commit st1 [ Edit.Replace(fnPath, Slot.Filled withParams) ] caret
+              Stdlib.Option.Option.Some
+                { st2 with caret = Caret.inSlot (Path.item fnPath "params" idx) "type" 0 }
+            else
+              Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None)
+       | _ -> Stdlib.Option.Option.None)
+    | _ -> Stdlib.Option.Option.None
+
 let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
   if inContentText st then
     Stdlib.Option.Option.None
