@@ -187,6 +187,37 @@ let private handshake (handle : Handle) (running : Running) : Result<unit, strin
   | :? IOException as e ->
     Error $"lost contact with the {handle.platformName} platform at startup: {e.Message}"
 
+/// One line a platform wrote to its stderr, made safe to show and impossible to mistake for ours.
+///
+/// Two things happen to it. Control characters go, which kills ANSI escapes: a platform that can
+/// paint the terminal can clear it, recolour it, or draw something that looks like a prompt from
+/// this program. And it is PREFIXED with the platform's name, so nothing it writes can be read as
+/// coming from Dark.
+///
+/// Not discarded, which was the other option. A platform author debugging a plugin has nowhere
+/// else to look, and silence would be paid for by exactly the person the feature is for.
+let private escapeSequence =
+  // ESC, then a CSI or OSC body, then its final byte. Removed WHOLE rather than by dropping the
+  // ESC alone: stripping just the escape byte defangs the sequence and leaves its tail behind as
+  // literal text, so a coloured line arrives as `[31mhello[0m` and reads like a bug in this code.
+  System.Text.RegularExpressions.Regex(
+    @"\u001b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[@-Z\\-_])",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
+/// Make one line a platform wrote safe to show.
+///
+/// Escape sequences go whole, then any remaining control character, so nothing a platform writes
+/// can move the cursor, recolour the terminal, clear the screen, or draw something that looks like
+/// this program asking a question. Tabs survive, because a plugin's diagnostics are often columns.
+let sanitizeDiagnostic (line : string) : string =
+  escapeSequence.Replace(line, "")
+  |> String.filter (fun c -> c = '\t' || not (System.Char.IsControl c))
+
+let private reportDiagnostic (platformName : string) (line : string) : unit =
+  if not (isNull line) then
+    eprintfn $"[{platformName}] {sanitizeDiagnostic line}"
+
 let private start (handle : Handle) : Result<Running, string> =
   try
     let psi = ProcessStartInfo(handle.plan.executable)
@@ -194,8 +225,15 @@ let private start (handle : Handle) : Result<Running, string> =
       psi.ArgumentList.Add arg
     psi.RedirectStandardInput <- true
     psi.RedirectStandardOutput <- true
+    // Redirected so it cannot reach the terminal unattributed. A platform declaring no `stdout`
+    // could still write there, because stderr was never ours to begin with: the effect system
+    // describes what its BUILTINS may do, and a process has a file descriptor either way.
+    psi.RedirectStandardError <- true
     psi.UseShellExecute <- false
     let proc = Process.Start psi
+    proc.ErrorDataReceived.Add(fun args ->
+      reportDiagnostic handle.platformName args.Data)
+    proc.BeginErrorReadLine()
     Ok
       { proc = proc
         writer = new BinaryWriter(proc.StandardInput.BaseStream)

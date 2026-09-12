@@ -2118,6 +2118,31 @@ let aCollidingPlatformIsSkippedNotFatal =
           Expect.equal owner claimed.name "and who already provides it"
   }
 
+let aPlatformCannotPaintTheTerminal =
+  test "what a platform writes to stderr is attributed and cannot control the terminal" {
+    // A platform declares what its BUILTINS may do. It is also a process, and a process has a
+    // stderr whatever its manifest says, so one declaring no `stdout` could still write to the
+    // terminal. Unattributed, that is a spoofing surface: escape sequences can clear the screen,
+    // recolour it, or draw something that reads as a prompt from this program.
+    let sanitize = LibDB.PlatformSpawn.sanitizeDiagnostic
+
+    Expect.equal (sanitize "plain text") "plain text" "ordinary output is untouched"
+    Expect.equal (sanitize "a\tb") "a\tb" "tabs survive, since diagnostics are often columns"
+
+    // Whole sequences, not just the escape byte. Dropping the byte alone leaves `[31m` behind as
+    // literal text, which is safe and reads like a bug in this code.
+    Expect.equal
+      (sanitize "\u001b[31mred\u001b[0m")
+      "red"
+      "colour goes, and leaves no residue"
+    Expect.equal (sanitize "\u001b[2J\u001b[H") "" "so does clearing the screen"
+    Expect.equal (sanitize "before\u0007after") "beforeafter" "and a bell"
+
+    Expect.isFalse
+      ((sanitize "\u001b]0;title\u0007").Contains "\u001b")
+      "an OSC sequence leaves no escape byte behind"
+  }
+
 let aFrameLengthIsNotTrusted =
   testTask "a platform does not get to choose how much the host allocates" {
     // The length prefix is the PLATFORM's number, and everything after it is read on its say so.
@@ -2574,6 +2599,7 @@ let tests =
       theSandboxFollowsTheDeclaration
       theFirstPartyListMatchesTheSource
       aCollidingPlatformIsSkippedNotFatal
+      aPlatformCannotPaintTheTerminal
       aFrameLengthIsNotTrusted
       aSilentPlatformDoesNotWedgeTheCaller
       aSpawnedPlatformIsConfinedToWhatItDeclared
