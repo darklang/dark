@@ -221,17 +221,16 @@ suite_rc=0
 # shows up the first time you point the validator at an R2R artifact, which
 # is exactly what --compare-against does.
 mkdir -p "$WORKDIR/suite"
-# The suite runs as `eval`, which is GUEST code under the effect/permission system, and it reads
-# DARK_CLI_UNDER_TEST to know which binary to drive. A guest gets no env by default, so the grant
-# is explicit -- one variable, this instance only (the policy lives beside the store, and this
-# store is $WORKDIR's).
+# The suite runs as `eval`, which is GUEST code under the effect/permission system: it reads
+# DARK_CLI_UNDER_TEST, reads and writes the tree under $PWD (rundir/test-instances), and runs
+# sqlite3, env and the artifact itself. The instance policy is deny-by-default, so with no grant
+# the first case dies on "reading $PWD is not allowed". Allow everything for this one throwaway
+# instance (the policy lives beside the store, and this store is $WORKDIR's).
+#
+# TODO: tighten this to the actual set of grants the suite needs (env read DARK_CLI_UNDER_TEST,
+# file read+write $PWD, process for sqlite3 / env / the artifact) once that set is known.
 DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-  "$ARTIFACT" permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1 || true
-# The instance-backed cases start the CLI under test in a store of their own, and the env
-# goes in front of it: `env K=V ... dark ...`. That is a process the guest has to be allowed
-# to run, same grant shape as the variable above.
-DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-  "$ARTIFACT" permissions allow process /usr/bin/env > /dev/null 2>&1 || true
+  "$ARTIFACT" permissions allow all > /dev/null 2>&1 || true
 suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
 
