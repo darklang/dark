@@ -945,3 +945,65 @@ module PunctuationOpensADefinition =
     "type T =\n  { ⟨field⟩ }"
   (PunctuationOpensADefinition.drawn (Stdlib.List.append (PunctuationOpensADefinition.ch "alias") [ "<Enter>" ])) =
     "type T =\n  <type>"
+
+
+module AFieldsDocCommentRidesAlong =
+  // `saveType` prints what `fromDoc` rebuilds and applies that as source, so anything the document does
+  // not hold is erased on the next save. That is exactly how the enum-field LABELS were lost, and it was
+  // still true of every DESCRIPTION: a record field's, an enum case's, an enum field's, all rebuilt as
+  // "" whatever they had been.
+  //
+  // Carried in `_doc`, hidden the way `_hash` is -- a name starting with an underscore is dropped from
+  // the tree view and drawn by nothing. Carried rather than SHOWN because there is nowhere in the drawing
+  // for it yet.
+  //
+  // Nothing in the store has one today: 0 of 1,054 types, because the parser does not capture a field's
+  // `///`. So this loses nothing now and stops it being lost later, which is the only moment it is cheap.
+  let field (nm: String) (d: String) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+      { name = nm; typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt; description = d }
+
+  let ef (d: String) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+        label = Stdlib.Option.Option.None
+        description = d }
+
+  let ecase (nm: String) (d: String) : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
+      { name = nm; fields = [ AFieldsDocCommentRidesAlong.ef "fd" ]; description = d }
+
+  /// The declaration after a trip through the document, described by its docs alone.
+  let docsAfter (pt: Darklang.LanguageTools.ProgramTypes.PackageType.PackageType) : String =
+    match Darklang.Fluid.PT.TypeDecl.fromDoc pt (Darklang.Fluid.PT.TypeDecl.toDoc "X" pt) with
+    | Ok pair ->
+      let (_n, p2) = pair
+      (match p2.declaration.definition with
+       | Record fs -> fs |> Stdlib.List.map (fun f -> f.name ++ "=[" ++ f.description ++ "]") |> Stdlib.String.join " "
+       | Enum cs ->
+         cs
+         |> Stdlib.List.map (fun c ->
+           c.name ++ "=[" ++ c.description ++ "] fields="
+           ++ (c.fields |> Stdlib.List.map (fun f -> "[" ++ f.description ++ "]") |> Stdlib.String.join ""))
+         |> Stdlib.String.join " "
+       | Alias _ -> "alias")
+    | Error e -> "ERR " ++ e
+
+  (AFieldsDocCommentRidesAlong.docsAfter
+    (Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+      [ AFieldsDocCommentRidesAlong.field "a" "the a", AFieldsDocCommentRidesAlong.field "b" "" ]))) = "a=[the a] b=[]"
+
+  (AFieldsDocCommentRidesAlong.docsAfter
+    (Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum
+      [ AFieldsDocCommentRidesAlong.ecase "A" "the case" ]))) = "A=[the case] fields=[fd]"
+
+  // ...and the drawing is unchanged, because `_doc` is hidden. If it ever starts showing, this is the
+  // test that says so.
+  (Darklang.Fluid.Debug.render
+    (Fixtures.reg ())
+    60
+    (Darklang.Fluid.Slot.Filled
+      (Darklang.Fluid.PT.TypeDecl.toDoc
+        "X"
+        (Fixtures.mk (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record
+          [ AFieldsDocCommentRidesAlong.field "a" "the a" ]))))) = "type X =\n  { a: Int }"
