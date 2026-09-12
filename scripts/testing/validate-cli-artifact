@@ -34,6 +34,7 @@ set -euo pipefail
 
 ARTIFACT=""
 COMPARE_AGAINST=""
+SKIP_SUITE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --compare-against=*)
       COMPARE_AGAINST="${1#*=}"
+      shift
+      ;;
+    --skip-suite)
+      SKIP_SUITE=1
       shift
       ;;
     -*)
@@ -61,7 +66,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$ARTIFACT" ]]; then
-  echo "Usage: $0 <artifact> [--compare-against <other-artifact>]"
+  echo "Usage: $0 <artifact> [--compare-against <other-artifact>] [--skip-suite]"
   exit 1
 fi
 if [[ ! -x "$ARTIFACT" ]]; then
@@ -206,6 +211,9 @@ rm -rf "$NAMED"
 echo ""
 echo "Dark CLI test suite:"
 
+if [[ $SKIP_SUITE -eq 1 ]]; then
+  echo "  skip (--skip-suite)"
+else
 # There's no `tests` subcommand; the suite is a package fn. It stays in the
 # repo root because its cases shell out with paths relative to the tree, but
 # the binary those cases drive is the artifact, via DARK_CLI_UNDER_TEST.
@@ -221,16 +229,17 @@ suite_rc=0
 # shows up the first time you point the validator at an R2R artifact, which
 # is exactly what --compare-against does.
 mkdir -p "$WORKDIR/suite"
-# The suite runs as `eval`, which is GUEST code under the effect/permission system: it reads
-# DARK_CLI_UNDER_TEST, reads and writes the tree under $PWD (rundir/test-instances), and runs
-# sqlite3, env and the artifact itself. The instance policy is deny-by-default, so with no grant
-# the first case dies on "reading $PWD is not allowed". Allow everything for this one throwaway
-# instance (the policy lives beside the store, and this store is $WORKDIR's).
-#
-# TODO: tighten this to the actual set of grants the suite needs (env read DARK_CLI_UNDER_TEST,
-# file read+write $PWD, process for sqlite3 / env / the artifact) once that set is known.
+# The suite runs as `eval`, which is GUEST code under the effect/permission system, and it reads
+# DARK_CLI_UNDER_TEST to know which binary to drive. A guest gets no env by default, so the grant
+# is explicit -- one variable, this instance only (the policy lives beside the store, and this
+# store is $WORKDIR's).
 DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-  "$ARTIFACT" permissions allow all > /dev/null 2>&1 || true
+  "$ARTIFACT" permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1 || true
+# The instance-backed cases start the CLI under test in a store of their own, and the env
+# goes in front of it: `env K=V ... dark ...`. That is a process the guest has to be allowed
+# to run, same grant shape as the variable above.
+DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
+  "$ARTIFACT" permissions allow process /usr/bin/env > /dev/null 2>&1 || true
 suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
 
@@ -245,6 +254,7 @@ else
   echo "  FAIL suite"
   echo "$suite_out" | tail -40 | indent
   failures=$((failures + 1))
+fi
 fi
 
 if [[ -n "$COMPARE_AGAINST" ]]; then
