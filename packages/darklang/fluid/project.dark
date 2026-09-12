@@ -673,7 +673,11 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
           | Some "Opaque" -> (nodePower child) != Darklang.LanguageTools.Precedence.selfDelimitingPower
           | _ -> true
         | None -> false
-      parenIf needs d
+      // `parenNoNest`, matching the printer: a field access closes its bracket and carries on with the
+      // `.field` on the same line, so what is inside is not a continuation that has to hang past the `(`.
+      // With the nest, `(f / a / b).types` indented one column further than the printed form. Four
+      // functions in the store, and the last mechanical difference between the two drawings.
+      parenNoNest needs d
     | None -> Layout.styledText Layout.Style.Error ("?" ++ slotName)
 
   | Group ps -> Layout.group (pieces reg path n ps)

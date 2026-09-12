@@ -2597,3 +2597,39 @@ module AnOpaqueAtomNeedsNoBrackets =
   ((Darklang.Fluid.Project.nodePower
      (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "Opaque") [ ("source", Darklang.Fluid.Field.Text "earg0") ]))
    == Darklang.LanguageTools.Precedence.selfDelimitingPower) = true
+
+
+module AParenthesisedFieldTargetIndentsLikeThePrinter =
+  // `(f a b).types` closes its bracket and carries on with the `.field` on the same line, so what is
+  // inside is not a continuation hanging past the `(`. Fluid nested it by one and the printer does not,
+  // which put every broken field target one column out.
+  //
+  // Four functions in the store, and the last MECHANICAL difference between the two drawings: what is
+  // left after it is 48 instances of one deliberate divergence and five of a layout taste (a match
+  // guard's break point, and the printer packing an argument list greedily where Fluid's group is
+  // all-or-nothing).
+  let src () : String =
+    "(Darklang.LanguageTools.PackageManager.Search.search Darklang.SCM.Branch.mainBranchId query).types"
+
+  let printed () : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AParenthesisedFieldTargetIndentsLikeThePrinter.src ()) with
+    | Ok e -> Stdlib.Pretty.render 78 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (Darklang.Fluid.PT.printerContext ()) e)
+    | Error err -> "parse ERR " ++ err
+
+  let drawn () : String =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr (AParenthesisedFieldTargetIndentsLikeThePrinter.src ()) with
+    | Ok e -> Darklang.Fluid.Debug.render (Darklang.Fluid.App.defaultRegistry ()) 78 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e))
+    | Error err -> "parse ERR " ++ err
+
+  (AParenthesisedFieldTargetIndentsLikeThePrinter.drawn ()) = (AParenthesisedFieldTargetIndentsLikeThePrinter.printed ())
+  (AParenthesisedFieldTargetIndentsLikeThePrinter.drawn ()) =
+    "(Darklang.LanguageTools.PackageManager.Search.search\n  Darklang.SCM.Branch.mainBranchId\n  query).types"
+
+  // A target that fits is unbroken, so the pin is about the indent and not about field access in
+  // general. Still bracketed: a call is not a name.
+  (Darklang.Fluid.Debug.render
+    (Darklang.Fluid.App.defaultRegistry ())
+    78
+    (match Darklang.LanguageTools.Parser.Parse.parsePTExpr "(f a).x" with
+     | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+     | Error _ -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect "expr"))) = "(f a).x"
