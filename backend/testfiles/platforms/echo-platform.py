@@ -35,6 +35,7 @@ Varint is .NET's 7-bit encoded int: low 7 bits per byte, high bit means continue
 """
 import hashlib
 import socket
+import time
 import struct
 import sys
 
@@ -215,6 +216,11 @@ def main():
                 write_string(out, "reached the network")
             except OSError as e:
                 write_string(out, f"{e.errno}")
+        elif fn == "echoHang" and argc == 1:
+            # Alive and silent, which is not the same failure as crashing. A crash closes the pipe
+            # and the host sees the read end; this answers nothing at all, forever.
+            while True:
+                time.sleep(3600)
         elif fn == "echoCrash" and argc == 1:
             # Deliberately fall over, so the host's crash handling can be tested.
             sys.exit(1)

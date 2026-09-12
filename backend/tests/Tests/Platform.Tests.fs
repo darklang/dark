@@ -1910,6 +1910,12 @@ let private spawnedFns : List<External.Fn> =
       returnType = TBlob
       effects = Set.singleton describedEffect
       description = "bytes in and bytes out" }
+    { name = "echoHang"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "alive and silent, which is not the same as crashing" }
     { name = "echoCrash"
       version = 0
       parameters = [ ("unit", TUnit) ]
@@ -2098,6 +2104,42 @@ let aCollidingPlatformIsSkippedNotFatal =
         | Some(key, owner) ->
           Expect.stringContains key "fn " "the kind and the name"
           Expect.equal owner claimed.name "and who already provides it"
+  }
+
+let aSilentPlatformDoesNotWedgeTheCaller =
+  testTask "a platform that answers nothing is stopped rather than waited on" {
+    // Three ways a platform can fail, and this is the one that never announces itself. A crash
+    // closes the pipe and the read ends. Dying mid-answer returns a short buffer. Going silent,
+    // alive and never replying, used to block the caller forever, which meant one wedged platform
+    // wedged the CLI.
+    //
+    // A short deadline here, since the point is that waiting ends, not how long it lasts. The
+    // shipped one is minutes: its job is breaking a deadlock, and a number short enough to be a
+    // useful service level would also cancel legitimate slow work.
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
+      |> LibDB.PlatformSpawn.withDeadline 3000
+    try
+      let started = System.Diagnostics.Stopwatch.StartNew()
+      let! answered = callSpawned handle "echoHang" RT.DUnit
+      started.Stop()
+      match answered with
+      | Ok value -> failtest $"a silent platform answered: {value}"
+      | Error(rte, _) ->
+        let rendered = string rte
+        Expect.stringContains rendered "did not answer" "the error says what happened"
+        Expect.stringContains rendered "EchoPlatform" "and which platform did it"
+      // Generously bounded: the assertion is that it RETURNED, not that it was prompt.
+      Expect.isLessThan
+        started.ElapsedMilliseconds
+        60_000L
+        "it gave up rather than waiting for the platform"
+    finally
+      LibDB.PlatformSpawn.stop handle
   }
 
 let aSpawnedPlatformIsConfinedToWhatItDeclared =
@@ -2490,6 +2532,7 @@ let tests =
       theSandboxFollowsTheDeclaration
       theFirstPartyListMatchesTheSource
       aCollidingPlatformIsSkippedNotFatal
+      aSilentPlatformDoesNotWedgeTheCaller
       aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum
       aPlatformCannotForgeAHandle

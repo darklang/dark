@@ -38,11 +38,22 @@ type private Running =
 /// Lazy on purpose, and this is the part of the design that makes out-of-process affordable at all:
 /// activation already means nothing spawns until code reaches for it, so an installed platform
 /// nobody calls costs one record and no process.
+/// How long to wait for a platform to answer before deciding it never will.
+///
+/// NOT a service level. It is deliberately far longer than any call should take, because its only
+/// job is to break a deadlock: a platform that crashes closes its pipe and is handled, and a
+/// platform that reads the request and goes silent used to block the caller forever. A number
+/// short enough to be a useful SLA would also cancel legitimate slow work, and the runtime has no
+/// way to tell a slow platform from a stuck one.
+[<Literal>]
+let defaultDeadlineMs = 120_000
+
 type Handle =
   private
     { plan : PlatformSandbox.Plan
       platformName : string
       types : List<string * RT.FQTypeName.FQTypeName>
+      deadlineMs : int
       mutable running : Option<Running>
       startGate : obj }
 
@@ -57,8 +68,13 @@ let handleFor
   { plan = PlatformSandbox.plan effects executable
     platformName = platformName
     types = types
+    deadlineMs = defaultDeadlineMs
     running = None
     startGate = obj () }
+
+/// The same handle with a different deadline. For tests, which should not wait two minutes to
+/// prove that waiting ends.
+let withDeadline (ms : int) (handle : Handle) : Handle = { handle with deadlineMs = ms }
 
 /// One sentence about how confined this platform is, for a person reading about it.
 let confinement (handle : Handle) : string = handle.plan.confinement
@@ -67,6 +83,40 @@ let confinement (handle : Handle) : string = handle.plan.confinement
 /// rather than allowed to produce frames neither side can read.
 [<Literal>]
 let protocolVersion = 1
+
+/// Read one framed response, or give up.
+///
+/// The read itself is blocking and cannot be cancelled: it is a pipe, and on Unix a pending read
+/// on one does not observe a token. So the wait happens on a task, and when the deadline passes the
+/// PROCESS is killed, which closes the pipe and lets the stranded read fail on its own rather than
+/// leaking a thread for the life of the CLI.
+///
+/// Killing is the whole remedy. A platform that has not answered in this long has nothing left to
+/// say that anybody is still waiting for, and the handle is dropped, so the next call starts a
+/// fresh process.
+let private readFramed
+  (handle : Handle)
+  (running : Running)
+  : Result<byte[], string> =
+  let read =
+    System.Threading.Tasks.Task.Run(fun () ->
+      let length = running.reader.ReadInt32()
+      // `ReadBytes` stops at end of stream without complaining, so a platform that dies
+      // mid-answer returns a short buffer rather than raising. Compared here, where the promised
+      // length is still in hand.
+      let body = running.reader.ReadBytes length
+      if body.Length = length then Ok body else Error "stopped mid-answer")
+  if read.Wait handle.deadlineMs then
+    match read.Result with
+    | Ok response -> Ok response
+    | Error why -> Error $"the {handle.platformName} platform {why}"
+  else
+    try
+      running.proc.Kill()
+    with _ ->
+      ()
+    Error
+      $"the {handle.platformName} platform did not answer within {handle.deadlineMs / 1000} seconds, so it was stopped"
 
 /// Tell a freshly started platform what it needs to know before the first call.
 ///
@@ -97,8 +147,10 @@ let private handshake (handle : Handle) (running : Running) : Result<unit, strin
     running.writer.Write bytes
     running.writer.Flush()
 
-    let length = running.reader.ReadInt32()
-    let response = running.reader.ReadBytes length
+    match readFramed handle running with
+    | Error e -> Error e
+    | Ok response ->
+
     use rs = new MemoryStream(response)
     use br = new BinaryReader(rs)
     let theirs = Varint.read br
@@ -165,9 +217,16 @@ let stop (handle : Handle) : unit =
 
 /// One call, framed.
 ///
-/// A crashed plugin is a CLOSED PIPE rather than any response, which the spike found and its
-/// harness did not handle. That case lives here rather than in the message vocabulary: a read that
-/// ends early is an error with the platform's name on it, not a hang and not an internal exception.
+/// A plugin can fail in three ways and each has to look like a value, not like a hang or an
+/// internal exception:
+///
+///   - it CRASHES, which closes the pipe, and the read ends early
+///   - it dies MID-ANSWER, which returns a short buffer without raising
+///   - it goes SILENT, alive and never answering, which is the one that used to block forever
+///
+/// The first was found by the spike. The third was found by writing a platform that sleeps: a
+/// crash is loud and a hang is not, so the case that never announces itself is the one to build a
+/// deadline for.
 let private call
   (handle : Handle)
   (running : Running)
@@ -190,27 +249,26 @@ let private call
       running.writer.Write bytes
       running.writer.Flush()
 
-      let length = running.reader.ReadInt32()
-      let response = running.reader.ReadBytes length
-      if response.Length <> length then
-        Error $"the {handle.platformName} platform stopped mid-answer"
+      match readFramed handle running with
+      | Error e -> Error e
+      | Ok response ->
+
+      use rs = new MemoryStream(response)
+      use br = new BinaryReader(rs)
+      let returned = Wire.readTable br
+      let status = br.ReadByte()
+      let dval = DvalWire.readDval br
+      if status = 0uy then
+        // Before anything else looks at it. A well-formed frame can still carry a value that is
+        // not data but a handle into this runtime, and the type checker cannot see the
+        // difference for all of them.
+        match Wire.refuseForgedHandles handle.platformName dval with
+        | Error e -> Error e
+        | Ok() -> Ok(dval, returned)
       else
-        use rs = new MemoryStream(response)
-        use br = new BinaryReader(rs)
-        let returned = Wire.readTable br
-        let status = br.ReadByte()
-        let dval = DvalWire.readDval br
-        if status = 0uy then
-          // Before anything else looks at it. A well-formed frame can still carry a value that is
-          // not data but a handle into this runtime, and the type checker cannot see the
-          // difference for all of them.
-          match Wire.refuseForgedHandles handle.platformName dval with
-          | Error e -> Error e
-          | Ok() -> Ok(dval, returned)
-        else
-          match dval with
-          | RT.DString message -> Error $"{handle.platformName}: {message}"
-          | other -> Error $"{handle.platformName} failed: {other}"
+        match dval with
+        | RT.DString message -> Error $"{handle.platformName}: {message}"
+        | other -> Error $"{handle.platformName} failed: {other}"
     with
     | :? EndOfStreamException ->
       // The pipe closed. Nothing is coming, so say so rather than waiting for it.
