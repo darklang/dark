@@ -242,7 +242,11 @@ if [[ -n "$SEED_PATH" ]]; then
   fi
   echo "Using pre-exported seed: $SEED_PATH"
   mkdir -p rundir
-  cp "$SEED_PATH" rundir/seed.db
+  # CI hands us rundir/seed.db itself (the seed-db job leaves it there), and
+  # cp refuses to copy a file onto itself.
+  if [[ ! "$SEED_PATH" -ef rundir/seed.db ]]; then
+    cp "$SEED_PATH" rundir/seed.db
+  fi
 else
   echo "Exporting seed for embedding..."
   sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
