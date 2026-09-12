@@ -3771,6 +3771,21 @@ module TypeDecl =
       simpleT "TypeParam" [ Piece.Punct "'", Piece.Text("name", Layout.Style.Name) ] (Node.make (k "TypeParam") [ PT.text "name" "" ])
       // definition: a hole here offers record / enum / alias
       { (Spec.simple (Kind.named (ns ++ ".Def")) [ Piece.Dim "?definition" ] (Node.make (k "Record") [ ("fields", Field.Many([], fieldExpect ())) ])) with
+          // A definition hole took no punctuation at all: `{` and `|` accumulated as text, and the three
+          // shapes were reachable only by NAME from the menu. That made it the one construct in the
+          // language where the character you can see in the drawing does not build the thing -- an
+          // expression hole has taken `[`, `(`, `"` and `'` since the day it was written.
+          //
+          // Recorded as a gap for weeks under "a definition hole takes no punctuation". It is two hole
+          // rules; the shapes they build are the ones the menu already offers, so nothing new is decided
+          // here, the characters just reach what the names already reached.
+          holeRules =
+            [ HoleRule
+                { onChar = "{"
+                  fill = HoleFill.Node(Node.make (k "Record") [ ("fields", Field.Many([ Slot.Empty(fieldExpect ()) ], fieldExpect ())) ]) }
+              HoleRule
+                { onChar = "|"
+                  fill = HoleFill.Node(Node.make (k "Enum") [ ("cases", Field.Many([ Slot.Empty(caseExpect2 ()) ], caseExpect2 ())) ]) } ]
           completions =
             [ Spec.candidate "record" "{ fields }" (Node.make (k "Record") [ ("fields", Field.Many([ Slot.Empty(fieldExpect ()) ], fieldExpect ())) ])
               Spec.candidate "enum" "| cases" (Node.make (k "Enum") [ ("cases", Field.Many([ Slot.Empty(caseExpect2 ()) ], caseExpect2 ())) ])
