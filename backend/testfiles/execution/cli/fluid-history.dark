@@ -41,3 +41,25 @@ module Redo =
   // Redo reapplies what undo took back.
   (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "<C-r>" ]) = "~9"
   (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "u", "<C-r>", "<C-r>" ]) = "~9"
+
+
+module BothSpellingsInBothModes =
+  // NAV had `u` and `^R`; INSERT had `^Z` and `^Y`. So redo answered to its Ctrl name in NAV and undo did
+  // not, and anyone who learned `^Z` one mode over got silence. It cost me a sweep: 1,120 keystroke-then-
+  // undo checks over real store functions came back with 160 "failures" that were all `^Z` doing nothing
+  // in NAV, and then 113 more that were `o` dropping into INSERT where `u` types a letter. The invariant
+  // was fine both times; the harness was pressing keys that were not bound where it thought.
+  //
+  // Nothing in NAV claims either character, so both modes answer to both spellings now.
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "<C-z>" ]) = "~⟨expression⟩"
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "<C-z>", "<C-z>" ]) = "~5"
+
+  // Redo the same way, from NAV.
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "<C-z>", "<C-y>" ]) = "~9"
+
+  // And the keys that already worked still do.
+  (Fixtures.run [ "5", "<Esc>", "c", "9", "<Esc>", "u", "<C-r>" ]) = "~9"
+
+  // `o` drops into INSERT, so an undo straight after it has to be one that works THERE. This is the case
+  // the sweep tripped over, pinned as the thing it should be.
+  (Fixtures.run [ "[", "1", "<Esc>", "o", "<C-z>" ]) = "[~1]"

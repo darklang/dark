@@ -5480,6 +5480,13 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
       match kp.key with
       | S -> Stdlib.Cli.UI.Widget.Outcome.Emitted(st, Msg.Save st.root)
       | R -> handled (redo st)
+      // NAV had `u` and `^R` and nothing else, while INSERT had `^Z` and `^Y`. So redo worked here under
+      // its Ctrl name and undo did not, and someone who learned `^Z` one mode over got silence -- which
+      // cost me a sweep of 160 false failures before I checked what my own keys were bound to.
+      //
+      // Nothing in NAV claims either character, so both modes now answer to both spellings.
+      | Z -> handled (undo st)
+      | Y -> handled (redo st)
       | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
     else
       // A spec's own key bindings are consulted BEFORE the kernel's, so a kind can rebind anything except
