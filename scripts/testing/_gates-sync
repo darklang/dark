@@ -926,7 +926,7 @@ gate_seed_serving() {
   env DARK_CONFIG_RUNDIR="$PWD/$WORK/fresh/" HOME="$PWD/$WORK/fresh" \
     "$PWD/$CLI" permissions allow package-read > /dev/null 2>&1 || true
   got=$(env DARK_CONFIG_RUNDIR="$PWD/$WORK/fresh/" HOME="$PWD/$WORK/fresh" \
-    "$PWD/$CLI" eval '(Stdlib.List.length [1L, 2L, 3L]) |> Stdlib.Int64.toString' 2>&1 | tail -1 || true)
+    "$PWD/$CLI" eval '(Stdlib.List.length [1L, 2L, 3L]) |> Stdlib.Int.toString' 2>&1 | tail -1 || true)
   if [[ "$got" == *3* ]]; then
     echo "  ok   a store grown from the fetched seed resolves names and evaluates"
   else

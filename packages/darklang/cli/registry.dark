@@ -82,6 +82,7 @@ module Registry =
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("store", "What this store is, and moving it between op-log formats", [], Store.execute, Store.help, Store.complete)
       ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
       ("review", "Stage someone else's ops for op-level approval", [], Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
       ("conflicts", "Review what a merge, rebase or sync auto-resolved", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
@@ -211,7 +212,7 @@ module Registry =
       ("Security", [ "permissions" ])
       ("Network", [ "devices" ])
       ("Apps", [ "apps" ])
-      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "views", "workbench" ]) ]
+      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "store", "views", "workbench" ]) ]
 
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =

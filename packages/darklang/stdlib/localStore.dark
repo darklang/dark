@@ -62,3 +62,52 @@ let seedTo
   (upToCommit: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<Unit, String> =
   Builtin.pmSeedExport path upToCommit
+
+
+/// What an upgrade did. Structured rather than a sentence: a caller decides what to print, and
+/// `unreadable > 0` is a thing a script might want to act on.
+type UpgradeReport =
+  { /// The format the store was in.
+    from: Int64
+    /// The format it is in now, which is the one this build writes.
+    to: Int64
+    /// Ops decoded and written back out.
+    rewritten: Int64
+    /// Ops this build cannot read at all: a peer's newer format, stored inert. Left exactly as
+    /// they are, because re-encoding is impossible and dropping them would lose work a later
+    /// build can still apply.
+    unreadable: Int64
+    /// Where the pre-upgrade store was copied to, which is what <fn rollbackTo> puts back.
+    backup: String }
+
+
+/// Move this store's op log to the format this build writes.
+///
+/// A no-op until the first format bump: with nothing to migrate between it says so rather than
+/// touching anything. The copy lands before any write, and the rewrite is one transaction, because
+/// a half-converted store has some ops in one format and some in another with nothing recording
+/// which -- and no reader can sort that out afterwards.
+///
+/// Only rewrites BLOBS. A change that moves content hashes is a different and much larger
+/// migration; this refuses rather than half-doing it. See `LibDB.StoreUpgrade`.
+let upgrade () : Stdlib.Result.Result<UpgradeReport, String> =
+  match Builtin.pmStoreUpgrade () with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok parts ->
+    let (from, to, rewritten, unreadable, backup) = parts
+
+    (UpgradeReport
+      { from = from
+        to = to
+        rewritten = rewritten
+        unreadable = unreadable
+        backup = backup })
+    |> Stdlib.Result.Result.Ok
+
+
+/// Put back the copy <fn upgrade> took on its way to <param target>.
+///
+/// Contents, not the file, so connections already open keep working. Anything already read into
+/// memory is still the upgraded store, so the caller should say to restart.
+let rollbackTo (target: Int64) : Stdlib.Result.Result<String, String> =
+  Builtin.pmStoreRollback target

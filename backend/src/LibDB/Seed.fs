@@ -35,6 +35,10 @@ module Permission = LibExecution.Permissions
 /// context for whatever the command was asked to do, not an event worth repeating before every answer.
 let mutable private warnedAboutUnreadableOps = false
 
+/// Whether this process has already said that the store's format is ahead of this build's. Once,
+/// for the same reason: it is context for the command, not an event.
+let mutable private warnedAboutFormatSkew = false
+
 
 // ---------------------
 // Export
@@ -210,7 +214,7 @@ let exportAt (outputPath : string) (upToCommit : string option) : Task<unit> =
       """
     stampCmd.Parameters.AddWithValue(
       "$format",
-      string LibSerialization.Binary.BaseFormat.CurrentVersion
+      string LibSerialization.Binary.BaseFormat.currentVersion
     )
     |> ignore<SqliteParameter>
     stampCmd.Parameters.AddWithValue("$cutAt", cutAt) |> ignore<SqliteParameter>
@@ -792,6 +796,14 @@ let growIfNeeded
   : Task<bool> =
   task {
     use _span = Telemetry.span "seed.growIfNeeded" []
+
+    // Every process that opens the store passes through here, which is the only place a skew
+    // between the store's format and this build's is certain to be noticed. `Releases.runPending`
+    // says it too, but a shipped binary reaches that only when it has an embedded seed to unpack.
+    if not warnedAboutFormatSkew then
+      warnedAboutFormatSkew <- true
+      Releases.noteFormatSkew ()
+
     let! appliedCount =
       Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
     // The fold above reads effective=1 only, so branch-scoped Decisions (a branch's propagation

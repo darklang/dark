@@ -267,19 +267,41 @@ let storedFormat () : Option<uint32> =
       | false, _ -> None)
 
 
-/// Refuse a store written by a NEWER build's format, and stamp one that carries no format yet.
+/// Say so when a store was written by a NEWER build's format, and stamp one that carries no format
+/// yet.
 ///
 /// The asymmetry is the point. A store BEHIND this build is the migrator's job (it can read an old
-/// layout, because every historical reader stays in the binary). A store AHEAD of it is not
-/// recoverable by reading harder: the layout is one this binary has never seen, and guessing at it
-/// corrupts the only copy of the ops.
-let private checkFormat () : unit =
+/// layout, because every historical reader stays in the binary). A store AHEAD of it cannot be read
+/// by trying harder: the layout is one this binary has never seen.
+///
+/// SAID, not raised, and the wording matters more than usual, because there is no working command
+/// left to recover WITH. The projections hold blobs in the newer layout too, so this build dies on
+/// its first package lookup -- which includes resolving the name of the command you typed. So the
+/// note names the FILE to move, not a verb to run: a `mv` needs no working binary.
+///
+/// `dark store rollback` covers the other case, and the likelier one: you upgraded, you are still
+/// on the build that did it, and you want it undone.
+let noteFormatSkew () : unit =
   match storedFormat () with
-  | Some n when n > LibSerialization.Binary.BaseFormat.CurrentVersion ->
-    Exception.raiseInternal
-      "this store was written by a newer Darklang than this one and cannot be read safely"
-      [ "store format", string n
-        "this build reads", string LibSerialization.Binary.BaseFormat.CurrentVersion ]
+  | Some n when n > LibSerialization.Binary.BaseFormat.currentVersion ->
+    System.Console.Error.WriteLine(
+      $"note: this store is format {n} and this build reads "
+      + $"{LibSerialization.Binary.BaseFormat.currentVersion}, so its ops cannot be read. Upgrade "
+      + $"the binary. If this store was upgraded here, the copy from before that is at "
+      + $"{Sqlite.currentDbPath}.pre-v{n} -- move it back over {Sqlite.currentDbPath}."
+    )
+  | _ -> ()
+
+
+/// `noteFormatSkew`, plus the stamp for a store that carries none.
+///
+/// Stamping is a WRITE, so it belongs here in the migration path rather than on every open: a store
+/// that has run this once carries the stamp from then on.
+let private checkFormat () : unit =
+  noteFormatSkew ()
+
+  match storedFormat () with
+  | Some n when n > LibSerialization.Binary.BaseFormat.currentVersion -> ()
   | _ ->
     // Stamp it, so from here every store says what it is. `INSERT OR REPLACE` rather than a
     // conditional: the value is the same whether the row was missing or already right.
@@ -289,7 +311,7 @@ let private checkFormat () : unit =
 
     Sql.query "INSERT OR REPLACE INTO store_meta (key, value) VALUES ('format', @v)"
     |> Sql.parameters
-      [ "v", Sql.string (string LibSerialization.Binary.BaseFormat.CurrentVersion) ]
+      [ "v", Sql.string (string LibSerialization.Binary.BaseFormat.currentVersion) ]
     |> Sql.executeStatementSync
 
 
