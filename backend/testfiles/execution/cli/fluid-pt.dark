@@ -509,6 +509,38 @@ module BarStartsTheNextArm =
   // The revision still works from there: the operator applies to the string, not to a new arm.
   (BarStartsTheNextArm.armEnding "\"zero\"" [ "|", "|" ]) = "match x with\n| 1 -> \"zero\" ||~ ⟨right⟩"
 
+  // NOT THE LAST ARM. Every pin above builds its match by typing, so the arm `|` makes is always
+  // appended at the end -- and the revision was guarded on the fresh item being the LAST one, so all of
+  // them passed while `|>` in any earlier arm gave `| > -> <rhs>` and `||` gave a bare new arm. You could
+  // pipe in the final arm of a match and nowhere else. The harness only ever produced the case that
+  // worked, which is the same reason the shell drawings went unchecked for weeks.
+  //
+  // Parsed rather than typed, so the caret can be put in an arm with something after it.
+  let parsed (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error _ -> Builtin.testDerrorMessage "parse failed"
+
+  /// Two arms, caret at the end of the FIRST one's right-hand side.
+  let inFirstArm (extra: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (BarStartsTheNextArm.reg ())
+      (BarStartsTheNextArm.parsed "match x with\n| Ok(a) -> 1\n| Error(e) -> 2")
+      70
+      (Stdlib.List.append [ "l", "j", "j", "j", "j", "i", "<End>" ] extra)
+
+  (BarStartsTheNextArm.inFirstArm []) = "match x with\n| Ok(a) -> 1~\n| Error(e) -> 2"
+
+  (BarStartsTheNextArm.inFirstArm [ "|", ">" ]) =
+    "match x with\n| Ok(a) -> 1 |> ~⟨step⟩\n| Error(e) -> 2"
+
+  (BarStartsTheNextArm.inFirstArm [ "|", "|" ]) =
+    "match x with\n| Ok(a) -> 1 ||~ ⟨right⟩\n| Error(e) -> 2"
+
+  // ...and `|` still starts an arm there when that is what was meant, in the middle of the list.
+  (BarStartsTheNextArm.inFirstArm [ "|", "N" ]) =
+    "match x with\n| Ok(a) -> 1\n| N~ -> ⟨rhs⟩\n| Error(e) -> 2"
+
   // And a list whose items are separated rather than led keeps its own key: `,` still adds an element.
   (Darklang.Fluid.Test.run (BarStartsTheNextArm.reg ()) (BarStartsTheNextArm.hole ()) 60
     [ "[", "1", ",", "2" ]) = "[1, 2~]"

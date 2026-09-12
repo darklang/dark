@@ -4570,7 +4570,16 @@ let leadPunctRevision (st: State) (c: String) : Stdlib.Option.Option<State> =
       // survived either.
       let followsTheLeadPunct = st.lastChar == (Stdlib.Option.Option.Some lead)
 
-      if (i > 0) && fresh && followsTheLeadPunct && (i == ((Stdlib.List.length items) - 1)) && meansOperator then
+      // Not "and the fresh item is the LAST one", which is what this used to say. An arm typed at the end
+      // of the FINAL arm appends, and the revision fired; the same keys at the end of any EARLIER arm
+      // insert in the middle, and it did not -- so `|>` in the first arm of a two-arm match gave
+      // `| > -> <rhs>` and `||` gave a bare new arm. You could pipe in the last arm of a match and nowhere
+      // else, which is not a rule anyone could have learned.
+      //
+      // Nothing needed it: `followsTheLeadPunct` is what tells an arm you just made with `|` from an arm
+      // made with Enter, and `fresh` plus `i > 0` say the item is empty and has something before it to
+      // operate on. Where that item sits in the list is not part of the question.
+      if (i > 0) && fresh && followsTheLeadPunct && meansOperator then
         match lastNodePathUnder st.root (Path.item parentPath slot (i - 1)) with
         | Some p ->
           // Precedence picks WHICH node the operator takes, the same way typing it normally would, so
