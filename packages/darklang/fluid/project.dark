@@ -67,7 +67,22 @@ let nodePower (n: Node) : Int =
   //
   // It belongs here rather than in the shared table. `Opaque` is a fact about this editor, not about
   // Darklang, and `swallowingCases` next door is a list of language constructs.
-  | Some "Opaque" -> Darklang.LanguageTools.Precedence.swallowingPower
+  //
+  // ...unless the blob is ONE TOKEN, which is self-delimiting by construction: nothing around it can
+  // split it, so brackets add nothing. `EArg` is drawn opaque and its source is a single name, so every
+  // reference to a parameter was bracketed -- as an argument, in a record field, as a pipe head. Measured
+  // against the store: 4,276 of 5,379 function bodies differed from the printer, and this one bracket was
+  // the whole of it in nearly all of them.
+  //
+  // "Has a space in it" is the test because the printer is the thing that produced the text, and it puts
+  // spaces around every operator it writes. `g<Int> x` has one and keeps its brackets; `earg0` does not.
+  | Some "Opaque" ->
+    let src = Node.text n "source" |> Stdlib.Option.withDefault ""
+
+    if Stdlib.String.contains src " " then
+      Darklang.LanguageTools.Precedence.swallowingPower
+    else
+      Darklang.LanguageTools.Precedence.selfDelimitingPower
   | _ ->
     Darklang.LanguageTools.Precedence.powerOfCase
       (n.kind.case |> Stdlib.Option.withDefault "")
@@ -644,12 +659,18 @@ let piece (reg: Registry) (path: Path) (n: Node) (p: Piece) : Layout.Doc =
       let d = slot reg path (Part.InSlot slotName) (Path.child path slotName) s
       // Matches the printer: a variable or a field-access chain reads bare (`r.x`, `r.a.b`); anything
       // else -- a list, a call, an operator expression -- is parenthesised (`([1]).x`).
+      //
+      // ...and an OPAQUE node whose source is one token, which is what a parameter reference is. The
+      // printer's own list gained `EArg` for exactly this reason and Fluid's did not, so every
+      // `state.field` in a function body drew as `(earg0).field`: 1,131 of 5,379 bodies, which is all
+      // that was left of a divergence that started at 4,276.
       let needs =
         match Slot.node s with
         | Some child ->
           match child.kind.case with
           | Some "EVariable" -> false
           | Some "ERecordFieldAccess" -> false
+          | Some "Opaque" -> (nodePower child) != Darklang.LanguageTools.Precedence.selfDelimitingPower
           | _ -> true
         | None -> false
       parenIf needs d

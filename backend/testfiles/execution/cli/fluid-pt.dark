@@ -2539,3 +2539,61 @@ module ASwallowingValueIsBracketedWhereverItSits =
   // A LAST position swallows nothing, so it stays bare and the brackets do not spread.
   (ASwallowingValueIsBracketedWhereverItSits.survives ("match y with | 1 -> " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " | _ -> 2")) = (true, true)
   (ASwallowingValueIsBracketedWhereverItSits.survives ("if c then " ++ (ASwallowingValueIsBracketedWhereverItSits.m ()) ++ " else 2")) = (true, true)
+
+
+module AnOpaqueAtomNeedsNoBrackets =
+  // `Opaque` is the escape hatch for anything `toDoc` cannot take apart, and it is given SWALLOWING power
+  // so an arbitrary blob gets brackets where one is needed: `f (g<Int> x)` must not come out as three
+  // arguments to `f`.
+  //
+  // A blob that is ONE TOKEN does not need them, and `EArg` is exactly that: a parameter reference, drawn
+  // opaque, whose source is a single name. So every reference to a parameter was bracketed, as an
+  // argument, in a record field, as a pipe head, and as the target of a field access.
+  //
+  // The size of it is the reason this is worth a test. Drawing every function body in the store beside
+  // the printer's: 4,276 of 5,379 differed, and this was the whole of it in nearly all of them. Fifty-seven
+  // differ now, and nearly all of THOSE are the one deliberate divergence (Fluid brackets a swallowing
+  // construct in a keyword position, which the printer does not).
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+  let ctx () : Darklang.PrettyPrinter.ProgramTypes.Context = Darklang.Fluid.PT.printerContext ()
+
+  let arg () : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.EArg(1L, 0)
+
+  let both (e: Darklang.LanguageTools.ProgramTypes.Expr) : (String * String) =
+    (Stdlib.Pretty.render 80 (Darklang.PrettyPrinter.ProgramTypes.exprDoc (AnOpaqueAtomNeedsNoBrackets.ctx ()) e),
+     Darklang.Fluid.Debug.render (AnOpaqueAtomNeedsNoBrackets.reg ()) 80 (Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)))
+
+  (AnOpaqueAtomNeedsNoBrackets.both (AnOpaqueAtomNeedsNoBrackets.arg ())) = ("earg0", "earg0")
+
+  // As an argument, where the brackets would read as a second argument.
+  (AnOpaqueAtomNeedsNoBrackets.both
+    (Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+      2L,
+      Darklang.LanguageTools.ProgramTypes.Expr.EVariable(3L, "f"),
+      [],
+      [ AnOpaqueAtomNeedsNoBrackets.arg () ]))) = ("f earg0", "f earg0")
+
+  // As the target of a field access, which is the shape that survived longest: the printer's own bare
+  // list gained `EArg` months ago and Fluid's did not.
+  (AnOpaqueAtomNeedsNoBrackets.both
+    (Darklang.LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(4L, AnOpaqueAtomNeedsNoBrackets.arg (), "x")))
+    = ("earg0.x", "earg0.x")
+
+  // As an infix operand.
+  (AnOpaqueAtomNeedsNoBrackets.both
+    (Darklang.LanguageTools.ProgramTypes.Expr.EInfix(
+      5L,
+      Darklang.LanguageTools.ProgramTypes.Infix.InfixFnCall Darklang.LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus,
+      AnOpaqueAtomNeedsNoBrackets.arg (),
+      Darklang.LanguageTools.ProgramTypes.Expr.EInt(6L, 1)))) = ("earg0 + 1", "earg0 + 1")
+
+  // ...and a blob with a SPACE in it keeps its brackets, which is what the power exists for. The printer
+  // puts spaces around every operator it writes, so a space is a reliable stand-in for "more than one
+  // token" in text the printer produced.
+  ((Darklang.Fluid.Project.nodePower
+     (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "Opaque") [ ("source", Darklang.Fluid.Field.Text "g x") ]))
+   == Darklang.LanguageTools.Precedence.swallowingPower) = true
+  ((Darklang.Fluid.Project.nodePower
+     (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "Opaque") [ ("source", Darklang.Fluid.Field.Text "earg0") ]))
+   == Darklang.LanguageTools.Precedence.selfDelimitingPower) = true
