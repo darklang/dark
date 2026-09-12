@@ -87,8 +87,44 @@ else
     SEED_URL="$DEFAULT_URL"
   fi
 
-  echo "Fetching seed from $SEED_URL"
-  curl -fL -o "$DEST_SEED" "$SEED_URL"
+  # A seed cut at a COMMIT never changes, so it is worth keeping once per machine rather than once
+  # per clone. Without this, every clone and every re-clone needs the network -- which is a real
+  # robustness regression against today, where `git clone && scripts/dev/start` works from the repo
+  # alone. With it, a machine needs the network once per pin, and a second clone, a re-clone, or
+  # working on a plane is a file copy.
+  #
+  # Only for a pinned fetch. `latest` is not immutable and must not be cached under a name that
+  # claims it is.
+  CACHE_DIR="${DARK_SEED_CACHE:-$HOME/.darklang/seeds}"
+  CACHED=""
+  if [[ -n "$COMMIT" ]]; then
+    CACHED="${CACHE_DIR}/${COMMIT}.db"
+  fi
+
+  if [[ -n "$CACHED" && -f "$CACHED" ]]; then
+    echo "Using the cached seed for ${COMMIT} (${CACHED})"
+    cp "$CACHED" "$DEST_SEED"
+  else
+    echo "Fetching seed from $SEED_URL"
+    if ! curl -fL -o "$DEST_SEED" "$SEED_URL"; then
+      {
+        echo
+        echo "Could not fetch a seed from ${SEED_URL}."
+        if [[ -n "$COMMIT" ]]; then
+          echo "Nothing on this machine has that commit cached, either."
+        fi
+        echo "If you have a seed file already, install it directly and skip the network:"
+        echo "    scripts/fetch-seed --from <path-to-seed.db>"
+      } >&2
+      exit 1
+    fi
+
+    if [[ -n "$CACHED" ]]; then
+      mkdir -p "$CACHE_DIR"
+      cp "$DEST_SEED" "$CACHED"
+      echo "Cached for this machine at ${CACHED}"
+    fi
+  fi
 fi
 
 SEED_SIZE=$(du -h "$DEST_SEED" | cut -f1)
