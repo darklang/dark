@@ -881,6 +881,34 @@ let grepAgreesWithItselfOnceCached =
 
 /// A search tool you cannot trust a negative answer from is worse than none, so "no hits" and
 /// "could not read it" must not look alike.
+/// The bug the SCM silo's guard exists to stop, in grep's shape: `locations` is main's
+/// projection, so an enumeration that read it directly would search MAIN from a branch and report
+/// nothing wrong. This is the test that the overlay is actually consulted.
+let grepSeesTheBranchYouAreStandingOn =
+  instanceTest "grep finds a branch's own work, and main does not" (fun state ->
+    task {
+      do! start state
+      do! switch state "grep-branch"
+      do! fn state "Tests.GrepBranch.only" "() : String = \"branchonlytoken\""
+
+      do!
+        shows
+          state
+          [ "grep"; "branchonlytoken"; "Tests.GrepBranch" ]
+          "Tests.GrepBranch.only:"
+          "the branch sees its own work"
+
+      do! onMain state
+      do!
+        shows
+          state
+          [ "grep"; "branchonlytoken"; "Tests.GrepBranch" ]
+          "no live item's source contains"
+          "main does not"
+
+      do! archiveBranches state [ "grep-branch" ]
+    })
+
 let grepSaysWhenItFindsNothing =
   instanceTest "grep says so when nothing matches" (fun state ->
     task {
@@ -990,6 +1018,7 @@ let tests : List<Test> =
     grepFindsSourceAndNotJustNames
     grepAgreesWithItselfOnceCached
     grepSaysWhenItFindsNothing
+    grepSeesTheBranchYouAreStandingOn
     aDocOnlyEditKeepsTheVersionAndStillLands
     aFieldsDocEditLands
     anEnumCasesDocEditLands

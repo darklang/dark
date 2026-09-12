@@ -38,48 +38,25 @@ let ensureCache () : Unit =
     ()
 
 
-/// Every live name on this branch, as (hash, owner, modules, name). Straight SQL because this is a
-/// listing of six thousand rows and the search API materialises whole definitions to produce one.
+/// Every live name on this branch, as (hash, owner, modules, name, itemType).
 ///
-/// `source != 'unbind'` drops tombstones: an Unbind writes a row that is unlisted from birth, so it
-/// is history rather than something you can read.
-let liveItems (scope: String) : List<(String * String * String * String * String)> =
-  // `item_type` matters: without it the renderer has to try fn, then type, then value, and pay a
-  // store query for each guess. The column already knows.
-  let selectFrom =
-    "SELECT item_hash, owner, modules, name, item_type FROM locations
-     WHERE unlisted_at IS NULL AND source != 'unbind'"
+/// Through the SCM silo, NOT a direct read of `locations`: that table is main's projection, so a
+/// branch's own work is not in it and a grep run from a branch would search main and say nothing
+/// was wrong. `allLiveBindings` lays the chain overlay over main, which is the branch-aware answer.
+let liveItems (branchId: Uuid) (scope: String) : List<(String * String * String * String * String)> =
+  SCM.PackageOps.allLiveBindings branchId
+  |> Stdlib.List.filterMap (fun b ->
+    let dottedModule = if b.modules == "" then b.owner else $"{b.owner}.{b.modules}"
 
-  let ordering = " ORDER BY owner, modules, name"
+    let inScope =
+      (scope == "")
+      || (dottedModule == scope)
+      || (Stdlib.String.startsWith dottedModule $"{scope}.")
 
-  let result =
-    if scope == "" then
-      Stdlib.Sqlite.query (Stdlib.LocalStore.path ()) (selectFrom ++ ordering)
+    if inScope then
+      Stdlib.Option.Option.Some((b.hash, b.owner, b.modules, b.name, b.itemType))
     else
-      // The scope is a dotted prefix of `owner.modules`: the module itself, or anything under it.
-      let sql =
-        selectFrom
-        ++ " AND ((owner || '.' || modules) = @p0 OR (owner || '.' || modules) LIKE @p1)"
-        ++ ordering
-
-      Stdlib.Sqlite.queryP
-        (Stdlib.LocalStore.path ())
-        sql
-        [ scope, $"{scope}.%" ]
-
-  match result with
-  | Error _ -> []
-  | Ok rows ->
-    rows
-    |> Stdlib.List.filterMap (fun row ->
-      let get = fun col -> Stdlib.Sqlite.textField row col
-
-      match
-        (get "item_hash", get "owner", get "modules", get "name", get "item_type")
-      with
-      | (Some h, Some o, Some m, Some n, Some t) ->
-        Stdlib.Option.Option.Some((h, o, m, n, t))
-      | _ -> Stdlib.Option.Option.None)
+      Stdlib.Option.Option.None)
 
 
 /// Everything this install has already rendered, as hash -> source.
@@ -177,7 +154,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   else
 
     let _ = ensureCache ()
-    let items = liveItems scope
+    let items = liveItems state.currentBranchId scope
     let warm = cachedAll ()
     let total = Stdlib.List.length items
 
