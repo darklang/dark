@@ -216,6 +216,9 @@ def main():
                 write_string(out, "reached the network")
             except OSError as e:
                 write_string(out, f"{e.errno}")
+        elif fn == "echoWrongType" and argc == 1:
+            # The manifest promises a String. Send an Int64 and see whether anybody checks.
+            write_int64(out, 42)
         elif fn == "echoOversized" and argc == 1:
             # Announce a frame far larger than the host will read, and send none of it. The length
             # prefix is the PLATFORM's number, and nothing obliges it to be a sane one.

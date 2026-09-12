@@ -1910,6 +1910,12 @@ let private spawnedFns : List<External.Fn> =
       returnType = TBlob
       effects = Set.singleton describedEffect
       description = "bytes in and bytes out" }
+    { name = "echoWrongType"
+      version = 0
+      parameters = [ ("unit", TUnit) ]
+      returnType = TString
+      effects = Set.singleton describedEffect
+      description = "promises a String and sends something else" }
     { name = "echoOversized"
       version = 0
       parameters = [ ("unit", TUnit) ]
@@ -2268,6 +2274,32 @@ let aSpawnedPlatformBuildsAnEnum =
       LibDB.PlatformSpawn.stop handle
   }
 
+let aLyingPlatformIsCaughtByItsSignature =
+  testTask "a platform that returns the wrong type is refused against its manifest" {
+    // The manifest is the contract, and it is only a contract if somebody checks it. A platform
+    // promising a `String` and sending an `Int64` must not have that value reach the program: the
+    // signature is what every call site compiled against.
+    //
+    // This is the guarantee the module doc leans on when it says a lying platform is caught for
+    // every type the checker can tell apart. The exception, which is why `refuseForgedHandles`
+    // exists beside it, is a value whose type this runtime cannot determine.
+    let handle =
+      LibDB.PlatformSpawn.handleFor
+        "EchoPlatform"
+        (echoPlatformPath ())
+        (Set.singleton describedEffect)
+        echoTypes
+    try
+      let! answered = callSpawned handle "echoWrongType" RT.DUnit
+      match answered with
+      | Ok value -> failtest $"a platform's lie about its return type was believed: {value}"
+      | Error(rte, _) ->
+        let rendered = string rte
+        Expect.stringContains rendered "echoWrongType" "the error names the builtin"
+    finally
+      LibDB.PlatformSpawn.stop handle
+  }
+
 let aPlatformCannotForgeAHandle =
   test "a value that names a resource here is refused, however deeply it is buried" {
     // The wire can express every `Dval`, and some of them are not data. A `DDB` names a user
@@ -2604,6 +2636,7 @@ let tests =
       aSilentPlatformDoesNotWedgeTheCaller
       aSpawnedPlatformIsConfinedToWhatItDeclared
       aSpawnedPlatformBuildsAnEnum
+      aLyingPlatformIsCaughtByItsSignature
       aPlatformCannotForgeAHandle
       aSpawnedPlatformCarriesBytes
       aSpawnedPlatformIsPermissionChecked

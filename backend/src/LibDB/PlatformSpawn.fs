@@ -9,6 +9,42 @@
 /// refuses what cannot cross (streams, ephemeral blobs), and is what a plugin in another language
 /// has to implement either way. The encoding it has to speak is small: a tag byte, .NET's 7-bit
 /// varint for lengths, little-endian integers.
+///
+/// ## What this side assumes about the other one
+///
+/// Nothing. A platform is somebody else's executable, and every one of these was a real hole
+/// before it was a rule, so the list is a record of things that went wrong rather than a design
+/// somebody got right up front.
+///
+/// The host assumes a platform may:
+///
+///   - lie about its return type. The type checker compares against the signature the manifest
+///     declared and refuses the call, so this is caught for every type it can tell apart.
+///   - send a value that is not data but a HANDLE into this runtime, a `DDB` or a
+///     `DApplicable`. The type checker cannot catch those: `toValueType` maps `DDB` to `Unknown`,
+///     which unifies with anything. `PlatformWire.refuseForgedHandles` refuses them, recursively.
+///   - crash, die mid-answer, or go silent. The first closes the pipe, the second returns a short
+///     buffer, the third used to block forever and is bounded by `defaultDeadlineMs`.
+///   - announce a frame length that is enormous, or negative. Bounded by `maxFrameBytes`, and
+///     checked before it is used to allocate.
+///   - write to its stderr, which is not covered by any effect it declared, so it is prefixed with
+///     the platform's name and stripped of escape sequences before anybody sees it.
+///   - perform effects it never declared. Nothing here can stop that, because the platform runs
+///     its own code. What the DECLARATION buys is `PlatformSandbox`, which confines the process to
+///     what it asked for, and the permission gate, which refuses the call if the whole effect was
+///     not granted.
+///
+/// The one thing the host does NOT defend against, and cannot: a platform that declares an effect,
+/// is granted it, and then abuses it. A platform granted the network may talk to anyone. That is
+/// what approving a hash means, and it is why the manifest is text you read first.
+///
+/// ## If you add to this path
+///
+/// Ask what the machinery ABOVE the thing you are adding assumes. Every hole listed here came from
+/// not asking: the effect gate skips scoped effects because a linked builtin's body checks them
+/// instead, and a described platform has no body; the type checker trusts `toValueType`, which
+/// answers honestly for values this runtime minted. Both assumptions are correct and both are
+/// invisible at the point where they stop holding.
 module LibDB.PlatformSpawn
 
 open System
