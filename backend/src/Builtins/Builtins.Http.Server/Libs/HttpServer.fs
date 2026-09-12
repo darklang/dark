@@ -451,6 +451,18 @@ let runListener
   }
 
 
+/// What `httpServerServe` can additionally request from inside its body, when request logging is
+/// on. `Builtins.Http.Server.Builtin.platform` unions this into the platform's surface, so an
+/// install-time review still says the server may print and read the clock.
+///
+/// The body asks for exactly THIS value rather than an equal-looking literal beside it. The
+/// comment here used to say "keep it equal to the set passed to `requireBuiltinEffectsWithAccess`",
+/// which is an invariant maintained by remembering. Drift would be silent and would go the wrong
+/// way: a body that starts requesting something new, with the platform's advertised surface
+/// unchanged, is a review that understates what the thing may do.
+let dynamicEffects : Set<Effect> = set [ Effect.Clock; Effect.Stdout ]
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
@@ -574,7 +586,7 @@ let fns () : List<BuiltInFn> =
                 exeState
                 vm
                 exeState.access
-                (set [ Effect.Clock; Effect.Stdout ])
+                dynamicEffects
                 "httpServerServe"
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
@@ -639,17 +651,10 @@ let fns () : List<BuiltInFn> =
       // interpreter's up-front gate demanded both on every `serve`, so an instance that denies
       // stdout could not run a server that prints nothing. Same shape as `Libs.Sqlite`: what a call
       // may do depends on its arguments, so the static declaration carries the unconditional part
-      // and the body decides the rest. `dynamicEffects` below keeps the platform's review surface
+      // and the body decides the rest. `dynamicEffects` above keeps the platform's review surface
       // honest about it.
       callEffects = set [ Effect.HttpServer ]
       deprecated = NotDeprecated } ]
-
-
-/// What `httpServerServe` can additionally request from inside its body, when request logging is
-/// on. `Builtins.Http.Server.Builtin.platform` unions this into the platform's surface, so an
-/// install-time review still says the server may print and read the clock. Keep it equal to the set
-/// passed to `requireBuiltinEffectsWithAccess` above.
-let dynamicEffects : Set<Effect> = set [ Effect.Clock; Effect.Stdout ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
