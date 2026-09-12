@@ -245,6 +245,25 @@ let steps : List<Step> =
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
 
+    // What BUILTINS each item calls. New table, so `CREATE TABLE IF NOT EXISTS` in the schema
+    // would reach an existing store only because the bootstrap replays it, which it does not
+    // promise to. Named here so the store records having got it. Empty until the next fold
+    // rebuilds it, which is correct: it is derived.
+    { name = "20260912_000001_package_builtin_deps"
+      run =
+        fun () ->
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS package_builtin_deps (
+               item_hash TEXT NOT NULL,
+               builtin_name TEXT NOT NULL,
+               builtin_version INTEGER NOT NULL)"
+          |> Sql.executeStatementSync
+
+          Sql.query
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_package_builtin_deps_unique
+               ON package_builtin_deps(item_hash, builtin_name, builtin_version)"
+          |> Sql.executeStatementSync }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 

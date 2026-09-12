@@ -96,6 +96,7 @@ let exportAt (outputPath : string) (upToCommit : string option) : Task<unit> =
       DELETE FROM package_values;
       DELETE FROM package_functions;
       DELETE FROM package_dependencies;
+      DELETE FROM package_builtin_deps;
       DELETE FROM deprecations;
 
       -- The builder's BRANCHES are not canon. A branch's ops live in `package_ops` at effective = 0 and are
@@ -472,6 +473,7 @@ let projectionTables : List<string> =
     "package_values"
     "locations"
     "package_dependencies"
+    "package_builtin_deps"
     "deprecations"
     // Folded from `Decision` ops; nothing else writes it. Being here is what makes it genuinely derived
     // rather than a second source of truth about the same decisions.

@@ -663,6 +663,79 @@ let private sameSignature
 /// the only way back is an environment variable you have to know exists. With it, a rebind whose
 /// signature does not match what this build compiles against is refused, loudly, and the pinned
 /// version is used: a wrong edit degrades rather than bricks.
+/// What the CURRENT BRANCH's overlay binds `Darklang.<modules>.<name>` to, if anything.
+///
+/// `locations` is main's projection and has no branch column -- authoring two items on a branch
+/// leaves zero rows there and two in `op_branches` -- so a store query cannot see a branch's work.
+/// The overlay is already in memory as an op list, so this folds it directly: latest binding wins
+/// per location, the same rule `createInMemoryOver` applies and the same one main's fold applies.
+///
+/// Only TYPES go through this, and the asymmetry is deliberate. Resolving a FN ref through an
+/// overlay would mean the binary runs a branch's parser or pretty-printer the moment you stand on
+/// that branch, which is a real hazard and not one you opted into by switching. A type declaration
+/// is inert: resolving it decides what a value is TAGGED with, and executes nothing. So a branch
+/// may lend the kernel its types and may not lend it its code.
+let private overlayTypeBinding
+  (modules : string list)
+  (name : string)
+  : string option =
+  let wanted : PT.PackageLocation =
+    { owner = "Darklang"; modules = modules; name = name }
+
+  branchOverlayOps
+  |> List.fold
+    (fun acc op ->
+      match op with
+      | PT.PackageOp.SetName(loc, PT.PackageType(Hash h), _) when loc = wanted ->
+        Some h
+      | PT.PackageOp.Decision(_,
+                              loc,
+                              _,
+                              PT.DecisionKind.Override(PT.PackageType(Hash h))) when
+        loc = wanted
+        ->
+        Some h
+      // A name bound to something that is not a type, or unbound outright, means the branch has
+      // taken this name away from the kernel. Fall back rather than keep an older binding.
+      | PT.PackageOp.SetName(loc, _, _) when loc = wanted -> None
+      | PT.PackageOp.Unbind(loc, _) when loc = wanted -> None
+      | _ -> acc)
+    None
+
+
+/// Every Darklang-owned binding the CURRENT BRANCH's overlay adds or changes, as
+/// (modules, name, itemType, hash).
+///
+/// For `PackageRefsGenerator`, which builds the pinned hash file from `locations` and therefore has
+/// the same main-only blind spot the resolver had. A branch that authors a type the kernel
+/// references has to be able to produce a hash file naming it, or the F# on that git branch cannot
+/// be built by anybody else.
+let overlayDarklangBindings () : List<string * string * string * string> =
+  let bindings =
+    System.Collections.Generic.Dictionary<PT.PackageLocation, string * string>()
+
+  for op in branchOverlayOps do
+    let apply loc target =
+      match target with
+      | PT.PackageType(Hash h) -> bindings[loc] <- ("type", h)
+      | PT.PackageValue(Hash h) -> bindings[loc] <- ("value", h)
+      | PT.PackageFn(Hash h) -> bindings[loc] <- ("fn", h)
+
+    match op with
+    | PT.PackageOp.SetName(loc, target, _) -> apply loc target
+    | PT.PackageOp.Decision(_, loc, _, PT.DecisionKind.Override target) ->
+      apply loc target
+    | PT.PackageOp.Unbind(loc, _) -> bindings.Remove loc |> ignore<bool>
+    | _ -> ()
+
+  bindings
+  |> Seq.filter (fun kv -> kv.Key.owner = "Darklang")
+  |> Seq.map (fun kv ->
+    let (itemType, hash) = kv.Value
+    (String.concat "." kv.Key.modules, kv.Key.name, itemType, hash))
+  |> List.ofSeq
+
+
 /// What `Darklang.<modules>.<name>` of this kind binds to on main, CACHED.
 ///
 /// Through `Caching.withCache`, which the fold clears, so this expires exactly when a rebinding
@@ -782,8 +855,13 @@ let private resolveKernelTypeByName
   try
     let modulesStr = String.concat "." modules
 
+    // The branch first, then main. A branch that has authored this name is the thing you are
+    // standing on, and it is the whole reason F# on a git branch can reference package code
+    // authored on a dark branch.
     let candidateHash =
-      (kernelHashByName ("type", modulesStr, name) |> Ply.toTask).Result
+      match overlayTypeBinding modules name with
+      | Some h -> Some h
+      | None -> (kernelHashByName ("type", modulesStr, name) |> Ply.toTask).Result
 
     match candidateHash with
     | None -> None
@@ -985,3 +1063,9 @@ let selectBranch (branchId : PT.BranchId) : unit =
   else
     branchOverlayOps <- (Branches.loadDeltaOps branchId).Result
     currentBranchIdOpt <- Some branchId
+
+  // Moving branches changes what a NAME resolves to, and every cache here answers a question about
+  // a name. A one-shot `dark` selects its branch before resolving anything and never notices; a
+  // process that outlives a switch -- the LSP, the REPL, a daemon -- would otherwise answer for the
+  // branch it started on, forever.
+  Caching.invalidateAll ()

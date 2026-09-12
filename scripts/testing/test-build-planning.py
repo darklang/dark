@@ -153,19 +153,22 @@ class TestExpand(unittest.TestCase):
     with Env(CI=None, DARK_CONFIG_PACKAGES_SOURCE="disk"):
       self.assertEqual(
         self.expand("backend/src/LibDB/Queries.fs"),
-        ["backend_quick_build", "run_migrations", "reload_all_packages"])
+        ["backend_quick_build", "run_migrations", "reload_all_packages", "check_refs"])
     with Env(CI="true", DARK_CONFIG_PACKAGES_SOURCE="disk"):
       self.assertEqual(
         self.expand("backend/src/LibDB/Queries.fs"),
-        ["backend_full_build", "run_migrations", "reload_all_packages"])
+        ["backend_full_build", "run_migrations", "reload_all_packages", "check_refs"])
 
   def test_fsharp_change_stops_at_migrations_from_seed(self):
     # Half the cost of an F# change today is a package reload that usually did not need to
     # happen. In seed mode it does not happen at all.
+    #
+    # `check_refs` still does, and has to: an F# change can add or move a kernel ref, and in
+    # seed mode there is no reload to notice that the store cannot answer for it.
     with Env(CI=None, DARK_CONFIG_PACKAGES_SOURCE="seed"):
       self.assertEqual(
         self.expand("backend/src/LibDB/Queries.fs"),
-        ["backend_quick_build", "run_migrations"])
+        ["backend_quick_build", "run_migrations", "check_refs"])
 
   def test_full_build_replaces_the_quick_one(self):
     actions = self.expand("backend/src/LibDB/LibDB.fsproj")

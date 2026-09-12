@@ -91,7 +91,16 @@ let generate () : Ply<unit> =
         let hash = read.string "item_hash"
         (buildKey itemType modules name, hash))
 
-    let dbMap = dbRows |> Map.ofList
+    // The branch's bindings go OVER main's. `locations` is main's projection, so without this a
+    // hash file generated while standing on a branch describes main and silently omits the very
+    // items the branch exists to add -- which is exactly the case where the file matters, because
+    // it is what lets somebody else build the F# that references them.
+    let dbMap =
+      PackageManager.overlayDarklangBindings ()
+      |> List.fold
+        (fun acc (modules, name, itemType, hash) ->
+          Map.add (buildKey itemType modules name) hash acc)
+        (dbRows |> Map.ofList)
 
     // Preserves entries not found in the DB (e.g. RT types that share hashes with PT types and aren't in
     // locations), and, via `existingKeys` above, refs this process never registered.

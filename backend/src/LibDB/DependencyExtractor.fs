@@ -43,9 +43,19 @@ type private Work =
   | MatchCase of PT.MatchCase
   | PipeExpr of PT.PipeExpr
 
-let private extract (roots : List<Work>) : List<Dependency> =
+/// A BUILTIN this item's body calls. Not a `Dependency`: a builtin is not content-addressed, it is
+/// a (name, version) in whatever kernel you are running, so there is no hash to depend ON.
+///
+/// Collected by the same walk, because walking the AST twice to ask two questions about the same
+/// nodes is how the two answers drift apart.
+type BuiltinDependency = { name : string; version : int }
+
+let private extract
+  (roots : List<Work>)
+  : List<Dependency> * List<BuiltinDependency> =
   let work = System.Collections.Generic.Stack<Work>()
   let mutable dependencies : List<Dependency> = []
+  let mutable builtins : List<BuiltinDependency> = []
 
   let pushInOrder (items : List<Work>) : unit =
     items |> List.rev |> List.iter work.Push
@@ -236,6 +246,17 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.EFnName(_, nr) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
 
+        // `fnPackageHash` answers `None` for a builtin, so the package walk drops it. This is the
+        // only place the call is visible, and it is what a store needs to be able to say which
+        // kernel it requires.
+        match nr.resolved with
+        | Ok resolved ->
+          match resolved.name with
+          | PT.FQFnName.Builtin b ->
+            builtins <- { name = b.name; version = b.version } :: builtins
+          | PT.FQFnName.Package _ -> ()
+        | Error _ -> ()
+
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
 
       | PT.EInfix(_, _, lhs, rhs) ->
@@ -265,11 +286,11 @@ let private extract (roots : List<Work>) : List<Dependency> =
         work.Push(Expr next)
         work.Push(Expr first)
 
-  List.rev dependencies
+  (List.rev dependencies, List.rev builtins |> List.distinct)
 
 
 /// Extract all references from an expression without recursive stack use.
-let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
+let extractFromExpr (expr : PT.Expr) : List<Dependency> = fst (extract [ Expr expr ])
 
 
 /// Extract all references from a function definition
@@ -282,6 +303,7 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
         |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
+  |> fst
   |> List.distinct
 
 
@@ -294,12 +316,13 @@ let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
      |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
+  |> fst
   |> List.distinct
 
 
 /// Extract all references from a value definition
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
-  extract [ Expr value.body ] |> List.distinct
+  extract [ Expr value.body ] |> fst |> List.distinct
 
 
 /// Extract all references from a type definition
@@ -315,4 +338,18 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
       |> List.collect (fun case ->
         case.fields |> List.map (fun field -> TypeRef field.typ))
 
-  extract roots |> List.distinct
+  extract roots |> fst |> List.distinct
+
+
+/// The BUILTINS a function's body calls. Values and types cannot call one -- a type declaration has
+/// no body, and a value's is evaluated through the same walk, so this is the fn entry point only
+/// until that stops being true.
+let builtinsInFn (fn : PT.PackageFn.PackageFn) : List<BuiltinDependency> =
+  snd (extract [ Expr fn.body ])
+
+
+/// The BUILTINS a value's body calls. A `val` body is an expression like any other.
+let builtinsInValue
+  (value : PT.PackageValue.PackageValue)
+  : List<BuiltinDependency> =
+  snd (extract [ Expr value.body ])

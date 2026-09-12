@@ -208,6 +208,35 @@ let private byNameEnabled : Lazy<bool> =
 
 let private currentStoreGeneration () : int = storeGeneration
 
+/// Can this ref be resolved right now, from the store or the pin, WITHOUT raising?
+///
+/// The ref closures are lazy, so an unresolvable ref is found whenever some code path happens to
+/// reach it -- which can be much later than the build, in a command unrelated to whatever made it
+/// unresolvable. This is the same lookup with the raise removed, so a caller can ask about every
+/// ref at once and answer the real question: does this kernel agree with this package set?
+let tryResolve
+  (kind : string)
+  (modules : string list)
+  (name : string)
+  : Option<string> =
+  let fromStore =
+    if byNameEnabled.Force() then
+      match kind with
+      | "fn" -> resolveFnByName modules name
+      | "type" -> resolveTypeByName modules name
+      | _ -> None
+    else
+      None
+
+  match fromStore with
+  | Some hash -> Some hash
+  | None ->
+    let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
+    match getHashes () |> Map.tryFind fqn with
+    | Some hash when hash <> "" -> Some hash
+    | _ -> None
+
+
 /// Shared body of `Type.p` and `Fn.p`: a closure resolving `<kind>/<modules>.<name>`
 /// against the hash file. Resolution is cached once per hash generation: the answer
 /// cannot change while the generation is stable, and resolving per call costs an
@@ -276,11 +305,26 @@ let private makeRef
           if Map.isEmpty h then
             "" // Hash file not yet populated (CI before reload-packages)
           else
-            // A non-empty file missing this ref is stale: a ref was added, or an older
-            // binary regenerated it in place (`growIfNeeded` rewrites it).
+            // Neither the store nor the pin has it, and for a type there is nothing to degrade
+            // to -- a value has to be tagged with something. So this raises, and the message has
+            // to carry the whole situation, because the person reading it is usually mid-way
+            // through exactly the workflow this arc exists to support: F# that names package code
+            // which has not arrived yet.
+            let dotted = $"""Darklang.{String.concat "." modules}.{name}"""
+
+            let message =
+              $"This build needs the {kind} `{dotted}`, and neither the package store nor "
+              + "`package-ref-hashes.txt` has it.\n"
+              + "  Authoring it yourself: author it on your branch, then "
+              + "`scripts/run-local-exec refs generate`.\n"
+              + "  Somebody else's, on a branch: `dark branch import <bundle>` then "
+              + "`dark switch <theirs>`.\n"
+              + "  Should be on main: your store is behind the kernel -- `dark pull`, or "
+              + "re-fetch the pinned package set."
+
             Exception.raiseInternal
-              $"PackageRefs: {kind} hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
-              [ "fqn", fqn ]
+              message
+              [ "fqn", fqn; "kind", kind; "name", dotted ]
 
 
 module Type =
@@ -710,3 +754,11 @@ let kernelHash () : string =
   |> sha.ComputeHash
   |> System.Convert.ToHexString
   |> fun s -> s.ToLowerInvariant().Substring(0, 16)
+
+/// Every ref the kernel declares, as (kind, modules, name). Populated at module init, so touching
+/// this forces the whole table into existence.
+let allRefs () : List<string * string list * string> =
+  let types =
+    Type._lookup |> Map.toList |> List.map (fun ((m, n), _) -> ("type", m, n))
+  let fns = Fn._lookup |> Map.toList |> List.map (fun ((m, n), _) -> ("fn", m, n))
+  types @ fns

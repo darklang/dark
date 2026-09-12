@@ -123,6 +123,120 @@ module HandleCommand =
         return Error $"Export failed: {ex.Message}"
     }
 
+  /// Stand on the branch this rundir is on, the way the CLI does before it runs anything.
+  ///
+  /// Not global to LocalExec: the fill path deliberately refills MAIN from disk, and doing that
+  /// while standing on a branch would be wrong. Only the commands that ask a question ABOUT the
+  /// current branch select it.
+  let selectStoredBranch () : Ply<unit> =
+    uply {
+      match! LibDB.BranchSelection.select None None with
+      | Ok selection ->
+        LibDB.PackageManager.selectBranch (
+          selection.branchId
+          |> Option.defaultValue LibExecution.ProgramTypes.BranchId.Main
+        )
+      | Error _ -> ()
+    }
+
+  /// Does this kernel agree with the package set in front of it?
+  ///
+  /// Direction one of the two-way interface: every name the kernel references has to resolve, in
+  /// the store as seen from the current branch or in the pin. Direction two -- every builtin the
+  /// package set calls existing in this kernel -- needs the store to record builtin edges, which
+  /// it does not yet.
+  ///
+  /// Asked all at once, and at BUILD time, because the ref closures are lazy: an unresolvable ref
+  /// is otherwise found whenever some code path happens to reach it, which can be a different day
+  /// and an unrelated command. The case this exists for is checking out somebody's git branch
+  /// without their package work: the F# in your tree names things your store has never heard of,
+  /// and you should be told that then, in one list, rather than one at a time by whatever runs
+  /// first.
+  let checkRefs () : Ply<Result<unit, string>> =
+    uply {
+      do! selectStoredBranch ()
+
+      let unresolved =
+        LibExecution.PackageRefs.allRefs ()
+        |> List.filter (fun (kind, modules, name) ->
+          LibExecution.PackageRefs.tryResolve kind modules name |> Option.isNone)
+
+      // Direction two: every builtin the package set calls has to exist in THIS kernel. Recorded
+      // by the fold in `package_builtin_deps`, which is what makes a store able to say which
+      // kernel it needs -- the check that used to answer this grepped `.dark` text off disk and
+      // stops being possible the day packages come from a seed.
+      let kernelBuiltins =
+        let b = Builtins.all ()
+        Set.union
+          (b.fns.Values
+           |> Seq.map (fun f -> (f.name.name, f.name.version))
+           |> Set.ofSeq)
+          (b.values.Values |> Seq.map (fun v -> (v.name.name, 0)) |> Set.ofSeq)
+
+      let! calledBuiltins =
+        Sql.query
+          "SELECT DISTINCT builtin_name, builtin_version FROM package_builtin_deps"
+        |> Sql.executeAsync (fun read ->
+          (read.string "builtin_name", read.int "builtin_version"))
+
+      let missingBuiltins =
+        calledBuiltins |> List.filter (fun b -> not (Set.contains b kernelBuiltins))
+
+      // An EMPTY table is not a pass. `package_builtin_deps` is a projection, so a store that got
+      // the table from a release step without re-folding has no rows, and the builtin half of the
+      // check would report success having asked nothing. Saying so is the difference between this
+      // check and one that quietly stops covering what it was written for.
+      if List.isEmpty calledBuiltins then
+        return
+          Error(
+            "this store records no builtin calls at all, so the builtin half of this check asked "
+            + "nothing. `package_builtin_deps` is a projection: re-fold the log to fill it "
+            + "(`scripts/build/reload-packages`, or any migration that drops projections)."
+          )
+      elif List.isEmpty unresolved && List.isEmpty missingBuiltins then
+        let n = List.length (LibExecution.PackageRefs.allRefs ())
+        print (
+          $"All {n} kernel refs resolve, and all {List.length calledBuiltins} builtins this "
+          + "package set calls exist in this kernel."
+        )
+        return Ok()
+      elif List.isEmpty unresolved then
+        let lines =
+          missingBuiltins
+          |> List.sort
+          |> List.map (fun (n, v) -> $"  Builtin.{n} (v{v})")
+          |> String.concat "\n"
+
+        return
+          Error(
+            $"this package set calls {List.length missingBuiltins} builtin(s) this kernel does "
+            + $"not have:\n{lines}\n\nA builtin was removed or renamed out from under package "
+            + "code that calls it. Land the package change that stops calling it, move the pin "
+            + "forward, and only then remove the builtin."
+          )
+      else
+        let lines =
+          unresolved
+          |> List.sortBy (fun (kind, m, n) -> (kind, m, n))
+          |> List.map (fun (kind, modules, name) ->
+            $"""  {kind} Darklang.{String.concat "." modules}.{name}""")
+          |> String.concat
+            "
+"
+
+        return
+          Error(
+            $"{List.length unresolved} kernel ref(s) do not resolve against this package set:
+"
+            + lines
+            + "
+
+This kernel and this package set do not agree. Usually that means the F# in "
+            + "your tree names package code your store does not have: import the branch bundle "
+            + "that goes with it, or move to the branch that has it."
+          )
+    }
+
   /// Write `package-ref-hashes.txt` from whatever store this rundir has.
   ///
   /// The kernel's entry points are pinned BY HASH, so a binary needs that file before it can resolve
@@ -132,6 +246,7 @@ module HandleCommand =
   let generateRefs () : Ply<Result<unit, string>> =
     uply {
       try
+        do! selectStoredBranch ()
         do! LibDB.PackageRefsGenerator.generate ()
         LibExecution.PackageRefs.reloadHashes ()
         return Ok()
@@ -213,6 +328,11 @@ let main (args : string[]) : int =
         $"Exporting seed at {commit} to {outputPath}"
         (HandleCommand.exportSeed outputPath (Some commit))
 
+    | [ "refs"; "check" ] ->
+      handleCommand
+        "checking the kernel's refs against this package set"
+        (HandleCommand.checkRefs ())
+
     | [ "refs"; "generate" ] ->
       handleCommand
         "writing package-ref-hashes.txt from this store"
@@ -241,6 +361,7 @@ let main (args : string[]) : int =
       print "  migrations list"
       print "  export-seed <output-path> [commit]"
       print "  refs generate"
+      print "  refs check"
       print "  pm-sweep-blobs"
       print "  bench"
       print "  bench-render"
