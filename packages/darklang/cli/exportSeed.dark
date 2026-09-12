@@ -8,7 +8,7 @@ let execute (state: AppState) (args: List<String>): AppState =
     Stdlib.printLine (help state)
     state
   | [outputPath] ->
-    match Builtin.pmSeedExport outputPath with
+    match Stdlib.LocalStore.seedTo outputPath (Stdlib.Option.Option.None) with
     | Ok _ ->
       Stdlib.printLine $"Seed exported to {outputPath}"
       state

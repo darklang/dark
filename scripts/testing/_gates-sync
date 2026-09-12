@@ -192,8 +192,52 @@ gate_server_folds() {
     fail "$draftable hosted op(s) look like this store's draft; a discard would delete them"
   fi
 
+  # Folded is not the same as RUN. A `val` body is guest code; folding it writes a projection row
+  # and executes nothing, and on a server that distinction is the difference between holding
+  # somebody's code and running it. Nothing else in the suite can ask this: it needs a real push
+  # from another store, and then a RESTART, because the startup grow is what would evaluate it.
+  cli val 'Tests.ServerFolds.hosted' '7L' > /dev/null 2>&1
+  cli commit "server-folds hosted val" -y > /dev/null 2>&1
+  cli push "http://localhost:$PORT" > /dev/null 2>&1
+
+  val_rows=$(sqlite3 "$WORK/server/data.db" \
+    "SELECT count(*) FROM locations WHERE name = 'hosted' AND modules LIKE '%ServerFolds%';")
+  [[ "$val_rows" == "1" ]] || fail "the pushed val did not fold into the server's projection"
+
+  unevaluated() {
+    sqlite3 "$WORK/server/data.db" \
+      "SELECT count(*) FROM package_values pv
+       JOIN locations l ON l.item_hash = pv.hash
+       WHERE l.name = 'hosted' AND l.modules LIKE '%ServerFolds%' AND pv.rt_dval IS NULL;" \
+      2>/dev/null || echo -1
+  }
+
+  if [[ "$(unevaluated)" == "1" ]]; then
+    echo "  ok   a pushed val is folded but not evaluated by the push"
+  else
+    fail "the push evaluated a pushed val's body"
+  fi
+
+  kill $SRV 2>/dev/null || true
+  wait $SRV 2>/dev/null || true
+  env DARK_CONFIG_RUNDIR="$PWD/$WORK/server/" HOME="$PWD/$WORK/server" \
+    DARK_MATTER_WRITE_SECRET="$SECRET" \
+    "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
+    >> "$WORK/server/serve.log" 2>&1 &
+  SRV=$!
+  for _ in $(seq 1 40); do
+    [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && break
+    sleep 1
+  done
+
+  if [[ "$(unevaluated)" == "1" ]]; then
+    echo "  ok   and a restart does not evaluate it either"
+  else
+    fail "the startup grow evaluated a pushed val's body"
+  fi
+
   [[ "$failures" == "0" ]] || exit 1
-  echo "server-folds: a push reaches the server's projection, and stays out of its draft."
+  echo "server-folds: a push reaches the server's projection, stays out of its draft, and is never run."
 }
 
 gate_relay_routes() {
@@ -785,4 +829,189 @@ gate_sync_multi_instance() {
   echo
   echo "passed: $pass   failed: $fail"
   [[ "$fail" -eq 0 ]]
+}
+
+# --- seeds: the store as a file, cut at a commit ------------------------------------------------
+# Crosses a process AND a machine boundary: a real server on a port cuts a seed from its own store,
+# a client fetches it over HTTP and becomes a store from it. Nothing in-process can answer the
+# question, which is whether what CI fetches is fixed by the COMMIT it names rather than by when it
+# asked. That is the property a pin rests on, so it is tested by moving the store underneath and
+# asking again.
+gate_seed_serving() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/seed-serving-test
+  PORT=${PORT:-9094}
+  SECRET='seed-serving-secret'
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK/server/logs" "$WORK/client/logs" "$WORK/fresh" "$WORK/fresh2"
+  scripts/testing/_copy-store "$WORK/server/data.db"
+  scripts/testing/_copy-store "$WORK/client/data.db"
+
+  cli() { env DARK_CONFIG_RUNDIR="$PWD/$WORK/client/" HOME="$PWD/$WORK/client" "$PWD/$CLI" "$@"; }
+
+  DARK_CONFIG_RUNDIR="$PWD/$WORK/server" relay_grants "$PWD/$CLI" "$PORT"
+  # Cutting a seed WRITES a file and opens SQLite on it, so the server needs those two beyond what
+  # `relay_grants` gives a read-only relay. Scoped to its own rundir: the cache lives beside the store.
+  DARK_CONFIG_RUNDIR="$PWD/$WORK/server" "$PWD/$CLI" permissions allow file read+write "$PWD/$WORK/server" > /dev/null 2>&1
+  DARK_CONFIG_RUNDIR="$PWD/$WORK/server" "$PWD/$CLI" permissions allow native > /dev/null 2>&1
+  cli permissions allow package-write > /dev/null 2>&1
+
+  env DARK_CONFIG_RUNDIR="$PWD/$WORK/server/" HOME="$PWD/$WORK/server" \
+    DARK_MATTER_WRITE_SECRET="$SECRET" \
+    "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
+    > "$WORK/server/serve.log" 2>&1 &
+  SRV=$!
+  trap 'kill $SRV 2>/dev/null' EXIT
+
+  up=false
+  for _ in $(seq 1 40); do
+    [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && { up=true; break; }
+    sleep 1
+  done
+  [[ "$up" == "true" ]] || {
+    echo "the server never came up on $PORT (see $WORK/server/serve.log)" >&2
+    exit 2
+  }
+
+  U="http://localhost:$PORT"
+  failures=0
+  fail() { echo "  FAIL $1" >&2; failures=$((failures + 1)); }
+
+  # `/seed/meta` exists so a pin can be CHECKED without downloading the seed. If it needed the
+  # seed to answer, every "has anything moved?" would cost twelve megabytes.
+  meta=$(curl -s --max-time 15 "$U/seed/meta")
+  field() { printf '%s' "$meta" | sed -n "s/.*\"$1\":\"\\?\\([^,\"}]*\\).*/\\1/p"; }
+  HEAD1=$(field head)
+  [[ -n "$HEAD1" ]] || fail "/seed/meta named no head commit: $meta"
+  [[ "$(field format)" == "1" ]] || fail "/seed/meta reported format $(field format), not 1"
+  [[ "$(field ops)" -gt 0 ]] || fail "/seed/meta reported no ops: $meta"
+  echo "  ok   /seed/meta answers without cutting a seed ($(field ops) ops at ${HEAD1:0:8})"
+
+  fetch() {  # fetch <rundir> <commit|latest>
+    local dir="$1" commit="$2" args=()
+    [[ "$commit" == "latest" ]] || args=(--commit "$commit")
+    env DARK_CONFIG_RUNDIR="$PWD/$dir/" scripts/fetch-seed --url "$U" "${args[@]}" --force \
+      > "$WORK/fetch.log" 2>&1 \
+      || { echo "  FAIL the fetch at $commit failed; the server said:" >&2
+           curl -s --max-time 60 "$U/seed/$commit.db" | head -c 400 >&2; echo >&2; return 1; }
+  }
+  ops_in() { sqlite3 "$1" "SELECT count(*) FROM package_ops;" 2>/dev/null || echo -1; }
+
+  fetch "$WORK/fresh" "$HEAD1"
+  SEED1="$WORK/fresh/seed.db"
+  [[ -f "$SEED1" ]] || { echo "the fetch produced no seed (see above)" >&2; exit 2; }
+
+  # A seed is ONE file. Served in WAL mode, the `.db` alone is not the whole database, so whether a
+  # fetch got everything would depend on when a checkpoint happened to run.
+  if [[ -f "$SEED1-wal" ]]; then
+    fail "the served seed came with a -wal, so the file is not the whole database"
+  else
+    echo "  ok   the served seed is a single settled file"
+  fi
+
+  cut_at=$(sqlite3 "$SEED1" "SELECT value FROM store_meta WHERE key = 'cut_at';" 2>/dev/null || echo "")
+  if [[ "$cut_at" == "$HEAD1" ]]; then
+    echo "  ok   and it says which commit it is a cut of"
+  else
+    fail "the seed says it was cut at '$cut_at', but it was asked for $HEAD1"
+  fi
+
+  N1=$(ops_in "$SEED1")
+
+  # The seed has to be a usable STORE, not just a well-formed file: a fresh install folds it and
+  # then resolves names out of it. This is the whole point of serving one.
+  env DARK_CONFIG_RUNDIR="$PWD/$WORK/fresh/" HOME="$PWD/$WORK/fresh" \
+    "$PWD/$CLI" permissions allow package-read > /dev/null 2>&1 || true
+  got=$(env DARK_CONFIG_RUNDIR="$PWD/$WORK/fresh/" HOME="$PWD/$WORK/fresh" \
+    "$PWD/$CLI" eval '(Stdlib.List.length [1L, 2L, 3L]) |> Stdlib.Int64.toString' 2>&1 | tail -1 || true)
+  if [[ "$got" == *3* ]]; then
+    echo "  ok   a store grown from the fetched seed resolves names and evaluates"
+  else
+    fail "a store grown from the fetched seed could not evaluate: $got"
+  fi
+
+  # Now move the server's store underneath the pin, by pushing new work to it.
+  cli fn 'Tests.SeedServing.after' '() : String = "afterthepin"' > /dev/null 2>&1
+  cli commit "seed-serving gate" -y > /dev/null 2>&1
+  cli connect "$U" --secret "$SECRET" > /dev/null 2>&1
+  cli push "$U" > /dev/null 2>&1
+
+  HEAD2=$(curl -s --max-time 15 "$U/seed/meta" | sed -n 's/.*"head":"\([^"]*\)".*/\1/p' || true)
+  if [[ -n "$HEAD2" && "$HEAD2" != "$HEAD1" ]]; then
+    echo "  ok   the push moved the server's head (${HEAD1:0:8} -> ${HEAD2:0:8})"
+  else
+    fail "the push did not move the server's head, so the rest of this gate proves nothing"
+    exit 1
+  fi
+
+  # The cache is deleted first, so the cut is RECOMPUTED against a store that has moved. Served
+  # from cache the next assertion would pass for the wrong reason.
+  rm -rf "$WORK/server/seeds"
+
+  fetch "$WORK/fresh2" "$HEAD1"
+  SEED2="$WORK/fresh2/seed.db"
+  N2=$(ops_in "$SEED2")
+  if [[ "$N2" == "$N1" ]]; then
+    echo "  ok   re-cut at the same commit after the push: same $N1 ops"
+  else
+    fail "the same commit cut $N1 ops before the push and $N2 after; a pin is not reproducible"
+  fi
+
+  has_commit=$(sqlite3 "$SEED2" "SELECT count(*) FROM commits WHERE hash = '$HEAD2';" 2>/dev/null || echo -1)
+  if [[ "$has_commit" == "0" ]]; then
+    echo "  ok   and it does not carry work committed after it"
+  else
+    fail "a seed cut at $HEAD1 carries the later commit $HEAD2"
+  fi
+
+  fetch "$WORK/fresh2" latest
+  N3=$(ops_in "$SEED2")
+  if [[ "$N3" -gt "$N1" ]]; then
+    echo "  ok   /seed/latest.db moves with the store ($N1 -> $N3 ops)"
+  else
+    fail "/seed/latest.db still cuts $N3 ops after a push that added some"
+  fi
+
+  # The PIN, end to end, against a scratch copy of `package-set.txt` so the tree's own is untouched.
+  # This is the closest thing to a test of 8.C there can be from here: the real path runs against a
+  # deployed server, and nothing deploys from this clone.
+  cp package-set.txt "$WORK/package-set.txt"
+  export DARK_PACKAGE_SET="$PWD/$WORK/package-set.txt"
+
+  if scripts/packages/pin head --url "$U" > "$WORK/pin.log" 2>&1; then
+    pinned=$(awk '$1 == "commit" { print $2 }' "$DARK_PACKAGE_SET")
+    if [[ "$pinned" == "$HEAD2" ]]; then
+      echo "  ok   \`pin head\` records the server's head, checked before writing it"
+    else
+      fail "pin wrote '$pinned', but the server's head is $HEAD2"
+    fi
+  else
+    fail "pin head failed: $(cat "$WORK/pin.log")"
+  fi
+
+  # A commit the server does not have is refused AT PIN TIME. Without this the pin is only
+  # discovered to be wrong at the next CI run, by which time nobody is looking.
+  if scripts/packages/pin 0000000000000000 --url "$U" > "$WORK/pin.log" 2>&1; then
+    fail "pin accepted a commit the server does not have"
+  else
+    echo "  ok   and refuses a commit the server does not have"
+  fi
+
+  # With a pin in place, a fetch that names no commit takes the PIN rather than the head. That is
+  # the whole behaviour CI depends on.
+  scripts/packages/pin "$HEAD1" --url "$U" > "$WORK/pin.log" 2>&1 || fail "could not pin back to $HEAD1"
+  rm -f "$WORK/fresh2/seed.db"
+  fetch "$WORK/fresh2" latest
+  if [[ "$(ops_in "$SEED2")" == "$N1" ]]; then
+    echo "  ok   and a fetch with no commit follows the pin, not the head"
+  else
+    fail "a pinned fetch got $(ops_in "$SEED2") ops; the pin at ${HEAD1:0:8} has $N1"
+  fi
+  unset DARK_PACKAGE_SET
+
+  [[ "$failures" == "0" ]] || exit 1
+  echo "seed-serving: a seed is fixed by the commit it names, follows the pin, and grows into a working store."
 }

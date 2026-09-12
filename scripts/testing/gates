@@ -24,6 +24,7 @@ GATES=(
   setup
   relay-routes
   server-folds
+  seed-serving
   sync-hostile-relay
   sync-multi-instance
   lsp-branches
@@ -38,14 +39,15 @@ GATES=(
 # What CI runs, in one config line: the three gates it has always run, the ones that need only
 # the debug build already in backend/Build. first-day wants a published artifact and the sync
 # gates add minutes; those run locally, by name or via `all`.
-CI_GATES=(relay-routes server-folds workbench-scm workbench-views)
+CI_GATES=(relay-routes server-folds seed-serving workbench-scm workbench-views)
 
 describe() {
   # shellcheck disable=SC2016  # the backticks are prose, not expansion
   case "$1" in
     setup)                  echo '`dark sync setup`, end to end, own rundir' ;;
     relay-routes)           echo "the relay's HTTP surface, given bad input" ;;
-    server-folds)           echo "a push reaches the server's projection, and stays out of its draft" ;;
+    server-folds)           echo "a push folds into the server's projection, and is never run there" ;;
+    seed-serving)           echo 'a seed cut at a commit, fetched over HTTP, grown into a store' ;;
     sync-hostile-relay)     echo 'the sync/branch CLIENTS, given a relay that lies' ;;
     sync-multi-instance)    echo 'four instances, branches, review queues, agents' ;;
     lsp-branches)           echo 'the `dark/*` branch surface, as an editor drives it' ;;

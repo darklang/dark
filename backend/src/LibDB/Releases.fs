@@ -249,6 +249,50 @@ let steps : List<Step> =
     ]
 
 
+/// The format the store says it was written in, if it says.
+///
+/// Absent means a store older than the stamp, which is every store built before seeds carried one.
+/// That is not an error: it predates the field, and its ops are format 1 by construction.
+let storedFormat () : Option<uint32> =
+  if not (tableExists "store_meta") then
+    None
+  else
+    Sql.query "SELECT value FROM store_meta WHERE key = 'format'"
+    |> Sql.execute (fun read -> read.string "value")
+    |> Result.unwrap
+    |> List.tryHead
+    |> Option.bind (fun v ->
+      match System.UInt32.TryParse v with
+      | true, n -> Some n
+      | false, _ -> None)
+
+
+/// Refuse a store written by a NEWER build's format, and stamp one that carries no format yet.
+///
+/// The asymmetry is the point. A store BEHIND this build is the migrator's job (it can read an old
+/// layout, because every historical reader stays in the binary). A store AHEAD of it is not
+/// recoverable by reading harder: the layout is one this binary has never seen, and guessing at it
+/// corrupts the only copy of the ops.
+let private checkFormat () : unit =
+  match storedFormat () with
+  | Some n when n > LibSerialization.Binary.BaseFormat.CurrentVersion ->
+    Exception.raiseInternal
+      "this store was written by a newer Darklang than this one and cannot be read safely"
+      [ "store format", string n
+        "this build reads", string LibSerialization.Binary.BaseFormat.CurrentVersion ]
+  | _ ->
+    // Stamp it, so from here every store says what it is. `INSERT OR REPLACE` rather than a
+    // conditional: the value is the same whether the row was missing or already right.
+    Sql.query
+      "CREATE TABLE IF NOT EXISTS store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    |> Sql.executeStatementSync
+
+    Sql.query "INSERT OR REPLACE INTO store_meta (key, value) VALUES ('format', @v)"
+    |> Sql.parameters
+      [ "v", Sql.string (string LibSerialization.Binary.BaseFormat.CurrentVersion) ]
+    |> Sql.executeStatementSync
+
+
 let private alreadyRun () : Set<string> =
   if not (tableExists "system_migrations_v0") then
     Set.empty
@@ -323,6 +367,8 @@ let applySchemaIndexes (schemaSql : string) : unit =
 /// makes it safe to run against a store of any age, so a new step that skips those has nothing
 /// checking it.
 let runPending () : unit =
+  checkFormat ()
+
   // A step's name is its identity in `system_migrations_v0`, so two steps sharing one would run as
   // one and record as one, silently. Refused here, where every store passes on startup, because no
   // test constructs this list.

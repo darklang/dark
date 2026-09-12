@@ -72,6 +72,48 @@ let count () : Int64 =
   |> Stdlib.Option.withDefault 0L
 
 
+/// What a seed cut at <param commitHash> would carry: (ops, commits). `None` when no commit here
+/// has that hash.
+///
+/// The same ancestry walk `LibDB.Seed.exportAt` cuts with, and the same exclusion of branch ops, so
+/// the numbers match what a fetch actually gets. Exists so a pin can be CHECKED without cutting one:
+/// the answer is two counts, and the seed is twelve megabytes.
+let seedShapeAt (commitHash: String) : Stdlib.Option.Option<(Int64 * Int64)> =
+  let sql =
+    "WITH RECURSIVE ancestry(h) AS (
+       SELECT hash FROM commits WHERE hash = @p0
+       UNION
+       SELECT c.parent FROM commits c JOIN ancestry a ON c.hash = a.h WHERE c.parent <> ''
+     )
+     SELECT
+       (SELECT count(*) FROM package_ops
+         WHERE commit_hash IN (SELECT h FROM ancestry)
+           AND id NOT IN (SELECT op_id FROM op_branches)) AS ops,
+       (SELECT count(*) FROM ancestry) AS commits"
+
+  match Stdlib.Sqlite.queryOneP (localDb ()) sql [ commitHash ] with
+  | None -> Stdlib.Option.Option.None
+  | Some row ->
+    match (Stdlib.Sqlite.intField row "ops", Stdlib.Sqlite.intField row "commits") with
+    // A hash nobody here has gives an empty ancestry, so zero commits. That is "not found", not a
+    // seed with nothing in it.
+    | (Some _, Some 0L) -> Stdlib.Option.Option.None
+    | (Some ops, Some commits) -> Stdlib.Option.Option.Some((ops, commits))
+    | _ -> Stdlib.Option.Option.None
+
+
+/// How many ops are COMMITTED on main, which is what a seed cut from here carries.
+///
+/// Not <fn count>: that counts the draft and every branch's delta too, and a seed carries neither.
+let committedCountOnMain () : Int64 =
+  Stdlib.Sqlite.scalarInt
+    (localDb ())
+    "SELECT count(*) AS n FROM package_ops
+     WHERE commit_hash IS NOT NULL AND id NOT IN (SELECT op_id FROM op_branches)"
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
 /// Which ops a branch can SEE: main's log, plus that branch's own delta ops. Another branch's ops are in
 /// the same table but invisible from here -- that isolation is the point of the overlay.
 ///

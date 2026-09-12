@@ -2,11 +2,16 @@
 ///
 /// Run with: `dark serve Darklang.Matter.router --port 8080`
 ///
-/// A relay is a DUMB store-and-forward for the op log: it holds ops and hands them back
-/// out; it never folds or resolves them, so it never runs anyone's code. A client that
-/// pulls for review sees every op before it lands, so the worst a relay can do is
-/// withhold one. It reuses the SCM.Wire codec, so the relay's own store IS an op log like
-/// any instance's.
+/// The server holds the op log and hands it back out: `/sync/pull` pages it, `/seed/*.db` cuts
+/// it as a file. It reuses the SCM.Wire codec, so the server's own store IS an op log like any
+/// instance's.
+///
+/// It also FOLDS what is pushed to it, into main, like any other instance. That is what makes
+/// `/m`, `/p` and the seed routes show hosted packages rather than only what this binary shipped
+/// with. It is also a deferred decision, not a settled one: names bind last-writer-wins over the
+/// whole store, `Darklang.Matter.router` among them, so anyone who can push here can change what
+/// this server resolves. The write secret is the only thing standing in front of that. See
+/// `LibDB.Inserts` for what the old `effective = 0` defended and why it went.
 ///
 /// `handlers`, near the bottom, is the route table.
 module Darklang.Matter
@@ -303,9 +308,9 @@ let ownersHandlerFn (_req: HttpRequest) : HttpResponse =
 
   page
     "Publishers"
-    ("<h1>Publishers</h1><p class=\"lede\">Who owns the packages this relay serves. Code pushed here by "
-     ++ "other machines is held and handed back on request, but it is not folded into what the relay runs, "
-     ++ "so it does not appear here. <a href=\"/stats\">Why</a>.</p>"
+    ("<h1>Publishers</h1><p class=\"lede\">Who owns the packages this server serves. Code pushed here "
+     ++ "is folded into main like anywhere else, so it shows up here as soon as it arrives. "
+     ++ "<a href=\"/stats\">What that means</a>.</p>"
      ++ $"<div class=\"grid\">{rows}</div>")
 
 
@@ -334,13 +339,12 @@ let statsHandlerFn (_req: HttpRequest) : HttpResponse =
      ++ $"<div class=\"stat\">{opsStat}{fnStat}{typeStat}{valueStat}{edgeStat}</div>"
      ++ "<h2>Two numbers, two different things</h2>"
      ++ "<p class=\"lede\">The op count is everything anyone has ever pushed here. The function, type and "
-     ++ "value counts are smaller and mean something else: they are what this relay itself RUNS and can "
-     ++ "therefore show you source for.</p>"
-     ++ "<p class=\"lede\">A relay stores what you push without folding it into its own package set. That "
-     ++ "is deliberate, and it is the whole reason a relay is safe to point a machine at: pushing code here "
-     ++ "cannot change what this server runs, so nobody can push a new version of the relay to the relay. "
-     ++ "The cost is that hosted code is held, served back to whoever pulls it, and not browsable on these "
-     ++ "pages. What you can browse here is the package set this build ships with.</p>"
+     ++ "value counts are smaller and mean something else: they are what is LIVE, the latest version of "
+     ++ "each name rather than every version of it.</p>"
+     ++ "<p class=\"lede\">Pushed code is folded into main here, the same as on your own machine, which "
+     ++ "is why you can browse it on these pages and fetch it as a seed. It also means a push can rebind "
+     ++ "a name this server itself resolves, including this page. Who may bind what is not answered yet; "
+     ++ "for now the write secret is the whole of the answer, so treat push access as trust.</p>"
      ++ "<h2>What an op is</h2>"
      ++ "<p class=\"lede\">One recorded change: publishing a function, moving a name, deprecating "
      ++ "something. Every version of everything is still here, which is why the op count runs so far ahead "
@@ -362,7 +366,10 @@ val handlers =
     post "/branch/push" Darklang.Matter.Relay.branchPushHandlerFn
     get "/branch/pull" Darklang.Matter.Relay.branchPullHandlerFn
     get "/branch/list" Darklang.Matter.Relay.branchListHandlerFn
-    get "/branch/owners" Darklang.Matter.Relay.branchOwnersHandlerFn ]
+    get "/branch/owners" Darklang.Matter.Relay.branchOwnersHandlerFn
+    // Before the `/seed/:file` route below it, which would otherwise swallow `meta` as a filename.
+    get "/seed/meta" Darklang.Matter.Relay.seedMetaHandlerFn
+    get Darklang.Matter.Relay.seedRoute Darklang.Matter.Relay.seedHandlerFn ]
 
 /// One server, two audiences.
 ///

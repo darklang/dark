@@ -109,15 +109,34 @@ module HandleCommand =
         return Error $"Migration failed: {ex.Message}"
     }
 
-  let exportSeed (outputPath : string) : Ply<Result<unit, string>> =
+  let exportSeed
+    (outputPath : string)
+    (upToCommit : string option)
+    : Ply<Result<unit, string>> =
     uply {
       try
-        do! LibDB.Seed.export outputPath
+        do! LibDB.Seed.exportAt outputPath upToCommit
         let size = System.IO.FileInfo(outputPath).Length / 1024L / 1024L
         print $"Seed exported to {outputPath} ({size} MB)"
         return Ok()
       with ex ->
         return Error $"Export failed: {ex.Message}"
+    }
+
+  /// Write `package-ref-hashes.txt` from whatever store this rundir has.
+  ///
+  /// The kernel's entry points are pinned BY HASH, so a binary needs that file before it can resolve
+  /// anything. The fill path writes it as a side effect of reloading `packages/`; this is the same
+  /// step on its own, for a store that arrived as a SEED and has no `packages/` to reload. That is
+  /// the only thing standing between a fetch-at-pin build and a working binary.
+  let generateRefs () : Ply<Result<unit, string>> =
+    uply {
+      try
+        do! LibDB.PackageRefsGenerator.generate ()
+        LibExecution.PackageRefs.reloadHashes ()
+        return Ok()
+      with ex ->
+        return Error $"Generating package refs failed: {ex.Message}"
     }
 
   let listMigrations () : Ply<Result<unit, string>> =
@@ -183,7 +202,21 @@ let main (args : string[]) : int =
     | [ "export-seed"; outputPath ] ->
       handleCommand
         $"Exporting seed to {outputPath}"
-        (HandleCommand.exportSeed outputPath)
+        (HandleCommand.exportSeed outputPath None)
+
+    // Cut at a commit, so what a pin fetches is fixed by the commit rather than by when it asked:
+    // the same commit yields the same OPS however far the store has moved since, and ids are derived
+    // from op content, so two stores built from it agree. Not byte-identical -- the stamp records
+    // which build cut it and when -- and nothing needs it to be.
+    | [ "export-seed"; outputPath; commit ] ->
+      handleCommand
+        $"Exporting seed at {commit} to {outputPath}"
+        (HandleCommand.exportSeed outputPath (Some commit))
+
+    | [ "refs"; "generate" ] ->
+      handleCommand
+        "writing package-ref-hashes.txt from this store"
+        (HandleCommand.generateRefs ())
 
     | [ "pm-sweep-blobs" ] ->
       handleCommand
@@ -206,7 +239,8 @@ let main (args : string[]) : int =
       print "  reload-packages"
       print "  migrations run"
       print "  migrations list"
-      print "  export-seed <output-path>"
+      print "  export-seed <output-path> [commit]"
+      print "  refs generate"
       print "  pm-sweep-blobs"
       print "  bench"
       print "  bench-render"

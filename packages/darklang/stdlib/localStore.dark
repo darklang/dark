@@ -44,3 +44,21 @@ let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
 /// memory is still the OLD store, though, so the caller should say to restart.
 let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
   Builtin.localDbRestoreFrom path
+
+
+/// Cut a SEED of this store to <param path>: the op log and its commits, with every per-instance
+/// table stripped, so a fresh install that folds it agrees on every id.
+///
+/// <param upToCommit> narrows it to that commit and its ancestors, which is what makes a pinned
+/// fetch reproducible: the same commit yields the same OPS however far the store has moved since,
+/// and ids come from op content, so every store built from it agrees. `None` takes everything
+/// committed.
+///
+/// The file carries a `store_meta` stamp saying which commit it was cut at, which format its op
+/// blobs are in, and which build cut it. So a seed says what it is without anyone having to
+/// remember where it came from.
+let seedTo
+  (path: String)
+  (upToCommit: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmSeedExport path upToCommit
