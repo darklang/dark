@@ -819,6 +819,81 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
 /// interesting one: the name ends, the content does not, so callers go on working. That is only
 /// true because a reference points at content rather than at a name, which is the property worth
 /// a test rather than a comment.
+/// `grep` searches BODIES, which is the half `search` does not do. Scoped to one module on
+/// purpose: unscoped it renders every live item, and the point of the scope argument is that a
+/// test, like a person, usually knows roughly where to look.
+let grepFindsSourceAndNotJustNames =
+  instanceTest
+    "grep matches a function body, and reports name and line"
+    (fun state ->
+      task {
+        do! start state
+        // A string LITERAL, not a comment: grep reads rendered source, and the renderer prints
+        // the AST, which keeps `///` docs and drops `//` asides.
+        do! fn state "Tests.Grep.needle" "() : String = \"findmeplease\""
+        do! fn state "Tests.Grep.other" "() : String = \"something else\""
+        do! commit state "grep fixture"
+
+        do!
+          shows
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "Tests.Grep.needle:"
+            "the hit names the item"
+        do!
+          shows
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "findmeplease"
+            "and shows the matching line"
+        do!
+          lacks
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "Tests.Grep.other"
+            "an item whose body does not match is not reported"
+        do! discardAll state
+      })
+
+/// The cache is the feature, so the second run has to agree with the first. Keyed by content
+/// hash, which is why it never needs invalidating.
+let grepAgreesWithItselfOnceCached =
+  instanceTest "a second grep, reading the cache, finds the same thing" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.GrepTwice.f" "() : String = \"cachedtoken\""
+      do! commit state "grep cache fixture"
+
+      do!
+        shows
+          state
+          [ "grep"; "cachedtoken"; "Tests.GrepTwice" ]
+          "Tests.GrepTwice.f:"
+          "cold"
+      do!
+        shows
+          state
+          [ "grep"; "cachedtoken"; "Tests.GrepTwice" ]
+          "Tests.GrepTwice.f:"
+          "warm"
+      do! discardAll state
+    })
+
+/// A search tool you cannot trust a negative answer from is worse than none, so "no hits" and
+/// "could not read it" must not look alike.
+let grepSaysWhenItFindsNothing =
+  instanceTest "grep says so when nothing matches" (fun state ->
+    task {
+      do! start state
+      do!
+        shows
+          state
+          [ "grep"; "zzz-not-in-any-source-zzz"; "Darklang.Stdlib.Option" ]
+          "no live item's source contains"
+          "an honest empty answer"
+      do! shows state [ "grep" ] "usage: dark grep" "bare prints usage"
+    })
+
 let removeEndsTheNameAndLeavesTheCallersAlone =
   instanceTest "remove ends a name, and what called it still runs" (fun state ->
     task {
@@ -912,6 +987,9 @@ let tests : List<Test> =
     renameIsVisibleToEverythingThatReads
     removeEndsTheNameAndLeavesTheCallersAlone
     removeRefusesWhatIsNotThere
+    grepFindsSourceAndNotJustNames
+    grepAgreesWithItselfOnceCached
+    grepSaysWhenItFindsNothing
     aDocOnlyEditKeepsTheVersionAndStillLands
     aFieldsDocEditLands
     anEnumCasesDocEditLands

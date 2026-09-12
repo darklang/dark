@@ -31,6 +31,7 @@ module Registry =
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("grep", "Search the source of what is live (`search` looks at names)", [], Packages.Grep.execute, Packages.Grep.help, Packages.Grep.complete)
       ("search", "Search modules, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
       ("typecheck", "Audit package declarations without changing them", [], Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
       ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
@@ -198,7 +199,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "module", "edit", "rename", "remove", "hash", "db", "deprecate", "delete", "undeprecate" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "grep", "typecheck", "deps", "val", "fn", "type", "module", "edit", "rename", "remove", "hash", "db", "deprecate", "delete", "undeprecate" ])
       ("Changes",
        [ "status", "commit", "commits", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
