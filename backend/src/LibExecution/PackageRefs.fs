@@ -148,20 +148,53 @@ let pinnedFnHash (modules : string list) (name : string) : string option =
   let fqn = $"""fn/{String.concat "." modules}.{name}"""
   getHashes () |> Map.tryFind fqn
 
-/// How a FN ref resolves against the live store, when it does.
+/// The hash this BUILD pins for a TYPE ref. Same role as `pinnedFnHash`: the declaration this
+/// build was compiled against, to compare a candidate rebinding with.
+let pinnedTypeHash (modules : string list) (name : string) : string option =
+  let fqn = $"""type/{String.concat "." modules}.{name}"""
+  getHashes () |> Map.tryFind fqn
+
+/// How a ref resolves against the live store, when it does.
 ///
 /// Installed by whoever owns the store, because `LibDB` depends on `LibExecution` and not the
 /// other way round: `PackageRefs` cannot read `locations` itself. `None` until installed, and
 /// `None` for a name the store does not bind.
 ///
-/// Why fns and not types. F# only CALLS these seventeen; it never takes one apart. So the frozen
-/// contract is the name and the signature, and the newest committed binding may win -- which is
-/// what makes "the store is the source" true of the CLI's own entry points, rather than true of
-/// everything except them. A TYPE is different and must stay pinned: a `DRecord` the kernel
-/// builds carries its type's hash, so a store whose newest version of that type has a different
-/// shape would hand the kernel a value it cannot read.
+/// Both kinds go through the store now, and the net is the same shape for each: compare the
+/// candidate against the PINNED version -- signatures for a fn, the declaration for a type -- and
+/// fall back to the pin, loudly, on a mismatch.
+///
+/// Types took longer to get here because of a claim that turned out to be half right. A `DRecord`
+/// the kernel builds does carry its type's hash, so a store whose version of that type has a
+/// different SHAPE would hand Dark a value it cannot typecheck. That is what the declaration
+/// check is for. What the claim missed is which direction the coupling runs: F# never reads the
+/// type name it receives -- all 44 `fromDT` conversions wildcard it -- so the hash is write-only,
+/// used to tag values rather than to recognise them. Which makes it a lookup by name that happens
+/// to be cached in a file, not a contract that has to be.
+///
+/// What this buys, and it is the point: a type a branch has just authored has NO pin to compare
+/// against, so it resolves from the store directly. That is what lets F# on a git branch reference
+/// package code authored on a dark branch.
 let mutable resolveFnByName : (string list -> string -> string option) =
   fun _ _ -> None
+
+/// See `resolveFnByName`. Separate hook because the check differs: a type is compared by its
+/// DECLARATION, not by a signature.
+let mutable resolveTypeByName : (string list -> string -> string option) =
+  fun _ _ -> None
+
+/// Bumped whenever the store could have rebound a name, by whoever owns the store.
+///
+/// The ref closures below cache the store's answer against this, which turns a resolved ref into
+/// one int compare and no allocation. That is not a micro-optimisation: these sit under Option and
+/// Result construction, and asking the store per call measured at 46% more allocation on the
+/// reference workload. Caching inside the closure rather than inside the store lookup is what
+/// removes the last of it -- a cache one layer down still pays a key allocation per call.
+let mutable private storeGeneration = 0
+
+/// Drop every ref's memo of what the store said. `LibDB.Caching` calls this on every fold, which
+/// is the only moment a name's binding can move.
+let invalidateStoreResolution () : unit = storeGeneration <- storeGeneration + 1
 
 /// ON by default: the store is the source, and these seventeen are the places that matters most.
 /// Edit the pretty-printer and the binary you already have starts using it.
@@ -172,6 +205,8 @@ let mutable resolveFnByName : (string list -> string -> string option) =
 /// hatch for a store broken in some way the signature check does not catch.
 let private byNameEnabled : Lazy<bool> =
   lazy (System.Environment.GetEnvironmentVariable "DARK_REFS_BY_NAME" <> "0")
+
+let private currentStoreGeneration () : int = storeGeneration
 
 /// Shared body of `Type.p` and `Fn.p`: a closure resolving `<kind>/<modules>.<name>`
 /// against the hash file. Resolution is cached once per hash generation: the answer
@@ -188,22 +223,42 @@ let private makeRef
   : unit -> string =
   let mutable cachedGen = -1
   let mutable cached = ""
+  // The store's answer, against `storeGeneration` rather than the hash file's: a rebinding moves
+  // the store without touching the file. `ValueNone` means "asked, and the store had nothing",
+  // which is worth remembering too -- most refs on a store that does not bind them would otherwise
+  // pay a lookup per call.
+  let mutable storeGen = -1
+  let mutable storeCached = ValueNone
 
   fun () ->
-    // The store's answer is NOT cached by generation: the generation tracks the hash file, and a
-    // rebinding moves the store without touching it. Cheap enough -- one indexed lookup, against
-    // the interpolated key and Map walk the pinned path pays anyway.
+    // `record` is deliberately NOT on the hit path. It is a `Map.add` into the calling module's
+    // `_lookup`, so calling it per resolution allocates a map node per Option construction: 0.8 MB
+    // on the reference workload, measured, which is all of what this path costs. The generator
+    // only needs to have seen each hash once.
     let fromStore =
-      if kind = "fn" && byNameEnabled.Force() then
-        resolveFnByName modules name
+      if byNameEnabled.Force() then
+        let gen = currentStoreGeneration ()
+        if gen = storeGen then
+          storeCached
+        else
+          let answer =
+            match kind with
+            | "fn" -> resolveFnByName modules name
+            | "type" -> resolveTypeByName modules name
+            | _ -> None
+            |> ValueOption.ofOption
+          storeGen <- gen
+          storeCached <- answer
+          match answer with
+          | ValueSome hash -> record hash
+          | ValueNone -> ()
+          answer
       else
-        None
+        ValueNone
 
     match fromStore with
-    | Some hash ->
-      record hash
-      hash
-    | None ->
+    | ValueSome hash -> hash
+    | ValueNone ->
 
       let gen = currentGeneration ()
       if gen = cachedGen then
