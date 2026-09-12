@@ -2998,10 +2998,20 @@ let baseSpecs () : List<Spec> =
     // for a LetPattern node, so `let (a, b) = t` drew as `let ?pattern = t`: a tuple destructuring you
     // could not see or edit. The pattern survived a save (it is carried whole), so nothing was lost -- it
     // was invisible, which is its own kind of bad in an editor.
-    simpleLetPat
-      "LPTuple"
-      [ Piece.Group [ Piece.Punct "(", Piece.Each("items", [ Piece.Punct ",", Piece.Line ]), Piece.Punct ")" ] ]
-      (Node.make (letPatKind "LPTuple") [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]) ]
+    // ...and a CLOSER, which every other tuple in the language has and this one did not. `(` opens a
+    // tuple here as it does everywhere; `)` in an untouched one is the unit pattern, and `)` in one
+    // holding a single filled item is a grouping. Without it `let () = 1` could not be typed at all --
+    // the `)` went in as text and the whole binding came out "unresolved: =".
+    //
+    // A unit binding is what you write for a call you want only for its effect, and the printer emits it,
+    // so it was a printed form that could not be typed back. The match pattern next door has had this
+    // rule since tuples landed; the let pattern is its sibling and never got it.
+    Spec.closesWith
+      (simpleLetPat
+        "LPTuple"
+        [ Piece.Group [ Piece.Punct "(", Piece.Each("items", [ Piece.Punct ",", Piece.Line ]), Piece.Punct ")" ] ]
+        (Node.make (letPatKind "LPTuple") [ ("items", Field.Many([ Slot.Empty(letPatExpect "a"), Slot.Empty(letPatExpect "b") ], letPatExpect "pattern")) ]))
+      (Closer { char = ")"; slot = "items"; whenEmpty = Stdlib.Option.Option.Some "LPUnit"; soloIsGroup = true }) ]
 
 
 // The doc-line spec lives with the expressions rather than with the function shell, because a function, a

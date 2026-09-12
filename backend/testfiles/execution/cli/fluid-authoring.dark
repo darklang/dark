@@ -3204,3 +3204,34 @@ module SteppingOverASeparatorSettlesFirst =
   // moving one.
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "Zork { x = 1 }") [ "<Esc>", "<Esc>" ])) = "Zork { x = 1 }"
   (Fixtures.program (Stdlib.List.append (Fixtures.chars "let x = 1 x") [ "<Esc>", "<Esc>" ])) = "let x = 1\nx"
+
+
+module ALetPatternClosesLikeEveryOtherTuple =
+  // Four let-pattern shapes: a variable, a wildcard, a tuple and unit. Three typed back and `let () = 1`
+  // did not: the `)` went in as text and the whole binding came out "unresolved: =".
+  //
+  // `(` opens a tuple in a let pattern as it does everywhere, and the LPTuple spec had no CLOSER, so
+  // nothing turned an untouched one into unit. The match pattern next door has had that rule since
+  // tuples landed; the let pattern is its sibling and never got it.
+  //
+  // A unit binding is what you write for a call you want only for its effect, and the printer emits it,
+  // so this was a printed form that could not be typed back.
+  // `Fixtures.chars` does not map a newline to the Enter KEY, so the line break is spelled out. Typing a
+  // literal newline is not what anyone does with a keyboard, and this file has a comment saying so.
+  let keys (src: String) : List<String> =
+    Stdlib.String.toList src
+    |> Stdlib.List.map (fun c ->
+      let t = Stdlib.Char.toString c
+      if t == "\n" then "<Enter>" else t)
+
+  let lowers (src: String) : String =
+    Fixtures.program (Stdlib.List.append (ALetPatternClosesLikeEveryOtherTuple.keys src) [ "<Esc>", "<Esc>" ])
+
+  (ALetPatternClosesLikeEveryOtherTuple.lowers "let () = 1\n2") = "let () = 1\n2"
+
+  // The shapes that already worked, so the pin is about the closer and not about let patterns.
+  (ALetPatternClosesLikeEveryOtherTuple.lowers "let x = 1\nx") = "let x = 1\nx"
+  (ALetPatternClosesLikeEveryOtherTuple.lowers "let _ = 1\n2") = "let _ = 1\n2"
+  (ALetPatternClosesLikeEveryOtherTuple.lowers "let (a, b) = (1, 2)\na") = "let (a, b) = (1, 2)\na"
+  (ALetPatternClosesLikeEveryOtherTuple.lowers "let (a, (b, c)) = (1, (2, 3))\na") =
+    "let (a, (b, c)) = (1, (2, 3))\na"
