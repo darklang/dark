@@ -139,6 +139,42 @@ module HandleCommand =
       | Error _ -> ()
     }
 
+  /// The git branch this tree is checked out on, if it is a git tree at all.
+  ///
+  /// Read out of `.git/HEAD` rather than by shelling out: this runs inside the build, and a
+  /// process spawn for one line of text is not worth it. A detached HEAD answers `None`, which is
+  /// right -- there is no branch NAME to line up with.
+  let private gitBranchName () : Option<string> =
+    try
+      // Walk UP looking for `.git`, rather than assuming the rundir sits directly inside the
+      // repo. It does for the dev rundir and does not for a test's, and the difference is silent:
+      // you get no branch name and no error.
+      let rec findGitHead (dir : System.IO.DirectoryInfo) : string option =
+        if isNull (box dir) then
+          None
+        else
+          let candidate = System.IO.Path.Combine(dir.FullName, ".git", "HEAD")
+          if System.IO.File.Exists candidate then
+            Some candidate
+          else
+            findGitHead dir.Parent
+
+      let head =
+        match findGitHead (System.IO.DirectoryInfo LibConfig.Config.runDir) with
+        | Some h -> h
+        | None -> ""
+
+      if head <> "" && System.IO.File.Exists head then
+        let text = (System.IO.File.ReadAllText head).Trim()
+        let prefix = "ref: refs/heads/"
+
+        if text.StartsWith prefix then Some(text.Substring prefix.Length) else None
+      else
+        None
+    with _ ->
+      None
+
+
   /// Does this kernel agree with the package set in front of it?
   ///
   /// Direction one of the two-way interface: every name the kernel references has to resolve, in
@@ -156,10 +192,26 @@ module HandleCommand =
     uply {
       do! selectStoredBranch ()
 
+      // Every hash this store actually HOLDS content for. A ref resolving to a hash is not the
+      // same as that hash naming anything: a pin can name content the store no longer has, and
+      // that is precisely the failure this check exists to catch -- it does not error at runtime,
+      // it renders blank. Asked once as a set rather than per ref.
+      let! knownTypes =
+        Sql.query "SELECT hash FROM package_types"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+
+      let! knownFns =
+        Sql.query "SELECT hash FROM package_functions"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+
+      let known = Set.union (Set.ofList knownTypes) (Set.ofList knownFns)
+
       let unresolved =
         LibExecution.PackageRefs.allRefs ()
         |> List.filter (fun (kind, modules, name) ->
-          LibExecution.PackageRefs.tryResolve kind modules name |> Option.isNone)
+          match LibExecution.PackageRefs.tryResolve kind modules name with
+          | None -> true
+          | Some hash -> not (Set.contains hash known))
 
       // Direction two: every builtin the package set calls has to exist in THIS kernel. Recorded
       // by the fold in `package_builtin_deps`, which is what makes a store able to say which
@@ -224,16 +276,33 @@ module HandleCommand =
             "
 "
 
+        let! hint =
+          uply {
+            // If git is on a branch and a dark branch of the same name exists, that is almost
+            // certainly where the missing items are -- so say the command rather than the
+            // category. The coupling made visible at the one moment it matters, instead of a
+            // rule somebody has to have read.
+            match gitBranchName () with
+            | None -> return ""
+            | Some git ->
+              let! darkBranch = LibDB.Branches.liveIdForName git
+
+              match darkBranch with
+              | Some _ when LibDB.PackageManager.currentBranchId () = BranchId.Main ->
+                return
+                  $"\n\ngit is on `{git}` and there is a dark branch called `{git}`, "
+                  + $"but you are on dark main. Try `dark switch {git}`."
+              | _ -> return ""
+          }
+
         return
           Error(
-            $"{List.length unresolved} kernel ref(s) do not resolve against this package set:
-"
+            $"{List.length unresolved} kernel ref(s) do not resolve against this package set:\n"
             + lines
-            + "
-
-This kernel and this package set do not agree. Usually that means the F# in "
-            + "your tree names package code your store does not have: import the branch bundle "
-            + "that goes with it, or move to the branch that has it."
+            + $"\n\nThis kernel and this package set do not agree. Usually that means the "
+            + "F# in your tree names package code your store does not have: import the branch "
+            + "bundle that goes with it, or move to the branch that has it."
+            + hint
           )
     }
 
