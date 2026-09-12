@@ -4192,15 +4192,25 @@ let resolvePartial (st: State) : Stdlib.Option.Option<State> =
         // SETTLING. A record must not win here either -- settling `Stdlib.Cli.Tui.Size` should leave the
         // name, so the `{` you type next builds the record, which is what the short `Size {` always did.
         // Tab and Enter are choosing, and still take it.
+        // `landAfterCommit`, not `lastEditable`. They agree on a LEAF -- `landAfterCommit` falls through
+        // to `lastEditable` when the settled node has no blanks -- which is the case the comment above is
+        // about, and it is unchanged: settling `Size` still leaves the caret after the name so the `{` you
+        // type next builds the record.
+        //
+        // They differ when the settled thing has SEVERAL holes, and there the last one is wrong. `Dict<`
+        // settled the candidate and landed in the VALUE, so the `<` that had done the settling went into
+        // the value as text: `Dict<<key>, <>`. `Dict ` was fine, because the space path lands in the first
+        // hole. Two ways to settle the same name, two different landings, and only one construct in the
+        // language has enough holes to tell them apart.
         match exactCandidate st |> Stdlib.Option.andThen (fun c -> if c.takesSpace then Stdlib.Option.Option.Some c else Stdlib.Option.Option.None) with
         | Some c ->
           let st1 = commit st [ Edit.Replace(sp, Slot.Filled c.node) ] st.caret
-          Stdlib.Option.Option.Some { st1 with caret = lastEditable sp c.node }
+          Stdlib.Option.Option.Some { st1 with caret = landAfterCommit sp c.node }
         | None ->
           (match spec.resolve typed with
            | Some n ->
              let st1 = commit st [ Edit.Replace(sp, Slot.Filled n) ] st.caret
-             Stdlib.Option.Option.Some { st1 with caret = lastEditable sp n }
+             Stdlib.Option.Option.Some { st1 with caret = landAfterCommit sp n }
            | None -> Stdlib.Option.Option.None)
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None

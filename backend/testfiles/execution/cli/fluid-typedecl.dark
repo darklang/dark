@@ -908,6 +908,19 @@ module PunctuationBetweenTwoSlotsIsSteppedOver =
   (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict String,") = "Dict<String, <value>>"
   (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict String, Int64") = "Dict<String, Int64>"
 
+  // ...and through the BRACKET, which is how the printer writes it. `Dict<` settled the candidate and
+  // landed the caret in the VALUE, so the `<` that had done the settling went into the value as text:
+  // `Dict<<key>, <>`. Settling now lands in the first hole, the way committing from the menu always did.
+  // Two ways to settle one name, two different landings, and a dict is the only type with enough holes
+  // to tell them apart.
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict<") = "Dict<<key>, <value>>"
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "Dict<String, Int64>") = "Dict<String, Int64>"
+
+  // A settled LEAF still leaves the caret after the name rather than jumping to a hole, which is the
+  // behaviour the two landings were distinguished for in the first place: the `<` here is swallowed
+  // because the construct drew it, not because the caret moved somewhere else.
+  (PunctuationBetweenTwoSlotsIsSteppedOver.drawn "List<Int64>") = "List<Int64>"
+
   // The comma that adds a LIST item still adds one, which is what says this claimed a new fact rather
   // than taking one that was already spoken for. A tuple TYPE's `*` is that kind of separator, and a
   // second one after it opens a third element rather than stepping anywhere.
