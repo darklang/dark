@@ -738,15 +738,18 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   // The gallery owns the screen while it is up. The first entry is a blank expression, whose completion
   // menu drew straight through the list behind it -- two menus at once, and neither obviously the one
   // the keyboard was talking to.
+  // ONE layout for the whole pass. `rowsFor` is the expensive thing in here -- 225ms on a 45-line
+  // function -- and the popover, the document and the cursor all used to ask for their own.
+  let rows = Widget.rowsFor st.editor
   let popoverSpans =
     // The reference owns the screen the same way the gallery does, and for the same reason: two menus at
     // once, neither obviously the one the keyboard is talking to.
     if (Stdlib.Option.isSome st.demoPick) || st.helpOpen then []
-    else Widget.popover st.theme st.editor region st.scroll st.hscroll
+    else Widget.popoverOf rows st.theme st.editor region st.scroll st.hscroll
   let mainSpans =
     Stdlib.List.flatten
       [ Stdlib.Cli.UI.Box.draw mainArea paneTitle true
-        Widget.view st.theme st.editor region st.scroll st.hscroll
+        Widget.viewOf rows st.theme st.editor region st.scroll st.hscroll
         popoverSpans
         Widget.palette st.theme st.editor region
         (match st.demoPick with
@@ -837,7 +840,7 @@ let view (st: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let v = Stdlib.Cli.UI.Chrome.view framed size (fun _region -> body)
   match st.editor.mode with
   | Insert ->
-    match Widget.caretScreenPos st.editor region st.scroll st.hscroll with
+    match Widget.caretScreenPosIn rows st.editor region st.scroll st.hscroll with
     | Some((row, col)) ->
       { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(row - 1, col - 1) }
     | None -> v
@@ -867,8 +870,10 @@ let afterKey (st: State) (editor: Editor.State) : State =
     if st.confirmingExit then { editor with message = "" } else editor
 
   let ed = { cleared with width = Stdlib.Int.max 20 docArea.cols }
-  let row = Widget.caretRow ed
-  let col = Widget.caretCol ed
+  // One layout, two questions. Two calls here meant two full layouts of the same document per key.
+  let rows = Widget.rowsFor ed
+  let row = Widget.caretRowIn rows ed
+  let col = Widget.caretColIn rows ed
 
   { st with
       editor = ed

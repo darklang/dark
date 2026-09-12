@@ -94,15 +94,32 @@ let hscrollFor (caretCol: Int) (width: Int) (hscroll: Int) : Int =
 /// The layout the widget draws: the kernel's, at the kernel's width.
 let rowsFor (st: Editor.State) : List<Layout.Row> = Editor.layout st
 
+// --- One layout per pass ---
+//
+// `rowsFor` lays the whole document out, and on a 45-line function that is 225ms. Everything below used
+// to call it for itself: `caretRow` and `caretCol` one each in `afterKey`, then `view`, `popover` and
+// `caretScreenPos` one each in the render. Five layouts of the same state for one keystroke, and a
+// measured 1.5 SECONDS per key on that function against 120ms on a three-line one.
+//
+// So the functions that need the layout take it, and the two callers work it out once. The `st`-only
+// forms are kept for callers with one question to ask, where a second layout is not being paid for.
+
+/// Where the caret is in `rows`, as (row, column).
+let caretPosIn
+  (rows: List<Layout.Row>)
+  (st: Editor.State)
+  : Stdlib.Option.Option<(Int * Int)> =
+  Layout.locate rows st.caret.node st.caret.part st.caret.offset
+
 /// Screen position of the caret inside `region`, given the scroll in force -- vertical AND horizontal.
-let caretScreenPos
+let caretScreenPosIn
+  (rows: List<Layout.Row>)
   (st: Editor.State)
   (region: Stdlib.Cli.UI.Layout.Region)
   (scroll: Int)
   (hscroll: Int)
   : Stdlib.Option.Option<(Int * Int)> =
-  let rows = rowsFor st
-  match Layout.locate rows st.caret.node st.caret.part st.caret.offset with
+  match caretPosIn rows st with
   | Some((r, c)) ->
     let screenRow = region.top + (r - scroll)
     let screenCol = region.left + (c - hscroll)
@@ -112,19 +129,31 @@ let caretScreenPos
       Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+let caretScreenPos
+  (st: Editor.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (scroll: Int)
+  (hscroll: Int)
+  : Stdlib.Option.Option<(Int * Int)> =
+  caretScreenPosIn (rowsFor st) st region scroll hscroll
+
 /// Where the caret's row is in the layout, for scrolling.
-let caretRow (st: Editor.State) : Int =
-  match Layout.locate (rowsFor st) st.caret.node st.caret.part st.caret.offset with
+let caretRowIn (rows: List<Layout.Row>) (st: Editor.State) : Int =
+  match caretPosIn rows st with
   | Some((r, _)) -> r
   | None -> 0
+
+let caretRow (st: Editor.State) : Int = caretRowIn (rowsFor st) st
 
 /// Where the caret's COLUMN is, for the same reason. A projection can hold a line no width will break --
 /// a doc comment is one long token, and the printer doesn't wrap it either -- so the pane has to be able
 /// to move sideways rather than silently cut at the border.
-let caretCol (st: Editor.State) : Int =
-  match Layout.locate (rowsFor st) st.caret.node st.caret.part st.caret.offset with
+let caretColIn (rows: List<Layout.Row>) (st: Editor.State) : Int =
+  match caretPosIn rows st with
   | Some((_, c)) -> c
   | None -> 0
+
+let caretCol (st: Editor.State) : Int = caretColIn (rowsFor st) st
 
 /// One row, windowed to the columns on screen, with a marker where it was cut. The marker takes the place
 /// of the column it hides rather than pushing the line over, so what is on screen stays aligned with what
@@ -146,6 +175,21 @@ let clipRow
   let right = if cutRight then marker ">" else ""
   left ++ (renderRow theme st body) ++ right
 
+let viewOf
+  (rows: List<Layout.Row>)
+  (theme: Theme.Theme)
+  (st: Editor.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (scroll: Int)
+  (hscroll: Int)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  rows
+  |> Stdlib.List.drop scroll
+  |> Stdlib.List.take region.rows
+  |> Stdlib.List.indexedMap (fun i row ->
+    Stdlib.Cli.UI.Layout.at region i 0 (clipRow theme st region.cols hscroll row))
+  |> Stdlib.List.flatten
+
 let view
   (theme: Theme.Theme)
   (st: Editor.State)
@@ -153,17 +197,13 @@ let view
   (scroll: Int)
   (hscroll: Int)
   : List<Stdlib.Cli.UI.Layout.Span> =
-  rowsFor st
-  |> Stdlib.List.drop scroll
-  |> Stdlib.List.take region.rows
-  |> Stdlib.List.indexedMap (fun i row ->
-    Stdlib.Cli.UI.Layout.at region i 0 (clipRow theme st region.cols hscroll row))
-  |> Stdlib.List.flatten
+  viewOf (rowsFor st) theme st region scroll hscroll
 
 /// The completion popover: up to `maxRows` candidates under the caret, the selected one in reverse video.
 val maxPopoverRows = 6
 
-let popover
+let popoverOf
+  (rows: List<Layout.Row>)
   (theme: Theme.Theme)
   (st: Editor.State)
   (region: Stdlib.Cli.UI.Layout.Region)
@@ -174,7 +214,7 @@ let popover
   match cs with
   | [] -> []
   | _ ->
-    match caretScreenPos st region scroll hscroll with
+    match caretScreenPosIn rows st region scroll hscroll with
     | None -> []
     | Some((screenRow, screenCol)) ->
       let row0 = screenRow - region.top
