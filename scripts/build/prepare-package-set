@@ -38,10 +38,19 @@ import_bundle() {
 
 PIN=$(awk '$1 == "commit" { print $2 }' package-set.txt)
 
+# Whether the kernel and the package set agree, asked wherever the package set is established so
+# it cannot be forgotten. `scripts/dev/build` asks it too, as a build action; CI never runs that
+# script, so without this the one invariant the whole scheme rests on went unchecked in exactly
+# the place it matters most.
+check_agreement() {
+  scripts/run-local-exec refs check
+}
+
 if [[ -z "$PIN" || "$PIN" == "unset" ]]; then
   echo "No pin in package-set.txt; building the package set from packages/."
   scripts/build/reload-packages
   import_bundle
+  check_agreement
   exit 0
 fi
 
@@ -54,3 +63,4 @@ scripts/fetch-seed "${URL_ARGS[@]}" --force
 scripts/run-local-exec refs generate
 
 import_bundle
+check_agreement
