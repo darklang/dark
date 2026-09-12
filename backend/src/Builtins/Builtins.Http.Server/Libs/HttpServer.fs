@@ -235,7 +235,30 @@ let private executeHandler
         | Ok(DString s) -> s
         | Ok other -> string other
         | Error _ -> string rte
-      return DString $"Handler error: {errorStr}"
+
+      // A RESPONSE, not a string. A handler that raised and a handler that returned the wrong
+      // type are different failures, and returning a string here made them look like the same
+      // one: the layer above sees a `String` where a `Response` was expected and reports a type
+      // mismatch, so the actual message ends up quoted inside a paragraph about what a `Response`
+      // should look like. The thing that went wrong is then the least prominent text on screen.
+      //
+      // Found by running a relay under a default policy, where every push answered with nine
+      // lines of type advice wrapped around "permission denied ... To allow: `permissions allow
+      // env read ...`", which was both the diagnosis and the fix.
+      let responseType =
+        FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.response ())
+      let fields =
+        [ "statusCode", Dval.int (bigint 500)
+          "headers",
+          Dval.list
+            (KTTuple(
+              ValueType.Known KTString,
+              ValueType.Known KTString,
+              []
+            ))
+            [ DTuple(DString "Content-Type", DString "text/plain; charset=utf-8", []) ]
+          "body", LibExecution.Blob.newEphemeral (UTF8.toBytes $"Handler error: {errorStr}") ]
+      return DRecord(responseType, responseType, [], Map fields)
   }
 
 
