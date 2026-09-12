@@ -441,6 +441,45 @@ module NewShapesCompose =
     "Stdlib.Cli.Tui.Size { width = 80; height = ~⟨height⟩ }"
 
 
+module CompletionRanksByCase =
+  // Matching stays case-insensitive, so `d` still reaches `Dict` and nothing becomes unreachable. The
+  // case you typed decides the ORDER: types and constructors are always capitalised in this language and
+  // keywords never are, so a lowercase prefix means you probably want the lowercase one, and that is the
+  // slot Enter takes.
+  //
+  // Decided rather than discovered: this was flagged from reading `labelMatches`, not from anyone being
+  // bitten by it.
+  let cand (label: String) : Darklang.Fluid.Candidate =
+    Darklang.Fluid.Spec.candidate label "" (Darklang.Fluid.Node.make (Darklang.Fluid.Kind.named "X") [])
+
+  let pool () : List<Darklang.Fluid.Candidate> =
+    [ CompletionRanksByCase.cand "Dict"
+      CompletionRanksByCase.cand "dict"
+      CompletionRanksByCase.cand "DateTime"
+      CompletionRanksByCase.cand "divide"
+      CompletionRanksByCase.cand "Decimal" ]
+
+  let ranked (typed: String) : String =
+    Darklang.Fluid.Editor.rankCompletions typed (CompletionRanksByCase.pool ())
+    |> Stdlib.List.map (fun c -> c.label)
+    |> Stdlib.String.join " "
+
+  (CompletionRanksByCase.ranked "d") = "dict divide Dict DateTime Decimal"
+  (CompletionRanksByCase.ranked "D") = "Dict DateTime Decimal dict divide"
+
+  // Everything still MATCHES either way; only the order moved.
+  (CompletionRanksByCase.ranked "di") = "dict divide Dict"
+  (CompletionRanksByCase.ranked "Di") = "Dict dict divide"
+
+  // Typed in full, the spelling you used wins. Both are exact matches case-insensitively, and the
+  // exact-match group is case-ranked for exactly this.
+  (CompletionRanksByCase.ranked "dict") = "dict Dict"
+  (CompletionRanksByCase.ranked "Dict") = "Dict dict"
+
+  // Nothing typed says nothing about case, so the declared order is left alone.
+  (CompletionRanksByCase.ranked "") = "Dict dict DateTime divide Decimal"
+
+
 module HomeAndEndAreLineKeys =
   // Both worked and neither was written down, so the INSERT panel now lists them -- and a key the panel
   // advertises should have a test, which these did not. The panel itself is asserted only as
