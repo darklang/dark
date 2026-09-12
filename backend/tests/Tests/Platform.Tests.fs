@@ -945,9 +945,10 @@ let private describedPlatform (effects : Set<Effects.Effect>) (answer : string) 
 /// Call the described builtin against Core plus that platform, under `policy`.
 ///
 /// By name through `executeFunction` rather than by parsing `Builtin.acmeReadTag ()`. The parser
-/// resolves builtin names against the state IT runs under, which is the real catalog and not the
-/// set composed here, so a described platform's builtins are invisible to it. That is a real gap
-/// and it is the next item on the plan; it is not what these tests are about.
+/// resolves builtin names against the state IT runs under, and the shared parse helper builds its
+/// own state from the stock catalog, which would not carry the set composed here. Parsing under a
+/// state that does carry it works; `aDescribedBuiltinResolvesByName` is that test. These ones are
+/// about the effect check, so they skip the parse.
 let private runDescribed
   (effects : Set<Effects.Effect>)
   (policy : Permission.Policy)
