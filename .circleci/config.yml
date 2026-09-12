@@ -451,6 +451,10 @@ jobs:
               --seed=rundir/seed.db \
               --runtimes=linux-x64,linux-arm64
       - run:
+          # The CLI suite seeds per-test stores with `sqlite3 .backup`.
+          name: Install sqlite3
+          command: apt-get update -qq && apt-get install -y -qq --no-install-recommends sqlite3
+      - run:
           name: Validate the linux-x64 artifact
           command: |
             ./scripts/testing/validate-cli-artifact \
@@ -520,7 +524,8 @@ jobs:
       - run:
           name: Install build dependencies
           command: |
-            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs
+            # sqlite: the CLI suite seeds per-test stores with `sqlite3 .backup`
+            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs sqlite
             # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
             mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
       - checkout
