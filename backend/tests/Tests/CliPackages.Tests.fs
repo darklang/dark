@@ -815,6 +815,54 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
       })
 
 
+/// `remove` is the only thing that writes an `Unbind`, and the claim it prints is the
+/// interesting one: the name ends, the content does not, so callers go on working. That is only
+/// true because a reference points at content rather than at a name, which is the property worth
+/// a test rather than a comment.
+let removeEndsTheNameAndLeavesTheCallersAlone =
+  instanceTest "remove ends a name, and what called it still runs" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.Rm.leaf" "() : Int64 = 4242L"
+      do! fn state "Tests.Rm.caller" "() : Int64 = Tests.Rm.leaf ()"
+      do! commit state "add leaf and caller"
+
+      do! evals state "Tests.Rm.caller ()" "4242" "the caller works to begin with"
+
+      do! run state [ "remove"; "Tests.Rm.leaf"; "-y" ]
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.Rm.leaf" ]
+          "Not found"
+          "the name holds nothing now"
+      do!
+        evals
+          state
+          "Tests.Rm.caller ()"
+          "4242"
+          "but the caller still runs, because it references content and not a name"
+      do! discardAll state
+    })
+
+/// Bare and wrong-argument shapes, which is where this kind of command goes wrong: a confirming
+/// verb that cannot find its target must refuse rather than ask about nothing.
+let removeRefusesWhatIsNotThere =
+  instanceTest
+    "remove refuses a name that holds nothing, and refuses to run bare"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          shows
+            state
+            [ "remove"; "Tests.Rm.nothingHere"; "-y" ]
+            "nothing here is named"
+            "an unknown name is named back"
+        do! shows state [ "remove" ] "usage: dark remove" "bare prints usage"
+      })
+
 let renameIsVisibleToEverythingThatReads =
   instanceTest
     "a renamed item is readable at its new name, by every reader"
@@ -862,6 +910,8 @@ let tests : List<Test> =
     deleteRefusesWhatIsNotThere
     deprecateAndUndeprecate
     renameIsVisibleToEverythingThatReads
+    removeEndsTheNameAndLeavesTheCallersAlone
+    removeRefusesWhatIsNotThere
     aDocOnlyEditKeepsTheVersionAndStillLands
     aFieldsDocEditLands
     anEnumCasesDocEditLands

@@ -1,0 +1,131 @@
+module Darklang.Cli.Packages.Remove
+
+// `dark remove <name>` -- take a name off the shelf.
+//
+// One op, `Unbind`, and it is the only thing that writes one. Until now a name could be bound and
+// rebound but never ENDED, so a name authored by mistake lived forever and greeted strangers as a
+// constraint.
+//
+// What it does not do is throw anything away. The content is untouched and stays in the store,
+// reachable by hash, so everything that calls it goes on working: a reference points at content,
+// not at a name. What ends is the name.
+//
+// Not `dark delete`, which is deprecation -- that leaves the name bound and marks it obsolete, so
+// callers still resolve it and are told why. Deprecation is for something that still exists and
+// should not be used; removal is for a name that should not exist.
+
+/// The op a removal authors.
+///
+/// `previous = Some hash` records what the name held, for the same reason `SetName` carries one:
+/// a merge on the other side wants to know what was replaced rather than guessing.
+let ops
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  [ LanguageTools.ProgramTypes.PackageOp.Unbind(
+      location,
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.hash reference)
+    ) ]
+
+
+/// `-y` / `--yes` anywhere in the arguments, and everything that is not a flag.
+let parseArgs (args: List<String>) : (Bool * List<String>) =
+  let autoConfirm =
+    args |> Stdlib.List.any (fun a -> (a == "-y") || (a == "--yes"))
+
+  let rest =
+    args
+    |> Stdlib.List.filter (fun a ->
+      Stdlib.Bool.not ((a == "-y") || (a == "--yes")))
+
+  (autoConfirm, rest)
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let (autoConfirm, rest) = parseArgs args
+
+  match rest with
+  | [ name ] ->
+    let here = state.packageData.currentLocation
+
+    match Packages.Location.parseRelativeTo here name with
+    | Error e ->
+      Cli.printErr $"the name to remove: {e}"
+      { state with exitCode = 1 }
+
+    | Ok location ->
+      let dotted =
+        PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+
+      match Packages.Rename.referenceAt state.currentBranchId location with
+      | None ->
+        Cli.printErr $"nothing here is named {dotted}."
+        Cli.printHint "  `dark ls` lists what is; `dark search <text>` looks wider."
+        { state with exitCode = 1 }
+
+      | Some reference ->
+        // `confirmExplicit`, not `confirm`: a stray Return should not end a name. An unattended
+        // run says `-y`, which is the only thing that means yes without a person.
+        let proceed =
+          Cli.Prompt.confirmExplicit
+            autoConfirm
+            (Stdlib.Cli.UI.Colors.warning
+              $"Remove the name {dotted}? Its content stays and its callers keep working. (y/n): ")
+
+        if proceed then
+          match SCM.PackageOps.add state.currentBranchId (ops location reference) with
+          | Ok _ ->
+            Cli.printOk $"removed the name {dotted}."
+
+            Cli.printHint
+              "  the content is still in the store and its callers still resolve it: they reference content, not names."
+
+            Cli.printHint "  `dark status` shows the change; it travels when you sync."
+
+            state
+
+          | Error e ->
+            Cli.printErr $"couldn't remove: {e}"
+            { state with exitCode = 1 }
+        else
+          Cli.printOk "left it alone."
+          state
+
+  | [] ->
+    Cli.printErr "usage: dark remove <name> [-y]"
+    Cli.printHint "  the name is relative to where you are (`dark nav` moves)."
+    { state with exitCode = 1 }
+
+  | _ ->
+    Cli.printErr "usage: dark remove <name> [-y]"
+    Cli.printHint "  one name at a time, so the confirmation can say what it is ending."
+    { state with exitCode = 1 }
+
+
+let help (_state: Cli.AppState) : String =
+  [ ""
+    "  dark remove <name> [-y]"
+    ""
+    "  Ends a name. The content it held is untouched: it stays in the store,"
+    "  reachable by hash, and everything that calls it goes on working, because"
+    "  a reference points at content rather than at a name."
+    ""
+    "  Use it when the NAME was the mistake. For something that still exists and"
+    "  should not be used, `dark delete` deprecates instead, which leaves the name"
+    "  bound and tells callers why."
+    ""
+    "  One `Unbind` op is authored, so `dark status` shows it and it travels when"
+    "  you sync."
+    ""
+    "  -y, --yes    skip the confirmation; required for an unattended run" ]
+  |> Stdlib.String.join "\n"
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  match args with
+  | [] -> Packages.Nav.complete state args
+  | [ _ ] -> Packages.Nav.complete state args
+  | _ -> []
