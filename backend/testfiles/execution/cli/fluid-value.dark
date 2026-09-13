@@ -501,3 +501,115 @@ module AWidthNeedsSomethingToComeFrom =
   (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) []) = "DInt8 7"
   (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) [ "i", "9", "<Esc>" ]) = "DInt8 97"
   (AWidthNeedsSomethingToComeFrom.retyped (Darklang.LanguageTools.RuntimeTypes.Dval.DInt8 7y) [ "c", "9", "9", "<Esc>" ]) = "DInt 99"
+
+
+module AValueDrawsTheWayItPrints =
+  // The strongest pin available here: not a literal string I typed, but agreement with the printer.
+  // Fluid's job on a value document is to draw what the printer would write, and a pin that spells the
+  // expected text out is a pin that agrees with whatever I believed on the day.
+  //
+  // Both sides get the same context, which is the trap this comparison has fallen into twice: the
+  // printer was given a module and Fluid was not, and thousands of phantom diffs came out of it.
+  let agrees (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    let bid = Darklang.SCM.Branch.mainBranchId
+    let node = Darklang.Fluid.Value.ofDval bid v
+    let drawn =
+      Darklang.Fluid.Debug.render
+        (Darklang.Fluid.App.registryForValue bid node)
+        70
+        (Darklang.Fluid.Slot.Filled node)
+    match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr bid v with
+    | Ok e ->
+      let printed = Darklang.PrettyPrinter.ProgramTypes.expr (Darklang.Fluid.PT.printerContext ()) e
+      if drawn == printed then "same" else "DIFF fluid=" ++ drawn ++ " printer=" ++ printed
+    | Error r -> "no literal form: " ++ r
+
+  // A TUPLE is why this module exists. `ofDval` kinded it `Kind.named "Tuple"`, so the value entry point
+  // went looking for a package type called `Tuple` to derive an editor from, found none, and fell back to
+  // the unknown-kind drawing: `Tuple { items = [1, "two"] }` where the printer writes `(1, "two")`. A
+  // program's tuple is `Expr.ETuple` and has always drawn correctly; a runtime tuple is a different node
+  // and nothing had ever drawn one. Found by opening real values, not by reading the code.
+  (AValueDrawsTheWayItPrints.agrees
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(
+      Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+      Darklang.LanguageTools.RuntimeTypes.Dval.DString "two",
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DBool true ]))) = "same"
+
+  (AValueDrawsTheWayItPrints.agrees (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 42)) = "same"
+  (AValueDrawsTheWayItPrints.agrees (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1.5)) = "same"
+  (AValueDrawsTheWayItPrints.agrees (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi")) = "same"
+  (AValueDrawsTheWayItPrints.agrees (Darklang.LanguageTools.RuntimeTypes.Dval.DBool false)) = "same"
+  (AValueDrawsTheWayItPrints.agrees Darklang.LanguageTools.RuntimeTypes.Dval.DUnit) = "same"
+
+  (AValueDrawsTheWayItPrints.agrees
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+        Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ]))) = "same"
+
+  // Nested, where a tuple is inside a list and a list inside a tuple.
+  (AValueDrawsTheWayItPrints.agrees
+    (Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(
+          Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+          Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+            Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown,
+            [ Darklang.LanguageTools.RuntimeTypes.Dval.DString "x" ]),
+          []) ]))) = "same"
+
+  // An ENUM does not agree, and the disagreement is not Fluid's. There are two printers: the one that
+  // writes a value for a terminal (`dvalToReprForTerminal`, what `dark eval` prints) says `Some(1)`, and
+  // the one that writes SOURCE says `Option.Some(1)`. Fluid draws a VALUE, so it follows the first, and
+  // `dark eval` and `dark fluid eval` agree on every enum I have compared.
+  //
+  // Pinned as a difference rather than deleted, because a pin that quietly drops the case it disagrees
+  // with is how a comparison stops being one. If the two printers are ever reconciled, this fails and
+  // says so.
+  (AValueDrawsTheWayItPrints.agrees (AValueOfAStoredType.some (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1))) =
+    "DIFF fluid=Some(1) printer=Option.Some(1)"
+
+
+module ADictKeyIsAValue =
+  // A dict cannot be built from Dark at all: a runtime dict key is a whole value, and Dark's own `Dict`
+  // is keyed by text, so there is no expression in this file that produces one. Which is exactly how the
+  // bug survived -- Dark checks a call when it RUNS it, and nothing had ever run this branch.
+  //
+  // `dictPairNode` took the key as a `String`. It compiled, every probe I could write passed, and it
+  // crashed the first time a real dict reached it: "expects String, but got Dval (DString("j"))". Found
+  // by opening a dict that already existed rather than by constructing one.
+  //
+  // So the NODE is pinned here, which is the half that is reachable. The key is a slot holding its own
+  // document, which is why a string key draws its own quotes and comes out `{ "j": 2 }`, the way the
+  // printer writes it.
+  let pair (k: String) (v: Int) : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Prims.dictPairNode
+        (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.stringNode k))
+        (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.intNode (Stdlib.Int.toString v))))
+
+  let drawn (pairs: List<Darklang.Fluid.Slot>) : String =
+    Darklang.Fluid.Debug.render
+      (Darklang.Fluid.App.defaultRegistry ())
+      70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.dictNode pairs))
+
+  (ADictKeyIsAValue.drawn [ ADictKeyIsAValue.pair "k" 1 ]) = "{ \"k\": 1 }"
+  (ADictKeyIsAValue.drawn [ ADictKeyIsAValue.pair "j" 2, ADictKeyIsAValue.pair "k" 1 ]) = "{ \"j\": 2, \"k\": 1 }"
+
+  // An empty one is `{}`, not `{  }`. Both braces carry a space when there are entries between them, and
+  // both spaces survive when there are none.
+  (ADictKeyIsAValue.drawn []) = "{}"
+
+
+module SomeValuesHaveNoWrittenForm =
+  // A function, a database, a blob, a stream. Each draws what it is rather than drawing nothing, and each
+  // refuses to be rebuilt, because there is nothing here to rebuild from.
+  let drawn (source: String) : String =
+    Darklang.Fluid.Debug.render
+      (Darklang.Fluid.App.defaultRegistry ())
+      70
+      (Darklang.Fluid.Slot.Filled(Darklang.Fluid.Prims.opaqueNode source))
+
+  (SomeValuesHaveNoWrittenForm.drawn "<function>") = "<function>"
+  (SomeValuesHaveNoWrittenForm.drawn "<db users>") = "<db users>"

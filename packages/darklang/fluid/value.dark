@@ -92,12 +92,8 @@ let ofDval (branchId: Uuid) (v: Dval) : Node =
     Prims.listNode (items |> Stdlib.List.map (fun i -> Slot.Filled(ofDval branchId i))) (Expect.any "item")
 
   | DTuple(a, b, rest) ->
-    Node.make
-      (Kind.named "Tuple")
-      [ ("items",
-         Field.Many(
-           (Stdlib.List.flatten [ [ a, b ], rest ]) |> Stdlib.List.map (fun i -> Slot.Filled(ofDval branchId i)),
-           Expect.any "item")) ]
+    Prims.tupleNode (
+      (Stdlib.List.flatten [ [ a, b ], rest ]) |> Stdlib.List.map (fun i -> Slot.Filled(ofDval branchId i)))
 
   | DRecord(_, sourceTypeName, _, fields) ->
     // One field per entry, named as the type names it. Order comes from the Dict, which is the order the
@@ -144,26 +140,22 @@ let ofDval (branchId: Uuid) (v: Dval) : Node =
          (slotName, Field.One(Slot.Filled(ofDval branchId f)))))
 
   | DDict(_, _, entries) ->
-    Node.make
-      (Kind.named "Dict")
-      [ ("pairs",
-         Field.Many(
-           entries
-           |> Stdlib.Dict.toList
-           |> Stdlib.List.map (fun pair ->
-             let (k, dv) = pair
-             Slot.Filled(
-               Node.make (Kind.named "DictPair") [ ("key", Field.Text k), ("value", Field.One(Slot.Filled(ofDval branchId dv))) ])),
-           Expect.any "pair")) ]
+    Prims.dictNode (
+      entries
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map (fun pair ->
+        let (k, dv) = pair
+        Slot.Filled(
+          Prims.dictPairNode (Slot.Filled(ofDval branchId k)) (Slot.Filled(ofDval branchId dv)))))
 
   // Not projected, and each for its own reason rather than for lack of trying: a function has no
   // written form to edit, a database is a reference to something the editor does not hold, and a blob
   // or a stream is a handle whose contents are not here. They draw as opaque and say what they are.
-  | DApplicable _ -> Node.make (Kind.named "Opaque") [ ("source", Field.Text "<function>") ]
-  | DDB name -> Node.make (Kind.named "Opaque") [ ("source", Field.Text ("<db " ++ name ++ ">")) ]
-  | DBlobPersistent(hash, _) -> Node.make (Kind.named "Opaque") [ ("source", Field.Text ("<blob " ++ hash ++ ">")) ]
-  | DBlobEphemeral _ -> Node.make (Kind.named "Opaque") [ ("source", Field.Text "<blob>") ]
-  | DStreamStub _ -> Node.make (Kind.named "Opaque") [ ("source", Field.Text "<stream>") ]
+  | DApplicable _ -> Prims.opaqueNode "<function>"
+  | DDB name -> Prims.opaqueNode ("<db " ++ name ++ ">")
+  | DBlobPersistent(hash, _) -> Prims.opaqueNode ("<blob " ++ hash ++ ">")
+  | DBlobEphemeral _ -> Prims.opaqueNode "<blob>"
+  | DStreamStub _ -> Prims.opaqueNode "<stream>"
 
 
 // ============================================================================

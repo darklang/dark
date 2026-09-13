@@ -10,6 +10,20 @@ let floatKind () : Kind = Kind.prim "Float"
 let unitKind () : Kind = Kind.prim "Unit"
 let listKind () : Kind = Kind.prim "List"
 
+// The three below exist because a VALUE has shapes a program does not. A program's tuple is
+// `Expr.ETuple` and its dict is `Expr.EDict`; a runtime tuple and a runtime dict are neither, and a
+// function or a database handle has no written form at all.
+//
+// Prims rather than named types, which is what they were. A `Kind.named "Tuple"` sends the value entry
+// point off to look up a package type called `Tuple` to derive an editor from, finds nothing, and draws
+// the node with the unknown-kind fallback: `Tuple { items = [1, "two"] }` on screen where the printer
+// writes `(1, "two")`. Found by opening real values rather than by reading this.
+let tupleKind () : Kind = Kind.prim "Tuple"
+let dictKind () : Kind = Kind.prim "Dict"
+let dictPairKind () : Kind = Kind.prim "DictPair"
+/// A value with nothing to project: a function, a database, a blob, a stream. It draws what it is.
+let opaqueKind () : Kind = Kind.prim "Opaque"
+
 // --- Int: one run of digits ---
 
 let intNode (digits: String) : Node =
@@ -103,6 +117,58 @@ let listFromBracket (c: String) (e: Expect) : Node =
 
 let listSummary (n: Node) : String =
   "[" ++ (Stdlib.Int.toString (Stdlib.List.length (Node.items n "items"))) ++ " items]"
+
+// --- Tuple, dict, opaque: the shapes a runtime value has and a program does not ---
+
+let tupleNode (items: List<Slot>) : Node =
+  Node.make (tupleKind ()) [ ("items", Field.Many(items, Expect.any "member")) ]
+
+let tuplePieces () : List<Piece> =
+  [ Piece.Group
+      [ Piece.Punct "("
+        Piece.Nest(2, [ Piece.SoftLine, Piece.Each("items", [ Piece.Punct ",", Piece.Line ]) ])
+        Piece.SoftLine
+        Piece.Punct ")" ] ]
+
+let tupleSummary (n: Node) : String =
+  "(" ++ (Stdlib.Int.toString (Stdlib.List.length (Node.items n "items"))) ++ " members)"
+
+/// One entry of a dict. The KEY is a slot, not a text run.
+///
+/// A runtime dict key is a whole value (`DictKey of Dval` in the engine, `Dict<Dval, Dval>` in the
+/// mirror), so a string key is a `DString` and draws its own quotes, the way the printer writes
+/// `{ "j": 2 }`. Modelling it as text compiled fine and crashed on the first real dict, because Dark
+/// checks a call when it runs it and nothing had ever run this one: a dict cannot be CONSTRUCTED from
+/// Dark, so no probe could reach the branch. It took opening one that already existed.
+let dictPairNode (key: Slot) (value: Slot) : Node =
+  Node.make (dictPairKind ()) [ ("key", Field.One key), ("value", Field.One value) ]
+
+let dictNode (pairs: List<Slot>) : Node =
+  Node.make (dictKind ()) [ ("pairs", Field.Many(pairs, Expect.any "pair")) ]
+
+let dictPairPieces () : List<Piece> =
+  [ Piece.Slot "key", Piece.Punct ":", Piece.Space, Piece.Slot "value" ]
+
+let dictPieces () : List<Piece> =
+  // An empty dict is `{}`, not `{  }`: the braces of a dict with entries carry a space on each side, and
+  // both of them survive when there is nothing between them. Same shape `Dict {}` needed.
+  [ Piece.WhenEmpty(
+      "pairs",
+      [ Piece.Punct "{}" ],
+      [ Piece.Group
+          [ Piece.Punct "{"
+            Piece.Nest(2, [ Piece.Line, Piece.Each("pairs", [ Piece.Punct ",", Piece.Line ]) ])
+            Piece.Line
+            Piece.Punct "}" ] ]) ]
+
+let dictSummary (n: Node) : String =
+  "{" ++ (Stdlib.Int.toString (Stdlib.List.length (Node.items n "pairs"))) ++ " pairs}"
+
+let opaqueNode (source: String) : Node =
+  Node.make (opaqueKind ()) [ ("source", Field.Text source) ]
+
+let opaqueSummary (n: Node) : String =
+  Node.text n "source" |> Stdlib.Option.withDefault "<opaque>"
 
 let listPieces () : List<Piece> =
   [ Piece.Group
@@ -206,4 +272,15 @@ let specs () : List<Spec> =
         scopeCandidate = Stdlib.Option.Option.None
         actions = []
         empty = listNode [] (Expect.any "item")
-        summary = listSummary } ]
+        summary = listSummary }
+    // No hole rules on these three. `ofDval` builds them and nothing types one: `(` already means a
+    // group where a value goes, and giving it a second meaning here would be a decision about the
+    // LANGUAGE made in passing, by a spec that only exists to draw what a runtime value already is.
+    { (Spec.simple (tupleKind ()) (tuplePieces ()) (tupleNode [])) with summary = tupleSummary }
+    { (Spec.simple (dictKind ()) (dictPieces ()) (dictNode [])) with summary = dictSummary }
+    Spec.simple
+      (dictPairKind ())
+      (dictPairPieces ())
+      (dictPairNode (Slot.Empty(Expect.any "key")) (Slot.Empty(Expect.any "value")))
+    { (Spec.simple (opaqueKind ()) [ Piece.Text("source", Layout.Style.Dim) ] (opaqueNode "")) with
+        summary = opaqueSummary } ]
