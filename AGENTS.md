@@ -531,6 +531,35 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## Method, paid for
+
+These came out of the platform work and none of them is specific to it.
+
+**Every wrong number came from a script reading source text; every right one came from the running
+system.** A grep whose name pattern excluded digits understated a builtin total by a third. Another
+counted a builtin named in a doc comment as a stray somewhere else. The reports here read compiled
+RT instructions and the live builtin set for exactly this reason. If a figure came from a grep over
+`.fs` or `.dark` text, re-derive it before printing it.
+
+**Measure before building.** A case for a build-time change rested on one number. Measuring first
+produced a better result from three small edits and made the build step unnecessary.
+
+**A check can cost more than the thing it checks.** A collision check allocated 0.2 MB per process
+start to answer "no", turning its own change into a measured regression.
+
+**Sweep, do not sample.** Asking a question one command at a time finds gaps one at a time. Run it
+over every registered handler at once, sorted by what the answer costs, and read from the top.
+
+**Read the artifact end to end, once.** Thirty-odd surgical edits went into a page, each verified
+only by whether the page count changed. Reading it whole found defects no page count would have, on
+every artifact it was tried on.
+
+**Break each test on purpose and watch which one catches it.** A test that passes because it checks
+nothing is worse than no test.
+
+**Write the contract where the next person stands.** What a piece of work learned about a subsystem
+belongs in that subsystem's module doc, not in a note nobody will open.
+
 ## Gotchas
 
 **`Prelude` shadows `List.groupBy` to answer a `Map`.** `List.groupBy f xs` here is
