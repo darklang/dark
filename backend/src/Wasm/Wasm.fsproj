@@ -14,14 +14,14 @@
     <!-- size levers; AOT is slower to build but shrinks/speeds the result -->
     <PublishTrimmed>true</PublishTrimmed>
     <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
-    <!-- SQLite is dragged in via LibParser/LibDB, although the browser only calls
-         LibDB's in-memory package manager;
-         skip native relinking so the P/Invoke table generator (which SDK-crashes on it)
-         doesn't run. (InvariantGlobalization would force native build, so it's left off.) -->
-    <WasmBuildNative>false</WasmBuildNative>
+    <!-- Native relink: statically links e_sqlite3 (SourceGear.sqlite3 ships a browser-wasm
+         .a and adds it as a NativeFileReference through its buildTransitive targets) so the
+         real LibDB store runs in the tab. -->
+    <WasmBuildNative>true</WasmBuildNative>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Probe.fs" />
     <Compile Include="Output.fs" />
     <Compile Include="PmLookup.fs" />
     <Compile Include="Repl.fs" />
@@ -38,6 +38,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.*" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer"
                       Version="10.*" PrivateAssets="all" />
+    <!-- Same version paket.lock pins for LibDB; referenced directly so NuGet imports the
+         bundle's buildTransitive targets (that is what links e_sqlite3.a). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
   </ItemGroup>
 
   <!-- The runtime + parser. LibDB is currently referenced only for createInMemory;

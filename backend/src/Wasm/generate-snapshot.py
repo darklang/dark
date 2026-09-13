@@ -17,12 +17,14 @@ OUT = ROOT / "backend" / "src" / "Wasm" / "wwwroot" / "packages.snapshot"
 # change doesn't force a republish
 PUBLISHED = ROOT / "rundir" / "wasm-repl" / "wwwroot" / "packages.snapshot"
 
-# Committed main-branch ops only: uncommitted WIP (commit_hash IS NULL) and
-# side-branch ops must not leak into the shipped snapshot.
+# Committed main-branch ops only: uncommitted WIP (commit_hash IS NULL) must not leak into the
+# shipped snapshot, and neither must side-branch ops. Branches are overlays over the op log: an op
+# on a branch has a row in `op_branches`, so main is every effective op that has none.
 rows = sqlite3.connect(DB).execute("""
     SELECT id, op_blob FROM package_ops
     WHERE commit_hash IS NOT NULL
-      AND branch_id = (SELECT id FROM branches WHERE name = 'main')
+      AND effective = 1
+      AND id NOT IN (SELECT op_id FROM op_branches)
     ORDER BY rowid ASC""").fetchall()
 with open(OUT, "wb") as f:
     for id_, blob in rows:
