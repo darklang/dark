@@ -339,6 +339,26 @@ op log directly.
 
 ## Gotchas
 
+**The test lock.** `run-backend-tests` refuses if another run holds `rundir/test.lock`. Wait for
+it. Do not clear it with a broad `pkill -f "out/Tests"`: that pattern matches every sibling clone
+on this machine and will kill somebody else's suite. Scope it to the clone if you must
+(`pkill -f "boot-migrate/backend/Build/out/Tests"`).
+
+**`Stdlib.Sqlite` parameters are `@p0`, `@p1`, not `?`.** With `?` nothing matches and nothing
+errors, so a cache silently never fills.
+
+**A new CLI command joins the registry sweep the day it is registered**, and the sweep runs every
+command with a bogus argument. An expensive command therefore taxes the whole suite; `grep` cost
+nine minutes until it learned to refuse an unscoped search.
+
+**Dark syntax traps.** No `let private`. No `rec` keyword. The list separator is `,`. A comment
+inside a list literal breaks the parser. Parenthesise a piped qualified call:
+`(Mod.f x) |> ...`.
+
+**Measure the artifact people actually run.** Debug, `publish -c Release`, R2R and AOT differ by
+about 25x on startup. Three separate wrong conclusions in one week came from measuring the wrong
+one.
+
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
 Empty is tolerated; non-empty with a missing key crashes at startup with "PackageRefs: X
 hash not found". After adding a ref:
