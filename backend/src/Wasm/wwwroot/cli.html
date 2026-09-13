@@ -228,7 +228,10 @@
       }
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
-      if (params.get("panel") === "0") toggle.click();
+      // The shell is redundant beside a prompt: a one-shot command and the classic prompt both
+      // leave you typing on the left, and at half width the banner wraps badly. Off unless asked.
+      const promptFlow = argv.length > 0 || params.getAll("env").includes("DARK_CLASSIC=1");
+      if (params.get("panel") === "0" || (promptFlow && params.get("panel") !== "1")) toggle.click();
       if (params.get("trace") === "1") await invoke("SetTrace", true);
       for (const kv of params.getAll("env")) {
         const i = kv.indexOf("="); if (i > 0) await invoke("SetEnv", kv.slice(0, i), kv.slice(i + 1));
