@@ -17,6 +17,12 @@ type private Private() =
   // background thread writes the output to Console.
   static let isWasm = System.OperatingSystem.IsBrowser()
 
+  // Where output goes in the browser, when the host has said. `System.Console.Out` there is a
+  // SyncTextWriter, and a write through it from inside a resumed task continuation left the
+  // interpreter's next await unable to suspend (a blocking wait, fatal on the one browser
+  // thread). The browser host hands in a plain buffer instead and drains it from JS.
+  static let mutable browserSink : (string -> unit) option = None
+
 
   static let mQueue : BlockingCollection = new BlockingCollection()
 
@@ -79,9 +85,13 @@ type private Private() =
     while shouldWait do
       lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
 
+  static member SetBrowserSink(sink : string -> unit) : unit = browserSink <- Some sink
+
   static member Write(value : string) : unit =
     if isWasm then
-      System.Console.Write value
+      match browserSink with
+      | Some sink -> sink value
+      | None -> System.Console.Write value
     else
       // Take the capture decision and the append atomically, so a concurrent Stop can't leave a write
       // appended to a buffer nobody will read, or tear the StringBuilder.
@@ -126,3 +136,6 @@ let startCapture () : bool = Private.StartCapture()
 
 /// Stop capturing and return everything written since `startCapture`.
 let stopCapture () : string = Private.StopCapture()
+
+/// Browser host only: route every write to <param sink> instead of `System.Console`.
+let setBrowserSink (sink : string -> unit) : unit = Private.SetBrowserSink sink

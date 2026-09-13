@@ -75,16 +75,34 @@ const send = (method, params = {}) => new Promise((res, rej) => {
 await send("Runtime.enable");
 await send("Page.enable");
 await send("Page.navigate", { url });
-const timer = setTimeout(() => { console.error("timeout"); cleanup(); process.exit(1); }, timeoutMs);
-const result = await send("Runtime.evaluate", {
-  expression: `(async () => { ${script} })()`,
-  awaitPromise: true, returnByValue: true, timeout: timeoutMs,
-});
-clearTimeout(timer);
-if (result.exceptionDetails) {
-  console.error("script threw:", result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
-  cleanup(); process.exit(1);
+const deadline = Date.now() + timeoutMs;
+
+// The script is evaluated repeatedly, every 2s, until it returns a string starting with
+// "DONE" (printed, exit 0) or "FAIL" (printed, exit 1). Anything else is progress, echoed
+// to stderr. An evaluate that itself takes more than 20s means the page's main thread is
+// busy (a wasm loop that never yields), which is reported as such.
+while (Date.now() < deadline) {
+  let result;
+  try {
+    result = await Promise.race([
+      send("Runtime.evaluate", {
+        expression: `(async () => { ${script} })()`,
+        awaitPromise: true, returnByValue: true, timeout: 20000,
+      }),
+      sleep(20000).then(() => ({ busy: true })),
+    ]);
+  } catch (e) { console.error("evaluate failed:", e.message); await sleep(2000); continue; }
+  if (result.busy) { console.error("[driver] main thread busy for 20s (evaluate did not return)"); continue; }
+  if (result.exceptionDetails) {
+    console.error("[driver] script threw:", result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
+    await sleep(2000); continue;
+  }
+  const value = String(result.result.value ?? "");
+  if (value.startsWith("DONE")) { console.log(value.slice(4).replace(/^:\s*/, "")); cleanup(); process.exit(0); }
+  if (value.startsWith("FAIL")) { console.log(value.slice(4).replace(/^:\s*/, "")); cleanup(); process.exit(1); }
+  console.error("[progress] " + value);
+  await sleep(2000);
 }
-console.log(result.result.value);
+console.error("timeout");
 cleanup();
-process.exit(0);
+process.exit(1);

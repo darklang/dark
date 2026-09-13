@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Darklang CLI</title>
+  <link rel="stylesheet" href="vendor/xterm.css" />
+  <style>
+    :root { color-scheme: dark; --bg:#0f1117; --fg:#e6e8ee; --muted:#8b90a0; --accent:#7c9cff;
+            --ok:#6ee7a8; --err:#ff8a8a; --border:#262b38;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin:0; background:var(--bg); color:var(--fg); display:flex; flex-direction:column; }
+    header { padding:8px 14px; border-bottom:1px solid var(--border); display:flex;
+             align-items:baseline; gap:12px; flex: none; }
+    header h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:.3px; }
+    header .status { font-size:12px; color:var(--muted); margin-left:auto; }
+    header .status.busy { color:var(--accent); }
+    header .status.ready { color:var(--ok); }
+    header .status.err { color:var(--err); }
+    header a { color:var(--muted); font-size:12px; text-decoration:none; }
+    header a:hover { color:var(--fg); }
+    #term { flex:1; min-height:0; padding:6px; }
+    #term .xterm { height: 100%; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Darklang CLI</h1>
+    <a href="index.html">REPL</a>
+    <span class="status" id="status">loading runtime</span>
+  </header>
+  <div id="term"></div>
+
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/addon-fit.js"></script>
+  <!-- Blazor WASM runtime; produced by `dotnet publish` (see README.md). -->
+  <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script>
+    const status = document.getElementById("status");
+    const setStatus = (text, cls) => { status.textContent = text; status.className = "status " + (cls || ""); };
+
+    const term = new Terminal({
+      cursorBlink: true, convertEol: false, scrollback: 5000, fontSize: 14,
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      theme: { background: "#0f1117", foreground: "#e6e8ee" },
+      allowProposedApi: true,
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById("term"));
+    fit.fit();
+
+    // .NET buffers everything it prints; the page drains it (Host/Browser.fs: DrainOutput).
+    // A whole TUI frame arrives as one write, and the interpreter never calls into JS itself.
+    let draining = false;
+    async function drain() {
+      if (draining) return;
+      draining = true;
+      try { const s = await invoke("DrainOutput"); if (s) term.write(s); }
+      catch (e) { /* runtime not ready yet */ }
+      finally { draining = false; }
+    }
+
+    // The URL contract. `?cmd=docs Stdlib.List.map` runs that command (URL-encoded, split
+    // on whitespace, double quotes group). `?fn=Darklang.Stdlib.List.map` is sugar for
+    // `?cmd=view <name>`. No params: the workbench, same as `dark` with no arguments.
+    function argvFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const fn = params.get("fn");
+      if (fn) return ["view", fn];
+      const cmd = params.get("cmd");
+      if (!cmd) return [];
+      const argv = []; let cur = ""; let quoted = false;
+      for (const ch of cmd) {
+        if (ch === '"') { quoted = !quoted; continue; }
+        if (!quoted && /\s/.test(ch)) { if (cur) { argv.push(cur); cur = ""; } continue; }
+        cur += ch;
+      }
+      if (cur) argv.push(cur);
+      return argv;
+    }
+
+    let running = false;
+    const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
+    let drainTimer = null;
+
+    // Keys go straight to .NET as DOM key names; xterm never sees them (returning false
+    // stops its own handling), so nothing echoes twice. Paste arrives through onData.
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown") return false;
+      if (!running) return false;
+      // Let the browser keep its own clipboard shortcuts.
+      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "V" || ev.key === "C")) return true;
+      if (ev.metaKey) return true;
+      invoke("PushKey", ev.key, ev.ctrlKey, ev.altKey, ev.shiftKey);
+      ev.preventDefault();
+      return false;
+    });
+    term.onData((data) => {
+      if (!running) return;
+      // Everything that reaches here is a paste (or IME text): keys were intercepted above.
+      if (data.length > 0) invoke("PushPaste", data);
+    });
+
+    function reportSize() {
+      if (!running) return;
+      invoke("SetTerminalSize", term.cols, term.rows);
+    }
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { fit.fit(); reportSize(); }, 80);
+    });
+
+    async function waitForDispatcher() {
+      for (let i = 0; i < 120; i++) {
+        if (typeof DotNet !== "undefined") {
+          try { await invoke("Ready"); return true; } catch (e) { /* not yet */ }
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      return false;
+    }
+    async function waitFor(cond, tries) {
+      for (let i = 0; i < tries; i++) {
+        if (cond()) return true;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return false;
+    }
+
+    (async () => {
+      term.write("\x1b[90mloading the Darklang runtime...\x1b[0m\r\n");
+      try {
+        if (!(await waitFor(() => typeof Blazor !== "undefined" && Blazor.start, 80)))
+          throw new Error("_framework/blazor.webassembly.js did not load");
+        await Blazor.start();
+        if (!(await waitForDispatcher())) throw new Error("runtime did not become ready");
+      } catch (e) {
+        setStatus("runtime not loaded: " + (e && e.message ? e.message : e), "err");
+        term.write("\x1b[31mruntime failed to load: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
+        console.error("Darklang CLI boot failed:", e);
+        return;
+      }
+      drainTimer = setInterval(drain, 25);
+      try {
+        setStatus("loading the package store", "busy");
+        term.write("\x1b[90mloading the package store...\x1b[0m\r\n");
+        const t0 = performance.now();
+        await invoke("Boot", new URL("data.db", document.baseURI).href);
+        term.write("\x1b[90mstore ready in " + Math.round(performance.now() - t0) + " ms\x1b[0m\r\n");
+      } catch (e) {
+        setStatus("store failed to load", "err");
+        term.write("\x1b[31mstore failed to load: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
+        console.error("Darklang CLI store load failed:", e);
+        return;
+      }
+      const argv = argvFromUrl();
+      const params = new URLSearchParams(location.search);
+      if (params.get("trace") === "1") await invoke("SetTrace", true);
+      for (const kv of params.getAll("env")) {
+        const i = kv.indexOf("="); if (i > 0) await invoke("SetEnv", kv.slice(0, i), kv.slice(i + 1));
+      }
+      if (params.get("probe") === "1") {
+        console.log("[probe] getFn"); console.log("[probe] getFn =", await invoke("ProbeGetFn", "f786aeeaccc9a548b132bb0329373d028c3d312ee3230e6134b022ec9275c952"));
+        console.log("[probe] harmful"); console.log("[probe] harmful =", await invoke("ProbeHarmful"));
+      }
+      setStatus("running", "ready");
+      running = true;
+      fit.fit();
+      await invoke("SetTerminalSize", term.cols, term.rows);
+      term.focus();
+      try {
+        const code = await invoke("RunCli", argv);
+        running = false;
+        await drain();
+        setStatus("exited with " + code, code === 0 ? "" : "err");
+        term.write("\r\n\x1b[90m[the CLI exited with " + code + "; reload to start again]\x1b[0m\r\n");
+      } catch (e) {
+        running = false;
+        await drain();
+        setStatus("crashed", "err");
+        term.write("\r\n\x1b[31mthe CLI crashed: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
+        console.error("Darklang CLI crashed:", e);
+      }
+    })();
+  </script>
+</body>
+</html>

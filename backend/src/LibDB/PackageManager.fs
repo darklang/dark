@@ -71,6 +71,16 @@ let private loadHarmful () : Set<string> =
     harmfulCache <- Some harmful
     harmful
 
+/// Fill the Harmful cache without blocking. `isHarmful` is synchronous by contract (the
+/// interpreter asks it before every package call), so the miss path above waits on the
+/// query. A host with one thread and no blocking wait, the browser, calls this once at boot
+/// instead, and every later lookup is a cache hit.
+let preloadHarmful () : System.Threading.Tasks.Task<unit> =
+  task {
+    let! harmful = Queries.getHarmfulFnHashes ()
+    harmfulCache <- Some(harmful |> Set.map (fun (PT.Hash h) -> h))
+  }
+
 /// Drop the Harmful set so the next lookup re-reads `deprecations`.
 let invalidateHarmful () : unit = harmfulCache <- None
 

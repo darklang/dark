@@ -18,6 +18,12 @@
          .a and adds it as a NativeFileReference through its buildTransitive targets) so the
          real LibDB store runs in the tab. -->
     <WasmBuildNative>true</WasmBuildNative>
+    <!-- Keep native symbol names so a paused stack in DevTools reads as mono/sqlite functions
+         rather than $funcNNNN. Costs a few MB; drop for a size-optimised release. -->
+    <WasmNativeStrip>false</WasmNativeStrip>
+    <!-- Line numbers in managed stack traces while the browser host is being brought up. -->
+    <CopyOutputSymbolsToPublishDirectory>true</CopyOutputSymbolsToPublishDirectory>
+    <WasmDebugLevel>1</WasmDebugLevel>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +31,10 @@
     <Compile Include="Output.fs" />
     <Compile Include="PmLookup.fs" />
     <Compile Include="Repl.fs" />
+    <!-- The CLI host: the real store plus browser stand-ins for stdin/terminal -->
+    <Compile Include="Host/Browser.fs" />
+    <Compile Include="Host/BrowserBuiltins.fs" />
+    <Compile Include="Host/Cli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
@@ -54,6 +64,11 @@
     <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
     <!-- .NET HttpClient runs over fetch() in the browser, so this set works in WASM -->
     <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <!-- The CLI's full builtin set. CliHost pulls Matter, Language, Time, Random, Http.Server
+         and LibCloud; all of it is plain BCL + SQLite, which links now. The browser replaces
+         the few that need a tty or a process (Host/BrowserBuiltins.fs), layered last so they win. -->
+    <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
   </ItemGroup>
 
 </Project>
