@@ -14,8 +14,11 @@ SRC="$ROOT/rundir/wasm-repl/wwwroot"
 DST="$ROOT/rundir/wasm-site/wwwroot"
 [[ -f "$SRC/cli.html" && -d "$SRC/_framework" ]] || { echo "no publish at $SRC" >&2; exit 1; }
 "$ROOT/backend/src/Wasm/make-store.sh" "$SRC/data.db" >/dev/null
-# The page fetches data.db.gz and inflates it itself (see Host/Cli.fs Boot).
-gzip -k -f -6 "$SRC/data.db"
+# The page fetches data.db.br and inflates it itself (see Host/Cli.fs Boot). Brotli with a
+# 16 MB window is less than half of gzip on this file: the hex hashes repeat a lot.
+python3 -c "import brotli,sys; open(sys.argv[1]+'.br','wb').write(brotli.compress(open(sys.argv[1],'rb').read(), quality=11, lgwin=24))" "$SRC/data.db"
+# What the page fetches, and how big it inflates to.
+printf '{"file":"data.db.br","size":%s}\n' "$(stat -c %s "$SRC/data.db")" > "$SRC/store.json"
 mkdir -p "$DST"
 # The page sources are copied straight from the tree so an html/js edit needs no publish.
 cp "$ROOT/backend/src/Wasm/wwwroot/"*.html "$SRC/"

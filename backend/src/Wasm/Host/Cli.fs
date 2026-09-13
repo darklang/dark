@@ -23,6 +23,31 @@ module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
 
+/// Brotli, one shot, straight from the runtime's own native library. `BrotliStream` refuses
+/// to construct on the browser (marked unsupported), but the decoder it would have called
+/// is linked into dotnet.native.wasm regardless, and brotli is less than half of gzip on the
+/// store. The caller passes the inflated size (the page reads it from `store.json`).
+// F# lowers an `extern` through `failwith`, which Prelude bans; HostLibc shadows it too.
+let private failwith (s : string) : 'a = raise (System.Exception(s))
+
+[<Runtime.InteropServices.DllImport("libSystem.IO.Compression.Native",
+                                    EntryPoint = "BrotliDecoderDecompress")>]
+extern int private brotliDecompress(
+  unativeint encodedSize,
+  byte[] encoded,
+  unativeint& decodedSize,
+  byte[] decoded)
+
+let private inflateBrotli (encoded : byte[]) (rawSize : int) : byte[] =
+  let decoded = Array.zeroCreate<byte> rawSize
+  let mutable decodedSize = unativeint rawSize
+  let ok = brotliDecompress (unativeint encoded.Length, encoded, &decodedSize, decoded)
+  if ok <> 1 || int decodedSize <> rawSize then
+    Exception.raiseInternal
+      "brotli: decode failed"
+      [ "ok", ok; "decoded", decodedSize; "expected", rawSize ]
+  decoded
+
 /// Where the store lives in the tab's virtual filesystem. `DARK_CONFIG_RUNDIR` must be
 /// absolute, and this is set before `LibConfig` computes its paths (Program.Main).
 let runDir = "/dark"
@@ -55,7 +80,7 @@ let mutable private booted = false
 
 /// Fetch the store and bring the package manager up. Idempotent.
 [<JSInvokable>]
-let Boot (storeUrl : string) : Task =
+let Boot (storeUrl : string, rawSize : int) : Task =
   task {
     if not booted then
       let dbPath = LibConfig.Config.dbPath
@@ -64,13 +89,18 @@ let Boot (storeUrl : string) : Task =
       let! bytes = http.GetByteArrayAsync storeUrl
       // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
       // static host was seen handing the store back uncompressed however it was asked.
+      let inflate (mk : IO.Stream -> IO.Stream) =
+        use src = new IO.MemoryStream(bytes)
+        use s = mk src
+        use dst = new IO.MemoryStream()
+        s.CopyTo dst
+        dst.ToArray()
       let bytes =
-        if storeUrl.EndsWith ".gz" then
-          use src = new IO.MemoryStream(bytes)
-          use gz = new IO.Compression.GZipStream(src, IO.Compression.CompressionMode.Decompress)
-          use dst = new IO.MemoryStream()
-          gz.CopyTo dst
-          dst.ToArray()
+        if storeUrl.EndsWith ".br" then
+          inflateBrotli bytes rawSize
+        elif storeUrl.EndsWith ".gz" then
+          inflate (fun src ->
+            new IO.Compression.GZipStream(src, IO.Compression.CompressionMode.Decompress))
         else
           bytes
       IO.File.WriteAllBytes(dbPath, bytes)

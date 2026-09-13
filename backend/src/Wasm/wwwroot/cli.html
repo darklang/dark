@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Darklang CLI</title>
   <link rel="stylesheet" href="vendor/xterm.css" />
+  <!-- The store downloads while the runtime does; Boot's fetch of the same URL hits the cache. -->
+  <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
   <style>
     :root { color-scheme: dark; --bg:#0f1117; --fg:#e6e8ee; --muted:#8b90a0; --accent:#7c9cff;
             --ok:#6ee7a8; --err:#ff8a8a; --border:#262b38;
@@ -216,7 +218,9 @@ Anything that opens a screen of its own (workbench, outliner, views, apps) belon
         setStatus("loading the package store", "busy");
         term.write("\x1b[90mloading the package store...\x1b[0m\r\n");
         const t0 = performance.now();
-        await invoke("Boot", new URL("data.db.gz", document.baseURI).href);
+        // store.json names the file and its inflated size (the one-shot brotli decoder needs it).
+        const manifest = await (await fetch(new URL("store.json", document.baseURI))).json();
+        await invoke("Boot", new URL(manifest.file, document.baseURI).href, manifest.size);
         term.write("\x1b[90mstore ready in " + Math.round(performance.now() - t0) + " ms\x1b[0m\r\n");
       } catch (e) {
         setStatus("store failed to load", "err");

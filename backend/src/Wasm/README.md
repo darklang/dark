@@ -60,8 +60,11 @@ gained `preloadHarmful`, `Terminal.fs` skips the `CancelKeyPress` subscription,
 
 `RunAOTCompilation` is on because the interpreter's F# `task` loop could not suspend a second
 time under the mono interpreter ("Cannot wait on monitors on this runtime"). It is the reason
-the publish takes minutes and `dotnet.native.wasm` is ~14 MB brotli'd; partial AOT (a profile,
-or AOT for LibExecution and FSharp.Core only) is the next size lever.
+the publish takes minutes. A few big leaves (XML, Expecto, Mono.Cecil, Linq.Expressions, the
+Blazor component assemblies) are kept interpreted via `_AOT_InternalForceInterpretAssemblies`;
+excluding the BCL wholesale made mixed mode assert ("should not be reached") the moment
+compiled F# generics called into an interpreted assembly, so that is as far as it goes.
+`InvariantGlobalization` drops ICU.
 
 ## The store, and the secret
 
@@ -97,5 +100,7 @@ stack, for when the main thread never yields.
 - `Posix.stat` and friends answer through `System.IO` with synthesized modes; `kill`,
   `spawn`, `exec` fail cleanly (no processes in a tab).
 - The `?` in the welcome logo is in the source; the native CLI shows it too.
-- Cold start: ~19 MB brotli of runtime plus a 14 MB gzip'd store, then ~3 s of SQLite and
-  package-manager warm-up.
+- Cold start: 17.7 MB gzip of runtime plus a 6.6 MB brotli store (fetched in parallel via a
+  preload link, inflated by the runtime's own brotli decoder through a P/Invoke, since
+  `BrotliStream` refuses the browser), then ~1 s to decode and warm up. First workbench frame
+  5-8 s from the fly deploy, ~3 s locally.

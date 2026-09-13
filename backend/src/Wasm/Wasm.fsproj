@@ -17,6 +17,9 @@
          the mono interpreter (a blocking wait on the browser's one thread). Compiled, they can.
          Slower to build, faster to run. -->
     <RunAOTCompilation>true</RunAOTCompilation>
+    <!-- No ICU: the CLI's string work is ordinal/invariant, and the ICU data is ~1 MB gz plus
+         load time on every cold start. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Native relink: statically links e_sqlite3 (SourceGear.sqlite3 ships a browser-wasm
          .a and adds it as a NativeFileReference through its buildTransitive targets) so the
          real LibDB store runs in the tab. -->
@@ -25,6 +28,17 @@
          read as mono/sqlite function names, `WasmDebugLevel=1` plus
          `CopyOutputSymbolsToPublishDirectory=true` keeps pdbs. Both cost size; off for release. -->
   </PropertyGroup>
+
+  <!-- Partial AOT. Only leaves nothing F#-generic calls into stay interpreted: mixed
+       AOT/interpreter mode asserts ("should not be reached") when compiled generic code
+       crosses into an interpreted assembly, which excluding the BCL wholesale triggered.
+       These are big, self-contained, and barely used at runtime. -->
+  <ItemGroup>
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.dll;System.Private.Xml.Linq.dll;System.Xml.Linq.dll;System.Xml.ReaderWriter.dll;System.Xml.XDocument.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="Expecto.dll;Mono.Cecil.dll;Mono.Cecil.Mdb.dll;Mono.Cecil.Pdb.dll;Mono.Cecil.Rocks.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="System.Linq.Expressions.dll;System.Linq.Queryable.dll;System.ComponentModel.TypeConverter.dll;System.Net.HttpListener.dll;System.Diagnostics.Process.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="Microsoft.AspNetCore.Components.dll;Microsoft.AspNetCore.Components.Web.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Include="Probe.fs" />

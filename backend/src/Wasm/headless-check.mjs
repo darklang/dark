@@ -62,7 +62,9 @@ ws.onmessage = (ev) => {
     msg.error ? rej(new Error(JSON.stringify(msg.error))) : res(msg.result);
   } else if (msg.method === "Runtime.consoleAPICalled") {
     const text = msg.params.args.map((a) => a.value ?? a.description ?? "").join(" ");
-    console.error(`[console.${msg.params.type}] ${text}`);
+    // Wall-clock offset from navigation, so boot phases can be timed from the log.
+    const t = ((msg.params.timestamp - t0) / 1000).toFixed(1);
+    console.error(`[console.${msg.params.type} +${t}s] ${text}`);
   } else if (msg.method === "Runtime.exceptionThrown") {
     console.error(`[pageerror] ${msg.params.exceptionDetails.text} ${msg.params.exceptionDetails.exception?.description ?? ""}`);
   }
@@ -74,6 +76,7 @@ const send = (method, params = {}) => new Promise((res, rej) => {
 
 await send("Runtime.enable");
 await send("Page.enable");
+const t0 = Date.now();
 await send("Page.navigate", { url });
 const deadline = Date.now() + timeoutMs;
 
