@@ -264,3 +264,101 @@ gate_reload_is_reproducible() {
   fi
   echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
 }
+
+# --- store-upgrade: a format bump, carried in place ---------------------------------------------
+# There is only ONE op-log format so far, so the migrator has nothing real to migrate between.
+# `DARK_FORMAT_VERSION` is the synthetic bump: the binary writes the version named and reads every
+# version up to it, so the layout is identical and a migration across it is exactly the
+# format-only case -- a blob rewrite with no identity moving. Which is the case worth having
+# mechanised and tested BEFORE the first real bump, rather than discovering during one.
+#
+# Gate, not an F#/.dark test: the format version is read at process start, so "the same store seen
+# by a build that writes a different version" needs a different PROCESS, twice.
+gate_store_upgrade() {
+  set -uo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  ROOT=rundir/store-upgrade-test
+  pass=0; fail=0
+  ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+  bad() { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 300 <<<"$2" | tr '\n' ' ')"; }
+  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
+  scripts/testing/_copy-store "$ROOT/data.db"
+
+  # v1: this build's own version. v2: the same build pretending to write one format on.
+  v1() { DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+  v2() { DARK_FORMAT_VERSION=2 DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+  ops() { sqlite3 "$ROOT/data.db" 'SELECT count(*) FROM package_ops;' 2>/dev/null || echo -1; }
+  fmt() { sqlite3 "$ROOT/data.db" "SELECT value FROM store_meta WHERE key = 'format';" 2>/dev/null || echo ""; }
+
+  echo "== before"
+  v1 store > /dev/null
+  want "the store stamps itself format 1 at open" "^1$" "$(fmt)"
+  want "and it works" "^4$" "$(v1 eval '(Stdlib.List.length [1L, 2L, 3L, 4L]) |> Stdlib.Int.toString' | tail -1)"
+
+  # A name authored BEFORE the upgrade, to check the rewrite carried meaning and not just bytes.
+  v1 fn /SU.T.before '() : Int64 = 1717L' > /dev/null
+  v1 commit "store-upgrade gate" -y > /dev/null
+  want "a fn authored at v1 resolves" "^1717$" "$(v1 eval 'SU.T.before ()' | tail -1)"
+  after_author_ops=$(ops)
+
+  echo "== a build that writes the same format has nothing to do"
+  want "and says so rather than rewriting" "already format 1" "$(v1 store upgrade -y)"
+
+  echo "== an id that does not re-derive stops it dead"
+  # The line between the two migrations, forged. A store whose ids were minted by a different
+  # HASHING needs the whole log re-minted, not its blobs rewritten, and the only way to tell is to
+  # recompute each op's id and compare. So: an op filed under an id its own content does not
+  # produce. The upgrade must refuse and touch nothing, because half-doing this is unrecoverable.
+  sqlite3 "$ROOT/data.db" "INSERT INTO package_ops (id, op_blob, applied, effective, commit_hash, origin_ts)
+    SELECT '00000000-0000-4000-8000-00000000ffff', op_blob, applied, effective, commit_hash, origin_ts
+    FROM package_ops LIMIT 1;"
+  forged_ops=$(ops)
+  out=$(v2 store upgrade -y)
+  want "it refuses" "re-derives a different id" "$out"
+  want "and names it an identity-changing migration" "identity-changing migration" "$out"
+  want "and says the store is untouched" "store is untouched" "$out"
+  want "the stamp did not move" "^1$" "$(fmt)"
+  want "and nothing was rewritten" "^$forged_ops$" "$(ops)"
+  sqlite3 "$ROOT/data.db" "DELETE FROM package_ops WHERE id = '00000000-0000-4000-8000-00000000ffff';"
+
+  echo "== the upgrade"
+  out=$(v2 store upgrade -y)
+  want "it reports the move" "Upgraded from format 1 to 2" "$out"
+  want "it rewrote the whole log" "$after_author_ops op\(s\) rewritten" "$out"
+  want "it says where the old store is" "pre-v2" "$out"
+  want "the stamp moved" "^2$" "$(fmt)"
+  want "and \`store\` names the way back" "store rollback 2" "$(v2 store)"
+  want "no op was lost" "^$after_author_ops$" "$(ops)"
+  if [[ -f "$ROOT/data.db.pre-v2" ]]; then ok "the pre-upgrade copy is on disk"; else bad "the pre-upgrade copy is on disk" "$(ls "$ROOT")"; fi
+
+  echo "== and the store still means what it meant"
+  want "the fn authored at v1 still resolves" "^1717$" "$(v2 eval 'SU.T.before ()' | tail -1)"
+  want "so does the package set" "^4$" "$(v2 eval '(Stdlib.List.length [1L, 2L, 3L, 4L]) |> Stdlib.Int.toString' | tail -1)"
+  want "authoring still works after it" "^2727$" "$(v2 fn /SU.T.after '() : Int64 = 2727L' > /dev/null; v2 eval 'SU.T.after ()' | tail -1)"
+  want "a second upgrade is a no-op" "already format 2" "$(v2 store upgrade -y)"
+
+  echo "== a build that reads an older format than the store"
+  # The one thing that must not happen quietly. It opens (so a rollback is reachable) and says
+  # which way out there is.
+  # It dies on the first package lookup -- resolving the name of the command you typed is one --
+  # so what it must do is SAY so, and name a file a person can move without a working binary.
+  want "it says the store is ahead of it" "format 2 and this build reads 1" "$(v1 store)"
+  want "and names the file to move back" "pre-v2 -- move it back over" "$(v1 store)"
+  want "and does not downgrade the stamp behind your back" "^2$" "$(fmt)"
+
+  echo "== rollback"
+  want "it asks first" "" "$(v2 store rollback 2 < /dev/null)"
+  want "and rolling back needs the version" "takes the format version" "$(v2 store rollback banana -y)"
+  want "rollback restores" "Restored from" "$(v2 store rollback 2 -y)"
+  want "the stamp is back" "^1$" "$(fmt)"
+  want "this build reads it again" "^1717$" "$(v1 eval 'SU.T.before ()' | tail -1)"
+  want "and the op authored after the upgrade is gone with it" "not found|couldn't be found" "$(v1 eval 'SU.T.after ()' | tail -1)"
+  want "rolling back twice is refused, not repeated" "no pre-v9 copy" "$(v2 store rollback 9 -y)"
+
+  echo
+  echo "passed: $pass   failed: $fail"
+  [[ "$fail" -eq 0 ]]
+}

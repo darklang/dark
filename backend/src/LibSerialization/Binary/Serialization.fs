@@ -58,7 +58,7 @@ let makeSerializer<'T, 'ID>
       use finalWriter = new BinaryWriter(finalStream)
 
       let header =
-        { Version = CurrentVersion; DataLength = uint32 payloadBytes.Length }
+        { Version = currentVersion; DataLength = uint32 payloadBytes.Length }
 
       Header.write finalWriter header
       finalWriter.Write(payloadBytes)
@@ -72,7 +72,7 @@ let makeSerializer<'T, 'ID>
 /// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
 /// blob.
 ///
-/// No reader dispatches on the version yet, because `CurrentVersion` is still 1: v1 is the first
+/// No reader dispatches on the version yet, because `currentVersion` is still 1: v1 is the first
 /// format whose blobs outlive the binary that wrote them, since before it every store was rebuilt
 /// from `.dark` on each build. This exists so the first layout change has somewhere to go.
 let makeDeserializerV<'T, 'ID>

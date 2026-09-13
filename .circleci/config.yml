@@ -228,8 +228,8 @@ jobs:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
       - run:
           name: Export the seed the publish embeds
           command: scripts/run-local-exec export-seed rundir/seed.db
@@ -315,8 +315,8 @@ jobs:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
 
       - assert-clean-worktree
       # Just the host build, on main as much as anywhere else. This is a
@@ -379,27 +379,48 @@ jobs:
       - run:
           name: Run migrations to create database
           command: scripts/run-local-exec migrations run
+      # Keyed on the PIN, not on the week: a pinned package set is immutable, so this hits on every
+      # release build until someone re-pins. Costs nothing when there is no pin -- `package-set.txt`
+      # then says `commit unset`, the key is stable, and the cached rundir is simply not used
+      # because the step below reloads instead.
+      - restore_cache:
+          keys:
+            - v1-seed-{{ checksum "package-set.txt" }}
       - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
+          name: Get the package set (the pin, or packages/)
+          command: scripts/build/prepare-package-set
       - run:
           name: Export the seed
           command: |
-            sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
-            scripts/run-local-exec export-seed rundir/seed.db
+            # A no-op on the pinned path, where the fetched file already IS the seed and is settled
+            # out of WAL. On the reload path the store is live and this is the cut.
+            if [[ -f rundir/seed.db ]] && [[ "$(awk '$1 == "commit" { print $2 }' package-set.txt)" != "unset" ]]; then
+              echo "using the fetched seed at the pin"
+            else
+              sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
+              scripts/run-local-exec export-seed rundir/seed.db
+            fi
+      - save_cache:
+          paths:
+            - rundir/seed.db
+          key: v1-seed-{{ checksum "package-set.txt" }}
       - persist_to_workspace:
           root: "."
           paths:
             - rundir/seed.db
             # Hand over the hash file too, not just the seed.
             #
-            # `reload-packages` above populates it, but it is gitignored, so the
-            # build jobs' own checkout has only the empty one MSBuild creates.
-            # They then embed THAT, and every ref in the shipped binary resolves
-            # to "" -> `FnNotFound` on every command. It goes unnoticed inside a
-            # source tree, because there the file on disk wins over the embedded
-            # copy and the first run regenerates it. A user running the artifact
-            # anywhere else has only the embedded copy.
+            # It is tracked now, so a checkout already has it; this carries the
+            # one the step above just PRODUCED, which is the one that matches the
+            # seed beside it. On the pinned path those can differ, and when they
+            # do the difference is the finding: the pin's package set is not the
+            # one this kernel was built against, and `assert-clean-worktree` in
+            # the build jobs is what says so.
+            #
+            # Embedding a mismatched one is not a loud failure. Every ref in the
+            # shipped binary resolves to "" -> `FnNotFound` on every command, and
+            # only OUTSIDE a source tree, because inside one the file on disk
+            # wins over the embedded copy and the first run regenerates it.
             - backend/src/LibExecution/package-ref-hashes.txt
 
   # All four linux artifacts from one x64 runner. The cross-compiles work

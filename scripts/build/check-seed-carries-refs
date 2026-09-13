@@ -33,6 +33,8 @@ def main() -> int:
          if "|" in line}
     )
     if not refs:
+        # Only a fresh clone before its first reload, where MSBuild has touched an empty one.
+        # The file is tracked, so in every other case there is something to check.
         print("check-seed-carries-refs: skipped (package-ref-hashes.txt is empty)")
         return 0
 

@@ -78,15 +78,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match itemLocation location with
   | None ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        $"{name} is a module. `dark edit` takes one fn, type or value.")
+    match location with
+    | Module modulePath -> editModule state modulePath fileArg
+    | _ ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}.")
 
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        "  `dark module /Some.Module <file>` edits a whole module at once.")
-
-    state
+      state
   | Some loc ->
 
   match fileArg with
@@ -203,6 +201,13 @@ let help (_state: AppState) : String =
   [ ""
     "  dark edit <name>           open $EDITOR on the declaration, apply on save"
     "  dark edit <name> <file>    apply that file instead (no editor, for scripts)"
+    "  dark edit <module>         the whole module at once, same two shapes"
+    ""
+    "  A MODULE opens every declaration directly under it, and applies them in one"
+    "  batch: all of them are validated first, so a half-finished edit lands nothing"
+    "  rather than half. Leaving a declaration OUT does not end it -- the ones you"
+    "  omitted are named back to you and left alone. `dark remove <name>` ends a"
+    "  name, explicitly and in one op."
     ""
     "  The file holds one declaration, the same form `dark module` takes."
     "  `dark view <name> --raw` prints exactly that form, so reading an item,"
@@ -225,3 +230,201 @@ let complete
   (args: List<String>)
   : List<Completion.CompletionItem> =
   Packages.View.complete state args
+
+
+// ---------------------
+// Editing a whole module
+// ---------------------
+//
+// `dark edit <module>` is the replacement for opening a `.dark` file, and after the flip there is
+// no file to open. It renders every declaration directly under the module, hands you $EDITOR, and
+// applies the result through `dark module` -- which validates ALL of them before saving ANY, so a
+// half-finished edit lands nothing rather than half.
+//
+// It does NOT delete by omission, and that is deliberate rather than unfinished. `dark module`
+// adds and updates; leaving a declaration out of the file does not unbind it. Guessing the other
+// way is where this command would lose work: one mis-parse that dropped an item from the render
+// would quietly end a name. So omissions are REPORTED and left alone, and `dark remove` stays the
+// way a name ends -- one op, confirmed, and visible in `dark status`.
+
+/// Every declaration directly under <param modulePath>, rendered, in a stable order.
+///
+/// Types first, then values, then functions, each alphabetical. Order has to be deterministic or
+/// a render-edit-save round trip churns the file for nobody's benefit; kind-then-name is the order
+/// the module listing already uses, so what you edit looks like what you browsed.
+let moduleSource
+  (branchId: Uuid)
+  (modulePath: List<String>)
+  : (String * List<String>) =
+  let results = Packages.Query.allDirectDescendants branchId modulePath
+
+  // Lambdas here take no type annotation -- Dark does not allow one -- so `wrap` carries the kind
+  // and the item shape is whatever `LocatedItem` gives: `.location` and `.entity`.
+  let render (wrap: LanguageTools.ProgramTypes.PackageLocation -> Packages.PackageLocation) (items: List<'a>) : List<(String * String)> =
+    items
+    |> Stdlib.List.map (fun i -> i.location)
+    |> Stdlib.List.sortBy (fun loc -> loc.name)
+    |> Stdlib.List.filterMap (fun loc ->
+      match Packages.View.rawSource branchId (wrap loc) with
+      | Ok src -> Stdlib.Option.Option.Some((loc.name, src))
+      | Error _ -> Stdlib.Option.Option.None)
+
+  let rendered =
+    Stdlib.List.append
+      (render (fun l -> Packages.PackageLocation.Type l) results.types)
+      (Stdlib.List.append
+        (render (fun l -> Packages.PackageLocation.Value l) results.values)
+        (render (fun l -> Packages.PackageLocation.Function l) results.fns))
+
+  let names = rendered |> Stdlib.List.map (fun r -> let (n, _) = r in n)
+  let body = rendered |> Stdlib.List.map (fun r -> let (_, s) = r in s)
+
+  (Stdlib.String.join body "\n\n", names)
+
+
+/// `dark edit <module>`: every declaration under it, in $EDITOR, applied atomically.
+let editModule
+  (state: AppState)
+  (modulePath: List<String>)
+  (fileArg: Stdlib.Option.Option<String>)
+  : AppState =
+  let branchId = state.currentBranchId
+  let dotted = Stdlib.String.join modulePath "."
+  let moduleArg = "/" ++ dotted
+
+  let (before, namesBefore) = moduleSource branchId modulePath
+
+  // Reports which declarations were in the module and are not in <param source>, having applied
+  // nothing about them. `dark module` adds and updates; it does not unbind, and this command
+  // deliberately does not guess -- one mis-parse that dropped an item from the render would
+  // otherwise quietly end a name.
+  // Only after an apply that LANDED. A parse error lands nothing at all, and saying "left alone"
+  // about it reads as though the rest went in.
+  let reportOmissions (source: String) : Unit =
+    let gone =
+      namesBefore
+      |> Stdlib.List.filter (fun n ->
+        Stdlib.Bool.not (Stdlib.String.contains source n))
+
+    if gone == [] then
+      ()
+    else
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          $"  left alone, not in your file: {Stdlib.String.join gone ", "}")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "  editing a module does not end a name. `dark remove <name>` does, explicitly.")
+
+  match fileArg with
+  | Some file ->
+    match Stdlib.Cli.File.readText file with
+    | Error e ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"Cannot read {file}: {e.message}")
+
+      state
+    | Ok source ->
+      let result = Packages.ModuleCommand.execute state [ moduleArg, file ]
+
+      let _ =
+        if result.exitCode == 0 then reportOmissions source else ()
+
+      result
+  | None ->
+
+  if namesBefore == [] then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"{dotted} has no declarations directly under it.")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        "  `dark ls` shows what is there; a module of submodules is edited one level down.")
+
+    state
+  else
+
+  match Stdlib.Cli.Tui.TerminalSupport.current () with
+  | Unavailable reason ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"Cannot open an editor: {reason}.")
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        $"  `dark edit {dotted} <file>` applies a file instead, with no terminal.")
+
+    state
+  | Available ->
+
+  match Stdlib.Cli.Dir.createTemp () with
+  | Error e ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"Cannot edit {dotted}: no temp directory ({e.message})")
+
+    state
+  | Ok dir ->
+    let path = $"{dir}/{Stdlib.String.join modulePath "."}.dark"
+
+    match Stdlib.Cli.File.writeText path before with
+    | Error e ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"Cannot edit {dotted}: could not write {path} ({e.message})")
+
+      state
+    | Ok _ ->
+      let editor = editorCommand ()
+
+      match Stdlib.Cli.Process.runInteractive editor [ path ] with
+      | Error e ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error $"Could not run `{editor}`: {e.message}")
+
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            $"  Set $EDITOR, or edit {path} and run `dark edit {dotted} {path}`.")
+
+        state
+      | Ok code when code != 0 ->
+        Stdlib.printLine
+          $"`{editor}` exited {Stdlib.Int.toString code}; nothing applied."
+
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText $"  Your edit is still at {path}.")
+
+        state
+      | Ok _ ->
+        match Stdlib.Cli.File.readText path with
+        | Error e ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.error $"Could not read back {path}: {e.message}")
+
+          state
+        | Ok after ->
+          if (Stdlib.String.trim after) == (Stdlib.String.trim before) then
+            let _ = Stdlib.Cli.Dir.deleteRecursive dir
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.success "no change.")
+            state
+          else
+            let result = Packages.ModuleCommand.execute state [ moduleArg, path ]
+
+            let _ =
+              if result.exitCode == 0 then reportOmissions after else ()
+
+            // Did anything land? Asked against what the module WAS, for the same reason the
+            // single-item path does: the store pretty-prints, so comparing against what you typed
+            // says "no" almost always.
+            //
+            // The temp file is the only copy of an interactive edit, so it survives a rejection
+            // and the path is printed. A whole module is a lot to lose.
+            let (now, _) = moduleSource branchId modulePath
+
+            if (Stdlib.String.trim now) != (Stdlib.String.trim before) then
+              let _ = Stdlib.Cli.Dir.deleteRecursive dir
+              result
+            else
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.dimText
+                  $"  nothing landed; your edit is still at {path}")
+
+              result

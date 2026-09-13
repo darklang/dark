@@ -31,6 +31,7 @@ module Registry =
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("grep", "Search the source of what is live (`search` looks at names)", [], Packages.Grep.execute, Packages.Grep.help, Packages.Grep.complete)
       ("search", "Search modules, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
       ("typecheck", "Audit package declarations without changing them", [], Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
       ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
@@ -40,6 +41,8 @@ module Registry =
       ("module", "Define multiple package declarations", [], Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
       ("edit", "Change an item without retyping it", [], Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
       ("rename", "Give an item a different name (its content and callers are untouched)", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
+      ("revert", "Put a name back to what it held at a past commit", [], Packages.Revert.execute, Packages.Revert.help, Packages.Revert.complete)
+      ("remove", "End a name (the content stays, and its callers keep working)", [], Packages.Remove.execute, Packages.Remove.help, Packages.Remove.complete)
       ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
       ("status", "What's in your draft, in one line", [ "wip", "changes" ], Cli.Status.execute, Cli.Status.help, Cli.Status.complete)
@@ -79,6 +82,7 @@ module Registry =
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("store", "What this store is, and moving it between op-log formats", [], Store.execute, Store.help, Store.complete)
       ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
       ("review", "Stage someone else's ops for op-level approval", [], Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
       ("conflicts", "Review what a merge, rebase or sync auto-resolved", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
@@ -197,7 +201,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "module", "edit", "rename", "hash", "db", "deprecate", "delete", "undeprecate" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "grep", "typecheck", "deps", "val", "fn", "type", "module", "edit", "rename", "remove", "revert", "hash", "db", "deprecate", "delete", "undeprecate" ])
       ("Changes",
        [ "status", "commit", "commits", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
@@ -208,7 +212,7 @@ module Registry =
       ("Security", [ "permissions" ])
       ("Network", [ "devices" ])
       ("Apps", [ "apps" ])
-      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "views", "workbench" ]) ]
+      ("Utilities", [ "clear", "help", "docs", "quit", "builtins", "export-seed", "store", "views", "workbench" ]) ]
 
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
     let formattedCommands =

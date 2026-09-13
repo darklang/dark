@@ -131,6 +131,30 @@ let pushHandlerFn (req: HttpRequest) : HttpResponse =
 
   match SCM.Wire.wireDecode req.body with
   | Ok bundle ->
+    // What this server's MAIN will accept from a stranger. Your own namespace takes a plain push;
+    // the reviewed one does not, and a branch push is how that work arrives instead. 403 rather
+    // than 500: this is a refusal, and a client that reads it as a server fault retries forever.
+    let reserved = SCM.Wire.reservedBindingsIn bundle.ops
+
+    if reserved != [] then
+      let shown = reserved |> Stdlib.List.take 5 |> Stdlib.String.join ", "
+
+      let andMore =
+        let extra = (Stdlib.List.length reserved) - 5
+
+        if extra > 0 then
+          $" (and {Stdlib.Int.toString extra} more)"
+        else
+          ""
+
+      Stdlib.Http.responseWithText
+        ($"this server does not accept pushes that bind {shown}{andMore} into its main.
+"
+         ++ "That namespace is reviewed: `dark branch push` instead, and it lands on main when "
+         ++ "the change is merged. Your own namespace takes a plain `dark push`.")
+        403
+    else
+
     match SCM.Wire.storeWithOwner owner bundle.ops bundle.commits with
     | Ok n ->
       // A JSON body, not a sentence: the client acts on this count, and a protocol a client
@@ -255,3 +279,237 @@ let branchOwnersHandlerFn (req: HttpRequest) : HttpResponse =
   match branchAccessAllowed req with
   | Error why -> Stdlib.Http.responseWithText why 401
   | Ok _ -> Stdlib.Http.responseWithText (SCM.PackageOps.relayListAllBranches ()) 200
+
+
+// ---------------------
+// Seeds
+// ---------------------
+//
+// A SEED is the op log as a file: what a fresh install folds to become this store, and what CI fetches
+// instead of parsing `packages/` out of text. It is cut from the SAME log `/sync/pull` pages out, so the
+// two can never disagree about what this relay holds.
+//
+// Cut AT A COMMIT, always, even when the caller asked for "latest": that is what makes a pin
+// reproducible. Two machines asking for the same commit get the same OPS however far the store has
+// moved in between, which is the property `scripts/packages/pin` rests on. The file is not
+// byte-identical across servers -- the stamp says which build cut it and when -- and nothing needs
+// it to be, since ids are derived from op content rather than from the file.
+
+val seedRoute = "/seed/:file"
+
+
+/// Where a cut seed is cached: beside the store, named for the commit it was cut at.
+///
+/// A cut is decided entirely by its commit -- commits are immutable and ops only ever append -- so a
+/// file here never needs invalidating. Beside the store rather than inside it, like the source cache:
+/// it is derived, it is per-install, and it has no business travelling inside a seed of its own.
+let seedCachePath (commit: String) : String =
+  let storeDir = Stdlib.Cli.Path.parent (Stdlib.LocalStore.path ())
+  Stdlib.Cli.Path.join [ storeDir, "seeds", $"{commit}.db" ]
+
+
+/// The commit main is at here, or "" when nothing has been committed yet.
+let headCommit () : String =
+  match SCM.Commits.recent 1L with
+  | c :: _ -> c.hash
+  | [] -> ""
+
+
+/// How many cut seeds this server keeps. At roughly twelve megabytes each, eight is about a
+/// hundred megabytes, and more than anybody browsing pins needs at once.
+val seedCacheKeep = 8
+
+
+/// Drop the oldest cuts past `seedCacheKeep`.
+///
+/// Not tidiness. `/seed/<commit>.db` is ANONYMOUS -- it has to be, because fetching a pinned
+/// package set is the one thing a contributor with no access must be able to do -- and it keeps a
+/// file per commit asked for. The commits are discoverable through the equally public
+/// `/sync/pull`, so without a bound a stranger can walk a store's history and make the server keep
+/// a twelve-megabyte file for every commit in it.
+///
+/// Oldest by modified time, which is "least recently asked for" because a cut is rewritten only
+/// when it is missing. Failures are ignored: this is housekeeping, and refusing to serve a seed
+/// because a stale file would not delete would be the wrong trade.
+let pruneSeedCache () : Unit =
+  let dir = Stdlib.Cli.Path.parent (seedCachePath "x")
+
+  match Stdlib.Cli.Dir.list dir with
+  | Error _ -> ()
+  | Ok entries ->
+    let cuts =
+      entries
+      |> Stdlib.List.filter (fun e -> Stdlib.String.endsWith e ".db")
+      |> Stdlib.List.filterMap (fun e ->
+        let full = Stdlib.Cli.Path.join [ dir, e ]
+
+        match Stdlib.Cli.File.getModifiedTime full with
+        | Ok t -> Stdlib.Option.Option.Some((t, full))
+        | Error _ -> Stdlib.Option.Option.None)
+
+    let total = Stdlib.List.length cuts
+
+    if total <= seedCacheKeep then
+      ()
+    else
+      // Oldest first, then delete exactly the excess. Ascending rather than descending because
+      // every count here is an `Int` and negating one to reverse the sort is how this got an
+      // Int/Int64 mismatch the first time, which raised inside the handler and turned every seed
+      // request into a 500.
+      cuts
+      |> Stdlib.List.sortBy (fun c -> let (t, _) = c in t)
+      |> Stdlib.List.take (total - seedCacheKeep)
+      |> Stdlib.List.iter (fun c ->
+        let (_, path) = c
+        let _ = Stdlib.Cli.File.delete path
+        ())
+
+
+/// Cut a seed at <param commit>, or hand back the one already cut there.
+let cutSeedAt (commit: String) : Stdlib.Result.Result<String, String> =
+  let path = seedCachePath commit
+
+  if Stdlib.Cli.File.exists path then
+    Stdlib.Result.Result.Ok path
+  else
+    match Stdlib.Cli.Dir.createRecursive (Stdlib.Cli.Path.parent path) with
+    | Error e ->
+      Stdlib.Result.Result.Error
+        $"could not make the seed cache directory: {Stdlib.Cli.Posix.Error.toString e}"
+    | Ok _ ->
+      match Stdlib.LocalStore.seedTo path (Stdlib.Option.Option.Some commit) with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok _ ->
+        let _ = pruneSeedCache ()
+        Stdlib.Result.Result.Ok path
+
+
+/// What a seed cut from this relay says about itself, so a pin can be checked without downloading
+/// tens of megabytes to read four fields.
+type SeedMeta =
+  { /// The commit the seed this describes would be cut at: the current head, or the resolved
+    /// `?commit=` when one was asked about. "" only when nothing is committed here at all.
+    head: String
+    /// The op-blob layout a seed from here is written in. A fetcher that reads a different one must
+    /// refuse rather than fold it.
+    format: String
+    /// The build that would cut it, for tracing a bad seed back to a binary. This server's own
+    /// build, not whatever its store says: the store's `kernel` records the build that cut the seed
+    /// it GREW from, which is a different fact and older.
+    kernel: String
+    /// What a seed cut at `head` would carry. A client comparing these with its own knows whether
+    /// a fetch would tell it anything.
+    ops: Int64
+    commits: Int64 }
+
+
+/// `/seed/meta`: the fields a pin needs, without the seed.
+///
+/// `?commit=<c>` asks about THAT commit instead of the head, which is how a pin is checked: it
+/// answers 404 if the commit does not resolve here, and otherwise the shape the cut would have.
+/// Two counts rather than twelve megabytes.
+let seedMetaHandlerFn (req: HttpRequest) : HttpResponse =
+  let asked =
+    Stdlib.Http.Request.queryParam req "commit" |> Stdlib.Option.withDefault ""
+
+  let resolved =
+    if asked == "" then
+      Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
+    else
+      match SCM.PackageOps.resolveCommit asked with
+      | Some hash -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some hash)
+      | None -> Stdlib.Result.Result.Error $"no single commit here starts with \"{asked}\""
+
+  match resolved with
+  | Error why -> Stdlib.Http.responseWithText why 404
+  | Ok at ->
+    let shape =
+      match at with
+      | Some hash -> SCM.PackageOps.seedShapeAt hash
+      | None ->
+        Stdlib.Option.Option.Some(
+          (SCM.PackageOps.committedCountOnMain (),
+           SCM.PackageOps.commitCountOnBranch SCM.Branch.mainBranchId)
+        )
+
+    match shape with
+    | None -> Stdlib.Http.responseWithText $"no commit here named \"{asked}\"" 404
+    | Some counts ->
+      let (ops, commits) = counts
+
+      let meta =
+        SeedMeta
+          { head =
+              match at with
+              | Some hash -> hash
+              | None -> headCommit ()
+            format = SCM.StoreMeta.get "format"
+            kernel = Darklang.Cli.Installation.Helpers.buildHash ()
+            ops = ops
+            commits = commits }
+
+      Stdlib.Http.responseWithJson (Stdlib.Json.serialize<SeedMeta> meta) 200
+
+
+/// `/seed/latest.db` and `/seed/<commit>.db`: the store as a file, cut at a commit.
+///
+/// `latest.db` resolves to the current head and is served as the cut AT that head, so it is the same
+/// bytes as asking for that commit by name. A short commit prefix resolves like git's; an ambiguous
+/// one is refused rather than guessed at, because guessing here pins the wrong package set.
+let seedHandlerFn (req: HttpRequest) : HttpResponse =
+  let requested =
+    Stdlib.HttpServer.getPathParam req seedRoute "file"
+    |> Stdlib.Option.withDefault ""
+
+  // `.db` is part of the route rather than a query param so a browser, `curl -O` and a CI cache all
+  // end up with a file named like what it is.
+  if Stdlib.Bool.not (Stdlib.String.endsWith requested ".db") then
+    Stdlib.Http.badRequest
+      "a seed is asked for as `/seed/latest.db` or `/seed/<commit>.db`"
+  else
+
+  let asked = Stdlib.String.dropLast requested 3
+
+  let resolved =
+    if asked == "" then
+      // `/seed/.db` asks for nothing. Refused rather than read as an empty prefix, which matches
+      // every commit and so resolves to one whenever a store happens to hold exactly one.
+      Stdlib.Result.Result.Error
+        "a seed is asked for as `/seed/latest.db` or `/seed/<commit>.db`"
+    else if asked == "latest" then
+      let head = headCommit ()
+
+      if head == "" then
+        Stdlib.Result.Result.Error
+          "nothing has been committed here yet, so there is no seed to cut"
+      else
+        Stdlib.Result.Result.Ok head
+    else
+      // `resolveCommit`, not `SCM.Commits.byHashPrefix`: that one takes the newest on a tie, which is
+      // the right rule for a listing and the wrong one here. An ambiguous prefix would pin a package
+      // set nobody chose, and silently.
+      match SCM.PackageOps.resolveCommit asked with
+      | Some hash -> Stdlib.Result.Result.Ok hash
+      | None ->
+        Stdlib.Result.Result.Error
+          $"no single commit here starts with \"{asked}\""
+
+  match resolved with
+  | Error why -> Stdlib.Http.responseWithText why 404
+  | Ok commit ->
+    match cutSeedAt commit with
+    | Error why -> Stdlib.Http.serverError why
+    | Ok path ->
+      match Stdlib.Cli.File.readBytes path with
+      | Error e ->
+        Stdlib.Http.serverError
+          $"cut the seed but could not read it back: {Stdlib.Cli.Posix.Error.toString e}"
+      | Ok bytes ->
+        // The commit is in the bytes too (`store_meta.cut_at`), so this header is a convenience for
+        // a fetcher that wants it without opening SQLite -- not the only record of it.
+        Stdlib.Http.responseWithHeaders
+          bytes
+          [ ("Content-Type", "application/vnd.sqlite3"),
+            ("X-Dark-Seed-Commit", commit),
+            ("Content-Disposition", "attachment; filename=\"seed.db\"") ]
+          200

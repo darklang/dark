@@ -1,0 +1,258 @@
+module Darklang.Cli.Packages.Grep
+
+// `dark grep <text>` -- search the SOURCE of what is live on your branch.
+//
+// `dark search` looks at names. This looks at bodies, which is the one you want when you remember
+// what code DID and not what it was called. After the flip there is no `packages/` tree to reach
+// for instead, so this is the replacement for it.
+//
+// What it searches is RENDERED source, printed from the stored AST, so `///` docs are in and `//`
+// asides are not -- the parser does not keep them. Worth knowing before concluding a string is
+// absent.
+//
+// The source is not stored anywhere. The store holds ops; text is produced by the pretty-printer,
+// about 9ms an item across roughly six and a half thousand of them, so grepping by rendering
+// everything on demand would take a minute. It is cached instead, keyed by CONTENT HASH, which
+// never needs invalidating because content is immutable: an item is rendered once per hash, ever.
+//
+// The cache lives BESIDE the store rather than in it, the way `credentials.db` does. It is derived,
+// it is per-install, and it has no business travelling in a seed or a sync -- `Seed.export` strips
+// by a denylist, so a table added to the store would ride out in every seed until someone
+// remembered to name it.
+
+/// Where the rendered-source cache lives: beside the store, never inside it.
+let cachePath () : String =
+  let storeDir = Stdlib.Cli.Path.parent (Stdlib.LocalStore.path ())
+  Stdlib.Cli.Path.join [ storeDir, "source-cache.db" ]
+
+
+/// Create the cache if this install has never grepped. Cheap enough to call every time.
+let ensureCache () : Unit =
+  let sql =
+    "CREATE TABLE IF NOT EXISTS source_cache_v0 (item_hash TEXT PRIMARY KEY, source TEXT NOT NULL)"
+
+  match Stdlib.Sqlite.exec (cachePath ()) sql with
+  | Ok _ -> ()
+  | Error e ->
+    Cli.printErr $"could not open the source cache at {cachePath ()}: {e}"
+    ()
+
+
+/// Every live name on this branch, as (hash, owner, modules, name, itemType).
+///
+/// Through the SCM silo, NOT a direct read of `locations`: that table is main's projection, so a
+/// branch's own work is not in it and a grep run from a branch would search main and say nothing
+/// was wrong. `allLiveBindings` lays the chain overlay over main, which is the branch-aware answer.
+let liveItems (branchId: Uuid) (scope: String) : List<(String * String * String * String * String)> =
+  SCM.PackageOps.allLiveBindings branchId
+  |> Stdlib.List.filterMap (fun b ->
+    let dottedModule = if b.modules == "" then b.owner else $"{b.owner}.{b.modules}"
+
+    let inScope =
+      (scope == "")
+      || (dottedModule == scope)
+      || (Stdlib.String.startsWith dottedModule $"{scope}.")
+
+    if inScope then
+      Stdlib.Option.Option.Some((b.hash, b.owner, b.modules, b.name, b.itemType))
+    else
+      Stdlib.Option.Option.None)
+
+
+/// Everything this install has already rendered, as hash -> source.
+///
+/// One query, not one per item. A grep over the whole store asks about six and a half thousand
+/// hashes, and asking SQLite six and a half thousand times costs more than the rendering the
+/// cache exists to avoid.
+let cachedAll () : Dict<String, String> =
+  match Stdlib.Sqlite.query (cachePath ()) "SELECT item_hash, source FROM source_cache_v0" with
+  | Error _ -> Stdlib.Dict.empty
+  | Ok rows ->
+    rows
+    |> Stdlib.List.fold (Stdlib.Dict.empty) (fun acc row ->
+      match
+        (Stdlib.Sqlite.textField row "item_hash", Stdlib.Sqlite.textField row "source")
+      with
+      | (Some h, Some src) -> Stdlib.Dict.set acc h src
+      | _ -> acc)
+
+
+let remember (hash: String) (source: String) : Unit =
+  let sql =
+    "INSERT OR REPLACE INTO source_cache_v0 (item_hash, source) VALUES (@p0, @p1)"
+
+  let _ = Stdlib.Sqlite.execP (cachePath ()) sql [ hash, source ]
+  ()
+
+
+/// A dotted name, for reporting a hit.
+let dotted (owner: String) (modules: String) (name: String) : String =
+  if modules == "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+
+
+/// The source of one item, from the cache or by rendering it.
+let sourceOf
+  (branchId: Uuid)
+  (warm: Dict<String, String>)
+  (hash: String)
+  (owner: String)
+  (modules: String)
+  (name: String)
+  (itemType: String)
+  : Stdlib.Option.Option<String> =
+  match Stdlib.Dict.get warm hash with
+  | Some s -> Stdlib.Option.Option.Some s
+  | None ->
+    let modulePath =
+      if modules == "" then [] else Stdlib.String.split modules "."
+
+    let location =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner; modules = modulePath; name = name }
+
+    let wrapped =
+      match itemType with
+      | "fn" -> Packages.PackageLocation.Function location
+      | "type" -> Packages.PackageLocation.Type location
+      | _ -> Packages.PackageLocation.Value location
+
+    match Packages.View.rawSource branchId wrapped with
+    | Ok s ->
+      let _ = remember hash s
+      Stdlib.Option.Option.Some s
+    | Error _ -> Stdlib.Option.Option.None
+
+
+/// The matching lines of one item's source, as (lineNumber, text).
+let matchesIn (source: String) (pattern: String) : List<(Int * String)> =
+  source
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.indexedMap (fun i line -> (i + 1, line))
+  |> Stdlib.List.filter (fun (_i, line) -> Stdlib.String.contains line pattern)
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let acceptedTheWait =
+    args |> Stdlib.List.any (fun a -> a == "--all")
+
+  let positional =
+    args |> Stdlib.List.filter (fun a -> a != "--all")
+
+  let (pattern, scope) =
+    match positional with
+    | [ p ] -> (p, "")
+    | [ p, sc ] -> (p, sc)
+    | _ -> ("", "")
+
+  if pattern == "" then
+    Cli.printErr "usage: dark grep <text> [module] [--all]"
+
+    Cli.printHint
+      "  a module scopes the search and is much quicker; --all accepts the wait on a cold cache."
+
+    { state with exitCode = 1 }
+  else
+
+    let _ = ensureCache ()
+    let items = liveItems state.currentBranchId scope
+    let warm = cachedAll ()
+    let total = Stdlib.List.length items
+
+    // Said once, before the wait rather than after it: the first grep on an install renders
+    // everything, and a minute of silence reads as a hang.
+    let anyCached =
+      match items with
+      | (h, _, _, _, _) :: _ -> (Stdlib.Dict.get warm h) != Stdlib.Option.Option.None
+      | [] -> true
+
+    // An unscoped grep against a cold cache renders everything, which is minutes. Refused rather
+    // than done silently: a command that hangs for five minutes without saying why is one people
+    // stop trusting, and this one is also run by the registry sweep, where it cost nine minutes
+    // of the suite before it asked first.
+    if (scope == "") && (Stdlib.Bool.not anyCached) && (Stdlib.Bool.not acceptedTheWait) then
+      Cli.printErr
+        $"searching everything means rendering {Stdlib.Int.toString total} items, which takes minutes on this install."
+
+      Cli.printHint "  `dark grep <text> <module>` searches under one module and is quick."
+      Cli.printHint "  `dark grep <text> --all` does it anyway; the wait is paid once, then cached."
+      { state with exitCode = 1 }
+    else
+
+    if Stdlib.Bool.not anyCached then
+      Cli.printHint
+        $"  rendering {Stdlib.Int.toString total} items. This is paid once; later greps read the cache."
+
+    // Rendered per item, keeping the failures rather than dropping them: an item whose source
+    // cannot be produced is NOT an item without matches, and a search tool that cannot tell you
+    // the difference is one you cannot trust a negative answer from.
+    let outcomes =
+      items
+      |> Stdlib.List.map (fun (hash, owner, modules, name, itemType) ->
+        (dotted owner modules name,
+         sourceOf state.currentBranchId warm hash owner modules name itemType))
+
+    let unreadable =
+      outcomes
+      |> Stdlib.List.filter (fun (_where, source) ->
+        match source with
+        | None -> true
+        | Some _ -> false)
+
+    let hits =
+      outcomes
+      |> Stdlib.List.map (fun (where, source) ->
+        match source with
+        | None -> []
+        | Some s ->
+          matchesIn s pattern
+          |> Stdlib.List.map (fun (lineNo, line) ->
+            $"{where}:{Stdlib.Int.toString lineNo}: {Stdlib.String.trim line}"))
+      |> Stdlib.List.flatten
+
+    let unreadableCount = Stdlib.List.length unreadable
+
+    if unreadableCount > 0 then
+      Cli.printErr
+        $"could not render {Stdlib.Int.toString unreadableCount} of {Stdlib.Int.toString total} items; they were NOT searched."
+
+      unreadable
+      |> Stdlib.List.take 3
+      |> Stdlib.List.map (fun (where, _s) -> $"    {where}")
+      |> Stdlib.printLines
+
+    match hits with
+    | [] ->
+      Cli.printOk $"no live item's source contains {pattern}."
+      state
+    | _ ->
+      hits |> Stdlib.printLines
+      Cli.printHint
+        $"  {Stdlib.Int.toString (Stdlib.List.length hits)} line(s). `dark search` looks at names instead."
+
+      state
+
+
+
+let help (_state: Cli.AppState) : String =
+  [ ""
+    "  dark grep <text> [module] [--all]"
+    ""
+    "  Searches the SOURCE of everything live on your branch, and prints"
+    "  name:line: for each hit. `dark search` searches names instead."
+    ""
+    "  Plain substring matching, not a regex."
+    ""
+    "  It searches RENDERED source, which is printed from the stored AST. So"
+    "  `///` docs are searchable and `//` asides are not: those are not kept."
+    ""
+    "  The first run on an install renders every item and caches the result"
+    "  beside the store, keyed by content hash. Later runs read the cache, and"
+    "  because content is immutable it never needs invalidating." ]
+  |> Stdlib.String.join "\n"
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

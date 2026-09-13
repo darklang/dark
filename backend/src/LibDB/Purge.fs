@@ -32,6 +32,11 @@ let tables : List<string> =
     "package_functions"
     "package_ops"
     "package_dependencies"
+
+    // Which builtins each item calls. Derived from the bodies in the log by the same walk that
+    // fills `package_dependencies`, so a purged log has called nothing.
+    "package_builtin_deps"
+
     "deprecations"
 
     // The LWW register for doc comments: what each `UpdateDoc` said and when. A claim about the

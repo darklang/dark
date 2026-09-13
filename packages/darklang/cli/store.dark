@@ -1,0 +1,158 @@
+module Darklang.Cli.Store
+
+// `dark store` -- what this store IS, and moving it between op-log formats.
+//
+// Distinct from `dark backups`, which is about copies of a store, and from `dark status`, which is
+// about the code in one. This is about the FILE: which format its ops are written in, which commit
+// it was cut at, which build cut it.
+//
+// After the flip there is no `packages/` to rebuild a store from, so a format change has to carry
+// the store forward in place. `upgrade` is that, and it is a no-op until the first real bump -- it
+// exists now so that the bump is not also the first time the migration runs.
+
+let help (_state: AppState) : String =
+  [ "What this store is, and moving it between op-log formats."
+    ""
+    "Usage:"
+    "  store              what this store says about itself"
+    "  store upgrade      move the op log to the format this build writes"
+    "  store rollback <n> put back the copy `upgrade` took on its way to format <n>"
+    ""
+    "`upgrade` copies the store first and rewrites in one transaction. It only rewrites"
+    "blobs: a change that moves content hashes is a larger migration, and it refuses"
+    "rather than half-doing it."
+    ""
+    "Both write, so both need --yes when nothing is watching." ]
+  |> Stdlib.String.join "\n"
+
+
+/// `dark store` with no arguments: the stamp, as it stands.
+let showInfo (state: AppState) : AppState =
+  let rows = SCM.StoreMeta.all ()
+
+  if rows == [] then
+    Stdlib.printLine
+      "This store carries no stamp. It predates one; `store upgrade` writes it."
+
+    state
+  else
+    rows
+    |> Stdlib.List.iter (fun row ->
+      let (k, v) = row
+      let key = Stdlib.String.padEndToWidth k 8
+      Stdlib.printLine $"{key}  {v}")
+
+    // Naming the verb here, because this is where someone looks after an upgrade went wrong and
+    // `dark backups` does not list the copy an upgrade takes. The verb knows its own filename; it
+    // says so plainly if there is no copy to put back.
+    let format = SCM.StoreMeta.get "format"
+
+    if (format != "") && (format != "1") then
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        $"  `store rollback {format}` puts back the copy taken on the way here."
+    else
+      ()
+
+    state
+
+
+let executeUpgrade (state: AppState) (args: List<String>) : AppState =
+  let (autoConfirm, _rest) = Packages.Remove.parseArgs args
+
+  // A whole-log rewrite, so it asks. `confirmExplicit` rather than `confirm`: a stray Return must
+  // not start one, and an unattended run says `-y`.
+  if
+    Stdlib.Bool.not (
+      Cli.Prompt.confirmExplicit
+        autoConfirm
+        (Stdlib.Cli.UI.Colors.warning
+          "Rewrite every op in this store into this build's format? A copy is taken first. (y/n): ")
+    )
+  then
+    state
+  else
+    match Stdlib.LocalStore.upgrade () with
+    | Error e ->
+      Stdlib.printLine (View.formatError e)
+      state
+    | Ok report ->
+      Stdlib.printLine
+        $"Upgraded from format {Stdlib.Int64.toString report.from} to {Stdlib.Int64.toString report.to}."
+
+      Stdlib.printLine
+        $"{Stdlib.Int64.toString report.rewritten} op(s) rewritten; the previous store is at {report.backup}."
+
+      if report.unreadable > 0L then
+        Stdlib.printLine
+          $"{Stdlib.Int64.toString report.unreadable} op(s) this build cannot read were left as they are, so a later build can still apply them."
+      else
+        ()
+
+      Stdlib.printLine "Projections were re-folded. Nothing further to do."
+      state
+
+
+let executeRollback (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (View.formatError "Usage: store rollback <format-version>")
+    state
+  | target :: rest ->
+    match Stdlib.Int64.parse target with
+    | Error _ ->
+      Stdlib.printLine
+        (View.formatError
+          $"`store rollback` takes the format version that was upgraded TO, and \"{target}\" isn't a number")
+
+      state
+    | Ok n ->
+      let (autoConfirm, _rest) = Packages.Remove.parseArgs rest
+
+      if
+        Stdlib.Bool.not (
+          Cli.Prompt.confirmExplicit
+            autoConfirm
+            (Stdlib.Cli.UI.Colors.warning
+              $"Replace this store with the copy taken before the move to format {target}? (y/n): ")
+        )
+      then
+        state
+      else
+        match Stdlib.LocalStore.rollbackTo n with
+        | Error e ->
+          Stdlib.printLine (View.formatError e)
+          state
+        | Ok path ->
+          Stdlib.printLine $"Restored from {path}. Restart to pick it up."
+          state
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> showInfo state
+  | [ "help" ] ->
+    Stdlib.printLine (help state)
+    state
+  | "upgrade" :: rest -> executeUpgrade state rest
+  | "rollback" :: rest -> executeRollback state rest
+  | other ->
+    Stdlib.printLine
+      (View.formatError
+        $"`store` takes nothing, `upgrade` or `rollback`; not \"{Stdlib.String.join other " "}\"")
+
+    Stdlib.printLine (help state)
+    state
+
+
+let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | [] -> [ "upgrade", "rollback", "help" ] |> Stdlib.List.map Completion.simple
+  | [ partial ] ->
+    [ "upgrade", "rollback", "help" ]
+    |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c partial)
+    |> Stdlib.List.map Completion.simple
+  // `rollback` takes a format version, which only the store knows and only one of which is ever
+  // right, so there is nothing useful to offer past the subcommand.
+  | _ -> []

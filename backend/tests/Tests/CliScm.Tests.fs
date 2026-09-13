@@ -1658,12 +1658,16 @@ let private editChangesAnItemWithoutRetypingIt =
             "usage: dark edit"
             "a bare `edit` says how to use it"
 
+        // A module is EDITABLE now (`Packages.Edit.editModule`), so what this asserts is the
+        // shape without a terminal: it points at the file form rather than spawning an editor
+        // into a pipe. The old expectation here was "a module is refused", which is how this
+        // test earned its place -- it caught the behaviour change the day it happened.
         do!
           shows
             state
             [ "edit"; "Tests.Edit" ]
-            "is a module"
-            "a module is refused, and named as the reason"
+            "applies a file instead"
+            "a module with no terminal points at the file form"
 
         do!
           shows

@@ -58,9 +58,11 @@ module HandleCommand =
       // work.
       let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
 
-      // Generate hash file BEFORE evaluating values, so that PackageRefs
-      // lookups resolve correctly during value evaluation.
-      do! LibDB.PackageRefsGenerator.generate ()
+      // Hashes in MEMORY before evaluating values, so that PackageRefs lookups resolve during
+      // it. Not written to disk: the file moves when the PIN moves, not on every reload, which
+      // is what stops two package-touching branches conflicting in it. `scripts/packages/pin`
+      // and `refs generate` write it.
+      do! LibDB.PackageRefsGenerator.refreshInMemory ()
       LibExecution.PackageRefs.reloadHashes ()
 
       // Evaluate all values now that all definitions are in the DB
@@ -109,15 +111,218 @@ module HandleCommand =
         return Error $"Migration failed: {ex.Message}"
     }
 
-  let exportSeed (outputPath : string) : Ply<Result<unit, string>> =
+  let exportSeed
+    (outputPath : string)
+    (upToCommit : string option)
+    : Ply<Result<unit, string>> =
     uply {
       try
-        do! LibDB.Seed.export outputPath
+        do! LibDB.Seed.exportAt outputPath upToCommit
         let size = System.IO.FileInfo(outputPath).Length / 1024L / 1024L
         print $"Seed exported to {outputPath} ({size} MB)"
         return Ok()
       with ex ->
         return Error $"Export failed: {ex.Message}"
+    }
+
+  /// Stand on the branch this rundir is on, the way the CLI does before it runs anything.
+  ///
+  /// Not global to LocalExec: the fill path deliberately refills MAIN from disk, and doing that
+  /// while standing on a branch would be wrong. Only the commands that ask a question ABOUT the
+  /// current branch select it.
+  let selectStoredBranch () : Ply<unit> =
+    uply {
+      match! LibDB.BranchSelection.select None None with
+      | Ok selection ->
+        LibDB.PackageManager.selectBranch (
+          selection.branchId
+          |> Option.defaultValue LibExecution.ProgramTypes.BranchId.Main
+        )
+      | Error _ -> ()
+    }
+
+  /// The git branch this tree is checked out on, if it is a git tree at all.
+  ///
+  /// Read out of `.git/HEAD` rather than by shelling out: this runs inside the build, and a
+  /// process spawn for one line of text is not worth it. A detached HEAD answers `None`, which is
+  /// right -- there is no branch NAME to line up with.
+  let private gitBranchName () : Option<string> =
+    try
+      // Walk UP looking for `.git`, rather than assuming the rundir sits directly inside the
+      // repo. It does for the dev rundir and does not for a test's, and the difference is silent:
+      // you get no branch name and no error.
+      let rec findGitHead (dir : System.IO.DirectoryInfo) : string option =
+        if isNull (box dir) then
+          None
+        else
+          let candidate = System.IO.Path.Combine(dir.FullName, ".git", "HEAD")
+          if System.IO.File.Exists candidate then
+            Some candidate
+          else
+            findGitHead dir.Parent
+
+      let head =
+        match findGitHead (System.IO.DirectoryInfo LibConfig.Config.runDir) with
+        | Some h -> h
+        | None -> ""
+
+      if head <> "" && System.IO.File.Exists head then
+        let text = (System.IO.File.ReadAllText head).Trim()
+        let prefix = "ref: refs/heads/"
+
+        if text.StartsWith prefix then Some(text.Substring prefix.Length) else None
+      else
+        None
+    with _ ->
+      None
+
+
+  /// Does this kernel agree with the package set in front of it?
+  ///
+  /// Direction one of the two-way interface: every name the kernel references has to resolve, in
+  /// the store as seen from the current branch or in the pin. Direction two -- every builtin the
+  /// package set calls existing in this kernel -- needs the store to record builtin edges, which
+  /// it does not yet.
+  ///
+  /// Asked all at once, and at BUILD time, because the ref closures are lazy: an unresolvable ref
+  /// is otherwise found whenever some code path happens to reach it, which can be a different day
+  /// and an unrelated command. The case this exists for is checking out somebody's git branch
+  /// without their package work: the F# in your tree names things your store has never heard of,
+  /// and you should be told that then, in one list, rather than one at a time by whatever runs
+  /// first.
+  let checkRefs () : Ply<Result<unit, string>> =
+    uply {
+      do! selectStoredBranch ()
+
+      // Every hash this store actually HOLDS content for. A ref resolving to a hash is not the
+      // same as that hash naming anything: a pin can name content the store no longer has, and
+      // that is precisely the failure this check exists to catch -- it does not error at runtime,
+      // it renders blank. Asked once as a set rather than per ref.
+      let! knownTypes =
+        Sql.query "SELECT hash FROM package_types"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+
+      let! knownFns =
+        Sql.query "SELECT hash FROM package_functions"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+
+      let known = Set.union (Set.ofList knownTypes) (Set.ofList knownFns)
+
+      let unresolved =
+        LibExecution.PackageRefs.allRefs ()
+        |> List.filter (fun (kind, modules, name) ->
+          match LibExecution.PackageRefs.tryResolve kind modules name with
+          | None -> true
+          | Some hash -> not (Set.contains hash known))
+
+      // Direction two: every builtin the package set calls has to exist in THIS kernel. Recorded
+      // by the fold in `package_builtin_deps`, which is what makes a store able to say which
+      // kernel it needs -- the check that used to answer this grepped `.dark` text off disk and
+      // stops being possible the day packages come from a seed.
+      let kernelBuiltins =
+        let b = Builtins.all ()
+        Set.union
+          (b.fns.Values
+           |> Seq.map (fun f -> (f.name.name, f.name.version))
+           |> Set.ofSeq)
+          (b.values.Values |> Seq.map (fun v -> (v.name.name, 0)) |> Set.ofSeq)
+
+      let! calledBuiltins =
+        Sql.query
+          "SELECT DISTINCT builtin_name, builtin_version FROM package_builtin_deps"
+        |> Sql.executeAsync (fun read ->
+          (read.string "builtin_name", read.int "builtin_version"))
+
+      let missingBuiltins =
+        calledBuiltins |> List.filter (fun b -> not (Set.contains b kernelBuiltins))
+
+      // An EMPTY table is not a pass. `package_builtin_deps` is a projection, so a store that got
+      // the table from a release step without re-folding has no rows, and the builtin half of the
+      // check would report success having asked nothing. Saying so is the difference between this
+      // check and one that quietly stops covering what it was written for.
+      if List.isEmpty calledBuiltins then
+        return
+          Error(
+            "this store records no builtin calls at all, so the builtin half of this check asked "
+            + "nothing. `package_builtin_deps` is a projection: re-fold the log to fill it "
+            + "(`scripts/build/reload-packages`, or any migration that drops projections)."
+          )
+      elif List.isEmpty unresolved && List.isEmpty missingBuiltins then
+        let n = List.length (LibExecution.PackageRefs.allRefs ())
+        print (
+          $"All {n} kernel refs resolve, and all {List.length calledBuiltins} builtins this "
+          + "package set calls exist in this kernel."
+        )
+        return Ok()
+      elif List.isEmpty unresolved then
+        let lines =
+          missingBuiltins
+          |> List.sort
+          |> List.map (fun (n, v) -> $"  Builtin.{n} (v{v})")
+          |> String.concat "\n"
+
+        return
+          Error(
+            $"this package set calls {List.length missingBuiltins} builtin(s) this kernel does "
+            + $"not have:\n{lines}\n\nA builtin was removed or renamed out from under package "
+            + "code that calls it. Land the package change that stops calling it, move the pin "
+            + "forward, and only then remove the builtin."
+          )
+      else
+        let lines =
+          unresolved
+          |> List.sortBy (fun (kind, m, n) -> (kind, m, n))
+          |> List.map (fun (kind, modules, name) ->
+            $"""  {kind} Darklang.{String.concat "." modules}.{name}""")
+          |> String.concat
+            "
+"
+
+        let! hint =
+          uply {
+            // If git is on a branch and a dark branch of the same name exists, that is almost
+            // certainly where the missing items are -- so say the command rather than the
+            // category. The coupling made visible at the one moment it matters, instead of a
+            // rule somebody has to have read.
+            match gitBranchName () with
+            | None -> return ""
+            | Some git ->
+              let! darkBranch = LibDB.Branches.liveIdForName git
+
+              match darkBranch with
+              | Some _ when LibDB.PackageManager.currentBranchId () = BranchId.Main ->
+                return
+                  $"\n\ngit is on `{git}` and there is a dark branch called `{git}`, "
+                  + $"but you are on dark main. Try `dark switch {git}`."
+              | _ -> return ""
+          }
+
+        return
+          Error(
+            $"{List.length unresolved} kernel ref(s) do not resolve against this package set:\n"
+            + lines
+            + $"\n\nThis kernel and this package set do not agree. Usually that means the "
+            + "F# in your tree names package code your store does not have: import the branch "
+            + "bundle that goes with it, or move to the branch that has it."
+            + hint
+          )
+    }
+
+  /// Write `package-ref-hashes.txt` from whatever store this rundir has.
+  ///
+  /// The kernel's entry points are pinned BY HASH, so a binary needs that file before it can resolve
+  /// anything. The fill path writes it as a side effect of reloading `packages/`; this is the same
+  /// step on its own, for a store that arrived as a SEED and has no `packages/` to reload. That is
+  /// the only thing standing between a fetch-at-pin build and a working binary.
+  let generateRefs () : Ply<Result<unit, string>> =
+    uply {
+      try
+        do! selectStoredBranch ()
+        do! LibDB.PackageRefsGenerator.generate ()
+        LibExecution.PackageRefs.reloadHashes ()
+        return Ok()
+      with ex ->
+        return Error $"Generating package refs failed: {ex.Message}"
     }
 
   let listMigrations () : Ply<Result<unit, string>> =
@@ -183,7 +388,26 @@ let main (args : string[]) : int =
     | [ "export-seed"; outputPath ] ->
       handleCommand
         $"Exporting seed to {outputPath}"
-        (HandleCommand.exportSeed outputPath)
+        (HandleCommand.exportSeed outputPath None)
+
+    // Cut at a commit, so what a pin fetches is fixed by the commit rather than by when it asked:
+    // the same commit yields the same OPS however far the store has moved since, and ids are derived
+    // from op content, so two stores built from it agree. Not byte-identical -- the stamp records
+    // which build cut it and when -- and nothing needs it to be.
+    | [ "export-seed"; outputPath; commit ] ->
+      handleCommand
+        $"Exporting seed at {commit} to {outputPath}"
+        (HandleCommand.exportSeed outputPath (Some commit))
+
+    | [ "refs"; "check" ] ->
+      handleCommand
+        "checking the kernel's refs against this package set"
+        (HandleCommand.checkRefs ())
+
+    | [ "refs"; "generate" ] ->
+      handleCommand
+        "writing package-ref-hashes.txt from this store"
+        (HandleCommand.generateRefs ())
 
     | [ "pm-sweep-blobs" ] ->
       handleCommand
@@ -206,7 +430,9 @@ let main (args : string[]) : int =
       print "  reload-packages"
       print "  migrations run"
       print "  migrations list"
-      print "  export-seed <output-path>"
+      print "  export-seed <output-path> [commit]"
+      print "  refs generate"
+      print "  refs check"
       print "  pm-sweep-blobs"
       print "  bench"
       print "  bench-render"

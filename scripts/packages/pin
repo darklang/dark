@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+# Pin the package set to a commit on a package server, and record it in `package-set.txt`.
+#
+#   scripts/packages/pin head                  pin to what that server has right now
+#   scripts/packages/pin <commit>              pin to a named commit (a short prefix is fine)
+#   scripts/packages/pin --show                what is pinned now
+#   scripts/packages/pin --unset               drop the pin, back to building from `packages/`
+#
+# The server comes from `--url` or `DARK_SEED_URL`; see `package-set.txt` for why it is not in
+# the repo.
+#
+# Every pin is CHECKED before it is written, through `/seed/meta?commit=`: the server resolves the
+# commit and answers what a cut at it would carry. Two counts rather than twelve megabytes, so
+# checking a pin is cheap enough to do every time. A commit that does not resolve is refused here
+# rather than at the next CI run.
+
+set -euo pipefail
+
+# `DARK_PACKAGE_SET` points this at another copy, which is how the gates exercise a pin without
+# writing to the tree's own.
+PINFILE="${DARK_PACKAGE_SET:-package-set.txt}"
+
+[[ -f "$PINFILE" ]] || { echo "pin: no $PINFILE (run from the repo root?)" >&2; exit 2; }
+URL="${DARK_SEED_URL:-}"
+WANT=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --url)   URL="${2:?--url needs a url}"; shift 2 ;;
+    --show)  sed -n 's/^\(commit\|format\)  */\1 /p' "$PINFILE"; exit 0 ;;
+    --unset) WANT="unset"; shift ;;
+    -h|--help) sed -n '3,17p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -*)      echo "pin: unknown argument $1" >&2; exit 2 ;;
+    *)       WANT="$1"; shift ;;
+  esac
+done
+
+# Rewrite one `key  value` line in place, leaving the comments that explain it alone.
+set_field() {
+  local key="$1" value="$2"
+  local tmp
+  tmp=$(mktemp)
+  awk -v k="$key" -v v="$value" '
+    $1 == k { printf "%s  %s\n", k, v; next }
+    { print }
+  ' "$PINFILE" > "$tmp"
+  mv "$tmp" "$PINFILE"
+}
+
+if [[ "$WANT" == "unset" ]]; then
+  set_field commit unset
+  echo "Pin dropped. The package set is built from packages/ again."
+  exit 0
+fi
+
+[[ -n "$WANT" ]] || { echo "pin: say which commit, or \`head\`, or \`--show\`" >&2; exit 2; }
+
+if [[ -z "$URL" ]]; then
+  echo "pin: no package server. Pass --url, or set DARK_SEED_URL." >&2
+  exit 2
+fi
+
+query="$URL/seed/meta"
+[[ "$WANT" == "head" ]] || query="$URL/seed/meta?commit=$WANT"
+
+body=$(mktemp)
+code=$(curl -s -o "$body" -w '%{http_code}' --max-time 30 "$query" || echo 000)
+
+if [[ "$code" != "200" ]]; then
+  echo "pin: $URL would not pin $WANT (HTTP $code):" >&2
+  sed 's/^/  /' "$body" >&2
+  exit 1
+fi
+
+field() { sed -n "s/.*\"$1\":\"\\?\\([^,\"}]*\\).*/\\1/p" "$body"; }
+COMMIT=$(field head)
+FORMAT=$(field format)
+OPS=$(field ops)
+
+[[ -n "$COMMIT" ]] || { echo "pin: $URL named no commit: $(cat "$body")" >&2; exit 1; }
+
+# The format is pinned alongside the commit, not just reported: a seed in a layout this kernel
+# cannot read is a fetch that must fail before it folds anything, and the only way to know that
+# before fetching is to have written down what was expected.
+set_field commit "$COMMIT"
+set_field format "$FORMAT"
+
+# The ref hashes move WITH the pin and only with it. That is what keeps them stable between
+# bumps, so ordinary package work never touches the file and two branches that both touch
+# packages never conflict in it. The diff this produces is the point: one reviewable list of
+# every kernel identity that moved.
+#
+# Best-effort. The pin is already written, and a store that cannot regenerate (no source tree,
+# say) should not lose it.
+if scripts/run-local-exec refs generate > /dev/null 2>&1; then
+  echo "Regenerated package-ref-hashes.txt for the new pin."
+else
+  echo "(could not regenerate package-ref-hashes.txt here; run \`refs generate\` where the store is)"
+fi
+
+echo "Pinned to $COMMIT (format $FORMAT, $OPS ops)."
+echo "Commit package-set.txt: the pin is the record of which package set this kernel was tested against."

@@ -34,4 +34,37 @@ or search queries. Write `Stdlib.List.map` (preferred) or the full source name
 ## Stdlib vs Builtin
   Stdlib: packages/darklang/stdlib/*.dark
   Builtins: F# in backend/src/Builtins/
-  Use `builtins` to list all builtins"""
+  Use `builtins` to list all builtins
+
+## Where a build's package set comes from
+
+Two answers, and `package-set.txt` at the repo root says which:
+
+  commit unset      built from `packages/` on disk, by reloading it
+  commit <hash>     fetched as a SEED from a package server, at that commit
+
+The second is the direction this is going: the server's store is the source of
+truth, a seed of it is what a fresh container and CI fetch, and `packages/` goes
+away. Today it ships `unset`, so nothing has changed yet.
+
+  scripts/packages/pin head           pin to what that server has now
+  scripts/packages/pin <commit>       pin to a named commit
+  scripts/packages/pin --show         what is pinned
+  scripts/packages/pin --unset        back to building from `packages/`
+
+The server address is not in the repo: it comes from `DARK_SEED_URL` or
+`--url`. A pin says WHICH package set, not where to get it.
+
+  scripts/build/prepare-package-set   get it, whichever of the two it is
+  scripts/fetch-seed --url <url>      just the fetch
+
+## What a store says about itself
+
+  store               format, which commit it was cut at, which build cut it
+  store upgrade       move the op log to the format this build writes
+  store rollback <n>  put back the copy `upgrade` took on its way to format <n>
+
+`upgrade` copies the store first and rewrites in one transaction. It only
+rewrites blobs: a change that moves content hashes is a much larger migration,
+and it refuses rather than half-doing it. It is a no-op until the first format
+bump."""

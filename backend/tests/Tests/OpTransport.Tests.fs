@@ -114,21 +114,28 @@ let foldQuarantinesPoison =
 ///
 /// This asserts the flag rather than the consequence because the consequence needs a second process.
 let relayStoreDoesNotQueueForFolding =
-  testTask "storeOpsWithOwner: hosted ops are never queued for this store's fold" {
+  testTask "storeOpsWithOwner: a hosted op is folded, but is not this store's draft" {
     do! cleanup ()
 
     let id = "fada0000-0000-0000-0000-0000000000ef"
     let! n = Inserts.storeOpsWithOwner "someone" [ (id, "00", ts) ]
     Expect.equal n 1L "stored the op"
 
+    // It used to be stored `effective = 0` so no fold would ever touch it. A server has to be
+    // able to see and serve what it hosts, so it is folded now like any other arriving op.
     let! effective = effectiveOf id
-    Expect.equal
-      effective
-      0L
-      "hosted ops are stored effective=0, so growIfNeeded never folds them into this store's main"
+    Expect.equal effective 1L "queued for the fold"
 
     let! applied = appliedOf id
-    Expect.equal applied 0L "and they are not pretended to have been applied"
+    Expect.equal applied 0L "but not pretended to have been applied already"
+
+    // The half that must NOT change. `effective` was carrying two meanings -- "fold this" and
+    // "this is mine" -- and only the first was given up. An op a peer pushed here is their work,
+    // so it is not in this store's draft and a discard must leave it alone.
+    let! draft = LibDB.Queries.getDraftOps ()
+    let inDraft =
+      draft |> List.exists (fun op -> string (Inserts.computeOpHash op) = id)
+    Expect.isFalse inDraft "a hosted op is not this store's draft"
 
     do! cleanup ()
   }

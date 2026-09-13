@@ -48,7 +48,19 @@ let private readExistingFile () : Map<string, string> =
 
 /// Query the DB for all current Darklang-owned locations and write
 /// `package-ref-hashes.txt` in the source tree.
-let generate () : Ply<unit> =
+/// Compute the kernel's ref hashes from the store, set them in memory, and -- when
+/// <param writeToDisk> -- write `package-ref-hashes.txt`.
+///
+/// The two are separate because they have different cadences. The hashes must be in MEMORY
+/// before values are evaluated, on every reload, or `PackageRefs` lookups resolve to nothing
+/// during it. The FILE moves only when the pin does.
+///
+/// Writing it on every reload is what made every pair of package-touching branches conflict in a
+/// 206-line generated file. It stopped being necessary when type refs started resolving from the
+/// store by name: the file is a fallback now, not a contract, so between pin bumps the committed
+/// copy is simply correct. A pin bump then produces one reviewable diff naming every identity
+/// that moved, which is the signal the file was tracked for.
+let generateWith (writeToDisk : bool) : Ply<unit> =
   uply {
     // Collect all referenced items from PackageRefs _lookup maps
     let typeRefKeys =
@@ -91,7 +103,16 @@ let generate () : Ply<unit> =
         let hash = read.string "item_hash"
         (buildKey itemType modules name, hash))
 
-    let dbMap = dbRows |> Map.ofList
+    // The branch's bindings go OVER main's. `locations` is main's projection, so without this a
+    // hash file generated while standing on a branch describes main and silently omits the very
+    // items the branch exists to add -- which is exactly the case where the file matters, because
+    // it is what lets somebody else build the F# that references them.
+    let dbMap =
+      PackageManager.overlayDarklangBindings ()
+      |> List.fold
+        (fun acc (modules, name, itemType, hash) ->
+          Map.add (buildKey itemType modules name) hash acc)
+        (dbRows |> Map.ofList)
 
     // Preserves entries not found in the DB (e.g. RT types that share hashes with PT types and aren't in
     // locations), and, via `existingKeys` above, refs this process never registered.
@@ -156,7 +177,7 @@ let generate () : Ply<unit> =
     // Write the source-tree file (skip if the directory doesn't exist,
     // e.g. on installed CLIs where the source tree isn't available)
     let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
-    if System.IO.Directory.Exists(dir) then
+    if writeToDisk && System.IO.Directory.Exists(dir) then
       System.IO.File.WriteAllLines(sourceTreePath, lines |> Array.ofList)
       let totalWritten = List.length lines
       print $"  Wrote {totalWritten} package ref hashes to {sourceTreePath}"
@@ -171,3 +192,12 @@ let generate () : Ply<unit> =
       for key in missing do
         print $"    - {key}"
   }
+
+
+/// `generateWith`, writing the file. What `refs generate` and `scripts/packages/pin` call.
+let generate () : Ply<unit> = generateWith true
+
+
+/// `generateWith`, in memory only. What a package RELOAD calls: the hashes have to be current
+/// before values are evaluated, and the file is the pin's to move.
+let refreshInMemory () : Ply<unit> = generateWith false

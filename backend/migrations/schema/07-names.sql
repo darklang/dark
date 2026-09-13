@@ -112,6 +112,28 @@ CREATE TABLE IF NOT EXISTS package_dependencies (
 );
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_depends_on
   ON package_dependencies(depends_on_hash);
+
+-- Which BUILTINS an item's body calls. A separate table from `package_dependencies` because a
+-- builtin edge is a different kind of thing: a builtin is not content-addressed, it is a (name,
+-- version) in whatever kernel you are running, so there is no hash to join on and none of the
+-- location columns apply.
+--
+-- This is what lets a store say what KERNEL it needs. Without it you can ask which package items
+-- reference each other and not which builtins they call, so half of the kernel/package-set
+-- interface is invisible and a builtin can be deleted out from under code that calls it. The
+-- checks that used to answer this grepped `.dark` text off disk, which stops being possible the
+-- day packages come from a seed rather than a tree.
+--
+-- Derived, like `package_dependencies`: rebuilt by the fold, dropped by `Seed.export`.
+CREATE TABLE IF NOT EXISTS package_builtin_deps (
+  item_hash TEXT NOT NULL,
+  builtin_name TEXT NOT NULL,
+  builtin_version INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_package_builtin_deps_unique
+  ON package_builtin_deps(item_hash, builtin_name, builtin_version);
+CREATE INDEX IF NOT EXISTS idx_package_builtin_deps_name
+  ON package_builtin_deps(builtin_name);
 CREATE INDEX IF NOT EXISTS idx_package_dependencies_item
   ON package_dependencies(item_hash);
 -- Partial index for the propagation query: "who depends on this

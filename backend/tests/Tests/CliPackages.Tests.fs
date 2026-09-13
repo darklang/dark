@@ -815,6 +815,222 @@ let aVersionMovedAndMovedBackKeepsTheLastNaming =
       })
 
 
+/// `remove` is the only thing that writes an `Unbind`, and the claim it prints is the
+/// interesting one: the name ends, the content does not, so callers go on working. That is only
+/// true because a reference points at content rather than at a name, which is the property worth
+/// a test rather than a comment.
+/// `grep` searches BODIES, which is the half `search` does not do. Scoped to one module on
+/// purpose: unscoped it renders every live item, and the point of the scope argument is that a
+/// test, like a person, usually knows roughly where to look.
+/// A revert is a rebinding, not a recovery: every version is still in the store, so pointing the
+/// name back at an old hash is the whole operation. Which is why it is symmetric.
+let revertPutsANameBackAndIsSymmetric =
+  instanceTest
+    "revert restores the version a commit held, and reverting twice is a no-op"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Rv.f" "() : Int64 = 111L"
+        do! commit state "rv one"
+
+        let! log = runCliPlain state [ "log" ]
+        // The newest commit is first, and that is the one holding 111.
+        let first =
+          log.Split('\n')
+          |> Array.tryPick (fun line ->
+            System.Text.RegularExpressions.Regex.Match(line, "[0-9a-f]{8}")
+            |> fun m -> if m.Success then Some m.Value else None)
+
+        let commitOfOne =
+          match first with
+          | Some c -> c
+          | None -> Tests.failtestf "no commit hash in `dark log`:\n%s" log
+
+        do! fn state "Tests.Rv.f" "() : Int64 = 222L"
+        do! commit state "rv two"
+        do! evals state "Tests.Rv.f ()" "222" "the newer version is live"
+
+        do! run state [ "revert"; "Tests.Rv.f"; commitOfOne ]
+        do! evals state "Tests.Rv.f ()" "111" "and the revert put the old one back"
+
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.f"; commitOfOne ]
+            "already holds"
+            "reverting to where it already is says so rather than authoring a no-op"
+        do! discardAll state
+      })
+
+/// The three ways to get it wrong, which is where a two-argument command earns its errors.
+let revertRefusesWhatItCannotFind =
+  instanceTest
+    "revert names what it could not find, for the name and for the commit"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.nothingHere"; "abc12345" ]
+            "nothing here is named"
+            "an unknown name"
+        do! fn state "Tests.Rv.known" "() : Int64 = 1L"
+        do! commit state "rv known"
+        do!
+          shows
+            state
+            [ "revert"; "Tests.Rv.known"; "ffffffffff" ]
+            "no single commit here starts with"
+            "an unknown commit"
+        do! shows state [ "revert" ] "usage: dark revert" "bare prints usage"
+        do! discardAll state
+      })
+
+let grepFindsSourceAndNotJustNames =
+  instanceTest
+    "grep matches a function body, and reports name and line"
+    (fun state ->
+      task {
+        do! start state
+        // A string LITERAL, not a comment: grep reads rendered source, and the renderer prints
+        // the AST, which keeps `///` docs and drops `//` asides.
+        do! fn state "Tests.Grep.needle" "() : String = \"findmeplease\""
+        do! fn state "Tests.Grep.other" "() : String = \"something else\""
+        do! commit state "grep fixture"
+
+        do!
+          shows
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "Tests.Grep.needle:"
+            "the hit names the item"
+        do!
+          shows
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "findmeplease"
+            "and shows the matching line"
+        do!
+          lacks
+            state
+            [ "grep"; "findmeplease"; "Tests.Grep" ]
+            "Tests.Grep.other"
+            "an item whose body does not match is not reported"
+        do! discardAll state
+      })
+
+/// The cache is the feature, so the second run has to agree with the first. Keyed by content
+/// hash, which is why it never needs invalidating.
+let grepAgreesWithItselfOnceCached =
+  instanceTest "a second grep, reading the cache, finds the same thing" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.GrepTwice.f" "() : String = \"cachedtoken\""
+      do! commit state "grep cache fixture"
+
+      do!
+        shows
+          state
+          [ "grep"; "cachedtoken"; "Tests.GrepTwice" ]
+          "Tests.GrepTwice.f:"
+          "cold"
+      do!
+        shows
+          state
+          [ "grep"; "cachedtoken"; "Tests.GrepTwice" ]
+          "Tests.GrepTwice.f:"
+          "warm"
+      do! discardAll state
+    })
+
+/// A search tool you cannot trust a negative answer from is worse than none, so "no hits" and
+/// "could not read it" must not look alike.
+/// The bug the SCM silo's guard exists to stop, in grep's shape: `locations` is main's
+/// projection, so an enumeration that read it directly would search MAIN from a branch and report
+/// nothing wrong. This is the test that the overlay is actually consulted.
+let grepSeesTheBranchYouAreStandingOn =
+  instanceTest "grep finds a branch's own work, and main does not" (fun state ->
+    task {
+      do! start state
+      do! switch state "grep-branch"
+      do! fn state "Tests.GrepBranch.only" "() : String = \"branchonlytoken\""
+
+      do!
+        shows
+          state
+          [ "grep"; "branchonlytoken"; "Tests.GrepBranch" ]
+          "Tests.GrepBranch.only:"
+          "the branch sees its own work"
+
+      do! onMain state
+      do!
+        shows
+          state
+          [ "grep"; "branchonlytoken"; "Tests.GrepBranch" ]
+          "no live item's source contains"
+          "main does not"
+
+      do! archiveBranches state [ "grep-branch" ]
+    })
+
+let grepSaysWhenItFindsNothing =
+  instanceTest "grep says so when nothing matches" (fun state ->
+    task {
+      do! start state
+      do!
+        shows
+          state
+          [ "grep"; "zzz-not-in-any-source-zzz"; "Darklang.Stdlib.Option" ]
+          "no live item's source contains"
+          "an honest empty answer"
+      do! shows state [ "grep" ] "usage: dark grep" "bare prints usage"
+    })
+
+let removeEndsTheNameAndLeavesTheCallersAlone =
+  instanceTest "remove ends a name, and what called it still runs" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.Rm.leaf" "() : Int64 = 4242L"
+      do! fn state "Tests.Rm.caller" "() : Int64 = Tests.Rm.leaf ()"
+      do! commit state "add leaf and caller"
+
+      do! evals state "Tests.Rm.caller ()" "4242" "the caller works to begin with"
+
+      do! run state [ "remove"; "Tests.Rm.leaf"; "-y" ]
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.Rm.leaf" ]
+          "Not found"
+          "the name holds nothing now"
+      do!
+        evals
+          state
+          "Tests.Rm.caller ()"
+          "4242"
+          "but the caller still runs, because it references content and not a name"
+      do! discardAll state
+    })
+
+/// Bare and wrong-argument shapes, which is where this kind of command goes wrong: a confirming
+/// verb that cannot find its target must refuse rather than ask about nothing.
+let removeRefusesWhatIsNotThere =
+  instanceTest
+    "remove refuses a name that holds nothing, and refuses to run bare"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          shows
+            state
+            [ "remove"; "Tests.Rm.nothingHere"; "-y" ]
+            "nothing here is named"
+            "an unknown name is named back"
+        do! shows state [ "remove" ] "usage: dark remove" "bare prints usage"
+      })
+
 let renameIsVisibleToEverythingThatReads =
   instanceTest
     "a renamed item is readable at its new name, by every reader"
@@ -843,8 +1059,85 @@ let renameIsVisibleToEverythingThatReads =
       })
 
 
+/// `dark edit <module>` is the replacement for opening a `.dark` file, so the properties that
+/// matter are the ones a file gave you for free: everything applies together, and nothing you did
+/// not ask to remove goes away.
+///
+/// Driven through the FILE form, which needs no terminal. The editor form is the same code past
+/// the point where it has a file.
+let editModuleAppliesTogetherAndRemovesNothing =
+  instanceTest
+    "editing a module applies every declaration at once, and omitting one leaves it alone"
+    (fun state ->
+      task {
+        do! start state
+
+        let write (contents : string) : string =
+          let path = System.IO.Path.GetTempFileName() + ".dark"
+          System.IO.File.WriteAllText(path, contents)
+          path
+
+        do!
+          run
+            state
+            [ "module"
+              "/Tests.EditMod"
+              write "let one (): Int64 = 1L\nlet two (): Int64 = 2L\n" ]
+
+        // One changed, one untouched, applied as a batch.
+        do!
+          run
+            state
+            [ "edit"
+              "Tests.EditMod"
+              write "let one (): Int64 = 111L\nlet two (): Int64 = 2L\n" ]
+
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.one ()" ]
+            "111"
+            "the edited one landed"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.two ()" ]
+            "2"
+            "its sibling is untouched"
+
+        // Leaving a declaration OUT must not end it. Guessing the other way is where this command
+        // would lose work: one mis-parse that dropped an item from the render would unbind a name.
+        do!
+          shows
+            state
+            [ "edit"; "Tests.EditMod"; write "let one (): Int64 = 222L\n" ]
+            "left alone, not in your file"
+            "the omitted declaration is named back"
+
+        do! shows state [ "eval"; "Tests.EditMod.two ()" ] "2" "and is still bound"
+
+        // A declaration that does not parse lands NOTHING, not the half that did.
+        do!
+          run
+            state
+            [ "edit"
+              "Tests.EditMod"
+              write "let one (): Int64 = 999L\nlet bad (): Int64 = @@@\n" ]
+
+        do!
+          shows
+            state
+            [ "eval"; "Tests.EditMod.one ()" ]
+            "222"
+            "a batch with one bad declaration applies none of it"
+
+        do! discardAll state
+      })
+
+
 let tests : List<Test> =
-  [ lsNamesWhatIsThere
+  [ editModuleAppliesTogetherAndRemovesNothing
+    lsNamesWhatIsThere
     treeShowsDescendants
     viewPrintsSource
     viewRefusesWhatIsNotThere
@@ -862,6 +1155,14 @@ let tests : List<Test> =
     deleteRefusesWhatIsNotThere
     deprecateAndUndeprecate
     renameIsVisibleToEverythingThatReads
+    removeEndsTheNameAndLeavesTheCallersAlone
+    removeRefusesWhatIsNotThere
+    grepFindsSourceAndNotJustNames
+    grepAgreesWithItselfOnceCached
+    grepSaysWhenItFindsNothing
+    grepSeesTheBranchYouAreStandingOn
+    revertPutsANameBackAndIsSymmetric
+    revertRefusesWhatItCannotFind
     aDocOnlyEditKeepsTheVersionAndStillLands
     aFieldsDocEditLands
     anEnumCasesDocEditLands
