@@ -71,9 +71,14 @@ means the first:
     commit <hash>    fetched as a seed from a package server, at that commit
 
 `scripts/build/prepare-package-set` is the one place that answers that question, and
-CI's package-reloading jobs go through it. `scripts/packages/pin` writes the pin;
-`dark docs packages` has the rest. The pinned path has never run against a deployed
-server, so treat it as written-and-unverified until it has.
+CI's package-reloading jobs go through it. `scripts/packages/pin` writes the pin. The
+pinned path has never run against a deployed server, so treat it as
+written-and-unverified until it has.
+
+**`docs/package-workflow.md` is the how-to**: adding a builtin and calling it from
+Dark, referencing a new package type or fn from F#, what your coworker does to build
+your branch, publishing, the pin, format changes, and what will bite. `dark docs
+packages` is the short version from inside the CLI.
 
 The container builds once when it starts. Rebuild-on-save is available but off by
 default, because a five-file change under a watcher pays for five rebuilds, four of them
