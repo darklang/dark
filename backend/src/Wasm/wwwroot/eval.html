@@ -1,0 +1,8 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Darklang eval</title>
+<script>
+  // Kept as an alias: /?e=<expr> is the page that answers.
+  const p = new URLSearchParams(location.search);
+  location.replace("./?" + (p.has("e") ? "e=" + encodeURIComponent(p.get("e")) : ""));
+</script>

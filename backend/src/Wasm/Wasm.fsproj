@@ -13,18 +13,42 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);publish/**</DefaultItemExcludes>
     <!-- size levers; AOT is slower to build but shrinks/speeds the result -->
     <PublishTrimmed>true</PublishTrimmed>
-    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
-    <!-- SQLite is dragged in via LibParser/LibDB, although the browser only calls
-         LibDB's in-memory package manager;
-         skip native relinking so the P/Invoke table generator (which SDK-crashes on it)
-         doesn't run. (InvariantGlobalization would force native build, so it's left off.) -->
-    <WasmBuildNative>false</WasmBuildNative>
+    <!-- AOT: the interpreter's F# task state machines could not suspend a second time under
+         the mono interpreter (a blocking wait on the browser's one thread). Compiled, they can.
+         Slower to build, faster to run. -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <!-- No ICU: the CLI's string work is ordinal/invariant, and the ICU data is ~1 MB gz plus
+         load time on every cold start. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Native relink: statically links e_sqlite3 (SourceGear.sqlite3 ships a browser-wasm
+         .a and adds it as a NativeFileReference through its buildTransitive targets) so the
+         real LibDB store runs in the tab. -->
+    <WasmBuildNative>true</WasmBuildNative>
+    <!-- For bringing the host up: `WasmNativeStrip=false` makes a paused stack in DevTools
+         read as mono/sqlite function names, `WasmDebugLevel=1` plus
+         `CopyOutputSymbolsToPublishDirectory=true` keeps pdbs. Both cost size; off for release. -->
   </PropertyGroup>
 
+  <!-- Partial AOT. Only leaves nothing F#-generic calls into stay interpreted: mixed
+       AOT/interpreter mode asserts ("should not be reached") when compiled generic code
+       crosses into an interpreted assembly, which excluding the BCL wholesale triggered.
+       These are big, self-contained, and barely used at runtime. -->
   <ItemGroup>
+    <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.dll;System.Private.Xml.Linq.dll;System.Xml.Linq.dll;System.Xml.ReaderWriter.dll;System.Xml.XDocument.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="Expecto.dll;Mono.Cecil.dll;Mono.Cecil.Mdb.dll;Mono.Cecil.Pdb.dll;Mono.Cecil.Rocks.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="System.Linq.Expressions.dll;System.Linq.Queryable.dll;System.ComponentModel.TypeConverter.dll;System.Net.HttpListener.dll;System.Diagnostics.Process.dll" />
+    <_AOT_InternalForceInterpretAssemblies Include="Microsoft.AspNetCore.Components.dll;Microsoft.AspNetCore.Components.Web.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Probe.fs" />
     <Compile Include="Output.fs" />
     <Compile Include="PmLookup.fs" />
     <Compile Include="Repl.fs" />
+    <!-- The CLI host: the real store plus browser stand-ins for stdin/terminal -->
+    <Compile Include="Host/Browser.fs" />
+    <Compile Include="Host/BrowserBuiltins.fs" />
+    <Compile Include="Host/Cli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
@@ -38,6 +62,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.*" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer"
                       Version="10.*" PrivateAssets="all" />
+    <!-- Same version paket.lock pins for LibDB; referenced directly so NuGet imports the
+         bundle's buildTransitive targets (that is what links e_sqlite3.a). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.2" />
   </ItemGroup>
 
   <!-- The runtime + parser. LibDB is currently referenced only for createInMemory;
@@ -51,6 +78,11 @@
     <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
     <!-- .NET HttpClient runs over fetch() in the browser, so this set works in WASM -->
     <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <!-- The CLI's full builtin set. CliHost pulls Matter, Language, Time, Random, Http.Server
+         and LibCloud; all of it is plain BCL + SQLite, which links now. The browser replaces
+         the few that need a tty or a process (Host/BrowserBuiltins.fs), layered last so they win. -->
+    <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
   </ItemGroup>
 
 </Project>

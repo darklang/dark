@@ -1,12 +1,12 @@
-/// Static server for the published WASM REPL — serves
-/// rundir/wasm-repl/wwwroot with the correct `application/wasm`
-/// MIME type (needed for the browser's streaming compilation).
+/// Static server for the published WASM site (`/` the directory, `/cli` the CLI, `/repl` the REPL) -- serves
+/// rundir/wasm-repl/wwwroot with the correct `application/wasm` MIME type (needed for the
+/// browser's streaming compilation).
 ///
 /// Build first (see backend/src/Wasm/README.md), then from the repo root:
-///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 8080
+///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090
 module Darklang.WasmReplServer
 
-let root () : String = "rundir/wasm-repl/wwwroot"
+let root () : String = "rundir/wasm-site/wwwroot"
 
 
 let contentType (path: String) : String =
@@ -38,7 +38,12 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   else if method != "GET" && method != "HEAD" then
     Stdlib.Http.responseWithText "method not allowed" 405
   else
-    let file = if path == "/" then "/index.html" else path
+    let file =
+      if path == "/" then "/index.html"
+      else if path == "/cli" then "/cli.html"
+      else if path == "/repl" then "/repl.html"
+      else if path == "/eval" then "/eval.html"
+      else path
 
     match Stdlib.Cli.FileSystem.readFile (root () ++ file) with
     | Ok blob ->

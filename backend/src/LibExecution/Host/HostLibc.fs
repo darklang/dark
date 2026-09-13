@@ -202,9 +202,13 @@ let private isX64 = RuntimeInformation.ProcessArchitecture = Architecture.X64
 /// and time_t are 32 bits here, so struct stat's size and mtime fields are
 /// half the width they are everywhere else.
 let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
+/// The browser (wasm32 under emscripten). Its libc is musl-shaped and its filesystem is
+/// an in-memory tree with no links to attack, so the boundary takes the .NET calls
+/// there, the way it does on Windows, and the struct layouts below are never consulted.
+let private isBrowser = System.OperatingSystem.IsBrowser()
 
 do
-  if not isMac && not isArm64 && not isX64 && not isArm32 then
+  if not isMac && not isArm64 && not isX64 && not isArm32 && not isBrowser then
     raise (
       System.PlatformNotSupportedException(
         $"Posix builtins: unsupported architecture {RuntimeInformation.ProcessArchitecture} on Linux. "
@@ -245,37 +249,213 @@ let private AT_EMPTY_PATH = 0x1000 // Linux
 let private EEXIST = 17
 /// True where the libc bridge is the filesystem implementation; Windows
 /// keeps the .NET calls behind the lexical pre-check.
-let isPosix : bool = not (RuntimeInformation.IsOSPlatform OSPlatform.Windows)
+let isPosix : bool =
+  not (RuntimeInformation.IsOSPlatform OSPlatform.Windows) && not isBrowser
 let SEEK_SET = 0
 let SEEK_CUR = 1
 let SEEK_END = 2
 
 
+
+// -- The browser: the same calls over System.IO ---------------------------
+// Emscripten's libc is not reachable through DllImport("libc") (the wasm P/Invoke
+// table covers only the runtime's own native modules, and declaring libc symbols in
+// it collides with emscripten's headers), and the filesystem behind it is an
+// in-memory tree with no links to attack. So in the browser every wrapper below
+// answers through .NET instead. Descriptors are a table of FileStreams, numbered
+// from 100 so they never look like stdin/stdout.
+module private Managed =
+  let private errno (e : exn) : int * string =
+    match e with
+    | :? System.IO.FileNotFoundException
+    | :? System.IO.DirectoryNotFoundException -> (2, "No such file or directory")
+    | :? System.UnauthorizedAccessException -> (13, "Permission denied")
+    | :? System.IO.IOException when e.Message.Contains "exists" -> (17, "File exists")
+    | e -> (5, e.Message)
+
+  let private attempt (f : unit -> 'a) : Result<'a, int * string> =
+    try
+      Ok(f ())
+    with e ->
+      Error(errno e)
+
+  let getcwd () = attempt (fun () -> System.IO.Directory.GetCurrentDirectory())
+  let setenv (name : string) (value : string) =
+    attempt (fun () -> Environment.SetEnvironmentVariable(name, value))
+  let unsetenv (name : string) =
+    attempt (fun () -> Environment.SetEnvironmentVariable(name, null))
+  let getenv (name : string) : Option<string> =
+    match Environment.GetEnvironmentVariable name with
+    | null -> None
+    | v -> Some v
+  let chdir (path : string) =
+    attempt (fun () -> System.IO.Directory.SetCurrentDirectory path)
+  let mkdir (path : string) =
+    if System.IO.Directory.Exists path || System.IO.File.Exists path then
+      Error(17, "File exists")
+    else
+      attempt (fun () ->
+        System.IO.Directory.CreateDirectory path |> ignore<System.IO.DirectoryInfo>)
+  let rmdir (path : string) = attempt (fun () -> System.IO.Directory.Delete path)
+  let unlink (path : string) =
+    if not (System.IO.File.Exists path) then
+      Error(2, "No such file or directory")
+    else
+      attempt (fun () -> System.IO.File.Delete path)
+  let rename (oldpath : string) (newpath : string) =
+    attempt (fun () ->
+      if System.IO.Directory.Exists oldpath then
+        System.IO.Directory.Move(oldpath, newpath)
+      else
+        System.IO.File.Move(oldpath, newpath, true))
+  let symlink (target : string) (linkpath : string) =
+    attempt (fun () ->
+      System.IO.File.CreateSymbolicLink(linkpath, target)
+      |> ignore<System.IO.FileSystemInfo>)
+  let readlink (path : string) : Result<string, int * string> =
+    attempt (fun () ->
+      match System.IO.FileInfo(path).LinkTarget with
+      | null -> raise (System.IO.IOException "Invalid argument")
+      | t -> t)
+  let chmod (path : string) (mode : int) =
+    attempt (fun () ->
+      System.IO.File.SetUnixFileMode(path, enum<System.IO.UnixFileMode> mode))
+  let utimesNow (path : string) =
+    attempt (fun () -> System.IO.File.SetLastWriteTimeUtc(path, DateTime.UtcNow))
+  /// (mode, size, mtime seconds), the shape `stat` returns.
+  let stat (path : string) : Result<int * int64 * int64, int * string> =
+    if System.IO.Directory.Exists path then
+      let d = System.IO.DirectoryInfo path
+      Ok(0x4000 ||| 0o755, 0L, DateTimeOffset(d.LastWriteTimeUtc).ToUnixTimeSeconds())
+    elif System.IO.File.Exists path then
+      let f = System.IO.FileInfo path
+      Ok(0x8000 ||| 0o644, f.Length, DateTimeOffset(f.LastWriteTimeUtc).ToUnixTimeSeconds())
+    else
+      Error(2, "No such file or directory")
+  let listDir (path : string) : Result<List<string>, int * string> =
+    attempt (fun () ->
+      System.IO.Directory.EnumerateFileSystemEntries path
+      |> Seq.map System.IO.Path.GetFileName
+      |> Seq.toList)
+
+  // Descriptors
+  let private streams = System.Collections.Generic.Dictionary<int, System.IO.FileStream>()
+  let mutable private nextFd = 100
+  let private withFd (fd : int) (f : System.IO.FileStream -> 'a) : Result<'a, int * string> =
+    match streams.TryGetValue fd with
+    | true, s -> attempt (fun () -> f s)
+    | _ -> Error(9, "Bad file descriptor")
+
+  let openFile (path : string) (flags : int) : Result<int, int * string> =
+    attempt (fun () ->
+      let access =
+        if flags &&& 3 = 1 then System.IO.FileAccess.Write
+        elif flags &&& 3 = 2 then System.IO.FileAccess.ReadWrite
+        else System.IO.FileAccess.Read
+      let creating = flags &&& 0x40 <> 0
+      let truncating = flags &&& 0x200 <> 0
+      let appending = flags &&& 0x400 <> 0
+      let exclusive = flags &&& 0x80 <> 0
+      let mode =
+        if exclusive && creating then System.IO.FileMode.CreateNew
+        elif truncating && creating then System.IO.FileMode.Create
+        elif truncating then System.IO.FileMode.Truncate
+        elif appending then System.IO.FileMode.Append
+        elif creating then System.IO.FileMode.OpenOrCreate
+        else System.IO.FileMode.Open
+      let access =
+        if mode = System.IO.FileMode.Append then System.IO.FileAccess.Write else access
+      let s = new System.IO.FileStream(path, mode, access, System.IO.FileShare.ReadWrite)
+      let fd = nextFd
+      nextFd <- nextFd + 1
+      streams[fd] <- s
+      fd)
+  let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
+    withFd fd (fun s ->
+      let buf = Array.zeroCreate<byte> (max 0 count)
+      let n = s.Read(buf, 0, buf.Length)
+      buf[0 .. n - 1])
+  let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
+    withFd fd (fun s ->
+      s.Write(data, 0, data.Length)
+      s.Flush()
+      data.Length)
+  let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * string> =
+    withFd fd (fun s -> s.Seek(offset, enum<System.IO.SeekOrigin> whence))
+  let fdClose (fd : int) : Result<unit, int * string> =
+    match streams.TryGetValue fd with
+    | true, s ->
+      streams.Remove fd |> ignore<bool>
+      attempt (fun () -> s.Dispose())
+    | _ -> Error(9, "Bad file descriptor")
+  let private unique (prefix : string) : string =
+    prefix + System.IO.Path.GetRandomFileName().Replace(".", "")
+  let mkstemp (prefix : string) : Result<int * string, int * string> =
+    let path = unique prefix
+    openFile path (2 ||| 0x40 ||| 0x80) |> Result.map (fun fd -> fd, path)
+  let mkdtemp (prefix : string) : Result<string, int * string> =
+    let path = unique prefix
+    mkdir path |> Result.map (fun () -> path)
+
+  /// Glob match: `*`, `?`, `[...]`; with FNM_PATHNAME, `*` and `?` stop at `/`.
+  let fnmatch (pattern : string) (str : string) (pathname : bool) : bool =
+    let sb = System.Text.StringBuilder("^")
+    let mutable i = 0
+    while i < pattern.Length do
+      match pattern[i] with
+      | '*' -> sb.Append(if pathname then "[^/]*" else ".*") |> ignore<System.Text.StringBuilder>
+      | '?' -> sb.Append(if pathname then "[^/]" else ".") |> ignore<System.Text.StringBuilder>
+      | '[' ->
+        let close = pattern.IndexOf(']', i + 1)
+        if close < 0 then
+          sb.Append("\\[") |> ignore<System.Text.StringBuilder>
+        else
+          let body = pattern.Substring(i + 1, close - i - 1)
+          let body = if body.StartsWith "!" then "^" + body.Substring 1 else body
+          sb.Append("[").Append(body).Append("]") |> ignore<System.Text.StringBuilder>
+          i <- close
+      | c -> sb.Append(System.Text.RegularExpressions.Regex.Escape(string c)) |> ignore<System.Text.StringBuilder>
+      i <- i + 1
+    sb.Append("$") |> ignore<System.Text.StringBuilder>
+    System.Text.RegularExpressions.Regex.IsMatch(str, sb.ToString())
+
 // -- Wrappers -----------------------------------------------------
 
 let lastError () : int * string =
-  let errno = Marshal.GetLastPInvokeError()
-  let ptr = strerror_raw (errno)
-  let msg =
-    if ptr = IntPtr.Zero then $"errno {errno}" else Marshal.PtrToStringAnsi ptr
-  (errno, msg)
+  if isBrowser then
+    (0, "no libc errno in the browser")
+  else
+    let errno = Marshal.GetLastPInvokeError()
+    let ptr = strerror_raw (errno)
+    let msg =
+      if ptr = IntPtr.Zero then $"errno {errno}" else Marshal.PtrToStringAnsi ptr
+    (errno, msg)
 
 let getcwd () : Result<string, int * string> =
-  let buf = Marshal.AllocHGlobal(4096)
-  try
-    let ptr = getcwd_raw (buf, 4096)
-    if ptr = IntPtr.Zero then
-      Error(lastError ())
-    else
-      Ok(Marshal.PtrToStringAnsi ptr)
-  finally
-    Marshal.FreeHGlobal buf
+  if isBrowser then
+    Managed.getcwd ()
+  else
+    let buf = Marshal.AllocHGlobal(4096)
+    try
+      let ptr = getcwd_raw (buf, 4096)
+      if ptr = IntPtr.Zero then
+        Error(lastError ())
+      else
+        Ok(Marshal.PtrToStringAnsi ptr)
+    finally
+      Marshal.FreeHGlobal buf
 
 let setenv (name : string) (value : string) : Result<unit, int * string> =
-  if setenv_raw (name, value, 1) < 0 then Error(lastError ()) else Ok()
+  if isBrowser then
+    Managed.setenv name value
+  else
+    if setenv_raw (name, value, 1) < 0 then Error(lastError ()) else Ok()
 
 let unsetenv (name : string) : Result<unit, int * string> =
-  if unsetenv_raw (name) < 0 then Error(lastError ()) else Ok()
+  if isBrowser then
+    Managed.unsetenv name
+  else
+    if unsetenv_raw (name) < 0 then Error(lastError ()) else Ok()
 
 
 // -- The directory walk ----------------------------------------------------
@@ -359,32 +539,53 @@ let private unitResult (rc : int) : Result<unit, int * string> =
   if rc < 0 then failed () else Ok()
 
 let chdir (path : string) : Result<unit, int * string> =
-  withDirectory path (fun fd -> unitResult (fchdir_raw fd))
+  if isBrowser then
+    Managed.chdir path
+  else
+    withDirectory path (fun fd -> unitResult (fchdir_raw fd))
 
 let mkdir (path : string) (mode : int) : Result<unit, int * string> =
-  withParent path (fun d n -> unitResult (mkdirat_raw (d, n, mode)))
+  if isBrowser then
+    Managed.mkdir path
+  else
+    withParent path (fun d n -> unitResult (mkdirat_raw (d, n, mode)))
 
 let rmdir (path : string) : Result<unit, int * string> =
-  withParent path (fun d n -> unitResult (unlinkat_raw (d, n, AT_REMOVEDIR)))
+  if isBrowser then
+    Managed.rmdir path
+  else
+    withParent path (fun d n -> unitResult (unlinkat_raw (d, n, AT_REMOVEDIR)))
 
 let unlink (path : string) : Result<unit, int * string> =
-  withParent path (fun d n -> unitResult (unlinkat_raw (d, n, 0)))
+  if isBrowser then
+    Managed.unlink path
+  else
+    withParent path (fun d n -> unitResult (unlinkat_raw (d, n, 0)))
 
 let rename (oldpath : string) (newpath : string) : Result<unit, int * string> =
-  withParent oldpath (fun d1 n1 ->
-    withParent newpath (fun d2 n2 -> unitResult (renameat_raw (d1, n1, d2, n2))))
+  if isBrowser then
+    Managed.rename oldpath newpath
+  else
+    withParent oldpath (fun d1 n1 ->
+      withParent newpath (fun d2 n2 -> unitResult (renameat_raw (d1, n1, d2, n2))))
 
 let symlink (target : string) (linkpath : string) : Result<unit, int * string> =
-  withParent linkpath (fun d n -> unitResult (symlinkat_raw (target, d, n)))
+  if isBrowser then
+    Managed.symlink target linkpath
+  else
+    withParent linkpath (fun d n -> unitResult (symlinkat_raw (target, d, n)))
 
 let readlink (path : string) : Result<string, int * string> =
-  withParent path (fun d n ->
-    let buf = Array.zeroCreate<byte> 4096
-    let len = readlinkat_raw (d, n, buf, 4096)
-    if len < 0 then
-      failed ()
-    else
-      Ok(System.Text.Encoding.UTF8.GetString(buf, 0, len)))
+  if isBrowser then
+    Managed.readlink path
+  else
+    withParent path (fun d n ->
+      let buf = Array.zeroCreate<byte> 4096
+      let len = readlinkat_raw (d, n, buf, 4096)
+      if len < 0 then
+        failed ()
+      else
+        Ok(System.Text.Encoding.UTF8.GetString(buf, 0, len)))
 
 /// Six random name characters, as mkstemp uses.
 let private randomSuffix () : string =
@@ -415,21 +616,30 @@ let private createUnique
     attempt 100)
 
 let mkstemp (prefix : string) : Result<int * string, int * string> =
-  let mutable opened = -1
-  createUnique prefix (fun d name ->
-    let fd =
-      openat_raw (d, name, O_RDWR ||| O_CREAT ||| O_EXCL ||| O_NOFOLLOW, 0o600)
-    opened <- fd
-    fd)
-  |> Result.map (fun path -> opened, path)
+  if isBrowser then
+    Managed.mkstemp prefix
+  else
+    let mutable opened = -1
+    createUnique prefix (fun d name ->
+      let fd =
+        openat_raw (d, name, O_RDWR ||| O_CREAT ||| O_EXCL ||| O_NOFOLLOW, 0o600)
+      opened <- fd
+      fd)
+    |> Result.map (fun path -> opened, path)
 
 let mkdtemp (prefix : string) : Result<string, int * string> =
-  createUnique prefix (fun d name -> mkdirat_raw (d, name, 0o700))
+  if isBrowser then
+    Managed.mkdtemp prefix
+  else
+    createUnique prefix (fun d name -> mkdirat_raw (d, name, 0o700))
 
 let openFile (path : string) (flags : int) (mode : int) : Result<int, int * string> =
-  withParent path (fun d n ->
-    let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
-    if fd < 0 then failed () else Ok fd)
+  if isBrowser then
+    Managed.openFile path flags
+  else
+    withParent path (fun d n ->
+      let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
+      if fd < 0 then failed () else Ok fd)
 
 /// The struct-version argument __xstat expects, per architecture. Measured
 /// from _STAT_VER in each target's glibc headers rather than guessed:
@@ -528,77 +738,97 @@ let private withLinuxMetadataPath
         close_raw fd |> ignore<int>)
 
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
-  if isMac then
-    withParent path (fun d n ->
-      unitResult (fchmodat_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)))
+  if isBrowser then
+    Managed.chmod path mode
   else
-    withLinuxMetadataPath path (fun held -> unitResult (chmod_raw (held, mode)))
+    if isMac then
+      withParent path (fun d n ->
+        unitResult (fchmodat_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)))
+    else
+      withLinuxMetadataPath path (fun held -> unitResult (chmod_raw (held, mode)))
 
 /// Update atime and mtime to now without following the final component.
 let utimesNow (path : string) : Result<unit, int * string> =
-  if isMac then
-    withParent path (fun d n ->
-      unitResult (utimensat_raw (d, n, IntPtr.Zero, AT_SYMLINK_NOFOLLOW)))
+  if isBrowser then
+    Managed.utimesNow path
   else
-    withLinuxMetadataPath path (fun held ->
-      unitResult (utimes_raw (held, IntPtr.Zero)))
+    if isMac then
+      withParent path (fun d n ->
+        unitResult (utimensat_raw (d, n, IntPtr.Zero, AT_SYMLINK_NOFOLLOW)))
+    else
+      withLinuxMetadataPath path (fun held ->
+        unitResult (utimes_raw (held, IntPtr.Zero)))
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
 /// platform-specific (Linux vs macOS struct layouts differ).
 let stat (path : string) : Result<int * int64 * int64, int * string> =
-  let buf = Marshal.AllocHGlobal(256)
-  try
-    match statInto path buf with
-    | Error e -> Error e
-    | Ok() ->
-      // struct stat field offsets differ across OS and architecture:
-      //   macOS (all):   st_mode at 4 (int16), st_size at 96, st_mtime at 48
-      //   Linux x86_64:  st_mode at 24, st_size at 48, st_mtime at 88
-      //   Linux aarch64: st_mode at 16, st_size at 48, st_mtime at 88
-      //   Linux armv7:   st_mode at 16, st_size at 44, st_mtime at 64
-      // armv7 is the odd one: off_t and time_t are 32 bits, so size and
-      // mtime are Int32 reads. Reading them as Int64 there gets garbage from
-      // the adjacent field. Offsets measured against glibc 2.31 armhf.
-      let mode = modeFromStatBuffer buf
-      let size =
-        if isMac then Marshal.ReadInt64(buf, 96)
-        elif isArm32 then int64 (Marshal.ReadInt32(buf, 44))
-        else Marshal.ReadInt64(buf, 48)
-      let mtimeSec =
-        if isMac then Marshal.ReadInt64(buf, 48)
-        elif isArm32 then int64 (Marshal.ReadInt32(buf, 64))
-        else Marshal.ReadInt64(buf, 88)
-      Ok(mode, size, mtimeSec)
-  finally
-    Marshal.FreeHGlobal buf
+  if isBrowser then
+    Managed.stat path
+  else
+    let buf = Marshal.AllocHGlobal(256)
+    try
+      match statInto path buf with
+      | Error e -> Error e
+      | Ok() ->
+        // struct stat field offsets differ across OS and architecture:
+        //   macOS (all):   st_mode at 4 (int16), st_size at 96, st_mtime at 48
+        //   Linux x86_64:  st_mode at 24, st_size at 48, st_mtime at 88
+        //   Linux aarch64: st_mode at 16, st_size at 48, st_mtime at 88
+        //   Linux armv7:   st_mode at 16, st_size at 44, st_mtime at 64
+        // armv7 is the odd one: off_t and time_t are 32 bits, so size and
+        // mtime are Int32 reads. Reading them as Int64 there gets garbage from
+        // the adjacent field. Offsets measured against glibc 2.31 armhf.
+        let mode = modeFromStatBuffer buf
+        let size =
+          if isMac then Marshal.ReadInt64(buf, 96)
+          elif isArm32 then int64 (Marshal.ReadInt32(buf, 44))
+          else Marshal.ReadInt64(buf, 48)
+        let mtimeSec =
+          if isMac then Marshal.ReadInt64(buf, 48)
+          elif isArm32 then int64 (Marshal.ReadInt32(buf, 64))
+          else Marshal.ReadInt64(buf, 88)
+        Ok(mode, size, mtimeSec)
+    finally
+      Marshal.FreeHGlobal buf
 
 /// Calls uname() and returns (sysname, nodename, machine).
 let uname () : Result<string * string * string, int * string> =
-  let fieldSize = if isMac then 256 else 65
-  let bufSize = fieldSize * 6 // 5 fields + extra
-  let buf = Marshal.AllocHGlobal(bufSize)
-  try
-    if uname_raw (buf) < 0 then
-      Error(lastError ())
-    else
-      let sysname = Marshal.PtrToStringAnsi(IntPtr.Add(buf, 0))
-      let nodename = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize))
-      let machine = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize * 4))
-      Ok(sysname, nodename, machine)
-  finally
-    Marshal.FreeHGlobal buf
+  if isBrowser then
+    Ok("Browser", "browser", "wasm32")
+  else
+    let fieldSize = if isMac then 256 else 65
+    let bufSize = fieldSize * 6 // 5 fields + extra
+    let buf = Marshal.AllocHGlobal(bufSize)
+    try
+      if uname_raw (buf) < 0 then
+        Error(lastError ())
+      else
+        let sysname = Marshal.PtrToStringAnsi(IntPtr.Add(buf, 0))
+        let nodename = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize))
+        let machine = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize * 4))
+        Ok(sysname, nodename, machine)
+    finally
+      Marshal.FreeHGlobal buf
 
-let getpid () : int = getpid_raw ()
+let getpid () : int =
+  if isBrowser then Environment.ProcessId else getpid_raw ()
 
-let getuid () : uint32 = getuid_raw ()
+let getuid () : uint32 =
+  if isBrowser then 1000u else getuid_raw ()
 
 let cpuCount () : int64 =
-  let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
-  sysconf_raw (scNprocessorsOnl)
+  if isBrowser then
+    int64 Environment.ProcessorCount
+  else
+    let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
+    sysconf_raw (scNprocessorsOnl)
 
 /// fnmatch returns true if the string matches the pattern.
 let fnmatch (pattern : string) (str : string) (flags : int) : bool =
-  fnmatch_raw (pattern, str, flags) = 0
+  if isBrowser then
+    Managed.fnmatch pattern str (flags <> 0)
+  else
+    fnmatch_raw (pattern, str, flags) = 0
 
 let FNM_PATHNAME = if isMac then 2 else 1 // Linux
 
@@ -607,70 +837,94 @@ let LOCK_EX = 2
 let LOCK_UN = 8
 
 let flock (fd : int) (operation : int) : Result<unit, int * string> =
-  if flock_raw (fd, operation) < 0 then Error(lastError ()) else Ok()
+  if isBrowser then
+    Ok()
+  else
+    if flock_raw (fd, operation) < 0 then Error(lastError ()) else Ok()
 
 /// Get username from uid via getpwuid
 let getUserName (uid : uint32) : Option<string> =
-  let ptr = getpwuid_raw (uid)
-  if ptr = IntPtr.Zero then
-    None
+  if isBrowser then
+    Some "browser"
   else
-    // First field of struct passwd is char *pw_name
-    let namePtr = Marshal.ReadIntPtr(ptr, 0)
-    if namePtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi namePtr)
+    let ptr = getpwuid_raw (uid)
+    if ptr = IntPtr.Zero then
+      None
+    else
+      // First field of struct passwd is char *pw_name
+      let namePtr = Marshal.ReadIntPtr(ptr, 0)
+      if namePtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi namePtr)
 
 /// Get home directory for the current user via getpwuid(getuid()).
 /// Returns pw_dir from the passwd db. The $HOME fallback is in Cli.Env.home().
 let getHomeDir () : Option<string> =
-  let uid = getuid_raw ()
-  let ptr = getpwuid_raw (uid)
-  if ptr = IntPtr.Zero then
-    None
+  if isBrowser then
+    Managed.getenv "HOME"
   else
-    let dirOffset = if isMac then 48 else 32
-    let dirPtr = Marshal.ReadIntPtr(ptr, dirOffset)
-    if dirPtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi dirPtr)
+    let uid = getuid_raw ()
+    let ptr = getpwuid_raw (uid)
+    if ptr = IntPtr.Zero then
+      None
+    else
+      let dirOffset = if isMac then 48 else 32
+      let dirPtr = Marshal.ReadIntPtr(ptr, dirOffset)
+      if dirPtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi dirPtr)
 
 /// Get the owner username of a file (stat + getpwuid).
 let fileOwner (path : string) : Result<string, int * string> =
-  let buf = Marshal.AllocHGlobal(256)
-  try
-    match statInto path buf with
-    | Error e -> Error e
-    | Ok() ->
-      // struct stat st_uid offset:
-      //   macOS: 16, Linux x86_64: 28, Linux aarch64: 24, Linux armv7: 24
-      let uid =
-        if isMac then
-          uint32 (Marshal.ReadInt32(buf, 16))
-        elif isArm64 || isArm32 then
-          uint32 (Marshal.ReadInt32(buf, 24))
-        else // x86_64 Linux (guarded by startup check)
-          uint32 (Marshal.ReadInt32(buf, 28))
-      match getUserName uid with
-      | Some name -> Ok name
-      | None -> Ok(string uid)
-  finally
-    Marshal.FreeHGlobal buf
+  if isBrowser then
+    Managed.stat path |> Result.map (fun _ -> "browser")
+  else
+    let buf = Marshal.AllocHGlobal(256)
+    try
+      match statInto path buf with
+      | Error e -> Error e
+      | Ok() ->
+        // struct stat st_uid offset:
+        //   macOS: 16, Linux x86_64: 28, Linux aarch64: 24, Linux armv7: 24
+        let uid =
+          if isMac then
+            uint32 (Marshal.ReadInt32(buf, 16))
+          elif isArm64 || isArm32 then
+            uint32 (Marshal.ReadInt32(buf, 24))
+          else // x86_64 Linux (guarded by startup check)
+            uint32 (Marshal.ReadInt32(buf, 28))
+        match getUserName uid with
+        | Some name -> Ok name
+        | None -> Ok(string uid)
+    finally
+      Marshal.FreeHGlobal buf
 
 let getenv (name : string) : Option<string> =
-  let ptr = getenv_raw (name)
-  if ptr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi ptr)
+  if isBrowser then
+    Managed.getenv name
+  else
+    let ptr = getenv_raw (name)
+    if ptr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi ptr)
 
 let kill (pid : int) (signal : int) : Result<unit, int * string> =
-  if kill_raw (pid, signal) < 0 then Error(lastError ()) else Ok()
+  if isBrowser then
+    Error(3, "No such process")
+  else
+    if kill_raw (pid, signal) < 0 then Error(lastError ()) else Ok()
 
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
-  if count < 0 then
-    Error(22, "Invalid argument") // EINVAL
+  if isBrowser then
+    Managed.fdRead fd count
   else
-    let buf = Array.zeroCreate<byte> count
-    let n = read_raw (fd, buf, count)
-    if n < 0 then Error(lastError ()) else Ok(buf[0 .. n - 1])
+    if count < 0 then
+      Error(22, "Invalid argument") // EINVAL
+    else
+      let buf = Array.zeroCreate<byte> count
+      let n = read_raw (fd, buf, count)
+      if n < 0 then Error(lastError ()) else Ok(buf[0 .. n - 1])
 
 let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * string> =
-  let position = lseek_raw (fd, offset, whence)
-  if position < 0L then Error(lastError ()) else Ok position
+  if isBrowser then
+    Managed.fdSeek fd offset whence
+  else
+    let position = lseek_raw (fd, offset, whence)
+    if position < 0L then Error(lastError ()) else Ok position
 
 /// Read one terminal file descriptor's window size as (columns, rows).
 ///
@@ -679,68 +933,80 @@ let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * stri
 /// calling conventions, so ioctl may receive an invalid output pointer and
 /// corrupt memory. The caller uses its terminal-size fallback instead.
 let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
-  if OperatingSystem.IsWindows() || isMac then
+  if isBrowser then
     None
   else
-    let request = 0x5413UL // TIOCGWINSZ on Linux
+    if OperatingSystem.IsWindows() || isMac then
+      None
+    else
+      let request = 0x5413UL // TIOCGWINSZ on Linux
 
-    let buffer = Marshal.AllocHGlobal 8
-    try
-      if ioctl_raw (fd, request, buffer) = 0 then
-        let rows = uint16 (Marshal.ReadInt16(buffer, 0))
-        let columns = uint16 (Marshal.ReadInt16(buffer, 2))
-        if rows > 0us && columns > 0us then Some(int64 columns, int64 rows) else None
-      else
-        None
-    finally
-      Marshal.FreeHGlobal buffer
+      let buffer = Marshal.AllocHGlobal 8
+      try
+        if ioctl_raw (fd, request, buffer) = 0 then
+          let rows = uint16 (Marshal.ReadInt16(buffer, 0))
+          let columns = uint16 (Marshal.ReadInt16(buffer, 2))
+          if rows > 0us && columns > 0us then Some(int64 columns, int64 rows) else None
+        else
+          None
+      finally
+        Marshal.FreeHGlobal buffer
 
 let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
-  let mutable offset = 0
-  let mutable error = None
-  while offset < data.Length && error.IsNone do
-    let slice = if offset = 0 then data else data[offset..]
-    let n = write_raw (fd, slice, data.Length - offset)
-    if n < 0 then error <- Some(lastError ())
-    elif n = 0 then error <- Some(0, "write returned 0")
-    else offset <- offset + n
-  match error with
-  | Some e -> Error e
-  | None -> Ok offset
+  if isBrowser then
+    Managed.fdWrite fd data
+  else
+    let mutable offset = 0
+    let mutable error = None
+    while offset < data.Length && error.IsNone do
+      let slice = if offset = 0 then data else data[offset..]
+      let n = write_raw (fd, slice, data.Length - offset)
+      if n < 0 then error <- Some(lastError ())
+      elif n = 0 then error <- Some(0, "write returned 0")
+      else offset <- offset + n
+    match error with
+    | Some e -> Error e
+    | None -> Ok offset
 
 let fdClose (fd : int) : Result<unit, int * string> =
-  if close_raw (fd) < 0 then Error(lastError ()) else Ok()
+  if isBrowser then
+    Managed.fdClose fd
+  else
+    if close_raw (fd) < 0 then Error(lastError ()) else Ok()
 
 /// List directory entries (wraps opendir/readdir/closedir loop).
 /// Returns filenames only, not "." or "..".
 let listDir (path : string) : Result<List<string>, int * string> =
-  withDirectory path (fun fd ->
-    // fdopendir takes ownership of a duplicate; closedir releases it, and
-    // withDirectory closes the original.
-    let dirp = fdopendir_raw (dup_raw fd)
-    if dirp = IntPtr.Zero then
-      Error(lastError ())
-    else
-      let entries = System.Collections.Generic.List<string>()
-      let mutable keepGoing = true
-      let mutable error = None
-      while keepGoing do
-        Marshal.SetLastPInvokeError(0)
-        let entryPtr = readdir_raw (dirp)
-        if entryPtr = IntPtr.Zero then
-          let errno = Marshal.GetLastPInvokeError()
-          if errno <> 0 then error <- Some(lastError ())
-          keepGoing <- false
-        else
-          // struct dirent: d_name offset varies by platform
-          let nameOffset = if isMac then 21 else 19 // Linux
-          let namePtr = IntPtr.Add(entryPtr, nameOffset)
-          let name = Marshal.PtrToStringAnsi namePtr
-          if name <> "." && name <> ".." then entries.Add(name)
-      closedir_raw (dirp) |> ignore<int>
-      match error with
-      | Some e -> Error e
-      | None -> Ok(Seq.toList entries))
+  if isBrowser then
+    Managed.listDir path
+  else
+    withDirectory path (fun fd ->
+      // fdopendir takes ownership of a duplicate; closedir releases it, and
+      // withDirectory closes the original.
+      let dirp = fdopendir_raw (dup_raw fd)
+      if dirp = IntPtr.Zero then
+        Error(lastError ())
+      else
+        let entries = System.Collections.Generic.List<string>()
+        let mutable keepGoing = true
+        let mutable error = None
+        while keepGoing do
+          Marshal.SetLastPInvokeError(0)
+          let entryPtr = readdir_raw (dirp)
+          if entryPtr = IntPtr.Zero then
+            let errno = Marshal.GetLastPInvokeError()
+            if errno <> 0 then error <- Some(lastError ())
+            keepGoing <- false
+          else
+            // struct dirent: d_name offset varies by platform
+            let nameOffset = if isMac then 21 else 19 // Linux
+            let namePtr = IntPtr.Add(entryPtr, nameOffset)
+            let name = Marshal.PtrToStringAnsi namePtr
+            if name <> "." && name <> ".." then entries.Add(name)
+        closedir_raw (dirp) |> ignore<int>
+        match error with
+        | Some e -> Error e
+        | None -> Ok(Seq.toList entries))
 
 
 // -- Atomic, symlink-safe opens (Linux) ------------------------------
