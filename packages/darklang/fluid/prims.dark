@@ -170,6 +170,32 @@ let opaqueNode (source: String) : Node =
 let opaqueSummary (n: Node) : String =
   Node.text n "source" |> Stdlib.Option.withDefault "<opaque>"
 
+/// The type every item of this list is a record of, when they agree on one.
+///
+/// Read off the items because that is the only place it is written: a list node carries no element type.
+/// `Derive.tableKindFor` builds the same name; it is spelled here rather than called because `Prims` is
+/// below `Derive` and a cycle for one string is a bad trade.
+let rowTypeOf (n: Node) : Stdlib.Option.Option<String> =
+  let kindOf (s: Slot) : Stdlib.Option.Option<Kind> =
+    match s with
+    | Filled c -> Stdlib.Option.Option.Some c.kind
+    | _ -> Stdlib.Option.Option.None
+  match Node.items n "items" |> Stdlib.List.map kindOf with
+  | [] -> Stdlib.Option.Option.None
+  | first :: rest ->
+    match first with
+    | Some k ->
+      (match k.typ with
+       | Named name when Stdlib.Option.isNone k.case ->
+         if rest |> Stdlib.List.all (fun o -> o == (Stdlib.Option.Option.Some k)) then
+           Stdlib.Option.Option.Some name
+         else
+           Stdlib.Option.Option.None
+       | _ -> Stdlib.Option.Option.None)
+    | None -> Stdlib.Option.Option.None
+
+let rowsAgreeOnAType (n: Node) : Bool = Stdlib.Option.isSome (rowTypeOf n)
+
 let listPieces () : List<Piece> =
   [ Piece.Group
       [ Piece.Punct "["
@@ -247,7 +273,10 @@ let specs () : List<Spec> =
     Spec.withCompletions
       (Spec.simple (unitKind ()) [ Piece.Punct "()" ] (unitNode ()))
       [ Spec.candidate "()" "Unit" (unitNode ()) ]
-    Spec
+    // "see as a grid" is on the LIST rather than only on the table, so the toggle goes both ways. The row
+    // type is read off the items, which is the only place it is written down: a list node does not carry
+    // its element type, and does not need to for anything else it does.
+    { (Spec
       { kind = listKind ()
         pieces = listPieces ()
         holeRules = [ HoleRule { onChar = "["; fill = HoleFill.WithChar listFromBracket } ]
@@ -272,7 +301,25 @@ let specs () : List<Spec> =
         scopeCandidate = Stdlib.Option.Option.None
         actions = []
         empty = listNode [] (Expect.any "item")
-        summary = listSummary }
+        summary = listSummary }) with
+        actions =
+          [ Action
+              { name = "see as a grid"
+                key = Stdlib.Option.Option.None
+                doc = "one row per record, one column per field"
+                applies = rowsAgreeOnAType
+                run =
+                  (fun n ->
+                    match rowTypeOf n with
+                    | Some t ->
+                      Slot.Filled(
+                        Node.make
+                          (Kind.named ("[" ++ t ++ "]"))
+                          [ ("items",
+                             Field.Many(
+                               Node.items n "items",
+                               Node.itemExpect n "items" |> Stdlib.Option.withDefault (Expect.any "row"))) ])
+                    | None -> Slot.Filled n) } ] }
     // No hole rules on these three. `ofDval` builds them and nothing types one: `(` already means a
     // group where a value goes, and giving it a second meaning here would be a decision about the
     // LANGUAGE made in passing, by a spec that only exists to draw what a runtime value already is.

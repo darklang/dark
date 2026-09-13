@@ -89,7 +89,36 @@ let ofDval (branchId: Uuid) (v: Dval) : Node =
   | DDateTime d -> strLeaf (Stdlib.DateTime.toString d)
 
   | DList(_, items) ->
-    Prims.listNode (items |> Stdlib.List.map (fun i -> Slot.Filled(ofDval branchId i))) (Expect.any "item")
+    // A list whose items are ALL records of the SAME type is a TABLE, not a list of records.
+    //
+    // This is the one place a value document deliberately draws something other than what the printer
+    // writes, and it is the reason to have a value document at all: `[Log { reps = 20; note = "am" },
+    // Log { reps = 15; note = "pm" }]` is a spreadsheet that has been written out as source, and the
+    // grid is what a person filling it in wants. Stachu's phrase for it is "a table seen as an Excel
+    // table". A list of anything else, or of records that disagree about their type, stays a list.
+    let rowType =
+      match items with
+      | [] -> Stdlib.Option.Option.None
+      | first :: _ ->
+        (match first with
+         | DRecord(_, t, _, _) ->
+           let name = typeKeyName branchId t
+           let allSame =
+             items
+             |> Stdlib.List.all (fun i ->
+               match i with
+               | DRecord(_, t2, _, _) -> (typeKeyName branchId t2) == name
+               | _ -> false)
+           if allSame then Stdlib.Option.Option.Some name else Stdlib.Option.Option.None
+         | _ -> Stdlib.Option.Option.None)
+
+    let rows = items |> Stdlib.List.map (fun i -> Slot.Filled(ofDval branchId i))
+    match rowType with
+    | Some name ->
+      Node.make
+        (Derive.tableKindFor name)
+        [ ("items", Field.Many(rows, Expect.ofKind (Kind.named name) (Derive.shortName name))) ]
+    | None -> Prims.listNode rows (Expect.any "item")
 
   | DTuple(a, b, rest) ->
     Prims.tupleNode (
@@ -233,6 +262,14 @@ let toDval (branchId: Uuid) (n: Node) : Stdlib.Result.Result<Dval, String> =
      | Ok(a :: b :: rest) -> Stdlib.Result.Result.Ok(Dval.DTuple(a, b, rest))
      | Ok _ -> Stdlib.Result.Result.Error "a tuple needs two members"
      | Error e -> Stdlib.Result.Result.Error e)
+  | typeName when Stdlib.Option.isSome (Derive.tableRowTypeName typeName) ->
+    // A grid is a LIST. The table kind is a drawing decision and nothing else; the value it came from
+    // and the value it goes back to are the same `DList` a plain list would give.
+    Node.items n "items"
+    |> Stdlib.List.map (fun s -> slotValue s "row")
+    |> Stdlib.Result.collect
+    |> Stdlib.Result.map (fun vs -> Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, vs))
+
   | typeName ->
     // A named type: a record if the kind has no case, an enum case if it has one. The hash comes back
     // from the store by the same name the kind carries, which is why that name is the full location and
@@ -290,7 +327,12 @@ let typeNamesIn (n: Node) : List<String> =
 
   let here =
     match n.kind.typ with
-    | Named name -> [ name ]
+    // A table kind is `[T]`, and what has to be derived is T: the row spec draws the cells, and `T`'s
+    // own derivation is what produces the table spec in the first place.
+    | Named name ->
+      (match Derive.tableRowTypeName name with
+       | Some row -> [ row ]
+       | None -> [ name ])
     | Prim _ -> []
 
   let below =

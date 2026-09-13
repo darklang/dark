@@ -41,6 +41,29 @@ module Kind =
     | Named n -> n
     | Prim p -> p
 
+  /// A type name as it is SHOWN: the last dotted segment, which is all a person needs on a breadcrumb
+  /// or in a tree.
+  ///
+  /// One copy, because there were four and adding a bracketed kind made three of them wrong at the same
+  /// time: `[Darklang.Stdlib.Cli.Posix.StatResult]` split on `.` and taking the last segment gives
+  /// `StatResult]`, with the opening bracket left behind on a segment nobody kept. Exactly the drift t88
+  /// found in the two hand-written name shorteners, and the reason this is one function now.
+  let shortLabel (name: String) : String =
+    let bare = Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+    if (Stdlib.String.startsWith name "[") && (Stdlib.String.endsWith name "]") then
+      "[" ++ (Stdlib.String.dropLast bare 1) ++ "]"
+    else
+      bare
+
+  /// What to call a node's kind on screen: its case if it has one, else its short type name.
+  let label (k: Kind) : String =
+    match k.case with
+    | Some c -> c
+    | None ->
+      match k.typ with
+      | Named n -> shortLabel n
+      | Prim p -> p
+
   /// "Expr.EList", "Acme.Color", "Int".
   let toString (k: Kind) : String =
     match k.case with

@@ -613,3 +613,161 @@ module SomeValuesHaveNoWrittenForm =
 
   (SomeValuesHaveNoWrittenForm.drawn "<function>") = "<function>"
   (SomeValuesHaveNoWrittenForm.drawn "<db users>") = "<db users>"
+
+
+module AListOfRecordsIsAGrid =
+  // The one place a value document deliberately draws something the printer would not write, and the
+  // reason to have a value document at all.
+  //
+  //     [Log { reps = 20; note = "am" }, Log { reps = 15; note = "pm" }]
+  //
+  // is a spreadsheet that has been written out as source. A person filling that in wants the grid, and
+  // `Piece.Table` has been able to draw one since early on -- reachable only from a hand-written demo
+  // kind, which is a poor place to keep the answer to "can a table be seen as a table". A record
+  // declaration already says what the columns are, so this needed nothing written: the columns ARE the
+  // field names and the rows ARE the records, whose slots are named the same way.
+  let bid () : Uuid = Darklang.SCM.Branch.mainBranchId
+
+  let errType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match
+      Darklang.LanguageTools.PackageManager.Type.find
+        (AListOfRecordsIsAGrid.bid ())
+        (Darklang.LanguageTools.ProgramTypes.parsePackageLocation "Darklang.Stdlib.Cli.Posix.Error")
+    with
+    | Some h ->
+      Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        Darklang.LanguageTools.RuntimeTypes.Hash.Hash(Darklang.LanguageTools.ProgramTypes.hashToString h))
+    | None -> Builtin.testDerrorMessage "Posix.Error is not in the store"
+
+  let row (n: Int) (m: String) : Darklang.LanguageTools.RuntimeTypes.Dval =
+    Darklang.LanguageTools.RuntimeTypes.Dval.DRecord(
+      AListOfRecordsIsAGrid.errType (),
+      AListOfRecordsIsAGrid.errType (),
+      [],
+      Stdlib.Dict.fromListOverwritingDuplicates
+        [ ("errno", Darklang.LanguageTools.RuntimeTypes.Dval.DInt n),
+          ("message", Darklang.LanguageTools.RuntimeTypes.Dval.DString m) ])
+
+  let listOf (vs: List<Darklang.LanguageTools.RuntimeTypes.Dval>) : Darklang.LanguageTools.RuntimeTypes.Dval =
+    Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, vs)
+
+  let drawn (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    let node = Darklang.Fluid.Value.ofDval (AListOfRecordsIsAGrid.bid ()) v
+    Darklang.Fluid.Debug.render
+      (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) node)
+      70
+      (Darklang.Fluid.Slot.Filled node)
+
+  // A header, and every column as wide as its widest cell. That measuring pass is what no Wadler group
+  // can do: a group knows its own width and nothing about its siblings.
+  (AListOfRecordsIsAGrid.drawn
+    (AListOfRecordsIsAGrid.listOf
+      [ AListOfRecordsIsAGrid.row 1 "a", AListOfRecordsIsAGrid.row 22 "bb" ])) =
+    "errno  message\n1      \"a\"\n22     \"bb\""
+
+  // A list of anything else stays a list, and so does a list whose records DISAGREE about their type.
+  // The grid is a claim that every row has the same columns.
+  (AListOfRecordsIsAGrid.drawn
+    (AListOfRecordsIsAGrid.listOf
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1,
+        Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ])) = "[1, 2]"
+
+  (AListOfRecordsIsAGrid.drawn
+    (AListOfRecordsIsAGrid.listOf
+      [ AListOfRecordsIsAGrid.row 1 "a", Darklang.LanguageTools.RuntimeTypes.Dval.DInt 5 ])) =
+    "[Error { errno = 1; message = \"a\" }, 5]"
+
+  // An empty list has no rows to read a type off, so there is no grid to draw.
+  (AListOfRecordsIsAGrid.drawn (AListOfRecordsIsAGrid.listOf [])) = "[]"
+
+  // The kind is bracketed so it cannot collide with a real type: a package location has no `[` in it.
+  // It has to be a kind of its own, because a spec is found BY kind and a list of integers must go on
+  // drawing as a list.
+  (Darklang.Fluid.Derive.tableRowTypeName "[Acme.Log]") = Stdlib.Option.Option.Some "Acme.Log"
+  (Darklang.Fluid.Derive.tableRowTypeName "Acme.Log") = Stdlib.Option.Option.None
+
+  // Drawing only. The value it came from and the value it goes back to are the same `DList` a plain
+  // list would give, which is what makes the grid a reading of the document rather than a second one.
+  let rt (v: Darklang.LanguageTools.RuntimeTypes.Dval) : String =
+    match
+      Darklang.Fluid.Value.toDval
+        (AListOfRecordsIsAGrid.bid ())
+        (Darklang.Fluid.Value.ofDval (AListOfRecordsIsAGrid.bid ()) v)
+    with
+    | Ok back -> if back == v then "same" else "CHANGED"
+    | Error e -> "ERR " ++ e
+
+  (AListOfRecordsIsAGrid.rt
+    (AListOfRecordsIsAGrid.listOf
+      [ AListOfRecordsIsAGrid.row 1 "a", AListOfRecordsIsAGrid.row 22 "bb" ])) = "same"
+  (AListOfRecordsIsAGrid.rt (AListOfRecordsIsAGrid.listOf [ AListOfRecordsIsAGrid.row 1 "a" ])) = "same"
+
+
+module TheGridGoesBothWays =
+  // A grid you cannot leave would be a worse default than no grid. The toggle is a KIND change and
+  // nothing else: the same items in the same slot, so the two drawings are two readings of one document.
+  //
+  // Actions, so it is spec data rather than a key the kernel knows. A DSL with its own tabular type gets
+  // the same switch by declaring it.
+  let runNamed (n: Darklang.Fluid.Node) (nm: String) : String =
+    let reg = Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) n
+    match Darklang.Fluid.Registry.find reg n.kind with
+    | Some sp ->
+      (match sp.actions |> Stdlib.List.findFirst (fun a -> a.name == nm) with
+       | Some a ->
+         if Stdlib.Bool.not (a.applies n) then
+           "does not apply"
+         else
+           (match a.run n with
+            | Filled n2 -> Darklang.Fluid.Debug.render reg 70 (Darklang.Fluid.Slot.Filled n2)
+            | _ -> "not filled")
+       | None -> "no action named " ++ nm)
+    | None -> "no spec"
+
+  let grid () : Darklang.Fluid.Node =
+    Darklang.Fluid.Value.ofDval
+      (AListOfRecordsIsAGrid.bid ())
+      (AListOfRecordsIsAGrid.listOf
+        [ AListOfRecordsIsAGrid.row 1 "a", AListOfRecordsIsAGrid.row 22 "bb" ])
+
+  (TheGridGoesBothWays.runNamed (TheGridGoesBothWays.grid ()) "see as a list") =
+    "[\n  Error { errno = 1; message = \"a\" },\n  Error { errno = 22; message = \"bb\" }\n]"
+
+  // And a plain list of records offers the way in, reading the row type off the items, which is the only
+  // place it is written down: a list node carries no element type.
+  let plainList () : Darklang.Fluid.Node =
+    Darklang.Fluid.Prims.listNode
+      [ Darklang.Fluid.Slot.Filled(
+          Darklang.Fluid.Value.ofDval (AListOfRecordsIsAGrid.bid ()) (AListOfRecordsIsAGrid.row 1 "a")),
+        Darklang.Fluid.Slot.Filled(
+          Darklang.Fluid.Value.ofDval (AListOfRecordsIsAGrid.bid ()) (AListOfRecordsIsAGrid.row 22 "bb")) ]
+      (Darklang.Fluid.Expect.any "item")
+
+  (TheGridGoesBothWays.runNamed (TheGridGoesBothWays.plainList ()) "see as a grid") =
+    "errno  message\n1      \"a\"\n22     \"bb\""
+
+  // A list of integers is offered nothing: rows that are not records of one type have no columns.
+  (TheGridGoesBothWays.runNamed
+    (Darklang.Fluid.Value.ofDval
+      (AListOfRecordsIsAGrid.bid ())
+      (AListOfRecordsIsAGrid.listOf [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1 ]))
+    "see as a grid") = "does not apply"
+
+
+module OneShortenerForDisplayNames =
+  // There were four copies of "take the last dotted segment", and a bracketed kind made three of them
+  // wrong at once: `[Darklang.Stdlib.Cli.Posix.StatResult]` came out `StatResult]` in the breadcrumb and
+  // in the tree, with the opening bracket left on a segment nobody kept.
+  //
+  // Same drift t88 found in the two hand-written name shorteners. One function now, in the kernel, and
+  // `Derive.shortName` is a call to it.
+  (Darklang.Fluid.Kind.shortLabel "Darklang.Stdlib.Cli.Posix.StatResult") = "StatResult"
+  (Darklang.Fluid.Kind.shortLabel "[Darklang.Stdlib.Cli.Posix.StatResult]") = "[StatResult]"
+  (Darklang.Fluid.Kind.shortLabel "Int") = "Int"
+  (Darklang.Fluid.Derive.shortName "[Acme.Log]") = "[Log]"
+
+  // A node's display name is its CASE when it has one, whatever its type is called.
+  (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.ofCase "Darklang.Stdlib.Option.Option" "Some")) = "Some"
+  (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.named "[Acme.Log]")) = "[Log]"
+  (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.prim "Int")) = "Int"

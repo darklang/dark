@@ -1013,7 +1013,7 @@ let friendlyType (k: Kind) : String =
   match k.typ with
   | Prim p -> p
   | Named name ->
-    let last = Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+    let last = Kind.shortLabel name
     if last == "Expr" then "expression"
     elif last == "TypeReference" then "type"
     elif last == "MatchPattern" then "pattern"
@@ -5678,13 +5678,7 @@ let onKeyNav (st: State) (kp: Stdlib.Cli.UI.Widget.KeyPress) : Outcome =
 // --- Context (breadcrumb + expected-type hint, for the chrome) ---
 
 /// A short name for a node: its kind's case, or the last segment of its type.
-let crumbName (n: Node) : String =
-  match n.kind.case with
-  | Some c -> c
-  | None ->
-    match n.kind.typ with
-    | Named name -> Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
-    | Prim p -> p
+let crumbName (n: Node) : String = Kind.label n.kind
 
 /// The trail of node names from the root to the caret's node.
 let breadcrumb (st: State) : String =
@@ -5705,7 +5699,7 @@ let breadcrumb (st: State) : String =
 
 let kindLabel (k: Kind) : String =
   match k.typ with
-  | Named name -> Stdlib.String.split name "." |> Stdlib.List.last |> Stdlib.Option.withDefault name
+  | Named name -> Kind.shortLabel name
   | Prim p -> p
 
 /// What the caret is on, in a few words: the type a hole expects, or the kind of the node.

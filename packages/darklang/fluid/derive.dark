@@ -52,8 +52,8 @@ let typeNameOf
     else Stdlib.Option.Option.Some(Stdlib.String.join nr.originalName ".")
 
 /// The short name to show: the last segment.
-let shortName (typeName: String) : String =
-  Stdlib.String.split typeName "." |> Stdlib.List.last |> Stdlib.Option.withDefault typeName
+/// The kernel's, so the four copies of this that had grown are one.
+let shortName (typeName: String) : String = Kind.shortLabel typeName
 
 
 // --- Records ---
@@ -245,12 +245,61 @@ let enumTypeSpec
 
 // --- Entry point ---
 
+/// The kind of "a list of `typeName`, seen as a grid".
+///
+/// Bracketed, so it cannot collide with a real type: a package location has no `[` in it. It has to be
+/// a kind of its own rather than a flag on the list, because a spec is found BY kind, and a plain list
+/// of integers must go on drawing as a list.
+let tableKindFor (typeName: String) : Kind = Kind.named ("[" ++ typeName ++ "]")
+
+/// `Darklang.Acme.Log` back out of `[Darklang.Acme.Log]`, so the row type's own spec gets derived too.
+let tableRowTypeName (typeName: String) : Stdlib.Option.Option<String> =
+  if (Stdlib.String.startsWith typeName "[") && (Stdlib.String.endsWith typeName "]") then
+    Stdlib.Option.Option.Some(Stdlib.String.slice typeName 1 ((Stdlib.String.length typeName) - 1))
+  else
+    Stdlib.Option.Option.None
+
+/// A list of records drawn as a GRID: one row per item, one column per field, each column as wide as
+/// its widest cell.
+///
+/// `Piece.Table` has existed since early on and was reachable only from a hand-written demo kind, which
+/// is a poor place to keep the answer to "can a table be seen as a table". A record declaration already
+/// says what the columns are, so this needs nothing written: the columns ARE the field names, and the
+/// row nodes are the records themselves, whose slots are named the same way.
+let tableSpec
+  (typeName: String)
+  (fields: List<Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField>)
+  : Spec =
+  let kind = tableKindFor typeName
+  let empty =
+    Node.make
+      kind
+      [ ("items", Field.Many([], Expect.ofKind (Kind.named typeName) (shortName typeName))) ]
+  { (Spec.simple kind [ Piece.Table("items", fields |> Stdlib.List.map (fun f -> f.name)) ] empty) with
+      summary = (fun n -> (Stdlib.Int.toString (Stdlib.List.length (Node.items n "items"))) ++ " rows")
+      // The grid is the only place a value document draws something the printer would not, so there has
+      // to be a way back. It is a KIND change and nothing else: the same items, the same slot name, so
+      // the two drawings are two readings of one document rather than two documents.
+      actions =
+        [ Action
+            { name = "see as a list"
+              key = Stdlib.Option.Option.None
+              doc = "one record per line, the way it prints"
+              applies = (fun _ -> true)
+              run =
+                (fun n ->
+                  Slot.Filled(
+                    Prims.listNode
+                      (Node.items n "items")
+                      (Node.itemExpect n "items" |> Stdlib.Option.withDefault (Expect.any "item")))) } ] }
+
 let specsFor
   (typeName: String)
   (decl: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : List<Spec> =
   match decl.definition with
-  | Record fields -> [ recordSpec typeName fields ]
+  // A record type gets two: the record itself, and a list of them seen as a grid.
+  | Record fields -> [ recordSpec typeName fields, tableSpec typeName fields ]
   | Enum cases -> Stdlib.List.append [ enumTypeSpec typeName cases ] (cases |> Stdlib.List.map (fun c -> caseSpec typeName c))
   | Alias _ -> []
 
