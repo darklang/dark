@@ -42,7 +42,7 @@
     const setStatus = (text, cls) => { status.textContent = text; status.className = "status " + (cls || ""); };
 
     const term = new Terminal({
-      cursorBlink: true, convertEol: false, scrollback: 5000, fontSize: 14,
+      cursorBlink: true, convertEol: true, scrollback: 5000, fontSize: 14,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       theme: { background: "#0f1117", foreground: "#e6e8ee" },
       allowProposedApi: true,
@@ -173,7 +173,16 @@
       await invoke("SetTerminalSize", term.cols, term.rows);
       term.focus();
       try {
-        const code = await invoke("RunCli", argv);
+        let code = await invoke("RunCli", argv);
+        // A one-shot command (`?cmd=`, `?fn=`) printed and returned; keep the visitor in the
+        // CLI at the classic inline prompt, which leaves that output in scrollback. The
+        // workbench would take the alternate screen and hide it.
+        if (argv.length > 0 && running) {
+          await drain();
+          await invoke("SetEnv", "DARK_CLASSIC", "1");
+          term.write("\r\n");
+          code = await invoke("RunCli", []);
+        }
         running = false;
         await drain();
         setStatus("exited with " + code, code === 0 ? "" : "err");

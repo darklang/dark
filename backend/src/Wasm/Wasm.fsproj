@@ -13,7 +13,10 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);publish/**</DefaultItemExcludes>
     <!-- size levers; AOT is slower to build but shrinks/speeds the result -->
     <PublishTrimmed>true</PublishTrimmed>
-    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    <!-- AOT: the interpreter's F# task state machines could not suspend a second time under
+         the mono interpreter (a blocking wait on the browser's one thread). Compiled, they can.
+         Slower to build, faster to run. -->
+    <RunAOTCompilation>true</RunAOTCompilation>
     <!-- Native relink: statically links e_sqlite3 (SourceGear.sqlite3 ships a browser-wasm
          .a and adds it as a NativeFileReference through its buildTransitive targets) so the
          real LibDB store runs in the tab. -->
