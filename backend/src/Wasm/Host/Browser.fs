@@ -26,9 +26,27 @@ let init (runtime : IJSInProcessRuntime) : unit = js <- Some runtime
 /// from exactly there. Draining from JS also batches a whole TUI frame into one write.
 let private pending = Text.StringBuilder()
 
-/// Queue text for the page's terminal.
+/// While set, output goes here instead of the terminal: the command panel runs a one-shot
+/// command beside the workbench and shows its output in its own pane.
+let mutable private capture : Text.StringBuilder option = None
+
+/// Queue text for the page's terminal (or the capture, while one is open).
 let writeToTerminal (text : string) : unit =
-  pending.Append text |> ignore<Text.StringBuilder>
+  match capture with
+  | Some c -> c.Append text |> ignore<Text.StringBuilder>
+  | None -> pending.Append text |> ignore<Text.StringBuilder>
+
+/// Run <param f> with output captured; returns (result, everything it printed).
+let captured (f : unit -> Threading.Tasks.Task<'a>) : Threading.Tasks.Task<'a * string> =
+  task {
+    let c = Text.StringBuilder()
+    capture <- Some c
+    try
+      let! r = f ()
+      return (r, c.ToString())
+    finally
+      capture <- None
+  }
 
 /// JS -> .NET: everything written since the last drain.
 [<JSInvokable>]

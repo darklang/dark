@@ -48,4 +48,5 @@ fi
 
 mkdir -p "$(dirname "$OUT")"
 mv "$TMP" "$OUT"
+chmod 644 "$OUT" # mktemp made it 0600; the web server has to read it
 echo "wrote $OUT ($(du -h "$OUT" | cut -f1)); config_v0 empty, no sync credentials in bytes"

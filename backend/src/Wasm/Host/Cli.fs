@@ -62,6 +62,17 @@ let Boot (storeUrl : string) : Task =
       Browser.log $"boot: fetching {storeUrl} -> {dbPath}"
       use http = new Net.Http.HttpClient()
       let! bytes = http.GetByteArrayAsync storeUrl
+      // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
+      // static host was seen handing the store back uncompressed however it was asked.
+      let bytes =
+        if storeUrl.EndsWith ".gz" then
+          use src = new IO.MemoryStream(bytes)
+          use gz = new IO.Compression.GZipStream(src, IO.Compression.CompressionMode.Decompress)
+          use dst = new IO.MemoryStream()
+          gz.CopyTo dst
+          dst.ToArray()
+        else
+          bytes
       IO.File.WriteAllBytes(dbPath, bytes)
       Browser.log $"boot: wrote {bytes.Length} bytes"
 
@@ -165,6 +176,16 @@ let RunCli (args : string[]) : Task<int> =
         | _ -> $"{rte}"
       Browser.writeToTerminal $"\r\nEncountered a Runtime Error:\r\n{text}\r\n"
       return 1
+  }
+
+/// Run one command beside whatever is already running (the workbench, waiting on a key),
+/// with its output captured rather than painted over the terminal. Same store, its own VM.
+/// Returns the output followed by a line with the exit code.
+[<JSInvokable>]
+let RunCommand (args : string[]) : Task<string> =
+  task {
+    let! (code, output) = Browser.captured (fun () -> RunCli args)
+    return output + $"\n[exit {code}]"
   }
 
 /// Evaluate one Dark expression under the CLI state. A probe for the async path: the

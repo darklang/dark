@@ -21,12 +21,9 @@
          .a and adds it as a NativeFileReference through its buildTransitive targets) so the
          real LibDB store runs in the tab. -->
     <WasmBuildNative>true</WasmBuildNative>
-    <!-- Keep native symbol names so a paused stack in DevTools reads as mono/sqlite functions
-         rather than $funcNNNN. Costs a few MB; drop for a size-optimised release. -->
-    <WasmNativeStrip>false</WasmNativeStrip>
-    <!-- Line numbers in managed stack traces while the browser host is being brought up. -->
-    <CopyOutputSymbolsToPublishDirectory>true</CopyOutputSymbolsToPublishDirectory>
-    <WasmDebugLevel>1</WasmDebugLevel>
+    <!-- For bringing the host up: `WasmNativeStrip=false` makes a paused stack in DevTools
+         read as mono/sqlite function names, `WasmDebugLevel=1` plus
+         `CopyOutputSymbolsToPublishDirectory=true` keeps pdbs. Both cost size; off for release. -->
   </PropertyGroup>
 
   <ItemGroup>

@@ -21,17 +21,45 @@
     header .status.err { color:var(--err); }
     header a { color:var(--muted); font-size:12px; text-decoration:none; }
     header a:hover { color:var(--fg); }
-    #term { flex:1; min-height:0; padding:6px; }
+    header button { background:transparent; color:var(--muted); border:1px solid var(--border);
+                    border-radius:6px; font:inherit; font-size:12px; padding:2px 8px; cursor:pointer; }
+    header button:hover, header button.on { color:var(--fg); border-color:var(--accent); }
+    #main { flex:1; min-height:0; display:flex; }
+    #term { flex:1; min-width:0; min-height:0; padding:6px; }
     #term .xterm { height: 100%; }
+    /* The command panel: one-shot `dark <cmd>` runs beside the workbench, same store. */
+    #panel { width: 44%; min-width: 320px; border-left:1px solid var(--border); display:flex;
+             flex-direction:column; min-height:0; }
+    #panel[hidden] { display:none; }
+    #panel .out { flex:1; overflow:auto; padding:10px 12px; font-size:13px; line-height:1.45;
+                  white-space:pre-wrap; margin:0; }
+    #panel .out .cmd { color:var(--accent); }
+    #panel .out .exit { color:var(--muted); }
+    #panel .out .err { color:var(--err); }
+    #panel form { display:flex; gap:8px; padding:8px 12px; border-top:1px solid var(--border); }
+    #panel form span { color:var(--accent); }
+    #panel input { flex:1; background:transparent; border:none; color:var(--fg); font:inherit;
+                   font-size:13px; outline:none; }
+    @media (max-width: 800px) { #main { flex-direction:column; } #panel { width:auto; min-width:0;
+             border-left:none; border-top:1px solid var(--border); height:40%; } }
   </style>
 </head>
 <body>
   <header>
     <h1>Darklang CLI</h1>
     <a href="index.html">REPL</a>
+    <button id="toggle" type="button" title="Run dark commands beside the workbench (same store)">commands</button>
     <span class="status" id="status">loading runtime</span>
   </header>
-  <div id="term"></div>
+  <div id="main">
+    <div id="term"></div>
+    <div id="panel" hidden>
+      <pre class="out" id="pout">dark commands run here, one at a time, against the same store the workbench is showing.
+Anything that opens a screen of its own (workbench, outliner, views, apps) belongs in the terminal.
+</pre>
+      <form id="pform"><span>dark</span><input id="pin" autocomplete="off" placeholder="status" /></form>
+    </div>
+  </div>
 
   <script src="vendor/xterm.js"></script>
   <script src="vendor/addon-fit.js"></script>
@@ -71,9 +99,11 @@
       const fn = params.get("fn");
       if (fn) return ["view", fn];
       const cmd = params.get("cmd");
-      if (!cmd) return [];
+      return cmd ? splitArgv(cmd) : [];
+    }
+    function splitArgv(text) {
       const argv = []; let cur = ""; let quoted = false;
-      for (const ch of cmd) {
+      for (const ch of text) {
         if (ch === '"') { quoted = !quoted; continue; }
         if (!quoted && /\s/.test(ch)) { if (cur) { argv.push(cur); cur = ""; } continue; }
         cur += ch;
@@ -84,6 +114,43 @@
 
     let running = false;
     const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
+
+    // The command panel.
+    const panel = document.getElementById("panel");
+    const pout = document.getElementById("pout");
+    const pin = document.getElementById("pin");
+    const toggle = document.getElementById("toggle");
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.classList.toggle("on", !panel.hidden);
+      fit.fit(); reportSize();
+      if (!panel.hidden) pin.focus(); else term.focus();
+    });
+    const takesTheScreen = new Set(["workbench", "wb", "outliner", "tree-exp", "views", "apps", "text-editor", "agent", "ai"]);
+    let commandRunning = false;
+    const history = []; let hi = 0;
+    document.getElementById("pform").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const line = pin.value.trim();
+      if (!line || commandRunning || !running) return;
+      const argv = splitArgv(line);
+      const add = (cls, text) => { const s = document.createElement("span"); s.className = cls; s.textContent = text; pout.appendChild(s); pout.scrollTop = pout.scrollHeight; };
+      add("cmd", "$ dark " + line + "\n");
+      if (takesTheScreen.has(argv[0])) { add("err", "that one takes over the screen; run it in the terminal\n"); pin.value = ""; return; }
+      history.push(line); hi = history.length; pin.value = "";
+      commandRunning = true;
+      try {
+        const out = await invoke("RunCommand", argv);
+        const i = out.lastIndexOf("\n[exit ");
+        add("", out.slice(0, i).replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
+        add("exit", out.slice(i + 1) + "\n\n");
+      } catch (e) { add("err", "failed: " + (e && e.message ? e.message : e) + "\n"); }
+      finally { commandRunning = false; pin.focus(); }
+    });
+    pin.addEventListener("keydown", (ev) => {
+      if (ev.key === "ArrowUp" && hi > 0) { hi--; pin.value = history[hi]; ev.preventDefault(); }
+      else if (ev.key === "ArrowDown") { hi = Math.min(history.length, hi + 1); pin.value = history[hi] || ""; ev.preventDefault(); }
+    });
     let drainTimer = null;
 
     // Keys go straight to .NET as DOM key names; xterm never sees them (returning false
@@ -149,7 +216,7 @@
         setStatus("loading the package store", "busy");
         term.write("\x1b[90mloading the package store...\x1b[0m\r\n");
         const t0 = performance.now();
-        await invoke("Boot", new URL("data.db", document.baseURI).href);
+        await invoke("Boot", new URL("data.db.gz", document.baseURI).href);
         term.write("\x1b[90mstore ready in " + Math.round(performance.now() - t0) + " ms\x1b[0m\r\n");
       } catch (e) {
         setStatus("store failed to load", "err");
@@ -159,6 +226,7 @@
       }
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
+      if (params.get("panel") === "1") toggle.click();
       if (params.get("trace") === "1") await invoke("SetTrace", true);
       for (const kv of params.getAll("env")) {
         const i = kv.indexOf("="); if (i > 0) await invoke("SetEnv", kv.slice(0, i), kv.slice(i + 1));
