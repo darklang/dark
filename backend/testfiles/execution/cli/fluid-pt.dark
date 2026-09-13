@@ -2953,3 +2953,63 @@ module EveryIntegerWidthTypesBack =
   // break when a suffix rule changes.
   (EveryIntegerWidthTypesBack.typedBack "1.5") = "1.5"
   (EveryIntegerWidthTypesBack.typedBack "-5") = "-5"
+
+
+module TheBarIsThreeThings =
+  // `|` starts a match arm, `|>` is a pipe, and inside a string it is just a character. Three meanings
+  // for one key, resolved by where the caret is, and none of them was pinned.
+  //
+  // Checked because "`|` after a match arm's rhs to start the next arm (ambiguous with a pipe)" was on
+  // the list of things still to do. It is not: it works, and the ambiguity is settled by the same
+  // two-character-operator rule everything else uses. Pinned so it stays settled, and so the next person
+  // reading that list does not go looking for it again.
+  let reg () : Darklang.Fluid.Registry = Darklang.Fluid.App.defaultRegistry ()
+
+  let docOf (src: String) : Darklang.Fluid.Slot =
+    match Darklang.LanguageTools.Parser.Parse.parsePTExpr src with
+    | Ok e -> Darklang.Fluid.Slot.Filled(Darklang.Fluid.PT.toDoc e)
+    | Error e -> Darklang.Fluid.Slot.Empty(Darklang.Fluid.PT.exprExpect ("parse failed: " ++ e))
+
+  let run (src: String) (keys: List<String>) : String =
+    Darklang.Fluid.Test.run (TheBarIsThreeThings.reg ()) (TheBarIsThreeThings.docOf src) 60 keys
+
+  /// Four `j`s from the root of a one-arm match lands on the arm's right-hand side.
+  let onTheRhs () : List<String> = [ "j", "j", "j", "j" ]
+
+  (TheBarIsThreeThings.run "match x with\n| 1 -> \"a\"" (TheBarIsThreeThings.onTheRhs ())) =
+    "match x with\n| 1 -> \"~a\""
+
+  // At the end of an arm's right-hand side, `|` starts the next arm, with the caret in its pattern.
+  (TheBarIsThreeThings.run
+    "match x with\n| 1 -> 5"
+    (Stdlib.List.append (TheBarIsThreeThings.onTheRhs ()) [ "i", "<End>", "|" ])) =
+    "match x with\n| 1 -> 5\n| ~⟨pattern⟩ -> ⟨rhs⟩"
+
+  // `|>` is a pipe, because the second character arrives before anything is committed. Same rule that
+  // lets `||` be typed on a fresh pipe.
+  (TheBarIsThreeThings.run
+    "match x with\n| 1 -> ys"
+    (Stdlib.List.append (TheBarIsThreeThings.onTheRhs ()) [ "i", "<End>", "|", ">" ])) =
+    "match x with\n| 1 -> ys |> ~⟨step⟩"
+
+  // Inside a string it is a character, wherever you are in the string and whatever contains it.
+  (TheBarIsThreeThings.run "\"ab\"" [ "i", "<End>", "|" ]) = "\"ab|~\""
+  (TheBarIsThreeThings.run "\"ab\"" [ "i", "<Right>", "|" ]) = "\"a|~b\""
+
+  (TheBarIsThreeThings.run
+    "match x with\n| 1 -> \"ab\""
+    (Stdlib.List.append (TheBarIsThreeThings.onTheRhs ()) [ "i", "<Right>", "|" ])) =
+    "match x with\n| 1 -> \"a|~b\""
+
+  // The one place the three meanings collide: the END of a string that is an arm's right-hand side.
+  // `|` there starts the next arm, so a string in a match arm cannot be given a TRAILING bar by typing
+  // one. Type it before the last character and move on, or add the arm first.
+  //
+  // Pinned as the answer rather than left to be discovered. Starting the next arm is the common act by a
+  // wide margin and a trailing `|` in a string is rare, but the asymmetry is real -- the same keystroke
+  // in the same visible position means something different because of an ancestor -- so it is worth
+  // being written down rather than found.
+  (TheBarIsThreeThings.run
+    "match x with\n| 1 -> \"a\""
+    (Stdlib.List.append (TheBarIsThreeThings.onTheRhs ()) [ "i", "<End>", "|" ])) =
+    "match x with\n| 1 -> \"a\"\n| ~⟨pattern⟩ -> ⟨rhs⟩"
