@@ -29,38 +29,27 @@
     #main { flex:1; min-height:0; display:flex; }
     #term { flex:1; min-width:0; min-height:0; padding:6px; }
     #term .xterm { height: 100%; }
-    /* The command panel: one-shot `dark <cmd>` runs beside the workbench, same store. */
-    #panel { width: 44%; min-width: 320px; border-left:1px solid var(--border); display:flex;
-             flex-direction:column; min-height:0; }
+    /* The shell on the right: a second terminal where `dark <cmd>` runs one-shot against the
+       same store the workbench is showing. */
+    #panel { width: 50%; min-width: 320px; border-left:1px solid var(--border); display:flex;
+             flex-direction:column; min-height:0; padding:6px; }
     #panel[hidden] { display:none; }
-    #panel .out { flex:1; overflow:auto; padding:10px 12px; font-size:13px; line-height:1.45;
-                  white-space:pre-wrap; margin:0; }
-    #panel .out .cmd { color:var(--accent); }
-    #panel .out .exit { color:var(--muted); }
-    #panel .out .err { color:var(--err); }
-    #panel form { display:flex; gap:8px; padding:8px 12px; border-top:1px solid var(--border); }
-    #panel form span { color:var(--accent); }
-    #panel input { flex:1; background:transparent; border:none; color:var(--fg); font:inherit;
-                   font-size:13px; outline:none; }
+    #shell { flex:1; min-height:0; }
+    #shell .xterm { height: 100%; }
     @media (max-width: 800px) { #main { flex-direction:column; } #panel { width:auto; min-width:0;
-             border-left:none; border-top:1px solid var(--border); height:40%; } }
+             border-left:none; border-top:1px solid var(--border); height:45%; } }
   </style>
 </head>
 <body>
   <header>
     <h1>Darklang CLI</h1>
-    <a href="index.html">REPL</a>
-    <button id="toggle" type="button" title="Run dark commands beside the workbench (same store)">commands</button>
+    <a href="index.html">home</a>
+    <button id="toggle" type="button" class="on" title="A shell beside the workbench: dark commands, same store">shell</button>
     <span class="status" id="status">loading runtime</span>
   </header>
   <div id="main">
     <div id="term"></div>
-    <div id="panel" hidden>
-      <pre class="out" id="pout">dark commands run here, one at a time, against the same store the workbench is showing.
-Anything that opens a screen of its own (workbench, outliner, views, apps) belongs in the terminal.
-</pre>
-      <form id="pform"><span>dark</span><input id="pin" autocomplete="off" placeholder="status" /></form>
-    </div>
+    <div id="panel"><div id="shell"></div></div>
   </div>
 
   <script src="vendor/xterm.js"></script>
@@ -117,60 +106,69 @@ Anything that opens a screen of its own (workbench, outliner, views, apps) belon
     let running = false;
     const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
 
-    // The command panel.
+    // The shell on the right: a second terminal with a prompt and a line editor. A line
+    // `dark <args>` runs RunCommand (one-shot, output captured) against the same store the
+    // workbench is showing; the workbench keeps running.
     const panel = document.getElementById("panel");
-    const pout = document.getElementById("pout");
-    const pin = document.getElementById("pin");
     const toggle = document.getElementById("toggle");
-    toggle.addEventListener("click", () => {
-      panel.hidden = !panel.hidden;
-      toggle.classList.toggle("on", !panel.hidden);
-      fit.fit(); reportSize();
-      if (!panel.hidden) pin.focus(); else term.focus();
+    const shell = new Terminal({
+      cursorBlink: true, convertEol: true, scrollback: 5000, fontSize: 14,
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      theme: { background: "#0f1117", foreground: "#e6e8ee" },
     });
+    const shellFit = new FitAddon.FitAddon();
+    shell.loadAddon(shellFit);
+    shell.open(document.getElementById("shell"));
+    shellFit.fit();
+    const PROMPT = "\x1b[90m$\x1b[0m ";
     const takesTheScreen = new Set(["workbench", "wb", "outliner", "tree-exp", "views", "apps", "text-editor", "agent", "ai"]);
-    let commandRunning = false;
+    let line = "", commandRunning = false;
     const history = []; let hi = 0;
-    document.getElementById("pform").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
-      const line = pin.value.trim();
-      if (!line || commandRunning || !running) return;
-      const argv = splitArgv(line);
-      const add = (cls, text) => { const s = document.createElement("span"); s.className = cls; s.textContent = text; pout.appendChild(s); pout.scrollTop = pout.scrollHeight; };
-      add("cmd", "$ dark " + line + "\n");
-      if (takesTheScreen.has(argv[0])) { add("err", "that one takes over the screen; run it in the terminal\n"); pin.value = ""; return; }
-      history.push(line); hi = history.length; pin.value = "";
+    const prompt = () => shell.write(PROMPT);
+    shell.write("\x1b[90mdark commands run here, one at a time, against the store the workbench shows.\r\n"
+      + "Anything that takes the whole screen (workbench, outliner, views, apps) belongs on the left.\x1b[0m\r\n\r\n");
+    prompt();
+    async function runLine(text) {
+      text = text.trim();
+      if (!text) { prompt(); return; }
+      history.push(text); hi = history.length;
+      if (text === "clear") { shell.clear(); prompt(); return; }
+      let argv = splitArgv(text);
+      if (argv[0] !== "dark") { shell.write(`\x1b[31m${argv[0]}: not found. This shell only knows \x1b[1mdark\x1b[0m\x1b[31m; try \x1b[1mdark help\x1b[0m\r\n`); prompt(); return; }
+      argv = argv.slice(1);
+      if (argv.length === 0) argv = ["help"];
+      if (takesTheScreen.has(argv[0])) { shell.write("\x1b[31mthat one takes over the screen; use the terminal on the left\x1b[0m\r\n"); prompt(); return; }
+      if (!running) { shell.write("\x1b[31mthe runtime is not up yet\x1b[0m\r\n"); prompt(); return; }
       commandRunning = true;
       try {
         const out = await invoke("RunCommand", argv);
         const i = out.lastIndexOf("\n[exit ");
-        add("", out.slice(0, i).replace(/\x1b\[[0-9;]*[A-Za-z]/g, ""));
-        add("exit", out.slice(i + 1) + "\n\n");
-      } catch (e) { add("err", "failed: " + (e && e.message ? e.message : e) + "\n"); }
-      finally { commandRunning = false; pin.focus(); }
+        const body = out.slice(0, i); const code = out.slice(i + 7, -1);
+        if (body) shell.write(body.endsWith("\n") ? body : body + "\n");
+        if (code !== "0") shell.write(`\x1b[90m[exit ${code}]\x1b[0m\r\n`);
+      } catch (e) { shell.write("\x1b[31mfailed: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n"); }
+      finally { commandRunning = false; prompt(); }
+    }
+    const redraw = () => { shell.write("\r\x1b[K" + PROMPT + line); };
+    shell.onData((data) => {
+      if (commandRunning) return;
+      for (const ch of data) {
+        if (data.length > 1 && !/^[\x20-\x7e]$/.test(ch) && ch !== "\r" && ch !== "\n") continue; // paste: printable only
+        if (ch === "\r" || ch === "\n") { shell.write("\r\n"); const l = line; line = ""; runLine(l); if (data.length > 1) return; }
+        else if (ch === "\x7f" || ch === "\b") { if (line) { line = line.slice(0, -1); shell.write("\b \b"); } }
+        else if (ch === "\x03") { shell.write("^C\r\n"); line = ""; prompt(); }
+        else if (ch === "\x15") { line = ""; redraw(); }
+        else if (ch === "\x0c") { shell.clear(); redraw(); }
+        else if (ch === "\x1b") { /* handled below via the sequence */ }
+        else if (ch >= " ") { line += ch; shell.write(ch); }
+      }
+      if (data === "\x1b[A" && hi > 0) { hi--; line = history[hi]; redraw(); }
+      else if (data === "\x1b[B") { hi = Math.min(history.length, hi + 1); line = history[hi] || ""; redraw(); }
     });
-    pin.addEventListener("keydown", (ev) => {
-      if (ev.key === "ArrowUp" && hi > 0) { hi--; pin.value = history[hi]; ev.preventDefault(); }
-      else if (ev.key === "ArrowDown") { hi = Math.min(history.length, hi + 1); pin.value = history[hi] || ""; ev.preventDefault(); }
-    });
-    let drainTimer = null;
-
-    // Keys go straight to .NET as DOM key names; xterm never sees them (returning false
-    // stops its own handling), so nothing echoes twice. Paste arrives through onData.
-    term.attachCustomKeyEventHandler((ev) => {
-      if (ev.type !== "keydown") return false;
-      if (!running) return false;
-      // Let the browser keep its own clipboard shortcuts.
-      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "V" || ev.key === "C")) return true;
-      if (ev.metaKey) return true;
-      invoke("PushKey", ev.key, ev.ctrlKey, ev.altKey, ev.shiftKey);
-      ev.preventDefault();
-      return false;
-    });
-    term.onData((data) => {
-      if (!running) return;
-      // Everything that reaches here is a paste (or IME text): keys were intercepted above.
-      if (data.length > 0) invoke("PushPaste", data);
+    toggle.addEventListener("click", () => {
+      panel.hidden = !panel.hidden;
+      toggle.classList.toggle("on", !panel.hidden);
+      fit.fit(); reportSize(); if (!panel.hidden) { shellFit.fit(); shell.focus(); } else term.focus();
     });
 
     function reportSize() {
@@ -180,7 +178,7 @@ Anything that opens a screen of its own (workbench, outliner, views, apps) belon
     let resizeTimer = null;
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => { fit.fit(); reportSize(); }, 80);
+      resizeTimer = setTimeout(() => { fit.fit(); reportSize(); if (!panel.hidden) shellFit.fit(); }, 80);
     });
 
     async function waitForDispatcher() {
@@ -230,7 +228,7 @@ Anything that opens a screen of its own (workbench, outliner, views, apps) belon
       }
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
-      if (params.get("panel") === "1") toggle.click();
+      if (params.get("panel") === "0") toggle.click();
       if (params.get("trace") === "1") await invoke("SetTrace", true);
       for (const kv of params.getAll("env")) {
         const i = kv.indexOf("="); if (i > 0) await invoke("SetEnv", kv.slice(0, i), kv.slice(i + 1));

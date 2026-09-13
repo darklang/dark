@@ -1,11 +1,14 @@
 # Darklang in the browser (WASM)
 
-Two pages, one bundle. The runtime, parser, LibDB and SQLite are compiled to WebAssembly and
+Three pages, one bundle. The runtime, parser, LibDB and SQLite are compiled to WebAssembly and
 published as a static site; host it anywhere.
 
+- `index.html` is a directory of the experiences below, with the URL forms spelled out.
 - `cli.html` is the real Dark CLI: `Darklang.Cli.executeCliCommand` against a real package
-  store, in an xterm.js terminal. No params opens the workbench, like `dark` with no arguments.
-- `index.html` is the older REPL: one expression at a time, over an in-memory package snapshot.
+  store, in an xterm.js terminal. No params opens the workbench, like `dark` with no arguments,
+  with a shell on the right that takes `dark <command>` lines against the same store
+  (`?panel=0` hides it).
+- `repl.html` is the older REPL: one expression at a time, over an in-memory package snapshot.
 
 ## Build & run (from the repo root, inside the container)
 
@@ -16,7 +19,7 @@ dotnet publish backend/src/Wasm/Wasm.fsproj -c Release -o rundir/wasm-repl
 # 2. The store the CLI boots from (re-run when packages change)
 backend/src/Wasm/make-store.sh
 
-# 3. The REPL's snapshot (only index.html needs it)
+# 3. The REPL's snapshot (only repl.html needs it)
 python3 backend/src/Wasm/generate-snapshot.py
 
 # 4. Serve. 9090 because the devcontainer forwards 9090-9099 to the host
