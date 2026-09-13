@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Darklang in the browser</title>
+  <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
   <style>
     :root { color-scheme: dark; --bg:#0f1117; --panel:#171a23; --fg:#e6e8ee; --muted:#8b90a0;
             --accent:#7c9cff; --border:#262b38;
@@ -26,9 +27,27 @@
          letter-spacing:.08em; margin:26px 0 8px; }
     p.note { color:var(--muted); font-size:12px; margin:22px 0 0; line-height:1.5; }
     p.note code { color:var(--fg); }
+    /* raw mode: /?cmd=..., /?e=..., /?fn=... print the answer and nothing else */
+    body.raw { align-items:flex-start; justify-content:flex-start; padding:18px; }
+    #raw { display:none; width:100%; }
+    body.raw #raw { display:block; }
+    body.raw main { display:none; }
+    #raw pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:14px; }
+    #raw .expr { color:var(--muted); margin-bottom:10px; }
+    #raw .err { color:var(--err); }
+    #raw form { display:flex; gap:8px; margin-top:14px; }
+    #raw input { flex:1; background:transparent; border:1px solid var(--border); border-radius:6px;
+                 color:var(--fg); font:inherit; padding:6px 8px; outline:none; }
+    #raw a { color:var(--muted); font-size:12px; text-decoration:none; }
   </style>
 </head>
 <body>
+  <div id="raw">
+    <pre class="expr" id="expr"></pre>
+    <pre id="out">loading</pre>
+    <form id="form" hidden><input id="in" placeholder="dark eval 1 + 2" /></form>
+    <p><a href="./">everything else</a></p>
+  </div>
   <main>
     <h1>Darklang in the browser</h1>
     <p class="lead">The real Dark CLI, runtime and package store, compiled to WebAssembly.
@@ -58,6 +77,10 @@
         <div class="name">Run a command <code>cli.html?cmd=eval+1+%2B+2</code></div>
         <div class="what">Runs it, then hands you the prompt. <code>?cmd=search+map</code>,
           <code>?cmd=docs+syntax</code>, <code>?cmd=ls+Darklang.Stdlib.List</code>.</div></a></li>
+      <li><a class="card" href="./?cmd=eval+1+%2B+2">
+        <div class="name">Just the answer <code>/?cmd=eval+1+%2B+2</code></div>
+        <div class="what">This page with a query prints what the command prints, nothing else.
+          <code>/?e=1+%2B+2</code> is short for eval, <code>/?fn=&lt;name&gt;</code> for view.</div></a></li>
       <li><a class="card" href="cli.html?fn=Darklang.Stdlib.List.map">
         <div class="name">Land on a function <code>cli.html?fn=Darklang.Stdlib.List.map</code></div>
         <div class="what">Sugar for <code>?cmd=view+&lt;name&gt;</code>.</div></a></li>
@@ -66,5 +89,54 @@
     <p class="note">Per tab and in memory: reload and the store is fresh. Sync verbs are there but no
       relay is configured, and no secret ships with the page.</p>
   </main>
+  <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script>
+    // With a query, this page is the answer, raw: /?cmd=<argv> prints what `dark <argv>` prints,
+    // /?e=<expr> is `dark eval <expr>`, /?fn=<name> is `dark view <name>`. Without one, the
+    // directory above.
+    const params = new URLSearchParams(location.search);
+    const splitArgv = (text) => {
+      const argv = []; let cur = ""; let quoted = false;
+      for (const ch of text) {
+        if (ch === '"') { quoted = !quoted; continue; }
+        if (!quoted && /\s/.test(ch)) { if (cur) { argv.push(cur); cur = ""; } continue; }
+        cur += ch;
+      }
+      if (cur) argv.push(cur); return argv;
+    };
+    let argv = null;
+    if (params.has("cmd")) argv = splitArgv(params.get("cmd"));
+    else if (params.has("e")) argv = ["eval", params.get("e")];
+    else if (params.has("fn")) argv = ["view", params.get("fn")];
+    if (argv !== null) {
+      document.body.className = "raw";
+      const out = document.getElementById("out");
+      const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
+      document.getElementById("form").addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        location.search = "?cmd=" + encodeURIComponent(document.getElementById("in").value.replace(/^dark\s+/, ""));
+      });
+      const takesTheScreen = new Set(["workbench", "wb", "outliner", "tree-exp", "views", "apps", "text-editor", "agent", "ai"]);
+      (async () => {
+        try {
+          document.getElementById("expr").textContent = "$ dark " + argv.join(" ");
+          if (argv.length === 0 || takesTheScreen.has(argv[0])) {
+            out.textContent = "that one needs a terminal: cli.html?cmd=" + encodeURIComponent(argv.join(" "));
+            return;
+          }
+          for (let i = 0; i < 80 && !(typeof Blazor !== "undefined" && Blazor.start); i++) await new Promise((r) => setTimeout(r, 250));
+          await Blazor.start();
+          for (let i = 0; i < 120; i++) { try { await invoke("Ready"); break; } catch (e) { await new Promise((r) => setTimeout(r, 500)); } }
+          const manifest = await (await fetch(new URL("store.json", document.baseURI))).json();
+          await invoke("Boot", new URL(manifest.file, document.baseURI).href, manifest.size);
+          const res = await invoke("RunCommand", argv);
+          const i = res.lastIndexOf("\n[exit ");
+          out.textContent = res.slice(0, i).replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").trim() || "(no output)";
+          if (res.slice(i + 7, -1) !== "0") out.className = "err";
+        } catch (e) { out.textContent = "failed: " + (e && e.message ? e.message : e); out.className = "err"; }
+        finally { document.getElementById("form").hidden = false; document.getElementById("in").value = "dark " + argv.join(" "); }
+      })();
+    }
+  </script>
 </body>
 </html>

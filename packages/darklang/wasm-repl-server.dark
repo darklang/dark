@@ -42,6 +42,7 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
       if path == "/" then "/index.html"
       else if path == "/cli" then "/cli.html"
       else if path == "/repl" then "/repl.html"
+      else if path == "/eval" then "/eval.html"
       else path
 
     match Stdlib.Cli.FileSystem.readFile (root () ++ file) with

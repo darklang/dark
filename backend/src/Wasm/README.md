@@ -3,7 +3,9 @@
 Three pages, one bundle. The runtime, parser, LibDB and SQLite are compiled to WebAssembly and
 published as a static site; host it anywhere.
 
-- `index.html` is a directory of the experiences below, with the URL forms spelled out.
+- `index.html` is a directory of the experiences below, with the URL forms spelled out. With a
+  query it is the answer, raw: `/?cmd=<argv>` prints what `dark <argv>` prints and nothing
+  else, `/?e=<expr>` is eval, `/?fn=<name>` is view. (`eval.html?e=` redirects there.)
 - `cli.html` is the real Dark CLI: `Darklang.Cli.executeCliCommand` against a real package
   store, in an xterm.js terminal. No params opens the workbench, like `dark` with no arguments,
   with a shell on the right that takes `dark <command>` lines against the same store
