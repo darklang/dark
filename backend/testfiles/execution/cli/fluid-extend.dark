@@ -419,11 +419,34 @@ module ATableBehavesLikeATable =
   (ATableBehavesLikeATable.at [ "l", "l", "k" ]) = "rows[0]"
   (ATableBehavesLikeATable.at [ "l", "l", "h" ]) = "rows[0]"
 
-  // A row that is itself a hole draws its placeholder ONCE. Per column it repeated across the width and
-  // every column was measured against a placeholder that is not a cell, so clearing a row made the table
-  // jump sideways.
+  // Clearing a row leaves a ROW: three empty cells you can type into, not a hole where a row goes. `x`
+  // means "clear this, I will put something else here", and in a grid what you put back is a row. It
+  // used to give `⟨row⟩`, a line in the table with no cells in it, which you then had to turn back into
+  // a row with a keystroke before you could type.
   (ATableBehavesLikeATable.draw [ "l", "x" ]) =
-    "item                  qty  note\n⟨row⟩                      \n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\""
+    "item                  qty    note\n⟨item⟩                ⟨qty⟩  ⟨note⟩\n\"a much longer name\"  12     \"back order\"\n\"nut\"                 100    \"\""
+
+  // A row that IS a hole still draws its placeholder once, and that behaviour still matters: a document
+  // can arrive holding one however it was made. Per column the placeholder repeated across the width and
+  // every column was then measured against something that is not a cell, so the table jumped sideways.
+  //
+  // Built by hand rather than reached with `x`, since `x` no longer makes one. A pin that keeps testing a
+  // behaviour only through the one route that used to produce it stops testing it the day the route
+  // changes, and says nothing when it does.
+  let withAHoleRow () : Darklang.Fluid.Slot =
+    Darklang.Fluid.Slot.Filled(
+      Darklang.Fluid.Node.make
+        (Darklang.Fluid.App.demoGridKind ())
+        [ ("rows",
+           Darklang.Fluid.Field.Many(
+             [ Darklang.Fluid.Slot.Empty(Darklang.Fluid.Expect.any "row"),
+               Darklang.Fluid.App.demoRow "nut" "100" "" ],
+             Darklang.Fluid.Expect.any "row")) ])
+
+  (Darklang.Fluid.Debug.render
+    (ATableBehavesLikeATable.reg ())
+    90
+    (ATableBehavesLikeATable.withAHoleRow ())) = "item   qty  note\n⟨row⟩       \n\"nut\"  100  \"\""
 
 
 module TypingIntoATextCell =

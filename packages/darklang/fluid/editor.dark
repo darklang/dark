@@ -1077,6 +1077,23 @@ let changeNode (st: State) : State =
   | _ -> st
 
 /// Clear the current node back to a hole.
+/// What clearing `path` leaves behind: a hole, or -- for a TABLE row -- an empty ROW.
+///
+/// Same reason `newItemForSlot` makes a new row as a row. `x` means "clear this, I will put something
+/// else here", and in a grid what you put back is a row: cleared to a bare hole the line kept its place
+/// in the table with no cells in it, drew its placeholder in the first column, and had to be turned back
+/// into a row with `{` before you could type. Clearing is not deleting, and a cleared row is still a row.
+let clearedSlotFor (st: State) (path: Path) (e: Expect) : Slot =
+  match (Path.parent path, Path.last path) with
+  | (Some parentPath, Some(Item(slot, _))) ->
+    (match nodeAtPath st.root parentPath with
+     | Some parent when drawsSlotAsTable st parent slot ->
+       (match Registry.forExpect st.reg e with
+        | Some spec -> Slot.Filled spec.empty
+        | None -> Slot.Empty e)
+     | _ -> Slot.Empty e)
+  | _ -> Slot.Empty e
+
 let clearNode (st: State) : State =
   let paths = selectedPaths st
   if (Stdlib.List.length paths) > 1 then
@@ -1099,7 +1116,7 @@ let clearNode (st: State) : State =
       let st1 =
         commit
           st
-          (Stdlib.List.append [ Edit.Replace(firstPath, Slot.Empty e) ] removals)
+          (Stdlib.List.append [ Edit.Replace(firstPath, clearedSlotFor st firstPath e) ] removals)
           (navCaretFor st.root firstPath)
       { st1 with
           caret = navCaretFor st1.root firstPath
@@ -1111,7 +1128,7 @@ let clearNode (st: State) : State =
   match slotAtPath st.root here with
   | Some(Filled _) ->
     let e = expectForSlot st here
-    let st1 = commit st [ Edit.Replace(here, Slot.Empty e) ] (navCaretFor st.root here)
+    let st1 = commit st [ Edit.Replace(here, clearedSlotFor st here e) ] (navCaretFor st.root here)
     { st1 with caret = navCaretFor st1.root here }
   | Some(Partial(_, was)) ->
     let st1 = commit st [ Edit.Replace(here, was) ] st.caret

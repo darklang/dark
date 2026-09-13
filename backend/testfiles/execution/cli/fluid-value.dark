@@ -866,3 +866,104 @@ module FillingInAGrid =
   // A row still half-filled refuses, naming the cell. Saving a table with a gap in it would be worse
   // than not saving.
   (FillingInAGrid.lowered [ "j", "o", "7", "<Esc>" ]) = "ERR hole: message"
+
+
+module MovingAroundAGrid =
+  // Column-wise motion has been in the kernel since `Piece.Table` landed and was pinned only against the
+  // hand-written demo grid. A DERIVED grid reaches it by a different route -- the spec is found by a
+  // `[T]` kind nobody wrote -- so it is worth asking whether the same keys work here.
+  //
+  // They do, and this pins it: `l` descends into the first cell, `l` again crosses to the next column,
+  // `j`/`k` walk DOWN and UP one column, and `h` from the first column steps back out to the row so you
+  // are never stuck.
+  let grid () : Darklang.Fluid.Node =
+    Darklang.Fluid.Value.ofDval
+      (AListOfRecordsIsAGrid.bid ())
+      (AListOfRecordsIsAGrid.listOf
+        [ AListOfRecordsIsAGrid.row 1 "a",
+          AListOfRecordsIsAGrid.row 22 "bb",
+          AListOfRecordsIsAGrid.row 333 "ccc" ])
+
+  let at (keys: List<String>) : String =
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) (MovingAroundAGrid.grid ()))
+          (Darklang.Fluid.Slot.Filled(MovingAroundAGrid.grid ()))
+          70)
+        keys
+    st.caret.node
+    |> Stdlib.List.map (fun s ->
+      match s with
+      | Into name -> name
+      | Item(slot, i) -> slot ++ "[" ++ (Stdlib.Int.toString i) ++ "]")
+    |> (fun ps -> if Stdlib.List.isEmpty ps then "(root)" else Stdlib.String.join ps ".")
+
+  (MovingAroundAGrid.at []) = "(root)"
+  (MovingAroundAGrid.at [ "j" ]) = "items[0]"
+  (MovingAroundAGrid.at [ "j", "l" ]) = "items[0].errno"
+  (MovingAroundAGrid.at [ "j", "l", "l" ]) = "items[0].message"
+
+  // Down a column, staying in it. This is the motion a list has no answer for: reading order would go
+  // from `errno` to `message` of the same row.
+  (MovingAroundAGrid.at [ "j", "l", "j" ]) = "items[1].errno"
+  (MovingAroundAGrid.at [ "j", "l", "j", "j" ]) = "items[2].errno"
+  (MovingAroundAGrid.at [ "j", "l", "l", "j" ]) = "items[1].message"
+  (MovingAroundAGrid.at [ "j", "l", "j", "k" ]) = "items[0].errno"
+
+  // Backwards at an edge steps out, so you are never stuck. Forwards at an edge sticks, so nothing runs
+  // off the end. The asymmetry is deliberate and was settled by the demo grid's pins.
+  (MovingAroundAGrid.at [ "j", "l", "h" ]) = "items[0]"
+  (MovingAroundAGrid.at [ "j", "l", "l", "l" ]) = "items[0].message"
+
+
+module ClearingARowLeavesARow =
+  // `x` means "clear this, I will put something else here". In a grid what you put back is a ROW, and a
+  // row cleared to a bare hole kept its line in the table with no cells in it: the placeholder drew in
+  // the first column, every column was then measured against something that is not a cell, and you had
+  // to press `{` to turn it back into a row before you could type.
+  //
+  // Same rule as `newItemForSlot`, and the same reason. Clearing is not deleting.
+  let drive (keys: List<String>) : String =
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) (MovingAroundAGrid.grid ()))
+      (Darklang.Fluid.Slot.Filled(MovingAroundAGrid.grid ()))
+      70
+      keys
+
+  (ClearingARowLeavesARow.drive [ "j", "x" ]) =
+    "errno    message\n~⟨errno⟩  ⟨message⟩\n22       \"bb\"\n333      \"ccc\""
+
+  // A CELL still clears to a hole, which is what a hole means there: one value missing from a row that
+  // is otherwise filled in.
+  (ClearingARowLeavesARow.drive [ "j", "l", "x" ]) =
+    "errno    message\n~⟨errno⟩  \"a\"\n22       \"bb\"\n333      \"ccc\""
+
+  // And you can type straight into the cleared row, which is the whole point.
+  (ClearingARowLeavesARow.drive [ "j", "x", "i", "9", "<Tab>", "z", "<Esc>" ]) =
+    "errno  message\n9      \"~z\"\n22     \"bb\"\n333    \"ccc\""
+
+
+module ATableDoesNotBreak =
+  // A table is width-independent, deliberately. Breaking a cell onto a second line would put the columns
+  // out of alignment, which is the one thing a table is for, so a cell too wide for the pane runs long
+  // and the pane scrolls sideways instead.
+  //
+  // Worth pinning because every other construct in Fluid does the opposite: a group that does not fit
+  // breaks. This is the one that must not.
+  let wide () : Darklang.Fluid.Node =
+    Darklang.Fluid.Value.ofDval
+      (AListOfRecordsIsAGrid.bid ())
+      (AListOfRecordsIsAGrid.listOf
+        [ AListOfRecordsIsAGrid.row 1 "a",
+          AListOfRecordsIsAGrid.row 2 "a string quite a lot longer than the pane is wide" ])
+
+  let atWidth (w: Int) : String =
+    Darklang.Fluid.Debug.render
+      (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) (ATableDoesNotBreak.wide ()))
+      w
+      (Darklang.Fluid.Slot.Filled(ATableDoesNotBreak.wide ()))
+
+  (ATableDoesNotBreak.atWidth 40) = (ATableDoesNotBreak.atWidth 200)
+  (ATableDoesNotBreak.atWidth 40) =
+    "errno  message\n1      \"a\"\n2      \"a string quite a lot longer than the pane is wide\""
