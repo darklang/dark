@@ -771,3 +771,98 @@ module OneShortenerForDisplayNames =
   (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.ofCase "Darklang.Stdlib.Option.Option" "Some")) = "Some"
   (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.named "[Acme.Log]")) = "[Log]"
   (Darklang.Fluid.Kind.label (Darklang.Fluid.Kind.prim "Int")) = "Int"
+
+
+module FillingInAGrid =
+  // The point of the grid: `o` and start typing. Filling a table in is the case the whole value document
+  // is for, and it was two keystrokes longer than it should have been.
+  //
+  //     o        a new row
+  //     7        the first cell
+  //     Tab      the next one
+  //     oops     and it is a string, no quotes needed
+  //
+  // What was in the way: `newItemForEach` gives a HOLE whenever the item's kind has something to type or
+  // choose, so that arriving there means something -- and a derived record has a `{` rule, so a new row
+  // was `⟨Error⟩`, a row with no cells. You then had to press `{` to turn it into one.
+  //
+  // A table is the exception, and the projection already admits it: a row with no cells draws its
+  // placeholder once in the first column, and every column is then measured against something that is
+  // not a cell. In a grid a new row is an empty ROW.
+  let drive (keys: List<String>) : String =
+    let node =
+      Darklang.Fluid.Value.ofDval
+        (AListOfRecordsIsAGrid.bid ())
+        (AListOfRecordsIsAGrid.listOf
+          [ AListOfRecordsIsAGrid.row 1 "a", AListOfRecordsIsAGrid.row 22 "bb" ])
+    Darklang.Fluid.Test.run
+      (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) node)
+      (Darklang.Fluid.Slot.Filled node)
+      70
+      keys
+
+  // `j` first, because `o` grows the list an item is IN and the root grid is not an item of anything.
+  (FillingInAGrid.drive [ "j", "o" ]) =
+    "errno    message\n1        \"a\"\n~⟨errno⟩  ⟨message⟩\n22       \"bb\""
+
+  (FillingInAGrid.drive [ "j", "o", "7", "<Tab>", "o", "o", "p", "s", "<Esc>" ]) =
+    "errno  message\n1      \"a\"\n7      \"~oops\"\n22     \"bb\""
+
+  // Enter starts the next row, which is what a spreadsheet does.
+  (FillingInAGrid.drive [ "j", "o", "7", "<Tab>", "x", "<Enter>" ]) =
+    "errno    message\n1        \"a\"\n7        \"x\"\n~⟨errno⟩  ⟨message⟩\n22       \"bb\""
+
+  // It does so even on a row nobody has typed into, leaving a blank row behind. That looked like
+  // something to fix and it is not: an untouched match ARM is a filled node in exactly the same way, and
+  // Enter there starting the next arm is pinned and deliberate (`OfferedCasesCanBePicked` in fluid-pt).
+  // I made a grid row the exception for one build and it broke that pin, which is the right outcome:
+  // Enter means "start the next item" wherever you are, and a second rule for one key costs more than
+  // the empty row it saves.
+  (FillingInAGrid.drive [ "j", "o", "<Enter>" ]) =
+    "errno    message\n1        \"a\"\n⟨errno⟩  ⟨message⟩\n~⟨errno⟩  ⟨message⟩\n22       \"bb\""
+
+  // Enter is an INSERT-mode key. Escape first and it does nothing, which is why the flow above never
+  // leaves insert until the row is done.
+  (FillingInAGrid.drive [ "j", "o", "7", "<Tab>", "x", "<Esc>", "<Enter>" ]) =
+    "errno  message\n1      \"a\"\n7      \"~x\"\n22     \"bb\""
+
+  // And it lowers: a real record in the right place, with the right types in the right fields.
+  let lowered (keys: List<String>) : String =
+    let node =
+      Darklang.Fluid.Value.ofDval
+        (AListOfRecordsIsAGrid.bid ())
+        (AListOfRecordsIsAGrid.listOf [ AListOfRecordsIsAGrid.row 1 "a" ])
+    let st =
+      Darklang.Fluid.Test.drive
+        (Darklang.Fluid.Editor.init
+          (Darklang.Fluid.App.registryForValue (AListOfRecordsIsAGrid.bid ()) node)
+          (Darklang.Fluid.Slot.Filled node)
+          70)
+        keys
+    match st.root with
+    | Filled n ->
+      (match Darklang.Fluid.Value.toDval (AListOfRecordsIsAGrid.bid ()) n with
+       | Ok v ->
+         (match v with
+          | DList(_, items) ->
+            items
+            |> Stdlib.List.map (fun i ->
+              match i with
+              | DRecord(_, _, _, fs) ->
+                let g (k: String) : String =
+                  match Stdlib.Dict.get fs k with
+                  | Some(DInt n) -> Stdlib.Int.toString n
+                  | Some(DString s) -> "\"" ++ s ++ "\""
+                  | _ -> "?"
+                (g "errno") ++ "/" ++ (g "message")
+              | _ -> "not a record")
+            |> (fun rs -> Stdlib.String.join rs "  ")
+          | _ -> "not a list")
+       | Error e -> "ERR " ++ e)
+    | _ -> "not filled"
+
+  (FillingInAGrid.lowered [ "j", "o", "7", "<Tab>", "h", "i", "<Esc>" ]) = "1/\"a\"  7/\"hi\""
+
+  // A row still half-filled refuses, naming the cell. Saving a table with a gap in it would be worse
+  // than not saving.
+  (FillingInAGrid.lowered [ "j", "o", "7", "<Esc>" ]) = "ERR hole: message"

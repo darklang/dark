@@ -2736,7 +2736,7 @@ let openItemsAfterSettle (st: State) (sp: Path) (c: String) : Stdlib.Option.Opti
       (match opensItemSlot st.reg rn c with
        | Some itemSlot ->
          let each = Node.itemExpect rn itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
-         let item = newItemForEach st each
+         let item = newItemForSlot st rn itemSlot each
          let st1 = commit st [ Edit.InsertItem(sp, itemSlot, 0, item) ] st.caret
          Stdlib.Option.Option.Some { st1 with caret = firstEditableIn (Path.item sp itemSlot 0) item }
        | None -> Stdlib.Option.Option.None)
@@ -2780,7 +2780,7 @@ let typeOneRaw (st: State) (c: String) : State =
         // that opens the fields drew perfectly and lowered as "unresolved: Int". The SIBLING path never
         // had the bug, because it already asked this question.
         let each = Node.itemExpect n itemSlot |> Stdlib.Option.withDefault (Expect.any "field")
-        let item = newItemForEach st each
+        let item = newItemForSlot st n itemSlot each
         let st1 = commit st [ Edit.InsertItem(caret.node, itemSlot, 0, item) ] caret
         // ...and the caret goes INSIDE it when it is a node, which is the other half `addSiblingAt`
         // already does. Landing on the item slot of a filled wrapper put the caret nowhere the drawing
@@ -4430,6 +4430,32 @@ let newItemForEach (st: State) (each: Expect) : Slot =
       Slot.Filled spec.empty
   | None -> Slot.Empty each
 
+/// Does `parent`'s spec draw `slot` as a TABLE? Asked of the pieces, so nothing here knows what a grid is.
+let drawsSlotAsTable (st: State) (parent: Node) (slot: String) : Bool =
+  let fromSpec (spec: Stdlib.Option.Option<Spec>) : Bool =
+    match spec with
+    | Some sp -> Stdlib.Bool.not (Stdlib.List.isEmpty (Project.tableColumnsFor sp.pieces slot))
+    | None -> false
+  (fromSpec (Registry.findExact st.reg parent.kind)) || (fromSpec (Registry.findTypeLevel st.reg parent.kind))
+
+/// A new item for a list slot, knowing which slot it is going into.
+///
+/// The general rule (`newItemForEach`) gives a HOLE whenever the item's kind has something to type or
+/// choose, so that arriving there means something. A TABLE row is the exception, and for a reason the
+/// projection already admits: a row with no cells has no columns, so it draws its placeholder once in
+/// the first column and every column is then measured against something that is not a cell.
+///
+/// In a grid a new row is an empty ROW -- `⟨errno⟩  ⟨message⟩` -- not a hole where a row goes. That is
+/// also the whole shape of filling a table in: `o` and start typing, rather than `o`, then `{`, then
+/// start typing.
+let newItemForSlot (st: State) (parent: Node) (slot: String) (each: Expect) : Slot =
+  if drawsSlotAsTable st parent slot then
+    match Registry.forExpect st.reg each with
+    | Some spec -> Slot.Filled spec.empty
+    | None -> newItemForEach st each
+  else
+    newItemForEach st each
+
 /// Does `parent`'s spec draw `slot`'s items each led by `c`? The `|` of a match's cases is the case in
 /// hand; the answer comes from the spec's own pieces, so nothing here knows what a match is.
 let leadPunctOf (st: State) (parent: Node) (slot: String) : Stdlib.Option.Option<String> =
@@ -4939,6 +4965,13 @@ let itemIsBlank (st: State) (c: Caret) : Bool =
   | Some((parentPath, slot, i)) ->
     (match slotAtPath st.root (Path.item parentPath slot i) with
      | Some(Empty _) -> true
+     // Deliberately NOT "a filled node nobody has typed into yet". A table row is made as an empty ROW
+     // now rather than as a hole where a row goes (see `newItemForSlot`), so an untouched row IS filled,
+     // and Enter on one starts another empty row. That looked wrong and it is not: an untouched match
+     // ARM is filled the same way, and Enter there starting the next arm is pinned and deliberate
+     // (`OfferedCasesCanBePicked`). Enter means "start the next item" wherever you are; making a grid
+     // row the one place it does not would be a second rule for one key, which is worse than the
+     // empty row it saves.
      | _ -> false)
   | None -> false
 
@@ -5169,7 +5202,7 @@ let addSiblingAt (st: State) (parentPath: Path) (slot: String) (i: Int) : Stdlib
         match Stdlib.List.getAt items (i + 1) with
         | Some(Empty _) -> Stdlib.Option.Option.Some { st with caret = Caret.inItem parentPath slot (i + 1) 0 }
         | _ ->
-          let item = newItemForEach st each
+          let item = newItemForSlot st n slot each
           let st1 = commit st [ Edit.InsertItem(parentPath, slot, i + 1, item) ] st.caret
           let caret =
             match item with
