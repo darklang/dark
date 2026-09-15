@@ -21,11 +21,29 @@ let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.Pro
     else firstLine
   clipped
 
-/// The rows of a module: its submodules, then types, values and fns, each
-/// with a description built from the entity the search already returned - a
-/// fn's signature, a type's shape, a value's literal - so a module reads as a
-/// table of contents rather than a list of names.
+/// The rows of a module for the Code list: its submodules, then types,
+/// values and fns, by name. Names only; the Inspect pane says what each is.
 let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
+  moduleRows branchId location false
+
+/// The same rows with a one-line description each - a fn's signature, a
+/// type's shape, a value's literal - so the Inspect pane's preview of a
+/// module reads as a table of contents. Not for the list: there a signature
+/// clipped to a prefix that told no two rows apart.
+let moduleContents
+  (branchId: Uuid)
+  (location: Packages.PackageLocation)
+  : List<BodyItem> =
+  moduleRows branchId location true
+
+/// A module's rows in display order. `describe` fills the description
+/// column, which pretty-prints every signature and literal, so the list,
+/// which reloads on every move, leaves it off.
+let moduleRows
+  (branchId: Uuid)
+  (location: Packages.PackageLocation)
+  (describe: Bool)
+  : List<BodyItem> =
   let modulePath = modulePathOf location
   let results = Packages.Query.allDirectDescendants branchId modulePath
   let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
@@ -33,35 +51,48 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
   // by their short names.
   let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
   let typeRef (t: LanguageTools.ProgramTypes.TypeReference) : String = PrettyPrinter.ProgramTypes.typeReference ctx t
+  let descOf (build: Unit -> String) : String = if describe then build () else ""
   let moduleItems =
     subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
   let typeItems =
     results.types
     |> Stdlib.List.map (fun t ->
-      let shape =
+      let shape (_u: Unit) : String =
         match t.entity.declaration.definition with
         | Record fields -> "record · " ++ (Stdlib.Int.toString (Stdlib.List.length fields)) ++ " fields"
         | Enum cases -> "enum · " ++ (Stdlib.Int.toString (Stdlib.List.length cases)) ++ " cases"
         | Alias tr -> typeRef tr
-      BodyItem { name = t.location.name; kind = "type"; isModule = false; desc = shape })
+      BodyItem
+        { name = t.location.name
+          kind = "type"
+          isModule = false
+          desc = descOf shape })
   let valItems =
     results.values
     |> Stdlib.List.map (fun v ->
-      BodyItem { name = v.location.name; kind = "val"; isModule = false; desc = valueDesc ctx v.entity.body 40 })
+      BodyItem
+        { name = v.location.name
+          kind = "val"
+          isModule = false
+          desc = descOf (fun _u -> valueDesc ctx v.entity.body 40) })
   let fnItems =
     results.fns
     |> Stdlib.List.map (fun f ->
-      let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
-      let args = if Stdlib.List.isEmpty params then "()" else Stdlib.String.join params " -> "
-      let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
-      let effects =
-        Permissions.Command.requirementDisplay
-          (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+      let signature (_u: Unit) : String =
+        let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
+        let args =
+          if Stdlib.List.isEmpty params then "()"
+          else Stdlib.String.join params " -> "
+        let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
+        let effects =
+          Permissions.Command.requirementDisplay
+            (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+        sig_ ++ "  [" ++ effects ++ "]"
       BodyItem
         { name = f.location.name
           kind = "fn"
           isModule = false
-          desc = sig_ ++ "  [" ++ effects ++ "]" })
+          desc = descOf signature })
   Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
 
 /// How many names the draft touches -- the same number the Changes list shows.

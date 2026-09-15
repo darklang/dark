@@ -176,7 +176,7 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
 let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
   let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
   let location = Packages.PackageLocation.Module path
-  let children = loadItems state.branchId location
+  let children = moduleContents state.branchId location
   let ofKind (kind: String) : List<BodyItem> =
     children |> Stdlib.List.filter (fun c -> c.kind == kind)
   // One column across every group, so a value's literal and a fn's signature
@@ -187,7 +187,7 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
     |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
     |> Stdlib.Int.min 28
   let fnDesc (desc: String) : String =
-    // The loader spells a fn as `sig  [effects]`; paint the two halves apart.
+    // `moduleContents` spells a fn as `sig  [effects]`; paint the two halves apart.
     match Stdlib.String.lastIndexOf desc "  [" with
     | Some i ->
       let sig_ = Stdlib.String.slice desc 0 i
