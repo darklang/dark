@@ -322,7 +322,8 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TString
-      description = "Stringify <param float>"
+      description =
+        "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+17`."
       fn =
         (function
         | _, _, _, [| DFloat f |] ->
@@ -335,11 +336,7 @@ let fns () : List<BuiltInFn> =
             else if System.Double.IsNaN f then
               "NaN"
             else
-              let result =
-                f
-                  .ToString("G12", System.Globalization.CultureInfo.InvariantCulture)
-                  .Replace('E', 'e')
-              if result.Contains "." then result else result + ".0"
+              floatToShortestString f
           Ply(DString result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

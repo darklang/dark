@@ -117,12 +117,7 @@ let rec private toJsonV0
       else if System.Double.IsPositiveInfinity f then
         w.WriteStringValue "Infinity"
       else
-        let result =
-          f
-            .ToString("G12", System.Globalization.CultureInfo.InvariantCulture)
-            .Replace('E', 'e')
-        let result = if result.Contains "." then result else result + ".0"
-        w.WriteRawValue result
+        w.WriteRawValue(floatToShortestString f)
 
     | DChar c -> w.WriteStringValue c
     | DString s -> w.WriteStringValue s

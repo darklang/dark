@@ -38,6 +38,24 @@ module Scalars =
   pp "" = "\"\""
   pp "plain" = "\"plain\""
   pp 'a' = "'a'"
+  // Floats print every digit the value has, and exponent form when that's shorter.
+  pp 1.5 = "1.5"
+  pp (0.1 + 0.2) = "0.30000000000000004"
+  pp 0.00001 = "1e-05"
+
+
+// ========================================
+// Float literals in source
+//
+// `processRemainder` is what the ProgramTypes printer runs a float literal's fraction through, to drop
+// trailing zeros. It parses and reprints the fraction, which comes back in exponent form when small
+// enough; that used to print `0.00001` as `0.-05`.
+// ========================================
+module FloatLiterals =
+  Darklang.PrettyPrinter.processRemainder "5" = "5"
+  Darklang.PrettyPrinter.processRemainder "50" = "5"
+  Darklang.PrettyPrinter.processRemainder "00001" = "00001"
+  Darklang.PrettyPrinter.processRemainder "1234567890123456" = "1234567890123456"
 
 
 // ========================================

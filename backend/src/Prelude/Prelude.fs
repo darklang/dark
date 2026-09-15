@@ -320,6 +320,15 @@ let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
       [ "sign", sign; "whole", whole; "fraction", fraction; "inner", e ]
 
 
+/// A finite float as text: the shortest string that parses back to the same float ("R"). Whole
+/// numbers get a `.0` so they still read as floats; exponent forms don't, since `1e+17.0` parses as
+/// nothing. NaN and the infinities are the caller's, as each site spells them differently.
+let floatToShortestString (f : float) : string =
+  let r =
+    f.ToString("R", System.Globalization.CultureInfo.InvariantCulture).Replace('E', 'e')
+  if r.Contains '.' || r.Contains 'e' then r else r + ".0"
+
+
 
 
 

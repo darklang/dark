@@ -33,6 +33,12 @@ let fakeType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
  | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f
  | _ -> "FAIL") = "3.14"
 
+// Every digit, not twelve of them: the REPL stores a captured value as a binding's source, and a
+// `let x = 0.1 + 0.2` that came back as `0.3` was a different number from the one computed.
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (0.1 + 0.2)) with
+ | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f
+ | _ -> "FAIL") = "0.30000000000000004"
+
 (match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DChar 'a') with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
 
 (match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with
