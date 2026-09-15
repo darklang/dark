@@ -1,0 +1,19 @@
+module WriteReadRoundtrip =
+  let testContents () : String = "Test conrents"
+
+  (let filename = (Stdlib.Cli.File.createTemp ()) |> Builtin.unwrap
+   let blob = Stdlib.Blob.fromString (testContents ())
+   let _written = (Stdlib.Cli.FileSystem.writeFile filename blob) |> Builtin.unwrap
+
+   let readBack =
+     Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+   Stdlib.Blob.toString readBack) = Stdlib.Result.Result.Ok(testContents ())
+
+
+module MissingFile =
+  // A missing file is `NotFound`, not `Other`: on Linux the open fails inside
+  // libc, and the errno has to survive the trip through the host boundary.
+  (let missing =
+     (Stdlib.Cli.File.createTemp () |> Builtin.unwrap) ++ "-does-not-exist"
+   Stdlib.Cli.FileSystem.readFile missing) = Stdlib.Result.Result.Error
+    Stdlib.Cli.FileSystem.FileError.NotFound

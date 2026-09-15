@@ -15,18 +15,26 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     let wipNames = state.wipNames
     let deprecatedNames = state.deprecatedNames
     let focused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-    let displayOf (item: BodyItem) : String = if item.isModule then item.name ++ "/" else item.name
+    // Changes rows (and the Changed lens) lead with a glyph for what the row is.
+    let iconed = (state.activeView == vSCM) || ((state.activeView == vMatter) && (state.matter.lens == Lens.Changed))
+    let displayOf (item: BodyItem) : String =
+      if item.isModule then item.name ++ "/"
+      else if iconed then (changeIcon item.kind) ++ " " ++ item.name
+      else item.name
     // The description column: after the longest name, capped so one long name
     // doesn't push every description off the pane - a name longer than the
     // cap is clipped with an ellipsis instead, so the column stays straight.
     // Only when something has a description at all.
     let anyDesc = state.items |> Stdlib.List.any (fun it -> it.desc != "")
-    let nameCap = 36
+    let nameCap =
+      if state.activeView == vHome then
+        Stdlib.Int.max 16 (Stdlib.Int.divide (region.cols * 2) 3)
+      else 36
     let nameCol =
       if Stdlib.Bool.not anyDesc then 0
       else
         state.items
-        |> Stdlib.List.filter (fun it -> Stdlib.Bool.not (isHomeHeader it))
+        |> Stdlib.List.filter (fun it -> Stdlib.Bool.not (isSectionHeader it))
         |> Stdlib.List.map (fun it -> Stdlib.String.displayWidth (displayOf it))
         |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
         |> Stdlib.Int.min nameCap
@@ -45,6 +53,11 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
         let display = if item.desc == "" then displayOf item else fitName (displayOf item)
         let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
         let isWip = anyWip && (Stdlib.List.member wipNames fullName)
+        // A module is uncommitted work's when something under it is: the draft names are full
+        // paths, so "under" is a prefix test.
+        let holdsWip =
+          item.isModule && anyWip
+          && (wipNames |> Stdlib.List.any (fun n -> Stdlib.String.startsWith n (fullName ++ ".")))
         let isDeprecated = anyDeprecated && (Stdlib.List.member deprecatedNames item.name)
         let badges =
           (if isWip then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●" else "")
@@ -52,42 +65,171 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
         let gap =
           if item.desc == "" then ""
           else Stdlib.String.repeat " " (Stdlib.Int.max 2 (nameCol + 2 - (Stdlib.String.displayWidth display)))
-        let rest = gap ++ (if item.desc == "" then "" else Stdlib.Cli.UI.Colors.dimText item.desc) ++ badges
-        if isHomeHeader item then
+        // A description that arrives coloured (a change kind, a diff stat) keeps its colours; a
+        // plain one is dim.
+        let descStyled =
+          if item.desc == "" then ""
+          else if Stdlib.String.contains item.desc "\u001b" then item.desc
+          else Stdlib.Cli.UI.Colors.dimText item.desc
+        let rest = gap ++ descStyled ++ badges
+        if isSectionHeader item then
           // A section label (or a blank spacer), not a row: dim, and never
-          // the cursor (see `homeSelectable`).
+          // the cursor (see `selectableRow`).
           if item.name == "" then "" else "  " ++ (Stdlib.Cli.UI.Colors.dimText item.name)
         else if i == state.selected then
           selectionBar display rest focused
         else
-          let name = if item.isModule then Stdlib.Cli.UI.Colors.boldText display else display
+          // A module holding uncommitted work is grayed rather than bold: not yet part of what
+          // everyone else sees, and the leaf dots inside say exactly what.
+          let name =
+            if holdsWip then Stdlib.Cli.UI.Colors.grayText display
+            else if item.isModule then Stdlib.Cli.UI.Colors.boldText display
+            else display
           "  " ++ name ++ rest)
     Stdlib.Cli.UI.ListView.render region lines state.selected
 
+/// A fn's requirements badge, coloured by what granting it means: nothing
+/// (green), scoped effects a rule can name (cyan), and the ones a policy can
+/// only hand over whole -- native, process -- in orange. The callback caveat
+/// is a caveat, so it stays dim.
+let effectsText (effects: String) : String =
+  let paint (part: String) : String =
+    if part == "effect-free" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green part
+    else if (part == "native") || (part == "process") then
+      Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.orange part
+    else if Stdlib.String.contains part "callbacks" then Stdlib.Cli.UI.Colors.dimText part
+    else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan part
+  let parts = Stdlib.String.split effects ", " |> Stdlib.List.map paint
+  Stdlib.String.join parts (Stdlib.Cli.UI.Colors.dimText ", ")
+
+/// `effectsText` in brackets, for a row description beside a signature.
+let effectsBadge (effects: String) : String =
+  (Stdlib.Cli.UI.Colors.dimText "[") ++ (effectsText effects) ++ (Stdlib.Cli.UI.Colors.dimText "]")
+
+/// A section heading on the item page: one word, bold cyan, no rules. Cyan
+/// so it cannot be mistaken for the frame's purple focus title.
+let sectionHeading (label: String) : String =
+  Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) label
+
+/// A `label   value` row under a section heading: the label dim in a fixed
+/// column, the value as it came.
+let factRow (label: String) (value: String) : String =
+  "  " ++ (Stdlib.Cli.UI.Colors.dimText (Stdlib.String.padEndToWidth label 11)) ++ value
+
+/// A dim note under a fact row, aligned with its value.
+let factNote (note: String) : String =
+  "  " ++ (Stdlib.String.repeat " " 11) ++ (Stdlib.Cli.UI.Colors.dimText note)
+
+/// The essentials of a fn's authority, for a detail pane: what it needs, the
+/// ceiling its author set (and whether the body exceeds it), and whether this
+/// account has approved it. `permissions show` prints the whole layered
+/// report; the version is already on the meta strip, the instance policy is
+/// the same for every fn on the machine, and the closing lines about run
+/// policy and call-time resource checks describe the runtime rather than
+/// this fn, so none of that earns a line here.
+/// The line the access block opens with; `inspectPageLines` splits on it.
+val accessHeading = sectionHeading "access"
+
+let accessSummaryLines (state: State) (hash: String) : List<String> =
+  let facts = Permissions.Command.accessFacts state.accountId hash
+  let requires =
+    Stdlib.List.flatten
+      [ [ factRow "requires" (effectsText (Permissions.Command.describeRequirements (facts.effects, facts.complete))) ]
+        (if facts.complete then [] else [ factNote "incomplete · it runs code it is given" ]) ]
+  let ceiling =
+    match facts.ceiling with
+    | None -> []
+    | Some names ->
+      let exceeding =
+        facts.effects |> Stdlib.List.filter (fun e -> Stdlib.Bool.not (Stdlib.List.``member`` names e))
+      let warning =
+        if facts.complete && (Stdlib.Bool.not (Stdlib.List.isEmpty exceeding)) then
+          [ factNote
+              ("⚠ narrower than the body needs: "
+               ++ (Stdlib.String.join (exceeding |> Stdlib.List.map LanguageTools.Permissions.effectName) ", ")
+               ++ " denied at runtime") ]
+        else []
+      Stdlib.List.append
+        [ factRow "ceiling" (LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some names)) ]
+        warning
+  let approval =
+    if facts.bundled then
+      [ factRow "approval" ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "none needed") ++ (Stdlib.Cli.UI.Colors.dimText " · bundled Darklang code")) ]
+    else if Stdlib.Bool.not (Stdlib.List.isEmpty facts.approvedAs) then
+      [ factRow "approval" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("approved as " ++ (Stdlib.String.join facts.approvedAs ", "))) ]
+    else
+      match facts.packagePolicy with
+      | Some _ -> [ factRow "approval" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "approved for this account") ]
+      | None ->
+        [ factRow "approval" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "not approved")
+          factNote "blocked as a dependency · runs as an entry point" ]
+  Stdlib.List.flatten [ [ accessHeading ], requires, ceiling, approval ]
+
 /// The selected module's immediate children for the Inspect pane. This is a
 /// preview of the next Tree level, not a recursive package listing.
+///
+/// Grouped by kind under a dim label with a count, names in a column, and the
+/// description coloured by what it is: a type's shape or alias target, a
+/// value's literal, a fn's signature with its requirements badge. One flat
+/// run of 25 `name  desc` rows read as a dump; the kinds are how a person
+/// scans a module, so they are how it is laid out.
 let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
   let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
   let location = Packages.PackageLocation.Module path
   let children = loadItems state.branchId location
+  let ofKind (kind: String) : List<BodyItem> =
+    children |> Stdlib.List.filter (fun c -> c.kind == kind)
+  // One column across every group, so a value's literal and a fn's signature
+  // start at the same place.
+  let nameCol =
+    children
+    |> Stdlib.List.map (fun c -> Stdlib.String.displayWidth (if c.isModule then c.name ++ "/" else c.name))
+    |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
+    |> Stdlib.Int.min 28
+  let fnDesc (desc: String) : String =
+    // The loader spells a fn as `sig  [effects]`; paint the two halves apart.
+    match Stdlib.String.lastIndexOf desc "  [" with
+    | Some i ->
+      let sig_ = Stdlib.String.slice desc 0 i
+      let effects = Stdlib.String.slice desc (i + 3) ((Stdlib.String.length desc) - 1)
+      (Stdlib.Cli.UI.Colors.dimText sig_) ++ "  " ++ (effectsBadge effects)
+    | None -> Stdlib.Cli.UI.Colors.dimText desc
   let childLine (child: BodyItem) : String =
     let display = if child.isModule then child.name ++ "/" else child.name
-    let name = if child.isModule then Stdlib.Cli.UI.Colors.boldText display else display
+    let padded = Stdlib.String.padEndToWidth display (nameCol + 2)
+    let name =
+      if child.isModule then Stdlib.Cli.UI.Colors.boldText padded
+      else if child.kind == "type" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan padded
+      else if child.kind == "val" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.purple padded
+      else padded
     let desc =
       if child.desc == "" then ""
-      else "  " ++ (Stdlib.Cli.UI.Colors.dimText child.desc)
-    "  " ++ name ++ desc
+      else if child.kind == "fn" then fnDesc child.desc
+      else if child.kind == "type" then Stdlib.Cli.UI.Colors.dimText child.desc
+      else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow child.desc
+    "    " ++ name ++ desc
+  let group (label: String) (rows: List<BodyItem>) : List<String> =
+    if Stdlib.List.isEmpty rows then []
+    else
+      Stdlib.List.flatten
+        [ [ "  " ++ (Stdlib.Cli.UI.Colors.dimText (label ++ " · " ++ (Stdlib.Int.toString (Stdlib.List.length rows)))) ]
+          Stdlib.List.map rows childLine
+          [ "" ] ]
   let contents =
     if Stdlib.List.isEmpty children then
-      [ Stdlib.Cli.UI.Colors.dimText "  (empty module)" ]
+      [ Stdlib.Cli.UI.Colors.dimText "  (empty module)", "" ]
     else
-      Stdlib.List.map children childLine
+      Stdlib.List.flatten
+        [ group "modules" (ofKind "module")
+          group "types" (ofKind "type")
+          group "values" (ofKind "val")
+          group "functions" (ofKind "fn") ]
   Stdlib.List.flatten
     [ [ Stdlib.Cli.UI.Colors.boldText (item.name ++ "/")
         Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length children) "item")
         "" ]
       contents
-      [ "", Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
+      [ Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
@@ -97,7 +239,7 @@ let detailLines (state: State) : List<String> =
   if (state.activeView == vMatter) && (state.matter.lens == Lens.ValuesOnly) then
     Stdlib.String.split (thingDetail state) "\n"
   else if (state.activeView == vMatter) && (state.matter.lens == Lens.Changed) then
-    Stdlib.String.split (changesSourceText state.branchId state.selected) "\n"
+    Stdlib.String.split (changesSourceText state.branchId (Stdlib.List.getAt state.items state.selected)) "\n"
   else
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ "(nothing selected)" ]
@@ -131,9 +273,7 @@ let detailLines (state: State) : List<String> =
           match results.fns with
           | i :: _ ->
             (PrettyPrinter.ProgramTypes.packageFn ctx i.entity,
-             Permissions.Command.accessReportLines
-               state.accountId
-               (LanguageTools.ProgramTypes.hashToString i.entity.hash))
+             accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash))
           | [] -> ("(not found)", [])
         | "type" ->
           match results.types with
@@ -249,8 +389,9 @@ let traceDetail (state: State) : String =
     ++ "  ⏎  walk the trace tree"
   | None -> "(no trace recorded yet - eval something or run an app)"
 
-/// A one-line metadata strip for the Inspect item page: kind, short content hash (real, content-addressed),
-/// and a stability marker (placeholder until deprecation metadata is surfaced).
+/// The item page's first line: the kind with its glyph, the short content
+/// hash, and a deprecation mark only when it is deprecated. Nothing that is
+/// true of every item earns a word here.
 let itemMeta (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None -> ""
@@ -268,21 +409,16 @@ let itemMeta (state: State) : String =
         | Some h -> LanguageTools.ProgramTypes.hashToShort h
         | None -> "?"
       let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
-      // Real deprecation status (same read path as the tree badge), not a placeholder.
+      // Real deprecation status (same read path as the tree badge).
       let deprecation =
         match hashOpt with
         | Some h ->
           let sets = Packages.Query.loadDeprecationSets state.branchId
-          if Packages.Query.isDeprecated sets h then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "deprecated ⚠" else "not deprecated"
-        | None -> "not deprecated"
-      kindLabel ++ "  ·  hash " ++ short ++ "  ·  current  ·  " ++ deprecation
-
-/// Per-node actions offered on the item page. Only what's wired: every key
-/// named here does something, and nothing named here means something else in
-/// this view (`t` is new-type, so it isn't "try").
-let itemActions (item: BodyItem) : List<String> =
-  if item.kind == "fn" then [ "", Stdlib.Cli.UI.Colors.dimText "x traces  ·  e edit  ·  r rename" ]
-  else [ "", Stdlib.Cli.UI.Colors.dimText "e edit  ·  r rename" ]
+          if Packages.Query.isDeprecated sets h then
+            "  " ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ deprecated")
+          else ""
+        | None -> ""
+      (Stdlib.Cli.UI.Colors.dimText ((changeIcon kindLabel) ++ " " ++ kindLabel ++ " · " ++ short)) ++ deprecation
 
 /// The runs that called the selected fn, for the `x` reader: one row per
 /// trace, newest first, or a line saying nothing has called it yet and how to
@@ -322,38 +458,49 @@ let inspectPageLines (state: State) : List<String> =
       // highlighting re-lexes the text, and a changed line count would land colors on
       // the wrong rows -- fall back to plain source, and say so rather than silently
       // losing highlighting.
-      let srcPlain = detailLines state
+      //
+      // `detailLines` is the source followed, for a fn, by the access block, which is already
+      // coloured. Re-lexing a coloured line strips its escapes down to literal `[36m`, so the
+      // block is split off at its heading and only the source above it is highlighted.
+      let page = detailLines state
+      let srcCount =
+        Stdlib.List.findFirstIndex page (fun l -> l == accessHeading)
+        |> Stdlib.Option.withDefault (Stdlib.List.length page)
+      let srcPlain = Stdlib.List.take page srcCount
+      let access = Stdlib.List.drop page srcCount
       let src =
         let h =
           SyntaxHighlighting.highlightCode (Stdlib.String.join srcPlain "\n") |> Stdlib.String.split "\n"
-        if Stdlib.List.length h == Stdlib.List.length srcPlain then
-          h
-        else
-          Stdlib.List.append
-            srcPlain
-            [ Stdlib.Cli.UI.Colors.warning
-                $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
+        let highlighted =
+          if Stdlib.List.length h == Stdlib.List.length srcPlain then
+            h
+          else
+            Stdlib.List.append
+              srcPlain
+              [ Stdlib.Cli.UI.Colors.warning
+                  $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
+        Stdlib.List.append highlighted access
+      // The order a reader wants: what this is, the code, what running it needs, who it touches.
+      // The keys that act on it are in the footer, so they are not repeated here.
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
-        [ src
-          [ "", Stdlib.Cli.UI.Colors.dimText (itemMeta state) ]
-          (itemActions item)
-          [ "", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "── references ──", "" ]
+        [ [ itemMeta state, "" ]
+          src
+          [ "" ]
           refs ]
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
 let previewLines (state: State) : List<String> =
-  if state.activeView == vHome then homeDetail state
+  if state.activeView == vHome then []
   else if state.activeView == vSCM then
-    if state.scm.section == ScmSection.History then
-      Stdlib.String.split (commitSummary state.selected) "\n"
-    else if state.scm.section == ScmSection.Conflicts then
-      Stdlib.String.split (conflictDetail state) "\n"
-    else if state.scm.section == ScmSection.Branches then
-      Stdlib.String.split (branchDetail state) "\n"
-    else
-      Stdlib.String.split (wipDiffText state) "\n"
+    match Stdlib.List.getAt state.items state.selected with
+    | Some it ->
+      if it.kind == "conflict" then Stdlib.String.split (conflictDetail state) "\n"
+      else if it.kind == "removed" then
+        [ Stdlib.Cli.UI.Colors.dimText "removed on this branch; the last commit still holds the previous version" ]
+      else changedItemDetail state
+    | None -> changedItemDetail state
   else if state.activeView == vMatter then
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf

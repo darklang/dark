@@ -1,0 +1,40 @@
+/// A short local log of what sync did, for the workbench's Sync view: the
+/// last dozen pushes, pulls and failures, newest first.
+///
+/// Local config, like the cursors: it describes this instance's traffic and
+/// has no business travelling.
+///
+/// Part of `Darklang.Cli.Sync`.
+module Darklang.Cli.Sync
+
+/// One entry: when (as `DateTime.toString`), what, and the detail.
+type ActivityEntry = { at: String; verb: String; detail: String }
+
+val activityKey = "sync.activity"
+
+/// How many entries are kept.
+val activityCap = 12
+
+/// The stored entries, raw, newest first.
+let activityLines () : List<String> =
+  let raw = Stdlib.LocalStore.configGet activityKey
+  if raw == "" then [] else Stdlib.String.splitOnNewline raw
+
+/// Note that sync did `verb` (`pushed`, `pulled`, `push failed`, ...) with `detail`.
+let recordActivity (verb: String) (detail: String) : Unit =
+  let stamp = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  // Tabs separate the fields and newlines the entries, so a detail (an error message can hold
+  // anything) has both flattened to spaces rather than splitting the log where it should not.
+  let flat (s: String) : String =
+    Stdlib.String.replaceAll (Stdlib.String.replaceAll s "\n" " ") "\t" " "
+  let line = stamp ++ "\t" ++ (flat verb) ++ "\t" ++ (flat detail)
+  let kept = Stdlib.List.take (Stdlib.List.push (activityLines ()) line) activityCap
+  Stdlib.LocalStore.configSet activityKey (Stdlib.String.join kept "\n")
+
+/// The log, newest first.
+let recentActivity () : List<ActivityEntry> =
+  activityLines ()
+  |> Stdlib.List.filterMap (fun l ->
+    match Stdlib.String.split l "\t" with
+    | [ at, verb, detail ] -> Stdlib.Option.Option.Some (ActivityEntry { at = at; verb = verb; detail = detail })
+    | _ -> Stdlib.Option.Option.None)

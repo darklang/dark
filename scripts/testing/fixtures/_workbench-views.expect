@@ -21,18 +21,18 @@ set env(DARK_CONFIG_RUNDIR) $rundir
 
 proc fail {msg} { puts "FAIL: $msg"; exit 1 }
 
-# key: the digit that selects the view. Devices is absent: it is gated to the two people building it,
-# so for any other account it drops out of the tab bar and every later digit shifts down one. These
-# numbers are taken from the sidebar the workbench actually draws, not from the view indices.
+# key: the digit that selects the view. These numbers are taken from the nav strip the workbench
+# actually draws, not from the view indices: AI has no item (sample data only), and Devices is gated
+# to the two people building it, so neither shifts the digits here.
 set views {
-  {1 "Home"     "(?i)(needs you|uncommitted|recent commits|branches)"}
+  {1 "Home"     "(?i)(needs attention|this branch|recent commits|branches)"}
   {2 "Code"     "(?i)(darklang|packages)"}
   {3 "Changes"  "WbV.T.draft"}
   {4 "REPL"     "(?i)(starts typing)"}
-  {5 "Run"      "(?i)(app|install)"}
-  {6 "Activity" "(?i)(trace|recent)"}
-  {7 "AI"       "(?i)(agent|prompt|thread)"}
-  {8 "Docs"     "(?i)(deprecation|signatures|interactive-testing)"}
+  {5 "Apps"     "(?i)(app|install)"}
+  {6 "Traces"   "(?i)(trace|recent)"}
+  {7 "Docs"     "(?i)(deprecation|signatures|interactive-testing)"}
+  {8 "Sync"     "(?i)(this machine|identity|relay)"}
 }
 
 # Home asserts on a panel BELOW the greeting, not the greeting itself: the startup wait above has
@@ -44,7 +44,7 @@ foreach v $views {
 
   spawn $exe
   expect {
-    -re "instance:" { }
+    -re " @ " { }
     timeout { fail "$name: the workbench did not start" }
     eof { fail "$name: the workbench exited on startup" }
   }

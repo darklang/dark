@@ -48,6 +48,12 @@ gate_workbench_scm() {
   "$PWD/$CLI" switch main >/dev/null 2>&1
   "$PWD/$CLI" fn /WbScm.T.draft '() : Int64 = 9L' >/dev/null 2>&1
 
+  # More branches than Home displays: the picker must still reach every one.
+  for n in $(seq 1 12); do
+    "$PWD/$CLI" --branch main branch create "wb-pick-$n" >/dev/null 2>&1
+  done
+  "$PWD/$CLI" switch main >/dev/null 2>&1
+
   expect "$PWD/scripts/testing/fixtures/_workbench-scm.expect" "$PWD/$CLI" "$PWD/$WORK" || exit 1
 
   # And a QUIET store: commits, no conflict, no draft. Home then selects a commit on open and renders its

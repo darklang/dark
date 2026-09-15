@@ -22,20 +22,18 @@ set exe [lindex $argv 0]
 set env(DARK_CONFIG_RUNDIR) [lindex $argv 1]
 spawn $exe
 
-# Home IS the SCM summary: needs you / uncommitted / recent commits / branches all render on the landing
+# Home IS the SCM summary: needs attention / current work / recent commits / branches all render on the landing
 # screen, each from its own SCM API (`SCM.Conflicts.pending`, `SCM.Draft.read`, `SCM.Commits.recent`,
 # `SCM.Branch.list`). That makes Home the place to assert the DATA path -- one of those wired wrong takes
 # the workbench down on startup, so the assertions below are as much about the queries as the drawing.
 #
-# The startup marker is the context row, not a greeting: the welcome panel only appears on a genuine first
-# run, and this store has work in it.
-want "instance:" "the workbench on startup"
+# The startup marker is the header's `who @ where`, not a greeting: the welcome panel only appears on a
+# genuine first run, and this store has work in it.
+want " @ " "the workbench on startup"
 
-want "needs you" "Home lists what needs you"
-want "uncommitted" "and the uncommitted work"
-want "WbScm.T.draft" "including the draft item itself"
-want "recent commits" "and the commits"
-want "workbench scm fixtur" "including the one this fixture made (the row is clipped to the pane)"
+want "needs attention" "Home summarizes what needs you"
+want "recent commits" "Home shows recent commits across branches"
+want "workbench scm fixtur" "including the one this fixture made"
 want "branches" "and the branches"
 
 # 3 is the Changes view. It must show the draft rather than an empty state.
@@ -47,6 +45,30 @@ want "WbScm.T.draft" "the draft item in the Changes view"
 # against an empty url. Watching for it also proves the key is wired at all, which is the part that rots.
 press "u"
 want "(?i)no relay" "u offers to sync and says why it cannot"
+
+# Switch without leaving Changes or remembering the exact branch name.
+# The target is outside Home's summary cap, but must be in the full picker.
+press "S"
+want "Switch branch" "the global branch picker"
+press "wb-pick-12"
+want "wb-pick-12" "typing filters the full branch list"
+press "\r"
+want "nothing uncommitted on this branch" "Changes reads the new overlay"
+want "switched to wb-pick-12" "Enter switches the selected branch"
+
+press "S"
+want "Switch branch" "the picker opens on the current branch"
+press "zzz-no-branch"
+want "No matching branches" "unknown names do not switch branches"
+press "\r"
+press "\033"
+
+press "S"
+want "Switch branch" "main is reachable through the same picker"
+press "main"
+press "\r"
+want "WbScm.T.draft" "main's draft survives the round trip"
+want "switched to main" "Enter returns to main"
 
 # `q`, not Escape: Escape means "step back" inside a view, so it does not leave from here.
 press "q"

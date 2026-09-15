@@ -3,17 +3,26 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-/// The SCM view: the active section's list + detail. Which section - Changes,
-/// History, Branches, Conflicts - is picked in the sidebar; the branch and
-/// its health are on the context row. Conflict resolution lives in the
-/// Conflicts section (setup + cross-instance health live in Devices).
+/// The Changes view: what is uncommitted on the branch you are on, and
+/// nothing else. Conflicts sit at the top of the same list, since they need a
+/// decision before anything commits. Branches and history live on Home.
 let renderScm (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let (title, empty) =
-    if state.scm.section == ScmSection.History then ("History", Stdlib.Cli.UI.Colors.dimText "no commits yet")
-    else if state.scm.section == ScmSection.Conflicts then ("Conflicts", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ nothing to resolve - in sync")
-    else if state.scm.section == ScmSection.Branches then ("Branches", Stdlib.Cli.UI.Colors.dimText "no branches")
-    else ("Changes", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ working tree clean - nothing to commit")
-  splitListPreview state region title "Detail" empty
+  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let conflicts = state.items |> Stdlib.List.filter (fun it -> it.kind == "conflict") |> Stdlib.List.length
+  let trailer =
+    if Stdlib.List.isEmpty state.items then [ state.scmStatus.branchName ]
+    else
+      Stdlib.List.flatten
+        [ [ state.scmStatus.branchName ]
+          listTrailer state "change"
+          [ (if conflicts == 0 then "" else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (plural conflicts "conflict")) ] ]
+  splitListPreviewTitled
+    state
+    region
+    (paneTitle "" trailer listFocused)
+    (paneTitle "Detail" [] detailFocused)
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ nothing uncommitted on this branch")
 
 /// Evaluate `expr` as written, with whatever the evaluator prints on the way captured rather than let loose
 /// on the frame (see `captureOutputAnd` - a runtime error prints a call-stack header, which would scroll the
@@ -122,18 +131,23 @@ let applyReplStatement (state: State) (stmt: String) : State =
                 last = Stdlib.String.trim output
                 log = Stdlib.List.append state.repl.log (Stdlib.List.append echoLines resultLines) } }
 
-/// The REPL view: a persistent eval log on the left, the session on the
-/// right. ⏎ opens the prompt; ⏎ there evaluates and appends to the log; `let
-/// x = ...` binds for the rest of the session and shows up in the session
-/// pane. The prompt is something you open, not the view's resting state, so
-/// between evaluations the navigation keys work like everywhere else (esc
-/// leaves the prompt).
+/// The REPL view: the eval log on the left, the session on the right. ⏎
+/// opens the prompt; ⏎ there evaluates and appends to the log; `let x = ...`
+/// binds for the rest of the session and shows up in the session column. The
+/// prompt is something you open, not the view's resting state, so between
+/// evaluations the navigation keys work like everywhere else (esc leaves the
+/// prompt).
 let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let typing = match state.input with | Some _ -> true | None -> false
-  let logTitle = if typing then "REPL  ·  ⏎ run  ·  esc leaves the prompt" else "REPL  ·  ⏎ to type  ·  f clears"
-  Stdlib.Cli.UI.SplitPane.render
+  let logTitle =
+    paneTitle
+      ""
+      [ (if typing then "⏎ runs · esc leaves the prompt" else "⏎ to type · f clears") ]
+      (state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+  let sessionTitle =
+    paneTitle "Session" [ "x clears" ] (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
+  paneSplit
     region
-    Stdlib.Cli.UI.SplitPane.Orientation.Horizontal
     62
     state.focus
     logTitle
@@ -150,7 +164,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  Stdlib.List.map xs (fun x -> x * 2)")
             ""
             Stdlib.Cli.UI.Colors.dimText "`let` binds for the session - the"
-            Stdlib.Cli.UI.Colors.dimText "session pane lists what's bound."
+            Stdlib.Cli.UI.Colors.dimText "session column lists what's bound."
             ""
             Stdlib.Cli.UI.Colors.dimText "Multi-line just works: ⏎ after a line that can't"
             Stdlib.Cli.UI.Colors.dimText "have ended - an open bracket, a trailing `=` or"
@@ -176,12 +190,9 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
       let withPending = Stdlib.List.append all pending
       let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
       shown
-      |> Stdlib.List.indexedMap (fun i l -> (i, l))
-      |> Stdlib.List.map (fun p ->
-        let (i, l) = p
-        Stdlib.Cli.UI.Layout.at inner i 1 l)
+      |> Stdlib.List.indexedMap (fun i l -> Stdlib.Cli.UI.Layout.at inner i 0 l)
       |> Stdlib.List.flatten)
-    "Session  ·  x clears"
+    sessionTitle
     (fun inner ->
       let bindingLines =
         if Stdlib.List.isEmpty state.repl.bindings then
@@ -211,13 +222,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
       let heading =
         if count == 0 then Stdlib.Cli.UI.Colors.dimText "session bindings:"
         else Stdlib.Cli.UI.Colors.dimText ("session bindings  ·  " ++ (plural count "name") ++ ":")
-      let lines =
-        Stdlib.List.flatten [ [ heading, "" ], bindingLines, resultLines ]
-      lines
-      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      Stdlib.List.flatten [ [ heading, "" ], bindingLines, resultLines ]
       |> Stdlib.List.take inner.rows
-      |> Stdlib.List.map (fun p ->
-        let (i, l) = p
-        Stdlib.Cli.UI.Layout.at inner i 1 l)
+      |> Stdlib.List.indexedMap (fun i l -> Stdlib.Cli.UI.Layout.at inner i 0 l)
       |> Stdlib.List.flatten)
-

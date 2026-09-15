@@ -37,9 +37,11 @@ proc want {pattern what} {
 spawn ./backend/Build/out/Cli/Debug/net10.0/Cli
 
 # 1. it opens on the workbench rather than the classic prompt
-# The context row, not a greeting: Home shows the welcome panel only on a genuine first run.
-want "instance:" "the workbench on startup"
-want "(?i)(needs you|uncommitted|branches)" "the Home sections"
+# The header's `who @ where`, not a greeting: Home shows the welcome panel only on a genuine first run.
+# `recent commits` is in the pattern because a section with nothing in it is not drawn at all: on a
+# store with no branches and nothing uncommitted, the commits are the only section Home has.
+want " @ " "the workbench on startup"
+want "(?i)(needs attention|recent commits|branches)" "the Home sections"
 
 # Every switch below goes to a view not yet visited: returning to one already seen does not reliably
 # emit anything under a TTY (cause unresolved), so this test does not depend on it.
@@ -50,7 +52,9 @@ want "(?i)(darklang|packages)" "the Code view"
 
 # 3 is Changes: views are numbered by position in the visible list, not by view index.
 send "3"
-want "(?i)(changes|conflict)" "the Changes view"
+# The view's own content, not its name: the nav names it and was painted at startup, so "Changes"
+# is never re-emitted. Empty store: the clean line; a store with a draft: the rows' change words.
+want "(?i)(uncommitted|conflict|added|edited)" "the Changes view"
 
 # 3. a resize must redraw rather than throw. SIGWINCH is the interesting case on its own: the terminal
 #    changes size underneath a frame that is already drawn.
@@ -71,7 +75,7 @@ want "56x12" "the size you need, not clipped off the end of it"
 # 5. and it comes back: growing the terminal repaints the whole frame, status line included
 stty rows 30 columns 100 < $spawn_out(slave,name)
 exec kill -WINCH [exp_pid]
-want "instance:" "a full repaint once the terminal is big enough again"
+want " @ " "a full repaint once the terminal is big enough again"
 
 # 6. `q` leaves, and leaving exits the CLI: there is no classic prompt behind the workbench to fall back
 #    to. `q` rather than Escape, which steps back one level inside a view and never quits. A non-zero

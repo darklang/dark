@@ -11,6 +11,52 @@ module Darklang.Cli.Workbench
 // point: one owner, many mentions. If the workbench and the CLI disagree about your draft, it is because
 // something stopped going through here.
 
+/// Local knowledge about the relay. None of these facts establish whether
+/// remote work is waiting to be pulled.
+type SyncFacts =
+  { relay: String
+    mainUnpushed: Int64
+    branchesUnpushed: List<(String * Int64)> }
+
+let emptySyncFacts () : SyncFacts =
+  SyncFacts { relay = ""; mainUnpushed = 0L; branchesUnpushed = [] }
+
+let readSyncFacts () : SyncFacts =
+  let relay = SCM.PackageOps.relay ()
+  if relay == "" then emptySyncFacts ()
+  else
+    SyncFacts
+      { relay = relay
+        mainUnpushed = SCM.Wire.unpushedCount relay
+        branchesUnpushed = SCM.Wire.unpushedBranches relay }
+
+/// Main and branch bundles travel on different channels. An absent branch
+/// count says nothing about main, which always uses its own counter.
+let branchUnpushed (facts: SyncFacts) (name: String) (isMain: Bool) : Int64 =
+  if isMain then facts.mainUnpushed
+  else
+    facts.branchesUnpushed
+    |> Stdlib.List.findFirst (fun pair -> let (n, _count) = pair in n == name)
+    |> Stdlib.Option.map (fun pair -> let (_n, count) = pair in count)
+    |> Stdlib.Option.withDefault 0L
+
+let syncPushSummary (facts: SyncFacts) : String =
+  if facts.relay == "" then ""
+  else
+    let branches = Stdlib.List.length facts.branchesUnpushed
+    if facts.mainUnpushed > 0L then
+      "↑ " ++ (Stdlib.Int64.toString facts.mainUnpushed) ++ " main ops to push"
+      ++ (if branches == 0 then "" else " · " ++ (plural branches "branch"))
+    else if branches > 0 then "↑ " ++ (plural branches "branch") ++ " to push"
+    else "nothing to push"
+
+let syncBranchStanding (facts: SyncFacts) (name: String) (isMain: Bool) : String =
+  if facts.relay == "" then ""
+  else
+    let count = branchUnpushed facts name isMain
+    if count == 0L then "no ops waiting to push"
+    else (Stdlib.Int64.toString count) ++ " op(s) not on the relay"
+
 /// What every workbench surface needs to know about SCM, read once.
 type ScmStatus =
   { /// The NAME, never the uuid. Every surface here is something a person reads.
@@ -31,6 +77,9 @@ type ScmStatus =
     conflicts: List<SCM.Conflicts.Conflict>
     commits: Int
     lastCommit: String
+    /// The relay this instance syncs with, "" for none, and how many committed ops it has not been sent.
+    /// For the header's sync glance, which draws every frame and so cannot ask.
+    sync: SyncFacts
     /// The draft's op count. Carried so `refreshScmStatus` has a cheap thing to compare against: it's one
     /// indexed count, and it moves whenever anything in here could have.
     ops: Int64
@@ -53,6 +102,7 @@ let emptyScmStatus () : ScmStatus =
       conflicts = []
       commits = 0
       lastCommit = ""
+      sync = emptySyncFacts ()
       ops = 0L
       loaded = false }
 
@@ -79,33 +129,6 @@ let readScmStatus (branchId: Uuid) : ScmStatus =
         match Stdlib.List.head recent with
         | Some c -> c.message
         | None -> ""
+      sync = readSyncFacts ()
       ops = p.ops
       loaded = true }
-
-/// The status line's summary of the draft, or "" when there's nothing to say.
-///
-/// The split, never the bare total (see `changed` above). `behind` appears only when non-zero, because a
-/// zero there is noise and a non-zero is a decision you made and may have forgotten.
-let scmStatusLine (s: ScmStatus) : String =
-  if s.changed == 0 then
-    ""
-  else
-    let parts =
-      Stdlib.List.flatten
-        [ // When every change is mine, "4 changed: 4 mine" restates itself in the most prominent
-          // line of the app; the clause earns its place only when someone else's changes exist.
-          (if (s.authored > 0) && (s.authored != s.changed) then
-             [ $"{Stdlib.Int.toString s.authored} mine" ]
-           else
-             [])
-          (if s.followed > 0 then
-             [ $"{Stdlib.Int.toString s.followed} followed" ]
-           else
-             [])
-          (if s.behind > 0 then
-             [ $"{Stdlib.Int.toString s.behind} behind" ]
-           else
-             []) ]
-
-    let split = Stdlib.String.join parts ", "
-    $"{Stdlib.Int.toString s.changed} changed: {split}"

@@ -5,20 +5,21 @@
 module Darklang.Cli.Workbench
 
 /// The keys that mean the same thing everywhere: find, command, help, the
-/// prompt, quit, ` for the sidebar, and the number keys for the workspaces.
-/// None if `keyChar` isn't one of them. Both the sidebar and the plain view
+/// prompt, quit, ` for the nav, and the number keys for the workspaces.
+/// None if `keyChar` isn't one of them. Both the nav and the plain view
 /// fall through to this, so neither has to repeat it.
 let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Option.Option<Step> =
   match keyChar with
+  | Some "S" -> Stdlib.Option.Option.Some (openBranchPicker state)
   | Some "q" -> Stdlib.Option.Option.Some (Step.Exit state)
   | Some "?" -> Stdlib.Option.Option.Some (Step.Continue { state with overlay = Overlay.Keymap })
   // The way back to the prompt, on one key. It's an escape hatch, and an
   // escape hatch you have to type a command to reach isn't much of one.
   // `:prompt` still works for anyone who'd rather type it.
   | Some "p" -> Stdlib.Option.Option.Some (Step.ToPrompt state)
-  // ` is "go somewhere": the sidebar takes the keyboard (as an overlay on a
+  // ` is "go somewhere": the nav takes the keyboard (as an overlay on a
   // narrow terminal).
-  | Some "`" -> Stdlib.Option.Option.Some (Step.Continue (focusSidebar state))
+  | Some "`" -> Stdlib.Option.Option.Some (Step.Continue (focusNavbar state))
   | Some ":" ->
     // Command bar - run any old-school command (or eval an expression) from
     // anywhere in the workbench.
@@ -39,22 +40,21 @@ let globalKey (state: State) (keyChar: Stdlib.Option.Option<String>) : Stdlib.Op
     | Error _ -> Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
+/// Is the cursor on a row of this kind?
+let cursorRowIs (state: State) (kind: String) : Bool =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some it -> it.kind == kind
+  | None -> false
+
 /// Is the cursor on a Home row of this kind?
 let homeRowIs (state: State) (kind: String) : Bool =
-  (state.activeView == vHome)
-  && (match Stdlib.List.getAt state.items state.selected with
-      | Some it -> it.kind == kind
-      | None -> false)
+  (state.activeView == vHome) && (cursorRowIs state kind)
 
 /// Put the Matter view on <param lens>: reload the items for it and reset the cursor, the detail
 /// scroll and the filter, all of which indexed the list the lens just replaced.
 let withLens (state: State) (lens: Lens) : State =
-  { state with
-      matter = MatterState { lens = lens }
-      items = itemsForView vMatter state.branchId state.location state.scm.section state.ai.section lens
-      selected = 0
-      detailScroll = 0
-      filter = "" }
+  moveToPoint state
+    { (returnPointOf state) with lens = lens; selected = 0; filter = "" } true
 
 /// Movement and view actions when no modal layer owns the key.
 let handleViewKey
@@ -65,9 +65,9 @@ let handleViewKey
   match key with
   | UpArrow -> navUp state
   | DownArrow -> navDown state
-  // ←/→ move between the panes - sidebar, list, detail - the way they sit on
-  // screen. Going into a module is ⏎ (and back out is esc), so the arrows
-  // mean one thing everywhere.
+  // ←/→ move between the panes - list, detail - the way they sit on screen.
+  // Going into a module is ⏎ (and back out is esc), so the arrows mean one
+  // thing everywhere. The nav is above, reached by esc, tab or `.
   | RightArrow -> focusRight state
   | LeftArrow -> focusLeft state
   | Enter ->
@@ -84,21 +84,13 @@ let handleViewKey
       | Some t -> openReader state (t.content ()) false
       | None -> Step.Continue state
     else if state.activeView == vSCM then
-      // SCM: open the section item - commit ops (History), WIP source (Changes), switch (Branches).
-      if state.scm.section == ScmSection.History then openReader state (commitOpsText state.branchId state.selected) false
-      else if state.scm.section == ScmSection.Changes then openReader state (changesSourceText state.branchId state.selected) true
-      else if state.scm.section == ScmSection.Branches then
-        match selectedBranch state with
-        | Some b ->
-          let moved = onBranch state b.id
-
-          Step.Continue
-            { moved with
-                items = itemsForView vSCM b.id state.location state.scm.section state.ai.section state.matter.lens
-                filter = ""
-                message = "switched to " ++ b.name }
-        | None -> Step.Continue state
-      else Step.Continue state
+      // Changes: a conflict opens its versions; a change opens its current source.
+      match Stdlib.List.getAt state.items state.selected with
+      | Some it ->
+        if it.kind == "conflict" then openReader state (conflictDetail state) false
+        else if it.kind == "removed" then Step.Continue state
+        else openReader state (changesSourceText state.branchId (Stdlib.Option.Option.Some it)) true
+      | None -> Step.Continue state
     else if state.activeView == vScratch then
       // Scratch: open the eval prompt; the result appends to the log.
       Step.Continue
@@ -138,22 +130,29 @@ let handleViewKey
     else
       descend state
   | Tab ->
-    // Tab moves to the next pane: list → detail → sidebar (when it's a
-    // column) → list.
-    if state.focus == Stdlib.Cli.UI.SplitPane.Focus.First then
+    // Tab moves to the next pane: list → detail → nav (when it's a strip)
+    // → list.
+    if Stdlib.Bool.not (hasDetailPane state) then
+      Step.Continue (focusNavbar state)
+    else if state.focus == Stdlib.Cli.UI.SplitPane.Focus.First then
       Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
-    else if sidebarIsColumnNow () then
-      Step.Continue (focusSidebar state)
+    else if navFitsNow () then
+      Step.Continue (focusNavbar state)
     else
       Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
   | Escape ->
-    // Escape is "back", one level, everywhere - never quit (that's `q`).
-    // Inside a module it goes up one (the only way up, since ← moves panes);
-    // at the top of a view it hands the keyboard to the sidebar.
-    if (state.activeView == vMatter) && (Stdlib.Bool.not (Stdlib.List.isEmpty (modulePathOf state.location))) then
-      ascend state
-    else
-      Step.Continue (focusSidebar state)
+    // Escape is one step back, everywhere, and never quits (that's `q`): the
+    // module you came from, the view you came from, Home at the end. The
+    // footer names the destination.
+    goBack state
+  | Home -> navTop state
+  | End -> navBottom state
+  | PageUp -> documentPage state (0 - 1)
+  | PageDown -> documentPage state 1
+  | Backspace ->
+    // Up one module, whatever the history says. ← moves panes, so this is
+    // the only key that means "the module above".
+    ascend state
   | _ ->
     match keyChar with
     // Vim motion - the same movement as the arrows, so muscle memory works either way.
@@ -164,8 +163,8 @@ let handleViewKey
     | Some "g" -> navTop state
     | Some "G" -> navBottom state
     | Some "a" ->
-      // SCM Conflicts: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
-      if ((state.activeView == vSCM) && (state.scm.section == ScmSection.Conflicts)) || (homeRowIs state "home-conflict") then resolveConflict state "ok"
+      // Changes, on a conflict row: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
+      if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ok"
       else if state.activeView == vAI then
         Step.Continue
           { state with
@@ -192,10 +191,18 @@ let handleViewKey
       if state.activeView == vMatter then startNew state "fn" else Step.Continue state
     | Some "t" ->
       if state.activeView == vMatter then startNew state "type"
-      else if ((state.activeView == vSCM) && (state.scm.section == ScmSection.Conflicts)) || (homeRowIs state "home-conflict") then resolveConflict state "theirs"
+      else if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "theirs"
       else Step.Continue state
     | Some "o" ->
-      if ((state.activeView == vSCM) && (state.scm.section == ScmSection.Conflicts)) || (homeRowIs state "home-conflict") then resolveConflict state "ours"
+      // Changes, on a conflict row: keep ours. Sync: ask the relay who else syncs with it - on a
+      // key, not on opening the view, because the relay may be down and the ask then waits out
+      // the connect timeout (see `syncPeerItems`).
+      if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ours"
+      else if state.activeView == (extViewIndex "sync") then
+        Step.Continue
+          { state with
+              items = loadSyncItemsWith (Stdlib.Option.Option.Some (syncPeerItems ()))
+              message = "asked the relay" }
       else Step.Continue state
     | Some "v" ->
       if state.activeView == vMatter then startNew state "value" else Step.Continue state
@@ -226,10 +233,13 @@ let handleViewKey
       // Apps: install/uninstall the selected app (also the primary ⏎ action).
       if state.activeView == vApps then toggleInstall state else Step.Continue state
     | Some "u" ->
-      // SCM: push to the relay. `u` for up, `d` for down, since `p` is the command prompt everywhere.
-      if state.activeView == vSCM then syncInFrame state "push" else Step.Continue state
+      // Changes and Sync: push to the relay. `u` for up, `d` for down, since `p` is the command
+      // prompt everywhere.
+      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "push"
+      else Step.Continue state
     | Some "d" ->
-      if state.activeView == vSCM then syncInFrame state "pull" else Step.Continue state
+      if (state.activeView == vSCM) || (state.activeView == (extViewIndex "sync")) then syncInFrame state "pull"
+      else Step.Continue state
     | Some "c" ->
       if (state.activeView == vSCM) || (state.activeView == vHome) then
         Step.Continue
@@ -242,8 +252,8 @@ let handleViewKey
       else Step.Continue state
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
-      // session bindings. SCM Branches section: x deletes the selected
-      // branch. Otherwise (SCM) x discards all WIP.
+      // session bindings. Home, on a branch row: x deletes that branch.
+      // Changes: x discards all WIP.
       if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
@@ -254,7 +264,7 @@ let handleViewKey
           { state with
               repl = { state.repl with bindings = [] }
               message = "session bindings cleared" }
-      else if ((state.activeView == vSCM) && (state.scm.section == ScmSection.Branches)) || (homeRowIs state "home-branch") then
+      else if homeRowIs state "home-branch" then
         match selectedBranch state with
         | Some b ->
           Step.Continue
@@ -263,7 +273,7 @@ let handleViewKey
                   Stdlib.Option.Option.Some
                     (InputState { prompt = "delete branch " ++ b.name ++ "? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-delete" }) }
         | None -> Step.Continue state
-      else if (state.activeView == vSCM) || (homeRowIs state "home-wip") then
+      else if (state.activeView == vSCM) then
         Step.Continue
           { state with
               input =
@@ -271,24 +281,21 @@ let handleViewKey
                   (InputState { prompt = "discard ALL uncommitted? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "discard" }) }
       else Step.Continue state
     | Some "b" ->
-      if (state.activeView == vSCM) || (state.activeView == vHome) then
+      if state.activeView == vHome then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "new branch name: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-create" }) }
       else Step.Continue state
     | Some "s" ->
-      // SCM: switch branch. Devices: sync now. Apps: stop (placeholders where not yet wired).
-      if (state.activeView == vSCM) || (state.activeView == vHome) then
-        Step.Continue
-          { state with
-              input =
-                Stdlib.Option.Option.Some (InputState { prompt = "switch to branch: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-switch" }) }
+      // Home: switch branch. Devices: sync now. Apps: stop.
+      if state.activeView == vHome then openBranchPicker state
       else if state.activeView == vDevices then runCommandInFrame state "sync" []
+      else if state.activeView == (extViewIndex "sync") then syncInFrame state "sync"
       else if state.activeView == vApps then runAppsSubcommand state "stop"
       else Step.Continue state
     | Some "m" ->
-      if (state.activeView == vSCM) || (state.activeView == vHome) then
+      if state.activeView == vHome then
         match branchForAction state with
         | Some b ->
           Step.Continue
@@ -297,17 +304,21 @@ let handleViewKey
                   Stdlib.Option.Option.Some (InputState { prompt = "merge " ++ b.name ++ " into parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "merge" }) }
         | None -> Step.Continue state
       else Step.Continue state
+    | Some "B" ->
+      // Code: the builtins, the bottom tier of the tree. Gated, so only when this account can
+      // see them; otherwise the key does nothing rather than opening a view that isn't there.
+      let builtins = extViewIndex "builtins"
+      if (state.activeView == vMatter) && (Stdlib.List.member (visibleViews state) builtins) then
+        Step.Continue (goTo state (mkDest builtins 0) false)
+      else Step.Continue state
+    | Some "E" ->
+      // Traces: the errors, the other half of what running software leaves behind. `6` comes back.
+      if state.activeView == vTraces then
+        Step.Continue (goTo state (mkDest (extViewIndex "errors") 0) false)
+      else Step.Continue state
     | Some "r" ->
-      // SCM: rebase (or rename a branch in the Branches section). Apps: run. Matter: rename the selected leaf.
-      if (state.activeView == vSCM) && (state.scm.section == ScmSection.Branches) then
-        match selectedBranch state with
-        | Some b ->
-          Step.Continue
-            { state with
-                input =
-                  Stdlib.Option.Option.Some (InputState { prompt = "rename branch to: "; field = Stdlib.Cli.UI.TextField.fromText b.name; action = "branch-rename" }) }
-        | None -> Step.Continue state
-      else if (state.activeView == vSCM) || (state.activeView == vHome) then
+      // Home: rebase the branch under the cursor. Apps: run. Matter: rename the selected leaf.
+      if state.activeView == vHome then
         match branchForAction state with
         | Some b ->
           Step.Continue
@@ -354,6 +365,7 @@ let handleKey
 
   // An overlay is modal: it takes the key before anything else acts on it.
   match state.overlay with
+  | Branches picker -> handleBranchPickerKey state picker key modifiers keyChar
   | Keymap ->
     // Any key closes the keymap.
     Step.Continue { state with overlay = Overlay.NoOverlay }
@@ -369,9 +381,9 @@ let handleKey
         | None ->
           if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
             handleSearchResultsKey state key keyChar
-          else if sidebarFocused state then
+          else if navbarFocused state then
             // Let Home's welcome shortcut work before content has focus.
             if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key keyChar
-            else handleSidebarKey state key keyChar
+            else handleNavbarKey state key keyChar
           else
             handleViewKey state key keyChar

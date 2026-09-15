@@ -1,0 +1,129 @@
+/// Navigation regressions that need real key dispatch and populated views.
+module Darklang.Cli.Tests
+
+let testWorkbenchHistoryRoundTrip () : TestResult =
+  let base = workbenchState ()
+  let hit = Darklang.Cli.Workbench.SearchHit
+    { modules = [ "Darklang", "Stdlib", "List" ]
+      name = "map"; kind = "fn"; display = "map" }
+  let jumped =
+    match Darklang.Cli.Workbench.jumpToHit base hit with
+    | Continue s -> s
+    | _ -> base
+  let returned = (wbKey jumped Stdlib.Cli.Stdin.Key.Key.Escape).state
+  let tree = (wbChar base "2").state
+  let original =
+    { tree with filter = "Darklang"; selected = 0
+                items = Darklang.Cli.Workbench.applyFilter tree.items "Darklang" }
+  let entered = (wbKey original Stdlib.Cli.Stdin.Key.Key.Enter).state
+  let parent = (wbKey entered Stdlib.Cli.Stdin.Key.Key.Escape).state
+  let lens = (wbChar tree "L").state
+  let beforeLens = (wbKey lens Stdlib.Cli.Stdin.Key.Key.Escape).state
+  let sameReturnPoint
+    (a: Darklang.Cli.Workbench.State)
+    (b: Darklang.Cli.Workbench.State)
+    : Bool =
+    Darklang.Cli.Workbench.returnPointOf a == Darklang.Cli.Workbench.returnPointOf b
+  if (Stdlib.List.length jumped.back == 1)
+     && (sameReturnPoint returned base)
+     && (Stdlib.List.isEmpty returned.back)
+     && (entered.location != original.location)
+     && (sameReturnPoint parent original)
+     && (parent.items == original.items)
+     && (lens.matter.lens != tree.matter.lens)
+     && (sameReturnPoint beforeLens tree)
+  then TestResult.Pass
+  else TestResult.Fail "search, modules and lenses must return in one Escape"
+
+let testWorkbenchDocumentScroll () : TestResult =
+  let base = workbenchState ()
+  let items =
+    Stdlib.List.range 1 40 |> Stdlib.List.map (fun n ->
+      Darklang.Cli.Workbench.BodyItem
+        { name = "row " ++ (Stdlib.Int.toString n)
+          kind = "sync-row"; isModule = false
+          desc = if n == 40 then "last activity" else "sync fact" })
+  let state =
+    { base with activeView = Darklang.Cli.Workbench.extViewIndex "sync"
+                items = items; selected = 0 }
+  let right = (wbKey state Stdlib.Cli.Stdin.Key.Key.RightArrow).state
+  let nav = (wbKey state Stdlib.Cli.Stdin.Key.Key.Tab).state
+  let back = (wbKey nav Stdlib.Cli.Stdin.Key.Key.Tab).state
+  // This used to focus an invisible preview and call the deleted syncDetail.
+  let down = (wbKey back Stdlib.Cli.Stdin.Key.Key.DownArrow).state
+  let bottom = (wbChar down "G").state
+  let top = (wbChar bottom "g").state
+  let frame (s: Darklang.Cli.Workbench.State) (width: Int) : String =
+    (Darklang.Cli.Workbench.viewAtSize s
+      (Stdlib.Cli.Tui.Size { width = width; height = 14 })).rows
+    |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
+    |> Stdlib.String.join "\n"
+  let visible =
+    [ 80, 120 ] |> Stdlib.List.all (fun width ->
+      (Stdlib.Bool.not (Stdlib.String.contains (frame state width) "last activity"))
+      && (Stdlib.String.contains (frame bottom width) "last activity"))
+  if (right.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+     && (Darklang.Cli.Workbench.navbarFocused nav)
+     && (back.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+     && (down.detailScroll == 1)
+     && (top.detailScroll == 0)
+     && visible
+  then TestResult.Pass
+  else TestResult.Fail "Sync must scroll all rows without focusing a preview"
+
+let testWorkbenchSyncStanding () : TestResult =
+  let main = Darklang.Cli.Workbench.SyncFacts
+    { relay = "http://local.test"; mainUnpushed = 7L; branchesUnpushed = [] }
+  let branch =
+    { main with mainUnpushed = 0L; branchesUnpushed = [ ("feature", 3L) ] }
+  let clean = { main with mainUnpushed = 0L }
+  let mainLabel = Darklang.Cli.Workbench.syncBranchStanding main "main" true
+  let branchLabel = Darklang.Cli.Workbench.syncBranchStanding branch "feature" false
+  let branchSummary = Darklang.Cli.Workbench.syncPushSummary branch
+  let disconnected = Darklang.Cli.Workbench.emptySyncFacts ()
+  if (Stdlib.String.contains mainLabel "7 op(s) not on the relay")
+     && (Stdlib.String.contains branchLabel "3 op(s) not on the relay")
+     && (Stdlib.String.contains branchSummary "1 branch")
+     && (Darklang.Cli.Workbench.syncPushSummary clean == "nothing to push")
+     && (Darklang.Cli.Workbench.syncPushSummary disconnected == "")
+  then TestResult.Pass
+  else TestResult.Fail "sync must distinguish channels and never infer pull status"
+
+let testWorkbenchBranchPicker () : TestResult =
+  let base = workbenchState ()
+  let opened = (wbChar base "S").state
+  let opens = match opened.overlay with | Branches _ -> true | _ -> false
+  let choices =
+    Stdlib.List.range 1 20 |> Stdlib.List.map (fun n ->
+      Darklang.Cli.Workbench.BranchChoice
+        { id = Darklang.SCM.Branch.mainBranchId
+          name = "branch-" ++ (Stdlib.Int.toString n); detail = "" })
+  let picker = Darklang.Cli.Workbench.BranchPicker
+    { choices = choices; field = Stdlib.Cli.UI.TextField.fromText ""; selected = 0 }
+  let state = { base with overlay = Darklang.Cli.Workbench.Overlay.Branches picker }
+  let paged = (wbKey state Stdlib.Cli.Stdin.Key.Key.PageDown).state
+  let typed = (wbChar paged "BRANCH-20").state
+  let matched =
+    match typed.overlay with
+    | Branches p ->
+      let names =
+        Darklang.Cli.Workbench.matchingBranches p |> Stdlib.List.map (fun b -> b.name)
+      (p.selected == 0) && (names == [ "branch-20" ])
+    | _ -> false
+  let missing = (wbChar typed "zzz").state
+  let enter = (wbKey missing Stdlib.Cli.Stdin.Key.Key.Enter).state
+  let noMatch =
+    match enter.overlay with
+    | Branches p -> Stdlib.List.isEmpty (Darklang.Cli.Workbench.matchingBranches p)
+    | _ -> false
+  let cancelled = (wbKey typed Stdlib.Cli.Stdin.Key.Key.Escape).state
+  let fromCode = (wbChar (wbChar base "2").state "S").state
+  let fromHome = (wbChar base "s").state
+  let isOpen (s: Darklang.Cli.Workbench.State) : Bool =
+    match s.overlay with | Branches _ -> true | _ -> false
+  if opens && matched && noMatch && (isOpen fromCode) && (isOpen fromHome)
+     && (cancelled.overlay == Darklang.Cli.Workbench.Overlay.NoOverlay)
+     && (cancelled.branchId == base.branchId)
+     && (cancelled.items == base.items)
+  then TestResult.Pass
+  else TestResult.Fail "picker must filter all branches, cancel and reject no matches"

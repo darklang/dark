@@ -3,79 +3,179 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-/// Move focus left: detail → list → sidebar when visible.
+/// Move focus left: detail → list. It stops there: the nav is above the
+/// body, not beside it, and esc, tab and ` all reach it.
 let focusLeft (state: State) : Step =
   if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
     Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
-  else if sidebarIsColumnNow () then
-    Step.Continue (focusSidebar state)
   else
     Step.Continue state
 
 /// Move focus from the list to an available detail pane.
 let focusRight (state: State) : Step =
-  if (state.focus == Stdlib.Cli.UI.SplitPane.Focus.First) && (Stdlib.Bool.not (Stdlib.List.isEmpty state.items)) then
+  if (hasDetailPane state) && (state.focus == Stdlib.Cli.UI.SplitPane.Focus.First) then
     Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
   else
     Step.Continue state
 
-/// Enter the selected Matter module.
+// ── Going back ──
+
+/// How many places esc remembers.
+val backCap = 50
+
+/// Where you are, as something to come back to.
+let returnPointOf (state: State) : ReturnPoint =
+  ReturnPoint
+    { view = state.activeView
+      location = state.location
+      lens = state.matter.lens
+      aiSection = state.ai.section
+      selected = state.selected
+      filter = state.filter }
+
+/// The only navigation transition: remember where you were once, restore
+/// all destination coordinates, then load and clamp its filtered list.
+/// Back navigation passes false so it cannot create a return trip of its own.
+let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : State =
+  let here = returnPointOf state
+  let back =
+    if recordHistory && (here != point) then
+      Stdlib.List.take (Stdlib.List.push state.back here) backCap
+    else state.back
+  let section = if point.view == vAI then aiSectionIndex point.aiSection else 0
+  let dest = mkDest point.view section
+  let ws = workspaceOf dest
+  let restored =
+    { state with
+        activeView = point.view
+        location = point.location
+        matter = { state.matter with lens = point.lens }
+        ai = { state.ai with section = point.aiSection }
+        filter = point.filter
+        detailScroll = 0
+        back = back
+        wsLast =
+          Stdlib.List.append
+            (state.wsLast |> Stdlib.List.filter (fun pair ->
+              let (i, _d) = pair in i != ws))
+            [ (ws, dest) ] }
+  let items = reloadItems restored
+  let selected =
+    Stdlib.Int.max 0
+      (Stdlib.Int.min point.selected ((Stdlib.List.length items) - 1))
+  focusContent (fixSelection { restored with items = items; selected = selected })
+
+/// What esc will return to, for the footer: the module you were in, or the
+/// view you came from; "" on Home with nowhere left to go.
+let backLabel (state: State) : String =
+  match state.back with
+  | [] -> if state.activeView == vHome then "" else "Home"
+  | p :: _ ->
+    if (p.view == state.activeView) && (p.view == vMatter) then
+      match Stdlib.List.last (modulePathOf p.location) with
+      | Some m -> if p.lens == state.matter.lens then m else "Tree"
+      | None -> "Tree"
+    else
+      // The strip's name for the view (Code, not Matter), so the hint reads like the nav.
+      match Stdlib.List.getAt workspaces (workspaceOf (mkDest p.view 0)) with
+      | Some w -> w.name
+      | None -> viewLabel p.view
+
+/// One step back: the most recent place, restored, with its list reloaded and
+/// the cursor where it was. With nothing remembered, Home; on Home, nothing.
+/// Never quits: that is `q`.
+let goBack (state: State) : Step =
+  match state.back with
+  | [] ->
+    if state.activeView == vHome then Step.Continue state
+    else
+      // The bottom of the stack: Home, without remembering the view just left, or esc would
+      // ping-pong between the two.
+      let moved = goTo state (mkDest vHome 0) false
+      Step.Continue { moved with back = [] }
+  | p :: rest ->
+    Step.Continue (moveToPoint { state with back = rest } p false)
+
+/// Enter a tree module, remembering its parent and cursor.
 let descend (state: State) : Step =
-  if state.activeView == vHome then Step.Continue state else
+  if state.activeView != vMatter then Step.Continue state else
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     if item.isModule then
-      let newPath = Stdlib.List.append (modulePathOf state.location) [ item.name ]
-      let newLoc = Packages.PackageLocation.Module newPath
-      Step.Continue
-        { state with
-            location = newLoc
-            items = loadItems state.branchId newLoc
+      let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
+      let point =
+        { (returnPointOf state) with
+            location = Packages.PackageLocation.Module path
+            lens = Lens.WholeTree
             selected = 0
-            detailScroll = 0
-            // The items we just loaded are unfiltered, so the filter has to go with them. Leaving it set
-            // made the title claim a filter that wasn't applied, and the next reload would then silently
-            // narrow the list under you.
             filter = "" }
-    else
-      Step.Continue state
+      Step.Continue (moveToPoint state point true)
+    else Step.Continue state
   | None -> Step.Continue state
 
+/// Backspace goes to the parent module; Escape follows navigation history.
 let ascend (state: State) : Step =
-  if state.activeView == vHome then Step.Continue state else
-  let path = modulePathOf state.location
-  match Stdlib.List.reverse path with
+  if state.activeView != vMatter then Step.Continue state else
+  match Stdlib.List.reverse (modulePathOf state.location) with
   | [] -> Step.Continue state
-  | _ :: revParent ->
-    let newPath = Stdlib.List.reverse revParent
-    let newLoc = Packages.PackageLocation.Module newPath
-    Step.Continue
-      { state with
-          location = newLoc
-          items = loadItems state.branchId newLoc
+  | _ :: parent ->
+    let point =
+      { (returnPointOf state) with
+          location = Packages.PackageLocation.Module (Stdlib.List.reverse parent)
+          lens = Lens.WholeTree
           selected = 0
           filter = "" }
+    Step.Continue (moveToPoint state point true)
 
 // ── Movement (shared by arrows + vim keys, so j/k/h/l/g/G mean the same as the arrows) ──
 
+/// The nearest selectable row to `from`, looking in `dir` (+1 / -1) past any
+/// section headers; `from` itself if it's selectable. Falls back to the other
+/// direction at the ends, so the cursor never sits on a header.
+let selectableRow (items: List<BodyItem>) (from: Int) (dir: Int) : Int =
+  let n = Stdlib.List.length items
+  let isOk (i: Int) : Bool =
+    match Stdlib.List.getAt items i with
+    | Some it -> Stdlib.Bool.not (isSectionHeader it)
+    | None -> false
+  let scan (i: Int) (step: Int) : Int =
+    if (i < 0) || (i >= n) then 0 - 1
+    else if isOk i then i
+    else scan (i + step) step
+  let forward = scan from dir
+  if forward >= 0 then forward
+  else
+    let back = scan from (0 - dir)
+    if back >= 0 then back else Stdlib.Int.max 0 (Stdlib.Int.min from (n - 1))
+
+/// Keep a sectioned list's cursor off its headers. Run on every transition
+/// (see `refresh`), so a reload that lands the cursor on a header - a commit
+/// empties the uncommitted section, say - moves it on. Other behaviors pass
+/// through untouched.
+let fixSelection (state: State) : State =
+  if Stdlib.Bool.not (isSectioned state) then state
+  else
+    let fixed = selectableRow state.items state.selected 1
+    if fixed == state.selected then state else { state with selected = fixed }
+
 /// Up: scroll the inspector when it's focused, else move the list selection up.
 let navUp (state: State) : Step =
-  if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
+  if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
     Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
   else
     let target = Stdlib.Int.max 0 (state.selected - 1)
-    // Home's section headers aren't rows: step over them (and stay put if
-    // there's nothing above).
+    // Section headers aren't rows: step over them (and stay put if there's
+    // nothing above).
     let landed =
-      if state.activeView == vHome then
-        let s = homeSelectable state.items target (0 - 1)
+      if isSectioned state then
+        let s = selectableRow state.items target (0 - 1)
         if s > state.selected then state.selected else s
       else target
     Step.Continue { state with selected = landed; detailScroll = 0 }
 
 /// Down: scroll the inspector when it's focused, else move the list selection down.
 let navDown (state: State) : Step =
-  if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
+  if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
     // Screen rows, not logical lines: a long line wraps to several, and bounding on the unwrapped count
     // stops the scroll before its tail is reachable.
     let maxScroll = Stdlib.Int.max 0 ((previewRowCount state) - 1)
@@ -84,20 +184,33 @@ let navDown (state: State) : Step =
     let maxIdx = (Stdlib.List.length state.items) - 1
     let target = Stdlib.Int.min maxIdx (state.selected + 1)
     let landed =
-      if state.activeView == vHome then
-        let s = homeSelectable state.items target 1
+      if isSectioned state then
+        let s = selectableRow state.items target 1
         if s < state.selected then state.selected else s
       else target
     Step.Continue { state with selected = landed; detailScroll = 0 }
 
 /// Jump to the top / bottom of the list (vim g / G).
 let navTop (state: State) : Step =
-  let top = if state.activeView == vHome then homeSelectable state.items 0 1 else 0
+  let top = if isSectioned state then selectableRow state.items 0 1 else 0
   Step.Continue { state with selected = top; detailScroll = 0 }
 
 let navBottom (state: State) : Step =
+  if isDocument state then
+    Step.Continue { state with detailScroll = Stdlib.Int.max 0 ((previewRowCount state) - 1) }
+  else
   let maxIdx = Stdlib.Int.max 0 ((Stdlib.List.length state.items) - 1)
   Step.Continue { state with selected = maxIdx; detailScroll = 0 }
+
+/// Page through a document using the same wrapped-row bounds as its renderer.
+let documentPage (state: State) (direction: Int) : Step =
+  if Stdlib.Bool.not (isDocument state) then Step.Continue state
+  else
+    let (_w, h) = Terminal.getSize ()
+    let page = Stdlib.Int.max 1 (h - 5)
+    let last = Stdlib.Int.max 0 ((previewRowCount state) - 1)
+    let scroll = Stdlib.Int.max 0 (Stdlib.Int.min last (state.detailScroll + direction * page))
+    Step.Continue { state with detailScroll = scroll }
 
 /// Open the full-screen reader on `content`. `isCode` toggles syntax highlighting (true for source, false for
 /// docs/help/search/ops). Resets scroll.
@@ -175,7 +288,7 @@ let toggleInstall (state: State) : Step =
     let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
     Step.Continue
       { state with
-          items = itemsForView vApps state.branchId state.location state.scm.section state.ai.section state.matter.lens
+          items = itemsForView vApps state.branchId state.location state.ai.section state.matter.lens
           message = msg }
   | None -> Step.Continue state
 
@@ -189,7 +302,7 @@ let runAppsSubcommand (state: State) (sub: String) : Step =
       classicState state
     let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub, app.slug ])
     let refreshed =
-      itemsForView vApps state.branchId state.location state.scm.section state.ai.section state.matter.lens
+      itemsForView vApps state.branchId state.location state.ai.section state.matter.lens
     let shown =
       if (Stdlib.String.trim out) == "" then $"apps {sub} {app.slug}\n\n(done)" else out
     openReader { state with items = refreshed } shown false
@@ -208,7 +321,13 @@ let runCommandInFrame (state: State) (command: String) (args: List<String>) : St
 
   // Forced, not compared: the command may have been a pull, which lands committed ops and other people's
   // conflicts without moving this branch's draft count.
-  openReader (forceScmRefresh state) shown false
+  let refreshed = forceScmRefresh state
+  // Sync's standing and activity changed with the command. Refresh the
+  // document now, so closing its output does not reveal the old facts.
+  let refreshed =
+    if isDocument refreshed then { refreshed with items = reloadItems refreshed }
+    else refreshed
+  openReader refreshed shown false
 
 
 /// `u`/`d` in the SCM view: push to the relay, pull from it, output in the reader.
@@ -248,10 +367,14 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
     |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == hit.name)
     |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
     |> Stdlib.Option.withDefault 0
-  // Through `goTo` so the sidebar and the workspace memory follow; then land
-  // on the leaf, which `goTo` can't know about (it reloads the list for the
-  // location it's given).
-  let moved = goTo { state with location = newLoc } (mkDest vMatter 0) false
+  let point =
+    { (returnPointOf state) with
+        view = vMatter
+        location = newLoc
+        lens = Lens.WholeTree
+        selected = idx
+        filter = "" }
+  let moved = moveToPoint state point true
   Step.Continue
     { moved with
         items = items

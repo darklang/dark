@@ -172,6 +172,7 @@ let executePush (state: AppState) (url: String) : AppState =
         Cli.printOk
           // The sync-multi-instance gate matches "^Pushed [1-9][0-9]* op" against this line.
           $"Pushed {Cli.Text.plural sent "op"}{newPart} to {url} as \"{id}\" (in {Cli.Text.plural (Stdlib.List.length chunks) "chunk"})."
+        recordActivity "pushed" $"{Cli.Text.plural sent "op"} to {url}"
 
         pushTailNotes url
 
@@ -187,6 +188,7 @@ let executePush (state: AppState) (url: String) : AppState =
         Cli.printHint
           $"  that was main. You're on \"{shown}\" -- `dark branch push {shown}` sends the branch."
     | Error e ->
+      recordActivity "push failed" $"{url}: {e}"
       Cli.printErr $"Push to {url} failed: {e}"
 
       // A failed push leaves the store untouched, so running it again is the whole recovery. Not said
@@ -415,6 +417,7 @@ let executePull (state: AppState) (url: String) : AppState =
 
           Cli.printOk
             $"Pulled {Stdlib.Int.toString total} new op(s) from {url} as \"{id}\"."
+          recordActivity "pulled" $"{Stdlib.Int.toString total} new op(s) from {url}"
 
           // The story, not just the number: the arriving commits' subjects ARE the answer to "what
           // changed since I left", and they are already local by now. Capped; the pull that catches
@@ -431,10 +434,16 @@ let executePull (state: AppState) (url: String) : AppState =
 
           reportDetection outcome.bulk outcome.detected
           reportConflicts outcome.conflicts
-        | Error e -> Cli.printErr $"Pull import failed: {e}"
+        | Error e ->
+          recordActivity "pull failed" $"import: {e}"
+          Cli.printErr $"Pull import failed: {e}"
       // Surface what the decoder said; see `executeImport`.
-      | Error e -> Cli.printErr $"Couldn't read what {url} sent: {e}"
-    | Error e -> Cli.printErr $"Pull from {url} failed: {e}"
+      | Error e ->
+        recordActivity "pull failed" $"unreadable reply from {url}: {e}"
+        Cli.printErr $"Couldn't read what {url} sent: {e}"
+    | Error e ->
+      recordActivity "pull failed" $"{url}: {e}"
+      Cli.printErr $"Pull from {url} failed: {e}"
 
   state
 
