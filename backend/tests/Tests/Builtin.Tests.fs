@@ -93,7 +93,8 @@ let private languageIdioms : Set<string> =
 
 /// Builtins called via infix operators rather than `Builtin.X` syntax.
 /// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName
-/// for binary ops; LibParser/Parser.fs lowers unary `-x` to Builtin.negate.
+/// for binary ops; LibParser/Parser.fs lowers the unary `-x`, `~x` and `!x`
+/// prefixes to Builtin.negate / bitwiseNot / boolNot.
 let private infixDispatched : Set<string> =
   Set.ofList
     [ // Polymorphic numeric operators
@@ -103,6 +104,13 @@ let private infixDispatched : Set<string> =
       "divide"
       "modulo"
       "power"
+      // Bitwise operators
+      "bitwiseAnd"
+      "bitwiseOr"
+      "bitwiseXor"
+      "bitwiseNot"
+      "shiftLeft"
+      "shiftRight"
       "greaterThan"
       "greaterThanOrEqualTo"
       "lessThan"

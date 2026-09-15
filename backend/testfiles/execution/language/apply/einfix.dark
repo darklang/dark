@@ -15,8 +15,8 @@ Stdlib.Int64.add 5L 3L = 8L
 -8L % 3L = 1L
 7.5 % 2.0 = 1.5
 -1.5 % 2.0 = 0.5
-2.0 ^ 3.0 = 8.0
-2L ^ 3L = 8L
+2.0 ** 3.0 = 8.0
+2L ** 3L = 8L
 2.5 < 3.5 = true
 5L >= 5L = true
 2y > 1y = true
@@ -36,21 +36,127 @@ Stdlib.Int64.add 5L 3L = 8L
 -9223372036854775808L / -1L = -9223372036854775808L
 -128y / -1y = -128y
 // Power overflow wraps around (two's complement)
-2L ^ 64L = 0L
-(-9223372036854775808L) ^ 64L = 0L
+2L ** 64L = 0L
+(-9223372036854775808L) ** 64L = 0L
 // Integer division by zero raises a clean RTE
 10L / 0L = error="Cannot divide by 0"
 // Float overflow follows IEEE (infinity), not an error
-2.0 ^ 100000.0 = Builtin.testInfinity
+2.0 ** 100000.0 = Builtin.testInfinity
 
-// `^` (power) works on every integer type and Float; Int128/UInt128 are unsupported
-2y ^ 3y = 8y
-3uy ^ 3uy = 27uy
-2l ^ 10l = 1024l
-2Q ^ 3Q = error="Cannot perform numeric operation on Int128 and Int128"
+// `**` (power) works on every integer type and Float; Int128/UInt128 are unsupported
+2y ** 3y = 8y
+3uy ** 3uy = 27uy
+2l ** 10l = 1024l
+2Q ** 3Q = error="Cannot perform numeric operation on Int128 and Int128"
 // unary `-` works on every signed integer type and Float
 -(Stdlib.Int8.add 2y 3y) = -5y
 -(Stdlib.Float.add 1.0 1.5) = -2.5
 5L + (Builtin.testRuntimeError "error") = error="Uncaught exception: error"
 (Builtin.testRuntimeError "error") + 5L = error="Uncaught exception: error"
 (Builtin.testRuntimeError "one") + (Builtin.testRuntimeError "two") = error="Uncaught exception: one"
+
+// ---------------------------------------------------------------------------
+// Bitwise operators: `&` `|` `^` `<<` `>>`, and unary `~`
+// ---------------------------------------------------------------------------
+
+// polymorphic over every integer type; both operands must be the same type
+12L & 10L = 8L
+12L | 10L = 14L
+12L ^ 10L = 6L
+12y & 10y = 8y
+12uy | 10uy = 14uy
+12s ^ 10s = 6s
+12us & 10us = 8us
+12l | 10l = 14l
+12ul ^ 10ul = 6ul
+12UL & 10UL = 8UL
+12Q | 10Q = 14Q
+12Z ^ 10Z = 6Z
+12 & 10 = 8
+12 | 10 = 14
+12 ^ 10 = 6
+
+// the shift COUNT is the same type as the value
+1L << 4L = 16L
+64L >> 3L = 8L
+1y << 2y = 4y
+128uy >> 7uy = 1uy
+1 << 100 = 1267650600228229401496703205376
+(1 << 100) >> 99 = 2
+
+// fixed-width shifts wrap; `Int` grows instead
+1L << 64L = 1L
+1uy << 8uy = 1uy
+
+// `Int` has no width to mask a count against, so an unusable one raises
+1 << -1 = error="Encountered out-of-range value for type of Int"
+1 >> -1 = error="Encountered out-of-range value for type of Int"
+
+// unary `~` is two's complement on every integer type
+~0L = -1L
+~5L = -6L
+~0uy = 255uy
+~0 = -1
+~(-1) = 0
+~(Stdlib.Int64.add 2L 3L) = -6L
+
+// bitwise operators reject Float
+1.0 & 2.0 = error="Cannot perform numeric operation on Float and Float"
+1.0 << 2.0 = error="Cannot perform numeric operation on Float and Float"
+~1.0 = error="Cannot perform numeric operation on Float and Float"
+
+// mixed widths are a type error, exactly as for the arithmetic operators
+1L & 2y = error="Cannot perform numeric operation on Int64 and Int8"
+1L << 2 = error="Cannot perform numeric operation on Int64 and Int"
+
+// precedence: bitwise binds TIGHTER than the comparisons (Python's order, not
+// C's), and looser than the arithmetic operators
+(12L & 10L) == 8L = true
+12L & 10L == 8L = true
+(1L | 6L) ^ (1L & 6L) = 7L
+1L | 6L ^ 1L & 6L = 7L
+1L << 1L + 1L = 4L
+12L | 4L & 5L = 12L
+~0L & 255L = 255L
+
+// left-associative, unlike `**`
+8L >> 1L >> 1L = 2L
+2 ** 3 ** 2 = 512
+
+// operator sections
+12L |> (&) 10L = 8L
+12L |> (|) 10L = 14L
+2 |> (**) 10 = 1024
+
+// ---------------------------------------------------------------------------
+// unary `!` is boolean not
+// ---------------------------------------------------------------------------
+!true = false
+!false = true
+!(Stdlib.Bool.and true false) = true
+// binds tighter than any infix operator, looser than application
+!true && true = false
+!true == false = true
+1L & 2L = 0L
+
+// ---------------------------------------------------------------------------
+// `|` vs the match-arm separator: inside a match, the ARM wins
+// ---------------------------------------------------------------------------
+(match 14L with
+ | 14L -> "matched"
+ | _ -> "no") = "matched"
+// single-line arms still parse
+(match 2L with | 1L -> "a" | 2L -> "b" | _ -> "c") = "b"
+// or-patterns still parse
+(match 3L with | 1L | 3L -> "a" | _ -> "b") = "a"
+// the SUBJECT is outside the arms, so `|` there is the operator
+(match 12L | 10L with | 14L -> "or-ed" | _ -> "no") = "or-ed"
+// in an arm body, parens (or any bracket) make it the operator again
+(match 1L with | 1L -> (12L | 3L) | _ -> 0L) = 15L
+(match 1L with | 1L -> [ 12L | 3L ] | _ -> []) = [ 15L ]
+// an arm body on its own row, indented past the arm column, needs no parens
+(match 1L with
+ | 1L ->
+   let z = 12L | 3L
+   z
+ | _ -> 0L) = 15L

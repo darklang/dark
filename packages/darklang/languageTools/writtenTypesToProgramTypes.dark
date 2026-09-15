@@ -320,6 +320,11 @@ module InfixFnName =
     | ArithmeticDivide -> ProgramTypes.InfixFnName.ArithmeticDivide
     | ArithmeticModulo -> ProgramTypes.InfixFnName.ArithmeticModulo
     | ArithmeticPower -> ProgramTypes.InfixFnName.ArithmeticPower
+    | BitwiseAnd -> ProgramTypes.InfixFnName.BitwiseAnd
+    | BitwiseOr -> ProgramTypes.InfixFnName.BitwiseOr
+    | BitwiseXor -> ProgramTypes.InfixFnName.BitwiseXor
+    | ShiftLeft -> ProgramTypes.InfixFnName.ShiftLeft
+    | ShiftRight -> ProgramTypes.InfixFnName.ShiftRight
     | ComparisonGreaterThan -> ProgramTypes.InfixFnName.ComparisonGreaterThan
     | ComparisonGreaterThanOrEqual ->
       ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual

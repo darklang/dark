@@ -255,6 +255,11 @@ type InfixFnName =
   | ArithmeticDivide
   | ArithmeticModulo
   | ArithmeticPower
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight
   | ComparisonGreaterThan
   | ComparisonGreaterThanOrEqual
   | ComparisonLessThan
@@ -504,6 +509,11 @@ module InfixFnName =
     | ArithmeticDivide -> "divide"
     | ArithmeticModulo -> "modulo"
     | ArithmeticPower -> "power"
+    | BitwiseAnd -> "bitwiseAnd"
+    | BitwiseOr -> "bitwiseOr"
+    | BitwiseXor -> "bitwiseXor"
+    | ShiftLeft -> "shiftLeft"
+    | ShiftRight -> "shiftRight"
     | ComparisonGreaterThan -> "greaterThan"
     | ComparisonGreaterThanOrEqual -> "greaterThanOrEqualTo"
     | ComparisonLessThan -> "lessThan"
@@ -520,6 +530,11 @@ module InfixFnName =
       ArithmeticDivide
       ArithmeticModulo
       ArithmeticPower
+      BitwiseAnd
+      BitwiseOr
+      BitwiseXor
+      ShiftLeft
+      ShiftRight
       ComparisonGreaterThan
       ComparisonGreaterThanOrEqual
       ComparisonLessThan
@@ -534,6 +549,12 @@ module InfixFnName =
 
   /// The unary-minus builtin the parser lowers `-x` (non-literal) to.
   let negateBuiltinName = "negate"
+
+  /// The unary `~` builtin the parser lowers bitwise NOT to.
+  let bitwiseNotBuiltinName = "bitwiseNot"
+
+  /// The unary `!` builtin the parser lowers boolean NOT to.
+  let boolNotBuiltinName = "boolNot"
 
 
 module Expr =

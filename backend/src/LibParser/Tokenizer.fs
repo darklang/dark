@@ -31,6 +31,7 @@ type Token =
   | TPlusPlus // ++ (string concatenation)
   | TMinus
   | TStar
+  | TStarStar // ** (exponentiation)
   | TSlash
   | TLParen
   | TRParen
@@ -75,9 +76,8 @@ type Token =
   | TShl // << (left shift)
   | TShr // >> (right shift)
   | TBitAnd // & (bitwise and)
-  | TBitOr // ||| (bitwise or)
-  | TBitXor // ^ (exponentiation in surface syntax; token name is legacy)
-  | TBitNot // ~~~ (bitwise not)
+  | TBitXor // ^ (bitwise xor)
+  | TBitNot // ~ (bitwise not)
   | TAt // @ (list append)
   | TIdent of string
   | TEOF

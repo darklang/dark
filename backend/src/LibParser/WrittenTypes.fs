@@ -49,6 +49,11 @@ and InfixFnName =
   | ArithmeticDivide
   | ArithmeticModulo
   | ArithmeticPower
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight
   | ComparisonGreaterThan
   | ComparisonGreaterThanOrEqual
   | ComparisonLessThan

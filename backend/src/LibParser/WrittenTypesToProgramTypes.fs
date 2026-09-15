@@ -114,6 +114,11 @@ module InfixFnName =
     | WT.ArithmeticDivide -> PT.ArithmeticDivide
     | WT.ArithmeticModulo -> PT.ArithmeticModulo
     | WT.ArithmeticPower -> PT.ArithmeticPower
+    | WT.BitwiseAnd -> PT.BitwiseAnd
+    | WT.BitwiseOr -> PT.BitwiseOr
+    | WT.BitwiseXor -> PT.BitwiseXor
+    | WT.ShiftLeft -> PT.ShiftLeft
+    | WT.ShiftRight -> PT.ShiftRight
     | WT.ComparisonGreaterThan -> PT.ComparisonGreaterThan
     | WT.ComparisonGreaterThanOrEqual -> PT.ComparisonGreaterThanOrEqual
     | WT.ComparisonLessThan -> PT.ComparisonLessThan

@@ -442,6 +442,179 @@ let fns () : List<BuiltInFn> =
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
+    // Bitwise operators.
+    { name = fn "bitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = varA
+      description = "Bitwise AND of two integers of the same type"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a &&& b))
+        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a &&& b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a &&& b))
+        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a &&& b))
+        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a &&& b))
+        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a &&& b))
+        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a &&& b))
+        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a &&& b))
+        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a &&& b))
+        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a &&& b))
+        | _, _, _, [| DInt a; DInt b |] ->
+          Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
+        | _, vm, _, [| a; b |] -> numericTypeError vm a b
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "bitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = varA
+      description = "Bitwise OR of two integers of the same type"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ||| b))
+        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a ||| b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ||| b))
+        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ||| b))
+        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a ||| b))
+        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a ||| b))
+        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a ||| b))
+        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a ||| b))
+        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a ||| b))
+        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a ||| b))
+        | _, _, _, [| DInt a; DInt b |] ->
+          Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
+        | _, vm, _, [| a; b |] -> numericTypeError vm a b
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "bitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = varA
+      description = "Bitwise XOR of two integers of the same type"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a ^^^ b))
+        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a ^^^ b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ^^^ b))
+        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a ^^^ b))
+        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a ^^^ b))
+        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a ^^^ b))
+        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a ^^^ b))
+        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a ^^^ b))
+        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a ^^^ b))
+        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a ^^^ b))
+        | _, _, _, [| DInt a; DInt b |] ->
+          Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
+        | _, vm, _, [| a; b |] -> numericTypeError vm a b
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    // Unary `~`. Two's complement, so `~x = -x - 1` on every signed type and on
+    // the arbitrary-precision `Int`.
+    { name = fn "bitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA "" ]
+      returnType = varA
+      description = "Bitwise NOT of an integer, {{~a}}"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a |] -> Ply(DInt8(~~~a))
+        | _, _, _, [| DUInt8 a |] -> Ply(DUInt8(~~~a))
+        | _, _, _, [| DInt16 a |] -> Ply(DInt16(~~~a))
+        | _, _, _, [| DUInt16 a |] -> Ply(DUInt16(~~~a))
+        | _, _, _, [| DInt32 a |] -> Ply(DInt32(~~~a))
+        | _, _, _, [| DUInt32 a |] -> Ply(DUInt32(~~~a))
+        | _, _, _, [| DInt64 a |] -> Ply(Dval.dint64 (~~~a))
+        | _, _, _, [| DUInt64 a |] -> Ply(DUInt64(~~~a))
+        // `~~~` isn't defined on the 128-bit types; call the op directly.
+        | _, _, _, [| DInt128 a |] -> Ply(DInt128(System.Int128.op_OnesComplement a))
+        | _, _, _, [| DUInt128 a |] ->
+          Ply(DUInt128(System.UInt128.op_OnesComplement a))
+        | _, _, _, [| DInt a |] ->
+          Ply(Dval.int (-(DarkInt.toBigInt a) - System.Numerics.BigInteger.One))
+        | _, vm, _, [| a |] -> numericTypeError vm a a
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "shiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = varA
+      description = "Bitwise left shift of an integer by <param b> bits"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a <<< int b))
+        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a <<< int b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a <<< int b))
+        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a <<< int b))
+        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a <<< int b))
+        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a <<< int b))
+        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a <<< int b))
+        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a <<< int b))
+        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a <<< int b))
+        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a <<< int b))
+        | _, vm, _, [| DInt a; DInt b |] ->
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a <<< shift))
+        | _, vm, _, [| a; b |] -> numericTypeError vm a b
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "shiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      returnType = varA
+      description = "Bitwise right shift of an integer by <param b> bits"
+      fn =
+        (function
+        | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a >>> int b))
+        | _, _, _, [| DUInt8 a; DUInt8 b |] -> Ply(DUInt8(a >>> int b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a >>> int b))
+        | _, _, _, [| DUInt16 a; DUInt16 b |] -> Ply(DUInt16(a >>> int b))
+        | _, _, _, [| DInt32 a; DInt32 b |] -> Ply(DInt32(a >>> int b))
+        | _, _, _, [| DUInt32 a; DUInt32 b |] -> Ply(DUInt32(a >>> int b))
+        | _, _, _, [| DInt64 a; DInt64 b |] -> Ply(Dval.dint64 (a >>> int b))
+        | _, _, _, [| DUInt64 a; DUInt64 b |] -> Ply(DUInt64(a >>> int b))
+        | _, _, _, [| DInt128 a; DInt128 b |] -> Ply(DInt128(a >>> int b))
+        | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a >>> int b))
+        | _, vm, _, [| DInt a; DInt b |] ->
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a >>> shift))
+        | _, vm, _, [| a; b |] -> numericTypeError vm a b
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
 
 
     { name = fn "greaterThan" 0

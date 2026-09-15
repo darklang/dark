@@ -14,8 +14,8 @@
 
 // --- demotion: a big-arithmetic result that fits Int64 collapses to small ---
 9223372036854775808 - 1 = 9223372036854775807
-(2 ^ 100) - (2 ^ 100) = 0
-(2 ^ 100) / (2 ^ 100) = 1
+(2 ** 100) - (2 ** 100) = 0
+(2 ** 100) / (2 ** 100) = 1
 
 // --- normalization: a promoted-then-demoted result equals the small literal ---
 // (this is the property that fails if a small value is left as the big rep)
@@ -23,14 +23,14 @@
 9223372036854775807 == (9223372036854775806 + 1) = true
 
 // --- equality and ordering across representations ---
-(2 ^ 64) == (2 ^ 64) = true
+(2 ** 64) == (2 ** 64) = true
 9223372036854775808 > 5 = true
 5 < 9223372036854775808 = true
 9223372036854775808 == 5 = false
 
 // --- arithmetic correctness at scale ---
-2 ^ 64 = 18446744073709551616
-2 ^ 200
+2 ** 64 = 18446744073709551616
+2 ** 200
   = 1606938044258990275541962092341162602522202993782792835301376
 
 // --- round-trips (stringify / parse / Int64 conversions) ---
@@ -65,11 +65,11 @@ Stdlib.Int.fromUInt128 340282366920938463463374607431768211455Z =
 Stdlib.Int.toInt8 100 = Stdlib.Option.Option.Some 100y
 Stdlib.Int.toInt8 200 = Stdlib.Option.Option.None
 Stdlib.Int.toUInt8 (Stdlib.Int.negate 1) = Stdlib.Option.Option.None
-Stdlib.Int.toInt32 (2 ^ 40) = Stdlib.Option.Option.None
-Stdlib.Int.toInt128 (2 ^ 100) =
+Stdlib.Int.toInt32 (2 ** 40) = Stdlib.Option.Option.None
+Stdlib.Int.toInt128 (2 ** 100) =
   Stdlib.Option.Option.Some 1267650600228229401496703205376Q
-Stdlib.Int.toInt128 (2 ^ 200) = Stdlib.Option.Option.None
-Stdlib.Int.toUInt128 (2 ^ 200) = Stdlib.Option.Option.None
+Stdlib.Int.toInt128 (2 ** 200) = Stdlib.Option.Option.None
+Stdlib.Int.toUInt128 (2 ** 200) = Stdlib.Option.Option.None
 
 // --- fromFloat: truncates toward zero; NaN/Infinity have no Int, so OutOfRange ---
 Stdlib.Int.fromFloat 3.9 = 3
@@ -90,7 +90,7 @@ Stdlib.Int.remainder -20 -8 = Stdlib.Result.Result.Ok -4
 Stdlib.Int.remainder -15 6 = Stdlib.Result.Result.Ok -3
 Stdlib.Int.remainder 5 0 = Stdlib.Result.Result.Error "Cannot divide by 0"
 // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
-Stdlib.Int.remainder (2 ^ 100) 7 = Stdlib.Result.Result.Ok 2
+Stdlib.Int.remainder (2 ** 100) 7 = Stdlib.Result.Result.Ok 2
 
 // --- mod: wraps into [0, b); RTE if b <= 0 ---
 Stdlib.Int.mod 15 5 = 0
@@ -98,7 +98,7 @@ Stdlib.Int.mod 15 6 = 3
 Stdlib.Int.mod 0 15 = 0
 Stdlib.Int.mod -1 2 = 1
 Stdlib.Int.mod -754 53 = 41
-Stdlib.Int.mod (2 ^ 100) 7 = 2
+Stdlib.Int.mod (2 ** 100) 7 = 2
 Stdlib.Int.mod 5 0 = error="Cannot evaluate modulus against 0"
 Stdlib.Int.mod 5 -5 = error="Cannot evaluate modulus against a negative number"
 
@@ -111,7 +111,7 @@ Stdlib.Int.mod 5 -5 = error="Cannot evaluate modulus against a negative number"
 Stdlib.Int.shiftLeft 1 4 = 16
 Stdlib.Int.shiftLeft 1 64 = 18446744073709551616
 Stdlib.Int.shiftRight 256 4 = 16
-Stdlib.Int.shiftLeft 1 (2 ^ 40) =
+Stdlib.Int.shiftLeft 1 (2 ** 40) =
   error="Encountered out-of-range value for type of Int"
-Stdlib.Int.shiftRight 1 (2 ^ 40) =
+Stdlib.Int.shiftRight 1 (2 ** 40) =
   error="Encountered out-of-range value for type of Int"

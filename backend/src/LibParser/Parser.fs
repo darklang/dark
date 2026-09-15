@@ -8,6 +8,7 @@ open LibParser.Lexer // SpannedToken, tokenize
 
 module WT = LibParser.WrittenTypes
 module Validation = LibParser.Validation
+module PT = LibExecution.ProgramTypes
 
 type DiagnosticSeverity =
   | DiagError
@@ -72,7 +73,12 @@ let private infixOf (t : Token) : WT.Infix option =
   | TGte -> Some(WT.InfixFnCall WT.ComparisonGreaterThanOrEqual)
   | TAnd -> Some(WT.BinOp WT.BinOpAnd)
   | TOr -> Some(WT.BinOp WT.BinOpOr)
-  | TBitXor -> Some(WT.InfixFnCall WT.ArithmeticPower) // `^` is exponentiation in surface syntax
+  | TStarStar -> Some(WT.InfixFnCall WT.ArithmeticPower)
+  | TBitAnd -> Some(WT.InfixFnCall WT.BitwiseAnd)
+  | TBar -> Some(WT.InfixFnCall WT.BitwiseOr)
+  | TBitXor -> Some(WT.InfixFnCall WT.BitwiseXor)
+  | TShl -> Some(WT.InfixFnCall WT.ShiftLeft)
+  | TShr -> Some(WT.InfixFnCall WT.ShiftRight)
   | _ -> None
 
 // The one definition of "an integer-literal token" — `canStartAtom` and
@@ -103,6 +109,7 @@ let private isIntLit (t : Token) : bool =
   | TPlusPlus
   | TMinus
   | TStar
+  | TStarStar
   | TSlash
   | TLParen
   | TRParen
@@ -147,7 +154,6 @@ let private isIntLit (t : Token) : bool =
   | TShl
   | TShr
   | TBitAnd
-  | TBitOr
   | TBitXor
   | TBitNot
   | TAt
@@ -168,7 +174,11 @@ let private canStartAtom (t : Token) : bool =
       | TLBracket
       // a record/anonymous-record/update `{ … }` can be a function argument, e.g.
       // `parseArgs tail { acc with port = p }`
-      | TLBrace -> true
+      | TLBrace
+      // prefix `!`/`~`: `f !x` is `f (!x)`. Unambiguous — neither token has an
+      // infix reading, and `!=` lexes as one token, so `a != b` is untouched.
+      | TNot
+      | TBitNot -> true
       | _ -> false)
 
 // `TMinus` is included so a negative-literal enum-pattern field (`| Ok -4y ->`)
@@ -224,6 +234,10 @@ type ParserState =
     tokenCount : int // = toks.Length, cached (read on every bounds check)
     diagnostics : System.Collections.Generic.List<Diagnostic> // parse errors collected during recovery
     scopes : System.Collections.Generic.Stack<OffsideScope> // offside anchor stack (a frame per let/if/match/paren body)
+    // `|` is both bitwise-or and the match-arm separator. Each anchor records an
+    // enclosing match's arm row and column so `barStartsArm` leaves arm-position
+    // bars for `parseMatch`. Regions where an arm cannot start clear the anchors.
+    mutable matchArms : List<int * int>
     // Closing a nested generic like `Dict<List<Int>>` ends in `>>`, which the
     // lexer produces as ONE token but which must close TWO levels. Closing the
     // inner `List<Int>` uses only the first `>`, so the second is "left over"
@@ -657,11 +671,34 @@ let withStmtScope (state : ParserState) (col : int) (f : unit -> 'a) : 'a =
     f ()
   finally
     state.scopes.Pop() |> ignore
+
+/// Would a `|` at `i` start a match arm rather than continue an expression?
+/// True when it sits on the arm row or at the arm column of ANY enclosing
+/// match -- a `|` less indented than the innermost match belongs to an outer
+/// one, and must not be eaten as an operator either.
+let barStartsArm (state : ParserState) (i : int) : bool =
+  match state.matchArms with
+  | [] -> false
+  | arms ->
+    let r = rng state i
+    arms
+    |> List.exists (fun (armRow, armCol) ->
+      r.start.row = armRow || r.start.column = armCol)
+
+/// Run `f` without enclosing match-arm anchors, where `|` can only be an operator.
+let withoutMatchArms (state : ParserState) (f : unit -> 'a) : 'a =
+  let saved = state.matchArms
+  state.matchArms <- []
+  try
+    f ()
+  finally
+    state.matchArms <- saved
+
 // fresh scope; statement anchor inherited (managed per-element by `f`)
 let withElementScope (state : ParserState) (f : unit -> 'a) : 'a =
   state.scopes.Push { stmtCol = state.scopes.Peek().stmtCol; stmtExact = false }
   try
-    f ()
+    withoutMatchArms state f
   finally
     state.scopes.Pop() |> ignore
 // re-anchor the statement column within the CURRENT scope as a
@@ -673,7 +710,7 @@ let withStmtColExact (state : ParserState) (col : int) (f : unit -> 'a) : 'a =
   s.stmtCol <- col
   s.stmtExact <- true
   try
-    f ()
+    withoutMatchArms state f
   finally
     s.stmtCol <- savedCol
     s.stmtExact <- savedExact
@@ -919,32 +956,42 @@ and parseMatch (state : ParserState) (i : int) : WT.Expr * int =
   let armRow =
     if tok state afterWith = TBar then (rng state afterWith).start.row else -1
   let mutable k = afterWith
-  while (tok state k = TBar
-         && ((rng state k).start.row = armRow || (rng state k).start.column = armCol)) do
-    let barR = rng state k
-    let (pat, k2) = parseMatchPattern state (k + 1)
-    let (whenCond, k3) =
-      if tok state k2 = TWhen then
-        let whenR = rng state k2
-        let (g, kg) = parseExpr state (k2 + 1)
-        (Some(whenR, g), kg)
-      else
-        (None, k2)
-    let (arrowR, k4) =
-      if tok state k3 = TArrow then
-        (rng state k3, k3 + 1)
-      else
-        errExpected state k3 "'->' in match case"
-        (zeroWidthAtEnd (rng state k3), k3)
-    let (rhs, k5) = parseBlock state k4
-    cases.Add(
-      { barRange = barR
-        pat = pat
-        arrowRange = arrowR
-        whenCondition = whenCond
-        rhs = rhs }
-    )
-    if k5 > k then k <- k5 else k <- k + 1
+  // While the arm BODIES are parsed, a `|` on this match's arm row or at its
+  // arm column is an arm separator, not the bitwise-or operator. The subject
+  // expression above is parsed outside the anchor, where `|` is still an
+  // operator (`match a | b with …`).
+  let savedArms = state.matchArms
+  state.matchArms <- (armRow, armCol) :: savedArms
+  try
+    while (tok state k = TBar
+           && ((rng state k).start.row = armRow
+               || (rng state k).start.column = armCol)) do
+      let barR = rng state k
+      let (pat, k2) = parseMatchPattern state (k + 1)
+      let (whenCond, k3) =
+        if tok state k2 = TWhen then
+          let whenR = rng state k2
+          let (g, kg) = parseExpr state (k2 + 1)
+          (Some(whenR, g), kg)
+        else
+          (None, k2)
+      let (arrowR, k4) =
+        if tok state k3 = TArrow then
+          (rng state k3, k3 + 1)
+        else
+          errExpected state k3 "'->' in match case"
+          (zeroWidthAtEnd (rng state k3), k3)
+      let (rhs, k5) = parseBlock state k4
+      cases.Add(
+        { barRange = barR
+          pat = pat
+          arrowRange = arrowR
+          whenCondition = whenCond
+          rhs = rhs }
+      )
+      if k5 > k then k <- k5 else k <- k + 1
+  finally
+    state.matchArms <- savedArms
   if cases.Count = 0 then
     errExpected state afterWith "at least one match case starting with '|'"
   let endR = if cases.Count > 0 then WT.exprRange (Seq.last cases).rhs else kwWith
@@ -1473,10 +1520,13 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
 // --- infix expressions: one precedence-climbing loop ---
 // Binding powers, loosest → tightest (higher binds tighter); a right-assoc
 // op recurses at its own power so it nests to the right.
-//   1 `||`   2 `&&`   3 `== != < > <= >=`   4 `@` (right)
-//   5 `+ - ++`   6 `* / %`   7 `^` (right)
-// `@` desugars to `Stdlib.List.append` (there is no WT infix for it); `^` is
-// exponentiation (lexed as TBitXor) and nests right: `2^3^2 = 2^(3^2)`.
+//   1 `||`   2 `&&`   3 `== != < > <= >=`   4 `|`   5 `^`   6 `&`
+//   7 `<< >>`   8 `@` (right)   9 `+ - ++`   10 `* / %`   11 `**` (right)
+// The bitwise levels follow Python's order rather than C's: they bind TIGHTER
+// than the comparisons, so `a & b == c` is `(a & b) == c` and not C's
+// `a & (b == c)`. Every pre-existing operator keeps its relative position.
+// `@` desugars to `Stdlib.List.append` (there is no WT infix for it); `**` is
+// exponentiation and nests right: `2 ** 3 ** 2 = 2 ** (3 ** 2)`.
 and infixBindingPower (t : Token) : (int * bool) option =
   match t with
   | TOr -> Some(1, false)
@@ -1487,14 +1537,19 @@ and infixBindingPower (t : Token) : (int * bool) option =
   | TGt
   | TLte
   | TGte -> Some(3, false)
-  | TAt -> Some(4, true)
+  | TBar -> Some(4, false)
+  | TBitXor -> Some(5, false)
+  | TBitAnd -> Some(6, false)
+  | TShl
+  | TShr -> Some(7, false)
+  | TAt -> Some(8, true)
   | TPlus
   | TMinus
-  | TPlusPlus -> Some(5, false)
+  | TPlusPlus -> Some(9, false)
   | TStar
   | TSlash
-  | TPercent -> Some(6, false)
-  | TBitXor -> Some(7, true)
+  | TPercent -> Some(10, false)
+  | TStarStar -> Some(11, true)
   | _ -> None
 
 and parseInfix (state : ParserState) (i : int) : WT.Expr * int =
@@ -1528,6 +1583,9 @@ and parseInfixRhs
           elif tok state j = TMinus then col > so
           else col >= so)
     match infixBindingPower (tok state j) with
+    // A `|` belonging to an enclosing match is that match's arm separator, not
+    // bitwise-or; leave it for `parseMatch`.
+    | Some _ when tok state j = TBar && barStartsArm state j -> go <- false
     | Some(bp, rightAssoc) when bp >= minBp && opContinues ->
       let opTok = tok state j
       let opRange = rng state j
@@ -1594,6 +1652,28 @@ and parseCtorParenFields
     // `Ctor()` is `Ctor` applied to unit — one unit field, not zero
     if sink.Count = 0 then sink.Add(WT.EUnit(span openParen (rng state (m - 1))))
     m)
+
+// A prefix operator: `op operand` → `Builtin.<name> operand`, with the operand
+// parsed as a whole APPLICATION so `op f x` is `op (f x)`. Shared by `!`, `~`
+// and the non-literal case of unary `-`.
+and parsePrefixBuiltin
+  (state : ParserState)
+  (i : int)
+  (builtinName : string)
+  : WT.Expr * int =
+  let (operand, k) = parseApp state (i + 1)
+  let opR = rng state i
+  let builtinFn : WT.QualifiedFnIdentifier =
+    { range = opR
+      modules = [ ({ range = opR; name = "Builtin" }, opR) ]
+      fn = { range = opR; name = builtinName } }
+  (WT.EApply(
+    span opR (WT.exprRange operand),
+    WT.EFnName(opR, builtinFn),
+    [],
+    [ operand ]
+   ),
+   k)
 
 // space application: `f a b`
 and parseApp (state : ParserState) (i : int) : WT.Expr * int =
@@ -1914,19 +1994,7 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       // applied to the whole application, so `-f x` groups as `-(f x)`, not `(-f) x`
       // (minus binds looser than application). Infix ops still bind looser than the
       // minus: `-a + b` is `(-a) + b`, since `+` can't start an application arg.
-      let (operand, k) = parseApp state (i + 1)
-      let negR = rng state i
-      let negateFn : WT.QualifiedFnIdentifier =
-        { range = negR
-          modules = [ ({ range = negR; name = "Builtin" }, negR) ]
-          fn = { range = negR; name = "negate" } }
-      (WT.EApply(
-        span negR (WT.exprRange operand),
-        WT.EFnName(negR, negateFn),
-        [],
-        [ operand ]
-       ),
-       k)
+      parsePrefixBuiltin state i PT.InfixFnName.negateBuiltinName
   | TFloat v ->
     let r = rng state i
     let (whole, frac) = floatParts state i v
@@ -2105,14 +2173,12 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         { range = z; modules = []; typ = { range = z; name = "" }; typeArgs = [] }
       parseRecord state emptyType (rng state i) i
     | _ -> parseRecordUpdate state i
-  // TODO: Support these reserved operators once their precedence and
-  // polymorphic numeric/Bool dispatch are defined end to end.
-  | TShl
-  | TShr
-  | TBitAnd
-  | TBitOr
-  | TBitNot
-  | TNot
+  // Prefix `!` (boolean NOT) and `~` (bitwise NOT). Shaped exactly like unary
+  // minus on a non-literal: the operand is a whole APPLICATION, so `!f x` is
+  // `!(f x)`, and infix operators still bind looser (`!a && b` is `(!a) && b`,
+  // since `&&` cannot start an application argument).
+  | TNot -> parsePrefixBuiltin state i PT.InfixFnName.boolNotBuiltinName
+  | TBitNot -> parsePrefixBuiltin state i PT.InfixFnName.bitwiseNotBuiltinName
   | TDotDotDot ->
     err
       state
@@ -3209,6 +3275,7 @@ and parseTokensAt
       tokenCount = toks.Length
       diagnostics = System.Collections.Generic.List<Diagnostic>()
       scopes = scopes
+      matchArms = []
       pendingGt = 0
       pendingGtRange =
         { start = { row = 0; column = 0 }; end_ = { row = 0; column = 0 } }

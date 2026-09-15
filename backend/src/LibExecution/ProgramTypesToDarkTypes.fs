@@ -578,6 +578,11 @@ module InfixFnName =
       | PT.ArithmeticDivide -> "ArithmeticDivide", []
       | PT.ArithmeticModulo -> "ArithmeticModulo", []
       | PT.ArithmeticPower -> "ArithmeticPower", []
+      | PT.BitwiseAnd -> "BitwiseAnd", []
+      | PT.BitwiseOr -> "BitwiseOr", []
+      | PT.BitwiseXor -> "BitwiseXor", []
+      | PT.ShiftLeft -> "ShiftLeft", []
+      | PT.ShiftRight -> "ShiftRight", []
       | PT.ComparisonGreaterThan -> "ComparisonGreaterThan", []
       | PT.ComparisonGreaterThanOrEqual -> "ComparisonGreaterThanOrEqual", []
       | PT.ComparisonLessThan -> "ComparisonLessThan", []
@@ -596,6 +601,11 @@ module InfixFnName =
     | DEnum(_, _, [], "ArithmeticDivide", []) -> PT.ArithmeticDivide
     | DEnum(_, _, [], "ArithmeticModulo", []) -> PT.ArithmeticModulo
     | DEnum(_, _, [], "ArithmeticPower", []) -> PT.ArithmeticPower
+    | DEnum(_, _, [], "BitwiseAnd", []) -> PT.BitwiseAnd
+    | DEnum(_, _, [], "BitwiseOr", []) -> PT.BitwiseOr
+    | DEnum(_, _, [], "BitwiseXor", []) -> PT.BitwiseXor
+    | DEnum(_, _, [], "ShiftLeft", []) -> PT.ShiftLeft
+    | DEnum(_, _, [], "ShiftRight", []) -> PT.ShiftRight
     | DEnum(_, _, [], "ComparisonGreaterThan", []) -> PT.ComparisonGreaterThan
     | DEnum(_, _, [], "ComparisonGreaterThanOrEqual", []) ->
       PT.ComparisonGreaterThanOrEqual

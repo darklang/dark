@@ -24,7 +24,9 @@ let content () : String =
 
 ## Operator errors
   - Numeric operators require matching numeric operand types
-  - Integer / and ^ can raise out-of-range runtime errors
+  - Integer / and ** can raise out-of-range runtime errors
+  - Bitwise operators (& | ^ << >> ~) are integer-only; a Float operand is an error
+  - Inside a match arm, `|` is the arm separator: write `| A -> (a | b)`
   - List concat: use Stdlib.List.append
 
 ## Enum errors

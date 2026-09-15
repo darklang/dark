@@ -1276,7 +1276,10 @@ let private recoveryTests =
   testList
     "recovery"
     [ testCase "reserved expression syntax diagnoses explicitly" (fun _ ->
-        for source in [ "<<"; ">>"; "&"; "|||"; "~~~"; "!"; "..." ] do
+        // `<<`, `>>`, `&`, `|`, `^` and `~` used to be here; they are real
+        // operators now. `...` is the only token left that is reserved and
+        // still unsupported.
+        for source in [ "..." ] do
           Expect.exists
             (P.parse source).diagnostics
             (fun diagnostic ->
@@ -1826,16 +1829,28 @@ let private internalUnitTests =
           Expect.isTrue (bp Tok.TAnd < bp Tok.TEqEq) "&& looser than =="
           Expect.isTrue (bp Tok.TEqEq < bp Tok.TPlus) "== looser than +"
           Expect.isTrue (bp Tok.TPlus < bp Tok.TStar) "+ looser than *"
-          Expect.isTrue (bp Tok.TStar < bp Tok.TBitXor) "* looser than ^"
+          Expect.isTrue (bp Tok.TStar < bp Tok.TStarStar) "* looser than **"
+          // The bitwise levels sit BETWEEN the comparisons and `+`, in Python's
+          // order rather than C's: `a & b == c` is `(a & b) == c`.
+          Expect.isTrue (bp Tok.TEqEq < bp Tok.TBar) "== looser than |"
+          Expect.isTrue (bp Tok.TBar < bp Tok.TBitXor) "| looser than ^"
+          Expect.isTrue (bp Tok.TBitXor < bp Tok.TBitAnd) "^ looser than &"
+          Expect.isTrue (bp Tok.TBitAnd < bp Tok.TShl) "& looser than <<"
+          Expect.equal (bp Tok.TShl) (bp Tok.TShr) "<< and >> bind equally"
+          Expect.isTrue (bp Tok.TShl < bp Tok.TPlus) "<< looser than +"
           // right-assoc ops
           Expect.equal
             (P.infixBindingPower Tok.TAt |> Option.map snd)
             (Some true)
             "@ is right-assoc"
           Expect.equal
-            (P.infixBindingPower Tok.TBitXor |> Option.map snd)
+            (P.infixBindingPower Tok.TStarStar |> Option.map snd)
             (Some true)
-            "^ is right-assoc")
+            "** is right-assoc"
+          Expect.equal
+            (P.infixBindingPower Tok.TBitXor |> Option.map snd)
+            (Some false)
+            "^ (xor) is left-assoc")
       testCase "a parse constructs fresh state (no cross-parse leakage)" (fun _ ->
         // parse something that leaves pendingGt / scopes in interesting states,
         // then confirm an unrelated parse is unaffected

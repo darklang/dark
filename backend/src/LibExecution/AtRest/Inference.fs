@@ -33,12 +33,23 @@ let private isNumeric (typ : StaticType) : bool =
   | TFloat -> true
   | _ -> false
 
+/// Bitwise operators are defined only for integer operands.
+let private isBitwise (operation : InfixFnName) : bool =
+  match operation with
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight -> true
+  | _ -> false
+
 let private supportsNumericOperation
   (operation : InfixFnName)
   (typ : StaticType)
   : bool =
   match operation, typ with
   | ArithmeticPower, (TInt128 | TUInt128) -> false
+  | _, TFloat when isBitwise operation -> false
   | _ -> isNumeric typ
 
 let rec internal isNonExpansive (expr : Expr) : bool =
@@ -526,7 +537,12 @@ and internal inferInfix
     | ArithmeticMultiply
     | ArithmeticDivide
     | ArithmeticModulo
-    | ArithmeticPower -> lhsType
+    | ArithmeticPower
+    | BitwiseAnd
+    | BitwiseOr
+    | BitwiseXor
+    | ShiftLeft
+    | ShiftRight -> lhsType
     | ComparisonEquals
     | ComparisonNotEquals
     | StringConcat -> Exception.raiseInternal "Handled above" []

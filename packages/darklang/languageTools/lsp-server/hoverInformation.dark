@@ -1137,6 +1137,41 @@ let collectInfixFnNameHoverInfoAtPos
     (hoverInfoForThingAtPosition ctx thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
+  | BitwiseAnd ->
+    let thingAtPosition =
+      CursorPosition.ThingAtPosition.Operator("Bitwise and")
+
+    (hoverInfoForThingAtPosition ctx thingAtPosition range)
+    |> Stdlib.Option.Option.Some
+
+  | BitwiseOr ->
+    let thingAtPosition =
+      CursorPosition.ThingAtPosition.Operator("Bitwise or")
+
+    (hoverInfoForThingAtPosition ctx thingAtPosition range)
+    |> Stdlib.Option.Option.Some
+
+  | BitwiseXor ->
+    let thingAtPosition =
+      CursorPosition.ThingAtPosition.Operator("Bitwise xor")
+
+    (hoverInfoForThingAtPosition ctx thingAtPosition range)
+    |> Stdlib.Option.Option.Some
+
+  | ShiftLeft ->
+    let thingAtPosition =
+      CursorPosition.ThingAtPosition.Operator("Bitwise left shift")
+
+    (hoverInfoForThingAtPosition ctx thingAtPosition range)
+    |> Stdlib.Option.Option.Some
+
+  | ShiftRight ->
+    let thingAtPosition =
+      CursorPosition.ThingAtPosition.Operator("Bitwise right shift")
+
+    (hoverInfoForThingAtPosition ctx thingAtPosition range)
+    |> Stdlib.Option.Option.Some
+
   | ComparisonGreaterThan ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison greater than")

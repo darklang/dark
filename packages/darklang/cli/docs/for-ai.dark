@@ -236,10 +236,14 @@ Rules:
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
-- Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
+- Numeric operators (+ - * / % ** < > <= >= and unary -) are polymorphic over
   numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
-  division on ints; float division on floats. A bare `1` is an arbitrary-
-  precision `Int` and never overflows.
+  division on ints; float division on floats. `**` is power. A bare `1` is an
+  arbitrary-precision `Int` and never overflows.
+- Bitwise operators (& | ^ << >> and unary ~) work on every integer type, not
+  Float; both operands (the shift count included) must be the same type.
+- `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
+  there needs parens: `| A -> (a | b)`.
 
 ## Records
   MyRecord { a = 1; b = 2 }
