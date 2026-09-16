@@ -1,5 +1,5 @@
 /// The generic frame primitives every view mounts into (scrollable lines,
-/// boxed lines, the list+preview split, the selection row), plus the
+/// the titled pane and the list+preview split, the selection row), plus the
 /// full-screen reader. Home lives in home.dark.
 ///
 /// Part of `Darklang.Cli.Workbench`.
@@ -63,7 +63,7 @@ let renderScrollableLines
 
 /// How wide the tree pane should be, as a percent of the body, for the items currently in it.
 ///
-/// Sized to the longest name plus its cursor, glyph, badges and borders, then held between a floor and
+/// Sized to the longest name plus its cursor, glyph, badges and inset, then held between a floor and
 /// a ceiling. The tree is a column of short names; the Inspect pane is where the text that needs room
 /// actually goes, so any column the tree doesn't need belongs to it.
 let matterSplitFor (state: State) : Int =
@@ -75,8 +75,12 @@ let matterSplitFor (state: State) : Int =
     |> Stdlib.List.map (fun i -> Stdlib.String.displayWidth i.name)
     |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
 
-  // cursor (2) + glyph (2) + space (1) + trailing `/` and badges (4) + both borders (2)
-  let needed = longest + 11
+  // cursor (2) + glyph (2) + space (1) + trailing `/` and badges (4) + the inset and rule (2)
+  let forNames = longest + 11
+  // The title on the edge is the module path, which outgrows the names under it: `Feriel ›
+  // ModelContextProtocol` over one short child. Room for it and its count too.
+  let pathWidth = Stdlib.String.displayWidth (Stdlib.String.join (modulePathOf state.location) " › ")
+  let needed = Stdlib.Int.max forNames (pathWidth + 10)
   let pct = Stdlib.Int.divide (needed * 100) w
 
   Stdlib.Int.max matterSplitMinPct (Stdlib.Int.min matterSplitMaxPct pct)
@@ -85,28 +89,26 @@ let matterSplitFor (state: State) : Int =
 /// How many columns the preview pane gives its text - the same number the
 /// render pass arrives at.
 ///
-/// Mirrors the real geometry step by step: the body is the screen less the
-/// sidebar column when there's room for one (`sidebarIsColumn`); `SplitPane`
-/// collapses to one pane under 46 columns, else gives the list the view's own
-/// share (Home 48, Matter `matterSplitFor`, everything else 55); `Box.inner`
-/// takes a border column off each side; `renderScrollableLines` insets one
-/// more. It bounds scrolling and sizes the pretty-printer and the diff wash,
-/// so an estimate won't do: the old one ignored the sidebar and used Matter's
-/// ceiling split for every view, which over-padded diff lines until each
-/// wrapped in two. Keep in step with `frame-assembly`, `renderViewBody`, and
-/// Home's `SplitPane.render` call.
+/// Off `paneGeometry`, which is the one place the split's shape is decided:
+/// the body is the screen's full width (the nav is a strip above it, not a
+/// column beside it, and the overlay floats), the list takes the view's own
+/// share (Matter `matterSplitFor`, everything else 55), and the detail column
+/// is what is left after the rule and the insets. It bounds scrolling and
+/// sizes the pretty-printer and the diff wash, so an estimate won't do: an
+/// older one used Matter's ceiling split for every view, which over-padded
+/// diff lines until each wrapped in two. Home has no preview.
 let previewInnerWidth (state: State) : Int =
   let (w, _h) = Terminal.getSize ()
   let w = if w < 24 then 80 else w
-  let bodyCols = if sidebarIsColumn w then w - sidebarCols else w
   let pct =
-    if state.activeView == vHome then 48
-    else if state.activeView == vMatter then matterSplitFor state
+    if state.activeView == vMatter then matterSplitFor state
     else 55
-  let previewCols =
-    if bodyCols < 46 then bodyCols
-    else bodyCols - (Stdlib.Int.divide (bodyCols * pct) 100)
-  Stdlib.Int.max 1 (previewCols - 3)
+  // Only the width matters here; the rows and position are placeholders.
+  let body = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 1; cols = w }
+  let (_list, splitDetail, _rule, _collapsed) = paneGeometry body pct
+  let detail = if isDocument state then paneContent body else splitDetail
+  // `renderScrollableLines` wraps one column short of its region.
+  Stdlib.Int.max 1 (detail.cols - 1)
 
 /// How many screen rows `previewLines` occupies once wrapped: what scrolling is bounded by.
 let previewRowCount (state: State) : Int =
@@ -134,8 +136,8 @@ let renderPreview (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
       if Stdlib.List.length h == Stdlib.List.length plain then h else plain
     else
       plain
-  // Split-pane preview: inset 1 column from the pane's left edge.
-  renderScrollableLines region 1 plain highlighted state.detailScroll
+  // The pane's region is already inset (see `paneGeometry`), so the text starts at its edge.
+  renderScrollableLines region 0 plain highlighted state.detailScroll
 
 /// "1 commit" / "2 commits" - count + correctly-pluralized noun.
 let plural (n: Int) (noun: String) : String =
@@ -150,7 +152,7 @@ let selectionRow (width: Int) (plain: String) : String =
 /// name in Darklang purple while the pane has the keyboard, dim grey when it
 /// doesn't; `rest` (a description, badges) is left as it came, colours and
 /// all. For rows that carry a description - the tree, changes, traces, the
-/// sidebar - this reads better than a block, which would swallow the
+/// navbar - this reads better than a block, which would swallow the
 /// description's dimness. Pickers keep the block.
 let selectionBar (name: String) (rest: String) (focused: Bool) : String =
   let color = if focused then Stdlib.Cli.UI.Colors.purple else Stdlib.Cli.UI.Colors.brightBlack
@@ -170,22 +172,191 @@ let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: Stdlib
   // Full-screen reader: no inset.
   renderScrollableLines region 0 plain highlighted scroll
 
-/// A framed box holding pre-built lines (for the static/instructional views). Lines may be pre-colored.
-let boxedLines
+// ── The frame ──
+//
+// The body is one rounded frame, and every view lives inside it. The nav
+// above says which view this is, so the frame's top edge carries only what
+// the nav cannot: where you are in it (a breadcrumb, a branch), a count, a
+// filter, and the second column's name. A view with two columns splits the
+// frame with a rule that meets the edges at ┬ and ┴. The frame is dim; what
+// says "this column has the keyboard" is its title in the accent colour and
+// the cursor bar. One frame on screen, never one per column. The overlays
+// (the keymap, the nav on a narrow terminal, the completion dropdown) keep
+// their own boxes: they float, and a floating thing needs an edge.
+
+/// The columns a column's content is inset from the frame's left edge: the
+/// edge itself, then a space. The list's cursor gutter starts there.
+val paneInset = 2
+
+/// Below this many columns the split collapses to the focused column alone.
+val paneMinSplitCols = 46
+
+/// The frame's interior: one row in from the top and bottom edges,
+/// `paneInset` in from the left, one from the right.
+let paneContent (region: Stdlib.Cli.UI.Layout.Region) : Stdlib.Cli.UI.Layout.Region =
+  Stdlib.Cli.UI.Layout.Region
+    { top = region.top + 1
+      left = region.left + paneInset
+      rows = Stdlib.Int.max 0 (region.rows - 2)
+      cols = Stdlib.Int.max 0 (region.cols - paneInset - 1) }
+
+/// The content regions of a split body: (list, detail, the rule's column, collapsed).
+///
+/// `firstPct` is the list's share of the width. The list leaves one column before the rule and the
+/// detail one after the rule and one before the right edge. Under `paneMinSplitCols` there is no
+/// split: both regions are the whole interior and the rule column is -1. One function so the render
+/// pass and `previewInnerWidth` cannot drift apart: the detail's wrap width is read off the region
+/// this returns.
+let paneGeometry
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (firstPct: Int)
+  : (Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region * Int * Bool) =
+  if region.cols < paneMinSplitCols then
+    let whole = paneContent region
+    (whole, whole, 0 - 1, true)
+  else
+    let contentRows = Stdlib.Int.max 0 (region.rows - 2)
+    let top = region.top + 1
+    let ruleCol = Stdlib.Int.divide (region.cols * firstPct) 100
+    let list =
+      Stdlib.Cli.UI.Layout.Region
+        { top = top
+          left = region.left + paneInset
+          rows = contentRows
+          cols = Stdlib.Int.max 0 (ruleCol - paneInset - 1) }
+    let detail =
+      Stdlib.Cli.UI.Layout.Region
+        { top = top
+          left = region.left + ruleCol + paneInset
+          rows = contentRows
+          cols = Stdlib.Int.max 0 (region.cols - ruleCol - paneInset - 1) }
+    (list, detail, ruleCol, false)
+
+/// A column's name, styled: the accent colour while it has the keyboard, bold otherwise.
+let paneName (name: String) (focused: Bool) : String =
+  if focused then
+    Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.purple) name
+  else
+    Stdlib.Cli.UI.Colors.boldText name
+
+/// What trails a column's name, dim: a count, a path, a filter. Empty parts
+/// are dropped, so a caller can pass what it has and let this decide.
+/// `lead` is what comes before the first part: " · " after a name, nothing
+/// when the parts are the whole title.
+let paneTrailerWith (lead: String) (parts: List<String>) : String =
+  let shown = parts |> Stdlib.List.filter (fun p -> p != "")
+  if Stdlib.List.isEmpty shown then ""
+  else Stdlib.Cli.UI.Colors.dimText (lead ++ (Stdlib.String.join shown " · "))
+
+let paneTrailer (parts: List<String>) : String = paneTrailerWith " · " parts
+
+/// A column's title: its name, then its trailer. An empty name is allowed -
+/// the nav already says which view this is, so most first columns have
+/// only a trailer - and then the parts stand alone.
+let paneTitle (name: String) (parts: List<String>) (focused: Bool) : String =
+  if name == "" then paneTrailerWith "" parts
+  else (paneName name focused) ++ (paneTrailer parts)
+
+/// A view's sections as a row of words for its title - the one you are on
+/// bright, the rest dim. Only the (hidden) AI view has sections.
+let sectionTabs (names: List<String>) (active: Int) (focused: Bool) : String =
+  names
+  |> Stdlib.List.indexedMap (fun i n ->
+    if i == active then paneName n focused else Stdlib.Cli.UI.Colors.dimText n)
+  |> Stdlib.String.join "  "
+
+/// One run of the top edge, `width` columns: `─ title ───`, or all dashes for
+/// an empty title. The dashes are dim; the title keeps its own styling.
+let edgeSegment (width: Int) (title: String) : String =
+  let paint (t: String) : String = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.brightBlack t
+  if (title == "") || (width < 5) then
+    paint (Stdlib.String.repeat "─" (Stdlib.Int.max 0 width))
+  else
+    let shown = Stdlib.Cli.Tui.Text.clipToWidth title (width - 3)
+    let used = Stdlib.Cli.Tui.Text.styledWidth shown
+    (paint "─ ") ++ shown ++ (paint (" " ++ (Stdlib.String.repeat "─" (Stdlib.Int.max 0 (width - 3 - used)))))
+
+/// The frame's four edges, with `titleFirst` set into the top one, and - when
+/// `ruleCol` is not negative - a rule down that column meeting the edges at ┬
+/// and ┴, with `titleSecond` on the edge above it.
+let frameWithTitles
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (titleFirst: String)
+  (titleSecond: String)
+  (ruleCol: Int)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let paint (t: String) : String = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.brightBlack t
+  let w = region.cols
+  let split = (ruleCol > 0) && (ruleCol < (w - 1))
+  let top =
+    if split then
+      (paint "╭") ++ (edgeSegment (ruleCol - 1) titleFirst) ++ (paint "┬")
+      ++ (edgeSegment (w - ruleCol - 2) titleSecond) ++ (paint "╮")
+    else
+      (paint "╭") ++ (edgeSegment (w - 2) titleFirst) ++ (paint "╮")
+  let bottom =
+    if split then
+      paint ("╰" ++ (Stdlib.String.repeat "─" (ruleCol - 1)) ++ "┴" ++ (Stdlib.String.repeat "─" (w - ruleCol - 2)) ++ "╯")
+    else
+      paint ("╰" ++ (Stdlib.String.repeat "─" (Stdlib.Int.max 0 (w - 2))) ++ "╯")
+  let bar = paint "│"
+  let sides =
+    (Stdlib.List.range 1 (region.rows - 2))
+    |> Stdlib.List.map (fun r ->
+      Stdlib.List.flatten
+        [ Stdlib.Cli.UI.Layout.at region r 0 bar
+          Stdlib.Cli.UI.Layout.at region r (w - 1) bar
+          (if split then Stdlib.Cli.UI.Layout.at region r ruleCol bar else []) ])
+    |> Stdlib.List.flatten
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.at region 0 0 top
+      sides
+      Stdlib.Cli.UI.Layout.at region (region.rows - 1) 0 bottom ]
+
+/// A single-column body: the frame with `title` on its edge, and `lines`
+/// (pre-styled allowed) down its interior.
+let titledLines
   (region: Stdlib.Cli.UI.Layout.Region)
   (title: String)
   (lines: List<String>)
   : List<Stdlib.Cli.UI.Layout.Span> =
-  Stdlib.Cli.UI.Box.panel region title true (fun inner ->
-    lines
-    |> Stdlib.List.indexedMap (fun i l -> (i, l))
-    |> Stdlib.List.map (fun pair ->
-      let (i, l) = pair
-      if i < inner.rows then Stdlib.Cli.UI.Layout.at inner (i + 1) 1 l else [])
-    |> Stdlib.List.flatten)
+  let content = paneContent region
+  Stdlib.List.flatten
+    [ frameWithTitles region title "" (0 - 1)
+      lines
+      |> Stdlib.List.indexedMap (fun i l ->
+        if i < content.rows then Stdlib.Cli.UI.Layout.at content i 0 l else [])
+      |> Stdlib.List.flatten ]
 
-/// A list and scrollable preview. Falls back to one empty-state box.
-let splitListPreview
+/// Two columns in one frame, a rule between. Titles arrive styled (see
+/// `paneTitle`); each child draws into its content region. Too narrow for
+/// two, and only the focused column is drawn, with a ‹1/2› on its title.
+let paneSplit
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (firstPct: Int)
+  (focus: Stdlib.Cli.UI.SplitPane.Focus)
+  (titleFirst: String)
+  (renderFirst: Stdlib.Cli.UI.Layout.Region -> List<Stdlib.Cli.UI.Layout.Span>)
+  (titleSecond: String)
+  (renderSecond: Stdlib.Cli.UI.Layout.Region -> List<Stdlib.Cli.UI.Layout.Span>)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let (list, detail, ruleCol, collapsed) = paneGeometry region firstPct
+  if collapsed then
+    let (title, draw) =
+      if focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
+        (titleSecond ++ (Stdlib.Cli.UI.Colors.dimText " ‹2/2›"), renderSecond)
+      else
+        (titleFirst ++ (Stdlib.Cli.UI.Colors.dimText " ‹1/2›"), renderFirst)
+    Stdlib.List.flatten [ frameWithTitles region title "" (0 - 1), draw list ]
+  else
+    Stdlib.List.flatten
+      [ frameWithTitles region titleFirst titleSecond ruleCol
+        renderFirst list
+        renderSecond detail ]
+
+/// A list and its scrollable preview, titles already styled. With nothing
+/// listed, the list column alone with `emptyMsg` where its rows would be.
+let splitListPreviewTitled
   (state: State)
   (region: Stdlib.Cli.UI.Layout.Region)
   (leftTitle: String)
@@ -196,20 +367,39 @@ let splitListPreview
     let msg =
       if state.filter == "" then emptyMsg
       else Stdlib.Cli.UI.Colors.dimText ("no matches for filter: " ++ state.filter ++ "   (f to change)")
-    Stdlib.Cli.UI.Box.panel region leftTitle true (fun inner -> Stdlib.Cli.UI.Layout.at inner 1 1 msg)
+    titledLines region leftTitle [ msg ]
   else
-    // Surface an active filter right in the list title (plain text - the box does width math on it) so a
-    // narrowed list never looks like the whole set.
-    let count = Stdlib.Int.toString (Stdlib.List.length state.items)
-    let titled =
-      if state.filter == "" then leftTitle ++ "  ·  " ++ count
-      else leftTitle ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
-    Stdlib.Cli.UI.SplitPane.render
+    paneSplit
       region
-      Stdlib.Cli.UI.SplitPane.Orientation.Horizontal
       55
       state.focus
-      titled
+      leftTitle
       (fun r -> renderTreeList state r)
       previewTitle
       (fun r -> renderPreview state r)
+
+/// The list's trailer: its count with its noun (`7 apps`), and the filter
+/// narrowing it, so a narrowed list never looks like the whole set.
+let listTrailer (state: State) (noun: String) : List<String> =
+  [ plural (Stdlib.List.length state.items) noun
+    (if state.filter == "" then "" else "filter: " ++ state.filter) ]
+
+/// A list and its scrollable preview, from plain names. `leftTitle` may be
+/// "" when the nav already names the view; `noun` is what the rows are.
+let splitListPreview
+  (state: State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  (leftTitle: String)
+  (noun: String)
+  (previewTitle: String)
+  (emptyMsg: String)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let trailer = if Stdlib.List.isEmpty state.items then [] else listTrailer state noun
+  splitListPreviewTitled
+    state
+    region
+    (paneTitle leftTitle trailer listFocused)
+    (paneTitle previewTitle [] detailFocused)
+    emptyMsg

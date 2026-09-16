@@ -123,7 +123,12 @@ let allTests (): List<String * TestFunction> =
     ("REPL Captures Real Values", fun () -> testReplCapturesRealValues ())
     ("Workbench Captures Stray Output", fun () -> testWorkbenchCapturesStrayOutput ())
     ("Workbench Views Show Chrome", fun () -> testWorkbenchViewsShowTheirChrome ())
-    ("Workbench Sidebar Navigation", fun () -> testWorkbenchSidebarNavigation ())
+    ("Workbench Home Overview", fun () -> testWorkbenchHomeOverview ())
+    ("Workbench Navbar Navigation", fun () -> testWorkbenchNavbarNavigation ())
+    ("Workbench History Round Trip", fun () -> testWorkbenchHistoryRoundTrip ())
+    ("Workbench Document Scroll", fun () -> testWorkbenchDocumentScroll ())
+    ("Workbench Sync Standing", fun () -> testWorkbenchSyncStanding ())
+    ("Workbench Branch Picker", fun () -> testWorkbenchBranchPicker ())
   ]
 
 type TestSummary =

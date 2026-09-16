@@ -469,7 +469,7 @@ Clearing only `current_branch%` is the trap: it looks like isolation and leaves 
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not
 anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
-part that distinguishes a new instance. The context row (`instance:`) is the stable "it started" marker.
+part that distinguishes a new instance. The header's `who @ where` (` @ `) is the stable "it started" marker.
 
 ## Standing up a relay in a test
 

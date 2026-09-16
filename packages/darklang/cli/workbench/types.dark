@@ -31,17 +31,7 @@ type SearchHit =
     kind: String
     display: String }
 
-/// Which part of the SCM view is showing. Picked in the sidebar.
-type ScmSection =
-  | Changes
-  | History
-  | Conflicts
-  | Branches
-
-type ScmState =
-  { section: ScmSection }
-
-/// Which part of the AI view is showing. Picked in the sidebar.
+/// Which part of the AI view is showing. Picked in the navbar.
 type AiSection =
   | Agents
   | Prompts
@@ -72,25 +62,6 @@ let onBranch (state: State) (branchId: Uuid) : State =
   let _ = SCM.PackageOps.selectBranch branchId
   { state with branchId = branchId }
 
-
-let emptyScm () : ScmState =
-  ScmState { section = ScmSection.Changes }
-
-/// Position in the sidebar's Changes workspace, and the `Dest.section` the
-/// sidebar carries for it.
-let scmSectionIndex (section: ScmSection) : Int =
-  match section with
-  | Changes -> 0
-  | History -> 1
-  | Conflicts -> 2
-  | Branches -> 3
-
-/// Convert a sidebar section index to an SCM section.
-let scmSectionAt (index: Int) : ScmSection =
-  if index == 1 then ScmSection.History
-  else if index == 2 then ScmSection.Conflicts
-  else if index == 3 then ScmSection.Branches
-  else ScmSection.Changes
 
 let emptyAi () : AiState =
   AiState { section = AiSection.Agents }
@@ -125,19 +96,41 @@ let emptySearch () : SearchState =
   SearchState { hits = []; selected = 0 }
 
 
-/// A place the sidebar can open: a view and its section within that view.
+/// Where you were, in enough detail to put you back there: the view, the tree
+/// location and lens, the cursor and the filter. What esc walks back through.
+/// A forward move is spelled the same way: take `returnPointOf`, change what
+/// differs, `moveToPoint` it.
+type ReturnPoint =
+  { view: Int
+    location: Packages.PackageLocation
+    lens: Lens
+    aiSection: AiSection
+    selected: Int
+    filter: String }
+
+/// A target the nav can open: a view and its section within that view. Coarser
+/// than a `ReturnPoint`, which is everything needed to land back exactly.
 /// `section` is meaningful for SCM and AI; it is zero for other views.
 type Dest = { view: Int; section: Int }
 
 
 /// What's drawn over the frame, and holding the keyboard while it is.
 ///
-/// One field avoids representing two overlays as open at once. The sidebar is
+/// One field avoids representing two overlays as open at once. The navbar is
 /// tracked by `State.focus`, because it is also a permanent column when wide.
+type BranchChoice = { id: Uuid; name: String; detail: String }
+
+type BranchPicker =
+  { choices: List<BranchChoice>
+    field: Stdlib.Cli.UI.TextField.State
+    selected: Int }
+
 type Overlay =
   | NoOverlay
   /// The `?` keymap, drawn centred with its interior cleared. Any key closes it.
   | Keymap
+  /// Searchable branch list. Selection is by id, never by a decorated label.
+  | Branches of BranchPicker
 
 
 /// The REPL view's state: what's been run, what's bound, and what's half-typed.
@@ -164,7 +157,7 @@ type State =
     location: Packages.PackageLocation
     items: List<BodyItem>
     selected: Int
-    /// Which content pane has focus. `Neither` while the sidebar does.
+    /// Which content pane has focus. `Neither` while the navbar does.
     focus: Stdlib.Cli.UI.SplitPane.Focus
     detailScroll: Int
     /// When Some, a full-body reader is open (e.g. a Docs topic); its text scrolls via detailScroll.
@@ -188,21 +181,23 @@ type State =
     search: SearchState
     /// The overlay drawn over the frame, if any.
     overlay: Overlay
-    /// The sidebar cursor, as a position into `sidebarRows`. `focus ==
-    /// Neither` means the sidebar owns the keyboard.
-    sideSel: Int
+    /// The navbar cursor, as a position into `navbarRows`. `focus ==
+    /// Neither` means the navbar owns the keyboard.
+    navbarSel: Int
     /// The last destination visited in each workspace.
     wsLast: List<(Int * Dest)>
+    /// Where you have been, most recent first: what esc returns to. Every move
+    /// - a view switch, entering a module, a jump from search - pushes the place
+    /// it left. Capped, so a long session cannot grow it without bound.
+    back: List<ReturnPoint>
     /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
     /// whenever the text changes.
     completionSel: Int
-    /// SCM view: which section is showing. Picked in the sidebar.
-    scm: ScmState
-    /// AI view: which section is showing. Picked in the sidebar.
+    /// AI view: which section is showing. Picked in the navbar.
     ai: AiState
     /// The gated views (Devices, Crons, Calendar, ...) enabled for this
     /// account, computed once at launch from (see `viewSpecs` /
-    /// `gateEnabled`). Hidden gated views drop out of the sidebar.
+    /// `gateEnabled`). Hidden gated views drop out of the navbar.
     enabledGatedViews: List<Int>
     /// Names of items with uncommitted edits, and of deprecated items in the current module.
     ///
@@ -220,9 +215,6 @@ type State =
     /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
     /// by `refreshPeek`.
     renderPeek: String
-    /// Cached Home commit details as `(hash, lines)`. A seed commit may have
-    /// thousands of ops, so `refreshCommitDetail` builds this off-render.
-    commitDetail: (String * List<String>)
     /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
     /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
     /// somewhere else, and the parent stops being the place every view keeps its things.
@@ -260,15 +252,31 @@ type Step =
   /// Drop to the classic prompt (`:classic`), pushing the workbench so `quit` there returns here.
   | ToPrompt of State
 
+/// Keyboard and scrolling behavior, independent of a view's drawing style.
+type ViewBehavior =
+  /// A list beside a detail pane: ←→ and Tab move between them, and ↑↓
+  /// follow whichever has focus. E.g. Code: modules left, source right.
+  | Split
+  /// One pane with a cursor over its rows and nothing to the right of it.
+  /// E.g. Devices.
+  | List
+  /// A `List` whose rows include section headers, which the cursor skips.
+  /// E.g. Home: "Branches", "History" and the rows under each.
+  | SectionedList
+  /// One scrolling body with no cursor: ↑↓ and g/G move through the text.
+  /// E.g. Sync: one block of status.
+  | Document
+
 /// Everything needed to load and render an extension view. Navigation
 /// grouping is defined separately by `workspaces`.
 type ViewDef =
   { /// Stable slug, independent of its numeric view index.
     id: String
-    /// sidebar label
+    /// navbar label
     name: String
     /// "" = always visible; anything else marks the view gated (shown only to `gatedViewAccounts`)
     gateKey: String
+    behavior: ViewBehavior
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
     /// the body's spans for the region (returned, not printed, so frames can be diffed)
@@ -295,7 +303,7 @@ val baseViewCount = 10
 /// Built-in view indices and their optional gate keys. Extension views are
 /// appended by `viewSpecs`.
 // Index 2 remains reserved for the former Inspect view, keeping later indices
-// stable without exposing Inspect in the sidebar.
+// stable without exposing Inspect in the navbar.
 val baseViewSpecs =
   [ (vHome, "")
     (vMatter, "")
@@ -318,7 +326,7 @@ let gateEnabled (accountName: String) : Bool =
   Stdlib.List.member gatedViewAccounts (Stdlib.String.toLowercase accountName)
 
 /// Every view as `(absolute index, label, gate key)`, used for visibility and
-/// label lookup. `workspaces` separately defines sidebar placement.
+/// label lookup. `workspaces` separately defines navbar placement.
 val viewSpecs =
   let base =
     baseViewSpecs
@@ -336,6 +344,25 @@ let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =
     Stdlib.Option.Option.None
   else
     Stdlib.List.getAt (extensionViews ()) (idx - baseViewCount)
+
+/// Single-column views never give focus to an invisible second pane.
+let viewBehavior (view: Int) : ViewBehavior =
+  if view == vHome then ViewBehavior.SectionedList
+  else if view == vDevices then ViewBehavior.List
+  else
+    match extensionViewAt view with
+    | Some vd -> vd.behavior
+    | None -> ViewBehavior.Split
+
+let hasDetailPane (state: State) : Bool =
+  viewBehavior state.activeView == ViewBehavior.Split
+
+let isDocument (state: State) : Bool =
+  viewBehavior state.activeView == ViewBehavior.Document
+
+/// Does the list have section headers the cursor must step over?
+let isSectioned (state: State) : Bool =
+  viewBehavior state.activeView == ViewBehavior.SectionedList
 
 /// The display label for any view index.
 let viewLabel (idx: Int) : String =
@@ -361,7 +388,7 @@ let recomputeGatedViews (state: State) : List<Int> =
   gatedViewsFor state.accountName
 
 
-/// The view indices the sidebar may show, in `viewSpecs` order. A view shows
+/// The view indices the navbar may show, in `viewSpecs` order. A view shows
 /// if it isn't gated, or it's gated and enabled for this account (see
 /// `enabledGatedViews`, recomputed on launch and after a config change).
 let visibleViews (state: State) : List<Int> =

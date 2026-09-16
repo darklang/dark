@@ -1,0 +1,138 @@
+/// Selecting a branch without remembering its name or leaving the current view.
+module Darklang.Cli.Workbench
+
+/// Main and every open branch; this list is deliberately not Home's capped summary.
+let branchChoices (current: Uuid) : List<BranchChoice> =
+  let choice (id: Uuid) (name: String) : BranchChoice =
+    BranchChoice
+      { id = id
+        name = name
+        detail = if id == current then "current" else "" }
+  let others =
+    SCM.Branch.list ()
+    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
+    |> Stdlib.List.sortBy (fun b -> Stdlib.String.toLowercase b.name)
+    |> Stdlib.List.map (fun b -> choice b.id b.name)
+  Stdlib.List.push others (choice SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
+
+let matchingBranches (picker: BranchPicker) : List<BranchChoice> =
+  let query = Stdlib.String.toLowercase (Stdlib.String.trim picker.field.text)
+  picker.choices
+  |> Stdlib.List.filter (fun b ->
+    Stdlib.String.contains (Stdlib.String.toLowercase b.name) query)
+
+let openBranchPicker (state: State) : Step =
+  let choices = branchChoices state.branchId
+  let selected =
+    choices |> Stdlib.List.findFirstIndex (fun b -> b.id == state.branchId)
+    |> Stdlib.Option.withDefault 0
+  Step.Continue
+    { state with
+        overlay = Overlay.Branches
+          (BranchPicker
+            { choices = choices
+              field = Stdlib.Cli.UI.TextField.fromText ""
+              selected = selected }) }
+
+/// Switch the process overlay before reading anything for the destination.
+/// Stay in the same view; Home keeps the switched branch selected.
+let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
+  let moved =
+    onBranch
+      { state with overlay = Overlay.NoOverlay; input = Stdlib.Option.Option.None }
+      id
+  let moved = { moved with filter = ""; detailScroll = 0 }
+  let items = reloadItems moved
+  let selected =
+    if moved.activeView == vHome then
+      items |> Stdlib.List.findFirstIndex (fun it ->
+        (it.kind == "home-branch")
+        && (it.name == ((branchMarker true) ++ name)))
+      |> Stdlib.Option.withDefault 0
+    else
+      match Stdlib.List.getAt state.items state.selected with
+      | Some previous ->
+        items |> Stdlib.List.findFirstIndex (fun it ->
+          (it.name == previous.name) && (it.kind == previous.kind))
+        |> Stdlib.Option.withDefault 0
+      | None -> 0
+  forceScmRefresh
+    (focusContent (fixSelection
+      { moved with items = items; selected = selected
+                   message = "switched to " ++ name }))
+
+let handleBranchPickerKey
+  (state: State)
+  (picker: BranchPicker)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  let choices = matchingBranches picker
+  let keep (next: BranchPicker) : Step =
+    Step.Continue { state with overlay = Overlay.Branches next }
+  let move (delta: Int) : Step =
+    let selected =
+      Stdlib.Int.max 0
+        (Stdlib.Int.min (picker.selected + delta) ((Stdlib.List.length choices) - 1))
+    keep { picker with selected = selected }
+  match key with
+  | Escape -> Step.Continue { state with overlay = Overlay.NoOverlay }
+  | UpArrow -> move (0 - 1)
+  | DownArrow -> move 1
+  | PageUp -> move (0 - 10)
+  | PageDown -> move 10
+  | Enter ->
+    match Stdlib.List.getAt choices picker.selected with
+    | None -> keep picker
+    | Some b -> Step.Continue (switchWorkbenchBranch state b.id b.name)
+  | _ ->
+    let field =
+      if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.U) then
+        Stdlib.Option.Option.Some (Stdlib.Cli.UI.TextField.fromText "")
+      else if modifiers.ctrl then Stdlib.Option.Option.None
+      else
+        Stdlib.Cli.UI.TextField.handleTextKey picker.field
+          (Stdlib.Cli.UI.Widget.press key modifiers keyChar)
+    match field with
+    | Some field ->
+      let selected = if field.text == picker.field.text then picker.selected else 0
+      keep { picker with field = field; selected = selected }
+    | None -> keep picker
+
+let renderBranchPicker
+  (state: State)
+  (picker: BranchPicker)
+  (screen: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let choices = matchingBranches picker
+  let w = Stdlib.Int.min 72 (Stdlib.Int.max 1 (screen.cols - 2))
+  let h = Stdlib.Int.min 18 (Stdlib.Int.max 5 (screen.rows - 2))
+  let region =
+    Stdlib.Cli.UI.Layout.Region
+      { top = screen.top + (Stdlib.Int.divide (screen.rows - h) 2)
+        left = screen.left + (Stdlib.Int.divide (screen.cols - w) 2)
+        rows = h; cols = w }
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.clearRegion region
+      Stdlib.Cli.UI.Box.panel region "Switch branch" true (fun inner ->
+        let list =
+          Stdlib.Cli.UI.Layout.Region
+            { top = inner.top + 2; left = inner.left
+              rows = Stdlib.Int.max 0 (inner.rows - 3); cols = inner.cols }
+        let lines =
+          choices |> Stdlib.List.indexedMap (fun i b ->
+            let label = (branchMarker (b.id == state.branchId)) ++ b.name
+            let detail = if b.detail == "" then "" else "  · " ++ b.detail
+            if i == picker.selected then selectionRow list.cols (label ++ detail)
+            else "  " ++ label ++ (Stdlib.Cli.UI.Colors.dimText detail))
+        Stdlib.List.flatten
+          [ Stdlib.Cli.UI.Layout.at inner 0 1
+              ("filter: " ++ (Stdlib.Cli.UI.TextField.renderInline picker.field
+                (Stdlib.Int.max 1 (inner.cols - 10))))
+            (if Stdlib.List.isEmpty choices then
+               Stdlib.Cli.UI.Layout.at list 0 1 "No matching branches"
+             else Stdlib.Cli.UI.ListView.render list lines picker.selected)
+            Stdlib.Cli.UI.Layout.at inner (inner.rows - 1) 1
+              (Stdlib.Cli.UI.Colors.dimText
+                "↑↓ select · enter switch · esc cancel") ]) ]

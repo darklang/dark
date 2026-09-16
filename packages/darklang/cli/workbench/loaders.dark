@@ -11,7 +11,7 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
 
 /// A one-line, clipped rendering of a value's body for the row description:
-/// `= "hello"`, `= [1, 2, 3]`. First line only, and no more than `width`
+/// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
 /// columns - a value can be a whole table.
 let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.ProgramTypes.Expr) (width: Int) : String =
   let printed = PrettyPrinter.ProgramTypes.expr ctx body
@@ -19,13 +19,31 @@ let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.Pro
   let clipped =
     if Stdlib.String.length firstLine > width then (Stdlib.String.slice firstLine 0 (width - 1)) ++ "…"
     else firstLine
-  "= " ++ clipped
+  clipped
 
-/// The rows of a module: its submodules, then types, values and fns, each
-/// with a description built from the entity the search already returned - a
-/// fn's signature, a type's shape, a value's literal - so a module reads as a
-/// table of contents rather than a list of names.
+/// The rows of a module for the Code list: its submodules, then types,
+/// values and fns, by name. Names only; the Inspect pane says what each is.
 let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
+  moduleRows branchId location false
+
+/// The same rows with a one-line description each - a fn's signature, a
+/// type's shape, a value's literal - so the Inspect pane's preview of a
+/// module reads as a table of contents. Not for the list: there a signature
+/// clipped to a prefix that told no two rows apart.
+let moduleContents
+  (branchId: Uuid)
+  (location: Packages.PackageLocation)
+  : List<BodyItem> =
+  moduleRows branchId location true
+
+/// A module's rows in display order. `describe` fills the description
+/// column, which pretty-prints every signature and literal, so the list,
+/// which reloads on every move, leaves it off.
+let moduleRows
+  (branchId: Uuid)
+  (location: Packages.PackageLocation)
+  (describe: Bool)
+  : List<BodyItem> =
   let modulePath = modulePathOf location
   let results = Packages.Query.allDirectDescendants branchId modulePath
   let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
@@ -33,35 +51,48 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
   // by their short names.
   let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
   let typeRef (t: LanguageTools.ProgramTypes.TypeReference) : String = PrettyPrinter.ProgramTypes.typeReference ctx t
+  let descOf (build: Unit -> String) : String = if describe then build () else ""
   let moduleItems =
     subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
   let typeItems =
     results.types
     |> Stdlib.List.map (fun t ->
-      let shape =
+      let shape (_u: Unit) : String =
         match t.entity.declaration.definition with
         | Record fields -> "record · " ++ (Stdlib.Int.toString (Stdlib.List.length fields)) ++ " fields"
         | Enum cases -> "enum · " ++ (Stdlib.Int.toString (Stdlib.List.length cases)) ++ " cases"
-        | Alias tr -> "= " ++ (typeRef tr)
-      BodyItem { name = t.location.name; kind = "type"; isModule = false; desc = shape })
+        | Alias tr -> typeRef tr
+      BodyItem
+        { name = t.location.name
+          kind = "type"
+          isModule = false
+          desc = descOf shape })
   let valItems =
     results.values
     |> Stdlib.List.map (fun v ->
-      BodyItem { name = v.location.name; kind = "val"; isModule = false; desc = valueDesc ctx v.entity.body 40 })
+      BodyItem
+        { name = v.location.name
+          kind = "val"
+          isModule = false
+          desc = descOf (fun _u -> valueDesc ctx v.entity.body 40) })
   let fnItems =
     results.fns
     |> Stdlib.List.map (fun f ->
-      let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
-      let args = if Stdlib.List.isEmpty params then "()" else Stdlib.String.join params " -> "
-      let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
-      let effects =
-        Permissions.Command.requirementDisplay
-          (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+      let signature (_u: Unit) : String =
+        let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
+        let args =
+          if Stdlib.List.isEmpty params then "()"
+          else Stdlib.String.join params " -> "
+        let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
+        let effects =
+          Permissions.Command.requirementDisplay
+            (LanguageTools.ProgramTypes.hashToString f.entity.hash)
+        sig_ ++ "  [" ++ effects ++ "]"
       BodyItem
         { name = f.location.name
           kind = "fn"
           isModule = false
-          desc = sig_ ++ "  [" ++ effects ++ "]" })
+          desc = descOf signature })
   Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
 
 /// How many names the draft touches -- the same number the Changes list shows.
@@ -75,39 +106,103 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
 let wipItemCount () : Int =
   Stdlib.List.length (SCM.Draft.read ()).bindings
 
-/// Feeds the SCM changes list and Matter's Changed lens -- one list, two angles. The
+/// The glyph a Changes row leads with, by what the row is: a fn, a type, a
+/// value, a removal, or a conflict waiting on you.
+let changeIcon (kind: String) : String =
+  if kind == "fn" then "ƒ"
+  else if kind == "type" then "◇"
+  else if kind == "value" then "▪"
+  else if kind == "conflict" then "⚠"
+  else if kind == "removed" then "✕"
+  else "·"
+
+/// `+3 -1` for a diff, dim; "" for a diff with no changed lines.
+let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =
+  let added = lines |> Stdlib.List.filter (fun l -> match l with | Added _ -> true | _ -> false) |> Stdlib.List.length
+  let removed = lines |> Stdlib.List.filter (fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
+  if (added == 0) && (removed == 0) then ""
+  else
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" ++ (Stdlib.Int.toString added)))
+    ++ " "
+    ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" ++ (Stdlib.Int.toString removed)))
+
+/// Feeds the Changes view and Matter's Changed lens -- one list, two angles. The
 /// lens shows the draft as your code filtered to what moved, with the real tree
 /// renderer and edit-in-place.
 ///
-/// Flat and fully qualified, like the Values lens, because a draft is scattered across modules and
-/// filtering a tree to five leaves in five places is worse than a list.
+/// What is uncommitted on THIS branch, and nothing else: conflicts first, since they need a
+/// decision before anything commits; then every name the draft binds, as added or edited with
+/// its line count; then the names it removes. Flat and fully qualified, like the Values lens,
+/// because a draft is scattered across modules and filtering a tree to five leaves in five
+/// places is worse than a list.
+///
+/// The row's `name` stays the bare full path: the detail and the reader look the item up by
+/// it. The icon is drawn by the list from `kind`, and the change is in `desc`, pre-coloured.
 let loadChangedItems (branchId: Uuid) : List<BodyItem> =
+  let paint (color: String) (s: String) : String = Stdlib.Cli.UI.Colors.colorize color s
+  let dim (s: String) : String = Stdlib.Cli.UI.Colors.dimText s
+  let conflicts = SCM.Conflicts.pending ()
+  let conflictNames = conflicts |> Stdlib.List.map (fun c -> SCM.Conflicts.fqn c.owner c.modules c.name)
+  let conflictRows =
+    conflicts
+    |> Stdlib.List.map (fun c ->
+      BodyItem
+        { name = SCM.Conflicts.fqn c.owner c.modules c.name
+          kind = "conflict"
+          isModule = false
+          desc = (paint Stdlib.Cli.UI.Colors.pink "conflict") ++ (dim (" · " ++ c.itemType ++ " · needs a decision")) })
   // The branch ASKED about, not the process overlay: a caller that just switched hands the new id
   // before the overlay follows, and an ignored parameter here answered for the old branch.
-  SCM.PackageOps.draftBindingsFor branchId
-  |> Stdlib.List.map (fun b ->
-    BodyItem
-      { name = SCM.Conflicts.fqn b.owner b.modules b.name
-        kind = b.itemType
-        isModule = false
-        desc = "" })
+  let changed =
+    SCM.PackageOps.draftBindingsFor branchId
+    |> Stdlib.List.filter (fun b ->
+      Stdlib.Bool.not (Stdlib.List.member conflictNames (SCM.Conflicts.fqn b.owner b.modules b.name)))
+    |> Stdlib.List.map (fun b ->
+      let fqn = SCM.Conflicts.fqn b.owner b.modules b.name
+      // Once per row: the diff below needs the same lookup, and `sourceDiffFor` would re-read
+      // the whole draft for each row on top of it.
+      let previous = Cli.Commit.previousHashesOf branchId b
+      let change =
+        if Stdlib.List.isEmpty previous then paint Stdlib.Cli.UI.Colors.green "added"
+        else paint Stdlib.Cli.UI.Colors.yellow "edited"
+      let stat = diffStat (bindingDiff branchId b previous)
+      BodyItem
+        { name = fqn
+          kind = b.itemType
+          isModule = false
+          desc = change ++ (if stat == "" then "" else "  " ++ stat) })
+  let removed =
+    (SCM.Draft.read ()).removed
+    |> Stdlib.List.map (fun fqn ->
+      BodyItem { name = fqn; kind = "removed"; isModule = false; desc = paint Stdlib.Cli.UI.Colors.red "removed" })
+  Stdlib.List.flatten [ conflictRows, changed, removed ]
 
-/// Recent commits (this branch + ancestors) as body items (for the History view).
-let loadCommitBodyItems () : List<BodyItem> =
-  Cli.Commits.commitRows 30L
+/// History and Home share the same store-wide commit order.
+let recentCommitRows (limit: Int64) : List<ScmJson.CommitRowJson> =
+  SCM.Commits.recent limit
   |> Stdlib.List.map (fun c ->
-    // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
-    let short = Stdlib.String.first c.hash 8
-    let ops = Stdlib.Int64.toString c.ops
-    BodyItem
-      { name = c.message
-        kind = "commit"
-        isModule = false
-        desc = short ++ " · " ++ ops ++ (if ops == "1" then " op" else " ops") })
+    ScmJson.CommitRowJson
+      { hash = c.hash; message = c.message; author = c.author
+        ops = SCM.PackageOps.opCountIn c.hash })
+
+/// Recent commits across all branches, one line each, for the reader Home's
+/// "more commits" row opens.
+let commitListText () : String =
+  let rows =
+    recentCommitRows 30L
+    |> Stdlib.List.map (fun c ->
+      // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
+      let short = Stdlib.String.first c.hash 8
+      let ops = Stdlib.Int64.toString c.ops
+      "  " ++ (Stdlib.Cli.UI.Colors.dimText short) ++ "  " ++ c.message
+      ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ c.author ++ " · " ++ ops ++ (if ops == "1" then " op" else " ops"))))
+  Stdlib.String.join
+    (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Recent commits, all branches", "" ], rows ])
+    "\n"
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
 let commitOpsText (branchId: Uuid) (selected: Int) : String =
-  let commits = Cli.Commits.commitRows 30L
+  let commits = recentCommitRows 30L
   match Stdlib.List.getAt commits selected with
   | None -> "(no commit selected)"
   | Some c ->
@@ -126,22 +221,6 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
       else
         ""
     c.message ++ "  (" ++ (Stdlib.Int.toString opCount) ++ " ops)\n\n" ++ opLines ++ more
-
-/// A cheap commit summary for the History preview - hash, message, op count - WITHOUT fetching every op (the
-/// seed commit has 10k+; fetching them per keystroke would make the list crawl). Full ops are behind Enter.
-let commitSummary (selected: Int) : String =
-  let commits = Cli.Commits.commitRows 30L
-  match Stdlib.List.getAt commits selected with
-  | None -> "(no commit selected)"
-  | Some c ->
-    // Message first: it answers "what is this commit"; the hash is only for copy/paste, so it sits
-    // dimmed underneath rather than in the brightest slot.
-    c.message
-    ++ "\n\n"
-    ++ (Stdlib.Cli.UI.Colors.dimText c.hash)
-    ++ "\n\n"
-    ++ (Stdlib.Int64.toString c.ops)
-    ++ (if c.ops == 1L then " op  ·  press ⏎ to view it" else " ops  ·  press ⏎ to view them")
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -209,6 +288,34 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
 ///
 /// A NEW item has no previous version, so it diffs against empty and comes out as all-added, which is
 /// exactly right.
+/// The diff of one draft binding against `previous`, its hashes before the draft (see
+/// `Cli.Commit.previousHashesOf`), newest first. Takes them rather than looking them up so a
+/// caller that already has them - the Changes list, once per row - pays for the lookup once.
+let bindingDiff
+  (branchId: Uuid)
+  (b: SCM.Conflicts.Binding)
+  (previous: List<LanguageTools.ProgramTypes.Hash>)
+  : List<Stdlib.Diff.DiffLine> =
+  // `b.name` on both sides: the PREVIOUS version of a name is bound to nothing live, so the printer
+  // cannot name it and would render `let <hash:...>` on the left of every diff.
+  let newText = Cli.Conflicts.renderItem branchId b.itemType b.hash b.name
+
+  let oldText =
+    match previous with
+    | [] -> ""
+    | prev :: _ ->
+      Cli.Conflicts.renderItem
+        branchId
+        b.itemType
+        (LanguageTools.ProgramTypes.hashToString prev)
+        b.name
+
+  // A new item diffs against nothing, and "nothing" is not an empty line to remove.
+  if oldText == "" then
+    Stdlib.String.split newText "\n" |> Stdlib.List.map (fun l -> Stdlib.Diff.DiffLine.Added l)
+  else
+    Stdlib.Diff.lines oldText newText
+
 let sourceDiffFor (branchId: Uuid) (fqn: String) : List<Stdlib.Diff.DiffLine> =
   let binding =
     SCM.PackageOps.draftBindingsFor branchId
@@ -217,22 +324,7 @@ let sourceDiffFor (branchId: Uuid) (fqn: String) : List<Stdlib.Diff.DiffLine> =
 
   match binding with
   | None -> [ Stdlib.Diff.DiffLine.Same "(nothing in the draft touches this name)" ]
-  | Some b ->
-    // `b.name` on both sides: the PREVIOUS version of a name is bound to nothing live, so the printer
-    // cannot name it and would render `let <hash:...>` on the left of every diff.
-    let newText = Cli.Conflicts.renderItem branchId b.itemType b.hash b.name
-
-    let oldText =
-      match Cli.Commit.previousHashesOf branchId b with
-      | [] -> ""
-      | prev :: _ ->
-        Cli.Conflicts.renderItem
-          branchId
-          b.itemType
-          (LanguageTools.ProgramTypes.hashToString prev)
-          b.name
-
-    Stdlib.Diff.lines oldText newText
+  | Some b -> bindingDiff branchId b (Cli.Commit.previousHashesOf branchId b)
 
 /// The selected draft item's diff, as text. Matched by name so it lines up with the workbench's
 /// own WIP list regardless of ordering.
@@ -248,10 +340,37 @@ let wipDiffText (state: State) : String =
       | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " ++ s))
     |> Stdlib.String.join "\n"
 
-/// The current source of the selected WIP item, for the Changes reader.
-let changesSourceText (branchId: Uuid) (selected: Int) : String =
-  let items = loadChangedItems branchId
-  match Stdlib.List.getAt items selected with
+/// The Changes preview for the selected draft item: what changed, then -- for a fn -- what running it
+/// needs and what the policy says about that, then what it uses and what uses it. The same blocks the
+/// tree's item page shows, because a person reviewing a draft asks the same three questions of it
+/// that they ask of anything else, plus "what moved".
+let changedItemDetail (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ "(no change selected)" ]
+  | Some item ->
+    // The row's name is the full path (owner.Module.leaf).
+    let parts = Stdlib.String.split item.name "."
+    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
+    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let diff = Stdlib.String.split (wipDiffText state) "\n"
+    let access =
+      if item.kind == "fn" then
+        match (Packages.Query.searchExactMatch state.branchId mods leaf).fns with
+        | i :: _ -> accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash)
+        | [] -> []
+      else []
+    let refs = Stdlib.String.split (referencesText state mods leaf item.kind) "\n"
+    Stdlib.List.flatten
+      [ diff
+        (if Stdlib.List.isEmpty access then [] else Stdlib.List.append [ "" ] access)
+        [ "" ]
+        refs ]
+
+/// The current source of a WIP item, for the Changes reader. By the ROW, not
+/// an index: the list is filterable, so an index into a fresh load would name
+/// whatever sat at that position in the whole list.
+let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : String =
+  match row with
   | None -> "(no change selected)"
   | Some d ->
     let name = d.name
@@ -316,53 +435,71 @@ let depsText (state: State) : String =
     if item.isModule then
       "Modules have no dependencies - select a fn, type, or value."
     else
-      let modulePath = modulePathOf state.location
-      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
-      let picked =
-        if item.kind == "fn" then
-          results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
-        else if item.kind == "type" then
-          results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
-        else
-          results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
-      match picked with
-      | None -> "(not found)"
-      | Some((hash, loc, kind)) ->
-        // Dependencies - what this item uses.
-        let deps = Packages.Query.getDependencies hash
-        let depLines =
-          if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
-          else
-            let namesDict =
-              Darklang.Cli.Deps.resolveNamesIn
-                state.branchId
-                (modulePathOf state.location)
-                (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
-            deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
-        // Dependents - what uses this item.
-        // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
-        let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
-        let dependentLines =
-          if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
-          else
-            // Spelled from where the reader is standing, like everything else on this page.
-            let here = modulePathOf state.location
-            dependents
-            |> Stdlib.List.map (fun t ->
-              let (_h, sLoc, _rt) = t
-              "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
-        // No item name here: `inspectPageLines` composes this under a page already headed by that
-        // item's source, so including it printed the name twice on one screen.
-        //
-        // Counts use the same `label  ·  count` shape as the pane titles and the meta strip, rather
-        // than a third punctuation for the same idea on the same screen.
-        (Stdlib.Cli.UI.Colors.dimText ("Dependencies (uses)  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
-        ++ "\n"
-        ++ (Stdlib.String.join depLines "\n")
-        ++ "\n\n"
-        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependents (used by)  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
-        ++ "\n"
-        ++ (Stdlib.String.join dependentLines "\n")
+      referencesText state (modulePathOf state.location) item.name item.kind
+
+/// How many references a list on the item page shows before pointing at `:deps`.
+val referenceCap = 12
+
+/// What `leaf` in `modulePath` uses and what uses it, spelled from `state.location`. The tree page
+/// and the Changes preview both show this; the Changes list carries full paths, which is why the
+/// module path is a parameter rather than read off the location.
+let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kind: String) : String =
+  let results = Packages.Query.searchExactMatch state.branchId modulePath leaf
+  let item = BodyItem { name = leaf; kind = kind; isModule = false; desc = "" }
+  let picked =
+    if item.kind == "fn" then
+      results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
+    else if item.kind == "type" then
+      results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+    else
+      results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
+  match picked with
+  | None -> "(not found)"
+  | Some((hash, loc, kind)) ->
+    // Dependencies - what this item uses.
+    let deps = Packages.Query.getDependencies hash
+    let depLines =
+      if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
+      else
+        let namesDict =
+          Darklang.Cli.Deps.resolveNamesIn
+            state.branchId
+            (modulePathOf state.location)
+            (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
+        deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
+    // Dependents - what uses this item.
+    // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
+    let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
+    let dependentLines =
+      if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
+      else
+        // Spelled from where the reader is standing, like everything else on this page.
+        let here = modulePathOf state.location
+        dependents
+        |> Stdlib.List.map (fun t ->
+          let (_h, sLoc, _rt) = t
+          "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
+    // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
+    // the end of. The command prints them all.
+    let fqn = Stdlib.String.join (Stdlib.List.append modulePath [ leaf ]) "."
+    let capped (lines: List<String>) : List<String> =
+      let n = Stdlib.List.length lines
+      if n <= referenceCap then lines
+      else
+        Stdlib.List.append
+          (Stdlib.List.take lines referenceCap)
+          [ Stdlib.Cli.UI.Colors.dimText ("  + " ++ (Stdlib.Int.toString (n - referenceCap)) ++ " more · :deps " ++ fqn ++ " lists them all") ]
+    // No item name here: `inspectPageLines` composes this under a page already headed by that
+    // item's source, so including it printed the name twice on one screen.
+    let heading (label: String) (n: Int) : String =
+      (sectionHeading label) ++ (Stdlib.Cli.UI.Colors.dimText (" · " ++ (Stdlib.Int.toString n)))
+    Stdlib.String.join
+      (Stdlib.List.flatten
+        [ [ heading "uses" (Stdlib.List.length deps) ]
+          capped depLines
+          [ "", heading "used by" (Stdlib.List.length dependents) ]
+          capped dependentLines ])
+      "\n"
 
 /// AI threads for the AI view (the thread board - demo data for now, via the shared Views.AiChats source).
 

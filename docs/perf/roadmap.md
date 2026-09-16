@@ -417,7 +417,7 @@ That makes it a **startup and first-visit** win of maybe 60-90 ms total across a
 Where it would live: the loader is F#, so warming a cache on a background task needs nothing from the
 language. That matters, because expressing parallel work *in Dark* does not exist yet -- see
 "Concurrency in the language" below. Prefetching from F# sidesteps that entirely. What to prefetch is
-the open question; sidebar navigation is predictable enough (the adjacent views) that a guess would
+the open question; navbar navigation is predictable enough (the adjacent views) that a guess would
 often be right, and a wrong guess costs only work nobody waited for.
 
 **Value representation.** Struct `Dval` with tag and payload, cached singletons for small

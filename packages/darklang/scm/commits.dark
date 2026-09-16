@@ -83,6 +83,11 @@ let commitFromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Option.Optio
     |> Stdlib.Option.Option.Some
   | None -> Stdlib.Option.Option.None
 
+/// Number of commits across the store, matching the unfiltered recent listing.
+let count () : Int64 =
+  Stdlib.Sqlite.scalarIntP (localDb ()) "SELECT count(*) AS n FROM commits" [] "n"
+  |> Stdlib.Option.withDefault 0L
+
 /// The most recent commits, newest first.
 let recent (limit: Int64) : List<Commit> =
   Stdlib.Sqlite.rowsP

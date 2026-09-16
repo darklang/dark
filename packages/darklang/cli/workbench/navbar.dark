@@ -1,0 +1,409 @@
+/// The navbar: workspace navigation for the workbench.
+///
+/// The navbar is one flat strip across the top of the body: eight numbered views
+/// and nothing under any of them. No view has sections: what used to be
+/// Changes' History and Branches is on Home, and its Conflicts are rows in
+/// Changes. Narrow terminals show the same rows as a vertical overlay only
+/// while navigation has focus.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// A nav item: one view, one name, one number.
+///
+/// `covers` lists the OTHER views this item lights up for without leading to
+/// them: Code is where you are while reading Builtins, Traces while reading
+/// Errors. Those views have no row of their own (a strip with a second row
+/// under every item was two navs), and a view nothing in the strip claimed
+/// would highlight Home while you were somewhere else.
+type Workspace = { name: String; dest: Dest; covers: List<Int> }
+
+/// One rendered nav row.
+type NavbarRow =
+  { ws: Int
+    label: String
+    /// Where ⏎ goes: the view, on the section you last had it on.
+    dest: Dest
+    /// A right-aligned marker: a WIP/conflict count. "" for none.
+    badge: String
+    badgeColor: String }
+
+/// The extension view's absolute index by id (see `extensionViews`); -1 if
+/// there's no such view, which is never in `visibleViews`, so an item
+/// pointing at it simply doesn't show.
+let extViewIndex (id: String) : Int =
+  match Stdlib.List.findFirstIndex (extensionViews ()) (fun vd -> vd.id == id) with
+  | Some i -> baseViewCount + i
+  | None -> 0 - 1
+
+let mkDest (view: Int) (section: Int) : Dest = Dest { view = view; section = section }
+
+/// Every nav item, in strip order. Home first, so `1` is Home. The number
+/// key for an item is its position here, so hiding one (gating) doesn't
+/// renumber the rest.
+///
+/// One view per item, by design. What used to sit under an item is either on
+/// Home (History, Branches), a row in the view (Conflicts), or a view you
+/// step to from its parent (`B` builtins from the tree, `E` errors from
+/// traces).
+/// Crons, Calendar and Devices are gated sketches and have no route from
+/// the nav at all now; they still render if something else lands there.
+val workspaces =
+  [ Workspace { name = "Home"; dest = mkDest vHome 0; covers = [] }
+    // Builtins are part of the tree - the bottom tier of it - not
+    // documentation about it.
+    Workspace
+      { name = "Code"
+        dest = mkDest vMatter 0
+        covers = [ extViewIndex "builtins" ] }
+    Workspace { name = "Changes"; dest = mkDest vSCM 0; covers = [] }
+    // Its own row, not a leaf of Code: you reach for it from anywhere, so it gets a number key.
+    Workspace { name = "REPL"; dest = mkDest vScratch 0; covers = [] }
+    // Run starts work; Traces shows its results.
+    Workspace
+      { name = "Apps"
+        dest = mkDest vApps 0
+        covers = [ extViewIndex "crons", extViewIndex "calendar" ] }
+    Workspace
+      { name = "Traces"
+        dest = mkDest vTraces 0
+        covers = [ extViewIndex "errors" ] }
+    // AI has nothing real behind it yet, so it has no item: a view of sample
+    // data on the strip is a promise the product isn't keeping. The view and
+    // its code stay for when it is wired.
+    Workspace { name = "Docs"; dest = mkDest vDocs 0; covers = [] }
+    // This machine: its sync state (and, gated, the peers it syncs with).
+    Workspace
+      { name = "Sync"
+        dest = mkDest (extViewIndex "sync") 0
+        covers = [ vDevices ] } ]
+
+/// Can this account see `ws`'s view? A gated view drops out, and its item with it.
+///
+/// Takes `vis` rather than `state` because every caller is inside a loop over workspaces, and
+/// `visibleViews` is expensive enough that recomputing it per workspace dominated the navbar.
+let workspaceVisibleIn (vis: List<Int>) (ws: Workspace) : Bool =
+  Stdlib.List.member vis ws.dest.view
+
+let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
+  workspaces
+  |> Stdlib.List.indexedMap (fun i w -> (i, w))
+  |> Stdlib.List.filter (fun pair ->
+    let (_i, w) = pair
+    workspaceVisibleIn vis w)
+
+/// The section `view` is currently on, in `Dest` terms. Only AI has any.
+let sectionOf (state: State) (view: Int) : Int =
+  if view == vAI then aiSectionIndex state.ai.section else 0
+
+/// Where you are, as a destination.
+let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state state.activeView)
+
+/// The item that is, or covers, `d`'s view; Home if none does.
+let workspaceOf (d: Dest) : Int =
+  let holds (w: Workspace) : Bool =
+    (w.dest.view == d.view) || (Stdlib.List.member w.covers d.view)
+  match Stdlib.List.findFirstIndex (workspaces) holds with
+  | Some i -> i
+  | None -> 0
+
+/// Where ⏎ on an item, or its number key, takes you: its view, on the
+/// section you last had it on. None for an item this account can't see.
+///
+/// Only a remembered SECTION carries over. A covered view (Builtins, Errors)
+/// is remembered too, so the strip knows where you are, but the number key
+/// always lands on the item's own view: `2` means the tree, wherever in Code
+/// you were.
+let workspaceEntryIn
+  (vis: List<Int>)
+  (state: State)
+  (wsIdx: Int)
+  : Stdlib.Option.Option<Dest> =
+  match Stdlib.List.getAt (workspaces) wsIdx with
+  | None -> Stdlib.Option.Option.None
+  | Some w ->
+    if Stdlib.Bool.not (workspaceVisibleIn vis w) then Stdlib.Option.Option.None
+    else
+      let remembered =
+        state.wsLast
+        |> Stdlib.List.findFirst (fun pair -> let (i, _d) = pair in i == wsIdx)
+        |> Stdlib.Option.map (fun pair -> let (_i, d) = pair in d)
+      match remembered with
+      | Some d ->
+        if d.view == w.dest.view then Stdlib.Option.Option.Some d
+        else Stdlib.Option.Option.Some w.dest
+      | None -> Stdlib.Option.Option.Some w.dest
+
+let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
+  workspaceEntryIn (visibleViews state) state wsIdx
+
+/// The rows the nav draws: every visible item, flat. `wip` and `conflicts`
+/// are the frame's already-computed counts, for the badges; pass 0s when
+/// only the shape matters (the key handler does).
+let navbarRows (state: State) (wip: Int) (conflicts: Int) : List<NavbarRow> =
+  let count (n: Int) : String = Stdlib.Int.toString n
+  // Once, not once per workspace and again per row.
+  let vis = visibleViews state
+  visibleWorkspacesIn vis
+  |> Stdlib.List.map (fun pair ->
+    let (i, w) = pair
+    let entry = workspaceEntryIn vis state i |> Stdlib.Option.withDefault (mkDest vHome 0)
+    // The badge: what needs you in there. Changes only: the tree says where
+    // the draft is by graying the modules that hold it, so a count on Code
+    // repeated the number without saying anything the tree doesn't.
+    let (badge, color) =
+      if w.name == "Changes" then
+        if conflicts > 0 then ("⚠ " ++ (count conflicts), Stdlib.Cli.UI.Colors.orange)
+        else if wip > 0 then ("● " ++ (count wip), Stdlib.Cli.UI.Colors.pink)
+        else ("", "")
+      else ("", "")
+    NavbarRow
+      { ws = i
+        label = w.name
+        dest = entry
+        badge = badge
+        badgeColor = color })
+
+/// The row for where you are, so the nav and the body agree.
+let activeRow (state: State) (rows: List<NavbarRow>) : Int =
+  let ws = workspaceOf (activeDest state)
+  match Stdlib.List.findFirstIndex rows (fun r -> r.ws == ws) with
+  | Some i -> i
+  | None -> 0
+
+/// Put the nav cursor on the row for where you are.
+let withNavbarCursorOnActive (state: State) : State =
+  { state with navbarSel = activeRow state (navbarRows state 0 0) }
+
+// ── Where the nav lives ──
+
+/// Navigation always occupies one row.
+val navRows = 1
+
+/// The nav is a strip at this terminal width or more; below it, it's an
+/// overlay. Eight items with badges run to about 95 columns.
+val navMinWidth = 100
+
+let navFits (cols: Int) : Bool = cols >= navMinWidth
+
+/// Does the nav currently own the keyboard?
+let navbarFocused (state: State) : Bool =
+  state.focus == Stdlib.Cli.UI.SplitPane.Focus.Neither
+
+/// Is the nav a strip right now? For the key handlers, which don't get the
+/// size handed to them.
+let navFitsNow () : Bool =
+  let (w, _h) = Terminal.getSize ()
+  navFits w
+
+// ── Moving ──
+
+/// Hand the keyboard to the nav, cursor on where you are. On a narrow
+/// terminal this is what opens the overlay.
+let focusNavbar (state: State) : State =
+  withNavbarCursorOnActive
+    { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Neither }
+
+/// Hand the keyboard to the content: its first pane.
+let focusContent (state: State) : State =
+  { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
+
+/// Go to `d`: switch view and section, reload the list (cursor clamped, so
+/// hopping around doesn't lose your place), drop the filter and scroll, and
+/// remember `d` as where you were in its item. Focus lands on the content
+/// unless `stayInNavbar`. The place left is pushed for esc.
+let goTo (state: State) (d: Dest) (stayInNavbar: Bool) : State =
+  let point =
+    { (returnPointOf state) with
+        view = d.view
+        aiSection = if d.view == vAI then aiSectionAt d.section else state.ai.section
+        lens = if d.view == vMatter then Lens.WholeTree else state.matter.lens
+        filter = "" }
+  let moved = moveToPoint state point true
+  if stayInNavbar then focusNavbar moved else focusContent moved
+
+/// Jump to an item's view. Its number again, on it already, does nothing.
+let jumpToWorkspace (state: State) (n: Int) : State =
+  match workspaceEntry state (n - 1) with
+  | None -> state
+  | Some d ->
+    if d.view != state.activeView then goTo state d false
+    else state
+
+/// Keys while the nav has the keyboard. The arrows follow how the rows sit
+/// on screen. As a strip: ←→ (h/l) walk it and ↓ (j) steps into the
+/// content. As an overlay the rows run top to bottom, so ↑↓ walk and →
+/// leaves, as the column did. Either way ⏎ goes, and tab and esc hand the
+/// keyboard back to the content (esc is one step back everywhere, and
+/// taking the nav was the step). Anything global (`/`, `:`, `?`, numbers,
+/// `q`) still works.
+let handleNavbarKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // Every one of these is a function, not a value. `let` is eager, so binding them computed the
+  // outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
+  // `goTo` and loads items from the DB, and `navbarRows`, which is the most expensive thing the
+  // key handler touches. Stepping into the content pane now does none of it.
+  let rowsNow (_u: Unit) : List<NavbarRow> = navbarRows state 0 0
+
+  let selIn (rows: List<NavbarRow>) : Int =
+    Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel ((Stdlib.List.length rows) - 1))
+
+  let moveToIn (rows: List<NavbarRow>) (i: Int) : Step =
+    let n = Stdlib.List.length rows
+    Step.Continue { state with navbarSel = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
+
+  let moveBy (delta: Int) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((selIn rows) + delta)
+
+  let moveToEnd (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((Stdlib.List.length rows) - 1)
+
+  let moveToStart (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows 0
+
+  let openSel (_u: Unit) : Step =
+    let rows = rowsNow ()
+    match Stdlib.List.getAt rows (selIn rows) with
+    | None -> Step.Continue state
+    | Some row -> Step.Continue (goTo state row.dest false)
+
+  let strip = navFitsNow ()
+  let stay = Step.Continue state
+  let toContent = Step.Continue (focusContent state)
+  let up (_u: Unit) : Step = if strip then stay else moveBy -1
+  let down (_u: Unit) : Step = if strip then toContent else moveBy 1
+  let left (_u: Unit) : Step = if strip then moveBy -1 else stay
+  let right (_u: Unit) : Step = if strip then moveBy 1 else toContent
+
+  match key with
+  | UpArrow -> up ()
+  | DownArrow -> down ()
+  | Enter -> openSel ()
+  | RightArrow -> right ()
+  | LeftArrow -> left ()
+  | Escape -> toContent
+  | Tab -> toContent
+  | _ ->
+    match keyChar with
+    | Some "k" -> up ()
+    | Some "j" -> down ()
+    | Some "l" -> right ()
+    | Some "h" -> left ()
+    | Some "g" -> moveToStart ()
+    | Some "G" -> moveToEnd ()
+    // ` toggles: it opened the nav, so it also hands the keyboard back.
+    | Some "`" -> toContent
+    | _ ->
+      match globalKey state keyChar with
+      | Some step -> step
+      | None -> stay
+
+// ── Drawing ──
+
+/// Draw the nav rows vertically into `inner`, for the overlay. The cursor
+/// row is a purple bar while the nav has the keyboard; otherwise the row for
+/// where you are is bright and the rest dim, so it reads as a map, not a
+/// menu.
+let renderNavbarRows (state: State) (rows: List<NavbarRow>) (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let n = Stdlib.List.length rows
+  let active = activeRow state rows
+  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel (n - 1))
+  let width = Stdlib.Int.max 1 inner.cols
+  let lines =
+    rows
+    |> Stdlib.List.indexedMap (fun i r ->
+      let left = "  " ++ r.label
+      let num = Stdlib.Int.toString (r.ws + 1)
+      let sep = if r.badge != "" then "  " else ""
+      let rightPlain = r.badge ++ sep ++ num
+      // Two columns of gutter on every row, so the cursor bar (which lives in
+      // the gutter) doesn't shift the row it's on.
+      let gap =
+        Stdlib.Int.max 1 (width - 2 - (Stdlib.String.displayWidth left) - (Stdlib.String.displayWidth rightPlain) - 1)
+      let spaces = Stdlib.String.repeat " " gap
+      let badgeStyled = if r.badge == "" then "" else Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge
+      let numStyled = Stdlib.Cli.UI.Colors.dimText num
+      let right = spaces ++ badgeStyled ++ sep ++ numStyled
+      if (navbarFocused state) && (i == sel) then
+        selectionBar left right true
+      else
+        let leftStyled =
+          if i == active then Stdlib.Cli.UI.Colors.boldText left
+          else if navbarFocused state then left
+          else Stdlib.Cli.UI.Colors.dimText left
+        "  " ++ leftStyled ++ right)
+  Stdlib.Cli.UI.ListView.render
+    inner
+    lines
+    (if navbarFocused state then sel else active)
+
+/// One navigation row: every item, numbered, the one you are in as a solid
+/// highlight - a purple block with the label in white - so where you are
+/// reads at a glance and the frame under it never has to repeat the name.
+/// While the nav has the keyboard its cursor is reverse video instead.
+let renderNavStrip
+  (state: State)
+  (wip: Int)
+  (conflicts: Int)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows = navbarRows state wip conflicts
+  let n = Stdlib.List.length rows
+  let focused = navbarFocused state
+  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel (n - 1))
+  let active = activeRow state rows
+  let gap = 2
+
+  // One item, styled, with the width of its plain text: ` 3 Changes ● 3 `.
+  let paint (i: Int) (r: NavbarRow) : (String * Int) =
+    let num = (Stdlib.Int.toString (r.ws + 1)) ++ " "
+    let here = i == active
+    let badgePlain = if r.badge == "" then "" else " " ++ r.badge
+    let plain = " " ++ num ++ r.label ++ badgePlain ++ " "
+    let width = Stdlib.String.displayWidth plain
+    let text =
+      if focused && (i == sel) then
+        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse plain
+      else if here then
+        Stdlib.Cli.UI.Colors.colorize
+          (Stdlib.Cli.UI.Colors.purpleBg ++ Stdlib.Cli.UI.Colors.white ++ Stdlib.Cli.UI.Colors.bold)
+          plain
+      else
+        let label = if focused then r.label else Stdlib.Cli.UI.Colors.dimText r.label
+        let badge =
+          if r.badge == "" then ""
+          else " " ++ (Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge)
+        " " ++ (Stdlib.Cli.UI.Colors.dimText num) ++ label ++ badge ++ " "
+    (text, width)
+
+  let (_endCol, spans) =
+    rows
+    |> Stdlib.List.indexedMap (fun i r -> (i, r))
+    |> Stdlib.List.fold (1, []) (fun acc pair ->
+      let (col, spans) = acc
+      let (i, row) = pair
+      let (text, width) = paint i row
+      (col + width + gap,
+       Stdlib.List.append spans (Stdlib.Cli.UI.Layout.at region 0 col text)))
+  spans
+
+/// The same rows as a centred overlay, vertical, for a terminal too narrow
+/// for the strip. Drawn only while the nav has the keyboard, so it opens on `
+/// (or esc from the top of a list) and closes when you go.
+let renderNavbarOverlay (state: State) (wip: Int) (conflicts: Int) (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows = navbarRows state wip conflicts
+  let n = Stdlib.List.length rows
+  let w = 34
+  let h = Stdlib.Int.min (n + 2) (Stdlib.Int.max 3 (screen.rows - 2))
+  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
+  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.clearRegion region
+      Stdlib.Cli.UI.Box.panel region "⏎ go · esc" true (fun inner -> renderNavbarRows state rows inner) ]

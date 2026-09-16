@@ -258,6 +258,14 @@ let accessReportLines
   (accountID: Stdlib.Option.Option<Uuid>)
   (hash: String)
   : List<String> =
+  Command.renderAccessReport (Command.accessFacts accountID hash)
+
+/// The facts behind `accessReportLines`, for a caller that renders them its
+/// own way (the workbench's detail panes show a compact cut of them).
+let accessFacts
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (hash: String)
+  : Command.AccessReportFacts =
   let (effects, complete) = Command.permissionRequirementsForHash hash
   let (bundled, packagePolicy) = Command.packageAccess accountID hash
   let approvedAs =
@@ -265,16 +273,15 @@ let accessReportLines
     |> Stdlib.List.filter (fun pair ->
       let (_name, approvedHash) = pair in approvedHash == hash)
     |> Stdlib.List.map Stdlib.Tuple2.first
-  Command.renderAccessReport
-    (Command.AccessReportFacts
-      { hash = hash
-        effects = effects
-        complete = complete
-        ceiling = Command.ceilingForHash hash
-        bundled = bundled
-        packagePolicy = packagePolicy
-        approvedAs = approvedAs
-        instancePolicy = Command.currentPolicy () })
+  Command.AccessReportFacts
+    { hash = hash
+      effects = effects
+      complete = complete
+      ceiling = Command.ceilingForHash hash
+      bundled = bundled
+      packagePolicy = packagePolicy
+      approvedAs = approvedAs
+      instancePolicy = Command.currentPolicy () }
 
 
 // Instance policy edits.

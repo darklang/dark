@@ -1,6 +1,6 @@
 /// Key handling for the modal layers that sit above a view: the editor, input
-/// modes, the reader, and search results. The sidebar's keys are in
-/// sidebar.dark; the dispatcher that routes between all of them is at the
+/// modes, the reader, and search results. The navbar's keys are in
+/// navbar.dark; the dispatcher that routes between all of them is at the
 /// bottom of keys-view.dark.
 ///
 /// Part of `Darklang.Cli.Workbench`.

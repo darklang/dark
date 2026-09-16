@@ -293,26 +293,6 @@ let rendersView (viewIndex: Int) : Bool =
   && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
 
 
-/// Render the SCM view in one of its sections, and report whether it produced a plausible frame.
-///
-/// `rendersView` only ever draws a view's DEFAULT section, so a non-default section can rot
-/// unrendered. The data-dependent half needs a store with a conflict in it
-/// (`scripts/testing/gates workbench-scm`); this is the cheap half.
-let rendersScmSection (section: Darklang.Cli.Workbench.ScmSection) : Bool =
-  let base = workbenchState ()
-
-  let state =
-    { base with
-        activeView = Darklang.Cli.Workbench.vSCM
-        scm = { base.scm with section = section } }
-
-  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
-  let view = Darklang.Cli.Workbench.viewAtSize state size
-
-  (Stdlib.List.length view.rows == 40)
-  && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
-
-
 /// The same for Matter's lenses. `Changed` is the interesting one: it reads the draft rather than the
 /// package tree, so it is a different code path from the other two rather than a filter over the same one.
 let rendersMatterLens (lens: Darklang.Cli.Workbench.Lens) : Bool =
@@ -330,7 +310,7 @@ let rendersMatterLens (lens: Darklang.Cli.Workbench.Lens) : Bool =
   && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
 
 
-/// Matter's ITEM PAGE: the preview for a selected leaf, which is source + meta + references + actions.
+/// Matter's ITEM PAGE: the preview for a selected leaf, which is meta + source + access + references.
 ///
 /// The deepest renderer in the workbench and the one nothing reached. It cannot be driven through the
 /// terminal -- it is three interactions deep (open Matter, descend into a module, focus the preview) and
@@ -397,7 +377,8 @@ let rendersPreview (viewIndex: Int) : Bool =
 
 let testWorkbenchPreviewsRender (): TestResult =
   let broken =
-    Stdlib.List.range 0 12
+    Darklang.Cli.Workbench.viewSpecs
+    |> Stdlib.List.map (fun spec -> let (i, _name, _gate) = spec in i)
     |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersPreview i))
 
   if Stdlib.List.isEmpty broken then
@@ -407,26 +388,20 @@ let testWorkbenchPreviewsRender (): TestResult =
     TestResult.Fail $"preview panes that drew nothing: {names}"
 
 
+/// Every Matter lens draws a frame. No view has sections any more; the lenses are the one
+/// remaining "same view, different list" switch, and `rendersView` only ever draws the default.
 let testWorkbenchSectionsRender (): TestResult =
-  let brokenSections =
-    [ Darklang.Cli.Workbench.ScmSection.Changes
-      Darklang.Cli.Workbench.ScmSection.History
-      Darklang.Cli.Workbench.ScmSection.Conflicts
-      Darklang.Cli.Workbench.ScmSection.Branches ]
-    |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (rendersScmSection s))
-
   let brokenLenses =
     [ Darklang.Cli.Workbench.Lens.WholeTree
       Darklang.Cli.Workbench.Lens.ValuesOnly
       Darklang.Cli.Workbench.Lens.Changed ]
     |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (rendersMatterLens l))
 
-  if (Stdlib.List.isEmpty brokenSections) && (Stdlib.List.isEmpty brokenLenses) then
+  if Stdlib.List.isEmpty brokenLenses then
     TestResult.Pass
   else
-    let ns = Stdlib.Int.toString (Stdlib.List.length brokenSections)
     let nl = Stdlib.Int.toString (Stdlib.List.length brokenLenses)
-    TestResult.Fail $"{ns} SCM section(s) and {nl} Matter lens(es) produced no frame"
+    TestResult.Fail $"{nl} Matter lens(es) produced no frame"
 
 
 let testWorkbenchEveryViewRenders (): TestResult =
@@ -435,7 +410,8 @@ let testWorkbenchEveryViewRenders (): TestResult =
   // takes the whole suite down (the harness does not catch runtime errors) -- caught either way,
   // just louder.
   let broken =
-    Stdlib.List.range 0 12
+    Darklang.Cli.Workbench.viewSpecs
+    |> Stdlib.List.map (fun spec -> let (i, _name, _gate) = spec in i)
     |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersView i))
 
   if Stdlib.List.isEmpty broken then
@@ -490,14 +466,15 @@ let testWorkbenchModuleInspectPreviewsChildren (): TestResult =
   if
     (Stdlib.String.contains plain "LspExtension/")
     && (Stdlib.String.contains plain "FileSystemProvider/")
+    && (Stdlib.String.contains plain "modules · ")
     && (Stdlib.String.contains plain "enter")
   then
     TestResult.Pass
   else
-    TestResult.Fail "Expected Inspect to preview a module's immediate children"
+    TestResult.Fail "Expected Inspect to preview a module's immediate children, grouped by kind"
 
 
-// ── Workbench: the sidebar walks ──
+// ── Workbench: the nav walks ──
 
 /// What the workbench dispatcher decided to do with a simulated keypress.
 type WbAction =
@@ -535,138 +512,147 @@ let wbKey
   : WbResult =
   wbPress state k Stdlib.Option.Option.None
 
-/// Move the sidebar cursor to a semantic row through the real key handler.
-/// Tests care that REPL is reachable, not how many rows follow Tree today.
-let wbMoveSidebarTo
+/// Move the nav cursor to a semantic row through the real key handler.
+/// Tests care that REPL is reachable, not how many rows follow Code today.
+/// The walking arrows depend on the nav's shape at the terminal size the
+/// test runs under: along the strip, down the overlay.
+let wbMoveNavbarTo
   (state: Darklang.Cli.Workbench.State)
-  (matches: Darklang.Cli.Workbench.SideRow -> Bool)
+  (matches: Darklang.Cli.Workbench.NavbarRow -> Bool)
   : Darklang.Cli.Workbench.State =
-  let rows = Darklang.Cli.Workbench.sidebarRows state 0 0
+  let rows = Darklang.Cli.Workbench.navbarRows state 0 0
   match Stdlib.List.findFirstIndex rows matches with
   | None -> state
   | Some target ->
-    let delta = target - state.sideSel
+    let delta = target - state.navbarSel
     let steps = if delta < 0 then 0 - delta else delta
+    let strip = Darklang.Cli.Workbench.navFitsNow ()
     let key =
       if delta < 0 then
-        Stdlib.Cli.Stdin.Key.Key.UpArrow
+        (if strip then Stdlib.Cli.Stdin.Key.Key.LeftArrow
+         else Stdlib.Cli.Stdin.Key.Key.UpArrow)
       else
-        Stdlib.Cli.Stdin.Key.Key.DownArrow
+        (if strip then Stdlib.Cli.Stdin.Key.Key.RightArrow
+         else Stdlib.Cli.Stdin.Key.Key.DownArrow)
     if steps == 0 then
       state
     else
       Stdlib.List.range 1 steps
       |> Stdlib.List.fold state (fun s _ -> (wbKey s key).state)
 
-let wbMoveSidebarToDest
+let wbMoveNavbarToDest
   (state: Darklang.Cli.Workbench.State)
   (dest: Darklang.Cli.Workbench.Dest)
   : Darklang.Cli.Workbench.State =
-  wbMoveSidebarTo state (fun row ->
-    match row.kind with
-    | Destination _ -> row.dest == dest
-    | WorkspaceHeader -> false)
+  wbMoveNavbarTo state (fun row -> row.dest == dest)
 
-let wbMoveSidebarToWorkspace
-  (state: Darklang.Cli.Workbench.State)
-  (label: String)
-  : Darklang.Cli.Workbench.State =
-  wbMoveSidebarTo state (fun row ->
-    match row.kind with
-    | WorkspaceHeader -> row.label == label
-    | Destination _ -> false)
-
-/// Is the sidebar cursor on the destination we expected?
-let wbSidebarSelectionIsDest
+/// Is the nav cursor on the destination we expected?
+let wbNavbarSelectionIsDest
   (state: Darklang.Cli.Workbench.State)
   (dest: Darklang.Cli.Workbench.Dest)
   : Bool =
-  let rows = Darklang.Cli.Workbench.sidebarRows state 0 0
-  match Stdlib.List.getAt rows state.sideSel with
-  | Some row ->
-    match row.kind with
-    | Destination _ -> row.dest == dest
-    | WorkspaceHeader -> false
+  let rows = Darklang.Cli.Workbench.navbarRows state 0 0
+  match Stdlib.List.getAt rows state.navbarSel with
+  | Some row -> row.dest == dest
   | None -> false
 
 
-let testWorkbenchSidebarNavigation (): TestResult =
-  // End to end through `handleKey`: numbers jump to a workspace and hand the
-  // keyboard to the content; esc hands it back to the sidebar (never quits);
-  // ↑↓ ⏎ go to a section; ⏎ on a collapsed workspace expands it; q quits.
-  // Rendering is pure and so is this, so it needs no terminal.
+let testWorkbenchNavbarNavigation (): TestResult =
+  // End to end through `handleKey`: numbers jump to a view and hand the
+  // keyboard to the content; esc goes back (never quits); arrows and ⏎ go to
+  // a view; the nav is FLAT and no view has sections, so a number pressed
+  // again stays put; a demoted view (Errors) is a key away from its parent
+  // and lights the parent's item; q quits. Rendering is pure and so is this,
+  // so it needs no terminal.
   let s0 = workbenchState ()
   let atStart =
-    (Darklang.Cli.Workbench.sidebarFocused s0)
+    (s0.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
     && (s0.activeView == Darklang.Cli.Workbench.vHome)
-  // 2 → Code, landing on Tree with the content focused.
+  // 2 → Code, landing on the tree with the content focused.
   let r1 = wbChar s0 "2"
   let s1 = r1.state
   let jumped =
     (r1.action == WbAction.Continued)
     && (s1.activeView == Darklang.Cli.Workbench.vMatter)
-    && (Stdlib.Bool.not (Darklang.Cli.Workbench.sidebarFocused s1))
+    && (Stdlib.Bool.not (Darklang.Cli.Workbench.navbarFocused s1))
     && (s1.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
-  // Esc at the top of the tree → sidebar, cursor on Tree by destination.
+  // Esc at the top of the tree → back to Home, where 2 was pressed, content focused.
   let r2 = wbKey s1 Stdlib.Cli.Stdin.Key.Key.Escape
   let s2 = r2.state
   let backedOut =
     (r2.action == WbAction.Continued)
-    && (Darklang.Cli.Workbench.sidebarFocused s2)
-    && (wbSidebarSelectionIsDest
-      s2
-      (Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vMatter 0))
-  // Builtins may appear between Tree and REPL when its gate is on.
+    && (s2.activeView == Darklang.Cli.Workbench.vHome)
+    && (Stdlib.Bool.not (Darklang.Cli.Workbench.navbarFocused s2))
+    && (Stdlib.List.isEmpty s2.back)
+  // ` takes the nav, with the cursor on where you are.
+  let s2n = (wbChar s2 "`").state
+  let navTaken =
+    (Darklang.Cli.Workbench.navbarFocused s2n)
+    && (wbNavbarSelectionIsDest
+      s2n
+      (Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vHome 0))
   let atRepl =
-    wbMoveSidebarToDest
-      s2
+    wbMoveNavbarToDest
+      s2n
       (Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vScratch 0)
   let r3 = wbKey atRepl Stdlib.Cli.Stdin.Key.Key.Enter
   let s3 = r3.state
   let toRepl =
     (r3.action == WbAction.Continued)
     && (s3.activeView == Darklang.Cli.Workbench.vScratch)
-    && (Stdlib.Bool.not (Darklang.Cli.Workbench.sidebarFocused s3))
+    && (Stdlib.Bool.not (Darklang.Cli.Workbench.navbarFocused s3))
     && (s3.input == Stdlib.Option.Option.None)
-  // Select Changes by name; Enter expands it and retains sidebar focus.
-  let s4 = (wbKey s3 Stdlib.Cli.Stdin.Key.Key.Escape).state
-  let atChanges = wbMoveSidebarToWorkspace s4 "Changes"
+  // The nav is one row per view: nothing under Changes, whichever section it is on.
+  let rows = Darklang.Cli.Workbench.navbarRows s3 0 0
+  let flat =
+    (Stdlib.Bool.not (Stdlib.List.any rows (fun r -> r.label == "History")))
+    && (Stdlib.List.length rows
+        == Stdlib.List.length (Darklang.Cli.Workbench.visibleWorkspacesIn (Darklang.Cli.Workbench.visibleViews s3)))
+  // ⏎ on Changes goes there and takes the content: there is nothing to expand.
+  let s4 = (wbChar s3 "`").state
+  let atChanges =
+    wbMoveNavbarToDest s4 (Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vSCM 0)
   let s5 = (wbKey atChanges Stdlib.Cli.Stdin.Key.Key.Enter).state
-  let expanded =
+  let entered =
     (s5.activeView == Darklang.Cli.Workbench.vSCM)
-    && (Darklang.Cli.Workbench.sidebarFocused s5)
-  // Number keys return a workspace to its remembered section.
-  let atHistory =
-    wbMoveSidebarToDest
-      s5
-      (Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vSCM 1)
-  let s6 = (wbKey atHistory Stdlib.Cli.Stdin.Key.Key.Enter).state
-  let s7 = (wbChar (wbChar s6 "2").state "3").state
-  let remembered =
-    (s7.activeView == Darklang.Cli.Workbench.vSCM)
-    && (s7.scm.section == Darklang.Cli.Workbench.ScmSection.History)
-  // Gated extension views still need a route through the sidebar.
-  let calendar =
-    Darklang.Cli.Workbench.mkDest
-      (Darklang.Cli.Workbench.extViewIndex "calendar")
-      0
-  let calendarKeys = Darklang.Cli.Workbench.keysTo s7 calendar
-  let atCalendar =
-    Stdlib.String.split calendarKeys " "
-    |> Stdlib.List.fold s7 (fun s key -> (wbChar s key).state)
-  let calendarReachable =
-    (calendarKeys != "") && (Darklang.Cli.Workbench.activeDest atCalendar == calendar)
+    && (Stdlib.Bool.not (Darklang.Cli.Workbench.navbarFocused s5))
+  // `3` again stays: there is nothing under Changes to step to.
+  let s6 = (wbChar s5 "3").state
+  let cycled = (s6.activeView == Darklang.Cli.Workbench.vSCM) && (s6.items == s5.items)
+  let s6b = (wbChar s6 "]").state
+  let s6c = (wbChar s6b "[").state
+  let stepped =
+    (s6b.activeView == Darklang.Cli.Workbench.vSCM) && (s6c.activeView == Darklang.Cli.Workbench.vSCM)
+  // Leaving and coming back by number returns to the view.
+  let s7 = (wbChar (wbChar s6c "2").state "3").state
+  let remembered = s7.activeView == Darklang.Cli.Workbench.vSCM
+  // Errors has no nav row: `E` from Traces opens it, Traces stays lit, `6` comes back.
+  let errors = Darklang.Cli.Workbench.extViewIndex "errors"
+  let s8 = (wbChar (wbChar s7 "6").state "E").state
+  let tracesRow =
+    Stdlib.List.findFirstIndex
+      (Darklang.Cli.Workbench.navbarRows s8 0 0)
+      (fun r -> r.label == "Traces")
+    |> Stdlib.Option.withDefault (0 - 1)
+  let errorsCovered =
+    (s8.activeView == errors)
+    && (Darklang.Cli.Workbench.activeRow s8 (Darklang.Cli.Workbench.navbarRows s8 0 0) == tracesRow)
+    && ((wbChar s8 "6").state.activeView == Darklang.Cli.Workbench.vTraces)
   // Assert q's action directly instead of smuggling it through `message`.
-  let r8 = wbChar s7 "q"
-  let quits = r8.action == WbAction.Exited
+  let r9 = wbChar s7 "q"
+  let quits = r9.action == WbAction.Exited
   let checks =
-    [ (atStart, "starts on Home with the sidebar focused")
-      (jumped, "2 jumps to Code › Tree and focuses the content")
-      (backedOut, "esc hands the keyboard to the sidebar, cursor on Tree")
+    [ (atStart, "starts on Home with the list focused")
+      (jumped, "2 jumps to Code and focuses the content")
+      (backedOut, "esc goes back to Home, content focused")
+      (navTaken, "` hands the keyboard to the nav, cursor on where you are")
       (toRepl, "arrowing to REPL then pressing ⏎ opens it, prompt closed")
-      (expanded, "⏎ on a collapsed workspace expands it and stays in the sidebar")
-      (remembered, "a workspace's number key returns to its last section")
-      (calendarReachable, "Calendar remains reachable through Run")
+      (flat, "the nav has one row per view and none for a section")
+      (entered, "⏎ on Changes opens it and takes the content")
+      (cycled, "3 again stays on Changes")
+      (stepped, "] and [ do nothing: no view has sections")
+      (remembered, "a view's number key returns to it")
+      (errorsCovered, "E opens Errors from Traces, Traces stays lit, 6 returns")
       (quits, "q quits") ]
   let failed =
     checks
@@ -836,7 +822,20 @@ let testWorkbenchCapturesStrayOutput (): TestResult =
 
 /// Does rendering view `viewIndex` put `marker` on the screen?
 let viewShows (viewIndex: Int) (marker: String) : Bool =
-  let state = { (workbenchState ()) with activeView = viewIndex }
+  let state =
+    Darklang.Cli.Workbench.focusNavbar
+      { (workbenchState ()) with activeView = viewIndex }
+  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160; height = 40 })
+  view.rows
+  |> Stdlib.List.any (fun r -> Stdlib.String.contains (Stdlib.Cli.Tui.Text.stripSgr r) marker)
+
+
+/// `viewShows`, with the CONTENT holding the keyboard: the footer then carries the
+/// view's own hints rather than the nav's.
+let contentShows (viewIndex: Int) (marker: String) : Bool =
+  let state =
+    Darklang.Cli.Workbench.focusContent
+      { (workbenchState ()) with activeView = viewIndex }
   let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160; height = 40 })
   view.rows
   |> Stdlib.List.any (fun r -> Stdlib.String.contains (Stdlib.Cli.Tui.Text.stripSgr r) marker)
@@ -846,25 +845,101 @@ let testWorkbenchViewsShowTheirChrome (): TestResult =
   // `testWorkbenchEveryViewRenders` only asks whether a view drew *anything*,
   // which is why it once stayed green while two header bands rendered blank
   // (helpers that return spans, results discarded with `let _ =`). So: assert
-  // on content a band actually contributes - a pane title, and the sidebar
-  // rows around it.
+  // on content a band actually contributes - a pane title, and the nav
+  // rows above it.
   let checks =
-    // Markers have to be unique to the band: something the footer hints and
-    // the context row don't say. The sidebar expands the active workspace, so
-    // a section that isn't the active one is only on screen if the sidebar
-    // drew it: `History` beside SCM, `Prompts` beside AI.
-    [ (Darklang.Cli.Workbench.vSCM, "History", "sidebar: Changes workspace expanded")
-      (Darklang.Cli.Workbench.vSCM, "Conflicts", "sidebar: Changes sections listed")
-      (Darklang.Cli.Workbench.vAI, "Prompts", "sidebar: AI workspace expanded")
-      (Darklang.Cli.Workbench.vScratch, "Session", "REPL session pane")
-      (Darklang.Cli.Workbench.vMatter, "Tree", "Matter tree pane")
-      (Darklang.Cli.Workbench.vHome, "recent commits", "Home's commits section")
-      (Darklang.Cli.Workbench.vHome, "▸ Code", "sidebar: collapsed workspace") ]
+    // Markers have to be unique to the band: something the context row
+    // doesn't say. `2 Code` and `6 Traces` are numbered items on the strip,
+    // which nothing else draws.
+    [ (Darklang.Cli.Workbench.vSCM, "3 Changes", "nav: Changes is one numbered item")
+      (Darklang.Cli.Workbench.vTraces, "6 Traces", "nav: Traces is its own item, not Activity")
+      (Darklang.Cli.Workbench.vScratch, "to type", "REPL title row")
+      (Darklang.Cli.Workbench.vMatter, "packages", "Code's root breadcrumb")
+      (Darklang.Cli.Workbench.vHome, "recent commits", "Home's recent work")
+      (Darklang.Cli.Workbench.vHome, "2 Code", "nav: a numbered workspace") ]
+  // With the content focused, the footer is the view's: Changes advertises commit, and Home the
+  // branch verbs it took over from the old Branches section.
+  let contentChecks =
+    [ (Darklang.Cli.Workbench.vSCM, "commit", "footer: Changes offers commit")
+      (Darklang.Cli.Workbench.vHome, "merge", "footer: Home offers the branch verbs") ]
   let missing =
-    checks
-    |> Stdlib.List.filter (fun c -> let (v, marker, _label) = c in Stdlib.Bool.not (viewShows v marker))
-    |> Stdlib.List.map (fun c -> let (_v, _m, label) = c in label)
+    Stdlib.List.append
+      (checks
+       |> Stdlib.List.filter (fun c -> let (v, marker, _label) = c in Stdlib.Bool.not (viewShows v marker))
+       |> Stdlib.List.map (fun c -> let (_v, _m, label) = c in label))
+      (contentChecks
+       |> Stdlib.List.filter (fun c -> let (v, marker, _label) = c in Stdlib.Bool.not (contentShows v marker))
+       |> Stdlib.List.map (fun c -> let (_v, _m, label) = c in label))
   if Stdlib.List.isEmpty missing then
     TestResult.Pass
   else
     TestResult.Fail $"Missing from the rendered frame: {Stdlib.String.join missing ", "}"
+
+
+/// Home has no hidden inspector, and even a wide terminal gets one nav row.
+let testWorkbenchHomeOverview (): TestResult =
+  let base = workbenchState ()
+  let longTitle = Stdlib.String.repeat "界" 30
+  let state =
+    { base with
+        items =
+          [ Darklang.Cli.Workbench.homeHeader "recent commits"
+            Darklang.Cli.Workbench.BodyItem
+              { name = longTitle; kind = "home-commit"; isModule = false
+                desc = "Alex · yesterday" } ]
+        selected = 1 }
+  let plain =
+    (Darklang.Cli.Workbench.viewAtSize state
+      (Stdlib.Cli.Tui.Size { width = 120; height = 24 })).rows
+    |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
+    |> Stdlib.String.join "\n"
+  let narrow =
+    (Darklang.Cli.Workbench.viewAtSize state
+      (Stdlib.Cli.Tui.Size { width = 80; height = 24 })).rows
+    |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
+    |> Stdlib.String.join "\n"
+  let right = (wbKey state Stdlib.Cli.Stdin.Key.Key.RightArrow).state
+  let tab = (wbKey state Stdlib.Cli.Stdin.Key.Key.Tab).state
+  let back = (wbKey tab Stdlib.Cli.Stdin.Key.Key.Tab).state
+  let scm =
+    Darklang.Cli.Workbench.focusNavbar
+      { state with activeView = Darklang.Cli.Workbench.vSCM }
+  let nav =
+    Darklang.Cli.Workbench.renderNavStrip scm 0 0
+      (Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 120 })
+  let labels = nav |> Stdlib.List.map (fun span -> span.text) |> Stdlib.String.join " "
+  let opened (kind: String) : Darklang.Cli.Workbench.State =
+    let summary =
+      { state with
+          items =
+            [ Darklang.Cli.Workbench.BodyItem
+                { name = "summary"; kind = kind; isModule = false; desc = "" } ]
+          selected = 0 }
+    (wbKey summary Stdlib.Cli.Stdin.Key.Key.Enter).state
+  let openSummary (kind: String) : Darklang.Cli.Workbench.Dest =
+    Darklang.Cli.Workbench.activeDest (opened kind)
+  let opensReader (kind: String) : Bool =
+    match (opened kind).reading with
+    | Some _ -> true
+    | None -> false
+  let checks =
+    [ (Stdlib.String.contains plain longTitle, "Home uses the full width for a commit")
+      (Stdlib.String.contains plain "Alex · yesterday", "commit metadata remains visible")
+      (Stdlib.Bool.not (Stdlib.String.contains plain "Welcome"), "no welcome inspector")
+      (Stdlib.Bool.not (Stdlib.String.contains narrow "⏎ go · esc"), "no startup menu overlay")
+      (right.focus == Stdlib.Cli.UI.SplitPane.Focus.First, "right cannot focus a hidden pane")
+      (Darklang.Cli.Workbench.navbarFocused tab, "tab opens navigation")
+      (back.focus == Stdlib.Cli.UI.SplitPane.Focus.First, "tab returns to the list")
+      (Stdlib.List.all nav (fun span -> span.row == 0), "navigation uses one row")
+      (Stdlib.Bool.not (Stdlib.String.contains labels "History"), "the nav has no row for a section")
+      ((wbChar scm "3").state.activeView == Darklang.Cli.Workbench.vSCM,
+       "3 again stays on Changes")
+      (opensReader "home-more-commits", "more commits opens the commit list in the reader")
+      (openSummary "home-conflicts" == Darklang.Cli.Workbench.mkDest Darklang.Cli.Workbench.vSCM 0,
+       "the conflict summary opens Changes, where the conflicts are") ]
+  let failures =
+    checks |> Stdlib.List.filterMap (fun check ->
+      let (ok, label) = check
+      if ok then Stdlib.Option.Option.None else Stdlib.Option.Option.Some label)
+  if Stdlib.List.isEmpty failures then TestResult.Pass
+  else TestResult.Fail (Stdlib.String.join failures "; ")

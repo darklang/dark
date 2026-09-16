@@ -1,5 +1,5 @@
-/// Home summarizes conflicts, uncommitted work, commits, and branches.
-/// Selecting a row shows its details; Enter opens the corresponding view.
+/// Home shows what needs you, the branch you are on, recent commits, and the
+/// open branches. A single full-width overview; Enter opens the row's thing.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
@@ -13,8 +13,9 @@ let ago (d: DateTime) : String =
   else if secs < 172800 then "yesterday"
   else (Stdlib.Int.toString (Stdlib.Int.divide secs 86400)) ++ " days ago"
 
-/// Is this row a section header - a label the cursor skips over?
-let isHomeHeader (item: BodyItem) : Bool = item.kind == "home-sec"
+/// Is this row a section header - a label the cursor skips over? Home is the
+/// view that has them (`ViewBehavior.SectionedList`).
+let isSectionHeader (item: BodyItem) : Bool = item.kind == "home-sec"
 
 let homeHeader (label: String) : BodyItem =
   BodyItem { name = label; kind = "home-sec"; isModule = false; desc = "" }
@@ -28,99 +29,102 @@ let agoText (ts: String) : String =
   | Error _ -> ts
 
 
-/// The rows of Home, in order: needs you · uncommitted · recent commits ·
-/// branches. Each section is a dim header row then its items; a section with
-/// nothing in it isn't there at all.
+/// How many commits Home lists before a "more" row.
+val homeCommitCap = 5
+
+/// How many branches Home lists before a "more" row.
+val homeBranchCap = 8
+
+/// What needs you, then the branch you are on, then recent work, then where
+/// else you could be. Load only on transitions; rendering Home does not
+/// query the store.
 let loadHomeItems (branchId: Uuid) : List<BodyItem> =
-  let conflicts =
-    SCM.Conflicts.pending ()
-    |> Stdlib.List.map (fun c ->
-      // A conflict is filed against owner/modules/name here rather than one `location` string, so the
-      // display name is assembled the same way every other surface assembles it.
-      BodyItem
-        { name = SCM.Conflicts.fqn c.owner c.modules c.name
-          kind = "home-conflict"
-          isModule = false
-          desc = c.status })
-  let wip =
-    (SCM.Draft.read ()).bindings
-    |> Stdlib.List.map (fun b ->
-      BodyItem
-        { name = SCM.Conflicts.fqn b.owner b.modules b.name
-          kind = "home-wip"
-          isModule = false
-          desc = Stdlib.String.toLowercase b.itemType })
-  let commits =
-    SCM.PackageOps.commitsOnBranch branchId 5L
-    |> Stdlib.List.map (fun c ->
-      let ops = Stdlib.Int64.toString (SCM.PackageOps.opCountIn c.hash)
-      BodyItem
-        { name = c.message
-          kind = "home-commit"
-          isModule = false
-          // No author in the row. On one machine it is the same value on every line, and it is an instance
-          // id rather than a name unless you set one, which eats the width the time and size need. The
-          // detail pane says who.
-          desc = (agoText c.originTs) ++ " · " ++ ops ++ (if ops == "1" then " op" else " ops") })
-  let allBranches = SCM.Branch.list ()
-  let open_ =
-    allBranches
-    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
-    |> Stdlib.List.map (fun b ->
-      let marker = if b.id == branchId then "● " else "○ "
-      let desc =
-        if b.id == branchId then
-          "this one"
+  let draft = SCM.Draft.read ()
+  let row (name: String) (kind: String) (desc: String) : BodyItem =
+    BodyItem { name = name; kind = kind; isModule = false; desc = desc }
+  let conflictCount = Stdlib.List.length draft.conflicts
+  // The branch you are on: its uncommitted work in one line. ⏎ opens Changes.
+  let here =
+    let changed = Stdlib.List.length draft.bindings
+    let last =
+      match Stdlib.List.head (SCM.PackageOps.commitsOnBranch branchId 1L) with
+      | Some c -> "last commit " ++ (agoText c.originTs)
+      | None -> "no commits yet"
+    let desc =
+      Stdlib.List.filter
+        [ (if changed == 0 then "nothing uncommitted" else plural changed "uncommitted change")
+          (if conflictCount == 0 then "" else plural conflictCount "conflict")
+          last ]
+        (fun part -> part != "")
+      |> Stdlib.String.join " · "
+    [ row ((branchMarker true) ++ (SCM.PackageOps.branchName branchId)) "home-here" desc ]
+  let attention =
+    Stdlib.List.flatten
+      [ if conflictCount == 0 then []
+        else [ row (plural conflictCount "conflict") "home-conflicts" "review" ]
+        if draft.constraints == 0 then []
         else
-          let parent =
-            match b.parentBranchId with
-            | Some pid -> (match SCM.Branch.get pid with | Some p -> "from " ++ p.name | None -> "")
-            | None -> ""
-          let ownCommits = SCM.PackageOps.commitsOnBranch b.id 50L
-          let own = Stdlib.List.length ownCommits
-          let ahead = if own == 0 then "no commits yet" else (Stdlib.Int.toString own) ++ " ahead"
-          // No "behind" marker: answering it means diffing the branch against its parent, and Home draws
-          // on every keypress. `dark rebase --dry-run` answers it properly when you ask.
-          let last =
-            match Stdlib.List.head ownCommits with
-            | Some c -> " · last " ++ (agoText c.originTs)
-            | None -> ""
-          (if parent == "" then "" else parent ++ " · ") ++ ahead ++ last
-      BodyItem { name = marker ++ b.name; kind = "home-branch"; isModule = false; desc = desc })
-  let mergedCount =
-    allBranches |> Stdlib.List.filter (fun b -> b.merged) |> Stdlib.List.length
-  let merged =
-    if mergedCount == 0 then []
-    else [ BodyItem { name = "+ " ++ (Stdlib.Int.toString mergedCount ++ (if mergedCount == 1 then " merged branch" else " merged branches")); kind = "home-merged"; isModule = false; desc = "" } ]
-  // A blank spacer row (an empty header - the cursor skips it too) before
-  // each section but the first, so the sections read as sections rather than
-  // one run of rows.
-  let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
-    if Stdlib.List.isEmpty rows then [] else Stdlib.List.append [ homeHeader "", homeHeader label ] rows
-  let openCount = Stdlib.Int.toString (Stdlib.List.length open_)
-  let branchCap = 8
-  let hiddenBranches = (Stdlib.List.length open_) - branchCap
-
-  let moreRow =
-    if hiddenBranches <= 0 then
-      []
+          [ row (plural draft.constraints "outdated usage")
+              "home-constraints" "review" ] ]
+  // Recent work belongs on Home even when the current branch has no commits.
+  let recent =
+    let commits =
+      SCM.Commits.recent 30L
+      |> Stdlib.List.take homeCommitCap
+      |> Stdlib.List.map (fun c ->
+        row c.message "home-commit" (c.author ++ " · " ++ (agoText c.originTs)))
+    let total = SCM.Commits.count ()
+    let hiddenCommits = (Stdlib.Int.fromInt64 total) - homeCommitCap
+    let more =
+      if hiddenCommits <= 0 then []
+      else
+        [ row ("+ " ++ (plural hiddenCommits "more commit")) "home-more-commits"
+            "⏎ list them" ]
+    // Hide the section only when the whole store has no commits.
+    Stdlib.List.append commits more
+  let openBranches =
+    SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
+  // Keep the current branch visible even when the rest of the list is capped.
+  let ordered =
+    Stdlib.List.append
+      (openBranches |> Stdlib.List.filter (fun b -> b.id == branchId))
+      (openBranches |> Stdlib.List.filter (fun b -> b.id != branchId))
+  let branchRow (id: Uuid) (name: String) : BodyItem =
+    let current = id == branchId
+    let hasDraft =
+      if current then draft.ops > 0L
+      else SCM.PackageOps.draftOpCountFor id > 0L
+    let last =
+      match Stdlib.List.head (SCM.PackageOps.commitsOnBranch id 1L) with
+      | Some c -> agoText c.originTs
+      | None -> ""
+    let desc =
+      Stdlib.List.filter
+        [ (if current then "current" else "")
+          (if hasDraft then "draft" else "")
+          last ]
+        (fun part -> part != "")
+      |> Stdlib.String.join " · "
+    row ((branchMarker current) ++ name) "home-branch" desc
+  let branches =
+    Stdlib.List.push
+      (Stdlib.List.take ordered homeBranchCap |> Stdlib.List.map (fun b -> branchRow b.id b.name))
+      (branchRow SCM.Branch.mainBranchId SCM.Branch.mainBranchName)
+  let hidden = (Stdlib.List.length ordered) - homeBranchCap
+  let more =
+    if hidden <= 0 then []
     else
-      [ BodyItem
-          { name = "+ " ++ (Stdlib.Int.toString hiddenBranches) ++ " more"
-            kind = "home-more"
-            isModule = false
-            desc = "`dark branches` lists them all" } ]
-
-  let shownBranches =
-    Stdlib.List.flatten [ Stdlib.List.take open_ branchCap, moreRow, merged ]
+      let label = if hidden == 1 then " more branch" else " more branches"
+      [ row ("+ " ++ (Stdlib.Int.toString hidden) ++ label)
+          "home-more" "⏎ choose a branch" ]
+  let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
+    if Stdlib.List.isEmpty rows then []
+    else Stdlib.List.append [ homeHeader "", homeHeader label ] rows
   Stdlib.List.flatten
-    [ section ("needs you · " ++ (Stdlib.Int.toString (Stdlib.List.length conflicts))) conflicts
-      section ("uncommitted · " ++ (Stdlib.Int.toString (Stdlib.List.length wip))) wip
-      section "recent commits" commits
-      // Capped, and the count still tells the truth. Home is a summary: a machine that has been running
-      // agents for a week has hundreds of open branches, and listing them all buries the three sections
-      // above that actually need you. The rest are one row, and `dark branches` is the full list.
-      section ("branches · " ++ openCount ++ " open") shownBranches ]
+    [ section "needs attention" attention
+      section "this branch" here
+      section "recent commits" recent
+      section "branches" (Stdlib.List.append branches more) ]
   |> Stdlib.List.drop 1
 
 /// The selected row's position among the rows of its own kind - the index the
@@ -134,334 +138,55 @@ let homeKindIndex (state: State) : Int =
     |> Stdlib.List.filter (fun it -> it.kind == item.kind)
     |> Stdlib.List.length
 
-/// The nearest selectable row to `from`, looking in `dir` (+1 / -1) past any
-/// section headers; `from` itself if it's selectable. Falls back to the other
-/// direction at the ends, so the cursor never sits on a header.
-let homeSelectable (items: List<BodyItem>) (from: Int) (dir: Int) : Int =
-  let n = Stdlib.List.length items
-  let isOk (i: Int) : Bool =
-    match Stdlib.List.getAt items i with
-    | Some it -> Stdlib.Bool.not (isHomeHeader it)
-    | None -> false
-  let scan (i: Int) (step: Int) : Int =
-    if (i < 0) || (i >= n) then 0 - 1
-    else if isOk i then i
-    else scan (i + step) step
-  let forward = scan from dir
-  if forward >= 0 then forward
-  else
-    let back = scan from (0 - dir)
-    if back >= 0 then back else Stdlib.Int.max 0 (Stdlib.Int.min from (n - 1))
-
-/// Keep Home's cursor off the section headers. Run on every transition (see
-/// `presentState`), so a reload
-/// that lands the cursor on a header - a commit empties the uncommitted
-/// section, say
-/// - moves it on.
-let fixHomeSelection (state: State) : State =
-  if state.activeView != vHome then state
-  else
-    let fixed = homeSelectable state.items state.selected 1
-    if fixed == state.selected then state else { state with selected = fixed }
-
-/// Are you new here - nothing of yours in the tree and nothing in flight?
-/// Then the detail pane carries the welcome instead of a row's detail.
-let isFirstRun (state: State) : Bool =
-  let owner = state.accountName
-  let noWip = Stdlib.Bool.not (state.items |> Stdlib.List.any (fun it -> it.kind == "home-wip"))
-  // The owner lookup is a search, and this runs per frame while Home is up -
-  // so only ask when the cheap test hasn't already answered.
-  if Stdlib.Bool.not noWip then false
-  else if owner == "" then true
-  else
-    // An existence check rather than a search: a search scans `locations` in full whatever it
-    // finds, and this runs per frame.
-    Stdlib.Bool.not (LanguageTools.PackageManager.ownerHasItems state.branchId owner)
-
-/// The get-set-up rows of the welcome: what this instance is still missing, each shown as the
-/// `:` command that fixes it (the bar hands all three to the real terminal and returns). A fully
-/// set-up instance shows none of them. Reads are a path compare, a config read and a file stat --
-/// cheap enough for the per-frame budget Home's first-run check already spends.
-let setupLines () : List<String> =
-  let entry = fun cmd what ->
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white cmd)
-    ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ what))
-  // No install row here, deliberately. Detecting portable-vs-installed reads the running
-  // executable, and a narrowed instance policy can refuse that -- `dark eval` renders a view
-  // as guest code, so the refusal took the WHOLE frame down rather than one line of advice.
-  // A frame must not depend on being allowed to look at the binary; `dark install-status`
-  // answers the question where a refusal is the answer rather than a crash.
-  let install = []
-  let relay = SCM.PackageOps.relay ()
-  let syncSetup =
-    if relay == "" then
-      [ entry ":sync setup" "     name this instance, point it at your relay" ]
-    else
-      []
-  // Suggested whenever a relay is set, without asking whether the daemon is ALREADY on: that
-  // question reads $HOME and the unit file, and a frame must not depend on being allowed to do
-  // either (`dark eval` renders views as guest code, where both are refused). Enabling twice is
-  // harmless and `apps status sync` answers the question properly.
-  let daemon =
-    if relay != "" then
-      [ entry ":apps enable sync" "  set-and-forget: sync every 30s, starting on login" ]
-    else
-      []
-  let rows = Stdlib.List.flatten [ install, syncSetup, daemon ]
-  match rows with
-  | [] -> []
-  | _ ->
-    Stdlib.List.append [ "", Stdlib.Cli.UI.Colors.boldText "Get connected" ] rows
-
-let welcomeLines (state: State) : List<String> =
-  // No name recorded: greet plainly and use a neutral example -- "Welcome, there" and
-  // `:new fn there.hello` both read as a template with the variable unfilled.
-  let name = state.accountName
-  let key = fun k -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white k
-  // Computed, not written down: with Builtins gated in, the REPL is the third
-  // row of Code, so "2 2 2".
-  let replKeys = keysTo state (mkDest vScratch 0)
-  [ Stdlib.Cli.UI.Colors.boldText (if name == "" then "Welcome" else "Welcome, " ++ name)
-    ""
-    Stdlib.Cli.UI.Colors.dimText "Dark Matter is a package tree. What you write lives in it, under your"
-    Stdlib.Cli.UI.Colors.dimText "name, and syncs. This is your branch."
-    ""
-    (key "2") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "look around") ++ (Stdlib.Cli.UI.Colors.dimText "     the tree - Darklang.Stdlib first")
-    (key (replKeys ++ " ⏎")) ++ "  " ++ (Stdlib.Cli.UI.Colors.boldText "try something") ++ (Stdlib.Cli.UI.Colors.dimText " REPL - Stdlib.List.map (fun x -> x + 1) [1, 2]")
-    (key ":") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "make something") ++ (Stdlib.Cli.UI.Colors.dimText ("  :new fn " ++ (if name == "" then "scratch" else name) ++ ".hello"))
-    (key "b") ++ "    " ++ (Stdlib.Cli.UI.Colors.boldText "branch first") ++ (Stdlib.Cli.UI.Colors.dimText "    if you'd rather not work on main") ]
-  |> Stdlib.List.append (setupLines ())
-
-/// A padded label and value for a detail pane.
-let field (label: String) (value: String) : String =
-  (Stdlib.Cli.UI.Colors.dimText (Stdlib.Cli.Tui.Text.fitToWidth label 9)) ++ value
-
-/// Summarize a commit's named changes and deprecations up to `cap` lines.
-let commitChangeLines (c: SCM.Commits.Commit) (cap: Int) : List<String> =
-  // Capped: the init commit holds tens of thousands of ops, and rendering a twelve-line summary through
-  // the uncapped path costs over a second. `namedCount` below is the true total.
-  let (ops, namedCount) = SCM.PackageOps.getCommitNamedOps c.hash cap
-  let named =
-    ops
-    |> Stdlib.List.filterMap (fun op ->
-      match op with
-      | SetName(loc, target, _previous) ->
-        let kind =
-          match target with
-          | PackageFn _ -> "fn"
-          | PackageType _ -> "type"
-          | PackageValue _ -> "value"
-        Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "+ ") ++ (SCM.Constraints.fqnOf loc) ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ kind)))
-      | Deprecate(_target, _kind, message) ->
-        Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ ") ++ (Stdlib.Cli.UI.Colors.dimText ("deprecated: " ++ message)))
-      | _ -> Stdlib.Option.Option.None)
-  let more = namedCount - (Stdlib.List.length named)
-  Stdlib.List.flatten
-    [ named
-      if more > 0 then [ Stdlib.Cli.UI.Colors.dimText ("  … and " ++ (Stdlib.Int.toString more) ++ " more") ] else [] ]
-
-/// The commit under Home's cursor, if the cursor is on one. The commit list
-/// itself is cheap to read.
-let homeSelectedCommit (state: State) : Stdlib.Option.Option<SCM.Commits.Commit> =
-  match Stdlib.List.getAt state.items state.selected with
-  | Some item ->
-    if item.kind == "home-commit" then
-      Stdlib.List.getAt (SCM.PackageOps.commitsOnBranch state.branchId 5L) (homeKindIndex state)
-    else Stdlib.Option.Option.None
-  | None -> Stdlib.Option.Option.None
-
-/// Keep `state.commitDetail` pointing at the commit under Home's cursor,
-/// building it only when the cursor moves to a different commit. See the
-/// field's doc for why this isn't done while drawing.
-let refreshCommitDetail (next: State) : State =
-  if next.activeView != vHome then next
-  else
-    match homeSelectedCommit next with
-    | None -> next
-    | Some c ->
-      // `Commits.Commit.hash` is already text; there is no `Hash` wrapper here to unwrap.
-      let hash = c.hash
-      let (cachedHash, _lines) = next.commitDetail
-      if cachedHash == hash then next
-      else { next with commitDetail = (hash, commitChangeLines c 12) }
-
-/// A commit, for Home's detail pane: who and when, the branch it's on, what
-/// it changed, and its hash.
-let homeCommitDetail (state: State) : List<String> =
-  match homeSelectedCommit state with
-  | None -> [ Stdlib.Cli.UI.Colors.dimText "(no commit selected)" ]
-  | Some c ->
-    let hash = c.hash
-    let (cachedHash, cachedLines) = state.commitDetail
-    // The cache is filled on the transition; the fallback only runs if
-    // something rendered before `refresh`.
-    let changed = if cachedHash == hash then cachedLines else commitChangeLines c 12
-    Stdlib.List.flatten
-      [ [ Stdlib.Cli.UI.Colors.boldText c.message
-          ""
-          field "by" (c.author ++ (Stdlib.Cli.UI.Colors.dimText ("  ·  " ++ (agoText c.originTs) ++ "  ·  " ++ c.originTs)))
-          // A commit is not ON a branch here -- its ops are -- so what it FOLLOWS is the honest coordinate.
-          field "follows" (if c.parent == "" then "(first commit)" else Stdlib.String.slice c.parent 0 16)
-          field "hash" (Stdlib.String.slice c.hash 0 16)
-          field "changed" (plural (Stdlib.Int.fromInt64 (SCM.PackageOps.opCountIn c.hash)) "op")
-          "" ]
-        changed ]
-
-/// A branch, for Home's detail pane: where it came from, how it stands
-/// against its parent, its own recent commits, and what's uncommitted on it
-/// if it's the one you're on.
-let homeBranchDetail (state: State) : List<String> =
-  match selectedBranch state with
-  | None -> [ Stdlib.Cli.UI.Colors.dimText "(no branch selected)" ]
-  | Some b ->
-    let parent =
-      match b.parentBranchId with
-      | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
-      | None -> "(root)"
-    let isCurrent = b.id == state.branchId
-    let own = SCM.PackageOps.commitsOnBranch b.id 5L
-    let ownCount = Stdlib.List.length (SCM.PackageOps.commitsOnBranch b.id 200L)
-    // No "behind" marker -- same reason as the branch rows above: a diff per keypress;
-    // `dark rebase --dry-run` answers it.
-    let standing =
-      if b.merged then
-        "merged"
-      else
-        (if ownCount == 0 then "no commits of its own"
-         else if b.parentBranchId == Stdlib.Option.Option.None then plural ownCount "commit"
-         else (plural ownCount "commit") ++ " ahead of " ++ parent)
-    let wipHere =
-      if isCurrent then wipItemCount ()
-      else Stdlib.List.length (SCM.PackageOps.draftBindingsFor b.id)
-    let commitLines =
-      if Stdlib.List.isEmpty own then []
-      else
-        Stdlib.List.flatten
-          [ [ "", Stdlib.Cli.UI.Colors.dimText "its commits" ]
-            own |> Stdlib.List.map (fun c ->
-              "  " ++ c.message ++ (Stdlib.Cli.UI.Colors.dimText ("   " ++ c.author ++ " · " ++ (agoText c.originTs)))) ]
-    Stdlib.List.flatten
-      [ [ (Stdlib.Cli.UI.Colors.boldText b.name) ++ (if isCurrent then Stdlib.Cli.UI.Colors.dimText "  ·  you're here" else "")
-          ""
-          field "from" parent
-          field "standing" standing
-          field "wip" (if wipHere == 0 then Stdlib.Cli.UI.Colors.dimText "nothing uncommitted" else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink ("● " ++ (plural wipHere "uncommitted item"))) ]
-        commitLines ]
-
-/// Is the cursor on the row of the branch you're on?
+/// Is the cursor on the row of the branch you're on? Main included, which
+/// `selectedBranch` cannot name.
 let homeRowIsCurrentBranch (state: State) : Bool =
-  match selectedBranch state with
-  | Some b -> b.id == state.branchId
-  | None -> false
-
-/// The detail pane for Home's selected row: the diff for an edit, a commit's
-/// changes, both sides of a conflict, a branch's standing. The welcome on a
-/// first run.
-let homeDetail (state: State) : List<String> =
-  if isFirstRun state then welcomeLines state
+  if cursorOnMainRow state then SCM.Branch.isMain state.branchId
   else
-    match Stdlib.List.getAt state.items state.selected with
-    | None -> [ Stdlib.Cli.UI.Colors.dimText "(nothing here yet)" ]
-    | Some item ->
-      let lines =
-        if item.kind == "home-conflict" then Stdlib.String.split (conflictDetail state) "\n"
-        else if item.kind == "home-wip" then Stdlib.String.split (wipDiffText state) "\n"
-        else if item.kind == "home-commit" then homeCommitDetail state
-        else if item.kind == "home-branch" then homeBranchDetail state
-        else if item.kind == "home-merged" then [ "merged branches are listed in Changes › Branches - ⏎ takes you there" ]
-        else []
-      let keys =
-        if item.kind == "home-conflict" then "o keep ours  ·  t take theirs  ·  a acknowledge  ·  ⏎ resolve in Changes"
-        else if item.kind == "home-wip" then "⏎ open in Code  ·  c commit  ·  x discard"
-        else if item.kind == "home-commit" then "⏎ open in History"
-        else if item.kind == "home-branch" then
-          if homeRowIsCurrentBranch state then "b new branch  ·  r rebase onto parent  ·  m merge into parent"
-          else "⏎ switch to it  ·  b new  ·  m merge into parent  ·  r rebase  ·  x delete"
-        else ""
-      Stdlib.List.flatten [ lines, if keys == "" then [] else [ "", Stdlib.Cli.UI.Colors.dimText keys ] ]
+    match selectedBranch state with
+    | Some b -> b.id == state.branchId
+    | None -> false
 
-/// The title for Home's selected-row detail.
-let homeDetailTitle (state: State) : String =
-  if isFirstRun state then "Welcome"
-  else
-    match Stdlib.List.getAt state.items state.selected with
-    | Some item ->
-      if item.kind == "home-branch" then (Stdlib.String.dropFirst item.name 2) ++ "  ·  branch"
-      else if item.kind == "home-commit" then item.name ++ "  ·  commit"
-      else if item.kind == "home-wip" then item.name ++ "  ·  uncommitted"
-      else if item.kind == "home-conflict" then item.name ++ "  ·  diverged"
-      else "Detail"
-    | None -> "Detail"
-
-/// ⏎ on a Home row (and only ⏎ - → stays put here): go to the thing. A
-/// conflict → Changes › Conflicts; an edit → the fn in Code; a commit →
-/// History on it; a branch → switch to it; the merged count → Branches.
+/// ⏎ opens a Home row; → stays on the list.
+/// The conflict summary and the branch you are on open Changes (conflicts sit
+/// at its top); a commit opens its ops in the reader, and the "more" rows
+/// open the full lists there; another branch switches to it.
 let openHomeRow (state: State) : Step =
   match Stdlib.List.getAt state.items state.selected with
   | None -> Step.Continue state
   | Some item ->
-    if item.kind == "home-conflict" then
-      Step.Continue (goTo state (mkDest vSCM 2) false)
-    else if item.kind == "home-wip" then
-      // The row's name is the full path (owner.Module.leaf); land the tree on
-      // its module with the leaf selected.
-      let parts = Stdlib.String.split item.name "."
-      let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
-      let modules = Stdlib.List.take parts ((Stdlib.List.length parts) - 1)
-      jumpToHit state (SearchHit { modules = modules; name = leaf; kind = item.desc; display = item.name })
+    if (item.kind == "home-conflicts") || (item.kind == "home-here") then
+      let moved = goTo state (mkDest vSCM 0) false
+      Step.Continue { moved with selected = 0 }
+    else if item.kind == "home-constraints" then
+      runCommandInFrame state "constraints" []
     else if item.kind == "home-commit" then
-      let idx = homeKindIndex state
-      let moved = goTo state (mkDest vSCM 1) false
-      Step.Continue { moved with selected = Stdlib.Int.min idx (Stdlib.Int.max 0 ((Stdlib.List.length moved.items) - 1)) }
+      // Home's commits are the head of the same store-wide order the reader indexes.
+      openReader state (commitOpsText state.branchId (homeKindIndex state)) false
     else if item.kind == "home-branch" then
-      match selectedBranch state with
-      | Some b ->
-        if b.id == state.branchId then Step.Continue { state with message = "already on " ++ b.name }
+      match branchRowTarget state with
+      | Some target ->
+        let (id, name) = target
+        if id == state.branchId then
+          // The branch you're on: nothing to switch to, so ⏎ opens its
+          // uncommitted work. A toast saying "already on it" answered a
+          // question nobody had asked.
+          Step.Continue (goTo state (mkDest vSCM 0) false)
         else
-          let switched = onBranch state b.id
-          Step.Continue
-            { switched with
-                items = itemsForView vHome b.id state.location state.scm.section state.ai.section state.matter.lens
-                selected = 0
-                detailScroll = 0
-                message = "switched to " ++ b.name }
+          Step.Continue (switchWorkbenchBranch state id name)
       | None -> Step.Continue state
-    else if item.kind == "home-merged" then
-      Step.Continue (goTo state (mkDest vSCM 3) false)
+    else if item.kind == "home-more-commits" then
+      openReader state (commitListText ()) false
+    else if item.kind == "home-more" then
+      openBranchPicker state
     else
       Step.Continue state
 
-/// Home's overview list and the selected row's detail.
-let renderHome (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  let wip = state.items |> Stdlib.List.filter (fun it -> it.kind == "home-wip") |> Stdlib.List.length
-  let conflicts = state.items |> Stdlib.List.filter (fun it -> it.kind == "home-conflict") |> Stdlib.List.length
-  // The cached status, not a fresh count: this draws per keypress, and Home saying a different number
-  // from the Changes view is exactly the disagreement `state.scmStatus` exists to prevent.
-  let commits = state.scmStatus.commits
-  // Not "synced": this counts conflicts and says nothing about pushing or pulling. The same wording as
-  // the context row, deliberately -- the two are read together, so they say the same thing in the same
-  // words.
-  let sync =
-    if conflicts == 0 then
-      "✓ nothing waiting"
-    else
-      "⚠ " ++ (Stdlib.Int.toString conflicts) ++ " need you"
-  let tree = if wip == 0 then "✓ clean" else "● " ++ (Stdlib.Int.toString wip) ++ " uncommitted"
-  // `scmStatus.commits` reads at most 1000 rows; past that the honest word is "1000+".
-  let commitsLabel =
-    if commits >= 1000 then "1000+ commits" else plural commits "commit"
-
-  let title = branch ++ "  ·  " ++ sync ++ " · " ++ tree ++ " · " ++ commitsLabel
-  Stdlib.Cli.UI.SplitPane.render
-    region
-    Stdlib.Cli.UI.SplitPane.Orientation.Horizontal
-    48
-    state.focus
-    title
-    (fun r -> renderTreeList state r)
-    (homeDetailTitle state)
-    (fun r -> renderPreview state r)
+/// Home uses the whole frame, one column, no inspector.
+let renderHome
+  (state: State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  Stdlib.List.flatten
+    [ frameWithTitles region "" "" (0 - 1)
+      renderTreeList state (paneContent region) ]

@@ -119,7 +119,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { moved with
               input = Stdlib.Option.Option.None
-              items = itemsForView state.activeView parentId state.location state.scm.section state.ai.section state.matter.lens
+              items = itemsForView state.activeView parentId state.location state.ai.section state.matter.lens
               selected = 0
               filter = ""
               message = "merged into parent" }
@@ -236,7 +236,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands.")
             ++ "\n\n"
             ++ body
-        // `config set devices.enabled true` should show up in the sidebar now, not on next launch. The gate
+        // `config set devices.enabled true` should show up in the navbar now, not on next launch. The gate
         // list is read from disk, so it's computed once rather than per frame; a config command is the one
         // thing that can invalidate it.
         let gated =
@@ -314,31 +314,8 @@ let performInputAction (state: State) (inp: InputState) : Step =
             message = "couldn't start a branch called \"" ++ inp.field.text ++ "\"" }
     | Some b ->
 
-    // The overlay FIRST: `itemsForView` reads the draft through the process overlay, so building
-    // the list before moving onto the branch describes the branch you just left.
-    let moved = onBranch state b.id
-
-    let newItems =
-      itemsForView state.activeView b.id state.location state.scm.section state.ai.section state.matter.lens
-    // Land on the branch you just made, the way saving lands on the item you just wrote. Resetting to 0 put
-    // the cursor on `main` while you were standing on the new branch, so the detail pane described the one
-    // you'd just left.
-    let landed =
-      newItems
-      |> Stdlib.List.indexedMap (fun i it -> (i, it))
-      |> Stdlib.List.findFirst (fun pair ->
-        let (_i, it) = pair
-        Stdlib.String.contains it.name inp.field.text)
-      |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
-      |> Stdlib.Option.withDefault 0
-
-    Step.Continue
-      { moved with
-          input = Stdlib.Option.Option.None
-          items = newItems
-          selected = landed
-          filter = ""
-          message = "on branch " ++ inp.field.text }
+    let switched = switchWorkbenchBranch state b.id b.name
+    Step.Continue { switched with message = "on branch " ++ b.name }
   else if inp.action == "branch-rename" then
     let newName = Stdlib.String.trim inp.field.text
     match selectedBranch state with
@@ -381,17 +358,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
                 message = msg }
       | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-switch" then
-    match Darklang.SCM.Branch.getByName inp.field.text with
-    | Some b ->
-      let moved = onBranch state b.id
-
-      Step.Continue
-        { moved with
-            input = Stdlib.Option.Option.None
-            items = itemsForView state.activeView b.id state.location state.scm.section state.ai.section state.matter.lens
-            selected = 0
-            filter = ""
-            message = "switched to " ++ inp.field.text }
+    // `main` by name: it has no branch record for `getByName` to find.
+    let wanted = Stdlib.String.trim inp.field.text
+    let target =
+      if wanted == Darklang.SCM.Branch.mainBranchName then
+        Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId
+      else
+        match Darklang.SCM.Branch.getByName wanted with
+        | Some b -> Stdlib.Option.Option.Some b.id
+        | None -> Stdlib.Option.Option.None
+    match target with
+    | Some id ->
+      Step.Continue (switchWorkbenchBranch state id wanted)
     | None ->
       Step.Continue
         { state with

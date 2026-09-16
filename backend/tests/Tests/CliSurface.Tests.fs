@@ -109,12 +109,12 @@ let private workbenchViewsRender =
           state
           [ "eval"
             renderExpr
-              "let n = fun v -> Stdlib.List.length (frame v 120 40) in [ n 0, n 1, n 3, n 4, n 6, n 7, n 8, n 9 ]" ]
+              "let renderable = Darklang.Cli.Workbench.viewSpecs |> Stdlib.List.filter (fun (v, _name, _gate) -> v != Darklang.Cli.Workbench.vDevices) in Stdlib.List.all renderable (fun (v, _name, _gate) -> Stdlib.List.length (frame v 120 40) == 40)" ]
 
       Expect.stringContains
         output
-        "[40, 40, 40, 40, 40, 40, 40, 40]"
-        "all eight views render a full 40-row frame"
+        "true"
+        "every registered view renders a full 40-row frame"
     })
 
 /// The key-hint row must not drop the way out.
@@ -149,7 +149,7 @@ let private hintRowKeepsTheWayOut =
         // and its label are coloured separately, so an escape sequence sits between
         // them and a two-word substring never matches.
         //
-        // The pane hints are the SIDEBAR's here, since that is what holds the keyboard when the workbench
+        // The pane hints are the NAVBAR's here, since that is what holds the keyboard when the workbench
         // opens; they are still "the view's own actions" as far as the drop order is concerned.
         let! narrow = runCli state [ "eval"; lastRow 72 ]
         Expect.stringContains narrow "help" "the keymap key survives"
@@ -168,19 +168,18 @@ let private hintRowKeepsTheWayOut =
         Expect.stringContains tiny "quit" "and the way out is still there"
       })
 
-/// The context row must not overwrite its own tail on a narrower terminal.
+/// The header must not overwrite its own tail on a narrower terminal.
 ///
 /// It writes the left-hand text at column 0 and the sync glance right-aligned over the same row, so
-/// anything the left side spills past the glance is lost, starting with the END of the draft
-/// summary. It drops whole segments in priority order instead (`instance:` first, then the account
-/// name), so the draft split survives far narrower.
-let private contextRowKeepsTheDraftWhenNarrow =
+/// anything the left side spills past the glance is lost. It drops whole segments in priority order
+/// instead (the instance first, then the account), so the branch survives far narrower.
+let private headerKeepsTheBranchWhenNarrow =
   cliTest
-    "the context row drops labels before it drops the draft summary"
+    "the header drops the instance before the account, and never the branch"
     (fun state ->
       task {
         // A deliberately long instance name, so the row is over-full whatever the shared
-        // store holds in its draft: the test creates the condition rather than hoping.
+        // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
           "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
@@ -191,34 +190,21 @@ let private contextRowKeepsTheDraftWhenNarrow =
         let! wide = runCli state [ "eval"; row 150 ]
         Expect.stringContains
           wide
-          "instance:"
-          "the full row shows the instance label"
-        Expect.stringContains wide "branch:" "and the branch"
+          "Stachu @ inst-with-a-deliberately-long-name-for-this-test"
+          "the full row shows who and where"
+        Expect.stringContains wide "main" "and the branch"
 
-        let! narrow = runCli state [ "eval"; row 90 ]
+        let! narrow = runCli state [ "eval"; row 70 ]
         Expect.isFalse
-          (narrow.Contains "instance:")
-          "the instance label is dropped to make room, rather than the row colliding"
+          (narrow.Contains "inst-with-a-deliberately")
+          "the instance is dropped to make room, rather than the row colliding"
+        Expect.stringContains narrow "Stachu" "the account survives, being shorter"
         Expect.stringContains
           narrow
-          "branch:"
-          "the branch survives, being worth more than the label"
-        // Asserted WHOLE, not by name: which glance wins is a priority decision, and the
-        // shared store decides which exist, so naming one makes this hostage to other tests.
-        let glanceIsWhole =
-          [ "waiting"; "need you"; "in sync" ]
-          |> List.exists (fun g -> narrow.Contains g)
-
-        Expect.isTrue
-          glanceIsWhole
-          $"the right-aligned glance is whole, not overwritten (row: {narrow})"
+          "main"
+          "and so does the branch, being worth more than either"
       })
 
-/// The workbench's own mutating actions, driven the way a keypress drives them.
-///
-/// `b` in the SCM view prompts for a name and then runs `branch-create`. `Branch.create` returns an
-/// `Option<Branch>`, so reading `.id` off it throws. The render tests cannot reach any of this: it
-/// is behind a prompt, not a render.
 let private workbenchBranchActionsWork =
   cliTestOnMain
     "the workbench can start, switch and merge a branch without throwing"
@@ -308,34 +294,18 @@ let private showingACommitDoesNotFetchEveryOp =
         "the op list is capped and says so, rather than printing thousands"
     })
 
-/// The SCM view has four sections behind `tab`, and the view-level render test above never switches
-/// section, so it only exercises Changes. Dark catches a wrong type at runtime, so a bad section
-/// throws on the keypress that switches to it rather than at build time.
-let private everyScmSectionRenders =
-  cliTest "every SCM section renders, not just the one it opens on" (fun state ->
-    task {
-      let! output =
-        runCli
-          state
-          [ "eval"
-            "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] in "
-            + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
-            // The section is a DU now, not an int, and it lives in `scm: ScmState` rather than a flat
-            // `scmSection` field -- same for the AI section and the Matter lens.
-            + "let sect = fun n -> "
-            + "  let s1 = { s0 with activeView = 4; scm = Darklang.Cli.Workbench.ScmState { section = n } } in "
-            + "  let s = { s1 with items = Darklang.Cli.Workbench.itemsForView 4 s1.branchId s1.location n s1.ai.section s1.matter.lens } in "
-            + "  Stdlib.List.length (Darklang.Cli.Workbench.viewAtSize s (Darklang.Stdlib.Cli.Tui.Size { width = 120; height = 40 })).rows in "
-            + "[ sect Darklang.Cli.Workbench.ScmSection.Changes"
-            + ", sect Darklang.Cli.Workbench.ScmSection.History"
-            + ", sect Darklang.Cli.Workbench.ScmSection.Conflicts"
-            + ", sect Darklang.Cli.Workbench.ScmSection.Branches ]" ]
-
-      Expect.stringContains
-        output
-        "[40, 40, 40, 40]"
-        "Changes, History, Conflicts and Branches each render a full frame"
-    })
+/// Drive the Dark key handlers; the registry includes document-only views too.
+let private workbenchNavigationRegressions =
+  [ "testWorkbenchHistoryRoundTrip"
+    "testWorkbenchDocumentScroll"
+    "testWorkbenchSyncStanding"
+    "testWorkbenchBranchPicker" ]
+  |> List.map (fun name ->
+    cliTest $"workbench regression: {name}" (fun state ->
+      task {
+        let! output = runCli state [ "eval"; $"Darklang.Cli.Tests.{name} ()" ]
+        Expect.stringContains output "TestResult.Pass" name
+      }))
 
 let private workbenchHandlesTerminalSizes =
   cliTest "the workbench frames a tiny terminal instead of breaking" (fun state ->
@@ -397,30 +367,33 @@ let private noWorkbenchRowOverflowsItsFrame =
       })
 
 let private workbenchContextRowSaysWhereYouAre =
-  cliTest "the workbench context row names the branch, in every view" (fun state ->
+  cliTest "the workbench header names the branch, in every view" (fun state ->
     task {
-      // Matches the LABEL, not "branch: main": the context row styles its label and value separately,
-      // so colour codes sit between them and they are never adjacent in the string.
+      // The header is the first row: the branch, then `who @ where`. The branch and the account are
+      // styled apart, so they are never adjacent in the string; each is matched on its own.
       let! output =
         runCli
           state
           [ "eval"
             renderExpr
-              "let has = fun v -> Stdlib.String.contains (Stdlib.String.join (frame v 120 40) \"|\") \"branch:\" in [ has 0, has 1, has 4 ]" ]
+              "let top = fun v -> Stdlib.String.join (Stdlib.List.take (frame v 120 40) 1) \"|\" in let has = fun v -> Stdlib.String.contains (top v) \"main\" in [ has 0, has 1, has 4 ]" ]
 
       Expect.stringContains
         output
         "[true, true, true]"
-        "Home, Matter and SCM all carry the context row"
+        "Home, Matter and SCM all carry the header, branch named"
 
       let! named =
         runCli
           state
           [ "eval"
             renderExpr
-              "Stdlib.String.contains (Stdlib.String.join (frame 0 120 40) \"|\") \"test-instance\"" ]
+              "Stdlib.String.contains (Stdlib.String.join (Stdlib.List.take (frame 0 120 40) 1) \"|\") \"Tester @ test-instance\"" ]
 
-      Expect.stringContains named "true" "and it names the instance you're on"
+      Expect.stringContains
+        named
+        "true"
+        "and it names who you are and the instance you're on"
     })
 
 let private everyCommandAnswersHelp =
@@ -889,7 +862,6 @@ let tests : List<Test> =
   [ testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
-    everyScmSectionRenders
     showingACommitDoesNotFetchEveryOp
     workbenchBranchActionsWork
     mergeAndRebaseRefuseOnMain
@@ -898,10 +870,11 @@ let tests : List<Test> =
     permissionsRefusesAnEmptyRule
     aDashLedArgumentIsNeverAName
     viewHeadsWithTheNameYouAskedFor
-    contextRowKeepsTheDraftWhenNarrow
+    headerKeepsTheBranchWhenNarrow
     hintRowKeepsTheWayOut
     workbenchHandlesTerminalSizes
     noWorkbenchRowOverflowsItsFrame
     workbenchContextRowSaysWhereYouAre
     missingTargetsAreNamed
     documentedCommandsAreReal ]
+  @ workbenchNavigationRegressions

@@ -1,7 +1,7 @@
 // A workbench view after each key of a navigation sequence, for diffing a change against.
 //
 // `goldenview.dark` renders the initial state only, so it says nothing about the key handlers. This
-// walks a sequence -- into the sidebar, down it, into a pane, back out, and through the overlays --
+// walks a sequence -- into the nav, along it, into a pane, back out, and through the overlays --
 // rendering after every key, which is where a change to *when* a handler computes something shows
 // up. Ten frames rather than one.
 //

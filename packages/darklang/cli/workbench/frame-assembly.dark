@@ -1,6 +1,6 @@
-/// Assembling the whole frame: the context row, the sidebar beside the body,
-/// the footer, the command bar's completion dropdown, and `viewAtSize`, which
-/// is what the terminal session actually renders.
+/// Assembling the whole frame: the context row, the nav strip above the
+/// body, the footer, the command bar's completion dropdown, and `viewAtSize`,
+/// which is what the terminal session actually renders.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
@@ -15,94 +15,77 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   let screen = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
   let branch = state.scmStatus.branchName
   // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
-  // sidebar's Changes badge and the context line, so it has to agree with what Home and the Changes view
+  // navbar's Changes badge and the context line, so it has to agree with what Home and the Changes view
   // say -- which it can't if each of them counts for itself.
   let conflictCount = Stdlib.List.length state.scmStatus.conflicts
   // Conflicts AND standing findings, because they're one question ("is anything waiting on me?") and they
-  // fail the same way when they're separate: the record is correct, and nobody looks. The sidebar's badge
+  // fail the same way when they're separate: the record is correct, and nobody looks. The navbar's badge
   // stays conflicts-only, since that's the entry it marks.
   //
   // Worded as waiting rather than as sync: this counts conflicts and findings and says nothing about
   // whether anything has been pushed or pulled.
   let needsYou = state.scmStatus.needsYou
-  // The sidebar's badge, off the same cached read as everything else on this row.
+  // The navbar's badge, off the same cached read as everything else on this row.
   let wip = state.scmStatus.changed
+  // The sync glance: what is waiting on you first, else where this instance stands with its relay.
   let (syncColored, syncPlain) =
     if needsYou > 0 then
-      let s = "⚠ " ++ (Stdlib.Int.toString needsYou) ++ " need you"
-      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s)
+      let t = "⚠ " ++ (Stdlib.Int.toString needsYou) ++ " need you"
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink t, t)
     else
-      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ nothing waiting", "✓ nothing waiting")
-  // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
-  // glyph would right-align this past the edge of the row.
-  let syncVisibleLen = Stdlib.String.displayWidth syncPlain
-  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, and the sync
-  // glance right-aligned. The branch is named here and nowhere else, so the breadcrumb never repeats it.
+      let facts = state.scmStatus.sync
+      let t = syncPushSummary facts
+      let waiting = (facts.mainUnpushed > 0L) || (Stdlib.Bool.not (Stdlib.List.isEmpty facts.branchesUnpushed))
+      let styled = if waiting then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow t else t
+      (styled, t)
+  // The header: the branch you are on, prominent; who and where, dim; and the sync glance,
+  // right-aligned. The branch is named here and nowhere else, so the frame's title never
+  // repeats it.
   let context =
     Stdlib.Cli.UI.Layout.fixedSize
       1
       (fun r ->
-        // The draft split lives on the always-visible row, deliberately NOT in the SCM
-        // view: "what moved because of what I just did" is asked while looking at code,
-        // and if answering means switching views, people stop asking. The split rather
-        // than the total: "3 changed" after one edit can't tell fine from disaster.
-        let draft = scmStatusLine state.scmStatus
+        // Two forms of every segment: the plain text is what gets MEASURED, the styled one is what
+        // gets drawn. A width taken over the coloured form counts the escape codes, and it is
+        // measured in columns, not graphemes: `⚠` is one grapheme and would otherwise right-align
+        // past the edge of the row.
+        let dim (s: String) : String = Stdlib.Cli.UI.Colors.dimText s
+        let branchStyled =
+          Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.purple) branch
+        let whoPlain = "    " ++ state.accountName ++ " @ " ++ state.instanceName
+        let whoNoInstancePlain = "    " ++ state.accountName
+        let fullLeftPlain = "  " ++ branch ++ whoPlain
+        let fullLeft = "  " ++ branchStyled ++ (dim whoPlain)
+        let noInstanceLeftPlain = "  " ++ branch ++ whoNoInstancePlain
+        let noInstanceLeft = "  " ++ branchStyled ++ (dim whoNoInstancePlain)
+        let branchOnlyPlain = "  " ++ branch
+        let branchOnly = "  " ++ branchStyled
 
-        // Two forms of one segment: the plain text is what gets MEASURED, the dim one is what gets
-        // drawn. A width taken over the coloured form counts the escape codes.
-        let draftPlain = if draft == "" then "" else "    " ++ draft
-        let draftPart = if draft == "" then "" else Stdlib.Cli.UI.Colors.dimText draftPlain
+        // Narrow terminals drop whole segments in priority order rather than letting the row
+        // overwrite itself: the instance goes first, then the account; the branch and the glance
+        // survive as long as anything does.
+        let fits (l: String) (rt: String) : Bool =
+          (Stdlib.String.displayWidth l) + (Stdlib.String.displayWidth rt) + 4 <= r.cols
 
-        // Narrow terminals drop whole segments in priority order rather than letting the row overwrite
-        // itself. The draft split is the most valuable thing here and the branch is second, so `instance:`
-        // goes first and the account name second. Only if it still does not fit does the draft get
-        // clipped.
-        let room = Stdlib.Int.max 0 (r.cols - syncVisibleLen - 4)
-
-        let fullPlain =
-          "  " ++ state.accountName ++ "    instance: " ++ state.instanceName
-          ++ "    branch: " ++ branch ++ draftPlain
-
-        let noInstancePlain =
-          "  " ++ state.accountName ++ "    branch: " ++ branch ++ draftPlain
-
-        let noAccountPlain = "  branch: " ++ branch ++ draftPlain
-
-        let line =
-          if (Stdlib.String.displayWidth fullPlain) <= room then
-            "  "
-            ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
-            ++ (Stdlib.Cli.UI.Colors.dimText "    instance: ")
-            ++ (Stdlib.Cli.UI.Colors.dimText state.instanceName)
-            ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
-            ++ (Stdlib.Cli.UI.Colors.dimText branch)
-            ++ draftPart
-          else if (Stdlib.String.displayWidth noInstancePlain) <= room then
-            "  "
-            ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
-            ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
-            ++ (Stdlib.Cli.UI.Colors.dimText branch)
-            ++ draftPart
-          else if (Stdlib.String.displayWidth noAccountPlain) <= room then
-            "  " ++ (Stdlib.Cli.UI.Colors.dimText "branch: ") ++ (Stdlib.Cli.UI.Colors.dimText branch) ++ draftPart
-          else
-            Stdlib.Cli.UI.Colors.dimText (Stdlib.Cli.Tui.Text.clipToWidth ("  branch: " ++ branch ++ "  " ++ draft) room)
+        let (leftLine, rightPlain, rightLine) =
+          if fits fullLeftPlain syncPlain then (fullLeft, syncPlain, syncColored)
+          else if fits noInstanceLeftPlain syncPlain then (noInstanceLeft, syncPlain, syncColored)
+          else if fits branchOnlyPlain syncPlain then (branchOnly, syncPlain, syncColored)
+          else (branchOnly, "", "")
 
         Stdlib.List.flatten
-          [ Stdlib.Cli.UI.Layout.at r 0 0 line
-            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 1)) syncColored ])
-  // The body: the sidebar column beside the view when there's room, else the
-  // view alone (the sidebar becomes an overlay, see below).
-  let sidebarColumn = sidebarIsColumn w
-  let body =
-    Stdlib.Cli.UI.Layout.greedy (fun r ->
-      if sidebarColumn then
-        Stdlib.Cli.UI.Layout.hstack
-          r
-          [ Stdlib.Cli.UI.Layout.fixedWidth sidebarCols (fun rr -> renderSidebar state wip conflictCount rr)
-            Stdlib.Cli.UI.Layout.greedyWidth (fun rr -> renderBody state rr) ]
-      else
-        renderBody state r)
+          [ Stdlib.Cli.UI.Layout.at r 0 0 leftLine
+            (if rightPlain == "" then []
+             else
+               Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - (Stdlib.String.displayWidth rightPlain) - 1)) rightLine) ])
+  // The nav: a strip between the context row and the body when there's room
+  // for one, else nothing here (it becomes an overlay, see below) and the
+  // body takes the rows.
+  let strip = navFits w
+  let nav =
+    Stdlib.Cli.UI.Layout.fixedSize navRows (fun r ->
+      renderNavStrip state wip conflictCount r)
+  let body = Stdlib.Cli.UI.Layout.greedy (fun r -> renderBody state r)
   let hints =
     Stdlib.Cli.UI.Layout.fixedSize
       1
@@ -176,14 +159,17 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
             (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Stdlib.Cli.UI.Colors.dimText "…")
         Stdlib.List.flatten [ Frame.renderKeyHints r shownHints, toast ])
   Stdlib.List.flatten
-    [ Stdlib.Cli.UI.Layout.vstack screen [ context, body, hints ]
+    [ Stdlib.Cli.UI.Layout.vstack
+        screen
+        (if strip then [ context, nav, body, hints ] else [ context, body, hints ])
       match state.overlay with
       | NoOverlay -> []
       | Keymap -> renderHelpOverlay screen
-      // A narrow terminal has no sidebar column, so focusing the sidebar
-      // draws it as an overlay instead.
-      if (sidebarFocused state) && (Stdlib.Bool.not sidebarColumn) then
-        renderSidebarOverlay state wip conflictCount screen
+      | Branches picker -> renderBranchPicker state picker screen
+      // A narrow terminal has no nav strip, so focusing the nav draws it as
+      // an overlay instead.
+      if (state.overlay == Overlay.NoOverlay) && (navbarFocused state) && (Stdlib.Bool.not strip) then
+        renderNavbarOverlay state wip conflictCount screen
       else
         []
       renderCommandCompletions state screen ]

@@ -76,9 +76,9 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
         let marker = if b.id == state.branchId then Stdlib.Cli.UI.Colors.boldText b.name else Stdlib.Cli.UI.Colors.dimText b.name
         "   " ++ marker ++ "     " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString b.ops) ++ (if b.ops == 1L then " op" else " ops"))))
 
-  boxedLines
+  titledLines
     region
-    "Devices"
+    (paneTitle "Devices" [] false)
     (Stdlib.List.flatten
       [ [ hdr "This instance"
           "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")"
@@ -100,20 +100,32 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.
 let renderAI (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  // Agents or Prompts - which one is picked in the sidebar.
-  let (leftTitle, previewTitle, empty) =
-    if state.ai.section == AiSection.Prompts then ("Prompts  ·  (mock data)", "Prompt", Stdlib.Cli.UI.Colors.dimText "no prompts")
-    else ("Agents  ·  (mock data)", "Thread", Stdlib.Cli.UI.Colors.dimText "no agents - press a to ask the agent")
-  splitListPreview state region leftTitle previewTitle empty
+  // Agents or Prompts - stepped inside the view (`7` again, `[`/`]`), tabs on the title.
+  let prompts = state.ai.section == AiSection.Prompts
+  let (previewTitle, empty) =
+    if prompts then ("Prompt", Stdlib.Cli.UI.Colors.dimText "no prompts")
+    else ("Thread", Stdlib.Cli.UI.Colors.dimText "no agents - press a to ask the agent")
+  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+  let tabs = sectionTabs [ "Agents", "Prompts" ] (aiSectionIndex state.ai.section) listFocused
+  let trailer =
+    if Stdlib.List.isEmpty state.items then [ "(mock data)" ]
+    else Stdlib.List.append [ "(mock data)" ] (listTrailer state "thread")
+  splitListPreviewTitled
+    state
+    region
+    (tabs ++ (paneTrailer trailer))
+    (paneTitle previewTitle [] detailFocused)
+    empty
 
 /// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
 /// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
 let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) t
   let today = Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) "[24]"
-  boxedLines
+  titledLines
     region
-    "Calendar  ·  July 2026  ·  (mock data)"
+    (paneTitle "Calendar" [ "July 2026", "(mock data)" ] false)
     [ hdr "   Mon   Tue   Wed   Thu   Fri   Sat   Sun"
       ""
       "          1     2     3     4     5     6"
@@ -134,19 +146,40 @@ let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
 // ViewDef handles loading and rendering; workspaces controls placement.
 
 let renderErrors (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview state region "Errors" "Detail" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors")
+  splitListPreview state region "Errors" "error" "Detail" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors")
 
 let renderCrons (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview state region "Crons" "Detail" (Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value")
+  splitListPreview state region "Crons" "cron" "Detail" (Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value")
 
-// Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
-// (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
-// view's detail pane, which is mock-labeled, until those handlers exist.
+/// The Sync view: one column of facts under section labels (see
+/// `loadSyncItems`). Nothing to select, so no cursor; `s`, `u` and `d` act
+/// on the whole instance.
+let syncLines (state: State) : List<String> =
+  // One label column for the whole view, sized to the widest label: a branch name can outgrow
+  // the width the fixed labels ("identity", "standing") need, and a label that runs into its
+  // fact reads as one word.
+  let labelCol =
+    state.items
+    |> Stdlib.List.filter (fun it -> it.kind != "sync-sec")
+    |> Stdlib.List.map (fun it -> (Stdlib.String.displayWidth it.name) + 2)
+    |> Stdlib.List.fold 16 (fun acc n -> Stdlib.Int.max acc n)
+  state.items
+  |> Stdlib.List.map (fun it ->
+    if it.kind == "sync-sec" then
+      if it.name == "" then "" else sectionHeading it.name
+    else
+      "  " ++ (Stdlib.String.padEndToWidth it.name labelCol)
+      ++ (Stdlib.Cli.UI.Colors.dimText it.desc))
+
 let renderSync (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview state region "Sync" "Detail" (Stdlib.Cli.UI.Colors.dimText "(no sync state)")
+  let lines = syncLines state
+  Stdlib.List.flatten
+    [ frameWithTitles region "" "" (0 - 1)
+      renderScrollableLines (paneContent region) 0 lines lines state.detailScroll ]
 
 let syncHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"), (":", "run a sync command") ]
+  [ ("↑↓", "scroll"), ("g/G", "top/bottom")
+    ("s", "sync now"), ("u", "push"), ("d", "pull"), ("o", "other instances") ]
 
 let errorHints (state: State) : List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
@@ -158,7 +191,7 @@ let calendarHints (state: State) : List<(String * String)> =
   []
 
 let renderBuiltins (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview state region "Builtins" "Signature" (Stdlib.Cli.UI.Colors.dimText "(no builtins)")
+  splitListPreview state region "Builtins" "builtin" "Signature" (Stdlib.Cli.UI.Colors.dimText "(no builtins)")
 
 let builtinHints (state: State) : List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
