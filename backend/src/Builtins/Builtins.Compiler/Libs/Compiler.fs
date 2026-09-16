@@ -216,7 +216,8 @@ let private buildEffectfulMap
   (exeState : ExecutionState)
   : Map<string, Bridge.WireArg list * Bridge.WireRet> =
   exeState.fns.builtIn
-  |> Map.toList
+  |> Seq.map (fun kv -> kv.Key, kv.Value)
+  |> List.ofSeq
   |> List.choose (fun (name, bfn) ->
     let argWires =
       bfn.parameters
@@ -319,7 +320,11 @@ let rec private valueTypeToAst (fresh : unit -> string) (vt : ValueType) : Resul
     | KTBlob -> Ok AST.TBytes // bridgeType: PT.TBlob -> AST.TBytes
     | KTUuid -> Ok AST.TString // bridgeType: PT.TUuid -> AST.TString (canonical string)
     | KTList inner -> valueTypeToAst inner |> Result.map AST.TList
-    | KTDict v -> valueTypeToAst v |> Result.map (fun v' -> AST.TDict(AST.TString, v'))
+    | KTDict(k, v) ->
+      match valueTypeToAst k, valueTypeToAst v with
+      | Ok k', Ok v' -> Ok(AST.TDict(k', v'))
+      | Error e, _
+      | _, Error e -> Error e
     | KTTuple(a, b, rest) ->
       (a :: b :: rest) |> List.map valueTypeToAst |> allOk |> Result.map AST.TTuple
     | KTCustomType(name, targs) ->
@@ -369,12 +374,15 @@ let rec private dvalToAst (d : Dval) : Result<AST.Expr, string> =
   | DList(_, xs) -> xs |> List.map dvalToAst |> allOk |> Result.map AST.ListLiteral
   | DTuple(a, b, rest) ->
     (a :: b :: rest) |> List.map dvalToAst |> allOk |> Result.map AST.TupleLiteral
-  | DDict(_, entries) ->
+  | DDict(_, _, entries) ->
     // No dict literal in the compiler AST; Dict.fromList over (key, value) tuples.
     entries
     |> Map.toList
     |> List.map (fun (k, v) ->
-      dvalToAst v |> Result.map (fun v' -> AST.TupleLiteral [ AST.StringLiteral k; v' ]))
+      match dvalToAst k.Dval, dvalToAst v with
+      | Ok k', Ok v' -> Ok(AST.TupleLiteral [ k'; v' ])
+      | Error e, _
+      | _, Error e -> Error e)
     |> allOk
     |> Result.map (fun es ->
       AST.Call("Stdlib.Dict.fromList", AST.NonEmptyList.singleton (AST.ListLiteral es)))
@@ -1154,9 +1162,9 @@ let private dispatchBuiltin
     match tryPrimitive () with
     | Some resp -> return resp
     | None ->
-    match Map.tryFind (FQFnName.builtin name 0) exeState.fns.builtIn with
-    | None -> return $"ERR:no-builtin:{name}"
-    | Some bfn ->
+    match exeState.fns.builtIn.TryGetValue(FQFnName.builtin name 0) with
+    | false, _ -> return $"ERR:no-builtin:{name}"
+    | true, bfn ->
       let n = min bfn.parameters.Length wireArgs.Length
       // wireToDvalTyped, not wireToDval: an arg can now be a container or a custom
       // type (see WATyped), which needs the recursive decoder + type defs. The old
@@ -1171,7 +1179,7 @@ let private dispatchBuiltin
       // produce a response, or the compiled program polls the response file
       // forever. Return an error marker instead of letting it propagate.
       try
-        let! result = bfn.fn (exeState, vm, [], dvalArgs)
+        let! result = bfn.fn (struct (exeState, vm, [], List.toArray dvalArgs))
         return dvalToWire result
       with e ->
         return $"ERR:exn:{e.Message}"
@@ -1296,7 +1304,7 @@ let rec private substituteType
       | None -> t
     | PT.TList inner -> PT.TList(substituteType subst inner)
     | PT.TStream inner -> PT.TStream(substituteType subst inner)
-    | PT.TDict inner -> PT.TDict(substituteType subst inner)
+    | PT.TDict(k, v) -> PT.TDict(substituteType subst k, substituteType subst v)
     | PT.TDB inner -> PT.TDB(substituteType subst inner)
     | PT.TTuple(a, b, rest) ->
       PT.TTuple(substituteType subst a, substituteType subst b, List.map (substituteType subst) rest)
@@ -1832,7 +1840,7 @@ let fns () : List<BuiltInFn> =
         "Reports that the native compiler extension is linked and available."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           let opts = CompilerLibrary.defaultOptions
           DString
             $"native compiler linked (DisableFreeList={opts.DisableFreeList}, DisableTCO={opts.DisableTCO})"
@@ -1840,7 +1848,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerCompile" 0
@@ -1851,14 +1859,14 @@ let fns () : List<BuiltInFn> =
         "Compiles <source> to a native binary in-process via the airlifted compiler. Returns (true, \"<n> bytes\") on success or (false, <error>) on failure. Does not execute the binary."
       fn =
         (function
-        | _, _, _, [ DString source ] ->
+        | _, _, _, [| DString source |] ->
           match compileSource source with
           | Ok binary -> outcome true $"{binary.Length} bytes" |> Ply
           | Error e -> outcome false e |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerCompileAndRun" 0
@@ -1869,7 +1877,7 @@ let fns () : List<BuiltInFn> =
         "Compiles <source> to a native binary and executes it in-process. Returns (true, <stdout>) on success or (false, <error>) on failure. NOTE: runs native code; x86-64 refcounting is disabled, so long/allocation-heavy programs may leak (fine for short pure-core leaves)."
       fn =
         (function
-        | _, _, _, [ DString source ] ->
+        | _, _, _, [| DString source |] ->
           match compileSource source with
           | Error e -> outcome false $"compile: {e}" |> Ply
           | Ok binary ->
@@ -1879,7 +1887,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerDaemonSelfTest" 0
@@ -1890,7 +1898,7 @@ let fns () : List<BuiltInFn> =
         "Proves the runtime seam dispatches to a REAL builtin: compiles a program calling Stdlib.hostRpc(\"stringLength\\nhello\"); an in-process F# daemon reads the request, invokes the real stringLength builtin (DString hello -> DInt64 5), writes the response; the native binary reads it back. Returns the binary's stdout (expect 5)."
       fn =
         (function
-        | exeState, vm, _, [ DUnit ] ->
+        | exeState, vm, _, [| DUnit |] ->
           uply {
             let daemon = serveOneRequest exeState vm
             let program : AST.Program =
@@ -1911,7 +1919,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerMarshalSelfTest" 0
@@ -1922,7 +1930,7 @@ let fns () : List<BuiltInFn> =
         "Proves the general container marshaller round-trips at runtime: compiles a program that calls the REAL environmentGet builtin through the daemon (returns Option<String>), decodes the wire response via Bridge.unmarshalTyped over Option<String>, and Option.withDefault-extracts it. Returns the binary stdout (expect the value of $HOME)."
       fn =
         (function
-        | exeState, vm, _, [ DUnit ] ->
+        | exeState, vm, _, [| DUnit |] ->
           uply {
             let daemon = serveOneRequest exeState vm
             // Option<String>: environmentGet "HOME" through the daemon -> decode -> withDefault
@@ -1955,7 +1963,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerBridgeSelfTest" 0
@@ -1966,7 +1974,7 @@ let fns () : List<BuiltInFn> =
         "Proves the ProgramTypes->compiler-AST bridge (§6) end to end: builds a PT function `(a,b) => a + b` in F#, lowers it via Bridge.bridgeFn to compiler AST, synthesizes `bridgedFn(20, 22)`, compiles that AST directly (no text/parser), runs it, and returns (true, \"42\") on success. This is the durable path the text builtins will be replaced by."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           // A pure-Int leaf, constructed as ProgramTypes: (a: Int64) (b: Int64): Int64 = a + b
           let ptFn : PT.PackageFn.PackageFn =
             { hash = PT.FQFnName.package "compiler-merge-selftest-add"
@@ -1982,7 +1990,8 @@ let fns () : List<BuiltInFn> =
                   ({ name = "a"; typ = PT.TInt64; description = "" } : PT.PackageFn.Parameter)
                   [ { name = "b"; typ = PT.TInt64; description = "" } ]
               returnType = PT.TInt64
-              description = "" }
+              description = ""
+              permissionCeiling = None }
           match Bridge.bridgeFn Map.empty Map.empty Set.empty Map.empty Map.empty "bridgedFn" ptFn with
           | Error e -> outcome false $"bridge: {e}" |> Ply
           | Ok fd ->
@@ -2002,7 +2011,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerHandleSelfTest" 0
@@ -2013,7 +2022,7 @@ let fns () : List<BuiltInFn> =
         "Proves the opaque-handle model end to end: compiles a program that (1) calls the REAL stringSplit builtin through the daemon (returns a List -> stored as a handle id), then (2) passes that handle to the REAL listLength builtin. The compiled code only ever touches strings/ints (no native finger-tree), yet a list flows between two builtins via the daemon. Returns stdout (expect 3)."
       fn =
         (function
-        | exeState, vm, _, [ DUnit ] ->
+        | exeState, vm, _, [| DUnit |] ->
           uply {
             let (daemon, shutdown) = startDaemon exeState vm
             // let h = hostRpc("stringSplit\na,b,c\n,") in hostRpc("listLength\n" ++ h)
@@ -2039,7 +2048,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerListHandleSelfTest" 0
@@ -2050,7 +2059,7 @@ let fns () : List<BuiltInFn> =
         "Proves the compiled side can BUILD and query a multi-element list via handles (the native x64 finger-tree cannot): conses [a,b,c] through the daemon (__listEmpty/__listConsStr) then __listLen -> 3. Every value the compiled code holds is a String/Int handle."
       fn =
         (function
-        | exeState, vm, _, [ DUnit ] ->
+        | exeState, vm, _, [| DUnit |] ->
           uply {
             let (daemon, shutdown) = startDaemon exeState vm
             let rpc req = AST.Call("Stdlib.hostRpc", AST.NonEmptyList.singleton req)
@@ -2079,7 +2088,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compileFnByHash" 0
@@ -2092,7 +2101,7 @@ let fns () : List<BuiltInFn> =
         "Fetches a package function's ProgramTypes by hash, lowers it to compiler AST via the §6 bridge, compiles a call to it with <args>, runs the native binary, and returns (true, <stdout>) or (false, <reason>). Pure-core leaves only; anything the bridge can't lower hard-fails with an `unsupported-*` reason. (Dark resolves a name to its hash; this takes the hash.)"
       fn =
         (function
-        | exeState, vm, _, [ DString hash; DList(_, argDvals) ] ->
+        | exeState, vm, _, [| DString hash; DList(_, argDvals) |] ->
           uply {
             let effectful = buildEffectfulMap exeState
             let argLits =
@@ -2129,7 +2138,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compileFnCheck" 0
@@ -2140,7 +2149,7 @@ let fns () : List<BuiltInFn> =
         "Checks whether a package function compiles via the §6 bridge, WITHOUT running it: fetches its ProgramTypes by hash, lowers to compiler AST, makes it reachable with zero-valued args, and compiles. Returns (true, \"<n> bytes\") if it compiles or (false, \"<unsupported-*>\") with the first blocker. This is the `dark <fn> compile` semantic (compilability, not execution)."
       fn =
         (function
-        | exeState, _, _, [ DString hash ] ->
+        | exeState, _, _, [| DString hash |] ->
           uply {
             let! (ok, detail) = checkOne (buildEffectfulMap exeState) hash
             return outcome ok detail
@@ -2148,7 +2157,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerCoverageSweep" 0
@@ -2160,7 +2169,7 @@ let fns () : List<BuiltInFn> =
         "The §4 bring-up loop, in ONE process (stdlib built once): compile-checks every fn hash and returns a newline-joined report, one `<ok>|<detail>` line per input hash in order (ok = true/false). Feed it every fn hash to get a whole-tree coverage number + ranked blockers without the per-process stdlib rebuild."
       fn =
         (function
-        | exeState, _, _, [ DList(_, hashes) ] ->
+        | exeState, _, _, [| DList(_, hashes) |] ->
           uply {
             let effectful = buildEffectfulMap exeState
             let mutable lines : List<string> = []
@@ -2175,7 +2184,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerNativeListTest" 0
@@ -2185,7 +2194,7 @@ let fns () : List<BuiltInFn> =
       description = "Debug: does a native multi-element list [7,8,9] match head work at runtime (no daemon)? Returns 7, or hangs/crashes if the finger-tree is broken."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             // Decode a wire list "alpha\\nbeta\\ngamma" via unmarshalTyped(List<String>), no daemon -> length 3
             match Bridge.unmarshalTypedR 0 (AST.TList AST.TString) (AST.StringLiteral "alpha\nbeta\ngamma") with
@@ -2202,7 +2211,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerShowFn" 0
@@ -2212,7 +2221,7 @@ let fns () : List<BuiltInFn> =
       description = "Debug: fetch a package fn by hash and return its name + F# structural repr of params and body."
       fn =
         (function
-        | _, _, _, [ DString hash ] ->
+        | _, _, _, [| DString hash |] ->
           uply {
             let! fnOpt = LibDB.PackageManager.pt.getFn (PT.FQFnName.package hash)
             match fnOpt with
@@ -2227,7 +2236,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerPerfCompare" 0
@@ -2239,7 +2248,7 @@ let fns () : List<BuiltInFn> =
       description = "Benchmarks one Int64->Int64 fn at arg n: runs it compiled (native binary) and interpreted (executeFunction), times each with a Stopwatch, and reports both wall times + the result. For a fair compute comparison use a heavy fn (e.g. naive fib)."
       fn =
         (function
-        | exeState, _, _, [ DString hash; DInt64 n ] ->
+        | exeState, _, _, [| DString hash; DInt64 n |] ->
           uply {
             let! report = perfBench exeState hash n
             return DString report
@@ -2247,7 +2256,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "perfCompareEval" 0
@@ -2259,7 +2268,7 @@ let fns () : List<BuiltInFn> =
       description = "The user-facing perf comparison: pass a fn value (e.g. Stdlib.PerfDemo.fib) and an arg; compiles it, runs compiled-native vs interpreted in-process, and returns a pretty report with both times, the speedup, and whether the results match."
       fn =
         (function
-        | exeState, _, _, [ DApplicable(AppNamedFn nf); DInt64 n ] ->
+        | exeState, _, _, [| DApplicable(AppNamedFn nf); DInt64 n |] ->
           uply {
             match nf.name with
             | FQFnName.Package(Hash h) ->
@@ -2270,7 +2279,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerEquivCheck" 0
@@ -2283,7 +2292,7 @@ let fns () : List<BuiltInFn> =
         "PROVES a compiled fn agrees with the interpreter on real arguments. Both sides emit the same canonical wire encoding (the interpreter's Dval via dvalToWire; the compiled program via the mirror, Bridge.marshalTyped) and the bytes are compared — unlike the stdout comparison, which can't see records/nested containers and left most fns unprovable. Args are passed as a tuple (2+), a bare value (1), or () for none, since a Dark list can't hold mixed types. Returns match / DIFF|c=..|i=.. / unprovable|<why> / cf|<blocker> / ierr|<err> / crash|<code>."
       fn =
         (function
-        | exeState, vm, _, [ DString hash; argsDval ] ->
+        | exeState, vm, _, [| DString hash; argsDval |] ->
           uply {
             let args =
               match argsDval with
@@ -2296,7 +2305,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerEquivSweep" 0
@@ -2307,7 +2316,7 @@ let fns () : List<BuiltInFn> =
         "Equivalence sweep: for each fn, synthesize REALISTIC args from its declared param types (42, \"hello\", [1;2;3] — not the zeros the compile-check uses, which push fns down degenerate paths), then prove compiled == interpreted by comparing the canonical wire encoding both sides emit. One `<hash>\\t<result>` line each: match / DIFF|c=..|i=.. / unprovable|<why> / noargs|<type> / cf|<blocker> / ierr / crash. This is the number that matters — compile coverage is not correctness."
       fn =
         (function
-        | exeState, vm, _, [ DList(_, hashes) ] ->
+        | exeState, vm, _, [| DList(_, hashes) |] ->
           uply {
             let effectful = buildEffectfulMap exeState
             let mutable lines : List<string> = []
@@ -2347,7 +2356,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "compilerRunSweep" 0
@@ -2359,7 +2368,7 @@ let fns () : List<BuiltInFn> =
         "Runnable-vs-compilable sweep: for each fn hash, compiles it, makes it reachable with zero args, and RUNS the binary (daemon up) with a 2s timeout. One line per hash: cf|<blocker> (didn't compile), hang (timed out — e.g. the multi-element list bug), crash|<code>, or ran|<stdout>. Turns the compile-coverage number into an actually-executes number and surfaces runtime hangs as failures."
       fn =
         (function
-        | exeState, vm, _, [ DList(_, hashes) ] ->
+        | exeState, vm, _, [| DList(_, hashes) |] ->
           uply {
             let effectful = buildEffectfulMap exeState
             let mutable lines : List<string> = []
@@ -2374,7 +2383,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      capabilities = LibExecution.Capabilities.noCaps
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

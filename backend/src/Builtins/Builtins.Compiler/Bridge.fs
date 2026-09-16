@@ -590,7 +590,13 @@ let rec bridgeType
   // __key_eq<k> monomorphized per key type, and __Hash.dark ships __hash_str
   // (FNV-1a over UTF-8 bytes) + __key_eq_str. So String keys are fully supported;
   // the "K=Int64 for now" note on AST.TDict is stale.
-  | PT.TDict v -> recurse v |> Result.map (fun v' -> AST.TDict(AST.TString, v'))
+  | PT.TDict(k, v) ->
+    (recurse k, recurse v)
+    |> fun (k, v) ->
+      match k, v with
+      | Ok k', Ok v' -> Ok(AST.TDict(k', v'))
+      | Error e, _
+      | _, Error e -> Error e
   | PT.TFn(args, ret) ->
     (NEList.toList args |> List.map recurse |> allOk, recurse ret)
     |> fun (a, r) ->
@@ -1848,7 +1854,10 @@ let rec bridgeExpr (ctx : BridgeCtx) (e : PT.Expr) : Result<AST.Expr, string> =
   | PT.EDict(_, pairs) ->
     pairs
     |> List.map (fun (k, v) ->
-      recurse v |> Result.map (fun v' -> AST.TupleLiteral [ AST.StringLiteral k; v' ]))
+      match recurse k, recurse v with
+      | Ok k', Ok v' -> Ok(AST.TupleLiteral [ k'; v' ])
+      | Error e, _
+      | _, Error e -> Error e)
     |> allOk
     |> Result.map (fun entries ->
       AST.Call("Stdlib.Dict.fromList", AST.NonEmptyList.singleton (AST.ListLiteral entries)))
@@ -1912,7 +1921,6 @@ let rec bridgeExpr (ctx : BridgeCtx) (e : PT.Expr) : Result<AST.Expr, string> =
         match Map.tryFind b.name builtinToStdlib with
         | Some stdlibFn -> Ok(AST.FuncRef stdlibFn)
         | None -> err "fnref" $"effectful builtin as value: {b.name}"
-  | _ -> err "expr" (e.GetType().Name)
 
 /// Lower one match case. A PT case has a single pattern (alternatives live in
 /// MPOr); the compiler groups alternatives in MatchCase.Patterns.
@@ -2185,7 +2193,7 @@ let rec typeRefsInType (t : PT.TypeReference) : List<string> =
   | PT.TCustomType(nr, args) -> typeHashOpt nr @ List.collect r args
   | PT.TList inner -> r inner
   | PT.TTuple(a, b, rest) -> r a @ r b @ List.collect r rest
-  | PT.TDict inner -> r inner
+  | PT.TDict(k, v) -> r k @ r v
   | PT.TFn(args, ret) -> (NEList.toList args |> List.collect r) @ r ret
   | _ -> []
 
