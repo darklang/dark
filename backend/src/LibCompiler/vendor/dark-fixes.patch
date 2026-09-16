@@ -1,0 +1,1056 @@
+diff --git a/backend/src/LibCompiler/AST.fs b/backend/src/LibCompiler/AST.fs
+index 3664ccc..f270b06 100644
+--- a/backend/src/LibCompiler/AST.fs
++++ b/backend/src/LibCompiler/AST.fs
+@@ -58,7 +58,7 @@ type Type =
+     | TList of Type                    // List<T> - polymorphic list type
+     | TVar of string                  // type variable: T, A, B, etc. (for generics)
+     | TRawPtr                         // Raw pointer to unmanaged memory (internal, for HAMT)
+-    | TDict of keyType:Type * valueType:Type  // Dict<K, V> - HAMT dictionary (K=Int64 for now)
++    | TDict of keyType:Type * valueType:Type  // Dict<K, V> - HAMT dictionary; K is generic (Int64/Bool/String), monomorphized via __hash<k>/__key_eq<k> (see stdlib/__Hash.dark)
+ 
+ /// Binary operators
+ type BinOp =
+diff --git a/backend/src/LibCompiler/CompilerLibrary.fs b/backend/src/LibCompiler/CompilerLibrary.fs
+index 87b991e..0af5423 100644
+--- a/backend/src/LibCompiler/CompilerLibrary.fs
++++ b/backend/src/LibCompiler/CompilerLibrary.fs
+@@ -1034,6 +1034,7 @@ let private loadStdlib () : Result<AST.Program, string> =
+         "stdlib/Crypto.dark"
+         "stdlib/Math.dark"
+         "stdlib/__FingerTree.dark"
++        "stdlib/Rpc.dark"
+     ]
+     let mergeFile (acc: AST.TopLevel list) (filename: string) : Result<AST.TopLevel list, string> =
+         match loadDarkFileAllowInternal filename with
+@@ -1272,6 +1273,9 @@ type private UserCompilePlan = {
+     Labels: UserCompileLabels
+     SourceFile: string
+     Source: string
++    /// When Some, the pipeline skips the text parser and uses this AST directly.
++    /// This is the seam the PT->AST bridge feeds (compiler-merge airlift, plan §6).
++    PrebuiltAst: AST.Program option
+ }
+ 
+ /// Parse source text into AST using a selected Darklang syntax
+@@ -1289,9 +1293,12 @@ let private compileUserWithPlan (plan: UserCompilePlan) : CompileReport =
+     let sw = Stopwatch.StartNew()
+     let result =
+         try
+-            // Pass 1: Parse user code only
++            // Pass 1: Parse user code only (or use a pre-built AST from the bridge)
+             if plan.Verbosity >= 1 then println plan.Labels.Parse
+-            let parseResult = parseProgram plan.SourceSyntax plan.AllowInternal plan.Source
++            let parseResult =
++                match plan.PrebuiltAst with
++                | Some ast -> Ok ast
++                | None -> parseProgram plan.SourceSyntax plan.AllowInternal plan.Source
+             let parseTime = sw.Elapsed.TotalMilliseconds
+             recordPassTiming plan.PassTimingRecorder "Parse" parseTime
+             if plan.Verbosity >= 2 then
+@@ -1718,6 +1725,7 @@ let private buildCompilePlan (request: CompileRequest) : UserCompilePlan =
+         Labels = labelsForMode request.Mode
+         SourceFile = request.SourceFile
+         Source = request.Source
++        PrebuiltAst = None
+     }
+ 
+ /// Compile source code to binary (in-memory, no file I/O)
+@@ -1725,8 +1733,19 @@ let compile (request: CompileRequest) : CompileReport =
+     let plan = buildCompilePlan request
+     compileUserWithPlan plan
+ 
++/// Compile a pre-built AST.Program (bridged from ProgramTypes), skipping the
++/// text parser entirely. The request supplies context/mode/options; its Source
++/// field is ignored. This is the entry the compiler-merge PT->AST bridge uses
++/// (plan §6) so we never round-trip through the compiler's diverged parser.
++let compileAstProgram (request: CompileRequest) (ast: AST.Program) : CompileReport =
++    let plan = { buildCompilePlan request with PrebuiltAst = Some ast }
++    compileUserWithPlan plan
++
+ /// Execute compiled binary and capture output
+-let execute (verbosity: int) (binary: byte array) : ExecutionOutput =
++/// Execute a compiled binary. timeoutMs > 0 kills the process (exit -999,
++/// stderr "TIMEOUT") if it doesn't finish in time — essential for sweeping fns
++/// that may hang (e.g. the x64 multi-element list runtime bug). <= 0 = no timeout.
++let execute (verbosity: int) (timeoutMs: int) (binary: byte array) : ExecutionOutput =
+     let sw = Stopwatch.StartNew()
+     let finish (exitCode: int) (stdout: string) (stderr: string) : ExecutionOutput =
+         sw.Stop()
+@@ -1821,20 +1840,27 @@ let execute (verbosity: int) (binary: byte array) : ExecutionOutput =
+                     let stdoutTask = proc.StandardOutput.ReadToEndAsync()
+                     let stderrTask = proc.StandardError.ReadToEndAsync()
+ 
+-                    // Wait for process to complete
+-                    proc.WaitForExit()
++                    // Wait for process to complete (with optional timeout)
++                    let exited =
++                        if timeoutMs > 0 then proc.WaitForExit(timeoutMs)
++                        else proc.WaitForExit(); true
+ 
+-                    // Now wait for output to be fully read
+-                    let stdout = stdoutTask.Result
+-                    let stderr = stderrTask.Result
++                    if not exited then
++                        // Hung: kill it and report a distinct timeout result.
++                        (try proc.Kill(true) with _ -> ())
++                        finish -999 "" "TIMEOUT"
++                    else
++                        // Now wait for output to be fully read
++                        let stdout = stdoutTask.Result
++                        let stderr = stderrTask.Result
+ 
+-                    let execTime = sw.Elapsed.TotalMilliseconds - execStart
+-                    if verbosity >= 2 then println $"      {System.Math.Round(execTime, 1)}ms"
++                        let execTime = sw.Elapsed.TotalMilliseconds - execStart
++                        if verbosity >= 2 then println $"      {System.Math.Round(execTime, 1)}ms"
+ 
+-                    if verbosity >= 1 then
+-                        println $"  ✓ Execution complete ({System.Math.Round(sw.Elapsed.TotalMilliseconds, 1)}ms)"
++                        if verbosity >= 1 then
++                            println $"  ✓ Execution complete ({System.Math.Round(sw.Elapsed.TotalMilliseconds, 1)}ms)"
+ 
+-                    finish proc.ExitCode stdout stderr
++                        finish proc.ExitCode stdout stderr
+         finally
+             // Cleanup - ignore deletion errors
+             tryDeleteFile tempPath
+diff --git a/backend/src/LibCompiler/IRPrinter.fs b/backend/src/LibCompiler/IRPrinter.fs
+index acffb3f..8fd37ba 100644
+--- a/backend/src/LibCompiler/IRPrinter.fs
++++ b/backend/src/LibCompiler/IRPrinter.fs
+@@ -454,6 +454,8 @@ let private prettyPrintLIRInstr (instr: LIR.Instr) : string =
+         $"{prettyPrintLIRReg dest} <- Mul({prettyPrintLIRReg left}, Reg {prettyPrintLIRReg right})"
+     | LIR.Sdiv (dest, left, right) ->
+         $"{prettyPrintLIRReg dest} <- Sdiv({prettyPrintLIRReg left}, Reg {prettyPrintLIRReg right})"
++    | LIR.Udiv (dest, left, right) ->
++        $"{prettyPrintLIRReg dest} <- Udiv({prettyPrintLIRReg left}, Reg {prettyPrintLIRReg right})"
+     | LIR.Msub (dest, mulLeft, mulRight, sub) ->
+         $"{prettyPrintLIRReg dest} <- Msub({prettyPrintLIRReg mulLeft}, {prettyPrintLIRReg mulRight}, {prettyPrintLIRReg sub})"
+     | LIR.Madd (dest, mulLeft, mulRight, add) ->
+diff --git a/backend/src/LibCompiler/LIR.fs b/backend/src/LibCompiler/LIR.fs
+index 7963ea5..4674150 100644
+--- a/backend/src/LibCompiler/LIR.fs
++++ b/backend/src/LibCompiler/LIR.fs
+@@ -52,6 +52,11 @@ type Condition =
+     | GT
+     | LE
+     | GE
++    // Unsigned ordered comparisons (for UInt* operands). x64: setb/seta/setbe/setae.
++    | ULT
++    | UGT
++    | ULE
++    | UGE
+ 
+ /// Reference-count operation kind
+ type RcKind =
+@@ -70,6 +75,7 @@ type Instr =
+     | Sub of dest:Reg * left:Reg * right:Operand
+     | Mul of dest:Reg * left:Reg * right:Reg
+     | Sdiv of dest:Reg * left:Reg * right:Reg
++    | Udiv of dest:Reg * left:Reg * right:Reg
+     | Msub of dest:Reg * mulLeft:Reg * mulRight:Reg * sub:Reg
+     | Madd of dest:Reg * mulLeft:Reg * mulRight:Reg * add:Reg
+     | Cmp of left:Reg * right:Operand
+diff --git a/backend/src/LibCompiler/passes/1.5_TypeChecking.fs b/backend/src/LibCompiler/passes/1.5_TypeChecking.fs
+index e87a798..abffde2 100644
+--- a/backend/src/LibCompiler/passes/1.5_TypeChecking.fs
++++ b/backend/src/LibCompiler/passes/1.5_TypeChecking.fs
+@@ -418,8 +418,30 @@ type SumTypeRegistry = Map<string, (string * int * Type option) list>
+ 
+ /// Variant lookup - maps variant names to (type name, type params, tag index, payload type)
+ /// Type params are the generic type parameters of the containing sum type
++///
++/// Every variant is registered twice: under its bare name, and under a type-scoped
++/// key (see scopedVariantKey). Bare names are ambiguous whenever two sum types share
++/// a variant name — the map keeps only the last — so anyone holding the type name
++/// should resolve with tryFindVariant instead of a bare Map.tryFind.
+ type VariantLookup = Map<string, (string * string list * int * Type option)>
+ 
++/// The unambiguous key for a variant of a known sum type.
++let scopedVariantKey (typeName: string) (variantName: string) : string =
++    typeName + "." + variantName
++
++/// Resolve a variant, preferring the type-scoped entry when the sum type is known
++/// and falling back to the (possibly ambiguous) bare name.
++let tryFindVariant
++    (variantLookup: VariantLookup)
++    (typeName: string option)
++    (variantName: string)
++    : (string * string list * int * Type option) option =
++    let scoped =
++        typeName |> Option.bind (fun tn -> Map.tryFind (scopedVariantKey tn variantName) variantLookup)
++    match scoped with
++    | Some _ -> scoped
++    | None -> Map.tryFind variantName variantLookup
++
+ /// Generic function registry and call-site policy controls.
+ /// `Functions` contains entries only for functions that have type parameters.
+ type GenericFuncRegistry = {
+@@ -3063,8 +3085,11 @@ let rec checkExprWithParamNames
+                 Error (GenericError $"Cannot access .{fieldName} on non-record type {typeToString other}"))
+ 
+     | Constructor (constrTypeName, variantName, payload) ->
+-        // Look up the variant to find its type and expected payload
+-        match Map.tryFind variantName variantLookup with
++        // Look up the variant to find its type and expected payload. The constructor
++        // carries its sum type, so resolve scoped: a bare-name lookup silently picks
++        // whichever type happened to win the collision when two enums share a variant
++        // name, which reports a bogus payload arity (or resolves the wrong variant).
++        match tryFindVariant variantLookup (Some constrTypeName) variantName with
+         | None ->
+             Error (GenericError $"Unknown constructor: {variantName}")
+         | Some (typeName, typeParams, _tag, expectedPayload) ->
+@@ -4005,7 +4030,13 @@ let rec checkExprWithParamNames
+                         | arg :: restArgs, paramTy :: restParams ->
+                             checkExpr arg env typeReg variantLookup genericFuncReg warningSettings moduleRegistry aliasReg (Some paramTy)
+                             |> Result.bind (fun (argType, arg') ->
+-                                if typesEqual aliasReg argType paramTy then
++                                // typesCompatibleWithAliases, not typesEqual: an applied fn VALUE
++                                // often still carries type-variable params (a let-bound lambda's
++                                // params keep the parser's placeholder tvar), and strict equality
++                                // rejects `normalize(5)` as "expected 'a, got Int64". This matches
++                                // what the named-Call path already does; concrete mismatches
++                                // (String vs Int64) still fail, since matchTypes only unifies tvars.
++                                if typesCompatibleWithAliases aliasReg paramTy argType then
+                                     checkProvidedArgs restArgs restParams (arg' :: checkedArgs)
+                                 else
+                                     Error (TypeMismatch (paramTy, argType, "function argument")))
+@@ -4039,7 +4070,9 @@ let rec checkExprWithParamNames
+                         | arg :: restArgs, paramTy :: restParams ->
+                             checkExpr arg env typeReg variantLookup genericFuncReg warningSettings moduleRegistry aliasReg (Some paramTy)
+                             |> Result.bind (fun (argType, arg') ->
+-                                if typesEqual aliasReg argType paramTy then
++                                // See the partial-application branch above: a fn value's params can
++                                // still be type variables, so unify rather than demand equality.
++                                if typesCompatibleWithAliases aliasReg paramTy argType then
+                                     checkArgs restArgs restParams (arg' :: checkedArgs)
+                                 else
+                                     Error (TypeMismatch (paramTy, argType, "function argument")))
+@@ -4058,7 +4091,12 @@ let rec checkExprWithParamNames
+         match Map.tryFind funcName env with
+         | Some funcType ->
+             match expectedType with
+-            | Some expected when expected <> funcType ->
++            // typesCompatibleWithAliases, not (<>): passing a fn as a value to a
++            // higher-order fn gives an expected type full of type variables (e.g.
++            // `(a) -> b`), which is never structurally EQUAL to the concrete fn's
++            // signature. Unify instead — matchTypes still rejects real mismatches.
++            // Same trap as the Apply/arg check.
++            | Some expected when not (typesCompatibleWithAliases aliasReg expected funcType) ->
+                 Error (TypeMismatch (expected, funcType, $"function reference {funcName}"))
+             | _ -> Ok (funcType, expr)
+         | None ->
+@@ -4639,6 +4677,16 @@ let private checkProgramInternal
+     // Collect sum type definitions and build variant lookup from THIS program
+     // Maps variant name -> (type name, type params, tag index, payload type)
+     // Type params are included for generic type instantiation at constructor call sites
++    //
++    // Each variant is registered under TWO keys: its bare name (legacy — assumes
++    // variant names are globally unique, which holds for the compiler's own stdlib)
++    // and a type-scoped "TypeName.VariantName" key. Bare keys still collide and
++    // last-writer-wins exactly as before, so existing bare lookups are unchanged;
++    // but a caller that knows the type (a Constructor carries its type name) can
++    // resolve unambiguously via scopedVariantKey. This matters because a real
++    // package tree has many enums sharing variant names (Module, Error, NotFound),
++    // where the bare map silently drops all but one — surfacing as a bogus
++    // "Constructor X does not take a payload", or worse, the wrong variant tag.
+     let programVariantLookup : VariantLookup =
+         topLevels
+         |> List.choose (function
+@@ -4647,7 +4695,10 @@ let private checkProgramInternal
+             | _ -> None)
+         |> List.collect (fun (typeName, typeParams, variants) ->
+             variants
+-            |> List.mapi (fun idx variant -> (variant.Name, (typeName, typeParams, idx, variant.Payload))))
++            |> List.indexed
++            |> List.collect (fun (idx, variant) ->
++                let entry = (typeName, typeParams, idx, variant.Payload)
++                [ (variant.Name, entry); (scopedVariantKey typeName variant.Name, entry) ]))
+         |> Map.ofList
+ 
+     // Second pass: collect all function signatures from THIS program
+diff --git a/backend/src/LibCompiler/passes/2_AST_to_ANF.fs b/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
+index 39ddd56..c70726f 100644
+--- a/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
++++ b/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
+@@ -1890,7 +1890,10 @@ let rec simpleInferType
+         | _ -> None
+     | AST.Constructor (typeName, variantName, payload) ->
+         // Sum type constructor has the sum type; infer generic args from payload when possible.
+-        match Map.tryFind variantName variantLookup with
++        // Resolve scoped by that type: a bare-name lookup picks whichever sum type won
++        // the collision when two enums share a variant name, which would infer against
++        // the wrong variant's payload.
++        match TypeChecking.tryFindVariant variantLookup (Some typeName) variantName with
+         | Some (sumTypeName, typeParams, _, payloadPattern) ->
+             let defaultTypeArgs = typeParams |> List.map AST.TVar
+             match payloadPattern, payload with
+@@ -1967,6 +1970,15 @@ let rec simpleInferType
+         match simpleInferType thenExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup,
+               simpleInferType elseExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup with
+         | Some thenType, Some elseType when thenType = elseType -> Some thenType
++        // This pass runs AFTER typechecking, so the branches are already proven to
++        // have the same type. When one side is still an unresolved type variable --
++        // e.g. `fun i -> if i < 0 then 0 else i`, where the lambda param carries a
++        // placeholder tvar -- the concrete side IS the type. Without this, such a
++        // lambda body fails with "could not infer return type".
++        | Some thenType, Some elseType when containsTypeVar elseType && not (containsTypeVar thenType) ->
++            Some thenType
++        | Some thenType, Some elseType when containsTypeVar thenType && not (containsTypeVar elseType) ->
++            Some elseType
+         | _ -> None
+     | AST.Match (scrutinee, cases) ->
+         let scrutineeType = simpleInferType scrutinee typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
+@@ -1986,7 +1998,17 @@ let rec simpleInferType
+             let types = caseTypes |> List.choose id
+             match types with
+             | first :: rest when rest |> List.forall (fun t -> t = first) -> Some first
+-            | _ -> None
++            | _ ->
++                // Same rationale as the If case above: this pass runs AFTER
++                // typechecking, so every arm already has the same type. Arms that are
++                // still unresolved type variables (a lambda param's placeholder tvar)
++                // carry no information; if the CONCRETE arms agree, that's the type.
++                // Without this, `fun op -> match op with ...` — a lambda whose body is
++                // a match, which is everywhere — fails to lift.
++                match types |> List.filter (containsTypeVar >> not) with
++                | concrete :: restConcrete when restConcrete |> List.forall (fun t -> t = concrete) ->
++                    Some concrete
++                | _ -> None
+         else
+             None
+     | AST.Lambda (parameters, body) ->
+@@ -2008,6 +2030,33 @@ let rec simpleInferType
+             else
+                 None
+         | _ -> None
++    // Forms below are all trivially typed, but were falling through to None and
++    // failing lambda lifting with "could not infer return type" for any lambda
++    // whose body was e.g. a string interpolation or a list literal.
++    | AST.InterpolatedString _ -> Some AST.TString
++    | AST.UnaryOp (AST.Not, _) -> Some AST.TBool
++    | AST.UnaryOp ((AST.Neg | AST.BitNot), operand) ->
++        // Neg/BitNot preserve the operand's type.
++        simpleInferType operand typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
++    | AST.RecordUpdate (recordExpr, _) ->
++        // `{ r with ... }` has r's type.
++        simpleInferType recordExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
++    | AST.ListLiteral (first :: _) ->
++        // Elements are homogeneous (the typechecker already enforced it), so the
++        // first element's type determines the list's. An empty literal carries no
++        // element type here, so it stays unknown.
++        simpleInferType first typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
++        |> Option.map AST.TList
++    | AST.ListCons (headElements, tail) ->
++        // Prefer the tail: it's already a List<t>. Fall back to the head elements.
++        match simpleInferType tail typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup with
++        | Some (AST.TList _ as listType) -> Some listType
++        | _ ->
++            match headElements with
++            | first :: _ ->
++                simpleInferType first typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
++                |> Option.map AST.TList
++            | [] -> None
+     | _ -> None  // Complex expressions require full type inference
+ 
+ let inferLambdaReturnType (body: AST.Expr) (state: LiftState) : Result<AST.Type, string> =
+@@ -2439,9 +2488,16 @@ let rec liftLambdasInProgram
+             | AST.TypeDef (AST.SumTypeDef (typeName, typeParams, variants)) ->
+                 Some (typeName, typeParams, variants)
+             | _ -> None)
++        // Register each variant under both its bare name and a type-scoped key, so a
++        // caller that knows the sum type can resolve unambiguously when two enums
++        // share a variant name (see TypeChecking.scopedVariantKey / tryFindVariant).
+         |> List.collect (fun (typeName, typeParams, variants) ->
+             variants
+-            |> List.mapi (fun idx variant -> (variant.Name, (typeName, typeParams, idx, variant.Payload))))
++            |> List.indexed
++            |> List.collect (fun (idx, variant) ->
++                let entry = (typeName, typeParams, idx, variant.Payload)
++                [ (variant.Name, entry)
++                  (TypeChecking.scopedVariantKey typeName variant.Name, entry) ]))
+         |> Map.ofList
+ 
+     let mergeMapsLocal m1 m2 = Map.fold (fun acc k v -> Map.add k v acc) m1 m2
+@@ -3160,8 +3216,11 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
+                 Ok (List.item index elemTypes)
+             | AST.TTuple _ -> Error $"Tuple index {index} out of bounds"
+             | _ -> Error "Cannot access index on non-tuple type")
+-    | AST.Constructor (_, variantName, payload) ->
+-        match Map.tryFind variantName variantLookup with
++    | AST.Constructor (ctorTypeName, variantName, payload) ->
++        // Scoped by the constructor's own sum type where the AST carries one (it may
++        // be empty), so a variant name shared by two enums can't resolve to the wrong
++        // type. tryFindVariant falls back to the bare name when unscoped.
++        match TypeChecking.tryFindVariant variantLookup (Some ctorTypeName) variantName with
+         | None ->
+             Error $"Unknown constructor: {variantName}"
+         | Some (typeName, typeParams, _, payloadPattern) ->
+@@ -4366,8 +4425,12 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+             | _ ->
+                 Error $"Cannot access field '{fieldName}' on non-record type")
+ 
+-    | AST.Constructor (_, variantName, payload) ->
+-        match Map.tryFind variantName variantLookup with
++    | AST.Constructor (ctorTypeName, variantName, payload) ->
++        // This is where the runtime TAG comes from, so an ambiguous bare-name lookup
++        // here is a miscompile, not just a bad error: two enums sharing a variant name
++        // would take the losing type's tag. Resolve scoped by the constructor's own sum
++        // type; tryFindVariant falls back to the bare name when the AST name is empty.
++        match TypeChecking.tryFindVariant variantLookup (Some ctorTypeName) variantName with
+         | None ->
+             Error $"Unknown constructor: {variantName}"
+         | Some (typeName, _, tag, _) ->
+@@ -5756,7 +5819,20 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                         let cmpExpr = ANF.Prim (ANF.Eq, scrutAtom, ANF.FloatLiteral f)
+                         Ok (Some (ANF.Var cmpVar, [(cmpVar, cmpExpr)], vg1))
+                 | AST.PConstructor (variantName, payloadPattern) ->
+-                    match Map.tryFind variantName variantLookup with
++                    // Resolve the variant SCOPED by the scrutinee's type. A bare
++                    // `Map.tryFind variantName variantLookup` picks whichever type won the
++                    // collision when two enums share a variant name — and it returns that
++                    // type's TAG INDEX, so the emitted `tag == N` check compares against the
++                    // wrong constant and the match takes the wrong arm. Confirmed miscompile
++                    // (task #28): SemanticTokensOptionsRange.toJson given `Bool true` took the
++                    // EmptyObject arm because "Bool" resolved to Json.Bool's tag. The earlier
++                    // scoped-key fix (02ba43ab9) covered other readers but not this
++                    // tag-comparison site.
++                    let scrutTypeName =
++                        match scrutType with
++                        | AST.TSum(n, _) | AST.TRecord(n, _) -> Some n
++                        | _ -> None
++                    match TypeChecking.tryFindVariant variantLookup scrutTypeName variantName with
+                     | Some (_, _, tag, variantPayloadType) ->
+                         let arityMismatch =
+                             match payloadPattern, variantPayloadType with
+@@ -8084,8 +8160,16 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
+             | _ ->
+                 Error $"Cannot access field '{fieldName}' on non-record type")
+ 
+-    | AST.Constructor (_, variantName, payload) ->
+-        match Map.tryFind variantName variantLookup with
++    | AST.Constructor (astTypeName, variantName, payload) ->
++        // Resolve SCOPED by the constructor's own type name. This discarded the AST type
++        // name (`_`) and did a bare `Map.tryFind variantName variantLookup`, which returns
++        // whichever type won the collision when two enums share a variant name — and with
++        // it, THAT type's TAG. So constructing SemanticTokensOptionsRange.Bool stored
++        // Json.Bool's tag, and a (correct) later match took the wrong arm. The construction
++        // half of task #28's miscompile; the match-side tag comparison had the same bare-
++        // lookup bug (fixed separately above).
++        let scopedTypeName = if astTypeName = "" then None else Some astTypeName
++        match TypeChecking.tryFindVariant variantLookup scopedTypeName variantName with
+         | None ->
+             Error $"Unknown constructor: {variantName}"
+         | Some (typeName, _, tag, _) ->
+@@ -8721,9 +8805,16 @@ let buildRegistries
+             | AST.SumTypeDef (typeName, typeParams, variants) ->
+                 Some (typeName, typeParams, variants)
+             | _ -> None)
++        // Register each variant under both its bare name and a type-scoped key, so a
++        // caller that knows the sum type can resolve unambiguously when two enums
++        // share a variant name (see TypeChecking.scopedVariantKey / tryFindVariant).
+         |> List.collect (fun (typeName, typeParams, variants) ->
+             variants
+-            |> List.mapi (fun idx variant -> (variant.Name, (typeName, typeParams, idx, variant.Payload))))
++            |> List.indexed
++            |> List.collect (fun (idx, variant) ->
++                let entry = (typeName, typeParams, idx, variant.Payload)
++                [ (variant.Name, entry)
++                  (TypeChecking.scopedVariantKey typeName variant.Name, entry) ]))
+         |> Map.ofList
+ 
+     let typeReg = expandTypeRegWithAliases typeRegBase aliasReg
+diff --git a/backend/src/LibCompiler/passes/4.5_LIR_Peephole.fs b/backend/src/LibCompiler/passes/4.5_LIR_Peephole.fs
+index 0562446..f948d74 100644
+--- a/backend/src/LibCompiler/passes/4.5_LIR_Peephole.fs
++++ b/backend/src/LibCompiler/passes/4.5_LIR_Peephole.fs
+@@ -218,6 +218,7 @@ let isPureLoopInstr (instr: Instr) : bool =
+     | Sub _
+     | Mul _
+     | Sdiv _
++    | Udiv _
+     | Msub _
+     | Madd _
+     | Cmp _
+diff --git a/backend/src/LibCompiler/passes/4_MIR_to_LIR.fs b/backend/src/LibCompiler/passes/4_MIR_to_LIR.fs
+index d2b3f41..b6bcb2b 100644
+--- a/backend/src/LibCompiler/passes/4_MIR_to_LIR.fs
++++ b/backend/src/LibCompiler/passes/4_MIR_to_LIR.fs
+@@ -128,6 +128,12 @@ let shouldCheckNegativeDivisor (operandType: AST.Type) : bool =
+     | AST.TInt8 | AST.TInt16 | AST.TInt32 | AST.TInt64 -> true
+     | _ -> false
+ 
++/// UInt* operands need unsigned comparison/division (setb/seta vs setl/setg, DIV vs IDIV).
++let isUnsignedIntType (operandType: AST.Type) : bool =
++    match operandType with
++    | AST.TUInt8 | AST.TUInt16 | AST.TUInt32 | AST.TUInt64 | AST.TUInt128 -> true
++    | _ -> false
++
+ let buildIntegerModuloParts
+     (destReg: LIR.Reg)
+     (left: MIR.Operand)
+@@ -142,25 +148,34 @@ let buildIntegerModuloParts
+     | Error err -> Error err
+     | Ok (rightInstrs, rightReg, stateAfterRight) ->
+         let (quotReg, stateAfterQuot) = freshTempReg stateAfterRight
+-        let (xorReg, stateAfterXor) = freshTempReg stateAfterQuot
+-        let (remNonZeroReg, stateAfterRemNonZero) = freshTempReg stateAfterXor
+-        let (signMismatchReg, stateAfterSignMismatch) = freshTempReg stateAfterRemNonZero
+-        let (adjustFlagReg, stateAfterAdjustFlag) = freshTempReg stateAfterSignMismatch
+-        let (adjustReg, nextState) = freshTempReg stateAfterAdjustFlag
+         let truncInstrs = truncateForType destReg operandType
+-        let modInstrs =
+-            [LIR.Sdiv (quotReg, leftReg, rightReg);
+-             LIR.Msub (destReg, quotReg, rightReg, leftReg);
+-             LIR.Cmp (destReg, LIR.Imm 0L);
+-             LIR.Cset (remNonZeroReg, LIR.NE);
+-             LIR.Eor (xorReg, destReg, rightReg);
+-             LIR.Cmp (xorReg, LIR.Imm 0L);
+-             LIR.Cset (signMismatchReg, LIR.LT);
+-             LIR.And (adjustFlagReg, remNonZeroReg, signMismatchReg);
+-             LIR.Mul (adjustReg, adjustFlagReg, rightReg);
+-             LIR.Add (destReg, destReg, LIR.Reg adjustReg)]
+-            @ truncInstrs
+-        Ok (leftInstrs @ rightInstrs, rightReg, modInstrs, nextState)
++        if isUnsignedIntType operandType then
++            // Unsigned modulo: quotient*divisor subtracted from dividend. No sign
++            // adjustment — the toward-negative-infinity fixup below is signed-only.
++            let modInstrs =
++                [LIR.Udiv (quotReg, leftReg, rightReg);
++                 LIR.Msub (destReg, quotReg, rightReg, leftReg)]
++                @ truncInstrs
++            Ok (leftInstrs @ rightInstrs, rightReg, modInstrs, stateAfterQuot)
++        else
++            let (xorReg, stateAfterXor) = freshTempReg stateAfterQuot
++            let (remNonZeroReg, stateAfterRemNonZero) = freshTempReg stateAfterXor
++            let (signMismatchReg, stateAfterSignMismatch) = freshTempReg stateAfterRemNonZero
++            let (adjustFlagReg, stateAfterAdjustFlag) = freshTempReg stateAfterSignMismatch
++            let (adjustReg, nextState) = freshTempReg stateAfterAdjustFlag
++            let modInstrs =
++                [LIR.Sdiv (quotReg, leftReg, rightReg);
++                 LIR.Msub (destReg, quotReg, rightReg, leftReg);
++                 LIR.Cmp (destReg, LIR.Imm 0L);
++                 LIR.Cset (remNonZeroReg, LIR.NE);
++                 LIR.Eor (xorReg, destReg, rightReg);
++                 LIR.Cmp (xorReg, LIR.Imm 0L);
++                 LIR.Cset (signMismatchReg, LIR.LT);
++                 LIR.And (adjustFlagReg, remNonZeroReg, signMismatchReg);
++                 LIR.Mul (adjustReg, adjustFlagReg, rightReg);
++                 LIR.Add (destReg, destReg, LIR.Reg adjustReg)]
++                @ truncInstrs
++            Ok (leftInstrs @ rightInstrs, rightReg, modInstrs, nextState)
+ 
+ let buildFloatArgMoves
+     (floatArgs: MIR.Operand list)
+@@ -360,14 +375,18 @@ let selectInstr
+                     Ok (leftInstrs @ rightInstrs @ [LIR.Mul (lirDest, leftReg, rightReg)] @ truncInstrs, nextState)
+ 
+             | MIR.Div ->
+-                // SDIV requires both operands in registers
++                // SDIV/UDIV requires both operands in registers
+                 match ensureInRegister left state with
+                 | Error err -> Error err
+                 | Ok (leftInstrs, leftReg, stateAfterLeft) ->
+                 match ensureInRegister right stateAfterLeft with
+                 | Error err -> Error err
+                 | Ok (rightInstrs, rightReg, nextState) ->
+-                    Ok (leftInstrs @ rightInstrs @ [LIR.Sdiv (lirDest, leftReg, rightReg)] @ truncInstrs, nextState)
++                    let divInstr =
++                        if isUnsignedIntType operandType
++                        then LIR.Udiv (lirDest, leftReg, rightReg)
++                        else LIR.Sdiv (lirDest, leftReg, rightReg)
++                    Ok (leftInstrs @ rightInstrs @ [divInstr] @ truncInstrs, nextState)
+ 
+             | MIR.Mod ->
+                 buildIntegerModuloParts lirDest left right operandType state
+@@ -391,25 +410,29 @@ let selectInstr
+                 match ensureInRegister left state with
+                 | Error err -> Error err
+                 | Ok (leftInstrs, leftReg, nextState) ->
+-                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, LIR.LT)], nextState)
++                    let cond = if isUnsignedIntType operandType then LIR.ULT else LIR.LT
++                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, cond)], nextState)
+ 
+             | MIR.Gt ->
+                 match ensureInRegister left state with
+                 | Error err -> Error err
+                 | Ok (leftInstrs, leftReg, nextState) ->
+-                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, LIR.GT)], nextState)
++                    let cond = if isUnsignedIntType operandType then LIR.UGT else LIR.GT
++                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, cond)], nextState)
+ 
+             | MIR.Lte ->
+                 match ensureInRegister left state with
+                 | Error err -> Error err
+                 | Ok (leftInstrs, leftReg, nextState) ->
+-                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, LIR.LE)], nextState)
++                    let cond = if isUnsignedIntType operandType then LIR.ULE else LIR.LE
++                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, cond)], nextState)
+ 
+             | MIR.Gte ->
+                 match ensureInRegister left state with
+                 | Error err -> Error err
+                 | Ok (leftInstrs, leftReg, nextState) ->
+-                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, LIR.GE)], nextState)
++                    let cond = if isUnsignedIntType operandType then LIR.UGE else LIR.GE
++                    Ok (leftInstrs @ [LIR.Cmp (leftReg, rightOp); LIR.Cset (lirDest, cond)], nextState)
+ 
+             // Boolean operations (bitwise for 0/1 values)
+             | MIR.And ->
+diff --git a/backend/src/LibCompiler/passes/5_RegisterAllocation.fs b/backend/src/LibCompiler/passes/5_RegisterAllocation.fs
+index 344d9ad..35129c5 100644
+--- a/backend/src/LibCompiler/passes/5_RegisterAllocation.fs
++++ b/backend/src/LibCompiler/passes/5_RegisterAllocation.fs
+@@ -381,7 +381,7 @@ let getUsedVRegs (instr: LIR.Instr) : int list =
+         regToVReg src |> Option.toList
+     | LIR.Add (_, left, right) | LIR.Sub (_, left, right) ->
+         (regToVReg left |> Option.toList) @ (operandToVReg right |> Option.toList)
+-    | LIR.Mul (_, left, right) | LIR.Sdiv (_, left, right)
++    | LIR.Mul (_, left, right) | LIR.Sdiv (_, left, right) | LIR.Udiv (_, left, right)
+     | LIR.And (_, left, right) | LIR.Orr (_, left, right) | LIR.Eor (_, left, right)
+     | LIR.Lsl (_, left, right) | LIR.Lsr (_, left, right) ->
+         (regToVReg left |> Option.toList) @ (regToVReg right |> Option.toList)
+@@ -518,7 +518,7 @@ let getDefinedVReg (instr: LIR.Instr) : int option =
+     match instr with
+     | LIR.Mov (dest, _) -> regToVReg dest
+     | LIR.Add (dest, _, _) | LIR.Sub (dest, _, _) -> regToVReg dest
+-    | LIR.Mul (dest, _, _) | LIR.Sdiv (dest, _, _) | LIR.Msub (dest, _, _, _) | LIR.Madd (dest, _, _, _) -> regToVReg dest
++    | LIR.Mul (dest, _, _) | LIR.Sdiv (dest, _, _) | LIR.Udiv (dest, _, _) | LIR.Msub (dest, _, _, _) | LIR.Madd (dest, _, _, _) -> regToVReg dest
+     | LIR.Cset (dest, _) -> regToVReg dest
+     | LIR.And (dest, _, _) | LIR.And_imm (dest, _, _) | LIR.Orr (dest, _, _) | LIR.Eor (dest, _, _)
+     | LIR.Lsl (dest, _, _) | LIR.Lsr (dest, _, _) | LIR.Lsl_imm (dest, _, _) | LIR.Lsr_imm (dest, _, _) -> regToVReg dest
+@@ -1855,9 +1855,14 @@ let floatCallerSavedRegs : LIR.PhysFPReg list = [
+     LIR.D0; LIR.D1; LIR.D2; LIR.D3; LIR.D4; LIR.D5; LIR.D6; LIR.D7
+ ]
+ 
+-/// Float callee-saved registers (D8-D15)
++/// Float callee-saved registers (D8-D14). D15 (XMM15) is RESERVED as the float
++/// scratch for breaking cycles in x64 FArgMoves parallel moves (analogous to the
++/// integer R11 scratch, and to ARM64's D16). It must not be allocatable, or a cyclic
++/// float-arg shuffle (e.g. swapping the two args of a 2-arg float call) corrupts a
++/// live value. Keeping it out of this list removes it from allocatableFloatRegs and
++/// from the callee-saved save/restore set.
+ let floatCalleeSavedRegs : LIR.PhysFPReg list = [
+-    LIR.D8; LIR.D9; LIR.D10; LIR.D11; LIR.D12; LIR.D13; LIR.D14; LIR.D15
++    LIR.D8; LIR.D9; LIR.D10; LIR.D11; LIR.D12; LIR.D13; LIR.D14
+ ]
+ 
+ /// All allocatable float registers - caller-saved first, then callee-saved
+@@ -2246,6 +2251,16 @@ let applyToInstr (arch: Platform.Arch) (mapping: AllocationResult) (instr: LIR.I
+             | _ -> []
+         leftLoads @ rightLoads @ [divInstr] @ storeInstrs
+ 
++    | LIR.Udiv (dest, left, right) ->
++        let (destReg, destAlloc) = applyToReg mapping dest
++        let ((leftReg, leftLoads), (rightReg, rightLoads)) = loadSpilledPair arch mapping left right destReg
++        let divInstr = LIR.Udiv (destReg, leftReg, rightReg)
++        let storeInstrs =
++            match destAlloc with
++            | Some (StackSlot offset) -> [LIR.Store (offset, LIR.Physical LIR.X11)]
++            | _ -> []
++        leftLoads @ rightLoads @ [divInstr] @ storeInstrs
++
+     | LIR.Msub (dest, mulLeft, mulRight, sub) ->
+         let (destReg, destAlloc) = applyToReg mapping dest
+         if isX86_64 arch then
+diff --git a/backend/src/LibCompiler/passes/arm64/6_CodeGen.fs b/backend/src/LibCompiler/passes/arm64/6_CodeGen.fs
+index 0ec47d2..607092d 100644
+--- a/backend/src/LibCompiler/passes/arm64/6_CodeGen.fs
++++ b/backend/src/LibCompiler/passes/arm64/6_CodeGen.fs
+@@ -1170,6 +1170,14 @@ let convertInstr (ctx: CodeGenContext) (instr: LIR.Instr) : Result<ARM64Symbolic
+                 lirRegToARM64Reg right
+                 |> Result.map (fun rightReg -> [ARM64Symbolic.SDIV (destReg, leftReg, rightReg)])))
+ 
++    | LIR.Udiv (dest, left, right) ->
++        lirRegToARM64Reg dest
++        |> Result.bind (fun destReg ->
++            lirRegToARM64Reg left
++            |> Result.bind (fun leftReg ->
++                lirRegToARM64Reg right
++                |> Result.map (fun rightReg -> [ARM64Symbolic.UDIV (destReg, leftReg, rightReg)])))
++
+     | LIR.Msub (dest, mulLeft, mulRight, sub) ->
+         // MSUB: dest = sub - mulLeft * mulRight
+         lirRegToARM64Reg dest
+@@ -1231,6 +1239,13 @@ let convertInstr (ctx: CodeGenContext) (instr: LIR.Instr) : Result<ARM64Symbolic
+                 | LIR.GT -> ARM64Symbolic.GT
+                 | LIR.LE -> ARM64Symbolic.LE
+                 | LIR.GE -> ARM64Symbolic.GE
++                // TODO(#22): ARM64.Condition has no unsigned codes (needs LO/HI/LS/HS).
++                // ARM64 is not the compiled/tested backend; map to signed to stay building.
++                // This is knowingly wrong for UInt* on ARM64 only — x64 is correct.
++                | LIR.ULT -> ARM64Symbolic.LT
++                | LIR.UGT -> ARM64Symbolic.GT
++                | LIR.ULE -> ARM64Symbolic.LE
++                | LIR.UGE -> ARM64Symbolic.GE
+             [ARM64Symbolic.CSET (destReg, arm64Cond)])
+ 
+     | LIR.And (dest, left, right) ->
+@@ -3465,6 +3480,11 @@ let convertTerminator (epilogueLabel: string) (terminator: LIR.Terminator) : Res
+             | LIR.GT -> ARM64Symbolic.GT
+             | LIR.LE -> ARM64Symbolic.LE
+             | LIR.GE -> ARM64Symbolic.GE
++            // TODO(#22): unsigned mapped to signed on the untested ARM64 backend (needs LO/HI/LS/HS).
++            | LIR.ULT -> ARM64Symbolic.LT
++            | LIR.UGT -> ARM64Symbolic.GT
++            | LIR.ULE -> ARM64Symbolic.LE
++            | LIR.UGE -> ARM64Symbolic.GE
+         Ok [
+             ARM64Symbolic.B_cond_label (arm64Cond, trueLbl)  // If condition, jump to true branch
+             ARM64Symbolic.B_label falseLbl                   // Otherwise jump to false branch
+diff --git a/backend/src/LibCompiler/passes/x64/6_CodeGen.fs b/backend/src/LibCompiler/passes/x64/6_CodeGen.fs
+index e1c7072..388c3ec 100644
+--- a/backend/src/LibCompiler/passes/x64/6_CodeGen.fs
++++ b/backend/src/LibCompiler/passes/x64/6_CodeGen.fs
+@@ -1080,6 +1080,34 @@ let private translateInstr (ctx: FuncCtx) (instr: LIR.Instr) : Result<X86_64.Ins
+                     @ loadImm64 destReg System.Int64.MinValue
+                     @ [X86_64.Label (overflowLabel + "_end")])))
+ 
++    | LIR.Udiv (dest, left, right) ->
++        // DIV: RDX:RAX / src → RAX=quotient, RDX=remainder. Unsigned, so zero-extend
++        // RAX into RDX via `xor rdx,rdx` (not CQO), and use DIV (not IDIV). No
++        // INT64_MIN/-1 overflow case for unsigned. Preserve RDX via the red zone,
++        // mirroring the Sdiv setup.
++        resolveReg dest
++        |> Result.bind (fun destReg ->
++            resolveReg left
++            |> Result.bind (fun leftReg ->
++                resolveReg right
++                |> Result.map (fun rightReg ->
++                    let divisor =
++                        if rightReg = X86_64.RAX || rightReg = X86_64.RDX then scratch
++                        else rightReg
++                    let saveDivisor =
++                        if rightReg = X86_64.RAX || rightReg = X86_64.RDX then
++                            [X86_64.MOV_reg (scratch, rightReg)]
++                        else []
++                    let moveLeft =
++                        if leftReg <> X86_64.RAX then [X86_64.MOV_reg (X86_64.RAX, leftReg)]
++                        else []
++                    saveDivisor
++                    @ moveLeft
++                    @ [X86_64.MOV_store (X86_64.RSP, -8, X86_64.RDX)]
++                    @ [X86_64.XOR_reg (X86_64.RDX, X86_64.RDX); X86_64.DIV divisor]
++                    @ (if destReg <> X86_64.RAX then [X86_64.MOV_reg (destReg, X86_64.RAX)] else [])
++                    @ [X86_64.MOV_load (X86_64.RDX, X86_64.RSP, -8)])))
++
+     | LIR.Msub (dest, mulLeft, mulRight, sub) ->
+         // dest = sub - mulLeft * mulRight
+         // No fused instruction on x86_64: IMUL tmp, mulLeft, mulRight; MOV dest, sub; SUB dest, tmp
+@@ -1150,16 +1178,19 @@ let private translateInstr (ctx: FuncCtx) (instr: LIR.Instr) : Result<X86_64.Ins
+                      X86_64.SETcc (X86_64.P, scratch)
+                      X86_64.MOVZX_byte (scratch, scratch)
+                      X86_64.OR_reg (destReg, scratch)]
+-                | LIR.LT -> [X86_64.SETcc (X86_64.B, destReg); X86_64.MOVZX_byte (destReg, destReg)]
+-                | LIR.GT -> [X86_64.SETcc (X86_64.A, destReg); X86_64.MOVZX_byte (destReg, destReg)]
+-                | LIR.LE -> [X86_64.SETcc (X86_64.BE, destReg); X86_64.MOVZX_byte (destReg, destReg)]
+-                | LIR.GE -> [X86_64.SETcc (X86_64.AE, destReg); X86_64.MOVZX_byte (destReg, destReg)]
++                | LIR.LT | LIR.ULT -> [X86_64.SETcc (X86_64.B, destReg); X86_64.MOVZX_byte (destReg, destReg)]
++                | LIR.GT | LIR.UGT -> [X86_64.SETcc (X86_64.A, destReg); X86_64.MOVZX_byte (destReg, destReg)]
++                | LIR.LE | LIR.ULE -> [X86_64.SETcc (X86_64.BE, destReg); X86_64.MOVZX_byte (destReg, destReg)]
++                | LIR.GE | LIR.UGE -> [X86_64.SETcc (X86_64.AE, destReg); X86_64.MOVZX_byte (destReg, destReg)]
+             else
+                 let x86Cond =
+                     match cond with
+                     | LIR.EQ -> X86_64.EQ | LIR.NE -> X86_64.NE
+                     | LIR.LT -> X86_64.LT | LIR.GT -> X86_64.GT
+                     | LIR.LE -> X86_64.LE | LIR.GE -> X86_64.GE
++                    // Unsigned: below/above (setb/seta/setbe/setae).
++                    | LIR.ULT -> X86_64.B | LIR.UGT -> X86_64.A
++                    | LIR.ULE -> X86_64.BE | LIR.UGE -> X86_64.AE
+                 [X86_64.SETcc (x86Cond, destReg); X86_64.MOVZX_byte (destReg, destReg)])
+ 
+     | LIR.And (dest, left, right) ->
+@@ -1539,17 +1570,30 @@ let private translateInstr (ctx: FuncCtx) (instr: LIR.Instr) : Result<X86_64.Ins
+         |> Result.map (fun destReg -> [X86_64.LEA_rip (destReg, funcName)])
+ 
+     | LIR.FArgMoves moves ->
+-        // Move float arguments into XMM registers
+-        let instrs =
+-            moves |> List.collect (fun (destPhys, srcFreg) ->
+-                let destXmm = lirFRegToX86 destPhys
++        // Move float arguments into XMM registers. These are PARALLEL moves: a naive
++        // sequential lowering corrupts cyclic shuffles — e.g. swapping the two args of a
++        // 2-arg float call, FArgMoves(D0<-D1, D1<-D0), as `movsd D0,D1; movsd D1,D0`
++        // leaves BOTH = the old D1 (was bug #30: multiply(x, sqrt 4) computed x*x).
++        // Resolve the moves and break cycles through the reserved XMM15 scratch.
++        let resolved =
++            moves |> List.map (fun (destPhys, srcFreg) ->
+                 match srcFreg with
+-                | LIR.FPhysical srcPhys ->
+-                    let srcXmm = lirFRegToX86 srcPhys
+-                    if destXmm = srcXmm then []
+-                    else [X86_64.MOVSD_reg (destXmm, srcXmm)]
+-                | LIR.FVirtual id -> Crash.crash $"Unresolved virtual float register f{id} in FArgMoves")
+-        Ok instrs
++                | LIR.FPhysical srcPhys -> Ok (lirFRegToX86 destPhys, lirFRegToX86 srcPhys)
++                | LIR.FVirtual id -> Error $"Unresolved virtual float register f{id} in FArgMoves")
++            |> List.fold (fun acc r ->
++                match acc, r with
++                | Ok xs, Ok x -> Ok (x :: xs)
++                | Error e, _ -> Error e
++                | _, Error e -> Error e) (Ok [])
++            |> Result.map List.rev
++        resolved
++        |> Result.map (fun xmmMoves ->
++            let actions = ParallelMoves.resolve xmmMoves (fun (src: X86_64.FReg) -> Some src)
++            actions |> List.collect (fun action ->
++                match action with
++                | ParallelMoves.SaveToTemp src -> [X86_64.MOVSD_reg (X86_64.XMM15, src)]
++                | ParallelMoves.Move (dest, src) -> if dest = src then [] else [X86_64.MOVSD_reg (dest, src)]
++                | ParallelMoves.MoveFromTemp dest -> [X86_64.MOVSD_reg (dest, X86_64.XMM15)]))
+ 
+     | LIR.Phi (dest, _, _) ->
+         // Phi nodes should be eliminated before codegen (SSA destruction)
+@@ -1667,17 +1711,36 @@ let private translateInstr (ctx: FuncCtx) (instr: LIR.Instr) : Result<X86_64.Ins
+                 let storeRC =
+                     let rcOff = 8 + ((len + 7) &&& (~~~7))
+                     loadImm64 X86_64.RCX 1L @ [X86_64.MOV_store (scratch, int32 rcOff, X86_64.RCX)]
+-                if addrReg = scratch || addrReg = X86_64.RCX then
+-                    // String alloc clobbers R11 (scratch) and init clobbers RCX.
+-                    // Push addr before alloc, pop into RCX after string is built.
+-                    Ok ([X86_64.PUSH addrReg]
++                // The string build clobbers scratch (R11 — holds the new pointer) AND
++                // uses RCX as its length/byte/refcount temp. RCX = X3 is an ALLOCATABLE
++                // register (callerSaved), so it may hold a live value (e.g. a sibling
++                // heap pointer being stored into an adjacent field). It MUST be preserved,
++                // or that live pointer is corrupted and later dereferenced -> SIGSEGV.
++                // (This was bug #26: `("a", Some 1)` stored the string at offset 0 first,
++                // clobbering RCX, then stored the Some-pointer at offset 8 from the now-garbage RCX.)
++                if addrReg = X86_64.RCX then
++                    // Address lives in RCX; its live value IS the target address.
++                    // Save it, rebuild (clobbering RCX), restore it as the address, store.
++                    Ok ([X86_64.PUSH X86_64.RCX]
+                         @ alloc @ storeLen @ copyBytes @ storeRC
+                         @ [X86_64.POP X86_64.RCX
+                            X86_64.MOV_store (X86_64.RCX, int32 offset, scratch)])
++                elif addrReg = scratch then
++                    // Address lives in R11, clobbered by alloc. Save the (possibly live) RCX
++                    // AND the address; rebuild; borrow RCX to hold the address for the store;
++                    // then restore RCX's live value.
++                    Ok ([X86_64.PUSH X86_64.RCX; X86_64.PUSH scratch]
++                        @ alloc @ storeLen @ copyBytes @ storeRC
++                        @ [X86_64.POP X86_64.RCX
++                           X86_64.MOV_store (X86_64.RCX, int32 offset, scratch)
++                           X86_64.POP X86_64.RCX])
+                 else
+-                    // Store the string pointer into the record field
+-                    Ok (alloc @ storeLen @ copyBytes @ storeRC
+-                        @ [X86_64.MOV_store (addrReg, int32 offset, scratch)])
++                    // Address is in some other register (untouched by the build).
++                    // Preserve RCX around the string construction.
++                    Ok ([X86_64.PUSH X86_64.RCX]
++                        @ alloc @ storeLen @ copyBytes @ storeRC
++                        @ [X86_64.MOV_store (addrReg, int32 offset, scratch)
++                           X86_64.POP X86_64.RCX])
+             | LIR.StackSlot stackOffset ->
+                 let adjOff = adjustStackOffset ctx stackOffset
+                 if addrReg = scratch then
+@@ -2871,9 +2934,58 @@ let private translateInstr (ctx: FuncCtx) (instr: LIR.Instr) : Result<X86_64.Ins
+                 // Move result to destReg after restoring saved registers
+                 @ [X86_64.MOV_reg (destReg, X86_64.RAX)]))
+ 
+-    | LIR.FileDelete (dest, _) ->
++    | LIR.FileDelete (dest, path) ->
++        // Real unlink(path) syscall (was a no-op stub). Copies the heap string to
++        // a null-terminated stack buffer (same as FileExists) then unlinks it.
+         resolveReg dest
+-        |> Result.map (fun destReg -> loadImm64 destReg 0L)
++        |> Result.bind (fun destReg ->
++            let resolvePathToR10 =
++                match path with
++                | LIR.Reg reg ->
++                    resolveReg reg |> Result.map (fun srcReg ->
++                        if srcReg = X86_64.R10 then [] else [X86_64.MOV_reg (X86_64.R10, srcReg)])
++                | LIR.StackSlot offset ->
++                    Ok [X86_64.MOV_load (X86_64.R10, X86_64.RBP, int32 (adjustStackOffset ctx offset))]
++                | LIR.StringSymbol value ->
++                    Ok (emitStringLiteralNoRefCount X86_64.R10 value)
++                | _ -> Ok (loadImm64 X86_64.R10 0L)
++            let copyLabel = freshLabel "fd_copy"
++            let doneLabel = freshLabel "fd_done"
++            resolvePathToR10 |> Result.map (fun pathSetup ->
++                let unlinkSyscall = int64 syscalls.Unlink
++                let saves = [X86_64.PUSH X86_64.RDI; X86_64.PUSH X86_64.RSI; X86_64.PUSH X86_64.RCX; X86_64.PUSH X86_64.R10]
++                let restores = [X86_64.POP X86_64.R10; X86_64.POP X86_64.RCX; X86_64.POP X86_64.RSI; X86_64.POP X86_64.RDI]
++                pathSetup @ saves
++                @ [X86_64.SUB_imm (X86_64.RSP, 4096)]
++                @ [X86_64.MOV_load (X86_64.RCX, X86_64.R10, 0)
++                   X86_64.LEA (X86_64.RSI, X86_64.R10, 8)
++                   X86_64.MOV_reg (X86_64.RDI, X86_64.RSP)]
++                @ loadImm64 X86_64.R10 0L
++                @ [X86_64.Label copyLabel
++                   X86_64.CMP_reg (X86_64.R10, X86_64.RCX)
++                   X86_64.Jcc (X86_64.GE, doneLabel)
++                   X86_64.MOV_reg (scratch, X86_64.RSI)
++                   X86_64.ADD_reg (scratch, X86_64.R10)
++                   X86_64.MOV_load_byte (scratch, scratch, 0)
++                   X86_64.PUSH X86_64.R8
++                   X86_64.MOV_reg (X86_64.R8, X86_64.RDI)
++                   X86_64.ADD_reg (X86_64.R8, X86_64.R10)
++                   X86_64.MOV_store_byte (X86_64.R8, 0, scratch)
++                   X86_64.POP X86_64.R8
++                   X86_64.ADD_imm (X86_64.R10, 1)
++                   X86_64.JMP copyLabel
++                   X86_64.Label doneLabel]
++                @ [X86_64.MOV_reg (scratch, X86_64.RDI)
++                   X86_64.ADD_reg (scratch, X86_64.RCX)]
++                @ loadImm64 X86_64.R10 0L
++                @ [X86_64.MOV_store_byte (scratch, 0, X86_64.R10)]
++                // syscall: unlink(path=RSP)
++                @ [X86_64.MOV_reg (X86_64.RDI, X86_64.RSP)]
++                @ loadImm64 X86_64.RAX unlinkSyscall
++                @ [X86_64.SYSCALL
++                   X86_64.ADD_imm (X86_64.RSP, 4096)]
++                @ restores
++                @ loadImm64 destReg 0L))
+ 
+     | LIR.FileSetExecutable (dest, _) ->
+         resolveReg dest
+@@ -2913,13 +3025,16 @@ let private translateTerminator (epilogueLabel: string) (term: LIR.Terminator) :
+             if lastCompWasFloat then
+                 match cond with
+                 | LIR.EQ -> X86_64.EQ | LIR.NE -> X86_64.NE
+-                | LIR.LT -> X86_64.B  | LIR.GT -> X86_64.A
+-                | LIR.LE -> X86_64.BE | LIR.GE -> X86_64.AE
++                | LIR.LT | LIR.ULT -> X86_64.B  | LIR.GT | LIR.UGT -> X86_64.A
++                | LIR.LE | LIR.ULE -> X86_64.BE | LIR.GE | LIR.UGE -> X86_64.AE
+             else
+                 match cond with
+                 | LIR.EQ -> X86_64.EQ | LIR.NE -> X86_64.NE
+                 | LIR.LT -> X86_64.LT | LIR.GT -> X86_64.GT
+                 | LIR.LE -> X86_64.LE | LIR.GE -> X86_64.GE
++                // Unsigned: below/above.
++                | LIR.ULT -> X86_64.B | LIR.UGT -> X86_64.A
++                | LIR.ULE -> X86_64.BE | LIR.UGE -> X86_64.AE
+         Ok [X86_64.Jcc (x86Cond, trueLabel)
+             X86_64.JMP falseLabel]
+     | LIR.BranchBitZero (reg, bit, LIR.Label zeroLabel, LIR.Label nonZeroLabel) ->
+diff --git a/backend/src/LibCompiler/stdlib/Float.dark b/backend/src/LibCompiler/stdlib/Float.dark
+index 8845ff1..16bd8c7 100644
+--- a/backend/src/LibCompiler/stdlib/Float.dark
++++ b/backend/src/LibCompiler/stdlib/Float.dark
+@@ -9,6 +9,22 @@ def Stdlib.Float.multiply(a: Float, b: Float) : Float = a * b
+ // Get IEEE 754 bit representation of Float as UInt64 (intrinsic)
+ def Stdlib.Float.toBits(f: Float) : UInt64 = 0UL
+ 
++// The inverse of toBits: reinterpret a 64-bit pattern as a Float.
++//
++// No new intrinsic needed -- store the bits, load them back at Float type.
++// `__raw_get<Float>` already lowers to RawGet + GpToFp (a movq into an xmm), which is
++// precisely the reinterpret; see passes/4_MIR_to_LIR.fs. toBits had no inverse at all,
++// so a Float could not be RECONSTRUCTED in compiled code, which blocked decoding any
++// type containing one (Json's `Number of Float` -> altJsonParse).
++//
++// Takes Int64, not UInt64, on purpose: this is a BIT PATTERN, and the signed/unsigned
++// label is irrelevant to the 64 bits stored. It also keeps us away from the compiler's
++// signed-comparison bug on unsigned values (see PROGRESSION-LOG).
++def Stdlib.Float.fromBits(bits: Int64) : Float =
++    let ptr = __raw_alloc(8) in
++    let _ = __raw_set<Int64>(ptr, 0, bits) in
++    __raw_get<Float>(ptr, 0)
++
+ // IEEE 754 double precision format:
+ // Sign: bit 63 (1 bit)
+ // Exponent: bits 52-62 (11 bits, biased by 1023)
+diff --git a/backend/src/LibCompiler/stdlib/Rpc.dark b/backend/src/LibCompiler/stdlib/Rpc.dark
+new file mode 100644
+index 0000000..80f1977
+--- /dev/null
++++ b/backend/src/LibCompiler/stdlib/Rpc.dark
+@@ -0,0 +1,70 @@
++// Rpc.dark - the compiler-merge runtime seam's compiled-side RPC stub (internal).
++//
++// A compiled program calls Stdlib.hostRpc(request) to invoke a host builtin: it
++// writes the request to a well-known path (a FIFO the host reads), then polls a
++// response file the host writes. This is the FIFO/file prototype channel proven
++// in notes/compiler-merge/BUILTINS-ARCHITECTURE.md §4.5; it will be replaced by a
++// blocking socket/pipe intrinsic (§Phase F) once it's the bottleneck.
++
++def Stdlib.hostRpcPoll(u: Unit) : String =
++    if Stdlib.File.exists("/tmp/dark-rpc-resp") then
++        let r = Stdlib.Result.withDefault(Stdlib.File.readText("/tmp/dark-rpc-resp"), "") in
++        let _ = Stdlib.File.delete("/tmp/dark-rpc-resp") in
++        r
++    else
++        Stdlib.hostRpcPoll(())
++
++def Stdlib.hostRpc(request: String) : String =
++    // Clear any stale response BEFORE issuing the request, so a multi-call program
++    // can't read the previous call's response (the daemon writes the fresh one only
++    // after it reads this request).
++    let _ = Stdlib.File.delete("/tmp/dark-rpc-resp") in
++    let _ = Stdlib.File.writeText("/tmp/dark-rpc-req", request) in
++    Stdlib.hostRpcPoll(())
++
++// --- wire-response parsers (unmarshal numeric returns from the daemon) ---
++// The daemon marshals a builtin's return value to a decimal string; the compiled
++// side has no Int64.parse, so these reconstruct the native value from codepoints.
++
++def Stdlib.hostRpcDigits(cps: List<Int64>, acc: Int64) : Int64 =
++    match cps with
++    | [] -> acc
++    | [h, ...t] -> Stdlib.hostRpcDigits(t, acc * 10 + (h - 48))
++
++// Negatives accumulate downward so Int64.MIN (whose magnitude exceeds MAX) is
++// representable — parsing the magnitude then negating would overflow and crash.
++def Stdlib.hostRpcDigitsNeg(cps: List<Int64>, acc: Int64) : Int64 =
++    match cps with
++    | [] -> acc
++    | [h, ...t] -> Stdlib.hostRpcDigitsNeg(t, acc * 10 - (h - 48))
++
++def Stdlib.hostRpcParseInt(s: String) : Int64 =
++    if Stdlib.String.startsWith(s, "-") then
++        Stdlib.hostRpcDigitsNeg(Stdlib.String.toCodepoints(Stdlib.String.dropFirst(s, 1)), 0)
++    else
++        Stdlib.hostRpcDigits(Stdlib.String.toCodepoints(s), 0)
++
++// --- structural wire format (escape/unescape) ---
++// Compound values (list elements, enum case+payload) escape each child then join
++// with a raw newline, so a newline only ever separates children. Escaping touches
++// only '\\' and newline (bytes that never occur mid-UTF-8), so it is Unicode-safe.
++
++def Stdlib.hostRpcEscape(s: String) : String =
++    // backslash first, then newline -> "\n" (so the introduced n isn't re-escaped)
++    Stdlib.String.replace(Stdlib.String.replace(s, "\\", "\\\\"), "\n", "\\n")
++
++def Stdlib.hostRpcUnescapeHelper(cps: List<Int64>, escaping: Bool, acc: String) : String =
++    match cps with
++    | [] -> acc
++    | [h, ...t] ->
++        if escaping then
++            let ch = if h == 110 then "\n" else Stdlib.String.fromCodepoints([h]) in
++            Stdlib.hostRpcUnescapeHelper(t, false, acc ++ ch)
++        else
++            if h == 92 then
++                Stdlib.hostRpcUnescapeHelper(t, true, acc)
++            else
++                Stdlib.hostRpcUnescapeHelper(t, false, acc ++ Stdlib.String.fromCodepoints([h]))
++
++def Stdlib.hostRpcUnescape(s: String) : String =
++    Stdlib.hostRpcUnescapeHelper(Stdlib.String.toCodepoints(s), false, "")
+diff --git a/backend/src/LibCompiler/stdlib/String.dark b/backend/src/LibCompiler/stdlib/String.dark
+index 6a05014..0d2e5d8 100644
+--- a/backend/src/LibCompiler/stdlib/String.dark
++++ b/backend/src/LibCompiler/stdlib/String.dark
+@@ -540,3 +540,19 @@ def Stdlib.String.padEnd(s: String, targetLen: Int64, padChar: String) : String
+ 
+ 
+ // =============================================================================
++
++// UTF-8 encode a string into Bytes.
++//
++// This is a byte copy, not a conversion: a String is already stored as UTF-8 bytes
++// behind an 8-byte length prefix, which is exactly what String.length (the prefix)
++// and String.getByteAt (raw byte at index) read — see __string_hash, which FNV-1a's
++// over the same range. So this matches Dark's Builtin.stringToBlob
++// (System.Text.Encoding.UTF8.GetBytes) byte for byte.
++def Stdlib.String.toBytes(s: String) : Bytes =
++    Stdlib.Bytes.fromList(Stdlib.String.__toBytesHelper(s, 0, []))
++
++def Stdlib.String.__toBytesHelper(s: String, idx: Int64, acc: List<Int64>) : List<Int64> =
++    if idx >= Stdlib.String.length(s) then
++        Stdlib.List.reverse<Int64>(acc)
++    else
++        Stdlib.String.__toBytesHelper(s, idx + 1, [Stdlib.String.getByteAt(s, idx), ...acc])

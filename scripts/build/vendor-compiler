@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# Re-vendor darklang/compiler into backend/src/LibCompiler.
+#
+#   scripts/build/vendor-compiler <compiler-checkout> [<commit>]
+#
+# Copies src/DarkCompiler/ from that checkout at that commit (default: its HEAD)
+# over backend/src/LibCompiler/, minus the standalone Program.fs and the upstream
+# fsproj, then re-applies every patch in backend/src/LibCompiler/vendor/ and
+# records where it all came from in vendor/VENDORED-FROM.
+#
+# Runs on the host: it needs the compiler checkout, which the container can't see.
+#
+# It refuses to run over uncommitted edits to LibCompiler, because a fix made
+# in-tree and not yet folded into vendor/*.patch would be silently lost. Fold it
+# first (see vendor/README.md), or commit it and run again.
+
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../dev/_help"
+help_if_asked "$@"
+set -euo pipefail
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "usage: scripts/build/vendor-compiler <compiler-checkout> [<commit>]" >&2
+  exit 2
+fi
+
+SRC=$(cd "$1" && pwd)
+COMMIT=${2:-HEAD}
+ROOT=$(cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd)
+DEST="$ROOT/backend/src/LibCompiler"
+VENDOR="$DEST/vendor"
+
+if [[ ! -d "$SRC/src/DarkCompiler" ]]; then
+  echo "$SRC does not look like a darklang/compiler checkout (no src/DarkCompiler)" >&2
+  exit 2
+fi
+
+if [[ -n "$(git -C "$ROOT" status --porcelain -- backend/src/LibCompiler)" ]]; then
+  echo "backend/src/LibCompiler has uncommitted changes; fold them into vendor/*.patch or commit first" >&2
+  git -C "$ROOT" status --short -- backend/src/LibCompiler >&2
+  exit 2
+fi
+
+SHA=$(git -C "$SRC" rev-parse --verify "$COMMIT^{commit}")
+DATE=$(git -C "$SRC" log -1 --format=%ad --date=short "$SHA")
+SUBJECT=$(git -C "$SRC" log -1 --format=%s "$SHA")
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+git -C "$SRC" archive "$SHA" src/DarkCompiler | tar -x -C "$TMP"
+rm -f "$TMP/src/DarkCompiler/Program.fs" "$TMP/src/DarkCompiler/DarkCompiler.fsproj"
+
+# Everything in LibCompiler is upstream's except the fsproj and vendor/.
+find "$DEST" -mindepth 1 -maxdepth 1 \
+  ! -name LibCompiler.fsproj ! -name vendor ! -name obj ! -name bin \
+  -exec rm -rf {} +
+cp -r "$TMP/src/DarkCompiler/." "$DEST/"
+
+for p in "$VENDOR"/*.patch; do
+  [[ -e "$p" ]] || continue
+  # Plain apply against the working tree (the index still holds the old copy, so
+  # --3way can't be used here). On failure, apply what fits and leave .rej files
+  # next to the hunks that don't, which is the resolution surface.
+  if ! git -C "$ROOT" apply "$p" 2>/dev/null; then
+    git -C "$ROOT" apply --reject "$p" || true
+    echo >&2
+    echo "$(basename "$p") no longer applies cleanly to $SHA. Resolve the .rej" >&2
+    echo "files above, regenerate the patch (vendor/README.md) and commit." >&2
+    exit 1
+  fi
+done
+
+{
+  echo "repo    https://github.com/darklang/compiler"
+  echo "commit  $SHA"
+  echo "date    $DATE"
+  echo "subject $SUBJECT"
+  echo "patches $(cd "$VENDOR" && ls ./*.patch 2>/dev/null | sed 's|^\./||' | paste -sd ' ')"
+} > "$VENDOR/VENDORED-FROM"
+
+echo "vendored darklang/compiler @ ${SHA:0:10} ($DATE, $SUBJECT)"
+git -C "$ROOT" status --short -- backend/src/LibCompiler | head -40
