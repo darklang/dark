@@ -222,6 +222,11 @@ let builtinToStdlib : Map<string, string> =
       "listSingleton", "Stdlib.List.singleton"
       "listGetAt", "Stdlib.List.getAt"
       "listMember", "Stdlib.List.member"
+      // Moved from Dark into F# builtins after the July bridge; the compiler's
+      // stdlib already had (or now has) the same fns.
+      "listFindFirst", "Stdlib.List.findFirst"
+      "listFilterMap", "Stdlib.List.filterMap"
+      "listAny", "Stdlib.List.exists"
       // Bool
       "boolNot", "Stdlib.Bool.not"
       "boolAnd", "Stdlib.Bool.and"
@@ -344,6 +349,10 @@ let builtinToStdlib : Map<string, string> =
       //  - dictMerge: native merge is __mergeHelper(dict2, dict1) — the conflict
       //    winner needs proving before it can be called equivalent.
       "dictGet", "Stdlib.Dict.get"
+      // The interpreter's dictSet RAISES on an existing key; the compiler's
+      // overwrites. Same answer whenever the interpreter has one.
+      "dictSet", "Stdlib.Dict.set"
+      "dictToList", "Stdlib.Dict.toList"
       "dictMember", "Stdlib.Dict.contains"
       "dictSize", "Stdlib.Dict.size"
       "dictRemove", "Stdlib.Dict.remove"

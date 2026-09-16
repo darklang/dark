@@ -63,73 +63,84 @@ let private allOk (rs : List<Result<'a, string>>) : Result<List<'a>, string> =
     | Ok _, Error e -> Error e
     | Ok xs, Ok x -> Ok(xs @ [ x ]))
 
-/// Fetch a package fn's transitive call graph (PT fns only — no bridging yet,
-/// since bridging needs the type env which we build afterwards).
-let rec private fetchFnClosure
-  (visited : Set<string>)
-  (acc : List<string * PT.PackageFn.PackageFn>)
-  (worklist : List<string>)
-  : Ply<Result<List<string * PT.PackageFn.PackageFn>, string>> =
+/// Walk a transitive closure from `seeds`, fetching each hash once. A loop, not a
+/// `return!`-recursive `uply`: that recursion is one stack frame per worklist ENTRY
+/// (edges, not nodes) when the fetches complete synchronously, and a CLI fn's call
+/// closure has enough edges to overflow the main thread's stack.
+///
+/// `fetch` returns `Ok None` for a hash that is not this kind of item (skipped),
+/// `Ok (Some (item, deps))` to keep it and walk on, `Error` to stop.
+let private walkClosure
+  (fetch : string -> Ply<Result<Option<'item * List<string>>, string>>)
+  (seeds : List<string>)
+  : Ply<Result<List<string * 'item>, string>> =
   uply {
-    match worklist with
-    | [] -> return Ok acc
-    | h :: rest ->
-      if Set.contains h visited then
-        return! fetchFnClosure visited acc rest
-      else
+    let visited = System.Collections.Generic.HashSet<string>()
+    let acc = ResizeArray<string * 'item>()
+    // A queue, so the order matches the old breadth-first walk.
+    let worklist = System.Collections.Generic.Queue<string>(seeds)
+    let mutable error = None
+    while error.IsNone && worklist.Count > 0 do
+      let h = worklist.Dequeue()
+      if visited.Add h then
+        match! fetch h with
+        | Error e -> error <- Some e
+        | Ok None -> ()
+        | Ok(Some(item, deps)) ->
+          acc.Add((h, item))
+          for d in deps do
+            worklist.Enqueue d
+    match error with
+    | Some e -> return Error e
+    | None -> return Ok(List.ofSeq acc)
+  }
+
+/// Fetch a package fn's transitive call graph (PT fns only -- no bridging yet,
+/// since bridging needs the type env which we build afterwards).
+let private fetchFnClosure
+  (seeds : List<string>)
+  : Ply<Result<List<string * PT.PackageFn.PackageFn>, string>> =
+  walkClosure
+    (fun h ->
+      uply {
         let! fnOpt = LibDB.PackageManager.pt.getFn (PT.FQFnName.package h)
         match fnOpt with
         | None -> return Error $"missing dependency fn {h}"
-        | Some ptFn ->
-          let deps = Bridge.referencedPackageFns ptFn.body
-          return! fetchFnClosure (Set.add h visited) (acc @ [ (h, ptFn) ]) (rest @ deps)
-  }
+        | Some ptFn -> return Ok(Some(ptFn, Bridge.referencedPackageFns ptFn.body))
+      })
+    seeds
 
 /// Fetch the transitive closure of custom types referenced by the seeds.
-let rec private fetchTypeClosure
-  (visited : Set<string>)
-  (acc : List<string * PT.PackageType.PackageType>)
-  (worklist : List<string>)
+/// A hash that doesn't resolve to a type (e.g. an over-collected fn hash, or a
+/// genuinely absent type) is skipped rather than failing the whole fn. If it was a
+/// real type the fn needs, bridgeType hard-fails on it cleanly (TCustomType not in
+/// env); if it was noise, no harm.
+let private fetchTypeClosure
+  (seeds : List<string>)
   : Ply<Result<List<string * PT.PackageType.PackageType>, string>> =
-  uply {
-    match worklist with
-    | [] -> return Ok acc
-    | h :: rest ->
-      if Set.contains h visited then
-        return! fetchTypeClosure visited acc rest
-      else
+  walkClosure
+    (fun h ->
+      uply {
         let! tOpt = LibDB.PackageManager.pt.getType (PT.FQTypeName.package h)
         match tOpt with
-        // A hash that doesn't resolve to a type (e.g. an over-collected fn hash,
-        // or a genuinely absent type) is skipped rather than failing the whole
-        // fn. If it was a real type the fn needs, bridgeType hard-fails on it
-        // cleanly (TCustomType not in env); if it was noise, no harm.
-        | None -> return! fetchTypeClosure (Set.add h visited) acc rest
-        | Some pt ->
-          let deps = Bridge.typeRefsInTypeDef pt
-          return! fetchTypeClosure (Set.add h visited) (acc @ [ (h, pt) ]) (rest @ deps)
-  }
+        | None -> return Ok None
+        | Some pt -> return Ok(Some(pt, Bridge.typeRefsInTypeDef pt))
+      })
+    seeds
 
 /// Fetch the transitive closure of package constants referenced by the seeds.
-let rec private fetchValueClosure
-  (visited : Set<string>)
-  (acc : List<string * PT.PackageValue.PackageValue>)
-  (worklist : List<string>)
+let private fetchValueClosure
+  (seeds : List<string>)
   : Ply<Result<List<string * PT.PackageValue.PackageValue>, string>> =
-  uply {
-    match worklist with
-    | [] -> return Ok acc
-    | h :: rest ->
-      if Set.contains h visited then
-        return! fetchValueClosure visited acc rest
-      else
+  walkClosure
+    (fun h ->
+      uply {
         let! vOpt = LibDB.PackageManager.pt.getValue (PT.FQValueName.package h)
         match vOpt with
-        | None -> return! fetchValueClosure (Set.add h visited) acc rest
-        | Some pv ->
-          let deps = Bridge.valueRefsInExpr pv.body
-          return! fetchValueClosure (Set.add h visited) (acc @ [ (h, pv) ]) (rest @ deps)
-  }
+        | None -> return Ok None
+        | Some pv -> return Ok(Some(pv, Bridge.valueRefsInExpr pv.body))
+      })
+    seeds
 
 /// A builtin's RUNTIME return type -> the marshalable compiler AST.Type it decodes
 /// to, or None if it can't be recursively unmarshaled. Handles primitives and
@@ -511,13 +522,13 @@ let private buildPieces
   (rootHash : string)
   : Ply<Result<List<AST.TypeDef> * List<AST.FunctionDef> * string, string>> =
   uply {
-    let! fnClosure = fetchFnClosure Set.empty [] [ rootHash ]
+    let! fnClosure = fetchFnClosure [ rootHash ]
     match fnClosure with
     | Error e -> return Error e
     | Ok fns ->
       let valueSeeds =
         fns |> List.collect (fun (_, fn) -> Bridge.valueRefsInExpr fn.body) |> List.distinct
-      let! valueClosure = fetchValueClosure Set.empty [] valueSeeds
+      let! valueClosure = fetchValueClosure valueSeeds
       let values =
         match valueClosure with
         | Ok vs -> vs
@@ -526,7 +537,7 @@ let private buildPieces
         ((fns |> List.collect (fun (_, fn) -> Bridge.typeRefsInFn fn))
          @ (values |> List.collect (fun (_, pv) -> Bridge.typeRefsInExpr pv.body)))
         |> List.distinct
-      let! typeClosure = fetchTypeClosure Set.empty [] typeSeeds
+      let! typeClosure = fetchTypeClosure typeSeeds
       match typeClosure with
       | Error e -> return Error e
       | Ok typesRaw ->
@@ -1660,7 +1671,7 @@ let private runOne
                     paramList
                     |> List.collect (fun (p : PT.PackageFn.Parameter) -> Bridge.typeRefsInType p.typ)
                     |> List.distinct
-                  let! typeClosure = fetchTypeClosure Set.empty [] typeSeeds
+                  let! typeClosure = fetchTypeClosure typeSeeds
                   let declMap =
                     match typeClosure with
                     | Ok ts -> ts |> List.map (fun (h, pt) -> (h, pt.declaration)) |> Map.ofList

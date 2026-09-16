@@ -13,14 +13,23 @@
 #
 # It refuses to run over uncommitted edits to LibCompiler, because a fix made
 # in-tree and not yet folded into vendor/*.patch would be silently lost. Fold it
-# first (see vendor/README.md), or commit it and run again.
+# first, or commit it and run again. Folding is the other mode:
+#
+#   scripts/build/vendor-compiler --regen-patch <compiler-checkout>
+#
+# which rewrites vendor/dark-fixes.patch as the diff between the commit named in
+# vendor/VENDORED-FROM and the tree as it is now.
 
+# shellcheck source=scripts/dev/_help
 source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../dev/_help"
 help_if_asked "$@"
 set -euo pipefail
 
+REGEN=false
+if [[ ${1:-} == --regen-patch ]]; then REGEN=true; shift; fi
+
 if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "usage: scripts/build/vendor-compiler <compiler-checkout> [<commit>]" >&2
+  echo "usage: scripts/build/vendor-compiler [--regen-patch] <compiler-checkout> [<commit>]" >&2
   exit 2
 fi
 
@@ -29,6 +38,30 @@ COMMIT=${2:-HEAD}
 ROOT=$(cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd)
 DEST="$ROOT/backend/src/LibCompiler"
 VENDOR="$DEST/vendor"
+
+# Upstream's copy of src/DarkCompiler at $1, minus the two files we don't vendor,
+# extracted into $2.
+extract_upstream() {
+  git -C "$SRC" archive "$1" src/DarkCompiler | tar -x -C "$2"
+  mv "$2/src/DarkCompiler"/Program.fs "$2/src/DarkCompiler"/DarkCompiler.fsproj "$2/" 2>/dev/null || true
+}
+
+if $REGEN; then
+  BASE=$(awk '$1 == "commit" { print $2 }' "$VENDOR/VENDORED-FROM")
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' EXIT
+  mkdir -p "$TMP/a/backend/src" "$TMP/b/backend/src" "$TMP/up"
+  extract_upstream "$BASE" "$TMP/up"
+  mv "$TMP/up/src/DarkCompiler" "$TMP/a/backend/src/LibCompiler"
+  cp -r "$DEST" "$TMP/b/backend/src/LibCompiler"
+  rm -rf "$TMP/b/backend/src/LibCompiler"/{vendor,LibCompiler.fsproj,obj,bin}
+  # git diff --no-index exits 1 when there is a diff, which is the normal case
+  (cd "$TMP" && { git diff --no-index --src-prefix=a/ --dst-prefix=b/ a b || true; }) \
+    | sed -E 's|^(---\|\+\+\+) ([ab])/[ab]/|\1 \2/|; s|^diff --git a/a/(\S+) b/b/|diff --git a/\1 b/|' \
+    > "$VENDOR/dark-fixes.patch"
+  echo "rewrote vendor/dark-fixes.patch against ${BASE:0:10}: $(grep -c '^diff --git' "$VENDOR/dark-fixes.patch") file(s)"
+  exit 0
+fi
 
 if [[ ! -d "$SRC/src/DarkCompiler" ]]; then
   echo "$SRC does not look like a darklang/compiler checkout (no src/DarkCompiler)" >&2
@@ -47,8 +80,7 @@ SUBJECT=$(git -C "$SRC" log -1 --format=%s "$SHA")
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-git -C "$SRC" archive "$SHA" src/DarkCompiler | tar -x -C "$TMP"
-rm -f "$TMP/src/DarkCompiler/Program.fs" "$TMP/src/DarkCompiler/DarkCompiler.fsproj"
+extract_upstream "$SHA" "$TMP"
 
 # Everything in LibCompiler is upstream's except the fsproj and vendor/.
 find "$DEST" -mindepth 1 -maxdepth 1 \
@@ -75,7 +107,7 @@ done
   echo "commit  $SHA"
   echo "date    $DATE"
   echo "subject $SUBJECT"
-  echo "patches $(cd "$VENDOR" && ls ./*.patch 2>/dev/null | sed 's|^\./||' | paste -sd ' ')"
+  echo "patches $(cd "$VENDOR" && find . -maxdepth 1 -name '*.patch' -printf '%f\n' | sort | paste -sd ' ')"
 } > "$VENDOR/VENDORED-FROM"
 
 echo "vendored darklang/compiler @ ${SHA:0:10} ($DATE, $SUBJECT)"

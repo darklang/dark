@@ -954,7 +954,44 @@ index 8845ff1..16bd8c7 100644
  // IEEE 754 double precision format:
  // Sign: bit 63 (1 bit)
  // Exponent: bits 52-62 (11 bits, biased by 1023)
-diff --git a/backend/src/LibCompiler/stdlib/Rpc.dark b/backend/src/LibCompiler/stdlib/Rpc.dark
+diff --git a/backend/src/LibCompiler/stdlib/List.dark b/backend/src/LibCompiler/stdlib/List.dark
+index 3e4b8b1..92a9139 100644
+--- a/backend/src/LibCompiler/stdlib/List.dark
++++ b/backend/src/LibCompiler/stdlib/List.dark
+@@ -57,6 +57,32 @@ def Stdlib.List.__mapHelper<a, b>(list: List<a>, fn: (a) -> b, acc: List<b>) : L
+             let newAcc = Stdlib.__FingerTree.pushBack<b>(acc, fn(h)) in
+             Stdlib.List.__mapHelper<a, b>(Stdlib.__FingerTree.tail<a>(list), fn, newAcc)
+ 
++// Map, keeping only the Some results - O(n)
++def Stdlib.List.filterMap<a, b>(list: List<a>, fn: (a) -> Stdlib.Option.Option<b>) : List<b> =
++    Stdlib.List.__filterMapHelper<a, b>(list, fn, Stdlib.__FingerTree.empty<b>())
++
++def Stdlib.List.__filterMapHelper<a, b>(list: List<a>, fn: (a) -> Stdlib.Option.Option<b>, acc: List<b>) : List<b> =
++    if Stdlib.__FingerTree.isEmpty<a>(list) then acc
++    else
++        match Stdlib.__FingerTree.head<a>(list) with
++        | None -> acc
++        | Some(h) ->
++            let newAcc =
++                match fn(h) with
++                | None -> acc
++                | Some(v) -> Stdlib.__FingerTree.pushBack<b>(acc, v) in
++            Stdlib.List.__filterMapHelper<a, b>(Stdlib.__FingerTree.tail<a>(list), fn, newAcc)
++
++// Is the value an element of the list - O(n)
++def Stdlib.List.member<a>(list: List<a>, value: a) : Bool =
++    if Stdlib.__FingerTree.isEmpty<a>(list) then false
++    else
++        match Stdlib.__FingerTree.head<a>(list) with
++        | None -> false
++        | Some(h) ->
++            if h == value then true
++            else Stdlib.List.member<a>(Stdlib.__FingerTree.tail<a>(list), value)
++
+ // Flatten a list of lists into a single list - O(n*m)
+ def Stdlib.List.flatten<a>(lists: List<List<a>>) : List<a> =
+     Stdlib.List.__flattenHelper<a>(lists, Stdlib.__FingerTree.empty<a>())
+diff --git a/b/backend/src/LibCompiler/stdlib/Rpc.dark b/b/backend/src/LibCompiler/stdlib/Rpc.dark
 new file mode 100644
 index 0000000..80f1977
 --- /dev/null

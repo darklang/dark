@@ -18,19 +18,10 @@ Two rules keep that true:
 
 After changing something in LibCompiler that isn't going upstream yet:
 
-    cd <a scratch dir>
-    git -C ~/code/compiler archive <commit from VENDORED-FROM> src/DarkCompiler | tar -x
-    rm src/DarkCompiler/Program.fs src/DarkCompiler/DarkCompiler.fsproj
-    mkdir -p a/backend/src b/backend/src
-    mv src/DarkCompiler a/backend/src/LibCompiler
-    cp -r <repo>/backend/src/LibCompiler b/backend/src/LibCompiler
-    rm -rf b/backend/src/LibCompiler/{vendor,LibCompiler.fsproj,obj,bin}
-    git diff --no-index --src-prefix=a/ --dst-prefix=b/ a b \
-      | sed -E 's|^(---\|\+\+\+) ([ab])/[ab]/|\1 \2/|; s|^diff --git a/a/(\S+) b/b/|diff --git a/\1 b/|' \
-      > <repo>/backend/src/LibCompiler/vendor/dark-fixes.patch
+    scripts/build/vendor-compiler --regen-patch ~/code/compiler
 
-Then check it: apply it to a pristine copy and `diff -r` against the tree. The script
-does the apply half of that on every re-vendor, so a stale patch fails loudly.
+It diffs the commit in `VENDORED-FROM` against the tree as it is now. The script's
+normal mode applies the patch on every re-vendor, so a stale one fails loudly.
 
 ## What is in `dark-fixes.patch` today
 
