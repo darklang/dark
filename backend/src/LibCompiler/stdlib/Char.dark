@@ -1,0 +1,100 @@
+// Char.dark - Stdlib.Char definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Char - Character operations
+// =============================================================================
+// Note: In Dark, characters are represented as single-character strings.
+// These functions operate on the first codepoint of a string.
+
+// Check if character is an ASCII digit (0-9)
+def Stdlib.Char.isDigit(c: String) : Bool =
+    if Stdlib.String.isEmpty(c) then false
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) -> cp >= 48 && cp <= 57
+        | None -> false
+
+// Check if character is an ASCII letter (a-z, A-Z)
+def Stdlib.Char.isLetter(c: String) : Bool =
+    if Stdlib.String.isEmpty(c) then false
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) -> (cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122)
+        | None -> false
+
+// Check if character is ASCII whitespace (space, tab, newline, carriage return)
+def Stdlib.Char.isWhitespace(c: String) : Bool =
+    if Stdlib.String.isEmpty(c) then false
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) -> cp == 32 || cp == 9 || cp == 10 || cp == 13
+        | None -> false
+
+// Check if character is an ASCII uppercase letter (A-Z)
+def Stdlib.Char.isUppercase(c: String) : Bool =
+    if Stdlib.String.isEmpty(c) then false
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) -> cp >= 65 && cp <= 90
+        | None -> false
+
+// Check if character is an ASCII lowercase letter (a-z)
+def Stdlib.Char.isLowercase(c: String) : Bool =
+    if Stdlib.String.isEmpty(c) then false
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) -> cp >= 97 && cp <= 122
+        | None -> false
+
+// Check if character is alphanumeric (a-z, A-Z, 0-9)
+def Stdlib.Char.isAlphanumeric(c: String) : Bool =
+    Stdlib.Char.isLetter(c) || Stdlib.Char.isDigit(c)
+
+// Convert ASCII character to uppercase
+def Stdlib.Char.toUppercase(c: String) : String =
+    if Stdlib.String.isEmpty(c) then ""
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) ->
+            if cp >= 97 && cp <= 122 then
+                Stdlib.String.fromCodepoints([cp - 32])
+            else
+                Stdlib.String.fromCodepoints([cp])
+        | None -> ""
+
+// Convert ASCII character to lowercase
+def Stdlib.Char.toLowercase(c: String) : String =
+    if Stdlib.String.isEmpty(c) then ""
+    else
+        let cps = Stdlib.String.toCodepoints(c) in
+        match Stdlib.List.head<Int64>(cps) with
+        | Some(cp) ->
+            if cp >= 65 && cp <= 90 then
+                Stdlib.String.fromCodepoints([cp + 32])
+            else
+                Stdlib.String.fromCodepoints([cp])
+        | None -> ""
+
+// Get the Unicode codepoint value of the first character
+def Stdlib.Char.toCode(c: String) : Int64 =
+    let cps = Stdlib.String.toCodepoints(c) in
+    match Stdlib.List.head<Int64>(cps) with
+    | Some(cp) -> cp
+    | None -> 0
+
+// Create a single character string from a codepoint
+def Stdlib.Char.fromCode(code: Int64) : String =
+    Stdlib.String.fromCodepoints([code])
+
+// Convert a Char value to String (identity at runtime representation level)
+def Stdlib.Char.toString(c: String) : String =
+    c
+
+// =============================================================================

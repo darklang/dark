@@ -3,6 +3,20 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
+  <!--
+    Build-gating for the airlifted compiler extension (plan §3.5).
+    Default build: DarkWithCompiler unset -> LibCompiler / Builtins.Compiler
+    are neither referenced nor compiled, and DARK_WITH_COMPILER is undefined so
+    the guarded 10th `Builtin.combine` entry compiles out. Fast, core unchanged.
+    Opt-in build: -p:DarkWithCompiler=true pulls in the extension and defines
+    DARK_WITH_COMPILER.
+  -->
+  <PropertyGroup Condition="'$(DarkWithCompiler)' == 'true'">
+    <DefineConstants>$(DefineConstants);DARK_WITH_COMPILER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DarkWithCompiler)' == 'true'">
+    <ProjectReference Include="../Builtins/Builtins.Compiler/Builtins.Compiler.fsproj" />
+  </ItemGroup>
   <!-- dependencies and code -->
   <ItemGroup>
     <None Include="paket.references" />

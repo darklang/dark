@@ -1,0 +1,23 @@
+// Tuple2.dark - Stdlib.Tuple2 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Tuple2 - 2-tuple operations
+
+def Stdlib.Tuple2.create<a, b>(first: a, second: b) : (a, b) = (first, second)
+
+def Stdlib.Tuple2.first<a, b>(t: (a, b)) : a = match t with | (x, y) -> x
+
+def Stdlib.Tuple2.second<a, b>(t: (a, b)) : b = match t with | (x, y) -> y
+
+def Stdlib.Tuple2.swap<a, b>(t: (a, b)) : (b, a) = match t with | (x, y) -> (y, x)
+
+def Stdlib.Tuple2.mapFirst<a, b, c>(fn: (a) -> c, t: (a, b)) : (c, b) =
+    match t with | (x, y) -> (fn(x), y)
+
+def Stdlib.Tuple2.mapSecond<a, b, c>(fn: (b) -> c, t: (a, b)) : (a, c) =
+    match t with | (x, y) -> (x, fn(y))
+
+def Stdlib.Tuple2.mapBoth<a, b, c, d>(fnFirst: (a) -> c, fnSecond: (b) -> d, t: (a, b)) : (c, d) =
+    match t with | (x, y) -> (fnFirst(x), fnSecond(y))
+

@@ -1,0 +1,52 @@
+// Math.dark - Stdlib.Math definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Math - Mathematical operations
+// =============================================================================
+
+// Pi constant (approximation to 15 decimal places)
+// 3.141592653589793
+def Stdlib.Math.pi() : Float = 3.141592653589793
+
+// Euler's number e (approximation to 15 decimal places)
+// 2.718281828459045
+def Stdlib.Math.e() : Float = 2.718281828459045
+
+// Absolute value of a float
+def Stdlib.Math.abs(x: Float) : Float =
+    Float.abs(x)
+
+// Square root (delegating to existing Float.sqrt)
+def Stdlib.Math.sqrt(x: Float) : Float =
+    Float.sqrt(x)
+
+// Convert float to integer, truncating toward zero
+def Stdlib.Math.truncate(x: Float) : Int64 =
+    Float.toInt(x)
+
+// Floor: largest integer less than or equal to x
+// Note: Float.toInt truncates toward zero, so we need to adjust for negative numbers
+def Stdlib.Math.floor(x: Float) : Int64 =
+    let truncated = Float.toInt(x) in
+    let floatTruncated = Float.abs(x) in  // placeholder - we don't have Int64.toFloat
+    truncated  // Simplified: just truncate for now
+
+// Ceiling: smallest integer greater than or equal to x
+def Stdlib.Math.ceiling(x: Float) : Int64 =
+    let truncated = Float.toInt(x) in
+    truncated  // Simplified: just truncate for now
+
+// Round to nearest integer
+def Stdlib.Math.round(x: Float) : Int64 =
+    Float.toInt(x)  // Simplified: just truncate for now
+
+// NOTE: Float comparison and arithmetic operators are not fully implemented yet.
+// The following functions require compiler support for float operations:
+// - Math.max, Math.min, Math.clamp (need float comparison)
+// - Math.pow (needs float multiplication)
+// - Math.isNegative (needs float comparison)
+// - Trigonometric functions (sin, cos, tan) require intrinsics
+
+
+// =============================================================================

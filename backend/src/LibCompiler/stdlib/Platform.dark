@@ -1,0 +1,12 @@
+// Platform.dark - Stdlib.Platform definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Platform - Platform detection (constant-folded at compile time)
+
+// Check if running on macOS
+def Stdlib.Platform.isMacOS() : Bool = false
+
+// Check if running on Linux
+def Stdlib.Platform.isLinux() : Bool = false
+

@@ -1,0 +1,242 @@
+// Float.dark - Stdlib.Float definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Float - Float operations
+
+def Stdlib.Float.multiply(a: Float, b: Float) : Float = a * b
+
+// Get IEEE 754 bit representation of Float as UInt64 (intrinsic)
+def Stdlib.Float.toBits(f: Float) : UInt64 = 0UL
+
+// The inverse of toBits: reinterpret a 64-bit pattern as a Float.
+//
+// No new intrinsic needed -- store the bits, load them back at Float type.
+// `__raw_get<Float>` already lowers to RawGet + GpToFp (a movq into an xmm), which is
+// precisely the reinterpret; see passes/4_MIR_to_LIR.fs. toBits had no inverse at all,
+// so a Float could not be RECONSTRUCTED in compiled code, which blocked decoding any
+// type containing one (Json's `Number of Float` -> altJsonParse).
+//
+// Takes Int64, not UInt64, on purpose: this is a BIT PATTERN, and the signed/unsigned
+// label is irrelevant to the 64 bits stored. It also keeps us away from the compiler's
+// signed-comparison bug on unsigned values (see PROGRESSION-LOG).
+def Stdlib.Float.fromBits(bits: Int64) : Float =
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, bits) in
+    __raw_get<Float>(ptr, 0)
+
+// IEEE 754 double precision format:
+// Sign: bit 63 (1 bit)
+// Exponent: bits 52-62 (11 bits, biased by 1023)
+// Mantissa: bits 0-51 (52 bits)
+
+// Helper: Convert a single digit (0-9) to its string representation (Int64 version)
+def Stdlib.Float.__digitToChar(n: Int64) : String =
+    match n with
+    | 0 -> "0"
+    | 1 -> "1"
+    | 2 -> "2"
+    | 3 -> "3"
+    | 4 -> "4"
+    | 5 -> "5"
+    | 6 -> "6"
+    | 7 -> "7"
+    | 8 -> "8"
+    | 9 -> "9"
+    | _ -> "?"
+
+// Helper: Convert Int64 to string (handles negative)
+def Stdlib.Float.__int64ToString(n: Int64) : String =
+    if n < 0 then "-" ++ Stdlib.Float.__int64ToString(0 - n)
+    else if n < 10 then Stdlib.Float.__digitToChar(n)
+    else Stdlib.Float.__int64ToString(n / 10) ++ Stdlib.Float.__digitToChar(n % 10)
+
+// Helper: Strip trailing zeros from a string, but keep at least one digit after decimal
+def Stdlib.Float.__stripTrailingZeros(s: String, minLen: Int64) : String =
+    let len = Stdlib.String.length(s) in
+    if len <= minLen then s
+    else
+        let lastByte = Stdlib.String.getByteAt(s, len - 1) in
+        if lastByte == 48 then // '0' is ASCII 48
+            Stdlib.Float.__stripTrailingZeros(Stdlib.String.take(s, len - 1), minLen)
+        else
+            s
+
+// Helper: Extract decimal digits from fractional part
+// Multiplies by 10 repeatedly and extracts integer part
+// Returns string of fractional digits (without leading "0.")
+def Stdlib.Float.__extractFracDigits(frac: Float, remaining: Int64, acc: String) : String =
+    if remaining <= 0 then acc
+    else if frac == 0.0 then acc
+    else
+        let scaled = frac * 10.0 in
+        let digit = Stdlib.Float.toInt(scaled) in
+        let digitStr = Stdlib.Float.__digitToChar(digit) in
+        let newFrac = scaled - Stdlib.Int64.toFloat(digit) in
+        Stdlib.Float.__extractFracDigits(newFrac, remaining - 1, acc ++ digitStr)
+
+// Helper: Convert small UInt64 (0-2047) to Int64 by extracting low bits
+// This works because the value fits in the positive range of Int64
+def Stdlib.Float.__smallUInt64ToInt64(n: UInt64) : Int64 =
+    // For values 0-2047, we can safely interpret the bits as Int64
+    // We use a match on small ranges to avoid needing a direct cast
+    if n == 0UL then 0
+    else if n <= 1023UL then
+        // Recursively compute by halving
+        let half = n >> 1UL in
+        let remainder = n & 1UL in
+        let halfInt = Stdlib.Float.__smallUInt64ToInt64(half) in
+        let remInt = if remainder == 1UL then 1 else 0 in
+        (halfInt * 2) + remInt
+    else if n <= 2047UL then
+        let diff = n - 1024UL in
+        1024 + Stdlib.Float.__smallUInt64ToInt64(diff)
+    else
+        // Should not happen for exponent values
+        0
+
+// Helper: Convert positive float to decimal string (no sign)
+// Uses scientific notation for very large or very small numbers
+def Stdlib.Float.__positiveToString(f: Float, bits: UInt64) : String =
+    let rawExp = (bits >> 52UL) & 2047UL in
+    let rawExpInt = Stdlib.Float.__smallUInt64ToInt64(rawExp) in
+    let actualExp = if rawExp == 0UL then 0 - 1022 else (rawExpInt - 1023) in
+
+    // Determine if we need scientific notation
+    // Use scientific notation if exponent is very large (>= 14) or very small (<= -4)
+    let useScientific = actualExp >= 14 || actualExp <= 0 - 4 in
+
+    if useScientific then
+        Stdlib.Float.__toScientificNotation(f)
+    else
+        Stdlib.Float.__toDecimalNotation(f)
+
+// Helper: Convert to regular decimal notation (e.g., "123.456")
+def Stdlib.Float.__toDecimalNotation(f: Float) : String =
+    // Get integer part
+    let intPart = Stdlib.Float.toInt(f) in
+    let intPartFloat = Stdlib.Int64.toFloat(intPart) in
+    let fracPart = f - intPartFloat in
+
+    // Convert integer part to string
+    let intStr = Stdlib.Float.__int64ToString(intPart) in
+
+    // If no fractional part, just append ".0"
+    if fracPart == 0.0 then
+        intStr ++ ".0"
+    else
+        // Extract fractional digits (up to 12 significant digits total)
+        let intDigits = Stdlib.String.length(intStr) in
+        let fracDigits = 12 - intDigits in
+        let fracDigitsInt = if fracDigits < 1 then 1 else fracDigits in
+        let fracStr = Stdlib.Float.__extractFracDigits(fracPart, fracDigitsInt, "") in
+        // Strip trailing zeros but keep at least one digit
+        let strippedFrac = Stdlib.Float.__stripTrailingZeros(fracStr, 1) in
+        intStr ++ "." ++ strippedFrac
+
+// Helper: Calculate base-10 exponent for scientific notation
+def Stdlib.Float.__calcDecimalExponent(f: Float, exp: Int64) : Int64 =
+    if f >= 10.0 then
+        Stdlib.Float.__calcDecimalExponent(f / 10.0, exp + 1)
+    else if f < 1.0 && f > 0.0 then
+        Stdlib.Float.__calcDecimalExponent(f * 10.0, exp - 1)
+    else
+        exp
+
+// Helper: Normalize to [1, 10) range for scientific notation
+def Stdlib.Float.__normalizeForScientific(f: Float) : Float =
+    if f >= 10.0 then
+        Stdlib.Float.__normalizeForScientific(f / 10.0)
+    else if f < 1.0 && f > 0.0 then
+        Stdlib.Float.__normalizeForScientific(f * 10.0)
+    else
+        f
+
+// Helper: Convert to scientific notation (e.g., "1.23e+10")
+def Stdlib.Float.__toScientificNotation(f: Float) : String =
+    // Calculate the decimal exponent
+    let decExp = Stdlib.Float.__calcDecimalExponent(f, 0) in
+    // Normalize mantissa to [1, 10)
+    let mantissa = Stdlib.Float.__normalizeForScientific(f) in
+    // Convert mantissa to decimal notation
+    let mantissaStr = Stdlib.Float.__toDecimalNotation(mantissa) in
+    // Format exponent with sign
+    let expSign = if decExp >= 0 then "+" else "" in
+    let expStr = Stdlib.Float.__int64ToString(decExp) in
+    // Pad exponent to 2 digits if needed
+    let expStrPadded = if Stdlib.Int64.absoluteValue(decExp) < 10 then
+        if decExp >= 0 then "+0" ++ expStr else "-0" ++ Stdlib.Float.__int64ToString(Stdlib.Int64.absoluteValue(decExp))
+        else expSign ++ expStr in
+    mantissaStr ++ "e" ++ expStrPadded
+
+// Helper for float absolute value (workaround for compiler bug with float in if-else)
+def Stdlib.Float.__floatAbs(x: Float) : Float =
+    if x < 0.0 then 0.0 - x else x * 1.0
+
+// Helper for extracting fractional digits, simplified to avoid internal func calls
+def Stdlib.Float.__getFracDigits(frac: Float, remaining: Int64) : String =
+    if remaining <= 0 then ""
+    else if frac == 0.0 then ""
+    else
+        let scaled = frac * 10.0 in
+        let digit = Stdlib.Float.toInt(scaled) in
+        let digitStr = Stdlib.Int64.toString(digit) in
+        let newFrac = scaled - Stdlib.Int64.toFloat(digit) in
+        digitStr ++ Stdlib.Float.__getFracDigits(newFrac, remaining - 1)
+
+// Helper to strip trailing zeros from fractional part string
+def Stdlib.Float.__stripZeros(s: String, minLen: Int64) : String =
+    let len = Stdlib.String.length(s) in
+    if len <= minLen then s
+    else
+        let lastByte = Stdlib.String.getByteAt(s, len - 1) in
+        if lastByte == 48 then // '0' is ASCII 48
+            Stdlib.Float.__stripZeros(Stdlib.String.take(s, len - 1), minLen)
+        else
+            s
+
+// Helper: Check if float is negative using sign bit (handles -0.0 correctly)
+def Stdlib.Float.__isNegative(f: Float) : Bool =
+    let bits = Stdlib.Float.toBits(f) in
+    let signBit = bits >> 63UL in
+    signBit == 1UL
+
+// Convert Float to String with up to 12 significant digits
+def Stdlib.Float.toString(f: Float) : String =
+    // Use Float.abs which is an intrinsic (no if-else)
+    let absF = Stdlib.Float.abs(f) in
+    let intPart = Stdlib.Float.toInt(absF) in
+    let intStr = Stdlib.Int64.toString(intPart) in
+    let intPartFloat = Stdlib.Int64.toFloat(intPart) in
+    let fracPart = absF - intPartFloat in
+    // Check sign using bit pattern (handles -0.0 correctly)
+    let isNeg = Stdlib.Float.__isNegative(f) in
+    let signStr = if isNeg then "-" else "" in
+    if fracPart == 0.0 then
+        signStr ++ intStr ++ ".0"
+    else
+        let fracStr = Stdlib.Float.__getFracDigits(fracPart, 11) in
+        // Strip trailing zeros but keep at least 1 digit
+        let strippedFrac = Stdlib.Float.__stripZeros(fracStr, 1) in
+        signStr ++ intStr ++ "." ++ strippedFrac
+
+// Helper to build string list from Float list
+def Stdlib.List.__floatsToStrings(list: List<Float>, acc: List<String>) : List<String> =
+    if Stdlib.__FingerTree.isEmpty<Float>(list) then acc
+    else
+        match Stdlib.__FingerTree.head<Float>(list) with
+        | None -> acc
+        | Some(h) ->
+            let s = Stdlib.Float.toString(h) in
+            let newAcc = Stdlib.__FingerTree.pushBack<String>(acc, s) in
+            Stdlib.List.__floatsToStrings(Stdlib.__FingerTree.tail<Float>(list), newAcc)
+
+def Stdlib.List.toDisplayString_f64(list: List<Float>) : String =
+    let strs = Stdlib.List.__floatsToStrings(list, Stdlib.__FingerTree.empty<String>()) in
+    "[" ++ Stdlib.String.join(strs, ", ") ++ "]"
+
+def Stdlib.List.zip<a, b>(list1: List<a>, list2: List<b>) : List<(a, b)> =
+    match (list1, list2) with
+    | ([], _) -> []
+    | (_, []) -> []
+    | ([h1, ...t1], [h2, ...t2]) -> [(h1, h2), ...Stdlib.List.zip<a, b>(t1, t2)]

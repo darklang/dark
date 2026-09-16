@@ -1,0 +1,100 @@
+// UInt32.dark - Stdlib.UInt32 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.UInt32 - Integer operations
+
+def Stdlib.UInt32.add(a: UInt32, b: UInt32) : UInt32 = a + b
+
+def Stdlib.UInt32.sub(a: UInt32, b: UInt32) : UInt32 = a - b
+
+def Stdlib.UInt32.mul(a: UInt32, b: UInt32) : UInt32 = a * b
+
+def Stdlib.UInt32.div(a: UInt32, b: UInt32) : UInt32 = a / b
+
+def Stdlib.UInt32.max(a: UInt32, b: UInt32) : UInt32 = if a > b then a else b
+
+def Stdlib.UInt32.min(a: UInt32, b: UInt32) : UInt32 = if a < b then a else b
+
+def Stdlib.UInt32.mod(a: UInt32, b: UInt32) : UInt32 = a % b
+
+def Stdlib.UInt32.absoluteValue(a: UInt32) : UInt32 = a
+
+def Stdlib.UInt32.negate(a: UInt32) : UInt32 = 0ul - a
+
+def Stdlib.UInt32.power(base: UInt32, exponent: UInt32) : UInt32 =
+    if exponent == 0ul then 1ul
+    else if exponent == 1ul then base
+    else base * Stdlib.UInt32.power(base, exponent - 1ul)
+
+def Stdlib.UInt32.clamp(value: UInt32, limitA: UInt32, limitB: UInt32) : UInt32 =
+    let lower = Stdlib.UInt32.min(limitA, limitB) in
+    let upper = Stdlib.UInt32.max(limitA, limitB) in
+    Stdlib.UInt32.max(lower, Stdlib.UInt32.min(upper, value))
+
+def Stdlib.UInt32.greaterThan(a: UInt32, b: UInt32) : Bool = a > b
+
+def Stdlib.UInt32.greaterThanOrEqualTo(a: UInt32, b: UInt32) : Bool = a >= b
+
+def Stdlib.UInt32.lessThan(a: UInt32, b: UInt32) : Bool = a < b
+
+def Stdlib.UInt32.lessThanOrEqualTo(a: UInt32, b: UInt32) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.UInt32.bitwiseAnd(a: UInt32, b: UInt32) : UInt32 = a & b
+
+def Stdlib.UInt32.bitwiseOr(a: UInt32, b: UInt32) : UInt32 = a ||| b
+
+def Stdlib.UInt32.bitwiseXor(a: UInt32, b: UInt32) : UInt32 = a ^ b
+
+def Stdlib.UInt32.shiftLeft(a: UInt32, shift: UInt32) : UInt32 = a << shift
+
+def Stdlib.UInt32.shiftRight(a: UInt32, shift: UInt32) : UInt32 = a >> shift
+
+def Stdlib.UInt32.bitwiseNot(a: UInt32) : UInt32 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (SWAR)
+def Stdlib.UInt32.popcount(x: UInt32) : UInt32 =
+    let mask1 = 1431655765ul in
+    let mask2 = 858993459ul in
+    let mask3 = 252645135ul in
+    let mask4 = 63ul in
+    let x = x - ((x >> 1ul) & mask1) in
+    let x = (x & mask2) + ((x >> 2ul) & mask2) in
+    let x = (x + (x >> 4ul)) & mask3 in
+    let x = x + (x >> 8ul) in
+    let x = x + (x >> 16ul) in
+    x & mask4
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.UInt32.__digitToString(n: UInt32) : String =
+    match n with
+    | 0ul -> "0"
+    | 1ul -> "1"
+    | 2ul -> "2"
+    | 3ul -> "3"
+    | 4ul -> "4"
+    | 5ul -> "5"
+    | 6ul -> "6"
+    | 7ul -> "7"
+    | 8ul -> "8"
+    | 9ul -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.UInt32.toString(n: UInt32) : String =
+    if n < 10ul then Stdlib.UInt32.__digitToString(n)
+    else Stdlib.UInt32.toString(n / 10ul) ++ Stdlib.UInt32.__digitToString(n % 10ul)
+
+// Check if integer is even
+def Stdlib.UInt32.isEven(n: UInt32) : Bool =
+    (n % 2ul) == 0ul
+
+// Check if integer is odd
+def Stdlib.UInt32.isOdd(n: UInt32) : Bool =
+    (n % 2ul) != 0ul
+
+// Sum all integers in a list
+def Stdlib.UInt32.sum(list: List<UInt32>) : UInt32 =
+    Stdlib.List.fold<UInt32, UInt32>(list, 0ul, (acc: UInt32, x: UInt32) => acc + x)

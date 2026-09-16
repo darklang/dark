@@ -1,0 +1,101 @@
+// Int32.dark - Stdlib.Int32 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Int32 - Integer operations
+
+def Stdlib.Int32.add(a: Int32, b: Int32) : Int32 = a + b
+
+def Stdlib.Int32.sub(a: Int32, b: Int32) : Int32 = a - b
+
+def Stdlib.Int32.mul(a: Int32, b: Int32) : Int32 = a * b
+
+def Stdlib.Int32.div(a: Int32, b: Int32) : Int32 = a / b
+
+def Stdlib.Int32.max(a: Int32, b: Int32) : Int32 = if a > b then a else b
+
+def Stdlib.Int32.min(a: Int32, b: Int32) : Int32 = if a < b then a else b
+
+def Stdlib.Int32.mod(a: Int32, b: Int32) : Int32 = a % b
+
+def Stdlib.Int32.absoluteValue(a: Int32) : Int32 = if a < 0l then 0l - a else a
+
+def Stdlib.Int32.negate(a: Int32) : Int32 = 0l - a
+
+def Stdlib.Int32.power(base: Int32, exponent: Int32) : Int32 =
+    if exponent == 0l then 1l
+    else if exponent == 1l then base
+    else base * Stdlib.Int32.power(base, exponent - 1l)
+
+def Stdlib.Int32.clamp(value: Int32, limitA: Int32, limitB: Int32) : Int32 =
+    let lower = Stdlib.Int32.min(limitA, limitB) in
+    let upper = Stdlib.Int32.max(limitA, limitB) in
+    Stdlib.Int32.max(lower, Stdlib.Int32.min(upper, value))
+
+def Stdlib.Int32.greaterThan(a: Int32, b: Int32) : Bool = a > b
+
+def Stdlib.Int32.greaterThanOrEqualTo(a: Int32, b: Int32) : Bool = a >= b
+
+def Stdlib.Int32.lessThan(a: Int32, b: Int32) : Bool = a < b
+
+def Stdlib.Int32.lessThanOrEqualTo(a: Int32, b: Int32) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.Int32.bitwiseAnd(a: Int32, b: Int32) : Int32 = a & b
+
+def Stdlib.Int32.bitwiseOr(a: Int32, b: Int32) : Int32 = a ||| b
+
+def Stdlib.Int32.bitwiseXor(a: Int32, b: Int32) : Int32 = a ^ b
+
+def Stdlib.Int32.shiftLeft(a: Int32, shift: Int32) : Int32 = a << shift
+
+def Stdlib.Int32.shiftRight(a: Int32, shift: Int32) : Int32 = a >> shift
+
+def Stdlib.Int32.bitwiseNot(a: Int32) : Int32 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (SWAR)
+def Stdlib.Int32.popcount(x: Int32) : Int32 =
+    let mask1 = 1431655765l in
+    let mask2 = 858993459l in
+    let mask3 = 252645135l in
+    let mask4 = 63l in
+    let x = x - ((x >> 1l) & mask1) in
+    let x = (x & mask2) + ((x >> 2l) & mask2) in
+    let x = (x + (x >> 4l)) & mask3 in
+    let x = x + (x >> 8l) in
+    let x = x + (x >> 16l) in
+    x & mask4
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.Int32.__digitToString(n: Int32) : String =
+    match n with
+    | 0l -> "0"
+    | 1l -> "1"
+    | 2l -> "2"
+    | 3l -> "3"
+    | 4l -> "4"
+    | 5l -> "5"
+    | 6l -> "6"
+    | 7l -> "7"
+    | 8l -> "8"
+    | 9l -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.Int32.toString(n: Int32) : String =
+    if n < 0l then "-" ++ Stdlib.Int32.toString(0l - n)
+    else if n < 10l then Stdlib.Int32.__digitToString(n)
+    else Stdlib.Int32.toString(n / 10l) ++ Stdlib.Int32.__digitToString(n % 10l)
+
+// Check if integer is even
+def Stdlib.Int32.isEven(n: Int32) : Bool =
+    (n % 2l) == 0l
+
+// Check if integer is odd
+def Stdlib.Int32.isOdd(n: Int32) : Bool =
+    (n % 2l) != 0l
+
+// Sum all integers in a list
+def Stdlib.Int32.sum(list: List<Int32>) : Int32 =
+    Stdlib.List.fold<Int32, Int32>(list, 0l, (acc: Int32, x: Int32) => acc + x)

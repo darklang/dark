@@ -1,0 +1,37 @@
+// __Hash.dark - Internal hash and key equality helpers
+//
+// Pure Dark implementations used by Dict/HAMT and internal tests.
+
+// FNV-1a 64-bit constants
+def __hash_offset() : Int64 = -3750763034362895579
+def __hash_prime() : Int64 = 1099511628211
+
+// FNV-1a hash over UTF-8 bytes
+def __string_hash(s: String) : Int64 =
+    let len = Stdlib.String.length(s) in
+    __string_hash_loop(s, 0, len, __hash_offset())
+
+def __string_hash_loop(s: String, idx: Int64, len: Int64, acc: Int64) : Int64 =
+    if idx >= len then
+        acc
+    else
+        let byte = Stdlib.String.getByteAt(s, idx) in
+        let next = (acc ^ byte) * __hash_prime() in
+        __string_hash_loop(s, idx + 1, len, next)
+
+// Byte-wise string equality
+def __string_eq(s1: String, s2: String) : Bool =
+    Stdlib.String.equals(s1, s2)
+
+// Hash specializations (monomorphized by compiler)
+def __hash_i64(value: Int64) : Int64 = value
+def __hash_bool(value: Bool) : Int64 = if value then 1 else 0
+def __hash_str(value: String) : Int64 = __string_hash(value)
+
+// Key equality specializations (monomorphized by compiler)
+def __key_eq_i64(left: Int64, right: Int64) : Bool = left == right
+def __key_eq_bool(left: Bool, right: Bool) : Bool = left == right
+def __key_eq_str(left: String, right: String) : Bool = __string_eq(left, right)
+
+// Unresolved generic __hash/__key_eq calls are handled in compiler lowering by
+// emitting explicit runtime errors before codegen; no unknown fallback stubs live here.

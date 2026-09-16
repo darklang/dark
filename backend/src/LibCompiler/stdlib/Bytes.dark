@@ -1,0 +1,107 @@
+// Bytes.dark - Stdlib.Bytes definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Bytes - Byte array operations
+// =============================================================================
+// Memory layout: [length:8 bytes][data:N bytes][refcount:8 bytes]
+// Same layout as String for consistency
+
+// Get the length of a byte array
+def Stdlib.Bytes.length(b: Bytes) : Int64 =
+    __raw_get<Int64>(__int64_to_rawptr(__bytes_to_int64(b)), 0)
+
+// Get the byte at a given index (0-based)
+// Returns the byte as an Int64 (0-255)
+def Stdlib.Bytes.get(b: Bytes, index: Int64) : Int64 =
+    __raw_get_byte(__int64_to_rawptr(__bytes_to_int64(b)), index + 8)
+
+// Create a new byte array with a byte set at the given index
+// Returns a new Bytes (immutable update)
+def Stdlib.Bytes.set(b: Bytes, index: Int64, value: Int64) : Bytes =
+    let len = Stdlib.Bytes.length(b) in
+    if index < 0 || index >= len then
+        b  // Out of bounds, return unchanged
+    else
+        // Allocate: 8 (length) + len (data) + 8 (refcount)
+        let totalSize = 16 + len in
+        let ptr = __raw_alloc(totalSize) in
+        // Write length at offset 0
+        let _ = __raw_set<Int64>(ptr, 0, len) in
+        // Copy bytes - use srcPtr approach
+        let srcPtr = __int64_to_rawptr(__bytes_to_int64(b)) in
+        let _ = Stdlib.Bytes.__copyLoop(srcPtr, ptr, 8, len) in
+        // Update the byte at index
+        let _ = __raw_set_byte(ptr, 8 + index, value) in
+        // Write refcount = 1 at end
+        let _ = __raw_set<Int64>(ptr, 8 + len, 1) in
+        __int64_to_bytes(__rawptr_to_int64(ptr))
+
+// Internal: Copy loop with 2 pointers sharing same offset
+def Stdlib.Bytes.__copyLoop(src: RawPtr, dest: RawPtr, offset: Int64, remaining: Int64) : Unit =
+    if remaining <= 0 then
+        ()
+    else
+        let byte = __raw_get_byte(src, offset) in
+        let _ = __raw_set_byte(dest, offset, byte) in
+        Stdlib.Bytes.__copyLoop(src, dest, offset + 1, remaining - 1)
+
+// Create a byte array of given size
+// Note: Memory is typically zeroed by the OS, but not guaranteed
+def Stdlib.Bytes.create(size: Int64) : Bytes =
+    if size <= 0 then
+        // Create empty bytes
+        let ptr = __raw_alloc(16) in
+        let _ = __raw_set<Int64>(ptr, 0, 0) in  // length = 0
+        let _ = __raw_set<Int64>(ptr, 8, 1) in  // refcount = 1
+        __int64_to_bytes(__rawptr_to_int64(ptr))
+    else
+        // Allocate: 8 (length) + size (data) + 8 (refcount)
+        let totalSize = 16 + size in
+        let ptr = __raw_alloc(totalSize) in
+        // Write length at offset 0
+        let _ = __raw_set<Int64>(ptr, 0, size) in
+        // Write refcount = 1 at end
+        let _ = __raw_set<Int64>(ptr, 8 + size, 1) in
+        __int64_to_bytes(__rawptr_to_int64(ptr))
+
+// Create bytes from a list of Int64 values (each 0-255)
+def Stdlib.Bytes.fromList(list: List<Int64>) : Bytes =
+    let len = Stdlib.List.length<Int64>(list) in
+    if len == 0 then
+        Stdlib.Bytes.create(0)
+    else
+        let totalSize = 16 + len in
+        let ptr = __raw_alloc(totalSize) in
+        let _ = __raw_set<Int64>(ptr, 0, len) in
+        // Use a helper with fewer args
+        let _ = Stdlib.Bytes.__writeListHelper(ptr, list, 8) in
+        let _ = __raw_set<Int64>(ptr, 8 + len, 1) in
+        __int64_to_bytes(__rawptr_to_int64(ptr))
+
+// Helper: write list of bytes starting at offset
+def Stdlib.Bytes.__writeListHelper(ptr: RawPtr, list: List<Int64>, offset: Int64) : Int64 =
+    match list with
+    | [] -> offset
+    | [b, ...rest] ->
+        let _ = __raw_set_byte(ptr, offset, b) in
+        Stdlib.Bytes.__writeListHelper(ptr, rest, offset + 1)
+
+// Convert bytes to a list of Int64 values (each 0-255)
+// Build list by iterating through bytes
+def Stdlib.Bytes.toList(b: Bytes) : List<Int64> =
+    let len = Stdlib.Bytes.length(b) in
+    if len == 0 then
+        []
+    else
+        // Build list in reverse then reverse at end
+        Stdlib.Bytes.__toListHelper(b, len - 1, [])
+
+def Stdlib.Bytes.__toListHelper(b: Bytes, index: Int64, acc: List<Int64>) : List<Int64> =
+    if index < 0 then
+        acc
+    else
+        let byte = Stdlib.Bytes.get(b, index) in
+        Stdlib.Bytes.__toListHelper(b, index - 1, [byte, ...acc])
+
+// =============================================================================

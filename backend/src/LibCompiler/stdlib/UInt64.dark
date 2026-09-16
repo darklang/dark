@@ -1,0 +1,98 @@
+// UInt64.dark - Stdlib.UInt64 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.UInt64 - Integer operations
+
+def Stdlib.UInt64.add(a: UInt64, b: UInt64) : UInt64 = a + b
+
+def Stdlib.UInt64.sub(a: UInt64, b: UInt64) : UInt64 = a - b
+
+def Stdlib.UInt64.mul(a: UInt64, b: UInt64) : UInt64 = a * b
+
+def Stdlib.UInt64.div(a: UInt64, b: UInt64) : UInt64 = a / b
+
+def Stdlib.UInt64.max(a: UInt64, b: UInt64) : UInt64 = if a > b then a else b
+
+def Stdlib.UInt64.min(a: UInt64, b: UInt64) : UInt64 = if a < b then a else b
+
+def Stdlib.UInt64.mod(a: UInt64, b: UInt64) : UInt64 = a % b
+
+def Stdlib.UInt64.absoluteValue(a: UInt64) : UInt64 = a
+
+def Stdlib.UInt64.negate(a: UInt64) : UInt64 = 0UL - a
+
+def Stdlib.UInt64.power(base: UInt64, exponent: UInt64) : UInt64 =
+    if exponent == 0UL then 1UL
+    else if exponent == 1UL then base
+    else base * Stdlib.UInt64.power(base, exponent - 1UL)
+
+def Stdlib.UInt64.clamp(value: UInt64, limitA: UInt64, limitB: UInt64) : UInt64 =
+    let lower = Stdlib.UInt64.min(limitA, limitB) in
+    let upper = Stdlib.UInt64.max(limitA, limitB) in
+    Stdlib.UInt64.max(lower, Stdlib.UInt64.min(upper, value))
+
+def Stdlib.UInt64.greaterThan(a: UInt64, b: UInt64) : Bool = a > b
+
+def Stdlib.UInt64.greaterThanOrEqualTo(a: UInt64, b: UInt64) : Bool = a >= b
+
+def Stdlib.UInt64.lessThan(a: UInt64, b: UInt64) : Bool = a < b
+
+def Stdlib.UInt64.lessThanOrEqualTo(a: UInt64, b: UInt64) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.UInt64.bitwiseAnd(a: UInt64, b: UInt64) : UInt64 = a & b
+
+def Stdlib.UInt64.bitwiseOr(a: UInt64, b: UInt64) : UInt64 = a ||| b
+
+def Stdlib.UInt64.bitwiseXor(a: UInt64, b: UInt64) : UInt64 = a ^ b
+
+def Stdlib.UInt64.shiftLeft(a: UInt64, shift: UInt64) : UInt64 = a << shift
+
+def Stdlib.UInt64.shiftRight(a: UInt64, shift: UInt64) : UInt64 = a >> shift
+
+def Stdlib.UInt64.bitwiseNot(a: UInt64) : UInt64 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (SWAR)
+def Stdlib.UInt64.popcount(x: UInt64) : UInt64 =
+    let mask1 = 6148914691236517205UL in
+    let mask2 = 3689348814741910323UL in
+    let mask3 = 1085102592571150095UL in
+    let mult = 72340172838076673UL in
+    let x = x - ((x >> 1UL) & mask1) in
+    let x = (x & mask2) + ((x >> 2UL) & mask2) in
+    let x = (x + (x >> 4UL)) & mask3 in
+    (x * mult) >> 56UL
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.UInt64.__digitToString(n: UInt64) : String =
+    match n with
+    | 0UL -> "0"
+    | 1UL -> "1"
+    | 2UL -> "2"
+    | 3UL -> "3"
+    | 4UL -> "4"
+    | 5UL -> "5"
+    | 6UL -> "6"
+    | 7UL -> "7"
+    | 8UL -> "8"
+    | 9UL -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.UInt64.toString(n: UInt64) : String =
+    if n < 10UL then Stdlib.UInt64.__digitToString(n)
+    else Stdlib.UInt64.toString(n / 10UL) ++ Stdlib.UInt64.__digitToString(n % 10UL)
+
+// Check if integer is even
+def Stdlib.UInt64.isEven(n: UInt64) : Bool =
+    (n % 2UL) == 0UL
+
+// Check if integer is odd
+def Stdlib.UInt64.isOdd(n: UInt64) : Bool =
+    (n % 2UL) != 0UL
+
+// Sum all integers in a list
+def Stdlib.UInt64.sum(list: List<UInt64>) : UInt64 =
+    Stdlib.List.fold<UInt64, UInt64>(list, 0UL, (acc: UInt64, x: UInt64) => acc + x)

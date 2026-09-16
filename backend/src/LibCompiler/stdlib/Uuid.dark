@@ -1,0 +1,61 @@
+// Uuid.dark - Stdlib.Uuid definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Uuid - UUID v4 generation
+// ============================================================================
+
+// Helper: convert nibble (0-15) to hex char
+def Stdlib.Uuid.__nibbleToHex(n: Int64) : String =
+    match n with
+    | 0 -> "0" | 1 -> "1" | 2 -> "2" | 3 -> "3"
+    | 4 -> "4" | 5 -> "5" | 6 -> "6" | 7 -> "7"
+    | 8 -> "8" | 9 -> "9" | 10 -> "a" | 11 -> "b"
+    | 12 -> "c" | 13 -> "d" | 14 -> "e" | 15 -> "f"
+    | _ -> "?"
+
+// Helper: convert byte (from int64 at shift position) to 2 hex chars
+def Stdlib.Uuid.__byteToHex(value: Int64, shift: Int64) : String =
+    let byte = (value >> shift) & 255 in
+    let hi = (byte >> 4) & 15 in
+    let lo = byte & 15 in
+    Stdlib.Uuid.__nibbleToHex(hi) ++ Stdlib.Uuid.__nibbleToHex(lo)
+
+// Generate UUID v4: xxxxxxxx-xxxx-4xxx-Nxxx-xxxxxxxxxxxx
+// where N is 8, 9, a, or b (variant bits)
+def Stdlib.Uuid.generate() : String =
+    let high = Stdlib.Random.int64() in
+    let low = Stdlib.Random.int64() in
+    // Set version (4) in byte 6: clear upper nibble, set to 4
+    // Using XOR since we cleared the bits first with AND
+    // Mask -61441 = 0xFFFFFFFFFFFF0FFF (clears bits 12-15)
+    // Version 16384 = 0x4000 (sets bit 14 for version 4)
+    let highWithVersion = (high & (-61441)) ^ 16384 in
+    // Set variant (10xx) in byte 8: clear upper 2 bits, set to 10
+    // Mask 4611686018427387903 = 0x3FFFFFFFFFFFFFFF (clears top 2 bits)
+    // Variant -9223372036854775808 = 0x8000000000000000 (sets top bit)
+    let lowWithVariant = (low & 4611686018427387903) ^ (-9223372036854775808) in
+    // Format: 8-4-4-4-12 hex chars
+    // bytes 0-3 (bits 32-63 of high)
+    Stdlib.Uuid.__byteToHex(highWithVersion, 56) ++
+    Stdlib.Uuid.__byteToHex(highWithVersion, 48) ++
+    Stdlib.Uuid.__byteToHex(highWithVersion, 40) ++
+    Stdlib.Uuid.__byteToHex(highWithVersion, 32) ++ "-" ++
+    // bytes 4-5 (bits 16-31 of high)
+    Stdlib.Uuid.__byteToHex(highWithVersion, 24) ++
+    Stdlib.Uuid.__byteToHex(highWithVersion, 16) ++ "-" ++
+    // bytes 6-7 (bits 0-15 of high) - contains version
+    Stdlib.Uuid.__byteToHex(highWithVersion, 8) ++
+    Stdlib.Uuid.__byteToHex(highWithVersion, 0) ++ "-" ++
+    // bytes 8-9 (bits 48-63 of low) - contains variant
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 56) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 48) ++ "-" ++
+    // bytes 10-15 (bits 0-47 of low)
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 40) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 32) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 24) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 16) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 8) ++
+    Stdlib.Uuid.__byteToHex(lowWithVariant, 0)
+
+// =============================================================================

@@ -1,0 +1,90 @@
+// Dict.dark - Stdlib.Dict definitions
+//
+// Public dictionary API built on the internal HAMT implementation.
+
+// Stdlib.Dict - Immutable Dictionary (public API)
+// =============================================================================
+
+def Stdlib.Dict.empty<k, v>() : Dict<k, v> = __empty_dict<k, v>()
+
+// =============================================================================
+// Dict.get - lookup a key in the dictionary
+// =============================================================================
+// Returns Some(value) if found, None if not found
+
+// Get helper - recursive lookup
+// Note: keyHash is pre-computed hash of the key (for efficiency with string keys)
+def Stdlib.Dict.get<k, v>(dict: Dict<k, v>, key: k) : Stdlib.Option.Option<v> =
+    Stdlib.__HAMT.__getHelper<k, v>(dict, key, __hash<k>(key), 0)
+
+// =============================================================================
+// Dict.set - insert or update a key-value pair
+// =============================================================================
+// Returns a new dictionary with the key-value pair added/updated
+
+// Set helper - recursive insert
+// Note: keyHash is pre-computed hash of the key (for efficiency with string keys)
+def Stdlib.Dict.set<k, v>(dict: Dict<k, v>, key: k, value: v) : Dict<k, v> =
+    Stdlib.__HAMT.__setHelper<k, v>(dict, key, __hash<k>(key), value, 0)
+
+// =============================================================================
+// Dict.remove - remove a key from the dictionary
+// =============================================================================
+// Returns a new dictionary without the key (or unchanged if key not present)
+
+// Copy internal node excluding one child
+def Stdlib.Dict.remove<k, v>(dict: Dict<k, v>, key: k) : Dict<k, v> =
+    Stdlib.__HAMT.__removeHelper<k, v>(dict, key, __hash<k>(key), 0)
+
+
+// =============================================================================
+// Dict Utility Functions (Generic)
+// =============================================================================
+
+// Check if dict is empty
+def Stdlib.Dict.isEmpty<k, v>(dict: Dict<k, v>) : Bool =
+    __dict_is_null<k, v>(dict)
+
+// Check if dict contains a key
+def Stdlib.Dict.contains<k, v>(dict: Dict<k, v>, key: k) : Bool =
+    Stdlib.__HAMT.__containsHelper<k, v>(dict, key, __hash<k>(key), 0)
+
+def Stdlib.Dict.size<k, v>(dict: Dict<k, v>) : Int64 =
+    Stdlib.__HAMT.__sizeHelper<k, v>(dict)
+
+def Stdlib.Dict.keys<k, v>(dict: Dict<k, v>) : List<k> =
+    Stdlib.__HAMT.__keysHelper<k, v>(dict, [])
+
+def Stdlib.Dict.values<k, v>(dict: Dict<k, v>) : List<v> =
+    Stdlib.__HAMT.__valuesHelper<k, v>(dict, [])
+
+def Stdlib.Dict.entries<k, v>(dict: Dict<k, v>) : List<(k, v)> =
+    Stdlib.__HAMT.__entriesHelper<k, v>(dict, [])
+
+def Stdlib.Dict.fold<k, v, a>(dict: Dict<k, v>, init: a, f: (a, k, v) -> a) : a =
+    Stdlib.__HAMT.__foldHelper<k, v, a>(dict, init, f)
+
+def Stdlib.Dict.map<k, v, w>(dict: Dict<k, v>, f: (k, v) -> w) : Dict<k, w> =
+    Stdlib.__HAMT.__mapHelper<k, v, w>(dict, f)
+
+def Stdlib.Dict.filter<k, v>(dict: Dict<k, v>, f: (k, v) -> Bool) : Dict<k, v> =
+    Stdlib.__HAMT.__filterHelper<k, v>(dict, Stdlib.Dict.empty<k, v>(), f)
+
+def Stdlib.Dict.merge<k, v>(dict1: Dict<k, v>, dict2: Dict<k, v>) : Dict<k, v> =
+    Stdlib.__HAMT.__mergeHelper<k, v>(dict2, dict1)
+
+def Stdlib.Dict.fromList<k, v>(pairs: List<(k, v)>) : Dict<k, v> =
+    Stdlib.__HAMT.__fromListHelper<k, v>(pairs, Stdlib.Dict.empty<k, v>())
+
+def Stdlib.Dict.getOrDefault<k, v>(dict: Dict<k, v>, key: k, default: v) : v =
+    Stdlib.Option.withDefault<v>(Stdlib.Dict.get<k, v>(dict, key), default)
+
+// Create a dictionary with a single key-value pair
+def Stdlib.Dict.singleton<k, v>(key: k, value: v) : Dict<k, v> =
+    Stdlib.Dict.set<k, v>(Stdlib.Dict.empty<k, v>(), key, value)
+
+// Convert dictionary to list of key-value pairs (alias for entries)
+def Stdlib.Dict.toList<k, v>(dict: Dict<k, v>) : List<(k, v)> =
+    Stdlib.Dict.entries<k, v>(dict)
+
+// ============================================================================

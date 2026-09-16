@@ -1,0 +1,16 @@
+// Bool.dark - Stdlib.Bool definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Bool - Boolean operations
+
+def Stdlib.Bool.not(b: Bool) : Bool = !b
+
+def Stdlib.Bool.and(a: Bool, b: Bool) : Bool = a && b
+
+def Stdlib.Bool.or(a: Bool, b: Bool) : Bool = a || b
+
+def Stdlib.Bool.xor(a: Bool, b: Bool) : Bool = if a then !b else b
+
+def Stdlib.Bool.toString(b: Bool) : String = if b then "true" else "false"
+

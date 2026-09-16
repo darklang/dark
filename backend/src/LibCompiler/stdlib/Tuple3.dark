@@ -1,0 +1,26 @@
+// Tuple3.dark - Stdlib.Tuple3 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Tuple3 - 3-tuple operations
+
+def Stdlib.Tuple3.create<a, b, c>(first: a, second: b, third: c) : (a, b, c) = (first, second, third)
+
+def Stdlib.Tuple3.first<a, b, c>(t: (a, b, c)) : a = match t with | (x, y, z) -> x
+
+def Stdlib.Tuple3.second<a, b, c>(t: (a, b, c)) : b = match t with | (x, y, z) -> y
+
+def Stdlib.Tuple3.third<a, b, c>(t: (a, b, c)) : c = match t with | (x, y, z) -> z
+
+def Stdlib.Tuple3.mapFirst<a, b, c, d>(fn: (a) -> d, t: (a, b, c)) : (d, b, c) =
+    match t with | (x, y, z) -> (fn(x), y, z)
+
+def Stdlib.Tuple3.mapSecond<a, b, c, d>(fn: (b) -> d, t: (a, b, c)) : (a, d, c) =
+    match t with | (x, y, z) -> (x, fn(y), z)
+
+def Stdlib.Tuple3.mapThird<a, b, c, d>(fn: (c) -> d, t: (a, b, c)) : (a, b, d) =
+    match t with | (x, y, z) -> (x, y, fn(z))
+
+def Stdlib.Tuple3.mapAllThree<a, b, c, d, e, f>(fnFirst: (a) -> d, fnSecond: (b) -> e, fnThird: (c) -> f, t: (a, b, c)) : (d, e, f) =
+    match t with | (x, y, z) -> (fnFirst(x), fnSecond(y), fnThird(z))
+

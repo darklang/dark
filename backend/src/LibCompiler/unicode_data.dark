@@ -1,0 +1,20 @@
+// Unicode data tables (minimal test version)
+
+// Uppercase mapping: codepoint -> list of codepoints
+def Unicode.Data.__upperCase() : Dict<Int64, List<Int64>> =
+    Stdlib.Dict.fromList<Int64, List<Int64>>([
+        (97, [65]), (98, [66]), (99, [67]), (100, [68]), (101, [69]),
+        (223, [83, 83])
+    ])
+
+// Lowercase mapping: codepoint -> list of codepoints
+def Unicode.Data.__lowerCase() : Dict<Int64, List<Int64>> =
+    Stdlib.Dict.fromList<Int64, List<Int64>>([
+        (65, [97]), (66, [98]), (67, [99]), (68, [100]), (69, [101])
+    ])
+
+// Grapheme break property (minimal)
+def Unicode.Data.__graphemeBreak() : Dict<Int64, Int64> =
+    Stdlib.Dict.fromList<Int64, Int64>([
+        (10, 2), (13, 1), (8205, 5)
+    ])

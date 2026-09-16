@@ -1,0 +1,43 @@
+// Result.dark - Stdlib.Result definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Result - Result type for error handling
+type Stdlib.Result.Result<t, e> = Ok of t | Error of e
+
+// Check if result is Ok
+def Stdlib.Result.isOk<t, e>(result: Stdlib.Result.Result<t, e>) : Bool =
+    match result with
+    | Ok(_) -> true
+    | Error(_) -> false
+
+// Check if result is Error
+def Stdlib.Result.isError<t, e>(result: Stdlib.Result.Result<t, e>) : Bool =
+    match result with
+    | Ok(_) -> false
+    | Error(_) -> true
+
+// Get the Ok value or return a default
+def Stdlib.Result.withDefault<t, e>(result: Stdlib.Result.Result<t, e>, default: t) : t =
+    match result with
+    | Ok(v) -> v
+    | Error(_) -> default
+
+// Transform the Ok value with a function
+def Stdlib.Result.map<t, u, e>(result: Stdlib.Result.Result<t, e>, fn: (t) -> u) : Stdlib.Result.Result<u, e> =
+    match result with
+    | Ok(v) -> Ok(fn(v))
+    | Error(err) -> Error(err)
+
+// Transform the Error value with a function
+def Stdlib.Result.mapError<t, e, f>(fn: (e) -> f, result: Stdlib.Result.Result<t, e>) : Stdlib.Result.Result<t, f> =
+    match result with
+    | Ok(v) -> Ok(v)
+    | Error(err) -> Error(fn(err))
+
+// Chain Result computations
+def Stdlib.Result.andThen<t, u, e>(result: Stdlib.Result.Result<t, e>, fn: (t) -> Stdlib.Result.Result<u, e>) : Stdlib.Result.Result<u, e> =
+    match result with
+    | Ok(v) -> fn(v)
+    | Error(err) -> Error(err)
+

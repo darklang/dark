@@ -1,0 +1,43 @@
+// Option.dark - Stdlib.Option definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Option - Optional values
+type Stdlib.Option.Option<t> = Some of t | None
+
+// Check if option has a value
+def Stdlib.Option.isSome<t>(opt: Stdlib.Option.Option<t>) : Bool =
+    match opt with
+    | Some(_) -> true
+    | None -> false
+
+// Check if option is empty
+def Stdlib.Option.isNone<t>(opt: Stdlib.Option.Option<t>) : Bool =
+    match opt with
+    | Some(_) -> false
+    | None -> true
+
+// Get the value or return a default
+def Stdlib.Option.withDefault<t>(opt: Stdlib.Option.Option<t>, default: t) : t =
+    match opt with
+    | Some(v) -> v
+    | None -> default
+
+// Transform the value with a function if present
+def Stdlib.Option.map<t, u>(opt: Stdlib.Option.Option<t>, fn: (t) -> u) : Stdlib.Option.Option<u> =
+    match opt with
+    | Some(v) -> Some(fn(v))
+    | None -> None
+
+// Chain Option computations
+def Stdlib.Option.andThen<t, u>(opt: Stdlib.Option.Option<t>, fn: (t) -> Stdlib.Option.Option<u>) : Stdlib.Option.Option<u> =
+    match opt with
+    | Some(v) -> fn(v)
+    | None -> None
+
+// Convert Option to a single-element or empty list
+def Stdlib.Option.toList<t>(opt: Stdlib.Option.Option<t>) : List<t> =
+    match opt with
+    | Some(v) -> [v]
+    | None -> []
+

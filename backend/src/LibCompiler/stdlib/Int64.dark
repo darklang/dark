@@ -1,0 +1,105 @@
+// Int64.dark - Stdlib.Int64 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Int64 - Integer operations
+
+def Stdlib.Int64.add(a: Int64, b: Int64) : Int64 = a + b
+
+def Stdlib.Int64.sub(a: Int64, b: Int64) : Int64 = a - b
+
+def Stdlib.Int64.mul(a: Int64, b: Int64) : Int64 = a * b
+
+def Stdlib.Int64.div(a: Int64, b: Int64) : Int64 = a / b
+
+def Stdlib.Int64.max(a: Int64, b: Int64) : Int64 = if a > b then a else b
+
+def Stdlib.Int64.min(a: Int64, b: Int64) : Int64 = if a < b then a else b
+
+def Stdlib.Int64.mod(a: Int64, b: Int64) : Int64 = a % b
+
+def Stdlib.Int64.absoluteValue(a: Int64) : Int64 = if a < 0 then 0 - a else a
+
+def Stdlib.Int64.negate(a: Int64) : Int64 = 0 - a
+
+def Stdlib.Int64.power(base: Int64, exponent: Int64) : Int64 =
+    if exponent == 0 then 1
+    else if exponent == 1 then base
+    else base * Stdlib.Int64.power(base, exponent - 1)
+
+def Stdlib.Int64.clamp(value: Int64, limitA: Int64, limitB: Int64) : Int64 =
+    let lower = Stdlib.Int64.min(limitA, limitB) in
+    let upper = Stdlib.Int64.max(limitA, limitB) in
+    Stdlib.Int64.max(lower, Stdlib.Int64.min(upper, value))
+
+def Stdlib.Int64.greaterThan(a: Int64, b: Int64) : Bool = a > b
+
+def Stdlib.Int64.greaterThanOrEqualTo(a: Int64, b: Int64) : Bool = a >= b
+
+def Stdlib.Int64.lessThan(a: Int64, b: Int64) : Bool = a < b
+
+def Stdlib.Int64.lessThanOrEqualTo(a: Int64, b: Int64) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.Int64.bitwiseAnd(a: Int64, b: Int64) : Int64 = a & b
+
+def Stdlib.Int64.bitwiseOr(a: Int64, b: Int64) : Int64 = a ||| b
+
+def Stdlib.Int64.bitwiseXor(a: Int64, b: Int64) : Int64 = a ^ b
+
+def Stdlib.Int64.shiftLeft(a: Int64, shift: Int64) : Int64 = a << shift
+
+def Stdlib.Int64.shiftRight(a: Int64, shift: Int64) : Int64 = a >> shift
+
+def Stdlib.Int64.bitwiseNot(a: Int64) : Int64 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (Brian Kernighan / SWAR)
+def Stdlib.Int64.popcount(x: Int64) : Int64 =
+    // Constants (in decimal):
+    // 0x5555555555555555 = 6148914691236517205
+    // 0x3333333333333333 = 3689348814741910323
+    // 0x0F0F0F0F0F0F0F0F = 1085102592571150095
+    // 0x0101010101010101 = 72340172838076673
+    let mask1 = 6148914691236517205 in
+    let mask2 = 3689348814741910323 in
+    let mask3 = 1085102592571150095 in
+    let mult = 72340172838076673 in
+    let x = x - ((x >> 1) & mask1) in
+    let x = (x & mask2) + ((x >> 2) & mask2) in
+    let x = (x + (x >> 4)) & mask3 in
+    (x * mult) >> 56
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.Int64.__digitToString(n: Int64) : String =
+    match n with
+    | 0 -> "0"
+    | 1 -> "1"
+    | 2 -> "2"
+    | 3 -> "3"
+    | 4 -> "4"
+    | 5 -> "5"
+    | 6 -> "6"
+    | 7 -> "7"
+    | 8 -> "8"
+    | 9 -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.Int64.toString(n: Int64) : String =
+    if n < 0 then "-" ++ Stdlib.Int64.toString(0 - n)
+    else if n < 10 then Stdlib.Int64.__digitToString(n)
+    else Stdlib.Int64.toString(n / 10) ++ Stdlib.Int64.__digitToString(n % 10)
+
+// Check if integer is even
+def Stdlib.Int64.isEven(n: Int64) : Bool =
+    (n % 2) == 0
+
+// Check if integer is odd
+def Stdlib.Int64.isOdd(n: Int64) : Bool =
+    (n % 2) != 0
+
+// Sum all integers in a list
+def Stdlib.Int64.sum(list: List<Int64>) : Int64 =
+    Stdlib.List.fold<Int64, Int64>(list, 0, (acc: Int64, x: Int64) => acc + x)
+

@@ -1,0 +1,9 @@
+module Darklang.Stdlib.PerfDemo
+
+/// Naive recursive Fibonacci — a compute-heavy benchmark for comparing the
+/// interpreter against the native compiler (exponential calls, shallow stack).
+let fib (n: Int64) : Int64 =
+  if n < 2L then
+    n
+  else
+    (Stdlib.PerfDemo.fib (n - 1L)) + (Stdlib.PerfDemo.fib (n - 2L))

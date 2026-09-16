@@ -1,0 +1,98 @@
+// Int8.dark - Stdlib.Int8 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Int8 - Integer operations
+
+def Stdlib.Int8.add(a: Int8, b: Int8) : Int8 = a + b
+
+def Stdlib.Int8.sub(a: Int8, b: Int8) : Int8 = a - b
+
+def Stdlib.Int8.mul(a: Int8, b: Int8) : Int8 = a * b
+
+def Stdlib.Int8.div(a: Int8, b: Int8) : Int8 = a / b
+
+def Stdlib.Int8.max(a: Int8, b: Int8) : Int8 = if a > b then a else b
+
+def Stdlib.Int8.min(a: Int8, b: Int8) : Int8 = if a < b then a else b
+
+def Stdlib.Int8.mod(a: Int8, b: Int8) : Int8 = a % b
+
+def Stdlib.Int8.absoluteValue(a: Int8) : Int8 = if a < 0y then 0y - a else a
+
+def Stdlib.Int8.negate(a: Int8) : Int8 = 0y - a
+
+def Stdlib.Int8.power(base: Int8, exponent: Int8) : Int8 =
+    if exponent == 0y then 1y
+    else if exponent == 1y then base
+    else base * Stdlib.Int8.power(base, exponent - 1y)
+
+def Stdlib.Int8.clamp(value: Int8, limitA: Int8, limitB: Int8) : Int8 =
+    let lower = Stdlib.Int8.min(limitA, limitB) in
+    let upper = Stdlib.Int8.max(limitA, limitB) in
+    Stdlib.Int8.max(lower, Stdlib.Int8.min(upper, value))
+
+def Stdlib.Int8.greaterThan(a: Int8, b: Int8) : Bool = a > b
+
+def Stdlib.Int8.greaterThanOrEqualTo(a: Int8, b: Int8) : Bool = a >= b
+
+def Stdlib.Int8.lessThan(a: Int8, b: Int8) : Bool = a < b
+
+def Stdlib.Int8.lessThanOrEqualTo(a: Int8, b: Int8) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.Int8.bitwiseAnd(a: Int8, b: Int8) : Int8 = a & b
+
+def Stdlib.Int8.bitwiseOr(a: Int8, b: Int8) : Int8 = a ||| b
+
+def Stdlib.Int8.bitwiseXor(a: Int8, b: Int8) : Int8 = a ^ b
+
+def Stdlib.Int8.shiftLeft(a: Int8, shift: Int8) : Int8 = a << shift
+
+def Stdlib.Int8.shiftRight(a: Int8, shift: Int8) : Int8 = a >> shift
+
+def Stdlib.Int8.bitwiseNot(a: Int8) : Int8 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (SWAR)
+def Stdlib.Int8.popcount(x: Int8) : Int8 =
+    let mask1 = 85y in
+    let mask2 = 51y in
+    let mask3 = 15y in
+    let x = x - ((x >> 1y) & mask1) in
+    let x = (x & mask2) + ((x >> 2y) & mask2) in
+    let x = (x + (x >> 4y)) & mask3 in
+    x
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.Int8.__digitToString(n: Int8) : String =
+    match n with
+    | 0y -> "0"
+    | 1y -> "1"
+    | 2y -> "2"
+    | 3y -> "3"
+    | 4y -> "4"
+    | 5y -> "5"
+    | 6y -> "6"
+    | 7y -> "7"
+    | 8y -> "8"
+    | 9y -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.Int8.toString(n: Int8) : String =
+    if n < 0y then "-" ++ Stdlib.Int8.toString(0y - n)
+    else if n < 10y then Stdlib.Int8.__digitToString(n)
+    else Stdlib.Int8.toString(n / 10y) ++ Stdlib.Int8.__digitToString(n % 10y)
+
+// Check if integer is even
+def Stdlib.Int8.isEven(n: Int8) : Bool =
+    (n % 2y) == 0y
+
+// Check if integer is odd
+def Stdlib.Int8.isOdd(n: Int8) : Bool =
+    (n % 2y) != 0y
+
+// Sum all integers in a list
+def Stdlib.Int8.sum(list: List<Int8>) : Int8 =
+    Stdlib.List.fold<Int8, Int8>(list, 0y, (acc: Int8, x: Int8) => acc + x)

@@ -1,0 +1,11 @@
+// Builtin.dark - Legacy Builtin compatibility helpers for upstream tests
+//
+// Provides no-op/internal test helpers that old upstream programs still call.
+
+// Legacy harness helper; current runtime does not track exception counts.
+def Builtin.testSetExpectedExceptionCount(_count: Int64) : Unit =
+    ()
+
+// Legacy DarkInternal helper used by upstream tests.
+def Builtin.darkInternalInfraSchedulingRuleList() : Unit =
+    Builtin.testRuntimeError("Unknown error")

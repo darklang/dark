@@ -1,0 +1,100 @@
+// Int16.dark - Stdlib.Int16 definitions
+//
+// Split from stdlib.dark for modular stdlib loading.
+
+// Stdlib.Int16 - Integer operations
+
+def Stdlib.Int16.add(a: Int16, b: Int16) : Int16 = a + b
+
+def Stdlib.Int16.sub(a: Int16, b: Int16) : Int16 = a - b
+
+def Stdlib.Int16.mul(a: Int16, b: Int16) : Int16 = a * b
+
+def Stdlib.Int16.div(a: Int16, b: Int16) : Int16 = a / b
+
+def Stdlib.Int16.max(a: Int16, b: Int16) : Int16 = if a > b then a else b
+
+def Stdlib.Int16.min(a: Int16, b: Int16) : Int16 = if a < b then a else b
+
+def Stdlib.Int16.mod(a: Int16, b: Int16) : Int16 = a % b
+
+def Stdlib.Int16.absoluteValue(a: Int16) : Int16 = if a < 0s then 0s - a else a
+
+def Stdlib.Int16.negate(a: Int16) : Int16 = 0s - a
+
+def Stdlib.Int16.power(base: Int16, exponent: Int16) : Int16 =
+    if exponent == 0s then 1s
+    else if exponent == 1s then base
+    else base * Stdlib.Int16.power(base, exponent - 1s)
+
+def Stdlib.Int16.clamp(value: Int16, limitA: Int16, limitB: Int16) : Int16 =
+    let lower = Stdlib.Int16.min(limitA, limitB) in
+    let upper = Stdlib.Int16.max(limitA, limitB) in
+    Stdlib.Int16.max(lower, Stdlib.Int16.min(upper, value))
+
+def Stdlib.Int16.greaterThan(a: Int16, b: Int16) : Bool = a > b
+
+def Stdlib.Int16.greaterThanOrEqualTo(a: Int16, b: Int16) : Bool = a >= b
+
+def Stdlib.Int16.lessThan(a: Int16, b: Int16) : Bool = a < b
+
+def Stdlib.Int16.lessThanOrEqualTo(a: Int16, b: Int16) : Bool = a <= b
+
+// Bitwise operations
+def Stdlib.Int16.bitwiseAnd(a: Int16, b: Int16) : Int16 = a & b
+
+def Stdlib.Int16.bitwiseOr(a: Int16, b: Int16) : Int16 = a ||| b
+
+def Stdlib.Int16.bitwiseXor(a: Int16, b: Int16) : Int16 = a ^ b
+
+def Stdlib.Int16.shiftLeft(a: Int16, shift: Int16) : Int16 = a << shift
+
+def Stdlib.Int16.shiftRight(a: Int16, shift: Int16) : Int16 = a >> shift
+
+def Stdlib.Int16.bitwiseNot(a: Int16) : Int16 = ~~~a
+
+// Count number of set bits (population count)
+// Uses parallel bit counting algorithm (SWAR)
+def Stdlib.Int16.popcount(x: Int16) : Int16 =
+    let mask1 = 21845s in
+    let mask2 = 13107s in
+    let mask3 = 3855s in
+    let mask4 = 31s in
+    let x = x - ((x >> 1s) & mask1) in
+    let x = (x & mask2) + ((x >> 2s) & mask2) in
+    let x = (x + (x >> 4s)) & mask3 in
+    let x = x + (x >> 8s) in
+    x & mask4
+
+// Convert a single digit (0-9) to its string representation
+def Stdlib.Int16.__digitToString(n: Int16) : String =
+    match n with
+    | 0s -> "0"
+    | 1s -> "1"
+    | 2s -> "2"
+    | 3s -> "3"
+    | 4s -> "4"
+    | 5s -> "5"
+    | 6s -> "6"
+    | 7s -> "7"
+    | 8s -> "8"
+    | 9s -> "9"
+    | _ -> "?"
+
+// Convert an integer to its string representation
+def Stdlib.Int16.toString(n: Int16) : String =
+    if n < 0s then "-" ++ Stdlib.Int16.toString(0s - n)
+    else if n < 10s then Stdlib.Int16.__digitToString(n)
+    else Stdlib.Int16.toString(n / 10s) ++ Stdlib.Int16.__digitToString(n % 10s)
+
+// Check if integer is even
+def Stdlib.Int16.isEven(n: Int16) : Bool =
+    (n % 2s) == 0s
+
+// Check if integer is odd
+def Stdlib.Int16.isOdd(n: Int16) : Bool =
+    (n % 2s) != 0s
+
+// Sum all integers in a list
+def Stdlib.Int16.sum(list: List<Int16>) : Int16 =
+    Stdlib.List.fold<Int16, Int16>(list, 0s, (acc: Int16, x: Int16) => acc + x)

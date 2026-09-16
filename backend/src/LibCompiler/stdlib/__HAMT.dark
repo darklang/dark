@@ -1,0 +1,741 @@
+// __HAMT.dark - Stdlib.__HAMT definitions
+//
+// Internal HAMT implementation details for Stdlib.Dict.
+
+// Stdlib.__HAMT - Internal Hash Array Mapped Trie helpers
+// =============================================================================
+
+def Stdlib.__HAMT.__hashChunk(hash: Int64, level: Int64) : Int64 =
+    (hash >> (level * 6)) & 63
+
+// Check if bit is set in bitmap
+def Stdlib.__HAMT.__hasBit(bitmap: Int64, bit: Int64) : Bool =
+    ((bitmap >> bit) & 1) == 1
+
+// Count bits below position in bitmap (for compressed array index)
+def Stdlib.__HAMT.__childIndex(bitmap: Int64, bit: Int64) : Int64 =
+    Stdlib.Int64.popcount(bitmap & ((1 << bit) - 1))
+
+// Set a bit in bitmap
+def Stdlib.__HAMT.__setBit(bitmap: Int64, bit: Int64) : Int64 =
+    bitmap ^ (1 << bit)
+
+// Clear a bit in bitmap (for remove)
+// Note: ~x = (-1) ^ x (XOR with all ones)
+def Stdlib.__HAMT.__clearBit(bitmap: Int64, bit: Int64) : Int64 =
+    bitmap & (((0 - 1)) ^ (1 << bit))
+
+// =============================================================================
+// Pointer tagging helpers
+// =============================================================================
+// We use the low 2 bits of pointers for tags (since 8-byte alignment gives us 3 free bits)
+// Tag 0: Empty (NULL)
+// Tag 1: Internal node (bitmap + children)
+// Tag 2: Leaf node (key + value)
+// Tag 3: Collision node (multiple entries with same hash prefix) - not yet implemented
+
+// Get tag from a tagged pointer
+def Stdlib.__HAMT.__getTag<k, v>(dict: Dict<k, v>) : Int64 =
+    __dict_get_tag<k, v>(dict)
+
+// Clear tag bits to get actual pointer (returns RawPtr)
+def Stdlib.__HAMT.__clearTag<k, v>(dict: Dict<k, v>) : RawPtr =
+    __dict_to_rawptr<k, v>(dict)
+
+// Set tag on a pointer to create a Dict
+def Stdlib.__HAMT.__setTag<k, v>(ptr: RawPtr, tag: Int64) : Dict<k, v> =
+    __rawptr_to_dict<k, v>(ptr, tag)
+
+// Allocate a leaf node: [key:8][value:8] = 16 bytes
+def Stdlib.__HAMT.__allocLeaf<k, v>(key: k, value: v) : Dict<k, v> =
+    let ptr = __raw_alloc(16) in
+    let _ = __raw_set<k>(ptr, 0, key) in
+    let _ = __raw_set<v>(ptr, 8, value) in
+    Stdlib.__HAMT.__setTag<k, v>(ptr, 2)
+
+// Allocate an internal node: [bitmap:8][children...] = 8 + 8*numChildren bytes
+def Stdlib.__HAMT.__allocInternal(bitmap: Int64, numChildren: Int64) : RawPtr =
+    let ptr = __raw_alloc(8 + (numChildren * 8)) in
+    let _ = __raw_set<Int64>(ptr, 0, bitmap) in
+    ptr
+
+// =============================================================================
+// Collision Node Functions (Tag 3)
+// =============================================================================
+// Collision node layout: [count:8][key1:8][val1:8][key2:8][val2:8]...
+// Used when multiple keys have identical hash values through all levels
+
+// Allocate a collision node with 2 initial entries
+def Stdlib.__HAMT.__allocCollision<k, v>(key1: k, val1: v, key2: k, val2: v) : Dict<k, v> =
+    // 8 bytes for count + 2 * 16 bytes for entries = 40 bytes
+    let ptr = __raw_alloc(40) in
+    let _ = __raw_set<Int64>(ptr, 0, 2) in  // count = 2
+    let _ = __raw_set<k>(ptr, 8, key1) in
+    let _ = __raw_set<v>(ptr, 16, val1) in
+    let _ = __raw_set<k>(ptr, 24, key2) in
+    let _ = __raw_set<v>(ptr, 32, val2) in
+    Stdlib.__HAMT.__setTag<k, v>(ptr, 3)
+
+// Get count from collision node
+def Stdlib.__HAMT.__collisionCount<k, v>(ptr: RawPtr) : Int64 =
+    __raw_get<Int64>(ptr, 0)
+
+// Find key in collision node, returns index (0-based) or -1 if not found
+def Stdlib.__HAMT.__findInCollision<k, v>(ptr: RawPtr, key: k, count: Int64, i: Int64) : Int64 =
+    if i >= count then -1
+    else
+        let offset = 8 + (i * 16) in
+        let storedKey = __raw_get<k>(ptr, offset) in
+        if __key_eq<k>(storedKey, key) then i
+        else Stdlib.__HAMT.__findInCollision<k, v>(ptr, key, count, i + 1)
+
+// Get value from collision node at index
+def Stdlib.__HAMT.__getCollisionValue<k, v>(ptr: RawPtr, idx: Int64) : v =
+    let offset = 8 + (idx * 16) + 8 in
+    __raw_get<v>(ptr, offset)
+
+// Get key from collision node at index
+def Stdlib.__HAMT.__getCollisionKey<k, v>(ptr: RawPtr, idx: Int64) : k =
+    let offset = 8 + (idx * 16) in
+    __raw_get<k>(ptr, offset)
+
+// Lookup in collision node
+def Stdlib.__HAMT.__getFromCollision<k, v>(ptr: RawPtr, key: k) : Stdlib.Option.Option<v> =
+    let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+    let idx = Stdlib.__HAMT.__findInCollision<k, v>(ptr, key, count, 0) in
+    if idx >= 0 then Some(Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, idx))
+    else None
+
+// Copy collision entries except one index
+def Stdlib.__HAMT.__copyCollisionExcept<k, v>(oldPtr: RawPtr, newPtr: RawPtr, count: Int64, exceptIdx: Int64, i: Int64, destI: Int64) : Unit =
+    if i >= count then ()
+    else if i == exceptIdx then
+        Stdlib.__HAMT.__copyCollisionExcept<k, v>(oldPtr, newPtr, count, exceptIdx, i + 1, destI)
+    else
+        let srcOffset = 8 + (i * 16) in
+        let destOffset = 8 + (destI * 16) in
+        let key = __raw_get<k>(oldPtr, srcOffset) in
+        let value = __raw_get<v>(oldPtr, srcOffset + 8) in
+        let _ = __raw_set<k>(newPtr, destOffset, key) in
+        let _ = __raw_set<v>(newPtr, destOffset + 8, value) in
+        Stdlib.__HAMT.__copyCollisionExcept<k, v>(oldPtr, newPtr, count, exceptIdx, i + 1, destI + 1)
+
+// Copy all collision entries
+def Stdlib.__HAMT.__copyAllCollision<k, v>(oldPtr: RawPtr, newPtr: RawPtr, count: Int64, i: Int64) : Unit =
+    if i >= count then ()
+    else
+        let offset = 8 + (i * 16) in
+        let key = __raw_get<k>(oldPtr, offset) in
+        let value = __raw_get<v>(oldPtr, offset + 8) in
+        let _ = __raw_set<k>(newPtr, offset, key) in
+        let _ = __raw_set<v>(newPtr, offset + 8, value) in
+        Stdlib.__HAMT.__copyAllCollision<k, v>(oldPtr, newPtr, count, i + 1)
+
+// Update or add entry in collision node
+def Stdlib.__HAMT.__setInCollision<k, v>(ptr: RawPtr, key: k, value: v) : Dict<k, v> =
+    let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+    let idx = Stdlib.__HAMT.__findInCollision<k, v>(ptr, key, count, 0) in
+    if idx >= 0 then
+        // Key exists - create new collision node with updated value
+        let newPtr = __raw_alloc(8 + (count * 16)) in
+        let _ = __raw_set<Int64>(newPtr, 0, count) in
+        let _ = Stdlib.__HAMT.__copyAllCollision<k, v>(ptr, newPtr, count, 0) in
+        let updateOffset = 8 + (idx * 16) + 8 in
+        let _ = __raw_set<v>(newPtr, updateOffset, value) in
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 3)
+    else
+        // Key doesn't exist - create new collision node with added entry
+        let newCount = count + 1 in
+        let newPtr = __raw_alloc(8 + (newCount * 16)) in
+        let _ = __raw_set<Int64>(newPtr, 0, newCount) in
+        let _ = Stdlib.__HAMT.__copyAllCollision<k, v>(ptr, newPtr, count, 0) in
+        let newOffset = 8 + (count * 16) in
+        let _ = __raw_set<k>(newPtr, newOffset, key) in
+        let _ = __raw_set<v>(newPtr, newOffset + 8, value) in
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 3)
+
+// Remove entry from collision node
+def Stdlib.__HAMT.__removeFromCollision<k, v>(ptr: RawPtr, key: k) : Dict<k, v> =
+    let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+    let idx = Stdlib.__HAMT.__findInCollision<k, v>(ptr, key, count, 0) in
+    if idx < 0 then
+        // Key not found - return unchanged
+        Stdlib.__HAMT.__setTag<k, v>(ptr, 3)
+    else if count == 2 then
+        // Removing one of two entries - collapse to leaf
+        let otherIdx = if idx == 0 then 1 else 0 in
+        let otherKey = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, otherIdx) in
+        let otherValue = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, otherIdx) in
+        Stdlib.__HAMT.__allocLeaf<k, v>(otherKey, otherValue)
+    else
+        // Remove entry - create smaller collision node
+        let newCount = count - 1 in
+        let newPtr = __raw_alloc(8 + (newCount * 16)) in
+        let _ = __raw_set<Int64>(newPtr, 0, newCount) in
+        let _ = Stdlib.__HAMT.__copyCollisionExcept<k, v>(ptr, newPtr, count, idx, 0, 0) in
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 3)
+
+// Check if key exists in collision node
+def Stdlib.__HAMT.__containsInCollision<k, v>(ptr: RawPtr, key: k) : Bool =
+    let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+    let idx = Stdlib.__HAMT.__findInCollision<k, v>(ptr, key, count, 0) in
+    idx >= 0
+
+// Collect keys from collision node
+def Stdlib.__HAMT.__collectCollisionKeys<k, v>(ptr: RawPtr, count: Int64, i: Int64, acc: List<k>) : List<k> =
+    if i >= count then acc
+    else
+        let key = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, i) in
+        Stdlib.__HAMT.__collectCollisionKeys<k, v>(ptr, count, i + 1, [key, ...acc])
+
+// Collect values from collision node
+def Stdlib.__HAMT.__collectCollisionValues<k, v>(ptr: RawPtr, count: Int64, i: Int64, acc: List<v>) : List<v> =
+    if i >= count then acc
+    else
+        let value = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, i) in
+        Stdlib.__HAMT.__collectCollisionValues<k, v>(ptr, count, i + 1, [value, ...acc])
+
+// Collect entries from collision node
+def Stdlib.__HAMT.__collectCollisionEntries<k, v>(ptr: RawPtr, count: Int64, i: Int64, acc: List<(k, v)>) : List<(k, v)> =
+    if i >= count then acc
+    else
+        let key = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, i) in
+        let value = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, i) in
+        Stdlib.__HAMT.__collectCollisionEntries<k, v>(ptr, count, i + 1, [(key, value), ...acc])
+
+// Fold over collision node entries
+def Stdlib.__HAMT.__foldCollision<k, v, a>(ptr: RawPtr, count: Int64, i: Int64, acc: a, f: (a, k, v) -> a) : a =
+    if i >= count then acc
+    else
+        let key = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, i) in
+        let value = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, i) in
+        Stdlib.__HAMT.__foldCollision<k, v, a>(ptr, count, i + 1, f(acc, key, value), f)
+
+// Map over collision node entries
+def Stdlib.__HAMT.__mapCollision<k, v, w>(ptr: RawPtr, count: Int64, f: (k, v) -> w) : Dict<k, w> =
+    // Collision nodes have >= 2 entries, so we can safely get key0/key1
+    let key0 = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, 0) in
+    let val0 = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, 0) in
+    let key1 = Stdlib.__HAMT.__getCollisionKey<k, v>(ptr, 1) in
+    let val1 = Stdlib.__HAMT.__getCollisionValue<k, v>(ptr, 1) in
+    let newVal0 = f(key0, val0) in
+    let newVal1 = f(key1, val1) in
+    let result = Stdlib.__HAMT.__allocCollision<k, w>(key0, newVal0, key1, newVal1) in
+    Stdlib.__HAMT.__mapCollisionRest<k, v, w>(ptr, Stdlib.__HAMT.__clearTag<k, w>(result), count, 2, f)
+
+def Stdlib.__HAMT.__mapCollisionRest<k, v, w>(oldPtr: RawPtr, newPtr: RawPtr, count: Int64, i: Int64, f: (k, v) -> w) : Dict<k, w> =
+    if i >= count then Stdlib.__HAMT.__setTag<k, w>(newPtr, 3)
+    else
+        // For additional entries beyond first 2, we need to add them
+        // This is a simplification - we use setInCollision which handles growing
+        let key = Stdlib.__HAMT.__getCollisionKey<k, v>(oldPtr, i) in
+        let value = Stdlib.__HAMT.__getCollisionValue<k, v>(oldPtr, i) in
+        let newValue = f(key, value) in
+        let newNode = Stdlib.__HAMT.__setInCollision<k, w>(newPtr, key, newValue) in
+        Stdlib.__HAMT.__mapCollisionRest<k, v, w>(oldPtr, Stdlib.__HAMT.__clearTag<k, w>(newNode), count, i + 1, f)
+
+// =============================================================================
+// Dict.empty - returns an empty dictionary
+// =============================================================================
+// Empty is represented as 0 (NULL with tag 0)
+def Stdlib.__HAMT.__getHelper<k, v>(node: Dict<k, v>, key: k, keyHash: Int64, level: Int64) : Stdlib.Option.Option<v> =
+    if __dict_is_null<k, v>(node) then
+        None
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            // Leaf node
+            let storedKey = __raw_get<k>(ptr, 0) in
+            if __key_eq<k>(storedKey, key) then
+                Some(__raw_get<v>(ptr, 8))
+            else
+                None
+        else if tag == 1 then
+            // Internal node
+            let chunk = Stdlib.__HAMT.__hashChunk(keyHash, level) in
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            if Stdlib.__HAMT.__hasBit(bitmap, chunk) then
+                let idx = Stdlib.__HAMT.__childIndex(bitmap, chunk) in
+                let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+                Stdlib.__HAMT.__getHelper<k, v>(child, key, keyHash, level + 1)
+            else
+                None
+        else if tag == 3 then
+            // Collision node - linear search
+            Stdlib.__HAMT.__getFromCollision<k, v>(ptr, key)
+        else
+            // Unknown tag
+            None
+
+def Stdlib.__HAMT.__setHelper<k, v>(node: Dict<k, v>, key: k, keyHash: Int64, value: v, level: Int64) : Dict<k, v> =
+    if __dict_is_null<k, v>(node) then
+        // Empty - create a new leaf
+        Stdlib.__HAMT.__allocLeaf<k, v>(key, value)
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            // Leaf node - check if same key or need to expand
+            let storedKey = __raw_get<k>(ptr, 0) in
+            if __key_eq<k>(storedKey, key) then
+                // Same key - replace value (create new leaf)
+                Stdlib.__HAMT.__allocLeaf<k, v>(key, value)
+            else
+                // Different key - need to expand to internal node
+                let storedValue = __raw_get<v>(ptr, 8) in
+                let storedKeyHash = __hash<k>(storedKey) in
+                Stdlib.__HAMT.__expandLeaf<k, v>(storedKey, storedKeyHash, storedValue, key, keyHash, value, level)
+        else if tag == 1 then
+            // Internal node - recurse into appropriate child
+            let chunk = Stdlib.__HAMT.__hashChunk(keyHash, level) in
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            let idx = Stdlib.__HAMT.__childIndex(bitmap, chunk) in
+            if Stdlib.__HAMT.__hasBit(bitmap, chunk) then
+                // Child exists - update it
+                let oldChild = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+                let newChild = Stdlib.__HAMT.__setHelper<k, v>(oldChild, key, keyHash, value, level + 1) in
+                Stdlib.__HAMT.__copyInternalWithUpdate<k, v>(ptr, bitmap, idx, newChild)
+            else
+                // No child at this position - insert new leaf
+                let newLeaf = Stdlib.__HAMT.__allocLeaf<k, v>(key, value) in
+                let newBitmap = Stdlib.__HAMT.__setBit(bitmap, chunk) in
+                Stdlib.__HAMT.__copyInternalWithInsert<k, v>(ptr, bitmap, newBitmap, idx, newLeaf)
+        else if tag == 3 then
+            // Collision node - update or add
+            Stdlib.__HAMT.__setInCollision<k, v>(ptr, key, value)
+        else
+            // Unknown tag - return node unchanged
+            node
+
+// Expand a leaf to an internal node when two keys collide
+def Stdlib.__HAMT.__expandLeaf<k, v>(key1: k, key1Hash: Int64, val1: v, key2: k, key2Hash: Int64, val2: v, level: Int64) : Dict<k, v> =
+    let chunk1 = Stdlib.__HAMT.__hashChunk(key1Hash, level) in
+    let chunk2 = Stdlib.__HAMT.__hashChunk(key2Hash, level) in
+    if chunk1 == chunk2 then
+        // Same chunk - need to go deeper
+        if level >= 10 then
+            // Max depth reached - create collision node
+            Stdlib.__HAMT.__allocCollision<k, v>(key1, val1, key2, val2)
+        else
+            // Create internal node with single child (recursive case)
+            let child = Stdlib.__HAMT.__expandLeaf<k, v>(key1, key1Hash, val1, key2, key2Hash, val2, level + 1) in
+            let bitmap = Stdlib.__HAMT.__setBit(0, chunk1) in
+            let newNode = Stdlib.__HAMT.__allocInternal(bitmap, 1) in
+            let _ = __raw_set<Dict<k, v>>(newNode, 8, child) in
+            Stdlib.__HAMT.__setTag<k, v>(newNode, 1)
+    else
+        // Different chunks - create internal node with both leaves
+        let leaf1 = Stdlib.__HAMT.__allocLeaf<k, v>(key1, val1) in
+        let leaf2 = Stdlib.__HAMT.__allocLeaf<k, v>(key2, val2) in
+        let bitmap = Stdlib.__HAMT.__setBit(Stdlib.__HAMT.__setBit(0, chunk1), chunk2) in
+        let newNode = Stdlib.__HAMT.__allocInternal(bitmap, 2) in
+        // Store children in order of their chunks
+        if chunk1 < chunk2 then
+            let _ = __raw_set<Dict<k, v>>(newNode, 8, leaf1) in
+            let _ = __raw_set<Dict<k, v>>(newNode, 16, leaf2) in
+            Stdlib.__HAMT.__setTag<k, v>(newNode, 1)
+        else
+            let _ = __raw_set<Dict<k, v>>(newNode, 8, leaf2) in
+            let _ = __raw_set<Dict<k, v>>(newNode, 16, leaf1) in
+            Stdlib.__HAMT.__setTag<k, v>(newNode, 1)
+
+// Copy internal node with one child updated
+def Stdlib.__HAMT.__copyInternalWithUpdate<k, v>(oldPtr: RawPtr, bitmap: Int64, updateIdx: Int64, newChild: Dict<k, v>) : Dict<k, v> =
+    let numChildren = Stdlib.Int64.popcount(bitmap) in
+    let newNode = Stdlib.__HAMT.__allocInternal(bitmap, numChildren) in
+    // Copy all children, replacing the one at updateIdx
+    Stdlib.__HAMT.__copyChildren<k, v>(oldPtr, newNode, numChildren, updateIdx, newChild, 0)
+
+// Copy children from old node to new node, updating one
+def Stdlib.__HAMT.__copyChildren<k, v>(oldPtr: RawPtr, newPtr: RawPtr, numChildren: Int64, updateIdx: Int64, newChild: Dict<k, v>, i: Int64) : Dict<k, v> =
+    if i >= numChildren then
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 1)
+    else
+        let offset = 8 + (i * 8) in
+        if i == updateIdx then
+            let _ = __raw_set<Dict<k, v>>(newPtr, offset, newChild) in
+            Stdlib.__HAMT.__copyChildren<k, v>(oldPtr, newPtr, numChildren, updateIdx, newChild, i + 1)
+        else
+            let child = __raw_get<Dict<k, v>>(oldPtr, offset) in
+            let _ = __raw_set<Dict<k, v>>(newPtr, offset, child) in
+            Stdlib.__HAMT.__copyChildren<k, v>(oldPtr, newPtr, numChildren, updateIdx, newChild, i + 1)
+
+// Copy internal node with a new child inserted at position
+def Stdlib.__HAMT.__copyInternalWithInsert<k, v>(oldPtr: RawPtr, oldBitmap: Int64, newBitmap: Int64, insertIdx: Int64, newChild: Dict<k, v>) : Dict<k, v> =
+    let oldNumChildren = Stdlib.Int64.popcount(oldBitmap) in
+    let newNumChildren = oldNumChildren + 1 in
+    let newNode = Stdlib.__HAMT.__allocInternal(newBitmap, newNumChildren) in
+    // Copy children, inserting new one at insertIdx
+    Stdlib.__HAMT.__copyChildrenWithInsert<k, v>(oldPtr, newNode, oldNumChildren, insertIdx, newChild, 0, 0)
+
+// Copy children from old node to new node, inserting one
+def Stdlib.__HAMT.__copyChildrenWithInsert<k, v>(oldPtr: RawPtr, newPtr: RawPtr, oldNumChildren: Int64, insertIdx: Int64, newChild: Dict<k, v>, oldI: Int64, newI: Int64) : Dict<k, v> =
+    if newI == insertIdx then
+        // Insert the new child here
+        let offset = 8 + (newI * 8) in
+        let _ = __raw_set<Dict<k, v>>(newPtr, offset, newChild) in
+        Stdlib.__HAMT.__copyChildrenWithInsert<k, v>(oldPtr, newPtr, oldNumChildren, insertIdx, newChild, oldI, newI + 1)
+    else if oldI >= oldNumChildren then
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 1)
+    else
+        // Copy from old node
+        let oldOffset = 8 + (oldI * 8) in
+        let newOffset = 8 + (newI * 8) in
+        let child = __raw_get<Dict<k, v>>(oldPtr, oldOffset) in
+        let _ = __raw_set<Dict<k, v>>(newPtr, newOffset, child) in
+        Stdlib.__HAMT.__copyChildrenWithInsert<k, v>(oldPtr, newPtr, oldNumChildren, insertIdx, newChild, oldI + 1, newI + 1)
+
+def Stdlib.__HAMT.__copyChildrenExcluding<k, v>(oldPtr: RawPtr, newPtr: RawPtr, oldNumChildren: Int64, excludeIdx: Int64, oldI: Int64, newI: Int64) : Dict<k, v> =
+    if oldI >= oldNumChildren then
+        Stdlib.__HAMT.__setTag<k, v>(newPtr, 1)
+    else if oldI == excludeIdx then
+        // Skip this child
+        Stdlib.__HAMT.__copyChildrenExcluding<k, v>(oldPtr, newPtr, oldNumChildren, excludeIdx, oldI + 1, newI)
+    else
+        // Copy this child
+        let oldOffset = 8 + (oldI * 8) in
+        let newOffset = 8 + (newI * 8) in
+        let child = __raw_get<Dict<k, v>>(oldPtr, oldOffset) in
+        let _ = __raw_set<Dict<k, v>>(newPtr, newOffset, child) in
+        Stdlib.__HAMT.__copyChildrenExcluding<k, v>(oldPtr, newPtr, oldNumChildren, excludeIdx, oldI + 1, newI + 1)
+
+// Copy internal node with one child removed
+def Stdlib.__HAMT.__copyInternalWithRemove<k, v>(oldPtr: RawPtr, oldBitmap: Int64, newBitmap: Int64, removeIdx: Int64) : Dict<k, v> =
+    let oldNumChildren = Stdlib.Int64.popcount(oldBitmap) in
+    let newNumChildren = oldNumChildren - 1 in
+    if newNumChildren == 0 then
+        // No children left - return empty
+        __empty_dict<k, v>()
+    else
+        let newNode = Stdlib.__HAMT.__allocInternal(newBitmap, newNumChildren) in
+        Stdlib.__HAMT.__copyChildrenExcluding<k, v>(oldPtr, newNode, oldNumChildren, removeIdx, 0, 0)
+
+// Remove helper - recursive removal
+def Stdlib.__HAMT.__removeHelper<k, v>(node: Dict<k, v>, key: k, keyHash: Int64, level: Int64) : Dict<k, v> =
+    if __dict_is_null<k, v>(node) then
+        // Empty - key not found, return empty
+        __empty_dict<k, v>()
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            // Leaf node
+            let storedKey = __raw_get<k>(ptr, 0) in
+            if __key_eq<k>(storedKey, key) then
+                // Found the key - return empty to remove it
+                __empty_dict<k, v>()
+            else
+                // Different key - not found, return unchanged
+                node
+        else if tag == 1 then
+            // Internal node
+            let chunk = Stdlib.__HAMT.__hashChunk(keyHash, level) in
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            if Stdlib.__HAMT.__hasBit(bitmap, chunk) then
+                let idx = Stdlib.__HAMT.__childIndex(bitmap, chunk) in
+                let oldChild = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+                let newChild = Stdlib.__HAMT.__removeHelper<k, v>(oldChild, key, keyHash, level + 1) in
+                if __dict_is_null<k, v>(newChild) then
+                    // Child was removed - need to update this node
+                    let numChildren = Stdlib.Int64.popcount(bitmap) in
+                    if numChildren == 1 then
+                        // This was the only child - return empty
+                        __empty_dict<k, v>()
+                    else if numChildren == 2 then
+                        // Two children, one being removed - check if we can collapse
+                        // Get the other child index (0 if we're removing 1, 1 if removing 0)
+                        let otherIdx = 1 - idx in
+                        let otherChild = __raw_get<Dict<k, v>>(ptr, 8 + (otherIdx * 8)) in
+                        let otherTag = Stdlib.__HAMT.__getTag<k, v>(otherChild) in
+                        if otherTag == 2 then
+                            // Other child is a leaf - collapse to it
+                            otherChild
+                        else
+                            // Other child is internal - can't collapse, create new node
+                            let newBitmap = Stdlib.__HAMT.__clearBit(bitmap, chunk) in
+                            Stdlib.__HAMT.__copyInternalWithRemove<k, v>(ptr, bitmap, newBitmap, idx)
+                    else
+                        // More than 2 children - create new node without removed child
+                        let newBitmap = Stdlib.__HAMT.__clearBit(bitmap, chunk) in
+                        Stdlib.__HAMT.__copyInternalWithRemove<k, v>(ptr, bitmap, newBitmap, idx)
+                else
+                    // Child was modified (but not removed) - update
+                    Stdlib.__HAMT.__copyInternalWithUpdate<k, v>(ptr, bitmap, idx, newChild)
+            else
+                // Bit not set - key not in this subtree
+                node
+        else if tag == 3 then
+            // Collision node - remove from collision
+            Stdlib.__HAMT.__removeFromCollision<k, v>(ptr, key)
+        else
+            // Unknown tag - return unchanged
+            node
+
+def Stdlib.__HAMT.__containsHelper<k, v>(node: Dict<k, v>, key: k, keyHash: Int64, level: Int64) : Bool =
+    if __dict_is_null<k, v>(node) then
+        false
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            // Leaf node
+            let storedKey = __raw_get<k>(ptr, 0) in
+            __key_eq<k>(storedKey, key)
+        else if tag == 1 then
+            // Internal node
+            let chunk = Stdlib.__HAMT.__hashChunk(keyHash, level) in
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            if Stdlib.__HAMT.__hasBit(bitmap, chunk) then
+                let idx = Stdlib.__HAMT.__childIndex(bitmap, chunk) in
+                let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+                Stdlib.__HAMT.__containsHelper<k, v>(child, key, keyHash, level + 1)
+            else
+                false
+        else if tag == 3 then
+            // Collision node
+            Stdlib.__HAMT.__containsInCollision<k, v>(ptr, key)
+        else
+            false
+
+// Count entries in dict
+def Stdlib.__HAMT.__sizeHelper<k, v>(node: Dict<k, v>) : Int64 =
+    if __dict_is_null<k, v>(node) then
+        0
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            1
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__countChildren<k, v>(ptr, bitmap, 0)
+        else if tag == 3 then
+            // Collision node - return count of entries
+            Stdlib.__HAMT.__collisionCount<k, v>(ptr)
+        else
+            0
+
+def Stdlib.__HAMT.__countChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64) : Int64 =
+    if bitmap == 0 then
+        0
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        Stdlib.__HAMT.__sizeHelper<k, v>(child) + Stdlib.__HAMT.__countChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1)
+
+// =============================================================================
+// Dict Enumeration (Generic)
+// =============================================================================
+
+// Get all keys from dict
+def Stdlib.__HAMT.__keysHelper<k, v>(node: Dict<k, v>, acc: List<k>) : List<k> =
+    if __dict_is_null<k, v>(node) then
+        acc
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            [key, ...acc]
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__collectKeysFromChildren<k, v>(ptr, bitmap, 0, acc)
+        else if tag == 3 then
+            let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+            Stdlib.__HAMT.__collectCollisionKeys<k, v>(ptr, count, 0, acc)
+        else
+            acc
+
+def Stdlib.__HAMT.__collectKeysFromChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64, acc: List<k>) : List<k> =
+    if bitmap == 0 then
+        acc
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newAcc = Stdlib.__HAMT.__keysHelper<k, v>(child, acc) in
+        Stdlib.__HAMT.__collectKeysFromChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1, newAcc)
+
+// Get all values from dict
+def Stdlib.__HAMT.__valuesHelper<k, v>(node: Dict<k, v>, acc: List<v>) : List<v> =
+    if __dict_is_null<k, v>(node) then
+        acc
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let value = __raw_get<v>(ptr, 8) in
+            [value, ...acc]
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__collectValuesFromChildren<k, v>(ptr, bitmap, 0, acc)
+        else if tag == 3 then
+            let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+            Stdlib.__HAMT.__collectCollisionValues<k, v>(ptr, count, 0, acc)
+        else
+            acc
+
+def Stdlib.__HAMT.__collectValuesFromChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64, acc: List<v>) : List<v> =
+    if bitmap == 0 then
+        acc
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newAcc = Stdlib.__HAMT.__valuesHelper<k, v>(child, acc) in
+        Stdlib.__HAMT.__collectValuesFromChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1, newAcc)
+
+// Get all entries from dict as key-value tuples
+def Stdlib.__HAMT.__entriesHelper<k, v>(node: Dict<k, v>, acc: List<(k, v)>) : List<(k, v)> =
+    if __dict_is_null<k, v>(node) then
+        acc
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            let value = __raw_get<v>(ptr, 8) in
+            [(key, value), ...acc]
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__collectEntriesFromChildren<k, v>(ptr, bitmap, 0, acc)
+        else if tag == 3 then
+            let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+            Stdlib.__HAMT.__collectCollisionEntries<k, v>(ptr, count, 0, acc)
+        else
+            acc
+
+def Stdlib.__HAMT.__collectEntriesFromChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64, acc: List<(k, v)>) : List<(k, v)> =
+    if bitmap == 0 then
+        acc
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newAcc = Stdlib.__HAMT.__entriesHelper<k, v>(child, acc) in
+        Stdlib.__HAMT.__collectEntriesFromChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1, newAcc)
+
+// Fold over all entries in the dictionary
+def Stdlib.__HAMT.__foldHelper<k, v, a>(node: Dict<k, v>, acc: a, f: (a, k, v) -> a) : a =
+    if __dict_is_null<k, v>(node) then
+        acc
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            let value = __raw_get<v>(ptr, 8) in
+            f(acc, key, value)
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__foldChildren<k, v, a>(ptr, bitmap, 0, acc, f)
+        else if tag == 3 then
+            let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+            Stdlib.__HAMT.__foldCollision<k, v, a>(ptr, count, 0, acc, f)
+        else
+            acc
+
+def Stdlib.__HAMT.__foldChildren<k, v, a>(ptr: RawPtr, bitmap: Int64, idx: Int64, acc: a, f: (a, k, v) -> a) : a =
+    if bitmap == 0 then
+        acc
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newAcc = Stdlib.__HAMT.__foldHelper<k, v, a>(child, acc, f) in
+        Stdlib.__HAMT.__foldChildren<k, v, a>(ptr, bitmap & (bitmap - 1), idx + 1, newAcc, f)
+
+// Map over all values in the dictionary
+def Stdlib.__HAMT.__mapHelper<k, v, w>(node: Dict<k, v>, f: (k, v) -> w) : Dict<k, w> =
+    if __dict_is_null<k, v>(node) then
+        __empty_dict<k, w>()
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            let value = __raw_get<v>(ptr, 8) in
+            let newValue = f(key, value) in
+            Stdlib.__HAMT.__allocLeaf<k, w>(key, newValue)
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            let numChildren = Stdlib.Int64.popcount(bitmap) in
+            let newPtr = Stdlib.__HAMT.__allocInternal(bitmap, numChildren) in
+            Stdlib.__HAMT.__mapChildren<k, v, w>(ptr, newPtr, bitmap, 0, numChildren, f)
+        else if tag == 3 then
+            let count = Stdlib.__HAMT.__collisionCount<k, v>(ptr) in
+            Stdlib.__HAMT.__mapCollision<k, v, w>(ptr, count, f)
+        else
+            __empty_dict<k, w>()
+
+def Stdlib.__HAMT.__mapChildren<k, v, w>(oldPtr: RawPtr, newPtr: RawPtr, bitmap: Int64, idx: Int64, numChildren: Int64, f: (k, v) -> w) : Dict<k, w> =
+    if idx >= numChildren then
+        Stdlib.__HAMT.__setTag<k, w>(newPtr, 1)
+    else
+        let child = __raw_get<Dict<k, v>>(oldPtr, 8 + (idx * 8)) in
+        let mappedChild = Stdlib.__HAMT.__mapHelper<k, v, w>(child, f) in
+        let _ = __raw_set<Dict<k, w>>(newPtr, 8 + (idx * 8), mappedChild) in
+        Stdlib.__HAMT.__mapChildren<k, v, w>(oldPtr, newPtr, bitmap, idx + 1, numChildren, f)
+
+// Filter entries in the dictionary
+def Stdlib.__HAMT.__filterHelper<k, v>(node: Dict<k, v>, acc: Dict<k, v>, f: (k, v) -> Bool) : Dict<k, v> =
+    if __dict_is_null<k, v>(node) then
+        acc
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(node) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(node) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            let value = __raw_get<v>(ptr, 8) in
+            if f(key, value) then Stdlib.Dict.set<k, v>(acc, key, value) else acc
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__filterChildren<k, v>(ptr, bitmap, 0, acc, f)
+        else
+            acc
+
+def Stdlib.__HAMT.__filterChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64, acc: Dict<k, v>, f: (k, v) -> Bool) : Dict<k, v> =
+    if bitmap == 0 then
+        acc
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newAcc = Stdlib.__HAMT.__filterHelper<k, v>(child, acc, f) in
+        Stdlib.__HAMT.__filterChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1, newAcc, f)
+
+// =============================================================================
+// Dict.merge - Combine two dictionaries
+// =============================================================================
+// Second dictionary's values win on key conflicts
+
+def Stdlib.__HAMT.__mergeHelper<k, v>(source: Dict<k, v>, target: Dict<k, v>) : Dict<k, v> =
+    if __dict_is_null<k, v>(source) then
+        target
+    else
+        let tag = Stdlib.__HAMT.__getTag<k, v>(source) in
+        let ptr = Stdlib.__HAMT.__clearTag<k, v>(source) in
+        if tag == 2 then
+            let key = __raw_get<k>(ptr, 0) in
+            let value = __raw_get<v>(ptr, 8) in
+            Stdlib.Dict.set<k, v>(target, key, value)
+        else if tag == 1 then
+            let bitmap = __raw_get<Int64>(ptr, 0) in
+            Stdlib.__HAMT.__mergeChildren<k, v>(ptr, bitmap, 0, target)
+        else
+            target
+
+def Stdlib.__HAMT.__mergeChildren<k, v>(ptr: RawPtr, bitmap: Int64, idx: Int64, target: Dict<k, v>) : Dict<k, v> =
+    if bitmap == 0 then
+        target
+    else
+        let child = __raw_get<Dict<k, v>>(ptr, 8 + (idx * 8)) in
+        let newTarget = Stdlib.__HAMT.__mergeHelper<k, v>(child, target) in
+        Stdlib.__HAMT.__mergeChildren<k, v>(ptr, bitmap & (bitmap - 1), idx + 1, newTarget)
+
+// =============================================================================
+// Dict.fromList - Construct dictionary from list of pairs
+// =============================================================================
+
+def Stdlib.__HAMT.__fromListHelper<k, v>(pairs: List<(k, v)>, acc: Dict<k, v>) : Dict<k, v> =
+    match pairs with
+    | [] -> acc
+    | [pair, ...rest] ->
+        let key = Stdlib.Tuple2.first<k, v>(pair) in
+        let value = Stdlib.Tuple2.second<k, v>(pair) in
+        Stdlib.__HAMT.__fromListHelper<k, v>(rest, Stdlib.Dict.set<k, v>(acc, key, value))
+
+// =============================================================================
+// Dict.getOrDefault - Get value with fallback
+// =============================================================================
+

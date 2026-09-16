@@ -1,0 +1,10 @@
+module Darklang.Perf
+
+/// Compile <fn> with the native compiler and benchmark it at argument <n>
+/// against the interpreter, in-process. Returns a pretty report: the result,
+/// whether compiled and interpreted agree, the native binary size, both wall
+/// times, and the speedup.
+///
+/// Example: `Darklang.Perf.compareEval Stdlib.PerfDemo.fib 27L`
+let compareEval (fn: Int64 -> Int64) (n: Int64) : String =
+  Builtin.perfCompareEval fn n
