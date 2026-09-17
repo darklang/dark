@@ -49,4 +49,8 @@ fi
 mkdir -p "$(dirname "$OUT")"
 mv "$TMP" "$OUT"
 chmod 644 "$OUT" # mktemp made it 0600; the web server has to read it
-echo "wrote $OUT ($(du -h "$OUT" | cut -f1)); config_v0 empty, no sync credentials in bytes"
+# The page fetches data.db.br and inflates it itself (Host.fs, Boot); store.json carries the
+# inflated size. Brotli with a 16 MB window is under half of gzip on this file.
+python3 -c "import brotli,sys; open(sys.argv[1]+'.br','wb').write(brotli.compress(open(sys.argv[1],'rb').read(), quality=11, lgwin=24))" "$OUT"
+printf '{"file":"data.db.br","size":%s}\n' "$(stat -c %s "$OUT")" > "$(dirname "$OUT")/store.json"
+echo "wrote $OUT ($(du -h "$OUT" | cut -f1)) and .br; config_v0 empty, no sync credentials in bytes"

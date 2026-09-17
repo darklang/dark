@@ -45,9 +45,7 @@
     <Compile Include="PmLookup.fs" />
     <Compile Include="Repl.fs" />
     <!-- The CLI host: the real store plus browser stand-ins for stdin/terminal -->
-    <Compile Include="Host/Browser.fs" />
-    <Compile Include="Host/BrowserBuiltins.fs" />
-    <Compile Include="Host/Cli.fs" />
+    <Compile Include="Host.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

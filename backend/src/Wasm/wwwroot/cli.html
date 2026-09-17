@@ -4,28 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Darklang CLI</title>
+  <link rel="stylesheet" href="site.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
   <!-- The store downloads while the runtime does; Boot's fetch of the same URL hits the cache. -->
   <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
   <style>
-    :root { color-scheme: dark; --bg:#0f1117; --fg:#e6e8ee; --muted:#8b90a0; --accent:#7c9cff;
-            --ok:#6ee7a8; --err:#ff8a8a; --border:#262b38;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body { margin:0; background:var(--bg); color:var(--fg); display:flex; flex-direction:column; }
-    header { padding:8px 14px; border-bottom:1px solid var(--border); display:flex;
-             align-items:baseline; gap:12px; flex: none; }
-    header h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:.3px; }
-    header .status { font-size:12px; color:var(--muted); margin-left:auto; }
-    header .status.busy { color:var(--accent); }
-    header .status.ready { color:var(--ok); }
-    header .status.err { color:var(--err); }
-    header a { color:var(--muted); font-size:12px; text-decoration:none; }
-    header a:hover { color:var(--fg); }
-    header button { background:transparent; color:var(--muted); border:1px solid var(--border);
-                    border-radius:6px; font:inherit; font-size:12px; padding:2px 8px; cursor:pointer; }
-    header button:hover, header button.on { color:var(--fg); border-color:var(--accent); }
+    html, body { height:100%; }
+    body { display:flex; flex-direction:column; }
     #main { flex:1; min-height:0; display:flex; }
     #term { flex:1; min-width:0; min-height:0; padding:6px; }
     #term .xterm { height: 100%; }
@@ -56,6 +41,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
   <!-- Blazor WASM runtime; produced by `dotnet publish` (see README.md). -->
   <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script src="site.js"></script>
   <script>
     const status = document.getElementById("status");
     const setStatus = (text, cls) => { status.textContent = text; status.className = "status " + (cls || ""); };
@@ -85,26 +71,18 @@
     // The URL contract. `?cmd=docs Stdlib.List.map` runs that command (URL-encoded, split
     // on whitespace, double quotes group). `?fn=Darklang.Stdlib.List.map` is sugar for
     // `?cmd=view <name>`. No params: the workbench, same as `dark` with no arguments.
+    // The URL contract: `?cmd=<argv>` runs that command, `?fn=<name>` is `view <name>`,
+    // nothing is the workbench, same as `dark` with no arguments.
     function argvFromUrl() {
       const params = new URLSearchParams(location.search);
       const fn = params.get("fn");
       if (fn) return ["view", fn];
       const cmd = params.get("cmd");
-      return cmd ? splitArgv(cmd) : [];
-    }
-    function splitArgv(text) {
-      const argv = []; let cur = ""; let quoted = false;
-      for (const ch of text) {
-        if (ch === '"') { quoted = !quoted; continue; }
-        if (!quoted && /\s/.test(ch)) { if (cur) { argv.push(cur); cur = ""; } continue; }
-        cur += ch;
-      }
-      if (cur) argv.push(cur);
-      return argv;
+      return cmd ? dark.splitArgv(cmd) : [];
     }
 
     let running = false;
-    const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
+    const invoke = dark.invoke;
 
     // The shell on the right: a second terminal with a prompt and a line editor. A line
     // `dark <args>` runs RunCommand (one-shot, output captured) against the same store the
@@ -121,7 +99,6 @@
     shell.open(document.getElementById("shell"));
     shellFit.fit();
     const PROMPT = "\x1b[90m$\x1b[0m ";
-    const takesTheScreen = new Set(["workbench", "wb", "outliner", "tree-exp", "views", "apps", "text-editor", "agent", "ai"]);
     let line = "", commandRunning = false;
     const history = []; let hi = 0;
     const prompt = () => shell.write(PROMPT);
@@ -133,18 +110,16 @@
       if (!text) { prompt(); return; }
       history.push(text); hi = history.length;
       if (text === "clear") { shell.clear(); prompt(); return; }
-      let argv = splitArgv(text);
+      let argv = dark.splitArgv(text);
       if (argv[0] !== "dark") { shell.write(`\x1b[31m${argv[0]}: not found. This shell only knows \x1b[1mdark\x1b[0m\x1b[31m; try \x1b[1mdark help\x1b[0m\r\n`); prompt(); return; }
       argv = argv.slice(1);
       if (argv.length === 0) argv = ["help"];
-      if (takesTheScreen.has(argv[0])) { shell.write("\x1b[31mthat one takes over the screen; use the terminal on the left\x1b[0m\r\n"); prompt(); return; }
+      if (dark.takesTheScreen(argv)) { shell.write("\x1b[31mthat one takes over the screen; use the terminal on the left\x1b[0m\r\n"); prompt(); return; }
       if (!running) { shell.write("\x1b[31mthe runtime is not up yet\x1b[0m\r\n"); prompt(); return; }
       commandRunning = true;
       try {
-        const out = await invoke("RunCommand", argv);
-        const i = out.lastIndexOf("\n[exit ");
-        const body = out.slice(0, i); const code = out.slice(i + 7, -1);
-        if (body) shell.write(body.endsWith("\n") ? body : body + "\n");
+        const { output, code } = await dark.run(argv);
+        if (output) shell.write(output.endsWith("\n") ? output : output + "\n");
         if (code !== "0") shell.write(`\x1b[90m[exit ${code}]\x1b[0m\r\n`);
       } catch (e) { shell.write("\x1b[31mfailed: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n"); }
       finally { commandRunning = false; prompt(); }
@@ -181,51 +156,16 @@
       resizeTimer = setTimeout(() => { fit.fit(); reportSize(); if (!panel.hidden) shellFit.fit(); }, 80);
     });
 
-    async function waitForDispatcher() {
-      for (let i = 0; i < 120; i++) {
-        if (typeof DotNet !== "undefined") {
-          try { await invoke("Ready"); return true; } catch (e) { /* not yet */ }
-        }
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      return false;
-    }
-    async function waitFor(cond, tries) {
-      for (let i = 0; i < tries; i++) {
-        if (cond()) return true;
-        await new Promise((r) => setTimeout(r, 250));
-      }
-      return false;
-    }
-
     (async () => {
-      term.write("\x1b[90mloading the Darklang runtime...\x1b[0m\r\n");
       try {
-        if (!(await waitFor(() => typeof Blazor !== "undefined" && Blazor.start, 80)))
-          throw new Error("_framework/blazor.webassembly.js did not load");
-        await Blazor.start();
-        if (!(await waitForDispatcher())) throw new Error("runtime did not become ready");
+        await dark.boot((what) => { setStatus(what, "busy"); term.write("\x1b[90m" + what + "...\x1b[0m\r\n"); });
       } catch (e) {
-        setStatus("runtime not loaded: " + (e && e.message ? e.message : e), "err");
-        term.write("\x1b[31mruntime failed to load: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
+        setStatus("failed to load", "err");
+        term.write("\x1b[31mfailed to load: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
         console.error("Darklang CLI boot failed:", e);
         return;
       }
       drainTimer = setInterval(drain, 25);
-      try {
-        setStatus("loading the package store", "busy");
-        term.write("\x1b[90mloading the package store...\x1b[0m\r\n");
-        const t0 = performance.now();
-        // store.json names the file and its inflated size (the one-shot brotli decoder needs it).
-        const manifest = await (await fetch(new URL("store.json", document.baseURI))).json();
-        await invoke("Boot", new URL(manifest.file, document.baseURI).href, manifest.size);
-        term.write("\x1b[90mstore ready in " + Math.round(performance.now() - t0) + " ms\x1b[0m\r\n");
-      } catch (e) {
-        setStatus("store failed to load", "err");
-        term.write("\x1b[31mstore failed to load: " + (e && e.message ? e.message : e) + "\x1b[0m\r\n");
-        console.error("Darklang CLI store load failed:", e);
-        return;
-      }
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
       // The shell is redundant beside a prompt: a one-shot command and the classic prompt both

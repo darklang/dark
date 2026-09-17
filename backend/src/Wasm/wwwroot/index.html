@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Darklang in the browser</title>
   <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
+  <link rel="stylesheet" href="site.css" />
   <style>
-    :root { color-scheme: dark; --bg:#0f1117; --panel:#171a23; --fg:#e6e8ee; --muted:#8b90a0;
-            --accent:#7c9cff; --border:#262b38;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    * { box-sizing: border-box; }
     html, body { height:100%; }
-    body { margin:0; background:var(--bg); color:var(--fg); display:flex; align-items:center;
-           justify-content:center; padding:24px 16px; }
+    body { display:flex; align-items:center; justify-content:center; padding:24px 16px; }
     main { max-width:640px; width:100%; }
     h1 { font-size:18px; font-weight:600; margin:0 0 6px; letter-spacing:.3px; }
     p.lead { color:var(--muted); font-size:13px; margin:0 0 22px; line-height:1.5; }
@@ -27,23 +23,20 @@
          letter-spacing:.08em; margin:26px 0 8px; }
     p.note { color:var(--muted); font-size:12px; margin:22px 0 0; line-height:1.5; }
     p.note code { color:var(--fg); }
-    /* raw mode: /?cmd=..., /?e=..., /?fn=... print the answer and nothing else */
+    /* raw mode: /?cmd=... and /?fn=... print the answer and nothing else */
     body.raw { align-items:flex-start; justify-content:flex-start; padding:18px; }
-    #raw { display:none; width:100%; }
+    #raw { display:none; width:100%; font-size:14px; }
     body.raw #raw { display:block; }
     body.raw main { display:none; }
-    #raw pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:14px; }
-    #raw .expr { color:var(--muted); margin-bottom:10px; }
-    #raw .err { color:var(--err); }
+    #raw .expr { margin-bottom:10px; }
     #raw form { display:flex; gap:8px; margin-top:14px; }
-    #raw input { flex:1; background:transparent; border:1px solid var(--border); border-radius:6px;
-                 color:var(--fg); font:inherit; padding:6px 8px; outline:none; }
+    #raw input { flex:1; }
     #raw a { color:var(--muted); font-size:12px; text-decoration:none; }
   </style>
 </head>
 <body>
   <div id="raw">
-    <pre class="expr" id="expr"></pre>
+    <pre class="expr muted" id="expr"></pre>
     <pre id="out">loading</pre>
     <form id="form" hidden><input id="in" placeholder="dark eval 1 + 2" /></form>
     <p><a href="./">everything else</a></p>
@@ -93,49 +86,33 @@
       relay is configured, and no secret ships with the page.</p>
   </main>
   <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script src="site.js"></script>
   <script>
-    // With a query, this page is the answer, raw: /?cmd=<argv> prints what `dark <argv>` prints,
-    // /?e=<expr> is `dark eval <expr>`, /?fn=<name> is `dark view <name>`. Without one, the
-    // directory above.
+    // With a query this page is the answer, raw: /?cmd=<argv> prints what `dark <argv>` prints,
+    // /?fn=<name> is `dark view <name>`, /?e=<expr> goes to eval.html. No query: the directory.
     const params = new URLSearchParams(location.search);
-    const splitArgv = (text) => {
-      const argv = []; let cur = ""; let quoted = false;
-      for (const ch of text) {
-        if (ch === '"') { quoted = !quoted; continue; }
-        if (!quoted && /\s/.test(ch)) { if (cur) { argv.push(cur); cur = ""; } continue; }
-        cur += ch;
-      }
-      if (cur) argv.push(cur); return argv;
-    };
     let argv = null;
-    if (params.has("cmd")) argv = splitArgv(params.get("cmd"));
-    else if (params.has("e")) { location.replace("eval.html?e=" + encodeURIComponent(params.get("e"))); }
+    if (params.has("cmd")) argv = dark.splitArgv(params.get("cmd"));
     else if (params.has("fn")) argv = ["view", params.get("fn")];
+    else if (params.has("e")) location.replace("eval.html?e=" + encodeURIComponent(params.get("e")));
     if (argv !== null) {
       document.body.className = "raw";
       const out = document.getElementById("out");
-      const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
       document.getElementById("form").addEventListener("submit", (ev) => {
         ev.preventDefault();
         location.search = "?cmd=" + encodeURIComponent(document.getElementById("in").value.replace(/^dark\s+/, ""));
       });
-      const takesTheScreen = new Set(["workbench", "wb", "outliner", "tree-exp", "views", "apps", "text-editor", "agent", "ai"]);
       (async () => {
         try {
           document.getElementById("expr").textContent = "$ dark " + argv.join(" ");
-          if (argv.length === 0 || takesTheScreen.has(argv[0])) {
+          if (argv.length === 0 || dark.takesTheScreen(argv)) {
             out.textContent = "that one needs a terminal: cli.html?cmd=" + encodeURIComponent(argv.join(" "));
             return;
           }
-          for (let i = 0; i < 80 && !(typeof Blazor !== "undefined" && Blazor.start); i++) await new Promise((r) => setTimeout(r, 250));
-          await Blazor.start();
-          for (let i = 0; i < 120; i++) { try { await invoke("Ready"); break; } catch (e) { await new Promise((r) => setTimeout(r, 500)); } }
-          const manifest = await (await fetch(new URL("store.json", document.baseURI))).json();
-          await invoke("Boot", new URL(manifest.file, document.baseURI).href, manifest.size);
-          const res = await invoke("RunCommand", argv);
-          const i = res.lastIndexOf("\n[exit ");
-          out.textContent = res.slice(0, i).replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").trim() || "(no output)";
-          if (res.slice(i + 7, -1) !== "0") out.className = "err";
+          await dark.boot((what) => { out.textContent = what; });
+          const { output, code } = await dark.run(argv);
+          out.textContent = dark.stripAnsi(output).trim() || "(no output)";
+          if (code !== "0") out.className = "err";
         } catch (e) { out.textContent = "failed: " + (e && e.message ? e.message : e); out.className = "err"; }
         finally { document.getElementById("form").hidden = false; document.getElementById("in").value = "dark " + argv.join(" "); }
       })();

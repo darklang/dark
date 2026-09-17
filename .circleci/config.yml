@@ -402,9 +402,7 @@ jobs:
             # anywhere else has only the embedded copy.
             - backend/src/LibExecution/package-ref-hashes.txt
 
-  # The browser build: the CLI compiled to wasm, published as a static site, and the store it
-  # boots from. AOT, so the publish is the slow step (~7 min on an xlarge). Tag-only, in the
-  # release workflow; the deploy job below ships what this persisted.
+  # The browser build (backend/src/Wasm): the site plus the store it boots from.
   build-wasm:
     executor: in-container
     resource_class: xlarge
@@ -431,17 +429,16 @@ jobs:
           no_output_timeout: 30m
           command: ./scripts/build/_dotnet-wrapper publish src/Wasm/Wasm.fsproj -c Release -o ../rundir/wasm-repl
       - run:
-          name: Build the store (sync credentials stripped) and stage the site
+          name: Build the store (sync credentials stripped)
           command: |
             pip3 install --user brotli
-            backend/src/Wasm/promote.sh
+            backend/src/Wasm/make-store.sh
       - persist_to_workspace:
           root: "."
           paths:
-            - rundir/wasm-site
+            - rundir/wasm-repl
 
-  # Ships the staged site to fly.io as dark-wasm. Needs WASM_FLY_API_TOKEN in the project's
-  # CircleCI environment; without it `fly deploy` fails and says so.
+  # Ships it to fly.io as dark-wasm (WASM_FLY_API_TOKEN in the project environment).
   deploy-wasm:
     executor: simple-executor
     steps:
@@ -454,7 +451,6 @@ jobs:
             echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: Deploy
-          # flyctl reads FLY_API_TOKEN; the project variable is named for the app it can push.
           command: FLY_API_TOKEN="$WASM_FLY_API_TOKEN" backend/src/Wasm/deploy/deploy.sh
 
   # All four linux artifacts from one x64 runner. The cross-compiles work
@@ -782,8 +778,6 @@ workflows:
             branches:
               ignore: /.*/
 
-      # The browser build ships with a release too: the site at dark-wasm.fly.dev tracks
-      # the same tag as the binaries. Needs WASM_FLY_API_TOKEN in the project environment.
       - build-wasm:
           filters: *release-filters
       - deploy-wasm:

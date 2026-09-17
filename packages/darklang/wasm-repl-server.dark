@@ -6,7 +6,7 @@
 ///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090
 module Darklang.WasmReplServer
 
-let root () : String = "rundir/wasm-site/wwwroot"
+let root () : String = "rundir/wasm-repl/wwwroot"
 
 
 let contentType (path: String) : String =
