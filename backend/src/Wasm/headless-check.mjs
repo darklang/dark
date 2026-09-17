@@ -35,7 +35,8 @@ if (!chrome) { console.error("no chromium found; set CHROME"); process.exit(2); 
 const port = 9222 + Math.floor(Math.random() * 1000);
 const proc = spawn(chrome, [
   "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run",
-  `--remote-debugging-port=${port}`, "--window-size=1200,800", "about:blank",
+  `--remote-debugging-port=${port}`, `--window-size=${process.env.HEADLESS_WINDOW || "1200,800"}`,
+  `--force-device-scale-factor=${process.env.HEADLESS_SCALE || "1"}`, "about:blank",
 ], { stdio: ["ignore", "ignore", "pipe"] });
 proc.stderr.on("data", () => {});
 const cleanup = () => { try { proc.kill("SIGKILL"); } catch {} };
