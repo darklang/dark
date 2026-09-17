@@ -472,6 +472,30 @@ let getAt (list: List<'a>) (index: Int) : Option.Option<'a> =
   Builtin.listGetAt list index
 
 
+type IndexError =
+  /// The resolved index was outside the bounds of the list.
+  | IndexOutOfBounds
+
+/// Returns {{Ok}} <param list> with the value at <param index> replaced by
+/// <param value>. Negative indexes count backward from the end of the list, so
+/// {{-1}} replaces the last value and {{-2}} replaces the second-to-last value.
+/// Returns {{Error IndexOutOfBounds}} if the resolved index is outside the list.
+let setAt
+  (list: List<'a>)
+  (index: Int)
+  (value: 'a)
+  : Result.Result<List<'a>, IndexError> =
+  let listLength = length list
+  let resolvedIndex = if index < 0 then listLength + index else index
+
+  if resolvedIndex < 0 || resolvedIndex >= listLength then
+    Result.Result.Error IndexError.IndexOutOfBounds
+  else
+    Result.Result.Ok(
+      indexedMap list (fun i v -> if i == resolvedIndex then value else v)
+    )
+
+
 /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
 /// selected value in <param list>. Returns {{Nothing}} if <param list> is
 /// empty.
