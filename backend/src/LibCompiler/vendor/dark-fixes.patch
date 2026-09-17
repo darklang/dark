@@ -323,7 +323,7 @@ index e87a798..d2b3027 100644
  
      // Second pass: collect all function signatures from THIS program
 diff --git a/backend/src/LibCompiler/passes/2_AST_to_ANF.fs b/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
-index 39ddd56..d1c3ab0 100644
+index 39ddd56..e501762 100644
 --- a/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
 +++ b/backend/src/LibCompiler/passes/2_AST_to_ANF.fs
 @@ -394,6 +394,12 @@ type TypeRegistry = Map<string, (string * AST.Type) list>
@@ -339,7 +339,17 @@ index 39ddd56..d1c3ab0 100644
  /// Function registry - maps function names to their FULL function types (TFunction)
  type FunctionRegistry = Map<string, AST.Type>
  
-@@ -1646,6 +1652,16 @@ let private freshLiftedName (state: LiftState) (prefix: string) : string * LiftS
+@@ -1624,6 +1630,9 @@ type LiftState = {
+     GenericFuncDefs: Map<string, string list * AST.Type>  // Function name -> (TypeParams, ReturnType) for TypeApp substitution
+     TypeReg: TypeRegistry
+     VariantLookup: VariantLookup
++    /// Hoisted branches already lifted, by (body, captures): the same branch reached
++    /// from two miss sites of a split match becomes one function.
++    BranchCache: Map<AST.Expr * string list, string>
+ }
+ 
+ let private liftedNameExists (state: LiftState) (name: string) : bool =
+@@ -1646,6 +1655,16 @@ let private freshLiftedName (state: LiftState) (prefix: string) : string * LiftS
      let name = $"{prefix}{nextCounter}"
      (name, { state with Counter = nextCounter + 1 })
  
@@ -356,7 +366,7 @@ index 39ddd56..d1c3ab0 100644
  /// Collect free variables in an expression (variables not bound by let or lambda parameters)
  let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
      match expr with
-@@ -1690,9 +1706,13 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
+@@ -1690,9 +1709,13 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
          payload |> Option.map (fun e -> freeVars e bound) |> Option.defaultValue Set.empty
      | AST.Match (scrutinee, cases) ->
          let scrutineeVars = freeVars scrutinee bound
@@ -372,7 +382,7 @@ index 39ddd56..d1c3ab0 100644
          Set.union scrutineeVars caseVars
      | AST.Lambda (parameters, body) ->
          let paramNames = parameters |> paramsToList |> List.map fst |> Set.ofList
-@@ -1712,6 +1732,102 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
+@@ -1712,6 +1735,102 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
              | AST.StringExpr e -> Some (freeVars e bound))
          |> List.fold Set.union Set.empty
  
@@ -475,7 +485,7 @@ index 39ddd56..d1c3ab0 100644
  /// Simple type inference for lambda lifting - infers types of simple expressions
  /// This allows let-bound variables to be captured in nested lambdas
  let rec simpleInferType
-@@ -1734,67 +1850,7 @@ let rec simpleInferType
+@@ -1734,67 +1853,7 @@ let rec simpleInferType
      let isNumericType (typ: AST.Type) : bool =
          isIntType typ || typ = AST.TFloat64
  
@@ -544,7 +554,7 @@ index 39ddd56..d1c3ab0 100644
  
      match expr with
      | AST.Int64Literal _ -> Some AST.TInt64
-@@ -1890,7 +1946,10 @@ let rec simpleInferType
+@@ -1890,7 +1949,10 @@ let rec simpleInferType
          | _ -> None
      | AST.Constructor (typeName, variantName, payload) ->
          // Sum type constructor has the sum type; infer generic args from payload when possible.
@@ -556,7 +566,7 @@ index 39ddd56..d1c3ab0 100644
          | Some (sumTypeName, typeParams, _, payloadPattern) ->
              let defaultTypeArgs = typeParams |> List.map AST.TVar
              match payloadPattern, payload with
-@@ -1966,7 +2025,10 @@ let rec simpleInferType
+@@ -1966,7 +2028,10 @@ let rec simpleInferType
      | AST.If (_, thenExpr, elseExpr) ->
          match simpleInferType thenExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup,
                simpleInferType elseExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup with
@@ -568,7 +578,7 @@ index 39ddd56..d1c3ab0 100644
          | _ -> None
      | AST.Match (scrutinee, cases) ->
          let scrutineeType = simpleInferType scrutinee typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
-@@ -1983,10 +2045,13 @@ let rec simpleInferType
+@@ -1983,10 +2048,13 @@ let rec simpleInferType
                      | None -> typeEnv
                  simpleInferType mc.Body caseEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup)
          if List.forall Option.isSome caseTypes then
@@ -584,7 +594,7 @@ index 39ddd56..d1c3ab0 100644
          else
              None
      | AST.Lambda (parameters, body) ->
-@@ -2008,12 +2073,195 @@ let rec simpleInferType
+@@ -2008,12 +2076,300 @@ let rec simpleInferType
              else
                  None
          | _ -> None
@@ -722,6 +732,107 @@ index 39ddd56..d1c3ab0 100644
 +            { mc with Patterns = AST.NonEmptyList.singleton pat'; Guard = Some guard' }
 +    | _ -> mc
 +
++
++/// A constructor pattern whose payload pattern TESTS something (a literal, another
++/// constructor, a list shape) is lowered by ANF as one flat condition: the tag check
++/// and the payload loads and compares are all computed eagerly and AND-ed. When the
++/// tag does not match, the payload loads read whatever is past the object and the
++/// compares dereference it: `match o with | Some((_, String "2.0")) -> ..` on a
++/// `None` was a SIGSEGV. Rewritten here so the payload test happens only after the
++/// tag matched, with the remaining arms as a join point rather than a copy:
++///
++///     match s with | C(inner) when g -> body | rest...
++///  =>
++///     let __ns = s in
++///     match __ns with
++///     | C(__nv) -> (match __nv with | inner when g -> body | _ -> REST())
++///     | _ -> REST()
++///
++/// where REST() is `match __ns with | rest...` hoisted through the lazy-branch marker
++/// (a direct function over its free variables). The inner match is rewritten the same
++/// way if `inner` has tests of its own, so every payload load sits under its tag check.
++let private patternHasTests (p: AST.Pattern) : bool =
++    let rec go (p: AST.Pattern) =
++        match p with
++        | AST.PVar _ | AST.PWildcard -> false
++        | AST.PTuple ps -> List.exists go ps
++        | AST.PRecord (_, fields) -> fields |> List.exists (snd >> go)
++        | _ -> true
++    go p
++
++let private nestedTestCounter = ref 0
++
++/// Replace the first constructor-with-tests found anywhere in the pattern by a
++/// binding of its payload, returning the rewritten pattern and the payload pattern.
++let rec private splitFirstNested (nv: string) (p: AST.Pattern) : (AST.Pattern * AST.Pattern) option =
++    match p with
++    | AST.PConstructor (v, Some inner) when patternHasTests inner ->
++        Some (AST.PConstructor (v, Some (AST.PVar nv)), inner)
++    | AST.PTuple ps ->
++        let rec go before rest =
++            match rest with
++            | [] -> None
++            | q :: after ->
++                match splitFirstNested nv q with
++                | Some (q', inner) -> Some (AST.PTuple (List.rev before @ (q' :: after)), inner)
++                | None -> go (q :: before) after
++        go [] ps
++    | AST.PRecord (name, fields) ->
++        let rec go before rest =
++            match rest with
++            | [] -> None
++            | (f, q) :: after ->
++                match splitFirstNested nv q with
++                | Some (q', inner) -> Some (AST.PRecord (name, List.rev before @ ((f, q') :: after)), inner)
++                | None -> go ((f, q) :: before) after
++        go [] fields
++    | _ -> None
++
++let private armNeedsSplit (mc: AST.MatchCase) : bool =
++    match AST.NonEmptyList.toList mc.Patterns with
++    | [ pat ] -> (splitFirstNested "_" pat).IsSome
++    | _ -> false
++
++let rec private guardNestedConstructorTests (scrutinee: AST.Expr) (cases: AST.MatchCase list) : AST.Expr =
++    match List.tryFindIndex armNeedsSplit cases with
++    | None -> AST.Match (scrutinee, cases)
++    | Some i ->
++        nestedTestCounter.Value <- nestedTestCounter.Value + 1
++        let n = nestedTestCounter.Value
++        let scrutVar = $"__ns_{n}"
++        let payloadVar = $"__nv_{n}"
++        let before = List.take i cases
++        let arm = cases.[i]
++        let rest = List.skip (i + 1) cases
++        let (outerPat, inner) =
++            match AST.NonEmptyList.toList arm.Patterns |> List.tryHead |> Option.bind (splitFirstNested payloadVar) with
++            | Some x -> x
++            | None -> failwith "unreachable: armNeedsSplit"
++        // The remaining arms, as a join point: ONE lambda bound once and applied from
++        // both miss sites, so the rewritten rest exists once (an expression used twice
++        // would be lifted twice, and the rest is itself rewritten, so that doubles per
++        // arm). With no remaining arms the inner miss is a genuine non-exhaustive
++        // match, which the old lowering also left to runtime.
++        // Both miss sites carry the same marker expression; the lifter dedupes
++        // hoisted branches by their body, so it becomes one function, not two.
++        let restCall =
++            match rest with
++            | [] -> AST.Call ("Builtin.testRuntimeError", AST.NonEmptyList.singleton (AST.StringLiteral "match: no arm matched"))
++            | _ -> wrapLazyBranch (guardNestedConstructorTests (AST.Var scrutVar) rest)
++        let innerMatch =
++            guardNestedConstructorTests
++                (AST.Var payloadVar)
++                [ { AST.Patterns = AST.NonEmptyList.singleton inner; AST.Guard = arm.Guard; AST.Body = arm.Body }
++                  { AST.Patterns = AST.NonEmptyList.singleton AST.PWildcard; AST.Guard = None; AST.Body = restCall } ]
++        let splitArm =
++            { AST.Patterns = AST.NonEmptyList.singleton outerPat; AST.Guard = None; AST.Body = innerMatch }
++        let fallthrough =
++            { AST.Patterns = AST.NonEmptyList.singleton AST.PWildcard; AST.Guard = None; AST.Body = restCall }
++        let rebuilt = AST.Match (AST.Var scrutVar, before @ [ splitArm; fallthrough ])
++        match scrutinee with
++        | AST.Var v when v = scrutVar -> rebuilt
++        | _ -> AST.Let (scrutVar, scrutinee, rebuilt)
++
 +/// Wrap non-tail branching expressions (see above). `tail` is whether `expr`'s
 +/// value is the value of the enclosing function or lambda.
 +let rec hoistLazyBranches (expr: AST.Expr) (tail: bool) : AST.Expr =
@@ -732,6 +843,10 @@ index 39ddd56..d1c3ab0 100644
 +        let rewritten = AST.If (sub c, hoistLazyBranches t tail, hoistLazyBranches e tail)
 +        if tail || (isEagerSafeExpr t && isEagerSafeExpr e) then rewritten
 +        else wrapLazyBranch rewritten
++    | AST.Match (scrutinee, cases) when List.exists armNeedsSplit cases ->
++        // Split the nested constructor tests first (see guardNestedConstructorTests),
++        // then lower the result like any other expression.
++        hoistLazyBranches (guardNestedConstructorTests scrutinee cases) tail
 +    | AST.Match (scrutinee, cases) ->
 +        let cases' =
 +            cases
@@ -781,7 +896,7 @@ index 39ddd56..d1c3ab0 100644
  
  /// Lift lambdas in an expression, returning (transformed expr, new state)
  let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr * LiftState, string> =
-@@ -2091,7 +2339,13 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr
+@@ -2091,7 +2447,13 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr
      | AST.Match (scrutinee, cases) ->
          liftLambdasInExpr scrutinee state
          |> Result.bind (fun (scrutinee', state1) ->
@@ -796,7 +911,12 @@ index 39ddd56..d1c3ab0 100644
              |> Result.map (fun (cases', state2) -> (AST.Match (scrutinee', cases'), state2)))
      | AST.Lambda (parameters, body) ->
          // Lambda in expression position - lift it to a closure
-@@ -2164,6 +2418,63 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr
+@@ -2160,10 +2522,72 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr
+                         GenericFuncDefs = state1.GenericFuncDefs
+                         TypeReg = state1.TypeReg
+                         VariantLookup = state1.VariantLookup
++                        BranchCache = state1.BranchCache
+                     }
                      // Replace lambda with Closure
                      let captureExprs = captures |> List.map AST.Var
                      Ok (AST.Closure (funcName, captureExprs), state'))))
@@ -822,6 +942,13 @@ index 39ddd56..d1c3ab0 100644
 +                    FuncParams = state1.FuncParams
 +                    FuncReturnTypes = state1.FuncReturnTypes
 +                    GenericFuncDefs = state1.GenericFuncDefs }
++            let callArgs =
++                match captures with
++                | [] -> AST.NonEmptyList.singleton AST.UnitLiteral
++                | cs -> AST.NonEmptyList.fromList (cs |> List.map AST.Var)
++            match Map.tryFind (body', captures) state1.BranchCache with
++            | Some funcName -> Ok (AST.Call (funcName, callArgs), { state1 with TypeEnv = state.TypeEnv })
++            | None ->
 +            let inferred =
 +                if Set.isEmpty untyped then inferLambdaReturnType body' stateForReturnType
 +                else Error "untyped free variable"
@@ -846,21 +973,34 @@ index 39ddd56..d1c3ab0 100644
 +                    ReturnType = returnType
 +                    Body = body'
 +                }
-+                let callArgs =
-+                    match captures with
-+                    | [] -> AST.NonEmptyList.singleton AST.UnitLiteral
-+                    | cs -> AST.NonEmptyList.fromList (cs |> List.map AST.Var)
 +                let state' =
 +                    { stateWithName with
 +                        LiftedFunctions = funcDef :: stateWithName.LiftedFunctions
 +                        TypeEnv = state.TypeEnv
 +                        FuncParams = Map.add funcName (AST.NonEmptyList.toList parameters) stateWithName.FuncParams
-+                        FuncReturnTypes = Map.add funcName returnType stateWithName.FuncReturnTypes }
++                        FuncReturnTypes = Map.add funcName returnType stateWithName.FuncReturnTypes
++                        BranchCache = Map.add (body', captures) funcName stateWithName.BranchCache }
 +                Ok (AST.Call (funcName, callArgs), state'))
      | AST.Apply (func, args) ->
          liftLambdasInExpr func state
          |> Result.bind (fun (func', state1) ->
-@@ -2335,24 +2646,35 @@ and liftLambdasInFields (fields: (string * AST.Expr) list) (state: LiftState) :
+@@ -2259,6 +2683,7 @@ and liftLambdasInArgs (args: AST.NonEmptyList<AST.Expr>) (state: LiftState) : Re
+                                 GenericFuncDefs = state1.GenericFuncDefs
+                                 TypeReg = state1.TypeReg
+                                 VariantLookup = state1.VariantLookup
++                                BranchCache = state1.BranchCache
+                             }
+                             // Replace lambda with Closure (captures may be empty for non-capturing lambdas)
+                             let captureExprs = captures |> List.map AST.Var
+@@ -2295,6 +2720,7 @@ and liftLambdasInArgs (args: AST.NonEmptyList<AST.Expr>) (state: LiftState) : Re
+                         GenericFuncDefs = state.GenericFuncDefs
+                         TypeReg = state.TypeReg
+                         VariantLookup = state.VariantLookup
++                        BranchCache = state.BranchCache
+                     }
+                     // Create trivial closure with no captures
+                     loop rest state' (AST.Closure (wrapperName, []) :: acc)
+@@ -2335,24 +2761,35 @@ and liftLambdasInFields (fields: (string * AST.Expr) list) (state: LiftState) :
      loop fields state []
  
  /// Helper to lift lambdas in match cases
@@ -900,7 +1040,7 @@ index 39ddd56..d1c3ab0 100644
      loop cases state []
  
  /// Lift lambdas in a function definition
-@@ -2439,9 +2761,16 @@ let rec liftLambdasInProgram
+@@ -2439,9 +2876,16 @@ let rec liftLambdasInProgram
              | AST.TypeDef (AST.SumTypeDef (typeName, typeParams, variants)) ->
                  Some (typeName, typeParams, variants)
              | _ -> None)
@@ -918,7 +1058,15 @@ index 39ddd56..d1c3ab0 100644
          |> Map.ofList
  
      let mergeMapsLocal m1 m2 = Map.fold (fun acc k v -> Map.add k v acc) m1 m2
-@@ -3160,8 +3489,11 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
+@@ -2517,6 +2961,7 @@ let rec liftLambdasInProgram
+         GenericFuncDefs = genericFuncDefs
+         TypeReg = mergedTypeReg
+         VariantLookup = mergedVariantLookup
++        BranchCache = Map.empty
+     }
+ 
+     let rec processTopLevels (remaining: AST.TopLevel list) (state: LiftState) (acc: AST.TopLevel list) : Result<AST.TopLevel list * LiftState, string> =
+@@ -3160,8 +3605,11 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
                  Ok (List.item index elemTypes)
              | AST.TTuple _ -> Error $"Tuple index {index} out of bounds"
              | _ -> Error "Cannot access index on non-tuple type")
@@ -932,7 +1080,7 @@ index 39ddd56..d1c3ab0 100644
          | None ->
              Error $"Unknown constructor: {variantName}"
          | Some (typeName, typeParams, _, payloadPattern) ->
-@@ -3411,7 +3743,7 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
+@@ -3411,7 +3859,7 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
                  | None -> Map.empty
                  | Some payloadPattern ->
                      let payloadType =
@@ -941,7 +1089,7 @@ index 39ddd56..d1c3ab0 100644
                          | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                              match scrutType with
                              | AST.TSum (_, typeArgs) when List.length typeParams = List.length typeArgs ->
-@@ -3999,7 +4331,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -3999,7 +4447,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
              inferType argExpr typeEnv typeReg variantLookup funcReg moduleRegistry
              |> Result.bind (fun argType ->
                  let lookupVariantInfo (expectedTypeName: string) (variantName: string) : Result<int * AST.Type option, string> =
@@ -950,7 +1098,7 @@ index 39ddd56..d1c3ab0 100644
                      | Some (typeName, _, tag, payloadTypeOpt) when typeName = expectedTypeName ->
                          Ok (tag, payloadTypeOpt)
                      | Some (typeName, _, _, _) ->
-@@ -4366,8 +4698,12 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -4366,8 +4814,12 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
              | _ ->
                  Error $"Cannot access field '{fieldName}' on non-record type")
  
@@ -965,7 +1113,7 @@ index 39ddd56..d1c3ab0 100644
          | None ->
              Error $"Unknown constructor: {variantName}"
          | Some (typeName, _, tag, _) ->
-@@ -4439,7 +4775,11 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -4439,7 +4891,11 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
              let (setVar, vg2) = ANF.freshVar vg1
              let (setRcVar, vg3) = ANF.freshVar vg2
              let allocExpr = ANF.RawAlloc (ANF.IntLiteral (ANF.Int64 16L))
@@ -978,7 +1126,7 @@ index 39ddd56..d1c3ab0 100644
              let setRcExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 8L), ANF.IntLiteral (ANF.Int64 1L), None)
              let (vg4, bindings4) =
                  addLeafInc elemAtom elemType vg3 (bindings @ [(ptrVar, allocExpr); (setVar, setExpr); (setRcVar, setRcExpr)])
-@@ -4721,7 +5061,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -4721,7 +5177,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
              // Check if the TYPE that a variant belongs to has any variant with a payload
              // This determines if values are heap-allocated or simple integers
              let typeHasAnyPayload (variantName: string) : bool =
@@ -987,7 +1135,7 @@ index 39ddd56..d1c3ab0 100644
                  | Some (typeName, _, _, _) ->
                      variantLookup
                      |> Map.exists (fun _ (tName, _, _, pType) -> tName = typeName && pType.IsSome)
-@@ -4766,7 +5106,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -4766,7 +5222,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                      match payloadPattern with
                      | None -> toANF body vg currentEnv typeReg variantLookup funcReg moduleRegistry
                      | Some innerPattern ->
@@ -996,7 +1144,7 @@ index 39ddd56..d1c3ab0 100644
                          | Some (_, _, _, None) ->
                              // Constructor arity mismatch behaves as non-matching.
                              // Do not introduce payload bindings in this branch body.
-@@ -4874,7 +5214,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -4874,7 +5330,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                  | _ -> typ
  
                              let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
@@ -1005,7 +1153,7 @@ index 39ddd56..d1c3ab0 100644
                                  | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                                      let payloadType =
                                          match scrutineeType with
-@@ -5513,7 +5853,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -5513,7 +5969,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                              | _ -> typ
  
                          let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
@@ -1014,11 +1162,26 @@ index 39ddd56..d1c3ab0 100644
                              | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                                  let payloadType =
                                      match scrutineeType with
-@@ -5756,7 +6096,20 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -5668,7 +6124,12 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                                 (finalExpr, vg3))))
+ 
+             // Build comparison expression for a pattern
+-            let rec buildPatternComparison (pattern: AST.Pattern) (scrutAtom: ANF.Atom) (vg: ANF.VarGen) : Result<(ANF.Atom * (ANF.TempId * ANF.CExpr) list * ANF.VarGen) option, string> =
++            // `patType` is the static type of `scrutAtom` where known. A constructor
++            // test resolves its variant against THAT, not the outer scrutinee's type:
++            // `Some((_, String "2.0"))` on an Option of (String * Json) must find
++            // Json.String's tag, and a bare lookup found RequestID.String's instead
++            // whenever both types were in the program.
++            let rec buildPatternComparison (pattern: AST.Pattern) (scrutAtom: ANF.Atom) (patType: AST.Type option) (vg: ANF.VarGen) : Result<(ANF.Atom * (ANF.TempId * ANF.CExpr) list * ANF.VarGen) option, string> =
+                 match pattern with
+                 | AST.PUnit -> Ok None  // Unit pattern always matches unit type
+                 | AST.PWildcard -> Ok None
+@@ -5756,13 +6217,36 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                          let cmpExpr = ANF.Prim (ANF.Eq, scrutAtom, ANF.FloatLiteral f)
                          Ok (Some (ANF.Var cmpVar, [(cmpVar, cmpExpr)], vg1))
                  | AST.PConstructor (variantName, payloadPattern) ->
 -                    match Map.tryFind variantName variantLookup with
+-                    | Some (_, _, tag, variantPayloadType) ->
 +                    // Resolve the variant SCOPED by the scrutinee's type. A bare
 +                    // `Map.tryFind variantName variantLookup` picks whichever type won the
 +                    // collision when two enums share a variant name — and it returns that
@@ -1029,14 +1192,69 @@ index 39ddd56..d1c3ab0 100644
 +                    // scoped-key fix (02ba43ab9) covered other readers but not this
 +                    // tag-comparison site.
 +                    let scrutTypeName =
-+                        match scrutType with
-+                        | AST.TSum(n, _) | AST.TRecord(n, _) -> Some n
-+                        | _ -> None
++                        match patType with
++                        | Some (AST.TSum(n, _)) | Some (AST.TRecord(n, _)) -> Some n
++                        | _ ->
++                            match scrutType with
++                            | AST.TSum(n, _) | AST.TRecord(n, _) -> Some n
++                            | _ -> None
 +                    match TypeChecking.tryFindVariant variantLookup scrutTypeName variantName with
-                     | Some (_, _, tag, variantPayloadType) ->
++                    | Some (_, typeParams, tag, variantPayloadType) ->
                          let arityMismatch =
                              match payloadPattern, variantPayloadType with
-@@ -5960,7 +6313,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                             | None, None -> false
+                             | Some _, Some _ -> false
+                             | _ -> true
++                        // The payload's type with the sum type's arguments substituted.
++                        let payloadTypeConcrete =
++                            match variantPayloadType, patType with
++                            | Some pt, Some (AST.TSum (_, typeArgs)) when List.length typeArgs = List.length typeParams ->
++                                Some (applySubstToType (List.zip typeParams typeArgs |> Map.ofList) pt)
++                            | Some pt, _ -> Some pt
++                            | None, _ -> None
+ 
+                         if arityMismatch then
+                             // Constructor arity mismatch in pattern should not match.
+@@ -5781,7 +6265,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                                 // Extract payload and check inner pattern if needed.
+                                 let (payloadVar, vg3) = ANF.freshVar vg2
+                                 let payloadLoadExpr = ANF.TupleGet (scrutAtom, 1)
+-                                buildPatternComparison innerPattern (ANF.Var payloadVar) vg3
++                                buildPatternComparison innerPattern (ANF.Var payloadVar) payloadTypeConcrete vg3
+                                 |> Result.map (fun innerResult ->
+                                     match innerResult with
+                                     | None ->
+@@ -5839,8 +6323,12 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                             let (elemVar, vg1) = ANF.freshVar vg
+                             let elemLoad = ANF.TupleGet (scrutAtom, index)
+                             let newBindings = accBindings @ [(elemVar, elemLoad)]
++                            let elemType =
++                                match patType with
++                                | Some (AST.TTuple ts) when index < List.length ts -> Some ts.[index]
++                                | _ -> None
+                             // Check if this pattern needs comparison
+-                            buildPatternComparison p (ANF.Var elemVar) vg1
++                            buildPatternComparison p (ANF.Var elemVar) elemType vg1
+                             |> Result.bind (fun compResult ->
+                                 match compResult with
+                                 | None ->
+@@ -5878,7 +6366,14 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                             let (elemVar, vg1) = ANF.freshVar vg
+                             let elemLoad = ANF.TupleGet (scrutAtom, fieldIndex)
+                             let newBindings = accBindings @ [(elemVar, elemLoad)]
+-                            buildPatternComparison p (ANF.Var elemVar) vg1
++                            let fieldType =
++                                match patType with
++                                | Some (AST.TRecord (rn, _)) ->
++                                    Map.tryFind rn typeReg
++                                    |> Option.bind (fun fields -> fields |> List.tryFind (fun (n, _) -> n = fieldName))
++                                    |> Option.map snd
++                                | _ -> None
++                            buildPatternComparison p (ANF.Var elemVar) fieldType vg1
+                             |> Result.bind (fun compResult ->
+                                 match compResult with
+                                 | None -> buildRecordComparisons rest vg1 newBindings accConditions
+@@ -5960,7 +6455,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                  (constructorName: string)
                  (scrutineeType: AST.Type)
                  : AST.Type option option =
@@ -1045,7 +1263,7 @@ index 39ddd56..d1c3ab0 100644
                  | None -> None
                  | Some (sumTypeName, typeParams, _, payloadTypeTemplateOpt) ->
                      let payloadTypeOpt =
-@@ -6004,7 +6357,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -6004,7 +6499,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                      | AST.TVar _
                      | AST.TRuntimeError -> false
                      | AST.TSum (sumTypeName, _) ->
@@ -1054,7 +1272,7 @@ index 39ddd56..d1c3ab0 100644
                          | Some (constructorSumTypeName, _, _, _) when constructorSumTypeName <> sumTypeName ->
                              true
                          | Some _ ->
-@@ -6175,7 +6528,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -6175,7 +6670,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                          | AST.TFunction (args, ret) -> AST.TFunction (List.map (substituteType subst) args, substituteType subst ret)
                          | _ -> typ
                      let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
@@ -1063,7 +1281,16 @@ index 39ddd56..d1c3ab0 100644
                          | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                              let payloadType =
                                  match scrutineeType with
-@@ -6834,6 +7187,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -6570,7 +7065,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                                         let (condAtom, bindings', vg3) = makeFalsePatternCondition vg2'
+                                         Ok (Some (condAtom, bindings', vg3))
+                                     else
+-                                        buildPatternComparison pat (ANF.Var valueVar) vg2'
++                                        buildPatternComparison pat (ANF.Var valueVar) (Some elemType) vg2'
+                                 cmpResult
+                                 |> Result.bind (fun cmpOpt ->
+                                     let (cmpCondOpt, cmpBindings, vg3) =
+@@ -6834,6 +7329,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                  let guardExpr =
                                      ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral (uint128ToCanonicalString n)])
                                  Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
@@ -1080,7 +1307,7 @@ index 39ddd56..d1c3ab0 100644
                              | AST.PConstructor _ ->
                                  Error "Nested pattern in list cons element not yet supported"
                              | _ -> Error $"Unsupported head pattern in list cons: {singleHeadPattern}"
-@@ -6926,6 +7289,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+@@ -6926,6 +7431,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                  let guardExpr =
                                      ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral (uint128ToCanonicalString n)])
                                  Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
@@ -1097,7 +1324,43 @@ index 39ddd56..d1c3ab0 100644
                              | AST.PConstructor _ ->
                                  Error "Nested pattern in list cons element not yet supported"
                              | _ -> Error $"Unsupported head pattern in list cons: {singleHeadPattern}"
-@@ -8084,8 +8457,16 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
+@@ -7065,7 +7580,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                                         let (condAtom, bindings', vg3) = makeFalsePatternCondition vg2''
+                                         Ok (Some (condAtom, bindings', vg3))
+                                     else
+-                                        buildPatternComparison pat (ANF.Var typedHeadVar) vg2''
++                                        buildPatternComparison pat (ANF.Var typedHeadVar) (Some elemType) vg2''
+                                 cmpResult
+                                 |> Result.bind (fun cmpOpt ->
+                                     let (cmpCondOpt, cmpBindings, vg3) =
+@@ -7102,7 +7617,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                             | AST.PWildcard ->
+                                 Ok (envAfterHeads, [], [], vg4)
+                             | _ ->
+-                                buildPatternComparison tailPattern (ANF.Var finalTailVar) vg4
++                                buildPatternComparison tailPattern (ANF.Var finalTailVar) (Some listType) vg4
+                                 |> Result.map (fun cmpOpt ->
+                                     match cmpOpt with
+                                     | None -> (envAfterHeads, [], [], vg4)
+@@ -7171,7 +7686,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                         let (condAtom, bindings, vg1) = makeFalseCondition vg
+                         Ok (Some (condAtom, bindings, vg1))
+                     else
+-                        buildPatternComparison single scrutAtom vg
++                        buildPatternComparison single scrutAtom (Some scrutType) vg
+                 | multiple ->
+                     // Build comparison for each pattern, then OR them together
+                     let rec buildOr (pats: AST.Pattern list) (accCondOpt: ANF.Atom option) (accBindings: (ANF.TempId * ANF.CExpr) list) (vg: ANF.VarGen) : Result<(ANF.Atom * (ANF.TempId * ANF.CExpr) list * ANF.VarGen) option, string> =
+@@ -7186,7 +7701,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
+                                     let (condAtom, bindings, vg1) = makeFalseCondition vg
+                                     Ok (Some (condAtom, bindings, vg1))
+                                 else
+-                                    buildPatternComparison pat scrutAtom vg
++                                    buildPatternComparison pat scrutAtom (Some scrutType) vg
+                             cmpResult
+                             |> Result.bind (fun cmpOpt ->
+                                 match cmpOpt with
+@@ -8084,8 +8599,16 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
              | _ ->
                  Error $"Cannot access field '{fieldName}' on non-record type")
  
@@ -1116,7 +1379,7 @@ index 39ddd56..d1c3ab0 100644
          | None ->
              Error $"Unknown constructor: {variantName}"
          | Some (typeName, _, tag, _) ->
-@@ -8154,7 +8535,11 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
+@@ -8154,7 +8677,11 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
              let (setVar, vg2) = ANF.freshVar vg1
              let (setRcVar, vg3) = ANF.freshVar vg2
              let allocExpr = ANF.RawAlloc (ANF.IntLiteral (ANF.Int64 16L))
@@ -1129,7 +1392,7 @@ index 39ddd56..d1c3ab0 100644
              let setRcExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 8L), ANF.IntLiteral (ANF.Int64 1L), None)
              let (vg4, bindings4) =
                  addLeafInc elemAtom elemType vg3 (bindings @ [(ptrVar, allocExpr); (setVar, setExpr); (setRcVar, setRcExpr)])
-@@ -8721,9 +9106,16 @@ let buildRegistries
+@@ -8721,9 +9248,16 @@ let buildRegistries
              | AST.SumTypeDef (typeName, typeParams, variants) ->
                  Some (typeName, typeParams, variants)
              | _ -> None)
