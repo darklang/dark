@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Darklang CLI</title>
-  <link rel="stylesheet" href="vendor/xterm.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
   <!-- The store downloads while the runtime does; Boot's fetch of the same URL hits the cache. -->
   <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
   <style>
@@ -52,8 +52,8 @@
     <div id="panel"><div id="shell"></div></div>
   </div>
 
-  <script src="vendor/xterm.js"></script>
-  <script src="vendor/addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
   <!-- Blazor WASM runtime; produced by `dotnet publish` (see README.md). -->
   <script src="_framework/blazor.webassembly.js" autostart="false"></script>
   <script>

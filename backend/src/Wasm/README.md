@@ -58,7 +58,7 @@ previous build into itself. Wipe `rundir/wasm-repl` first, or stale fingerprinte
   on a 25 ms timer (a whole TUI frame arrives as one write).
 - `Host/BrowserBuiltins.fs` replaces seven builtins (stdin, terminal size and session info,
   clear). Everything else is the real `Builtins.Cli`, `Builtins.CliHost`, `Builtins.Matter`.
-- `wwwroot/vendor/` carries xterm.js (MIT), so the site has no CDN dependency.
+- xterm.js comes from jsdelivr (pinned versions).
 
 Things that had to change outside this directory, all guarded on `OperatingSystem.IsBrowser()`:
 `HostLibc` takes managed implementations (no `DllImport("libc")` in wasm), `PackageManager`

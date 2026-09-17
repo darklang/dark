@@ -23,7 +23,6 @@ mkdir -p "$DST"
 # The page sources are copied straight from the tree so an html/js edit needs no publish.
 cp "$ROOT/backend/src/Wasm/wwwroot/"*.html "$SRC/"
 rm -f "$SRC"/*.html.gz "$SRC"/*.html.br
-mkdir -p "$SRC/vendor" && cp "$ROOT/backend/src/Wasm/wwwroot/vendor/"* "$SRC/vendor/"
 # Into place under the old tree, then swap, so a page being served never sees a half-copy.
 rm -rf "$DST.next"
 cp -r "$SRC" "$DST.next"
