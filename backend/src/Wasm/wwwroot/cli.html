@@ -84,6 +84,22 @@
     let running = false;
     const invoke = dark.invoke;
 
+    // Keys go straight to .NET as DOM key names; xterm never sees them (returning false
+    // stops its own handling), so nothing echoes twice. Paste arrives through onData.
+    term.attachCustomKeyEventHandler((ev) => {
+      if (ev.type !== "keydown" || !running) return false;
+      // Let the browser keep its own clipboard shortcuts.
+      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && (ev.key === "V" || ev.key === "C")) return true;
+      if (ev.metaKey) return true;
+      invoke("PushKey", ev.key, ev.ctrlKey, ev.altKey, ev.shiftKey);
+      ev.preventDefault();
+      return false;
+    });
+    term.onData((data) => {
+      // Everything that reaches here is a paste (or IME text): keys were intercepted above.
+      if (running && data.length > 0) invoke("PushPaste", data);
+    });
+
     // The shell on the right: a second terminal with a prompt and a line editor. A line
     // `dark <args>` runs RunCommand (one-shot, output captured) against the same store the
     // workbench is showing; the workbench keeps running.
