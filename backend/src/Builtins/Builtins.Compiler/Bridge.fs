@@ -28,6 +28,9 @@ type TypeEntry =
   | TERecord
   | TESum
   | TEAlias of AST.Type
+  /// Fetched, but not bridgeable; the string says why, so a fn that uses the type
+  /// fails with the reason rather than a bare "TCustomType".
+  | TEUnsupported of string
 
 /// Threaded through expression bridging. `Params` maps EArg indices to the
 /// enclosing fn's compiler-side param names; `Self` is the current fn's compiled
@@ -227,6 +230,9 @@ let builtinToStdlib : Map<string, string> =
       "listFindFirst", "Stdlib.List.findFirst"
       "listFilterMap", "Stdlib.List.filterMap"
       "listAny", "Stdlib.List.exists"
+      // Both stop at the shorter list, same as the compiler's zip.
+      "listZipShortest", "Stdlib.List.zip"
+      "listMap2shortest", "Stdlib.List.map2shortest"
       // Bool
       "boolNot", "Stdlib.Bool.not"
       "boolAnd", "Stdlib.Bool.and"
@@ -576,12 +582,18 @@ let rec bridgeType
         |> allOk
         |> Result.map (fun args -> AST.TSum(compilerTypeName h, args))
       else
+      let typeName =
+        match nr.resolved with
+        | Ok { location = Some loc } ->
+          String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
+        | _ -> $"T.{h}"
       match Map.tryFind h types with
       // Not in the type env => unfetched / unsupported: hard-fail cleanly.
-      | None -> err "type" "TCustomType"
+      | None -> err "type" $"{typeName}: not in the type closure"
+      | Some(TEUnsupported why) -> err "type" $"{typeName}: {why}"
       | Some(TEAlias target) ->
         if List.isEmpty typeArgs then Ok target
-        else err "generics" "generic type alias"
+        else err "generics" $"generic type alias {typeName}"
       | Some entry ->
         typeArgs
         |> List.map recurse
@@ -1188,9 +1200,18 @@ let rec unmarshalTypedSeen
             [ AST.TString ],
             AST.NonEmptyList.fromList [ parts; AST.Int64Literal(int64 i) ])
           AST.StringLiteral "" ])
+  let parseAs fnName e = AST.Call(fnName, AST.NonEmptyList.singleton e)
   match t with
   | AST.TString -> Ok src
   | AST.TInt64 -> Ok(parseInt src)
+  // Decimal on the wire (dvalToWire writes `string n`); Rpc.dark parses at width.
+  | AST.TInt8 -> Ok(parseAs "Stdlib.hostRpcParseInt8" src)
+  | AST.TInt16 -> Ok(parseAs "Stdlib.hostRpcParseInt16" src)
+  | AST.TInt32 -> Ok(parseAs "Stdlib.hostRpcParseInt32" src)
+  | AST.TUInt8 -> Ok(parseAs "Stdlib.hostRpcParseUInt8" src)
+  | AST.TUInt16 -> Ok(parseAs "Stdlib.hostRpcParseUInt16" src)
+  | AST.TUInt32 -> Ok(parseAs "Stdlib.hostRpcParseUInt32" src)
+  | AST.TUInt64 -> Ok(parseAs "Stdlib.hostRpcParseUInt64" src)
   | AST.TBool -> Ok(AST.BinOp(AST.Eq, src, AST.StringLiteral "true"))
   | AST.TUnit -> Ok(AST.Let(rv, src, AST.UnitLiteral))
   | AST.TSum("Stdlib.Option.Option", [ inner ]) ->

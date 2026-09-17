@@ -851,12 +851,17 @@ let private prepareProgramForAnf
             |> List.choose (function AST.FunctionDef f -> Some f.Name | _ -> None)
             |> Set.ofList
         let knownFuncNames = Set.union baseFuncNames localFuncNames
-        let needsLowering = AST_to_ANF.programNeedsLambdaLowering knownFuncNames monomorphized
+        // Always: a hoisted branch is a lambda marker, so this also decides lowering.
+        // DARK_COMPILER_NO_HOIST=1 is the escape hatch for comparing against the old lowering.
+        let hoisted =
+            if Environment.GetEnvironmentVariable "DARK_COMPILER_NO_HOIST" = "1" then monomorphized
+            else AST_to_ANF.hoistLazyBranchesInProgram monomorphized
+        let needsLowering = AST_to_ANF.programNeedsLambdaLowering knownFuncNames hoisted
         if needsLowering then
-            let inlined = AST_to_ANF.inlineLambdasInProgram monomorphized
+            let inlined = AST_to_ANF.inlineLambdasInProgram hoisted
             liftLambdasWithBase baseRegistries baseFuncNames inlined
         else
-            Ok monomorphized
+            Ok hoisted
 
 let private buildRegistriesForProgram
     (moduleRegistry: AST.ModuleRegistry)
@@ -995,6 +1000,13 @@ let private loadDarkFileAllowInternal (filename: string) : Result<AST.Program, s
         Error $"Could not find {filename} in any of: {pathsStr}"
     | Some path ->
         let source = File.ReadAllText(path)
+        // The hostRpc seam (Rpc.dark) names its request/response files under /tmp.
+        // DARK_RPC_DIR moves them, so several compiled programs can talk to their own
+        // host daemons at once; the host side (Builtins.Compiler) reads the same var.
+        let source =
+            match Environment.GetEnvironmentVariable "DARK_RPC_DIR" with
+            | null | "" -> source
+            | dir -> source.Replace("/tmp/dark-rpc-", dir.TrimEnd('/') + "/dark-rpc-")
         Parser.parseString true source
         |> Result.mapError (fun err -> $"Error parsing {filename}: {err}")
 

@@ -83,6 +83,13 @@ def Stdlib.List.member<a>(list: List<a>, value: a) : Bool =
             if h == value then true
             else Stdlib.List.member<a>(Stdlib.__FingerTree.tail<a>(list), value)
 
+// Map over two lists in parallel, stopping when either runs out - O(n)
+def Stdlib.List.map2shortest<a, b, c>(as: List<a>, bs: List<b>, fn: (a, b) -> c) : List<c> =
+    match (as, bs) with
+    | ([], _) -> []
+    | (_, []) -> []
+    | ([h1, ...t1], [h2, ...t2]) -> [fn(h1, h2), ...Stdlib.List.map2shortest<a, b, c>(t1, t2, fn)]
+
 // Flatten a list of lists into a single list - O(n*m)
 def Stdlib.List.flatten<a>(lists: List<List<a>>) : List<a> =
     Stdlib.List.__flattenHelper<a>(lists, Stdlib.__FingerTree.empty<a>())

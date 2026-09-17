@@ -394,6 +394,12 @@ type TypeRegistry = Map<string, (string * AST.Type) list>
 /// Variant lookup - maps variant names to (type name, type params, tag index, payload type)
 type VariantLookup = Map<string, (string * string list * int * AST.Type option)>
 
+/// The sum-type name a scrutinee type names, for scoping a variant lookup.
+let private sumNameOf (t: AST.Type) : string option =
+    match t with
+    | AST.TSum (n, _) -> Some n
+    | _ -> None
+
 /// Function registry - maps function names to their FULL function types (TFunction)
 type FunctionRegistry = Map<string, AST.Type>
 
@@ -1646,6 +1652,16 @@ let private freshLiftedName (state: LiftState) (prefix: string) : string * LiftS
     let name = $"{prefix}{nextCounter}"
     (name, { state with Counter = nextCounter + 1 })
 
+/// The variable names a pattern binds.
+let rec patternVarNames (pattern: AST.Pattern) : Set<string> =
+    match pattern with
+    | AST.PVar name -> Set.singleton name
+    | AST.PConstructor (_, Some p) -> patternVarNames p
+    | AST.PTuple ps | AST.PList ps -> ps |> List.map patternVarNames |> Set.unionMany
+    | AST.PRecord (_, fields) -> fields |> List.map (snd >> patternVarNames) |> Set.unionMany
+    | AST.PListCons (heads, tail) -> Set.union (heads |> List.map patternVarNames |> Set.unionMany) (patternVarNames tail)
+    | _ -> Set.empty
+
 /// Collect free variables in an expression (variables not bound by let or lambda parameters)
 let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
     match expr with
@@ -1690,9 +1706,13 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
         payload |> Option.map (fun e -> freeVars e bound) |> Option.defaultValue Set.empty
     | AST.Match (scrutinee, cases) ->
         let scrutineeVars = freeVars scrutinee bound
+        // What an arm's patterns bind is bound in its guard and body, not free.
         let caseVars = cases |> List.map (fun mc ->
-            let guardVars = mc.Guard |> Option.map (fun g -> freeVars g bound) |> Option.defaultValue Set.empty
-            Set.union guardVars (freeVars mc.Body bound)) |> List.fold Set.union Set.empty
+            let armBound =
+                mc.Patterns |> AST.NonEmptyList.toList
+                |> List.fold (fun acc p -> Set.union acc (patternVarNames p)) bound
+            let guardVars = mc.Guard |> Option.map (fun g -> freeVars g armBound) |> Option.defaultValue Set.empty
+            Set.union guardVars (freeVars mc.Body armBound)) |> List.fold Set.union Set.empty
         Set.union scrutineeVars caseVars
     | AST.Lambda (parameters, body) ->
         let paramNames = parameters |> paramsToList |> List.map fst |> Set.ofList
@@ -1711,6 +1731,102 @@ let rec freeVars (expr: AST.Expr) (bound: Set<string>) : Set<string> =
             | AST.StringText _ -> None
             | AST.StringExpr e -> Some (freeVars e bound))
         |> List.fold Set.union Set.empty
+
+let private mergeBindings (bindings: Map<string, AST.Type>) (extra: Map<string, AST.Type>) : Map<string, AST.Type> =
+    Map.fold (fun acc name typ -> Map.add name typ acc) bindings extra
+
+/// The variables a pattern binds, with their types, given the scrutinee's type.
+/// Best effort: a shape it can't see through binds nothing.
+let rec patternBindingTypes (typeReg: TypeRegistry) (variantLookup: VariantLookup) (pattern: AST.Pattern) (scrutType: AST.Type) : Map<string, AST.Type> =
+    let extractPatternBindings = patternBindingTypes typeReg variantLookup
+    match pattern with
+    | AST.PVar name -> Map.ofList [(name, scrutType)]
+    | AST.PWildcard -> Map.empty
+    | AST.PInt64 _ | AST.PInt128Literal _
+    | AST.PInt8Literal _
+    | AST.PInt16Literal _
+    | AST.PInt32Literal _
+    | AST.PUInt8Literal _
+    | AST.PUInt16Literal _
+    | AST.PUInt32Literal _
+    | AST.PUInt64Literal _ | AST.PUInt128Literal _
+    | AST.PUnit
+    | AST.PBool _
+    | AST.PString _
+    | AST.PChar _
+    | AST.PFloat _ -> Map.empty
+    | AST.PTuple innerPats ->
+        match scrutType with
+        | AST.TTuple elemTypes when List.length elemTypes = List.length innerPats ->
+            List.zip innerPats elemTypes
+            |> List.fold (fun acc (pat, typ) -> mergeBindings acc (extractPatternBindings pat typ)) Map.empty
+        | _ -> Map.empty
+    | AST.PRecord (typeName, fieldPats) ->
+        match Map.tryFind typeName typeReg with
+        | Some fields ->
+            fieldPats
+            |> List.fold (fun acc (fieldName, pat) ->
+                match fields |> List.tryFind (fun (name, _) -> name = fieldName) with
+                | Some (_, fieldType) -> mergeBindings acc (extractPatternBindings pat fieldType)
+                | None -> acc) Map.empty
+        | None -> Map.empty
+    | AST.PConstructor (variantName, payloadPat) ->
+        match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutType) variantName, payloadPat with
+        | Some (typeName, typeParams, _, Some payloadType), Some pat ->
+            let subst =
+                match scrutType with
+                | AST.TSum (scrutTypeName, typeArgs)
+                    when scrutTypeName = typeName
+                         && List.length typeParams = List.length typeArgs ->
+                    List.zip typeParams typeArgs |> Map.ofList
+                | _ -> Map.empty
+            extractPatternBindings pat (applySubstToType subst payloadType)
+        | _ -> Map.empty
+    | AST.PList innerPats ->
+        match scrutType with
+        | AST.TList elemType ->
+            innerPats
+            |> List.fold (fun acc pat -> mergeBindings acc (extractPatternBindings pat elemType)) Map.empty
+        | _ -> Map.empty
+    | AST.PListCons (headPats, tailPat) ->
+        match scrutType with
+        | AST.TList elemType ->
+            let headBindings =
+                headPats
+                |> List.fold (fun acc pat -> mergeBindings acc (extractPatternBindings pat elemType)) Map.empty
+            mergeBindings headBindings (extractPatternBindings tailPat scrutType)
+        | _ -> Map.empty
+
+
+
+/// Merge two types the typechecker already proved equal, where either may still carry
+/// unresolved type variables: `Result<Unit, e>` from an `Ok(())` arm and
+/// `Result<t, String>` from an `Error("...")` arm merge to `Result<Unit, String>`.
+/// The concrete side wins at every position; two type variables keep the first; a
+/// real shape mismatch is None.
+let rec mergeInferredTypes (a: AST.Type) (b: AST.Type) : AST.Type option =
+    let both xs ys =
+        if List.length xs <> List.length ys then None
+        else
+            let merged = List.map2 mergeInferredTypes xs ys
+            if List.forall Option.isSome merged then Some (List.choose id merged) else None
+    match a, b with
+    | _ when a = b -> Some a
+    | AST.TVar _, _ -> Some b
+    | _, AST.TVar _ -> Some a
+    | AST.TList x, AST.TList y -> mergeInferredTypes x y |> Option.map AST.TList
+    | AST.TTuple xs, AST.TTuple ys -> both xs ys |> Option.map AST.TTuple
+    | AST.TDict (k1, v1), AST.TDict (k2, v2) ->
+        match mergeInferredTypes k1 k2, mergeInferredTypes v1 v2 with
+        | Some k, Some v -> Some (AST.TDict (k, v))
+        | _ -> None
+    | AST.TSum (n1, xs), AST.TSum (n2, ys) when n1 = n2 -> both xs ys |> Option.map (fun t -> AST.TSum (n1, t))
+    | AST.TRecord (n1, xs), AST.TRecord (n2, ys) when n1 = n2 -> both xs ys |> Option.map (fun t -> AST.TRecord (n1, t))
+    | AST.TFunction (ps1, r1), AST.TFunction (ps2, r2) ->
+        match both ps1 ps2, mergeInferredTypes r1 r2 with
+        | Some ps, Some r -> Some (AST.TFunction (ps, r))
+        | _ -> None
+    | _ -> None
 
 /// Simple type inference for lambda lifting - infers types of simple expressions
 /// This allows let-bound variables to be captured in nested lambdas
@@ -1734,67 +1850,7 @@ let rec simpleInferType
     let isNumericType (typ: AST.Type) : bool =
         isIntType typ || typ = AST.TFloat64
 
-    let mergeBindings (bindings: Map<string, AST.Type>) (extra: Map<string, AST.Type>) : Map<string, AST.Type> =
-        Map.fold (fun acc name typ -> Map.add name typ acc) bindings extra
-
-    let rec extractPatternBindings (pattern: AST.Pattern) (scrutType: AST.Type) : Map<string, AST.Type> =
-        match pattern with
-        | AST.PVar name -> Map.ofList [(name, scrutType)]
-        | AST.PWildcard -> Map.empty
-        | AST.PInt64 _ | AST.PInt128Literal _
-        | AST.PInt8Literal _
-        | AST.PInt16Literal _
-        | AST.PInt32Literal _
-        | AST.PUInt8Literal _
-        | AST.PUInt16Literal _
-        | AST.PUInt32Literal _
-        | AST.PUInt64Literal _ | AST.PUInt128Literal _
-        | AST.PUnit
-        | AST.PBool _
-        | AST.PString _
-        | AST.PChar _
-        | AST.PFloat _ -> Map.empty
-        | AST.PTuple innerPats ->
-            match scrutType with
-            | AST.TTuple elemTypes when List.length elemTypes = List.length innerPats ->
-                List.zip innerPats elemTypes
-                |> List.fold (fun acc (pat, typ) -> mergeBindings acc (extractPatternBindings pat typ)) Map.empty
-            | _ -> Map.empty
-        | AST.PRecord (typeName, fieldPats) ->
-            match Map.tryFind typeName typeReg with
-            | Some fields ->
-                fieldPats
-                |> List.fold (fun acc (fieldName, pat) ->
-                    match fields |> List.tryFind (fun (name, _) -> name = fieldName) with
-                    | Some (_, fieldType) -> mergeBindings acc (extractPatternBindings pat fieldType)
-                    | None -> acc) Map.empty
-            | None -> Map.empty
-        | AST.PConstructor (variantName, payloadPat) ->
-            match Map.tryFind variantName variantLookup, payloadPat with
-            | Some (typeName, typeParams, _, Some payloadType), Some pat ->
-                let subst =
-                    match scrutType with
-                    | AST.TSum (scrutTypeName, typeArgs)
-                        when scrutTypeName = typeName
-                             && List.length typeParams = List.length typeArgs ->
-                        List.zip typeParams typeArgs |> Map.ofList
-                    | _ -> Map.empty
-                extractPatternBindings pat (applySubstToType subst payloadType)
-            | _ -> Map.empty
-        | AST.PList innerPats ->
-            match scrutType with
-            | AST.TList elemType ->
-                innerPats
-                |> List.fold (fun acc pat -> mergeBindings acc (extractPatternBindings pat elemType)) Map.empty
-            | _ -> Map.empty
-        | AST.PListCons (headPats, tailPat) ->
-            match scrutType with
-            | AST.TList elemType ->
-                let headBindings =
-                    headPats
-                    |> List.fold (fun acc pat -> mergeBindings acc (extractPatternBindings pat elemType)) Map.empty
-                mergeBindings headBindings (extractPatternBindings tailPat scrutType)
-            | _ -> Map.empty
+    let extractPatternBindings = patternBindingTypes typeReg variantLookup
 
     match expr with
     | AST.Int64Literal _ -> Some AST.TInt64
@@ -1969,16 +2025,10 @@ let rec simpleInferType
     | AST.If (_, thenExpr, elseExpr) ->
         match simpleInferType thenExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup,
               simpleInferType elseExpr typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup with
-        | Some thenType, Some elseType when thenType = elseType -> Some thenType
         // This pass runs AFTER typechecking, so the branches are already proven to
-        // have the same type. When one side is still an unresolved type variable --
-        // e.g. `fun i -> if i < 0 then 0 else i`, where the lambda param carries a
-        // placeholder tvar -- the concrete side IS the type. Without this, such a
-        // lambda body fails with "could not infer return type".
-        | Some thenType, Some elseType when containsTypeVar elseType && not (containsTypeVar thenType) ->
-            Some thenType
-        | Some thenType, Some elseType when containsTypeVar thenType && not (containsTypeVar elseType) ->
-            Some elseType
+        // have the same type; what differs is which type variables each side has
+        // resolved. Merge them position by position (see mergeInferredTypes).
+        | Some thenType, Some elseType -> mergeInferredTypes thenType elseType
         | _ -> None
     | AST.Match (scrutinee, cases) ->
         let scrutineeType = simpleInferType scrutinee typeEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup
@@ -1995,20 +2045,13 @@ let rec simpleInferType
                     | None -> typeEnv
                 simpleInferType mc.Body caseEnv funcParams funcReturnTypes genericFuncDefs typeReg variantLookup)
         if List.forall Option.isSome caseTypes then
+            // Same rationale as the If case: the arms are proven equal, merge what
+            // each has resolved.
             let types = caseTypes |> List.choose id
             match types with
-            | first :: rest when rest |> List.forall (fun t -> t = first) -> Some first
-            | _ ->
-                // Same rationale as the If case above: this pass runs AFTER
-                // typechecking, so every arm already has the same type. Arms that are
-                // still unresolved type variables (a lambda param's placeholder tvar)
-                // carry no information; if the CONCRETE arms agree, that's the type.
-                // Without this, `fun op -> match op with ...` — a lambda whose body is
-                // a match, which is everywhere — fails to lift.
-                match types |> List.filter (containsTypeVar >> not) with
-                | concrete :: restConcrete when restConcrete |> List.forall (fun t -> t = concrete) ->
-                    Some concrete
-                | _ -> None
+            | first :: rest ->
+                rest |> List.fold (fun acc t -> acc |> Option.bind (fun a -> mergeInferredTypes a t)) (Some first)
+            | [] -> None
         else
             None
     | AST.Lambda (parameters, body) ->
@@ -2062,7 +2105,117 @@ let rec simpleInferType
 let inferLambdaReturnType (body: AST.Expr) (state: LiftState) : Result<AST.Type, string> =
     match simpleInferType body state.TypeEnv state.FuncParams state.FuncReturnTypes state.GenericFuncDefs state.TypeReg state.VariantLookup with
     | Some returnType -> Ok returnType
-    | None -> Error "Lambda lifting could not infer return type for lambda body"
+    | None ->
+        // Name the shape, so a sweep over many programs can rank what inference misses.
+        let head = (sprintf "%A" body).Split('\n').[0]
+        let head = if head.Length > 90 then head.Substring(0, 90) + "..." else head
+        Error $"Lambda lifting could not infer return type for lambda body: {head}"
+
+
+// ============================================================================
+// Hoisting branches out of non-tail position
+// ============================================================================
+// ANF has `If` only as a tail form. A branching expression (`if`, `match`) in
+// any other position is lowered one of two ways today, and both are bad:
+//
+//   - `toAtom` accepts it only when both branches are eager-safe (no call, no
+//     allocation), and otherwise fails with "requires lazy branch lowering".
+//   - the `let x = <branch> in body` path lowers it with `toANF` and splices the
+//     continuation `body` into EVERY branch. A chain of n such lets copies the
+//     tail of the function 2^n times; a JSON builder with a dozen of them takes
+//     minutes to compile.
+//
+// So before lambda lifting, every branching expression in non-tail position
+// whose branches are not trivially eager-safe is wrapped as an immediately
+// applied lambda with a reserved parameter name:
+//
+//     Apply(Lambda([("__lazy_branch", TUnit)], <if or match>), [UnitLiteral])
+//
+// `liftLambdasInExpr` recognises that shape and lifts it as a DIRECT function
+// whose parameters are the free variables (a plain `Call`, no closure
+// allocation), so the branch is back in tail position inside its own function.
+// The lambda marker is only a way to reuse the lifter's capture and
+// return-type machinery; if return-type inference fails there, the marker is
+// unwrapped and the old lowering applies, so nothing that compiled before
+// stops compiling.
+
+let lazyBranchParam = "__lazy_branch"
+
+/// True when evaluating the expression eagerly is as cheap as the ANF `IfValue`
+/// path allows: no call, no allocation, no further branching to worry about.
+let rec private isEagerSafeExpr (expr: AST.Expr) : bool =
+    match expr with
+    | AST.UnitLiteral | AST.Int64Literal _ | AST.Int128Literal _ | AST.Int8Literal _
+    | AST.Int16Literal _ | AST.Int32Literal _ | AST.UInt8Literal _ | AST.UInt16Literal _
+    | AST.UInt32Literal _ | AST.UInt64Literal _ | AST.UInt128Literal _ | AST.BoolLiteral _
+    | AST.FloatLiteral _ | AST.Var _ -> true
+    | AST.BinOp (_, l, r) -> isEagerSafeExpr l && isEagerSafeExpr r
+    | AST.UnaryOp (_, e) -> isEagerSafeExpr e
+    | AST.TupleAccess (e, _) -> isEagerSafeExpr e
+    | AST.RecordAccess (e, _) -> isEagerSafeExpr e
+    | AST.If (c, t, e) -> isEagerSafeExpr c && isEagerSafeExpr t && isEagerSafeExpr e
+    | _ -> false
+
+let private wrapLazyBranch (expr: AST.Expr) : AST.Expr =
+    AST.Apply (
+        AST.Lambda (AST.NonEmptyList.singleton (lazyBranchParam, AST.TUnit), expr),
+        AST.NonEmptyList.singleton AST.UnitLiteral)
+
+/// Wrap non-tail branching expressions (see above). `tail` is whether `expr`'s
+/// value is the value of the enclosing function or lambda.
+let rec hoistLazyBranches (expr: AST.Expr) (tail: bool) : AST.Expr =
+    let sub e = hoistLazyBranches e false
+    let subArgs (args: AST.NonEmptyList<AST.Expr>) = AST.NonEmptyList.map sub args
+    match expr with
+    | AST.If (c, t, e) ->
+        let rewritten = AST.If (sub c, hoistLazyBranches t tail, hoistLazyBranches e tail)
+        if tail || (isEagerSafeExpr t && isEagerSafeExpr e) then rewritten
+        else wrapLazyBranch rewritten
+    | AST.Match (scrutinee, cases) ->
+        let cases' =
+            cases
+            |> List.map (fun mc ->
+                { mc with
+                    Guard = mc.Guard |> Option.map sub
+                    Body = hoistLazyBranches mc.Body tail })
+        let rewritten = AST.Match (sub scrutinee, cases')
+        // `toAtom` has no match form at all, so a non-tail match is always hoisted.
+        if tail then rewritten else wrapLazyBranch rewritten
+    | AST.Let (name, value, body) -> AST.Let (name, sub value, hoistLazyBranches body tail)
+    | AST.Lambda (parameters, body) -> AST.Lambda (parameters, hoistLazyBranches body true)
+    | AST.BinOp (op, l, r) -> AST.BinOp (op, sub l, sub r)
+    | AST.UnaryOp (op, e) -> AST.UnaryOp (op, sub e)
+    | AST.Call (name, args) -> AST.Call (name, subArgs args)
+    | AST.TypeApp (name, targs, args) -> AST.TypeApp (name, targs, subArgs args)
+    | AST.Apply (f, args) -> AST.Apply (sub f, subArgs args)
+    | AST.TupleLiteral elems -> AST.TupleLiteral (List.map sub elems)
+    | AST.TupleAccess (e, i) -> AST.TupleAccess (sub e, i)
+    | AST.RecordLiteral (name, fields) -> AST.RecordLiteral (name, fields |> List.map (fun (n, e) -> (n, sub e)))
+    | AST.RecordUpdate (r, updates) -> AST.RecordUpdate (sub r, updates |> List.map (fun (n, e) -> (n, sub e)))
+    | AST.RecordAccess (r, f) -> AST.RecordAccess (sub r, f)
+    | AST.Constructor (t, v, payload) -> AST.Constructor (t, v, Option.map sub payload)
+    | AST.ListLiteral elems -> AST.ListLiteral (List.map sub elems)
+    | AST.ListCons (heads, t) -> AST.ListCons (List.map sub heads, sub t)
+    | AST.Closure (name, captures) -> AST.Closure (name, List.map sub captures)
+    | AST.InterpolatedString parts ->
+        AST.InterpolatedString (
+            parts
+            |> List.map (function
+                | AST.StringText t -> AST.StringText t
+                | AST.StringExpr e -> AST.StringExpr (sub e)))
+    | AST.UnitLiteral | AST.Int64Literal _ | AST.Int128Literal _ | AST.Int8Literal _
+    | AST.Int16Literal _ | AST.Int32Literal _ | AST.UInt8Literal _ | AST.UInt16Literal _
+    | AST.UInt32Literal _ | AST.UInt64Literal _ | AST.UInt128Literal _ | AST.BoolLiteral _
+    | AST.StringLiteral _ | AST.CharLiteral _ | AST.FloatLiteral _ | AST.Var _ | AST.FuncRef _ -> expr
+
+let hoistLazyBranchesInProgram (program: AST.Program) : AST.Program =
+    let (AST.Program topLevels) = program
+    AST.Program (
+        topLevels
+        |> List.map (function
+            | AST.FunctionDef f -> AST.FunctionDef { f with Body = hoistLazyBranches f.Body true }
+            | AST.Expression e -> AST.Expression (hoistLazyBranches e true)
+            | other -> other))
 
 /// Lift lambdas in an expression, returning (transformed expr, new state)
 let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr * LiftState, string> =
@@ -2140,7 +2293,13 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr 
     | AST.Match (scrutinee, cases) ->
         liftLambdasInExpr scrutinee state
         |> Result.bind (fun (scrutinee', state1) ->
-            liftLambdasInCases cases state1
+            // The arms' pattern bindings go into TypeEnv, so a lambda (or a hoisted
+            // branch) inside an arm can capture what the pattern bound. Without this
+            // the capture is silently dropped and ANF fails with "Undefined variable".
+            let scrutType =
+                simpleInferType scrutinee' state1.TypeEnv state1.FuncParams state1.FuncReturnTypes
+                    state1.GenericFuncDefs state1.TypeReg state1.VariantLookup
+            liftLambdasInCases cases scrutType state1
             |> Result.map (fun (cases', state2) -> (AST.Match (scrutinee', cases'), state2)))
     | AST.Lambda (parameters, body) ->
         // Lambda in expression position - lift it to a closure
@@ -2213,6 +2372,63 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr 
                     // Replace lambda with Closure
                     let captureExprs = captures |> List.map AST.Var
                     Ok (AST.Closure (funcName, captureExprs), state'))))
+    // A branch hoisted out of non-tail position (see hoistLazyBranches): lift it
+    // as a direct function over its free variables, called with a plain Call.
+    | AST.Apply (AST.Lambda ({ Head = (paramName, AST.TUnit); Tail = [] }, body), _)
+        when paramName = lazyBranchParam ->
+        liftLambdasInExpr body state
+        |> Result.bind (fun (body', state1) ->
+            let free = freeVars body' Set.empty
+            let captures =
+                free |> Set.filter (fun name -> Map.containsKey name state.TypeEnv) |> Set.toList
+            let captureTypes = captures |> List.map (fun n -> Map.find n state.TypeEnv)
+            // A free variable that is neither typed in scope nor a function name
+            // (a pattern binding the lifter couldn't type, say) can't become a
+            // parameter, and dropping it would leave the lifted body unbound.
+            let untyped =
+                free
+                |> Set.filter (fun name ->
+                    not (Map.containsKey name state.TypeEnv) && not (Map.containsKey name state1.FuncParams))
+            let stateForReturnType =
+                { state with
+                    FuncParams = state1.FuncParams
+                    FuncReturnTypes = state1.FuncReturnTypes
+                    GenericFuncDefs = state1.GenericFuncDefs }
+            let inferred =
+                if Set.isEmpty untyped then inferLambdaReturnType body' stateForReturnType
+                else Error "untyped free variable"
+            match inferred with
+            | Error why ->
+                // Can't type the lifted fn: leave the branch where it was and let
+                // the old lowering have it.
+                if System.Environment.GetEnvironmentVariable "DARK_COMPILER_DEBUG_HOIST" = "1" then
+                    let untypedList = untyped |> Set.toList |> String.concat ","
+                    eprintfn "hoist: fell back (%s; untyped=[%s]) on %A" why untypedList body'
+                Ok (body', state1)
+            | Ok returnType ->
+                let (funcName, stateWithName) = freshLiftedName state1 "__lazy_branch_"
+                let parameters =
+                    match List.zip captures captureTypes with
+                    | [] -> AST.NonEmptyList.singleton ("__unit", AST.TUnit)
+                    | ps -> AST.NonEmptyList.fromList ps
+                let funcDef : AST.FunctionDef = {
+                    Name = funcName
+                    TypeParams = []
+                    Params = parameters
+                    ReturnType = returnType
+                    Body = body'
+                }
+                let callArgs =
+                    match captures with
+                    | [] -> AST.NonEmptyList.singleton AST.UnitLiteral
+                    | cs -> AST.NonEmptyList.fromList (cs |> List.map AST.Var)
+                let state' =
+                    { stateWithName with
+                        LiftedFunctions = funcDef :: stateWithName.LiftedFunctions
+                        TypeEnv = state.TypeEnv
+                        FuncParams = Map.add funcName (AST.NonEmptyList.toList parameters) stateWithName.FuncParams
+                        FuncReturnTypes = Map.add funcName returnType stateWithName.FuncReturnTypes }
+                Ok (AST.Call (funcName, callArgs), state'))
     | AST.Apply (func, args) ->
         liftLambdasInExpr func state
         |> Result.bind (fun (func', state1) ->
@@ -2384,24 +2600,35 @@ and liftLambdasInFields (fields: (string * AST.Expr) list) (state: LiftState) : 
     loop fields state []
 
 /// Helper to lift lambdas in match cases
-and liftLambdasInCases (cases: AST.MatchCase list) (state: LiftState) : Result<AST.MatchCase list * LiftState, string> =
+and liftLambdasInCases (cases: AST.MatchCase list) (scrutType: AST.Type option) (state: LiftState) : Result<AST.MatchCase list * LiftState, string> =
     let rec loop (remaining: AST.MatchCase list) (state: LiftState) (acc: AST.MatchCase list) =
         match remaining with
         | [] -> Ok (List.rev acc, state)
         | mc :: rest ->
+            let armBindings =
+                match scrutType with
+                | Some t ->
+                    mc.Patterns
+                    |> AST.NonEmptyList.toList
+                    |> List.fold (fun acc pat ->
+                        Map.fold (fun m k v -> Map.add k v m) acc
+                            (patternBindingTypes state.TypeReg state.VariantLookup pat t)) Map.empty
+                | None -> Map.empty
+            let armState = { state with TypeEnv = Map.fold (fun m k v -> Map.add k v m) state.TypeEnv armBindings }
             // Lift lambdas in guard if present
             let guardResult =
                 match mc.Guard with
-                | None -> Ok (None, state)
+                | None -> Ok (None, armState)
                 | Some g ->
-                    liftLambdasInExpr g state
+                    liftLambdasInExpr g armState
                     |> Result.map (fun (g', s) -> (Some g', s))
             guardResult
             |> Result.bind (fun (guard', state1) ->
                 liftLambdasInExpr mc.Body state1
                 |> Result.bind (fun (body', state2) ->
                     let newCase = { mc with Guard = guard'; Body = body' }
-                    loop rest state2 (newCase :: acc)))
+                    // The arm's bindings don't outlive the arm.
+                    loop rest { state2 with TypeEnv = state.TypeEnv } (newCase :: acc)))
     loop cases state []
 
 /// Lift lambdas in a function definition
@@ -3470,7 +3697,7 @@ let rec inferType (expr: AST.Expr) (typeEnv: Map<string, AST.Type>) (typeReg: Ty
                 | None -> Map.empty
                 | Some payloadPattern ->
                     let payloadType =
-                        match Map.tryFind variantName variantLookup with
+                        match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutType) variantName with
                         | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                             match scrutType with
                             | AST.TSum (_, typeArgs) when List.length typeParams = List.length typeArgs ->
@@ -4058,7 +4285,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
             inferType argExpr typeEnv typeReg variantLookup funcReg moduleRegistry
             |> Result.bind (fun argType ->
                 let lookupVariantInfo (expectedTypeName: string) (variantName: string) : Result<int * AST.Type option, string> =
-                    match Map.tryFind variantName variantLookup with
+                    match TypeChecking.tryFindVariant variantLookup (Some expectedTypeName) variantName with
                     | Some (typeName, _, tag, payloadTypeOpt) when typeName = expectedTypeName ->
                         Ok (tag, payloadTypeOpt)
                     | Some (typeName, _, _, _) ->
@@ -4784,7 +5011,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
             // Check if the TYPE that a variant belongs to has any variant with a payload
             // This determines if values are heap-allocated or simple integers
             let typeHasAnyPayload (variantName: string) : bool =
-                match Map.tryFind variantName variantLookup with
+                match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutType) variantName with
                 | Some (typeName, _, _, _) ->
                     variantLookup
                     |> Map.exists (fun _ (tName, _, _, pType) -> tName = typeName && pType.IsSome)
@@ -4829,7 +5056,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                     match payloadPattern with
                     | None -> toANF body vg currentEnv typeReg variantLookup funcReg moduleRegistry
                     | Some innerPattern ->
-                        match Map.tryFind constructorName variantLookup with
+                        match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutType) constructorName with
                         | Some (_, _, _, None) ->
                             // Constructor arity mismatch behaves as non-matching.
                             // Do not introduce payload bindings in this branch body.
@@ -4937,7 +5164,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                 | _ -> typ
 
                             let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
-                                match Map.tryFind constructorName variantLookup with
+                                match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutineeType) constructorName with
                                 | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                                     let payloadType =
                                         match scrutineeType with
@@ -5576,7 +5803,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                             | _ -> typ
 
                         let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
-                            match Map.tryFind constructorName variantLookup with
+                            match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutineeType) constructorName with
                             | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                                 let payloadType =
                                     match scrutineeType with
@@ -6036,7 +6263,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                 (constructorName: string)
                 (scrutineeType: AST.Type)
                 : AST.Type option option =
-                match Map.tryFind constructorName variantLookup with
+                match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutineeType) constructorName with
                 | None -> None
                 | Some (sumTypeName, typeParams, _, payloadTypeTemplateOpt) ->
                     let payloadTypeOpt =
@@ -6080,7 +6307,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                     | AST.TVar _
                     | AST.TRuntimeError -> false
                     | AST.TSum (sumTypeName, _) ->
-                        match Map.tryFind constructorName variantLookup with
+                        match TypeChecking.tryFindVariant variantLookup (Some sumTypeName) constructorName with
                         | Some (constructorSumTypeName, _, _, _) when constructorSumTypeName <> sumTypeName ->
                             true
                         | Some _ ->
@@ -6251,7 +6478,7 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                         | AST.TFunction (args, ret) -> AST.TFunction (List.map (substituteType subst) args, substituteType subst ret)
                         | _ -> typ
                     let resolvePayloadType (constructorName: string) (scrutineeType: AST.Type) : Result<AST.Type option, string> =
-                        match Map.tryFind constructorName variantLookup with
+                        match TypeChecking.tryFindVariant variantLookup (sumNameOf scrutineeType) constructorName with
                         | Some (_, typeParams, _, Some payloadTypeTemplate) ->
                             let payloadType =
                                 match scrutineeType with
@@ -6910,6 +7137,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                 let guardExpr =
                                     ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral (uint128ToCanonicalString n)])
                                 Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
+                            | AST.PString str ->
+                                // Same guard shape as the 128-bit literals: a string compare.
+                                let (guardVar, vg4) = ANF.freshVar vg3'
+                                let guardExpr =
+                                    ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral str])
+                                Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
+                            | AST.PBool b ->
+                                let (guardVar, vg4) = ANF.freshVar vg3'
+                                let guardExpr = ANF.Prim (ANF.Eq, ANF.Var typedHeadVar, ANF.BoolLiteral b)
+                                Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
                             | AST.PConstructor _ ->
                                 Error "Nested pattern in list cons element not yet supported"
                             | _ -> Error $"Unsupported head pattern in list cons: {singleHeadPattern}"
@@ -7001,6 +7238,16 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
                                 let (guardVar, vg4) = ANF.freshVar vg3'
                                 let guardExpr =
                                     ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral (uint128ToCanonicalString n)])
+                                Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
+                            | AST.PString str ->
+                                // Same guard shape as the 128-bit literals: a string compare.
+                                let (guardVar, vg4) = ANF.freshVar vg3'
+                                let guardExpr =
+                                    ANF.Call ("__string_eq", [ANF.Var typedHeadVar; ANF.StringLiteral str])
+                                Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
+                            | AST.PBool b ->
+                                let (guardVar, vg4) = ANF.freshVar vg3'
+                                let guardExpr = ANF.Prim (ANF.Eq, ANF.Var typedHeadVar, ANF.BoolLiteral b)
                                 Ok (currentEnv, [], vg4, Some (guardVar, guardExpr))
                             | AST.PConstructor _ ->
                                 Error "Nested pattern in list cons element not yet supported"

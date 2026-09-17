@@ -44,6 +44,52 @@ def Stdlib.hostRpcParseInt(s: String) : Int64 =
     else
         Stdlib.hostRpcDigits(Stdlib.String.toCodepoints(s), 0)
 
+// Sized ints arrive as decimal strings (the daemon writes `string n`). Parse as
+// Int64, then reinterpret the 64-bit slot at the narrower width; every value that
+// came off the wire is in range, so the reinterpretation is the identity. UInt64
+// values >= 2^63 wrap through the Int64 accumulator and come out bit-exact.
+def Stdlib.hostRpcParseInt8(s: String) : Int8 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<Int8>(ptr, 0)
+
+def Stdlib.hostRpcParseInt16(s: String) : Int16 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<Int16>(ptr, 0)
+
+def Stdlib.hostRpcParseInt32(s: String) : Int32 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<Int32>(ptr, 0)
+
+def Stdlib.hostRpcParseUInt8(s: String) : UInt8 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<UInt8>(ptr, 0)
+
+def Stdlib.hostRpcParseUInt16(s: String) : UInt16 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<UInt16>(ptr, 0)
+
+def Stdlib.hostRpcParseUInt32(s: String) : UInt32 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<UInt32>(ptr, 0)
+
+def Stdlib.hostRpcParseUInt64(s: String) : UInt64 =
+    let n = Stdlib.hostRpcParseInt(s) in
+    let ptr = __raw_alloc(8) in
+    let _ = __raw_set<Int64>(ptr, 0, n) in
+    __raw_get<UInt64>(ptr, 0)
+
 // --- structural wire format (escape/unescape) ---
 // Compound values (list elements, enum case+payload) escape each child then join
 // with a raw newline, so a newline only ever separates children. Escaping touches

@@ -50,9 +50,21 @@ let private compileAst (program : AST.Program) : Result<byte array, string> =
         Source = ""
         SourceFile = ""
         AllowInternal = false
-        Verbosity = 0
-        Options = CompilerLibrary.defaultOptions
-        PassTimingRecorder = None }
+        // DARK_COMPILER_DUMP=anf|mir|lir: the compiler's own IR dump to stdout.
+        Verbosity = (if System.Environment.GetEnvironmentVariable "DARK_COMPILER_DUMP" <> null then 3 else 0)
+        Options =
+          (match System.Environment.GetEnvironmentVariable "DARK_COMPILER_DUMP" with
+           | "anf" -> { CompilerLibrary.defaultOptions with DumpANF = true }
+           | "mir" -> { CompilerLibrary.defaultOptions with DumpMIR = true }
+           | "lir" -> { CompilerLibrary.defaultOptions with DumpLIR = true }
+           | _ -> CompilerLibrary.defaultOptions)
+        // DARK_COMPILER_PASS_TIMING=1 prints each pass's wall time to stderr, which is
+        // how a fn that takes minutes to compile gets blamed on a pass.
+        PassTimingRecorder =
+          if System.Environment.GetEnvironmentVariable "DARK_COMPILER_PASS_TIMING" = "1" then
+            Some(fun (t : CompilerLibrary.PassTiming) -> eprintfn "pass %s: %.0fms" t.Pass t.Elapsed.TotalMilliseconds)
+          else
+            None }
     (CompilerLibrary.compileAstProgram request program).Result
 
 let private allOk (rs : List<Result<'a, string>>) : Result<List<'a>, string> =
@@ -302,8 +314,16 @@ let private typeNameHash (t : FQTypeName.FQTypeName) : Result<string, string> =
 /// element type, and guessing one would mis-type every use site. Emitting a TVar
 /// instead makes the value fn GENERIC (`def __val.<h><a>() : List<a> = []`) so each
 /// call site infers it — which is exactly what an empty literal should do.
-let rec private valueTypeToAst (fresh : unit -> string) (vt : ValueType) : Result<AST.Type, string> =
-  let valueTypeToAst = valueTypeToAst fresh
+/// `sums` is the set of compiler type names (Bridge.nameForType) that are enums in
+/// this program: a ValueType carries the type's hash but not its kind, and the
+/// compiler's typechecker treats TRecord("T.x") and TSum("T.x") as different types.
+/// Emitting TRecord for an enum was the "expects T.x, but got T.x" bucket.
+let rec private valueTypeToAst
+  (sums : Set<string>)
+  (fresh : unit -> string)
+  (vt : ValueType)
+  : Result<AST.Type, string> =
+  let valueTypeToAst = valueTypeToAst sums fresh
   match vt with
   | ValueType.Unknown -> Ok(AST.TVar(fresh ()))
   | ValueType.Known kt ->
@@ -347,6 +367,7 @@ let rec private valueTypeToAst (fresh : unit -> string) (vt : ValueType) : Resul
         |> Result.map (fun args ->
           // Enums are TSum, records TRecord; Option/Result map to the native names.
           if Bridge.isNativeType h then AST.TSum(Bridge.compilerTypeName h, args)
+          elif Set.contains (Bridge.nameForType h) sums then AST.TSum(Bridge.nameForType h, args)
           else AST.TRecord(Bridge.nameForType h, args)))
     | other -> Error $"value-type: {other}"
 
@@ -484,7 +505,7 @@ let rec private materializeBlobs (d : Dval) : Ply<Dval> =
     | other -> return other
   }
 
-let private valueFnDef (hash : string) : Ply<Result<AST.FunctionDef, string>> =
+let private valueFnDef (sums : Set<string>) (hash : string) : Ply<Result<AST.FunctionDef, string>> =
   uply {
     let! v0 = LibDB.PackageManager.rt.getValue (FQValueName.package hash)
     let! v =
@@ -502,7 +523,7 @@ let private valueFnDef (hash : string) : Ply<Result<AST.FunctionDef, string>> =
       let fresh () =
         counter <- counter + 1
         $"vt{counter}"
-      match valueTypeToAst fresh (Dval.toValueType pv.body), dvalToAst pv.body with
+      match valueTypeToAst sums fresh (Dval.toValueType pv.body), dvalToAst pv.body with
       | Error e, _ -> return Error e
       | _, Error e -> return Error e
       | Ok t, Ok body ->
@@ -517,12 +538,23 @@ let private valueFnDef (hash : string) : Ply<Result<AST.FunctionDef, string>> =
           )
   }
 
+/// Stage timing to stderr under DARK_COMPILER_PASS_TIMING=1, alongside the
+/// compiler's own pass timings, so a fn that takes minutes can be blamed on the
+/// bridge or on a pass.
+let private traceStage =
+  let on = System.Environment.GetEnvironmentVariable "DARK_COMPILER_PASS_TIMING" = "1"
+  let sw = System.Diagnostics.Stopwatch.StartNew()
+  fun (stage : string) ->
+    if on then
+      eprintfn "stage %s: at %dms" stage sw.ElapsedMilliseconds
+
 let private buildPieces
   (effectful : Map<string, Bridge.WireArg list * Bridge.WireRet>)
   (rootHash : string)
   : Ply<Result<List<AST.TypeDef> * List<AST.FunctionDef> * string, string>> =
   uply {
     let! fnClosure = fetchFnClosure [ rootHash ]
+    traceStage "fn closure fetched"
     match fnClosure with
     | Error e -> return Error e
     | Ok fns ->
@@ -567,7 +599,9 @@ let private buildPieces
             | PT.TypeDeclaration.Alias t when List.isEmpty pt.declaration.typeParams ->
               match Bridge.bridgeType baseEnv t with
               | Ok bt -> Map.add h (Bridge.TEAlias bt) env
-              | Error _ -> env
+              | Error e -> Map.add h (Bridge.TEUnsupported $"alias whose target did not bridge ({e})") env
+            | PT.TypeDeclaration.Alias _ ->
+              Map.add h (Bridge.TEUnsupported "generic type alias") env
             | _ -> env)
         let typeDefs =
           types
@@ -587,8 +621,13 @@ let private buildPieces
         let mutable valueDefs : List<AST.FunctionDef> = []
         let mutable valueOk : Set<string> = Set.empty
         let mutable valueErrs : List<string * string> = []
+        let sumNames =
+          baseEnv
+          |> Map.toList
+          |> List.choose (fun (h, e) -> if e = Bridge.TESum then Some(Bridge.nameForType h) else None)
+          |> Set.ofList
         for (h, _) in values do
-          let! r = valueFnDef h
+          let! r = valueFnDef sumNames h
           match r with
           | Ok fd ->
             valueDefs <- valueDefs @ [ fd ]
@@ -609,11 +648,13 @@ let private buildPieces
               | AST.TypeAlias(n, _, _) -> Some(n, td))
             |> Map.ofList
           | Error _ -> Map.empty
+        traceStage $"types + values bridged ({List.length fns} fns in closure)"
         let fnDefs =
           fns
           |> List.map (fun (h, fn) ->
             Bridge.bridgeFn typeEnv emittedDefs valuesMap valueErrors effectful (Bridge.nameFor h) fn)
           |> allOk
+        traceStage "fns bridged"
         match typeDefs, fnDefs with
         | Error e, _ -> return Error e
         | _, Error e -> return Error e
@@ -807,7 +848,9 @@ let rec private zeroValue
 let private checkOne (effectful : Map<string, Bridge.WireArg list * Bridge.WireRet>) (hash : string) : Ply<bool * string> =
   uply {
     try
+      traceStage $"begin {hash.Substring(0, 8)}"
       let! pieces = buildPieces effectful hash
+      traceStage "bridged"
       match pieces with
       | Error e -> return (false, e)
       | Ok(typeDefs, fds, rootName) ->
@@ -828,9 +871,20 @@ let private checkOne (effectful : Map<string, Bridge.WireArg list * Bridge.WireR
           | Some e -> return (false, $"arg-synthesis: {e}")
           | None ->
             let args = dummy |> List.choose (function Ok x -> Some x | Error _ -> None)
+            traceStage "args synthesized"
+            if System.Environment.GetEnvironmentVariable "DARK_COMPILER_PASS_TIMING" = "1" then
+              // The size of each bridged fn, so a giant one can be named.
+              for fd in fds do
+                let size = (sprintf "%A" fd.Body).Length
+                if size > 20000 then eprintfn "big fn %s: %d chars of AST" fd.Name size
+              eprintfn "entry call: %d chars of AST, %d type defs, %d fns" (sprintf "%A" (mainCall rootFd args)).Length (List.length typeDefs) (List.length fds)
             match compileClosure typeDefs fds (mainCall rootFd args) with
-            | Ok binary -> return (true, $"{binary.Length} bytes")
-            | Error e -> return (false, e)
+            | Ok binary ->
+              traceStage "compiled"
+              return (true, $"{binary.Length} bytes")
+            | Error e ->
+              traceStage "compile failed"
+              return (false, e)
     with e ->
       return (false, $"exn: {e.Message}")
   }
@@ -1196,8 +1250,17 @@ let private dispatchBuiltin
         return $"ERR:exn:{e.Message}"
   }
 
-let private rpcReqFifo = "/tmp/dark-rpc-req"
-let private rpcRespFile = "/tmp/dark-rpc-resp"
+/// Where the seam's request/response files live; DARK_RPC_DIR moves them so
+/// several harness processes can run at once (the compiled side reads the same
+/// variable, see CompilerLibrary's stdlib loader).
+let private rpcDir =
+  match System.Environment.GetEnvironmentVariable "DARK_RPC_DIR" with
+  | null
+  | "" -> "/tmp"
+  | d -> d.TrimEnd('/')
+
+let private rpcReqFifo = rpcDir + "/dark-rpc-req"
+let private rpcRespFile = rpcDir + "/dark-rpc-resp"
 let private rpcShutdown = "__DARK_RPC_SHUTDOWN__"
 
 /// Set up the channel and service ONE builtin request in a background task
@@ -1490,7 +1553,11 @@ let private equivOne
               c <- c + 1
               $"at{c}"
             let actualTypes =
-              args |> List.map (fun a -> valueTypeToAst fresh (Dval.toValueType a))
+              let sums =
+                typeDefs
+                |> List.choose (function AST.SumTypeDef(n, _, _) -> Some n | _ -> None)
+                |> Set.ofList
+              args |> List.map (fun a -> valueTypeToAst sums fresh (Dval.toValueType a))
             let declaredTypes = rootFd.Params |> AST.NonEmptyList.toList |> List.map snd
             // zip, not List.zip: arity can legitimately differ (a Dark nullary fn
             // declares one Unit param but is called with no args), and List.zip

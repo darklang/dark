@@ -3260,7 +3260,15 @@ let rec checkExprWithParamNames
                 | PFloat _ -> ensureLiteralType TFloat64
                 | PVar name -> Ok [(name, patternType)]
                 | PConstructor (variantName, payloadPattern) ->
-                    match Map.tryFind variantName variantLookup with
+                    // Scoped to the scrutinee's sum type when it is known: two sum
+                    // types can share a variant name (`Blocks` on both Messages and
+                    // System), and the bare lookup answers with whichever was
+                    // registered last, typing the payload binding as the wrong type.
+                    let scrutineeSum =
+                        match patternType with
+                        | TSum (name, _) -> Some name
+                        | _ -> None
+                    match tryFindVariant variantLookup scrutineeSum variantName with
                     | None -> Error (GenericError $"Unknown variant in pattern: {variantName}")
                     | Some (typeName, typeParams, _, payloadType) ->
                         // Get type arguments from scrutinee type to substitute into payload type

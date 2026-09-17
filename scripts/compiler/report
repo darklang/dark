@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The compiler coverage report: which package fns compile, which don't and why, and
+# which provably agree with the interpreter. Writes docs/compiler/coverage/<date>.md
+# and .tsv and diffs against the previous report there.
+#
+#   scripts/compiler/report                       everything (an hour or two)
+#   scripts/compiler/report --no-equiv            compile sweep only (~10 min)
+#   scripts/compiler/report --only Darklang.Stdlib.List
+#   scripts/compiler/report --help                the knobs (chunk sizes, budgets)
+#
+# Needs the flag-on CLI binary:
+#
+#   scripts/dev/build && ./scripts/build/_dotnet-wrapper build --configuration Debug \
+#       -p:DarkWithCompiler=true src/Cli/Cli.fsproj
+#
+# The plain build afterwards puts the flag-off binary back.
+set -euo pipefail
+exec python3.12 scripts/compiler/_report.py "$@"

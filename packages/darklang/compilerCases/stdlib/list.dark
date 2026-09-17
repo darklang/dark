@@ -1,0 +1,50 @@
+module Darklang.CompilerCases.Stdlib.List
+
+// Darklang.Stdlib.List.map
+let map_basic () : List<Int64> = Stdlib.List.map [1L, 2L, 3L] (fun x -> x * 2L)
+let map_empty () : List<Int64> = Stdlib.List.map [] (fun x -> x + 1L)
+let map_toString () : List<String> = Stdlib.List.map [1L, 2L] (fun x -> Stdlib.Int64.toString x)
+
+// Darklang.Stdlib.List.filter
+let filter_basic () : List<Int64> = Stdlib.List.filter [1L, 2L, 3L, 4L] (fun x -> x > 2L)
+let filter_none () : List<Int64> = Stdlib.List.filter [1L, 2L] (fun _ -> false)
+
+// Darklang.Stdlib.List.fold
+let fold_sum () : Int64 = Stdlib.List.fold [1L, 2L, 3L, 4L] 0L (fun acc x -> acc + x)
+let fold_empty () : Int64 = Stdlib.List.fold [] 7L (fun acc x -> acc + x)
+let fold_strings () : String =
+  Stdlib.List.fold ["a", "b", "c"] "" (fun acc s -> Stdlib.String.append acc s)
+
+// Darklang.Stdlib.List.findFirst
+let findFirst_hit () : Stdlib.Option.Option<Int64> =
+  Stdlib.List.findFirst [1L, 2L, 3L] (fun x -> x > 1L)
+let findFirst_miss () : Stdlib.Option.Option<Int64> =
+  Stdlib.List.findFirst [1L, 2L, 3L] (fun x -> x > 5L)
+
+// Darklang.Stdlib.List.filterMap
+let filterMap_basic () : List<Int64> =
+  Stdlib.List.filterMap [1L, 2L, 3L, 4L] (fun x ->
+    if x > 2L then Stdlib.Option.Option.Some(x * 10L) else Stdlib.Option.Option.None)
+
+// Darklang.Stdlib.List.append
+let append_basic () : List<Int64> = Stdlib.List.append [1L, 2L] [3L]
+let append_emptyLeft () : List<Int64> = Stdlib.List.append [] [3L, 4L]
+
+// Darklang.Stdlib.List.flatten
+let flatten_basic () : List<Int64> = Stdlib.List.flatten [[1L], [2L, 3L], []]
+
+// Darklang.Stdlib.List.take / drop
+let take_some () : List<Int64> = Stdlib.List.take [1L, 2L, 3L] 2
+let take_more () : List<Int64> = Stdlib.List.take [1L, 2L] 5
+let drop_some () : List<Int64> = Stdlib.List.drop [1L, 2L, 3L] 2
+
+// Darklang.Stdlib.List.reverse
+let reverse_basic () : List<String> = Stdlib.List.reverse ["a", "b", "c"]
+let reverse_empty () : List<Int64> = Stdlib.List.reverse []
+
+// Darklang.Stdlib.List.length
+let length_basic () : Int = Stdlib.List.length [1L, 2L, 3L]
+
+// Darklang.Stdlib.List.any / all
+let any_hit () : Bool = Stdlib.List.any [1L, 2L] (fun x -> x == 2L)
+let all_miss () : Bool = Stdlib.List.all [1L, 2L] (fun x -> x == 2L)

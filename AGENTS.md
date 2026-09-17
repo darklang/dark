@@ -319,6 +319,40 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## The native compiler (gated)
+
+`backend/src/LibCompiler/` is darklang/compiler's `src/DarkCompiler/`, copied in at the commit
+named in `LibCompiler/vendor/VENDORED-FROM`, plus `vendor/dark-fixes.patch` (our changes that
+are not upstream yet). `Builtins.Compiler/` is ours: the ProgramTypes -> compiler-AST bridge,
+the hostRpc seam that runs real builtins for a compiled program, and the sweep/equivalence
+harness. None of it is in the default build.
+
+    ./scripts/build/_dotnet-wrapper build --configuration Debug \
+        -p:DarkWithCompiler=true src/Cli/Cli.fsproj    # flag-on Cli, same output path
+    scripts/dev/build                                   # puts the flag-off one back
+    ./scripts/run-cli eval 'Builtin.compilerInfo ()'   # "native compiler linked" if flag-on
+
+    scripts/compiler/report                 the coverage + equivalence report into docs/compiler/coverage/
+    scripts/build/vendor-compiler ~/code/compiler [commit]      re-vendor (refuses over local edits)
+    scripts/build/vendor-compiler --regen-patch ~/code/compiler fold in-tree LibCompiler edits
+
+Inputs for the report beyond synthesized arguments live in `packages/darklang/compilerCases/`
+(its README says the naming rule). Things that cost an evening each:
+
+- **`timeout` around `run-cli` does not kill the Cli.** It kills the host-side wrapper; the
+  process `docker exec` started lives on in the container and keeps the CPU. Kill it by its
+  own command line (`pkill -f 'Sweep \["<first hash>"'`), never with a pattern that matches
+  every sweep, or parallel sweeps kill each other (rc 137, "Killed" in the output).
+- **run-cli's "build is behind the tree" notice is stderr and interleaves MID-LINE with
+  stdout** when both go to one pipe. A sweep that greps it out then loses a record and every
+  later record is off by one. Keep stderr separate (`--no-log eval ... 2>file`), or run
+  `scripts/dev/build` first so it is not printed.
+- **A compiled fn's closure can be the whole CLI.** Anything recursive over the call graph
+  must be a loop, not a `return!`-recursive `uply`; that overflowed the stack at ~8k edges.
+- **The seam's files are per process only under `DARK_RPC_DIR`.** Without it every harness
+  process shares `/tmp/dark-rpc-*` and two at once corrupt each other; the report tool sets it.
+- List literals in `eval` take commas: `["a", "b"]`.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
