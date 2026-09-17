@@ -3,7 +3,7 @@
 // No playwright/puppeteer needed: Node 22 has a WebSocket global, and the browser binary
 // playwright once downloaded is enough.
 //
-//   node headless-check.mjs <url> <script-file> [timeout-seconds]
+//   node headless-check.mjs <url> <script-file> [timeout-seconds] [screenshot.png]
 //
 // The script file is JS evaluated in the page; it must return (or resolve to) a string,
 // which is printed. Console messages and page errors are echoed to stderr.
@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 
-const [url, scriptFile, timeoutArg] = process.argv.slice(2);
+const [url, scriptFile, timeoutArg, screenshotPath] = process.argv.slice(2);
 if (!url || !scriptFile) {
   console.error("usage: headless-check.mjs <url> <script.js> [timeout-seconds]");
   process.exit(2);
@@ -101,7 +101,13 @@ while (Date.now() < deadline) {
     await sleep(2000); continue;
   }
   const value = String(result.result.value ?? "");
-  if (value.startsWith("DONE")) { console.log(value.slice(4).replace(/^:\s*/, "")); cleanup(); process.exit(0); }
+  if (value.startsWith("DONE")) {
+    if (screenshotPath) {
+      const shot = await send("Page.captureScreenshot", { format: "png" });
+      (await import("node:fs")).writeFileSync(screenshotPath, Buffer.from(shot.data, "base64"));
+    }
+    console.log(value.slice(4).replace(/^:\s*/, "")); cleanup(); process.exit(0);
+  }
   if (value.startsWith("FAIL")) { console.log(value.slice(4).replace(/^:\s*/, "")); cleanup(); process.exit(1); }
   console.error("[progress] " + value);
   await sleep(2000);

@@ -21,12 +21,5 @@ let Main (args : string[]) : int =
   let writer = new Host.Browser.TerminalWriter()
   System.Console.SetOut writer
   System.Console.SetError writer
-  // Where exactly a blocking wait was attempted: the synchronous chain at the throw, which the
-  // exception's own trace loses across async boundaries.
-  System.AppDomain.CurrentDomain.FirstChanceException.Add(fun e ->
-    match e.Exception with
-    | :? System.PlatformNotSupportedException ->
-      Host.Browser.log ("first-chance PNSE at:\n" + System.Environment.StackTrace)
-    | _ -> ())
   host.RunAsync() |> ignore
   0

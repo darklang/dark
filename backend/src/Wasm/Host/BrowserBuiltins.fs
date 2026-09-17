@@ -17,7 +17,35 @@ open LibExecution.Effects
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
-module Stdin = Builtins.Cli.Libs.Stdin
+
+/// The `Stdlib.Cli.Stdin.KeyRead` record, the shape `Builtins.Cli`'s `stdinReadKey` builds. The
+/// Dark `Key` enum's cases are the `ConsoleKey` names, so the enum's own name is the case.
+let private keyRead (ev : Browser.KeyEvent) : Dval =
+  let k = ev.key
+  let has (m : ConsoleModifiers) = (k.Modifiers &&& m) <> ConsoleModifiers.None
+  let typ (hash : unit -> string) = FQTypeName.fqPackage (hash ())
+  let modifiers =
+    DRecord(
+      typ PackageRefs.Type.Stdlib.Cli.Stdin.modifiers,
+      typ PackageRefs.Type.Stdlib.Cli.Stdin.modifiers,
+      [],
+      Map
+        [ "alt", DBool(has ConsoleModifiers.Alt)
+          "shift", DBool(has ConsoleModifiers.Shift)
+          "ctrl", DBool(has ConsoleModifiers.Control) ]
+    )
+  let key =
+    DEnum(typ PackageRefs.Type.Stdlib.Cli.Stdin.key, typ PackageRefs.Type.Stdlib.Cli.Stdin.key, [], string k.Key, [])
+  let keyChar =
+    match ev.paste with
+    | Some text -> DString text
+    | None -> if Char.IsControl k.KeyChar then DString "" else DString(string k.KeyChar)
+  DRecord(
+    typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
+    typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
+    [],
+    Map [ "key", key; "modifiers", modifiers; "keyChar", keyChar; "repeat", Dval.int 1I ]
+  )
 
 /// Read a whole line off the key queue. Echoes nothing; the prompt that asked is
 /// expected to be a TUI region (which is how the CLI's own line reads work).
@@ -60,7 +88,7 @@ let private fns : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           uply {
             let! ev = Browser.nextKey ()
-            return Stdin.keyReadToDval ev.key ev.paste 1
+            return keyRead ev
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -1,11 +1,12 @@
 # Darklang in the browser (WASM)
 
-Three pages, one bundle. The runtime, parser, LibDB and SQLite are compiled to WebAssembly and
+Four pages, one bundle. The runtime, parser, LibDB and SQLite are compiled to WebAssembly and
 published as a static site; host it anywhere.
 
 - `index.html` is a directory of the experiences below, with the URL forms spelled out. With a
   query it is the answer, raw: `/?cmd=<argv>` prints what `dark <argv>` prints and nothing
-  else, `/?e=<expr>` is eval, `/?fn=<name>` is view. (`eval.html?e=` redirects there.)
+  else, `/?fn=<name>` is view.
+- `eval.html?e=<expr>` is an expression box and what `dark eval` prints.
 - `cli.html` is the real Dark CLI: `Darklang.Cli.executeCliCommand` against a real package
   store, in an xterm.js terminal. No params opens the workbench, like `dark` with no arguments,
   with a shell on the right that takes `dark <command>` lines against the same store
@@ -18,8 +19,9 @@ published as a static site; host it anywhere.
 # 1. Publish (re-run when F# or the pages change). AOT, so it takes ~7 minutes.
 dotnet publish backend/src/Wasm/Wasm.fsproj -c Release -o rundir/wasm-repl
 
-# 2. The store the CLI boots from (re-run when packages change)
-backend/src/Wasm/make-store.sh
+# 2. Stage it for the local server: the store the CLI boots from (make-store.sh, sync
+#    credentials stripped, brotli'd), the pages from the tree, swapped into rundir/wasm-site
+backend/src/Wasm/promote.sh
 
 # 3. The REPL's snapshot (only repl.html needs it)
 python3 backend/src/Wasm/generate-snapshot.py
@@ -42,15 +44,15 @@ previous build into itself. Wipe `rundir/wasm-repl` first, or stale fingerprinte
   the visitor keeps a CLI. `?cmd=eval+1+%2B+2`, `?cmd=search+map`, `?cmd=docs+syntax`.
 - `cli.html?fn=<Owner.Module.name>` is sugar for `?cmd=view <name>`.
 - `?env=NAME=value` sets an environment variable before the CLI starts (`?env=DARK_CLASSIC=1`
-  for the classic prompt instead of the workbench). `?trace=1` logs every frame entry to the
-  console, `?probe=1` runs the boot probes. Diagnostics, not a promise.
+  for the classic prompt instead of the workbench).
 
 ## How it is put together
 
-- `Host/Cli.fs` is `Cli/Cli.fs:main` minus the process: `Boot` fetches `data.db` into
+- `Host/Cli.fs` is `Cli/Cli.fs:main` minus the process: `Boot` fetches `data.db.br` into
   emscripten's in-memory filesystem, warms SQLite, runs `growIfNeeded`, preloads the harmful
   set. `RunCli argv` builds the same execution state the native CLI builds and calls the
-  entry point. `EvalProbe` evaluates one expression under that state (for tests).
+  entry point; `RunCommand argv` runs one command with its output captured (the shell, the raw
+  pages).
 - `Host/Browser.fs` is the seam to the page: keys come in through `PushKey`/`PushPaste`,
   size through `SetTerminalSize`, output goes to a buffer the page drains with `DrainOutput`
   on a 25 ms timer (a whole TUI frame arrives as one write).
@@ -83,8 +85,11 @@ ship. Keep it that way.
 ## Deploy (fly.io)
 
 ```
-backend/src/Wasm/deploy/deploy.sh      # nginx image of rundir/wasm-repl/wwwroot -> app dark-wasm
+backend/src/Wasm/deploy/deploy.sh      # nginx image of rundir/wasm-site/wwwroot -> app dark-wasm
 ```
+
+CI does the same: `build-wasm` publishes and stages on every push, `deploy-wasm` ships from
+`main` (needs `FLY_API_TOKEN` in the project's CircleCI environment).
 
 ## Testing headless
 
@@ -94,16 +99,16 @@ node backend/src/Wasm/headless-check.mjs <url> <script.js> [timeout-s]
 
 Drives playwright's chromium over CDP (Node 22's WebSocket, no npm packages). The script is
 evaluated in the page every 2 s until it returns a string starting `DONE` or `FAIL`; other
-returns are progress. `headless-stack.mjs <url> <secs>` pauses a busy tab and prints its
-stack, for when the main thread never yields.
+returns are progress. A fourth argument saves a screenshot on `DONE`.
 
 ## Known gaps
 
 - Everything is per tab and in memory: the store dies with the tab. No IndexedDB yet.
 - No push from the tab (by design: no secret ships). `pull` from a relay should work and
   has not been tried.
-- `Posix.stat` and friends answer through `System.IO` with synthesized modes; `kill`,
-  `spawn`, `exec` fail cleanly (no processes in a tab).
+- Posix: cwd, env, mkdir, rmdir, unlink, rename, listDir and stat answer through `System.IO`
+  (synthesized modes); descriptors, symlinks, chmod, kill and processes answer ENOSYS.
+- HTTP: same-origin and CORS-enabled hosts only (the browser's rules); no server.
 - The `?` in the welcome logo is in the source; the native CLI shows it too.
 - Cold start: 17.7 MB gzip of runtime plus a 6.6 MB brotli store (fetched in parallel via a
   preload link, inflated by the runtime's own brotli decoder through a P/Invoke, since

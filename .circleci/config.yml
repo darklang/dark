@@ -402,6 +402,60 @@ jobs:
             # anywhere else has only the embedded copy.
             - backend/src/LibExecution/package-ref-hashes.txt
 
+  # The browser build: the CLI compiled to wasm, published as a static site, and the store it
+  # boots from. AOT, so the publish is the slow step (~7 min on an xlarge). The deploy job
+  # below ships what this persisted.
+  build-wasm:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - setup-app
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - restore_cache:
+          keys:
+            - v5-cli-{{ checksum "../checksum" }}
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+      - run:
+          name: Publish the wasm site
+          no_output_timeout: 30m
+          command: ./scripts/build/_dotnet-wrapper publish src/Wasm/Wasm.fsproj -c Release -o ../rundir/wasm-repl
+      - run:
+          name: Build the store (sync credentials stripped) and stage the site
+          command: |
+            pip3 install --user brotli
+            backend/src/Wasm/promote.sh
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - rundir/wasm-site
+
+  # Ships the staged site to fly.io as dark-wasm. Needs FLY_API_TOKEN in the project's
+  # CircleCI environment; without it `fly deploy` fails and says so.
+  deploy-wasm:
+    executor: simple-executor
+    steps:
+      - checkout
+      - attach_workspace: { at: "." }
+      - run:
+          name: Install flyctl
+          command: |
+            curl -L https://fly.io/install.sh | sh
+            echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Deploy
+          command: backend/src/Wasm/deploy/deploy.sh
+
   # All four linux artifacts from one x64 runner. The cross-compiles work
   # because the release image supplies clang and cross sysroots; the stock
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
@@ -693,6 +747,19 @@ workflows:
             - static-checks
             - build-backend
             - build-cli
+
+      # The browser build, on every push; deployed from main (and the branch it was born on,
+      # while it is being worked on).
+      - build-wasm
+      - deploy-wasm:
+          requires:
+            - build-wasm
+            - ok-to-deploy
+          filters:
+            branches:
+              only:
+                - main
+                - wasm-cli
 
       # Release jobs (only on main)
       - publish-vs-code-extension:

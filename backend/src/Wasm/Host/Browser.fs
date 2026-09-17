@@ -1,9 +1,9 @@
 /// The seam between the CLI running in the tab and the page around it.
 ///
-/// Output: `Console.Out` is redirected to a writer that hands every chunk to
-/// `darkTerm.write` in JS (an xterm.js instance). Input: JS pushes keys in through
-/// `PushKey`/`PushPaste`; the browser `stdinReadKey` awaits the next one. Size: JS
-/// tells us the terminal's columns and rows whenever they change.
+/// Output: everything the CLI prints lands in a buffer the page drains (`DrainOutput`)
+/// into xterm.js. Input: JS pushes keys in through `PushKey`/`PushPaste`; the browser
+/// `stdinReadKey` awaits the next one. Size: JS tells us the terminal's columns and rows
+/// whenever they change.
 ///
 /// Everything here is single-threaded by construction (Blazor WebAssembly has one
 /// thread), so the queue and the waiter need no locking.

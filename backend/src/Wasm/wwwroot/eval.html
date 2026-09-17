@@ -1,8 +1,73 @@
 <!doctype html>
-<meta charset="utf-8" />
-<title>Darklang eval</title>
-<script>
-  // Kept as an alias: /?e=<expr> is the page that answers.
-  const p = new URLSearchParams(location.search);
-  location.replace("./?" + (p.has("e") ? "e=" + encodeURIComponent(p.get("e")) : ""));
-</script>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Darklang eval</title>
+  <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
+  <style>
+    :root { color-scheme: dark; --bg:#0f1117; --fg:#e6e8ee; --muted:#8b90a0; --accent:#7c9cff;
+            --err:#ff8a8a; --border:#262b38; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); padding:24px 16px; font-size:14px; }
+    main { max-width:720px; margin:0 auto; }
+    form { display:flex; gap:8px; margin-bottom:14px; }
+    textarea { flex:1; background:transparent; border:1px solid var(--border); border-radius:6px;
+               color:var(--fg); font:inherit; padding:8px 10px; outline:none; resize:vertical; min-height:2.6em; }
+    button { background:var(--accent); color:var(--bg); border:none; border-radius:6px; padding:6px 14px;
+             font:inherit; font-weight:600; cursor:pointer; align-self:flex-start; }
+    button:disabled { opacity:.5; }
+    pre { margin:0; white-space:pre-wrap; word-break:break-word; }
+    .err { color:var(--err); }
+    .status { color:var(--muted); font-size:12px; margin-top:14px; }
+    a { color:var(--muted); font-size:12px; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <main>
+    <form id="form">
+      <textarea id="in" rows="1" placeholder="1 + 2" autofocus></textarea>
+      <button id="run" type="submit" disabled>eval</button>
+    </form>
+    <pre id="out"></pre>
+    <p class="status" id="status">loading</p>
+    <p><a href="./">everything else</a></p>
+  </main>
+  <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script>
+    // eval.html?e=<expression>: what `dark eval <expression>` prints, and a box to try another.
+    const out = document.getElementById("out"), status = document.getElementById("status");
+    const input = document.getElementById("in"), run = document.getElementById("run");
+    const invoke = (name, ...args) => DotNet.invokeMethodAsync("Darklang.Wasm", name, ...args);
+    const initial = new URLSearchParams(location.search).get("e");
+    if (initial !== null) input.value = initial;
+    let ready = false;
+    async function evaluate(expr) {
+      run.disabled = true; out.className = ""; out.textContent = ""; status.textContent = "evaluating";
+      history.replaceState(null, "", "?e=" + encodeURIComponent(expr));
+      try {
+        const res = await invoke("RunCommand", ["eval", expr]);
+        const i = res.lastIndexOf("\n[exit ");
+        out.textContent = res.slice(0, i).replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").trim();
+        if (res.slice(i + 7, -1) !== "0") out.className = "err";
+        status.textContent = "";
+      } catch (e) { out.textContent = "failed: " + (e && e.message ? e.message : e); out.className = "err"; }
+      finally { run.disabled = false; }
+    }
+    document.getElementById("form").addEventListener("submit", (ev) => { ev.preventDefault(); if (ready && input.value.trim()) evaluate(input.value); });
+    input.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); document.getElementById("form").requestSubmit(); } });
+    (async () => {
+      try {
+        for (let i = 0; i < 80 && !(typeof Blazor !== "undefined" && Blazor.start); i++) await new Promise((r) => setTimeout(r, 250));
+        await Blazor.start();
+        for (let i = 0; i < 120; i++) { try { await invoke("Ready"); break; } catch (e) { await new Promise((r) => setTimeout(r, 500)); } }
+        status.textContent = "loading the package store";
+        const manifest = await (await fetch(new URL("store.json", document.baseURI))).json();
+        await invoke("Boot", new URL(manifest.file, document.baseURI).href, manifest.size);
+        ready = true; run.disabled = false; status.textContent = "";
+        if (initial !== null && initial.trim()) evaluate(initial);
+      } catch (e) { status.textContent = "failed to load: " + (e && e.message ? e.message : e); status.className = "status err"; }
+    })();
+  </script>
+</body>
+</html>

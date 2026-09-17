@@ -77,10 +77,13 @@
         <div class="name">Run a command <code>cli.html?cmd=eval+1+%2B+2</code></div>
         <div class="what">Runs it, then hands you the prompt. <code>?cmd=search+map</code>,
           <code>?cmd=docs+syntax</code>, <code>?cmd=ls+Darklang.Stdlib.List</code>.</div></a></li>
-      <li><a class="card" href="./?cmd=eval+1+%2B+2">
-        <div class="name">Just the answer <code>/?cmd=eval+1+%2B+2</code></div>
+      <li><a class="card" href="eval.html?e=1+%2B+2">
+        <div class="name">Eval <code>eval.html?e=1+%2B+2</code></div>
+        <div class="what">An expression box and what <code>dark eval</code> prints. Nothing else on the page.</div></a></li>
+      <li><a class="card" href="./?cmd=status">
+        <div class="name">Just the answer <code>/?cmd=status</code></div>
         <div class="what">This page with a query prints what the command prints, nothing else.
-          <code>/?e=1+%2B+2</code> is short for eval, <code>/?fn=&lt;name&gt;</code> for view.</div></a></li>
+          <code>/?fn=&lt;name&gt;</code> is short for view.</div></a></li>
       <li><a class="card" href="cli.html?fn=Darklang.Stdlib.List.map">
         <div class="name">Land on a function <code>cli.html?fn=Darklang.Stdlib.List.map</code></div>
         <div class="what">Sugar for <code>?cmd=view+&lt;name&gt;</code>.</div></a></li>
@@ -106,7 +109,7 @@
     };
     let argv = null;
     if (params.has("cmd")) argv = splitArgv(params.get("cmd"));
-    else if (params.has("e")) argv = ["eval", params.get("e")];
+    else if (params.has("e")) { location.replace("eval.html?e=" + encodeURIComponent(params.get("e"))); }
     else if (params.has("fn")) argv = ["view", params.get("fn")];
     if (argv !== null) {
       document.body.className = "raw";

@@ -232,13 +232,8 @@
       // leave you typing on the left, and at half width the banner wraps badly. Off unless asked.
       const promptFlow = argv.length > 0 || params.getAll("env").includes("DARK_CLASSIC=1");
       if (params.get("panel") === "0" || (promptFlow && params.get("panel") !== "1")) toggle.click();
-      if (params.get("trace") === "1") await invoke("SetTrace", true);
       for (const kv of params.getAll("env")) {
         const i = kv.indexOf("="); if (i > 0) await invoke("SetEnv", kv.slice(0, i), kv.slice(i + 1));
-      }
-      if (params.get("probe") === "1") {
-        console.log("[probe] getFn"); console.log("[probe] getFn =", await invoke("ProbeGetFn", "f786aeeaccc9a548b132bb0329373d028c3d312ee3230e6134b022ec9275c952"));
-        console.log("[probe] harmful"); console.log("[probe] harmful =", await invoke("ProbeHarmful"));
       }
       setStatus("running", "ready");
       running = true;

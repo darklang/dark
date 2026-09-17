@@ -387,10 +387,21 @@ let private buildHttpRequestMessage
   (reqUri : string)
   (body : byte[])
   : HttpRequestMessage =
+  // The browser's fetch rejects a GET or HEAD that carries a body, even an empty one, and
+  // Blazor's handler forwards any Content as a body. Everywhere else an empty body is fine.
+  let content : HttpContent =
+    if
+      System.OperatingSystem.IsBrowser()
+      && body.Length = 0
+      && (method = HttpMethod.Get || method = HttpMethod.Head)
+    then
+      null
+    else
+      new ByteArrayContent(body)
   new HttpRequestMessage(
     method,
     reqUri,
-    Content = new ByteArrayContent(body),
+    Content = content,
     // Support both Http 2.0 and 3.0
     // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
     Version = System.Net.HttpVersion.Version30,
@@ -414,7 +425,9 @@ let private applyRequestHeaders
     // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
     if String.equalsCaseInsensitive k "content-type" then
       try
-        req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
+        // No content (a bodiless GET in the browser): nothing to type.
+        if not (isNull req.Content) then
+          req.Content.Headers.ContentType <- Headers.MediaTypeHeaderValue.Parse(v)
         Ok()
       with :? System.FormatException ->
         Error HttpBadHeader.InvalidContentType
@@ -422,7 +435,7 @@ let private applyRequestHeaders
       let added = req.Headers.TryAddWithoutValidation(k, v)
       // Headers are split between req.Headers and req.Content.Headers
       // so just try both.
-      if not added then req.Content.Headers.Add(k, v)
+      if not added && not (isNull req.Content) then req.Content.Headers.Add(k, v)
       Ok())
   |> Result.collect
   |> Result.map (fun _ -> ())

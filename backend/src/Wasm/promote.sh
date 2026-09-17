@@ -5,8 +5,8 @@
 #
 # `dotnet publish` writes rundir/wasm-repl, and a publish starts by wiping it, so serving
 # that directory means the site is down for the length of every build. The server serves
-# rundir/wasm-site instead, and this copies a finished publish into it (rsync, so it is a
-# few seconds and the old files stay until the new ones land). Run it after a publish
+# rundir/wasm-site instead, and this copies a finished publish into it and swaps it in (so the
+# old files stay until the new ones are all there). Run it after a publish
 # that has been checked, not before.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -24,5 +24,9 @@ mkdir -p "$DST"
 cp "$ROOT/backend/src/Wasm/wwwroot/"*.html "$SRC/"
 rm -f "$SRC"/*.html.gz "$SRC"/*.html.br
 mkdir -p "$SRC/vendor" && cp "$ROOT/backend/src/Wasm/wwwroot/vendor/"* "$SRC/vendor/"
-rsync -a --delete --exclude '*.pdb' "$SRC/" "$DST/"
+# Into place under the old tree, then swap, so a page being served never sees a half-copy.
+rm -rf "$DST.next"
+cp -r "$SRC" "$DST.next"
+find "$DST.next" -name '*.pdb' -delete
+rm -rf "$DST.old"; [[ -d "$DST" ]] && mv "$DST" "$DST.old"; mv "$DST.next" "$DST"; rm -rf "$DST.old"
 echo "promoted to $DST ($(du -sh "$DST" | cut -f1))"

@@ -84,7 +84,6 @@ let Boot (storeUrl : string, rawSize : int) : Task =
   task {
     if not booted then
       let dbPath = LibConfig.Config.dbPath
-      Browser.log $"boot: fetching {storeUrl} -> {dbPath}"
       use http = new Net.Http.HttpClient()
       let! bytes = http.GetByteArrayAsync storeUrl
       // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
@@ -104,24 +103,19 @@ let Boot (storeUrl : string, rawSize : int) : Task =
         else
           bytes
       IO.File.WriteAllBytes(dbPath, bytes)
-      Browser.log $"boot: wrote {bytes.Length} bytes"
 
       LibExecution.HostSecurity.setPolicyDirectory (IO.Path.Combine(runDir, "policy"))
       LibDB.PolicyStore.seedInstanceIfMissing LibExecution.Permissions.Policy.defaultInstance
       LibExecution.HostSecurity.setPackageDbPath dbPath
-      Browser.log "boot: policy seeded"
 
       LibDB.Sqlite.Sql.warm ()
-      Browser.log "boot: connection warm"
       let pm = LibDB.PackageManager.rt
-      Browser.log "boot: growing"
       let! _grew =
         LibDB.Seed.growIfNeeded
           LibDB.Seed.EvaluationAuthority.underInstancePolicy
           (fun () -> builtinsLazy.Force())
           pm
           (fun msg -> Browser.writeToTerminal (msg + "\r\n"))
-      Browser.log "boot: grown"
       do! pm.init |> Ply.toTask
       // `isHarmful` is synchronous and its miss path blocks; on one thread that never returns.
       do! LibDB.PackageManager.preloadHarmful ()
@@ -130,25 +124,6 @@ let Boot (storeUrl : string, rawSize : int) : Task =
       booted <- true
   }
   :> Task
-
-/// `?trace=1` on the page: log every frame entry to the console, so a hang can be placed.
-let mutable private traceFrames = false
-
-[<JSInvokable>]
-let SetTrace (on : bool) : unit = traceFrames <- on
-
-let private tracing () : RT.Tracing.Tracing =
-  if not traceFrames then
-    Exe.noTracing
-  else
-    { Exe.noTracing with
-        skipTracing = false
-        storeFrameEntry =
-          fun _ ep _ ->
-            match ep with
-            | RT.Function(RT.FQFnName.Package(RT.Hash h)) -> Browser.log $"frame: fn {h}"
-            | RT.Function(RT.FQFnName.Builtin b) -> Browser.log $"frame: builtin {b.name}"
-            | ep -> Browser.log $"frame: {ep}" }
 
 let private state () : RT.ExecutionState =
   let program : RT.Program = { dbs = Map.empty }
@@ -165,7 +140,7 @@ let private state () : RT.ExecutionState =
   Exe.createState
     (builtinsLazy.Force())
     LibDB.PackageManager.rt
-    (tracing ())
+    Exe.noTracing
     sendException
     notify
     program
@@ -176,20 +151,14 @@ let private state () : RT.ExecutionState =
 [<JSInvokable>]
 let RunCli (args : string[]) : Task<int> =
   task {
-    Browser.log "run: bundled hashes"
     let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
-    Browser.log $"run: {bundled.Count} bundled; forcing builtins"
-    builtinsLazy.Force().fns.Count |> ignore<int>
-    Browser.log "run: builtins ready; building state"
     let state =
       { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll (state ()) with
           branchId = LibDB.PackageManager.currentBranchId ()
           canManagePolicies = true
           canUsePrivateNetworkHttp = true
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
-    Browser.log "run: state built; resolving entry point"
     let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
-    Browser.log $"run: executing {fnName}"
     let args =
       args |> Array.toList |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     match! Exe.executeFunction state fnName [] args with
@@ -217,36 +186,3 @@ let RunCommand (args : string[]) : Task<string> =
     let! (code, output) = Browser.captured (fun () -> RunCli args)
     return output + $"\n[exit {code}]"
   }
-
-/// Evaluate one Dark expression under the CLI state. A probe for the async path: the
-/// page calls this with `Stdlib.Cli.Stdin.readKey ()`, then pushes a key.
-[<JSInvokable>]
-let EvalProbe (source : string) : Task<string> =
-  task {
-    let state = Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll (state ())
-    let r = LibParser.Parser.parse source
-    match r.parsed, r.diagnostics with
-    | Some(LibParser.WrittenTypes.SourceFile sf), [] ->
-      match List.rev sf.exprsToEval with
-      | e :: _ ->
-        let ctx : LibParser.WrittenTypesToProgramTypes.Context =
-          { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
-        let! pt =
-          LibParser.WrittenTypesToProgramTypes.Expr.toPT
-            (builtinsLazy.Force())
-            LibDB.PackageManager.pt
-            LibParser.NameResolver.OnMissing.Allow
-            []
-            ctx
-            e
-          |> Ply.toTask
-        let instrs = LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None pt
-        match! Exe.executeExpr state instrs with
-        | Ok dv ->
-          let! repr = Exe.dvalToRepr state dv
-          return repr
-        | Error(rte, _) -> return $"error: {rte}"
-      | [] -> return "nothing to evaluate"
-    | _, diags -> return $"parse: {diags}"
-  }
-
