@@ -1,5 +1,6 @@
-repo    https://github.com/darklang/compiler
-commit  777d22f9a7e22573f4ec864b39a3f8789c859417
-date    2026-04-10
-subject Merge pull request #1 from darklang/x64
-patches dark-fixes.patch
+repo     https://github.com/pbiggar/darklang-compiler
+commit   73ae3461f8e0b009b072b0d26cda7e4e4e4dd121
+date     2026-09-15
+subject  Merge commit '9aaab9f4d292cb85dd2a13a0f58a2ef77e48ba34' into HEAD
+branch   upstream-dark-fixes
+worktree yes (the three commits on upstream-dark-fixes, not yet upstream)

@@ -5,7 +5,7 @@
 # which provably agree with the interpreter. Writes docs/compiler/coverage/<date>.md
 # and .tsv and diffs against the previous report there.
 #
-#   scripts/compiler/report                       everything (an hour or two)
+#   scripts/compiler/report                       everything (a few hours; 3 workers, 6 GB each)
 #   scripts/compiler/report --no-equiv            compile sweep only (~10 min)
 #   scripts/compiler/report --only Darklang.Stdlib.List
 #   scripts/compiler/report --help                the knobs (chunk sizes, budgets)

@@ -1,0 +1,572 @@
+module Darklang.Compiler.Sweep
+
+/// Pushes package fns through the native compiler (pbiggar/darklang-compiler, vendored
+/// as LibCompiler) and compares what comes back with the interpreter.
+///
+/// The compiler parses Dark source and ships its own stdlib, so a fn is compiled by
+/// pretty-printing it and everything it depends on OUTSIDE `Darklang.Stdlib` into
+/// library units, one per module, plus an executable unit holding the entry
+/// expression. Stdlib references resolve against the compiler's stdlib; what it lacks
+/// shows up as a compile error naming the fn, which is the blocker we want to see.
+///
+/// One `<hash>\t<result>` line per fn. `coverage` compiles only; `equivalence` also
+/// runs the binary on synthesized arguments and diffs its rendering of the result
+/// against the interpreter's.
+
+type Item =
+  { hash: String
+    kind: String
+    modules: List<String>
+    name: String }
+
+type Closure =
+  { items: List<Item>
+    stdlibOnly: List<Item> }
+
+let db () : String = Stdlib.LocalStore.path ()
+
+/// Every name spelled in full (the compiler resolves nothing relative to the
+/// enclosing module), and very wide: the compiler's parser is layout-sensitive in
+/// places where the interpreter's is not (a tuple element on its own line followed
+/// by an application), and it is no better at exact style, so long lines are the
+/// safe rendering.
+let mainCtx () : PrettyPrinter.ProgramTypes.Context =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch SCM.Branch.mainBranchId
+  { ctx with width = 100000 }
+
+let itemOf (hash: String) : Stdlib.Option.Option<Item> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT item_type, owner, modules, name FROM locations
+       WHERE item_hash = @p0 AND unlisted_at IS NULL LIMIT 1"
+      [ hash ]
+  with
+  | Ok [ row ] ->
+    let owner = Stdlib.Sqlite.textOr row "owner"
+    let mods = Stdlib.Sqlite.textOr row "modules"
+    Stdlib.Option.Option.Some(
+      Item
+        { hash = hash
+          kind = Stdlib.Sqlite.textOr row "item_type"
+          modules = Stdlib.List.append [ owner ] (Stdlib.String.split mods ".")
+          name = Stdlib.Sqlite.textOr row "name" })
+  | _ -> Stdlib.Option.Option.None
+
+/// Every listed location of the item's hash. The store is content-addressed, so one
+/// definition can be listed under several names; the compiler wants a definition
+/// per name, and a reference may spell any of them.
+let aliases (i: Item) : List<Item> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT owner, modules, name FROM locations
+       WHERE item_hash = @p0 AND unlisted_at IS NULL"
+      [ i.hash ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.map (fun row ->
+      Item
+        { hash = i.hash
+          kind = i.kind
+          modules =
+            Stdlib.List.append
+              [ Stdlib.Sqlite.textOr row "owner" ]
+              (Stdlib.String.split (Stdlib.Sqlite.textOr row "modules") ".")
+          name = Stdlib.Sqlite.textOr row "name" })
+  | _ -> [ i ]
+
+let isStdlib (i: Item) : Bool =
+  match i.modules with
+  | [ "Darklang", "Stdlib" ] -> true
+  | "Darklang" :: "Stdlib" :: _ -> true
+  | _ -> false
+
+/// Direct dependencies of a package item, from the store's projection.
+let directDeps (hash: String) : List<String> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT depends_on_hash FROM package_dependencies WHERE item_hash = @p0"
+      [ hash ]
+  with
+  | Ok rows -> rows |> Stdlib.List.map (fun r -> Stdlib.Sqlite.textOr r "depends_on_hash")
+  | Error _ -> []
+
+/// The transitive closure, stopping at Stdlib items (the compiler has its own).
+let closure (root: String) : Closure = closureAll [ root ]
+
+/// The closures of several roots, merged: what one compile of them all needs.
+let closureAll (roots: List<String>) : Closure =
+  let walk (seen: Dict<String, Bool>) (todo: List<String>) (acc: List<Item>) : List<Item> =
+    match todo with
+    | [] -> acc
+    | h :: rest ->
+      if Stdlib.Dict.``member`` seen h then
+        walk seen rest acc
+      else
+        let seen2 = Stdlib.Dict.set seen h true
+        match itemOf h with
+        | None -> walk seen2 rest acc
+        | Some item ->
+          if isStdlib item then
+            walk seen2 rest (Stdlib.List.push acc item)
+          else
+            walk seen2 (Stdlib.List.append rest (directDeps h)) (Stdlib.List.push acc item)
+  let all = walk Stdlib.Dict.empty roots []
+  Closure
+    { items = all |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isStdlib i))
+      stdlibOnly = all |> Stdlib.List.filter isStdlib }
+
+let hashOf (h: String) : LanguageTools.ProgramTypes.Hash = LanguageTools.ProgramTypes.Hash.Hash h
+
+/// Spellings the compiler's front end wants that ours prints differently. The
+/// pretty-printer shortens `Stdlib.Option.Option.Some` to `Option.Some`, which the
+/// interpreter's resolver accepts and the compiler's does not (a recorded gap).
+let compilerSpelling (src: String) : String =
+  // Outside string literals and at name boundaries only (a docs string saying
+  // `Darklang.Stdlib.X` must stay as written, and `ParseResult<` is not `Result<`).
+  Builtin.compilerRespell
+    src
+    [ ("Option.Some", "Stdlib.Option.Option.Some"),
+      ("Option.None", "Stdlib.Option.Option.None"),
+      ("Result.Ok", "Stdlib.Result.Result.Ok"),
+      ("Result.Error", "Stdlib.Result.Result.Error"),
+      // The compiler's stdlib is `Stdlib.X`; ours is listed under `Darklang.Stdlib.X`.
+      ("Darklang.Stdlib.", "Stdlib."),
+      // The compiler's Dict has String keys only and is written `Dict<v>`; ours is
+      // `Dict<k, v>`. Spell the String-keyed ones its way so that gap is not charged
+      // to every fn that mentions a Dict.
+      ("Dict<String, ", "Dict<"),
+      // Type positions: the printer writes `Option<t>` / `Result<a, e>` bare.
+      ("Option<", "Stdlib.Option.Option<"),
+      ("Result<", "Stdlib.Result.Result<") ]
+
+/// The item's definition as Dark source.
+let printItem (i: Item) : Stdlib.Option.Option<String> =
+  let ctx = mainCtx ()
+  let here =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = i.modules |> Stdlib.List.head |> Stdlib.Option.withDefault ""
+        modules = i.modules |> Stdlib.List.drop 1
+        name = i.name }
+  printItemRaw { ctx with preferredLocation = Stdlib.Option.Option.Some here } i |> Stdlib.Option.map (fun s -> compilerSpelling s)
+
+let printItemRaw (ctx: PrettyPrinter.ProgramTypes.Context) (i: Item) : Stdlib.Option.Option<String> =
+  match i.kind with
+  | "fn" ->
+    LanguageTools.PackageManager.Function.get (hashOf i.hash)
+    |> Stdlib.Option.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f)
+  | "type" ->
+    LanguageTools.PackageManager.Type.get (hashOf i.hash)
+    |> Stdlib.Option.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t)
+  | "value" ->
+    LanguageTools.PackageManager.Value.get (hashOf i.hash)
+    |> Stdlib.Option.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v)
+  | _ -> Stdlib.Option.Option.None
+
+/// A type listed under several names is one type here and several in the
+/// compiler if each name got a definition, so the other names become aliases
+/// of the first: `type B<'a> = A<'a>`.
+let typeAlias (primary: Item) (alias: Item) : Stdlib.Option.Option<String> =
+  LanguageTools.PackageManager.Type.get (hashOf primary.hash)
+  |> Stdlib.Option.map (fun t ->
+    let params =
+      match t.declaration.typeParams with
+      | [] -> ""
+      | ps -> "<" ++ (ps |> Stdlib.List.map (fun p -> $"'{p}") |> Stdlib.String.join ", ") ++ ">"
+    let args =
+      match t.declaration.typeParams with
+      | [] -> ""
+      | ps -> "<" ++ (ps |> Stdlib.List.map (fun p -> $"'{p}") |> Stdlib.String.join ", ") ++ ">"
+    $"type {alias.name}{params} = {fullName primary}{args}")
+
+/// Library units, one per module: types first, then values, then fns. An item
+/// listed under several names is defined under the first and aliased (types) or
+/// repeated (fns, values) under the rest.
+let libraryUnits (c: Closure) : List<(String * String * String)> =
+  // (item, primary or None)
+  let items =
+    c.items
+    |> Stdlib.List.map (fun i ->
+      match aliases i with
+      | [] -> [ (i, Stdlib.Option.Option.None) ]
+      | first :: rest ->
+        Stdlib.List.append
+          [ (first, Stdlib.Option.Option.None) ]
+          (rest |> Stdlib.List.map (fun a -> (a, Stdlib.Option.Option.Some first))))
+    |> Stdlib.List.flatten
+  let moduleOf (i: Item) : String = Stdlib.String.join i.modules "."
+  let modulesOf = items |> Stdlib.List.map (fun (i, _) -> moduleOf i) |> Stdlib.List.unique
+  modulesOf
+  |> Stdlib.List.map (fun m ->
+    let mine = items |> Stdlib.List.filter (fun (i, _) -> (moduleOf i) == m)
+    let ordered =
+      Stdlib.List.append
+        (mine |> Stdlib.List.filter (fun (i, _) -> i.kind == "type"))
+        (Stdlib.List.append
+          (mine |> Stdlib.List.filter (fun (i, _) -> i.kind == "value"))
+          (mine |> Stdlib.List.filter (fun (i, _) -> i.kind == "fn")))
+    let body =
+      ordered
+      |> Stdlib.List.filterMap (fun (i, primary) ->
+        match primary with
+        | Some p when i.kind == "type" -> typeAlias p i |> Stdlib.Option.map (fun s -> compilerSpelling s)
+        | _ -> printItem i)
+      |> Stdlib.String.join "\n\n"
+    ($"{m}.dark", "library", $"module {m}\n\n{body}\n"))
+
+let fullName (i: Item) : String = $"{Stdlib.String.join i.modules "."}.{i.name}"
+
+// ---------------------------------------------------------------------------
+// Argument synthesis, as source text
+// ---------------------------------------------------------------------------
+
+/// A literal of the given type, or None where none can be written (functions,
+/// unresolved names, recursion past the depth budget).
+let synth (depth: Int64) (t: LanguageTools.ProgramTypes.TypeReference) : Stdlib.Option.Option<String> =
+  if depth > 4L then
+    Stdlib.Option.Option.None
+  else
+    let some (s: String) : Stdlib.Option.Option<String> = Stdlib.Option.Option.Some s
+    match t with
+    | TUnit -> some "()"
+    | TBool -> some "true"
+    | TInt8 -> some "5y"
+    | TUInt8 -> some "5uy"
+    | TInt16 -> some "5s"
+    | TUInt16 -> some "5us"
+    | TInt32 -> some "5l"
+    | TUInt32 -> some "5ul"
+    | TInt64 -> some "5L"
+    | TUInt64 -> some "5UL"
+    | TInt128 -> some "5Q"
+    | TUInt128 -> some "5Z"
+    | TInt -> some "5"
+    | TFloat -> some "2.5"
+    | TChar -> some "'h'"
+    | TString -> some "\"hello\""
+    | TUuid -> some "(Stdlib.Uuid.parse \"00000000-0000-0000-0000-000000000001\" |> Builtin.unwrap)"
+    | TList inner ->
+      synth (depth + 1L) inner
+      |> Stdlib.Option.map (fun x -> $"[{x}, {x}, {x}]")
+    | TTuple(a, b, rest) ->
+      let parts = Stdlib.List.append [ a, b ] rest |> Stdlib.List.map (fun p -> synth (depth + 1L) p)
+      if parts |> Stdlib.List.all (fun p -> Stdlib.Option.isSome p) then
+        let inner = parts |> Stdlib.List.filterMap (fun p -> p) |> Stdlib.String.join ", "
+        some $"({inner})"
+      else
+        Stdlib.Option.Option.None
+    | TDict(_, v) ->
+      synth (depth + 1L) v
+      |> Stdlib.Option.map (fun x -> $"(Stdlib.Dict.fromListOverwritingDuplicates [(\"k\", {x})])")
+    | TVariable _ -> some "5L"
+    | TFn(args, ret) ->
+      // A constant function of the right arity: enough to call `map` and
+      // friends, and to exercise the caller, not the callee.
+      synth (depth + 1L) ret
+      |> Stdlib.Option.map (fun body ->
+        let params =
+          args
+          |> Stdlib.List.indexedMap (fun i _ -> $"a{Stdlib.Int.toString i}")
+          |> Stdlib.String.join " "
+        $"(fun {params} -> {body})")
+    | TCustomType(nr, targs) ->
+      match nr.resolved with
+      | Error _ -> Stdlib.Option.Option.None
+      | Ok resolved ->
+        match resolved.name with
+        | Package h ->
+          match itemOf (LanguageTools.ProgramTypes.hashToString h) with
+          | None -> Stdlib.Option.Option.None
+          | Some ti ->
+            let tname = fullName ti
+            if tname == "Darklang.Stdlib.Option.Option" then
+              match targs with
+              | [ inner ] -> synth (depth + 1L) inner |> Stdlib.Option.map (fun x -> $"(Stdlib.Option.Option.Some {x})")
+              | _ -> Stdlib.Option.Option.None
+            else if tname == "Darklang.Stdlib.Result.Result" then
+              match targs with
+              | [ ok, _ ] -> synth (depth + 1L) ok |> Stdlib.Option.map (fun x -> $"(Stdlib.Result.Result.Ok {x})")
+              | _ -> Stdlib.Option.Option.None
+            else
+              match LanguageTools.PackageManager.Type.get h with
+              | None -> Stdlib.Option.Option.None
+              | Some pt ->
+                match pt.declaration.definition with
+                | Alias target -> synth (depth + 1L) target
+                | Record fields ->
+                  let vals = fields |> Stdlib.List.map (fun f -> (f.name, synth (depth + 1L) f.typ))
+                  if vals |> Stdlib.List.all (fun (_, v) -> Stdlib.Option.isSome v) then
+                    let inner =
+                      vals
+                      |> Stdlib.List.filterMap (fun (n, v) -> v |> Stdlib.Option.map (fun x -> $"{n} = {x}"))
+                      |> Stdlib.String.join "; "
+                    some $"({tname} {{ {inner} }})"
+                  else
+                    Stdlib.Option.Option.None
+                | Enum cases ->
+                  // The first case whose fields can all be written.
+                  cases
+                  |> Stdlib.List.filterMap (fun c ->
+                    let fs = c.fields |> Stdlib.List.map (fun f -> synth (depth + 1L) f.typ)
+                    if fs |> Stdlib.List.all (fun v -> Stdlib.Option.isSome v) then
+                      match fs with
+                      | [] -> some $"{tname}.{c.name}"
+                      | _ ->
+                        let inner = fs |> Stdlib.List.filterMap (fun v -> v) |> Stdlib.String.join ", "
+                        some $"({tname}.{c.name}({inner}))"
+                    else
+                      Stdlib.Option.Option.None)
+                  |> Stdlib.List.head
+    | _ -> Stdlib.Option.Option.None
+
+/// Type variables instantiated at Int64, so a generic fn can be called and its
+/// result serialized. One instantiation is not a proof for all of them, but it
+/// is what the argument synthesizer can write.
+let concrete (t: LanguageTools.ProgramTypes.TypeReference) : LanguageTools.ProgramTypes.TypeReference =
+  match t with
+  | TVariable _ -> LanguageTools.ProgramTypes.TypeReference.TInt64
+  | TList inner -> LanguageTools.ProgramTypes.TypeReference.TList(concrete inner)
+  | TTuple(a, b, rest) ->
+    LanguageTools.ProgramTypes.TypeReference.TTuple(concrete a, concrete b, rest |> Stdlib.List.map (fun x -> concrete x))
+  | TDict(k, v) -> LanguageTools.ProgramTypes.TypeReference.TDict(concrete k, concrete v)
+  | TCustomType(name, targs) ->
+    LanguageTools.ProgramTypes.TypeReference.TCustomType(name, targs |> Stdlib.List.map (fun x -> concrete x))
+  | TFn(args, ret) ->
+    LanguageTools.ProgramTypes.TypeReference.TFn(args |> Stdlib.List.map (fun x -> concrete x), concrete ret)
+  | other -> other
+
+/// The entry expression: `[Stdlib.Json.serialize<Ret> (<fn> arg arg ...)]`. JSON is
+/// the one rendering both sides agree on byte for byte; the list wrapper keeps a
+/// String result quoted on both sides. None when an argument can't be written.
+let entryExpression (i: Item) : Stdlib.Option.Option<String> =
+  entryParts i
+  |> Stdlib.Option.map (fun (call, ret) -> $"[Stdlib.Json.serialize<{ret}> ({call})]")
+
+/// (the call with synthesized arguments, its return type), both in the compiler's
+/// spelling, or None when an argument can't be written.
+let entryParts (i: Item) : Stdlib.Option.Option<(String * String)> =
+  match LanguageTools.PackageManager.Function.get (hashOf i.hash) with
+  | None -> Stdlib.Option.Option.None
+  | Some f ->
+    let args = f.parameters |> Stdlib.List.map (fun p -> synth 0L (concrete p.typ))
+    if args |> Stdlib.List.all (fun a -> Stdlib.Option.isSome a) then
+      let rendered = args |> Stdlib.List.filterMap (fun a -> a) |> Stdlib.String.join " "
+      let ret =
+        PrettyPrinter.ProgramTypes.typeReference (mainCtx ()) (concrete f.returnType)
+        |> compilerSpelling
+      Stdlib.Option.Option.Some((compilerSpelling $"{fullName i} {rendered}", ret))
+    else
+      Stdlib.Option.Option.None
+
+// ---------------------------------------------------------------------------
+// The sweeps
+// ---------------------------------------------------------------------------
+
+/// Which compiler is linked, and for which target.
+let info () : String = Builtin.compilerInfo ()
+
+/// The compiler's front end alone over one unit: "ok" or the parse error.
+let parse (source: String) : String = Builtin.compilerParse source
+
+/// The source as the compiler's lexer sees it, after its layout passes.
+let layout (source: String) : String = Builtin.compilerLayout source
+
+/// Compile named source units: (name, purpose, source), purpose one of
+/// executable | library | package. ("ok", "", bytes) or ("compile-error", "", message).
+let compile (units: List<(String * String * String)>) (mode: String) : (String * String * String) =
+  Builtin.compilerCompile units mode
+
+/// Compile and run. ("ran", stdout, stderr), ("compile-error", "", message),
+/// ("crash", stdout, exit code) or ("timeout", stdout, "").
+let compileAndRun
+  (units: List<(String * String * String)>)
+  (mode: String)
+  (timeoutMs: Int64)
+  : (String * String * String) =
+  Builtin.compilerCompileAndRun units mode timeoutMs
+
+let unitsFor (root: Item) (entry: String) : List<(String * String * String)> =
+  Stdlib.List.append (libraryUnits (closure root.hash)) [ ("entry.dark", "executable", entry) ]
+
+let oneLine (s: String) : String =
+  s |> Stdlib.String.replaceAll "\n" " " |> Stdlib.String.replaceAll "\t" " "
+
+/// compiles|<bytes> or no-compile|<message> per hash.
+let coverage (hashes: List<String>) : String =
+  hashes
+  |> Stdlib.List.map (fun h ->
+    match itemOf h with
+    | None -> $"{h}\tno-compile|not a listed fn"
+    | Some root ->
+      // A stand-in entry so the executable unit is never empty; the fn's own
+      // body is what is being checked.
+      let units = unitsFor root "()"
+      match compile units "eval" with
+      | ("ok", _, size) -> $"{h}\tcompiles|{size}"
+      | (_, _, msg) -> $"{h}\tno-compile|{oneLine msg}")
+  |> Stdlib.String.join "\n"
+
+/// The entry renders `["<json>"]`; the interpreter's printer may break the list
+/// across lines where the compiler's does not, so compare the element alone.
+let canonical (rendered: String) : String =
+  let t = Stdlib.String.trim rendered
+  let t = if Stdlib.String.startsWith t "[" then Stdlib.String.dropFirst t 1 else t
+  let t = if Stdlib.String.endsWith t "]" then Stdlib.String.dropLast t 1 else t
+  Stdlib.String.trim t
+
+/// match, DIFF|c=..|i=.., noargs|<params>, ierr|.., no-compile|.., crash|<code>, timeout.
+let equivalence (hashes: List<String>) (timeoutMs: Int64) : String =
+  hashes
+  |> Stdlib.List.map (fun h ->
+    match itemOf h with
+    | None -> $"{h}\tno-compile|not a listed fn"
+    | Some root ->
+      match entryExpression root with
+      | None -> $"{h}\tnoargs|a parameter has no writable literal"
+      | Some entry ->
+        // The interpreter first: it decides what the fn does with these inputs.
+        // Same evaluator as `dark eval`; the entry serializes the value to JSON,
+        // which both sides render the same way (the printers differ).
+        let interp =
+          match
+            Cli.Eval.evaluateRaw
+              Stdlib.Option.Option.None
+              SCM.Branch.mainBranchId
+              entry
+              []
+              true
+          with
+          | Ok (Some printed) -> Stdlib.Result.Result.Ok printed
+          | Ok None -> Stdlib.Result.Result.Ok ""
+          | Error e -> Stdlib.Result.Result.Error (Cli.ExecutionError.toString SCM.Branch.mainBranchId e)
+        match interp with
+        | Error e -> $"{h}\tierr|{oneLine e}\targs={oneLine entry}"
+        | Ok expected ->
+          let units = unitsFor root entry
+          match compileAndRun units "eval" timeoutMs with
+          | ("compile-error", _, msg) -> $"{h}\tno-compile|{oneLine msg}\targs={oneLine entry}"
+          | ("crash", out, code) -> $"{h}\tcrash|{code}\targs={oneLine entry}"
+          | ("timeout", _, _) -> $"{h}\ttimeout\targs={oneLine entry}"
+          | (_, out, _) ->
+            let got = canonical out
+            if got == (canonical expected) then
+              $"{h}\tmatch\targs={oneLine entry}"
+            else
+              $"{h}\tDIFF|c={oneLine got}|i={oneLine expected}\targs={oneLine entry}")
+  |> Stdlib.String.join "\n"
+
+
+// ---------------------------------------------------------------------------
+// The bulk forms: one compile for many fns. The report driver works in
+// dependency order, so a group here is fns whose callees are already known to
+// compile; one compile of the merged closure answers for all of them, and only
+// a failing group is split.
+// ---------------------------------------------------------------------------
+
+/// One compile for several roots, their closures merged and each item printed
+/// once. "ok" or "no-compile|<message>".
+let coverageGroup (roots: List<String>) : String =
+  let units =
+    Stdlib.List.append (libraryUnits (closureAll roots)) [ ("entry.dark", "executable", "()") ]
+  match compile units "eval" with
+  | ("ok", _, _) -> "ok"
+  | (_, _, msg) -> $"no-compile|{oneLine msg}"
+
+/// Several groups in one process (the process start and the compiler's stdlib
+/// build are the fixed cost). One line per group: `<index>\t<result>`.
+let coverageGroups (groups: List<List<String>>) : String =
+  groups
+  |> Stdlib.List.indexedMap (fun i g -> $"{Stdlib.Int.toString i}\t{coverageGroup g}")
+  |> Stdlib.String.join "\n"
+
+/// A batch's result lines start with this; a fn's own output never does.
+let resultMark () : String = "##dark-sweep##"
+
+/// The equivalence sweep for a batch of fns: every fn's interpreter result, then
+/// ONE binary that prints every fn's compiled result, each on a line starting with
+/// `resultMark () ++ hash ++ "\t"`. A crash or timeout ends the binary; the driver
+/// reads the lines it did print, charges the first missing fn, and resumes with the
+/// rest.
+///
+///   <hash>\tnoargs|..                    no writable arguments
+///   <hash>\tierr|<msg>\targs=<call>      the interpreter raised
+///   <hash>\tinterp|<json>\targs=<call>   the interpreter's result, canonical
+///   batch\tcompile-error|<msg>            the binary did not build
+///   batch\t<ran|crash|timeout>|<detail>  the binary's status, then its stdout
+let equivalenceBatch (hashes: List<String>) (timeoutMs: Int64) : String =
+  let items = hashes |> Stdlib.List.filterMap (fun h -> itemOf h)
+  // (item, call, ret, interpreter line)
+  let evaluated =
+    items
+    |> Stdlib.List.map (fun i ->
+      match entryParts i with
+      | None -> (i, "", "", $"{i.hash}\tnoargs|a parameter has no writable literal")
+      | Some((call, ret)) ->
+        // A String result is printed raw by `eval`, as the binary's printLine
+        // prints it, so both sides are the JSON text itself.
+        let entry = $"Stdlib.Json.serialize<{ret}> ({call})"
+        let interp =
+          match Cli.Eval.evaluateRaw Stdlib.Option.Option.None SCM.Branch.mainBranchId entry [] true with
+          | Ok (Some printed) -> Stdlib.Result.Result.Ok printed
+          | Ok None -> Stdlib.Result.Result.Ok ""
+          | Error e -> Stdlib.Result.Result.Error (Cli.ExecutionError.toString SCM.Branch.mainBranchId e)
+        match interp with
+        | Error e -> (i, "", "", $"{i.hash}\tierr|{oneLine e}\targs={oneLine call}")
+        | Ok expected ->
+          (i, call, ret, $"{i.hash}\tinterp|{Stdlib.String.trim expected}\targs={oneLine call}"))
+  let interpLines = evaluated |> Stdlib.List.map (fun (_, _, _, line) -> line)
+  let runnable = evaluated |> Stdlib.List.filter (fun (_, call, _, _) -> call != "")
+  let batchLines =
+    match runnable with
+    | [] -> [ "batch\tran|nothing to run" ]
+    | _ ->
+      let statements =
+        runnable
+        |> Stdlib.List.map (fun (i, call, ret, _) ->
+          $"  Stdlib.printLine (\"{resultMark ()}{i.hash}\\t\" ++ Stdlib.Json.serialize<{ret}> ({call}))")
+        |> Stdlib.String.join "\n"
+      let entry = $"let darkSweepBatch (): Unit =\n{statements}\n\ndarkSweepBatch ()\n"
+      let roots = runnable |> Stdlib.List.map (fun (i, _, _, _) -> i.hash)
+      let units =
+        Stdlib.List.append (libraryUnits (closureAll roots)) [ ("entry.dark", "executable", entry) ]
+      match compileAndRun units "eval" timeoutMs with
+      | ("compile-error", _, msg) -> [ $"batch\tcompile-error|{oneLine msg}" ]
+      | ("ran", out, _) -> [ "batch\tran|", out ]
+      | ("crash", out, code) -> [ $"batch\tcrash|{code}", out ]
+      | ("timeout", out, _) -> [ "batch\ttimeout|", out ]
+      | (other, out, detail) -> [ $"batch\t{other}|{oneLine detail}", out ]
+  Stdlib.String.join (Stdlib.List.append interpLines batchLines) "\n"
+
+
+// ---------------------------------------------------------------------------
+// A long-lived worker. The CLI's start and the compiler's stdlib build cost
+// more than most compiles, so the driver keeps one process per worker and
+// feeds it requests on stdin, one per line:
+//   cov <hash> <hash> ...              one coverage group
+//   eq <timeoutMs> <hash> <hash> ...   one equivalence batch
+//   quit
+// Each reply ends with a line holding only `##done##`.
+// ---------------------------------------------------------------------------
+
+let serve () : Unit =
+  let line = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
+  let words = Stdlib.String.split line " " |> Stdlib.List.filter (fun w -> w != "")
+  match words with
+  | [] -> ()
+  | [ "quit" ] -> ()
+  | "cov" :: hashes ->
+    Stdlib.printLine (coverageGroup hashes)
+    Stdlib.printLine "##done##"
+    serve ()
+  | "eq" :: timeout :: hashes ->
+    let ms = Stdlib.Int64.parse timeout |> Stdlib.Result.withDefault 20000L
+    Stdlib.printLine (equivalenceBatch hashes ms)
+    Stdlib.printLine "##done##"
+    serve ()
+  | _ ->
+    Stdlib.printLine $"error|unknown request: {line}"
+    Stdlib.printLine "##done##"
+    serve ()

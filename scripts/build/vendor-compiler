@@ -1,43 +1,42 @@
 #!/usr/bin/env bash
 
-# Re-vendor darklang/compiler into backend/src/LibCompiler.
+# Put a copy of the native compiler (pbiggar/darklang-compiler) where the
+# flag-on build finds it: backend/src/LibCompiler.
 #
-#   scripts/build/vendor-compiler <compiler-checkout> [<commit>]
+#   scripts/build/vendor-compiler <compiler-checkout> [<commit>]   that commit (default: HEAD)
+#   scripts/build/vendor-compiler --worktree <compiler-checkout>   its working tree, edits and all
 #
-# Copies src/DarkCompiler/ from that checkout at that commit (default: its HEAD)
-# over backend/src/LibCompiler/, minus the standalone Program.fs and the upstream
-# fsproj, then re-applies every patch in backend/src/LibCompiler/vendor/ and
-# records where it all came from in vendor/VENDORED-FROM.
+# LibCompiler is not tracked by git (see .gitignore); only vendor/ is, and
+# vendor/VENDORED-FROM records what was copied. Nothing is patched on the way in:
+# a compiler fix is made in the compiler checkout, on a branch there, and copied
+# with --worktree until it is committed. The old in-tree patch is kept under
+# vendor/archive/ for the record.
+#
+# Copies src/DarkCompiler/ minus the standalone Program.fs, and generates
+# LibCompiler.fsproj from the upstream fsproj (scripts/build/_gen-libcompiler-fsproj.py).
+# Then build flag-on:
+#
+#   ./scripts/build/_dotnet-wrapper build --configuration Debug \
+#       -p:DarkWithCompiler=true src/Cli/Cli.fsproj src/LocalExec/LocalExec.fsproj
 #
 # Runs on the host: it needs the compiler checkout, which the container can't see.
-#
-# It refuses to run over uncommitted edits to LibCompiler, because a fix made
-# in-tree and not yet folded into vendor/*.patch would be silently lost. Fold it
-# first, or commit it and run again. Folding is the other mode:
-#
-#   scripts/build/vendor-compiler --regen-patch <compiler-checkout>
-#
-# which rewrites vendor/dark-fixes.patch as the diff between the commit named in
-# vendor/VENDORED-FROM and the tree as it is now.
 
 # shellcheck source=scripts/dev/_help
 source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../dev/_help"
 help_if_asked "$@"
 set -euo pipefail
 
-REGEN=false
-APPLY_PATCH=true
+WORKTREE=false
 while [[ ${1:-} == --* ]]; do
   case "$1" in
-    --regen-patch) REGEN=true ;;
-    --no-patch) APPLY_PATCH=false ;;   # a fresh upstream the patch no longer fits
+    --worktree) WORKTREE=true ;;
     *) echo "unknown flag $1" >&2; exit 2 ;;
   esac
   shift
 done
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
-  echo "usage: scripts/build/vendor-compiler [--regen-patch] <compiler-checkout> [<commit>]" >&2
+  echo "usage: scripts/build/vendor-compiler [--worktree] <compiler-checkout> [<commit>]" >&2
   exit 2
 fi
 
@@ -47,79 +46,56 @@ ROOT=$(cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd)
 DEST="$ROOT/backend/src/LibCompiler"
 VENDOR="$DEST/vendor"
 
-# Upstream's copy of src/DarkCompiler at $1, minus the two files we don't vendor,
-# extracted into $2. The fsproj is kept beside it: LibCompiler.fsproj is generated
-# from it.
-extract_upstream() {
-  git -C "$SRC" archive "$1" src/DarkCompiler | tar -x -C "$2"
-  mv "$2/src/DarkCompiler"/Program.fs "$2/src/DarkCompiler"/DarkCompiler.fsproj "$2/" 2>/dev/null || true
-}
-
-if $REGEN; then
-  BASE=$(awk '$1 == "commit" { print $2 }' "$VENDOR/VENDORED-FROM")
-  TMP=$(mktemp -d)
-  trap 'rm -rf "$TMP"' EXIT
-  mkdir -p "$TMP/a/backend/src" "$TMP/b/backend/src" "$TMP/up"
-  extract_upstream "$BASE" "$TMP/up"
-  mv "$TMP/up/src/DarkCompiler" "$TMP/a/backend/src/LibCompiler"
-  cp -r "$DEST" "$TMP/b/backend/src/LibCompiler"
-  rm -rf "$TMP/b/backend/src/LibCompiler"/{vendor,LibCompiler.fsproj,obj,bin}
-  # git diff --no-index exits 1 when there is a diff, which is the normal case
-  (cd "$TMP" && { git diff --no-index --src-prefix=a/ --dst-prefix=b/ a b || true; }) \
-    | sed -E 's|^(---\|\+\+\+) ([ab])/[ab]/|\1 \2/|; s|^diff --git a/a/(\S+) b/b/|diff --git a/\1 b/|' \
-    > "$VENDOR/dark-fixes.patch"
-  echo "rewrote vendor/dark-fixes.patch against ${BASE:0:10}: $(grep -c '^diff --git' "$VENDOR/dark-fixes.patch") file(s)"
-  exit 0
-fi
-
 if [[ ! -d "$SRC/src/DarkCompiler" ]]; then
-  echo "$SRC does not look like a darklang/compiler checkout (no src/DarkCompiler)" >&2
-  exit 2
-fi
-
-if [[ -n "$(git -C "$ROOT" status --porcelain -- backend/src/LibCompiler)" ]]; then
-  echo "backend/src/LibCompiler has uncommitted changes; fold them into vendor/*.patch or commit first" >&2
-  git -C "$ROOT" status --short -- backend/src/LibCompiler >&2
+  echo "$SRC does not look like a darklang-compiler checkout (no src/DarkCompiler)" >&2
   exit 2
 fi
 
 SHA=$(git -C "$SRC" rev-parse --verify "$COMMIT^{commit}")
 DATE=$(git -C "$SRC" log -1 --format=%ad --date=short "$SHA")
 SUBJECT=$(git -C "$SRC" log -1 --format=%s "$SHA")
+BRANCH=$(git -C "$SRC" rev-parse --abbrev-ref HEAD)
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-extract_upstream "$SHA" "$TMP"
+if $WORKTREE; then
+  if [[ $COMMIT != HEAD ]]; then
+    echo "--worktree copies the working tree; a commit makes no sense with it" >&2
+    exit 2
+  fi
+  mkdir -p "$TMP/src"
+  rsync -a --exclude bin --exclude obj "$SRC/src/DarkCompiler" "$TMP/src/"
+  DIRTY=$(git -C "$SRC" status --porcelain -- src/DarkCompiler | wc -l)
+else
+  git -C "$SRC" archive "$SHA" src/DarkCompiler | tar -x -C "$TMP"
+  DIRTY=0
+fi
+mv "$TMP/src/DarkCompiler"/Program.fs "$TMP/src/DarkCompiler"/DarkCompiler.fsproj "$TMP/" 2>/dev/null || true
 
-# Everything in LibCompiler is upstream's except the fsproj and vendor/.
+# Everything in LibCompiler is upstream's except the fsproj, vendor/ and the
+# upstream* copies scripts/compiler/upstream-tests keeps for running its suite.
+mkdir -p "$DEST"
 find "$DEST" -mindepth 1 -maxdepth 1 \
-  ! -name LibCompiler.fsproj ! -name vendor ! -name obj ! -name bin \
+  ! -name LibCompiler.fsproj ! -name vendor ! -name obj ! -name bin ! -name 'upstream*' \
   -exec rm -rf {} +
 cp -r "$TMP/src/DarkCompiler/." "$DEST/"
 python3 "$( dirname "${BASH_SOURCE[0]}" )/_gen-libcompiler-fsproj.py" "$TMP/DarkCompiler.fsproj" "$DEST/LibCompiler.fsproj"
 
-for p in "$VENDOR"/*.patch; do
-  [[ -e "$p" ]] || continue
-  $APPLY_PATCH || { echo "skipping $(basename "$p") (--no-patch)"; continue; }
-  # Plain apply against the working tree (the index still holds the old copy, so
-  # --3way can't be used here). On failure, apply what fits and leave .rej files
-  # next to the hunks that don't, which is the resolution surface.
-  if ! git -C "$ROOT" apply "$p" 2>/dev/null; then
-    git -C "$ROOT" apply --reject "$p" || true
-    echo >&2
-    echo "$(basename "$p") no longer applies cleanly to $SHA. Resolve the .rej" >&2
-    echo "files above, regenerate the patch (vendor/README.md) and commit." >&2
-    exit 1
-  fi
-done
-
 {
-  echo "repo    https://github.com/darklang/compiler"
-  echo "commit  $SHA"
-  echo "date    $DATE"
-  echo "subject $SUBJECT"
-  echo "patches $(cd "$VENDOR" && find . -maxdepth 1 -name '*.patch' -printf '%f\n' | sort | paste -sd ' ')"
+  echo "repo     https://github.com/pbiggar/darklang-compiler"
+  echo "commit   $SHA"
+  echo "date     $DATE"
+  echo "subject  $SUBJECT"
+  echo "branch   $BRANCH"
+  if $WORKTREE; then
+    echo "worktree yes ($DIRTY file(s) beyond the commit)"
+  else
+    echo "worktree no"
+  fi
 } > "$VENDOR/VENDORED-FROM"
 
-echo "vendored darklang/compiler @ ${SHA:0:10} ($DATE, $SUBJECT)"
-git -C "$ROOT" status --short -- backend/src/LibCompiler | head -40
+if $WORKTREE; then
+  echo "vendored the working tree of $SRC ($BRANCH at ${SHA:0:10}, $DIRTY uncommitted file(s))"
+else
+  echo "vendored darklang-compiler @ ${SHA:0:10} ($DATE, $SUBJECT)"
+fi

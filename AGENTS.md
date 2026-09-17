@@ -321,44 +321,43 @@ op log directly.
 
 ## The native compiler (gated)
 
-`backend/src/LibCompiler/` is darklang/compiler's `src/DarkCompiler/`, copied in at the commit
-named in `LibCompiler/vendor/VENDORED-FROM`, plus `vendor/dark-fixes.patch` (our changes that
-are not upstream yet). `Builtins.Compiler/` is ours: the ProgramTypes -> compiler-AST bridge,
-the hostRpc seam that runs real builtins for a compiled program, and the sweep/equivalence
-harness. None of it is in the default build.
+`backend/src/LibCompiler/` is a copy of pbiggar/darklang-compiler's `src/DarkCompiler/`,
+untracked, put there by `scripts/build/vendor-compiler` (`LibCompiler/vendor/README.md` has
+the rules; `vendor/VENDORED-FROM` names the commit). The compiler parses Dark source and has
+its own stdlib, so the integration is source-based: `Darklang.Compiler.Sweep` (Dark) pretty
+prints a fn's closure, `Builtins.Compiler` (F#, three thin builtins) hands the units to the
+compiler and runs the binary, and the result is compared with the interpreter as JSON. None
+of it is in the default build.
 
     ./scripts/build/_dotnet-wrapper build --configuration Debug \
-        -p:DarkWithCompiler=true src/Cli/Cli.fsproj    # flag-on Cli, same output path
-    scripts/dev/build                                   # puts the flag-off one back
-    ./scripts/run-cli eval 'Builtin.compilerInfo ()'   # "native compiler linked" if flag-on
+        -p:DarkWithCompiler=true src/Cli/Cli.fsproj src/LocalExec/LocalExec.fsproj
+    scripts/dev/build                                    # puts the flag-off ones back
+    ./scripts/run-cli eval 'Darklang.Compiler.Sweep.info ()'   # "native compiler linked" if flag-on
 
-    scripts/compiler/report                 the coverage + equivalence report into docs/compiler/coverage/
-    scripts/build/vendor-compiler ~/code/compiler [commit]      re-vendor (refuses over local edits)
-    scripts/build/vendor-compiler --regen-patch ~/code/compiler fold in-tree LibCompiler edits
+    scripts/compiler/report                  coverage + equivalence over every package fn,
+                                             into docs/compiler/coverage/ (hours; 3 workers,
+                                             6 GB each, keep it that way: the machine is shared)
+    scripts/compiler/report --only Darklang.Cli.Packages.Search   one module, seconds
+    scripts/compiler/upstream-tests          the compiler's own suite, in this container
+    scripts/build/vendor-compiler --worktree ~/code/compiler      pick up compiler edits
 
-Inputs for the report beyond synthesized arguments live in `packages/darklang/compilerCases/`
-(its README says the naming rule). Things that cost an evening each:
+Things that cost an evening each:
 
-- **`timeout` around `run-cli` does not kill the Cli.** It kills the host-side wrapper; the
-  process `docker exec` started lives on in the container and keeps the CPU. Kill it by its
-  own command line (`pkill -f 'Sweep \["<first hash>"'`), never with a pattern that matches
-  every sweep, or parallel sweeps kill each other (rc 137, "Killed" in the output).
-- **run-cli's "build is behind the tree" notice is stderr and interleaves MID-LINE with
-  stdout** when both go to one pipe. A sweep that greps it out then loses a record and every
-  later record is off by one. Keep stderr separate (`--no-log eval ... 2>file`), or run
-  `scripts/dev/build` first so it is not printed.
-- **A compiled fn's closure can be the whole CLI.** Anything recursive over the call graph
-  must be a loop, not a `return!`-recursive `uply`; that overflowed the stack at ~8k edges.
-- **The seam's files are per process only under `DARK_RPC_DIR`.** Without it every harness
-  process shares `/tmp/dark-rpc-*` and two at once corrupt each other; the report tool sets it.
-- List literals in `eval` take commas: `["a", "b"]`.
-- **Don't reload packages under a running sweep.** The sweep processes read the store
-  the reload is rewriting; the symptom is not an error but a report where a thousand
-  fns "stopped compiling" with no output at all, plus "missing dependency fn" and
-  "package value has no evaluated rt_dval". Throw that report away.
-- The equivalence sweep RUNS fns in the interpreter with synthesized arguments, under
-  whatever policy the clone has. The report tool runs each process from a throwaway
-  cwd because one of them copied the store to a file named "hello" in the repo root.
+- LocalExec must be built flag-on before `reload-packages`, or `Builtin.compilerCompile
+  not found` at load.
+- Never rebuild the flag-on Cli or reload packages while a sweep runs; the sweep
+  spawns a fresh process per chunk and the results become a mix.
+- The equivalence sweep RUNS package fns in the interpreter with synthesized arguments,
+  under `permissions allow all`. It runs from a throwaway cwd for a reason.
+- The compiler wants every name fully qualified (no module-relative names), `Option<t>`
+  spelled `Stdlib.Option.Option<t>`, `Dict<v>` not `Dict<k, v>`, and its stdlib is
+  `Stdlib.X` not `Darklang.Stdlib.X`. `Sweep.compilerSpelling` does those rewrites on the
+  printed source; anything else it rejects is a real gap and belongs in the report.
+- A content-addressed type listed under two names is one type here and would be two
+  there; the sweep defines it once and aliases the other names.
+- A compile that is slow is usually its parser's split-retry fallback; the layout passes
+  in `frontend/Parser.fs` are where that is fixed, and `Sweep.layout` shows what the
+  lexer is handed.
 
 ## Gotchas
 

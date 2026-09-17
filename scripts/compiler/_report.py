@@ -3,9 +3,10 @@
 of those that compile, which provably agree with the interpreter.
 
 Runs in the container (scripts/compiler/report is the entry point). Two sweeps, both
-through the flag-on CLI binary's `compilerCoverageSweep` / `compilerEquivSweep`
-builtins, in chunks, in parallel for the compile-only sweep, with a time budget per
-chunk. A chunk that overruns is split in two and both halves re-queued, down to one
+through the flag-on CLI binary and the Dark driver `Darklang.Compiler.Sweep`
+(coverage: pretty-print the fn's closure and hand it to the compiler; equivalence:
+also run the binary on synthesized arguments and compare with the interpreter), in
+chunks, in parallel, with a time budget per chunk. A chunk that overruns is split in two and both halves re-queued, down to one
 fn, which is then recorded as a timeout; that is how a fn that hangs the compiler
 costs minutes rather than the whole run.
 
@@ -24,11 +25,13 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from concurrent.futures import ThreadPoolExecutor
+import time
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 EXE = os.path.join(ROOT, "backend/Build/out/Cli/Debug/net10.0/Cli")
 HASH = re.compile(r"^[0-9a-f]{64}$")
+MEMORY_CAP_GB = 4
 
 
 def die(msg):
@@ -69,106 +72,460 @@ def fn_dependencies(db):
     return deps
 
 
+STDLIB_DIR = os.path.join(ROOT, "backend/src/LibCompiler/stdlib")
+
+
+def compiler_stdlib_names():
+    """Every `Module.name` the compiler's own stdlib declares (fns, values, types),
+    from its .dark files. A Stdlib fn of ours is "covered" when the compiler has
+    one by that name; its body is not compiled, the compiler's is."""
+    names = set()
+    for path in glob.glob(os.path.join(STDLIB_DIR, "*.dark")):
+        module = None
+        for line in open(path, encoding="utf-8"):
+            m = re.match(r"module ([A-Za-z0-9_.]+)\s*$", line)
+            if m:
+                module = m.group(1)
+                continue
+            m = re.match(r"(?:let|val|type) ([A-Za-z_][A-Za-z0-9_]*)", line)
+            if m and module:
+                names.add(f"{module}.{m.group(1)}")
+    # The intrinsics (Stdlib.Bool.not, the bitwise fns, the Cli primitives...) are
+    # declared in F#, as ModuleDefs with a Name and a list of { Name = ... } fns.
+    module = None
+    for line in open(os.path.join(STDLIB_DIR, "..", "Stdlib.fs"), encoding="utf-8"):
+        m = re.search(r'Name = \$?"(Stdlib\.[A-Za-z0-9_.{}]+)"', line)
+        if m:
+            module = m.group(1)
+            if "{" in module:  # a format string: `Stdlib.{name}` for the sized-int modules
+                module = None
+            continue
+        m = re.search(r'\{ Name = "([A-Za-z_][A-Za-z0-9_]*)"', line)
+        if m and module:
+            names.add(f"{module}.{m.group(1)}")
+    for typ in ("Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64", "UInt64", "Int128", "UInt128"):
+        for fn in ("bitwiseAnd", "bitwiseOr", "bitwiseXor", "shiftLeft", "shiftRight", "bitwiseNot"):
+            names.add(f"Stdlib.{typ}.{fn}")
+    return names
+
+
+def is_stdlib(name):
+    return name.startswith("Darklang.Stdlib.")
+
+
+def compiler_name(name):
+    return name[len("Darklang."):] if is_stdlib(name) else name
+
+
 # ---------------------------------------------------------------------------
 # Running a sweep builtin over a chunk, with bisection
 # ---------------------------------------------------------------------------
 
 
-def run_chunk(builtin, hashes, timeout):
-    """(rc, stdout) for one process over these hashes. rc 124 means timed out.
+class Worker:
+    """One long-lived flag-on CLI process running `Darklang.Compiler.Sweep.serve ()`,
+    fed one request per line on stdin. The process start and the compiler's stdlib
+    build cost more than most compiles, so a worker lives for the whole sweep and
+    is only restarted after a timeout, a death, or the memory cap."""
 
-    Each process gets its own DARK_RPC_DIR: the equivalence harness talks to its
-    compiled binaries through files there, so this is what lets several run at once."""
-    lit = "[" + ",".join(f'"{h}"' for h in hashes) + "]"
-    rpc = tempfile.mkdtemp(prefix="dark-rpc-")
-    env = {**os.environ,
-           "DARK_CONFIG_RUNDIR": os.environ.get("DARK_CONFIG_RUNDIR", os.path.join(ROOT, "rundir")),
-           "DARK_RPC_DIR": rpc}
-    try:
-        # cwd is the throwaway dir too: the equivalence harness RUNS fns in the
-        # interpreter with synthesized arguments, and one of them wrote a 51 MB
-        # store copy named "hello" into the repo root before this was here.
-        p = subprocess.run([EXE, "eval", f"Builtin.{builtin} {lit}"],
-                           capture_output=True, text=True, timeout=timeout, env=env, cwd=rpc)
-        return p.returncode, p.stdout
-    except subprocess.TimeoutExpired:
-        return 124, ""
-    finally:
-        shutil.rmtree(rpc, ignore_errors=True)
+    def __init__(self):
+        self.proc = None
+        self.lines = None
+        self.scratch = None
+
+    def start(self):
+        import queue, threading
+        self.stop()
+        # cwd is a throwaway dir: the equivalence sweep RUNS fns in the interpreter
+        # with synthesized arguments, and one of them wrote a 51 MB store copy named
+        # "hello" into the repo root before this was here.
+        self.scratch = tempfile.mkdtemp(prefix="dark-sweep-")
+        env = {**os.environ,
+               "DARK_CONFIG_RUNDIR": os.environ.get("DARK_CONFIG_RUNDIR", os.path.join(ROOT, "rundir"))}
+
+        # A runaway compile once grew to 39 GB and took the machine down with it;
+        # cap each worker's address space so it dies alone instead.
+        def cap():
+            import resource
+            limit = MEMORY_CAP_GB * 1024 ** 3
+            resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+
+        self.proc = subprocess.Popen([EXE, "eval", "Darklang.Compiler.Sweep.serve ()"],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=subprocess.DEVNULL, text=True, env=env,
+                                     cwd=self.scratch, preexec_fn=cap)
+        self.lines = queue.Queue()
+        proc = self.proc
+
+        def pump():
+            for line in proc.stdout:
+                self.lines.put(line.rstrip("\n"))
+            self.lines.put(None)
+
+        threading.Thread(target=pump, daemon=True).start()
+
+    def stop(self):
+        if self.proc is not None:
+            try:
+                self.proc.kill()
+                self.proc.wait(timeout=10)
+            except Exception:
+                pass
+            self.proc = None
+        if self.scratch:
+            shutil.rmtree(self.scratch, ignore_errors=True)
+            self.scratch = None
+
+    def request(self, line, timeout):
+        """(rc, output) where rc is 0 for a complete reply, 124 for a timeout (the
+        worker is restarted) and the exit code when the process died mid-reply."""
+        import queue
+        if self.proc is None or self.proc.poll() is not None:
+            self.start()
+        try:
+            self.proc.stdin.write(line + "\n")
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            rc = self.proc.poll() or 1
+            self.start()
+            return rc, ""
+        out = []
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self.start()
+                return 124, "\n".join(out)
+            try:
+                got = self.lines.get(timeout=min(remaining, 5))
+            except queue.Empty:
+                continue
+            if got is None:
+                rc = self.proc.wait()
+                self.start()
+                return (rc or 1), "\n".join(out)
+            if got == "##done##":
+                return 0, "\n".join(out)
+            out.append(got)
 
 
-def sweep(builtin, hashes, chunk, timeout, parallel, parse, log):
-    """Run `builtin` over all hashes. `parse(hashes, stdout) -> {hash: result}`."""
-    results = {}
-    work = [hashes[i:i + chunk] for i in range(0, len(hashes), chunk)]
+class WorkerPool:
+    """`parallel` threads, each owning one Worker. `run(fn, arg)` calls
+    fn(worker, arg) on a free thread and returns a future."""
 
-    def one(hs):
-        rc, out = run_chunk(builtin, hs, timeout)
-        return hs, rc, out
+    def __init__(self, parallel):
+        import threading
+        self.pool = ThreadPoolExecutor(max_workers=parallel)
+        self.local = threading.local()
+        self.workers = []
+        self.lock = threading.Lock()
 
-    with ThreadPoolExecutor(max_workers=parallel) as pool:
-        pending = [pool.submit(one, hs) for hs in work]
-        while pending:
-            done = pending.pop(0)
-            hs, rc, out = done.result()
-            if rc == 124:
-                if len(hs) == 1:
-                    results[hs[0]] = "timeout|the compiler ran past the %ds budget" % timeout
-                    log(f"  timeout: {hs[0][:10]}")
-                else:
-                    half = (len(hs) + 1) // 2
-                    log(f"  {len(hs)} fns over budget, splitting")
-                    pending.append(pool.submit(one, hs[:half]))
-                    pending.append(pool.submit(one, hs[half:]))
+    def _worker(self):
+        w = getattr(self.local, "w", None)
+        if w is None:
+            w = Worker()
+            self.local.w = w
+            with self.lock:
+                self.workers.append(w)
+        return w
+
+    def run(self, fn, arg):
+        return self.pool.submit(lambda: fn(self._worker(), arg))
+
+    def close(self):
+        self.pool.shutdown(wait=True)
+        for w in self.workers:
+            w.stop()
+
+
+PROGRESS = os.path.join(ROOT, "rundir/logs/compiler-sweep.log")
+_progress_lock = __import__("threading").Lock()
+
+
+def progress(line):
+    """One line per finished request, to rundir/logs/compiler-sweep.log: what is
+    slow, what died, how far along it is. Stdout is buffered by the container
+    wrapper and says nothing until the end."""
+    with _progress_lock:
+        with open(PROGRESS, "a") as f:
+            f.write(time.strftime("%H:%M:%S ") + line + "\n")
+
+
+def dark_list(hashes):
+    return "[" + ",".join(f'"{h}"' for h in hashes) + "]"
+
+
+# ---------------------------------------------------------------------------
+# The dependency graph, and what is known before any compile
+# ---------------------------------------------------------------------------
+
+
+def package_items(db):
+    """hash -> (kind, [names]) for every listed item of every kind."""
+    con = sqlite3.connect(db)
+    rows = con.execute(
+        "SELECT item_hash, item_type, owner || '.' || modules || '.' || name FROM locations "
+        "WHERE unlisted_at IS NULL ORDER BY 3"
+    ).fetchall()
+    con.close()
+    items = {}
+    for h, kind, name in rows:
+        items.setdefault(h, (kind, []))[1].append(name)
+    return items
+
+
+def item_dependencies(db):
+    """hash -> set of hashes it depends on directly, every item kind."""
+    con = sqlite3.connect(db)
+    rows = con.execute("SELECT item_hash, depends_on_hash FROM package_dependencies").fetchall()
+    con.close()
+    deps = collections.defaultdict(set)
+    for a, b in rows:
+        if a != b:
+            deps[a].add(b)
+    return deps
+
+
+def closures(hashes, deps, items):
+    """hash -> the set of items its compile needs: everything reachable, stopping at
+    Stdlib items (the compiler has its own), which are included as leaves."""
+    memo = {}
+
+    def walk(h):
+        if h in memo:
+            return memo[h]
+        memo[h] = set()  # cycle guard
+        out = {h}
+        kind_names = items.get(h)
+        if kind_names and not is_stdlib(kind_names[1][0]):
+            for d in deps.get(h, ()):
+                out |= walk(d)
+        memo[h] = out
+        return out
+
+    return {h: walk(h) for h in hashes}
+
+
+def depths(hashes, deps, items):
+    """Callees before callers: the longest path to a leaf over non-Stdlib fn edges,
+    with cycles cut at a cap. Fns at the same depth are independent."""
+    fn_set = set(hashes)
+    depth = {h: 0 for h in hashes}
+    for _ in range(80):
+        changed = False
+        for h in hashes:
+            d = max((depth[x] + 1 for x in deps.get(h, ()) if x in fn_set and x != h), default=0)
+            if d > depth[h] and d < 80:
+                depth[h] = d
+                changed = True
+        if not changed:
+            break
+    return depth
+
+
+# ---------------------------------------------------------------------------
+# Coverage: one compile per group of fns whose callees already compile
+# ---------------------------------------------------------------------------
+
+
+GROUP_REC = re.compile(r"^(\d+)\t(.*)$")
+
+
+def coverage_sweep(pool, hashes, items, deps, failed, parallel, budget, log):
+    """cov: hash -> 'True|..' / 'False|..' for every fn in `hashes`, without
+    compiling most of them.
+
+    `failed` comes in seeded with the Stdlib items the compiler lacks (by hash) and
+    leaves with every item found not to compile, with its message.
+
+    Fns go in dependency order. A fn whose closure already holds a failed item is
+    blocked, no compile. The rest, grouped by module, get ONE compile of the merged
+    closure per group; a group that fails is halved until the failing fns are
+    known. Several groups share a process, since the process start and the
+    compiler's stdlib build are the fixed cost."""
+    cov = {}
+    closure = closures(hashes, deps, items)
+    depth = depths(hashes, deps, items)
+    by_depth = collections.defaultdict(list)
+    for h in hashes:
+        by_depth[depth[h]].append(h)
+    module_of = lambda h: items[h][1][0].rsplit(".", 1)[0]
+
+    def blocked_by(h):
+        bad = [x for x in closure[h] if x in failed and x != h]
+        if not bad:
+            return None
+        # the deepest culprit is the most useful one to name; ties by name
+        return sorted(bad, key=lambda x: (depth.get(x, -1), items.get(x, ("", ["?"]))[1][0]))[0]
+
+    def run_group(worker, group):
+        """(group, result, died) for one compile of the merged closure."""
+        t0 = time.monotonic()
+        rc, out = worker.request("cov " + " ".join(group), budget)
+        progress(f"cov {len(group):3d} fns {time.monotonic() - t0:6.1f}s rc={rc} {module_of(group[0])} {out.strip()[:100]}")
+        if rc == 124:
+            return group, "timeout|the compiler ran past the %ds budget" % budget, True
+        if rc != 0:
+            return group, "timeout|the worker died (rc %d), likely over the %d GB memory cap" % (rc, MEMORY_CAP_GB), True
+        return group, " ".join(l.strip() for l in out.split("\n") if l.strip()) or "no-compile|<no record in the sweep output>", False
+
+    compiles = [0]
+    for d in sorted(by_depth):
+        level = by_depth[d]
+        pending_groups = collections.defaultdict(list)
+        for h in level:
+            b = blocked_by(h)
+            if b is not None:
+                bname = items.get(b, ("", ["?"]))[1][0]
+                cov[h] = f"False|blocked by callee {bname}: {failed[b]}"
             else:
-                got = parse(hs, out)
-                results.update(got)
-                log(f"  {len(hs)} fns done")
-    return results
+                pending_groups[module_of(h)].append(h)
+        queue = sorted(pending_groups.values(), key=len, reverse=True)
+        log(f"depth {d}: {len(level)} fns, {sum(1 for h in level if h in cov)} blocked, {len(queue)} groups to compile")
+        # No barrier inside a depth: a worker that frees up takes whatever group is
+        # queued, including the halves of a group that just failed.
+        running = set()
+        while queue or running:
+            while queue and len(running) < parallel:
+                running.add(pool.run(run_group, queue.pop(0)))
+            done, running = wait(running, return_when=FIRST_COMPLETED)
+            for fut in done:
+                g, r, died = fut.result()
+                compiles[0] += 1
+                if r == "ok":
+                    for h in g:
+                        cov[h] = "True|compiled with its module"
+                elif len(g) == 1:
+                    cov[g[0]] = "False|" + r.split("|", 1)[1] if "|" in r else "False|" + r
+                    failed[g[0]] = r.split("|", 1)[1] if "|" in r else r
+                else:
+                    half = (len(g) + 1) // 2
+                    queue.append(g[:half])
+                    queue.append(g[half:])
+    log(f"coverage: {compiles[0]} group compiles for {len(hashes)} fns")
+    return cov
 
 
-def parse_coverage(hashes, out):
-    """One `True|...`/`False|...` line per hash, in order; a line that starts with
-    neither continues the previous record."""
-    recs = []
-    for line in out.split("\n"):
-        if line.startswith("True|") or line.startswith("False|"):
-            recs.append(line)
-        elif recs and line.strip():
-            recs[-1] += " " + line.strip()
-    if len(recs) != len(hashes):
-        return {h: "False|<sweep output did not line up: %d records for %d fns>" % (len(recs), len(hashes)) for h in hashes}
-    return dict(zip(hashes, recs))
+# ---------------------------------------------------------------------------
+# Equivalence: one binary per batch, resumed past a crash
+# ---------------------------------------------------------------------------
 
 
 REC = re.compile(r"^([0-9a-f]{64})\t(.*)$")
+MARK = "##dark-sweep##"
+EQUIV_META = {}  # hash -> {"args": the call}
 
 
-EQUIV_META = {}  # hash -> {"args":..., "interp_ms":..., "compiled_ms":...}
+def equivalence_sweep(pool, hashes, items, parallel, budget, batch_size, run_timeout, log):
+    """eq: hash -> verdict (match | DIFF|c=..|i=.. | noargs | ierr | crash | timeout
+    | no-compile) for every compiling fn.
 
-
-def parse_equiv(hashes, out):
-    """`<hash>\\t<result>` records; continuation lines belong to the last record. A
-    `meta|args=..|interp_ms=..|compiled_ms=..` record precedes a verdict for the same
-    hash and is kept apart."""
-    got = {}
-    cur = None
-    for line in out.split("\n"):
-        m = REC.match(line)
-        if m:
-            h, val = m.group(1), m.group(2)
-            if val.startswith("meta|"):
-                fields = dict(part.split("=", 1) for part in val[5:].split("|") if "=" in part)
-                EQUIV_META[h] = fields
-                cur = None
-            else:
-                cur = h
-                got[cur] = val
-        elif cur and line.strip():
-            got[cur] += " " + line.strip()
+    Fns are batched by module. One process evaluates every fn of the batch in the
+    interpreter and builds ONE binary that prints every compiled result on its own
+    marked line. A crash or timeout ends the binary at some fn: the lines before it
+    are results, the first fn without a line is charged, and the rest are re-queued.
+    A batch that does not build is halved until the fn that does not build when
+    called is known."""
+    eq = {}
+    module_of = lambda h: items[h][1][0].rsplit(".", 1)[0]
+    by_module = collections.defaultdict(list)
     for h in hashes:
-        got.setdefault(h, "missing|no record in the sweep output")
-    return got
+        by_module[module_of(h)].append(h)
+    queue = []
+    for hs in by_module.values():
+        queue.extend(hs[i:i + batch_size] for i in range(0, len(hs), batch_size))
+
+    def run_batch(worker, batch):
+        t0 = time.monotonic()
+        rc, out = worker.request(f"eq {run_timeout * 1000} " + " ".join(batch), budget)
+        progress(f"eq  {len(batch):3d} fns {time.monotonic() - t0:6.1f}s rc={rc} {module_of(batch[0])}")
+        return batch, rc, out
+
+    binaries = [0]
+    log(f"equivalence: {len(queue)} batches, {len(hashes)} fns")
+    running = set()
+    if True:
+        while queue or running:
+            while queue and len(running) < parallel:
+                running.add(pool.run(run_batch, queue.pop(0)))
+            done, running = wait(running, return_when=FIRST_COMPLETED)
+            for fut in done:
+                batch, rc, out = fut.result()
+                if rc != 0:
+                    # a timeout, or the worker died (an interpreter-side crash takes
+                    # the whole process with it): halve, and name it on a single
+                    if len(batch) == 1:
+                        eq[batch[0]] = ("timeout|the whole process ran past the %ds budget" % budget) if rc == 124 \
+                            else "crash|the worker process died (rc %d), interpreter side or compiler" % rc
+                    else:
+                        half = (len(batch) + 1) // 2
+                        queue.append(batch[:half])
+                        queue.append(batch[half:])
+                    continue
+                binaries[0] += 1
+                interp = {}
+                status, detail = "missing", ""
+                printed = {}
+                cur = None
+                for line in out.split("\n"):
+                    if line.startswith(MARK):
+                        h, _, val = line[len(MARK):].partition("\t")
+                        printed[h] = val.strip()
+                        cur = None
+                        continue
+                    m = REC.match(line)
+                    if m:
+                        cur, val = m.group(1), m.group(2)
+                        val, _, args = val.partition("\targs=")
+                        if args:
+                            EQUIV_META[cur] = {"args": args}
+                        interp[cur] = val
+                        continue
+                    if line.startswith("batch\t"):
+                        status, _, detail = line[len("batch\t"):].partition("|")
+                        cur = None
+                        continue
+                    if cur and line.strip():
+                        interp[cur] += " " + line.strip()
+                runnable = [h for h in batch if interp.get(h, "").startswith("interp|")]
+                for h in batch:
+                    v = interp.get(h, "missing|no record in the sweep output")
+                    if not v.startswith("interp|"):
+                        eq[h] = v
+                if status == "compile-error":
+                    if len(runnable) == 1:
+                        eq[runnable[0]] = "no-compile|" + detail
+                    elif runnable:
+                        half = (len(runnable) + 1) // 2
+                        queue.append(runnable[:half])
+                        queue.append(runnable[half:])
+                    continue
+                # results in order; the first fn without a line is where the binary
+                # stopped, and everything after it goes back as one batch
+                stopped = None
+                rest = []
+                for h in runnable:
+                    if h in printed:
+                        expected = interp[h][len("interp|"):].strip()
+                        got = printed[h]
+                        if got == expected:
+                            eq[h] = "match"
+                        else:
+                            # a window around the first differing character, so a
+                            # long equal prefix does not hide the difference
+                            k = next((j for j in range(min(len(got), len(expected))) if got[j] != expected[j]),
+                                     min(len(got), len(expected)))
+                            lo = max(0, k - 120)
+                            eq[h] = f"DIFF at {k} of {len(got)}/{len(expected)}|c={got[lo:k + 200]}|i={expected[lo:k + 200]}"
+                    elif stopped is None:
+                        stopped = h
+                        eq[h] = "missing|the binary printed nothing for it" if status == "ran" else f"{status}|{detail}"
+                    else:
+                        rest.append(h)
+                if rest:
+                    queue.append(rest)
+    log(f"equivalence: {binaries[0]} binaries for {len(hashes)} fns")
+    return eq
 
 
 # ---------------------------------------------------------------------------
@@ -183,22 +540,55 @@ def norm(d):
     return d
 
 
-def category(detail):
-    m = re.match(r"unsupported-builtin: ([A-Za-z0-9]+)(_v\d+)?(: .*)?", detail)
+def blocker_of(detail):
+    """(kind, what) for a coverage failure message from the compiler.
+
+    The kinds are the buckets the report and the CSV sections use:
+      stdlib gap        our Stdlib has it, the compiler's does not (a name or a type)
+      builtin           a `Builtin.x` of ours the compiler has no implementation of
+      parse gap         the compiler's front end rejects source the interpreter accepts
+      type gap          Dict<k, v> with a non-String key, and other type-level differences
+      compiler          the compiler rejects or fails on a program it parsed and resolved
+      timeout           the compile did not finish in the budget
+    """
+    m = re.match(r"blocked by callee (\S+): (.*)", detail)
     if m:
-        if "unmarshalable-return" in (m.group(3) or ""):
-            return "builtin routed, return type unmarshalable"
-        return "builtin not routed"
-    m = re.match(r"unsupported-([a-z-]+):", detail)
+        return "callee", m.group(1)
+    m = re.match(r"There is no variable named: Builtin\.([A-Za-z0-9_]+)", detail)
     if m:
-        return "unsupported-" + m.group(1)
-    if detail.startswith("ANF conversion error"):
-        return "compiler: ANF"
+        return "builtin", "Builtin." + m.group(1)
+    m = re.match(r"(?:There is no variable named|Unknown type reference|Unresolved (?:type|value|constructor) name): (Stdlib\.[A-Za-z0-9_.]+)", detail)
+    if m:
+        return "stdlib gap", m.group(1)
+    m = re.match(r"Unknown type reference: ([A-Za-z0-9_.]+) in", detail)
+    if m:
+        return "stdlib gap" if m.group(1).startswith("Stdlib.") else "compiler", m.group(1)
+    if detail.startswith("Parse error: Dict expects exactly one type argument"):
+        return "type gap", "Dict with a non-String key"
+    if detail.startswith("Parse error"):
+        return "parse gap", detail[len("Parse error: "):][:120]
     if detail.startswith("timeout"):
-        return "compiler: timeout"
-    if any(k in detail for k in ("expects", "Type mismatch", "Failed to create record", "Unknown record type")):
-        return "compiler: type error"
-    return "other"
+        return "timeout", detail[:120]
+    if detail.startswith("Constructor identity collision"):
+        return "compiler", "constructor tag collision (12-bit name hash)"
+    if detail.startswith("ANF conversion error"):
+        return "compiler", "ANF: " + detail[len("ANF conversion error: "):][:100]
+    if detail.startswith("stdlib:"):
+        return "compiler", "the compiler's own stdlib did not build: " + detail[:100]
+    return "compiler", detail[:120]
+
+
+def category(detail):
+    kind, what = blocker_of(detail)
+    if kind == "callee":
+        return "blocked by a callee"
+    if kind in ("builtin", "stdlib gap", "type gap", "parse gap", "timeout"):
+        return kind
+    if what.startswith("ANF:"):
+        return "compiler: lowering"
+    if any(k in detail for k in ("expects", "Type mismatch", "Failed to create record", "Unknown record type", "Cannot apply", "is not a function")):
+        return "compiler: type check"
+    return "compiler: other"
 
 
 def equiv_verdict(r):
@@ -226,12 +616,12 @@ def write_report(out_md, out_tsv, names, cov, eq, previous, when, budget):
     w("arguments. Generated by `scripts/compiler/report`; the `.tsv` beside this file has")
     w("every fn.")
     w("")
-    w("\"Compiles\" means the bridge lowered the fn and its whole closure and the compiler")
-    w("emitted an ELF. \"Match\" means the compiled binary and the interpreter produced the")
-    w("same wire bytes for the same synthesized arguments; \"unprovable\"/\"noargs\" means the")
-    w("harness could not build arguments (a function-typed or custom-typed parameter),")
-    w("which says nothing about correctness either way. Authored cases (CompilerCases) will")
-    w("replace synthesized arguments as they land.")
+    w("\"Compiles\" means the fn and its whole closure, pretty-printed as Dark source, went")
+    w("through the compiler's front end, checker and lowering without an error. \"Match\"")
+    w("means the compiled binary and the interpreter produced the same JSON for the same")
+    w("synthesized arguments; \"noargs\" means the harness could not write arguments (a")
+    w("custom-typed parameter it cannot build), which says nothing about correctness")
+    w("either way. Stdlib fns are the compiler's own implementations, called from the entry.")
     w("")
     w("---")
     w("")
@@ -268,17 +658,38 @@ def write_report(out_md, out_tsv, names, cov, eq, previous, when, budget):
     w("")
     w("## Why the rest don't compile")
     w("")
-    w("By the FIRST blocker the bridge or compiler reported for the fn; a fn with two")
-    w("problems is counted under the one met first.")
+    w("By root cause: a fn blocked only by something it calls is counted under that")
+    w("callee's own error, so these are the leaf problems, weighted by how many fns")
+    w("hang off each.")
     w("")
-    cats = collections.Counter(category(r.split("|", 1)[1]) for h, r in cov.items() if h not in compiles)
+
+    def root_message(r):
+        m = re.match(r"blocked by callee \S+: (.*)", r.split("|", 1)[1], re.S)
+        return m.group(1) if m else r.split("|", 1)[1]
+
+    def root_item(h, r):
+        m = re.match(r"blocked by callee (\S+): ", r.split("|", 1)[1])
+        return m.group(1) if m else names.get(h, ["?"])[0]
+
+    failing = {h: r for h, r in cov.items() if h not in compiles}
+    cats = collections.Counter(category(root_message(r)) for r in failing.values())
     for c, n in cats.most_common():
         w(f"    {n:5d}  {c}")
     w("")
-    w("The most common individual blockers:")
+    w("The leaf problems, with the number of fns each blocks (itself included):")
     w("")
-    det = collections.Counter(norm(r.split("|", 1)[1])[:110] for h, r in cov.items() if h not in compiles)
-    for c, n in det.most_common(40):
+    roots = collections.Counter(root_item(h, r) for h, r in failing.items())
+    root_msg = {}
+    for h, r in failing.items():
+        root_msg.setdefault(root_item(h, r), root_message(r))
+    for item, n in roots.most_common(40):
+        w(f"    {n:5d}  {item}")
+        w(f"           {norm(root_msg[item])[:140]}")
+    w("")
+    w("The same, by error message:")
+    w("")
+    det = collections.Counter(norm(root_message(r))[:110] for r in failing.values())
+    for c, n in det.most_common(30):
         w(f"    {n:5d}  {c}")
     w("")
     hangs = [names.get(h, ["?"])[0] for h, r in cov.items() if r.startswith("False|timeout")]
@@ -297,9 +708,9 @@ def write_report(out_md, out_tsv, names, cov, eq, previous, when, budget):
         w("")
         for label, title in (("DIFF", "Compiled and interpreted DISAGREE (candidate miscompiles)"),
                              ("crash", "Compiled binary crashed"),
-                             ("hang", "Compiled binary hung"),
-                             ("ierr", "Interpreter raised on the synthesized arguments"),
-                             ("cerr", "Compiled binary errored")):
+                             ("timeout", "Compiled binary ran past the deadline"),
+                             ("no-compile", "Compiled alone, failed when called with synthesized arguments"),
+                             ("ierr", "Interpreter raised on the synthesized arguments")):
             xs = sorted((names.get(h, ["?"])[0], r) for h, r in eq.items() if equiv_verdict(r) == label)
             if xs:
                 w(f"### {title} ({len(xs)})")
@@ -396,25 +807,6 @@ def case_verdicts(names, cov, eq):
     return out
 
 
-def blocker_of(detail):
-    """(kind, what) for a coverage failure detail."""
-    m = re.match(r"unsupported-builtin: ([A-Za-z0-9]+)(?:_v\d+)?(: .*)?", detail)
-    if m:
-        kind = "builtin (seam can't return its type)" if "unmarshalable-return" in (m.group(2) or "") else "builtin not routed"
-        return kind, "Builtin." + m.group(1)
-    m = re.match(r"unsupported-type: (.*)", detail)
-    if m:
-        return "type", m.group(1)[:120]
-    m = re.match(r"unsupported-(value|pattern|generics|call|fnref|expr|literal|infix|pipe|arg): (.*)", detail)
-    if m:
-        return "bridge: " + m.group(1), m.group(2)[:120]
-    if detail.startswith("timeout"):
-        return "compiler: timeout", detail[:120]
-    if detail.startswith("ANF conversion error"):
-        return "compiler: ANF", detail[len("ANF conversion error: "):][:120]
-    return "compiler", detail[:120]
-
-
 def write_functions_csv(out_csv, names, cov, eq, deps):
     import csv
     hashes = list(cov)
@@ -458,18 +850,22 @@ def write_functions_csv(out_csv, names, cov, eq, deps):
             v = equiv_verdict(eq.get(h, "unswept"))
             if v == "match":
                 return "1 proven equal"
-            if v in ("DIFF", "crash", "hang", "cerr"):
+            if v in ("DIFF", "crash", "hang", "cerr", "timeout"):
                 return "2 compiles, differs or crashes"
-            return "3 compiles, not provable with synthesized args"
+            if v == "no-compile":
+                return "3 compiles alone, not when called"
+            return "4 compiles, not provable with synthesized args"
         detail = r.split("|", 1)[1]
-        if root_blocker(h) is not None:
-            return "4 blocked by a callee"
+        if root_blocker(h) is not None or detail.startswith("blocked by callee"):
+            return "5 blocked by a callee"
         kind, _ = blocker_of(detail)
-        if kind.startswith("builtin"):
-            return "5 blocked by a builtin"
-        if kind == "type" or kind.startswith("bridge"):
-            return "6 blocked by a type or the bridge"
-        return "7 blocked by the compiler"
+        if kind == "builtin":
+            return "6 blocked by a builtin the compiler lacks"
+        if kind == "stdlib gap":
+            return "7 blocked by a Stdlib gap"
+        if kind in ("parse gap", "type gap"):
+            return "8 blocked by a front-end gap"
+        return "9 blocked by the compiler"
 
     rows = []
     for h in hashes:
@@ -485,6 +881,8 @@ def write_functions_csv(out_csv, names, cov, eq, deps):
             kind, what = "callee", first_name(rb)
         else:
             kind, what = blocker_of(detail)
+            if kind == "callee":
+                what = what
         interp = meta.get("interp_ms", "")
         comp = meta.get("compiled_ms", "")
         try:
@@ -542,11 +940,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", default=os.path.join(ROOT, "rundir/data.db"))
     ap.add_argument("--out-dir", default=os.path.join(ROOT, "docs/compiler/coverage"))
-    ap.add_argument("--chunk", type=int, default=100, help="fns per compile-sweep process")
-    ap.add_argument("--budget", type=int, default=120, help="seconds per compile-sweep chunk before bisecting")
-    ap.add_argument("--parallel", type=int, default=4, help="compile-sweep processes at once")
-    ap.add_argument("--equiv-chunk", type=int, default=10)
-    ap.add_argument("--equiv-budget", type=int, default=60)
+    ap.add_argument("--budget", type=int, default=60, help="seconds one group compile may take (a normal one takes under 2; a hang costs the whole budget at every halving)")
+    ap.add_argument("--parallel", type=int, default=6, help="sweep processes at once (each capped at %d GB; keep this small, the machine is shared)" % MEMORY_CAP_GB)
+    ap.add_argument("--equiv-batch", type=int, default=25, help="fns per equivalence binary")
+    ap.add_argument("--equiv-budget", type=int, default=180, help="seconds one equivalence batch may take, interpreter and binary included")
+    ap.add_argument("--run-timeout", type=int, default=20, help="seconds a compiled binary may run")
     ap.add_argument("--no-equiv", action="store_true", help="skip the equivalence sweep")
     ap.add_argument("--only", help="a name prefix, e.g. Darklang.Stdlib.List, to sweep just that")
     ap.add_argument("--date", default=datetime.date.today().isoformat())
@@ -554,22 +952,45 @@ def main():
 
     if not os.path.exists(EXE):
         die(f"no CLI binary at {EXE}; build it flag-on first (see scripts/compiler/report --help)")
-    probe = subprocess.run([EXE, "eval", "Builtin.compilerInfo ()"], capture_output=True, text=True)
+    probe = subprocess.run([EXE, "eval", "Darklang.Compiler.Sweep.info ()"], capture_output=True, text=True)
     if "native compiler linked" not in probe.stdout + probe.stderr:
         die("the CLI binary was not built with -p:DarkWithCompiler=true (compilerInfo is not there)")
 
     names = package_fns(args.db)
+    items = package_items(args.db)
+    deps = item_dependencies(args.db)
     hashes = sorted(names)
     if args.only:
         hashes = sorted(h for h in hashes if any(n.startswith(args.only) for n in names[h]))
-    log = lambda s: print(s, flush=True)
-    log(f"coverage sweep: {len(hashes)} fns, chunks of {args.chunk}, {args.budget}s budget, {args.parallel} at a time")
-    cov = sweep("compilerCoverageSweep", hashes, args.chunk, args.budget, args.parallel, parse_coverage, log)
-    compiling = sorted(h for h, r in cov.items() if r.startswith("True|"))
-    eq = {}
-    if not args.no_equiv:
-        log(f"equivalence sweep: {len(compiling)} fns, chunks of {args.equiv_chunk}, {args.equiv_budget}s budget, {args.parallel} at a time")
-        eq = sweep("compilerEquivSweep", compiling, args.equiv_chunk, args.equiv_budget, args.parallel, parse_equiv, log)
+    def log(s):
+        print(s, flush=True)
+        progress(s)
+    progress("---- sweep start ----")
+
+    # Stdlib items are not compiled from our source; the compiler has its own. What it
+    # lacks (by name) seeds the failed set, so a fn using it is blocked without a compile.
+    known = compiler_stdlib_names()
+    failed = {}
+    for h, (kind, ns) in items.items():
+        if is_stdlib(ns[0]) and not any(compiler_name(n) in known for n in ns):
+            failed[h] = f"There is no variable named: {compiler_name(ns[0])}" if kind != "type" \
+                else f"Unknown type reference: {compiler_name(ns[0])}"
+    stdlib_hashes = [h for h in hashes if is_stdlib(names[h][0])]
+    other_hashes = [h for h in hashes if not is_stdlib(names[h][0])]
+    cov = {}
+    for h in stdlib_hashes:
+        cov[h] = f"False|{failed[h]}" if h in failed else "True|in the compiler's stdlib"
+    log(f"stdlib: {sum(1 for h in stdlib_hashes if cov[h].startswith('True|'))} of {len(stdlib_hashes)} fns have a compiler implementation")
+    log(f"coverage sweep: {len(other_hashes)} fns in dependency order, {args.parallel} workers")
+    pool = WorkerPool(args.parallel)
+    try:
+        cov.update(coverage_sweep(pool, other_hashes, items, deps, failed, args.parallel, args.budget, log))
+        compiling = sorted(h for h, r in cov.items() if r.startswith("True|"))
+        eq = {}
+        if not args.no_equiv:
+            eq = equivalence_sweep(pool, compiling, items, args.parallel, args.equiv_budget, args.equiv_batch, args.run_timeout, log)
+    finally:
+        pool.close()
 
     os.makedirs(args.out_dir, exist_ok=True)
     previous = read_previous(args.out_dir, names, cov)

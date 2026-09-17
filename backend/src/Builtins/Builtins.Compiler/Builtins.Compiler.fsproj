@@ -24,7 +24,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Bridge.fs" />
     <Compile Include="Libs/Compiler.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
