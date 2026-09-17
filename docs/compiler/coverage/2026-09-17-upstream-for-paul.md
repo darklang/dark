@@ -45,8 +45,9 @@ By the leaf cause, counting every fn that hangs off it:
              pattern on an Option (6)
       131  lowering: lambda return type not inferable from an empty list body (90),
              a string literal as a list-cons head pattern (26), match in atom position
-      34   the compiler does not finish in 60s (WIP.AI JSON builders: a non-tail
-             if/match in a let is lowered by duplicating the continuation, 2^n)
+      34   the compiler does not finish in 60s (WIP.AI JSON builders). The pass timings
+             put every one of them in "ANF Higher-Order Specialization"; with
+             DisableInlining the same closure compiles in 0.2s
       11   the front end (Dict<k, v> with a non-String key, a few let shapes)
 
 ## The 32 that differ

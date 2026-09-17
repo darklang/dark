@@ -355,9 +355,10 @@ Things that cost an evening each:
   printed source; anything else it rejects is a real gap and belongs in the report.
 - A content-addressed type listed under two names is one type here and would be two
   there; the sweep defines it once and aliases the other names.
-- A compile that is slow is usually its parser's split-retry fallback; the layout passes
-  in `frontend/Parser.fs` are where that is fixed, and `Sweep.layout` shows what the
-  lexer is handed.
+- A compile that is slow: `DARK_COMPILER_VERBOSITY=2` on the flag-on CLI prints the
+  compiler's pass timings, `DARK_COMPILER_NO_INLINE=1` turns its inlining and
+  specializations off. The WIP.AI hangs are its `ANF_HigherOrderSpecialization` pass.
+  `Sweep.layout` shows what its lexer is handed when the problem is the front end.
 
 ## Gotchas
 

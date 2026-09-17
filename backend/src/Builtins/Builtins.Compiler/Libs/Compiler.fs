@@ -63,8 +63,19 @@ let private compileUnits
                else CompilerOptions.TestExpression)
             Sources = sources
             AllowInternal = false
-            Verbosity = 0
-            Options = CompilerOptions.defaultOptions
+            // DARK_COMPILER_VERBOSITY=1 prints the compiler's pass names, 2 adds
+            // timings, 3 dumps its IRs; for finding where a compile spends its time.
+            Verbosity =
+              (match System.Environment.GetEnvironmentVariable "DARK_COMPILER_VERBOSITY" with
+               | null | "" -> 0
+               | v -> (try int v with _ -> 0))
+            // DARK_COMPILER_NO_INLINE=1 turns the compiler's inlining and the
+            // specializations that depend on it off: for telling a hang in those
+            // passes from one elsewhere.
+            Options =
+              (if System.Environment.GetEnvironmentVariable "DARK_COMPILER_NO_INLINE" = "1" then
+                 { CompilerOptions.defaultOptions with DisableInlining = true }
+               else CompilerOptions.defaultOptions)
             PackageValues = CompilationContexts.emptyPackageValueCatalog
             PassTimingRecorder = None
             Session = None }
