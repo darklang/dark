@@ -1,48 +1,71 @@
-# Darklang browser REPL (WASM)
+# Darklang in the browser (WASM)
 
-The parser + runtime compiled to WebAssembly. Dark evaluates entirely in
-the browser tab, no server. The publish output is a static site; host it anywhere.
+The runtime, parser, LibDB and SQLite compiled to WebAssembly and published as a static site.
+Live at https://dark-wasm.fly.dev.
 
-## Build & run (from the repo root)
+- `index.html`: a directory of the pages. With a query it is the answer, raw: `/?cmd=<argv>`
+  prints what `dark <argv>` prints, `/?fn=<name>` is `view`.
+- `cli.html`: the real Dark CLI in an xterm.js terminal, against a real package store. No params
+  opens the workbench with a shell on the right that takes `dark <command>` lines (`?panel=0`
+  hides it). `?cmd=<argv>` runs a command then drops to the classic prompt; `?fn=<name>` is
+  `view`; `?env=DARK_CLASSIC=1` is the classic prompt.
+- `eval.html?e=<expr>`: an expression box and what `dark eval` prints.
+- `repl.html`: the older REPL over an in-memory package snapshot.
+
+## Build, serve, deploy (from the repo root, inside the container)
 
 ```
-# 1. Generate the package snapshot (re-run when packages change;
-#    also refreshes the published copy, no republish needed)
-python3 backend/src/Wasm/generate-snapshot.py
+dotnet publish backend/src/Wasm/Wasm.fsproj -c Release -o rundir/wasm-repl   # ~6 min (AOT)
+backend/src/Wasm/make-store.sh                # the store the CLI boots from; re-run when packages change
+python3 backend/src/Wasm/generate-snapshot.py # the REPL's snapshot (repl.html only)
 
-# 2. Publish (re-run when F# or index.html changes)
-dotnet publish backend/src/Wasm/Wasm.fsproj -c Release -o rundir/wasm-repl
+./scripts/run-cli permissions allow http-server 9090
+./scripts/run-cli permissions allow file read /home/dark/app/rundir/wasm-repl/wwwroot
+./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090   # host port: scripts/dev/host-port
 
-# 3. Serve locally (9090 because the devcontainer only forwards 9090-9099
-#    to the host; any port works for a browser inside the container)
-./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090
+backend/src/Wasm/deploy/deploy.sh             # nginx image of the publish -> fly app dark-wasm
 ```
 
-Open http://localhost:9090 → `1 + 2` → `3`. To host publicly, upload
-`rundir/wasm-repl/wwwroot` to any static host (GitHub Pages, Cloudflare Pages, etc.)
+Wipe `rundir/wasm-repl` before a publish, or stale fingerprinted files pile up. Nothing in CI
+builds or deploys this; `deploy.sh` is run by hand.
 
-## Notes
+## How it is put together
 
-- The REPL is stateful across entries: fn/type/`val` declarations become
-  in-memory package items under the `Repl` owner (callable unqualified in later
-  entries; redefinition wins), and a bare `let x = …` persists its bindings as
-  session variables (injected into later entries as pre-loaded VM registers).
-  Declarations can't close over session variables — package items are static.
-- Builtins: `Builtins.Pure` + `Builtins.Http.Client` (works over fetch; subject
-  to CORS) + browser-local `printLine`/`print` (buffered into each result) +
-  the `pmGetLocationsBy*` lookups the pretty-printer needs for type names.
-  `Stdlib.*` comes from the snapshot. Output matches `dark eval`.
-- Keep `<WasmBuildNative>false</WasmBuildNative>`. SQLite comes in through
-  `LibParser`/`LibDB` and crashes the native-relink step. The browser never
-  uses SQLite, so skipping it is safe.
-- Always publish to `rundir/`. Publishing into the project tree makes the next
-  publish copy the previous build into itself.
+`Host.fs`: `Cli.Boot` fetches `data.db.br` into emscripten's in-memory filesystem, inflates it
+through the runtime's own brotli decoder, warms SQLite and runs `growIfNeeded`; `Cli.RunCli`
+builds the same execution state the native CLI builds and calls the entry point; `RunCommand`
+runs one command with its output captured. `Browser` is the seam to the page: keys in
+(`PushKey`/`PushPaste`), output out (`DrainOutput`, drained by the page on a timer), size
+(`SetTerminalSize`). `BrowserBuiltins` replaces seven builtins (stdin, terminal size and
+session info, clear); everything else is the real `Builtins.Cli`/`CliHost`/`Matter`.
+`site.js` holds the pages' shared boot and helpers.
 
-## Next steps
+`RunAOTCompilation` is on because the interpreter's F# `task` loop could not suspend a second
+time under the mono interpreter. A few big leaf assemblies stay interpreted; interpreting the
+BCL wholesale asserts when compiled F# generics call into it. `InvariantGlobalization` drops ICU.
 
-- Hosted package manager to replace the snapshot seam (marked in `Repl.fs`).
-- Break `LibParser`'s dependency on `LibDB`. That dependency is what pulls
-  SQLite into the browser bundle (and why the `WasmBuildNative` workaround
-  exists) — the browser never uses it.
-- Make the first load smaller (~10 MB gzipped today). Trim unused code and drop
-  the accidental `Expecto` (test framework) reference.
+## The store, and the secret
+
+`make-store.sh` copies this clone's `rundir/data.db`, deletes `config_v0` (relay url, push
+cursors, and `sync.secret.<url>`, the write secret shared between a person's machines and
+production) and the sync tables, asserts `config_v0` is empty, scans the bytes for a stored
+secret key, and only then writes the file. It never reads `~/.darklang` or `cli-config.json`.
+`deploy.sh` checks the bytes again. Keep it that way.
+
+## Testing headless
+
+```
+node backend/src/Wasm/headless-check.mjs <url> <script.js> [timeout-s] [screenshot.png]
+```
+
+Drives playwright's chromium over CDP with Node's WebSocket. The script is evaluated in the page
+every 2 s until it returns a string starting `DONE` or `FAIL`; other returns are progress.
+
+## Known gaps
+
+- Everything is per tab and in memory; reload and the store is fresh.
+- No push from the tab (no secret ships). Pull from a server is untried.
+- Posix: cwd, env, mkdir, rmdir, unlink, rename, listDir and stat answer through `System.IO`;
+  descriptors, symlinks, chmod, kill and processes answer ENOSYS. HTTP: same-origin and
+  CORS-enabled hosts only; no server.
+- Cold start: 17.7 MB gzip of runtime plus a 6.6 MB brotli store, then ~1 s of warm-up.

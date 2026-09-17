@@ -52,10 +52,13 @@ module TerminalRestoreGuard =
       ()
 
   do
-    System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> restoreToTerminal ())
-    System.AppDomain.CurrentDomain.UnhandledException.Add(fun _ ->
-      restoreToTerminal ())
-    System.Console.CancelKeyPress.Add(fun _ -> restoreToTerminal ())
+    // A browser tab has no process exit and no Ctrl-C; subscribing to CancelKeyPress
+    // there throws PlatformNotSupportedException out of this module's initializer.
+    if not (System.OperatingSystem.IsBrowser()) then
+      System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> restoreToTerminal ())
+      System.AppDomain.CurrentDomain.UnhandledException.Add(fun _ ->
+        restoreToTerminal ())
+      System.Console.CancelKeyPress.Add(fun _ -> restoreToTerminal ())
 
 
 module TerminalCapabilities =

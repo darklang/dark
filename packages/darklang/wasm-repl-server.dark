@@ -1,9 +1,9 @@
-/// Static server for the published WASM REPL — serves
-/// rundir/wasm-repl/wwwroot with the correct `application/wasm`
-/// MIME type (needed for the browser's streaming compilation).
+/// Static server for the published WASM site -- serves
+/// rundir/wasm-repl/wwwroot with the correct `application/wasm` MIME type (needed for the
+/// browser's streaming compilation).
 ///
 /// Build first (see backend/src/Wasm/README.md), then from the repo root:
-///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 8080
+///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 9090
 module Darklang.WasmReplServer
 
 let root () : String = "rundir/wasm-repl/wwwroot"

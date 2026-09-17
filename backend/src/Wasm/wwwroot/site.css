@@ -1,0 +1,23 @@
+/* Shared look for the pages: one dark palette, a monospace face, the header and status. */
+:root { color-scheme: dark; --bg:#0f1117; --panel:#171a23; --fg:#e6e8ee; --muted:#8b90a0;
+        --accent:#7c9cff; --ok:#6ee7a8; --err:#ff8a8a; --border:#262b38;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); }
+a { color:var(--accent); }
+header { padding:8px 14px; border-bottom:1px solid var(--border); display:flex; align-items:baseline; gap:12px; flex:none; }
+header h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:.3px; }
+header a { color:var(--muted); font-size:12px; text-decoration:none; }
+header a:hover { color:var(--fg); }
+header .status { font-size:12px; color:var(--muted); margin-left:auto; }
+header .status.busy { color:var(--accent); }
+header .status.ready { color:var(--ok); }
+header .status.err { color:var(--err); }
+header button { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:6px;
+                font:inherit; font-size:12px; padding:2px 8px; cursor:pointer; }
+header button:hover, header button.on { color:var(--fg); border-color:var(--accent); }
+pre { margin:0; white-space:pre-wrap; word-break:break-word; }
+.err { color:var(--err); }
+.muted { color:var(--muted); }
+input, textarea { background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--fg);
+                  font:inherit; padding:6px 8px; outline:none; }

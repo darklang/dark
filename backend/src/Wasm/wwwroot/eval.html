@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Darklang eval</title>
+  <link rel="stylesheet" href="site.css" />
+  <link rel="preload" href="data.db.br" as="fetch" crossorigin="anonymous" />
+  <style>
+    body { padding:24px 16px; font-size:14px; }
+    main { max-width:720px; margin:0 auto; }
+    form { display:flex; gap:8px; margin-bottom:14px; }
+    textarea { flex:1; resize:vertical; min-height:2.6em; }
+    button { background:var(--accent); color:var(--bg); border:none; border-radius:6px; padding:6px 14px;
+             font:inherit; font-weight:600; cursor:pointer; align-self:flex-start; }
+    button:disabled { opacity:.5; }
+    .status { font-size:12px; margin-top:14px; }
+    main a { color:var(--muted); font-size:12px; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <main>
+    <form id="form">
+      <textarea id="in" rows="1" placeholder="1 + 2" autofocus></textarea>
+      <button id="run" type="submit" disabled>eval</button>
+    </form>
+    <pre id="out"></pre>
+    <p class="status muted" id="status">loading</p>
+    <p><a href="./">everything else</a></p>
+  </main>
+  <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+  <script src="site.js"></script>
+  <script>
+    // eval.html?e=<expression>: what `dark eval <expression>` prints, and a box to try another.
+    const out = document.getElementById("out"), status = document.getElementById("status");
+    const input = document.getElementById("in"), run = document.getElementById("run");
+    const initial = new URLSearchParams(location.search).get("e");
+    if (initial !== null) input.value = initial;
+    let ready = false;
+    async function evaluate(expr) {
+      run.disabled = true; out.className = ""; out.textContent = ""; status.textContent = "evaluating";
+      history.replaceState(null, "", "?e=" + encodeURIComponent(expr));
+      try {
+        const { output, code } = await dark.run(["eval", expr]);
+        out.textContent = dark.stripAnsi(output).trim();
+        if (code !== "0") out.className = "err";
+        status.textContent = "";
+      } catch (e) { out.textContent = "failed: " + (e && e.message ? e.message : e); out.className = "err"; }
+      finally { run.disabled = false; }
+    }
+    document.getElementById("form").addEventListener("submit", (ev) => { ev.preventDefault(); if (ready && input.value.trim()) evaluate(input.value); });
+    input.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); document.getElementById("form").requestSubmit(); } });
+    (async () => {
+      try {
+        await dark.boot((what) => { status.textContent = what; });
+        ready = true; run.disabled = false; status.textContent = "";
+        if (initial !== null && initial.trim()) evaluate(initial);
+      } catch (e) { status.textContent = "failed to load: " + (e && e.message ? e.message : e); status.className = "status err"; }
+    })();
+  </script>
+</body>
+</html>
