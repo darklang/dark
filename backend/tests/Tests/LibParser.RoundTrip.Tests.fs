@@ -1396,7 +1396,6 @@ let exprs =
     tParseRejected "surrogate codepoint in char" "'\\uD800'"
     tParseRejected "codepoint above max in char" "'\\U00110000'"
     // Pure syntax-rejection cases (no escape involvement).
-    tParseRejected "bang produces a parse error" "!true"
     tParseRejected "garbage tokens produce a parse error" "@@@"
     t
       "string interpolation - multiple expr to eval"
@@ -2208,6 +2207,79 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
 
     // pipe expression
     t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    // Bitwise operators. `**` is exponentiation and nests right; the bitwise
+    // levels bind tighter than the comparisons, so a `==` operand keeps no parens.
+    t "bitwise and" "1L & 2L" "1L & 2L" [] [] [] false
+    t "bitwise or" "1L | 2L" "1L | 2L" [] [] [] false
+    t "bitwise xor" "1L ^ 2L" "1L ^ 2L" [] [] [] false
+    t "shift left" "1L << 2L" "1L << 2L" [] [] [] false
+    t "shift right" "1L >> 2L" "1L >> 2L" [] [] [] false
+    t "power is right-assoc" "2L ** 3L ** 2L" "2L ** 3L ** 2L" [] [] [] false
+    t
+      "power needs parens on the left"
+      "(2L ** 3L) ** 2L"
+      "(2L ** 3L) ** 2L"
+      []
+      []
+      []
+      false
+    t "bitwise binds tighter than ==" "1L & 2L == 0L" "1L & 2L == 0L" [] [] [] false
+    t
+      "or is loosest of the bitwise ops"
+      "1L | 2L ^ 3L & 4L"
+      "1L | 2L ^ 3L & 4L"
+      []
+      []
+      []
+      false
+    t
+      "an or operand of xor keeps parens"
+      "(1L | 2L) ^ 3L"
+      "(1L | 2L) ^ 3L"
+      []
+      []
+      []
+      false
+    t "shifts bind tighter than +" "1L << 2L + 3L" "1L << 2L + 3L" [] [] [] false
+    // The prefix operators desugar to their builtin, exactly as unary `-` does,
+    // so the NORMAL FORM prints the builtin call rather than the operator.
+    t "prefix bang" "!true" "Builtin.boolNot true" [] [] [] false
+    t "prefix tilde" "~1L" "Builtin.bitwiseNot 1L" [] [] [] false
+    t "unary minus on a non-literal" "-x" "Builtin.negate x" [] [] [] true
+    t
+      "prefix bang takes a whole application"
+      "!f x"
+      "Builtin.boolNot (f x)"
+      []
+      []
+      []
+      true
+    // `|` is the match-arm separator inside a match, so a bitwise-or in an arm
+    // body has to come back parenthesised or it re-parses as the next arm.
+    t
+      "bitwise or in a match arm is parenthesised"
+      "match x with\n| 0L -> (1L | 2L)\n| n -> n"
+      "match x with\n| 0L -> (1L | 2L)\n| n -> n"
+      []
+      []
+      []
+      true
+    t
+      "a match arm comparison over a bitwise or is parenthesised"
+      "match x with\n| 0L -> (1L | 2L) == 3L\n| n -> n"
+      "match x with\n| 0L -> (1L | 2L == 3L)\n| n -> n"
+      []
+      []
+      []
+      true
+    t
+      "a bracketed bitwise or in a match arm needs no extra parens"
+      "match x with\n| 0L -> [1L | 2L]\n| n -> n"
+      "match x with\n| 0L -> [1L | 2L]\n| n -> n"
+      []
+      []
+      []
+      true
     t
       "pipe, computed arg"
       "[1L, 2L] |> Stdlib.List.take (2L - 1L)"

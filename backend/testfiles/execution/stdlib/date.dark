@@ -210,7 +210,7 @@ module Conversion =
   1095379198 |> Stdlib.DateTime.fromSeconds |> Stdlib.DateTime.toSeconds = 1095379198
 
   // seconds past Int64 range can't be represented; surface a Dark error
-  (2 ^ 63) |> Stdlib.DateTime.fromSeconds =
+  (2 ** 63) |> Stdlib.DateTime.fromSeconds =
     error="Encountered out-of-range value for type of Int"
 
   // Int64.MaxValue fits int64 but is past NodaTime's instant range; the host

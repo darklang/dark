@@ -26,6 +26,11 @@ module InfixFnName =
     | ComparisonEquals -> w.Write 10uy
     | ComparisonNotEquals -> w.Write 11uy
     | StringConcat -> w.Write 12uy
+    | BitwiseAnd -> w.Write 13uy
+    | BitwiseOr -> w.Write 14uy
+    | BitwiseXor -> w.Write 15uy
+    | ShiftLeft -> w.Write 16uy
+    | ShiftRight -> w.Write 17uy
 
   let read (r : BinaryReader) : InfixFnName =
     match r.ReadByte() with
@@ -42,6 +47,11 @@ module InfixFnName =
     | 10uy -> ComparisonEquals
     | 11uy -> ComparisonNotEquals
     | 12uy -> StringConcat
+    | 13uy -> BitwiseAnd
+    | 14uy -> BitwiseOr
+    | 15uy -> BitwiseXor
+    | 16uy -> ShiftLeft
+    | 17uy -> ShiftRight
     | b -> raiseFormatError $"Invalid InfixFnName tag: {b}"
 
 

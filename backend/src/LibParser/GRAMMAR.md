@@ -99,23 +99,48 @@ Loosest to tightest; one table (`infixBindingPower`) drives the parser.
 | 1 | `\|\|` | left | |
 | 2 | `&&` | left | |
 | 3 | `== != < > <= >=` | left | `=` is **not** equality (binding only) |
-| 4 | `@` | right | list append → `Stdlib.List.append` |
-| 5 | `+ - ++` | left | `++` is string concat |
-| 6 | `* / %` | left | |
-| 7 | `^` | right | exponentiation (`2^3^2 = 2^(3^2)`) |
-| 8 | application `f a b` | left | tightest |
+| 4 | `\|` | left | bitwise or |
+| 5 | `^` | left | bitwise xor |
+| 6 | `&` | left | bitwise and |
+| 7 | `<< >>` | left | bitwise shifts |
+| 8 | `@` | right | list append → `Stdlib.List.append` |
+| 9 | `+ - ++` | left | `++` is string concat |
+| 10 | `* / %` | left | |
+| 11 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |
+| 12 | application `f a b` | left | tightest |
 
-`<<`, `>>`, `&`, `|||`, `~~~`, `!`, and `...` are reserved tokens but are not
-supported expression operators. `...` is also reserved for unsupported rest
-patterns. These forms produce an unsupported-syntax diagnostic. `def` is not
-reserved and lexes as a normal identifier.
+The bitwise levels follow Python's order rather than C's: they bind *tighter*
+than the comparisons, so `a & b == c` is `(a & b) == c`.
+
+`...` is a reserved token but not a supported expression operator; it is also
+reserved for unsupported rest patterns. It produces an unsupported-syntax
+diagnostic. `def` is not reserved and lexes as a normal identifier.
+
+### `|` in a match
+
+`|` is both bitwise-or and the match-arm separator. Inside a `match`, a `|` on
+the arm row or at the arm column starts an arm — exactly the tokens the arm
+loop would have taken — so every match that parsed before still parses,
+single-line ones included. Bitwise-or in an arm body needs parentheses:
+
+```
+match x with
+| A -> (a | b)
+```
+
+Entering any bracket (`( )`, `[ ]`, `{ }`) drops the arm anchors, since no arm
+can begin inside one; that is what makes the parenthesised form work even on a
+one-line match.
 
 Operator sections `(op)` are two-arg lambdas.
 
 `x |> (op) y` means `x op y`; the piped value is the *left* operand.
 
 Unary minus on a literal makes a negative literal. On anything else it applies
-`Builtin.negate`.
+`Builtin.negate`. Prefix `!` (boolean not) and `~` (bitwise not) take the same
+shape, applying `Builtin.boolNot` / `Builtin.bitwiseNot` to a whole application:
+`!f x` is `!(f x)`, and infix operators still bind looser, so `!a && b` is
+`(!a) && b`.
 
 In argument position, a `-` glued to a number with a space before it is a
 negative-literal argument:

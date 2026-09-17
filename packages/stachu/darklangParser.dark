@@ -17,6 +17,10 @@ type InfixOp =
   | ArithmeticDivide
   | ArithmeticModulo
   | ArithmeticPower
+  | BitwiseAnd
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight
   | ComparisonGreaterThan
   | ComparisonGreaterThanOrEqual
   | ComparisonLessThan
@@ -708,17 +712,8 @@ let fnApplication (atomParser: P<Expr>) : P<Expr> =
 
 
 // ============================================
-// Infix operators with precedence
+// Infix operators
 // ============================================
-
-// Precedence levels (higher = binds tighter)
-// 6: ^ (power)
-// 5: * / %
-// 4: + -
-// 3: ++ (string concat)
-// 2: == != < <= > >=
-// 1: &&
-// 0: ||
 
 let infixOp () : P<InfixOp> =
   Parser.choice
@@ -728,10 +723,16 @@ let infixOp () : P<InfixOp> =
       Parser.map (fun _ -> InfixOp.ComparisonNotEquals) (symbolNoWs "!=")
       Parser.map (fun _ -> InfixOp.ComparisonLessThanOrEqual) (symbolNoWs "<=")
       Parser.map (fun _ -> InfixOp.ComparisonGreaterThanOrEqual) (symbolNoWs ">=")
+      // longest match first: `<<`/`>>` before `<`/`>`, `**` before `*`
+      Parser.map (fun _ -> InfixOp.ShiftLeft) (symbolNoWs "<<")
+      Parser.map (fun _ -> InfixOp.ShiftRight) (symbolNoWs ">>")
       Parser.map (fun _ -> InfixOp.ComparisonLessThan) (symbolNoWs "<")
       Parser.map (fun _ -> InfixOp.ComparisonGreaterThan) (symbolNoWs ">")
       Parser.map (fun _ -> InfixOp.StringConcat) (symbolNoWs "++")
-      Parser.map (fun _ -> InfixOp.ArithmeticPower) (symbolNoWs "^")
+      Parser.map (fun _ -> InfixOp.BitwiseAnd) (symbolNoWs "&")
+      // This lightweight parser cannot distinguish bitwise-or from a match arm.
+      Parser.map (fun _ -> InfixOp.BitwiseXor) (symbolNoWs "^")
+      Parser.map (fun _ -> InfixOp.ArithmeticPower) (symbolNoWs "**")
       Parser.map (fun _ -> InfixOp.ArithmeticMultiply) (symbolNoWs "*")
       Parser.map (fun _ -> InfixOp.ArithmeticDivide) (symbolNoWs "/")
       Parser.map (fun _ -> InfixOp.ArithmeticModulo) (symbolNoWs "%")

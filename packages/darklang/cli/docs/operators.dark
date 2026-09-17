@@ -8,18 +8,33 @@ let content () : String =
   (< > <= >= are polymorphic over numeric types — Int8..Int128, UInt*, Float)
 
 ## Boolean
-  && || (use Stdlib.Bool.not for negation)
+  && ||   and unary !x
+  `!x` is Stdlib.Bool.not; `!x && y` is `(!x) && y`.
 
 ## Numeric (all int types + Float)
-  + - * / % ^   and unary -x
+  + - * / % **   and unary -x
   Polymorphic at runtime: both operands must be the same numeric type.
   `1 + 2`, `1.0 + 2.0`, and `1y * 2y` all work.
   `/` is integer division on ints, float division on floats.
   `%` works on all numeric types (the modulus must be > 0).
-  `^` (power) works on all integer types and Float (not Int128/UInt128).
+  `**` (power) works on all integer types and Float (not Int128/UInt128),
+  and nests right: `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
   Unary `-x` negates signed ints and Float (not unsigned types).
-  Integer overflow (+ - * / ^ and unary -) raises a runtime error.
+  Integer overflow (+ - * / ** and unary -) raises a runtime error.
   Float arithmetic follows IEEE (overflow -> infinity).
+
+## Bitwise (all int types, NOT Float)
+  & | ^ << >>   and unary ~x
+  `&` and, `|` or, `^` xor, `<<`/`>>` shift, `~x` NOT (two's complement).
+  Both operands must be the same integer type, including the shift count:
+  `1L << 4L`, not `1L << 4`.
+  Fixed-width results wrap. `Int` is arbitrary-precision, so a shift count
+  that is negative or too large to be an Int32 raises instead.
+
+  `|` is also the match-arm separator, and inside a `match` the arm wins.
+  Parenthesize to mean bitwise-or there:
+    match x with
+    | A -> (a | b)
 
 ## String
   ++   concat
@@ -30,4 +45,21 @@ let content () : String =
 
 ## Pipe
   value |> fn
-  (complex expr) |> fn   # parens needed"""
+  (complex expr) |> fn   # parens needed
+
+## Precedence
+  Loosest to tightest. `**` and `@` nest right; everything else groups left.
+    ||
+    &&
+    == != < > <= >=
+    |
+    ^
+    &
+    << >>
+    @
+    + - ++
+    * / %
+    **
+    f a b           (application, tightest)
+  Note the bitwise levels bind TIGHTER than the comparisons, as in Python:
+  `a & b == c` is `(a & b) == c`."""

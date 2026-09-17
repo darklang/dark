@@ -1137,6 +1137,37 @@ let private unitTests =
         |> expectChecked
       }
 
+      test "bitwise operators reject Float operands but take every integer" {
+        let infix nodeId operation =
+          PT.EInfix(
+            nodeId,
+            PT.InfixFnCall operation,
+            PT.EArg(nodeId + 1UL, 0),
+            PT.EArg(nodeId + 2UL, 0)
+          )
+
+        let bitwise =
+          [ PT.BitwiseAnd; PT.BitwiseOr; PT.BitwiseXor; PT.ShiftLeft; PT.ShiftRight ]
+
+        bitwise
+        |> List.iteri (fun i operation ->
+          let nodeId = 400UL + (uint64 i * 10UL)
+
+          // no bit pattern to operate on
+          oneArgFn PT.TFloat PT.TFloat (infix nodeId operation)
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+          |> expectDiagnostic Checker.InvalidInfixOperand
+
+          // unlike `**`, the 128-bit types are in the domain
+          oneArgFn PT.TInt128 PT.TInt128 (infix (nodeId + 3UL) operation)
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+          |> expectChecked
+
+          oneArgFn PT.TInt64 PT.TInt64 (infix (nodeId + 6UL) operation)
+          |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+          |> expectChecked)
+      }
+
       test "pipeline and by-name power use the same restricted domain" {
         let pipeline operation =
           PT.EPipe(
