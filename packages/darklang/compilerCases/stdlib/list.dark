@@ -48,3 +48,42 @@ let length_basic () : Int = Stdlib.List.length [1L, 2L, 3L]
 // Darklang.Stdlib.List.any / all
 let any_hit () : Bool = Stdlib.List.any [1L, 2L] (fun x -> x == 2L)
 let all_miss () : Bool = Stdlib.List.all [1L, 2L] (fun x -> x == 2L)
+
+type Param = { name: String; required: Bool; enumValues: Stdlib.Option.Option<List<String>> }
+
+let paramToPair (p: Param) : (String * Stdlib.AltJson.Json) =
+  (p.name, Stdlib.AltJson.Json.String p.name)
+let oneParam () : Param = Param { name = "n"; required = true; enumValues = Stdlib.Option.Option.None }
+
+// Darklang.Stdlib.List.map with a NAMED fn as the function value, over records
+let map_namedFnOverRecords () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.map [ oneParam () ] paramToPair
+let map_lambdaOverRecords () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.map [ oneParam () ] (fun p -> paramToPair p)
+// Darklang.Stdlib.List.filter on a record field
+let filter_recordField () : List<Param> =
+  Stdlib.List.filter [ oneParam () ] (fun p -> p.required)
+let filter_thenMapToJson () : Stdlib.AltJson.Json =
+  let required =
+    [ oneParam () ]
+    |> Stdlib.List.filter (fun p -> p.required)
+    |> Stdlib.List.map (fun p -> Stdlib.AltJson.Json.String p.name)
+  Stdlib.AltJson.Json.Array required
+let map_thenObject () : Stdlib.AltJson.Json =
+  let properties = Stdlib.List.map [ oneParam () ] paramToPair
+  Stdlib.AltJson.Json.Object
+    [ ("type", Stdlib.AltJson.Json.String "object")
+      ("properties", Stdlib.AltJson.Json.Object properties) ]
+
+let paramToPairBranchy (p: Param) : (String * Stdlib.AltJson.Json) =
+  let base = [ ("type", Stdlib.AltJson.Json.String p.name) ]
+  let withEnum =
+    match p.enumValues with
+    | Some values ->
+      let enumJson = Stdlib.List.map values (fun v -> Stdlib.AltJson.Json.String v)
+      Stdlib.List.append base [ ("enum", Stdlib.AltJson.Json.Array enumJson) ]
+    | None -> base
+  (p.name, Stdlib.AltJson.Json.Object withEnum)
+let map_namedBranchyFn () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.map [ oneParam () ] paramToPairBranchy
+let map_namedBranchyFnDirect () : (String * Stdlib.AltJson.Json) = paramToPairBranchy (oneParam ())
