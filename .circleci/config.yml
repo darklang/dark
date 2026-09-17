@@ -454,7 +454,7 @@ jobs:
             echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: Deploy
-          # flyctl reads FLY_API_TOKEN; the project variable is named for what it is scoped to.
+          # flyctl reads FLY_API_TOKEN; the project variable is named for the app it can push.
           command: FLY_API_TOKEN="$WASM_FLY_API_TOKEN" backend/src/Wasm/deploy/deploy.sh
 
   # All four linux artifacts from one x64 runner. The cross-compiles work

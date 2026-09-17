@@ -206,10 +206,10 @@ let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
 /// wrapper below answers first: the few with a one-line .NET equivalent through `Managed`,
 /// the rest with ENOSYS. `Host.fs` already takes its own .NET path for file reads, writes,
 /// stats and listings when `isPosix` is false, which is what the CLI actually uses.
-let private isBrowser = System.OperatingSystem.IsBrowser()
+let private isWasm = System.OperatingSystem.IsBrowser()
 
 do
-  if not isMac && not isArm64 && not isX64 && not isArm32 && not isBrowser then
+  if not isMac && not isArm64 && not isX64 && not isArm32 && not isWasm then
     raise (
       System.PlatformNotSupportedException(
         $"Posix builtins: unsupported architecture {RuntimeInformation.ProcessArchitecture} on Linux. "
@@ -251,7 +251,7 @@ let private EEXIST = 17
 /// True where the libc bridge is the filesystem implementation; Windows
 /// keeps the .NET calls behind the lexical pre-check.
 let isPosix : bool =
-  not (RuntimeInformation.IsOSPlatform OSPlatform.Windows) && not isBrowser
+  not (RuntimeInformation.IsOSPlatform OSPlatform.Windows) && not isWasm
 let SEEK_SET = 0
 let SEEK_CUR = 1
 let SEEK_END = 2
@@ -298,7 +298,7 @@ module private Managed =
 // -- Wrappers -----------------------------------------------------
 
 let lastError () : int * string =
-  if isBrowser then (0, "") else
+  if isWasm then (0, "") else
   let errno = Marshal.GetLastPInvokeError()
   let ptr = strerror_raw (errno)
   let msg =
@@ -306,7 +306,7 @@ let lastError () : int * string =
   (errno, msg)
 
 let getcwd () : Result<string, int * string> =
-  if isBrowser then Managed.getcwd () else
+  if isWasm then Managed.getcwd () else
   let buf = Marshal.AllocHGlobal(4096)
   try
     let ptr = getcwd_raw (buf, 4096)
@@ -318,11 +318,11 @@ let getcwd () : Result<string, int * string> =
     Marshal.FreeHGlobal buf
 
 let setenv (name : string) (value : string) : Result<unit, int * string> =
-  if isBrowser then Managed.setenv name value else
+  if isWasm then Managed.setenv name value else
   if setenv_raw (name, value, 1) < 0 then Error(lastError ()) else Ok()
 
 let unsetenv (name : string) : Result<unit, int * string> =
-  if isBrowser then Managed.unsetenv name else
+  if isWasm then Managed.unsetenv name else
   if unsetenv_raw (name) < 0 then Error(lastError ()) else Ok()
 
 
@@ -407,32 +407,32 @@ let private unitResult (rc : int) : Result<unit, int * string> =
   if rc < 0 then failed () else Ok()
 
 let chdir (path : string) : Result<unit, int * string> =
-  if isBrowser then Managed.chdir path else
+  if isWasm then Managed.chdir path else
   withDirectory path (fun fd -> unitResult (fchdir_raw fd))
 
 let mkdir (path : string) (mode : int) : Result<unit, int * string> =
-  if isBrowser then Managed.mkdir path else
+  if isWasm then Managed.mkdir path else
   withParent path (fun d n -> unitResult (mkdirat_raw (d, n, mode)))
 
 let rmdir (path : string) : Result<unit, int * string> =
-  if isBrowser then Managed.rmdir path else
+  if isWasm then Managed.rmdir path else
   withParent path (fun d n -> unitResult (unlinkat_raw (d, n, AT_REMOVEDIR)))
 
 let unlink (path : string) : Result<unit, int * string> =
-  if isBrowser then Managed.unlink path else
+  if isWasm then Managed.unlink path else
   withParent path (fun d n -> unitResult (unlinkat_raw (d, n, 0)))
 
 let rename (oldpath : string) (newpath : string) : Result<unit, int * string> =
-  if isBrowser then Managed.rename oldpath newpath else
+  if isWasm then Managed.rename oldpath newpath else
   withParent oldpath (fun d1 n1 ->
     withParent newpath (fun d2 n2 -> unitResult (renameat_raw (d1, n1, d2, n2))))
 
 let symlink (target : string) (linkpath : string) : Result<unit, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   withParent linkpath (fun d n -> unitResult (symlinkat_raw (target, d, n)))
 
 let readlink (path : string) : Result<string, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   withParent path (fun d n ->
     let buf = Array.zeroCreate<byte> 4096
     let len = readlinkat_raw (d, n, buf, 4096)
@@ -470,7 +470,7 @@ let private createUnique
     attempt 100)
 
 let mkstemp (prefix : string) : Result<int * string, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   let mutable opened = -1
   createUnique prefix (fun d name ->
     let fd =
@@ -480,11 +480,11 @@ let mkstemp (prefix : string) : Result<int * string, int * string> =
   |> Result.map (fun path -> opened, path)
 
 let mkdtemp (prefix : string) : Result<string, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   createUnique prefix (fun d name -> mkdirat_raw (d, name, 0o700))
 
 let openFile (path : string) (flags : int) (mode : int) : Result<int, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   withParent path (fun d n ->
     let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
     if fd < 0 then failed () else Ok fd)
@@ -586,7 +586,7 @@ let private withLinuxMetadataPath
         close_raw fd |> ignore<int>)
 
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   if isMac then
     withParent path (fun d n ->
       unitResult (fchmodat_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)))
@@ -595,7 +595,7 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
 
 /// Update atime and mtime to now without following the final component.
 let utimesNow (path : string) : Result<unit, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   if isMac then
     withParent path (fun d n ->
       unitResult (utimensat_raw (d, n, IntPtr.Zero, AT_SYMLINK_NOFOLLOW)))
@@ -606,7 +606,7 @@ let utimesNow (path : string) : Result<unit, int * string> =
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
 /// platform-specific (Linux vs macOS struct layouts differ).
 let stat (path : string) : Result<int * int64 * int64, int * string> =
-  if isBrowser then Managed.stat path else
+  if isWasm then Managed.stat path else
   let buf = Marshal.AllocHGlobal(256)
   try
     match statInto path buf with
@@ -635,7 +635,7 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
 
 /// Calls uname() and returns (sysname, nodename, machine).
 let uname () : Result<string * string * string, int * string> =
-  if isBrowser then Ok("Browser", "browser", "wasm32") else
+  if isWasm then Ok("Browser", "browser", "wasm32") else
   let fieldSize = if isMac then 256 else 65
   let bufSize = fieldSize * 6 // 5 fields + extra
   let buf = Marshal.AllocHGlobal(bufSize)
@@ -651,19 +651,19 @@ let uname () : Result<string * string * string, int * string> =
     Marshal.FreeHGlobal buf
 
 let getpid () : int =
-  if isBrowser then Environment.ProcessId else getpid_raw ()
+  if isWasm then Environment.ProcessId else getpid_raw ()
 
 let getuid () : uint32 =
-  if isBrowser then 1000u else getuid_raw ()
+  if isWasm then 1000u else getuid_raw ()
 
 let cpuCount () : int64 =
-  if isBrowser then int64 Environment.ProcessorCount else
+  if isWasm then int64 Environment.ProcessorCount else
   let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
   sysconf_raw (scNprocessorsOnl)
 
 /// fnmatch returns true if the string matches the pattern.
 let fnmatch (pattern : string) (str : string) (flags : int) : bool =
-  if isBrowser then false else
+  if isWasm then false else
   fnmatch_raw (pattern, str, flags) = 0
 
 let FNM_PATHNAME = if isMac then 2 else 1 // Linux
@@ -673,12 +673,12 @@ let LOCK_EX = 2
 let LOCK_UN = 8
 
 let flock (fd : int) (operation : int) : Result<unit, int * string> =
-  if isBrowser then Ok() else
+  if isWasm then Ok() else
   if flock_raw (fd, operation) < 0 then Error(lastError ()) else Ok()
 
 /// Get username from uid via getpwuid
 let getUserName (uid : uint32) : Option<string> =
-  if isBrowser then Some "browser" else
+  if isWasm then Some "browser" else
   let ptr = getpwuid_raw (uid)
   if ptr = IntPtr.Zero then
     None
@@ -690,7 +690,7 @@ let getUserName (uid : uint32) : Option<string> =
 /// Get home directory for the current user via getpwuid(getuid()).
 /// Returns pw_dir from the passwd db. The $HOME fallback is in Cli.Env.home().
 let getHomeDir () : Option<string> =
-  if isBrowser then Managed.getenv "HOME" else
+  if isWasm then Managed.getenv "HOME" else
   let uid = getuid_raw ()
   let ptr = getpwuid_raw (uid)
   if ptr = IntPtr.Zero then
@@ -702,7 +702,7 @@ let getHomeDir () : Option<string> =
 
 /// Get the owner username of a file (stat + getpwuid).
 let fileOwner (path : string) : Result<string, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   let buf = Marshal.AllocHGlobal(256)
   try
     match statInto path buf with
@@ -724,16 +724,16 @@ let fileOwner (path : string) : Result<string, int * string> =
     Marshal.FreeHGlobal buf
 
 let getenv (name : string) : Option<string> =
-  if isBrowser then Managed.getenv name else
+  if isWasm then Managed.getenv name else
   let ptr = getenv_raw (name)
   if ptr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi ptr)
 
 let kill (pid : int) (signal : int) : Result<unit, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   if kill_raw (pid, signal) < 0 then Error(lastError ()) else Ok()
 
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   if count < 0 then
     Error(22, "Invalid argument") // EINVAL
   else
@@ -742,7 +742,7 @@ let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
     if n < 0 then Error(lastError ()) else Ok(buf[0 .. n - 1])
 
 let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   let position = lseek_raw (fd, offset, whence)
   if position < 0L then Error(lastError ()) else Ok position
 
@@ -753,7 +753,7 @@ let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * stri
 /// calling conventions, so ioctl may receive an invalid output pointer and
 /// corrupt memory. The caller uses its terminal-size fallback instead.
 let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
-  if isBrowser then None else
+  if isWasm then None else
   if OperatingSystem.IsWindows() || isMac then
     None
   else
@@ -771,7 +771,7 @@ let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
       Marshal.FreeHGlobal buffer
 
 let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   let mutable offset = 0
   let mutable error = None
   while offset < data.Length && error.IsNone do
@@ -785,13 +785,13 @@ let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
   | None -> Ok offset
 
 let fdClose (fd : int) : Result<unit, int * string> =
-  if isBrowser then Managed.enosys () else
+  if isWasm then Managed.enosys () else
   if close_raw (fd) < 0 then Error(lastError ()) else Ok()
 
 /// List directory entries (wraps opendir/readdir/closedir loop).
 /// Returns filenames only, not "." or "..".
 let listDir (path : string) : Result<List<string>, int * string> =
-  if isBrowser then Managed.listDir path else
+  if isWasm then Managed.listDir path else
   withDirectory path (fun fd ->
     // fdopendir takes ownership of a duplicate; closedir releases it, and
     // withDirectory closes the original.
