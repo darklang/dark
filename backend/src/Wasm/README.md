@@ -89,7 +89,7 @@ backend/src/Wasm/deploy/deploy.sh      # nginx image of rundir/wasm-site/wwwroot
 ```
 
 CI does the same on a release tag (`v*`), alongside the binaries: `build-wasm` publishes and
-stages, `deploy-wasm` ships (needs `FLY_API_TOKEN` in the project's CircleCI environment).
+stages, `deploy-wasm` ships (needs `WASM_FLY_API_TOKEN` in the project's CircleCI environment).
 
 ## Testing headless
 

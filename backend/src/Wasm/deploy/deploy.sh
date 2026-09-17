@@ -6,7 +6,7 @@
 # Ships rundir/wasm-site/wwwroot, which promote.sh produced from a publish (and which built
 # the store through make-store.sh, the step that strips the sync credentials). The store's
 # bytes are checked once more here, on exactly what leaves the machine. Needs only bash,
-# gzip and flyctl (FLY_API_TOKEN in the environment, or a logged-in fly), so CI can run it
+# gzip and flyctl (WASM_FLY_API_TOKEN in the environment, or a logged-in fly), so CI can run it
 # on a plain image.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

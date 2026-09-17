@@ -440,7 +440,7 @@ jobs:
           paths:
             - rundir/wasm-site
 
-  # Ships the staged site to fly.io as dark-wasm. Needs FLY_API_TOKEN in the project's
+  # Ships the staged site to fly.io as dark-wasm. Needs WASM_FLY_API_TOKEN in the project's
   # CircleCI environment; without it `fly deploy` fails and says so.
   deploy-wasm:
     executor: simple-executor
@@ -454,7 +454,8 @@ jobs:
             echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: Deploy
-          command: backend/src/Wasm/deploy/deploy.sh
+          # flyctl reads FLY_API_TOKEN; the project variable is named for what it is scoped to.
+          command: FLY_API_TOKEN="$WASM_FLY_API_TOKEN" backend/src/Wasm/deploy/deploy.sh
 
   # All four linux artifacts from one x64 runner. The cross-compiles work
   # because the release image supplies clang and cross sysroots; the stock
@@ -782,7 +783,7 @@ workflows:
               ignore: /.*/
 
       # The browser build ships with a release too: the site at dark-wasm.fly.dev tracks
-      # the same tag as the binaries. Needs FLY_API_TOKEN in the project environment.
+      # the same tag as the binaries. Needs WASM_FLY_API_TOKEN in the project environment.
       - build-wasm:
           filters: *release-filters
       - deploy-wasm:
