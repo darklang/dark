@@ -1527,6 +1527,10 @@ let rec private unifyType
 /// nothing. A type var monomorphizes at Int64. Returns None for types we can't
 /// sensibly sample (custom types, Dict, fns), so the caller reports "no sample args"
 /// instead of pretending.
+/// Set by equivOne for the record just produced: the arguments it tried and the
+/// timings. The sweep prints it on its own line ahead of the verdict.
+let private equivMeta : string option ref = ref None
+
 let private equivOne
   (exeState : ExecutionState)
   (vm : VMState)
@@ -1661,7 +1665,9 @@ let private equivOne
                   // filesystem. (A pure fn's two runs still agree, so nothing changes for
                   // the provable set.)
                   let interp = runInterp ()
+                  let isw = System.Diagnostics.Stopwatch.StartNew()
                   let interp2 = runInterp ()
+                  let interpMs = isw.Elapsed.TotalMilliseconds
                   match interp, interp2 with
                   | Error "__timeout__", _ | _, Error "__timeout__" -> return "itimeout"
                   | Error e, _ -> return "ierr|" + e
@@ -1671,6 +1677,24 @@ let private equivOne
                     let out = CompilerLibrary.execute 0 timeoutMs binary
                     shutdown ()
                     let _ = (try daemon.Wait() with _ -> ())
+                    // What was tried and how long each side took, for the per-fn report.
+                    // A `meta|` record precedes the verdict for the same hash; the
+                    // report tool keeps it apart. The compiled figure is the binary's
+                    // whole run (process start, the RPC seam, the print), the
+                    // interpreted one is a single executeFunction, so the ratio is only
+                    // indicative and says most about the seam on builtin-heavy fns.
+                    let! argReprs =
+                      uply {
+                        let mutable acc = []
+                        for a in args do
+                          let! r = LibExecution.Execution.dvalToRepr exeState a
+                          acc <- acc @ [ r.Replace("\n", "\\n").Replace("\t", " ") ]
+                        return acc
+                      }
+                    let argsJoined = String.concat " ; " argReprs
+                    let compiledMs = out.RuntimeTime.TotalMilliseconds
+                    let meta = $"meta|args={argsJoined}|interp_ms={interpMs:F2}|compiled_ms={compiledMs:F2}"
+                    equivMeta.Value <- Some meta
                     if out.ExitCode <> 0 then
                       return $"crash|{out.ExitCode}"
                     else
@@ -2432,7 +2456,11 @@ let fns () : List<BuiltInFn> =
                     let ts = ps |> List.map (fun p -> string p.typ) |> String.concat ", "
                     lines <- lines @ [ hash + "\tnoargs|" + ts ]
                   | Some args ->
+                    equivMeta.Value <- None
                     let! r = equivOne exeState vm effectful 10000 hash args
+                    match equivMeta.Value with
+                    | Some m -> lines <- lines @ [ hash + "\t" + m ]
+                    | None -> ()
                     lines <- lines @ [ hash + "\t" + r ]
               | _ -> lines <- lines @ [ "?\tcf|non-string-hash" ]
             return DString(String.concat "\n" lines)

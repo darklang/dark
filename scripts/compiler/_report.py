@@ -55,6 +55,20 @@ def package_fns(db):
     return names
 
 
+def fn_dependencies(db):
+    """hash -> set of fn hashes it calls directly (from the store's projection)."""
+    con = sqlite3.connect(db)
+    rows = con.execute(
+        "SELECT item_hash, depends_on_hash FROM package_dependencies WHERE depends_on_item_type = 'fn'"
+    ).fetchall()
+    con.close()
+    deps = collections.defaultdict(set)
+    for a, b in rows:
+        if a != b:
+            deps[a].add(b)
+    return deps
+
+
 # ---------------------------------------------------------------------------
 # Running a sweep builtin over a chunk, with bisection
 # ---------------------------------------------------------------------------
@@ -130,15 +144,26 @@ def parse_coverage(hashes, out):
 REC = re.compile(r"^([0-9a-f]{64})\t(.*)$")
 
 
+EQUIV_META = {}  # hash -> {"args":..., "interp_ms":..., "compiled_ms":...}
+
+
 def parse_equiv(hashes, out):
-    """`<hash>\\t<result>` records; continuation lines belong to the last record."""
+    """`<hash>\\t<result>` records; continuation lines belong to the last record. A
+    `meta|args=..|interp_ms=..|compiled_ms=..` record precedes a verdict for the same
+    hash and is kept apart."""
     got = {}
     cur = None
     for line in out.split("\n"):
         m = REC.match(line)
         if m:
-            cur = m.group(1)
-            got[cur] = m.group(2)
+            h, val = m.group(1), m.group(2)
+            if val.startswith("meta|"):
+                fields = dict(part.split("=", 1) for part in val[5:].split("|") if "=" in part)
+                EQUIV_META[h] = fields
+                cur = None
+            else:
+                cur = h
+                got[cur] = val
         elif cur and line.strip():
             got[cur] += " " + line.strip()
     for h in hashes:
@@ -371,6 +396,128 @@ def case_verdicts(names, cov, eq):
     return out
 
 
+def blocker_of(detail):
+    """(kind, what) for a coverage failure detail."""
+    m = re.match(r"unsupported-builtin: ([A-Za-z0-9]+)(?:_v\d+)?(: .*)?", detail)
+    if m:
+        kind = "builtin (seam can't return its type)" if "unmarshalable-return" in (m.group(2) or "") else "builtin not routed"
+        return kind, "Builtin." + m.group(1)
+    m = re.match(r"unsupported-type: (.*)", detail)
+    if m:
+        return "type", m.group(1)[:120]
+    m = re.match(r"unsupported-(value|pattern|generics|call|fnref|expr|literal|infix|pipe|arg): (.*)", detail)
+    if m:
+        return "bridge: " + m.group(1), m.group(2)[:120]
+    if detail.startswith("timeout"):
+        return "compiler: timeout", detail[:120]
+    if detail.startswith("ANF conversion error"):
+        return "compiler: ANF", detail[len("ANF conversion error: "):][:120]
+    return "compiler", detail[:120]
+
+
+def write_functions_csv(out_csv, names, cov, eq, deps):
+    import csv
+    hashes = list(cov)
+    compiles = {h for h, r in cov.items() if r.startswith("True|")}
+    first_name = lambda h: names.get(h, ["?"])[0]
+
+    # Depth: callees before callers. Cycles are cut by iterating to a fixpoint with a cap.
+    depth = {h: 0 for h in hashes}
+    for _ in range(60):
+        changed = False
+        for h in hashes:
+            d = max((depth.get(x, 0) + 1 for x in deps.get(h, ()) if x in depth), default=0)
+            if d > depth[h] and d < 60:
+                depth[h] = d
+                changed = True
+        if not changed:
+            break
+
+    # A non-compiling fn is "blocked by" the deepest failing callee that has no failing
+    # callee of its own (the root cause), if it has one.
+    root_cache = {}
+    def root_blocker(h, seen=()):
+        if h in root_cache:
+            return root_cache[h]
+        if h in seen:
+            return None
+        failing = [x for x in deps.get(h, ()) if x in cov and x not in compiles]
+        for x in sorted(failing, key=lambda x: depth.get(x, 0)):
+            r = root_blocker(x, seen + (h,))
+            if r is not None:
+                root_cache[h] = r
+                return r
+            root_cache[h] = x
+            return x
+        root_cache[h] = None
+        return None
+
+    def section(h):
+        r = cov[h]
+        if h in compiles:
+            v = equiv_verdict(eq.get(h, "unswept"))
+            if v == "match":
+                return "1 proven equal"
+            if v in ("DIFF", "crash", "hang", "cerr"):
+                return "2 compiles, differs or crashes"
+            return "3 compiles, not provable with synthesized args"
+        detail = r.split("|", 1)[1]
+        if root_blocker(h) is not None:
+            return "4 blocked by a callee"
+        kind, _ = blocker_of(detail)
+        if kind.startswith("builtin"):
+            return "5 blocked by a builtin"
+        if kind == "type" or kind.startswith("bridge"):
+            return "6 blocked by a type or the bridge"
+        return "7 blocked by the compiler"
+
+    rows = []
+    for h in hashes:
+        r = cov[h]
+        ok = h in compiles
+        detail = r.split("|", 1)[1]
+        e = eq.get(h, "")
+        meta = EQUIV_META.get(h, {})
+        rb = root_blocker(h) if not ok else None
+        if ok:
+            kind, what = "", ""
+        elif rb is not None:
+            kind, what = "callee", first_name(rb)
+        else:
+            kind, what = blocker_of(detail)
+        interp = meta.get("interp_ms", "")
+        comp = meta.get("compiled_ms", "")
+        try:
+            ratio = f"{float(comp) / max(float(interp), 0.001):.1f}" if interp and comp else ""
+        except ValueError:
+            ratio = ""
+        for n in names.get(h, ["?"]):
+            rows.append({
+                "section": section(h),
+                "depth": depth[h],
+                "name": n,
+                "namespace": top_ns(n),
+                "compiles": "yes" if ok else "no",
+                "verdict": equiv_verdict(e) if (ok and e) else ("" if ok else "no-compile"),
+                "blocker_kind": kind,
+                "blocker": what,
+                "blocker_detail": (detail if not ok else e.split("|", 1)[1] if "|" in e else "").replace("\n", " ")[:300],
+                "test_args": meta.get("args", "").replace("\n", " ")[:300],
+                "interp_ms": interp,
+                "compiled_ms": comp,
+                "compiled_over_interp": ratio,
+                "direct_callees": len(deps.get(h, ())),
+                "hash": h,
+            })
+    rows.sort(key=lambda x: (x["section"], x["depth"], x["name"]))
+    with open(out_csv, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else ["name"])
+        w.writeheader()
+        for row in rows:
+            w.writerow(row)
+    return collections.Counter(r["section"] for r in rows)
+
+
 def read_previous(out_dir, names, cov):
     """(compiled, total, (gained, lost)) from the newest earlier tsv, or None."""
     files = sorted(glob.glob(os.path.join(out_dir, "*.tsv")))
@@ -429,7 +576,11 @@ def main():
     out_md = os.path.join(args.out_dir, f"{args.date}.md")
     out_tsv = os.path.join(args.out_dir, f"{args.date}.tsv")
     write_report(out_md, out_tsv, names, cov, eq, previous, args.date, args.budget)
-    log(f"wrote {os.path.relpath(out_md, ROOT)} and .tsv")
+    out_csv = os.path.join(args.out_dir, f"{args.date}-functions.csv")
+    sections = write_functions_csv(out_csv, names, cov, eq, fn_dependencies(args.db))
+    log(f"wrote {os.path.relpath(out_md, ROOT)}, .tsv and -functions.csv")
+    for k, n in sorted(sections.items()):
+        log(f"  {n:5d}  {k}")
 
 
 if __name__ == "__main__":
