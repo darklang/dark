@@ -323,7 +323,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TString
       description =
-        "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+12`, `1e-5`."
+        "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+16`, `1e-5`."
       fn =
         (function
         | _, _, _, [| DFloat f |] ->

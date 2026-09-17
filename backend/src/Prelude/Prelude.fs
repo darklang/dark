@@ -322,9 +322,10 @@ let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
 
 /// A finite float as text: the shortest digits that parse back to the same float, laid out the way
 /// the compiler's `Float.toString` lays them out so the two agree byte for byte. Fixed notation for
-/// decimal exponents -4 through 11 (the old `G12` boundary), otherwise `d.ddde+X` with no zero padding
-/// (`1e-5`, `1e+12`). Whole numbers in fixed notation get a `.0`; nothing else does. NaN and the
-/// infinities are the caller's, as each site spells them differently.
+/// decimal exponents -4 through 15, otherwise `d.ddde+X` with no zero padding (`1e-5`, `1e+16`). The
+/// upper bound is where a double stops being able to hold every integer, so fixed notation never pads
+/// with digits the value doesn't have. Whole numbers in fixed notation get a `.0`; nothing else does.
+/// NaN and the infinities are the caller's, as each site spells them differently.
 let floatToShortestString (f : float) : string =
   // "R" is shortest round-trip on .NET Core 3+, but in .NET's own notation ("1E+17", "1E-05",
   // "123456789012345"), so take it apart into digits and a decimal exponent first.
@@ -348,7 +349,7 @@ let floatToShortestString (f : float) : string =
     let leadingZeros = allDigits.Length - allDigits.TrimStart('0').Length
     // Decimal exponent of the leading digit: `123.45` is 2, `0.0001` is -4.
     let e = intPart.Length - 1 - leadingZeros + exp10
-    if e < -4 || e >= 12 then
+    if e < -4 || e >= 16 then
       let rest = if digits.Length = 1 then "" else "." + digits.Substring 1
       let expSign = if e < 0 then "-" else "+"
       $"{sign}{digits.Substring(0, 1)}{rest}e{expSign}{abs e}"

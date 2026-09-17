@@ -723,8 +723,8 @@ module Float =
   Stdlib.Json.parse<Float> "0.30000000000000004" = Result.Ok (0.1 + 0.2)
 
   // Exponent form is valid JSON as long as nothing appends `.0` to it.
-  Stdlib.Json.serialize<Float> 1000000000000.0 = "1e+12"
-  Stdlib.Json.parse<Float> "1e+12" = Result.Ok 1000000000000.0
+  Stdlib.Json.serialize<Float> 10000000000000000.0 = "1e+16"
+  Stdlib.Json.parse<Float> "1e+16" = Result.Ok 10000000000000000.0
   Stdlib.Json.serialize<Float> 0.00001 = "1e-5"
   Stdlib.Json.parse<Float> "1e-5" = Result.Ok 0.00001
 
