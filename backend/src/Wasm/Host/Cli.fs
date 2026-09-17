@@ -36,12 +36,14 @@ extern int private brotliDecompress(
   unativeint encodedSize,
   byte[] encoded,
   unativeint& decodedSize,
-  byte[] decoded)
+  byte[] decoded
+)
 
 let private inflateBrotli (encoded : byte[]) (rawSize : int) : byte[] =
   let decoded = Array.zeroCreate<byte> rawSize
   let mutable decodedSize = unativeint rawSize
-  let ok = brotliDecompress (unativeint encoded.Length, encoded, &decodedSize, decoded)
+  let ok =
+    brotliDecompress (unativeint encoded.Length, encoded, &decodedSize, decoded)
   if ok <> 1 || int decodedSize <> rawSize then
     Exception.raiseInternal
       "brotli: decode failed"
@@ -59,7 +61,8 @@ let configureEnvironment () : unit =
   Environment.SetEnvironmentVariable("HOME", runDir)
   Environment.SetEnvironmentVariable("TERM", "xterm-256color")
   Environment.SetEnvironmentVariable("DARK_AUDIT", "off")
-  IO.Directory.CreateDirectory(IO.Path.Combine(runDir, "logs")) |> ignore<IO.DirectoryInfo>
+  IO.Directory.CreateDirectory(IO.Path.Combine(runDir, "logs"))
+  |> ignore<IO.DirectoryInfo>
 
 let private builtinsLazy : Lazy<RT.Builtins> =
   lazy
@@ -99,13 +102,19 @@ let Boot (storeUrl : string, rawSize : int) : Task =
           inflateBrotli bytes rawSize
         elif storeUrl.EndsWith ".gz" then
           inflate (fun src ->
-            new IO.Compression.GZipStream(src, IO.Compression.CompressionMode.Decompress))
+            new IO.Compression.GZipStream(
+              src,
+              IO.Compression.CompressionMode.Decompress
+            ))
         else
           bytes
       IO.File.WriteAllBytes(dbPath, bytes)
 
-      LibExecution.HostSecurity.setPolicyDirectory (IO.Path.Combine(runDir, "policy"))
-      LibDB.PolicyStore.seedInstanceIfMissing LibExecution.Permissions.Policy.defaultInstance
+      LibExecution.HostSecurity.setPolicyDirectory (
+        IO.Path.Combine(runDir, "policy")
+      )
+      LibDB.PolicyStore.seedInstanceIfMissing
+        LibExecution.Permissions.Policy.defaultInstance
       LibExecution.HostSecurity.setPackageDbPath dbPath
 
       LibDB.Sqlite.Sql.warm ()
@@ -134,7 +143,8 @@ let private state () : RT.ExecutionState =
       | :? Exception.StoreConditionException -> ()
       | _ ->
         // The terminal may be in the alternate screen, so the console gets it too.
-        Browser.log $"exception: {exn.GetType().Name}: {exn.Message}\n{exn.StackTrace}"
+        Browser.log
+          $"exception: {exn.GetType().Name}: {exn.Message}\n{exn.StackTrace}"
         printException "Internal error" metadata exn
     }
   Exe.createState
@@ -160,7 +170,11 @@ let RunCli (args : string[]) : Task<int> =
           isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
     let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
     let args =
-      args |> Array.toList |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
+      args
+      |> Array.toList
+      |> List.map RT.DString
+      |> Dval.list RT.KTString
+      |> NEList.singleton
     match! Exe.executeFunction state fnName [] args with
     | Ok(RT.DInt64 code) -> return int code
     | Ok(RT.DInt code) -> return int (RT.DarkInt.toBigInt code)

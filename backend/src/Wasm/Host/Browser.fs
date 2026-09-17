@@ -37,7 +37,9 @@ let writeToTerminal (text : string) : unit =
   | None -> pending.Append text |> ignore<Text.StringBuilder>
 
 /// Run <param f> with output captured; returns (result, everything it printed).
-let captured (f : unit -> Threading.Tasks.Task<'a>) : Threading.Tasks.Task<'a * string> =
+let captured
+  (f : unit -> Threading.Tasks.Task<'a>)
+  : Threading.Tasks.Task<'a * string> =
   task {
     let c = Text.StringBuilder()
     capture <- Some c
@@ -80,9 +82,11 @@ type TerminalWriter() =
 
 /// One keyboard event, already in the shape `Console.ReadKey` would report it.
 type KeyEvent =
-  { key : ConsoleKeyInfo
+  {
+    key : ConsoleKeyInfo
     /// The whole text of a paste, when this event is one.
-    paste : string option }
+    paste : string option
+  }
 
 let private queue = Queue<KeyEvent>()
 let mutable private waiter : TaskCompletionSource<KeyEvent> option = None
@@ -179,8 +183,11 @@ let PushKey (domKey : string, ctrl : bool, alt : bool, shift : bool) : unit =
 let PushPaste (text : string) : unit =
   if not (String.IsNullOrEmpty text) then
     let first =
-      text |> Seq.tryFind (fun c -> not (Char.IsControl c)) |> Option.defaultValue ' '
-    deliver { key = toConsoleKeyInfo (string first) false false false; paste = Some text }
+      text
+      |> Seq.tryFind (fun c -> not (Char.IsControl c))
+      |> Option.defaultValue ' '
+    deliver
+      { key = toConsoleKeyInfo (string first) false false false; paste = Some text }
 
 /// JS -> .NET: the terminal was (re)sized. Also wakes the read loop with a key nobody
 /// handles, which is how SIGWINCH gets a repaint on the real host.

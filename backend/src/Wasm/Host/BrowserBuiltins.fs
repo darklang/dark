@@ -35,16 +35,27 @@ let private keyRead (ev : Browser.KeyEvent) : Dval =
           "ctrl", DBool(has ConsoleModifiers.Control) ]
     )
   let key =
-    DEnum(typ PackageRefs.Type.Stdlib.Cli.Stdin.key, typ PackageRefs.Type.Stdlib.Cli.Stdin.key, [], string k.Key, [])
+    DEnum(
+      typ PackageRefs.Type.Stdlib.Cli.Stdin.key,
+      typ PackageRefs.Type.Stdlib.Cli.Stdin.key,
+      [],
+      string k.Key,
+      []
+    )
   let keyChar =
     match ev.paste with
     | Some text -> DString text
-    | None -> if Char.IsControl k.KeyChar then DString "" else DString(string k.KeyChar)
+    | None ->
+      if Char.IsControl k.KeyChar then DString "" else DString(string k.KeyChar)
   DRecord(
     typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
     typ PackageRefs.Type.Stdlib.Cli.Stdin.keyRead,
     [],
-    Map [ "key", key; "modifiers", modifiers; "keyChar", keyChar; "repeat", Dval.int 1I ]
+    Map
+      [ "key", key
+        "modifiers", modifiers
+        "keyChar", keyChar
+        "repeat", Dval.int 1I ]
   )
 
 /// Read a whole line off the key queue. Echoes nothing; the prompt that asked is
@@ -65,12 +76,10 @@ let private readLine () : Task<string> =
       | None ->
         match ev.key.Key with
         | ConsoleKey.Enter -> fin <- true
-        | ConsoleKey.Backspace ->
-          if sb.Length > 0 then sb.Length <- sb.Length - 1
+        | ConsoleKey.Backspace -> if sb.Length > 0 then sb.Length <- sb.Length - 1
         | _ ->
           let c = ev.key.KeyChar
-          if not (Char.IsControl c) then
-            sb.Append c |> ignore<Text.StringBuilder>
+          if not (Char.IsControl c) then sb.Append c |> ignore<Text.StringBuilder>
     return sb.ToString()
   }
 
@@ -146,7 +155,8 @@ let private fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TTuple(TInt, TInt, [])
-      description = "The xterm.js terminal's (columns, rows), as last reported by the page."
+      description =
+        "The xterm.js terminal's (columns, rows), as last reported by the page."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
@@ -162,7 +172,8 @@ let private fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "A unit" ]
       returnType = TTuple(TBool, TBool, [ TString ])
-      description = "(input is terminal, output is terminal, TERM): always a terminal here."
+      description =
+        "(input is terminal, output is terminal, TERM): always a terminal here."
       fn =
         (function
         | _, _, _, [| DUnit |] ->

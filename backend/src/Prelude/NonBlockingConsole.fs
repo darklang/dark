@@ -85,7 +85,8 @@ type private Private() =
     while shouldWait do
       lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
 
-  static member SetBrowserSink(sink : string -> unit) : unit = browserSink <- Some sink
+  static member SetBrowserSink(sink : string -> unit) : unit =
+    browserSink <- Some sink
 
   static member Write(value : string) : unit =
     if isWasm then
