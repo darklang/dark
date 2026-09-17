@@ -26,7 +26,15 @@ help_if_asked "$@"
 set -euo pipefail
 
 REGEN=false
-if [[ ${1:-} == --regen-patch ]]; then REGEN=true; shift; fi
+APPLY_PATCH=true
+while [[ ${1:-} == --* ]]; do
+  case "$1" in
+    --regen-patch) REGEN=true ;;
+    --no-patch) APPLY_PATCH=false ;;   # a fresh upstream the patch no longer fits
+    *) echo "unknown flag $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 if [[ $# -lt 1 || $# -gt 2 ]]; then
   echo "usage: scripts/build/vendor-compiler [--regen-patch] <compiler-checkout> [<commit>]" >&2
@@ -40,7 +48,8 @@ DEST="$ROOT/backend/src/LibCompiler"
 VENDOR="$DEST/vendor"
 
 # Upstream's copy of src/DarkCompiler at $1, minus the two files we don't vendor,
-# extracted into $2.
+# extracted into $2. The fsproj is kept beside it: LibCompiler.fsproj is generated
+# from it.
 extract_upstream() {
   git -C "$SRC" archive "$1" src/DarkCompiler | tar -x -C "$2"
   mv "$2/src/DarkCompiler"/Program.fs "$2/src/DarkCompiler"/DarkCompiler.fsproj "$2/" 2>/dev/null || true
@@ -87,9 +96,11 @@ find "$DEST" -mindepth 1 -maxdepth 1 \
   ! -name LibCompiler.fsproj ! -name vendor ! -name obj ! -name bin \
   -exec rm -rf {} +
 cp -r "$TMP/src/DarkCompiler/." "$DEST/"
+python3 "$( dirname "${BASH_SOURCE[0]}" )/_gen-libcompiler-fsproj.py" "$TMP/DarkCompiler.fsproj" "$DEST/LibCompiler.fsproj"
 
 for p in "$VENDOR"/*.patch; do
   [[ -e "$p" ]] || continue
+  $APPLY_PATCH || { echo "skipping $(basename "$p") (--no-patch)"; continue; }
   # Plain apply against the working tree (the index still holds the old copy, so
   # --3way can't be used here). On failure, apply what fits and leave .rej files
   # next to the hunks that don't, which is the resolution surface.

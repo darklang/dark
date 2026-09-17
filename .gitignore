@@ -62,3 +62,8 @@ notes/
 # Python bytecode, from the build scripts.
 __pycache__/
 *.pyc
+# The vendored compiler (pbiggar/darklang-compiler): a copy made by
+# scripts/build/vendor-compiler at the commit in backend/src/LibCompiler/vendor/VENDORED-FROM.
+# Only vendor/ (the pin, the patch, the README) is ours to commit.
+backend/src/LibCompiler/*
+!backend/src/LibCompiler/vendor/
