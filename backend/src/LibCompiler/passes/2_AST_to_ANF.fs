@@ -1632,7 +1632,7 @@ type LiftState = {
     VariantLookup: VariantLookup
     /// Hoisted branches already lifted, by (body, captures): the same branch reached
     /// from two miss sites of a split match becomes one function.
-    BranchCache: Map<AST.Expr * string list, string>
+    BranchCache: Map<AST.Expr * (string * AST.Type) list, string>
 }
 
 let private liftedNameExists (state: LiftState) (name: string) : bool =
@@ -1817,6 +1817,9 @@ let rec mergeInferredTypes (a: AST.Type) (b: AST.Type) : AST.Type option =
     | _ when a = b -> Some a
     | AST.TVar _, _ -> Some b
     | _, AST.TVar _ -> Some a
+    // A runtime-error arm (`Builtin.testRuntimeError ...`) is bottom: the other arm's type.
+    | AST.TRuntimeError, _ -> Some b
+    | _, AST.TRuntimeError -> Some a
     | AST.TList x, AST.TList y -> mergeInferredTypes x y |> Option.map AST.TList
     | AST.TTuple xs, AST.TTuple ys -> both xs ys |> Option.map AST.TTuple
     | AST.TDict (k1, v1), AST.TDict (k2, v2) ->
@@ -1997,6 +2000,10 @@ let rec simpleInferType
             | _ -> None
         | AST.Eq | AST.Neq | AST.Lt | AST.Gt | AST.Lte | AST.Gte | AST.And | AST.Or -> Some AST.TBool
         | AST.StringConcat -> Some AST.TString
+    | AST.Call (funcName, _) when isBuiltinTestRuntimeErrorName funcName ->
+        // Bottom: a split match's "no arm matched" fallthrough must not stop the
+        // enclosing lambda from being typed (mergeInferredTypes absorbs it).
+        Some AST.TRuntimeError
     | AST.Call (funcName, args) ->
         // Look up the function's return type, checking local bindings first
         match Map.tryFind funcName typeEnv with
@@ -2553,7 +2560,10 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr 
                 match captures with
                 | [] -> AST.NonEmptyList.singleton AST.UnitLiteral
                 | cs -> AST.NonEmptyList.fromList (cs |> List.map AST.Var)
-            match Map.tryFind (body', captures) state1.BranchCache with
+            // Keyed on the captures' TYPES too: two marshaller branches can have the
+            // same body and the same capture names over different field types.
+            let cacheKey = (body', List.zip captures captureTypes)
+            match Map.tryFind cacheKey state1.BranchCache with
             | Some funcName -> Ok (AST.Call (funcName, callArgs), { state1 with TypeEnv = state.TypeEnv })
             | None ->
             let inferred =
@@ -2586,7 +2596,7 @@ let rec liftLambdasInExpr (expr: AST.Expr) (state: LiftState) : Result<AST.Expr 
                         TypeEnv = state.TypeEnv
                         FuncParams = Map.add funcName (AST.NonEmptyList.toList parameters) stateWithName.FuncParams
                         FuncReturnTypes = Map.add funcName returnType stateWithName.FuncReturnTypes
-                        BranchCache = Map.add (body', captures) funcName stateWithName.BranchCache }
+                        BranchCache = Map.add cacheKey funcName stateWithName.BranchCache }
                 Ok (AST.Call (funcName, callArgs), state'))
     | AST.Apply (func, args) ->
         liftLambdasInExpr func state

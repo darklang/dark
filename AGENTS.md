@@ -352,6 +352,13 @@ Inputs for the report beyond synthesized arguments live in `packages/darklang/co
 - **The seam's files are per process only under `DARK_RPC_DIR`.** Without it every harness
   process shares `/tmp/dark-rpc-*` and two at once corrupt each other; the report tool sets it.
 - List literals in `eval` take commas: `["a", "b"]`.
+- **Don't reload packages under a running sweep.** The sweep processes read the store
+  the reload is rewriting; the symptom is not an error but a report where a thousand
+  fns "stopped compiling" with no output at all, plus "missing dependency fn" and
+  "package value has no evaluated rt_dval". Throw that report away.
+- The equivalence sweep RUNS fns in the interpreter with synthesized arguments, under
+  whatever policy the clone has. The report tool runs each process from a throwaway
+  cwd because one of them copied the store to a file named "hello" in the repo root.
 
 ## Gotchas
 
