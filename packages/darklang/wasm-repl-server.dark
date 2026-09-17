@@ -1,4 +1,4 @@
-/// Static server for the published WASM site (`/` the directory, `/cli` the CLI, `/repl` the REPL) -- serves
+/// Static server for the published WASM site -- serves
 /// rundir/wasm-repl/wwwroot with the correct `application/wasm` MIME type (needed for the
 /// browser's streaming compilation).
 ///
@@ -38,12 +38,7 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   else if method != "GET" && method != "HEAD" then
     Stdlib.Http.responseWithText "method not allowed" 405
   else
-    let file =
-      if path == "/" then "/index.html"
-      else if path == "/cli" then "/cli.html"
-      else if path == "/repl" then "/repl.html"
-      else if path == "/eval" then "/eval.html"
-      else path
+    let file = if path == "/" then "/index.html" else path
 
     match Stdlib.Cli.FileSystem.readFile (root () ++ file) with
     | Ok blob ->

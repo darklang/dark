@@ -26,8 +26,8 @@ python3 backend/src/Wasm/generate-snapshot.py # the REPL's snapshot (repl.html o
 backend/src/Wasm/deploy/deploy.sh             # nginx image of the publish -> fly app dark-wasm
 ```
 
-Wipe `rundir/wasm-repl` before a publish, or stale fingerprinted files pile up. CI does the
-same on a release tag (`build-wasm`, `deploy-wasm`; needs `WASM_FLY_API_TOKEN`).
+Wipe `rundir/wasm-repl` before a publish, or stale fingerprinted files pile up. Nothing in CI
+builds or deploys this; `deploy.sh` is run by hand.
 
 ## How it is put together
 

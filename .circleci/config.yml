@@ -402,57 +402,6 @@ jobs:
             # anywhere else has only the embedded copy.
             - backend/src/LibExecution/package-ref-hashes.txt
 
-  # The browser build (backend/src/Wasm): the site plus the store it boots from.
-  build-wasm:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      - setup-app
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v5-cli-{{ checksum "../checksum" }}
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run:
-          name: Build LocalExec for migrations (debug mode fine)
-          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
-      - run:
-          name: Run migrations to create database
-          command: scripts/run-local-exec migrations run
-      - run:
-          name: Load packages into database
-          command: scripts/build/reload-packages
-      - run:
-          name: Publish the wasm site
-          no_output_timeout: 30m
-          command: ./scripts/build/_dotnet-wrapper publish src/Wasm/Wasm.fsproj -c Release -o ../rundir/wasm-repl
-      - run:
-          name: Build the store (sync credentials stripped)
-          command: |
-            pip3 install --user brotli
-            backend/src/Wasm/make-store.sh
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - rundir/wasm-repl
-
-  # Ships it to fly.io as dark-wasm (WASM_FLY_API_TOKEN in the project environment).
-  deploy-wasm:
-    executor: simple-executor
-    steps:
-      - checkout
-      - attach_workspace: { at: "." }
-      - run:
-          name: Install flyctl
-          command: |
-            curl -L https://fly.io/install.sh | sh
-            echo 'export PATH="$HOME/.fly/bin:$PATH"' >> "$BASH_ENV"
-      - run:
-          name: Deploy
-          command: FLY_API_TOKEN="$WASM_FLY_API_TOKEN" backend/src/Wasm/deploy/deploy.sh
-
   # All four linux artifacts from one x64 runner. The cross-compiles work
   # because the release image supplies clang and cross sysroots; the stock
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
@@ -777,12 +726,6 @@ workflows:
             # silently does not appear at all.
             branches:
               ignore: /.*/
-
-      - build-wasm:
-          filters: *release-filters
-      - deploy-wasm:
-          filters: *release-filters
-          requires: [build-wasm]
 
       - build-cli-linux-glibc:
           filters: *release-filters

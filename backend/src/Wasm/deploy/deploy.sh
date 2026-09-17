@@ -5,8 +5,7 @@
 #
 # Ships rundir/wasm-repl/wwwroot after `dotnet publish` and make-store.sh (the step that
 # strips the sync credentials). The store's bytes are checked once more here, on exactly what
-# leaves the machine. Needs only bash, gzip and flyctl (FLY_API_TOKEN in the environment, or
-# a logged-in fly), so CI runs it on a plain image.
+# leaves the machine. Needs bash, gzip and a logged-in flyctl.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
