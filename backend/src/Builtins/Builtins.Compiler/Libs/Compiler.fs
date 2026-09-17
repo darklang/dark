@@ -118,7 +118,7 @@ let private respellCode (rules : List<string * string>) (src : string) : string 
     let sb = System.Text.StringBuilder()
     let mutable i = 0
     while i < text.Length do
-      if String.CompareOrdinal(text, i, a, 0, a.Length) = 0
+      if System.String.CompareOrdinal(text, i, a, 0, a.Length) = 0
          && (i = 0 || not (isNameChar text[i - 1])) then
         sb.Append(b) |> ignore<System.Text.StringBuilder>
         i <- i + a.Length
