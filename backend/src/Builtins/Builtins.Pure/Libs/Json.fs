@@ -106,19 +106,10 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DInt i -> w.WriteRawValue(string (DarkInt.toBigInt i))
 
   | DFloat f ->
-    if System.Double.IsNaN f then
-      w.WriteStringValue "NaN"
-    else if System.Double.IsNegativeInfinity f then
-      w.WriteStringValue "-Infinity"
-    else if System.Double.IsPositiveInfinity f then
-      w.WriteStringValue "Infinity"
-    else
-      let result =
-        f
-          .ToString("G16", System.Globalization.CultureInfo.InvariantCulture)
-          .Replace('E', 'e')
-      let result = if result.Contains "." then result else result + ".0"
-      w.WriteRawValue result
+    if System.Double.IsNaN f then w.WriteStringValue "NaN"
+    else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
+    else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
+    else w.WriteRawValue(floatToShortestString f)
 
   | DChar c -> w.WriteStringValue c
   | DString s -> w.WriteStringValue s

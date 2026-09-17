@@ -718,6 +718,16 @@ module Float =
 
   Stdlib.Json.serialize<Float> 1.618033988749895 = "1.618033988749895"
 
+  // Needs all seventeen digits; "G16" used to write this as 0.3.
+  Stdlib.Json.serialize<Float> (0.1 + 0.2) = "0.30000000000000004"
+  Stdlib.Json.parse<Float> "0.30000000000000004" = Result.Ok (0.1 + 0.2)
+
+  // Exponent form is valid JSON as long as nothing appends `.0` to it.
+  Stdlib.Json.serialize<Float> 10000000000000000.0 = "1e+16"
+  Stdlib.Json.parse<Float> "1e+16" = Result.Ok 10000000000000000.0
+  Stdlib.Json.serialize<Float> 0.00001 = "1e-5"
+  Stdlib.Json.parse<Float> "1e-5" = Result.Ok 0.00001
+
   Stdlib.Json.parse<Float> "1.0000001" = Result.Ok 1.0000001
 
   Stdlib.Json.parse<Float> "-1.00000001" = Result.Ok -1.00000001

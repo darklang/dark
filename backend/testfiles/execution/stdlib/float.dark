@@ -200,7 +200,24 @@ Stdlib.Float.toString 1.5 = "1.5"
 Stdlib.Float.toString 0.0 = "0.0"
 Stdlib.Float.toString -0.5 = "-0.5"
 Stdlib.Float.toString 0.5 = "0.5"
-Stdlib.Float.toString -55555555555555555555555555555.5 = "-5.55555555556e+28"
+Stdlib.Float.toString -55555555555555555555555555555.5 = "-5.555555555555555e+28"
+// Shortest round-trip: what prints is the number, not a twelve-digit rounding of it.
+Stdlib.Float.toString (0.1 + 0.2) = "0.30000000000000004"
+Stdlib.Float.toString (1.0 / 3.0) = "0.3333333333333333"
+Stdlib.Float.toString 1.0000000000000002 = "1.0000000000000002"
+(Stdlib.Float.toString (1.0 / 3.0) |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok (1.0 / 3.0)
+// Fixed notation from 1e-4 up to 1e16, scientific outside, no zero padding, and no `.0` on scientific
+// (it used to print `1e+17.0`, which Float.parse refuses). Same layout as the compiler's Float.toString.
+Stdlib.Float.toString 0.0001 = "0.0001"
+Stdlib.Float.toString 0.00001 = "1e-5"
+Stdlib.Float.toString -0.00001 = "-1e-5"
+Stdlib.Float.toString 123456789012345.0 = "123456789012345.0"
+Stdlib.Float.toString 9007199254740992.0 = "9007199254740992.0"
+Stdlib.Float.toString 10000000000000000.0 = "1e+16"
+Stdlib.Float.toString 123456789012345678.0 = "1.2345678901234568e+17"
+(Stdlib.Float.toString 123456789012345678.0 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok 123456789012345678.0
+(Stdlib.Float.toString -0.00001 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok -0.00001
+(Stdlib.Float.parse "5e-324" |> Stdlib.Result.map (fun f -> Stdlib.Float.toString f)) = Stdlib.Result.Result.Ok "5e-324"
 
 
 // toInt truncates toward zero.
