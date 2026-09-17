@@ -403,8 +403,8 @@ jobs:
             - backend/src/LibExecution/package-ref-hashes.txt
 
   # The browser build: the CLI compiled to wasm, published as a static site, and the store it
-  # boots from. AOT, so the publish is the slow step (~7 min on an xlarge). The deploy job
-  # below ships what this persisted.
+  # boots from. AOT, so the publish is the slow step (~7 min on an xlarge). Tag-only, in the
+  # release workflow; the deploy job below ships what this persisted.
   build-wasm:
     executor: in-container
     resource_class: xlarge
@@ -748,19 +748,6 @@ workflows:
             - build-backend
             - build-cli
 
-      # The browser build, on every push; deployed from main (and the branch it was born on,
-      # while it is being worked on).
-      - build-wasm
-      - deploy-wasm:
-          requires:
-            - build-wasm
-            - ok-to-deploy
-          filters:
-            branches:
-              only:
-                - main
-                - wasm-cli
-
       # Release jobs (only on main)
       - publish-vs-code-extension:
           filters:
@@ -793,6 +780,14 @@ workflows:
             # silently does not appear at all.
             branches:
               ignore: /.*/
+
+      # The browser build ships with a release too: the site at dark-wasm.fly.dev tracks
+      # the same tag as the binaries. Needs FLY_API_TOKEN in the project environment.
+      - build-wasm:
+          filters: *release-filters
+      - deploy-wasm:
+          filters: *release-filters
+          requires: [build-wasm]
 
       - build-cli-linux-glibc:
           filters: *release-filters

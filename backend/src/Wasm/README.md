@@ -88,8 +88,8 @@ ship. Keep it that way.
 backend/src/Wasm/deploy/deploy.sh      # nginx image of rundir/wasm-site/wwwroot -> app dark-wasm
 ```
 
-CI does the same: `build-wasm` publishes and stages on every push, `deploy-wasm` ships from
-`main` (needs `FLY_API_TOKEN` in the project's CircleCI environment).
+CI does the same on a release tag (`v*`), alongside the binaries: `build-wasm` publishes and
+stages, `deploy-wasm` ships (needs `FLY_API_TOKEN` in the project's CircleCI environment).
 
 ## Testing headless
 
