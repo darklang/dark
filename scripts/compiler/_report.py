@@ -71,8 +71,11 @@ def run_chunk(builtin, hashes, timeout):
            "DARK_CONFIG_RUNDIR": os.environ.get("DARK_CONFIG_RUNDIR", os.path.join(ROOT, "rundir")),
            "DARK_RPC_DIR": rpc}
     try:
+        # cwd is the throwaway dir too: the equivalence harness RUNS fns in the
+        # interpreter with synthesized arguments, and one of them wrote a 51 MB
+        # store copy named "hello" into the repo root before this was here.
         p = subprocess.run([EXE, "eval", f"Builtin.{builtin} {lit}"],
-                           capture_output=True, text=True, timeout=timeout, env=env)
+                           capture_output=True, text=True, timeout=timeout, env=env, cwd=rpc)
         return p.returncode, p.stdout
     except subprocess.TimeoutExpired:
         return 124, ""
@@ -219,7 +222,7 @@ def write_report(out_md, out_tsv, names, cov, eq, previous, when, budget):
         w(f"    DIFF (miscompile?)     {ndiff}")
         w(f"    could not prove        {len(eq) - nattempt}  (see the equivalence section)")
     if previous:
-        pc, pt = previous
+        pc, pt, _ = previous
         w(f"    previous report        {pc} of {pt} compiled ({100 * pc / max(pt, 1):.1f}%)")
     w("")
     w("## By namespace")

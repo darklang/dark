@@ -53,10 +53,10 @@ let pairsThenFloatBoxed (xs: List<(String * Float)>) (x: Float) : List<(String *
 let intsThenFloatAppend (xs: List<Int64>) (x: Float) : (List<Int64> * List<Float>) =
   (Stdlib.List.append xs [ 9L ], [ x ])
 
-// The open miscompile, 2026-09-17: `appendFloatParam` with a 2+ element `fields` and a
-// float PARAMETER in the appended tuple puts a pointer-shaped value where the float
-// should be (`compilerEquivCheck <hash> ([("a", 1.0), ("b", 2.0)], 2.5)` -> DIFF; with
-// one element, or with a literal 2.5 in place of `x`, it matches). Not the free list
-// (same with DARK_COMPILER_NO_FREELIST=1). This is what the 20-odd DIFFs in the
-// 2026-09-17 report have in common: a float parameter stored into a container that is
-// then passed to List.append.
+// `appendFloatParam` with a 2+ element `fields` and a float PARAMETER in the appended
+// tuple used to put a pointer-shaped value where the float should be
+// (`compilerEquivCheck <hash> ([("a", 1.0), ("b", 2.0)], 2.5)` -> DIFF; one element,
+// or a literal 2.5, matched). The float bit-move used the physical scratch X9, which
+// on x86-64 is the same R11 the allocator reloads a spilled address into, so under
+// register pressure the store wrote the address. Fixed 2026-09-17 (fresh virtual temps
+// in the MIR -> LIR float paths); kept as the regression case.

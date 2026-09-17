@@ -889,11 +889,15 @@ let selectInstr
         // since HeapStore uses GP registers. Use FpToGp to transfer bits.
         match src, valueType with
         | MIR.Register vreg, Some AST.TFloat64 ->
-            // Float in FVirtual register - need to move bits to GP register first
+            // Float in FVirtual register - need to move bits to GP register first.
+            // A FRESH virtual temp, not the physical X9: on x86-64 every X8-X17 is
+            // the one scratch R11, and when `addr` was spilled the allocator reloads
+            // it into another of those between the FpToGp and the store, so the
+            // store wrote the ADDRESS where the float should be. It only showed
+            // under register pressure, which is why a shorter program was fine.
             let srcFReg = vregToLIRFReg vreg
-            let tempReg = LIR.Physical LIR.X9  // Use temp register for FpToGp
+            let (tempReg, state) = freshTempReg state
             // After FpToGp, value is in GP register, so use None for valueType
-            // (otherwise CodeGen would try to treat X9 as a float register)
             Ok ([LIR.FpToGp (tempReg, srcFReg); LIR.HeapStore (lirAddr, offset, LIR.Reg tempReg, None)], state)
         | _ ->
             let lirSrc = convertOperand src
@@ -905,7 +909,7 @@ let selectInstr
         | Some AST.TFloat64 ->
             // Float load: load into integer register, then move bits to float register
             let lirFDest = vregToLIRFReg dest
-            let tempReg = LIR.Physical LIR.X9  // Use temp register for heap load
+            let (tempReg, state) = freshTempReg state  // not X9: see HeapStore above
             Ok ([LIR.HeapLoad (tempReg, lirAddr, offset)
                  LIR.GpToFp (lirFDest, tempReg)], state)
         | _ ->
@@ -1223,7 +1227,7 @@ let selectInstr
             | Some AST.TFloat64 ->
                 // Float load: load raw bits into GP register, then move to FP register
                 let lirFDest = vregToLIRFReg dest
-                let tempReg = LIR.Physical LIR.X9  // Use temp register for raw get
+                let (tempReg, nextState) = freshTempReg nextState  // not X9: see HeapStore
                 Ok (ptrInstrs @ offsetInstrs @ [LIR.RawGet (tempReg, ptrReg, offsetReg); LIR.GpToFp (lirFDest, tempReg)], nextState)
             | _ ->
                 // Integer/other load
@@ -1262,7 +1266,7 @@ let selectInstr
                 match ensureInFRegister value stateAfterOffset with
                 | Error err -> Error err
                 | Ok (valueInstrs, valueFReg, nextState) ->
-                    let tempReg = LIR.Physical LIR.X9  // Use temp register for FpToGp
+                    let (tempReg, nextState) = freshTempReg nextState  // not X9: see HeapStore
                     Ok (ptrInstrs @ offsetInstrs @ valueInstrs @ [LIR.FpToGp (tempReg, valueFReg); LIR.RawSet (ptrReg, offsetReg, tempReg, valueType)], nextState)
             | _ ->
                 match ensureInRegister value stateAfterOffset with
