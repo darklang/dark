@@ -41,7 +41,7 @@ module Scalars =
   // Floats print every digit the value has, and exponent form when that's shorter.
   pp 1.5 = "1.5"
   pp (0.1 + 0.2) = "0.30000000000000004"
-  pp 0.00001 = "1e-05"
+  pp 0.00001 = "1e-5"
 
 
 // ========================================

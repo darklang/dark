@@ -113,7 +113,7 @@ let formatFieldName (name: String) : String =
 
 /// The fraction of a float literal with its trailing zeros dropped (`1.50` -> `1.5`), by parsing and
 /// reprinting it. Only trusted when that comes back as a plain `0.xxx` decimal: `00001` reprints as
-/// `1e-05`, and cutting two characters off that gave `0.-05`.
+/// `1e-5`, and cutting two characters off that gave `0.-5`.
 let processRemainder (remainder: String) : String =
   match $".{remainder}" |> Stdlib.Float.parse with
   | Ok floatValue ->

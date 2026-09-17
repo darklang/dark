@@ -110,14 +110,10 @@ let rec private toJsonV0
     | DInt i -> w.WriteRawValue(string (DarkInt.toBigInt i))
 
     | DFloat f ->
-      if System.Double.IsNaN f then
-        w.WriteStringValue "NaN"
-      else if System.Double.IsNegativeInfinity f then
-        w.WriteStringValue "-Infinity"
-      else if System.Double.IsPositiveInfinity f then
-        w.WriteStringValue "Infinity"
-      else
-        w.WriteRawValue(floatToShortestString f)
+      if System.Double.IsNaN f then w.WriteStringValue "NaN"
+      else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
+      else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
+      else w.WriteRawValue(floatToShortestString f)
 
     | DChar c -> w.WriteStringValue c
     | DString s -> w.WriteStringValue s
