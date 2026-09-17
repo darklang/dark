@@ -53,11 +53,17 @@ let private compileAst (program : AST.Program) : Result<byte array, string> =
         // DARK_COMPILER_DUMP=anf|mir|lir: the compiler's own IR dump to stdout.
         Verbosity = (if System.Environment.GetEnvironmentVariable "DARK_COMPILER_DUMP" <> null then 3 else 0)
         Options =
-          (match System.Environment.GetEnvironmentVariable "DARK_COMPILER_DUMP" with
-           | "anf" -> { CompilerLibrary.defaultOptions with DumpANF = true }
-           | "mir" -> { CompilerLibrary.defaultOptions with DumpMIR = true }
-           | "lir" -> { CompilerLibrary.defaultOptions with DumpLIR = true }
-           | _ -> CompilerLibrary.defaultOptions)
+          (let o =
+             match System.Environment.GetEnvironmentVariable "DARK_COMPILER_DUMP" with
+             | "anf" -> { CompilerLibrary.defaultOptions with DumpANF = true }
+             | "mir" -> { CompilerLibrary.defaultOptions with DumpMIR = true }
+             | "lir" -> { CompilerLibrary.defaultOptions with DumpLIR = true }
+             | _ -> CompilerLibrary.defaultOptions
+           // DARK_COMPILER_NO_FREELIST=1: bump-allocate only. A value that goes
+           // wrong here and right with this set was freed while still referenced.
+           if System.Environment.GetEnvironmentVariable "DARK_COMPILER_NO_FREELIST" = "1" then
+             { o with DisableFreeList = true }
+           else o)
         // DARK_COMPILER_PASS_TIMING=1 prints each pass's wall time to stderr, which is
         // how a fn that takes minutes to compile gets blamed on a pass.
         PassTimingRecorder =

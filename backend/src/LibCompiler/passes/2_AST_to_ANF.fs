@@ -2161,6 +2161,51 @@ let private wrapLazyBranch (expr: AST.Expr) : AST.Expr =
         AST.Lambda (AST.NonEmptyList.singleton (lazyBranchParam, AST.TUnit), expr),
         AST.NonEmptyList.singleton AST.UnitLiteral)
 
+
+/// The ANF list-pattern lowering takes only variables, wildcards, literals and
+/// tuples as list ELEMENTS; a constructor or nested list there ("Nested pattern in
+/// list element not yet supported") is common Dark: `| [ Text _ ] -> ...`. When the
+/// nested pattern binds nothing, it is exactly a guard: the element becomes a fresh
+/// variable and the arm gains `match v with | <pattern> -> true | _ -> false`. A
+/// nested pattern that binds a variable is left alone (it needs the bindings too).
+let private nestedListCounter = ref 0
+
+let private isNestedElementPattern (p: AST.Pattern) : bool =
+    match p with
+    | AST.PConstructor _ | AST.PList _ | AST.PListCons _ | AST.PRecord _ -> true
+    | _ -> false
+
+let private desugarNestedListPatterns (mc: AST.MatchCase) : AST.MatchCase =
+    // Only single-pattern arms: alternatives would need the guard per alternative.
+    match AST.NonEmptyList.toList mc.Patterns with
+    | [ pat ] ->
+        let guards = ResizeArray<AST.Expr>()
+        let elem (p: AST.Pattern) : AST.Pattern =
+            if isNestedElementPattern p && Set.isEmpty (patternVarNames p) then
+                nestedListCounter.Value <- nestedListCounter.Value + 1
+                let v = $"__nested_{nestedListCounter.Value}"
+                guards.Add(
+                    AST.Match (
+                        AST.Var v,
+                        [ { AST.Patterns = AST.NonEmptyList.singleton p; AST.Guard = None; AST.Body = AST.BoolLiteral true }
+                          { AST.Patterns = AST.NonEmptyList.singleton AST.PWildcard; AST.Guard = None; AST.Body = AST.BoolLiteral false } ]))
+                AST.PVar v
+            else p
+        let pat' =
+            match pat with
+            | AST.PList ps -> AST.PList (List.map elem ps)
+            | AST.PListCons (heads, tail) -> AST.PListCons (List.map elem heads, tail)
+            | other -> other
+        if guards.Count = 0 then mc
+        else
+            let combined = guards |> Seq.reduce (fun a b -> AST.BinOp (AST.And, a, b))
+            let guard' =
+                match mc.Guard with
+                | Some g -> AST.BinOp (AST.And, combined, g)
+                | None -> combined
+            { mc with Patterns = AST.NonEmptyList.singleton pat'; Guard = Some guard' }
+    | _ -> mc
+
 /// Wrap non-tail branching expressions (see above). `tail` is whether `expr`'s
 /// value is the value of the enclosing function or lambda.
 let rec hoistLazyBranches (expr: AST.Expr) (tail: bool) : AST.Expr =
@@ -2175,6 +2220,7 @@ let rec hoistLazyBranches (expr: AST.Expr) (tail: bool) : AST.Expr =
         let cases' =
             cases
             |> List.map (fun mc ->
+                let mc = desugarNestedListPatterns mc
                 { mc with
                     Guard = mc.Guard |> Option.map sub
                     Body = hoistLazyBranches mc.Body tail })
@@ -4729,7 +4775,11 @@ let rec toANF (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: Type
             let (setVar, vg2) = ANF.freshVar vg1
             let (setRcVar, vg3) = ANF.freshVar vg2
             let allocExpr = ANF.RawAlloc (ANF.IntLiteral (ANF.Int64 16L))
-            let setExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 0L), elemAtom, None)
+            // A float element lives in an FP register; the store must know, or it
+            // reads a GP register and the list holds 0.0 (a literal happened to work,
+            // a computed float did not).
+            let storedType = if elemType = AST.TFloat64 then Some AST.TFloat64 else None
+            let setExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 0L), elemAtom, storedType)
             let setRcExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 8L), ANF.IntLiteral (ANF.Int64 1L), None)
             let (vg4, bindings4) =
                 addLeafInc elemAtom elemType vg3 (bindings @ [(ptrVar, allocExpr); (setVar, setExpr); (setRcVar, setRcExpr)])
@@ -8485,7 +8535,11 @@ and toAtom (expr: AST.Expr) (varGen: ANF.VarGen) (env: VarEnv) (typeReg: TypeReg
             let (setVar, vg2) = ANF.freshVar vg1
             let (setRcVar, vg3) = ANF.freshVar vg2
             let allocExpr = ANF.RawAlloc (ANF.IntLiteral (ANF.Int64 16L))
-            let setExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 0L), elemAtom, None)
+            // A float element lives in an FP register; the store must know, or it
+            // reads a GP register and the list holds 0.0 (a literal happened to work,
+            // a computed float did not).
+            let storedType = if elemType = AST.TFloat64 then Some AST.TFloat64 else None
+            let setExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 0L), elemAtom, storedType)
             let setRcExpr = ANF.RawSet (ANF.Var ptrVar, ANF.IntLiteral (ANF.Int64 8L), ANF.IntLiteral (ANF.Int64 1L), None)
             let (vg4, bindings4) =
                 addLeafInc elemAtom elemType vg3 (bindings @ [(ptrVar, allocExpr); (setVar, setExpr); (setRcVar, setRcExpr)])
