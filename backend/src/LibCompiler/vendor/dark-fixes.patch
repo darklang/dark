@@ -1686,6 +1686,122 @@ index 8845ff1..16bd8c7 100644
  // IEEE 754 double precision format:
  // Sign: bit 63 (1 bit)
  // Exponent: bits 52-62 (11 bits, biased by 1023)
+diff --git a/backend/src/LibCompiler/stdlib/Int16.dark b/backend/src/LibCompiler/stdlib/Int16.dark
+index a78636d..f7fe749 100644
+--- a/backend/src/LibCompiler/stdlib/Int16.dark
++++ b/backend/src/LibCompiler/stdlib/Int16.dark
+@@ -83,10 +83,23 @@ def Stdlib.Int16.__digitToString(n: Int16) : String =
+ 
+ // Convert an integer to its string representation
+ def Stdlib.Int16.toString(n: Int16) : String =
+-    if n < 0s then "-" ++ Stdlib.Int16.toString(0s - n)
++    if n < 0s then "-" ++ Stdlib.Int16.__negToString(n)
+     else if n < 10s then Stdlib.Int16.__digitToString(n)
+     else Stdlib.Int16.toString(n / 10s) ++ Stdlib.Int16.__digitToString(n % 10s)
+ 
++// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
++// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
++// right whether division truncates or floors: the remainder is recomputed from the
++// quotient, and a positive remainder (floor) borrows from the next digit.
++def Stdlib.Int16.__negToString(n: Int16) : String =
++    if n > -10s then Stdlib.Int16.__digitToString(0s - n)
++    else
++        let q = n / 10s in
++        let r = n - (q * 10s) in
++        if r < 0s then Stdlib.Int16.__negToString(q) ++ Stdlib.Int16.__digitToString(0s - r)
++        else if r > 0s then Stdlib.Int16.__negToString(q + 1s) ++ Stdlib.Int16.__digitToString(10s - r)
++        else Stdlib.Int16.__negToString(q) ++ Stdlib.Int16.__digitToString(0s)
++
+ // Check if integer is even
+ def Stdlib.Int16.isEven(n: Int16) : Bool =
+     (n % 2s) == 0s
+diff --git a/backend/src/LibCompiler/stdlib/Int32.dark b/backend/src/LibCompiler/stdlib/Int32.dark
+index 3a0a9c2..8d64d07 100644
+--- a/backend/src/LibCompiler/stdlib/Int32.dark
++++ b/backend/src/LibCompiler/stdlib/Int32.dark
+@@ -84,10 +84,23 @@ def Stdlib.Int32.__digitToString(n: Int32) : String =
+ 
+ // Convert an integer to its string representation
+ def Stdlib.Int32.toString(n: Int32) : String =
+-    if n < 0l then "-" ++ Stdlib.Int32.toString(0l - n)
++    if n < 0l then "-" ++ Stdlib.Int32.__negToString(n)
+     else if n < 10l then Stdlib.Int32.__digitToString(n)
+     else Stdlib.Int32.toString(n / 10l) ++ Stdlib.Int32.__digitToString(n % 10l)
+ 
++// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
++// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
++// right whether division truncates or floors: the remainder is recomputed from the
++// quotient, and a positive remainder (floor) borrows from the next digit.
++def Stdlib.Int32.__negToString(n: Int32) : String =
++    if n > -10l then Stdlib.Int32.__digitToString(0l - n)
++    else
++        let q = n / 10l in
++        let r = n - (q * 10l) in
++        if r < 0l then Stdlib.Int32.__negToString(q) ++ Stdlib.Int32.__digitToString(0l - r)
++        else if r > 0l then Stdlib.Int32.__negToString(q + 1l) ++ Stdlib.Int32.__digitToString(10l - r)
++        else Stdlib.Int32.__negToString(q) ++ Stdlib.Int32.__digitToString(0l)
++
+ // Check if integer is even
+ def Stdlib.Int32.isEven(n: Int32) : Bool =
+     (n % 2l) == 0l
+diff --git a/backend/src/LibCompiler/stdlib/Int64.dark b/backend/src/LibCompiler/stdlib/Int64.dark
+index 69aa837..25a07bf 100644
+--- a/backend/src/LibCompiler/stdlib/Int64.dark
++++ b/backend/src/LibCompiler/stdlib/Int64.dark
+@@ -87,10 +87,23 @@ def Stdlib.Int64.__digitToString(n: Int64) : String =
+ 
+ // Convert an integer to its string representation
+ def Stdlib.Int64.toString(n: Int64) : String =
+-    if n < 0 then "-" ++ Stdlib.Int64.toString(0 - n)
++    if n < 0 then "-" ++ Stdlib.Int64.__negToString(n)
+     else if n < 10 then Stdlib.Int64.__digitToString(n)
+     else Stdlib.Int64.toString(n / 10) ++ Stdlib.Int64.__digitToString(n % 10)
+ 
++// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
++// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
++// right whether division truncates or floors: the remainder is recomputed from the
++// quotient, and a positive remainder (floor) borrows from the next digit.
++def Stdlib.Int64.__negToString(n: Int64) : String =
++    if n > -10 then Stdlib.Int64.__digitToString(0 - n)
++    else
++        let q = n / 10 in
++        let r = n - (q * 10) in
++        if r < 0 then Stdlib.Int64.__negToString(q) ++ Stdlib.Int64.__digitToString(0 - r)
++        else if r > 0 then Stdlib.Int64.__negToString(q + 1) ++ Stdlib.Int64.__digitToString(10 - r)
++        else Stdlib.Int64.__negToString(q) ++ Stdlib.Int64.__digitToString(0)
++
+ // Check if integer is even
+ def Stdlib.Int64.isEven(n: Int64) : Bool =
+     (n % 2) == 0
+diff --git a/backend/src/LibCompiler/stdlib/Int8.dark b/backend/src/LibCompiler/stdlib/Int8.dark
+index 9da78a5..7fac03a 100644
+--- a/backend/src/LibCompiler/stdlib/Int8.dark
++++ b/backend/src/LibCompiler/stdlib/Int8.dark
+@@ -81,10 +81,23 @@ def Stdlib.Int8.__digitToString(n: Int8) : String =
+ 
+ // Convert an integer to its string representation
+ def Stdlib.Int8.toString(n: Int8) : String =
+-    if n < 0y then "-" ++ Stdlib.Int8.toString(0y - n)
++    if n < 0y then "-" ++ Stdlib.Int8.__negToString(n)
+     else if n < 10y then Stdlib.Int8.__digitToString(n)
+     else Stdlib.Int8.toString(n / 10y) ++ Stdlib.Int8.__digitToString(n % 10y)
+ 
++// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
++// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
++// right whether division truncates or floors: the remainder is recomputed from the
++// quotient, and a positive remainder (floor) borrows from the next digit.
++def Stdlib.Int8.__negToString(n: Int8) : String =
++    if n > -10y then Stdlib.Int8.__digitToString(0y - n)
++    else
++        let q = n / 10y in
++        let r = n - (q * 10y) in
++        if r < 0y then Stdlib.Int8.__negToString(q) ++ Stdlib.Int8.__digitToString(0y - r)
++        else if r > 0y then Stdlib.Int8.__negToString(q + 1y) ++ Stdlib.Int8.__digitToString(10y - r)
++        else Stdlib.Int8.__negToString(q) ++ Stdlib.Int8.__digitToString(0y)
++
+ // Check if integer is even
+ def Stdlib.Int8.isEven(n: Int8) : Bool =
+     (n % 2y) == 0y
 diff --git a/backend/src/LibCompiler/stdlib/List.dark b/backend/src/LibCompiler/stdlib/List.dark
 index 3e4b8b1..7432ab1 100644
 --- a/backend/src/LibCompiler/stdlib/List.dark

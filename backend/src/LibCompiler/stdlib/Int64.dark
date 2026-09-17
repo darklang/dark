@@ -87,9 +87,22 @@ def Stdlib.Int64.__digitToString(n: Int64) : String =
 
 // Convert an integer to its string representation
 def Stdlib.Int64.toString(n: Int64) : String =
-    if n < 0 then "-" ++ Stdlib.Int64.toString(0 - n)
+    if n < 0 then "-" ++ Stdlib.Int64.__negToString(n)
     else if n < 10 then Stdlib.Int64.__digitToString(n)
     else Stdlib.Int64.toString(n / 10) ++ Stdlib.Int64.__digitToString(n % 10)
+
+// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
+// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
+// right whether division truncates or floors: the remainder is recomputed from the
+// quotient, and a positive remainder (floor) borrows from the next digit.
+def Stdlib.Int64.__negToString(n: Int64) : String =
+    if n > -10 then Stdlib.Int64.__digitToString(0 - n)
+    else
+        let q = n / 10 in
+        let r = n - (q * 10) in
+        if r < 0 then Stdlib.Int64.__negToString(q) ++ Stdlib.Int64.__digitToString(0 - r)
+        else if r > 0 then Stdlib.Int64.__negToString(q + 1) ++ Stdlib.Int64.__digitToString(10 - r)
+        else Stdlib.Int64.__negToString(q) ++ Stdlib.Int64.__digitToString(0)
 
 // Check if integer is even
 def Stdlib.Int64.isEven(n: Int64) : Bool =

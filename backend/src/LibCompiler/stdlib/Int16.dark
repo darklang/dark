@@ -83,9 +83,22 @@ def Stdlib.Int16.__digitToString(n: Int16) : String =
 
 // Convert an integer to its string representation
 def Stdlib.Int16.toString(n: Int16) : String =
-    if n < 0s then "-" ++ Stdlib.Int16.toString(0s - n)
+    if n < 0s then "-" ++ Stdlib.Int16.__negToString(n)
     else if n < 10s then Stdlib.Int16.__digitToString(n)
     else Stdlib.Int16.toString(n / 10s) ++ Stdlib.Int16.__digitToString(n % 10s)
+
+// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
+// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
+// right whether division truncates or floors: the remainder is recomputed from the
+// quotient, and a positive remainder (floor) borrows from the next digit.
+def Stdlib.Int16.__negToString(n: Int16) : String =
+    if n > -10s then Stdlib.Int16.__digitToString(0s - n)
+    else
+        let q = n / 10s in
+        let r = n - (q * 10s) in
+        if r < 0s then Stdlib.Int16.__negToString(q) ++ Stdlib.Int16.__digitToString(0s - r)
+        else if r > 0s then Stdlib.Int16.__negToString(q + 1s) ++ Stdlib.Int16.__digitToString(10s - r)
+        else Stdlib.Int16.__negToString(q) ++ Stdlib.Int16.__digitToString(0s)
 
 // Check if integer is even
 def Stdlib.Int16.isEven(n: Int16) : Bool =

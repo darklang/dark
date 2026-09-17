@@ -81,9 +81,22 @@ def Stdlib.Int8.__digitToString(n: Int8) : String =
 
 // Convert an integer to its string representation
 def Stdlib.Int8.toString(n: Int8) : String =
-    if n < 0y then "-" ++ Stdlib.Int8.toString(0y - n)
+    if n < 0y then "-" ++ Stdlib.Int8.__negToString(n)
     else if n < 10y then Stdlib.Int8.__digitToString(n)
     else Stdlib.Int8.toString(n / 10y) ++ Stdlib.Int8.__digitToString(n % 10y)
+
+// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
+// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
+// right whether division truncates or floors: the remainder is recomputed from the
+// quotient, and a positive remainder (floor) borrows from the next digit.
+def Stdlib.Int8.__negToString(n: Int8) : String =
+    if n > -10y then Stdlib.Int8.__digitToString(0y - n)
+    else
+        let q = n / 10y in
+        let r = n - (q * 10y) in
+        if r < 0y then Stdlib.Int8.__negToString(q) ++ Stdlib.Int8.__digitToString(0y - r)
+        else if r > 0y then Stdlib.Int8.__negToString(q + 1y) ++ Stdlib.Int8.__digitToString(10y - r)
+        else Stdlib.Int8.__negToString(q) ++ Stdlib.Int8.__digitToString(0y)
 
 // Check if integer is even
 def Stdlib.Int8.isEven(n: Int8) : Bool =

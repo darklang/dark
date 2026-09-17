@@ -84,9 +84,22 @@ def Stdlib.Int32.__digitToString(n: Int32) : String =
 
 // Convert an integer to its string representation
 def Stdlib.Int32.toString(n: Int32) : String =
-    if n < 0l then "-" ++ Stdlib.Int32.toString(0l - n)
+    if n < 0l then "-" ++ Stdlib.Int32.__negToString(n)
     else if n < 10l then Stdlib.Int32.__digitToString(n)
     else Stdlib.Int32.toString(n / 10l) ++ Stdlib.Int32.__digitToString(n % 10l)
+
+// Digits of a negative number, staying negative: `0 - n` overflows at the minimum
+// value and recursed forever (a SIGSEGV for `toString(-128y)`). Written so it is
+// right whether division truncates or floors: the remainder is recomputed from the
+// quotient, and a positive remainder (floor) borrows from the next digit.
+def Stdlib.Int32.__negToString(n: Int32) : String =
+    if n > -10l then Stdlib.Int32.__digitToString(0l - n)
+    else
+        let q = n / 10l in
+        let r = n - (q * 10l) in
+        if r < 0l then Stdlib.Int32.__negToString(q) ++ Stdlib.Int32.__digitToString(0l - r)
+        else if r > 0l then Stdlib.Int32.__negToString(q + 1l) ++ Stdlib.Int32.__digitToString(10l - r)
+        else Stdlib.Int32.__negToString(q) ++ Stdlib.Int32.__digitToString(0l)
 
 // Check if integer is even
 def Stdlib.Int32.isEven(n: Int32) : Bool =
