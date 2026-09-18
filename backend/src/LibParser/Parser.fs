@@ -633,7 +633,14 @@ let parseTypeParamsWith
     let names = System.Collections.Generic.List<string * TokenRange>()
     let mutable k = i + 1
     let mutable expectingName = true
-    while tok state k <> TGt && tok state k <> TShr && tok state k <> TEOF do
+    // A bound's own type args can end in `>>` (`'a: Convert<Int>>`), which leaves
+    // one `>` pending for this list; see `expectGt`.
+    while
+      state.pendingGt = 0
+      && tok state k <> TGt
+      && tok state k <> TShr
+      && tok state k <> TEOF
+      do
       match expectingName, tok state k with
       | true, TIdent name ->
         if not ((txt state k).StartsWith "'") then
@@ -674,7 +681,15 @@ let parseTypeParamsWith
     if names.Count = 0 then errExpected state (i + 1) "at least one type parameter"
     elif expectingName then errExpected state k "a type parameter after ','"
     let k2 =
-      if tok state k = TGt || tok state k = TShr then
+      if state.pendingGt > 0 then
+        state.pendingGt <- state.pendingGt - 1
+        k
+      elif tok state k = TGt then
+        k + 1
+      elif tok state k = TShr then
+        // The second `>` belongs to whatever encloses this declaration; there is
+        // nothing that can, so it is a stray token. Report it once, here.
+        errExpected state k "'>' to close the type-parameter list"
         k + 1
       else
         (errExpected state k "'>' to close the type-parameter list"

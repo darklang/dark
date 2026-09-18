@@ -1341,6 +1341,19 @@ module PackageValue =
         Exception.raiseInternal
           "Builtin value not found in package constant"
           [ "builtin", rtBuiltin ]
+    // A named fn is a constant: the same value `Expr.toRT` loads for an `EFnName`.
+    // A trait impl is a record of these (`Show<Point> { show = Point.Show.show }`),
+    // so this is what makes `impl` work in scripts and testfiles, where values go
+    // through this evaluator rather than the interpreter.
+    | PT.EFnName(_, { resolved = Ok resolved }) ->
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name = FQFnName.toRT resolved.name
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = [] }
+      )
     | _ ->
       // For more complex expressions, return Unit as fallback
       RT.DUnit

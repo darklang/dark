@@ -100,14 +100,20 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
         | WT.DType t -> types.Add(WT.packageType owner currentModule t)
         | WT.DTrait t -> types.Add(WT.packageType owner currentModule (WT.desugarTrait t))
         | WT.DImpl impl ->
-          // Members carry their own (deeper) module path; the grouping here is only
-          // for iteration, so they can sit in this module's lists.
+          // Members live at their own (deeper) module path, and names inside them
+          // resolve from there, so they form a nested module of their own.
           let d = WT.desugarImpl currentModule impl
-          for fn in d.methods do
-            fns.Add(WT.packageFn owner d.memberPath fn)
-          match d.instance with
-          | Choice1Of2 v -> values.Add(WT.packageValue owner d.memberPath v)
-          | Choice2Of2 fn -> fns.Add(WT.packageFn owner d.memberPath fn)
+          let implFns = d.methods |> List.map (WT.packageFn owner d.memberPath)
+          let (implFns, implValues) =
+            match d.instance with
+            | Choice1Of2 v -> (implFns, [ WT.packageValue owner d.memberPath v ])
+            | Choice2Of2 fn -> (implFns @ [ WT.packageFn owner d.memberPath fn ], [])
+          nested.Add
+            { emptyWTModule with
+                name = d.memberPath
+                fns = implFns
+                values = implValues
+                dbs = List.ofSeq dbs }
         | WT.DTypeDB t -> dbs.Add(dbFromTypeDecl t)
         | WT.DTest test -> tests.Add(wtTest test)
         // Testfiles evaluate `actual = expected` assertions. A bare expression

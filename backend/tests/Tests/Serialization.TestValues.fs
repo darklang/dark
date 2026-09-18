@@ -725,7 +725,32 @@ module ProgramTypes =
       permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
       bounds = [] }
 
-  let packageFns = [ packageFn ]
+  /// `let f<'a: Show + Eq<Int>> ...`: two bounds on one param, one with a type arg,
+  /// and a body that calls a trait method.
+  let boundedPackageFn : PackageFn.PackageFn =
+    let showRef : TraitRef =
+      { trait_ = NameResolution.ok (FQTypeName.Package(Hash "trait-show")); typeArgs = [] }
+    let eqRef : TraitRef =
+      { trait_ = NameResolution.ok (FQTypeName.Package(Hash "trait-eq"))
+        typeArgs = [ TInt ] }
+    let traitCall =
+      EApply(
+        gid (),
+        EFnName(gid (), NameResolution.ok (FQFnName.TraitMethod(Hash "trait-show", "show"))),
+        [],
+        NEList.singleton (EArg(gid (), 0))
+      )
+    { hash = Hash "bounded-fn"
+      body = traitCall
+      typeParams = [ "a" ]
+      parameters =
+        NEList.singleton { name = "value"; typ = TVariable "a"; description = "" }
+      returnType = TString
+      description = "bounded"
+      permissionCeiling = None
+      bounds = [ { param = "a"; trait_ = showRef }; { param = "a"; trait_ = eqRef } ] }
+
+  let packageFns = [ packageFn; boundedPackageFn ]
 
   let packageType : PackageType.PackageType =
     { hash = hashPT
@@ -744,7 +769,20 @@ module ProgramTypes =
 
       description = "test" }
 
-  let packageTypes = [ packageType ]
+  /// `type Set<'a: Ord> = List<'a>`
+  let boundedPackageType : PackageType.PackageType =
+    { hash = Hash "bounded-type"
+      declaration =
+        { typeParams = [ "a" ]
+          bounds =
+            [ { param = "a"
+                trait_ =
+                  { trait_ = NameResolution.ok (FQTypeName.Package(Hash "trait-ord"))
+                    typeArgs = [] } } ]
+          definition = TypeDeclaration.Alias(TList(TVariable "a")) }
+      description = "bounded" }
+
+  let packageTypes = [ packageType; boundedPackageType ]
 
   let packageValue : PT.PackageValue.PackageValue =
     { hash = Hash ""; body = constValue; description = "test" }
@@ -778,6 +816,8 @@ module ProgramTypes =
       PT.BranchId.Id(System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3301")
 
     [ AddType packageTypes[0]
+      AddType boundedPackageType
+      AddFn boundedPackageFn
       AddValue packageValues[0]
       AddFn packageFns[0]
 

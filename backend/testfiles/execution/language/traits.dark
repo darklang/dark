@@ -1,0 +1,24 @@
+// Traits, phase A: the declarations parse, lower, store and print; the impl is a
+// value of the trait's record type; dispatch itself is phase B (today a method
+// call reports that it cannot pick the type).
+
+module Shapes =
+  type Point = { x: Int; y: Int }
+
+  trait Show<'a> =
+    let show (value: 'a) : String
+
+  impl Show for Point =
+    let show (p: Point) : String =
+      $"({Stdlib.Int.toString p.x}, {Stdlib.Int.toString p.y})"
+
+  let display<'a: Show> (v: 'a) : String = "value: " ++ Show.show v
+
+  // The impl's method is an ordinary fn under <Type>.<Trait>
+  Shapes.Point.Show.show (Shapes.Point { x = 1; y = 2 }) = "(1, 2)"
+
+  // The instance is an ordinary value of the trait's record type
+  (Shapes.Point.Show.instance).show (Shapes.Point { x = 3; y = 4 }) = "(3, 4)"
+
+  // The trait method by name: no dispatch yet, so the runtime says why
+  Shapes.display (Shapes.Point { x = 1; y = 2 }) = error "Cannot tell which type to dispatch Show.show on. Pass the type explicitly: `Show.show<Type> ...`"

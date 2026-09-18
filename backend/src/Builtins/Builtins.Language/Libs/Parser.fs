@@ -1174,10 +1174,23 @@ module WrittenTypesToDarkTypes =
       @ [ match d.instance with
           | Choice1Of2 v -> WT.DValue v
           | Choice2Of2 fn -> WT.DFunction fn ]
-    { range = impl.range
-      name = (impl.keywordImpl, String.concat "." relative)
-      declarations = decls
-      keywordModule = impl.keywordImpl }
+    // One nested module per segment: the Dark lowering takes a sub-module's name
+    // as a single path segment, so `Point.Show` must be `Point` holding `Show`.
+    let innermost : WT.ModuleDecl =
+      { range = impl.range
+        name = (impl.keywordImpl, List.last relative |> Option.defaultValue "")
+        declarations = decls
+        keywordModule = impl.keywordImpl }
+    relative
+    |> List.rev
+    |> List.tail
+    |> List.fold
+      (fun (inner : WT.ModuleDecl) segment ->
+        { range = impl.range
+          name = (impl.keywordImpl, segment)
+          declarations = [ WT.DModule inner ]
+          keywordModule = impl.keywordImpl })
+      innermost
 
   /// One WT declaration becomes zero or more module-declaration Dvals.
   ///
