@@ -8,10 +8,26 @@ module Darklang.Cli.Packages.Impls
 let describeSelf (branchId: Uuid) (self: LanguageTools.RuntimeTypes.TypeReference) : String =
   PrettyPrinter.RuntimeTypes.typeReference branchId self
 
+/// The trait as written, then under `Stdlib.` (the operator traits are what
+/// most people ask about, and `impls Add` should just work).
+let resolveTrait
+  (state: Cli.AppState)
+  (traitPath: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  match FindValues.resolveTypeHash state.currentBranchId state.packageData.currentLocation traitPath with
+  | Ok h -> Stdlib.Result.Result.Ok h
+  | Error msg ->
+    if Stdlib.String.startsWith traitPath "Stdlib." || Stdlib.String.startsWith traitPath "Darklang." then
+      Stdlib.Result.Result.Error msg
+    else
+      match FindValues.resolveTypeHash state.currentBranchId state.packageData.currentLocation $"Stdlib.{traitPath}" with
+      | Ok h -> Stdlib.Result.Result.Ok h
+      | Error _ -> Stdlib.Result.Result.Error msg
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [ traitPath ] ->
-    match FindValues.resolveTypeHash state.currentBranchId state.packageData.currentLocation traitPath with
+    match resolveTrait state traitPath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state

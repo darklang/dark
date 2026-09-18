@@ -319,6 +319,32 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## Traits
+
+A trait is a record type of fn fields; an impl is a package value of that type. Nothing
+downstream of the parser has a trait kind: `trait`/`impl` desugar in `SourceFile.items`
+(F#) and `implAsModule` (the Dark-side converter), and both must agree on the member
+path `<module>[.<Type>].<Trait>.{method, instance}`. Dispatch reads candidates off the PT
+(`PT2RT.ImplCandidate`), selection is `Traits.fs`, the checker's side is `AtRest/Types.fs`
+`ImplEntry`. The operators are the stdlib traits (`stdlib/traits.dark`); `+` lowers to
+`Stdlib.Add.add` through `NumericTraits.fs`, whose hashes come from `PackageRefs`, so a
+new operator trait needs a ref and a regenerated `package-ref-hashes.txt`.
+
+**Two traits with the same shape are one trait.** Content addressing: `trait Add<'a> =
+let add (a: 'a) (b: 'a) : 'a` anywhere IS `Stdlib.Add`, and an `impl Add for Int` next to it
+makes every `1 + 2` on that branch ambiguous. Name a method differently, or use the stdlib
+trait.
+
+**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let add =
+Stdlib.Int64.add` generates no fn; the instance names the existing one. The interpreter
+answers two operands of one builtin numeric type without dispatch (`FastOps.evalNumeric`),
+so those aliases are what the checker and `dark impls` see, not what runs.
+
+**Dispatch is memoised on the package manager** (`implSelectionMemo`, keyed by branch, trait,
+method and self type) under `LibDB.Caching.generation`, which every `invalidateAll` bumps. A
+new way to change what a name binds that does not go through `invalidateAll` leaves a stale
+selection; a side-loaded package manager (`withExtraImpls`, `withExtras`) gets its own memo.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.

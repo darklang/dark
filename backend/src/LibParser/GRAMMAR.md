@@ -273,6 +273,12 @@ Generics work on:
 
 `>>` closes two levels.
 
+A type parameter may carry **bounds**: `'a: Show`, or several joined with `+`
+(`'a: Show + Eq`; `,` separates parameters, so it cannot separate bounds).
+A bound names a trait, optionally with type arguments (`'a: Convert<Int>`).
+Bounds are allowed on function and type declarations, and on `impl`. A bound
+that does not name a trait is `PARSE-BOUND`.
+
 ## Types
 
 Primitive types are `Unit Bool Int Int8…UInt128 Float Char String DateTime Uuid
@@ -321,6 +327,37 @@ Modules nest. The path builds the package location: `owner.modules.name`.
   `|`);
 - an **alias** to another type: `type Id = String`, `type Pair = Int * Int`.
 
+**Trait declarations** — `trait Name<'a> =` followed by an indented block of
+method signatures, one per line, each a full fn signature without a body:
+
+    trait Show<'a> =
+      let show (value: 'a) : String
+
+The trait needs at least one type parameter (the first is the self type) and
+at least one method; a method body or an effect row on a method is
+`PARSE-BOUND`. A trait desugars to a record type of fn fields, so nothing
+after the parser has a trait kind.
+
+**Impl declarations** — `impl[<'a: Bound>] Trait[<Args>] for Type =` followed
+by an indented block with one entry per method, each either a full fn
+declaration or an alias of an existing fn:
+
+    impl Show for Point =
+      let show (p: Point) : String = "..."
+
+    impl Add for Int64 =
+      let add = Stdlib.Int64.add
+
+    impl<'a: Show> Show for List<'a> =
+      let show (xs: List<'a>) : String = "..."
+
+An entry that is neither (a `val`, a `let` bound to anything but a name) is
+`PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl desugars
+to its method fns plus an instance value (or, with type parameters of its own,
+a fn returning the record), all under `<module>[.<Type>].<Trait>`; the type
+segment is omitted when the enclosing module is already named for the type.
+Duplicate member names are `VALIDATION-IMPL-METHODS`.
+
 ### Test classification
 
 The parser represents test assertions and DB declarations in the same syntax
@@ -354,6 +391,7 @@ Codes are stable identifiers (key on these, never on message text):
 | `PARSE-PATTERN` | invalid match pattern shape |
 | `PARSE-INTERPOLATION` | malformed interpolation body or brace boundary |
 | `PARSE-INTERNAL-LOOP` | parser step budget exhausted — a parser bug, please report |
+| `PARSE-BOUND` | a type-param bound that does not name a trait, or a trait/impl member that is not supported |
 | `LEX` | tokenizer-level recovery (unterminated literal, …) |
 
 Post-parse validation uses these stable codes:
@@ -373,6 +411,7 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-DB-MODE` | a DB declaration occurs outside Test mode |
 | `VALIDATION-DB-SHAPE` | a DB declaration is not a type alias |
 | `VALIDATION-TEST-MODE` | a test assertion occurs outside Test mode |
+| `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
 
 `renderDiagnostic` renders code + position + message + a caret snippet +
 related locations + hint; the CLI uses it. The LSP wire (`parserParseDiagnostics`,

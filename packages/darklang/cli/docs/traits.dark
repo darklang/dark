@@ -1,0 +1,59 @@
+module Darklang.Cli.Docs.Traits
+
+let content () : String =
+  """# Traits
+
+A trait names a set of fns over one open type. An impl says how one type does
+them. A call picks the impl by the type of the value it is given.
+
+## Declare
+  trait Show<'a> =
+    let show (value: 'a) : String
+
+  A trait IS a record type of fn fields (`type Show<'a> = { show: 'a -> String }`),
+  so two traits with the same methods and shapes are the same trait, whatever
+  they are named. Do not redeclare `Add`, `Ord` and friends: they exist.
+
+## Implement
+  impl Show for Point =
+    let show (p: Point) : String = $"({p.x}, {p.y})"
+
+  impl Show for Int64 =
+    let show = Stdlib.Int64.toString      # an existing fn, no wrapper made
+
+  impl<'a: Show> Show for List<'a> =     # conditional: needs Show for the element
+    let show (xs: List<'a>) : String = ...
+
+  Members land under <Module>.<Type>.<Trait>: `Acme.Point.Show.show` is the fn,
+  `Acme.Point.Show.instance` the record. `dark impls Show` lists them.
+
+## Call
+  Show.show p            # dispatch on p's type
+  p.show                 # same, when p has no field `show` (a field always wins)
+  a.add b                # a two-argument method as a receiver call
+
+## Bound a type parameter
+  let display<'a: Show> (v: 'a) : String = "value: " ++ Show.show v
+  let sum<'a: Add + Zero> ...            # several bounds join with +
+
+  A bound is checked when the fn is ENTERED, against the caller's actual type,
+  not when the method is reached. The checker checks it statically too:
+  `MissingImpl`, `AmbiguousImpl`, `UnboundTypeParameter`.
+
+## The operators are traits
+  `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; the
+  comparisons are `Stdlib.Ord`. Every builtin numeric type implements them, so
+  `Vec + Vec` only needs `impl Add for Vec`. `"a" + "b"` is a missing impl,
+  not a numeric-type error. `==`, `!=`, `++` and the bitwise operators are not
+  traits.
+
+## Visibility
+  An impl is a package value like any other: it is visible where its name is
+  bound (main, or your branch). Two visible impls for one type is an
+  ambiguity at the call, reported as a finding, not a language error.
+
+## Errors
+  No impl of Acme.Show for Float         # write `impl Show for Float = ...`
+  More than one impl of ... is visible   # `dark constraints` names them
+  Cannot tell the type ... dispatches on # the self argument's type is unknown;
+                                         # give an explicit type arg or a bound"""

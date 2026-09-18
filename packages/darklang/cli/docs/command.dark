@@ -93,6 +93,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "traits"
+          description = "Traits: declare, implement, call, bound; the operators are traits"
+          aliases = [ "trait", "impl", "impls" ]
+          context = "general"
+          content = Docs.Traits.content
+          subtopics = [] }
+
+      DocTopic
         { name = "operators"
           description = "Operators reference"
           aliases = [ "ops" ]
