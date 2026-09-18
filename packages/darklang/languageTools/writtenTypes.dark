@@ -464,6 +464,14 @@ module ModuleDeclaration =
 
 
 // Type declaration
+/// `'a: Show<Int>` in a type-param list: the trait is a type name
+type TypeParamBound =
+  { range: Range
+    param: String
+    trait_: QualifiedTypeIdentifier
+    symbolColon: Range }
+
+
 module TypeDeclaration =
   type RecordField =
     { range: Range
@@ -497,6 +505,8 @@ module TypeDeclaration =
     { range: Range
       name: TypeIdentifier
       typeParams: List<(Range * String)>
+      /// `'a: Ord` on the type params
+      bounds: List<TypeParamBound>
       definition: Definition
       description: String
       keywordType: Range
@@ -537,6 +547,8 @@ module FnDeclaration =
     { range: Range
       name: FnIdentifier
       typeParams: List<(Range * String)>
+      /// `'a: Show + Eq` on the type params, one entry per trait
+      bounds: List<TypeParamBound>
       parameters: List<Parameter>
       /// The effect row on the return colon, if one was written. Like
       /// `typeParams`, these are names as written with their positions; they

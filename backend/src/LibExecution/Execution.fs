@@ -597,6 +597,7 @@ let executionPointToString
       return $"Package Function {prettyName}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
+    | RT.Function(RT.FQFnName.TraitMethod(_, m)) -> return $"Trait Method {m}"
     | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)
   }
 

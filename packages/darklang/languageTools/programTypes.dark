@@ -21,6 +21,9 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method: the trait's record type and the field name (`Show.show`).
+    /// Names a dispatch, not a body; the impl is found from the self type.
+    | TraitMethod of trait_: FQTypeName.Package * method_: String
 
 
 type PackageLocation =
@@ -398,6 +401,18 @@ type LocatedItem<'entity> =
     location: PackageLocation }
 
 
+/// A trait named from a bound: the record type that IS the trait (`type Show<'a> =
+/// { show: 'a -> String }`) plus type args for any non-self params.
+type TraitRef =
+  { trait_: NameResolution<FQTypeName.FQTypeName>
+    typeArgs: List<TypeReference> }
+
+/// `'a: Show` on a fn or type declaration
+type Bound =
+  { param: String
+    trait_: TraitRef }
+
+
 /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
 module TypeDeclaration =
   type RecordField =
@@ -422,6 +437,8 @@ module TypeDeclaration =
 
   type TypeDeclaration =
     { typeParams: List<String>
+      /// `type Set<'a: Ord> = ...`
+      bounds: List<Bound>
       definition: Definition }
 
 
@@ -463,7 +480,10 @@ module PackageFn =
       ///
       /// Part of the content hash and of the upgrade contract, so changing the
       /// row is a new version that `permissions update` asks about.
-      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>> }
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+      /// `'a: Show + Eq` on the type params; part of the content hash. Checked
+      /// at fn entry by the interpreter and statically by the at-rest checker.
+      bounds: List<Bound> }
 
 
 

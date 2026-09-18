@@ -317,8 +317,70 @@ module FnName =
         | None -> Stdlib.Result.Result.Error()
 
 
+  /// `Show.show`: the path's last module segment names a record type with a fn
+  /// field `show`; then the name is a trait method, dispatched at runtime.
+  /// Mirrors `resolveTraitMethod` in LibParser's NameResolver.fs.
+  let tryResolveTraitMethod
+    (ctx: NRContext)
+    (given: List<String>)
+    : Stdlib.Option.Option<ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>> =
+    let modules = Stdlib.List.dropLast given
+    match (Stdlib.List.last given, Stdlib.List.last modules) with
+    | (Some methodName, Some traitName) ->
+      let firstChar = Stdlib.String.slice traitName 0 1
+      if firstChar != Stdlib.String.toUppercase firstChar then
+        Stdlib.Option.Option.None
+      else
+        let traitNR =
+          TypeName.resolve
+            { ctx with onMissing = OnMissing.Allow }
+            (WrittenTypes.Name.Unresolved(
+              LanguageTools.Parser.Range
+                { start = LanguageTools.Parser.Point { row = 0; column = 0 }
+                  end_ = LanguageTools.Parser.Point { row = 0; column = 0 } },
+              modules))
+        match traitNR.resolved with
+        | Error _ -> Stdlib.Option.Option.None
+        | Ok resolved ->
+          match resolved.name with
+          | Package traitHash ->
+            match ctx.pm.getType traitHash with
+            | Some typ ->
+              match typ.declaration.definition with
+              | Record fields ->
+                let isMethod =
+                  fields
+                  |> Stdlib.List.findFirst (fun f ->
+                    f.name == methodName
+                    && (match f.typ with
+                        | TFn(_, _) -> true
+                        | _ -> false))
+                  |> Stdlib.Option.isSome
+                if isMethod then
+                  Stdlib.Option.Option.Some(
+                    ProgramTypes.NameResolution
+                      { originalName = given
+                        resolved =
+                          Stdlib.Result.Result.Ok(
+                            ProgramTypes.ResolvedName
+                              { name = ProgramTypes.FQFnName.FQFnName.TraitMethod(traitHash, methodName)
+                                location = resolved.location }) })
+                else
+                  Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
   let resolve
     (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    resolveGenericName ctx name FnName.tryResolve
+    let asFn = resolveGenericName { ctx with onMissing = OnMissing.Allow } name FnName.tryResolve
+    match asFn.resolved with
+    | Ok _ -> asFn
+    | Error _ ->
+      match name with
+      | Unresolved(_range, given) ->
+        match tryResolveTraitMethod ctx given with
+        | Some nr -> nr
+        | None -> throwIfRelevant ctx.onMissing asFn

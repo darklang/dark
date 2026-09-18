@@ -191,6 +191,26 @@ module TypeReference =
           return PT.TCustomType(resolved, typeArgs)
     }
 
+module Bound =
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (b : WT.Bound)
+    : Ply<PT.Bound> =
+    uply {
+      let! resolved =
+        NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName b.trait_)
+      let! typeArgs =
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          b.trait_.typeArgs
+      return { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
+    }
+
+  let listToPT pm onMissing currentModule (bs : List<WT.Bound>) : Ply<List<PT.Bound>> =
+    Ply.List.mapSequentially (toPT pm onMissing currentModule) bs
+
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
     match binop with
@@ -916,7 +936,8 @@ module TypeDeclaration =
     : Ply<PT.TypeDeclaration.T> =
     uply {
       let! def = Definition.toPT pm onMissing currentModule d.definition
-      return { typeParams = d.typeParams; definition = def }
+      let! bounds = Bound.listToPT pm onMissing currentModule d.bounds
+      return { typeParams = d.typeParams; bounds = bounds; definition = def }
     }
 
 
@@ -1054,6 +1075,7 @@ module PackageFn =
         let withReturn = collectTVars fromParams returnType
         withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
       let allTypeParams = explicitTypeParams @ implicitTypeParams
+      let! bounds = Bound.listToPT pm onMissing currentModule fn.bounds
 
       return
         { hash = Hash ""
@@ -1062,6 +1084,7 @@ module PackageFn =
           description = fn.description
           body = body
           typeParams = allTypeParams
+          bounds = bounds
           permissionCeiling =
             // Names were validated by the parser; an unknown one already
             // produced a diagnostic, so it is simply not part of the ceiling.

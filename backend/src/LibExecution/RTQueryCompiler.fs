@@ -69,6 +69,7 @@ let getSqlSpec
     (match exeState.fns.builtIn.TryGetValue builtinName with
      | true, fn -> Some fn.sqlSpec
      | false, _ -> None)
+  | RT.FQFnName.TraitMethod _ -> None
   | RT.FQFnName.Package _ ->
     // Package functions don't have SqlSpec - they delegate to builtins
     None
@@ -435,6 +436,8 @@ and executeInstruction
             Ok(
               state.withReg (createTo, Unknown $"Unsupported builtin function: {n}")
             )
+          | RT.FQFnName.TraitMethod(_, m) ->
+            Ok(state.withReg (createTo, Unknown $"Cannot inline trait method: {m}"))
 
     | other ->
       Ok(state.withReg (createTo, Unknown $"Apply on non-function: {other}"))

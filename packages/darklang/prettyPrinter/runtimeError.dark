@@ -509,6 +509,38 @@ module RuntimeError =
           ES.FullValue dv
           ES.String " into JSON" ]
 
+    | Trait err ->
+      match err with
+      | MissingImpl(trait_, self) ->
+        [ ES.String "No impl of "
+          ES.TypeName trait_
+          ES.String " for "
+          ES.ValueType self
+          ES.String ". Write `impl "
+          ES.ShortTypeName trait_
+          ES.String " for <type> = ...`, or check `dark impls`" ]
+      | DispatchAmbiguous(trait_, self, candidates) ->
+        [ ES.String "More than one impl of "
+          ES.TypeName trait_
+          ES.String " for "
+          ES.ValueType self
+          ES.String $" is visible ({Stdlib.Int.toString (Stdlib.List.length candidates)} candidates). See `dark constraints`" ]
+      | MethodAmbiguous(method_, self, traits) ->
+        [ ES.String $"`.{method_}` on a "
+          ES.ValueType self
+          ES.String " is ambiguous: "
+          ES.String (Stdlib.Int.toString (Stdlib.List.length traits))
+          ES.String $" traits have a method named {method_}. Call it as `Trait.{method_} value`" ]
+      | SelfTypeUnknown(trait_, method_) ->
+        [ ES.String "Cannot tell which type to dispatch "
+          ES.ShortTypeName trait_
+          ES.String $".{method_} on. Pass the type explicitly: `"
+          ES.ShortTypeName trait_
+          ES.String $".{method_}<Type> ...`" ]
+      | NoSuchMethod(trait_, method_) ->
+        [ ES.TypeName trait_
+          ES.String $" has no method named {method_}" ]
+
     | CLI err ->
       match err with
       | NoExpressionsToExecute ->

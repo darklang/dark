@@ -9,6 +9,9 @@ let fnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
   match fn with
   | PT.FQFnName.Package hash -> Some hash
   | PT.FQFnName.Builtin _ -> None
+  // A method call depends on the trait TYPE (the dependency extractor records that
+  // separately); there is no fn hash to depend on until dispatch picks an impl.
+  | PT.FQFnName.TraitMethod _ -> None
 
 
 let typePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =

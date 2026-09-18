@@ -20,6 +20,13 @@ let rec private collectItems
   |> List.collect (fun d ->
     match d with
     | WT.DModule m -> collectItems (path @ WT.moduleNameParts m) m.declarations
+    | WT.DTrait t -> [ Type(path, WT.desugarTrait t) ]
+    | WT.DImpl impl ->
+      let d = WT.desugarImpl path impl
+      (d.methods |> List.map (fun fn -> Fn(d.memberPath, fn)))
+      @ [ match d.instance with
+          | Choice1Of2 v -> Value(d.memberPath, v)
+          | Choice2Of2 fn -> Fn(d.memberPath, fn) ]
     | WT.DFunction fn -> [ Fn(path, fn) ]
     | WT.DType t -> [ Type(path, t) ]
     | WT.DValue v -> [ Value(path, v) ]

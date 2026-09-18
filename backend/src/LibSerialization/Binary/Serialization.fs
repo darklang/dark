@@ -128,7 +128,7 @@ module PT =
 
   module PackageType =
     let serialize id value = makeSerializer PT.PackageType.write id value
-    let deserialize id data = makeDeserializer PT.PackageType.read id data
+    let deserialize id data = makeDeserializerV PT.PackageType.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer PT.PackageValue.write id value
@@ -136,11 +136,11 @@ module PT =
 
   module PackageFn =
     let serialize id value = makeSerializer PT.PackageFn.write id value
-    let deserialize id data = makeDeserializer PT.PackageFn.read id data
+    let deserialize id data = makeDeserializerV PT.PackageFn.read id data
 
   module PackageOp =
     let serialize id value = makeSerializer PT.PackageOp.write id value
-    let deserialize id data = makeDeserializer PT.PackageOp.read id data
+    let deserialize id data = makeDeserializerV PT.PackageOp.read id data
 
     /// The op, or None when THIS BUILD cannot read it. Nearly every reader wants this
     /// one rather than `deserialize`: a synced store's own log legitimately holds ops
@@ -212,7 +212,7 @@ module RT =
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value
-    let deserialize id data = makeDeserializer RT.PackageFn.read id data
+    let deserialize id data = makeDeserializerV RT.PackageFn.read id data
 
   module ValueType =
     let serialize (vt : LibExecution.RuntimeTypes.ValueType) : byte[] =

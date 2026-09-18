@@ -1764,7 +1764,9 @@ let private rangeInvariantTests =
     | WT.DExpr e -> [ e ]
     | WT.DModule m -> m.declarations |> List.collect declExprs
     | WT.DType _
+    | WT.DTrait _
     | WT.DTypeDB _ -> []
+    | WT.DImpl impl -> impl.methods |> List.map (fun f -> f.body)
     | WT.DTest t -> [ t.actual ]
   testList
     "range-invariants"

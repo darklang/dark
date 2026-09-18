@@ -142,6 +142,22 @@ module Jsons =
     | UnsupportedType of TypeReference
     | CannotSerializeValue of Dval
 
+module Traits =
+  type Error =
+    /// No value of type `Trait<self>` is visible on this branch
+    | MissingImpl of trait_: FQTypeName.FQTypeName * self: ValueType
+    /// More than one impl value for `Trait<self>` is visible
+    | DispatchAmbiguous of
+      trait_: FQTypeName.FQTypeName *
+      self: ValueType *
+      candidates: List<Hash>
+    /// `x.m` where `x` has no field `m` and several traits have a method `m` for its type
+    | MethodAmbiguous of method_: String * self: ValueType * traits: List<FQTypeName.FQTypeName>
+    /// The self type could not be determined at the call
+    | SelfTypeUnknown of trait_: FQTypeName.FQTypeName * method_: String
+    /// The trait's record type has no fn field of that name
+    | NoSuchMethod of trait_: FQTypeName.FQTypeName * method_: String
+
 module CLIs =
   type Error =
     | NoExpressionsToExecute
@@ -187,6 +203,8 @@ type Error =
   | Unwrap of Unwraps.Error
 
   | Json of Jsons.Error
+
+  | Trait of Traits.Error
 
   | CLI of CLIs.Error
 

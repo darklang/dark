@@ -2210,6 +2210,12 @@ let private applyInstruction
       // and `callPackage` behind them: same five steps, different parameter and outcome types.
       // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
       match applicable.name with
+      | FQFnName.TraitMethod(traitHash, methodName) ->
+        // Phase A placeholder: dispatch lands with the impl index (phase B).
+        RTE.Trait(
+          RTE.Traits.SelfTypeUnknown(FQTypeName.Package traitHash, methodName)
+        )
+        |> raiseRTE vm.threadID
       | FQFnName.Builtin builtin ->
         let biTotalAlloc = allocNow vm
         let biLookupAlloc = allocNow vm
@@ -2954,7 +2960,8 @@ let private checkFrameReturnType
       | ValueNone ->
         match fnName with
         | FQFnName.Builtin builtin -> exeState.fns.builtIn[builtin].returnType
-        | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
+        | FQFnName.Package _
+        | FQFnName.TraitMethod _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
 
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks

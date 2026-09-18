@@ -221,6 +221,52 @@ let resolveValueName
       (fun (n, v) -> { RT.FQValueName.Builtin.name = n; version = v })
 
 
+/// `Show.show`: the module path's last segment names a record type whose field
+/// `show` is a fn type. Then the name is a trait method, dispatched at runtime.
+/// The record type resolves exactly like a type reference would (`namesToTry`
+/// from the current module), so `Stdlib.Show.show`, `Show.show` inside stdlib,
+/// and a user's own `Acme.Show.show` all work.
+let private resolveTraitMethod
+  (packageManager : PT.PackageManager)
+  (currentModule : List<string>)
+  (given : NEList<string>)
+  : Ply<Option<PT.NameResolution<PT.FQFnName.FQFnName>>> =
+  uply {
+    let (modules, methodName) = NEList.splitLast given
+    match List.tryLast modules with
+    | None -> return None
+    | Some traitName when not (System.Char.IsUpper traitName[0]) -> return None
+    | Some _ ->
+      let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
+      let! traitNR =
+        resolveTypeName packageManager OnMissing.Allow currentModule (WT.Unresolved traitGiven)
+      match traitNR.resolved with
+      | Error _ -> return None
+      | Ok { name = PT.FQTypeName.Package traitHash; location = loc } ->
+        match! packageManager.getType traitHash with
+        | Some { declaration = { definition = PT.TypeDeclaration.Record fields } } ->
+          let isMethod =
+            fields
+            |> NEList.toList
+            |> List.exists (fun f ->
+              f.name = methodName
+              && (match f.typ with
+                  | PT.TFn _ -> true
+                  | _ -> false))
+          if isMethod then
+            return
+              Some
+                { originalName = NEList.toList given
+                  resolved =
+                    Ok
+                      { name = PT.FQFnName.TraitMethod(traitHash, methodName)
+                        location = loc } }
+          else
+            return None
+        | _ -> return None
+  }
+
+
 let resolveFnName
   (builtinFns : Set<RT.FQFnName.Builtin>)
   (packageManager : PT.PackageManager)
@@ -236,13 +282,25 @@ let resolveFnName
       : PT.NameResolution<_>
     )
   | WT.Unresolved given ->
-    resolveGenericName
-      (Some builtinFns)
-      onMissing
-      currentModule
-      given
-      parseFnNameString
-      packageManager.findFn
-      PT.FQFnName.FQFnName.Package
-      (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
-      (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
+    uply {
+      // A real fn named `Show.show` wins; the trait path is the fallback, so the
+      // first pass may not throw.
+      let! asFn =
+        resolveGenericName
+          (Some builtinFns)
+          OnMissing.Allow
+          currentModule
+          given
+          parseFnNameString
+          packageManager.findFn
+          PT.FQFnName.FQFnName.Package
+          (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
+          (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
+      match asFn.resolved with
+      | Ok _ -> return asFn
+      | Error _ ->
+        let! asTraitMethod = resolveTraitMethod packageManager currentModule given
+        match asTraitMethod with
+        | Some nr -> return nr
+        | None -> return throwIfRelevant onMissing currentModule given asFn
+    }

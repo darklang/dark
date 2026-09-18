@@ -20,7 +20,7 @@ let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
   { hash = PT.Hash ""
-    declaration = { typeParams = []; definition = def }
+    declaration = { typeParams = []; bounds = []; definition = def }
     description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =

@@ -144,6 +144,11 @@ let writeFQFnName
     | None ->
       w.Write(1uy)
       PTC.FQFnName.Package.write w (resolveHash mode loc p)
+  | PT.FQFnName.TraitMethod(t, m) ->
+    // The trait is a type: same substitution rules as a TCustomType reference.
+    w.Write(3uy)
+    writeFQTypeName mode w loc (PT.FQTypeName.Package t)
+    Common.String.write w m
 
 
 /// Write FQValueName, resolving deps and checking SCC substitution
@@ -553,6 +558,20 @@ let writeEnumCase
   Common.String.write w c.name
   Common.List.write w (writeEnumField mode) c.fields
 
+/// Bounds are behaviour (a contract on the caller), so they hash. Written ONLY when
+/// present, and last, so every item that has none keeps the hash it had before bounds
+/// existed: adding the field must not repoint the world.
+let writeBounds (mode : HashRefMode) (w : BinaryWriter) (bounds : List<PT.Bound>) =
+  if not (List.isEmpty bounds) then
+    w.Write(0xB0uy) // bounds marker; nothing else follows an item body
+    Common.List.write
+      w
+      (fun w (b : PT.Bound) ->
+        Common.String.write w b.param
+        writeNameResolution (writeFQTypeName mode) w b.trait_.trait_
+        Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
+      bounds
+
 let writeTypeDeclaration
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -569,6 +588,7 @@ let writeTypeDeclaration
   | PT.TypeDeclaration.Enum cases ->
     w.Write(2uy)
     Common.NEList.write (writeEnumCase mode) w cases
+  writeBounds mode w d.bounds
 
 
 // =====================
@@ -600,6 +620,7 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   | Some effects ->
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
+  writeBounds mode w fn.bounds
 
 /// Write a PackageValue's hash-relevant content: its body.
 let writeValue

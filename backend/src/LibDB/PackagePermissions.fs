@@ -44,6 +44,9 @@ let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
               match callee with
               | PT.FQFnName.Package dependency -> do! load dependency
               | PT.FQFnName.Builtin _ -> ()
+              // Which impl runs is a runtime choice; CallGraph already marks the
+              // analysis incomplete for it.
+              | PT.FQFnName.TraitMethod _ -> ()
       }
 
     do! load root

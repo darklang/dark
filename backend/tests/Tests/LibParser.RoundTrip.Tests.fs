@@ -586,6 +586,7 @@ let person : (PT.PackageType.PackageType * PT.PackageLocation) =
       description = ""
       declaration =
         { typeParams = []
+          bounds = []
           definition =
             PT.TypeDeclaration.Record(
               { head =
@@ -606,6 +607,7 @@ let myString : (PT.PackageType.PackageType * PT.PackageLocation) =
       description = ""
       declaration =
         { typeParams = []
+          bounds = []
           definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
   let location : PT.PackageLocation =
     { owner = "Tests"; modules = []; name = "MyString" }
@@ -617,6 +619,7 @@ let pet : (PT.PackageType.PackageType * PT.PackageLocation) =
       description = ""
       declaration =
         { typeParams = []
+          bounds = []
           definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
   let location : PT.PackageLocation = { owner = "Tests"; modules = []; name = "Pet" }
   (packageType, location)
@@ -627,6 +630,7 @@ let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
       description = ""
       declaration =
         { typeParams = []
+          bounds = []
           definition =
             PT.TypeDeclaration.Enum(
               NEList.ofList

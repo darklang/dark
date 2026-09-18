@@ -104,3 +104,28 @@ let rec read (r : BinaryReader) : TypeReference =
   | 25uy -> TStream(read r)
   | 26uy -> TInt
   | b -> raiseFormatError $"Invalid TypeReference tag: {b}"
+
+
+module TraitRef =
+  let write (w : BinaryWriter) (t : TraitRef) : unit =
+    NameResolution.write FQTypeName.write w t.trait_
+    List.write w write t.typeArgs
+
+  let read (r : BinaryReader) : TraitRef =
+    let trait_ = NameResolution.read FQTypeName.read r
+    let typeArgs = List.read r read
+    { trait_ = trait_; typeArgs = typeArgs }
+
+module Bound =
+  let write (w : BinaryWriter) (b : Bound) : unit =
+    String.write w b.param
+    TraitRef.write w b.trait_
+
+  let read (r : BinaryReader) : Bound =
+    let param = String.read r
+    let trait_ = TraitRef.read r
+    { param = param; trait_ = trait_ }
+
+  /// `bounds` did not exist before format v2; a v1 blob has none.
+  let readList (version : uint32) (r : BinaryReader) : List<Bound> =
+    if version < 2u then [] else List.read r read

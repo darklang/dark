@@ -399,6 +399,14 @@ module private DarkTypes =
       )
     | PT.FQFnName.Package hash ->
       DEnum(typeName, typeName, [], "Package", [ PT2DT.Hash.toDT hash ])
+    | PT.FQFnName.TraitMethod(traitHash, method_) ->
+      DEnum(
+        typeName,
+        typeName,
+        [],
+        "TraitMethod",
+        [ PT2DT.Hash.toDT traitHash; DString method_ ]
+      )
 
   let private valueNameToDT (name : PT.FQValueName.FQValueName) : Dval =
     let typeName = nameRefName ()

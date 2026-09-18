@@ -311,6 +311,30 @@ module TypeReference =
         unresolvedNames)
 
 
+module Bound =
+  /// `'a: Show<Int>`: the trait resolves like any custom type reference
+  let toPT
+    (ctx: NameResolver.NRContext)
+    (b: WrittenTypes.TypeParamBound)
+    : (ProgramTypes.Bound * List<WrittenTypes.UnresolvedName>)
+    =
+    let (typeName, typeArgs, unresolvedNames) =
+      Identifiers.QualifiedType.toPT ctx b.trait_
+
+    (ProgramTypes.Bound
+      { param = b.param
+        trait_ = ProgramTypes.TraitRef { trait_ = typeName; typeArgs = typeArgs } },
+      unresolvedNames)
+
+  let listToPT
+    (ctx: NameResolver.NRContext)
+    (bs: List<WrittenTypes.TypeParamBound>)
+    : (List<ProgramTypes.Bound> * List<WrittenTypes.UnresolvedName>)
+    =
+    let (bounds, unresolved) = bs |> Stdlib.List.map (fun b -> toPT ctx b) |> Stdlib.List.unzip
+    (bounds, Stdlib.List.flatten unresolved)
+
+
 module InfixFnName =
   let toPT (infix: WrittenTypes.InfixFnName) : ProgramTypes.InfixFnName =
     match infix with
@@ -1287,12 +1311,14 @@ module TypeDeclaration =
     =
     let (def, unresolvedNames) =
       Definition.toPT ctx d.definition
+    let (bounds, boundUnresolved) = Bound.listToPT ctx d.bounds
 
     (ProgramTypes.TypeDeclaration.TypeDeclaration
       { typeParams =
           d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+        bounds = bounds
         definition = def },
-      unresolvedNames)
+      Stdlib.List.append unresolvedNames boundUnresolved)
 
 
   let toPackageTypePT
@@ -1448,15 +1474,19 @@ module FunctionDeclaration =
             localBindings = [] }
       Expr.toPT ctx functionContext fn.body
 
+    let (bounds, boundUnresolved) = Bound.listToPT ctx fn.bounds
+
     let unresolvedNames =
       Stdlib.List.flatten
         [ prUnresolvedNames |> Stdlib.List.flatten
           rtUnresolvedNames
-          bdUnresolvedNames ]
+          bdUnresolvedNames
+          boundUnresolved ]
 
     (ProgramTypes.PackageFn.PackageFn
       { hash = ProgramTypes.Hash.Hash ""
         typeParams = typeParams
+        bounds = bounds
         parameters = params
         returnType = rtyp
         description = fn.description

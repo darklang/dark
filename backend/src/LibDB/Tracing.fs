@@ -201,6 +201,7 @@ let private fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
   | RT.FQFnName.Builtin b ->
     if b.version = 0 then b.name else $"{b.name}_v{b.version}"
   | RT.FQFnName.Package(RT.Hash h) -> FnNameCache.resolve h
+  | RT.FQFnName.TraitMethod(RT.Hash t, m) -> $"{FnNameCache.resolve t}.{m}"
 
 
 /// Completed call event ready to emit to trace_fn_calls.
@@ -362,7 +363,10 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
           result = result
           // No frame-entry counterpart for builtins, so no real duration.
           durationMs = 0L }
-    | RT.FQFnName.Package _ ->
+    // A trait method never runs as itself: dispatch applies the impl's named fn, which is
+    // what the frame records. So it is traced like a package fn.
+    | RT.FQFnName.Package _
+    | RT.FQFnName.TraitMethod _ ->
       if state.stack.Count > 0 then
         let partial = state.stack.Pop()
         let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()

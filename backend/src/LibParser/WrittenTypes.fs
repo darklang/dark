@@ -413,12 +413,22 @@ type FnParam =
     symbolRightParen : Range *
     description : string
 
+/// `'a: Show<Int>` in a type-param list. The trait is a type name: a bound says
+/// "a value of type `Show<'a>` must exist". Several bounds on one param are
+/// written `'a: Show + Eq` and stored as separate entries.
+type TypeParamBound =
+  { range : Range
+    param : string
+    trait_ : QualifiedTypeIdentifier
+    symbolColon : Range }
+
 /// `let name (p: T) … :{Effect, …} Ret = body`
 type FnDecl =
   {
     range : Range
     name : Identifier
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
+    bounds : List<TypeParamBound>
     parameters : List<FnParam>
     /// An optional effect row after the return colon, such as
     /// `:{Http, Clock} Ret`, sets the function's permission ceiling. It limits
@@ -487,8 +497,53 @@ type TypeDecl =
   { range : Range
     name : Identifier
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
+    bounds : List<TypeParamBound>
     definition : TypeDefinition
     keywordType : Range
+    symbolEquals : Range
+    description : string }
+
+/// One method signature inside a `trait` block: a fn header with no body
+/// (`let show (v: 'a) : String`). A body is parsed and kept so the diagnostic can
+/// point at it; default methods are not supported yet.
+type TraitMethodDecl =
+  { range : Range
+    name : Identifier
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    parameters : List<FnParam>
+    effects : Option<List<Identifier>>
+    returnType : TypeReference
+    body : Option<Expr>
+    keywordLet : Range
+    symbolColon : Range
+    description : string }
+
+/// `trait Name<'a> = <methods>`. Sugar for a record type whose fields are fn
+/// types; `SourceFile.items` performs the desugaring, so nothing downstream of
+/// the parser sees a trait as its own kind.
+type TraitDecl =
+  { range : Range
+    name : Identifier
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    methods : List<TraitMethodDecl>
+    keywordTrait : Range
+    symbolEquals : Range
+    description : string }
+
+/// `impl[<'a: B>] Trait<Args> for Type = <fns>`. Sugar for one package fn per
+/// method plus a package value of the trait's record type (or, when the impl has
+/// type params, a fn returning that record). See `SourceFile.items`.
+type ImplDecl =
+  { range : Range
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    trait_ : QualifiedTypeIdentifier
+    forType : TypeReference
+    methods : List<FnDecl>
+    keywordImpl : Range
+    keywordFor : Range
     symbolEquals : Range
     description : string }
 
@@ -514,6 +569,8 @@ and Declaration =
   | DValue of ValueDecl
   | DModule of ModuleDecl
   | DType of TypeDecl
+  | DTrait of TraitDecl
+  | DImpl of ImplDecl
   /// A trailing expression inside a module body (`module M = … \n expr`).
   | DExpr of Expr
   /// `[<DB>] type Name = AliasedType` — a Test-only user DB.
@@ -603,6 +660,12 @@ let typeReferenceRange (t : TypeReference) : Range =
 // module-qualified package shapes the lowering consumes.
 // ============================================================================
 
+/// A bound in the normalized package IR: the param name and the trait as a type
+/// reference (`TCustom`), so lowering resolves it like any other custom type.
+type Bound = { param : string; trait_ : QualifiedTypeIdentifier }
+
+let boundNorm (b : TypeParamBound) : Bound = { param = b.param; trait_ = b.trait_ }
+
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -616,7 +679,10 @@ module TypeDeclaration =
     | Record of NEList<RecordField>
     | Enum of NEList<EnumCase>
 
-  type T = { typeParams : List<string>; definition : Definition }
+  type T =
+    { typeParams : List<string>
+      bounds : List<Bound>
+      definition : Definition }
 
 
 module PackageType =
@@ -640,6 +706,7 @@ module PackageFn =
       name : Name
       body : Expr
       typeParams : List<string>
+      bounds : List<Bound>
       parameters : NEList<Parameter>
       returnType : TypeReference
       /// The declared permission ceiling (effect case names); see `FnDecl`.
@@ -721,6 +788,7 @@ let packageFn
   { name = { owner = owner; modules = modules; name = fn.name.name }
     body = fn.body
     typeParams = fn.typeParams |> List.map fst
+    bounds = fn.bounds |> List.map boundNorm
     parameters = parameters
     returnType = fn.returnType
     effects = fn.effects |> Option.map (List.map (fun id -> id.name))
@@ -734,6 +802,7 @@ let packageType
   { name = { owner = owner; modules = modules; name = t.name.name }
     declaration =
       { typeParams = t.typeParams |> List.map fst
+        bounds = t.bounds |> List.map boundNorm
         definition = typeDefinitionNorm t.definition }
     description = t.description }
 
@@ -745,3 +814,145 @@ let packageValue
   { name = { owner = owner; modules = modules; name = v.name.name }
     description = v.description
     body = v.body }
+
+
+// --- traits and impls: desugaring to types, fns and values ---
+//
+// A trait is a record type whose fields are fn types; an impl is one package fn per
+// method plus a package value of the trait's record type, found at runtime by
+// type. Nothing downstream of the parser has a trait or impl kind: these two
+// functions turn the declarations into ordinary ones, and `SourceFile.items` calls
+// them. The pretty printer recognises the shapes and prints `trait` / `impl` back.
+
+/// The name a type reference dispatches on: the head of `List<'a>` is "List", of
+/// `Acme.Point` is "Point", of `Int64` is "Int64". Used to place an impl's members
+/// under `<module>.<TypeName>.<TraitName>`.
+let typeReferenceHeadName (t : TypeReference) : string =
+  match t with
+  | TUnit _ -> "Unit"
+  | TBool _ -> "Bool"
+  | TInt _ -> "Int"
+  | TInt8 _ -> "Int8"
+  | TUInt8 _ -> "UInt8"
+  | TInt16 _ -> "Int16"
+  | TUInt16 _ -> "UInt16"
+  | TInt32 _ -> "Int32"
+  | TUInt32 _ -> "UInt32"
+  | TInt64 _ -> "Int64"
+  | TUInt64 _ -> "UInt64"
+  | TInt128 _ -> "Int128"
+  | TUInt128 _ -> "UInt128"
+  | TFloat _ -> "Float"
+  | TChar _ -> "Char"
+  | TString _ -> "String"
+  | TDateTime _ -> "DateTime"
+  | TUuid _ -> "Uuid"
+  | TBlob _ -> "Blob"
+  | TList _ -> "List"
+  | TDict _ -> "Dict"
+  | TTuple _ -> "Tuple"
+  | TFn _ -> "Fn"
+  | TVariable(_, _, (_, name)) -> name
+  | TCustom qti -> qti.typ.name
+
+/// The name of the value that holds an impl, under `<module>.<Type>.<Trait>`.
+[<Literal>]
+let implValueName = "instance"
+
+/// `trait Show<'a> = let show (v: 'a) : String` becomes
+/// `type Show<'a> = { show: 'a -> String }`. Method effect rows and bodies are
+/// not representable on a record field; the parser has already diagnosed them.
+let desugarTrait (t : TraitDecl) : TypeDecl =
+  let fields =
+    t.methods
+    |> List.map (fun m ->
+      let paramTypes =
+        m.parameters
+        |> List.map (fun p ->
+          match p with
+          | FPUnit r -> (TUnit r, synthRange)
+          | FPNormal(_, _, typ, _, _, _, _) -> (typ, synthRange))
+      let paramTypes =
+        if List.isEmpty paramTypes then [ (TUnit synthRange, synthRange) ] else paramTypes
+      let field : RecordFieldSyntax =
+        { range = m.range
+          name = (m.name.range, m.name.name)
+          typ = TFn(m.range, paramTypes, m.returnType)
+          description = m.description
+          symbolColon = m.symbolColon }
+      (field, None))
+  { range = t.range
+    name = t.name
+    typeParams = t.typeParams
+    bounds = t.bounds
+    definition = TDRecord fields
+    keywordType = t.keywordTrait
+    symbolEquals = t.symbolEquals
+    description = t.description }
+
+/// What an impl desugars to: the module path its members live under, the method
+/// fns, and the instance (a value, or a fn returning the record when the impl has
+/// type params of its own).
+type DesugaredImpl =
+  { memberPath : List<string>
+    methods : List<FnDecl>
+    instance : Choice<ValueDecl, FnDecl> }
+
+/// `impl Show for Point = let show (p: Point) : String = ...` in module `Acme`
+/// becomes `Acme.Point.Show.show` and `val Acme.Point.Show.instance =
+/// Show<Point> { show = show }`. When the enclosing module is already named
+/// after the type (`impl Add for Int64` inside `Stdlib.Int64`), the type segment
+/// is not repeated. `impl<'a: Show> Show for List<'a>` becomes
+/// `let instance<'a: Show> () : Show<List<'a>> = Show<List<'a>> { show = show }`.
+let desugarImpl (currentPath : List<string>) (impl : ImplDecl) : DesugaredImpl =
+  let typeName = typeReferenceHeadName impl.forType
+  let traitName = impl.trait_.typ.name
+  let memberPath =
+    let withType =
+      match List.tryLast currentPath with
+      | Some last when last = typeName -> currentPath
+      | _ -> currentPath @ [ typeName ]
+    withType @ [ traitName ]
+  let methods =
+    impl.methods
+    |> List.map (fun m ->
+      { m with
+          typeParams = impl.typeParams @ m.typeParams
+          bounds = impl.bounds @ m.bounds })
+  let traitTypeArgs = impl.forType :: impl.trait_.typeArgs
+  let recordTypeName : QualifiedTypeIdentifier =
+    { impl.trait_ with typeArgs = traitTypeArgs }
+  let record =
+    ERecord(
+      impl.range,
+      recordTypeName,
+      impl.methods
+      |> List.map (fun m ->
+        (m.range, (m.name.range, m.name.name), EVariable(m.name.range, m.name.name))),
+      impl.symbolEquals,
+      impl.symbolEquals
+    )
+  let instance =
+    if List.isEmpty impl.typeParams then
+      Choice1Of2
+        { range = impl.range
+          name = { range = impl.keywordImpl; name = implValueName }
+          body = record
+          keywordVal = impl.keywordImpl
+          symbolEquals = impl.symbolEquals
+          description = impl.description }
+    else
+      Choice2Of2
+        { range = impl.range
+          name = { range = impl.keywordImpl; name = implValueName }
+          typeParams = impl.typeParams
+          bounds = impl.bounds
+          parameters = [ FPUnit impl.keywordImpl ]
+          effects = None
+          returnType = TCustom recordTypeName
+          body = record
+          keywordLet = impl.keywordImpl
+          symbolColon = impl.keywordFor
+          symbolEquals = impl.symbolEquals
+          description = impl.description }
+  { memberPath = memberPath; methods = methods; instance = instance }

@@ -117,12 +117,16 @@ module FQFnName =
       match u with
       | PT.FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | PT.FQFnName.Package u -> "Package", [ Package.toDT u ]
+      | PT.FQFnName.TraitMethod(t, m) ->
+        "TraitMethod", [ FQTypeName.Package.toDT t; DString m ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.FQFnName.FQFnName =
     match d with
     | DEnum(_, _, [], "Builtin", [ u ]) -> PT.FQFnName.Builtin(Builtin.fromDT u)
     | DEnum(_, _, [], "Package", [ u ]) -> PT.FQFnName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "TraitMethod", [ t; DString m ]) ->
+      PT.FQFnName.TraitMethod(FQTypeName.Package.fromDT t, m)
     | _ -> Exception.raiseInternal "Invalid FQFnName" []
 
 
@@ -1167,6 +1171,54 @@ module Deprecation =
     | _ -> Exception.raiseInternal "Invalid Deprecation" []
 
 
+module TraitRef =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.traitRef ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (t : PT.TraitRef) : Dval =
+    DRecord(
+      typeName (),
+      typeName (),
+      [],
+      Map
+        [ "trait_",
+          NameResolution.toDT (FQTypeName.knownType ()) FQTypeName.toDT t.trait_
+          "typeArgs",
+          DList(VT.known (TypeReference.knownType ()), List.map TypeReference.toDT t.typeArgs) ]
+    )
+
+  let fromDT (d : Dval) : PT.TraitRef =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { trait_ = fields |> D.field "trait_" |> NameResolution.fromDT FQTypeName.fromDT
+        typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT }
+    | _ -> Exception.raiseInternal "Invalid TraitRef" []
+
+module Bound =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.bound ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (b : PT.Bound) : Dval =
+    DRecord(
+      typeName (),
+      typeName (),
+      [],
+      Map [ "param", DString b.param; "trait_", TraitRef.toDT b.trait_ ]
+    )
+
+  let fromDT (d : Dval) : PT.Bound =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { param = fields |> D.field "param" |> D.string
+        trait_ = fields |> D.field "trait_" |> TraitRef.fromDT }
+    | _ -> Exception.raiseInternal "Invalid Bound" []
+
+  let listToDT (bs : List<PT.Bound>) : Dval =
+    DList(VT.known (knownType ()), List.map toDT bs)
+
+
 module TypeDeclaration =
   let typeName () =
     FQTypeName.fqPackage (
@@ -1297,6 +1349,7 @@ module TypeDeclaration =
   let toDT (td : PT.TypeDeclaration.T) : Dval =
     let fields =
       [ "typeParams", DList(VT.string, List.map DString td.typeParams)
+        "bounds", Bound.listToDT td.bounds
         "definition", Definition.toDT td.definition ]
     DRecord(typeName (), typeName (), [], Map fields)
 
@@ -1304,6 +1357,7 @@ module TypeDeclaration =
     match d with
     | DRecord(_, _, _, fields) ->
       { typeParams = fields |> D.field "typeParams" |> D.list D.string
+        bounds = fields |> D.field "bounds" |> D.list Bound.fromDT
         definition = fields |> D.field "definition" |> Definition.fromDT }
     | _ -> Exception.raiseInternal "Invalid TypeDeclaration" []
 
@@ -1401,7 +1455,8 @@ module PackageFn =
         ("permissionCeiling",
          p.permissionCeiling
          |> Option.map Effects2DT.toDT
-         |> Dval.option (Effects2DT.knownType ())) ]
+         |> Dval.option (Effects2DT.knownType ()))
+        ("bounds", Bound.listToDT p.bounds) ]
 
     DRecord(typeName (), typeName (), [], Map fields)
 
@@ -1422,7 +1477,8 @@ module PackageFn =
         permissionCeiling =
           fields
           |> D.field "permissionCeiling"
-          |> C2DT.Option.fromDT Effects2DT.fromDT }
+          |> C2DT.Option.fromDT Effects2DT.fromDT
+        bounds = fields |> D.field "bounds" |> D.list Bound.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
 

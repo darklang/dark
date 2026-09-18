@@ -202,16 +202,16 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     BranchEventKind.write w event
     String.write w at
 
-let read (r : BinaryReader) : PackageOp =
+let read (version : uint32) (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
   | 0uy ->
-    let typ = LibSerialization.Binary.Serializers.PT.PackageType.read r
+    let typ = LibSerialization.Binary.Serializers.PT.PackageType.read version r
     PackageOp.AddType typ
   | 1uy ->
     let value = LibSerialization.Binary.Serializers.PT.PackageValue.read r
     PackageOp.AddValue value
   | 2uy ->
-    let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read r
+    let fn = LibSerialization.Binary.Serializers.PT.PackageFn.read version r
     PackageOp.AddFn fn
   | 3uy ->
     let location = PackageLocation.read r
@@ -280,4 +280,5 @@ let deserialize (id : uuid) (bytes : byte array) : PackageOp =
   let readId = Guid.read binaryReader
   if readId <> id then
     raiseFormatError $"PackageOp id mismatch: expected {id}, got {readId}"
-  read binaryReader
+  // Headerless form carries no version; it is only ever written by this build.
+  read LibSerialization.Binary.BaseFormat.CurrentVersion binaryReader

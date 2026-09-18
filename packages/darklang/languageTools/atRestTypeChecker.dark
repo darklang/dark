@@ -70,6 +70,8 @@ type IssueCode =
 type NameRef =
   | Builtin of String * Int64
   | Package of LanguageTools.ProgramTypes.Hash
+  /// A trait method, by the trait type's hash and the method name
+  | TraitMethod of LanguageTools.ProgramTypes.Hash * String
 
 /// Where in the item the checker was working when it found something.
 type Site =
@@ -298,6 +300,14 @@ let nameRefToStringWith
       let hex = LanguageTools.ProgramTypes.hashToString hash
       let short = Stdlib.String.slice hex 0 12
       $"#{short}"
+  | TraitMethod(traitHash, method) ->
+    let traitName =
+      match resolve traitHash with
+      | Some name -> name
+      | None ->
+        let hex = LanguageTools.ProgramTypes.hashToString traitHash
+        $"#{Stdlib.String.slice hex 0 12}"
+    $"{traitName}.{method}"
 
 
 let siteToString (site: Site) : String =

@@ -30,6 +30,9 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method: the trait's record type and the field name (`Show.show`).
+    /// Names a dispatch, not a body; the impl is found from the self type.
+    | TraitMethod of trait_: FQTypeName.Package * method_: String
 
 type NameResolutionError =
   | NotFound

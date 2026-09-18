@@ -235,6 +235,14 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.EFnName(_, nr) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+        // `Show.show` depends on the trait's record type: editing the trait repoints
+        // every caller, which is what makes a changed method signature visible.
+        match nr.resolved with
+        | Ok { name = PT.FQFnName.TraitMethod(traitHash, _); location = loc } ->
+          dependencies <-
+            { hash = traitHash; itemKind = PT.ItemKind.Type; location = loc }
+            :: dependencies
+        | _ -> ()
 
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
 
@@ -272,6 +280,14 @@ let private extract (roots : List<Work>) : List<Dependency> =
 let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
 
 
+/// A bound `'a: Show<X>` references the trait type and its type args, exactly like
+/// a `TCustomType` in the signature would.
+let private boundRoots (bounds : List<PT.Bound>) : List<Work> =
+  bounds
+  |> List.map (fun b ->
+    TypeRef(PT.TCustomType(b.trait_.trait_, b.trait_.typeArgs)))
+
+
 /// Extract all references from a function definition
 let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
   // Deduplicate references
@@ -281,6 +297,7 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
         |> NEList.toList
         |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
+    @ boundRoots fn.bounds
   )
   |> List.distinct
 
@@ -293,6 +310,7 @@ let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
      |> NEList.toList
      |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
+    @ boundRoots fn.bounds
   )
   |> List.distinct
 
@@ -315,4 +333,4 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
       |> List.collect (fun case ->
         case.fields |> List.map (fun field -> TypeRef field.typ))
 
-  extract roots |> List.distinct
+  extract (roots @ boundRoots typ.declaration.bounds) |> List.distinct

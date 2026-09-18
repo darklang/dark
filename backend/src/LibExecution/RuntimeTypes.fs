@@ -92,6 +92,12 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method: the trait's record type and the field name. Applying one
+    /// resolves the impl at call time, in this order: explicit type args, the
+    /// caller's TypeSymbolTable binding for the self param, the self argument's
+    /// ValueType head. The impl is a package value of type `Trait<T>` whose field
+    /// holds a named fn; that fn is what actually runs (and what traces record).
+    | TraitMethod of trait_ : FQTypeName.Package * method_ : string
 
   let assertBuiltinFnName (name : string) : unit =
     assertRe $"Fn name must match" builtinNamePattern name
@@ -428,6 +434,15 @@ type TypeReference =
       | TVariable _ -> false
 
     isConcrete this
+
+
+/// A trait named from a bound; mirrors `PT.TraitRef`.
+type TraitRef =
+  { trait_ : NameResolution<FQTypeName.FQTypeName>; typeArgs : List<TypeReference> }
+
+/// `'a: Show` on a fn; mirrors `PT.Bound`. The interpreter checks these at fn entry,
+/// once the type param is bound to a Known type, by looking the impl up.
+type Bound = { param : string; trait_ : TraitRef }
 
 
 /// The type arguments in scope: a mapping from type-variable name to the concrete type bound to it.
@@ -1635,6 +1650,31 @@ module RuntimeError =
       | UnsupportedType of TypeReference
       | CannotSerializeValue of Dval
 
+  module Traits =
+    type Error =
+      /// No value of type `Trait<self>` is visible on this branch. Raised at fn
+      /// entry for a bound, or at the method call when the bound was not declared.
+      | MissingImpl of trait_ : FQTypeName.FQTypeName * self : ValueType
+      /// More than one impl value for `Trait<self>` is visible; resolve with
+      /// `dark constraints` (deprecate one, or pin).
+      | DispatchAmbiguous of
+        trait_ : FQTypeName.FQTypeName *
+        self : ValueType *
+        candidates : List<Hash>
+      /// `x.m` where `x` has no field `m` and more than one visible trait has a
+      /// method `m` with an impl for `x`'s type.
+      | MethodAmbiguous of
+        method_ : string *
+        self : ValueType *
+        traits : List<FQTypeName.FQTypeName>
+      /// The self type could not be determined: no explicit type args, no binding
+      /// in the caller's type table, and the self argument's type is Unknown (or
+      /// the method has no self-typed argument).
+      | SelfTypeUnknown of trait_ : FQTypeName.FQTypeName * method_ : string
+      /// The trait's record type has no field of that name, or the field is not a
+      /// fn type. Only reachable through a hand-built `TraitMethod`.
+      | NoSuchMethod of trait_ : FQTypeName.FQTypeName * method_ : string
+
   module CLIs =
     type Error =
       | NoExpressionsToExecute
@@ -1692,6 +1732,8 @@ module RuntimeError =
     | Unwrap of Unwraps.Error
 
     | Json of Jsons.Error
+
+    | Trait of Traits.Error
 
 
     // stuff that isn't _quite _ "core", and maybe should belong elsewhere
@@ -2283,6 +2325,9 @@ module PackageFn =
       /// only those. What the caller captured at runtime is separate, in
       /// `Access`; this never widens it.
       permissionCeiling : Option<Set<Effects.Effect>>
+
+      /// `'a: Show + Eq`; see `ProgramTypes.PackageFn.bounds`. Checked at entry.
+      bounds : List<Bound>
 
       // CLEANUP consider renaming - just `instructions` maybe?
       body : Instructions

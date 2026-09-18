@@ -34,8 +34,12 @@ let write (w : BinaryWriter) (p : PackageFn.PackageFn) : unit =
     w
     LibSerialization.Binary.Serializers.Effects.write
     p.permissionCeiling
+  LibSerialization.Binary.Serializers.Common.List.write
+    w
+    TypeReference.Bound.write
+    p.bounds
 
-let read (r : BinaryReader) : PackageFn.PackageFn =
+let read (version : uint32) (r : BinaryReader) : PackageFn.PackageFn =
   let hash = Hash.read r
   let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
   let typeParams = LibSerialization.Binary.Serializers.Common.List.read r String.read
@@ -44,10 +48,12 @@ let read (r : BinaryReader) : PackageFn.PackageFn =
   let description = String.read r
   let permissionCeiling =
     Option.read r LibSerialization.Binary.Serializers.Effects.read
+  let bounds = TypeReference.Bound.readList version r
   { hash = hash
     body = body
     typeParams = typeParams
     parameters = parameters
     returnType = returnType
     description = description
-    permissionCeiling = permissionCeiling }
+    permissionCeiling = permissionCeiling
+    bounds = bounds }

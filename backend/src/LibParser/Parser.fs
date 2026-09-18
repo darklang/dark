@@ -26,6 +26,7 @@ module DiagnosticCode =
   let pipeSegment = "PARSE-PIPE-SEGMENT" // pipe RHS isn't a valid segment
   let pattern = "PARSE-PATTERN" // invalid match pattern shape
   let effect = "PARSE-EFFECT" // unknown effect name in a `:{…}` row
+  let bound = "PARSE-BOUND" // a type-param bound that does not name a trait, or a trait member that is not supported
   let interpolation = "PARSE-INTERPOLATION" // malformed interpolation body/braces
   let internalLoop = "PARSE-INTERNAL-LOOP" // parser step budget exhausted (parser bug)
   let lex = "LEX" // tokenizer-level recovery (unterminated literal, …)
@@ -121,6 +122,8 @@ let private isIntLit (t : Token) : bool =
   | TThen
   | TElse
   | TType
+  | TTrait
+  | TImpl
   | TCons
   | TColon
   | TComma
@@ -222,6 +225,8 @@ let private isRecoveryBarrier (t : Token) : bool =
   || (match t with
       | TLet
       | TType
+      | TTrait
+      | TImpl
       | TVal -> true
       | _ -> false)
 
@@ -602,12 +607,18 @@ let expectGt (state : ParserState) (j : int) : TokenRange * int =
 // one `>` pending for the enclosing generic.
 // declaration type parameters `<'a, 'b>` — collect the (tick-stripped) names
 // so generic types/fns keep their params (needed for runtime type unification).
-let parseTypeParams
+/// `<'a, 'b: Show + Eq>`: the declared type params, and each `: Trait [+ Trait]`
+/// bound as its own entry. `parseBoundTrait` is passed in because the type
+/// parser is defined later in the file (mutual recursion via a parameter rather
+/// than a `rec` group spanning half the parser).
+let parseTypeParamsWith
+  (parseBoundTrait : ParserState -> int -> Option<WT.QualifiedTypeIdentifier> * int)
   (state : ParserState)
   (i : int)
-  : List<string * TokenRange> * int =
+  : List<string * TokenRange> * List<WT.TypeParamBound> * int =
+  let bounds = System.Collections.Generic.List<WT.TypeParamBound>()
   if tok state i <> TLt then
-    ([], i)
+    ([], [], i)
   else
     if
       i > 0
@@ -634,6 +645,23 @@ let parseTypeParams
         names.Add(name, rng state k)
         expectingName <- false
         k <- k + 1
+        // `'a: Show + Eq`: each trait after the colon is one bound on this param.
+        if tok state k = TColon then
+          let colon = rng state k
+          k <- k + 1
+          let mutable moreBounds = true
+          while moreBounds do
+            let (traitId, k2) = parseBoundTrait state k
+            match traitId with
+            | Some t ->
+              bounds.Add
+                { range = span colon t.range
+                  param = name
+                  trait_ = t
+                  symbolColon = colon }
+            | None -> ()
+            k <- (if k2 > k then k2 else k + 1)
+            if tok state k = TPlus then k <- k + 1 else moreBounds <- false
       | false, TComma ->
         expectingName <- true
         k <- k + 1
@@ -651,7 +679,7 @@ let parseTypeParams
       else
         (errExpected state k "'>' to close the type-parameter list"
          k)
-    (List.ofSeq names, k2)
+    (List.ofSeq names, List.ofSeq bounds, k2)
 
 // --- offside scope stack ---
 // One scope = `stmtCol` (the current statement's anchor column; -1 = none) +
@@ -724,6 +752,8 @@ let declBarrier (state : ParserState) (k : int) : bool =
   (match tok state k with
    | TLet
    | TType
+   | TTrait
+   | TImpl
    | TVal -> true
    | _ -> false)
   && state.declAnchor >= 0
@@ -2723,6 +2753,32 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
       else
         i))
 
+/// The trait in a bound `'a: Show<Int>`: a custom type reference. Anything else
+/// (a primitive, a type variable, a fn type) is a diagnostic, since a bound has to
+/// name a record type of fn fields.
+and parseBoundTrait
+  (state : ParserState)
+  (i : int)
+  : Option<WT.QualifiedTypeIdentifier> * int =
+  let (t, j) = parseAtomType state i
+  match t with
+  | WT.TCustom qti -> (Some qti, j)
+  | other ->
+    state.diagnostics.Add
+      { code = DiagnosticCode.bound
+        severity = DiagError
+        range = WT.typeReferenceRange other
+        message = "A bound names a trait (a record type of fn signatures), not a type"
+        related = []
+        hint = Some "write `'a: Show`, where `Show` is a trait; `'a: String` is not a bound" }
+    (None, j)
+
+and parseTypeParams
+  (state : ParserState)
+  (i : int)
+  : List<string * TokenRange> * List<WT.TypeParamBound> * int =
+  parseTypeParamsWith parseBoundTrait state i
+
 // a function parameter `(name: Type)` or `()`
 and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
   let lparen = rng state i
@@ -2810,7 +2866,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
     | _ ->
       errExpected state nameIdx "a declaration name"
       { range = rng state nameIdx; name = "_" }
-  let (typeParams, afterName) = parseTypeParams state (nameIdx + 1)
+  let (typeParams, bounds, afterName) = parseTypeParams state (nameIdx + 1)
   if tok state afterName = TLParen then
     let ps = System.Collections.Generic.List<WT.FnParam>()
     let mutable kk = afterName
@@ -2849,6 +2905,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
       { range = span keywordLet (WT.exprRange body)
         name = nameId
         typeParams = typeParams
+        bounds = bounds
         parameters = List.ofSeq ps
         effects = effects
         returnType = returnType
@@ -2896,7 +2953,7 @@ and parseTypeDecl (state : ParserState) (i : int) : WT.Declaration * int =
     | _ ->
       errExpected state (i + 1) "a type name"
       { range = rng state (i + 1); name = "_" }
-  let (typeParams, afterName) = parseTypeParams state (i + 2)
+  let (typeParams, bounds, afterName) = parseTypeParams state (i + 2)
   let (eq, afterEq) =
     if tok state afterName = TEquals then
       (rng state afterName, afterName + 1)
@@ -2909,11 +2966,179 @@ and parseTypeDecl (state : ParserState) (i : int) : WT.Declaration * int =
     { range = span kwType endR
       name = nameId
       typeParams = typeParams
+      bounds = bounds
       definition = def
       keywordType = kwType
       symbolEquals = eq
       description = docOf state i },
    afterDef)
+
+/// `trait Name<'a> =` followed by an indented block of method signatures, each a
+/// fn header without a body: `let show (v: 'a) : String`. A body (`= …`) is parsed
+/// and diagnosed: default methods are not supported yet.
+and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
+  let kwTrait = rng state i
+  let kwCol = kwTrait.start.column
+  let nameId : WT.Identifier =
+    match tok state (i + 1) with
+    | TIdent nm -> { range = rng state (i + 1); name = nm }
+    | _ ->
+      errExpected state (i + 1) "a trait name"
+      { range = rng state (i + 1); name = "_" }
+  let (typeParams, bounds, afterName) = parseTypeParams state (i + 2)
+  if List.isEmpty typeParams then
+    state.diagnostics.Add
+      { code = DiagnosticCode.bound
+        severity = DiagError
+        range = nameId.range
+        message = "A trait needs a type parameter for the type it is implemented for"
+        related = []
+        hint = Some "write `trait Show<'a> = ...`; `'a` is the self type" }
+  let (eq, afterEq) =
+    if tok state afterName = TEquals then
+      (rng state afterName, afterName + 1)
+    else
+      errExpected state afterName "'=' after the trait name"
+      (zeroWidthAtEnd (rng state afterName), afterName)
+  let methods = System.Collections.Generic.List<WT.TraitMethodDecl>()
+  let mutable k = afterEq
+  let mutable go = true
+  while go && tok state k = TLet && (rng state k).start.column > kwCol do
+    let kwLet = rng state k
+    let mNameIdx = k + 1
+    let mName : WT.Identifier =
+      match tok state mNameIdx with
+      | TIdent nm -> { range = rng state mNameIdx; name = nm }
+      | _ ->
+        errExpected state mNameIdx "a method name"
+        { range = rng state mNameIdx; name = "_" }
+    let (mTypeParams, mBounds, afterMName) = parseTypeParams state (mNameIdx + 1)
+    if not (List.isEmpty mTypeParams) then
+      state.diagnostics.Add
+        { code = DiagnosticCode.bound
+          severity = DiagError
+          range = mName.range
+          message = "Trait methods cannot declare their own type parameters yet"
+          related = []
+          hint = Some "put the type parameter on the trait instead" }
+    let ps = System.Collections.Generic.List<WT.FnParam>()
+    let mutable kk = afterMName
+    let mutable more = true
+    while more && tok state kk = TLParen do
+      let (p, kk2) = parseParam state kk
+      ps.Add p
+      if kk2 = kk then more <- false else kk <- kk2
+    let (colon, afterColon) =
+      if tok state kk = TColon then
+        (rng state kk, kk + 1)
+      else
+        errExpected state kk "':' before the method's return type"
+        (zeroWidthAtEnd (rng state kk), kk)
+    let (effects, afterEffects) = parseEffectRow state afterColon
+    let (returnType, afterRet) = parseTypeRef state afterEffects
+    let (body, afterBody) =
+      if tok state afterRet = TEquals then
+        let (b, after) = parseBlock state (afterRet + 1)
+        state.diagnostics.Add
+          { code = DiagnosticCode.bound
+            severity = DiagError
+            range = WT.exprRange b
+            message = "Default method bodies are not supported yet; a trait lists signatures only"
+            related = []
+            hint = Some "remove the `= …` and implement the method in each `impl`" }
+        (Some b, after)
+      else
+        (None, afterRet)
+    let endR =
+      match body with
+      | Some b -> WT.exprRange b
+      | None -> WT.typeReferenceRange returnType
+    methods.Add
+      { range = span kwLet endR
+        name = mName
+        typeParams = mTypeParams
+        bounds = mBounds
+        parameters = List.ofSeq ps
+        effects = effects
+        returnType = returnType
+        body = body
+        keywordLet = kwLet
+        symbolColon = colon
+        description = docOf state k }
+    if afterBody > k then k <- afterBody else go <- false
+  if methods.Count = 0 then
+    errExpected state afterEq "at least one method signature, indented under the trait"
+  let endR = if k > 0 then rng state (k - 1) else eq
+  (WT.DTrait
+    { range = span kwTrait endR
+      name = nameId
+      typeParams = typeParams
+      bounds = bounds
+      methods = List.ofSeq methods
+      keywordTrait = kwTrait
+      symbolEquals = eq
+      description = docOf state i },
+   k)
+
+/// `impl[<'a: B>] Trait<Args> for Type =` followed by an indented block of full
+/// fn declarations, one per method.
+and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
+  let kwImpl = rng state i
+  let kwCol = kwImpl.start.column
+  let (typeParams, bounds, afterParams) = parseTypeParams state (i + 1)
+  let (traitId, afterTrait) =
+    match parseBoundTrait state afterParams with
+    | Some t, j -> (t, j)
+    | None, j ->
+      ({ range = rng state afterParams
+         modules = []
+         typ = { range = rng state afterParams; name = "_" }
+         typeArgs = [] },
+       (if j > afterParams then j else afterParams + 1))
+  let (kwFor, afterFor) =
+    match tok state afterTrait with
+    | TIdent "for" -> (rng state afterTrait, afterTrait + 1)
+    | _ ->
+      errExpected state afterTrait "'for' between the trait and the type"
+      (zeroWidthAtEnd (rng state afterTrait), afterTrait)
+  let (forType, afterType) = parseTypeRef state afterFor
+  let (eq, afterEq) =
+    if tok state afterType = TEquals then
+      (rng state afterType, afterType + 1)
+    else
+      errExpected state afterType "'=' after the type"
+      (zeroWidthAtEnd (rng state afterType), afterType)
+  let methods = System.Collections.Generic.List<WT.FnDecl>()
+  let mutable k = afterEq
+  let mutable go = true
+  while go && tok state k = TLet && (rng state k).start.column > kwCol do
+    let (d, k2) = parseDecl state k
+    match d with
+    | WT.DFunction fn -> methods.Add fn
+    | _ ->
+      state.diagnostics.Add
+        { code = DiagnosticCode.bound
+          severity = DiagError
+          range = rng state k
+          message = "An impl body holds method functions: `let name (p: T) : R = …`"
+          related = []
+          hint = None }
+    if k2 > k then k <- k2 else go <- false
+  if methods.Count = 0 then
+    errExpected state afterEq "at least one method, indented under the impl"
+  let endR = if k > 0 then rng state (k - 1) else eq
+  (WT.DImpl
+    { range = span kwImpl endR
+      typeParams = typeParams
+      bounds = bounds
+      trait_ = traitId
+      forType = forType
+      methods = List.ofSeq methods
+      keywordImpl = kwImpl
+      keywordFor = kwFor
+      symbolEquals = eq
+      description = docOf state i },
+   k)
 
 and parseTypeDefinition (state : ParserState) (i : int) : WT.TypeDefinition * int =
   let isEnumStart =
@@ -3187,6 +3412,14 @@ and parseItemsBody
            k <- k2
        | TType, TIdent _ ->
          let (d, k2) = parseTypeDecl state k
+         decls.Add d
+         k <- k2
+       | TTrait, TIdent _ ->
+         let (d, k2) = parseTraitDecl state k
+         decls.Add d
+         k <- k2
+       | TImpl, _ ->
+         let (d, k2) = parseImplDecl state k
          decls.Add d
          k <- k2
        | TIdent "module", TIdent _ ->

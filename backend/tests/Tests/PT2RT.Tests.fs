@@ -1684,7 +1684,8 @@ module PackageFn =
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
           description = "TODO"
-          permissionCeiling = None }
+          permissionCeiling = None
+          bounds = [] }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)

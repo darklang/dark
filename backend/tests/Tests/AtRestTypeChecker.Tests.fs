@@ -31,7 +31,8 @@ let private fn
     returnType = returnType
     body = body
     description = ""
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 let private oneArgFn
   (parameterType : PT.TypeReference)
@@ -90,7 +91,7 @@ let private enumType
   (cases : NEList<PT.TypeDeclaration.EnumCase>)
   : PT.FQTypeName.Package * PT.TypeDeclaration.T =
   let name = PT.FQTypeName.package hash
-  name, { typeParams = []; definition = PT.TypeDeclaration.Enum cases }
+  name, { typeParams = []; bounds = []; definition = PT.TypeDeclaration.Enum cases }
 
 let private enumCase
   (name : string)
@@ -186,6 +187,7 @@ let private unitTests =
         let aliasName = PT.FQTypeName.package "aliased-enum"
         let aliasDeclaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Alias(
                 PT.TCustomType(
@@ -475,6 +477,7 @@ let private unitTests =
         let foundValueName = PT.FQTypeName.package "phantom-found-value"
         let foundValueDeclaration : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.ofList
@@ -533,6 +536,7 @@ let private unitTests =
         let b = PT.FQTypeName.package "alias-b"
         let alias target : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Alias(
                 PT.TCustomType(
@@ -554,6 +558,7 @@ let private unitTests =
         let aliasName = PT.FQTypeName.package "structurally-recursive-alias"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition = PT.TypeDeclaration.Alias(PT.TList(customType aliasName)) }
         let environment =
           Checker.TypeEnvironment.empty
@@ -567,6 +572,7 @@ let private unitTests =
         let aliasName = PT.FQTypeName.package "finite-nested-alias"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition = PT.TypeDeclaration.Alias(PT.TList(PT.TVariable "a")) }
         let aliasOf typ =
           PT.TCustomType(
@@ -635,6 +641,7 @@ let private unitTests =
         let name = PT.FQTypeName.package "handler-with-fn-field"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.ofList
@@ -655,6 +662,7 @@ let private unitTests =
         let name = PT.FQTypeName.package "plain-record"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton { name = "x"; typ = PT.TInt; description = "" }
@@ -671,6 +679,7 @@ let private unitTests =
         let name = PT.FQTypeName.package "recursive-key-record"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -690,6 +699,7 @@ let private unitTests =
         let name = PT.FQTypeName.package "box-key"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -709,6 +719,7 @@ let private unitTests =
         let name = PT.FQTypeName.package "phantom-key"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton { name = "x"; typ = PT.TString; description = "" }
@@ -735,6 +746,7 @@ let private unitTests =
         let inner = PT.FQTypeName.package "generic-inner-with-fn"
         let innerDecl : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.ofList
@@ -746,6 +758,7 @@ let private unitTests =
         let outer = PT.FQTypeName.package "outer-holding-generic"
         let outerDecl : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -766,6 +779,7 @@ let private unitTests =
         let phantom = PT.FQTypeName.package "nested-phantom"
         let phantomDecl : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton { name = "x"; typ = PT.TString; description = "" }
@@ -774,6 +788,7 @@ let private unitTests =
         let fnType = PT.TFn(NEList.singleton PT.TInt, PT.TInt)
         let holderDecl : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -794,6 +809,7 @@ let private unitTests =
         let phantom = PT.FQTypeName.package "transitive-phantom"
         let phantomDecl : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton { name = "x"; typ = PT.TString; description = "" }
@@ -801,6 +817,7 @@ let private unitTests =
         let wrapper = PT.FQTypeName.package "phantom-wrapper"
         let wrapperDecl : PT.TypeDeclaration.T =
           { typeParams = [ "a" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -831,6 +848,7 @@ let private unitTests =
         let nodeName = PT.FQTypeName.package "recursive-record-node"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton
@@ -850,6 +868,7 @@ let private unitTests =
         let pairName = PT.FQTypeName.package "nested-pair"
         let pairDeclaration : PT.TypeDeclaration.T =
           { typeParams = [ "a"; "b" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.ofList
@@ -882,6 +901,7 @@ let private unitTests =
         let pairName = PT.FQTypeName.package "malformed-arity-pair"
         let pairDeclaration : PT.TypeDeclaration.T =
           { typeParams = [ "a"; "b" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.ofList
@@ -942,6 +962,7 @@ let private unitTests =
             description = ""
             declaration =
               { typeParams = []
+                bounds = []
                 definition =
                   PT.TypeDeclaration.Alias(
                     PT.TTuple(PT.TInt, PT.TList(customType missing), [])
@@ -1009,6 +1030,7 @@ let private unitTests =
             description = ""
             declaration =
               { typeParams = []
+                bounds = []
                 definition =
                   PT.TypeDeclaration.Record(
                     NEList.ofList
@@ -1348,6 +1370,7 @@ let private unitTests =
         let boxName = PT.FQTypeName.package "generic-box"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = [ "item" ]
+            bounds = []
             definition =
               PT.TypeDeclaration.Enum(
                 NEList.singleton (enumCase "Box" [ PT.TVariable "item" ])
@@ -1586,6 +1609,7 @@ let private unitTests =
         let recordName = PT.FQTypeName.package "deferred-record-field"
         let declaration : PT.TypeDeclaration.T =
           { typeParams = []
+            bounds = []
             definition =
               PT.TypeDeclaration.Record(
                 NEList.singleton { name = "count"; typ = PT.TInt; description = "" }
@@ -1621,6 +1645,7 @@ let private unitTests =
           let typeName = PT.FQTypeName.package name
           let declaration : PT.TypeDeclaration.T =
             { typeParams = []
+              bounds = []
               definition =
                 PT.TypeDeclaration.Record(
                   NEList.singleton
@@ -1752,6 +1777,7 @@ let private unitTests =
             description = ""
             declaration =
               { typeParams = []
+                bounds = []
                 definition =
                   PT.TypeDeclaration.Enum(
                     NEList.singleton (enumCase "Payload" [ PT.TInt ])
@@ -1814,6 +1840,7 @@ let private unitTests =
             description = ""
             declaration =
               { typeParams = []
+                bounds = []
                 definition =
                   PT.TypeDeclaration.Record(
                     NEList.singleton
@@ -2079,7 +2106,7 @@ let private unitTests =
                 else
                   PT.TList(customType (aliasName (index + 1)))
               let declaration : PT.TypeDeclaration.T =
-                { typeParams = []; definition = PT.TypeDeclaration.Alias target }
+                { typeParams = []; bounds = []; definition = PT.TypeDeclaration.Alias target }
               environment
               |> Checker.TypeEnvironment.addType (aliasName index) declaration)
             Checker.TypeEnvironment.empty
@@ -2107,6 +2134,7 @@ let private unitTests =
             description = ""
             declaration =
               { typeParams = []
+                bounds = []
                 definition =
                   PT.TypeDeclaration.Enum(NEList.singleton (enumCase "Payload" [])) } }
         let payloadRef = customType payloadHash

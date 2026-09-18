@@ -46,6 +46,7 @@ module FQFnName =
     match fqfn with
     | PT.FQFnName.Builtin s -> RT.FQFnName.Builtin(Builtin.toRT s)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(Package.toRT p)
+    | PT.FQFnName.TraitMethod(t, m) -> RT.FQFnName.TraitMethod(FQTypeName.Package.toRT t, m)
 
 
 module NameResolutionError =
@@ -1173,6 +1174,16 @@ module Expr =
         resultIn = nextExpr.resultIn }
 
 
+module TraitRef =
+  let toRT (t : PT.TraitRef) : RT.TraitRef =
+    { trait_ = NameResolution.toRT FQTypeName.toRT t.trait_
+      typeArgs = List.map TypeReference.toRT t.typeArgs }
+
+module Bound =
+  let toRT (b : PT.Bound) : RT.Bound =
+    { param = b.param; trait_ = TraitRef.toRT b.trait_ }
+
+
 module TypeDeclaration =
   module RecordField =
     let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
@@ -1362,7 +1373,8 @@ module PackageFn =
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT
-      permissionCeiling = f.permissionCeiling }
+      permissionCeiling = f.permissionCeiling
+      bounds = List.map Bound.toRT f.bounds }
 
 
 module PackageManager =

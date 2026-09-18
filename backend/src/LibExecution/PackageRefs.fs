@@ -317,6 +317,7 @@ module Type =
       let qualifiedTypeIdentifier = p [] "QualifiedTypeIdentifier"
       let valueIdentifier = p [] "ValueIdentifier"
       let typeReferenceBuiltin = p [ "TypeReference" ] "Builtin"
+      let typeParamBound = p [] "TypeParamBound"
       let fnDeclaration = p [ "FnDeclaration" ] "FnDeclaration"
       let fnParameter = p [ "FnDeclaration" ] "Parameter"
       let fnNormalParameter = p [ "FnDeclaration" ] "NormalParameter"
@@ -395,6 +396,8 @@ module Type =
           let error = p [ "Unwraps" ] "Error"
         module Jsons =
           let error = p [ "Jsons" ] "Error"
+        module Traits =
+          let error = p [ "Traits" ] "Error"
         module CLIs =
           let error = p [ "CLIs" ] "Error"
 
@@ -423,6 +426,8 @@ module Type =
         let fqFnName = p [] "FQFnName"
 
       let typeReference = p [] "TypeReference"
+      let traitRef = p [] "TraitRef"
+      let bound = p [] "Bound"
       let letPattern = p [] "LetPattern"
       let matchPattern = p [] "MatchPattern"
       let matchCase = p [] "MatchCase"

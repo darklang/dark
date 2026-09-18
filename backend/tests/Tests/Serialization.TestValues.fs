@@ -169,7 +169,8 @@ module RuntimeTypes =
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0]
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
         parameters =
@@ -178,7 +179,8 @@ module RuntimeTypes =
             [ { name = "param2"; typ = RT.TString } ]
         returnType = RT.TString
         body = instructions[0]
-        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) } ]
+        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
+        bounds = [] } ]
 
 
   let vals : List<RT.Dval> =
@@ -720,7 +722,8 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) }
+      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
+      bounds = [] }
 
   let packageFns = [ packageFn ]
 
@@ -728,6 +731,7 @@ module ProgramTypes =
     { hash = hashPT
       declaration =
         { typeParams = [ "a" ]
+          bounds = []
           definition =
             TypeDeclaration.Enum(
               NEList.ofList

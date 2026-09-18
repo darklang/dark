@@ -491,6 +491,8 @@ let tokenize
     // `def` is not a keyword in the interpreter dialect. It remains a valid
     // identifier, for example `(def: Type)`.
     | "type" -> TType
+    | "trait" -> TTrait
+    | "impl" -> TImpl
     | "of" -> TOf
     | "match" -> TMatch
     | "with" -> TWith

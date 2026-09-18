@@ -101,6 +101,11 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method, named by the trait's record type and the field: `Show.show`.
+    /// The impl is found at runtime from the self argument's type (or the caller's
+    /// type args), so this names a dispatch, not a body. See `TraitMethod` in
+    /// RuntimeTypes for the lookup order.
+    | TraitMethod of trait_ : FQTypeName.Package * method_ : string
 
   let assertFnName (name : string) : unit =
     assertRe $"Fn name must match" fnNamePattern name
@@ -599,6 +604,19 @@ module Expr =
 
 
 
+/// A trait, referenced from a bound: the record type that IS the trait, plus any
+/// type args for its non-self params. `type Show<'a> = { show: 'a -> String }` is a
+/// trait by use, not by marker: `impl Show for Point` stores a value of type
+/// `Show<Point>`, and dispatch finds it by type.
+type TraitRef =
+  { trait_ : NameResolution<FQTypeName.FQTypeName>; typeArgs : List<TypeReference> }
+
+/// `'a: Show` on a fn or type declaration. Lives on the binder that introduced the
+/// type param, which is also what the runtime's TypeSymbolTable is keyed on;
+/// `TVariable` itself stays a bare name.
+type Bound = { param : string; trait_ : TraitRef }
+
+
 /// A type defined by a package
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
@@ -621,7 +639,12 @@ module TypeDeclaration =
 
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>
-  type T = { typeParams : List<string>; definition : Definition }
+  type T =
+    { typeParams : List<string>
+      /// `type Set<'a: Ord> = ...`. Stored from the start so the format does not
+      /// move twice; the checker reads it (the runtime does not, for types).
+      bounds : List<Bound>
+      definition : Definition }
 
 
 
@@ -684,6 +707,12 @@ module PackageFn =
       /// Part of the content hash and of the upgrade contract, so changing the
       /// row is a new version that `permissions update` asks about.
       permissionCeiling : Option<Set<Effects.Effect>>
+
+      /// `'a: Show + Eq` on the declaration's type params. Part of the content
+      /// hash: a bound is a contract on the caller. Checked eagerly at fn entry by
+      /// the interpreter (like every other declared parameter type) and statically
+      /// by the at-rest checker.
+      bounds : List<Bound>
     }
 
 
