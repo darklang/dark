@@ -248,9 +248,16 @@ let synth (depth: Int64) (t: LanguageTools.ProgramTypes.TypeReference) : Stdlib.
     | TChar -> some "'h'"
     | TString -> some "\"hello\""
     | TUuid -> some "(Stdlib.Uuid.parse \"00000000-0000-0000-0000-000000000001\" |> Builtin.unwrap)"
+    | TDateTime -> some "(Stdlib.DateTime.parse \"2024-01-02T03:04:05Z\" |> Builtin.unwrap)"
+    | TBlob -> some "(Stdlib.Blob.fromString \"hello\")"
     | TList inner ->
-      synth (depth + 1L) inner
-      |> Stdlib.Option.map (fun x -> $"[{x}, {x}, {x}]")
+      // Three elements at the top, one below it: a record of lists of records
+      // of lists is otherwise 3^depth copies of the innermost literal. An
+      // element that cannot be written makes an empty list, so a deep record
+      // is still a value (a shallow one, which the report says).
+      match synth (depth + 1L) inner with
+      | Some x -> some (if depth == 0L then $"[{x}, {x}, {x}]" else $"[{x}]")
+      | None -> some "[]"
     | TTuple(a, b, rest) ->
       let parts = Stdlib.List.append [ a, b ] rest |> Stdlib.List.map (fun p -> synth (depth + 1L) p)
       if parts |> Stdlib.List.all (fun p -> Stdlib.Option.isSome p) then
@@ -259,8 +266,9 @@ let synth (depth: Int64) (t: LanguageTools.ProgramTypes.TypeReference) : Stdlib.
       else
         Stdlib.Option.Option.None
     | TDict(_, v) ->
-      synth (depth + 1L) v
-      |> Stdlib.Option.map (fun x -> $"(Stdlib.Dict.fromListOverwritingDuplicates [(\"k\", {x})])")
+      match synth (depth + 1L) v with
+      | Some x -> some $"(Stdlib.Dict.fromListOverwritingDuplicates [(\"k\", {x})])"
+      | None -> some "Stdlib.Dict.empty"
     | TVariable _ -> some "5L"
     | TFn(args, ret) ->
       // A constant function of the right arity: enough to call `map` and
@@ -283,12 +291,19 @@ let synth (depth: Int64) (t: LanguageTools.ProgramTypes.TypeReference) : Stdlib.
           | Some ti ->
             let tname = fullName ti
             if tname == "Darklang.Stdlib.Option.Option" then
+              // None when the payload cannot be written: the value exists either way.
               match targs with
-              | [ inner ] -> synth (depth + 1L) inner |> Stdlib.Option.map (fun x -> $"(Stdlib.Option.Option.Some {x})")
+              | [ inner ] ->
+                match synth (depth + 1L) inner with
+                | Some x -> some $"(Stdlib.Option.Option.Some {x})"
+                | None -> some "Stdlib.Option.Option.None"
               | _ -> Stdlib.Option.Option.None
             else if tname == "Darklang.Stdlib.Result.Result" then
               match targs with
-              | [ ok, _ ] -> synth (depth + 1L) ok |> Stdlib.Option.map (fun x -> $"(Stdlib.Result.Result.Ok {x})")
+              | [ ok, err ] ->
+                match synth (depth + 1L) ok with
+                | Some x -> some $"(Stdlib.Result.Result.Ok {x})"
+                | None -> synth (depth + 1L) err |> Stdlib.Option.map (fun e -> $"(Stdlib.Result.Result.Error {e})")
               | _ -> Stdlib.Option.Option.None
             else
               match LanguageTools.PackageManager.Type.get h with
@@ -570,3 +585,60 @@ let serve () : Unit =
     Stdlib.printLine $"error|unknown request: {line}"
     Stdlib.printLine "##done##"
     serve ()
+
+/// For bisecting a closure by hand: compile every `*.dark` in `dir` as a library
+/// unit (`entry.dark`, if present, as the executable; `()` otherwise). The unit
+/// text is read here so nothing is re-quoted on the way.
+let compileDir (dir: String) : String =
+  match Stdlib.Cli.Dir.list dir with
+  | Error e -> $"error|cannot list {dir}"
+  | Ok names ->
+    let units =
+      names
+      |> Stdlib.List.filter (fun n -> Stdlib.String.endsWith n ".dark")
+      |> Stdlib.List.filterMap (fun n ->
+        match Stdlib.Cli.File.readText $"{dir}/{n}" with
+        | Ok text ->
+          let purpose = if n == "entry.dark" then "executable" else "library"
+          Stdlib.Option.Option.Some((n, purpose, text))
+        | Error _ -> Stdlib.Option.Option.None)
+    let hasEntry = units |> Stdlib.List.any (fun (n, _, _) -> n == "entry.dark")
+    let all = if hasEntry then units else Stdlib.List.append units [ ("entry.dark", "executable", "()") ]
+    match compile all "eval" with
+    | ("ok", _, size) -> $"ok|{size}"
+    | (_, _, msg) -> $"no-compile|{oneLine msg}"
+
+/// For the noargs bucket: which parameter type the synthesizer could not write,
+/// per fn, so the synthesizer can be taught the common ones.
+let unwritable (hashes: List<String>) : String =
+  hashes
+  |> Stdlib.List.filterMap (fun h ->
+    match LanguageTools.PackageManager.Function.get (hashOf h) with
+    | None -> Stdlib.Option.Option.None
+    | Some f ->
+      let bad =
+        f.parameters
+        |> Stdlib.List.filterMap (fun p ->
+          match synth 0L (concrete p.typ) with
+          | Some _ -> Stdlib.Option.Option.None
+          | None -> Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.typeReference (mainCtx ()) p.typ))
+      match bad with
+      | [] -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.Some($"{h}\t{Stdlib.String.join bad " | "}"))
+  |> Stdlib.String.join "\n"
+
+/// For one type: which of its fields (or cases) the synthesizer cannot write.
+let unwritableFields (hash: String) : String =
+  match LanguageTools.PackageManager.Type.get (hashOf hash) with
+  | None -> "no such type"
+  | Some t ->
+    match t.declaration.definition with
+    | Record fields ->
+      fields
+      |> Stdlib.List.filterMap (fun f ->
+        match synth 1L f.typ with
+        | Some _ -> Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.Some($"{f.name}: {PrettyPrinter.ProgramTypes.typeReference (mainCtx ()) f.typ}"))
+      |> Stdlib.String.join "\n"
+    | Enum cases -> "enum with " ++ Stdlib.Int.toString (Stdlib.List.length cases) ++ " cases"
+    | Alias _ -> "alias"
