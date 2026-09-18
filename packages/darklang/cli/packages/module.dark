@@ -166,7 +166,24 @@ let outcomesOf
 ///
 /// Unresolved names are reported here (it is the one place that has the diagnostics) and
 /// count as failure; nothing is stored when they are present.
+/// Who is staging: a person (or a command they ran), or a generator re-running because an
+/// input it reads was edited. The ops are the same; the bindings are marked differently.
+type StagedBy =
+  | Author
+  | Regeneration
+
+
 let stageSource
+  (branchId: Uuid)
+  (currentLocation: Packages.PackageLocation)
+  (modulePath: String)
+  (source: String)
+  : Stdlib.Result.Result<Staged, StageError> =
+  stageSourceAs StagedBy.Author branchId currentLocation modulePath source
+
+
+let stageSourceAs
+  (by: StagedBy)
   (branchId: Uuid)
   (currentLocation: Packages.PackageLocation)
   (modulePath: String)
@@ -242,7 +259,11 @@ let stageSource
           Stdlib.Result.Result.Error(StageError.Message "unresolved names; nothing was defined")
         else
           // Stabilize and store the module as one mutually recursive batch.
-          match SCM.PackageOps.addAuthored branchId ops with
+          let stored =
+            match by with
+            | Author -> SCM.PackageOps.addAuthored branchId ops
+            | Regeneration -> SCM.PackageOps.addRegenerated branchId ops
+          match stored with
           | Error message ->
             Stdlib.Result.Result.Error(StageError.Message $"Failed to define module: {message}")
           | Ok report ->

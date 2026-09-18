@@ -371,6 +371,12 @@ let editingTheSourceRegeneratesTheMirror =
         do!
           shows
             state
+            [ "status" ]
+            "2 followed"
+            "the generator and its regenerated output both count as followed, not typed"
+        do!
+          shows
+            state
             [ "view"; "Tests.Gen.LiveMirror.Money"; "--raw" ]
             "note: String"
             "the mirror has the new field without anyone running generate"

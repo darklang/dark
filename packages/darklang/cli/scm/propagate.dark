@@ -204,6 +204,9 @@ let applyPin
         | Some h -> $" -- back on the version it was pinned at ({Cli.shortHash h})"
         | None -> ""
 
+      // A pinned generator's outputs followed it; back on the pinned version, they
+      // come back too.
+      Cli.Generate.regenerateAt branchId loc
       $"pinned {dotted loc}, dropped the staged repoint{at}"
     | _ ->
 
@@ -214,6 +217,7 @@ let applyPin
       | Error e -> $"pinned {dotted loc}, but couldn't roll it back: {e}"
       | Ok _ ->
         cascadeAndForceQuiet branchId loc kind wasAt prev
+        Cli.Generate.regenerateAt branchId loc
         $"pinned {dotted loc}, rolled back to the version before the edit ({Cli.shortHash prev})"
 
 
