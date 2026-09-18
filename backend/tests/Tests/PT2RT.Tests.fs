@@ -11,6 +11,14 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
 module E = TestValues.Expressions
+
+/// What `+` lowers to: `Stdlib.Add.add` (the builtin only while the refs are
+/// not generated, which a test run never is).
+let private plus : RT.FQFnName.FQFnName =
+  RT.FQFnName.TraitMethod(RT.Hash(PackageRefs.Type.Stdlib.Traits.add ()), "add")
+
+let private times : RT.FQFnName.FQFnName =
+  RT.FQFnName.TraitMethod(RT.Hash(PackageRefs.Type.Stdlib.Traits.mul ()), "multiply")
 module PM = TestValues.PM
 
 open TestUtils.PTShortcuts
@@ -637,7 +645,7 @@ module Expr =
              2,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "add" 0
+                 { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
@@ -687,7 +695,7 @@ module Expr =
                          2,
                          RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "add" 0
+                             { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
@@ -720,7 +728,7 @@ module Expr =
                          2,
                          (RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "add" 0
+                             { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
@@ -746,7 +754,7 @@ module Expr =
                          2,
                          (RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "multiply" 0
+                             { name = times
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
@@ -777,7 +785,7 @@ module Expr =
              9,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "add" 0
+                 { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
@@ -1020,7 +1028,7 @@ module Expr =
                2,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "add" 0
+                   { name = plus
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
@@ -1558,7 +1566,7 @@ module Expr =
                              2,
                              RT.DApplicable(
                                RT.AppNamedFn
-                                 { name = RT.FQFnName.fqBuiltin "add" 0
+                                 { name = plus
                                    typeSymbolTable = RT.TST.empty
                                    typeArgs = []
                                    access = None
