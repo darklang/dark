@@ -326,6 +326,29 @@ module TypeReference =
 
 
 
+module ImplCandidate =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.implCandidate ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (c : ImplCandidate) : Dval =
+    let methods =
+      c.methods
+      |> Map.toList
+      |> List.map (fun (name, h) -> (name, Hash.toDT h))
+      |> LibExecution.Dval.stringDict (Hash.knownType ())
+    DRecord(
+      typeName (),
+      typeName (),
+      [],
+      Map
+        [ "trait_", FQTypeName.Package.toDT c.trait_
+          "self", TypeReference.toDT c.self
+          "methods", methods
+          "source", Hash.toDT c.source ]
+    )
+
+
 module LetPattern =
   let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.letPattern ())

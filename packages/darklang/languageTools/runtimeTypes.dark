@@ -245,6 +245,13 @@ type Applicable =
   | AppNamedFn of ApplicableNamedFn
 
 
+/// One impl of a trait as dispatch sees it: what it is for, and the fn behind each method
+type ImplCandidate =
+  { trait_: FQTypeName.Package
+    self: TypeReference
+    methods: Dict<String, Hash>
+    source: Hash }
+
 type Dval =
   | DUnit
   | DBool of Bool

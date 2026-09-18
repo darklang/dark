@@ -121,6 +121,16 @@ module Type =
     | None -> Stdlib.Option.Option.None
 
 
+module Trait =
+  /// The impls of a trait (a record type of fn fields) bound on <param branchId>:
+  /// what `Trait.method x` can dispatch to.
+  let impls
+    (branchId: Uuid)
+    (traitHash: ProgramTypes.FQTypeName.Package)
+    : List<RuntimeTypes.ImplCandidate> =
+    Builtin.pmImplCandidates branchId traitHash
+
+
 module Value =
   let find
     (branchId: Uuid)

@@ -70,6 +70,7 @@ module Registry =
       ("identity", "Name this instance (an id is minted automatically otherwise)", [], Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
+      ("impls", "List the impls of a trait on this branch", [], Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
       ("docs", "Browse in-CLI documentation", [ "doc", "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)

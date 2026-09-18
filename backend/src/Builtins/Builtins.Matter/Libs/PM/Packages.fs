@@ -266,6 +266,39 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Every impl of a trait visible on a branch, as dispatch sees them
+    { name = fn "pmImplCandidates" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "The branch whose bindings decide what is visible"
+          Param.make
+            "traitHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "The trait's record type" ]
+      returnType = TList(TCustomType(NR.ok (RT2DT.ImplCandidate.typeName ()), []))
+      description =
+        "Returns the impls of a trait (a record type of fn fields) that are bound on "
+        + "the given branch: what `Trait.method x` can dispatch to."
+      fn =
+        (function
+        | exeState, _, _, [| DUuid branchId; traitHash |] ->
+          uply {
+            let (PT.Hash h) = PT2DT.Hash.fromDT traitHash
+            let! candidates =
+              exeState.fns.implCandidates (LibExecution.Branching.BranchId.Id branchId) (LibExecution.RuntimeTypes.Hash h)
+            return
+              DList(
+                VT.known (RT2DT.ImplCandidate.knownType ()),
+                candidates |> List.map RT2DT.ImplCandidate.toDT
+              )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     // Evaluate a package value by its UUID
     { name = fn "pmEvaluateValue" 0
       typeParams = []
