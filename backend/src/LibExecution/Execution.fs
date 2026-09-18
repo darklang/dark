@@ -49,7 +49,8 @@ let createState
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
-        isHarmful = fun pkg -> pm.isHarmful pkg }
+        isHarmful = fun pkg -> pm.isHarmful pkg
+        implCandidates = pm.implCandidates }
 
     allowHarmful = false
 

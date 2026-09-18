@@ -1390,6 +1390,85 @@ module PackageFn =
       bounds = List.map Bound.toRT f.bounds }
 
 
+/// Reading impls off stored items. The desugaring writes an impl as a record
+/// literal of named fns, so both the instance value and a conditional impl's
+/// provider fn carry everything dispatch needs in their PT body: no evaluation.
+module ImplCandidate =
+  /// `Trait<Self, ...> { m1 = Owner.X.T.m1; m2 = ... }`, or None when the body is
+  /// anything else (a hand-built record with a lambda field is not dispatchable).
+  let private ofRecordBody (source : PT.Hash) (body : PT.Expr) : Option<RT.ImplCandidate> =
+    match body with
+    | PT.ERecord(_, { resolved = Ok { name = PT.FQTypeName.Package traitHash } }, self :: _, fields) ->
+      let methods =
+        fields
+        |> List.choose (fun (name, e) ->
+          match e with
+          | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }) ->
+            Some(name, Hash.toRT h)
+          | _ -> None)
+      if List.length methods = List.length fields && not (List.isEmpty fields) then
+        Some
+          { trait_ = Hash.toRT traitHash
+            self = TypeReference.toRT self
+            methods = Map.ofList methods
+            source = Hash.toRT source }
+      else
+        None
+    | _ -> None
+
+  let ofValue (v : PT.PackageValue.PackageValue) : Option<RT.ImplCandidate> =
+    ofRecordBody v.hash v.body
+
+  /// A conditional impl: `instance<'a: Show> () : Show<List<'a>> = Show<List<'a>> { ... }`.
+  /// The return type names the trait; the body names the fns. Bounds on the provider
+  /// are not checked at dispatch: the method fns carry the same bounds and check
+  /// them at entry.
+  let ofFn (f : PT.PackageFn.PackageFn) : Option<RT.ImplCandidate> =
+    match f.returnType with
+    | PT.TCustomType({ resolved = Ok { name = PT.FQTypeName.Package _ } }, _ :: _) ->
+      ofRecordBody f.hash f.body
+    | _ -> None
+
+  /// Every impl of a trait the package manager can see and still names.
+  ///
+  /// Liveness is "some location this hash is known by still binds it": a branch
+  /// that edits an impl rebinds the location to the new hash, so the old instance
+  /// stops being a candidate there while main keeps it. A hash with no location
+  /// at all (a script's own impl, grafted with `withExtras`) counts as live: it
+  /// was never bound, so nothing can have unbound it.
+  let ofPackageManager
+    (pm : PT.PackageManager)
+    (traitHash : RT.FQTypeName.Package)
+    : Ply<List<RT.ImplCandidate>> =
+    uply {
+      let (RT.Hash h) = traitHash
+      let! (values, fns) = pm.implItems (PT.Hash h)
+      let live
+        (locations : PT.Hash -> Ply<List<PT.PackageLocation>>)
+        (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
+        (hash : PT.Hash)
+        : Ply<bool> =
+        uply {
+          match! locations hash with
+          | [] -> return true
+          | locs ->
+            let! bound = Ply.List.mapSequentially find locs
+            return bound |> List.exists (fun b -> b = Some hash)
+        }
+      let! fromValues =
+        values
+        |> List.choose (fun v -> ofValue v |> Option.map (fun c -> (v.hash, c)))
+        |> Ply.List.filterSequentially (fun (hash, _) ->
+          live pm.getValueLocations pm.findValue hash)
+      let! fromFns =
+        fns
+        |> List.choose (fun f -> ofFn f |> Option.map (fun c -> (f.hash, c)))
+        |> Ply.List.filterSequentially (fun (hash, _) -> live pm.getFnLocations pm.findFn hash)
+      // A branch overlay and the store can both offer the same item; one hash is one impl.
+      return (fromValues @ fromFns) |> List.map snd |> List.distinctBy (fun c -> c.source)
+    }
+
+
 module PackageManager =
   let toRT
     (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
@@ -1413,6 +1492,9 @@ module PackageManager =
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
       isHarmful = fun _ -> false
+
+      // The PT pm already answers for one branch, so the branch id is not needed.
+      implCandidates = fun _ traitHash -> ImplCandidate.ofPackageManager pm traitHash
 
       init = pm.init }
 

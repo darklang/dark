@@ -1100,6 +1100,15 @@ type PackageManager =
     getValueLocations : FQValueName.Package -> Ply<List<PackageLocation>>
     getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
 
+    /// The values and fns that reference a type, as candidates for being impls
+    /// of it when the type is a trait. Over-approximate on purpose: anything
+    /// depending on the type may come back, and `ImplCandidate.ofValue/ofFn`
+    /// (PT2RT) keeps only records of named fns. Not filtered for liveness
+    /// either; the RT conversion checks each candidate's location still binds it.
+    implItems :
+      FQTypeName.Package
+        -> Ply<List<PackageValue.PackageValue> * List<PackageFn.PackageFn>>
+
     init : Ply<unit> }
 
 
@@ -1117,6 +1126,8 @@ type PackageManager =
       getTypeLocations = fun _ -> Ply []
       getValueLocations = fun _ -> Ply []
       getFnLocations = fun _ -> Ply []
+
+      implItems = fun _ -> Ply(([], []))
 
       init = uply { return () } }
 
@@ -1225,6 +1236,16 @@ type PackageManager =
             let local = Map.tryFind hash fnHashToLocations |> Option.defaultValue []
             let! fallback = pm.getFnLocations hash
             return local @ fallback
+          }
+
+      // Every extra is offered; the extractor drops the ones that are not impls of
+      // this trait. Small lists, so no dependency index is worth keeping here.
+      implItems =
+        fun traitHash ->
+          uply {
+            let! (baseValues, baseFns) = pm.implItems traitHash
+            return
+              ((values |> List.map fst) @ baseValues, (fns |> List.map fst) @ baseFns)
           }
 
       init = pm.init }

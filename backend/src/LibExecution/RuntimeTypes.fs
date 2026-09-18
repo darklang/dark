@@ -2334,6 +2334,26 @@ module PackageFn =
     }
 
 
+/// One impl of a trait, as dispatch sees it: the type it is for and the fn behind
+/// each method. Built from the stored items (a value `Show<Point> { show =
+/// Point.Show.show }`, or a fn `instance<'a: Show> () : Show<List<'a>>` whose body
+/// is such a record), so dispatch never loads or runs the instance; it goes
+/// straight to the method's fn. A record whose fields are not named fns is not a
+/// candidate, which is what keeps this a lookup rather than an evaluation.
+type ImplCandidate =
+  {
+    /// The trait's record type
+    trait_ : FQTypeName.Package
+    /// What the impl is for: `Point`, `List<'a>`, `Int64`. Matched by head against
+    /// the self value's type at dispatch.
+    self : TypeReference
+    /// method name -> the fn that implements it
+    methods : Map<string, FQFnName.Package>
+    /// The instance value (or provider fn) the candidate came from, for messages
+    source : Hash
+  }
+
+
 /// Functionality written in Dark stored and managed outside of user space
 ///
 /// Note: it may be tempting to think these shouldn't return Options,
@@ -2366,6 +2386,12 @@ type PackageManager =
     /// so returning `Ply<bool>` would cost a computation-expression bind on every package call.
     isHarmful : FQFnName.Package -> bool
 
+    /// Every impl of a trait visible on a branch. Branch-scoped, unlike the
+    /// content-addressed lookups above: which impls exist is a question about
+    /// NAMES (what is bound where), and a trait method call dispatches against
+    /// what the caller's branch can see.
+    implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
+
     init : Ply<unit>
   }
 
@@ -2376,8 +2402,27 @@ type PackageManager =
       getBlob = (fun _ -> Ply None)
       persistBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ -> false)
+      implCandidates = (fun _ _ -> Ply [])
 
       init = uply { return () } }
+
+  /// Side-load impls that exist only in this process (a script's own `impl`
+  /// blocks), ahead of whatever the store answers.
+  static member withExtraImpls
+    (candidates : List<ImplCandidate>)
+    (pm : PackageManager)
+    : PackageManager =
+    if List.isEmpty candidates then
+      pm
+    else
+      { pm with
+          implCandidates =
+            fun branchId trait_ ->
+              uply {
+                let! stored = pm.implCandidates branchId trait_
+                let extra = candidates |> List.filter (fun c -> c.trait_ = trait_)
+                return extra @ stored
+              } }
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
@@ -2417,6 +2462,7 @@ type PackageManager =
       getBlob = pm.getBlob
       persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
+      implCandidates = pm.implCandidates
       init = pm.init }
 
 
@@ -3402,6 +3448,8 @@ and Functions =
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool
+    /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
+    implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
   }
 
 

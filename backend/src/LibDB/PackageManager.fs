@@ -10,6 +10,7 @@ open LibDB.Caching
 
 module PMPT = ProgramTypes
 module PMRT = RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 /// Layer two lookups: ask <param overlay> first, and fall back to <param fallback> only
@@ -89,23 +90,7 @@ let invalidateHarmful () : unit = harmfulCache <- None
 Caching.register invalidateHarmful
 
 
-// TODO: bring back eager loading
-let rt : RT.PackageManager =
-  { getType = withCache PMRT.Type.get
-    getFn = withCache PMRT.Fn.get
-    getValue = withCache PMRT.Value.get
-    getBlob = PMRT.Blob.get
-    persistBlob = PMRT.Blob.insert
 
-    // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
-    // the set needs no branch key.
-    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
-
-    init =
-      uply {
-        //eagerLoad
-        return ()
-      } }
 
 
 /// The PT PackageManager for MAIN: name resolution against `locations`, which by design holds only
@@ -191,6 +176,8 @@ let pt : PT.PackageManager =
       storedOrEphemeral PMPT.Fn.getLocations EphemeralPackages.fnLocations
 
     search = fun query -> PMPT.search query
+
+    implItems = Impls.implItems
 
     init = uply { return () } }
 
@@ -394,6 +381,10 @@ let createInMemoryOver
     getFnLocations =
       fun id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
 
+    // Small and in memory: offer everything, the extractor filters by trait.
+    implItems =
+      fun _ -> Ply(((valueMap |> Map.toList |> List.map snd), (fnMap |> Map.toList |> List.map snd)))
+
     search =
       fun query ->
         // Query-aware in-memory search so a BRANCH overlay's items show up in ls/view/tree/search,
@@ -530,6 +521,14 @@ let combine
     getValueLocations =
       concatLocs overlay.getValueLocations fallback.getValueLocations
     getFnLocations = concatLocs overlay.getFnLocations fallback.getFnLocations
+
+    implItems =
+      fun traitHash ->
+        uply {
+          let! (ov, of') = overlay.implItems traitHash
+          let! (fv, ff) = fallback.implItems traitHash
+          return (ov @ fv, of' @ ff)
+        }
 
     search =
       fun query ->
@@ -698,6 +697,39 @@ let ptForBranch (branchId : PT.BranchId) : PT.PackageManager =
       | ops -> withExtraOps pt ops
 
   withLocationDocs branchId base'
+
+// TODO: bring back eager loading
+let rt : RT.PackageManager =
+  { getType = withCache PMRT.Type.get
+    getFn = withCache PMRT.Fn.get
+    getValue = withCache PMRT.Value.get
+    getBlob = PMRT.Blob.get
+    persistBlob = PMRT.Blob.insert
+
+    // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
+    // the set needs no branch key.
+    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
+
+    // Branch-scoped: the candidates are whatever the branch's PT pm can see and still
+    // names. Cached per (branch, trait) and dropped with the other caches on every fold.
+    implCandidates =
+      let cached =
+        Caching.withCache (fun (branchId : PT.BranchId, traitHash : RT.FQTypeName.Package) ->
+          PT2RT.ImplCandidate.ofPackageManager (ptForBranch branchId) traitHash
+          |> Ply.map Some)
+      fun branchId traitHash ->
+        uply {
+          match! cached (branchId, traitHash) with
+          | Some cs -> return cs
+          | None -> return []
+        }
+
+    init =
+      uply {
+        //eagerLoad
+        return ()
+      } }
+
 
 /// Where a branch binds <param hash>, for hash-to-NAME lookups.
 ///

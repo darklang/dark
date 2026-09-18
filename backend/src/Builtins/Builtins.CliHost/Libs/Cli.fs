@@ -512,7 +512,8 @@ let childState
       fns =
         { parentState.fns with
             package = pm.getFn
-            isHarmful = fun pkg -> pm.isHarmful pkg }
+            isHarmful = fun pkg -> pm.isHarmful pkg
+            implCandidates = pm.implCandidates }
       blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 
