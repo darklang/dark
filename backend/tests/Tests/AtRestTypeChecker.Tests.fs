@@ -493,7 +493,8 @@ let private unitTests =
         let sourceSignature : Checker.FunctionSignature =
           { typeParams = [ "a" ]
             parameters = NEList.singleton PT.TUnit
-            returnType = foundValue (PT.TVariable "a") }
+            returnType = foundValue (PT.TVariable "a")
+            bounds = [] }
         let environment =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addType foundValueName foundValueDeclaration
@@ -1328,7 +1329,8 @@ let private unitTests =
         let signature : Checker.FunctionSignature =
           { typeParams = [ "a" ]
             parameters = NEList.singleton (PT.TVariable "a")
-            returnType = PT.TVariable "a" }
+            returnType = PT.TVariable "a"
+            bounds = [] }
         let environment =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addFunction identity signature
@@ -1349,7 +1351,8 @@ let private unitTests =
         let signature : Checker.FunctionSignature =
           { typeParams = [ "value" ]
             parameters = NEList.singleton (PT.TVariable "value")
-            returnType = PT.TVariable "value" }
+            returnType = PT.TVariable "value"
+            bounds = [] }
         let environment =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addFunction identity signature

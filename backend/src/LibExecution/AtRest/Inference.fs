@@ -186,6 +186,39 @@ let private inferNegateResult
       )
   argType
 
+/// A trait method's signature is the trait record's field: `show: 'a -> String`
+/// on `Show<'a>` is `show<'a> : 'a -> String`. Instantiating it owes `Show 'a`.
+let private traitMethodSignature
+  (state : State)
+  (nodeId : Option<id>)
+  (traitHash : FQTypeName.Package)
+  (methodName : string)
+  : Option<FunctionSignature> =
+  match Map.tryFind traitHash state.Environment.types with
+  | None ->
+    state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable traitHash)
+    None
+  | Some declaration ->
+    match declaration.definition with
+    | TypeDeclaration.Record fields ->
+      fields
+      |> NEList.toList
+      |> List.tryPick (fun f ->
+        match f.typ with
+        | TypeReference.TFn(parameters, returnType) when f.name = methodName ->
+          Some
+            { typeParams = declaration.typeParams
+              parameters = parameters
+              returnType = returnType
+              bounds =
+                match declaration.typeParams with
+                | selfParam :: _ ->
+                  [ { param = selfParam
+                      trait_ = { trait_ = NameResolution.ok (FQTypeName.Package traitHash); typeArgs = [] } } ]
+                | [] -> [] }
+        | _ -> None)
+    | _ -> None
+
 let private instantiateFunction
   (state : State)
   (nodeId : Option<id>)
@@ -197,6 +230,28 @@ let private instantiateFunction
   | None ->
     state.Block(UnresolvedFunctionName, nodeId, Unresolved name.originalName)
     state.FreshTainted nodeId
+  | Some(FQFnName.TraitMethod(traitHash, methodName)) ->
+    state.AddDependency(TypeDependency traitHash)
+    match traitMethodSignature state nodeId traitHash methodName with
+    | None ->
+      state.Block(
+        MissingFunctionSignature,
+        nodeId,
+        FunctionUnavailable(FQFnName.TraitMethod(traitHash, methodName))
+      )
+      state.FreshTainted nodeId
+    | Some signature ->
+      let vars =
+        typeVariables state nodeId typeVariableScope signature.typeParams explicitTypeArgs
+      for b in signature.bounds do
+        match Map.tryFind b.param vars with
+        | Some typ -> state.AddConstraint(nodeId, traitHash, typ, Some methodName)
+        | None -> ()
+      let parameters = NEList.map (convertType state nodeId vars) signature.parameters
+      let returnType = convertType state nodeId vars signature.returnType
+      let typ = TFn(parameters, returnType)
+      validateTypeClosure state nodeId typ
+      typ
   | Some fqName when isOperatorLikeBuiltin name ->
     // Applied to its full argument list it is checked as the operator (see
     // `asOperatorBuiltin`); as a value or partially applied there is no
@@ -237,6 +292,13 @@ let private instantiateFunction
             typeVariableScope
             signature.typeParams
             explicitTypeArgs
+        // A bounded fn's instantiation owes each bound at what the variable becomes.
+        for b in signature.bounds do
+          match b.trait_.trait_.resolved, Map.tryFind b.param vars with
+          | Ok { name = FQTypeName.Package traitHash }, Some typ ->
+            state.AddDependency(TypeDependency traitHash)
+            state.AddConstraint(nodeId, traitHash, typ, None)
+          | _ -> ()
         let parameters =
           NEList.map (convertType state nodeId vars) signature.parameters
         let returnType = convertType state nodeId vars signature.returnType
@@ -875,14 +937,18 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     inferRecordConstruction state env nodeId name typeArgs fields
   | ERecordFieldAccess(nodeId, record, fieldName) ->
     let recordType = inferExpr state env record
-    match normalizeAliases state (Some nodeId) Set.empty recordType with
-    | TInferenceVariable _ when containsTaintedInferenceVariable state recordType ->
-      state.FreshTainted(Some nodeId)
-    | TInferenceVariable _ ->
+    // Anything but a field the record type is known to have is settled at the item
+    // boundary: an inference variable may still become a record, and a miss may be a
+    // receiver call (`p.show`) once the impls are consulted.
+    let defer () =
       let fieldType = state.Fresh(Some nodeId)
       state.PendingFieldAccesses <-
         (nodeId, recordType, fieldName, fieldType) :: state.PendingFieldAccesses
       fieldType
+    match normalizeAliases state (Some nodeId) Set.empty recordType with
+    | TInferenceVariable _ when containsTaintedInferenceVariable state recordType ->
+      state.FreshTainted(Some nodeId)
+    | TInferenceVariable _ -> defer ()
     | _ ->
       match declarationForCustom state (Some nodeId) recordType with
       | Some(_, typeArgs, declaration) ->
@@ -900,30 +966,13 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
               declaration.typeParams
               typeArgs
               field.typ
-          | None ->
-            state.Error(
-              UnknownRecordField,
-              Some nodeId,
-              None,
-              Some recordType,
-              Identifier fieldName
-            )
-            state.Fresh(Some nodeId)
-        | _ ->
-          state.Error(
-            TypeMismatch,
-            Some nodeId,
-            None,
-            Some recordType,
-            RecordRequiredForFieldAccess
-          )
-          state.Fresh(Some nodeId)
+          | None -> defer ()
+        | _ -> defer ()
       | None ->
         if containsTaintedInferenceVariable state recordType then
           state.FreshTainted(Some nodeId)
         else
-          state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
-          state.Fresh(Some nodeId)
+          defer ()
   | ERecordUpdate(nodeId, record, updates) ->
     let recordType = inferExpr state env record
     let updates = NEList.toList updates

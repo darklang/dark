@@ -29,9 +29,188 @@ open LibExecution.AtRest.Inference
 // Public checking API
 // --------------------
 
+// --------------------
+// Traits: impl lookup for bounds, method calls and receiver calls
+// --------------------
+
+/// The dispatch head of a static type, or None while it is still an inference
+/// variable. Mirrors `Traits.headOfKnownType` at runtime.
+let private headOfStatic (typ : StaticType) : Option<string> =
+  match typ with
+  | TUnit -> Some "Unit"
+  | TBool -> Some "Bool"
+  | TInt8 -> Some "Int8"
+  | TUInt8 -> Some "UInt8"
+  | TInt16 -> Some "Int16"
+  | TUInt16 -> Some "UInt16"
+  | TInt32 -> Some "Int32"
+  | TUInt32 -> Some "UInt32"
+  | TInt64 -> Some "Int64"
+  | TUInt64 -> Some "UInt64"
+  | TInt128 -> Some "Int128"
+  | TUInt128 -> Some "UInt128"
+  | TInt -> Some "Int"
+  | TFloat -> Some "Float"
+  | TChar -> Some "Char"
+  | TString -> Some "String"
+  | TUuid -> Some "Uuid"
+  | TDateTime -> Some "DateTime"
+  | TBlob -> Some "Blob"
+  | TStream _ -> Some "Stream"
+  | TList _ -> Some "List"
+  | TTuple _ -> Some "Tuple"
+  | TDict _ -> Some "Dict"
+  | TCustom(PT.Hash h, _) -> Some("custom:" + h)
+  | TFn _ -> Some "Fn"
+  | TDB _ -> Some "DB"
+  | TRigidVariable name -> Some("rigid:" + name)
+  | TInferenceVariable _ -> None
+
+/// The dispatch head an impl is for; `None` for a blanket impl (`for 'a`).
+let private headOfImplSelf (self : TypeReference) : Option<string> =
+  match self with
+  | TypeReference.TUnit -> Some "Unit"
+  | TypeReference.TBool -> Some "Bool"
+  | TypeReference.TInt8 -> Some "Int8"
+  | TypeReference.TUInt8 -> Some "UInt8"
+  | TypeReference.TInt16 -> Some "Int16"
+  | TypeReference.TUInt16 -> Some "UInt16"
+  | TypeReference.TInt32 -> Some "Int32"
+  | TypeReference.TUInt32 -> Some "UInt32"
+  | TypeReference.TInt64 -> Some "Int64"
+  | TypeReference.TUInt64 -> Some "UInt64"
+  | TypeReference.TInt128 -> Some "Int128"
+  | TypeReference.TUInt128 -> Some "UInt128"
+  | TypeReference.TInt -> Some "Int"
+  | TypeReference.TFloat -> Some "Float"
+  | TypeReference.TChar -> Some "Char"
+  | TypeReference.TString -> Some "String"
+  | TypeReference.TUuid -> Some "Uuid"
+  | TypeReference.TDateTime -> Some "DateTime"
+  | TypeReference.TBlob -> Some "Blob"
+  | TypeReference.TStream _ -> Some "Stream"
+  | TypeReference.TList _ -> Some "List"
+  | TypeReference.TTuple _ -> Some "Tuple"
+  | TypeReference.TDict _ -> Some "Dict"
+  | TypeReference.TCustomType({ resolved = Ok { name = FQTypeName.Package(PT.Hash h) } }, _) ->
+    Some("custom:" + h)
+  | TypeReference.TCustomType _ -> Some "unresolved"
+  | TypeReference.TFn _ -> Some "Fn"
+  | TypeReference.TDB _ -> Some "DB"
+  | TypeReference.TVariable _ -> None
+
+/// The impls of a trait that apply to a concrete head: the specific ones, else the
+/// blanket ones.
+let private implsFor
+  (state : State)
+  (trait_ : FQTypeName.Package)
+  (head : string)
+  : List<ImplEntry> =
+  let ofTrait =
+    state.Environment.impls
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun e -> e.trait_ = trait_)
+  match ofTrait |> List.filter (fun e -> headOfImplSelf e.self = Some head) with
+  | [] -> ofTrait |> List.filter (fun e -> headOfImplSelf e.self = None)
+  | specific -> specific
+
+/// Discharge every bound the item accumulated, now that its substitutions are
+/// known. A concrete type needs a visible impl; the item's own rigid type param
+/// needs a declared bound; an inference variable is a blocker, not an error.
+let private dischargeConstraints (state : State) : unit =
+  for nodeId, trait_, typ, method_ in List.rev state.Constraints do
+    let typ = applySubstitutions state typ
+    let typ = normalizeAliases state nodeId Set.empty typ
+    match typ with
+    | TInferenceVariable _ ->
+      if not (containsTaintedInferenceVariable state typ) then
+        state.Block(AmbiguousType, nodeId, Ambiguous ConstrainedType)
+    | TRigidVariable name ->
+      let declared =
+        state.DeclaredBounds
+        |> List.exists (fun b ->
+          b.param = name
+          && (match b.trait_.trait_.resolved with
+              | Ok { name = FQTypeName.Package t } -> t = trait_
+              | _ -> false))
+      if not declared then
+        state.Error(UnboundTypeParameter, nodeId, None, Some typ, TraitNeeded(trait_, method_))
+    | concrete ->
+      match headOfStatic concrete with
+      | None -> ()
+      | Some head ->
+        match implsFor state trait_ head with
+        | [] -> state.Error(MissingImpl, nodeId, None, Some concrete, TraitNeeded(trait_, method_))
+        | [ _ ] -> ()
+        | _ -> state.Error(AmbiguousImpl, nodeId, None, Some concrete, TraitNeeded(trait_, method_))
+
+/// `x.m` where `x` has no field `m`: the one visible impl, of any trait, with a
+/// method `m` for `x`'s head types the access as that method with `x` consumed.
+/// Mirrors the runtime's receiver call.
+let private receiverMethodType
+  (state : State)
+  (nodeId : id)
+  (receiverType : StaticType)
+  (methodName : string)
+  : Option<StaticType> =
+  match headOfStatic receiverType with
+  | None -> None
+  | Some head ->
+    let candidates =
+      state.Environment.impls
+      |> Map.toList
+      |> List.map snd
+      |> List.filter (fun e -> List.contains methodName e.methods)
+      |> fun all ->
+        match all |> List.filter (fun e -> headOfImplSelf e.self = Some head) with
+        | [] -> all |> List.filter (fun e -> headOfImplSelf e.self = None)
+        | specific -> specific
+    match candidates with
+    | [] -> None
+    | [ entry ] ->
+      match Map.tryFind entry.trait_ state.Environment.types with
+      | Some { typeParams = selfParam :: rest; definition = TypeDeclaration.Record fields } ->
+        fields
+        |> NEList.toList
+        |> List.tryPick (fun f ->
+          match f.typ with
+          | TypeReference.TFn(parameters, returnType) when f.name = methodName ->
+            let vars =
+              (selfParam, receiverType)
+              :: (rest |> List.map (fun p -> p, state.Fresh(Some nodeId)))
+              |> Map.ofList
+            let paramTypes = parameters |> NEList.toList |> List.map (convertType state (Some nodeId) vars)
+            let returnType = convertType state (Some nodeId) vars returnType
+            match paramTypes with
+            | self :: remaining ->
+              unify state (Some nodeId) RecordFieldAccess self receiverType
+              match remaining with
+              | [] -> Some returnType
+              | r :: rs -> Some(TFn(NEList.ofList r rs, returnType))
+            | [] -> None
+          | _ -> None)
+      | _ -> None
+    | several ->
+      state.Error(
+        AmbiguousImpl,
+        Some nodeId,
+        None,
+        Some receiverType,
+        TraitNeeded(several.Head.trait_, Some methodName)
+      )
+      None
+
 let private resolvePendingFieldAccesses (state : State) : unit =
   for nodeId, recordType, fieldName, resultType in state.PendingFieldAccesses do
     let recordType = normalizeAliases state (Some nodeId) Set.empty recordType
+    // A receiver call, when the type is known and no record field fits.
+    let asReceiverCall () : bool =
+      match receiverMethodType state nodeId recordType fieldName with
+      | Some typ ->
+        unify state (Some nodeId) RecordFieldAccess typ resultType
+        true
+      | None -> false
     match declarationForCustom state (Some nodeId) recordType with
     | Some(_, typeArgs, declaration) ->
       match declaration.definition with
@@ -51,25 +230,29 @@ let private resolvePendingFieldAccesses (state : State) : unit =
               field.typ
           unify state (Some nodeId) RecordFieldAccess fieldType resultType
         | None ->
+          if not (asReceiverCall ()) then
+            state.Error(
+              UnknownRecordField,
+              Some nodeId,
+              None,
+              Some recordType,
+              Identifier fieldName
+            )
+      | TypeDeclaration.Enum _
+      | TypeDeclaration.Alias _ ->
+        if not (asReceiverCall ()) then
           state.Error(
-            UnknownRecordField,
+            TypeMismatch,
             Some nodeId,
             None,
             Some recordType,
-            Identifier fieldName
+            RecordRequiredForFieldAccess
           )
-      | TypeDeclaration.Enum _
-      | TypeDeclaration.Alias _ ->
-        state.Error(
-          TypeMismatch,
-          Some nodeId,
-          None,
-          Some recordType,
-          RecordRequiredForFieldAccess
-        )
     | None ->
-      if not (containsTaintedInferenceVariable state recordType) then
-        state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
+      // Not a custom type at all (`(5).show`), or not yet known.
+      if not (asReceiverCall ()) then
+        if not (containsTaintedInferenceVariable state recordType) then
+          state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
 
 let private displayType (scheme : TypeScheme) : StaticType =
   let names =
@@ -97,6 +280,7 @@ let private finish
   (scheme : TypeScheme)
   : Verdict =
   resolvePendingFieldAccesses state
+  dischargeConstraints state
   let scheme = { scheme with typ = applySubstitutions state scheme.typ }
   let inferredType = displayType scheme
   // Only inference variables observable in the item's type or diagnostics weaken
@@ -185,6 +369,11 @@ let checkPackageFunction
       fn.typeParams
       |> List.map (fun name -> name, TRigidVariable name)
       |> Map.ofList
+    state.DeclaredBounds <- fn.bounds
+    for b in fn.bounds do
+      match b.trait_.trait_.resolved with
+      | Ok { name = FQTypeName.Package traitHash } -> state.AddDependency(TypeDependency traitHash)
+      | _ -> ()
     let parameters =
       fn.parameters
       |> NEList.map (fun parameter ->
@@ -280,6 +469,7 @@ let private validateTypeDeclaration
 let private addBatchDeclarations
   (baseEnvironment : TypeEnvironment)
   (types : List<PackageType.PackageType>)
+  (values : List<PackageValue.PackageValue>)
   (functions : List<PackageFn.PackageFn>)
   : TypeEnvironment =
   let withTypes =
@@ -287,11 +477,18 @@ let private addBatchDeclarations
     |> List.fold
       (fun environment typ -> TypeEnvironment.addPackageType typ environment)
       baseEnvironment
+  // An impl's instance value is an impl the batch's own callers can rely on,
+  // before the value itself has been checked (its type is fixed by its shape).
+  let withImpls =
+    values
+    |> List.fold
+      (fun environment value -> TypeEnvironment.addImplIfValue value environment)
+      withTypes
   functions
   |> List.fold
     (fun environment fn ->
       TypeEnvironment.addPackageFunctionSignature fn environment)
-    withTypes
+    withImpls
 
 let private checkValuesInDependencyOrder
   (initialEnvironment : TypeEnvironment)
@@ -361,7 +558,7 @@ let checkPackageBatch
   (values : List<PackageValue.PackageValue>)
   (functions : List<PackageFn.PackageFn>)
   : BatchResult =
-  let declaredEnvironment = addBatchDeclarations baseEnvironment types functions
+  let declaredEnvironment = addBatchDeclarations baseEnvironment types values functions
   let typeResults =
     types
     |> List.map (fun typ ->

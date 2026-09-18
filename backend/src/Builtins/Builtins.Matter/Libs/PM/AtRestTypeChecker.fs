@@ -148,11 +148,59 @@ let private addTrustedDependencyDeclarations
     |> Seq.fold
       (fun environment typ -> Checker.TypeEnvironment.addPackageType typ environment)
       environment
+  let environment =
+    dependencies.values.Values
+    |> Seq.fold
+      (fun environment value -> Checker.TypeEnvironment.addImplIfValue value environment)
+      environment
   dependencies.functions.Values
   |> Seq.fold
     (fun environment fn ->
       Checker.TypeEnvironment.addPackageFunctionSignature fn environment)
     environment
+
+/// Impls are not referenced from call sites, so the dependency walk cannot find
+/// them; ask the store for every item that references each type in the closure
+/// (a trait's impls all do) and register the ones that are impls. A type that is
+/// not a trait yields nothing, so this costs one cached query per type.
+let private addVisibleImpls
+  (pm : PT.PackageManager)
+  (types : seq<PT.FQTypeName.Package>)
+  (environment : Checker.TypeEnvironment)
+  : Ply<Checker.TypeEnvironment> =
+  uply {
+    let mutable environment = environment
+    for typeHash in types do
+      let! (values, fns) = pm.implItems typeHash
+      // Only what a name still binds counts, same as dispatch.
+      let! liveValues =
+        values
+        |> Ply.List.filterSequentially (fun v ->
+          uply {
+            let! locs = pm.getValueLocations v.hash
+            let! bound = Ply.List.mapSequentially pm.findValue locs
+            return bound |> List.exists (fun b -> b = Some v.hash)
+          })
+      let! liveFns =
+        fns
+        |> Ply.List.filterSequentially (fun f ->
+          uply {
+            let! locs = pm.getFnLocations f.hash
+            let! bound = Ply.List.mapSequentially pm.findFn locs
+            return bound |> List.exists (fun b -> b = Some f.hash)
+          })
+      for v in liveValues do
+        environment <- Checker.TypeEnvironment.addImplIfValue v environment
+      for f in liveFns do
+        environment <- Checker.TypeEnvironment.addImplIfFn f environment
+    // A receiver call (`p.show`) reaches a trait the item never names, so the
+    // trait's declaration has to be present for every impl registered.
+    for traitHash in Checker.TypeEnvironment.implTraitsMissingDeclarations environment do
+      match! pm.getType traitHash with
+      | Some typ -> environment <- Checker.TypeEnvironment.addPackageType typ environment
+      | None -> ()
+    return environment
+  }
 
 type CheckVerdict =
   | Checked
@@ -237,6 +285,13 @@ let checkPackageOps
         |> unavailableReport
     | Ok environment ->
       let environment = addTrustedDependencyDeclarations dependencies environment
+      // Every type the batch or its closure mentions might be a trait; its stored
+      // impls are what a bound or a method call in the batch can discharge with.
+      let! environment =
+        addVisibleImpls
+          pm
+          (Seq.append candidates.types.Keys dependencies.types.Keys)
+          environment
       let values =
         Map.fold
           (fun values hash value -> Map.add hash value values)
@@ -360,6 +415,9 @@ module private DarkTypes =
       | Checker.InvalidInfixOperand -> "InvalidInfixOperand"
       | Checker.DuplicateTypeParameter -> "DuplicateTypeParameter"
       | Checker.DuplicateTypeMember -> "DuplicateTypeMember"
+      | Checker.MissingImpl -> "MissingImpl"
+      | Checker.UnboundTypeParameter -> "UnboundTypeParameter"
+      | Checker.AmbiguousImpl -> "AmbiguousImpl"
       | Checker.UnsupportedDictKeyType -> "UnsupportedDictKeyType"
     enumValue (issueCodeName ()) caseName []
 
@@ -473,6 +531,7 @@ module private DarkTypes =
     | Checker.RecordType -> make "RecordType"
     | Checker.EnumPatternType -> make "EnumPatternType"
     | Checker.ItemType -> make "ItemType"
+    | Checker.ConstrainedType -> make "ConstrainedType"
 
   let private untrustedBuiltinToDT (reason : Checker.UntrustedBuiltin) : Dval =
     let typeName = untrustedBuiltinName ()
@@ -538,6 +597,10 @@ module private DarkTypes =
     | Checker.DeclarationTooDeep -> make "DeclarationTooDeep" []
     | Checker.UnaryMinusOperandNotSignedNumeric ->
       make "UnaryMinusOperandNotSignedNumeric" []
+    | Checker.TraitNeeded(trait_, method_) ->
+      make
+        "TraitNeeded"
+        [ PT2DT.Hash.toDT trait_; method_ |> Option.map DString |> Dval.option KTString ]
     | Checker.CheckerUnavailable detail ->
       make "CheckerUnavailable" [ DString detail ]
 
@@ -605,7 +668,7 @@ module private DarkTypes =
     )
 
 
-let fns (pm : PT.PackageManager) : List<BuiltInFn> =
+let fns (_pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "atRestCheckPackageOps" 0
       typeParams = []
       parameters =
@@ -638,7 +701,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               else
                 let ops = decoded |> List.choose (fun value -> value)
                 let builtins = exeState.builtins
-                let! report = checkPackageOps pm builtins ops
+                // The branch the author is on, not this builtin set's pm (main's):
+                // impls bound on the branch are what the batch's calls dispatch to.
+                let branchPm = LibDB.PackageManager.ptForBranch exeState.branchId
+                let! report = checkPackageOps branchPm builtins ops
                 return DarkTypes.reportToDT report
             with ex ->
               return

@@ -54,6 +54,12 @@ type IssueCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  /// A bound or trait method call at a concrete type with no impl visible for it
+  | MissingImpl
+  /// A bound at a type param of the enclosing fn that does not declare it
+  | UnboundTypeParameter
+  /// More than one impl fits
+  | AmbiguousImpl
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -116,6 +122,8 @@ type AmbiguousSubject =
   | RecordType
   | EnumPatternType
   | ItemType
+  /// A bound whose type is still unknown at the end of the item
+  | ConstrainedType
 
 /// Why a builtin's declared signature is not something the checker can check against.
 type UntrustedBuiltin =
@@ -142,6 +150,8 @@ type Context =
   | Duplicate of String * DuplicateSite
   | Ambiguous of AmbiguousSubject
   | Untrusted of NameRef * UntrustedBuiltin
+  /// The trait a bound or method call needed an impl of
+  | TraitNeeded of LanguageTools.ProgramTypes.Hash * Stdlib.Option.Option<String>
   | Arity of Int64 * Int64
   | NamedArity of String * Int64 * Int64
   | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
@@ -271,6 +281,9 @@ let issueCodeToString (code: IssueCode) : String =
   | DuplicateTypeParameter -> "DuplicateTypeParameter"
   | DuplicateTypeMember -> "DuplicateTypeMember"
   | UnsupportedDictKeyType -> "UnsupportedDictKeyType"
+  | MissingImpl -> "MissingImpl"
+  | UnboundTypeParameter -> "UnboundTypeParameter"
+  | AmbiguousImpl -> "AmbiguousImpl"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
   | UnresolvedValueName -> "UnresolvedValueName"
@@ -356,6 +369,7 @@ let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
   | RecordType -> "the record type"
   | EnumPatternType -> "which enum type contains this case"
   | ItemType -> "a complete type here"
+  | ConstrainedType -> "which type a bounded type parameter becomes"
 
 
 let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
@@ -482,6 +496,23 @@ let contextToStringWith
   | UnaryMinusOperandNotSignedNumeric ->
     "Unary minus requires a signed integer or Float operand"
   | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
+  | TraitNeeded(traitHash, method) ->
+    let traitName =
+      match customTypeName traitHash with
+      | Some name -> name
+      | None -> $"#{Stdlib.String.slice (LanguageTools.ProgramTypes.hashToString traitHash) 0 12}"
+    match code with
+    | MissingImpl ->
+      match method with
+      | Some m -> $"No impl of {traitName} for this type, which `{traitName}.{m}` needs"
+      | None -> $"No impl of {traitName} for this type, which the bound `{traitName}` needs"
+    | UnboundTypeParameter ->
+      $"This type parameter is used as a {traitName} but the function does not declare `: {traitName}` on it"
+    | AmbiguousImpl ->
+      match method with
+      | Some m -> $"More than one impl offers `{m}` for this type; name the trait, as `{traitName}.{m} value`"
+      | None -> $"More than one impl of {traitName} for this type is visible; see `dark constraints`"
+    | _ -> $"Needs an impl of {traitName}"
 
 
 let contextToString (code: IssueCode) (context: Context) : String =

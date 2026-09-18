@@ -82,6 +82,14 @@ type DiagnosticCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  /// A bound `'a: Trait` (or a `Trait.method x` call) at a concrete type with no impl
+  /// visible for it.
+  | MissingImpl
+  /// A bound at a type param of the enclosing fn that does not itself declare it.
+  | UnboundTypeParameter
+  /// More than one impl matches: `x.m` where two traits offer `m` for `x`'s type,
+  /// or two impls of one trait for one type.
+  | AmbiguousImpl
 
 type BlockerCode =
   | UnresolvedTypeName
@@ -143,6 +151,8 @@ type AmbiguousSubject =
   | RecordType
   | EnumPatternType
   | ItemType
+  /// A bound whose type is still an inference variable at the end of the item.
+  | ConstrainedType
 
 /// Why a builtin's declared signature is not something the checker can check against.
 type UntrustedBuiltin =
@@ -181,6 +191,8 @@ type Context =
   | Duplicate of name : string * site : DuplicateSite
   | Ambiguous of subject : AmbiguousSubject
   | Untrusted of fn : FQFnName.FQFnName * reason : UntrustedBuiltin
+  /// The trait a bound or method call needed an impl of.
+  | TraitNeeded of trait_ : FQTypeName.Package * method_ : Option<string>
   | Arity of expected : int * actual : int
   | NamedArity of name : string * expected : int * actual : int
   | TypeArity of typ : FQTypeName.Package * expected : int * actual : int
@@ -219,7 +231,56 @@ type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
 type FunctionSignature =
   { typeParams : List<string>
     parameters : NEList<TypeReference>
-    returnType : TypeReference }
+    returnType : TypeReference
+    /// `'a: Show`: each instantiation of the signature owes an impl for the trait
+    /// at whatever the variable becomes.
+    bounds : List<Bound> }
+
+/// One impl the checker knows of: what trait, what self type, which methods. Read
+/// off an instance value or a conditional impl's provider fn, exactly as the
+/// runtime's `ImplCandidate` is.
+type ImplEntry =
+  { trait_ : FQTypeName.Package
+    self : TypeReference
+    /// Bounds on a conditional impl (`impl<'a: Show> Show for List<'a>`), which
+    /// the impl's own type params owe.
+    bounds : List<Bound>
+    methods : List<string>
+    source : Hash }
+
+module ImplEntry =
+  let private ofRecordBody
+    (source : Hash)
+    (bounds : List<Bound>)
+    (body : Expr)
+    : Option<ImplEntry> =
+    match body with
+    | ERecord(_, { resolved = Ok { name = FQTypeName.Package traitHash } }, self :: _, fields) ->
+      let named =
+        fields
+        |> List.forall (fun (_, e) ->
+          match e with
+          | EFnName(_, { resolved = Ok { name = FQFnName.Package _ } }) -> true
+          | _ -> false)
+      if named && not (List.isEmpty fields) then
+        Some
+          { trait_ = traitHash
+            self = self
+            bounds = bounds
+            methods = fields |> List.map fst
+            source = source }
+      else
+        None
+    | _ -> None
+
+  let ofValue (v : PackageValue.PackageValue) : Option<ImplEntry> =
+    ofRecordBody v.hash [] v.body
+
+  let ofFn (f : PackageFn.PackageFn) : Option<ImplEntry> =
+    match f.returnType with
+    | TCustomType({ resolved = Ok { name = FQTypeName.Package _ } }, _ :: _) ->
+      ofRecordBody f.hash f.bounds f.body
+    | _ -> None
 
 type TypeEnvironmentBuildError = BuiltinFunctionHasNoParameters of FQFnName.Builtin
 
@@ -310,7 +371,10 @@ type TypeEnvironment =
       unsupportedFunctions : Map<FQFnName.FQFnName, UntrustedBuiltin>
       requiresExplicitTypeArguments : Set<FQFnName.FQFnName>
       values : Map<FQValueName.FQValueName, TypeReference>
-      checkedValues : Map<FQValueName.FQValueName, TypeScheme> }
+      checkedValues : Map<FQValueName.FQValueName, TypeScheme>
+      /// Every impl visible to the item being checked, by hash of its source so
+      /// the same one offered twice counts once.
+      impls : Map<Hash, ImplEntry> }
 
 module TypeEnvironment =
   let empty : TypeEnvironment =
@@ -319,7 +383,31 @@ module TypeEnvironment =
       unsupportedFunctions = Map.empty
       requiresExplicitTypeArguments = Set.empty
       values = Map.empty
-      checkedValues = Map.empty }
+      checkedValues = Map.empty
+      impls = Map.empty }
+
+  let addImpl (entry : ImplEntry) (environment : TypeEnvironment) : TypeEnvironment =
+    { environment with impls = Map.add entry.source entry environment.impls }
+
+  /// The traits registered impls refer to that the environment has no declaration for.
+  let implTraitsMissingDeclarations (environment : TypeEnvironment) : List<FQTypeName.Package> =
+    environment.impls.Values
+    |> Seq.map (fun e -> e.trait_)
+    |> Seq.distinct
+    |> Seq.filter (fun t -> not (Map.containsKey t environment.types))
+    |> Seq.toList
+
+  /// An item that might be an impl (a value or fn whose body is a record of named
+  /// fns) is registered as one; anything else is left alone.
+  let addImplIfValue (v : PackageValue.PackageValue) (environment : TypeEnvironment) =
+    match ImplEntry.ofValue v with
+    | Some entry -> addImpl entry environment
+    | None -> environment
+
+  let addImplIfFn (f : PackageFn.PackageFn) (environment : TypeEnvironment) =
+    match ImplEntry.ofFn f with
+    | Some entry -> addImpl entry environment
+    | None -> environment
 
   let addType
     (name : FQTypeName.Package)
@@ -379,8 +467,10 @@ module TypeEnvironment =
     let signature =
       { typeParams = fn.typeParams
         parameters = fn.parameters |> NEList.map (fun p -> p.typ)
-        returnType = fn.returnType }
+        returnType = fn.returnType
+        bounds = fn.bounds }
     addFunction (FQFnName.Package fn.hash) signature environment
+    |> addImplIfFn fn
 
   /// Add builtin signatures without executable bodies. Invalid zero-argument
   /// builtins are returned as errors instead of throwing.
@@ -436,7 +526,8 @@ module TypeEnvironment =
                       (rest
                        |> List.map (fun parameter ->
                          runtimeTypeToProgramType parameter.typ))
-                  returnType = runtimeTypeToProgramType fn.returnType }
+                  returnType = runtimeTypeToProgramType fn.returnType
+                  bounds = [] }
               let environment = addFunction name signature environment
               let environment =
                 if Set.isEmpty resultOnlyVariables then

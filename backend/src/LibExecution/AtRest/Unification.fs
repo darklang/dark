@@ -28,8 +28,23 @@ type internal State(environment : TypeEnvironment) =
   let mutable inferenceVariableOrigins : Map<int, Option<id>> = Map.empty
   let mutable taintedInferenceVariables : Set<int> = Set.empty
   let mutable pendingFieldAccesses : List<id * StaticType * string * StaticType> = []
+  // `'a: Trait` owed at a type, from a bounded fn's instantiation or a
+  // `Trait.method` call; discharged once the item's substitutions are known.
+  let mutable constraints : List<Option<id> * FQTypeName.Package * StaticType * Option<string>> = []
+  // The bounds the item being checked declares on its own (rigid) type params.
+  let mutable declaredBounds : List<Bound> = []
 
   member _.Environment = environment
+  member _.Constraints
+    with get () = constraints
+    and set value = constraints <- value
+  member _.DeclaredBounds
+    with get () = declaredBounds
+    and set value = declaredBounds <- value
+  member _.AddConstraint
+    (nodeId : Option<id>, trait_ : FQTypeName.Package, typ : StaticType, method_ : Option<string>)
+    : unit =
+    constraints <- (nodeId, trait_, typ, method_) :: constraints
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers
   member _.Dependencies = dependencies
