@@ -78,8 +78,10 @@ let runTypeHash
       { owner = "Darklang"; modules = [ "Generate" ]; name = "Run" })
 
 
-/// Whether <param fn> is a saved generator: no parameters (or one unit) and a
-/// `Generate.Run` return type.
+/// Whether <param fn> is a saved generator: no type parameters, no parameters (or
+/// one unit) and a `Generate.Run` return type. A library generator with a type
+/// parameter and a unit parameter (`mirror<'a> ()`) is not one: it still needs its
+/// type argument.
 let isSavedGenerator
   (branchId: Uuid)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -105,7 +107,7 @@ let isSavedGenerator
       | Error _ -> false
     | _ -> false
 
-  noParams && returnsRun
+  (Stdlib.List.isEmpty fn.typeParams) && noParams && returnsRun
 
 
 /// The fully qualified spelling of a location, as source would write it.
@@ -171,11 +173,13 @@ let argumentSource
 
 
 /// The saved generator's name: the library fn's first `String` argument when there is
-/// one (`fromSample "Order" ...` saves as `orderGenerator`), else the target module's
-/// last segment.
+/// one (`fromSample "Order" ...` saves as `orderGenerator`), else the last segment of
+/// its first type argument (`mirror<Acme.Core.Money>` saves as `moneyGenerator`), else
+/// the target module's last segment.
 let savedName
   (params_: List<LanguageTools.ProgramTypes.PackageFn.Parameter>)
   (args: List<String>)
+  (typeArgs: List<String>)
   (modulePath: String)
   : String =
   let firstString =
@@ -187,39 +191,40 @@ let savedName
       | _ -> false)
     |> Stdlib.Option.map (fun (_, a) -> a)
 
+  let lastSegment (path: String) : Stdlib.Option.Option<String> =
+    (Stdlib.String.split path ".") |> Stdlib.List.last
+
   let seed =
     firstString
-    |> Stdlib.Option.withDefault
-      ((Stdlib.String.split modulePath ".")
-       |> Stdlib.List.last
-       |> Stdlib.Option.withDefault "module")
+    |> Stdlib.Option.``or`` ((Stdlib.List.head typeArgs) |> Stdlib.Option.andThen lastSegment)
+    |> Stdlib.Option.withDefault ((lastSegment modulePath) |> Stdlib.Option.withDefault "module")
 
   (Darklang.Generate.Source.identifier seed) ++ "Generator"
 
 
-/// Run a saved generator and hand back what it produced.
-///
-/// CLEANUP: the host evaluator returns printed text, not a value, so the run comes
-/// back through JSON. A `cliEvaluateToValue` builtin would make this a typed call;
-/// worth doing when a second caller needs a value out of `eval`.
+/// Run a saved generator on <param branchId> and hand back what it produced. The
+/// saved fn runs as the expression's own code (its requirements were checked before it
+/// was accepted as a generator), so the consumer's package approvals do not get in the
+/// way of a fn the person just wrote.
 let evaluateSaved
-  (state: Cli.AppState)
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
   (generator: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Result.Result<Darklang.Generate.Run, String> =
-  let expr =
-    $"({fullName generator} ()) "
-    ++ "|> Darklang.Stdlib.Json.serialize<Darklang.Generate.Run>"
+  let asOwn =
+    match LanguageTools.PackageManager.Function.find branchId generator with
+    | Some hash -> [ LanguageTools.ProgramTypes.hashToString hash ]
+    | None -> []
 
-  match Eval.evaluate state expr false with
-  | Error message -> Stdlib.Result.Result.Error message
-  | Ok None -> Stdlib.Result.Result.Error "the generator produced nothing"
-  | Ok(Some json) ->
-    match Stdlib.Json.parse<Darklang.Generate.Run> json with
-    | Ok run -> Stdlib.Result.Result.Ok run
-    | Error e ->
-      Stdlib.Result.Result.Error
-        $"the generator's result could not be read: "
-        ++ (Stdlib.Json.ParseError.toString e)
+  match
+    Eval.evaluateAs<Darklang.Generate.Run>
+      accountID
+      branchId
+      $"{fullName generator} ()"
+      asOwn
+  with
+  | Ok run -> Stdlib.Result.Result.Ok run
+  | Error err -> Stdlib.Result.Result.Error(ExecutionError.toString branchId err)
 
 
 /// One line per staged name: `+` new, `~` updated, `=` unchanged.
@@ -242,7 +247,7 @@ let runSaved
   (opts: Options)
   (generator: LanguageTools.ProgramTypes.PackageLocation)
   : Cli.AppState =
-  match evaluateSaved state generator with
+  match evaluateSaved state.accountID state.currentBranchId generator with
   | Error message ->
     Cli.printErr $"{fullName generator} failed: {message}"
     { state with exitCode = 1 }
@@ -300,6 +305,62 @@ let runSaved
           state
 
 
+/// Re-run every saved generator among <param repoints>, staging what it produces into
+/// its own module. Called from the propagation cascade after the repoints are made.
+///
+/// Termination rests on generators being deterministic: a re-run whose output is what
+/// the names already hold records no ops and propagates nothing, so a generator that
+/// reads its own output settles after one extra run rather than looping.
+let regenerateRepointed
+  (branchId: Uuid)
+  (repoints: List<LanguageTools.ProgramTypes.PropagateRepoint>)
+  : Unit =
+  repoints
+  |> Stdlib.List.iter (fun repoint ->
+    match repoint.toRef with
+    | PackageFn hash ->
+      match LanguageTools.PackageManager.Function.get hash with
+      | Some fn ->
+        if isSavedGenerator branchId fn then
+          let generator = repoint.location
+          match evaluateSaved Stdlib.Option.Option.None branchId generator with
+          | Error message ->
+            Cli.printErr $"  {fullName generator} did not re-run: {message}"
+          | Ok run ->
+            if Stdlib.Bool.not (Stdlib.List.isEmpty run.errors) then
+              Cli.printErr $"  {fullName generator} re-ran with nothing to stage:"
+              run.errors |> Stdlib.List.iter (fun e -> Cli.printErr $"    {e}")
+            else
+              let target = if run.into == "" then modulePathOf generator else run.into
+              // No cursor to be relative to: the target is spelled in full.
+              let root = Packages.PackageLocation.Module []
+              match
+                Packages.ModuleCommand.stageSource branchId root ("/" ++ target) run.source
+              with
+              | Error(ParseErrors _) ->
+                Cli.printErr $"  {fullName generator} re-ran but its output did not parse"
+              | Error(Message message) ->
+                Cli.printErr $"  {fullName generator} re-ran: {message}"
+              | Ok staged ->
+                let moved =
+                  staged.outcomes
+                  |> Stdlib.List.filter (fun (_, o) ->
+                    match o with
+                    | Unchanged -> false
+                    | _ -> true)
+                  |> Stdlib.List.map (fun (n, _) -> n)
+                match moved with
+                | [] -> ()
+                | _ ->
+                  Cli.printHint
+                    ($"  regenerated by {fullName generator}: "
+                     ++ (Stdlib.String.join moved ", "))
+        else
+          ()
+      | None -> ()
+    | _ -> ())
+
+
 /// Write the saved generator for a library call, then run it.
 let runLibrary
   (state: Cli.AppState)
@@ -320,8 +381,16 @@ let runLibrary
       else
         Stdlib.Option.Option.None
 
-  let params_ = fn.parameters
-  let arity = Stdlib.List.length params_
+  // Type parameters come first on the command line, then the value parameters that
+  // take an argument. A `Unit` parameter takes none and renders as `()`.
+  let typeParams = fn.typeParams
+  let valueParams =
+    fn.parameters
+    |> Stdlib.List.filter (fun p ->
+      match p.typ with
+      | TUnit -> false
+      | _ -> true)
+  let arity = (Stdlib.List.length typeParams) + (Stdlib.List.length valueParams)
   let given = Stdlib.List.length args
 
   match (intoProblem, opts.into) with
@@ -332,8 +401,9 @@ let runLibrary
   | (None, Some modulePath) ->
     if arity != given then
       let wanted =
-        params_
-        |> Stdlib.List.map (fun p -> $"<{p.name}>")
+        Stdlib.List.append
+          (typeParams |> Stdlib.List.map (fun t -> $"<{t}: a type>"))
+          (valueParams |> Stdlib.List.map (fun p -> $"<{p.name}>"))
         |> Stdlib.String.join " "
       Cli.printErr
         ($"{fullName library} takes {Stdlib.Int.toString arity} "
@@ -341,8 +411,10 @@ let runLibrary
          ++ $"generate {fullName library} {wanted} --into {modulePath}")
       { state with exitCode = 1 }
     else
+      let typeArgs = Stdlib.List.take args (Stdlib.List.length typeParams)
+      let valueArgs = Stdlib.List.drop args (Stdlib.List.length typeParams)
       let rendered =
-        (Stdlib.List.zip params_ args)
+        (Stdlib.List.zip valueParams valueArgs)
         |> Stdlib.Option.withDefault []
         |> Stdlib.List.map (fun (p, a) -> argumentSource p a)
         |> Stdlib.Result.collect
@@ -351,10 +423,29 @@ let runLibrary
       | Error message ->
         Cli.printErr message
         { state with exitCode = 1 }
-      | Ok argSources ->
-        let name = savedName params_ args modulePath
+      | Ok valueSources ->
+        // Every parameter in declaration order: `()` for a Unit one, the rendered
+        // argument for the rest.
+        let (argSources, _) =
+          fn.parameters
+          |> Stdlib.List.fold ([], valueSources) (fun (acc, remaining) p ->
+            match p.typ with
+            | TUnit -> (Stdlib.List.pushBack acc "()", remaining)
+            | _ ->
+              match remaining with
+              | [] -> (acc, [])
+              | next :: rest -> (Stdlib.List.pushBack acc next, rest))
+        let typeArgSource =
+          match typeArgs with
+          | [] -> ""
+          | _ -> "<" ++ (Stdlib.String.join typeArgs ", ") ++ ">"
+        let params_ = valueParams
+        let args = valueArgs
+        let name = savedName params_ args typeArgs modulePath
         let call =
-          Stdlib.String.join (Stdlib.List.push argSources (fullName library)) " "
+          Stdlib.String.join
+            (Stdlib.List.push argSources ((fullName library) ++ typeArgSource))
+            " "
         let source = $"let {name} () : Darklang.Generate.Run =\n  {call}"
 
         if opts.dryRun then
@@ -456,22 +547,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           { state with exitCode = 1 }
         | Some fn ->
           // A generator runs at authoring time and its output is stored, so it has
-          // to be a pure function of what it references: a live read would make
-          // the saved fn a lie about where the output came from. The static walk
-          // fails closed to "incomplete" under higher-order code (most generators
-          // map over something), so incompleteness is not a refusal: the run itself
-          // executes under the guest policy, where an effect it did not declare is
-          // denied at the call.
+          // to be a function of what it references: a live read of a file or the
+          // network would make the saved fn a lie about where the output came from.
+          // Reading the package store is different: that is the program itself, and
+          // a generator over package inputs (a mirror, a derive) has to read it, as
+          // does the printer that spells its output. So package-read is allowed and
+          // nothing else is. The static walk fails closed to "incomplete" under
+          // higher-order code (most generators map over something), so
+          // incompleteness is not a refusal: the run executes under the guest
+          // policy, where an effect it did not declare is denied at the call.
           let (requirements, _complete) =
             Permissions.Command.permissionRequirementsForHash
               (LanguageTools.ProgramTypes.hashToString hash)
 
-          if Stdlib.Bool.not (Stdlib.List.isEmpty requirements) then
+          let disallowed =
+            requirements
+            |> Stdlib.List.filter (fun e ->
+              match e with
+              | PackageRead -> false
+              | _ -> true)
+
+          if Stdlib.Bool.not (Stdlib.List.isEmpty disallowed) then
             Cli.printErr
               ($"{fullName location} needs "
-               ++ (Permissions.Command.requirementSummary requirements)
-               ++ "; a generator has to be effect-free. Fetch first, store the "
-               ++ "result as a file, and generate from that.")
+               ++ (Permissions.Command.requirementSummary disallowed)
+               ++ "; a generator may read the package store and nothing else. "
+               ++ "Fetch first, store the result as a file, and generate from that.")
             { state with exitCode = 1 }
           else if isSavedGenerator branchId fn then
             if Stdlib.List.isEmpty rest then
@@ -502,8 +603,9 @@ let help (_state: Cli.AppState) : String =
     "generator repoints like any dependent and re-runs in your draft as part of"
     "propagation; `propagate pin` stops that."
     ""
-    "A generator must be effect-free. Fetch what you need first, save it as a"
-    "file, and generate from the file."
+    "A generator may read the package store and nothing else: no files, no"
+    "network. Fetch what you need first, save it as a file, and generate from"
+    "the file."
     ""
     "Examples:"
     "  generate Darklang.Generate.Json.fromSample Order ./order.json \\"

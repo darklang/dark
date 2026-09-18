@@ -250,7 +250,20 @@ let stageSource
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport branchId report
 
+            // Only what actually moved propagates. A name re-bound to the content it
+            // already held (a generator re-run that came out the same) has no
+            // dependents to repoint, and skipping it is what lets a regeneration
+            // cascade settle rather than chase its own tail.
+            let unchangedNames =
+              outcomes
+              |> Stdlib.List.filterMap (fun (name, outcome) ->
+                match outcome with
+                | Unchanged -> Stdlib.Option.Option.Some name
+                | _ -> Stdlib.Option.Option.None)
+
             updates
+            |> Stdlib.List.filter (fun update ->
+              Stdlib.Bool.not (Stdlib.List.member unchangedNames update.location.name))
             |> Stdlib.List.iter (fun update ->
               Propagate.autoPropagateAfterUpdate
                 branchId

@@ -63,6 +63,10 @@ let cascadeAndForceQuiet
           | Error _ -> ()
       | None -> ())
 
+    // A repointed saved generator re-runs, here as on the eager path, so a pin's
+    // rollback and a follow's catch-up leave its outputs where its inputs are.
+    Cli.Generate.regenerateRepointed branchId repoints
+
 
 let cascadeAndForce
   (state: AppState)
@@ -95,6 +99,10 @@ let cascadeAndForce
           | Ok _ -> ()
           | Error e -> Cli.printErr $"  couldn't rebind {dotted r.location}: {e}"
       | None -> ())
+
+    // A repointed saved generator re-runs, here as on the eager path, so an undo or
+    // a follow's catch-up leaves its outputs where its inputs are.
+    Cli.Generate.regenerateRepointed state.currentBranchId repoints
 
 
 /// A choice can name an ITEM or a MODULE, and a human types them the same way. So: if something is live at

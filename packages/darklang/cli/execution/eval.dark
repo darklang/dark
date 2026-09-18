@@ -31,6 +31,23 @@ let evaluateRaw
     allowHarmful
 
 
+/// Evaluate `expr` on <param branchId> and hand back its VALUE, typed as the caller
+/// says. For code that wants a result out of `eval` rather than text: `generate` runs a
+/// saved generator and reads its `Generate.Run`, and the propagation cascade re-runs one.
+/// The type argument is a claim; the runtime check on the way out holds the value to it.
+///
+/// <param asOwn> names package fns (by hash) to run as the expression's own code, past
+/// the consumer's package approvals but inside the instance policy. `generate` puts the
+/// saved generator there, having checked its requirements statically first.
+let evaluateAs<'a>
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  (expr: String)
+  (asOwn: List<String>)
+  : Stdlib.Result.Result<'a, ExecutionError.ExecutionError> =
+  Builtin.cliEvaluateToValue<'a> accountID branchId expr false asOwn
+
+
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
 /// that printed nothing, `Error message` for a failure. What the `eval`/REPL path uses - `execute` prints
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,
