@@ -19,6 +19,14 @@ let keywords () : List<KeywordDescription> =
         description =
           "Used to declare an alias, record, or an enumeration type." }
     KeywordDescription
+      { name = "trait"
+        description =
+          "Declares a trait: a set of fn signatures over one type parameter, which impls provide for concrete types." }
+    KeywordDescription
+      { name = "impl"
+        description =
+          "Provides a trait's methods for one type: `impl Show for Point = let show (p: Point) : String = ...`" }
+    KeywordDescription
       { name = "of"
         description =
           "Used in enum cases to specify the type of data it contains" }
