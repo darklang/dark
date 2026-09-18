@@ -1436,13 +1436,12 @@ module ImplCandidate =
   /// stops being a candidate there while main keeps it. A hash with no location
   /// at all (a script's own impl, grafted with `withExtras`) counts as live: it
   /// was never bound, so nothing can have unbound it.
-  let ofPackageManager
+  let private ofItems
     (pm : PT.PackageManager)
-    (traitHash : RT.FQTypeName.Package)
+    (values : List<PT.PackageValue.PackageValue>)
+    (fns : List<PT.PackageFn.PackageFn>)
     : Ply<List<RT.ImplCandidate>> =
     uply {
-      let (RT.Hash h) = traitHash
-      let! (values, fns) = pm.implItems (PT.Hash h)
       let live
         (locations : PT.Hash -> Ply<List<PT.PackageLocation>>)
         (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
@@ -1466,6 +1465,26 @@ module ImplCandidate =
         |> Ply.List.filterSequentially (fun (hash, _) -> live pm.getFnLocations pm.findFn hash)
       // A branch overlay and the store can both offer the same item; one hash is one impl.
       return (fromValues @ fromFns) |> List.map snd |> List.distinctBy (fun c -> c.source)
+    }
+
+  let ofPackageManager
+    (pm : PT.PackageManager)
+    (traitHash : RT.FQTypeName.Package)
+    : Ply<List<RT.ImplCandidate>> =
+    uply {
+      let (RT.Hash h) = traitHash
+      let! (values, fns) = pm.implItems (PT.Hash h)
+      return! ofItems pm values fns
+    }
+
+  let ofPackageManagerByMethod
+    (pm : PT.PackageManager)
+    (methodName : string)
+    : Ply<List<RT.ImplCandidate>> =
+    uply {
+      let! (values, fns) = pm.implItemsByMethod methodName
+      let! all = ofItems pm values fns
+      return all |> List.filter (fun c -> Map.containsKey methodName c.methods)
     }
 
 
@@ -1495,6 +1514,7 @@ module PackageManager =
 
       // The PT pm already answers for one branch, so the branch id is not needed.
       implCandidates = fun _ traitHash -> ImplCandidate.ofPackageManager pm traitHash
+      implCandidatesByMethod = fun _ m -> ImplCandidate.ofPackageManagerByMethod pm m
 
       init = pm.init }
 

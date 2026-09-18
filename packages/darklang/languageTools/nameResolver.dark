@@ -375,12 +375,10 @@ module FnName =
     (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    let asFn = resolveGenericName { ctx with onMissing = OnMissing.Allow } name FnName.tryResolve
-    match asFn.resolved with
-    | Ok _ -> asFn
-    | Error _ ->
-      match name with
-      | Unresolved(_range, given) ->
-        match tryResolveTraitMethod ctx given with
-        | Some nr -> nr
-        | None -> throwIfRelevant ctx.onMissing asFn
+    // The trait method wins when the path names a trait (see the F# resolver for
+    // why: inside an impl's own module, `Show.show` must dispatch, not recurse).
+    match name with
+    | Unresolved(_range, given) ->
+      match tryResolveTraitMethod ctx given with
+      | Some nr -> nr
+      | None -> resolveGenericName ctx name FnName.tryResolve

@@ -178,6 +178,7 @@ let pt : PT.PackageManager =
     search = fun query -> PMPT.search query
 
     implItems = Impls.implItems
+    implItemsByMethod = Impls.implItemsByMethod
 
     init = uply { return () } }
 
@@ -384,6 +385,8 @@ let createInMemoryOver
     // Small and in memory: offer everything, the extractor filters by trait.
     implItems =
       fun _ -> Ply(((valueMap |> Map.toList |> List.map snd), (fnMap |> Map.toList |> List.map snd)))
+    implItemsByMethod =
+      fun _ -> Ply(((valueMap |> Map.toList |> List.map snd), (fnMap |> Map.toList |> List.map snd)))
 
     search =
       fun query ->
@@ -527,6 +530,13 @@ let combine
         uply {
           let! (ov, of') = overlay.implItems traitHash
           let! (fv, ff) = fallback.implItems traitHash
+          return (ov @ fv, of' @ ff)
+        }
+    implItemsByMethod =
+      fun methodName ->
+        uply {
+          let! (ov, of') = overlay.implItemsByMethod methodName
+          let! (fv, ff) = fallback.implItemsByMethod methodName
           return (ov @ fv, of' @ ff)
         }
 
@@ -720,6 +730,17 @@ let rt : RT.PackageManager =
       fun branchId traitHash ->
         uply {
           match! cached (branchId, traitHash) with
+          | Some cs -> return cs
+          | None -> return []
+        }
+    implCandidatesByMethod =
+      let cached =
+        Caching.withCache (fun (branchId : PT.BranchId, methodName : string) ->
+          PT2RT.ImplCandidate.ofPackageManagerByMethod (ptForBranch branchId) methodName
+          |> Ply.map Some)
+      fun branchId methodName ->
+        uply {
+          match! cached (branchId, methodName) with
           | Some cs -> return cs
           | None -> return []
         }

@@ -56,11 +56,39 @@ let private dependentsOf (traitHash : Hash) : Task<List<Hash * PT.ItemKind>> =
   }
 
 
-let private itemsFor
-  (traitHash : Hash)
+/// Items that depend on a fn NAMED <param methodName>: an instance value refers to
+/// its methods by their fns, so it depends on `...Show.show`, whose name is `show`.
+let private dependentsOfMethodName (methodName : string) : Task<List<Hash * PT.ItemKind>> =
+  task {
+    let! values =
+      Sql.query
+        """
+        SELECT DISTINCT pv.hash
+        FROM package_dependencies pd
+        INNER JOIN package_values pv ON pv.hash = pd.item_hash
+        WHERE pd.depends_on_item_type = 'fn' AND pd.depends_on_name = @m
+        """
+      |> Sql.parameters [ "m", Sql.string methodName ]
+      |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
+    let! fns =
+      Sql.query
+        """
+        SELECT DISTINCT pf.hash
+        FROM package_dependencies pd
+        INNER JOIN package_functions pf ON pf.hash = pd.item_hash
+        WHERE pd.depends_on_item_type = 'fn' AND pd.depends_on_name = @m
+        """
+      |> Sql.parameters [ "m", Sql.string methodName ]
+      |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
+    return
+      (values |> List.map (fun v -> (v, PT.ItemKind.Value)))
+      @ (fns |> List.map (fun f -> (f, PT.ItemKind.Fn)))
+  }
+
+let private loadItems
+  (dependents : List<Hash * PT.ItemKind>)
   : Ply<List<PT.PackageValue.PackageValue> * List<PT.PackageFn.PackageFn>> =
   uply {
-    let! dependents = dependentsOf traitHash
     let! values =
       dependents
       |> List.choose (fun (h, k) -> if k = PT.ItemKind.Value then Some h else None)
@@ -72,6 +100,22 @@ let private itemsFor
     return (List.choose (fun v -> v) values, List.choose (fun f -> f) fns)
   }
 
+let private itemsFor
+  (traitHash : Hash)
+  : Ply<List<PT.PackageValue.PackageValue> * List<PT.PackageFn.PackageFn>> =
+  uply {
+    let! dependents = dependentsOf traitHash
+    return! loadItems dependents
+  }
+
+let private itemsForMethod
+  (methodName : string)
+  : Ply<List<PT.PackageValue.PackageValue> * List<PT.PackageFn.PackageFn>> =
+  uply {
+    let! dependents = dependentsOfMethodName methodName
+    return! loadItems dependents
+  }
+
 /// `implItems` for the stored package manager. The cache holds the whole answer
 /// per trait; `Caching.invalidateAll` empties it when the store changes.
 let implItems
@@ -80,6 +124,16 @@ let implItems
   fun traitHash ->
     uply {
       match! cached traitHash with
+      | Some items -> return items
+      | None -> return ([], [])
+    }
+
+let implItemsByMethod
+  : string -> Ply<List<PT.PackageValue.PackageValue> * List<PT.PackageFn.PackageFn>> =
+  let cached = Caching.withCache (fun m -> itemsForMethod m |> Ply.map Some)
+  fun methodName ->
+    uply {
+      match! cached methodName with
       | Some items -> return items
       | None -> return ([], [])
     }

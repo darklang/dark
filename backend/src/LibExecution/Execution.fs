@@ -24,6 +24,16 @@ let noTestContext : RT.TestContext =
     expectedExceptionCount = 0
     postTestExecutionHook = fun _ -> () }
 
+/// `executeApplicable` is defined further down, after the VM pool it needs;
+/// `createState` reaches it through this cell, assigned once that definition exists.
+let mutable private callApplicableCell
+  : RT.ExecutionState
+      -> LibExecution.Permissions.Access
+      -> RT.Applicable
+      -> NEList<RT.Dval>
+      -> Ply<RT.ExecutionResult> =
+  fun _ _ _ _ -> Exception.raiseInternal "callApplicable used before Execution initialised" []
+
 let createState
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
@@ -50,7 +60,8 @@ let createState
       { builtIn = builtins.fns
         package = pm.getFn
         isHarmful = fun pkg -> pm.isHarmful pkg
-        implCandidates = pm.implCandidates }
+        implCandidates = pm.implCandidates
+        implCandidatesByMethod = pm.implCandidatesByMethod }
 
     allowHarmful = false
 
@@ -73,6 +84,8 @@ let createState
     permissionWarnings = None
 
     deniedRequests = ResizeArray()
+
+    callApplicable = fun st access applicable args -> callApplicableCell st access applicable args
 
     accountID = None
 
@@ -378,6 +391,9 @@ let executeApplicable
   let vm = vmForApply (NEList.length args)
   loadApplyRegisters vm applicable args
   runLoaded exeState access vm
+
+
+callApplicableCell <- executeApplicable
 
 
 /// Re-raise an error a lambda raised, keeping the frames it raised it in.

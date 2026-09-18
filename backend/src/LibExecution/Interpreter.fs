@@ -1695,6 +1695,45 @@ let private completePackage
 
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
+
+/// `'a: Show` on a fn, checked when the fn is entered with every argument in
+/// hand: each bound whose type param is bound to a Known type must have an impl
+/// visible on this branch. Checked at the boundary, like the parameter types, so
+/// `display 5` fails at that call and not somewhere inside `display`. A param
+/// still Unknown here (an empty list) is left for the method call to sort out.
+let private checkBoundsAtEntry
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (fn : PackageFn.PackageFn)
+  (tst : TypeSymbolTable)
+  : Ply<unit> =
+  fn.bounds
+  |> Ply.List.iterSequentially (fun b ->
+    uply {
+      match b.trait_.trait_.resolved, TST.tryFind b.param tst with
+      | Ok(FQTypeName.Package traitHash), ValueSome(ValueType.Known self) ->
+        let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
+        match Traits.select candidates self with
+        | Traits.Selected _ -> return ()
+        | Traits.NoImpl ->
+          return
+            RTE.Trait(
+              RTE.Traits.MissingImpl(FQTypeName.Package traitHash, ValueType.Known self)
+            )
+            |> raiseRTE vm.threadID
+        | Traits.Ambiguous cs ->
+          return
+            RTE.Trait(
+              RTE.Traits.DispatchAmbiguous(
+                FQTypeName.Package traitHash,
+                ValueType.Known self,
+                cs |> List.map (fun c -> c.source)
+              )
+            )
+            |> raiseRTE vm.threadID
+      | _ -> return ()
+    })
+
 let private callPackageViaFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -1783,20 +1822,41 @@ let private callPackageViaFrame
 
   // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
   if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
-    Ply(
-      completePackage
-        exeState
-        vm
-        currentFrame
-        ctx
-        fn
-        implicitTypeParams
-        newlyBound
-        allArgs
-        argCount
-        paramCount
-        tst
-    )
+    if List.isEmpty fn.bounds || argCount < paramCount then
+      Ply(
+        completePackage
+          exeState
+          vm
+          currentFrame
+          ctx
+          fn
+          implicitTypeParams
+          newlyBound
+          allArgs
+          argCount
+          paramCount
+          tst
+      )
+    else
+      // A bounded fn: the bounds are part of the declared parameter types, checked
+      // here at entry like the parameter types were just above (the D4 decision).
+      let tstAtEntry = tst
+      uply {
+        do! checkBoundsAtEntry exeState vm fn tstAtEntry
+        return
+          completePackage
+            exeState
+            vm
+            currentFrame
+            ctx
+            fn
+            implicitTypeParams
+            newlyBound
+            allArgs
+            argCount
+            paramCount
+            tstAtEntry
+      }
   else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still one implementation, just resumed asynchronously.
@@ -1823,6 +1883,8 @@ let private callPackageViaFrame
         }
       // The cold path materialises: it already awaits per parameter, so a list is not the cost.
       do! checkRest pkgNextI pkgRestPs (ArgSeq.toList pkgRestArgs)
+      if not (List.isEmpty fn.bounds) && argCount >= paramCount then
+        do! checkBoundsAtEntry exeState vm fn tstRest
       return
         completePackage
           exeState
@@ -2693,6 +2755,26 @@ let private runSyncInstructions
 
     | LoadValue _ -> running <- false
 
+    // A field that exists is read here; a miss (no such field, or not a record) leaves
+    // the drain so `runRareOpcode` can try it as a receiver call (`p.show`), which
+    // needs the impl index and may await.
+    | GetRecordField(targetReg, recordReg, fieldName) ->
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+      if fieldName = "" then
+        RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
+      let handled =
+        match registers[recordReg] with
+        | DRecord(_, _, _, fields) ->
+          let mutable value = Unchecked.defaultof<Dval>
+          if fields.TryGetValue(fieldName, &value) then
+            registers[targetReg] <- value
+            true
+          else
+            false
+        | _ -> false
+      if handled then counter <- counter + 1 else running <- false
+
     // `Apply` is all but a handful of the instructions that could stop this drain, and it almost
     // never has to wait. So it runs here rather than handing control to the computation expression,
     // which would build a continuation per iteration; only a genuine await stops the drain.
@@ -3148,6 +3230,74 @@ let private checkFrameReturnType
 /// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
 /// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
 /// downgrades the whole loop to the dynamic implementation.
+/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
+/// impl (of any trait) with a method of that name for `p`'s type gives the
+/// method's fn with `p` as its first argument: the RESULT when that is the only
+/// argument (`p.show` is the whole call), else the partial application waiting for
+/// the rest (`a.add b`). None means the field access was simply wrong; several is
+/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
+let private receiverMethod
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (receiver : Dval)
+  (methodName : string)
+  : Ply<Option<Dval>> =
+  uply {
+    match Dval.toValueType receiver with
+    | ValueType.Unknown -> return None
+    | ValueType.Known self ->
+      let! candidates = exeState.fns.implCandidatesByMethod exeState.branchId methodName
+      match Traits.select candidates self with
+      | Traits.NoImpl -> return None
+      | Traits.Selected c ->
+        match Map.tryFind methodName c.methods with
+        | Some fnHash ->
+          let applicable =
+            AppNamedFn
+              { name = FQFnName.Package fnHash
+                typeSymbolTable = TST.empty
+                typeArgs = []
+                access = Some currentFrame.access
+                argsSoFar = [] }
+          match! exeState.fns.package fnHash with
+          | Some fn when NEList.length fn.parameters = 1 ->
+            match!
+              exeState.callApplicable
+                exeState
+                currentFrame.access
+                applicable
+                (NEList.singleton receiver)
+            with
+            | Ok result -> return Some result
+            | Error(rte, nested) ->
+              vm.nestedCallStack <- nested
+              return raiseRTE vm.threadID rte
+          | _ ->
+            return
+              Some(
+                DApplicable(
+                  AppNamedFn
+                    { name = FQFnName.Package fnHash
+                      typeSymbolTable = TST.empty
+                      typeArgs = []
+                      access = Some currentFrame.access
+                      argsSoFar = [ receiver ] }
+                )
+              )
+        | None -> return None
+      | Traits.Ambiguous cs ->
+        return
+          RTE.Trait(
+            RTE.Traits.MethodAmbiguous(
+              methodName,
+              ValueType.Known self,
+              cs |> List.map (fun c -> FQTypeName.Package c.trait_)
+            )
+          )
+          |> raiseRTE vm.threadID
+  }
+
 let private runRareOpcode
   (exeState : ExecutionState)
   (vm : VMState)
@@ -3157,6 +3307,20 @@ let private runRareOpcode
   : System.Threading.Tasks.Task<unit> =
   task {
     match inst with
+    | GetRecordField(targetReg, recordReg, fieldName) ->
+      let receiver = registers[recordReg]
+      match! Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName) with
+      | Some applicable -> registers[targetReg] <- applicable
+      | None ->
+        match receiver with
+        | DRecord _ ->
+          RTE.Records.FieldAccessFieldNotFound fieldName
+          |> RTE.Record
+          |> raiseRTE vm.threadID
+        | dv ->
+          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
+          |> RTE.Record
+          |> raiseRTE vm.threadID
     | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
       let fields =
         fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
@@ -3251,7 +3415,7 @@ let private runRareOpcode
           registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
-    // `FrameRareOpcode` for the four above. Loud rather than silent if that ever stops holding.
+    // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.
     | Apply _ ->
       Exception.raiseInternal
         "Apply reached the interpreter's async instruction path"

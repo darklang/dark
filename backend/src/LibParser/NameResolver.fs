@@ -283,24 +283,24 @@ let resolveFnName
     )
   | WT.Unresolved given ->
     uply {
-      // A real fn named `Show.show` wins; the trait path is the fallback, so the
-      // first pass may not throw.
-      let! asFn =
-        resolveGenericName
-          (Some builtinFns)
-          OnMissing.Allow
-          currentModule
-          given
-          parseFnNameString
-          packageManager.findFn
-          PT.FQFnName.FQFnName.Package
-          (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
-          (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
-      match asFn.resolved with
-      | Ok _ -> return asFn
-      | Error _ ->
-        let! asTraitMethod = resolveTraitMethod packageManager currentModule given
-        match asTraitMethod with
-        | Some nr -> return nr
-        | None -> return throwIfRelevant onMissing currentModule given asFn
+      // The trait method wins when the path names a trait: inside `impl Show for
+      // List<'a>`, whose members live under `List.Show`, a bare `Show.show` would
+      // otherwise find the impl's own method (`...List.Show.show`) and recurse on
+      // the whole list instead of dispatching on the element. The impl's method
+      // is still reachable by its longer name (`List.Show.show`).
+      let! asTraitMethod = resolveTraitMethod packageManager currentModule given
+      match asTraitMethod with
+      | Some nr -> return nr
+      | None ->
+        return!
+          resolveGenericName
+            (Some builtinFns)
+            onMissing
+            currentModule
+            given
+            parseFnNameString
+            packageManager.findFn
+            PT.FQFnName.FQFnName.Package
+            (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
+            (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
     }

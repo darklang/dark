@@ -513,7 +513,8 @@ let childState
         { parentState.fns with
             package = pm.getFn
             isHarmful = fun pkg -> pm.isHarmful pkg
-            implCandidates = pm.implCandidates }
+            implCandidates = pm.implCandidates
+            implCandidatesByMethod = pm.implCandidatesByMethod }
       blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 
@@ -570,9 +571,24 @@ let execute
 
     // TODO we should probably use LibPM's in-memory grafting thing instead of this
     // (no need for RT.PM.withExtras to exist, I think)
+    // The script's own `impl` blocks, and the branch's, are values and fns the store
+    // has no index for; offer them as candidates ahead of the store's.
+    let scriptImpls =
+      List.concat
+        [ mod'.values |> List.choose PT2RT.ImplCandidate.ofValue
+          mod'.submodules.values |> List.choose PT2RT.ImplCandidate.ofValue
+          mod'.fns |> List.choose PT2RT.ImplCandidate.ofFn
+          mod'.submodules.fns |> List.choose PT2RT.ImplCandidate.ofFn
+          branchOps
+          |> List.choose (function
+            | PT.PackageOp.AddValue v -> PT2RT.ImplCandidate.ofValue v
+            | PT.PackageOp.AddFn f -> PT2RT.ImplCandidate.ofFn f
+            | _ -> None) ]
+
     let pm =
       pmRT
       |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns)
+      |> PackageManager.withExtraImpls scriptImpls
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()

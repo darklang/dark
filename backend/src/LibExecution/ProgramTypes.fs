@@ -1109,6 +1109,11 @@ type PackageManager =
       FQTypeName.Package
         -> Ply<List<PackageValue.PackageValue> * List<PackageFn.PackageFn>>
 
+    /// The same, for receiver calls (`p.show`): items that reference a fn NAMED
+    /// like the method, which is how an instance value refers to its methods.
+    implItemsByMethod :
+      string -> Ply<List<PackageValue.PackageValue> * List<PackageFn.PackageFn>>
+
     init : Ply<unit> }
 
 
@@ -1128,6 +1133,7 @@ type PackageManager =
       getFnLocations = fun _ -> Ply []
 
       implItems = fun _ -> Ply(([], []))
+      implItemsByMethod = fun _ -> Ply(([], []))
 
       init = uply { return () } }
 
@@ -1244,6 +1250,13 @@ type PackageManager =
         fun traitHash ->
           uply {
             let! (baseValues, baseFns) = pm.implItems traitHash
+            return
+              ((values |> List.map fst) @ baseValues, (fns |> List.map fst) @ baseFns)
+          }
+      implItemsByMethod =
+        fun methodName ->
+          uply {
+            let! (baseValues, baseFns) = pm.implItemsByMethod methodName
             return
               ((values |> List.map fst) @ baseValues, (fns |> List.map fst) @ baseFns)
           }

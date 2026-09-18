@@ -2392,6 +2392,10 @@ type PackageManager =
     /// what the caller's branch can see.
     implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
 
+    /// Every visible impl, of any trait, that has a method of this name. For
+    /// receiver calls: `p.show` where `p` has no field `show`.
+    implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
+
     init : Ply<unit>
   }
 
@@ -2403,6 +2407,7 @@ type PackageManager =
       persistBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ -> false)
       implCandidates = (fun _ _ -> Ply [])
+      implCandidatesByMethod = (fun _ _ -> Ply [])
 
       init = uply { return () } }
 
@@ -2421,6 +2426,14 @@ type PackageManager =
               uply {
                 let! stored = pm.implCandidates branchId trait_
                 let extra = candidates |> List.filter (fun c -> c.trait_ = trait_)
+                return extra @ stored
+              }
+          implCandidatesByMethod =
+            fun branchId methodName ->
+              uply {
+                let! stored = pm.implCandidatesByMethod branchId methodName
+                let extra =
+                  candidates |> List.filter (fun c -> Map.containsKey methodName c.methods)
                 return extra @ stored
               } }
 
@@ -2463,6 +2476,7 @@ type PackageManager =
       persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
       implCandidates = pm.implCandidates
+      implCandidatesByMethod = pm.implCandidatesByMethod
       init = pm.init }
 
 
@@ -3386,6 +3400,13 @@ and ExecutionState =
     /// guest run a fresh list to distinguish policy denials from other errors.
     deniedRequests : ResizeArray<PermissionDenialRecord>
 
+    /// Run an applicable to completion on a borrowed VM, as a builtin applying a
+    /// callback does. Filled in by `Execution.createState`, which is where that
+    /// machinery lives (it comes after the interpreter in compile order). The
+    /// interpreter itself uses it for one thing: a receiver call `p.show` on a
+    /// one-argument method, which is a full call rather than a partial application.
+    callApplicable : ExecutionState -> Permissions.Access -> Applicable -> NEList<Dval> -> Ply<ExecutionResult>
+
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;
     /// promotion (see `Blob.promote`) writes them here.
@@ -3450,6 +3471,7 @@ and Functions =
     isHarmful : FQFnName.Package -> bool
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
     implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
+    implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
   }
 
 
