@@ -537,6 +537,17 @@ let runLibrary
     else
       let typeArgs = Stdlib.List.take args (Stdlib.List.length typeParams)
       let valueArgs = Stdlib.List.drop args (Stdlib.List.length typeParams)
+      // A type argument has to name a type that exists, checked here rather than
+      // by writing a saved fn with an unresolved name in it and watching it fail.
+      let badTypeArg =
+        typeArgs
+        |> Stdlib.List.findFirst (fun t ->
+          match Packages.Location.parseRelativeTo state.packageData.currentLocation t with
+          | Error _ -> true
+          | Ok loc ->
+            match LanguageTools.PackageManager.Type.find state.currentBranchId loc with
+            | Some _ -> false
+            | None -> true)
       let fetched =
         match (opts.fetch, fetchedParam) with
         | (Some url, Some _) ->
@@ -555,6 +566,12 @@ let runLibrary
           |> Stdlib.Result.collect
 
       match (rendered, fetched) with
+      | (_, _) when Stdlib.Option.isSome badTypeArg ->
+        let t = badTypeArg |> Stdlib.Option.withDefault ""
+        Cli.printErr
+          ($"`{t}` is not a type; {fullName library} takes a type argument, "
+           ++ "like `Acme.Core.Money`")
+        { state with exitCode = 1 }
       | (Error message, _) ->
         Cli.printErr message
         { state with exitCode = 1 }
@@ -597,9 +614,32 @@ let runLibrary
           | None -> ""
         let source = $"{doc}let {name} () : Darklang.Generate.Run =\n  {call}"
 
-        if opts.dryRun then
-          Stdlib.printLine source
-          state
+        if opts.dryRun || opts.print then
+          // Nothing is written: the call is evaluated as an expression and what it
+          // would stage is printed. `--dry-run` shows the saved fn as well.
+          if opts.dryRun then
+            Stdlib.printLine source
+          else
+            ()
+          let asOwn =
+            match LanguageTools.PackageManager.Function.find state.currentBranchId library with
+            | Some h -> [ LanguageTools.ProgramTypes.hashToString h ]
+            | None -> []
+          match
+            Eval.evaluateAs<Darklang.Generate.Run> state.accountID state.currentBranchId call asOwn
+          with
+          | Error err ->
+            Cli.printErr (ExecutionError.toString state.currentBranchId err)
+            { state with exitCode = 1 }
+          | Ok run ->
+            if Stdlib.List.isEmpty run.errors then
+              Cli.printHint $"  would stage into {modulePath}:"
+              Stdlib.printLine run.source
+              state
+            else
+              Cli.printErr "nothing to stage:"
+              run.errors |> Stdlib.List.iter (fun e -> Cli.printErr $"  {e}")
+              { state with exitCode = 1 }
         else
           match
             Packages.ModuleCommand.stageSource

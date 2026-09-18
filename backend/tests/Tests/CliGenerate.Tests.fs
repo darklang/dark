@@ -163,6 +163,10 @@ let dryRunPrintsAndStagesNothing =
           out
           "let orderGenerator () : Darklang.Generate.Run"
           $"the saved fn is printed: {out}"
+        Expect.stringContains
+          out
+          "type Order"
+          $"and so is what it would stage: {out}"
         do!
           shows
             state
@@ -245,6 +249,17 @@ let generateRefusesAMissingFileBeforeWritingAnything =
             "does not exist"
             "wrote"
             "a Blob parameter wants a file that is there, and the short name resolves"
+        do!
+          refuses
+            state
+            [ "generate"
+              "Dark.mirror"
+              "Tests.Gen.NotAType"
+              "--into"
+              "Tests.Gen.Missing" ]
+            "is not a type"
+            "wrote"
+            "a type argument has to name a type, checked before anything is written"
         do!
           refuses
             state
