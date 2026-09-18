@@ -404,6 +404,180 @@ let editingTheSourceRegeneratesTheMirror =
       })
 
 
+// ─── OpenAPI ─────────────────────────────────────────────────────────────────
+
+let private petstore = "testfiles/generate/petstore.json"
+
+let openApiClientFromAFile =
+  instanceTest
+    "generate OpenApi.client makes types and one fn per operation"
+    (fun state ->
+      task {
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "OpenApi.client"
+              petstore
+              "--into"
+              "Tests.Gen.Petstore" ]
+        for expected in
+          [ "+ Client"
+            "+ ApiError"
+            "+ Pet"
+            "+ PetOwner"
+            "+ listPets"
+            "+ createPet"
+            "+ showPetById"
+            "+ deletePet" ] do
+          Expect.stringContains
+            out
+            expected
+            $"every schema and operation lands: {out}"
+        Expect.isFalse
+          (out.Contains "type check failed")
+          $"the generated client passes the at-rest check: {out}"
+
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Petstore.Pet"; "--raw" ]
+            "tag: Option<String>"
+            "a property not in `required` is optional"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Petstore.showPetById"; "--raw" ]
+            "\"/pets/\" ++ petId"
+            "a path parameter is spliced into the URL"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Petstore.createPet"; "--raw" ]
+            "Stdlib.Json.serialize<NewPet> body"
+            "a request body is serialised from its schema type"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Petstore.deletePet"; "--raw" ]
+            "Result<Unit, ApiError>"
+            "an operation with no response schema returns Unit"
+      })
+
+
+/// A static file server for the fetch tests, on a port of its own. The CLI reaches
+/// it through the sync transport, which is what `--fetch` uses.
+let private withFileServer
+  (dir : string)
+  (port : int)
+  (body : string -> Task<unit>)
+  : Task<unit> =
+  task {
+    let psi = System.Diagnostics.ProcessStartInfo("python3")
+    psi.ArgumentList.Add "-m"
+    psi.ArgumentList.Add "http.server"
+    psi.ArgumentList.Add(string port)
+    psi.ArgumentList.Add "--directory"
+    psi.ArgumentList.Add dir
+    psi.ArgumentList.Add "--bind"
+    psi.ArgumentList.Add "127.0.0.1"
+    psi.RedirectStandardOutput <- true
+    psi.RedirectStandardError <- true
+    use server = System.Diagnostics.Process.Start psi
+    try
+      do! Task.Delay 800
+      do! body $"http://127.0.0.1:{port}"
+    finally
+      try
+        server.Kill true
+      with _ ->
+        ()
+  }
+
+
+let fetchAndRefresh =
+  instanceTest
+    "generate --fetch stores the document, and --refresh re-runs only if it moved"
+    (fun state ->
+      task {
+        let dir =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "dark-generate-fetch"
+          )
+        System.IO.Directory.CreateDirectory dir |> ignore
+        let doc = System.IO.Path.Combine(dir, "openapi.json")
+        System.IO.File.Copy(petstore, doc, true)
+
+        do!
+          withFileServer dir 9377 (fun baseUrl ->
+            task {
+              let url = $"{baseUrl}/openapi.json"
+              let! out =
+                runCliPlain
+                  state
+                  [ "generate"
+                    "OpenApi.client"
+                    "--fetch"
+                    url
+                    "--into"
+                    "Tests.Gen.Fetched" ]
+              Expect.stringContains
+                out
+                "fetched"
+                $"the document is fetched and stored: {out}"
+              Expect.stringContains
+                out
+                "+ Pet"
+                $"and the client is generated from it: {out}"
+              do!
+                shows
+                  state
+                  [ "view"; "Tests.Gen.Fetched.fetchedGenerator"; "--raw" ]
+                  "fetched from"
+                  "the saved fn records the URL in its doc comment"
+
+              let! same =
+                runCliPlain
+                  state
+                  [ "generate"; "Tests.Gen.Fetched.fetchedGenerator"; "--refresh" ]
+              Expect.stringContains
+                same
+                "unchanged since it was last fetched"
+                $"same document, nothing to do: {same}"
+
+              let changed =
+                System.IO.File
+                  .ReadAllText(doc)
+                  .Replace(
+                    "\"tag\": { \"type\": \"string\" },",
+                    "\"tag\": { \"type\": \"string\" }, \"age\": { \"type\": \"integer\" },"
+                  )
+              Expect.isTrue
+                (changed <> System.IO.File.ReadAllText doc)
+                "the fixture edit took"
+              System.IO.File.WriteAllText(doc, changed)
+
+              let! moved =
+                runCliPlain
+                  state
+                  [ "generate"; "Tests.Gen.Fetched.fetchedGenerator"; "--refresh" ]
+              Expect.stringContains
+                moved
+                "the document moved"
+                $"a changed document rewrites the saved fn: {moved}"
+              Expect.stringContains
+                moved
+                "~ Pet"
+                $"and only what it touched moves: {moved}"
+              Expect.stringContains
+                moved
+                "= Client  unchanged"
+                $"the fixed part stays: {moved}"
+            })
+      })
+
+
 let tests : List<Test> =
   [ generateFromAJsonSample
     runningAgainIsANoOp
@@ -414,4 +588,6 @@ let tests : List<Test> =
     generateRefusesAMissingFileBeforeWritingAnything
     generateRefusesAnEffectfulGenerator
     mirrorSharesTheSourcesHash
-    editingTheSourceRegeneratesTheMirror ]
+    editingTheSourceRegeneratesTheMirror
+    openApiClientFromAFile
+    fetchAndRefresh ]

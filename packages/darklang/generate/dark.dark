@@ -3,11 +3,12 @@ module Darklang.Generate.Dark
 // Dark from Dark: the same types under another name.
 //
 // `mirror<Acme.Core.Money> ()` produces `type Money = ...` with the source type's
-// declaration, printed as source so it stages like anything typed. The output's content
-// is identical to the input's, so it hashes identically: a mirror is a second NAME for
-// the same item, which is the point (a fixture module, a copy under another owner).
-// Because the generator names the type as a type argument, the type is a dependency of
-// the saved fn: edit the source and the mirror repoints and re-runs.
+// declaration, printed as source so it stages like anything typed. The output's
+// content is identical to the input's, so it hashes identically: a mirror is a
+// second NAME for the same item, which is the point (a fixture module, a copy under
+// another owner). Because the generator names the type as a type argument, the type
+// is a dependency of the saved fn: edit the source and the mirror repoints and
+// re-runs.
 //
 // References inside the declaration to other types still point at the source's
 // neighbours, not at mirrors of them. Mirroring a whole module with its internal

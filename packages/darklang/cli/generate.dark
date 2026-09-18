@@ -25,6 +25,10 @@ type Options =
   { into: Stdlib.Option.Option<String>
     print: Bool
     dryRun: Bool
+    /// A URL to fetch and store as the library fn's Blob input, instead of a file.
+    fetch: Stdlib.Option.Option<String>
+    /// Re-fetch a saved generator's URL and re-run only if the document moved.
+    refresh: Bool
     positional: List<String> }
 
 
@@ -34,37 +38,82 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
       { into = Stdlib.Option.Option.None
         print = false
         dryRun = false
+        fetch = Stdlib.Option.Option.None
+        refresh = false
         positional = [] }
 
+  // The fold carries which flag, if any, is waiting for its value.
   args
-  |> Stdlib.List.fold (Stdlib.Result.Result.Ok((initial, false))) (fun acc arg ->
+  |> Stdlib.List.fold (Stdlib.Result.Result.Ok((initial, ""))) (fun acc arg ->
     match acc with
     | Error e -> Stdlib.Result.Result.Error e
-    | Ok((opts, expectInto)) ->
-      if expectInto then
-        Stdlib.Result.Result.Ok(
-          ({ opts with into = Stdlib.Option.Option.Some arg }, false))
-      else if arg == "--into" then
-        Stdlib.Result.Result.Ok((opts, true))
+    | Ok((opts, waiting)) ->
+      if waiting == "--into" then
+        Stdlib.Result.Result.Ok(({ opts with into = Stdlib.Option.Option.Some arg }, ""))
+      else if waiting == "--fetch" then
+        Stdlib.Result.Result.Ok(({ opts with fetch = Stdlib.Option.Option.Some arg }, ""))
+      else if (arg == "--into") || (arg == "--fetch") then
+        Stdlib.Result.Result.Ok((opts, arg))
       else if Stdlib.String.startsWith arg "--into=" then
         let value = Stdlib.String.dropFirst arg 7
-        Stdlib.Result.Result.Ok(
-          ({ opts with into = Stdlib.Option.Option.Some value }, false))
+        Stdlib.Result.Result.Ok(({ opts with into = Stdlib.Option.Option.Some value }, ""))
+      else if Stdlib.String.startsWith arg "--fetch=" then
+        let value = Stdlib.String.dropFirst arg 8
+        Stdlib.Result.Result.Ok(({ opts with fetch = Stdlib.Option.Option.Some value }, ""))
       else if arg == "--print" then
-        Stdlib.Result.Result.Ok(({ opts with print = true }, false))
+        Stdlib.Result.Result.Ok(({ opts with print = true }, ""))
       else if arg == "--dry-run" then
-        Stdlib.Result.Result.Ok(({ opts with dryRun = true }, false))
+        Stdlib.Result.Result.Ok(({ opts with dryRun = true }, ""))
+      else if arg == "--refresh" then
+        Stdlib.Result.Result.Ok(({ opts with refresh = true }, ""))
       else if Stdlib.String.startsWith arg "--" then
         Stdlib.Result.Result.Error $"unknown flag {arg}"
       else
         Stdlib.Result.Result.Ok(
-          ({ opts with positional = Stdlib.List.pushBack opts.positional arg },
-           false)))
+          ({ opts with positional = Stdlib.List.pushBack opts.positional arg }, "")))
   |> (fun r ->
     match r with
     | Error e -> Stdlib.Result.Result.Error e
-    | Ok((_, true)) -> Stdlib.Result.Result.Error "--into needs a module path"
-    | Ok((opts, false)) -> Stdlib.Result.Result.Ok opts)
+    | Ok((_, "--into")) -> Stdlib.Result.Result.Error "--into needs a module path"
+    | Ok((_, "--fetch")) -> Stdlib.Result.Result.Error "--fetch needs a URL"
+    | Ok((opts, _)) -> Stdlib.Result.Result.Ok opts)
+
+
+/// GET <param url> and store the body as a blob. Prints the `fetched` line. The CLI
+/// does the fetching, not the generator: the generator stays pure over the stored
+/// document, and the document is what the saved fn names.
+///
+/// Through the sync transport rather than `Stdlib.HttpClient`: the person named the
+/// URL at the keyboard, and the API they are generating a client for is as likely to
+/// be on their LAN or tailnet as on the internet, which the guarded client refuses.
+/// First-party only, like every use of that transport.
+let fetchToBlob (url: String) : Stdlib.Result.Result<String, String> =
+  match Cli.Sync.relayGet url with
+  | Error e ->
+    Stdlib.Result.Result.Error
+      ($"could not fetch {url}: {e}. If the instance policy denies the network, "
+       ++ "`dark permissions allow http GET '"
+       ++ url
+       ++ "'` and run again.")
+  | Ok body ->
+    let hash = Stdlib.Blob.persist body
+    let size = Stdlib.Blob.length body
+    Cli.printHint
+      ($"  fetched {url} as blob {Stdlib.String.slice hash 0 8} "
+       ++ $"({Stdlib.Int.toString size} B)")
+    Stdlib.Result.Result.Ok hash
+
+
+/// The URL a saved generator was fetched from, recorded in its doc comment.
+let fetchedFrom
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Stdlib.Option.Option<String> =
+  let marker = "fetched from "
+  if Stdlib.String.startsWith fn.description marker then
+    Stdlib.Option.Option.Some
+      (Stdlib.String.dropFirst fn.description (Stdlib.String.length marker))
+  else
+    Stdlib.Option.Option.None
 
 
 /// The hash `Darklang.Generate.Run` is bound to, so a fn's return type can be
@@ -172,10 +221,10 @@ let argumentSource
        ++ "by hand with `fn` and run it with `generate <name>`")
 
 
-/// The saved generator's name: the library fn's first `String` argument when there is
-/// one (`fromSample "Order" ...` saves as `orderGenerator`), else the last segment of
-/// its first type argument (`mirror<Acme.Core.Money>` saves as `moneyGenerator`), else
-/// the target module's last segment.
+/// The saved generator's name: the library fn's first `String` argument when there
+/// is one (`fromSample "Order" ...` saves as `orderGenerator`), else the last
+/// segment of its first type argument (`mirror<Acme.Core.Money>` saves as
+/// `moneyGenerator`), else the target module's last segment.
 let savedName
   (params_: List<LanguageTools.ProgramTypes.PackageFn.Parameter>)
   (args: List<String>)
@@ -197,15 +246,16 @@ let savedName
   let seed =
     firstString
     |> Stdlib.Option.``or`` ((Stdlib.List.head typeArgs) |> Stdlib.Option.andThen lastSegment)
-    |> Stdlib.Option.withDefault ((lastSegment modulePath) |> Stdlib.Option.withDefault "module")
+    |> Stdlib.Option.withDefault
+      ((lastSegment modulePath) |> Stdlib.Option.withDefault "module")
 
   (Darklang.Generate.Source.identifier seed) ++ "Generator"
 
 
 /// Run a saved generator on <param branchId> and hand back what it produced. The
-/// saved fn runs as the expression's own code (its requirements were checked before it
-/// was accepted as a generator), so the consumer's package approvals do not get in the
-/// way of a fn the person just wrote.
+/// saved fn runs as the expression's own code (its requirements were checked before
+/// it was accepted as a generator), so the consumer's package approvals do not get
+/// in the way of a fn the person just wrote.
 let evaluateSaved
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
@@ -239,6 +289,67 @@ let printOutcomes
       | Updated -> Stdlib.Cli.UI.Colors.success $"    ~ {name}"
       | Unchanged -> Stdlib.Cli.UI.Colors.hint $"    = {name}  unchanged"
     Stdlib.printLine line)
+
+
+/// Re-fetch the document a saved generator was made from. If it moved, rewrite the
+/// saved fn to name the new blob (the rest of its source untouched) and say so; if
+/// not, say that. Either way the caller then runs it.
+let refreshSaved
+  (state: Cli.AppState)
+  (generator: LanguageTools.ProgramTypes.PackageLocation)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Stdlib.Result.Result<Unit, String> =
+  match fetchedFrom fn with
+  | None ->
+    Stdlib.Result.Result.Error
+      ($"{fullName generator} was not made with --fetch, so there is no URL to "
+       ++ "refresh from")
+  | Some url ->
+    match fetchToBlob url with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok newHash ->
+      let branchId = state.currentBranchId
+      match Packages.View.rawSource branchId (Packages.PackageLocation.Function generator) with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok source ->
+        if Stdlib.String.contains source newHash then
+          Cli.printHint "  unchanged since it was last fetched"
+          Stdlib.Result.Result.Ok()
+        else
+          // The old hash is the 64 hex characters inside the quotes after
+          // `Generate.input`; the printer may break the line between the two.
+          let marker = "Generate.input"
+          let oldHash =
+            match Stdlib.String.indexOf source marker with
+            | None -> Stdlib.Option.Option.None
+            | Some at ->
+              let after =
+                Stdlib.String.slice
+                  source
+                  (at + (Stdlib.String.length marker))
+                  (Stdlib.String.length source)
+              match Stdlib.String.indexOf after "\"" with
+              | None -> Stdlib.Option.Option.None
+              | Some q -> Stdlib.Option.Option.Some(Stdlib.String.slice after (q + 1) (q + 65))
+          match oldHash with
+          | None ->
+            Stdlib.Result.Result.Error
+              $"{fullName generator} does not read a stored document; nothing to refresh"
+          | Some oldHash ->
+            let rewritten = Stdlib.String.replaceAll source oldHash newHash
+            match
+              Packages.ModuleCommand.stageSource
+                branchId
+                state.packageData.currentLocation
+                ("/" ++ (modulePathOf generator))
+                rewritten
+            with
+            | Error(ParseErrors _) ->
+              Stdlib.Result.Result.Error "the rewritten generator did not parse"
+            | Error(Message m) -> Stdlib.Result.Result.Error m
+            | Ok _ ->
+              Cli.printHint $"  updated {fullName generator}: the document moved"
+              Stdlib.Result.Result.Ok()
 
 
 /// Evaluate a saved generator and stage its source, unless `--print` or `--dry-run`.
@@ -305,12 +416,13 @@ let runSaved
           state
 
 
-/// Re-run every saved generator among <param repoints>, staging what it produces into
-/// its own module. Called from the propagation cascade after the repoints are made.
+/// Re-run every saved generator among <param repoints>, staging what it produces
+/// into its own module. Called from the propagation cascade after the repoints are
+/// made.
 ///
-/// Termination rests on generators being deterministic: a re-run whose output is what
-/// the names already hold records no ops and propagates nothing, so a generator that
-/// reads its own output settles after one extra run rather than looping.
+/// Termination rests on generators being deterministic: a re-run whose output is
+/// what the names already hold records no ops and propagates nothing, so a generator
+/// that reads its own output settles after one extra run rather than looping.
 let regenerateRepointed
   (branchId: Uuid)
   (repoints: List<LanguageTools.ProgramTypes.PropagateRepoint>)
@@ -382,14 +494,26 @@ let runLibrary
         Stdlib.Option.Option.None
 
   // Type parameters come first on the command line, then the value parameters that
-  // take an argument. A `Unit` parameter takes none and renders as `()`.
+  // take an argument. A `Unit` parameter takes none and renders as `()`; with
+  // `--fetch`, the first `Blob` parameter takes the fetched document and none
+  // either.
   let typeParams = fn.typeParams
+  let fetchedParam =
+    match opts.fetch with
+    | None -> Stdlib.Option.Option.None
+    | Some _ ->
+      fn.parameters
+      |> Stdlib.List.findFirst (fun p ->
+        match p.typ with
+        | TBlob -> true
+        | _ -> false)
+      |> Stdlib.Option.map (fun p -> p.name)
   let valueParams =
     fn.parameters
     |> Stdlib.List.filter (fun p ->
       match p.typ with
       | TUnit -> false
-      | _ -> true)
+      | _ -> (Stdlib.Option.Option.Some p.name) != fetchedParam)
   let arity = (Stdlib.List.length typeParams) + (Stdlib.List.length valueParams)
   let given = Stdlib.List.length args
 
@@ -413,28 +537,47 @@ let runLibrary
     else
       let typeArgs = Stdlib.List.take args (Stdlib.List.length typeParams)
       let valueArgs = Stdlib.List.drop args (Stdlib.List.length typeParams)
+      let fetched =
+        match (opts.fetch, fetchedParam) with
+        | (Some url, Some _) ->
+          (fetchToBlob url) |> Stdlib.Result.map (fun h -> Stdlib.Option.Option.Some h)
+        | (Some _, None) ->
+          Stdlib.Result.Result.Error
+            $"--fetch needs a Blob parameter to land in, and {fullName library} has none"
+        | (None, _) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
       let rendered =
-        (Stdlib.List.zip valueParams valueArgs)
-        |> Stdlib.Option.withDefault []
-        |> Stdlib.List.map (fun (p, a) -> argumentSource p a)
-        |> Stdlib.Result.collect
+        match fetched with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok _ ->
+          (Stdlib.List.zip valueParams valueArgs)
+          |> Stdlib.Option.withDefault []
+          |> Stdlib.List.map (fun (p, a) -> argumentSource p a)
+          |> Stdlib.Result.collect
 
-      match rendered with
-      | Error message ->
+      match (rendered, fetched) with
+      | (Error message, _) ->
         Cli.printErr message
         { state with exitCode = 1 }
-      | Ok valueSources ->
-        // Every parameter in declaration order: `()` for a Unit one, the rendered
-        // argument for the rest.
+      | (_, Error message) ->
+        Cli.printErr message
+        { state with exitCode = 1 }
+      | (Ok valueSources, Ok fetchedHash) ->
+        // Every parameter in declaration order: `()` for a Unit one, the fetched
+        // document for the parameter it landed in, the rendered argument for the
+        // rest.
         let (argSources, _) =
           fn.parameters
           |> Stdlib.List.fold ([], valueSources) (fun (acc, remaining) p ->
             match p.typ with
             | TUnit -> (Stdlib.List.pushBack acc "()", remaining)
             | _ ->
-              match remaining with
-              | [] -> (acc, [])
-              | next :: rest -> (Stdlib.List.pushBack acc next, rest))
+              if (Stdlib.Option.Option.Some p.name) == fetchedParam then
+                let h = fetchedHash |> Stdlib.Option.withDefault ""
+                (Stdlib.List.pushBack acc $"(Darklang.Generate.input \"{h}\")", remaining)
+              else
+                match remaining with
+                | [] -> (acc, [])
+                | next :: rest -> (Stdlib.List.pushBack acc next, rest))
         let typeArgSource =
           match typeArgs with
           | [] -> ""
@@ -446,7 +589,13 @@ let runLibrary
           Stdlib.String.join
             (Stdlib.List.push argSources ((fullName library) ++ typeArgSource))
             " "
-        let source = $"let {name} () : Darklang.Generate.Run =\n  {call}"
+        // A fetched document's URL rides on the saved fn as its doc comment, outside
+        // the hash, which is what `--refresh` reads back.
+        let doc =
+          match opts.fetch with
+          | Some url -> $"/// fetched from {url}\n"
+          | None -> ""
+        let source = $"{doc}let {name} () : Darklang.Generate.Run =\n  {call}"
 
         if opts.dryRun then
           Stdlib.printLine source
@@ -575,12 +724,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                ++ "Fetch first, store the result as a file, and generate from that.")
             { state with exitCode = 1 }
           else if isSavedGenerator branchId fn then
-            if Stdlib.List.isEmpty rest then
-              runSaved state opts location
-            else
+            if Stdlib.Bool.not (Stdlib.List.isEmpty rest) then
               Cli.printErr
                 $"{fullName location} is a saved generator and takes no arguments"
               { state with exitCode = 1 }
+            else if opts.refresh then
+              match refreshSaved state location fn with
+              | Error message ->
+                Cli.printErr message
+                { state with exitCode = 1 }
+              | Ok() -> runSaved state opts location
+            else
+              runSaved state opts location
+          else if opts.refresh then
+            Cli.printErr "--refresh takes a saved generator, not a library fn"
+            { state with exitCode = 1 }
           else
             runLibrary state opts location fn rest
 
@@ -588,8 +746,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   [ "Run a generator: a fn that writes Dark, whose output is staged like typed code"
     ""
-    "Usage: generate <libraryFn> <args...> --into Owner.Module [--dry-run]"
-    "       generate <savedGenerator> [--print | --dry-run]"
+    "Usage: generate <libraryFn> <args...> --into Owner.Module [--fetch <url>] [--dry-run]"
+    "       generate <savedGenerator> [--refresh] [--print | --dry-run]"
     ""
     "The first form writes a saved generator into the module: a zero-arg fn whose"
     "body is the call you gave, with any file argument stored as a blob and named"
@@ -603,15 +761,22 @@ let help (_state: Cli.AppState) : String =
     "generator repoints like any dependent and re-runs in your draft as part of"
     "propagation; `propagate pin` stops that."
     ""
+    "`--fetch <url>` takes the document from the network instead of a file and"
+    "records the URL on the saved fn; `--refresh` fetches it again and re-runs"
+    "only if it moved."
+    ""
     "A generator may read the package store and nothing else: no files, no"
-    "network. Fetch what you need first, save it as a file, and generate from"
-    "the file."
+    "network. Fetch what you need first (or use --fetch), and generate from the"
+    "stored document."
+    ""
+    "Library generators: Json.fromSample, Dark.mirror, OpenApi.client. See"
+    "`docs generate`."
     ""
     "Examples:"
-    "  generate Darklang.Generate.Json.fromSample Order ./order.json \\"
-    "    --into Acme.Orders"
-    "  generate Acme.Orders.orderGenerator"
-    "  generate Acme.Orders.orderGenerator --print" ]
+    "  generate Json.fromSample Order ./order.json --into Acme.Orders"
+    "  generate Dark.mirror Acme.Core.Money --into Acme.Test"
+    "  generate OpenApi.client --fetch https://api.x.com/openapi.json --into Acme.X"
+    "  generate Acme.X.xGenerator --refresh" ]
   |> Stdlib.String.join "\n"
 
 

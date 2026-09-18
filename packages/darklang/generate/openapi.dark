@@ -1,0 +1,368 @@
+module Darklang.Generate.OpenApi
+
+// An HTTP client from an OpenAPI 3.x document (JSON).
+//
+// One record type per named schema under `components.schemas`, a `Client` record
+// (base URL and headers), an `ApiError` enum, and one fn per operation that builds
+// the URL, makes the request through `Stdlib.HttpClient`, and parses a 2xx body into
+// the response type. Path and query parameters are `String`; a request body is the
+// named schema type, serialised with `Stdlib.Json.serialize`. What the document says
+// that this cannot express (`oneOf`, `allOf`, an inline enum, a schema with no type)
+// becomes `Stdlib.AltJson.Json` with a doc comment saying so, rather than a guess.
+//
+// YAML documents are out of scope; convert to JSON first. The output is
+// deterministic: schemas in document order, operations in path order, fields in
+// property order.
+
+
+/// The document is walked as `AltJson`; these three are the whole vocabulary, short
+/// because they appear on nearly every line.
+let obj (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.AltJson.Helpers.getObject key fields
+
+let str (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Option.Option<String> =
+  Stdlib.AltJson.Helpers.getString key fields
+
+let arr (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : List<Stdlib.AltJson.Json> =
+  Stdlib.AltJson.Helpers.getArray key fields
+
+
+/// A schema's Dark type text, plus any inline record types it needs, named under
+/// <param parent>. A `$ref` to a component becomes that component's name.
+let schemaType
+  (parent: String)
+  (schema: List<(String * Stdlib.AltJson.Json)>)
+  : (String * List<String> * Stdlib.Option.Option<String>) =
+  match str "$ref" schema with
+  | Some ref ->
+    let name =
+      (Stdlib.String.split ref "/")
+      |> Stdlib.List.last
+      |> Stdlib.Option.withDefault ref
+      |> Generate.Source.typeName
+    (name, [], Stdlib.Option.Option.None)
+  | None ->
+    let combinator =
+      [ "oneOf", "anyOf", "allOf" ]
+      |> Stdlib.List.findFirst (fun k ->
+        Stdlib.Bool.not (Stdlib.List.isEmpty (arr k schema)))
+
+    match combinator with
+    | Some k ->
+      ("Stdlib.AltJson.Json",
+       [],
+       Stdlib.Option.Option.Some $"`{k}` in the document; left as raw JSON")
+    | None ->
+      match str "type" schema with
+      | Some "integer" -> ("Int", [], Stdlib.Option.Option.None)
+      | Some "number" -> ("Float", [], Stdlib.Option.Option.None)
+      | Some "boolean" -> ("Bool", [], Stdlib.Option.Option.None)
+      | Some "string" ->
+        match arr "enum" schema with
+        | [] -> ("String", [], Stdlib.Option.Option.None)
+        | values ->
+          let names =
+            values
+            |> Stdlib.List.filterMap (fun v ->
+              match v with
+              | String s -> Stdlib.Option.Option.Some s
+              | _ -> Stdlib.Option.Option.None)
+            |> Stdlib.String.join ", "
+          ("String", [], Stdlib.Option.Option.Some $"one of: {names}")
+      | Some "array" ->
+        let (item, nested, note) = schemaType parent (obj "items" schema)
+        ($"List<{item}>", nested, note)
+      | Some "object" ->
+        let (decl, nested) = recordType parent schema
+        (parent, Stdlib.List.pushBack nested decl, Stdlib.Option.Option.None)
+      | _ ->
+        if Stdlib.List.isEmpty (obj "properties" schema) then
+          ("Stdlib.AltJson.Json", [], Stdlib.Option.Option.Some "the document gives no type")
+        else
+          let (decl, nested) = recordType parent schema
+          (parent, Stdlib.List.pushBack nested decl, Stdlib.Option.Option.None)
+
+
+/// A record declaration for an object schema named <param name>, plus the inline
+/// record types its properties needed. A property not in `required` is an `Option`.
+let recordType
+  (name: String)
+  (schema: List<(String * Stdlib.AltJson.Json)>)
+  : (String * List<String>) =
+  let required =
+    arr "required" schema
+    |> Stdlib.List.filterMap (fun v ->
+      match v with
+      | String s -> Stdlib.Option.Option.Some s
+      | _ -> Stdlib.Option.Option.None)
+
+  let (fields, nested) =
+    obj "properties" schema
+    |> Stdlib.List.fold ([], []) (fun (fields, nested) (key, propJson) ->
+      let prop =
+        match propJson with
+        | Object fs -> fs
+        | _ -> []
+      let fieldName = Generate.Source.identifier key
+      let (t, propTypes, note) = schemaType (name ++ Generate.Source.typeName key) prop
+      let t = if Stdlib.List.member required key then t else $"Stdlib.Option.Option<{t}>"
+      let note =
+        if fieldName != key then
+          Stdlib.Option.Option.Some
+            ($"JSON key \"{key}\"; parsing the real document needs this name " ++ "to match")
+        else
+          note
+      (Stdlib.List.pushBack fields (Generate.Source.field fieldName t note),
+       Stdlib.List.append nested propTypes))
+
+  (Generate.Source.recordType name fields, nested)
+
+
+/// One operation, as a fn over the client.
+type Operation =
+  { method: String
+    path: String
+    name: String
+    pathParams: List<String>
+    queryParams: List<String>
+    bodyType: Stdlib.Option.Option<String>
+    responseType: Stdlib.Option.Option<String>
+    summary: String }
+
+
+let operationsOf (doc: List<(String * Stdlib.AltJson.Json)>) : List<Operation> =
+  obj "paths" doc
+  |> Stdlib.List.map (fun (path, methodsJson) ->
+    let methods =
+      match methodsJson with
+      | Object fs -> fs
+      | _ -> []
+    methods
+    |> Stdlib.List.filterMap (fun (method, opJson) ->
+      let op =
+        match opJson with
+        | Object fs -> fs
+        | _ -> []
+      let isMethod =
+        Stdlib.List.member [ "get", "post", "put", "patch", "delete" ] method
+      if Stdlib.Bool.not isMethod then
+        Stdlib.Option.Option.None
+      else
+        let fallbackName =
+          method
+          ++ (path
+              |> Stdlib.String.split "/"
+              |> Stdlib.List.map (fun seg ->
+                seg
+                |> Stdlib.String.replaceAll "{" ""
+                |> Stdlib.String.replaceAll "}" ""
+                |> Generate.Source.typeName)
+              |> Stdlib.String.join "")
+        let name =
+          Generate.Source.identifier
+            ((str "operationId" op) |> Stdlib.Option.withDefault fallbackName)
+        let params_ =
+          arr "parameters" op
+          |> Stdlib.List.filterMap (fun p ->
+            match p with
+            | Object fs ->
+              match
+                (str "name" fs,
+                 str "in" fs)
+              with
+              | (Some n, Some place) -> Stdlib.Option.Option.Some((n, place))
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None)
+        let inPlace (place: String) : List<String> =
+          params_
+          |> Stdlib.List.filterMap (fun (n, w) ->
+            if w == place then Stdlib.Option.Option.Some n else Stdlib.Option.Option.None)
+        let refNameIn
+          (schema: List<(String * Stdlib.AltJson.Json)>)
+          : Stdlib.Option.Option<String> =
+          match str "$ref" schema with
+          | Some ref ->
+            (Stdlib.String.split ref "/")
+            |> Stdlib.List.last
+            |> Stdlib.Option.map Generate.Source.typeName
+          | None -> Stdlib.Option.Option.None
+        let jsonSchemaOf
+          (content: List<(String * Stdlib.AltJson.Json)>)
+          : List<(String * Stdlib.AltJson.Json)> =
+          obj "schema" (obj "application/json" content)
+        let bodyType =
+          refNameIn (jsonSchemaOf (obj "content" (obj "requestBody" op)))
+        let responses = obj "responses" op
+        let okResponse =
+          [ "200", "201", "default" ]
+          |> Stdlib.List.filterMap (fun code ->
+            match obj code responses with
+            | [] -> Stdlib.Option.Option.None
+            | r -> Stdlib.Option.Option.Some r)
+          |> Stdlib.List.head
+          |> Stdlib.Option.withDefault []
+        let responseType = refNameIn (jsonSchemaOf (obj "content" okResponse))
+        Stdlib.Option.Option.Some(
+          Operation
+            { method = Stdlib.String.toUppercase method
+              path = path
+              name = name
+              pathParams = inPlace "path"
+              queryParams = inPlace "query"
+              bodyType = bodyType
+              responseType = responseType
+              summary = (str "summary" op) |> Stdlib.Option.withDefault "" })))
+  |> Stdlib.List.flatten
+
+
+/// The fn for one operation, as source.
+let operationSource (op: Operation) : String =
+  let stringParam (p: String) : String = $"({Generate.Source.identifier p}: String)"
+  let bodyParam =
+    match op.bodyType with
+    | Some t -> [ $"(body: {t})" ]
+    | None -> []
+  let params_ =
+    Stdlib.List.flatten
+      [ [ "(client: Client)" ],
+        op.pathParams |> Stdlib.List.map stringParam,
+        op.queryParams |> Stdlib.List.map stringParam,
+        bodyParam ]
+    |> Stdlib.String.join " "
+
+  // The path with each `{param}` spliced in, as a `++` chain of literal segments and
+  // parameter names.
+  let pathExpr =
+    (Stdlib.String.split op.path "{")
+    |> Stdlib.List.indexedMap (fun i piece ->
+      if i == 0 then
+        [ $"\"{piece}\"" ]
+      else
+        match Stdlib.String.split piece "}" with
+        | [ param, rest ] ->
+          [ Generate.Source.identifier param, $"\"{rest}\"" ]
+        | _ -> [ $"\"{piece}\"" ])
+    |> Stdlib.List.flatten
+    |> Stdlib.List.filter (fun piece -> piece != "\"\"")
+    |> Stdlib.String.join " ++ "
+
+  let queryExpr =
+    match op.queryParams with
+    | [] -> ""
+    | qs ->
+      let pairs =
+        qs
+        |> Stdlib.List.map (fun q ->
+          $"\"{q}=\" ++ {Generate.Source.identifier q}")
+        |> Stdlib.String.join ", "
+      $" ++ \"?\" ++ (Stdlib.String.join [ {pairs} ] \"&\")"
+
+  let bodyExpr =
+    match op.bodyType with
+    | Some t -> $"(Stdlib.Json.serialize<{t}> body |> Stdlib.Blob.fromString)"
+    | None -> "Stdlib.Blob.empty"
+
+  let (returnType, decode) =
+    match op.responseType with
+    | Some t ->
+      (t,
+       Stdlib.String.join
+         [ "match Stdlib.Blob.toString response.body with",
+           "      | Error _ -> Stdlib.Result.Result.Error ApiError.NotText",
+           "      | Ok text ->",
+           $"        match Stdlib.Json.parse<{t}> text with",
+           "        | Ok value -> Stdlib.Result.Result.Ok value",
+           "        | Error e -> Stdlib.Result.Result.Error(ApiError.Decode e)" ]
+         "\n")
+    | None -> ("Unit", "Stdlib.Result.Result.Ok ()")
+
+  let doc =
+    if op.summary == "" then
+      $"{op.method} {op.path}"
+    else
+      $"{op.summary} ({op.method} {op.path})"
+
+  Stdlib.String.join
+    [ $"/// {doc}",
+      $"let {op.name} {params_} : Stdlib.Result.Result<{returnType}, ApiError> =",
+      $"  let url = client.baseUrl ++ {pathExpr}{queryExpr}",
+      $"  match Stdlib.HttpClient.request \"{op.method}\" url client.headers {bodyExpr} with",
+      "  | Error e ->",
+      "    Stdlib.Result.Result.Error(ApiError.Transport(Stdlib.HttpClient.toString e))",
+      "  | Ok response ->",
+      "    if (response.statusCode >= 200) && (response.statusCode < 300) then",
+      $"      {decode}",
+      "    else",
+      "      Stdlib.Result.Result.Error(ApiError.Status response.statusCode)" ]
+    "\n"
+
+
+/// The fixed part of every client: where to send requests, and what can go wrong.
+let preamble () : List<String> =
+  [ Stdlib.String.join
+      [ "/// Where requests go. `headers` is sent with every request (an auth header,",
+        "/// say); `Stdlib.HttpClient.bearerToken` makes one.",
+        "type Client =",
+        "  { baseUrl: String",
+        "    headers: List<(String * String)> }" ]
+      "\n"
+    Stdlib.String.join
+      [ "type ApiError =",
+        "  /// The request did not complete.",
+        "  | Transport of String",
+        "  /// The server answered outside 2xx.",
+        "  | Status of Int",
+        "  /// A 2xx body that was not text.",
+        "  | NotText",
+        "  /// A 2xx body that did not parse as the response type.",
+        "  | Decode of Stdlib.Json.ParseError.ParseError" ]
+      "\n" ]
+
+
+/// A client for the API described by <param spec>, an OpenAPI 3.x document as JSON.
+let client (spec: Blob) : Generate.Run =
+  if Stdlib.Blob.length spec == 0 then
+    Generate.failed [ "the document is empty (a missing input reads as empty)" ]
+  else
+    match Stdlib.Blob.toString spec with
+    | Error _ -> Generate.failed [ "the document is not UTF-8 text" ]
+    | Ok text ->
+      match Stdlib.AltJson.parse text with
+      | Error _ ->
+        Generate.failed
+          [ "the document did not parse as JSON. A YAML document has to be converted "
+            ++ "first (`yq -o json openapi.yaml > openapi.json`)" ]
+      | Ok(Object doc) ->
+        if Stdlib.List.isEmpty (obj "paths" doc) then
+          Generate.failed [ "the document has no `paths`; is it an OpenAPI document?" ]
+        else
+          let schemas =
+            obj "schemas" (obj "components" doc)
+            |> Stdlib.List.map (fun (name, schemaJson) ->
+              let schema =
+                match schemaJson with
+                | Object fs -> fs
+                | _ -> []
+              let typeName = Generate.Source.typeName name
+              match str "type" schema with
+              | Some "object" ->
+                let (decl, nested) = recordType typeName schema
+                Stdlib.List.pushBack nested decl
+              | _ ->
+                if Stdlib.List.isEmpty (obj "properties" schema) then
+                  // Not an object: an alias would be the honest thing, and Dark has
+                  // no alias syntax yet, so a one-field record says what it is.
+                  let (t, nested, note) = schemaType typeName schema
+                  let field = Generate.Source.field "value" t note
+                  Stdlib.List.pushBack nested (Generate.Source.recordType typeName [ field ])
+                else
+                  let (decl, nested) = recordType typeName schema
+                  Stdlib.List.pushBack nested decl)
+            |> Stdlib.List.flatten
+
+          let operations = operationsOf doc |> Stdlib.List.map operationSource
+
+          Generate.ofSource
+            (Generate.Source.module_
+              (Stdlib.List.flatten [ preamble (), schemas, operations ]))
+      | Ok _ -> Generate.failed [ "the document's top level is not an object" ]
