@@ -494,7 +494,13 @@ def equivalence_sweep(pool, hashes, items, parallel, budget, batch_size, run_tim
                         eq[h] = v
                 if status == "compile-error":
                     if len(runnable) == 1:
-                        eq[runnable[0]] = "no-compile|" + detail
+                        # The entry serializes the result to JSON to compare it; a
+                        # result with no JSON form (a function, a Blob) is the
+                        # harness's limit, not a failure of the fn to compile.
+                        if "Unsupported type in JSON" in detail:
+                            eq[runnable[0]] = "noargs|no JSON form for the result: " + detail
+                        else:
+                            eq[runnable[0]] = "no-compile|" + detail
                     elif runnable:
                         half = (len(runnable) + 1) // 2
                         queue.append(runnable[:half])
@@ -592,7 +598,10 @@ def category(detail):
 
 
 def equiv_verdict(r):
-    return r.split("|", 1)[0].strip() or "?"
+    # A DIFF verdict carries where the outputs part ("DIFF at 12 of 40/38") in
+    # front of the bar; it is one verdict for counting.
+    v = r.split("|", 1)[0].strip() or "?"
+    return "DIFF" if v.startswith("DIFF") else v
 
 
 # ---------------------------------------------------------------------------

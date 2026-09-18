@@ -1,6 +1,6 @@
 repo     https://github.com/pbiggar/darklang-compiler
-commit   73ae3461f8e0b009b072b0d26cda7e4e4e4dd121
-date     2026-09-15
-subject  Merge commit '9aaab9f4d292cb85dd2a13a0f58a2ef77e48ba34' into HEAD
+commit   f2a20fae46ed0c217ddfc8051c3af2005a8e4b46
+date     2026-09-18
+subject  Test a list arm's guard before taking it
 branch   upstream-dark-fixes
-worktree yes (the three commits on upstream-dark-fixes, not yet upstream)
+worktree no

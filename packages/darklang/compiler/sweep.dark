@@ -391,6 +391,14 @@ let layout (source: String) : String = Builtin.compilerLayout source
 
 /// Compile named source units: (name, purpose, source), purpose one of
 /// executable | library | package. ("ok", "", bytes) or ("compile-error", "", message).
+/// Mode "eval" is the compiler's own test mode (TestExpression: the entry's value
+/// is printed, generics are specialized locally); "program" is how `dark file.dark`
+/// compiles (FullProgram: the entry must return Unit or an Int, generics are
+/// monomorphized whole). The sweep uses "eval": measured 2026-09-18, "program"
+/// hangs on 32 closures "eval" compiles in seconds (SCM.Draft.addedHashes is one),
+/// while "eval" misses 7 fns whose library-unit generic needs a stdlib
+/// specialization it does not register ("Missing specialization for
+/// Stdlib.List.flatten<str>"). Both are reported to the compiler's author.
 let compile (units: List<(String * String * String)>) (mode: String) : (String * String * String) =
   Builtin.compilerCompile units mode
 
