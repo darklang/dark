@@ -1,0 +1,19 @@
+Title: Fixes from compiling darklang/dark's package tree
+
+I pushed all ~5,200 package fns from darklang/dark through the compiler (each one pretty-printed with its closure, compiled from source against your stdlib, and where I could synthesize arguments, run both ways and the JSON diffed). This is what fell out of that, one commit per fix, each with an e2e case that fails on main. Nothing here touches the stdlib surface except mapError's argument order.
+
+The front-end ones are about how the interpreter reads layout: a `let` without `in` whose body is the next line, two statements in a block, a function calling itself by its bare name, a nested match inside an arm that isn't the arm's first line, and `x - 1` after a call being subtraction rather than a `-1` argument. Without these a two-let function either misparsed or spent 30s in the split-retry fallback, so almost nothing compiled. I kept the "recover layout textually before lexing" approach the parser already used rather than teaching the lexer about columns; the continuation-token lists in `insertValueLetLayoutSeparators` are the part worth a skeptical read.
+
+Checker: an unsuffixed Int literal and an empty list literal both against a type variable (every `List.fold xs [] f`), and generic type params freshened per call site instead of per index. That last one was the biggest single finding imo: every generic call in a body shared `a$0`, so a generic seed passed to a generic fold typed as `Parser<Parser<a>>`. The two error messages your suite pins on `a$0` still hold because the counter resets per function and per top-level expression.
+
+Pattern lowering: nested constructor patterns now resolve in their payload's type, and a payload is only tested after its tag matched (the flat AND loaded the payload slot regardless, which past a smaller variant is heap garbage; that was every SIGSEGV in the JSON parsers). Arms with several tests lower to a Bool join rather than nested Ifs; my first attempt nested them and got 2^n copies of the else branch. List heads are now tested when the list pattern sits inside a tuple or a payload, and a `when` guard on a non-last list arm is actually tested (it was dropped, so `flag :: _ when startsWith flag "--"` matched every non-empty list).
+
+Inliner: a Bool callee with several returns inlines through a join instead of copying the continuation per return, and other multi-return callees are only inlined while the copies stay small (64 nodes, untuned). A derived equality over a record with fourteen Option fields was 76 million ANF nodes before this and looked like a hang.
+
+Tail calls: a release of something a tail call borrows from (the closure read out of a record, a list read out of a field) no longer moves ahead of the call. A record whose only field is a function was freed together with the closure the call then jumped through.
+
+Driver, two small ones: a library unit may redeclare a function your stdlib carries under a non-Stdlib name (it has darklang/dark's `LanguageTools.PackageManager` etc., so the merge crashed on the name), and in TestExpression mode the stdlib specializations a local generic reaches once it's specialized are requested up front.
+
+Numbers, before and after: 2,509 of 5,174 fns compiling went to 2,770; proven identical to the interpreter went from 1,961 to 2,361; crashes from 20 to 1; hangs from 37 to 0. What's left is mostly stdlib surface your stdlib doesn't have (about 2,000 fns hang off LocalStore, Cli.Tui, FileSystem, Env, HttpClient, Pretty) and our own Builtin.*, which I haven't touched. I have a list of the remaining compiler-side ones with reproducers (constructor tag collisions, a preamble-path crash in rcShapeOfTypeWithSums, FullProgram codegen taking 6 minutes on a 2.4 MB binary) and can open issues if that's useful.
+
+I ran your suite with `--e2e-batch-size=64` throughout; the default batch size overflows the stack in my container on main too.

@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+# Put a copy of the native compiler (pbiggar/darklang-compiler) where the
+# flag-on build finds it: backend/src/LibCompiler.
+#
+#   scripts/build/vendor-compiler <compiler-checkout> [<commit>]   that commit (default: HEAD)
+#   scripts/build/vendor-compiler --worktree <compiler-checkout>   its working tree, edits and all
+#
+# LibCompiler is not tracked by git (see .gitignore); only vendor/ is, and
+# vendor/VENDORED-FROM records what was copied. Nothing is patched on the way in:
+# a compiler fix is made in the compiler checkout, on a branch there, and copied
+# with --worktree until it is committed. The old in-tree patch is kept under
+# vendor/archive/ for the record.
+#
+# Copies src/DarkCompiler/ minus the standalone Program.fs, and generates
+# LibCompiler.fsproj from the upstream fsproj (scripts/build/_gen-libcompiler-fsproj.py).
+# Then build flag-on:
+#
+#   ./scripts/build/_dotnet-wrapper build --configuration Debug \
+#       -p:DarkWithCompiler=true src/Cli/Cli.fsproj src/LocalExec/LocalExec.fsproj
+#
+# Runs on the host: it needs the compiler checkout, which the container can't see.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../dev/_help"
+help_if_asked "$@"
+set -euo pipefail
+
+WORKTREE=false
+while [[ ${1:-} == --* ]]; do
+  case "$1" in
+    --worktree) WORKTREE=true ;;
+    *) echo "unknown flag $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "usage: scripts/build/vendor-compiler [--worktree] <compiler-checkout> [<commit>]" >&2
+  exit 2
+fi
+
+SRC=$(cd "$1" && pwd)
+COMMIT=${2:-HEAD}
+ROOT=$(cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd)
+DEST="$ROOT/backend/src/LibCompiler"
+VENDOR="$DEST/vendor"
+
+if [[ ! -d "$SRC/src/DarkCompiler" ]]; then
+  echo "$SRC does not look like a darklang-compiler checkout (no src/DarkCompiler)" >&2
+  exit 2
+fi
+
+SHA=$(git -C "$SRC" rev-parse --verify "$COMMIT^{commit}")
+DATE=$(git -C "$SRC" log -1 --format=%ad --date=short "$SHA")
+SUBJECT=$(git -C "$SRC" log -1 --format=%s "$SHA")
+BRANCH=$(git -C "$SRC" rev-parse --abbrev-ref HEAD)
+
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+if $WORKTREE; then
+  if [[ $COMMIT != HEAD ]]; then
+    echo "--worktree copies the working tree; a commit makes no sense with it" >&2
+    exit 2
+  fi
+  mkdir -p "$TMP/src"
+  rsync -a --exclude bin --exclude obj "$SRC/src/DarkCompiler" "$TMP/src/"
+  DIRTY=$(git -C "$SRC" status --porcelain -- src/DarkCompiler | wc -l)
+else
+  git -C "$SRC" archive "$SHA" src/DarkCompiler | tar -x -C "$TMP"
+  DIRTY=0
+fi
+mv "$TMP/src/DarkCompiler"/Program.fs "$TMP/src/DarkCompiler"/DarkCompiler.fsproj "$TMP/" 2>/dev/null || true
+
+# Everything in LibCompiler is upstream's except the fsproj, vendor/ and the
+# upstream* copies scripts/compiler/upstream-tests keeps for running its suite.
+mkdir -p "$DEST"
+find "$DEST" -mindepth 1 -maxdepth 1 \
+  ! -name LibCompiler.fsproj ! -name vendor ! -name obj ! -name bin ! -name 'upstream*' \
+  -exec rm -rf {} +
+cp -r "$TMP/src/DarkCompiler/." "$DEST/"
+python3 "$( dirname "${BASH_SOURCE[0]}" )/_gen-libcompiler-fsproj.py" "$TMP/DarkCompiler.fsproj" "$DEST/LibCompiler.fsproj"
+
+{
+  echo "repo     https://github.com/pbiggar/darklang-compiler"
+  echo "commit   $SHA"
+  echo "date     $DATE"
+  echo "subject  $SUBJECT"
+  echo "branch   $BRANCH"
+  if $WORKTREE; then
+    echo "worktree yes ($DIRTY file(s) beyond the commit)"
+  else
+    echo "worktree no"
+  fi
+} > "$VENDOR/VENDORED-FROM"
+
+if $WORKTREE; then
+  echo "vendored the working tree of $SRC ($BRANCH at ${SHA:0:10}, $DIRTY uncommitted file(s))"
+else
+  echo "vendored darklang-compiler @ ${SHA:0:10} ($DATE, $SUBJECT)"
+fi
