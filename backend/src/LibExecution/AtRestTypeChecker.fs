@@ -351,6 +351,55 @@ let private checkInferredPackageValue
         monomorphic inferred
     finish state (Some(Expr.toID value.body)) scheme)
 
+/// Impls are not referenced from call sites, so a dependency walk cannot find
+/// them; ask the store for every item that references each type in the closure
+/// (a trait's impls all do) and register the ones that are impls. A type that is
+/// not a trait yields nothing, so this costs one cached query per type.
+let addVisibleImpls
+  (pm : PT.PackageManager)
+  (types : seq<PT.FQTypeName.Package>)
+  (environment : TypeEnvironment)
+  : Ply<TypeEnvironment> =
+  uply {
+    let mutable environment = environment
+    // `+` needs `Add`'s impls visible and no item names `Add`, so the operator
+    // traits are always in the set.
+    let types =
+      Seq.append (LibExecution.NumericTraits.traitHashes ()) types |> Seq.distinct
+    for typeHash in types do
+      let! (values, fns) = pm.implItems typeHash
+      // Only what a name still binds counts, same as dispatch.
+      let! liveValues =
+        values
+        |> Ply.List.filterSequentially (fun v ->
+          uply {
+            let! locs = pm.getValueLocations v.hash
+            let! bound = Ply.List.mapSequentially pm.findValue locs
+            return bound |> List.exists (fun b -> b = Some v.hash)
+          })
+      let! liveFns =
+        fns
+        |> Ply.List.filterSequentially (fun f ->
+          uply {
+            let! locs = pm.getFnLocations f.hash
+            let! bound = Ply.List.mapSequentially pm.findFn locs
+            return bound |> List.exists (fun b -> b = Some f.hash)
+          })
+      for v in liveValues do
+        environment <- TypeEnvironment.addImplIfValue v environment
+      for f in liveFns do
+        environment <- TypeEnvironment.addImplIfFn f environment
+    // A receiver call (`p.show`) reaches a trait the item never names, so the
+    // trait's declaration has to be present for every impl registered.
+    for traitHash in TypeEnvironment.implTraitsMissingDeclarations environment do
+      match! pm.getType traitHash with
+      | Some typ -> environment <- TypeEnvironment.addPackageType typ environment
+      | None -> ()
+    return environment
+  }
+
+
+
 let checkPackageFunction
   (environment : TypeEnvironment)
   (fn : PackageFn.PackageFn)

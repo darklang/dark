@@ -119,7 +119,7 @@ let private getHashes () : Map<string, string> =
     hashGeneration <- hashGeneration + 1
     h
 
-let private currentGeneration () : int =
+let currentGeneration () : int =
   // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
   getHashes () |> ignore<Map<string, string>>
   hashGeneration
@@ -196,6 +196,19 @@ module Type =
 
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
+
+    /// The traits the arithmetic and comparison operators lower to
+    /// (`NumericTraits.fs`, `FastOps.traitTag`).
+    module Traits =
+      let add = p [] "Add"
+      let sub = p [] "Sub"
+      let mul = p [] "Mul"
+      let div = p [] "Div"
+      let mod' = p [] "Mod"
+      let pow = p [] "Pow"
+      let neg = p [] "Neg"
+      let ord = p [] "Ord"
+      let all () = [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
 
     let sqliteValue = p [ "Sqlite" ] "Value"
 

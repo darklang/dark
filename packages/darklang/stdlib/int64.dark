@@ -203,3 +203,41 @@ let shiftLeft (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftLeft a b
 
 /// Bitwise right shift of an <type Int64> value
 let shiftRight (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int64 =
+  let add = Stdlib.Int64.add
+
+
+impl Sub for Int64 =
+  let subtract = Stdlib.Int64.subtract
+
+
+impl Mul for Int64 =
+  let multiply = Stdlib.Int64.multiply
+
+
+impl Div for Int64 =
+  let divide = Stdlib.Int64.divide
+
+
+impl Mod for Int64 =
+  let modulo = Stdlib.Int64.``mod``
+
+
+impl Pow for Int64 =
+  let power = Stdlib.Int64.power
+
+
+impl Neg for Int64 =
+  let negate = Stdlib.Int64.negate
+
+
+impl Ord for Int64 =
+  let lessThan = Stdlib.Int64.lessThan
+  let lessThanOrEqualTo = Stdlib.Int64.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int64.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo

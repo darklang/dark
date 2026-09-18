@@ -187,3 +187,37 @@ let shiftLeft (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftLeft a b
 
 /// Bitwise right shift of a <type UInt32> value
 let shiftRight (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for UInt32 =
+  let add = Stdlib.UInt32.add
+
+
+impl Sub for UInt32 =
+  let subtract = Stdlib.UInt32.subtract
+
+
+impl Mul for UInt32 =
+  let multiply = Stdlib.UInt32.multiply
+
+
+impl Div for UInt32 =
+  let divide = Stdlib.UInt32.divide
+
+
+impl Mod for UInt32 =
+  let modulo = Stdlib.UInt32.``mod``
+
+
+impl Pow for UInt32 =
+  let power = Stdlib.UInt32.power
+
+
+impl Ord for UInt32 =
+  let lessThan = Stdlib.UInt32.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt32.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt32.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo

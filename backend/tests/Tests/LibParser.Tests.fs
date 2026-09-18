@@ -1965,6 +1965,23 @@ let private traitTests =
           Expect.equal valPath [ "Darklang"; "Stdlib"; "Int64"; "Add" ] "instance path"
         | other -> failtest $"items: {other}")
 
+      testCase "an alias member names an existing fn and generates no method fn" (fun _ ->
+        let decls =
+          parseDecls "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add = Stdlib.Int64.add"
+        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
+        | [ SourceFile.Value(valPath, v) ] ->
+          Expect.equal valPath [ "Darklang"; "Stdlib"; "Int64"; "Add" ] "instance path"
+          match v.body with
+          | WT.ERecord(_, _, [ (_, (_, "add"), WT.EFnName(_, target)) ], _, _) ->
+            Expect.equal target.fn.name "add" "the field is the named fn"
+            Expect.equal (target.modules |> List.map (fun (m, _) -> m.name)) [ "Stdlib"; "Int64" ] "qualified"
+          | other -> failtest $"instance body: {other}"
+        | other -> failtest $"items: {other}")
+
+      testCase "an alias member must be a name" (fun _ ->
+        let r = P.parse "impl Show for Point =\n  let show = fun p -> \"p\""
+        Expect.isNonEmpty r.diagnostics "a lambda is not an alias")
+
       testCase "a conditional impl desugars to a fn returning the record" (fun _ ->
         let decls =
           parseDecls "impl<'a: Show> Show for List<'a> =\n  let show (xs: List<'a>) : String = \"xs\""

@@ -44,6 +44,9 @@ let listMember = 16
 let dictSetStrict = 17
 let strIsEmpty = 18
 let listIsEmpty = 19
+/// `Mul.multiply`; only reached as a trait method, since `*` never lowered to a builtin the
+/// `Int` table knew.
+let multiply = 20
 
 /// The operator itself, given a tag from `byName` and two `Int`s.
 let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -51,6 +54,8 @@ let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
     ValueSome(Dval.dint (DarkInt.add a b))
   elif tag = subtract then
     ValueSome(Dval.dint (DarkInt.subtract a b))
+  elif tag = multiply then
+    ValueSome(Dval.dint (DarkInt.multiply a b))
   elif tag = lessThan then
     ValueSome(Dval.bool (DarkInt.compare a b < 0))
   elif tag = lessThanOrEqualTo then
@@ -245,6 +250,125 @@ let evalDictSet
           ValueSome(DDict(keyType, valueType, map))
         | Error() -> ValueNone
       | Error() -> ValueNone
+  else
+    ValueNone
+
+
+/// The arithmetic and comparison operators on the fixed-width and float types, for the trait
+/// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.add` is
+/// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
+/// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
+/// `power`) and every mixed pair declines: the impl runs and raises its own error.
+let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  if tag = add then
+    match a, b with
+    | DInt8 x, DInt8 y -> ValueSome(DInt8(x + y))
+    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x + y))
+    | DInt16 x, DInt16 y -> ValueSome(DInt16(x + y))
+    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x + y))
+    | DInt32 x, DInt32 y -> ValueSome(DInt32(x + y))
+    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x + y))
+    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x + y))
+    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x + y))
+    | DInt128 x, DInt128 y -> ValueSome(DInt128(x + y))
+    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x + y))
+    | DFloat x, DFloat y -> ValueSome(DFloat(x + y))
+    | _ -> ValueNone
+  elif tag = subtract then
+    match a, b with
+    | DInt8 x, DInt8 y -> ValueSome(DInt8(x - y))
+    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x - y))
+    | DInt16 x, DInt16 y -> ValueSome(DInt16(x - y))
+    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x - y))
+    | DInt32 x, DInt32 y -> ValueSome(DInt32(x - y))
+    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x - y))
+    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x - y))
+    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x - y))
+    | DInt128 x, DInt128 y -> ValueSome(DInt128(x - y))
+    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x - y))
+    | DFloat x, DFloat y -> ValueSome(DFloat(x - y))
+    | _ -> ValueNone
+  elif tag = multiply then
+    match a, b with
+    | DInt8 x, DInt8 y -> ValueSome(DInt8(x * y))
+    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x * y))
+    | DInt16 x, DInt16 y -> ValueSome(DInt16(x * y))
+    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x * y))
+    | DInt32 x, DInt32 y -> ValueSome(DInt32(x * y))
+    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x * y))
+    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x * y))
+    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x * y))
+    | DInt128 x, DInt128 y -> ValueSome(DInt128(x * y))
+    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x * y))
+    | DFloat x, DFloat y -> ValueSome(DFloat(x * y))
+    | _ -> ValueNone
+  elif
+    tag = lessThan
+    || tag = lessThanOrEqualTo
+    || tag = greaterThan
+    || tag = greaterThanOrEqualTo
+  then
+    let ordering =
+      match a, b with
+      | DInt8 x, DInt8 y -> compare x y
+      | DUInt8 x, DUInt8 y -> compare x y
+      | DInt16 x, DInt16 y -> compare x y
+      | DUInt16 x, DUInt16 y -> compare x y
+      | DInt32 x, DInt32 y -> compare x y
+      | DUInt32 x, DUInt32 y -> compare x y
+      | DInt64 x, DInt64 y -> compare x y
+      | DUInt64 x, DUInt64 y -> compare x y
+      | DInt128 x, DInt128 y -> compare x y
+      | DUInt128 x, DUInt128 y -> compare x y
+      // `compare` on floats orders NaN, where the builtin's `<` answers false; declined below.
+      | DFloat x, DFloat y when
+        not (System.Double.IsNaN x) && not (System.Double.IsNaN y)
+        ->
+        compare x y
+      | _ -> System.Int32.MinValue
+    if ordering = System.Int32.MinValue then
+      ValueNone
+    elif tag = lessThan then
+      ValueSome(Dval.bool (ordering < 0))
+    elif tag = lessThanOrEqualTo then
+      ValueSome(Dval.bool (ordering <= 0))
+    elif tag = greaterThan then
+      ValueSome(Dval.bool (ordering > 0))
+    else
+      ValueSome(Dval.bool (ordering >= 0))
+  else
+    ValueNone
+
+
+/// The tag for a trait method, when the trait is one of the stdlib operator traits. Rebuilt
+/// when the package refs reload, since the hashes move with the stdlib. The table is
+/// published whole and never written after: readers on other threads only ever see a
+/// finished one.
+let mutable private traitTags : struct (int * Dictionary<struct (string * string), int>) =
+  struct (-1, Dictionary())
+
+let traitTag (traitHash : string) (methodName : string) : int voption =
+  let gen = PackageRefs.currentGeneration ()
+  let struct (tableGen, table) = traitTags
+  let table =
+    if gen = tableGen then
+      table
+    else
+      let fresh = Dictionary<struct (string * string), int>()
+      let put (hash : string) (methodName : string) (tag : int) =
+        if hash <> "" then fresh[struct (hash, methodName)] <- tag
+      put (PackageRefs.Type.Stdlib.Traits.add ()) "add" add
+      put (PackageRefs.Type.Stdlib.Traits.sub ()) "subtract" subtract
+      put (PackageRefs.Type.Stdlib.Traits.mul ()) "multiply" multiply
+      put (PackageRefs.Type.Stdlib.Traits.ord ()) "lessThan" lessThan
+      put (PackageRefs.Type.Stdlib.Traits.ord ()) "lessThanOrEqualTo" lessThanOrEqualTo
+      put (PackageRefs.Type.Stdlib.Traits.ord ()) "greaterThan" greaterThan
+      put (PackageRefs.Type.Stdlib.Traits.ord ()) "greaterThanOrEqualTo" greaterThanOrEqualTo
+      traitTags <- struct (gen, fresh)
+      fresh
+  let mutable tag = 0
+  if table.TryGetValue(struct (traitHash, methodName), &tag) then
+    ValueSome tag
   else
     ValueNone
 

@@ -51,6 +51,7 @@
     <Compile Include="AnalysisTypes.fs" />
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="NumericTraits.fs" />
     <Compile Include="AtRest/Types.fs" />
     <Compile Include="AtRest/Unification.fs" />
     <Compile Include="AtRest/Patterns.fs" />

@@ -208,3 +208,41 @@ let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random (start: Int) (``end``: Int) : Int =
   Builtin.intRandom start ``end``
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int =
+  let add = Stdlib.Int.add
+
+
+impl Sub for Int =
+  let subtract = Stdlib.Int.subtract
+
+
+impl Mul for Int =
+  let multiply = Stdlib.Int.multiply
+
+
+impl Div for Int =
+  let divide = Stdlib.Int.divide
+
+
+impl Mod for Int =
+  let modulo = Stdlib.Int.``mod``
+
+
+impl Pow for Int =
+  let power = Stdlib.Int.power
+
+
+impl Neg for Int =
+  let negate = Stdlib.Int.negate
+
+
+impl Ord for Int =
+  let lessThan = Stdlib.Int.lessThan
+  let lessThanOrEqualTo = Stdlib.Int.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo

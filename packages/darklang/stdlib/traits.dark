@@ -1,0 +1,54 @@
+module Darklang.Stdlib
+
+// The traits the operators are. `a + b` is `Add.add a b`, and `<` and friends
+// are `Ord`. Every builtin numeric type implements them (next to its own fns:
+// `Stdlib.Int64.Add`), and a type of your own joins by writing an impl:
+//
+//   impl Add for Vec =
+//     let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x; y = a.y + b.y }
+//
+// The interpreter answers two operands of one builtin numeric type without
+// looking the impl up, so the operators cost what they did before traits.
+
+
+/// `a + b`
+trait Add<'a> =
+  let add (a: 'a) (b: 'a) : 'a
+
+
+/// `a - b`
+trait Sub<'a> =
+  let subtract (a: 'a) (b: 'a) : 'a
+
+
+/// `a * b`
+trait Mul<'a> =
+  let multiply (a: 'a) (b: 'a) : 'a
+
+
+/// `a / b`
+trait Div<'a> =
+  let divide (a: 'a) (b: 'a) : 'a
+
+
+/// `a % b`, wrapped so that `0 <= result < b`
+trait Mod<'a> =
+  let modulo (a: 'a) (b: 'a) : 'a
+
+
+/// `a ^ b`
+trait Pow<'a> =
+  let power (``base``: 'a) (exponent: 'a) : 'a
+
+
+/// `-a`
+trait Neg<'a> =
+  let negate (a: 'a) : 'a
+
+
+/// `<`, `<=`, `>`, `>=`
+trait Ord<'a> =
+  let lessThan (a: 'a) (b: 'a) : Bool
+  let lessThanOrEqualTo (a: 'a) (b: 'a) : Bool
+  let greaterThan (a: 'a) (b: 'a) : Bool
+  let greaterThanOrEqualTo (a: 'a) (b: 'a) : Bool

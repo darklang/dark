@@ -81,6 +81,13 @@ let private builtinEnvironment () : Checker.TypeEnvironment =
   | Ok environment -> environment
   | Error errors -> failtestf "Could not construct builtin environment: %A" errors
 
+/// The builtins plus the stdlib's operator impls, which is what `1L + 2L` needs
+/// now that `+` is `Add.add`.
+let private numericEnvironment () : Checker.TypeEnvironment =
+  CheckerApi.addVisibleImpls TestUtils.TestUtils.pmPT [] (builtinEnvironment ())
+  |> Ply.toTask
+  |> _.Result
+
 let private verdictIsChecked (item : Checker.ItemVerdict) : bool =
   match item.verdict with
   | Checker.Checked _ -> true
@@ -1134,7 +1141,7 @@ let private unitTests =
         |> expectChecked
       }
 
-      test "exponentiation rejects Int128 and UInt128 operands" {
+      test "an operator is its trait: no Pow impl for the 128-bit ints" {
         let infix nodeId operation =
           PT.EInfix(
             nodeId,
@@ -1142,22 +1149,34 @@ let private unitTests =
             PT.EArg(nodeId + 1UL, 0),
             PT.EArg(nodeId + 2UL, 0)
           )
+        let environment = numericEnvironment ()
 
         oneArgFn PT.TInt128 PT.TInt128 (infix 187UL PT.ArithmeticPower)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
-        |> expectDiagnostic Checker.InvalidInfixOperand
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.MissingImpl
 
         oneArgFn PT.TUInt128 PT.TUInt128 (infix 190UL PT.ArithmeticPower)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
-        |> expectDiagnostic Checker.InvalidInfixOperand
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.MissingImpl
 
         oneArgFn PT.TInt128 PT.TInt128 (infix 193UL PT.ArithmeticPlus)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
 
         oneArgFn PT.TUInt128 PT.TUInt128 (infix 196UL PT.ArithmeticMultiply)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction environment
         |> expectChecked
+
+        // No impls visible at all: every operator use is a missing impl, not a
+        // numeric-table pass.
+        oneArgFn PT.TInt64 PT.TInt64 (infix 197UL PT.ArithmeticPlus)
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.MissingImpl
+
+        // A non-numeric operand is the same missing impl, by name.
+        oneArgFn PT.TString PT.TString (infix 198UL PT.ArithmeticPlus)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.MissingImpl
       }
 
       test "bitwise operators reject Float operands but take every integer" {
@@ -1191,7 +1210,7 @@ let private unitTests =
           |> expectChecked)
       }
 
-      test "pipeline and by-name power use the same restricted domain" {
+      test "pipeline power is the trait too; the by-name builtin keeps its table" {
         let pipeline operation =
           PT.EPipe(
             199UL,
@@ -1200,11 +1219,11 @@ let private unitTests =
           )
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPower)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
-        |> expectDiagnostic Checker.InvalidInfixOperand
+        |> CheckerApi.checkPackageFunction (numericEnvironment ())
+        |> expectDiagnostic Checker.MissingImpl
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPlus)
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction (numericEnvironment ())
         |> expectChecked
 
         let builtinPower =
@@ -1504,7 +1523,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TInt PT.TInt body
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction (numericEnvironment ())
         |> expectChecked
       }
 
@@ -1571,7 +1590,7 @@ let private unitTests =
             )
           )
         oneArgFn PT.TInt PT.TInt body
-        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> CheckerApi.checkPackageFunction (numericEnvironment ())
         |> expectChecked
       }
 

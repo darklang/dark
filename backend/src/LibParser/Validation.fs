@@ -324,7 +324,10 @@ let rec private declarationStructureIssues
   | WT.DImpl impl ->
     // Whether the methods match the trait's needs the trait's declaration, which
     // only the checker has; here: no duplicates, and each method is a valid fn.
-    (duplicateIssues (impl.methods |> List.map (fun m -> (m.name.name, m.name.range)))
+    (duplicateIssues (
+      (impl.methods |> List.map (fun m -> (m.name.name, m.name.range)))
+      @ (impl.aliases |> List.map (fun a -> (a.name.name, a.name.range)))
+     )
      |> List.map (fun i -> { i with code = ImplMethods }))
     @ (impl.methods |> List.collect (fun fn -> declarationStructureIssues (WT.DFunction fn)))
   | WT.DModule modul -> modul.declarations |> List.collect declarationStructureIssues

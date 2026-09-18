@@ -175,6 +175,15 @@ module InfixFnName =
     // checking resolve operators consistently.
     RT.FQFnName.builtin (PT.InfixFnName.toBuiltinName name) 0
 
+  /// What an operator calls: the stdlib trait method for arithmetic and
+  /// comparison, the polymorphic builtin for the rest (and for every operator
+  /// while the package refs are not generated yet).
+  let toRT (name : PT.InfixFnName) : RT.FQFnName.FQFnName =
+    match NumericTraits.ofInfix name with
+    | Some(traitHash, methodName) ->
+      RT.FQFnName.TraitMethod(RT.Hash traitHash, methodName)
+    | None -> RT.FQFnName.Builtin(toFnName name)
+
 
 module LetPattern =
   let rec toRT
@@ -861,7 +870,7 @@ module Expr =
         RT.LoadVal(
           right.registerCount,
           RT.AppNamedFn
-            { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+            { name = InfixFnName.toRT infix
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               access = None

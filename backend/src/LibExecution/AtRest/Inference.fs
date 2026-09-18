@@ -52,6 +52,41 @@ let private supportsNumericOperation
   | _, TFloat when isBitwise operation -> false
   | _ -> isNumeric typ
 
+/// What an arithmetic or comparison operand owes. Through the operator syntax it
+/// is an impl of the operator's trait (`Add` for `+`), recorded as a constraint on
+/// the operand type and discharged with the item's other bounds. Called as the
+/// polymorphic builtin (`Builtin.add a b`) it is the builtin's own table of numeric
+/// types, which is all that builtin accepts.
+let private numericOperandRule
+  (state : State)
+  (nodeId : id)
+  (operation : InfixFnName)
+  (viaBuiltin : bool)
+  (pipeline : bool)
+  (operandType : StaticType)
+  : unit =
+  let asTrait =
+    if viaBuiltin then None else LibExecution.NumericTraits.ofInfix operation
+  match asTrait with
+  | Some(traitHash, methodName) ->
+    state.AddConstraint(Some nodeId, Hash traitHash, operandType, Some methodName)
+  | None ->
+    let concrete = normalizeAliases state (Some nodeId) Set.empty operandType
+    if not (supportsNumericOperation operation concrete) then
+      match concrete with
+      | TInferenceVariable _ ->
+        if not (containsTaintedInferenceVariable state operandType) then
+          let reason = if pipeline then PipelineNumericOperand else NumericOperand
+          state.Block(AmbiguousType, Some nodeId, Ambiguous reason)
+      | _ ->
+        state.Error(
+          InvalidInfixOperand,
+          Some nodeId,
+          None,
+          Some concrete,
+          InfixOperandUnsupported operation
+        )
+
 let rec internal isNonExpansive (expr : Expr) : bool =
   ensureStack ()
   match expr with
@@ -552,6 +587,7 @@ and internal inferInfix
   (state : State)
   (env : Env)
   (nodeId : id)
+  (viaBuiltin : bool)
   (infix : Infix)
   (lhs : Expr)
   (rhs : Expr)
@@ -575,20 +611,7 @@ and internal inferInfix
   | InfixFnCall operation ->
     let lhsType = inferExpr state env lhs
     checkExpr state env lhsType rhs
-    let concrete = normalizeAliases state (Some nodeId) Set.empty lhsType
-    if not (supportsNumericOperation operation concrete) then
-      match concrete with
-      | TInferenceVariable _ ->
-        if not (containsTaintedInferenceVariable state lhsType) then
-          state.Block(AmbiguousType, Some nodeId, Ambiguous NumericOperand)
-      | _ ->
-        state.Error(
-          InvalidInfixOperand,
-          Some nodeId,
-          None,
-          Some concrete,
-          InfixOperandUnsupported operation
-        )
+    numericOperandRule state nodeId operation viaBuiltin false lhsType
     match operation with
     | ComparisonGreaterThan
     | ComparisonGreaterThanOrEqual
@@ -613,6 +636,17 @@ and internal inferPipePart
   (state : State)
   (env : Env)
   (input : StaticType)
+  (part : PipeExpr)
+  : StaticType =
+  inferPipePartVia state env input false part
+
+/// `viaBuiltin`: the part is the polymorphic operator builtin called by name
+/// (`|> Builtin.add 1`), rewritten to the operator's shape.
+and private inferPipePartVia
+  (state : State)
+  (env : Env)
+  (input : StaticType)
+  (viaBuiltin : bool)
   (part : PipeExpr)
   : StaticType =
   ensureStack ()
@@ -647,20 +681,7 @@ and internal inferPipePart
       TBool
     | InfixFnCall operation ->
       unify state (Some nodeId) PipelineNumericOperator input rhsType
-      let concrete = normalizeAliases state (Some nodeId) Set.empty input
-      if not (supportsNumericOperation operation concrete) then
-        match concrete with
-        | TInferenceVariable _ ->
-          if not (containsTaintedInferenceVariable state input) then
-            state.Block(AmbiguousType, Some nodeId, Ambiguous PipelineNumericOperand)
-        | _ ->
-          state.Error(
-            InvalidInfixOperand,
-            Some nodeId,
-            None,
-            Some concrete,
-            InfixOperandUnsupported operation
-          )
+      numericOperandRule state nodeId operation viaBuiltin true input
       match operation with
       | ComparisonGreaterThan
       | ComparisonGreaterThanOrEqual
@@ -681,7 +702,7 @@ and internal inferPipePart
     | [], [], _, Some fqName, _ -> inferNegateResult state nodeId fqName input
     | [], [ rhs ], _, _, Some(fqName, infix) ->
       state.AddDependency(FunctionDependency fqName)
-      inferPipePart state env input (EPipeInfix(nodeId, infix, rhs))
+      inferPipePartVia state env input true (EPipeInfix(nodeId, infix, rhs))
     | _ ->
       let fnType =
         instantiateFunction state (Some nodeId) env.typeVariables name typeArgs
@@ -905,7 +926,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
         asOperatorBuiltin name
         |> Option.map (fun (fqName, infix) ->
           state.AddDependency(FunctionDependency fqName)
-          inferInfix state env nodeId infix lhs rhs)
+          inferInfix state env nodeId true infix lhs rhs)
       | _ -> None
     match specialCase with
     | Some resultType -> resultType
@@ -932,7 +953,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
     let bodyType = inferExpr state (addBindings state None env bindings) body
     TFn(parameters, bodyType)
-  | EInfix(nodeId, infix, lhs, rhs) -> inferInfix state env nodeId infix lhs rhs
+  | EInfix(nodeId, infix, lhs, rhs) -> inferInfix state env nodeId false infix lhs rhs
   | ERecord(nodeId, name, typeArgs, fields) ->
     inferRecordConstruction state env nodeId name typeArgs fields
   | ERecordFieldAccess(nodeId, record, fieldName) ->

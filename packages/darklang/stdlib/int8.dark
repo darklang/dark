@@ -219,3 +219,41 @@ let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
 
 /// Bitwise right shift of an <type Int8> value
 let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int8 =
+  let add = Stdlib.Int8.add
+
+
+impl Sub for Int8 =
+  let subtract = Stdlib.Int8.subtract
+
+
+impl Mul for Int8 =
+  let multiply = Stdlib.Int8.multiply
+
+
+impl Div for Int8 =
+  let divide = Stdlib.Int8.divide
+
+
+impl Mod for Int8 =
+  let modulo = Stdlib.Int8.``mod``
+
+
+impl Pow for Int8 =
+  let power = Stdlib.Int8.power
+
+
+impl Neg for Int8 =
+  let negate = Stdlib.Int8.negate
+
+
+impl Ord for Int8 =
+  let lessThan = Stdlib.Int8.lessThan
+  let lessThanOrEqualTo = Stdlib.Int8.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int8.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo

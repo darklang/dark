@@ -542,6 +542,9 @@ type ImplDecl =
     trait_ : QualifiedTypeIdentifier
     forType : TypeReference
     methods : List<FnDecl>
+    /// `let add = Stdlib.Int64.add`: a method that is an existing fn, so the
+    /// impl names it instead of wrapping it.
+    aliases : List<ValueDecl>
     keywordImpl : Range
     keywordFor : Range
     symbolEquals : Range
@@ -904,6 +907,8 @@ type DesugaredImpl =
 /// after the type (`impl Add for Int64` inside `Stdlib.Int64`), the type segment
 /// is not repeated. `impl<'a: Show> Show for List<'a>` becomes
 /// `let instance<'a: Show> () : Show<List<'a>> = Show<List<'a>> { show = show }`.
+/// An alias member (`let add = Stdlib.Int64.add`) puts that fn in the record
+/// directly; no method fn is generated for it.
 let desugarImpl (currentPath : List<string>) (impl : ImplDecl) : DesugaredImpl =
   let typeName = typeReferenceHeadName impl.forType
   let traitName = impl.trait_.typ.name
@@ -926,9 +931,11 @@ let desugarImpl (currentPath : List<string>) (impl : ImplDecl) : DesugaredImpl =
     ERecord(
       impl.range,
       recordTypeName,
-      impl.methods
-      |> List.map (fun m ->
-        (m.range, (m.name.range, m.name.name), EVariable(m.name.range, m.name.name))),
+      (impl.methods
+       |> List.map (fun m ->
+         (m.range, (m.name.range, m.name.name), EVariable(m.name.range, m.name.name))))
+      @ (impl.aliases
+         |> List.map (fun a -> (a.range, (a.name.range, a.name.name), a.body))),
       impl.symbolEquals,
       impl.symbolEquals
     )

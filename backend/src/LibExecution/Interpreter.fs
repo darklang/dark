@@ -1213,6 +1213,19 @@ let private tryFastOpDirect
   else
     match applicable.name with
     | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
+    // `a + b` on two values of one builtin numeric type: the impl the dispatch would pick
+    // is the type's own wrapper over the same F# operator, so answer it here. An `Int` pair
+    // takes the same table the builtin used to; the rest take `evalNumeric`.
+    | FQFnName.TraitMethod(Hash traitHash, methodName) ->
+      match argRegs.tail with
+      | [ secondReg ] ->
+        match FastOps.traitTag traitHash methodName with
+        | ValueSome tag ->
+          match registers[argRegs.head], registers[secondReg] with
+          | DInt x, DInt y -> FastOps.eval tag x y
+          | a, b -> FastOps.evalNumeric tag a b
+        | ValueNone -> ValueNone
+      | _ -> ValueNone
     | _ -> ValueNone
 
 

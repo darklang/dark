@@ -187,3 +187,37 @@ let shiftLeft (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftLeft a b
 
 /// Bitwise right shift of a <type UInt64> value
 let shiftRight (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for UInt64 =
+  let add = Stdlib.UInt64.add
+
+
+impl Sub for UInt64 =
+  let subtract = Stdlib.UInt64.subtract
+
+
+impl Mul for UInt64 =
+  let multiply = Stdlib.UInt64.multiply
+
+
+impl Div for UInt64 =
+  let divide = Stdlib.UInt64.divide
+
+
+impl Mod for UInt64 =
+  let modulo = Stdlib.UInt64.``mod``
+
+
+impl Pow for UInt64 =
+  let power = Stdlib.UInt64.power
+
+
+impl Ord for UInt64 =
+  let lessThan = Stdlib.UInt64.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt64.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt64.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt64.greaterThanOrEqualTo

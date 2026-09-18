@@ -3095,8 +3095,9 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
       description = docOf state i },
    k)
 
-/// `impl[<'a: B>] Trait<Args> for Type =` followed by an indented block of full
-/// fn declarations, one per method.
+/// `impl[<'a: B>] Trait<Args> for Type =` followed by an indented block with one
+/// entry per method: a full fn declaration, or `let name = Existing.fn` naming a
+/// fn that already exists.
 and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
   let kwImpl = rng state i
   let kwCol = kwImpl.start.column
@@ -3124,22 +3125,27 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
       errExpected state afterType "'=' after the type"
       (zeroWidthAtEnd (rng state afterType), afterType)
   let methods = System.Collections.Generic.List<WT.FnDecl>()
+  let aliases = System.Collections.Generic.List<WT.ValueDecl>()
   let mutable k = afterEq
   let mutable go = true
   while go && tok state k = TLet && (rng state k).start.column > kwCol do
     let (d, k2) = parseDecl state k
     match d with
     | WT.DFunction fn -> methods.Add fn
+    | WT.DValue({ body = WT.EVariable _ } as v)
+    | WT.DValue({ body = WT.EFnName _ } as v) -> aliases.Add v
     | _ ->
       state.diagnostics.Add
         { code = DiagnosticCode.bound
           severity = DiagError
           range = rng state k
-          message = "An impl body holds method functions: `let name (p: T) : R = …`"
+          message =
+            "An impl body holds method functions (`let name (p: T) : R = …`) or "
+            + "aliases of existing ones (`let name = Module.fn`)"
           related = []
           hint = None }
     if k2 > k then k <- k2 else go <- false
-  if methods.Count = 0 then
+  if methods.Count = 0 && aliases.Count = 0 then
     errExpected state afterEq "at least one method, indented under the impl"
   let endR = if k > 0 then rng state (k - 1) else eq
   (WT.DImpl
@@ -3149,6 +3155,7 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
       trait_ = traitId
       forType = forType
       methods = List.ofSeq methods
+      aliases = List.ofSeq aliases
       keywordImpl = kwImpl
       keywordFor = kwFor
       symbolEquals = eq

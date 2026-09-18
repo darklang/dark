@@ -78,6 +78,11 @@ let power (``base``: Float) (exponent: Float) : Float =
 let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
 
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+let ``mod`` (a: Float) (b: Float) : Float = Builtin.modulo a b
+
+
 /// Returns true if a is greater than b
 let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
 
@@ -154,3 +159,41 @@ let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
 
 /// Return <param a>'s IEEE 754 binary64 bits as a signed 64-bit value.
 let toBits (a: Float) : Int = Builtin.floatToBits a
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Float =
+  let add = Stdlib.Float.add
+
+
+impl Sub for Float =
+  let subtract = Stdlib.Float.subtract
+
+
+impl Mul for Float =
+  let multiply = Stdlib.Float.multiply
+
+
+impl Div for Float =
+  let divide = Stdlib.Float.divide
+
+
+impl Mod for Float =
+  let modulo = Stdlib.Float.``mod``
+
+
+impl Pow for Float =
+  let power = Stdlib.Float.power
+
+
+impl Neg for Float =
+  let negate = Stdlib.Float.negate
+
+
+impl Ord for Float =
+  let lessThan = Stdlib.Float.lessThan
+  let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
+  let greaterThan = Stdlib.Float.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
