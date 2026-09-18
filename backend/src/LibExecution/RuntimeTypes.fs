@@ -2896,6 +2896,10 @@ type InterpreterStats =
     mutable packageCallCount : int64
     mutable framePushCount : int64
     mutable packageFnLoadCount : int64
+    /// Trait method calls that picked an impl (not answered by the operator table);
+    /// `traitDispatchMissCount` of them ran selection rather than a remembered one.
+    mutable traitDispatchCount : int64
+    mutable traitDispatchMissCount : int64
 
     /// When true, per-builtin cumulative timing is collected (requires enabled)
     mutable detailedTiming : bool
@@ -2972,6 +2976,8 @@ type InterpreterStats =
       packageCallCount = 0L
       framePushCount = 0L
       packageFnLoadCount = 0L
+      traitDispatchCount = 0L
+      traitDispatchMissCount = 0L
       // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()` each way, which
       // on some hosts is dearer than the call it is timing. Turn it on deliberately, per run, via
       // `Builtin.interpreterStatsEnableDetailedTiming`.
@@ -3015,6 +3021,8 @@ type InterpreterStats =
     this.packageCallCount <- 0L
     this.framePushCount <- 0L
     this.packageFnLoadCount <- 0L
+    this.traitDispatchCount <- 0L
+    this.traitDispatchMissCount <- 0L
     this.builtinTiming.Clear()
     this.builtinCounts.Clear()
     this.packageFnTiming.Clear()

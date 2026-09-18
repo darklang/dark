@@ -588,6 +588,9 @@ let main (args : string[]) =
           "builtinCalls", string (stats |> List.sumBy (fun s -> s.builtinCallCount))
           "packageCalls", string (stats |> List.sumBy (fun s -> s.packageCallCount))
           "framePushes", string (stats |> List.sumBy (fun s -> s.framePushCount))
+          "traitDispatches", string (stats |> List.sumBy (fun s -> s.traitDispatchCount))
+          "traitDispatchMisses",
+          string (stats |> List.sumBy (fun s -> s.traitDispatchMissCount))
           "registersAllocated",
           string (stats |> List.sumBy (fun s -> s.registersAllocated))
           "builtinBodyAlloc",

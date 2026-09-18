@@ -2491,6 +2491,10 @@ let private applyInstruction
                       ValueNone
                   else
                     ValueNone
+        if vm.stats.enabled then
+          vm.stats.traitDispatchCount <- vm.stats.traitDispatchCount + 1L
+          if remembered.IsNone then
+            vm.stats.traitDispatchMissCount <- vm.stats.traitDispatchMissCount + 1L
         let call : Ply<PackageOutcome> =
           match remembered with
           | ValueSome implFn ->
