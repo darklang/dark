@@ -1434,8 +1434,9 @@ module ImplCandidate =
   /// Liveness is "some location this hash is known by still binds it": a branch
   /// that edits an impl rebinds the location to the new hash, so the old instance
   /// stops being a candidate there while main keeps it. A hash with no location
-  /// at all (a script's own impl, grafted with `withExtras`) counts as live: it
-  /// was never bound, so nothing can have unbound it.
+  /// at all is not live: the store keeps every version's content, and only the
+  /// bound ones are impls. (A script's own impls never reach here; the script
+  /// host grafts them with `withExtraImpls`.)
   let private ofItems
     (pm : PT.PackageManager)
     (values : List<PT.PackageValue.PackageValue>)
@@ -1449,7 +1450,7 @@ module ImplCandidate =
         : Ply<bool> =
         uply {
           match! locations hash with
-          | [] -> return true
+          | [] -> return false
           | locs ->
             let! bound = Ply.List.mapSequentially find locs
             return bound |> List.exists (fun b -> b = Some hash)
@@ -1474,7 +1475,10 @@ module ImplCandidate =
     uply {
       let (RT.Hash h) = traitHash
       let! (values, fns) = pm.implItems (PT.Hash h)
-      return! ofItems pm values fns
+      let! all = ofItems pm values fns
+      // `implItems` may offer more than this trait's items (an in-memory pm offers
+      // everything); keep only records of THIS trait's type.
+      return all |> List.filter (fun c -> c.trait_ = traitHash)
     }
 
   let ofPackageManagerByMethod

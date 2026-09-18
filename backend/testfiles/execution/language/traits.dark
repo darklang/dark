@@ -1,6 +1,6 @@
-// Traits, phase A: the declarations parse, lower, store and print; the impl is a
-// value of the trait's record type; dispatch itself is phase B (today a method
-// call reports that it cannot pick the type).
+// Traits: a trait is a record type of fn fields; an impl is a package value of
+// that type (plus one fn per method) found at runtime by the self type; bounds
+// (`'a: Show`) are checked when a fn is entered.
 
 module Shapes =
   type Point = { x: Int; y: Int }
@@ -12,7 +12,19 @@ module Shapes =
     let show (p: Point) : String =
       $"({Stdlib.Int.toString p.x}, {Stdlib.Int.toString p.y})"
 
+  impl Show for Int =
+    let show (n: Int) : String = Stdlib.Int.toString n
+
+  impl Show for Bool =
+    let show (b: Bool) : String = if b then "yes" else "no"
+
+  impl<'a: Show> Show for List<'a> =
+    let show (xs: List<'a>) : String =
+      "[" ++ (xs |> Stdlib.List.map (fun x -> Show.show x) |> Stdlib.String.join ", ") ++ "]"
+
   let display<'a: Show> (v: 'a) : String = "value: " ++ Show.show v
+
+  let neverCalls<'a: Show> (v: 'a) : String = if false then Show.show v else "never"
 
   // The impl's method is an ordinary fn under <Type>.<Trait>
   Shapes.Point.Show.show (Shapes.Point { x = 1; y = 2 }) = "(1, 2)"
@@ -20,5 +32,83 @@ module Shapes =
   // The instance is an ordinary value of the trait's record type
   (Shapes.Point.Show.instance).show (Shapes.Point { x = 3; y = 4 }) = "(3, 4)"
 
-  // The trait method by name: no dispatch yet, so the runtime says why
-  Shapes.display (Shapes.Point { x = 1; y = 2 }) = error "Cannot tell which type to dispatch Show.show on. Pass the type explicitly: `Show.show<Type> ...`"
+  // Dispatch by the argument's type
+  Shapes.Show.show (Shapes.Point { x = 5; y = 6 }) = "(5, 6)"
+  Shapes.Show.show 7 = "7"
+  Shapes.Show.show true = "yes"
+
+  // Inside a bounded generic fn
+  Shapes.display (Shapes.Point { x = 1; y = 2 }) = "value: (1, 2)"
+  Shapes.display 5 = "value: 5"
+
+  // Conditional impls dispatch on the head, then on the elements lazily
+  Shapes.display [ 1, 2, 3 ] = "value: [1, 2, 3]"
+  Shapes.Show.show [ [ true ], [] ] = "[[yes], []]"
+  Shapes.display [ Shapes.Point { x = 1; y = 2 } ] = "value: [(1, 2)]"
+
+  // First-class and piped
+  ([ 1, 2 ] |> Stdlib.List.map Shapes.Show.show) = [ "1", "2" ]
+  ((Shapes.Point { x = 7; y = 8 }) |> Shapes.Show.show) = "(7, 8)"
+
+  // Receiver calls: `x.method` is the whole call for a one-argument method
+  (Shapes.Point { x = 1; y = 2 }).show = "(1, 2)"
+  (9).show = "9"
+
+  // A real field always wins over a method of the same name
+  (Shapes.Point { x = 1; y = 2 }).x = 1
+
+  // No impl: at the method call for a direct call
+  Shapes.Show.show 3.5 = error "No impl of Shapes.Show for Float. Write `impl Show for <type> = ...`, or check `dark impls`"
+
+  // No impl: at the CALL of a bounded fn, before its body runs
+  Shapes.neverCalls 3.5 = error "No impl of Shapes.Show for Float. Write `impl Show for <type> = ...`, or check `dark impls`"
+  Shapes.neverCalls 5 = "never"
+
+
+module Multi =
+  type Vec = { dx: Int; dy: Int }
+
+  trait Add<'a> =
+    let add (a: 'a) (b: 'a) : 'a
+
+  impl Add for Vec =
+    let add (a: Vec) (b: Vec) : Vec = Vec { dx = a.dx + b.dx; dy = a.dy + b.dy }
+
+  impl Add for Int =
+    let add (a: Int) (b: Int) : Int = a + b
+
+  let sum<'a: Add> (a: 'a) (b: 'a) (c: 'a) : 'a = Add.add (Add.add a b) c
+
+  Multi.Add.add (Multi.Vec { dx = 1; dy = 2 }) (Multi.Vec { dx = 10; dy = 20 }) = Multi.Vec { dx = 11; dy = 22 }
+  Multi.sum 1 2 3 = 6
+  Multi.sum (Multi.Vec { dx = 1; dy = 1 }) (Multi.Vec { dx = 2; dy = 2 }) (Multi.Vec { dx = 3; dy = 3 }) = Multi.Vec { dx = 6; dy = 6 }
+
+  // Receiver call on a two-argument method is a partial application
+  ((Multi.Vec { dx = 1; dy = 2 }).add (Multi.Vec { dx = 1; dy = 1 })) = Multi.Vec { dx = 2; dy = 3 }
+  (Multi.Vec { dx = 1; dy = 2 }).add (Multi.Vec { dx = 1; dy = 1 }) = Multi.Vec { dx = 2; dy = 3 }
+
+
+module Ambiguity =
+  // Two traits with the same method name. Their SHAPES differ (Describe has a
+  // second method): a trait is its record type, and two identically shaped
+  // traits are one trait under content addressing, however they are named.
+  trait Describe<'a> =
+    let describe (v: 'a) : String
+    let short (v: 'a) : String
+
+  trait Label<'a> =
+    let describe (v: 'a) : String
+
+  impl Describe for Int =
+    let describe (n: Int) : String = "described"
+    let short (n: Int) : String = "d"
+
+  impl Label for Int =
+    let describe (n: Int) : String = "labelled"
+
+  // Naming the trait disambiguates
+  Ambiguity.Describe.describe 1 = "described"
+  Ambiguity.Label.describe 1 = "labelled"
+
+  // A receiver call cannot pick between two traits with the same method name
+  (1).describe = error "`.describe` on a Int is ambiguous: 2 traits have a method named describe. Call it as `Trait.describe value`"
