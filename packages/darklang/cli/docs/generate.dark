@@ -1,0 +1,86 @@
+module Darklang.Cli.Docs.Generate
+
+let content () : String =
+  """# Generators
+
+A generator is a fn that writes Dark. It returns `Generate.Run`, a module's worth
+of source text, and `dark generate` stages that source the way `module` stages a
+file you typed: parsed, resolved, hashed, type-checked at rest, propagated. What a
+generator makes is a type or a fn like any other. Nothing is "generated" as a kind.
+
+  generate <libraryFn> <args...> --into Owner.Module    write a saved generator, run it
+  generate <savedGenerator>                             re-run one
+  ... --dry-run                                         show what would be written, stage nothing
+  ... --print                                           print the source a saved generator produces
+
+## The saved generator
+
+The library form is sugar. It writes ONE fn into the target module, whose body is
+the call you made, and runs it:
+
+  $ dark generate Darklang.Generate.Json.fromSample Order ./order.json --into Acme.Orders
+    stored ./order.json as blob 7f3a1c9e (412 B)
+    wrote Acme.Orders.orderGenerator
+    ran Acme.Orders.orderGenerator into Acme.Orders:
+      + Order
+      + OrderLine
+      + parse
+
+  $ dark view Acme.Orders.orderGenerator
+    let orderGenerator () : Darklang.Generate.Run =
+      Darklang.Generate.Json.fromSample "Order" (Darklang.Generate.input "7f3a1c9e...")
+
+That fn is the whole recipe. A file argument was stored once as a content-addressed
+blob and is named by hash, so the saved fn is pure: same body, same output, on any
+machine that has the blob. `view` shows it, `edit` edits it, `deps` lists what it
+reads, `status` and `commit` count it and its outputs as ordinary changes.
+
+## Running it again
+
+  $ dark generate Acme.Orders.orderGenerator
+    ran Acme.Orders.orderGenerator into Acme.Orders:
+      = Order  unchanged
+      = OrderLine  unchanged
+      = parse  unchanged
+    nothing to do: every output already holds this content
+
+`=` means the output hashed to what the name already holds, so no op was recorded.
+That is what content addressing buys: a regenerated module only moves the names
+whose content moved, and only their dependents follow.
+
+A file on disk is not watched. To take a changed sample, run the SAME library
+command again: it stores the new blob, rewrites the saved generator (`updated`),
+and re-runs it. Only what changed is `~`.
+
+An input that is a package item (a type another generator mirrors, say) is a
+dependency like any other. Edit it and the saved generator repoints and re-runs in
+your draft as part of propagation; `propagate pin <generator>` stops that, like
+any pin.
+
+## Hand edits
+
+Editing a generated type by hand is an ordinary edit. Running the generator again
+rebinds the name to the generator's output; the hand-edited version is still in
+the store, and `undo <name>` brings it back. Nothing is lost, and nothing is
+detected either: v1 does not record which names a generator produced.
+
+## Effects
+
+A generator has to be effect-free: it runs at authoring time and its output is
+stored, so a live read would make the saved fn a lie about where the output came
+from. `generate` refuses a fn whose requirements name an effect, and the run
+executes under the guest policy, where an undeclared effect is denied at the call.
+Fetch first, save the result as a file, and generate from the file.
+
+## Writing one
+
+A generator is a fn returning `Darklang.Generate.Run`. Build the source with
+`Darklang.Generate.Source` (`recordType`, `enumType`, `fn`, `module_`,
+`identifier`, `typeName`) so names are legal and layout is stable, and return
+`Darklang.Generate.ofSource text`. Report a problem with
+`Darklang.Generate.failed [ "why" ]`; the CLI prints the reasons and stages nothing.
+Keep output deterministic (sort what has no order): same inputs, same text, same
+hashes, so a re-run is a no-op.
+
+Library generators today: `Darklang.Generate.Json.fromSample name sample`.
+"""

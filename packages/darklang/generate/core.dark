@@ -1,0 +1,148 @@
+module Darklang.Generate
+
+// Generators: Dark fns that write Dark.
+//
+// A generator is an ordinary pure fn that returns a `Run`: the source text of a
+// module, and where it should land. `dark generate` stages that source exactly the
+// way `dark module` stages a file you typed, so what a generator makes is named,
+// hashed, printed and synced like anything hand-written. There is no second-class
+// "generated" kind.
+//
+// A saved run is itself a fn in the target module:
+//
+//   let orderGenerator () : Generate.Run =
+//     Generate.Json.fromSample "Order" (Generate.input "7f3a1c9e...")
+//
+// Its body is the whole recipe: the library generator it calls and the inputs it
+// reads. Because it references those by hash, it repoints when they change, and a
+// repointed generator re-runs in the draft as part of propagation. Inputs that are
+// not package items (a file on disk) are re-read only when you run `dark generate`
+// again.
+
+
+/// What one run of a generator produced.
+type Run =
+  { /// The module the source lands under, as a path `dark module` would accept
+    /// (`Acme.Orders`). A library generator leaves it empty; `dark generate --into`
+    /// fills it, and a saved generator's own module is the default.
+    into: String
+
+    /// A module's worth of Dark source: types, fns, values. Staged through the same
+    /// path as `dark module`, so it has to parse and resolve like typed code.
+    source: String
+
+    /// Why there is nothing worth staging, when there is not. A generator reports
+    /// its own problems here (an input that would not parse, a shape it cannot
+    /// express) rather than failing, so a saved generator keeps a plain `Run`
+    /// signature and the CLI can print the reasons. Non-empty means `source` is not
+    /// staged.
+    errors: List<String> }
+
+
+/// A run that has nothing to say but why.
+let failed (errors: List<String>) : Run =
+  Run { into = ""; source = ""; errors = errors }
+
+
+/// A run of <param source>, destination to be filled in by the caller.
+let ofSource (source: String) : Run =
+  Run { into = ""; source = source; errors = [] }
+
+
+/// The persistent blob stored under <param hash>, for use inside a saved generator.
+///
+/// A missing input is not a case a generator can do anything with, so this does not
+/// return an Option: it yields the empty blob, and every library generator treats an
+/// empty input as an error it reports in `Run.errors`. That keeps the saved fn's
+/// body a one-liner and its signature `Generate.Run`.
+let input (hash: String) : Blob =
+  (Stdlib.Blob.load hash) |> Stdlib.Option.withDefault Stdlib.Blob.empty
+
+
+/// Text emission helpers. Every generator writes source through these so that the
+/// output is stable across runs (sorted where order is not meaningful, one layout)
+/// and so that names are legal before the parser sees them.
+module Source =
+
+  /// A field or fn name the parser accepts: lower-case first character, then
+  /// letters, digits and underscore. Anything else is dropped; an empty or
+  /// digit-leading result gets a leading underscore.
+  let identifier (raw: String) : String =
+    let kept =
+      raw
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        (Stdlib.Char.isAlphanumeric c) || (c == '_'))
+      |> Stdlib.String.fromList
+
+    let lowered =
+      match Stdlib.String.toList kept with
+      | [] -> "_"
+      | first :: rest ->
+        if Stdlib.Char.isDigit first then
+          "_" ++ kept
+        else
+          (Stdlib.Char.toLowercase first |> Stdlib.Char.toString)
+          ++ (Stdlib.String.fromList rest)
+
+    lowered
+
+
+  /// A type name the parser accepts: upper-case first character, letters and digits.
+  let typeName (raw: String) : String =
+    let kept =
+      raw
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c -> Stdlib.Char.isAlphanumeric c)
+      |> Stdlib.String.fromList
+
+    match Stdlib.String.toList kept with
+    | [] -> "T"
+    | first :: rest ->
+      if Stdlib.Char.isDigit first then
+        "T" ++ kept
+      else
+        (Stdlib.Char.toUppercase first |> Stdlib.Char.toString)
+        ++ (Stdlib.String.fromList rest)
+
+
+  /// One record field line, with a doc comment when there is something to say.
+  let field
+    (name: String)
+    (typ: String)
+    (doc: Stdlib.Option.Option<String>)
+    : String =
+    match doc with
+    | None -> $"{name}: {typ}"
+    | Some text -> $"/// {text}\n    {name}: {typ}"
+
+
+  /// A record type declaration over already-rendered field lines.
+  let recordType (name: String) (fields: List<String>) : String =
+    match fields with
+    | [] -> $"type {name} = {{ }}"
+    | _ ->
+      let body = Stdlib.String.join fields "\n    "
+      $"type {name} =\n  {{ {body} }}"
+
+
+  /// An enum type declaration over already-rendered case lines (`| Name of T`).
+  let enumType (name: String) (cases: List<String>) : String =
+    let body = Stdlib.String.join cases "\n  "
+    $"type {name} =\n  {body}"
+
+
+  /// A fn declaration.
+  let fn
+    (name: String)
+    (params_: String)
+    (returnType: String)
+    (body: String)
+    : String =
+    $"let {name} {params_} : {returnType} =\n  {body}"
+
+
+  /// Declarations joined into one module source, two blank lines apart, the way the
+  /// formatter lays out a file.
+  let module_ (declarations: List<String>) : String =
+    Stdlib.String.join declarations "\n\n\n"

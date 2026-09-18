@@ -1,0 +1,225 @@
+module Darklang.Generate.Json
+
+// Types from a JSON sample.
+//
+// A sample is one document, and the types are what would parse it: objects become
+// records, arrays become lists of whatever their elements unify to, `null` makes a
+// field optional, numbers are `Int` when every one seen is whole and `Float`
+// otherwise. A nested object gets a type named after its path (`Order` ->
+// `OrderLine` for a field `line`), and a field that is sometimes missing across the
+// elements of an array becomes an `Option`. Anything the sample cannot pin down (an
+// empty array, a field that is a string in one element and an object in another)
+// falls back to `AltJson.Json`, with a doc comment saying so, rather than guessing.
+//
+// The output is deterministic: fields are emitted in sorted order and types in the
+// order they are first reached, so the same sample gives byte-identical source and
+// therefore identical hashes, which is what makes re-running a generator a no-op.
+
+
+/// What a JSON value looks like, once the whole sample has been seen.
+type Shape =
+  | Int
+  | Float
+  | String
+  | Bool
+  /// Only ever `null`; alone it is `AltJson.Json`, beside another shape it makes
+  /// that one optional.
+  | Null
+  | List of Shape
+  /// Fields in the order the sample first showed them.
+  | Record of List<(String * Shape)>
+  | Optional of Shape
+  /// Two shapes that do not unify, or nothing to go on.
+  | Any
+
+
+/// The shape of one JSON value. A number is `Int` when whole; `unify` widens.
+let shapeOf (json: Stdlib.AltJson.Json) : Shape =
+  match json with
+  | Null -> Shape.Null
+  | Bool _ -> Shape.Bool
+  | String _ -> Shape.String
+  | Number n ->
+    if ((Stdlib.Float.truncate n) |> Stdlib.Int.toFloat) == n then
+      Shape.Int
+    else
+      Shape.Float
+  | Array items ->
+    // An empty array says nothing about its elements; a non-empty one is whatever
+    // its elements unify to, starting from the first so a lone element is not
+    // "optional".
+    match items |> Stdlib.List.map shapeOf with
+    | [] -> Shape.List Shape.Any
+    | first :: rest ->
+      Shape.List (rest |> Stdlib.List.fold first (fun acc s -> unify acc s))
+  | Object fields ->
+    // Fields keep the order the sample wrote them in: that is what the person
+    // reading the type expects, and it is as deterministic as sorting.
+    Shape.Record (fields |> Stdlib.List.map (fun (k, v) -> (k, shapeOf v)))
+
+
+/// The shape that admits both <param a> and <param b>.
+let unify (a: Shape) (b: Shape) : Shape =
+  match (a, b) with
+  | (Null, other) -> makeOptional other
+  | (other, Null) -> makeOptional other
+  | (Optional x, Optional y) -> makeOptional (unify x y)
+  | (Optional x, y) -> makeOptional (unify x y)
+  | (x, Optional y) -> makeOptional (unify x y)
+  | (Any, other) -> other
+  | (other, Any) -> other
+  | (Int, Int) -> Shape.Int
+  | (Int, Float) -> Shape.Float
+  | (Float, Int) -> Shape.Float
+  | (Float, Float) -> Shape.Float
+  | (String, String) -> Shape.String
+  | (Bool, Bool) -> Shape.Bool
+  | (List x, List y) -> Shape.List (unify x y)
+  | (Record fa, Record fb) -> Shape.Record (unifyFields fa fb)
+  | _ -> Shape.Any
+
+
+/// `Optional` never nests: an optional optional is just optional. A null made
+/// optional (null here, absent there) is an optional of nothing known.
+let makeOptional (s: Shape) : Shape =
+  match s with
+  | Optional _ -> s
+  | Null -> Shape.Optional Shape.Any
+  | _ -> Shape.Optional s
+
+
+/// Field-wise union of two sorted field lists: shared fields unify, a field on one
+/// side only becomes optional.
+let unifyFields
+  (fa: List<(String * Shape)>)
+  (fb: List<(String * Shape)>)
+  : List<(String * Shape)> =
+  // First-seen order, by hand: `List.unique` sorts, and the order is the point.
+  let names =
+    Stdlib.List.append
+      (fa |> Stdlib.List.map (fun (k, _) -> k))
+      (fb |> Stdlib.List.map (fun (k, _) -> k))
+    |> Stdlib.List.fold [] (fun seen k ->
+      if Stdlib.List.member seen k then seen else Stdlib.List.pushBack seen k)
+
+  names
+  |> Stdlib.List.map (fun name ->
+    let shapeIn (fields: List<(String * Shape)>) : Stdlib.Option.Option<Shape> =
+      fields
+      |> Stdlib.List.findFirst (fun (k, _) -> k == name)
+      |> Stdlib.Option.map (fun (_, s) -> s)
+
+    // Destructured before matching: a tuple inside `Some` in a pattern does not
+    // match the way it reads.
+    match (shapeIn fa, shapeIn fb) with
+    | (Some sa, Some sb) -> (name, unify sa sb)
+    | (Some sa, None) -> (name, makeOptional sa)
+    | (None, Some sb) -> (name, makeOptional sb)
+    | (None, None) -> (name, Shape.Any))
+
+
+/// A record type to emit: its name and its fields, each with the type text and a
+/// note when the field name or type had to be adjusted.
+type Emitted =
+  { name: String
+    fields: List<(String * String * Stdlib.Option.Option<String>)> }
+
+
+/// The Dark type for a shape, plus every record type it needs, named under
+/// <param parent>. Types are returned in first-reached order, parent before child.
+let typeText (parent: String) (shape: Shape) : (String * List<Emitted>) =
+  match shape with
+  | Int -> ("Int", [])
+  | Float -> ("Float", [])
+  | String -> ("String", [])
+  | Bool -> ("Bool", [])
+  // Only ever null: nothing is known about what it holds when it is not.
+  | Null -> ("Stdlib.Option.Option<Stdlib.AltJson.Json>", [])
+  | Any -> ("Stdlib.AltJson.Json", [])
+  | Optional inner ->
+    let (t, types) = typeText parent inner
+    ($"Stdlib.Option.Option<{t}>", types)
+  | List inner ->
+    // `Order` with a field `lines: [ ... ]` names the element `OrderLine`, singular
+    // when the field name ends in `s`, which is what people would have written.
+    // Not for `ss` (`address`) or a bare `s`, where dropping the letter is wrong.
+    let elementName =
+      if
+        (Stdlib.String.endsWith parent "s")
+        && (Stdlib.Bool.not (Stdlib.String.endsWith parent "ss"))
+        && ((Stdlib.String.length parent) > 2)
+      then
+        Stdlib.String.dropLast parent 1
+      else
+        parent
+    let (t, types) = typeText elementName inner
+    ($"List<{t}>", types)
+  | Record fields ->
+    let name = Generate.Source.typeName parent
+    let (fieldLines, nested) =
+      fields
+      |> Stdlib.List.fold ([], []) (fun (lines, types) (key, fieldShape) ->
+        let fieldName = Generate.Source.identifier key
+        let (t, fieldTypes) =
+          typeText (name ++ Generate.Source.typeName key) fieldShape
+        let note =
+          if fieldName != key then
+            Stdlib.Option.Option.Some
+              ($"JSON key \"{key}\"; parsing the real document needs this name "
+               ++ "to match")
+          else
+            match fieldShape with
+            | Any -> Stdlib.Option.Option.Some "the sample did not pin this down"
+            | Null -> Stdlib.Option.Option.Some "only ever null in the sample"
+            | Optional Any -> Stdlib.Option.Option.Some "null or absent in the sample"
+            | List Any -> Stdlib.Option.Option.Some "the sample's array was empty"
+            | _ -> Stdlib.Option.Option.None
+        (Stdlib.List.pushBack lines (fieldName, t, note),
+         Stdlib.List.append types fieldTypes))
+    let self = Emitted { name = name; fields = fieldLines }
+    // The parent is built after its fields are folded; it goes first so the source
+    // reads top-down.
+    (name, Stdlib.List.push nested self)
+
+
+/// One emitted record as Dark source.
+let render (e: Emitted) : String =
+  let fields =
+    e.fields
+    |> Stdlib.List.map (fun (name, typ, note) -> Generate.Source.field name typ note)
+  Generate.Source.recordType e.name fields
+
+
+/// Types that parse <param sample>, rooted at a record named <param name>, plus a
+/// `parse` fn over the root. The sample is the bytes of one JSON document.
+let fromSample (name: String) (sample: Blob) : Generate.Run =
+  if Stdlib.Blob.length sample == 0 then
+    Generate.failed [ "the sample is empty (a missing input reads as empty)" ]
+  else
+    match Stdlib.Blob.toString sample with
+    | Error _ -> Generate.failed [ "the sample is not UTF-8 text" ]
+    | Ok text ->
+      match Stdlib.AltJson.parse text with
+      | Error e ->
+        Generate.failed
+          [ "the sample did not parse as JSON: "
+            ++ (Stdlib.AltJson.ParseError.toString e) ]
+      | Ok json ->
+        let rootName = Generate.Source.typeName name
+        let shape = shapeOf json
+        match shape with
+        | Record _ ->
+          let (_, types) = typeText rootName shape
+          let typeDecls = types |> Stdlib.List.map render
+          let parseFn =
+            Generate.Source.fn
+              "parse"
+              "(json: String)"
+              $"Stdlib.Result.Result<{rootName}, Stdlib.Json.ParseError.ParseError>"
+              $"Stdlib.Json.parse<{rootName}> json"
+          let declarations = Stdlib.List.pushBack typeDecls parseFn
+          Generate.ofSource (Generate.Source.module_ declarations)
+        | _ ->
+          Generate.failed
+            [ "the sample's top level is not an object; only objects become "
+              ++ "record types" ]
