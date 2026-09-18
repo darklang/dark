@@ -514,7 +514,9 @@ let childState
             package = pm.getFn
             isHarmful = fun pkg -> pm.isHarmful pkg
             implCandidates = pm.implCandidates
-            implCandidatesByMethod = pm.implCandidatesByMethod }
+            implCandidatesByMethod = pm.implCandidatesByMethod
+            implSelectionMemo = pm.implSelectionMemo
+            implGeneration = pm.implGeneration }
       blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 

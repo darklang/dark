@@ -1221,9 +1221,13 @@ let private tryFastOpDirect
       | [ secondReg ] ->
         match FastOps.traitTag traitHash methodName with
         | ValueSome tag ->
-          match registers[argRegs.head], registers[secondReg] with
-          | DInt x, DInt y -> FastOps.eval tag x y
-          | a, b -> FastOps.evalNumeric tag a b
+          // Nested, not `match a, b with`: the pair is an allocation per operator.
+          match registers[argRegs.head] with
+          | DInt x ->
+            match registers[secondReg] with
+            | DInt y -> FastOps.eval tag x y
+            | _ -> ValueNone
+          | a -> FastOps.evalNumeric tag a registers[secondReg]
         | ValueNone -> ValueNone
       | _ -> ValueNone
     | _ -> ValueNone
@@ -2073,8 +2077,16 @@ let private traitSelfArgIndex
         None)
   | _ -> None
 
+/// Which argument of a trait method is the self one, by (trait, method). A trait
+/// is its content hash, so this never goes stale; filled by `resolveTraitMethod`,
+/// read by the apply fast path.
+let private traitSelfIndexMemo
+  : System.Collections.Concurrent.ConcurrentDictionary<struct (Hash * string), int> =
+  System.Collections.Concurrent.ConcurrentDictionary()
+
 /// The fn hash that implements `traitHash.methodName` for this call, or the RTE
-/// saying why none could be picked.
+/// saying why none could be picked. A selection made here is remembered on the
+/// package manager (`implSelectionMemo`) for the apply fast path.
 let private resolveTraitMethod
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2112,11 +2124,15 @@ let private resolveTraitMethod
       | Some _ -> explicitSelf
       | None ->
         match traitSelfArgIndex decl methodName with
-        | Some i when i < List.length args ->
-          match Dval.toValueType (List.item i args) with
-          | ValueType.Known kt -> Some kt
-          | ValueType.Unknown -> None
-        | _ -> None
+        | Some i ->
+          traitSelfIndexMemo[struct (traitHash, methodName)] <- i
+          if i < List.length args then
+            match Dval.toValueType (List.item i args) with
+            | ValueType.Known kt -> Some kt
+            | ValueType.Unknown -> None
+          else
+            None
+        | None -> None
 
     // 3. the caller's bound on this trait, through its type symbol table
     let! boundSelf =
@@ -2148,11 +2164,17 @@ let private resolveTraitMethod
         RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName))
         |> raiseRTE vm.threadID
 
+    // Read before the candidates, so a fold in between cannot stamp a stale
+    // selection with the new generation.
+    let generation = exeState.fns.implGeneration ()
     let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
     match Traits.select candidates self with
     | Traits.Selected c ->
       match Map.tryFind methodName c.methods with
-      | Some fnHash -> return fnHash
+      | Some fnHash ->
+        exeState.fns.implSelectionMemo[struct (exeState.branchId, traitHash, methodName, self)] <-
+          struct (generation, fnHash)
+        return fnHash
       | None ->
         return
           RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
@@ -2424,29 +2446,91 @@ let private applyInstruction
       | FQFnName.TraitMethod(traitHash, methodName) ->
         // Pick the impl, then call its fn exactly as a direct call would: the impl
         // fn is what runs, what traces record, and what carries the ceiling.
-        let allArgs =
-          applicable.argsSoFar
-          @ (newArgRegs |> NEList.toList |> List.map (fun r -> registers[r]))
+        //
+        // A self type seen before skips the pick: the selection is remembered on
+        // the package manager under the generation it was made in, and the self
+        // argument's position under the trait (content-addressed, so for good).
+        let remembered =
+          if not (List.isEmpty typeArgs) then
+            ValueNone
+          else
+            let mutable selfIndex = 0
+            if not (traitSelfIndexMemo.TryGetValue(struct (traitHash, methodName), &selfIndex)) then
+              ValueNone
+            else
+              let soFar = List.length applicable.argsSoFar
+              let selfArg =
+                if selfIndex < soFar then
+                  ValueSome(List.item selfIndex applicable.argsSoFar)
+                else
+                  // No `NEList.toList`: the self arg is nearly always the first.
+                  let j = selfIndex - soFar
+                  if j = 0 then
+                    ValueSome registers[newArgRegs.head]
+                  elif j - 1 < List.length newArgRegs.tail then
+                    ValueSome registers[List.item (j - 1) newArgRegs.tail]
+                  else
+                    ValueNone
+              match selfArg with
+              | ValueNone -> ValueNone
+              | ValueSome dv ->
+                match Dval.toValueType dv with
+                | ValueType.Unknown -> ValueNone
+                | ValueType.Known self ->
+                  let mutable hit = Unchecked.defaultof<struct (int * FQFnName.Package)>
+                  if
+                    exeState.fns.implSelectionMemo.TryGetValue(
+                      struct (exeState.branchId, traitHash, methodName, self),
+                      &hit
+                    )
+                  then
+                    let struct (generation, implFn) = hit
+                    if generation = exeState.fns.implGeneration () then
+                      ValueSome implFn
+                    else
+                      ValueNone
+                  else
+                    ValueNone
         let call : Ply<PackageOutcome> =
-          uply {
-            let! implFn =
-              resolveTraitMethod
-                exeState
-                vm
-                currentFrame
-                traitHash
-                methodName
-                typeArgs
-                tst
-                allArgs
+          match remembered with
+          | ValueSome implFn ->
             let implCtx =
               { ctx with
                   applicable = { applicable with name = FQFnName.Package implFn } }
-            match! exeState.fns.package implFn with
-            | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-            | None ->
-              return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-          }
+            match Ply.trySync (exeState.fns.package implFn) with
+            | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
+            | ValueSome None ->
+              RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+            | ValueNone ->
+              uply {
+                match! exeState.fns.package implFn with
+                | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
+                | None ->
+                  return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+              }
+          | ValueNone ->
+            let allArgs =
+              applicable.argsSoFar
+              @ (newArgRegs |> NEList.toList |> List.map (fun r -> registers[r]))
+            uply {
+              let! implFn =
+                resolveTraitMethod
+                  exeState
+                  vm
+                  currentFrame
+                  traitHash
+                  methodName
+                  typeArgs
+                  tst
+                  allArgs
+              let implCtx =
+                { ctx with
+                    applicable = { applicable with name = FQFnName.Package implFn } }
+              match! exeState.fns.package implFn with
+              | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
+              | None ->
+                return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+            }
         match Ply.trySync call with
         | ValueSome(PartiallyApplied dv)
         | ValueSome(Completed dv) -> registers[putResultIn] <- dv

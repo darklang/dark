@@ -1114,6 +1114,12 @@ type PackageManager =
     implItemsByMethod :
       string -> Ply<List<PackageValue.PackageValue> * List<PackageFn.PackageFn>>
 
+    /// The last segment of every type name this manager can answer for. A gate
+    /// in front of `findType`: the name resolver tries every qualified fn name as
+    /// `Trait.method` first, and this says in one cached set whether any type is
+    /// called that, instead of one location query per scope.
+    typeNames : unit -> Ply<HashSet<string>>
+
     init : Ply<unit> }
 
 
@@ -1134,12 +1140,39 @@ type PackageManager =
 
       implItems = fun _ -> Ply(([], []))
       implItemsByMethod = fun _ -> Ply(([], []))
+      typeNames = fun () -> Ply(HashSet())
 
       init = uply { return () } }
 
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
+  /// A layer's `typeNames`: its own names over the layer below's. The union is
+  /// kept while the set below is the same object (the store's is cached until a
+  /// fold), so a resolution pass pays for it once, not once per name. The sets
+  /// are never written after they are handed out.
+  static member unionTypeNames
+    (own : HashSet<string>)
+    (below : unit -> Ply<HashSet<string>>)
+    : unit -> Ply<HashSet<string>> =
+    let mutable last : Option<HashSet<string> * HashSet<string>> = None
+    fun () ->
+      uply {
+        let! belowNames = below ()
+        match last with
+        | Some(b, u) when obj.ReferenceEquals(b, belowNames) -> return u
+        | _ ->
+          let u =
+            if own.Count = 0 then
+              belowNames
+            else
+              let u = HashSet<string>(belowNames)
+              u.UnionWith own
+              u
+          last <- Some(belowNames, u)
+          return u
+      }
+
   static member withExtras
     (types : List<PackageType.PackageType * PackageLocation>)
     (values : List<PackageValue.PackageValue * PackageLocation>)
@@ -1180,11 +1213,15 @@ type PackageManager =
         Map.empty
     let fnHashToFn = fns |> List.map (fun (f, _) -> f.hash, f) |> Map.ofList
 
+    let ownTypeNames = HashSet<string>(types |> List.map (fun (_, loc) -> loc.name))
+    let typeNames = PackageManager.unionTypeNames ownTypeNames pm.typeNames
+
     { findType =
         fun location ->
           match Map.tryFind location typeLocationToHash with
           | Some hash -> Ply(Some hash)
           | None -> pm.findType location
+      typeNames = typeNames
 
       findValue =
         fun location ->

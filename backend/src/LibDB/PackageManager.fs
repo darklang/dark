@@ -149,13 +149,31 @@ let pt : PT.PackageManager =
   // lambdas out here to reuse one dict. Caching by location is safe precisely because this PM only
   // ever answers about main; a branch's answers come from the overlay in front of it, built per
   // branch id and never sharing this dict.
-  let findTypeCached = withCache (fun location -> PMPT.Type.find location)
+  // Misses too: the name resolver tries every qualified fn name as `Trait.method`
+  // first, so most type lookups by location are misses.
+  let findTypeCached = Caching.withNegativeCache (fun location -> PMPT.Type.find location)
   let findValueCached = withCache (fun location -> PMPT.Value.find location)
   let findFnCached = withCache (fun location -> PMPT.Fn.find location)
+
+  // Not `withCache`: its key would be unit, which a dictionary cannot hold. Same
+  // lifetime as the others (dropped by `invalidateAll`).
+  let typeNamesCached =
+    let mutable cached : Option<HashSet<string>> = None
+    Caching.register (fun () -> cached <- None)
+    fun () ->
+      match cached with
+      | Some names -> Ply names
+      | None ->
+        uply {
+          let! names = PMPT.Type.names ()
+          cached <- Some names
+          return names
+        }
 
   { findType = findTypeCached
     findValue = findValueCached
     findFn = findFnCached
+    typeNames = typeNamesCached
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
@@ -367,9 +385,15 @@ let createInMemoryOver
   let valueIdToLocs = invert valueLocMap
   let fnIdToLocs = invert fnLocMap
 
+  let ownTypeNames = HashSet<string>(typeLocMap |> Map.toSeq |> Seq.map (fun (l, _) -> l.name))
+
   { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
     findValue = fun loc -> Ply(Map.tryFind loc valueLocMap)
     findFn = fun loc -> Ply(Map.tryFind loc fnLocMap)
+    typeNames =
+      match below with
+      | None -> fun () -> Ply ownTypeNames
+      | Some below -> PT.PackageManager.unionTypeNames ownTypeNames below.typeNames
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
@@ -515,6 +539,21 @@ let combine
   { findType = overlayFirst overlay.findType fallback.findType
     findValue = overlayFirst overlay.findValue fallback.findValue
     findFn = overlayFirst overlay.findFn fallback.findFn
+    typeNames =
+      let mutable last : Option<HashSet<string> * HashSet<string> * HashSet<string>> = None
+      fun () ->
+        uply {
+          let! o = overlay.typeNames ()
+          let! f = fallback.typeNames ()
+          match last with
+          | Some(o', f', u) when obj.ReferenceEquals(o, o') && obj.ReferenceEquals(f, f') ->
+            return u
+          | _ ->
+            let u = HashSet<string>(f)
+            u.UnionWith o
+            last <- Some(o, f, u)
+            return u
+        }
 
     getType = overlayFirst overlay.getType fallback.getType
     getValue = overlayFirst overlay.getValue fallback.getValue
@@ -744,6 +783,8 @@ let rt : RT.PackageManager =
           | Some cs -> return cs
           | None -> return []
         }
+    implSelectionMemo = System.Collections.Concurrent.ConcurrentDictionary()
+    implGeneration = Caching.generation
 
     init =
       uply {

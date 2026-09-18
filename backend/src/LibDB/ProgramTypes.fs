@@ -125,9 +125,27 @@ let private getItemLocationsEverNamed
 
 module Type =
   let find = findItem "type"
+
+  /// Every live type name's last segment, once. A bare reader into a `HashSet`:
+  /// the row helper costs ~500 bytes a row and so does `Set.add` (path copying),
+  /// and this is the one query here that returns hundreds of rows to save
+  /// single-row lookups elsewhere.
+  let names () : Ply<HashSet<string>> =
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT DISTINCT name FROM locations WHERE item_type = 'type' AND unlisted_at IS NULL"
+    use reader = cmd.ExecuteReader()
+    let names = HashSet<string>()
+    while reader.Read() do
+      names.Add(reader.GetString 0) |> ignore<bool>
+    Ply names
+
   let get = getItem "package_types" "hash" BS.PT.PackageType.deserialize
   let getLocations = getItemLocations "type"
   let getLocationsEverNamed = getItemLocationsEverNamed "type"
+
 
 module Value =
   let find = findItem "value"

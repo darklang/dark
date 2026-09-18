@@ -260,47 +260,49 @@ let evalDictSet
 /// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
 /// `power`) and every mixed pair declines: the impl runs and raises its own error.
 let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
+  // Nested matches throughout, not `match a, b with`: the pair is an allocation per operator,
+  // which is the cost this table exists to avoid.
   if tag = add then
-    match a, b with
-    | DInt8 x, DInt8 y -> ValueSome(DInt8(x + y))
-    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x + y))
-    | DInt16 x, DInt16 y -> ValueSome(DInt16(x + y))
-    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x + y))
-    | DInt32 x, DInt32 y -> ValueSome(DInt32(x + y))
-    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x + y))
-    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x + y))
-    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x + y))
-    | DInt128 x, DInt128 y -> ValueSome(DInt128(x + y))
-    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x + y))
-    | DFloat x, DFloat y -> ValueSome(DFloat(x + y))
+    match a with
+    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x + y)) | _ -> ValueNone)
+    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x + y)) | _ -> ValueNone)
+    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x + y)) | _ -> ValueNone)
+    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x + y)) | _ -> ValueNone)
+    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x + y)) | _ -> ValueNone)
+    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x + y)) | _ -> ValueNone)
+    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x + y)) | _ -> ValueNone)
+    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x + y)) | _ -> ValueNone)
+    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x + y)) | _ -> ValueNone)
+    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x + y)) | _ -> ValueNone)
+    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x + y)) | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = subtract then
-    match a, b with
-    | DInt8 x, DInt8 y -> ValueSome(DInt8(x - y))
-    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x - y))
-    | DInt16 x, DInt16 y -> ValueSome(DInt16(x - y))
-    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x - y))
-    | DInt32 x, DInt32 y -> ValueSome(DInt32(x - y))
-    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x - y))
-    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x - y))
-    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x - y))
-    | DInt128 x, DInt128 y -> ValueSome(DInt128(x - y))
-    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x - y))
-    | DFloat x, DFloat y -> ValueSome(DFloat(x - y))
+    match a with
+    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x - y)) | _ -> ValueNone)
+    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x - y)) | _ -> ValueNone)
+    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x - y)) | _ -> ValueNone)
+    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x - y)) | _ -> ValueNone)
+    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x - y)) | _ -> ValueNone)
+    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x - y)) | _ -> ValueNone)
+    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x - y)) | _ -> ValueNone)
+    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x - y)) | _ -> ValueNone)
+    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x - y)) | _ -> ValueNone)
+    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x - y)) | _ -> ValueNone)
+    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x - y)) | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = multiply then
-    match a, b with
-    | DInt8 x, DInt8 y -> ValueSome(DInt8(x * y))
-    | DUInt8 x, DUInt8 y -> ValueSome(DUInt8(x * y))
-    | DInt16 x, DInt16 y -> ValueSome(DInt16(x * y))
-    | DUInt16 x, DUInt16 y -> ValueSome(DUInt16(x * y))
-    | DInt32 x, DInt32 y -> ValueSome(DInt32(x * y))
-    | DUInt32 x, DUInt32 y -> ValueSome(DUInt32(x * y))
-    | DInt64 x, DInt64 y -> ValueSome(Dval.dint64 (x * y))
-    | DUInt64 x, DUInt64 y -> ValueSome(DUInt64(x * y))
-    | DInt128 x, DInt128 y -> ValueSome(DInt128(x * y))
-    | DUInt128 x, DUInt128 y -> ValueSome(DUInt128(x * y))
-    | DFloat x, DFloat y -> ValueSome(DFloat(x * y))
+    match a with
+    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x * y)) | _ -> ValueNone)
+    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x * y)) | _ -> ValueNone)
+    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x * y)) | _ -> ValueNone)
+    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x * y)) | _ -> ValueNone)
+    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x * y)) | _ -> ValueNone)
+    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x * y)) | _ -> ValueNone)
+    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x * y)) | _ -> ValueNone)
+    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x * y)) | _ -> ValueNone)
+    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x * y)) | _ -> ValueNone)
+    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x * y)) | _ -> ValueNone)
+    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x * y)) | _ -> ValueNone)
     | _ -> ValueNone
   elif
     tag = lessThan
@@ -308,25 +310,28 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     || tag = greaterThan
     || tag = greaterThanOrEqualTo
   then
+    // `Int32.MinValue` marks "no ordering": a mixed pair, or a NaN, where `compare` would
+    // order what the builtin's `<` answers false to.
+    let none = System.Int32.MinValue
     let ordering =
-      match a, b with
-      | DInt8 x, DInt8 y -> compare x y
-      | DUInt8 x, DUInt8 y -> compare x y
-      | DInt16 x, DInt16 y -> compare x y
-      | DUInt16 x, DUInt16 y -> compare x y
-      | DInt32 x, DInt32 y -> compare x y
-      | DUInt32 x, DUInt32 y -> compare x y
-      | DInt64 x, DInt64 y -> compare x y
-      | DUInt64 x, DUInt64 y -> compare x y
-      | DInt128 x, DInt128 y -> compare x y
-      | DUInt128 x, DUInt128 y -> compare x y
-      // `compare` on floats orders NaN, where the builtin's `<` answers false; declined below.
-      | DFloat x, DFloat y when
-        not (System.Double.IsNaN x) && not (System.Double.IsNaN y)
-        ->
-        compare x y
-      | _ -> System.Int32.MinValue
-    if ordering = System.Int32.MinValue then
+      match a with
+      | DInt8 x -> (match b with | DInt8 y -> compare x y | _ -> none)
+      | DUInt8 x -> (match b with | DUInt8 y -> compare x y | _ -> none)
+      | DInt16 x -> (match b with | DInt16 y -> compare x y | _ -> none)
+      | DUInt16 x -> (match b with | DUInt16 y -> compare x y | _ -> none)
+      | DInt32 x -> (match b with | DInt32 y -> compare x y | _ -> none)
+      | DUInt32 x -> (match b with | DUInt32 y -> compare x y | _ -> none)
+      | DInt64 x -> (match b with | DInt64 y -> compare x y | _ -> none)
+      | DUInt64 x -> (match b with | DUInt64 y -> compare x y | _ -> none)
+      | DInt128 x -> (match b with | DInt128 y -> compare x y | _ -> none)
+      | DUInt128 x -> (match b with | DUInt128 y -> compare x y | _ -> none)
+      | DFloat x ->
+        (match b with
+         | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
+           compare x y
+         | _ -> none)
+      | _ -> none
+    if ordering = none then
       ValueNone
     elif tag = lessThan then
       ValueSome(Dval.bool (ordering < 0))

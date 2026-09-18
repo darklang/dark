@@ -236,7 +236,14 @@ let private resolveTraitMethod
     match List.tryLast modules with
     | None -> return None
     | Some traitName when not (System.Char.IsUpper traitName[0]) -> return None
-    | Some _ ->
+    | Some traitName ->
+      // One cached set answers "is anything called that?" before the per-scope
+      // location lookups, which for `Stdlib.List.map` would all be misses.
+      let! typeNames = packageManager.typeNames ()
+      if not (typeNames.Contains traitName) then
+        return None
+      else
+
       let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
       let! traitNR =
         resolveTypeName packageManager OnMissing.Allow currentModule (WT.Unresolved traitGiven)

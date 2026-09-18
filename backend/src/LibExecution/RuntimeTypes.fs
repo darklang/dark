@@ -12,6 +12,7 @@ open Prelude
 // state. We can't `open System.Collections.Generic` because it shadows
 // F#'s native `list` with `System.Collections.Generic.List`.
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
+type ConcurrentDictionary<'k, 'v> = System.Collections.Concurrent.ConcurrentDictionary<'k, 'v>
 type HashSet<'a> = System.Collections.Generic.HashSet<'a>
 type Stack<'a> = System.Collections.Generic.Stack<'a>
 
@@ -2396,6 +2397,19 @@ type PackageManager =
     /// receiver calls: `p.show` where `p` has no field `show`.
     implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
 
+    /// The impl picked for (branch, trait, method, self type), remembered with the
+    /// `implGeneration` it was picked under so the next call with that self type
+    /// skips selection. Per package manager, never shared between two: a script's
+    /// side-loaded impls must not answer for another script.
+    implSelectionMemo :
+      ConcurrentDictionary<
+        struct (Branching.BranchId * Hash * string * KnownType),
+        struct (int * FQFnName.Package)
+       >
+    /// Moves whenever what a name binds may have changed (every fold, for the
+    /// store-backed manager), which is when a remembered selection is stale.
+    implGeneration : unit -> int
+
     init : Ply<unit>
   }
 
@@ -2408,6 +2422,8 @@ type PackageManager =
       isHarmful = (fun _ -> false)
       implCandidates = (fun _ _ -> Ply [])
       implCandidatesByMethod = (fun _ _ -> Ply [])
+      implSelectionMemo = ConcurrentDictionary()
+      implGeneration = (fun () -> 0)
 
       init = uply { return () } }
 
@@ -2421,6 +2437,7 @@ type PackageManager =
       pm
     else
       { pm with
+          implSelectionMemo = ConcurrentDictionary()
           implCandidates =
             fun branchId trait_ ->
               uply {
@@ -2477,6 +2494,8 @@ type PackageManager =
       isHarmful = pm.isHarmful
       implCandidates = pm.implCandidates
       implCandidatesByMethod = pm.implCandidatesByMethod
+      implSelectionMemo = ConcurrentDictionary()
+      implGeneration = pm.implGeneration
       init = pm.init }
 
 
@@ -3472,6 +3491,13 @@ and Functions =
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
     implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
     implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
+    /// `PackageManager.implSelectionMemo` and `implGeneration`.
+    implSelectionMemo :
+      ConcurrentDictionary<
+        struct (Branching.BranchId * Hash * string * KnownType),
+        struct (int * FQFnName.Package)
+       >
+    implGeneration : unit -> int
   }
 
 
