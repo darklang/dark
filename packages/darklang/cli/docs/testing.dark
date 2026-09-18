@@ -1,0 +1,151 @@
+module Darklang.Cli.Docs.Testing
+
+let content () : String =
+  """# Testing Dark code
+
+A test is an ordinary function taking Unit and returning Stdlib.Test.T.
+There is nothing to register. Put tests beside your code or in a Tests module.
+
+## Your first test
+
+  module /MyApp.Math - <<'EOF'
+  let double (n: Int) : Int = n * 2
+
+  let doubles () : Stdlib.Test.T =
+    double 4 |> Stdlib.Test.eq 8
+  EOF
+
+  test MyApp.Math
+  test MyApp.Math.doubles
+
+Or start with a template:
+
+  test new MyApp.Math.Tests.doubles --for MyApp.Math.double
+
+This creates an ordinary function with a failing TODO and opens $EDITOR when
+a terminal is available. --for reads the function's parameters and adds a
+table example in the doc comment; you choose the inputs and expected result.
+Use --no-editor to create only. Existing items are never overwritten.
+Use view, edit, status and commit as you would for any function.
+
+## Writing checks
+
+One check:
+
+  let doublesFour () : Stdlib.Test.T =
+    double 4 |> Stdlib.Test.eq 8
+
+Many inputs for one function:
+
+  let doubles () : Stdlib.Test.T =
+    Stdlib.Test.table double [ (0, 0), (4, 8), (-3, -6) ]
+
+A row is the inputs, then the expected result. Several inputs are a tuple:
+
+  let xor () : Stdlib.Test.T =
+    Stdlib.Test.table Stdlib.Bool.xor
+      [ ((true, false), true), ((true, true), false) ]
+
+The function says how many parameters it has, so the tuple is spread across a
+function of several and passed whole to a function that takes one tuple.
+
+Several checks in one test:
+
+  let checks () : Stdlib.Test.T =
+    Stdlib.Test.all
+      [ double 0 |> Stdlib.Test.eq 0,
+        double 4 |> Stdlib.Test.eq 8 ]
+
+Code that should raise: name the function, the message, and the inputs.
+
+  let toIntRejectsNaN () : Stdlib.Test.T =
+    Stdlib.Test.tableRaises
+      Stdlib.Float.toInt
+      "Encountered out-of-range value for type of Int"
+      [ Stdlib.Float.nan, Stdlib.Float.infinity ]
+
+When each case is a different function, a row is the function then its input:
+
+  Stdlib.Test.eachRaises
+    "Encountered out-of-range value for type of Int"
+    [ (Stdlib.Float.ceiling, Stdlib.Float.nan),
+      (Stdlib.Float.floor, Stdlib.Float.negativeInfinity) ]
+
+Inputs work as in table, so several arguments are a tuple:
+
+  Stdlib.Test.tableRaises Stdlib.Int.divide "Cannot divide by 0" [ (1, 0), (5, 0) ]
+
+For an expression rather than one function call, raisesWith takes a lambda:
+
+  Stdlib.Test.raisesWith
+    "Cannot unwrap None"
+    (fun () -> Stdlib.List.head [] |> Builtin.unwrap)
+    ()
+
+The lambda matters: written without it, the expression would raise before the helper
+ran. Most Dark code reports bad input as a Result or an Option; test those with eq.
+
+Floats are compared exactly, with one exception: in a test comparison a NaN is the same
+value as a NaN, so a row can expect one: (Stdlib.Float.nan, Stdlib.Float.nan). The ==
+operator follows IEEE, where NaN equals nothing. A NaN nested inside an Ok or a tuple is
+compared with ==, so check that one with Stdlib.Float.isNaN. Stdlib.Float.nan, infinity and
+negativeInfinity are the constants to test with.
+
+Checks return values. A failed check does not throw: return it or include it
+in all. Binding a check with `let` and never reading it discards its result,
+so the test passes whatever the check said. Saving, `typecheck` and the editor
+warn about that (UnusedTestResult); the warning does not block a commit.
+all [] passes as an empty combination, but an empty table, actualExpected,
+tableRaises or eachRaises fails with "No cases supplied".
+
+The last line of a run counts both: `37 passed (166 checks)`. A test is one
+function; a check is one row of a table, or one eq or isTrue.
+
+## Finding and running tests
+
+  test                             tests under your active account
+  test MyApp.Math                   a module and its descendants
+  test MyApp.Math.Tests.doubles     one test by its full name
+  test list MyApp                   discover without executing
+  test MyApp --filter doubles       match part of the full name
+  --branch fix test MyApp           run the branch's version, draft included
+
+Tab completion offers modules, test names and flags. Tests are listed under their
+module, one line each: the name, then the verdict and how many checks it made. The
+name is printed before the test starts, so a test that hangs is a name with nothing
+after it. Whatever did not pass is named again at the end, in full, ready to paste
+into `test <name>`. PASS means its checks passed; FAIL means assertions failed; ERROR
+means execution could not finish normally. Table errors name their row and
+input, preserve other failures, and allow later rows to run. A test containing
+both failed and errored rows counts as one errored test.
+
+Exit 0 means all selected tests passed (or a nonempty list); 1 means a failure,
+error or discovery problem; 2 means invalid arguments or no tests selected.
+
+Tests run sequentially with the instance's permissions, in this process.
+There is no timeout or isolation: writes affect the real store and a sync can
+reach the configured relay. Ctrl+C stops a hung run.
+
+## Helper reference
+
+  actual |> Stdlib.Test.eq expected
+  check |> Stdlib.Test.withMessage "checking the total"
+  Stdlib.Test.table fn [ (input, expected) ]
+  Stdlib.Test.all [ firstCheck, secondCheck ]
+  Stdlib.Test.actualExpected [ (actual, expected) ]
+  Stdlib.Test.tableRaises fn "message" [ input ]
+  Stdlib.Test.eachRaises "message" [ (fn, input) ]
+  Stdlib.Test.raisesWith "message" fn input
+  Stdlib.Test.fail "explanation"
+  Stdlib.Test.isTrue value
+  Stdlib.Test.isFalse value
+  Stdlib.Test.eq actual expected     the same check, as a plain call
+
+actualExpected evaluates its rows before the helper runs;
+an error there aborts evaluation. all also receives already evaluated checks.
+Use table when calls need error recovery between rows. withMessage prefixes
+every assertion failure and execution error in a combined result.
+
+A helper with any other signature is not discovered as a test. Give a helper
+an argument if it would otherwise look like a test.
+"""

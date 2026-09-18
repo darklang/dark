@@ -894,15 +894,25 @@ let fns () : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TypeReference.option TString)
-          (ExecutionError.typeRef ())
+          (TTuple(ExecutionError.typeRef (), TypeReference.option TString, []))
       description =
         "Evaluates a Dark expression. Returns Some(reprString) for a value, "
-        + "or None when the result is Unit (so callers can suppress empty echo)."
+        + "or None when the result is Unit (so callers can suppress empty echo). An "
+        + "Error carries the Dark call stack beside it, for the caller to print: "
+        + "None when there is none worth showing, or when it is a denial, which "
+        + "carries its own."
       fn =
-        let errType = KTCustomType(ExecutionError.fqTypeName (), [])
+        let errType =
+          KTTuple(
+            VT.known (KTCustomType(ExecutionError.fqTypeName (), [])),
+            VT.known (KTCustomType(Dval.optionType (), [ VT.string ])),
+            []
+          )
         let okKT = KTCustomType(Dval.optionType (), [ VT.known KTString ])
         let resultOk = Dval.resultOk okKT errType
-        let resultError = Dval.resultError okKT errType
+        let failedWith (stack : Option<string>) (err : Dval) =
+          let stack = stack |> Option.map DString |> Dval.option KTString
+          Dval.resultError okKT errType (DTuple(err, stack, []))
         let okSome (s : string) = resultOk (Dval.optionSome KTString (DString s))
         let okNone () = resultOk (Dval.optionNone KTString)
         (function
@@ -929,7 +939,7 @@ let fns () : List<BuiltInFn> =
             let denied = ResizeArray<RT.PermissionDenialRecord>()
 
             return!
-              guestTry resultError (ExecutionError.classify denied) (fun () ->
+              guestTry (failedWith None) (ExecutionError.classify denied) (fun () ->
                 uply {
                   // Parsing can raise (e.g. deep VM failures); keep it inside
                   // guestTry so its exceptions hit the Unhandled net. `eval` is
@@ -988,20 +998,24 @@ let fns () : List<BuiltInFn> =
                         // The CLI may offer to allow and retry; the stack is printed
                         // only if the denial stands.
                         return
-                          resultError (
-                            ExecutionError.toDT (
+                          failedWith
+                            None
+                            (ExecutionError.toDT (
                               ExecutionError.Denied { d with callStack = csString }
-                            )
-                          )
+                            ))
                       | other ->
                         // Only when the stack names a function: see `hasReadableFrames`.
-                        if hasReadableFrames callStack && csString <> "" then
-                          print
-                            $"Error when executing expression. Call-stack:\n{csString}\n"
-                        return resultError (ExecutionError.toDT other)
+                        let stack =
+                          if hasReadableFrames callStack && csString <> "" then
+                            Some csString
+                          else
+                            None
+                        return failedWith stack (ExecutionError.toDT other)
                   | Error pe ->
                     return
-                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+                      failedWith
+                        None
+                        (ExecutionError.toDT (ExecutionError.Parse pe))
                 })
           }
         | _ -> incorrectArgs ())

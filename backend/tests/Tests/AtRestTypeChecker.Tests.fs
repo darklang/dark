@@ -2112,6 +2112,83 @@ let private unitTests =
 /// the conversion match); the Dark side is not, and a case missing there fails at
 /// runtime, in the editor, on the day someone first hits it. These compare the case
 /// names directly, so the mirror can only drift with a failing test.
+/// Checks `fun (check: <checkType>) -> let <pattern> = check in <body>`, which returns
+/// a `Stdlib.Test.T`, and returns the warnings. Fails if the item does not check,
+/// because a warning must not change the verdict.
+let private warningsForLet
+  (checkType : string)
+  (pattern : PT.LetPattern)
+  (body : PT.Expr)
+  : List<Checker.Warning> =
+  let testT = PT.FQTypeName.package (LibExecution.PackageRefs.Type.Stdlib.testT ())
+  let _, testDeclaration = enumType "unused" (NEList.singleton (enumCase "Pass" []))
+  let otherName, otherDeclaration =
+    enumType "not-a-test-result" (NEList.singleton (enumCase "Only" []))
+  let environment =
+    Checker.TypeEnvironment.empty
+    |> Checker.TypeEnvironment.addType testT testDeclaration
+    |> Checker.TypeEnvironment.addType otherName otherDeclaration
+  let checkType = if checkType = "test" then testT else otherName
+  let parameters =
+    NEList.ofList
+      (parameter "check" (customType checkType))
+      [ parameter "result" (customType testT) ]
+  let verdict =
+    fn parameters (customType testT) (PT.ELet(1UL, pattern, PT.EArg(2UL, 0), body))
+    |> CheckerApi.checkPackageFunction environment
+  match verdict with
+  | Checker.Checked proof -> Checker.Proof.warningsOf proof
+  | other -> failtestf "a warning must not change the verdict, got %A" other
+
+let private warningTests =
+  let result = PT.EArg(9UL, 1)
+  testList
+    "unused test results"
+    [ test "a check bound to a wildcard is a warning" {
+        let warnings = warningsForLet "test" (PT.LPWildcard 3UL) result
+        Expect.equal
+          warnings
+          [ { code = Checker.UnusedTestResult
+              nodeId = Some 1UL
+              context = Checker.Identifier "_" } ]
+          "this is the false pass: the check can fail and the test still passes"
+      }
+
+      test "a check bound to a name nothing reads is a warning, by that name" {
+        let warnings = warningsForLet "test" (PT.LPVariable(3UL, "first")) result
+        Expect.equal
+          (warnings |> List.map _.context)
+          [ Checker.Identifier "first" ]
+          "the name is what the author will look for"
+      }
+
+      test "a check that is read is not" {
+        let unrelated = PT.ELet(11UL, PT.LPWildcard 12UL, PT.EUnit 13UL, result)
+        let reads =
+          PT.ELet(
+            11UL,
+            PT.LPVariable(12UL, "again"),
+            PT.EVariable(13UL, "first"),
+            PT.EVariable(14UL, "again")
+          )
+        Expect.equal
+          (warningsForLet "test" (PT.LPVariable(3UL, "first")) reads)
+          []
+          "`first` is read, and `again` is returned"
+        Expect.equal
+          (warningsForLet "test" (PT.LPVariable(3UL, "first")) unrelated
+           |> List.map _.context)
+          [ Checker.Identifier "first" ]
+          "and a later unrelated let does not count as reading it"
+      }
+
+      test "discarding anything that is not a Stdlib.Test.T is fine" {
+        Expect.equal
+          (warningsForLet "other" (PT.LPWildcard 3UL) result)
+          []
+          "`let _ = sideEffect ()` is ordinary Dark"
+      } ]
+
 let private mirrorTests =
   let fsharpCases (typ : System.Type) : Set<string> =
     Microsoft.FSharp.Reflection.FSharpType.GetUnionCases(typ)
@@ -2152,9 +2229,10 @@ let private mirrorTests =
     "dark mirror"
     [ mirrors
         "IssueCode"
-        (Set.union
-          (fsharpCases typeof<Checker.DiagnosticCode>)
-          (fsharpCases typeof<Checker.BlockerCode>))
+        (Set.unionMany
+          [ fsharpCases typeof<Checker.DiagnosticCode>
+            fsharpCases typeof<Checker.BlockerCode>
+            fsharpCases typeof<Checker.WarningCode> ])
         CheckerRefs.issueCode
       mirrors "Context" (fsharpCases typeof<Checker.Context>) CheckerRefs.context
       mirrors "Site" (fsharpCases typeof<Checker.Site>) CheckerRefs.site
@@ -2176,4 +2254,4 @@ let private mirrorTests =
         CheckerRefs.staticType ]
 
 
-let tests = testList "AtRestTypeChecker" [ unitTests; mirrorTests ]
+let tests = testList "AtRestTypeChecker" [ unitTests; warningTests; mirrorTests ]

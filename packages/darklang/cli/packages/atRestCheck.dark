@@ -85,12 +85,29 @@ let summary
   | Failed -> Stdlib.Option.Option.Some "static type errors detected"
   | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
 
+/// Prints warnings under their own heading. Any verdict can have warnings, including
+/// `Checked`, and they never block anything.
+let printWarnings
+  (branchId: Uuid)
+  (warnings: List<LanguageTools.AtRestTypeChecker.Issue>)
+  : Unit =
+  if Stdlib.List.isEmpty warnings then
+    ()
+  else
+    Stdlib.List.append
+      [ ""
+        (Stdlib.Cli.UI.Colors.warning "Warnings (saved anyway):") ]
+      (issueLines branchId warnings)
+    |> Stdlib.printLines
+
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
 /// definite errors.
 let printSaveReport
   (branchId: Uuid)
   (report: LanguageTools.AtRestTypeChecker.Report)
   : Unit =
+  printWarnings branchId report.warnings
+
   match report.verdict with
   | Checked -> ()
   | Failed ->

@@ -100,23 +100,30 @@ let printItem
   (item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Unit =
   let label = itemLabel branchId item.item
+  let warned = Stdlib.Bool.not (Stdlib.List.isEmpty item.warnings)
   match item.verdict with
   | Checked ->
-    if outputFilter.showChecked then
+    // A checked item with a warning is always listed, whatever the filter.
+    if warned then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"warning: {label}")
+      AtRestCheck.issueLines branchId item.warnings |> Stdlib.printLines
+    else if outputFilter.showChecked then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"checked: {label}")
   | Failed ->
     if outputFilter.showFailed then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
-      Stdlib.List.append
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+      Stdlib.List.flatten
+        [ AtRestCheck.issueLines branchId item.diagnostics
+          AtRestCheck.issueLines branchId item.blockers
+          AtRestCheck.issueLines branchId item.warnings ]
       |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
-      Stdlib.List.append
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+      Stdlib.List.flatten
+        [ AtRestCheck.issueLines branchId item.diagnostics
+          AtRestCheck.issueLines branchId item.blockers
+          AtRestCheck.issueLines branchId item.warnings ]
       |> Stdlib.printLines
 
 // The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
@@ -137,7 +144,9 @@ let jsonReport
 
   let wanted (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
     match item.verdict with
-    | Checked -> outputFilter.showChecked
+    | Checked ->
+      outputFilter.showChecked
+      || Stdlib.Bool.not (Stdlib.List.isEmpty item.warnings)
     | Failed -> outputFilter.showFailed
     | Incomplete -> outputFilter.showIncomplete
 
@@ -152,10 +161,15 @@ let jsonReport
           (AtRestCheck.issueLines branchId item.blockers)
         |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
 
+      let warnings =
+        AtRestCheck.issueLines branchId item.warnings
+        |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
+
       Stdlib.AltJson.Json.Object
         [ ("name", Stdlib.AltJson.Json.String(itemLabel branchId item.item))
           ("verdict", Stdlib.AltJson.Json.String(verdictWord item.verdict))
-          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
+          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l)))
+          ("warnings", Stdlib.AltJson.Json.Array(warnings |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
 
   Stdlib.AltJson.format (
     Stdlib.AltJson.Json.Object
@@ -164,6 +178,7 @@ let jsonReport
         ("failed", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.failedCount))
         ("incomplete", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.incompleteCount))
         ("total", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat total))
+        ("warnings", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat (Stdlib.List.length report.warnings)))
         ("items", Stdlib.AltJson.Json.Array items) ]
   )
 
@@ -204,8 +219,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let totalCount = Stdlib.Int.toString total
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "At-rest package type audit")
+    let warningCount = Stdlib.Int.toString (Stdlib.List.length report.warnings)
+
     Stdlib.printLine (
-      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
+      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}, warnings {warningCount}")
 
     report.items
     |> Stdlib.List.sortBy (fun item -> itemLabel state.currentBranchId item.item)
@@ -237,6 +254,7 @@ let help (_state: Cli.AppState) : String =
     "  --json        The same report, typed, for an agent"
     ""
     "Without a filter, failed and incomplete declarations are listed."
+    "A declaration with a warning is always listed. Warnings never block a commit."
     "--failed and --incomplete may be combined; --all is mutually exclusive." ]
   |> Stdlib.String.join "\n"
 

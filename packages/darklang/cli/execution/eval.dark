@@ -3,8 +3,9 @@ module Darklang.Cli.Eval
 
 
 /// Evaluate `expr`, keeping the failure structured. `Ok (Some printed)` for a value, `Ok None` for
-/// something that printed nothing. The one call into the host evaluator - the db commands, the workbench
-/// loaders and trace replay all come through here; <fn evaluate> is this with the error rendered.
+/// something that printed nothing. The db commands, the workbench loaders and trace replay all use
+/// this. <fn evaluate> is this with the error rendered as text. If the failure has a call stack,
+/// it is printed here.
 let evaluateRaw
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
@@ -14,6 +15,32 @@ let evaluateRaw
   : Stdlib.Result.Result<
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
+  match evaluateWithStack accountID branchId expr currentModule allowHarmful with
+  | Ok result -> Stdlib.Result.Result.Ok result
+  | Error pair ->
+    let (err, stack) = pair
+
+    match stack with
+    | Some stack ->
+      Stdlib.printLine $"Error when executing expression. Call-stack:\n{stack}\n"
+    | None -> ()
+
+    Stdlib.Result.Result.Error err
+
+
+/// Like <fn evaluateRaw>, but returns the Dark call stack next to the error instead of printing it,
+/// for a caller that prints it somewhere else. This is the one call into the host evaluator. The
+/// stack is `None` when there is none to show. It is also `None` for a permission denial, which
+/// carries its own stack.
+let evaluateWithStack
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  (expr: String)
+  (currentModule: List<String>)
+  (allowHarmful: Bool)
+  : Stdlib.Result.Result<
+      Stdlib.Option.Option<String>,
+      (ExecutionError.ExecutionError * Stdlib.Option.Option<String>)> =
   // Width and color are decided here rather than inside the builtin. They are facts about the process
   // the output is headed for, and `Cli.Terminal` is what owns them; having the host reach across into
   // another builtin's terminal code to ask would be the wrong way round. Both fall back sanely when

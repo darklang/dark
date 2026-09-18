@@ -58,12 +58,6 @@ type internal TypeScheme =
     typ : StaticType
     fieldConstraints : List<id * StaticType * string * StaticType> }
 
-type Proof =
-  internal
-    { inferredType : StaticType
-      scheme : TypeScheme
-      dependencies : Set<Dependency> }
-
 type DiagnosticCode =
   | TypeMismatch
   | OccursCheckFailed
@@ -215,6 +209,22 @@ type Diagnostic =
     context : Context }
 
 type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
+
+/// Code that type-checks but is almost certainly a mistake. A warning does not change
+/// the verdict, so it never blocks a save or a commit.
+type WarningCode =
+  /// A `let` binds a `Stdlib.Test.T` that nothing reads, so a failing check in it
+  /// cannot affect the test's result.
+  | UnusedTestResult
+
+type Warning = { code : WarningCode; nodeId : Option<id>; context : Context }
+
+type Proof =
+  internal
+    { inferredType : StaticType
+      scheme : TypeScheme
+      warnings : List<Warning>
+      dependencies : Set<Dependency> }
 
 type FunctionSignature =
   { typeParams : List<string>
@@ -455,6 +465,7 @@ type Report =
   { inferredType : Option<StaticType>
     diagnostics : List<Diagnostic>
     blockers : List<Blocker>
+    warnings : List<Warning>
     dependencies : Set<Dependency> }
 
 type Verdict =
@@ -464,6 +475,9 @@ type Verdict =
 
 module Proof =
   let inferredType (proof : Proof) : StaticType = proof.inferredType
+  // Named `warningsOf` because, from another module, `Proof.warnings` resolves to the
+  // record field and not to this function.
+  let warningsOf (proof : Proof) : List<Warning> = proof.warnings
   let dependencies (proof : Proof) : Set<Dependency> = proof.dependencies
 
 

@@ -21,6 +21,15 @@ The checker has three outcomes:
   belong here. It contains no definite diagnostic and must never be treated as
   `Checked`.
 
+Beside those, any outcome can carry **warnings**: well-typed code that is almost
+certainly a mistake. A warning is never part of a verdict, so a `Checked` item can have
+them and nothing that reads a verdict (`commit` above all) is stopped by one. They show
+on save, in `typecheck` (always listed, whatever the filter) and as LSP warnings. There
+is one today, `UnusedTestResult`: a `let` binds a `Stdlib.Test.T` and nothing reads it,
+so a failing check can never reach the test's result. It is decided in `finish`, on the
+solved type, and a name counts as read if it appears anywhere in the body, so a
+shadowing rebind hides it. That errs towards silence on purpose.
+
 Checking is pure and deterministic for a given item and type environment. It does not
 evaluate user code, query mutable storage, format diagnostics for a particular UI, or
 mutate package state.

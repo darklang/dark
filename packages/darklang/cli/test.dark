@@ -1,0 +1,590 @@
+/// `dark test`: finds the tests on this branch, runs them and reports the results. A test is any
+/// function that takes Unit and returns `Stdlib.Test.T`. Nothing marks or registers one.
+///
+/// Tests run in this process, one after another, with the permissions the instance policy allows.
+/// There is no timeout: a test that loops hangs the run. There is no isolation: a test that writes,
+/// writes to the real store. `help` says both.
+module Darklang.Cli.Test
+
+
+/// One test function, identified by its package location.
+type TestCase =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    /// `Owner.Module.name`. Reports show this name, and it is what gets run
+    name: String }
+
+/// How one test ended. <field passed> is the number of checks that passed inside it. A
+/// table of seven rows is one test and seven checks, and the summary counts both.
+type Outcome =
+  /// It returned `Pass`
+  | Passed of passed: Int
+  /// It returned `Fail`. Carries every failure
+  | Failed of passed: Int * List<Stdlib.Test.Failure>
+  /// It returned `Errors`: some rows raised. Rows that failed are kept as well
+  | RowErrors of passed: Int * List<Stdlib.Test.Failure> * List<Stdlib.Test.Error>
+  /// It did not return a result: it raised, or a permission was denied. Carries the
+  /// message, and the Dark call stack if there is one
+  | Errored of message: String * stack: Stdlib.Option.Option<String>
+
+type Result = { test: TestCase; outcome: Outcome }
+
+type ParsedArgs =
+  { listOnly: Bool
+    scope: List<String>
+    filter: Stdlib.Option.Option<String>
+    allowHarmful: Bool
+    problem: Stdlib.Option.Option<String> }
+
+
+val usage = "Usage: test [list] [module|test] [--filter <text>] [--allow-harmful]\n       test new <name> [--for <function>] [--no-editor]"
+
+val argSpec =
+  FlagParser.Spec
+    { flags = [ ("--allow-harmful", []) ]
+      valueFlags = [ ("--filter", []) ] }
+
+
+let fullName (location: LanguageTools.ProgramTypes.PackageLocation) : String =
+  [ [ location.owner ], location.modules, [ location.name ] ]
+  |> Stdlib.List.flatten
+  |> Stdlib.String.join "."
+
+
+/// `/MyApp.Math`, `MyApp.Math` and `MyApp.Math.` all mean the same scope. An empty list means no
+/// scope was given.
+let scopeOf (text: String) : List<String> =
+  Stdlib.String.split text "."
+  |> Stdlib.List.map (fun part ->
+    if Stdlib.String.startsWith part "/" then
+      Stdlib.String.dropFirst part 1
+    else
+      part)
+  |> Stdlib.List.filter (fun part -> part != "")
+
+
+let parseArgs (accountName: String) (args: List<String>) : ParsedArgs =
+  let parsed = FlagParser.parse argSpec args
+
+  let (listOnly, positionals) =
+    match parsed.positionals with
+    | "list" :: rest -> (true, rest)
+    | other -> (false, other)
+
+  let flagProblem =
+    if Stdlib.List.isEmpty parsed.errors then
+      Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.Some(FlagParser.parseErrorsMessage parsed.errors)
+
+  let (scope, scopeProblem) =
+    match positionals with
+    // No module was given, so use the active account's tests.
+    | [] -> (scopeOf accountName, Stdlib.Option.Option.None)
+    | [ one ] ->
+      let scope = scopeOf one
+
+      if Stdlib.List.isEmpty scope then
+        ([], Stdlib.Option.Option.Some $"`{one}` does not name a module")
+      else
+        (scope, Stdlib.Option.Option.None)
+    | _ ->
+      ([],
+       Stdlib.Option.Option.Some
+         "test takes one module. Narrow within it with --filter.")
+
+  ParsedArgs
+    { listOnly = listOnly
+      scope = scope
+      filter = FlagParser.getOption parsed "--filter"
+      allowHarmful = FlagParser.hasFlag parsed "--allow-harmful"
+      problem =
+        match flagProblem with
+        | Some p -> Stdlib.Option.Option.Some p
+        | None -> scopeProblem }
+
+
+/// Is <param path> at or under <param scope>?
+let isUnder (scope: List<String>) (path: List<String>) : Bool =
+  Stdlib.List.take path (Stdlib.List.length scope) == scope
+
+
+/// Does <param fn> take Unit and return <param testType>? That signature is all that makes a
+/// function a test.
+let isTestShaped
+  (testType: LanguageTools.ProgramTypes.Hash)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Bool =
+  let takesUnit =
+    match fn.parameters with
+    | [ only ] ->
+      (match only.typ with
+       | TUnit -> true
+       | _ -> false)
+    | _ -> false
+
+  let returnsT =
+    match fn.returnType with
+    | TCustomType(resolution, []) ->
+      (match resolution.resolved with
+       | Ok resolved ->
+         (match resolved.name with
+          | Package hash -> hash == testType)
+       | Error _ -> false)
+    | _ -> false
+
+  takesUnit && returnsT
+
+
+/// Every test under <param scope> on <param branchId>. Each location appears once, in name order.
+///
+/// The return type is matched by identity, so a different type that is also called `T` does not
+/// count. The search is the normal branch-aware package search, so a branch sees its own draft, and
+/// does not see items it has removed.
+///
+/// Returns an Error if `Stdlib.Test.T` itself cannot be found. That means discovery failed, which
+/// must not be reported as "no tests here".
+let discover
+  (branchId: Uuid)
+  (scope: List<String>)
+  : Stdlib.Result.Result<List<TestCase>, String> =
+  let testTypeLocation =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang"; modules = [ "Stdlib", "Test" ]; name = "T" }
+
+  match LanguageTools.PackageManager.Type.find branchId testTypeLocation with
+  | None ->
+    Stdlib.Result.Result.Error
+      "Darklang.Stdlib.Test.T is not on this branch, so nothing can be recognised as a test."
+  | Some testType ->
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = Stdlib.List.dropLast scope
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+          exactMatch = false }
+
+    (LanguageTools.PackageManager.Search.search branchId query).fns
+    |> Stdlib.List.filter (fun item -> isTestShaped testType item.entity)
+    // The search matches module names loosely. A scope is path segments, so `MyApp.Math` must not
+    // also match `MyApp.Mathematics`.
+    |> Stdlib.List.filter (fun item ->
+      isUnder
+        scope
+        (Stdlib.List.flatten [ [ item.location.owner ], item.location.modules, [ item.location.name ] ]))
+    |> Stdlib.List.map (fun item ->
+      TestCase { location = item.location; name = fullName item.location })
+    |> Stdlib.List.uniqueBy (fun test -> test.name)
+    |> Stdlib.List.sortBy (fun test -> test.name)
+    |> Stdlib.Result.Result.Ok
+
+
+let applyFilter
+  (filter: Stdlib.Option.Option<String>)
+  (tests: List<TestCase>)
+  : List<TestCase> =
+  match filter with
+  | None -> tests
+  | Some text ->
+    tests |> Stdlib.List.filter (fun test -> Stdlib.String.contains test.name text)
+
+
+/// Runs one test function on <param branchId>. Returns the `Stdlib.Test.T` it produced, or the
+/// error and its Dark call stack.
+///
+/// The test runs through `eval`, so it behaves exactly as if you called it by hand: the same guest
+/// boundary, instance policy, trace and harmful-deprecation halt. `eval` returns text, so the
+/// expression it is given serializes the result to JSON, and this parses it back.
+///
+/// Everything a `Stdlib.Test.T` can hold must survive that round trip, including runtime errors
+/// inside an `Errors`. If a result cannot be parsed back, the test is reported as an ERROR that says
+/// so. It is never reported as a pass.
+let call
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  (name: String)
+  (allowHarmful: Bool)
+  : Stdlib.Result.Result<Stdlib.Test.T,
+                         (ExecutionError.ExecutionError * Stdlib.Option.Option<String>)> =
+  let unreadable (what: String) : Stdlib.Result.Result<Stdlib.Test.T,
+                                                       (ExecutionError.ExecutionError * Stdlib.Option.Option<String>)> =
+    Stdlib.Result.Result.Error(
+      (ExecutionError.ExecutionError.Unhandled(
+        ExecutionError.Unhandled
+          { message = $"{name} ran, but its result could not be read back: {what}"
+            metadata = [] }),
+       Stdlib.Option.Option.None)
+    )
+
+  let expression =
+    $"Darklang.Stdlib.Json.serialize<Darklang.Stdlib.Test.T> ({name} ())"
+
+  match Eval.evaluateWithStack accountID branchId expression [] allowHarmful with
+  | Error pair -> Stdlib.Result.Result.Error pair
+  | Ok None -> unreadable "it produced nothing"
+  | Ok(Some json) ->
+    match Stdlib.Json.parse<Stdlib.Test.T> json with
+    | Ok result -> Stdlib.Result.Result.Ok result
+    | Error e -> unreadable (Stdlib.Json.ParseError.toString branchId e)
+
+
+let run (state: AppState) (allowHarmful: Bool) (test: TestCase) : Result =
+  let outcome =
+    match call state.accountID state.currentBranchId test.name allowHarmful with
+    | Ok assertion ->
+      (match assertion with
+       | Pass passed -> Outcome.Passed passed
+       | Fail(passed, failures) -> Outcome.Failed(passed, failures)
+       | Errors(passed, failures, errors) ->
+         Outcome.RowErrors(passed, failures, errors))
+    | Error pair ->
+      let (err, stack) = pair
+      Outcome.Errored(ExecutionError.toString state.currentBranchId err, stack)
+
+  Result { test = test; outcome = outcome }
+
+
+/// Indents every line of <param text> after the first by <param indent>, so a multi-line value
+/// lines up under its label.
+let indentContinuation (indent: String) (text: String) : String =
+  Stdlib.String.split text "\n" |> Stdlib.String.join ("\n" ++ indent)
+
+
+let failureLines (failure: Stdlib.Test.Failure) : List<String> =
+  let expected =
+    match failure.expected with
+    | Some e -> [ "    Expected: " ++ (indentContinuation "              " e) ]
+    | None -> []
+
+  let actual =
+    match failure.actual with
+    | Some a -> [ "    Actual:   " ++ (indentContinuation "              " a) ]
+    | None -> []
+
+  Stdlib.List.flatten [ [ "    " ++ failure.message ], expected, actual ]
+
+
+/// `5 checks`, or `6 of 7 checks` when some did not pass.
+let checksText (passed: Int) (notPassed: Int) : String =
+  let total = passed + notPassed
+  let noun = if total == 1 then "check" else "checks"
+
+  if notPassed == 0 then
+    // Right-align the number, so the counts line up in a column.
+    (Stdlib.String.padStartToWidth (Stdlib.Int.toString total) 3) ++ " " ++ noun
+  else
+    $"{Stdlib.Int.toString passed} of {Stdlib.Int.toString total} {noun}"
+
+
+/// The text after a test's name on its line: the verdict and the check count.
+let statusText (result: Result) : String =
+  let counts (passed: Int) (notPassed: Int) : String =
+    "  " ++ (Stdlib.Cli.UI.Colors.hint (checksText passed notPassed))
+
+  match result.outcome with
+  | Passed passed -> (Stdlib.Cli.UI.Colors.success "PASS ") ++ (counts passed 0)
+  | Failed(passed, failures) ->
+    (Stdlib.Cli.UI.Colors.error "FAIL ")
+    ++ (counts passed (Stdlib.List.length failures))
+  | RowErrors(passed, failures, errors) ->
+    (Stdlib.Cli.UI.Colors.error "ERROR")
+    ++ (counts passed ((Stdlib.List.length failures) + (Stdlib.List.length errors)))
+  | Errored(_, _) -> Stdlib.Cli.UI.Colors.error "ERROR"
+
+
+/// The failures and errors of a test, printed under its line. Empty for a pass.
+let detailLines (branchId: Uuid) (result: Result) : List<String> =
+  let lines =
+    match result.outcome with
+    | Passed _ -> []
+    | Failed(_, failures) ->
+      failures |> Stdlib.List.map failureLines |> Stdlib.List.flatten
+    | RowErrors(_, failures, errors) ->
+      Stdlib.List.flatten
+        [ failures |> Stdlib.List.map failureLines |> Stdlib.List.flatten,
+          errors |> Stdlib.List.map (fun error ->
+            let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId error.error
+            [ "    " ++ error.message,
+              "    " ++ (indentContinuation "    " message),
+              if error.stack == "" then "" else "    " ++ (indentContinuation "    " error.stack) ])
+            |> Stdlib.List.flatten |> Stdlib.List.filter (fun line -> line != "") ]
+    | Errored(message, stack) ->
+      let stackLines =
+        match stack with
+        | Some stack -> [ "    " ++ (indentContinuation "    " stack) ]
+        | None -> []
+
+      Stdlib.List.append [ "    " ++ (indentContinuation "    " message) ] stackLines
+
+  // Indent once more: these go under the test's line, which is already indented.
+  lines |> Stdlib.List.map (fun line -> "  " ++ (indentContinuation "  " line))
+
+
+/// `Owner.Module.Tests`, the heading a test is listed under.
+let moduleName (test: TestCase) : String =
+  Stdlib.String.join (Stdlib.List.append [ test.location.owner ] test.location.modules) "."
+
+
+let summary (results: List<Result>) : String =
+  let count (keep: Outcome -> Bool) : Int =
+    results |> Stdlib.List.filter (fun r -> keep r.outcome) |> Stdlib.List.length
+
+  let passed =
+    count (fun o ->
+      match o with
+      | Passed _ -> true
+      | _ -> false)
+
+  let failed =
+    count (fun o ->
+      match o with
+      | Failed(_, _) -> true
+      | _ -> false)
+
+  let errored =
+    count (fun o ->
+      match o with
+      | Errored(_, _) -> true
+      | RowErrors(_, _, _) -> true
+      | _ -> false)
+
+  // Every check that ran, whether it passed or not. A test that raised before it returned
+  // has no checks to count.
+  let checks =
+    results
+    |> Stdlib.List.map (fun r ->
+      match r.outcome with
+      | Passed passed -> passed
+      | Failed(passed, failures) -> passed + (Stdlib.List.length failures)
+      | RowErrors(passed, failures, errors) ->
+        passed + (Stdlib.List.length failures) + (Stdlib.List.length errors)
+      | Errored(_, _) -> 0)
+    |> Stdlib.List.fold 0 (fun total n -> total + n)
+
+  let checksNote =
+    if checks == 1 then " (1 check)" else $" ({Stdlib.Int.toString checks} checks)"
+
+  let counts =
+    [ Stdlib.Option.Option.Some $"{Stdlib.Int.toString passed} passed",
+      (if failed == 0 then
+         Stdlib.Option.Option.None
+       else
+         Stdlib.Option.Option.Some $"{Stdlib.Int.toString failed} failed"),
+      (if errored == 0 then
+         Stdlib.Option.Option.None
+       else
+         Stdlib.Option.Option.Some $"{Stdlib.Int.toString errored} errored") ]
+    |> Stdlib.List.filterMap (fun part -> part)
+    |> Stdlib.String.join ", "
+
+  counts ++ checksNote
+
+
+/// Exit 0: tests ran and all passed. Exit 1: any FAIL or ERROR. Exit 2: bad usage, or no test was
+/// selected. A run with no tests never counts as passing.
+let executeRun (state: AppState) (args: List<String>) : AppState =
+  let parsed = parseArgs state.accountName args
+
+  match parsed.problem with
+  | Some problem ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+    Stdlib.printLine usage
+    { state with exitCode = 2 }
+  | None ->
+    let scopeName =
+      if Stdlib.List.isEmpty parsed.scope then
+        "this branch"
+      else
+        Stdlib.String.join parsed.scope "."
+
+    match discover state.currentBranchId parsed.scope with
+    | Error problem ->
+      // Exit 1, not 2: the request was fine, but discovery failed.
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+      { state with exitCode = 1 }
+    | Ok found ->
+      let tests = applyFilter parsed.filter found
+
+      if Stdlib.List.isEmpty tests then
+        let why =
+          match parsed.filter with
+          | Some text ->
+            if Stdlib.List.isEmpty found then
+              $"No tests in {scopeName}."
+            else
+              $"No test in {scopeName} has `{text}` in its name."
+          | None -> $"No tests in {scopeName}."
+
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error why)
+
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint
+            "  A test is a function that takes Unit and returns Stdlib.Test.T.")
+        Stdlib.printLines
+          [ ""
+            "  let example () : Stdlib.Test.T ="
+            "    (1 + 1) |> Stdlib.Test.eq 2"
+            ""
+            "  Create one: test new MyApp.Math.Tests.example"
+            "  Learn more: docs testing" ]
+
+        { state with exitCode = 2 }
+      else if parsed.listOnly then
+        tests |> Stdlib.List.iter (fun test -> Stdlib.printLine test.name)
+        state
+      else
+        // The width of the longest name, so the verdicts line up.
+        let width =
+          tests
+          |> Stdlib.List.map (fun test -> Stdlib.String.displayWidth test.location.name)
+          |> Stdlib.List.fold 0 (fun widest w -> if w > widest then w else widest)
+
+        // One line per test, under its module. The name is printed before the test runs
+        // and the verdict after it returns. A test that hangs shows as a name with nothing
+        // after it.
+        let (_lastModule, reversed) =
+          tests
+          |> Stdlib.List.fold ("", []) (fun acc test ->
+            let (lastModule, soFar) = acc
+            let thisModule = moduleName test
+
+            if thisModule != lastModule then
+              (if lastModule != "" then Stdlib.printLine "" else ())
+              Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText thisModule)
+            else
+              ()
+
+            Stdlib.print
+              ("  " ++ (Stdlib.String.padEndToWidth test.location.name width) ++ "  ")
+
+            let result = run state parsed.allowHarmful test
+            Stdlib.printLine (statusText result)
+
+            detailLines state.currentBranchId result
+            |> Stdlib.List.iter (fun line -> Stdlib.printLine line)
+
+            (thisModule, Stdlib.List.push soFar result))
+
+        let results = Stdlib.List.reverse reversed
+
+        Stdlib.printLine ""
+        Stdlib.printLine (summary results)
+
+        // List what did not pass again, by full name, so a name can be pasted into
+        // `test <name>`. In a long run the details above have scrolled away.
+        let notPassed =
+          results
+          |> Stdlib.List.filter (fun r ->
+            match r.outcome with
+            | Passed _ -> false
+            | _ -> true)
+
+        if Stdlib.List.isEmpty notPassed then
+          ()
+        else
+          Stdlib.printLine ""
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Did not pass:")
+          notPassed |> Stdlib.List.iter (fun r -> Stdlib.printLine ("  " ++ r.test.name))
+
+        let allPassed =
+          results
+          |> Stdlib.List.all (fun r ->
+            match r.outcome with
+            | Passed _ -> true
+            | _ -> false)
+
+        if allPassed then state else { state with exitCode = 1 }
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | "new" :: rest -> New.execute state rest
+  | _ -> executeRun state args
+
+
+let help (_state: AppState) : String =
+  [ "Run the tests on this branch"
+    ""
+    usage
+    ""
+    "A test is any function that takes Unit and returns Stdlib.Test.T:"
+    ""
+    "  let handlesZero () : Stdlib.Test.T ="
+    "    double 0 |> Stdlib.Test.eq 0"
+    ""
+    "  let doubles () : Stdlib.Test.T ="
+    "    Stdlib.Test.table double [ (0, 0), (4, 8), (-3, -6) ]"
+    ""
+    "A table row is the inputs, then the expected result. Several inputs are a"
+    "tuple, so a two-argument function takes rows like ((a, b), expected)."
+    ""
+    "Use `eq` for one check, `table` for inputs, and `all [a, b]` for several checks."
+    "A failed check is a value: return it or include it in `all`. Empty tables fail."
+    "Table errors identify their row and do not stop later rows."
+    "See `docs testing` for the guide and helper reference."
+    ""
+    "  test                      The active account's tests"
+    "  test MyApp.Math           That module and everything under it"
+    "  test MyApp.Math.Tests.doubles  Run exactly this test"
+    "  test new MyApp.Math.Tests.doubles --for MyApp.Math.double"
+    "                            Create a failing test and open it in your editor"
+    "                            Use --no-editor to only create it"
+    "  test list MyApp.Math      Name them without running any"
+    "  test MyApp --filter zero  Only names containing `zero`"
+    "  --branch <name> test ...  That branch's tests, its draft included"
+    ""
+    "Tests run here, in this process, one after another, with whatever this"
+    "instance's permissions allow. There is no timeout: a test that loops hangs the"
+    "run (Ctrl+C). There is no isolation: a test that writes, writes to your real"
+    "store, and one that syncs reaches your real relay."
+    ""
+    "Exit 0 when tests ran and all passed, 1 when any failed or errored, 2 for bad"
+    "usage or when nothing was selected. An empty run is never a pass." ]
+  |> Stdlib.String.join "\n"
+
+
+/// Complete a selection using only the branch's package tree.
+let completeSelection
+  (branchId: Uuid)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  let partial = Stdlib.List.last args |> Stdlib.Option.withDefault ""
+  let prior = Stdlib.List.dropLast args
+  let parsedPrior = FlagParser.parse argSpec prior
+  let positionals =
+    match parsedPrior.positionals with
+    | "list" :: rest -> rest
+    | rest -> rest
+  if (Stdlib.List.last prior) == Stdlib.Option.Option.Some "--filter" then
+    []
+  else if Stdlib.String.startsWith partial "-" || Stdlib.Bool.not (Stdlib.List.isEmpty positionals) then
+    [ "--filter", "--allow-harmful", "--help" ]
+    |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
+    |> Stdlib.List.map Completion.simple
+  else
+    let commands =
+      if Stdlib.List.isEmpty prior then [ "list", "new" ] else []
+    let scope =
+      if Stdlib.String.endsWith partial "." then scopeOf partial
+      else Stdlib.List.dropLast (scopeOf partial)
+    let paths =
+      match discover branchId scope with
+      | Error _ -> []
+      | Ok tests ->
+        tests |> Stdlib.List.map (fun test ->
+          let parts = scopeOf test.name
+          parts |> Stdlib.List.indexedMap (fun index _ ->
+            Stdlib.List.take parts (index + 1) |> Stdlib.String.join "."))
+        |> Stdlib.List.flatten
+    Stdlib.List.append commands paths
+    |> Stdlib.List.uniqueBy (fun name -> name)
+    |> Stdlib.List.filter (fun name ->
+      Stdlib.String.startsWith name (Stdlib.String.join (scopeOf partial) "."))
+    |> Stdlib.List.sort
+    |> Stdlib.List.map (fun name ->
+      Completion.simple (if Stdlib.String.startsWith partial "/" then "/" ++ name else name))
+
+let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | "new" :: rest -> New.complete state rest
+  | _ -> completeSelection state.currentBranchId args

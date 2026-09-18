@@ -2027,6 +2027,14 @@ module Dval =
       else
         KTCustomType(typeName, typeArgs) |> ValueType.Known
 
+    // TODO a function value has the type `Unknown`, and `Unknown` matches any type. So
+    // a function passed where another type is expected gets past the parameter check:
+    //   ./scripts/run-cli eval 'Stdlib.Float.toInt (fun x -> x)'
+    //   ./scripts/run-cli eval 'Stdlib.Float.toInt Stdlib.Int.add'
+    // Both reach the builtin and fail with an internal `IncorrectArgs` exception.
+    // `Stdlib.Float.toInt "x"` correctly reports "expects Float, but got String".
+    // Returning `KTFn` here, even with Unknown parameters and result, would make these
+    // type errors too.
     | DApplicable applicable ->
       match applicable with
       | AppLambda _lambda ->

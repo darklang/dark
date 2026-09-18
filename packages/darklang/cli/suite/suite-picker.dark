@@ -1,7 +1,7 @@
 /// Completion-picker layout and the fullscreen row protocol.
 ///
-/// Part of `Darklang.Cli.Tests`.
-module Darklang.Cli.Tests
+/// Part of `Darklang.Cli.Suite`.
+module Darklang.Cli.Suite
 
 let completionPickerState (itemCount: Int) : CompletionPicker.State =
   let items =

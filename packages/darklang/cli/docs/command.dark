@@ -8,7 +8,6 @@ module Darklang.Cli.Docs.Command
 //   - stdlib-list, stdlib-string, stdlib-option, stdlib-result
 //   - cli-nav, cli-create, cli-scm
 //   - errors-parse, errors-types
-//   - testing
 
 module Topics =
   // All available doc topics - maps name to (description, content-fn)
@@ -42,6 +41,14 @@ module Topics =
           aliases = [ "internal", "dev" ]
           context = "internal"
           content = Docs.ForAIInternal.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "testing"
+          description = "Write, create and run Dark tests"
+          aliases = [ "tests", "test" ]
+          context = "general"
+          content = Docs.Testing.content
           subtopics = [] }
 
       DocTopic

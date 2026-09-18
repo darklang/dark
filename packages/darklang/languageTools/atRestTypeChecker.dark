@@ -65,6 +65,8 @@ type IssueCode =
   | AmbiguousType
   | NonExhaustiveMatch
   | UnsupportedConstruct
+  /// A warning, not an error. A `let` binds a `Stdlib.Test.T` that nothing reads
+  | UnusedTestResult
 
 /// A function or value the checker names in an issue.
 type NameRef =
@@ -166,21 +168,30 @@ type Issue =
     actual: Stdlib.Option.Option<StaticType>
     context: Context }
 
+/// `warnings` do not affect the verdict. A `Checked` item can have them, and `commit`,
+/// which reads the verdict, is never blocked by one.
 type ItemReport =
   { item: LanguageTools.ProgramTypes.Reference
     verdict: Verdict
     diagnostics: List<Issue>
-    blockers: List<Issue> }
+    blockers: List<Issue>
+    warnings: List<Issue> }
 
 type Report =
   { verdict: Verdict
     items: List<ItemReport>
     diagnostics: List<Issue>
-    blockers: List<Issue> }
+    blockers: List<Issue>
+    warnings: List<Issue> }
 
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport () : Report =
-  Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
+  Report
+    { verdict = Verdict.Checked
+      items = []
+      diagnostics = []
+      blockers = []
+      warnings = [] }
 
 /// Check package operations before they are persisted or presented as diagnostics.
 ///
@@ -280,6 +291,7 @@ let issueCodeToString (code: IssueCode) : String =
   | AmbiguousType -> "AmbiguousType"
   | NonExhaustiveMatch -> "NonExhaustiveMatch"
   | UnsupportedConstruct -> "UnsupportedConstruct"
+  | UnusedTestResult -> "UnusedTestResult"
 
 let nameRefToStringWith
   (resolve: LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
@@ -403,6 +415,9 @@ let contextToStringWith
     | UnknownEnumCase -> $"Enum has no case named '{ident}'"
     | UnknownDeclaredTypeVariable ->
       $"Type variable '{ident}' is not declared in this scope"
+    | UnusedTestResult ->
+      $"The check bound to '{ident}' is never used, so it cannot fail this test. "
+      ++ "Return it, or combine checks with Stdlib.Test.all"
     | _ -> $"'{ident}'"
   | Identifiers idents ->
     let quoted =

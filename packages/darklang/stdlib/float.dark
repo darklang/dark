@@ -3,6 +3,10 @@ module Darklang.Stdlib.Float
 
 type ParseError = | BadFormat
 
+val nan = 0.0 / 0.0
+val infinity = 1.0 / 0.0
+val negativeInfinity = -1.0 / 0.0
+
 /// Round up to an integer value
 let ceiling (a: Float) : Int = Builtin.floatCeiling a
 

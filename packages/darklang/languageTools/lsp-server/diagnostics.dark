@@ -215,9 +215,10 @@ let itemDiagnostics
     |> Stdlib.List.flatten
   let error = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
   let warning = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
-  Stdlib.List.append
-    (severityOf error item.diagnostics)
-    (severityOf warning item.blockers)
+  Stdlib.List.flatten
+    [ severityOf error item.diagnostics
+      severityOf warning item.blockers
+      severityOf warning item.warnings ]
 
 
 let atRestDiagnostics

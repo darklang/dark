@@ -199,6 +199,11 @@ module Type =
 
     let sqliteValue = p [ "Sqlite" ] "Value"
 
+    /// What a Dark test returns. The at-rest checker uses it to warn about a discarded
+    /// test result.
+    let testT = p [ "Test" ] "T"
+    let testApplyProblem = p [ "Test" ] "ApplyProblem"
+
     let intParseError = p [ "Int" ] "ParseError"
     let int8ParseError = p [ "Int8" ] "ParseError"
     let uint8ParseError = p [ "UInt8" ] "ParseError"

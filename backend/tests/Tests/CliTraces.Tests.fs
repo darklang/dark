@@ -878,6 +878,7 @@ let tests =
      @ Tests.CliJson.tests
      @ Tests.CliAuthoring.tests
      @ Tests.CliSyncSurface.tests
+     @ Tests.CliTest.tests
      @ [ testVersionCommand
          testStatusCommand
          testRunCases

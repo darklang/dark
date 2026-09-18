@@ -22,6 +22,8 @@ open LibExecution.AtRest.Types
 type internal State(environment : TypeEnvironment) =
   let diagnostics = ResizeArray<Diagnostic>()
   let blockers = ResizeArray<Blocker>()
+  let warnings = ResizeArray<Warning>()
+  let wholeValueLets = ResizeArray<id * LetPattern * StaticType * Expr>()
   let mutable dependencies : Set<Dependency> = Set.empty
   let mutable nextVar = 0
   let mutable substitutions : Map<int, StaticType> = Map.empty
@@ -32,6 +34,11 @@ type internal State(environment : TypeEnvironment) =
   member _.Environment = environment
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers
+  member _.Warnings = warnings
+  /// Every `let` that binds a whole value (a name or `_`, not a tuple pattern): the
+  /// pattern, the value's type so far, and the body. `finish` decides whether to warn,
+  /// once the types are solved.
+  member _.WholeValueLets = wholeValueLets
   member _.Dependencies = dependencies
   member _.PendingFieldAccesses
     with get () = pendingFieldAccesses
@@ -99,6 +106,9 @@ type internal State(environment : TypeEnvironment) =
   member _.Block(code : BlockerCode, nodeId : Option<id>, context : Context) : unit =
     blockers.Add { code = code; nodeId = nodeId; context = context }
 
+  member _.Warn(code : WarningCode, nodeId : Option<id>, context : Context) : unit =
+    warnings.Add { code = code; nodeId = nodeId; context = context }
+
 
 // --------------------
 // Conversion and unification
@@ -126,6 +136,7 @@ let internal guardingStack
       { inferredType = None
         diagnostics = []
         blockers = [ tooDeepBlocker nodeId ]
+        warnings = []
         dependencies = Set.empty }
 
 

@@ -160,16 +160,21 @@ type CheckVerdict =
   | Incomplete
 
 type ItemCheckReport =
-  { item : PT.Reference
+  {
+    item : PT.Reference
     verdict : CheckVerdict
     diagnostics : List<Checker.Diagnostic>
-    blockers : List<Checker.Blocker> }
+    blockers : List<Checker.Blocker>
+    /// Warnings do not affect the verdict. A `Checked` item can have them.
+    warnings : List<Checker.Warning>
+  }
 
 type CheckReport =
   { verdict : CheckVerdict
     items : List<ItemCheckReport>
     diagnostics : List<Checker.Diagnostic>
-    blockers : List<Checker.Blocker> }
+    blockers : List<Checker.Blocker>
+    warnings : List<Checker.Warning> }
 
 let unavailableReport (detail : string) : CheckReport =
   { verdict = Incomplete
@@ -178,22 +183,29 @@ let unavailableReport (detail : string) : CheckReport =
     blockers =
       [ { code = Checker.UnsupportedConstruct
           nodeId = None
-          context = Checker.CheckerUnavailable detail } ] }
+          context = Checker.CheckerUnavailable detail } ]
+    warnings = [] }
 
 let private itemReport (result : Checker.ItemVerdict) : ItemCheckReport =
   match result.verdict with
-  | Checker.Checked _ ->
-    { item = result.item; verdict = Checked; diagnostics = []; blockers = [] }
+  | Checker.Checked proof ->
+    { item = result.item
+      verdict = Checked
+      diagnostics = []
+      blockers = []
+      warnings = Checker.Proof.warningsOf proof }
   | Checker.Failed report ->
     { item = result.item
       verdict = Failed
       diagnostics = report.diagnostics
-      blockers = report.blockers }
+      blockers = report.blockers
+      warnings = report.warnings }
   | Checker.Incomplete report ->
     { item = result.item
       verdict = Incomplete
       diagnostics = report.diagnostics
-      blockers = report.blockers }
+      blockers = report.blockers
+      warnings = report.warnings }
 
 let private aggregate
   (candidateRefs : Set<PT.Reference>)
@@ -206,6 +218,7 @@ let private aggregate
 
   let diagnostics = items |> List.collect (fun item -> item.diagnostics)
   let blockers = items |> List.collect (fun item -> item.blockers)
+  let warnings = items |> List.collect (fun item -> item.warnings)
   let verdict =
     if items |> List.exists (fun item -> item.verdict = Failed) then
       Failed
@@ -216,7 +229,8 @@ let private aggregate
   { verdict = verdict
     items = items
     diagnostics = diagnostics
-    blockers = blockers }
+    blockers = blockers
+    warnings = warnings }
 
 let checkPackageOps
   (pm : PT.PackageManager)
@@ -377,6 +391,12 @@ module private DarkTypes =
       | Checker.AmbiguousType -> "AmbiguousType"
       | Checker.NonExhaustiveMatch -> "NonExhaustiveMatch"
       | Checker.UnsupportedConstruct -> "UnsupportedConstruct"
+    enumValue (issueCodeName ()) caseName []
+
+  let warningCodeToDT (code : Checker.WarningCode) : Dval =
+    let caseName =
+      match code with
+      | Checker.UnusedTestResult -> "UnusedTestResult"
     enumValue (issueCodeName ()) caseName []
 
   let private optionNodeId (nodeId : Option<id>) : Dval =
@@ -564,6 +584,9 @@ module private DarkTypes =
   let blockerToDT (blocker : Checker.Blocker) : Dval =
     issue (blockerCodeToDT blocker.code) blocker.nodeId None None blocker.context
 
+  let warningToDT (warning : Checker.Warning) : Dval =
+    issue (warningCodeToDT warning.code) warning.nodeId None None warning.context
+
   let itemReportToDT (report : ItemCheckReport) : Dval =
     let typeName = itemReportName ()
     let issueType = KTCustomType(issueName (), [])
@@ -576,7 +599,8 @@ module private DarkTypes =
           "verdict", verdictToDT report.verdict
           "diagnostics",
           report.diagnostics |> List.map diagnosticToDT |> Dval.list issueType
-          "blockers", report.blockers |> List.map blockerToDT |> Dval.list issueType ]
+          "blockers", report.blockers |> List.map blockerToDT |> Dval.list issueType
+          "warnings", report.warnings |> List.map warningToDT |> Dval.list issueType ]
     )
 
   let reportToDT (report : CheckReport) : Dval =
@@ -593,7 +617,8 @@ module private DarkTypes =
           report.items |> List.map itemReportToDT |> Dval.list itemReportType
           "diagnostics",
           report.diagnostics |> List.map diagnosticToDT |> Dval.list issueType
-          "blockers", report.blockers |> List.map blockerToDT |> Dval.list issueType ]
+          "blockers", report.blockers |> List.map blockerToDT |> Dval.list issueType
+          "warnings", report.warnings |> List.map warningToDT |> Dval.list issueType ]
     )
 
 

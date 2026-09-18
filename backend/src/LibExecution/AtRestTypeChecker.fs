@@ -91,6 +91,44 @@ let private displayType (scheme : TypeScheme) : StaticType =
     | typ -> typ
   replace scheme.typ
 
+/// Warns about a discarded test result. A check is a value, so
+/// `let _ = x |> Stdlib.Test.eq 9` throws the check away, and the test passes whatever
+/// `x` is. A bare check written as a statement is already a type error, because a
+/// statement must be Unit.
+///
+/// A name counts as read if it appears anywhere in the body. A later `let` that reuses
+/// the name therefore hides the warning. This can miss a warning, but it never gives a
+/// wrong one.
+let private warnOnUnusedTestResults (state : State) : unit =
+  if state.WholeValueLets.Count > 0 then
+    // Only look the type up when there is a `let` to check. A store without
+    // `Stdlib.Test.T` has no tests, so a failed lookup is not an error.
+    let testT =
+      try
+        Some(FQTypeName.package (LibExecution.PackageRefs.Type.Stdlib.testT ()))
+      with _ ->
+        None
+    match testT with
+    | None -> ()
+    | Some testT ->
+      for nodeId, pattern, valueType, body in state.WholeValueLets do
+        match applySubstitutions state valueType with
+        | TCustom(typ, []) when typ = testT ->
+          let unused =
+            match pattern with
+            | LPWildcard _ -> Some "_"
+            | LPVariable(_, name) ->
+              if Set.contains name (ProgramTypesAst.symbolsUsedInExpr body) then
+                None
+              else
+                Some name
+            | LPTuple _
+            | LPUnit _ -> None
+          match unused with
+          | Some name -> state.Warn(UnusedTestResult, Some nodeId, Identifier name)
+          | None -> ()
+        | _ -> ()
+
 let private finish
   (state : State)
   (nodeId : Option<id>)
@@ -130,10 +168,12 @@ let private finish
     Map.empty
   |> Map.iter (fun origin _variables ->
     state.Block(AmbiguousType, origin, Ambiguous ItemType))
+  warnOnUnusedTestResults state
   let report =
     { inferredType = Some inferredType
       diagnostics = List.ofSeq state.Diagnostics
       blockers = List.ofSeq state.Blockers
+      warnings = List.ofSeq state.Warnings
       dependencies = state.Dependencies }
   if List.exists diagnosticIsDefinite report.diagnostics then
     Failed report
@@ -145,6 +185,7 @@ let private finish
     Checked
       { inferredType = inferredType
         scheme = scheme
+        warnings = report.warnings
         dependencies = state.Dependencies }
 
 let checkExpression (environment : TypeEnvironment) (expr : Expr) : Verdict =

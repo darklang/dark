@@ -69,6 +69,46 @@ the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
 annotated nested lets come back normalized, so diff against a fresh `--raw`,
 never against what you typed.
 
+## Tests
+
+A test is any function that takes Unit and returns `Stdlib.Test.T`. There is no
+syntax for it and nothing to register:
+
+  module /MyApp.Math - <<'EOF'
+  let double (n: Int) : Int = n * 2
+
+  let handlesZero () : Stdlib.Test.T =
+    double 0 |> Stdlib.Test.eq 0
+
+  let doubles () : Stdlib.Test.T =
+    Stdlib.Test.table double [ (0, 0), (4, 8), (-3, -6) ]
+  EOF
+
+  test MyApp.Math                 # that module and everything under it
+  test MyApp.Math.doubles         # one test by full name
+  test new MyApp.Math.Tests.more --for MyApp.Math.double --no-editor
+  test list MyApp.Math            # name them, run nothing
+  test MyApp --filter Zero        # only names containing `Zero`
+  --branch fix test MyApp.Math    # that branch's version, draft included
+
+`actual |> Test.eq expected` for one check. `Test.table fn rows` names the
+function once and feeds it rows: each row is the inputs, then the expected
+result, with several inputs as a tuple. So `table Bool.not [(true, false)]` and
+`table Bool.xor [((true, false), true)]` are the same helper: the function says how
+many parameters it has. A failing row names its input. For code that should raise,
+`Test.tableRaises fn "message" inputs`.
+Use `all [a, b, c]` to return several checks. Checks are values: return them
+or combine them with `all`.
+Empty tables fail, and a row error keeps earlier failures and runs later rows.
+`check |> Test.withMessage "context"` labels failures and errors.
+See `docs testing` for the guide and other helpers. A function with any other signature is a helper;
+give a helper an argument if it would otherwise look like a test.
+
+PASS, FAIL (it returned failures) and ERROR (it raised or was denied) are
+different answers. Exit 0 all passed, 1 any FAIL or ERROR, 2 bad usage or
+nothing selected: an empty run is never green. Tests run in-process with your
+permissions: no timeout, and a test that writes, writes to the real store.
+
 ## Names and syntax
 
 - `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.

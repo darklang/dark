@@ -228,7 +228,7 @@ mkdir -p "$WORKDIR/suite"
 DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
   "$ARTIFACT" permissions allow env read DARK_CLI_UNDER_TEST > /dev/null 2>&1 || true
 suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
-  "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
+  "$ARTIFACT" eval "Darklang.Cli.Suite.runAllTests ()" 2>&1) || suite_rc=$?
 
 if [[ $suite_rc -ne 0 ]]; then
   echo "  FAIL suite did not run (exit $suite_rc)"

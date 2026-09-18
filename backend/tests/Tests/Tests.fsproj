@@ -55,6 +55,7 @@
     <Compile Include="CliJson.Tests.fs" />
     <Compile Include="CliAuthoring.Tests.fs" />
     <Compile Include="CliSyncSurface.Tests.fs" />
+    <Compile Include="CliTest.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
     <Compile Include="DvalReprInternalQueryable.Tests.fs" />
