@@ -2164,6 +2164,223 @@ let private unitTests =
       } ]
 
 
+/// Traits in the checker: bounds on callees, `Trait.method` calls, receiver calls,
+/// and how the visible impls decide between Checked, MissingImpl, AmbiguousImpl,
+/// UnboundTypeParameter and the ConstrainedType blocker.
+let private traitTests =
+  // `type Show<'a> = { show: 'a -> String }`
+  let showHash = PT.Hash "trait-show"
+  let showDeclaration : PT.TypeDeclaration.T =
+    { typeParams = [ "a" ]
+      bounds = []
+      definition =
+        PT.TypeDeclaration.Record(
+          NEList.singleton
+            { name = "show"
+              typ = PT.TFn(NEList.singleton (PT.TVariable "a"), PT.TString)
+              description = "" }
+        ) }
+  let showRef : PT.TraitRef =
+    { trait_ = PT.NameResolution.ok (PT.FQTypeName.Package showHash)
+      typeArgs = [] }
+
+  let recordOfInt (fieldName : string) : PT.TypeDeclaration.T =
+    { typeParams = []
+      bounds = []
+      definition =
+        PT.TypeDeclaration.Record(
+          NEList.singleton { name = fieldName; typ = PT.TInt64; description = "" }
+        ) }
+  let pointHash = PT.Hash "type-point"
+  let pointType =
+    PT.TCustomType(PT.NameResolution.ok (PT.FQTypeName.Package pointHash), [])
+  let otherHash = PT.Hash "type-other"
+  let otherType =
+    PT.TCustomType(PT.NameResolution.ok (PT.FQTypeName.Package otherHash), [])
+
+  // `Point.Show.show`, the method fn an impl points at.
+  let showPointName = PT.FQFnName.Package(PT.Hash "point-show-show")
+  let showPointSignature : Checker.FunctionSignature =
+    { typeParams = []
+      parameters = NEList.singleton pointType
+      returnType = PT.TString
+      bounds = [] }
+
+  // `impl Show for Point`, as the value `Point.Show.instance`.
+  let implValue (hash : string) (self : PT.TypeReference) : PT.PackageValue.PackageValue =
+    { hash = PT.Hash hash
+      description = ""
+      body =
+        PT.ERecord(
+          1UL,
+          PT.NameResolution.ok (PT.FQTypeName.Package showHash),
+          [ self ],
+          [ "show", PT.EFnName(2UL, PT.NameResolution.ok showPointName) ]
+        ) }
+
+  // `let describe<'a: Show> (x: 'a) : String`
+  let describeName = PT.FQFnName.Package(PT.Hash "fn-describe")
+  let describeSignature : Checker.FunctionSignature =
+    { typeParams = [ "a" ]
+      parameters = NEList.singleton (PT.TVariable "a")
+      returnType = PT.TString
+      bounds = [ { param = "a"; trait_ = showRef } ] }
+
+  let baseEnvironment =
+    Checker.TypeEnvironment.empty
+    |> Checker.TypeEnvironment.addType showHash showDeclaration
+    |> Checker.TypeEnvironment.addType pointHash (recordOfInt "x")
+    |> Checker.TypeEnvironment.addType otherHash (recordOfInt "y")
+    |> Checker.TypeEnvironment.addFunction showPointName showPointSignature
+    |> Checker.TypeEnvironment.addFunction describeName describeSignature
+
+  let withPointImpl =
+    baseEnvironment
+    |> Checker.TypeEnvironment.addImplIfValue (implValue "impl-show-point" pointType)
+
+  let call (name : PT.FQFnName.FQFnName) (arg : PT.Expr) : PT.Expr =
+    PT.EApply(
+      10UL,
+      PT.EFnName(11UL, PT.NameResolution.ok name),
+      [],
+      NEList.singleton arg
+    )
+  let showMethod = PT.FQFnName.TraitMethod(showHash, "show")
+
+  testList
+    "traits"
+    [ test "an impl value is read as an impl entry" {
+        match Checker.ImplEntry.ofValue (implValue "impl-entry" pointType) with
+        | Some entry ->
+          Expect.equal entry.trait_ showHash "the trait is the record's type"
+          Expect.equal entry.self pointType "self is the first type arg"
+          Expect.equal entry.methods [ "show" ] "methods are the field names"
+        | None -> failtest "expected an impl entry"
+      }
+
+      test "a bounded call with a visible impl checks" {
+        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectChecked
+      }
+
+      test "a bounded call with no impl for the self type is MissingImpl" {
+        oneArgFn otherType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectDiagnostic Checker.MissingImpl
+      }
+
+      test "a bounded call on the caller's own undeclared type param is UnboundTypeParameter" {
+        { oneArgFn
+            (PT.TVariable "b")
+            PT.TString
+            (call describeName (PT.EVariable(12UL, "value"))) with
+            typeParams = [ "b" ] }
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectDiagnostic Checker.UnboundTypeParameter
+      }
+
+      test "a bounded call on the caller's own bounded type param checks" {
+        { oneArgFn
+            (PT.TVariable "b")
+            PT.TString
+            (call describeName (PT.EVariable(12UL, "value"))) with
+            typeParams = [ "b" ]
+            bounds = [ { param = "b"; trait_ = showRef } ] }
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectChecked
+      }
+
+      test "two impls for one self type is AmbiguousImpl" {
+        let environment =
+          withPointImpl
+          |> Checker.TypeEnvironment.addImplIfValue (
+            implValue "impl-show-point-again" pointType
+          )
+        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.AmbiguousImpl
+      }
+
+      test "a blanket impl covers any self type but loses to a specific one" {
+        let blanket = implValue "impl-show-blanket" (PT.TVariable "a")
+        let environment =
+          withPointImpl |> Checker.TypeEnvironment.addImplIfValue blanket
+        oneArgFn otherType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "a bound on an unresolved inference variable is a ConstrainedType blocker" {
+        PT.ELambda(
+          13UL,
+          NEList.singleton (PT.LPVariable(14UL, "x")),
+          call describeName (PT.EVariable(15UL, "x"))
+        )
+        |> CheckerApi.checkExpression withPointImpl
+        |> expectBlocker Checker.AmbiguousType
+      }
+
+      test "Trait.method takes its signature from the trait's field" {
+        // `Show.show value` returns a String, so a fn returning Int64 mismatches.
+        oneArgFn pointType PT.TString (call showMethod (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectChecked
+        oneArgFn pointType PT.TInt64 (call showMethod (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "Trait.method on a self type without an impl is MissingImpl" {
+        oneArgFn otherType PT.TString (call showMethod (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectDiagnostic Checker.MissingImpl
+      }
+
+      test "a receiver call types as the one visible impl's method" {
+        // `value.show` where Point has no field `show`.
+        oneArgFn
+          pointType
+          PT.TString
+          (PT.ERecordFieldAccess(16UL, PT.EVariable(12UL, "value"), "show"))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectChecked
+      }
+
+      test "a receiver call with no impl stays UnknownRecordField" {
+        oneArgFn
+          otherType
+          PT.TString
+          (PT.ERecordFieldAccess(16UL, PT.EVariable(12UL, "value"), "show"))
+        |> CheckerApi.checkPackageFunction withPointImpl
+        |> expectDiagnostic Checker.UnknownRecordField
+      }
+
+      test "field access wins over a same-named trait method" {
+        let showFieldHash = PT.Hash "type-with-show-field"
+        let showFieldType =
+          PT.TCustomType(
+            PT.NameResolution.ok (PT.FQTypeName.Package showFieldHash),
+            []
+          )
+        let environment =
+          withPointImpl
+          |> Checker.TypeEnvironment.addType showFieldHash (recordOfInt "show")
+          |> Checker.TypeEnvironment.addImplIfValue (
+            implValue "impl-show-field" showFieldType
+          )
+        oneArgFn
+          showFieldType
+          PT.TInt64
+          (PT.ERecordFieldAccess(16UL, PT.EVariable(12UL, "value"), "show"))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      } ]
+
+
 // Commit-time at-rest gating is covered by
 // `CliTraces.commitRefusesDefiniteTypeErrors`, which drives the real verb rather
 // than the checker directly.
@@ -2238,4 +2455,4 @@ let private mirrorTests =
         CheckerRefs.staticType ]
 
 
-let tests = testList "AtRestTypeChecker" [ unitTests; mirrorTests ]
+let tests = testList "AtRestTypeChecker" [ unitTests; traitTests; mirrorTests ]
