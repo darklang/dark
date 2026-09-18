@@ -181,10 +181,33 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           [ "" ]
         ]
 
+    // A module named for a type (`Acme.Point`, holding the impls `Point.Show`
+    // and `Point.Add`) is also that type: show the declaration under the listing.
+    let sameNamedTypeRows =
+      match path with
+      | [] -> []
+      | _ ->
+        let parent = Stdlib.List.dropLast path
+        match Stdlib.List.last path, parent with
+        | Some name, owner :: modules ->
+          let results = Query.searchExactMatch branchId parent name
+          match results.types with
+          | [] -> []
+          | item :: _ ->
+            let typeName =
+              LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name }
+            let ctx =
+              { terminalContext branchId parent with
+                  preferredLocation = Stdlib.Option.Option.Some typeName }
+            let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
+            Stdlib.List.append (sourceRows (SyntaxHighlighting.highlightCode prettyPrinted)) [ "" ]
+        | _, _ -> []
+
     Stdlib.List.flatten [
       [ locationStr
         Stdlib.String.repeat "=" (Stdlib.String.length locationStr)
         "" ]
+      sameNamedTypeRows
       submoduleRows
       typeRows
       valueRows

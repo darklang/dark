@@ -2428,7 +2428,9 @@ type PackageManager =
       init = uply { return () } }
 
   /// Side-load impls that exist only in this process (a script's own `impl`
-  /// blocks), ahead of whatever the store answers.
+  /// blocks), ahead of whatever the store answers. One impl offered from both
+  /// sides (the CLI grafts the branch's ops, and the branch's package manager
+  /// serves them too) counts once: a candidate is its source hash.
   static member withExtraImpls
     (candidates : List<ImplCandidate>)
     (pm : PackageManager)
@@ -2443,7 +2445,7 @@ type PackageManager =
               uply {
                 let! stored = pm.implCandidates branchId trait_
                 let extra = candidates |> List.filter (fun c -> c.trait_ = trait_)
-                return extra @ stored
+                return extra @ stored |> List.distinctBy (fun c -> c.source)
               }
           implCandidatesByMethod =
             fun branchId methodName ->
@@ -2451,7 +2453,7 @@ type PackageManager =
                 let! stored = pm.implCandidatesByMethod branchId methodName
                 let extra =
                   candidates |> List.filter (fun c -> Map.containsKey methodName c.methods)
-                return extra @ stored
+                return extra @ stored |> List.distinctBy (fun c -> c.source)
               } }
 
   /// Allows you to side-load a few 'extras' in-memory, along
