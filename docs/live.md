@@ -5,9 +5,13 @@ had when it started, unless something tells it the store changed and it resolves
 entry names again. This is that something, and the rules a host follows once it has
 heard.
 
-Status, 2026-09-19: the signal, the "what changed" query, the affects walk, last-good
-and a `serve` that follows edits are in. The TUI host loop, the `Node` tree and the
-renderers are next; the demo transcripts at the end say what "done" is.
+Status, 2026-09-19: both demos run in the container. The signal, what changed, affects,
+last-good, a `serve` that follows edits, the `Node` tree with its terminal and page
+renderers, `Host.await` over a shim, the host loop behind `dark apps view`, the
+workbench on the same loop, a daemon runner, and `live.autopush` are in. Not in:
+`:save`/`--resume` of a view's model as a `val`, the port of the older row-based views
+to `Node`, the SSE browser refresh, and autopush from the workbench and the LSP (only
+the CLI's `fn`/`type`/`val`/`module` saves push themselves).
 
 ---
 
@@ -131,7 +135,19 @@ version resolved at start.
 
 Test: `tests/CliWorkspace/live/serve follows edits and keeps the last good version`.
 
-## The host loop (next)
+## The `Node` tree
+
+A view is `Model -> Stdlib.Cli.UI.Node.Node<'msg>`: `Text`, `Styled`, `Row`, `Column`,
+`Table`, `ListOf`, `Input`, `Button`, `Link`, `Region`, `Band`, `Rows` (an escape hatch for
+views written as lines), `Empty`. Data, not drawing, except `Input.edited`, which has to
+turn the new text into the app's message. `Node.measure` is the natural size;
+`Node.toSpans tree region focus` paints it into a `Layout.Region` for the terminal (a
+`Column` stacks by natural rows and clips, a `Row` lays out by natural width, a `Region`
+fixes a box); `Html.render` writes the same tree as markup with `dark-` classes, `Button`
+and `Input` as forms posting the message. Focus is an index into `Node.focusable`,
+followed by id across frames.
+
+## The host loop
 
 Every TUI host is written against one contract, provided by a shim today and by the
 scheduler's event queue later:
@@ -146,10 +162,67 @@ let rec loop model =
   | _ -> loop model
 ```
 
-Under the shim, `Host.await` is a Dark loop over a key read with a timeout and
-`Live.poll`; it holds the OS thread while waiting. The loop does not know that, and
-nothing outside `stdlib/host.dark` mentions timers, threads or a queue, so replacing the
-shim is a deletion.
+`Stdlib.Host.await [Key; StoreChanged; Timer ms]` returns the first that fired:
+`Key of KeyRead` (the runtime's read: a key, a paste, a burst with its repeat count),
+`StoreChanged of Live.Change`, `Timer`. Under the shim it is a Dark loop over
+`Builtin.stdinReadKeyTimeout 50` (appended to `Stdin.fs` under a `// LIVE-SHIM` marker,
+reading through `stdinReadKey`'s own body; under a redirected stdin it reads only what a
+test pushed) and `Live.poll` over a watch the runtime keeps in one slot (`Store.fs`,
+same marker), since `await` takes no state. `Host.begin ()` starts the watch before a
+loop resolves its entries, so an edit during startup is not missed. It holds the OS
+thread while waiting. The loop does not know any of that, and nothing outside
+`stdlib/host.dark` mentions timers, threads or a queue, so replacing the shim is a
+deletion: `await` becomes one builtin call, `begin` becomes `()`.
+
+The loop itself is `cli/apps/host.dark`. A `View` is three fns by name (`init : Unit ->
+'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), on an
+`App` as `Target.Views`, or any module with those three (`dark apps view My.Module`).
+One turn: a store change that reaches the view's entries (`Live.affects`) re-resolves
+them through `LastGood` and re-renders, with a toast naming what moved; a key goes to
+the focused `Input` or `Button`, else to `update`. `render` failing at rest or at run
+keeps the last frame with the reason in a `Band` under it. The model is the only app
+state and survives every swap in memory. `Live.call` (over `Builtin.applicableTryApply`)
+is how an RTE from user code becomes a value, and it runs the fn as the approval root
+of its call, as `serve` does the router: a fresh version of a view is not asked to be
+approved again before it may print.
+
+The CLI's own loop (`cli/loop.dark`) waits through the same `await`, and hands a
+`StoreChanged` to the current page (`SubApp.onStoreChanged`, `Component.onStoreChanged`).
+The workbench re-reads its item list and the SCM picture and says what moved in the
+footer, so an edit from the LSP, an agent or a pull shows up in the detail pane while
+you look at it.
+
+Tests: `tests/CliWorkspace/live` drives the loop one turn at a time through the
+harness's `pushKey`/`pushTick` (what the next `await` answers with), which is the call
+the scheduler's queue takes over at the rebase.
+
+## Daemons
+
+A daemon that follows edits is a step, `step : 's -> 's`, run by `Cli.Apps.Runner`:
+once per interval, waiting through `Host.await [StoreChanged; Timer]` in between, so an
+edit that reaches the step is resolved through `LastGood` before the next tick and a
+broken version is skipped with the reason in the log. The heartbeat example is on it
+(`apps.heartbeat.step` points it at a step of your own). A daemon written as one
+long-running fn cannot follow anything: `dark apps` says `behind` when its entrypoint's
+hash moved since it started, and `dark apps restart <slug>` is the answer until the
+scheduler's budget yield lands.
+
+## Prod follows a branch (demo 2)
+
+Host side: `dark --branch <b> serve <router>` and a pull loop (`dark apps enable sync`
+with `sync.branches all`, interval `apps.sync.intervalMs`). Local side: `dark config set
+live.autopush on`; every `fn`/`type`/`val`/`module` save then commits the draft under
+`auto: <n> ops, <first name>` and pushes (main with `push`, a branch with `branch push`).
+Type errors are committed on purpose: the host keeps its last good version and says why
+in its log, which is the same answer you get locally.
+
+`scripts/testing/_demo2-live.sh` walks it in the container on main: a relay, A with
+autopush, B pulling every two seconds and serving. Measured: A's save is B's page three
+seconds later; the broken save leaves B on the last good page with `live: Demo.Site.router:
+newest version not applied: ...` in its serve log; the fix follows. B pulls from a shell
+loop rather than the auto-sync daemon: in this container the daemon dies on its first
+tick because its `eval` guest is refused the relay transport (`httpGetUnsafeBytes is
+restricted to trusted first-party code`), a pre-existing gap outside this work.
 
 ## The demos
 
