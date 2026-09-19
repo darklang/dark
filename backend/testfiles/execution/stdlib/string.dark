@@ -1001,3 +1001,24 @@ module GetByteAt =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt "héllo" 2 =
     Stdlib.List.getAt (Stdlib.String.toBytes "héllo") 2
+
+
+module ToOrdinal =
+  Stdlib.String.toOrdinal 0 = "0th"
+  Stdlib.String.toOrdinal 1 = "1st"
+  Stdlib.String.toOrdinal 2 = "2nd"
+  Stdlib.String.toOrdinal 3 = "3rd"
+  Stdlib.String.toOrdinal 4 = "4th"
+  Stdlib.String.toOrdinal 11 = "11th"
+  Stdlib.String.toOrdinal 12 = "12th"
+  Stdlib.String.toOrdinal 13 = "13th"
+  Stdlib.String.toOrdinal 21 = "21st"
+  Stdlib.String.toOrdinal 22 = "22nd"
+  Stdlib.String.toOrdinal 23 = "23rd"
+  Stdlib.String.toOrdinal 101 = "101st"
+  Stdlib.String.toOrdinal 111 = "111th"
+  Stdlib.String.toOrdinal 112 = "112th"
+  Stdlib.String.toOrdinal 113 = "113th"
+  Stdlib.String.toOrdinal 1011 = "1011th"
+  Stdlib.String.toOrdinal -1 = "-1st"
+  Stdlib.String.toOrdinal -11 = "-11th"
