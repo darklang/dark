@@ -219,7 +219,7 @@ let generateRefusesWhatIsNotAGenerator =
         refuses
           state
           [ "generate"; "Darklang.Stdlib.Option.Option" ]
-          "is not a function"
+          "no function named"
           "+ "
           "a type is not something to run"
       do!
@@ -911,6 +911,142 @@ let mirrorModuleCopiesAModule =
       })
 
 
+// ─── files out, server stubs, GraphQL ────────────────────────────────────────────
+
+let typeScriptDeclarations =
+  instanceTest
+    "TypeScript.toTypeScript writes a .d.ts for a module with --out"
+    (fun state ->
+      task {
+        do!
+          run
+            state
+            [ "type"
+              "Tests.Gen.Ts.Money"
+              "= { amount: Int; note: Option<String> }" ]
+        do! run state [ "type"; "Tests.Gen.Ts.Shape"; "= | Circle of Float | Dot" ]
+        do!
+          fn
+            state
+            "Tests.Gen.Ts.double"
+            "(m: Tests.Gen.Ts.Money) : Tests.Gen.Ts.Money = { m with amount = m.amount * 2 }"
+        let dir =
+          System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-generate-ts")
+        System.IO.Directory.CreateDirectory dir |> ignore
+        do!
+          refuses
+            state
+            [ "generate"
+              "TypeScript.toTypeScript"
+              "Tests.Gen.Ts"
+              "--into"
+              "Tests.Gen.TsOut" ]
+            "--out"
+            ".d.ts"
+            "a run that produces files needs somewhere to put them"
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "TypeScript.toTypeScript"
+              "Tests.Gen.Ts"
+              "--into"
+              "Tests.Gen.TsOut"
+              "--out"
+              dir ]
+        Expect.stringContains out "wrote" $"the file is written: {out}"
+        let text =
+          System.IO.File.ReadAllText(
+            System.IO.Path.Combine(dir, "Tests.Gen.Ts.d.ts")
+          )
+        Expect.stringContains
+          text
+          "export interface Money"
+          "a record is an interface"
+        Expect.stringContains
+          text
+          "note?: string | null;"
+          "an Option field is optional and nullable"
+        Expect.stringContains
+          text
+          "| { Circle: [number] }"
+          "an enum is a union in Json.serialize's shape"
+        Expect.stringContains
+          text
+          "export declare function double(m: Money): Money;"
+          "a fn is a declaration"
+      })
+
+
+let openApiServerStubs =
+  instanceTest
+    "OpenApi.server makes Handlers, notImplemented and a router"
+    (fun state ->
+      task {
+        let! out =
+          runCliPlain
+            state
+            [ "generate"; "OpenApi.server"; petstore; "--into"; "Tests.Gen.Api" ]
+        for expected in
+          [ "+ Handlers"; "+ notImplemented"; "+ router"; "+ decodeNewPet" ] do
+          Expect.stringContains out expected $"the server side lands: {out}"
+        // Two arguments, so `fn` reads a definition rather than probing for a file
+        // named after the whole body.
+        do!
+          run
+            state
+            [ "fn"
+              "Tests.Gen.Api.handlers"
+              "()"
+              ": Tests.Gen.Api.Handlers = { Tests.Gen.Api.notImplemented () with showPetById = fun id -> Stdlib.Result.Result.Ok(Tests.Gen.Api.Pet { id = 1; name = id; tag = Stdlib.Option.Option.None; status = Stdlib.Option.Option.None; owner = Stdlib.Option.Option.None }) }" ]
+        do!
+          evals
+            state
+            "((Tests.Gen.Api.router (Tests.Gen.Api.handlers ())) (Stdlib.Http.Request { url = \"http://x/pets/rex\"; headers = []; body = Stdlib.Blob.empty })).statusCode"
+            "200"
+            "an implemented operation answers 200 through the router"
+        do!
+          evals
+            state
+            "((Tests.Gen.Api.router (Tests.Gen.Api.handlers ())) (Stdlib.Http.Request { url = \"http://x/pets?limit=2\"; headers = []; body = Stdlib.Blob.empty })).statusCode"
+            "501"
+            "an unimplemented one answers 501"
+      })
+
+
+let graphQlClient =
+  instanceTest "GraphQL.client makes records and one fn per root field" (fun state ->
+    task {
+      let! out =
+        runCliPlain
+          state
+          [ "generate"
+            "GraphQL.client"
+            "testfiles/generate/starwars.graphql"
+            "--into"
+            "Tests.Gen.Gql" ]
+      for expected in
+        [ "+ Character"
+          "+ ReviewInput"
+          "+ hero"
+          "+ characters"
+          "+ createReview" ] do
+        Expect.stringContains out expected $"types and operations land: {out}"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Gql.Character"; "--raw" ]
+          "height: Option<Float>"
+          "a nullable field is optional"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Gql.hero"; "--raw" ]
+          "query($episode: Episode) { hero(episode: $episode) {"
+          "the operation carries its query text with a selection set"
+    })
+
+
 let tests : List<Test> =
   [ generateFromAJsonSample
     runningAgainIsANoOp
@@ -930,4 +1066,7 @@ let tests : List<Test> =
     sqlSchemaTypes
     deriveShowEqualsSetters
     fixturesForType
-    mirrorModuleCopiesAModule ]
+    mirrorModuleCopiesAModule
+    typeScriptDeclarations
+    openApiServerStubs
+    graphQlClient ]

@@ -62,4 +62,8 @@ let mirrorModule (path: String) (into: String) : Generate.Run =
     match Stdlib.List.flatten [ types, values, fns ] with
     | [] -> Generate.failed [ $"nothing directly in {path}; is the path spelled owner first?" ]
     | declarations ->
-      Generate.Run { into = into; source = Generate.Source.module_ declarations; errors = [] }
+      Generate.Run
+        { into = into
+          source = Generate.Source.module_ declarations
+          errors = []
+          artifacts = [] }

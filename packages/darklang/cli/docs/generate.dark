@@ -12,14 +12,42 @@ generator makes is a type or a fn like any other. Nothing is "generated" as a ki
   generate <savedGenerator>                             re-run one
   ... --fetch <url>                                     take the document from a URL, not a file
   generate <savedGenerator> --refresh                   re-fetch its URL; re-run only if it moved
+  ... --out <dir>                                       where a generator's files go (a .d.ts)
   ... --dry-run                                         show what would be written, stage nothing
   ... --print                                           print the source a saved generator produces
 
-Library generators today:
+Library generators, by what they read:
 
-  Json.fromSample <Name> <sample.json>      record types that parse the sample, plus `parse`
+  From a file (stored once as a blob, named by hash in the saved fn):
+  Json.fromSample <Name> <sample.json>      records that parse the sample, with decoders,
+                                            encoders and `parse`
+  Json.fromSamples <Name> <dir/>            the same over every file in a directory,
+                                            shapes unified (absent in some -> Option)
+  JsonSchema.types <Name> <schema.json>     records for the root and every $defs entry
+  Csv.fromSample <Name> <rows.csv>          a row type from the header and columns, with
+                                            `fromFields` and `parse`
+  Sql.schemaTypes <schema.sql>              a record per CREATE TABLE (sqlite3 .schema),
+                                            with `<name>FromRow` and `all<Table>`
+  OpenApi.client <openapi.json>             a typed HTTP client: `Client`, `ApiError`, one
+                                            fn per operation (or --fetch <url>)
+  OpenApi.server <openapi.json>             the server side: `Handlers`, `notImplemented`,
+                                            and `router` for `Stdlib.HttpServer`
+  GraphQL.client <schema.graphql>           records and one fn per Query/Mutation field
+
+  From a package type (a type argument, so the type is a dependency and edits
+  regenerate):
   Dark.mirror <Some.Type>                   the same declaration under another name
-  OpenApi.client <openapi.json>             a client: types, `Client`, `ApiError`, one fn per operation
+  Derive.forType <Some.Type>                show<T>, equals<T>, a with<Field> setter each
+  Fixtures.forType <Some.Type>              example<T> () for it and every type it reaches
+
+  From a module (by path; re-run by name):
+  Dark.mirrorModule <Owner.Mod> <Owner.Copy>  every item copied, references rewritten
+  TypeScript.toTypeScript <Owner.Mod>       a .d.ts file, written with --out <dir>
+
+Generated records read and write JSON as other systems do: a missing or null key is
+None, and None is left out. That is `decode<T>` and `encode<T>` over
+`Stdlib.AltJson.Decode` / `Encode`; `Stdlib.Json.parse` reads Dark's own encoding of
+Option and is not what a generated `parse` uses.
 
 Short names resolve: `Json.fromSample` finds `Darklang.Generate.Json.fromSample`.
 

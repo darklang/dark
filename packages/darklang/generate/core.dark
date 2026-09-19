@@ -36,17 +36,28 @@ type Run =
     /// express) rather than failing, so a saved generator keeps a plain `Run`
     /// signature and the CLI can print the reasons. Non-empty means `source` is not
     /// staged.
-    errors: List<String> }
+    errors: List<String>
+
+    /// Files rather than package items: a relative path and its text, for output
+    /// that lives outside the store (a `.d.ts` for an editor, a schema for another
+    /// system). Written by `dark generate --out <dir>`; a propagation re-run does
+    /// not touch the disk, so these are only ever written on an explicit run.
+    artifacts: List<(String * String)> }
 
 
 /// A run that has nothing to say but why.
 let failed (errors: List<String>) : Run =
-  Run { into = ""; source = ""; errors = errors }
+  Run { into = ""; source = ""; errors = errors; artifacts = [] }
 
 
 /// A run of <param source>, destination to be filled in by the caller.
 let ofSource (source: String) : Run =
-  Run { into = ""; source = source; errors = [] }
+  Run { into = ""; source = source; errors = []; artifacts = [] }
+
+
+/// A run that produces files, not package items.
+let ofArtifacts (artifacts: List<(String * String)>) : Run =
+  Run { into = ""; source = ""; errors = []; artifacts = artifacts }
 
 
 /// The persistent blob stored under <param hash>, for use inside a saved generator.

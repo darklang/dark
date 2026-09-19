@@ -29,6 +29,8 @@ type Options =
     fetch: Stdlib.Option.Option<String>
     /// Re-fetch a saved generator's URL and re-run only if the document moved.
     refresh: Bool
+    /// Where a run's files (artifacts) are written; required when it has any.
+    out: Stdlib.Option.Option<String>
     positional: List<String> }
 
 
@@ -40,6 +42,7 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
         dryRun = false
         fetch = Stdlib.Option.Option.None
         refresh = false
+        out = Stdlib.Option.Option.None
         positional = [] }
 
   // The fold carries which flag, if any, is waiting for its value.
@@ -52,7 +55,9 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
         Stdlib.Result.Result.Ok(({ opts with into = Stdlib.Option.Option.Some arg }, ""))
       else if waiting == "--fetch" then
         Stdlib.Result.Result.Ok(({ opts with fetch = Stdlib.Option.Option.Some arg }, ""))
-      else if (arg == "--into") || (arg == "--fetch") then
+      else if waiting == "--out" then
+        Stdlib.Result.Result.Ok(({ opts with out = Stdlib.Option.Option.Some arg }, ""))
+      else if (arg == "--into") || (arg == "--fetch") || (arg == "--out") then
         Stdlib.Result.Result.Ok((opts, arg))
       else if Stdlib.String.startsWith arg "--into=" then
         let value = Stdlib.String.dropFirst arg 7
@@ -76,6 +81,7 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
     | Error e -> Stdlib.Result.Result.Error e
     | Ok((_, "--into")) -> Stdlib.Result.Result.Error "--into needs a module path"
     | Ok((_, "--fetch")) -> Stdlib.Result.Result.Error "--fetch needs a URL"
+    | Ok((_, "--out")) -> Stdlib.Result.Result.Error "--out needs a directory"
     | Ok((opts, _)) -> Stdlib.Result.Result.Ok opts)
 
 
@@ -383,7 +389,72 @@ let refreshSaved
               Stdlib.Result.Result.Ok()
 
 
-/// Evaluate a saved generator and stage its source, unless `--print` or `--dry-run`.
+/// Stage a run's source into <param target> and report per name.
+let stageRun
+  (state: Cli.AppState)
+  (generator: LanguageTools.ProgramTypes.PackageLocation)
+  (target: String)
+  (run: Darklang.Generate.Run)
+  : Cli.AppState =
+  Cli.printHint $"  ran {fullName generator} into {target}:"
+  match
+    Packages.ModuleCommand.stageSource
+      state.currentBranchId
+      state.packageData.currentLocation
+      ("/" ++ target)
+      run.source
+  with
+  | Error(ParseErrors diagnostics) ->
+    Cli.printErr "the generator's output did not parse:"
+    let _ = Packages.Errors.reportParseErrors diagnostics
+    { state with exitCode = 1 }
+  | Error(Message message) ->
+    Cli.printErr message
+    { state with exitCode = 1 }
+  | Ok staged ->
+    printOutcomes staged.outcomes
+
+    let changed =
+      staged.outcomes
+      |> Stdlib.List.filter (fun (_, o) ->
+        match o with
+        | Unchanged -> false
+        | _ -> true)
+
+    if Stdlib.List.isEmpty changed then
+      Cli.printHint "  nothing to do: every output already holds this content"
+    else
+      ()
+
+    if Stdlib.List.isEmpty staged.missing then
+      ()
+    else
+      Cli.printErr
+        $"""  not defined: {Stdlib.String.join staged.missing ", "}"""
+
+    state
+
+
+/// Write a run's files under <param dir>.
+let writeArtifacts
+  (dir: String)
+  (artifacts: List<(String * String)>)
+  : Stdlib.Result.Result<Unit, String> =
+  artifacts
+  |> Stdlib.List.map (fun (path, text) ->
+    let full = if Stdlib.String.endsWith dir "/" then dir ++ path else dir ++ "/" ++ path
+    match Stdlib.Cli.File.writeText full text with
+    | Ok _ ->
+      Cli.printHint
+        $"  wrote {full} ({Stdlib.Int.toString (Stdlib.String.length text)} chars)"
+      Stdlib.Result.Result.Ok()
+    | Error err -> Stdlib.Result.Result.Error $"could not write {full}: {err.message}")
+  |> Stdlib.Result.collect
+  |> Stdlib.Result.map (fun _ -> ())
+
+
+/// Evaluate a saved generator and stage its source (and write its files), unless
+/// `--print` or `--dry-run`.
 let runSaved
   (state: Cli.AppState)
   (opts: Options)
@@ -405,46 +476,30 @@ let runSaved
         | None -> if run.into == "" then modulePathOf generator else run.into
 
       if opts.print || opts.dryRun then
-        Stdlib.printLine run.source
+        if run.source != "" then Stdlib.printLine run.source else ()
+        run.artifacts
+        |> Stdlib.List.iter (fun (path, text) ->
+          Cli.printHint $"  would write {path}:"
+          Stdlib.printLine text)
         state
       else
-        Cli.printHint $"  ran {fullName generator} into {target}:"
-        match
-          Packages.ModuleCommand.stageSource
-            state.currentBranchId
-            state.packageData.currentLocation
-            ("/" ++ target)
-            run.source
-        with
-        | Error(ParseErrors diagnostics) ->
-          Cli.printErr "the generator's output did not parse:"
-          let _ = Packages.Errors.reportParseErrors diagnostics
+        // Files first, when there are any: they are written where `--out` says, and
+        // nothing else touches the disk. A propagation re-run never reaches here.
+        let files =
+          match (run.artifacts, opts.out) with
+          | ([], _) -> Stdlib.Result.Result.Ok()
+          | (_, None) ->
+            Stdlib.Result.Result.Error
+              ($"{fullName generator} produces files; say where with `--out <dir>` "
+               ++ "(or `--print` to see them)")
+          | (artifacts, Some dir) -> writeArtifacts dir artifacts
+
+        match files with
+        | Error e ->
+          Cli.printErr e
           { state with exitCode = 1 }
-        | Error(Message message) ->
-          Cli.printErr message
-          { state with exitCode = 1 }
-        | Ok staged ->
-          printOutcomes staged.outcomes
-
-          let changed =
-            staged.outcomes
-            |> Stdlib.List.filter (fun (_, o) ->
-              match o with
-              | Unchanged -> false
-              | _ -> true)
-
-          if Stdlib.List.isEmpty changed then
-            Cli.printHint "  nothing to do: every output already holds this content"
-          else
-            ()
-
-          if Stdlib.List.isEmpty staged.missing then
-            ()
-          else
-            Cli.printErr
-              $"""  not defined: {Stdlib.String.join staged.missing ", "}"""
-
-          state
+        | Ok() ->
+          if run.source == "" then state else stageRun state generator target run
 
 
 /// Re-run the saved generator at <param generator>, if that is what lives there, staging
@@ -749,9 +804,9 @@ let findFn
   match found with
   | Some pair -> Stdlib.Result.Result.Ok pair
   | None ->
-    match Packages.Location.parseRelativeTo here name with
-    | Error message -> Stdlib.Result.Result.Error message
-    | Ok location -> Stdlib.Result.Result.Error $"{fullName location} is not a function"
+    Stdlib.Result.Result.Error
+      ($"no function named {name} (nor under Darklang or Darklang.Generate). "
+       ++ "`docs generate` lists the library generators.")
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -832,7 +887,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   [ "Run a generator: a fn that writes Dark, whose output is staged like typed code"
     ""
-    "Usage: generate <libraryFn> <args...> --into Owner.Module [--fetch <url>] [--dry-run]"
+    "Usage: generate <libraryFn> <args...> --into Owner.Module [--fetch <url>] [--out <dir>] [--dry-run]"
     "       generate <savedGenerator> [--refresh] [--print | --dry-run]"
     ""
     "The first form writes a saved generator into the module: a zero-arg fn whose"
@@ -855,7 +910,10 @@ let help (_state: Cli.AppState) : String =
     "network. Fetch what you need first (or use --fetch), and generate from the"
     "stored document."
     ""
-    "Library generators: Json.fromSample, Dark.mirror, OpenApi.client. See"
+    "Library generators: Json.fromSample, Json.fromSamples, JsonSchema.types,"
+    "Csv.fromSample, Sql.schemaTypes, OpenApi.client, OpenApi.server, GraphQL.client,"
+    "Dark.mirror, Dark.mirrorModule, Derive.forType, Fixtures.forType,"
+    "TypeScript.toTypeScript. `--out <dir>` for one that writes files. See"
     "`docs generate`."
     ""
     "Examples:"
