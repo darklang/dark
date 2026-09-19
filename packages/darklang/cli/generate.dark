@@ -206,6 +206,37 @@ let argumentSource
             $"  stored {arg} as blob {Stdlib.String.slice hash 0 8} "
             ++ $"({Stdlib.Int.toString size} B)")
         Stdlib.Result.Result.Ok $"(Darklang.Generate.input \"{hash}\")"
+  | TList TBlob ->
+    // A directory: every file in it, stored as a blob, in name order so the saved
+    // fn reads the same on every run.
+    if Stdlib.Bool.not (Stdlib.Cli.FileSystem.isDirectory arg) then
+      Stdlib.Result.Result.Error
+        $"parameter `{param.name}` takes a directory of files, and {arg} is not one"
+    else
+      match Stdlib.Cli.Dir.listFullPaths arg with
+      | Error err -> Stdlib.Result.Result.Error $"could not list {arg}: {err.message}"
+      | Ok paths ->
+        let files =
+          paths
+          |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.Cli.FileSystem.isDirectory p))
+          |> Stdlib.List.sort
+        let stored =
+          files
+          |> Stdlib.List.map (fun path ->
+            match Stdlib.Cli.File.readBytes path with
+            | Error err -> Stdlib.Result.Result.Error $"could not read {path}: {err.message}"
+            | Ok bytes ->
+              let hash = Stdlib.Blob.persist bytes
+              Stdlib.Result.Result.Ok $"Darklang.Generate.input \"{hash}\"")
+          |> Stdlib.Result.collect
+        match stored with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok [] -> Stdlib.Result.Result.Error $"{arg} has no files in it"
+        | Ok inputs ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.hint
+              $"  stored {Stdlib.Int.toString (Stdlib.List.length inputs)} files from {arg} as blobs")
+          Stdlib.Result.Result.Ok("[ " ++ (Stdlib.String.join inputs ", ") ++ " ]")
   | TInt ->
     match Stdlib.Int.parse arg with
     | Ok n -> Stdlib.Result.Result.Ok(Stdlib.Int.toString n)
@@ -217,7 +248,7 @@ let argumentSource
   | _ ->
     Stdlib.Result.Result.Error
       ($"parameter `{param.name}` has a type `generate` cannot take from the "
-       ++ "command line (only String, Int and Blob); write the saved generator "
+       ++ "command line (only String, Int, Blob and List<Blob>); write the saved generator "
        ++ "by hand with `fn` and run it with `generate <name>`")
 
 

@@ -475,8 +475,8 @@ let openApiClientFromAFile =
           shows
             state
             [ "view"; "Tests.Gen.Petstore.createPet"; "--raw" ]
-            "Stdlib.Json.serialize<NewPet> body"
-            "a request body is serialised from its schema type"
+            "encodeNewPet body"
+            "a request body is encoded with its generated encoder"
         do!
           shows
             state
@@ -599,6 +599,143 @@ let fetchAndRefresh =
       })
 
 
+// ─── the sample-driven family: CSV, JSON Schema, several JSON samples ──────────
+
+let private peopleCsv =
+  "id,name,age,active,note\n1,ada,36,true,\n2,\"bo\",41,false,late\n"
+
+let private ticketSchema =
+  """{ "type": "object", "required": ["id"],
+  "properties": { "id": { "type": "integer" }, "owner": { "$ref": "#/$defs/Person" } },
+  "$defs": { "Person": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "age": { "type": "integer" } } } } }"""
+
+
+let csvFromSample =
+  instanceTest "Csv.fromSample makes a row type, fromFields and parse" (fun state ->
+    task {
+      let file = sampleFile "dark-generate-people.csv" peopleCsv
+      let! out =
+        runCliPlain
+          state
+          [ "generate"
+            "Csv.fromSample"
+            "Person"
+            file
+            "--into"
+            "Tests.Gen.Csv" ]
+      for expected in [ "+ Person"; "+ fromFields"; "+ parse" ] do
+        Expect.stringContains
+          out
+          expected
+          $"the row type and its readers land: {out}"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Csv.Person"; "--raw" ]
+          "note: Option<String>"
+          "a column with an empty cell is optional"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Csv.Person"; "--raw" ]
+          "active: Bool"
+          "true/false columns are Bool"
+      do!
+        evals
+          state
+          "(Tests.Gen.Csv.parse \"id,name,age,active,note\\n7,cy,50,true,\") |> Stdlib.List.length"
+          "1"
+          "the generated parse reads a document"
+      do!
+        evals
+          state
+          "Tests.Gen.Csv.fromFields [ \"x\", \"cy\", \"50\", \"true\", \"\" ]"
+          "not a whole number"
+          "a cell that does not convert names its column"
+    })
+
+
+let jsonSchemaTypes =
+  instanceTest
+    "JsonSchema.types makes records with decoders that read real JSON"
+    (fun state ->
+      task {
+        let file = sampleFile "dark-generate-ticket.schema.json" ticketSchema
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "JsonSchema.types"
+              "Ticket"
+              file
+              "--into"
+              "Tests.Gen.Schema" ]
+        for expected in
+          [ "+ Person"; "+ Ticket"; "+ decodeTicket"; "+ encodeTicket"; "+ parse" ] do
+          Expect.stringContains
+            out
+            expected
+            $"definitions, root, codecs and parse land: {out}"
+        do!
+          evals
+            state
+            "Tests.Gen.Schema.parse \"{\\\"id\\\": 1, \\\"owner\\\": {\\\"name\\\": \\\"ada\\\"}}\""
+            "age: None"
+            "a missing optional field decodes as None, the way other systems write JSON"
+        do!
+          evals
+            state
+            "Tests.Gen.Schema.parse \"{\\\"owner\\\": {}}\""
+            "missing field"
+            "a missing required field is an error that names it"
+      })
+
+
+let jsonFromSamplesUnifies =
+  instanceTest "Json.fromSamples unifies a directory of documents" (fun state ->
+    task {
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "dark-generate-samples"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore
+      System.IO.File.WriteAllText(
+        System.IO.Path.Combine(dir, "a.json"),
+        """{ "id": 1, "name": "ada" }"""
+      )
+      System.IO.File.WriteAllText(
+        System.IO.Path.Combine(dir, "b.json"),
+        """{ "id": 2.5, "name": "bo", "email": "b@x" }"""
+      )
+      let! out =
+        runCliPlain
+          state
+          [ "generate"
+            "Json.fromSamples"
+            "Person"
+            dir
+            "--into"
+            "Tests.Gen.Samples" ]
+      Expect.stringContains
+        out
+        "stored 2 files"
+        $"every file in the directory is a sample: {out}"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Samples.Person"; "--raw" ]
+          "id: Float"
+          "an Int in one sample and a Float in another is a Float"
+      do!
+        shows
+          state
+          [ "view"; "Tests.Gen.Samples.Person"; "--raw" ]
+          "email: Option<String>"
+          "a field present in one sample and absent in another is optional"
+    })
+
+
 let tests : List<Test> =
   [ generateFromAJsonSample
     runningAgainIsANoOp
@@ -611,4 +748,7 @@ let tests : List<Test> =
     mirrorSharesTheSourcesHash
     editingTheSourceRegeneratesTheMirror
     openApiClientFromAFile
-    fetchAndRefresh ]
+    fetchAndRefresh
+    csvFromSample
+    jsonSchemaTypes
+    jsonFromSamplesUnifies ]

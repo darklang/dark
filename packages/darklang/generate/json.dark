@@ -118,27 +118,20 @@ let unifyFields
     | (None, None) -> (name, Shape.Any))
 
 
-/// A record type to emit: its name and its fields, each with the type text and a
-/// note when the field name or type had to be adjusted.
-type Emitted =
-  { name: String
-    fields: List<(String * String * Stdlib.Option.Option<String>)> }
-
-
-/// The Dark type for a shape, plus every record type it needs, named under
-/// <param parent>. Types are returned in first-reached order, parent before child.
-let typeText (parent: String) (shape: Shape) : (String * List<Emitted>) =
+/// The shared model for a shape, plus every record it needs, named under
+/// <param parent>. Records come back in first-reached order, parent before child.
+let toModel (parent: String) (shape: Shape) : (Generate.Model.Shape * List<Generate.Model.Record>) =
   match shape with
-  | Int -> ("Int", [])
-  | Float -> ("Float", [])
-  | String -> ("String", [])
-  | Bool -> ("Bool", [])
+  | Int -> (Generate.Model.Shape.Int, [])
+  | Float -> (Generate.Model.Shape.Float, [])
+  | String -> (Generate.Model.Shape.String, [])
+  | Bool -> (Generate.Model.Shape.Bool, [])
   // Only ever null: nothing is known about what it holds when it is not.
-  | Null -> ("Stdlib.Option.Option<Stdlib.AltJson.Json>", [])
-  | Any -> ("Stdlib.AltJson.Json", [])
+  | Null -> (Generate.Model.Shape.Optional Generate.Model.Shape.Any, [])
+  | Any -> (Generate.Model.Shape.Any, [])
   | Optional inner ->
-    let (t, types) = typeText parent inner
-    ($"Stdlib.Option.Option<{t}>", types)
+    let (m, records) = toModel parent inner
+    (Generate.Model.Shape.Optional m, records)
   | List inner ->
     // `Order` with a field `lines: [ ... ]` names the element `OrderLine`, singular
     // when the field name ends in `s`, which is what people would have written.
@@ -152,74 +145,84 @@ let typeText (parent: String) (shape: Shape) : (String * List<Emitted>) =
         Stdlib.String.dropLast parent 1
       else
         parent
-    let (t, types) = typeText elementName inner
-    ($"List<{t}>", types)
+    let (m, records) = toModel elementName inner
+    (Generate.Model.Shape.List m, records)
   | Record fields ->
     let name = Generate.Source.typeName parent
-    let (fieldLines, nested) =
+    let (modelFields, nested) =
       fields
-      |> Stdlib.List.fold ([], []) (fun (lines, types) (key, fieldShape) ->
+      |> Stdlib.List.fold ([], []) (fun (acc, records) (key, fieldShape) ->
         let fieldName = Generate.Source.identifier key
-        let (t, fieldTypes) =
-          typeText (name ++ Generate.Source.typeName key) fieldShape
+        let (m, fieldRecords) = toModel (name ++ Generate.Source.typeName key) fieldShape
         let note =
-          if fieldName != key then
-            Stdlib.Option.Option.Some
-              ($"JSON key \"{key}\"; parsing the real document needs this name "
-               ++ "to match")
-          else
-            match fieldShape with
-            | Any -> Stdlib.Option.Option.Some "the sample did not pin this down"
-            | Null -> Stdlib.Option.Option.Some "only ever null in the sample"
-            | Optional Any -> Stdlib.Option.Option.Some "null or absent in the sample"
-            | List Any -> Stdlib.Option.Option.Some "the sample's array was empty"
-            | _ -> Stdlib.Option.Option.None
-        (Stdlib.List.pushBack lines (fieldName, t, note),
-         Stdlib.List.append types fieldTypes))
-    let self = Emitted { name = name; fields = fieldLines }
+          match fieldShape with
+          | Any -> Stdlib.Option.Option.Some "the sample did not pin this down"
+          | Null -> Stdlib.Option.Option.Some "only ever null in the sample"
+          | Optional Any -> Stdlib.Option.Option.Some "null or absent in the sample"
+          | List Any -> Stdlib.Option.Option.Some "the sample's array was empty"
+          | _ -> Stdlib.Option.Option.None
+        let field =
+          Generate.Model.Field { name = fieldName; key = key; shape = m; note = note }
+        (Stdlib.List.pushBack acc field, Stdlib.List.append records fieldRecords))
+    let self = Generate.Model.Record { name = name; fields = modelFields }
     // The parent is built after its fields are folded; it goes first so the source
     // reads top-down.
-    (name, Stdlib.List.push nested self)
+    (Generate.Model.Shape.Named name, Stdlib.List.push nested self)
 
 
-/// One emitted record as Dark source.
-let render (e: Emitted) : String =
-  let fields =
-    e.fields
-    |> Stdlib.List.map (fun (name, typ, note) -> Generate.Source.field name typ note)
-  Generate.Source.recordType e.name fields
+/// The shape of one JSON document's bytes, or why there is none.
+let shapeOfDocument (sample: Blob) : Stdlib.Result.Result<Shape, String> =
+  if Stdlib.Blob.length sample == 0 then
+    Stdlib.Result.Result.Error "the sample is empty (a missing input reads as empty)"
+  else
+    match Stdlib.Blob.toString sample with
+    | Error _ -> Stdlib.Result.Result.Error "the sample is not UTF-8 text"
+    | Ok text ->
+      match Stdlib.AltJson.parse text with
+      | Error e ->
+        Stdlib.Result.Result.Error
+          ("the sample did not parse as JSON: "
+           ++ (Stdlib.AltJson.ParseError.toString e))
+      | Ok json -> Stdlib.Result.Result.Ok(shapeOf json)
+
+
+/// The module for a root shape: its records with decoders and encoders, and a
+/// `parse` fn over the root.
+let moduleFor (name: String) (shape: Shape) : Generate.Run =
+  let rootName = Generate.Source.typeName name
+  match shape with
+  | Record _ ->
+    let (_, records) = toModel rootName shape
+    let declarations =
+      Stdlib.List.pushBack
+        (Generate.Model.declarations records)
+        (Generate.Model.parseFn rootName)
+    Generate.ofSource (Generate.Source.module_ declarations)
+  | _ ->
+    Generate.failed
+      [ "the sample's top level is not an object; only objects become record types" ]
 
 
 /// Types that parse <param sample>, rooted at a record named <param name>, plus a
 /// `parse` fn over the root. The sample is the bytes of one JSON document.
 let fromSample (name: String) (sample: Blob) : Generate.Run =
-  if Stdlib.Blob.length sample == 0 then
-    Generate.failed [ "the sample is empty (a missing input reads as empty)" ]
-  else
-    match Stdlib.Blob.toString sample with
-    | Error _ -> Generate.failed [ "the sample is not UTF-8 text" ]
-    | Ok text ->
-      match Stdlib.AltJson.parse text with
-      | Error e ->
-        Generate.failed
-          [ "the sample did not parse as JSON: "
-            ++ (Stdlib.AltJson.ParseError.toString e) ]
-      | Ok json ->
-        let rootName = Generate.Source.typeName name
-        let shape = shapeOf json
-        match shape with
-        | Record _ ->
-          let (_, types) = typeText rootName shape
-          let typeDecls = types |> Stdlib.List.map render
-          let parseFn =
-            Generate.Source.fn
-              "parse"
-              "(json: String)"
-              $"Stdlib.Result.Result<{rootName}, Stdlib.Json.ParseError.ParseError>"
-              $"Stdlib.Json.parse<{rootName}> json"
-          let declarations = Stdlib.List.pushBack typeDecls parseFn
-          Generate.ofSource (Generate.Source.module_ declarations)
-        | _ ->
-          Generate.failed
-            [ "the sample's top level is not an object; only objects become "
-              ++ "record types" ]
+  match shapeOfDocument sample with
+  | Error e -> Generate.failed [ e ]
+  | Ok shape -> moduleFor name shape
+
+
+/// Types that parse every one of <param samples>: the documents' shapes unified, so
+/// a field present in some and absent in others comes out optional, and a field
+/// that is an Int in one and a Float in another comes out a Float. On the command
+/// line the samples are a directory; every file in it is a sample.
+let fromSamples (name: String) (samples: List<Blob>) : Generate.Run =
+  match samples with
+  | [] -> Generate.failed [ "no samples: the directory was empty" ]
+  | _ ->
+    match samples |> Stdlib.List.map shapeOfDocument |> Stdlib.Result.collect with
+    | Error e -> Generate.failed [ e ]
+    | Ok shapes ->
+      match shapes with
+      | [] -> Generate.failed [ "no samples" ]
+      | first :: rest ->
+        moduleFor name (rest |> Stdlib.List.fold first (fun acc s -> unify acc s))

@@ -146,3 +146,152 @@ module Source =
   /// formatter lays out a file.
   let module_ (declarations: List<String>) : String =
     Stdlib.String.join declarations "\n\n\n"
+
+
+/// The shape of data a generator has learned about, shared by the JSON, JSON Schema,
+/// OpenAPI and CSV generators, and what each shape becomes: a type reference, a
+/// decoder from `AltJson`, an encoder to it.
+///
+/// Decoders and encoders are emitted because `Stdlib.Json.parse` reads Dark's own
+/// encoding of `Option` (`{"Some": [1]}`), not the missing-or-null that every other
+/// system writes. A generated record therefore comes with `decode<Name>` and
+/// `encode<Name>` over `Stdlib.AltJson.Decode` / `Encode`, and the `parse` fn a
+/// generator adds calls those.
+module Model =
+
+  type Shape =
+    | Int
+    | Float
+    | String
+    | Bool
+    /// Not pinned down: kept as raw `AltJson.Json`.
+    | Any
+    | List of Shape
+    | Optional of Shape
+    /// A record emitted in the same run (or already in the module), by type name.
+    | Named of String
+
+
+  type Field =
+    { /// The Dark field name, legal for the parser.
+      name: String
+      /// The key as the data spells it, which the decoder reads and the encoder writes.
+      key: String
+      shape: Shape
+      note: Stdlib.Option.Option<String> }
+
+
+  type Record = { name: String; fields: List<Field> }
+
+
+  let typeText (shape: Shape) : String =
+    match shape with
+    | Int -> "Int"
+    | Float -> "Float"
+    | String -> "String"
+    | Bool -> "Bool"
+    | Any -> "Stdlib.AltJson.Json"
+    | List inner -> $"List<{typeText inner}>"
+    | Optional inner -> $"Stdlib.Option.Option<{typeText inner}>"
+    | Named name -> name
+
+
+  /// The decoder expression for a shape: a `Json -> Result<T, String>`.
+  let decoder (shape: Shape) : String =
+    match shape with
+    | Int -> "Stdlib.AltJson.Decode.int"
+    | Float -> "Stdlib.AltJson.Decode.float"
+    | String -> "Stdlib.AltJson.Decode.string"
+    | Bool -> "Stdlib.AltJson.Decode.bool"
+    | Any -> "Stdlib.AltJson.Decode.any"
+    | List inner -> $"(Stdlib.AltJson.Decode.list {decoder inner})"
+    // An optional inside a list or another optional: null is None.
+    | Optional inner ->
+      $"(fun j -> match j with | Null -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None | v -> ({decoder inner} v) |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x))"
+    | Named name -> $"decode{name}"
+
+
+  /// The encoder expression for a shape: a `T -> Json`.
+  let encoder (shape: Shape) : String =
+    match shape with
+    | Int -> "Stdlib.AltJson.Encode.int"
+    | Float -> "Stdlib.AltJson.Encode.float"
+    | String -> "Stdlib.AltJson.Encode.string"
+    | Bool -> "Stdlib.AltJson.Encode.bool"
+    | Any -> "Stdlib.AltJson.Encode.any"
+    | List inner -> $"(Stdlib.AltJson.Encode.list {encoder inner})"
+    | Optional inner -> $"(Stdlib.AltJson.Encode.optional {encoder inner})"
+    | Named name -> $"encode{name}"
+
+
+  let recordSource (r: Record) : String =
+    let fields =
+      r.fields
+      |> Stdlib.List.map (fun f ->
+        let note =
+          if (f.name != f.key) && (Stdlib.Option.isNone f.note) then
+            Stdlib.Option.Option.Some $"key \"{f.key}\" in the data"
+          else
+            f.note
+        Source.field f.name (typeText f.shape) note)
+    Source.recordType r.name fields
+
+
+  /// `decode<Name> : Json -> Result<Name, String>`, one nested match per field so
+  /// the first field that does not decode names itself.
+  let decoderSource (r: Record) : String =
+    let assemble =
+      $"Stdlib.Result.Result.Ok({r.name} {{ "
+      ++ (r.fields |> Stdlib.List.map (fun f -> $"{f.name} = {f.name}") |> Stdlib.String.join "; ")
+      ++ " })"
+
+    let body =
+      r.fields
+      |> Stdlib.List.reverse
+      |> Stdlib.List.fold assemble (fun inner f ->
+        let read =
+          match f.shape with
+          | Optional inner ->
+            $"Stdlib.AltJson.Decode.optional fields \"{f.key}\" {decoder inner}"
+          | shape -> $"Stdlib.AltJson.Decode.required fields \"{f.key}\" {decoder shape}"
+        $"match {read} with\n    | Error e -> Stdlib.Result.Result.Error e\n    | Ok {f.name} ->\n    {inner}")
+
+    Stdlib.String.join
+      [ $"/// A {r.name} from JSON as other systems write it: a missing or null key is None.",
+        $"let decode{r.name} (json: Stdlib.AltJson.Json) : Stdlib.Result.Result<{r.name}, String> =",
+        "  match Stdlib.AltJson.Decode.fieldsOf json with",
+        $"  | Error e -> Stdlib.Result.Result.Error(\"{r.name}: \" ++ e)",
+        "  | Ok fields ->",
+        $"    {body}" ]
+      "\n"
+
+
+  /// `encode<Name> : Name -> Json`; an absent Option is left out.
+  let encoderSource (r: Record) : String =
+    let pairs =
+      r.fields
+      |> Stdlib.List.map (fun f -> $"(\"{f.key}\", {encoder f.shape} value.{f.name})")
+      |> Stdlib.String.join ",\n      "
+    Stdlib.String.join
+      [ $"let encode{r.name} (value: {r.name}) : Stdlib.AltJson.Json =",
+        "  Stdlib.AltJson.Encode.object",
+        $"    [ {pairs} ]" ]
+      "\n"
+
+
+  /// The declarations for a set of records: types first, then decoders, then
+  /// encoders, in the order given.
+  let declarations (records: List<Record>) : List<String> =
+    Stdlib.List.flatten
+      [ records |> Stdlib.List.map recordSource,
+        records |> Stdlib.List.map decoderSource,
+        records |> Stdlib.List.map encoderSource ]
+
+
+  /// A `parse` fn over the root record: text in, record out.
+  let parseFn (root: String) : String =
+    Source.fn
+      "parse"
+      "(json: String)"
+      $"Stdlib.Result.Result<{root}, String>"
+      $"Stdlib.AltJson.Decode.parse decode{root} json"
