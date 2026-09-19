@@ -156,49 +156,70 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
       | None -> Stdlib.Option.Option.None)
 
 
-/// The op summaries this branch can see that LANDED here at or after <param since> (a `created_at`,
-/// local insert time, second resolution), oldest first, capped at <param limit>.
+/// The ids of the ops this branch can see that LANDED here after <param since> (a `created_at`, local
+/// insert time, second resolution), oldest first; and the ones AT <param since> too when
+/// <param andAtSince> says that second may still be filling. Ids only, no blobs: the caller drops
+/// the ones it has seen before and asks `summariesByIds` about the rest.
 ///
-/// The "what changed?" query for a process that stays up: `Stdlib.Live.poll` keeps the newest insert
-/// time it has seen and asks for everything from it on, dropping the ids it already reported.
-///
-/// `created_at`, not `origin_ts` and not `rowid`. The origin stamp is a logical clock that runs ahead
-/// of the wall clock after a big batch (a package reload mints thousands of stamps a millisecond apart),
-/// so an op authored in the next process can carry a stamp EARLIER than the log's newest and never show
-/// up as "after" it; a peer's ops arrive with the peer's stamps. A rowid is reused after a delete, and
-/// authoring on main rewrites the draft. Insert time only moves forward, on this store, and that is the
-/// question: what landed since I looked.
-let summariesSince (branchId: Uuid) (since: String) (limit: Int64) : List<OpSummary> =
-  let sinceParam =
-    if SCM.Branch.isMain branchId then "@p0" else "@p2"
-
-  let sql =
-    "SELECT id, origin_ts AS ts, created_at, length(op_blob) AS sz, op_blob FROM package_ops WHERE "
-    ++ visibleWhere branchId
-    ++ $" AND created_at >= {sinceParam} ORDER BY created_at, rowid LIMIT {Stdlib.Int64.toString limit}"
+/// The "what changed?" query for a process that stays up (`Stdlib.Live.poll`). By insert time, not
+/// `origin_ts` and not `rowid`: the origin stamp is a logical clock that runs ahead after a big batch
+/// (a package reload mints thousands a millisecond apart) and arrives from peers with THEIR clocks, so
+/// "newer than the log's newest" misses real edits; a rowid is reused after a delete. Insert time only
+/// moves forward on this store. What it cannot do is tell a new op from an old one handed back by a
+/// draft rewrite (`WipRefresh` deletes and re-inserts main's draft, with a fresh insert time and the
+/// same id); that is rare, and the caller treats a flood as "everything changed".
+let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<String> =
+  let sinceParam = if SCM.Branch.isMain branchId then "@p0" else "@p2"
+  let comparison = if andAtSince then ">=" else ">"
 
   Stdlib.Sqlite.rowsP
     (localDb ())
-    sql
+    ("SELECT id FROM package_ops WHERE "
+     ++ visibleWhere branchId
+     ++ $" AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
     (Stdlib.List.append (visibleParams branchId) [ since ])
-    (fun row ->
-      match Stdlib.Sqlite.textField row "id" with
-      | Some id ->
-        let decoded =
-          match
-            (Stdlib.Uuid.parse id, Stdlib.Sqlite.bytesField row "op_blob")
-          with
-          | (Ok opId, Some blob) -> tryDecodeOp opId blob
-          | _ -> Stdlib.Option.Option.None
+    (fun row -> Stdlib.Sqlite.textField row "id")
 
-        (OpSummary
-          { id = id
-            sizeBytes =
-              Stdlib.Sqlite.intField row "sz" |> Stdlib.Option.withDefault 0L
-            ts = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
-            op = decoded })
-        |> Stdlib.Option.Option.Some
-      | None -> Stdlib.Option.Option.None)
+
+/// The summaries for <param ids>, in the order given. An id the log does not hold is skipped.
+let summariesByIds (ids: List<String>) : List<OpSummary> =
+  if Stdlib.List.isEmpty ids then
+    []
+  else
+    // Ids are content hashes rendered as uuids; anything else is refused rather than spliced in.
+    let safe =
+      ids
+      |> Stdlib.List.filter (fun id -> Stdlib.Uuid.parse id |> Stdlib.Result.isOk)
+
+    let quoted = safe |> Stdlib.List.map (fun id -> "'" ++ id ++ "'")
+    let inList = Stdlib.String.join quoted ","
+
+    let found =
+      Stdlib.Sqlite.rowsP
+        (localDb ())
+        $"SELECT id, origin_ts AS ts, length(op_blob) AS sz, op_blob FROM package_ops WHERE id IN ({inList})"
+        []
+        (fun row ->
+          match Stdlib.Sqlite.textField row "id" with
+          | Some id ->
+            let decoded =
+              match
+                (Stdlib.Uuid.parse id, Stdlib.Sqlite.bytesField row "op_blob")
+              with
+              | (Ok opId, Some blob) -> tryDecodeOp opId blob
+              | _ -> Stdlib.Option.Option.None
+
+            (OpSummary
+              { id = id
+                sizeBytes =
+                  Stdlib.Sqlite.intField row "sz" |> Stdlib.Option.withDefault 0L
+                ts = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+                op = decoded })
+            |> Stdlib.Option.Option.Some
+          | None -> Stdlib.Option.Option.None)
+
+    safe
+    |> Stdlib.List.filterMap (fun id -> found |> Stdlib.List.findFirst (fun s -> s.id == id))
 
 
 /// When the newest op in the log landed here (`created_at`), or "" for an empty log. Where a watcher
@@ -212,17 +233,22 @@ let newestInsert () : String =
   |> Stdlib.Option.withDefault ""
 
 
-/// The ids of every op that could come back from `summariesSince` without being new: the ops that
-/// landed at exactly <param at> (a `created_at`), and every uncommitted op on main, which authoring
-/// re-inserts wholesale (`WipRefresh`) with a fresh insert time and the same id. A watcher drops these.
-let idsAlreadyLanded (at: String) : List<String> =
+/// The ids of the ops that landed at exactly <param at> (a `created_at`). A watcher that resumes from
+/// `at` while that second may still be filling gets these back, and drops them.
+let idsInsertedAt (at: String) : List<String> =
   Stdlib.Sqlite.rowsP
     (localDb ())
-    "SELECT id FROM package_ops
-     WHERE created_at = @p0
-        OR (commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches))"
+    "SELECT id FROM package_ops WHERE created_at = @p0"
     [ at ]
     (fun row -> Stdlib.Sqlite.textField row "id")
+
+
+/// The store's clock, in `created_at` form, so a watcher can tell whether the second it last saw an
+/// insert in is still the current one.
+let storeNow () : String =
+  Stdlib.Sqlite.queryOneP (localDb ()) "SELECT datetime('now') AS now" []
+  |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "now")
+  |> Stdlib.Option.withDefault ""
 
 
 /// How many commits this branch has, without decoding any of them.

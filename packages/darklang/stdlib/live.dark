@@ -49,13 +49,18 @@ type Watch =
     /// The newest insert time (`created_at`, second resolution) reported so far. The next poll asks
     /// for everything from it on.
     since: String
-    /// Every op id this watch has seen, so an op that comes back with a fresh insert time and the
-    /// same id (authoring on main re-inserts the whole draft) is not reported again.
+    /// The ids already reported at `since`, so a second's worth of ops is not reported twice. Only
+    /// consulted while that second is still the current one; afterwards nothing new can land in it.
     reported: List<String> }
 
 /// More ops than this in one poll, and the change is reported as unknown rather than described: a
 /// host would re-run everything anyway, and describing ten thousand ops to reach that answer is waste.
 val describeAtMost = 500L
+
+/// The ids at <param since> that a later poll must not report again: only worth holding while that
+/// second is still the current one, since nothing can land in a second that has passed.
+let reportedAt (since: String) : List<String> =
+  if since == SCM.PackageOps.storeNow () then SCM.PackageOps.idsInsertedAt since else []
 
 /// Start watching <param branchId> from now. Nothing that landed before this call is ever reported.
 let watch (branchId: Uuid) : Watch =
@@ -65,7 +70,7 @@ let watch (branchId: Uuid) : Watch =
     { branchId = branchId
       version = version ()
       since = since
-      reported = SCM.PackageOps.idsAlreadyLanded since }
+      reported = reportedAt since }
 
 /// The name an op binds or unbinds, if it does one of those.
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : Stdlib.Option.Option<Touched> =
@@ -101,9 +106,19 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
   if now == w.version then
     (w, Stdlib.Option.Option.None)
   else
+    // The second of the last insert we reported is re-read only while it is still the current
+    // second: a reload lands thousands of ops in one second, and re-reading them on every poll for
+    // as long as the watch lives is what would make polling slow.
+    let sinceIsNow = w.since == SCM.PackageOps.storeNow ()
+
+    let newIds =
+      SCM.PackageOps.idsLandedSince w.branchId w.since sinceIsNow
+      |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.member w.reported id))
+
+    // Ids first, then the blobs for the new ones only.
     let landed =
-      SCM.PackageOps.summariesSince w.branchId w.since describeAtMost
-      |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.List.member w.reported s.id))
+      SCM.PackageOps.summariesByIds
+        (Stdlib.List.take newIds (Stdlib.Int.fromInt64 describeAtMost))
 
     if Stdlib.List.isEmpty landed then
       ({ w with version = now }, Stdlib.Option.Option.None)
@@ -111,7 +126,7 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
       SCM.Draft.invalidateCaches ()
 
       let change =
-        if (Stdlib.List.length landed) >= (Stdlib.Int.fromInt64 describeAtMost) then
+        if (Stdlib.List.length newIds) >= (Stdlib.Int.fromInt64 describeAtMost) then
           unknownChange ()
         else
           let touched =
@@ -124,13 +139,14 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
 
           Change { ops = landed; touched = touched; unknown = false }
 
+      let since = SCM.PackageOps.newestInsert ()
+
       let next =
         Watch
           { branchId = w.branchId
             version = now
-            since = SCM.PackageOps.newestInsert ()
-            reported =
-              Stdlib.List.append w.reported (landed |> Stdlib.List.map (fun s -> s.id)) }
+            since = since
+            reported = reportedAt since }
 
       (next, Stdlib.Option.Option.Some change)
 
@@ -379,3 +395,27 @@ module Router =
         (State { watch = watch; lastGood = lg }, applicable lg)
       else
         ({ s with watch = watch }, applicable s.lastGood)
+
+
+// --- for tests and logs ---
+
+/// The touched names, dotted. What a log line or a toast shows.
+let touchedNames (change: Change) : List<String> =
+  change.touched |> Stdlib.List.map (fun t -> entryName t.location)
+
+/// A change that touched exactly one fn, for asking `affects` about a hypothetical edit.
+let touchingOnly (entry: LanguageTools.ProgramTypes.PackageLocation) : Change =
+  Change
+    { ops = []
+      touched =
+        [ Touched { location = entry; kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]
+      unknown = false }
+
+/// What a host that had never seen <param entry> would say about it after <param change>: `None` when
+/// the newest version is fine, else why it would not be applied.
+let diagnose
+  (branchId: Uuid)
+  (change: Change)
+  (entry: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  diagnostic (refresh branchId change.ops (start entry))

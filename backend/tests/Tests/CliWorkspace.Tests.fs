@@ -259,6 +259,218 @@ let constraintsAndConflictsReportQuiet =
           "and resolve needs its three arguments"
     })
 
+// ─── live: running things follow your edits ──────────────────────────────
+
+// In this file rather than `HttpServer.Tests.fs` only because the CLI harness these need
+// compiles after it; the listener helpers are borrowed from there.
+
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Execution = LibExecution.Execution
+open TestUtils.TestUtils
+open System.Threading
+open Prelude
+
+let private getText (port : int) : Task<int * string> =
+  task {
+    use client = new System.Net.Http.HttpClient()
+    let! response = client.GetAsync($"http://localhost:{port}/")
+    let! body = response.Content.ReadAsStringAsync()
+    return (int response.StatusCode, body)
+  }
+
+let private isNone (dv : RT.Dval) : bool =
+  match dv with
+  | RT.DEnum(_, _, _, "None", []) -> true
+  | _ -> false
+
+/// The Dark source for the test router's location.
+let private routerLocation =
+  "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveHttp\"]; name = \"router\" }"
+
+/// The claim `dark serve` now makes: a saved edit is on the next request, a broken save is not.
+///
+/// In-process on purpose (`cliTest`): the listener and the author have to share one store, and the
+/// diagnostic the routing step prints has to be capturable. Authoring goes through the real `fn`
+/// command so propagation runs, which is what repoints the router at the edited callee.
+let private serveFollowsEdits =
+  cliTest "serve follows edits and keeps the last good version" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LiveHttp.page" "(): String = \"one\""
+      do!
+        author
+          "Tests.LiveHttp.router"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 200"
+
+      let! init =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Live.Router.start Darklang.SCM.Branch.mainBranchId ({routerLocation})"
+      let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+      let step =
+        match step with
+        | RT.DApplicable a -> a
+        | other -> failtest $"expected the step to be a fn, got {other}"
+
+      let port = Tests.HttpServer.allocateFreePort ()
+      let cts = new CancellationTokenSource()
+      let! listener = Tests.HttpServer.bindListener port
+
+      let listenerTask =
+        Builtins.Http.Server.Libs.HttpServer.runListenerLive
+          state
+          listener
+          (int64 port)
+          init
+          step
+          Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+          false
+          false
+          false
+          cts.Token
+
+      try
+        let! (status, body) = getText port
+        Expect.equal (status, body) (200, "one") "the version at start"
+
+        do! author "Tests.LiveHttp.page" "(): String = \"two\""
+        let! (_, body) = getText port
+        Expect.equal body "two" "an edit to a callee is on the next request"
+
+        // A body that does not match the declared return type: the save lands (WIP is yours to
+        // break), the router is repointed at it, and the check on what landed refuses it.
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        do! author "Tests.LiveHttp.page" "(): String = 3"
+        let! (status, body) = getText port
+        Expect.equal
+          (status, body)
+          (200, "two")
+          "a broken save keeps the last good version"
+
+        // The diagnostic the server printed went to its own thread's stdout, out of this flow's
+        // capture; ask the same question the routing step asked and check the words.
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other ->
+            failtest $"expected the broken save to be reported, got {other}"
+        let! routerLoc = evalUnder state routerLocation
+        let! why =
+          callByName
+            state
+            "Darklang.Stdlib.Live.diagnose"
+            [ RT.DUuid PT.BranchId.Main.Guid; change; routerLoc ]
+        let why =
+          match why with
+          | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) -> s
+          | other -> failtest $"expected a diagnostic, got {other}"
+        Expect.stringContains
+          why
+          "newest version not applied"
+          "the diagnostic names what it kept"
+        Expect.stringContains why "expected String, got Int" "and says why"
+
+        do! author "Tests.LiveHttp.page" "(): String = \"three\""
+        let! (_, body) = getText port
+        Expect.equal body "three" "the fix is on the next request"
+
+        do!
+          author
+            "Tests.LiveHttp.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 201"
+        let! (status, _) = getText port
+        Expect.equal
+          status
+          201
+          "an edit to the router itself is on the next request"
+      finally
+        cts.Cancel()
+        try
+          listenerTask.Wait 2000 |> ignore<bool>
+        with _ ->
+          ()
+    })
+
+/// `poll` names what landed and `affects` walks to what depends on it, on one store.
+let private pollAndAffects =
+  cliTest "poll reports an edit and affects reaches its dependents" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LivePoll.leaf" "(): Int = 1"
+      do! author "Tests.LivePoll.branch" "(): Int = (Tests.LivePoll.leaf ()) + 1"
+      do! author "Tests.LivePoll.bystander" "(): Int = 7"
+
+      let loc (name : string) : Task<RT.Dval> =
+        evalUnder
+          state
+          $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [\"LivePoll\"]; name = \"{name}\" }}"
+
+      let! watch =
+        evalUnder
+          state
+          "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+
+      let! quiet = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+      let watch, change =
+        match quiet with
+        | RT.DTuple(w, c, []) -> w, c
+        | other -> failtest $"poll returned {other}"
+      Expect.isTrue (isNone change) "a fresh watch has nothing to report"
+
+      do! author "Tests.LivePoll.leaf" "(): Int = 2"
+
+      let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+      let change =
+        match polled with
+        | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+        | other -> failtest $"expected the edit to be reported, got {other}"
+
+      let! touched = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+      let names =
+        match touched with
+        | RT.DList(_, items) ->
+          items
+          |> List.map (fun d ->
+            match d with
+            | RT.DString s -> s
+            | other -> string other)
+        | other -> failtest $"touchedNames returned {other}"
+      Expect.contains names "Tests.LivePoll.leaf" "the edited name is reported"
+      Expect.isFalse
+        (List.contains "Tests.LivePoll.bystander" names)
+        "a name nothing touched is not"
+
+      let! branch = loc "branch"
+      let! bystander = loc "bystander"
+      let! affectsBranch =
+        callByName state "Darklang.Stdlib.Live.affects" [ change; branch ]
+      let! affectsBystander =
+        callByName state "Darklang.Stdlib.Live.affects" [ change; bystander ]
+      Expect.equal affectsBranch (RT.DBool true) "the dependent is affected"
+      Expect.equal affectsBystander (RT.DBool false) "the bystander is not"
+
+      // And the walk itself, from a change that names only the leaf: propagation had already
+      // repointed `branch`, so the poll above reports both; this is the transitive half on its own.
+      let! leaf = loc "leaf"
+      let! synthetic = callByName state "Darklang.Stdlib.Live.touchingOnly" [ leaf ]
+      let! reached =
+        callByName state "Darklang.Stdlib.Live.affects" [ synthetic; branch ]
+      Expect.equal
+        reached
+        (RT.DBool true)
+        "a dependent is reached through the edges"
+    })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -273,4 +485,5 @@ let tests : List<Test> =
     dbAndTracesAnswer
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
-    constraintsAndConflictsReportQuiet ]
+    constraintsAndConflictsReportQuiet
+    testSequenced (testList "live" [ serveFollowsEdits; pollAndAffects ]) ]

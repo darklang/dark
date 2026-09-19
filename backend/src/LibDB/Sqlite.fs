@@ -82,21 +82,20 @@ module Backup =
 /// within one process. A host loop keeps the last value and polls (`Stdlib.Live.poll`).
 module DataVersion =
   let private gate = obj ()
-  let mutable private held : Option<string * SqliteConnection> = None
+
+  // One per store, kept for the life of the process. A test that swaps stores and swaps back
+  // must get the SAME connection back, or the counter restarts and a change made in between reads
+  // as "no change".
+  let private held =
+    System.Collections.Generic.Dictionary<string, SqliteConnection>()
 
   let private connection () : SqliteConnection =
-    match held with
-    | Some(cs, conn) when cs = connString -> conn
-    | stale ->
-      stale
-      |> Option.iter (fun (_, conn) ->
-        try
-          conn.Dispose()
-        with _ ->
-          ())
+    match held.TryGetValue connString with
+    | true, conn -> conn
+    | false, _ ->
       let conn = new SqliteConnection(connString)
       conn.Open()
-      held <- Some(connString, conn)
+      held[connString] <- conn
       conn
 
   let current () : int64 =

@@ -39,6 +39,7 @@ module Inserts = LibDB.Inserts
 module Branches = LibDB.Branches
 module Queries = LibDB.Queries
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module BS = LibSerialization.Binary.Serialization
 module Hashing = LibSerialization.Hashing.Hashing
 
@@ -702,6 +703,63 @@ let hostedOpsAreNotThisStoresDraft =
       })
 
 
+/// The store-change signal across the wire: a pull on B is something B's poller reports, with the
+/// names it bound. This is what a host on B (a `serve`, a TUI) reacts to when A's edit arrives.
+let aPullIsReportedByThePoller =
+  twoStoreTest "a pull on B is reported by B's poll, by name" (fun a b ->
+    task {
+      let! state = Tests.CliTestHarness.buildState ()
+      let poll (watch : RT.Dval) =
+        Tests.CliTestHarness.callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+
+      activate b
+      let! watch =
+        Tests.CliTestHarness.evalUnder
+          state
+          "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+
+      let! quiet = poll watch
+      let watch =
+        match quiet with
+        | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+        | other -> failtest $"a fresh watch reported something: {other}"
+
+      // A authors; nothing has reached B yet, and B's watcher must not think so either.
+      activate a
+      let op = setName "alpha" "v1"
+      let! _ = receive [ wireOp op "2026-01-01T00:00:00.000Z" ]
+
+      activate b
+      let! stillQuiet = poll watch
+      let watch =
+        match stillQuiet with
+        | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+        | other -> failtest $"B reported A's private edit: {other}"
+
+      // The pull.
+      let! _ = receive [ wireOp op "2026-01-01T00:00:00.000Z" ]
+
+      let! polled = poll watch
+      let change =
+        match polled with
+        | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+        | other -> failtest $"the pull was not reported: %A{other}"
+
+      let! names =
+        Tests.CliTestHarness.callByName
+          state
+          "Darklang.Stdlib.Live.touchedNames"
+          [ change ]
+      match names with
+      | RT.DList(_, [ RT.DString name ]) ->
+        Expect.equal
+          name
+          "MultiInstance.Converge.alpha"
+          "the pulled name is what was touched"
+      | other -> failtest $"expected one touched name, got {other}"
+    })
+
+
 let tests =
   testSequenced
   <| testList
@@ -722,4 +780,5 @@ let tests =
       anUnbindRemovesTheNameAndNothingElse
       unbindConvergesWhateverOrderOpsArrive
       aMergedUnbindTakesTheNameOffMain
-      hostedOpsAreNotThisStoresDraft ]
+      hostedOpsAreNotThisStoresDraft
+      aPullIsReportedByThePoller ]

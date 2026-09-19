@@ -238,6 +238,61 @@ let parseTraceID (json : string) : string =
       parts[0]
 
 
+/// Call the package fn at dotted <param name> with <param args>, under <param state>. For handing a
+/// Dark VALUE from one evaluation to the next, which source text cannot do: a `Watch` polled after
+/// an edit, a `Change` asked about.
+let callByName
+  (state : RT.ExecutionState)
+  (name : string)
+  (args : List<RT.Dval>)
+  : Task<RT.Dval> =
+  task {
+    let location : LibExecution.ProgramTypes.PackageLocation =
+      match name.Split('.') |> Array.toList |> List.rev with
+      | fnName :: revRest ->
+        match List.rev revRest with
+        | owner :: modules -> { owner = owner; modules = modules; name = fnName }
+        | [] -> Tests.failtestf "not a package fn name: %s" name
+      | [] -> Tests.failtestf "not a package fn name: %s" name
+    let! found = pmPT.findFn location |> Ply.toTask
+    match found with
+    | None -> return Tests.failtestf "no fn named %s" name
+    | Some(LibExecution.ProgramTypes.Hash hash) ->
+      match!
+        Exe.executeFunction
+          state
+          (RT.FQFnName.fqPackage hash)
+          []
+          (NEList.ofListUnsafe "callByName: no args" [] args)
+      with
+      | Ok dval -> return dval
+      | Error(rte, _) ->
+        let! errStr = Exe.runtimeErrorToString state rte
+        let asString =
+          match errStr with
+          | Ok(RT.DString s) -> s
+          | _ -> string rte
+        return Tests.failtestf "%s raised: %s" name asString
+  }
+
+/// Run Dark source under <param state>. Owner "Tests", so every name is fully qualified.
+let evalUnder (state : RT.ExecutionState) (code : string) : Task<RT.Dval> =
+  task {
+    let! ptExpr = parsePTExpr code
+    let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
+    match! Exe.executeExpr state rtInstrs with
+    | Ok dval -> return dval
+    | Error(rte, _) ->
+      let! errStr = Exe.runtimeErrorToString state rte
+      let asString =
+        match errStr with
+        | Ok(RT.DString s) -> s
+        | _ -> string rte
+      return
+        Tests.failtestf "the Dark expression raised: %s\n  code: %s" asString code
+  }
+
+
 // ─── Test builders ────────────────────────────────────────────────────────
 
 /// Wrap a fresh ExecutionState in a task.
