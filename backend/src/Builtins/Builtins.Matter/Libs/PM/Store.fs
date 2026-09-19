@@ -31,6 +31,11 @@ let private requireBundledCaller
     |> raiseUntargetedRTE
 
 
+// LIVE-SHIM, removed by the rebase (see `liveShimWatchGet` below).
+module LiveShim =
+  let mutable watch : Option<Dval> = None
+
+
 let fns () : List<BuiltInFn> =
   [
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
@@ -245,6 +250,66 @@ let fns () : List<BuiltInFn> =
       previewable = Impure
       // `PackageRead`, like every other question about the package store: `DbRead` is the scoped
       // effect for a user table, and this names no table.
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    // LIVE-SHIM, removed by the rebase
+    //
+    // The one slot `Stdlib.Host.await`'s shim keeps its `Stdlib.Live.Watch` in between calls. A
+    // host loop is written against `Host.await`, which takes no state, and under the scheduler the
+    // store-change source is the runtime's own; until then the shim has to remember where its last
+    // poll stood, and a Dark value cannot outlive the call that made it. Process-wide, one watch:
+    // one host loop runs per process today. Nothing else may use this.
+    { name = fn "liveShimWatchGet" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.option (TVariable "a")
+      description = "The shim's watch, if a poll has stored one."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            match LiveShim.watch with
+            | Some w ->
+              return
+                DEnum(
+                  Dval.optionType (),
+                  Dval.optionType (),
+                  [ ValueType.Unknown ],
+                  "Some",
+                  [ w ]
+                )
+            | None ->
+              return
+                DEnum(
+                  Dval.optionType (),
+                  Dval.optionType (),
+                  [ ValueType.Unknown ],
+                  "None",
+                  []
+                )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "liveShimWatchSet" 0
+      typeParams = []
+      parameters = [ Param.make "watch" (TVariable "a") "" ]
+      returnType = TUnit
+      description = "Store the shim's watch for the next `Host.await`."
+      fn =
+        (function
+        | _, _, _, [| w |] ->
+          uply {
+            LiveShim.watch <- Some w
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 

@@ -1,0 +1,102 @@
+/// Where a host loop waits.
+///
+/// Every host loop (a TUI, a daemon's runner) is written against `await`: park until one of the
+/// things it asked for happens, get told which. The loop knows nothing about how the waiting is
+/// done, and that is the whole point of this module: the body of `await` is a SHIM over today's
+/// runtime, a Dark loop that reads a key with a timeout and looks at the store in between, holding
+/// the OS thread while it waits. The scheduler replaces that body with one builtin that parks the
+/// calling process on its event queue, and nothing that calls `await` changes.
+///
+/// So: nothing outside this file reads a key with a timeout, sleeps in slices, or remembers when it
+/// last looked at the store. If a loop needs any of that, it is asking for an `EventSpec` that does
+/// not exist yet, and the place to add it is here.
+module Darklang.Stdlib.Host
+
+/// What a loop can wait for.
+type EventSpec =
+  /// The next key press.
+  | Key
+  /// The package store changed: some op landed, from this process or another.
+  | StoreChanged
+  /// Fires once, after this many milliseconds.
+  | Timer of ms: Int
+  /// A spawned execution finished. Scheduler only; the shim never delivers it.
+  | ExecDone of id: Uuid
+
+/// What happened.
+type Event =
+  | Key of Stdlib.Cli.UI.Widget.KeyPress
+  | StoreChanged of Stdlib.Live.Change
+  | Timer
+  | ExecDone of Uuid
+
+
+// --- the shim ---
+//
+// Everything below this line is what the rebase deletes: `await` becomes `Builtin.hostAwait specs`.
+
+/// How long one slice of waiting is. A key is answered within this; a store change within this plus
+/// a poll.
+val sliceMs = 50
+
+let press (read: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Stdlib.Cli.UI.Widget.KeyPress =
+  Stdlib.Cli.UI.Widget.press
+    read.key
+    read.modifiers
+    (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar)
+
+/// One look at the store, from where the last look left off. The watch lives in a slot the
+/// runtime keeps for the shim (`Builtin.liveShimWatchGet`), because `await` takes no state and a
+/// Dark value does not outlive the call that made it.
+let pollStore () : Stdlib.Option.Option<Stdlib.Live.Change> =
+  let watch =
+    match Builtin.liveShimWatchGet () with
+    | Some w -> w
+    | None -> Stdlib.Live.watch (SCM.PackageOps.currentBranch ())
+
+  let (next, change) = Stdlib.Live.poll watch
+  Builtin.liveShimWatchSet next
+  change
+
+/// One slice: a key if one came within it, else nothing.
+let readSlice (wantsKey: Bool) : Stdlib.Option.Option<Stdlib.Cli.Stdin.KeyRead.KeyRead> =
+  if wantsKey then
+    Builtin.stdinReadKeyTimeout sliceMs
+  else
+    Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat sliceMs)
+    Stdlib.Option.Option.None
+
+let wait
+  (wantsKey: Bool)
+  (wantsStore: Bool)
+  (timer: Stdlib.Option.Option<Int>)
+  (elapsed: Int)
+  : Event =
+  match readSlice wantsKey with
+  | Some read -> Event.Key(press read)
+  | None ->
+    let changed = if wantsStore then pollStore () else Stdlib.Option.Option.None
+
+    match changed with
+    | Some change -> Event.StoreChanged change
+    | None ->
+      let elapsed = elapsed + sliceMs
+
+      match timer with
+      | Some ms when elapsed >= ms -> Event.Timer
+      | _ -> wait wantsKey wantsStore timer elapsed
+
+/// Park until one of <param specs> fires; the first that did.
+let await (specs: List<EventSpec>) : Event =
+  let wantsKey = specs |> Stdlib.List.any (fun s -> s == EventSpec.Key)
+  let wantsStore = specs |> Stdlib.List.any (fun s -> s == EventSpec.StoreChanged)
+
+  let timer =
+    specs
+    |> Stdlib.List.filterMap (fun s ->
+      match s with
+      | Timer ms -> Stdlib.Option.Option.Some ms
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.head
+
+  wait wantsKey wantsStore timer 0

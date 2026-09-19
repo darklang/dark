@@ -471,4 +471,124 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins () : Builtins = Builtin.make [] (fns ())
+// LIVE-SHIM, removed by the rebase
+//
+// `stdinReadKeyTimeout` is the wait behind `Stdlib.Host.await` until the scheduler's reader
+// thread supersedes it: at most `ms` for a key, `None` when none came, so a host loop can look at
+// the store in between. It reads the console through `stdinReadKey`'s own body (a stashed
+// burst key and a resize are honoured the same way), and under a redirected stdin (a test) it
+// reads only what `LiveShim.push` queued: a key, or a `Tick` that says "nothing, go round".
+module LiveShim =
+  type Pushed =
+    | Key of Dval
+    | Tick
+
+  /// The one console reader, `stdinReadKey` above, found by name so this block adds nothing to it.
+  let private readKeyBuiltin : Lazy<BuiltInFn> =
+    lazy
+      (fns ()
+       |> List.find (fun f -> f.name = fn "stdinReadKey" 0)
+       |> Option.defaultWith (fun () ->
+         Exception.raiseInternal "stdinReadKey is not in this file's builtins" []))
+
+  let private pushed = System.Collections.Concurrent.ConcurrentQueue<Pushed>()
+
+  /// For tests: what the next `stdinReadKeyTimeout` answers with.
+  let push (event : Pushed) : unit = pushed.Enqueue event
+
+  let take () : Option<Pushed> =
+    match pushed.TryDequeue() with
+    | true, event -> Some event
+    | false, _ -> None
+
+  let private keyReadType () =
+    KTCustomType(
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.keyRead ()),
+      []
+    )
+
+  /// A key no view acts on, so the loop goes round and repaints at the new size.
+  let private resizeKey () : Dval =
+    let modifiersName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.modifiers ())
+    let keyName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.key ())
+    let keyReadName =
+      FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.keyRead ())
+    DRecord(
+      keyReadName,
+      keyReadName,
+      [],
+      Map
+        [ "key", DEnum(keyName, keyName, [], "NoName", [])
+          "modifiers",
+          DRecord(
+            modifiersName,
+            modifiersName,
+            [],
+            Map [ "alt", DBool false; "shift", DBool false; "ctrl", DBool false ]
+          )
+          "keyChar", DString ""
+          "repeat", LibExecution.Dval.int (bigint 1) ]
+    )
+
+  let fns () : List<BuiltInFn> =
+    [ { name = fn "stdinReadKeyTimeout" 0
+        typeParams = []
+        parameters = [ Param.make "ms" TInt "how long to wait for a key, at most" ]
+        returnType =
+          TypeReference.option (
+            TCustomType(
+              NR.ok (
+                FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.keyRead ())
+              ),
+              []
+            )
+          )
+        description =
+          "Reads a keypress if one arrives within `ms` milliseconds; `None` otherwise."
+        fn =
+          (function
+          | exeState, vm, typeArgs, [| DInt msArg |] ->
+            uply {
+              let ms = intToInt64 vm msArg
+              let kt = keyReadType ()
+              match take () with
+              | Some(Key key) -> return LibExecution.Dval.optionSome kt key
+              | Some Tick -> return LibExecution.Dval.optionNone kt
+              | None ->
+                if Console.IsInputRedirected then
+                  // Nobody can type here; the wait is only so a caller's loop does not spin.
+                  do! System.Threading.Tasks.Task.Delay(int ms)
+                  return LibExecution.Dval.optionNone kt
+                else
+                  Resize.arm ()
+                  let clock = Diagnostics.Stopwatch.StartNew()
+                  let mutable available = false
+                  let mutable resized = false
+                  let waiting () =
+                    not available && not resized && clock.ElapsedMilliseconds < ms
+                  while waiting () do
+                    if pushedBack.IsSome || Console.KeyAvailable then
+                      available <- true
+                    elif Resize.takePending () then
+                      resized <- true
+                    else
+                      Threading.Thread.Sleep 10
+                  if available then
+                    // The one reader: the same body `stdinReadKey` runs, so a paste, a burst
+                    // and a stashed key come back exactly as they would from it.
+                    let! key =
+                      readKeyBuiltin.Force().fn (exeState, vm, typeArgs, [| DUnit |])
+                    return LibExecution.Dval.optionSome kt key
+                  elif resized then
+                    return LibExecution.Dval.optionSome kt (resizeKey ())
+                  else
+                    return LibExecution.Dval.optionNone kt
+            }
+          | _ -> incorrectArgs ())
+        sqlSpec = NotQueryable
+        previewable = Impure
+        callEffects = set [ Effect.Stdin ]
+        deprecated = NotDeprecated } ]
+
+let builtins () : Builtins = Builtin.make [] (fns () @ LiveShim.fns ())
