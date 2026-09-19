@@ -736,6 +736,181 @@ let jsonFromSamplesUnifies =
     })
 
 
+// ─── SQL, derive, fixtures, whole-module mirror ─────────────────────────────────
+
+let private schemaSql =
+  "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT NOT NULL, \"display name\" VARCHAR(80), score REAL, active BOOLEAN NOT NULL, UNIQUE (email));\nCREATE INDEX i ON users(email);\nCREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY, title TEXT NOT NULL, parent_id INTEGER, FOREIGN KEY (parent_id) REFERENCES categories(id));\n"
+
+
+let sqlSchemaTypes =
+  instanceTest
+    "Sql.schemaTypes makes a record, fromRow and selectAll per table"
+    (fun state ->
+      task {
+        let file = sampleFile "dark-generate-schema.sql" schemaSql
+        let! out =
+          runCliPlain
+            state
+            [ "generate"; "Sql.schemaTypes"; file; "--into"; "Tests.Gen.Db" ]
+        for expected in
+          [ "+ User"
+            "+ Category"
+            "+ userFromRow"
+            "+ allUsers"
+            "+ categoryFromRow" ] do
+          Expect.stringContains
+            out
+            expected
+            $"one record and two readers per table: {out}"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Db.User"; "--raw" ]
+            "displayname: Option<String>"
+            "a quoted column name with a space becomes a legal field, optional without NOT NULL"
+        do!
+          shows
+            state
+            [ "view"; "Tests.Gen.Db.User"; "--raw" ]
+            "active: Bool"
+            "BOOLEAN is Bool"
+        do!
+          evals
+            state
+            "Tests.Gen.Db.userFromRow (Stdlib.Dict.fromListOverwritingDuplicates [ (\"id\", Stdlib.Sqlite.Value.Int 7L), (\"email\", Stdlib.Sqlite.Value.Text \"a@x\"), (\"active\", Stdlib.Sqlite.Value.Int 1L) ])"
+            "active: true"
+            "fromRow reads a row; missing optional columns are None"
+        do!
+          evals
+            state
+            "Tests.Gen.Db.userFromRow (Stdlib.Dict.fromListOverwritingDuplicates [ (\"id\", Stdlib.Sqlite.Value.Int 7L) ])"
+            "email: null"
+            "a missing required column names itself"
+      })
+
+
+let deriveShowEqualsSetters =
+  instanceTest
+    "Derive.forType writes show, equals and a setter per field"
+    (fun state ->
+      task {
+        do!
+          run
+            state
+            [ "type"
+              "Tests.Gen.Dv.Money"
+              "= { amount: Int; currency: String; note: Option<String> }" ]
+        do! run state [ "type"; "Tests.Gen.Dv.Shape"; "= | Circle of Float | Dot" ]
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "Derive.forType"
+              "Tests.Gen.Dv.Money"
+              "--into"
+              "Tests.Gen.Dv" ]
+        for expected in
+          [ "+ showMoney"; "+ equalsMoney"; "+ withAmount"; "+ withNote" ] do
+          Expect.stringContains out expected $"show, equals and setters land: {out}"
+        do!
+          evals
+            state
+            "Tests.Gen.Dv.showMoney (Tests.Gen.Dv.Money { amount = 3; currency = \"EUR\"; note = Stdlib.Option.Option.None })"
+            "Money { amount = 3; currency = \"EUR\"; note = None }"
+            "show renders every field"
+        do!
+          evals
+            state
+            "(Tests.Gen.Dv.withAmount (Tests.Gen.Dv.Money { amount = 3; currency = \"EUR\"; note = Stdlib.Option.Option.None }) 9).amount"
+            "9"
+            "a setter replaces one field"
+        do!
+          run
+            state
+            [ "generate"
+              "Derive.forType"
+              "Tests.Gen.Dv.Shape"
+              "--into"
+              "Tests.Gen.Dv" ]
+        do!
+          evals
+            state
+            "Tests.Gen.Dv.showShape (Tests.Gen.Dv.Shape.Circle 2.5)"
+            "Circle(2.5)"
+            "an enum shows its case and fields"
+      })
+
+
+let fixturesForType =
+  instanceTest
+    "Fixtures.forType writes an example for the type and every type it reaches"
+    (fun state ->
+      task {
+        do!
+          run
+            state
+            [ "type"; "Tests.Gen.Fx.Money"; "= { amount: Int; currency: String }" ]
+        do! run state [ "type"; "Tests.Gen.Fx.Line"; "= { sku: String; qty: Int }" ]
+        do!
+          run
+            state
+            [ "type"
+              "Tests.Gen.Fx.Order"
+              "= { id: Int64; lines: List<Tests.Gen.Fx.Line>; money: Tests.Gen.Fx.Money; paid: Option<Bool> }" ]
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "Fixtures.forType"
+              "Tests.Gen.Fx.Order"
+              "--into"
+              "Tests.Gen.FxOut" ]
+        for expected in [ "+ exampleOrder"; "+ exampleLine"; "+ exampleMoney" ] do
+          Expect.stringContains out expected $"the root and what it reaches: {out}"
+        do!
+          evals
+            state
+            "Tests.Gen.FxOut.exampleOrder ()"
+            "paid: Some(true)"
+            "the example constructs and runs"
+      })
+
+
+let mirrorModuleCopiesAModule =
+  instanceTest
+    "Dark.mirrorModule copies a module's items with their references rewritten"
+    (fun state ->
+      task {
+        do! run state [ "type"; "Tests.Gen.Mm.Line"; "= { sku: String; qty: Int }" ]
+        do!
+          run
+            state
+            [ "type"; "Tests.Gen.Mm.Order"; "= { lines: List<Tests.Gen.Mm.Line> }" ]
+        do!
+          fn
+            state
+            "Tests.Gen.Mm.count"
+            "(o: Tests.Gen.Mm.Order) : Int = Stdlib.List.length o.lines"
+        let! out =
+          runCliPlain
+            state
+            [ "generate"
+              "Dark.mirrorModule"
+              "Tests.Gen.Mm"
+              "Tests.Gen.MmCopy"
+              "--into"
+              "Tests.Gen.MmCopy" ]
+        for expected in [ "+ Line"; "+ Order"; "+ count" ] do
+          Expect.stringContains out expected $"types and fns copy: {out}"
+        do!
+          evals
+            state
+            "Tests.Gen.MmCopy.count (Tests.Gen.MmCopy.Order { lines = [ Tests.Gen.MmCopy.Line { sku = \"a\"; qty = 1 } ] })"
+            "1"
+            "the copy's fn takes the copy's types"
+      })
+
+
 let tests : List<Test> =
   [ generateFromAJsonSample
     runningAgainIsANoOp
@@ -751,4 +926,8 @@ let tests : List<Test> =
     fetchAndRefresh
     csvFromSample
     jsonSchemaTypes
-    jsonFromSamplesUnifies ]
+    jsonFromSamplesUnifies
+    sqlSchemaTypes
+    deriveShowEqualsSetters
+    fixturesForType
+    mirrorModuleCopiesAModule ]
