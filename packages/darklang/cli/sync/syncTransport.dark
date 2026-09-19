@@ -84,7 +84,6 @@ let storedCountOf (reply: String) : Stdlib.Option.Option<Int> =
       let (k, _) = pair
       k == "stored")
     with
-    | Some ((_, Number n)) -> Stdlib.Option.Option.Some (Stdlib.Float.truncate n)
+    | Some ((_, Integer n)) -> Stdlib.Option.Option.Some n
     | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
-

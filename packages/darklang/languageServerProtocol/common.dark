@@ -102,28 +102,26 @@ module Position =
 
   let toJson (p: Position) : Json =
     Json.Object
-      [ ("line", p.line |> Stdlib.UInt64.toFloat |> Json.Number)
-        ("character", p.character |> Stdlib.UInt64.toFloat |> Json.Number) ]
+      [ ("line", p.line |> Stdlib.Int.fromUInt64 |> Json.Integer)
+        ("character", p.character |> Stdlib.Int.fromUInt64 |> Json.Integer) ]
 
   let fromJson (json: Json) : Stdlib.Result.Result<Position, Unit> =
     match json with
     | Object fields ->
       let line =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "line") with
-        | Some((_, Number l)) ->
-          match Stdlib.UInt64.fromFloat l with
-          | Some line when Stdlib.UInt64.toFloat line == l ->
-            Stdlib.Result.Result.Ok line
-          | _ -> Stdlib.Result.Result.Error()
+        | Some((_, Integer l)) ->
+          match Stdlib.Int.toUInt64 l with
+          | Some line -> Stdlib.Result.Result.Ok line
+          | None -> Stdlib.Result.Result.Error()
         | _ -> Stdlib.Result.Result.Error()
 
       let character =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "character") with
-        | Some((_, Number c)) ->
-          match Stdlib.UInt64.fromFloat c with
-          | Some character when Stdlib.UInt64.toFloat character == c ->
-            Stdlib.Result.Result.Ok character
-          | _ -> Stdlib.Result.Result.Error()
+        | Some((_, Integer c)) ->
+          match Stdlib.Int.toUInt64 c with
+          | Some character -> Stdlib.Result.Result.Ok character
+          | None -> Stdlib.Result.Result.Error()
         | _ -> Stdlib.Result.Result.Error()
 
       match (line, character) with
@@ -198,7 +196,7 @@ module TextDocumentItem =
   let toJson (i: TextDocumentItem) : Json =
     [ ("uri", Json.String i.uri)
       ("languageId", Json.String i.languageId)
-      ("version", Json.Number(Stdlib.Int.toFloat i.version))
+      ("version", Json.Integer(i.version))
       ("text", Json.String i.text) ]
     |> Json.Object
 
@@ -415,17 +413,17 @@ module DiagnosticSeverity =
 
   let toJson (s: DiagnosticSeverity) : Json =
     match s with
-    | Error -> Json.Number 1.0
-    | Warning -> Json.Number 2.0
-    | Information -> Json.Number 3.0
-    | Hint -> Json.Number 4.0
+    | Error -> Json.Integer 1
+    | Warning -> Json.Integer 2
+    | Information -> Json.Integer 3
+    | Hint -> Json.Integer 4
 
   let fromJson (json: Json) : Stdlib.Result.Result<DiagnosticSeverity, Unit> =
     match json with
-    | Number 1.0 -> DiagnosticSeverity.Error |> Stdlib.Result.Result.Ok
-    | Number 2.0 -> DiagnosticSeverity.Warning |> Stdlib.Result.Result.Ok
-    | Number 3.0 -> DiagnosticSeverity.Information |> Stdlib.Result.Result.Ok
-    | Number 4.0 -> DiagnosticSeverity.Hint |> Stdlib.Result.Result.Ok
+    | Integer 1 -> DiagnosticSeverity.Error |> Stdlib.Result.Result.Ok
+    | Integer 2 -> DiagnosticSeverity.Warning |> Stdlib.Result.Result.Ok
+    | Integer 3 -> DiagnosticSeverity.Information |> Stdlib.Result.Result.Ok
+    | Integer 4 -> DiagnosticSeverity.Hint |> Stdlib.Result.Result.Ok
     | _ -> Stdlib.Result.Result.Error()
 
 module DiagnosticTag =
@@ -444,13 +442,13 @@ module DiagnosticTag =
 
   let toJson (t: DiagnosticTag) : Json =
     match t with
-    | Unnecessary -> Json.Number 1.0
-    | Deprecated -> Json.Number 2.0
+    | Unnecessary -> Json.Integer 1
+    | Deprecated -> Json.Integer 2
 
   let fromJson (json: Json) : Stdlib.Result.Result<DiagnosticTag, Unit> =
     match json with
-    | Number 1.0 -> DiagnosticTag.Unnecessary |> Stdlib.Result.Result.Ok
-    | Number 2.0 -> DiagnosticTag.Deprecated |> Stdlib.Result.Result.Ok
+    | Integer 1 -> DiagnosticTag.Unnecessary |> Stdlib.Result.Result.Ok
+    | Integer 2 -> DiagnosticTag.Deprecated |> Stdlib.Result.Result.Ok
     | _ -> Stdlib.Result.Result.Error()
 
 module DiagnosticRelatedInformation =
@@ -489,7 +487,7 @@ module DiagnosticCode =
 
   let toJson (c: DiagnosticCode) : Json =
     match c with
-    | Number n -> (Stdlib.Int.toFloat n) |> Json.Number
+    | Number n -> Json.Integer n
     | String s -> Json.String s
 
 module Diagnostic =

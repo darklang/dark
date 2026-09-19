@@ -272,7 +272,7 @@ module BuiltInTools =
 
       let withMaxResults =
         match opts.maxNumResults with
-        | Some n -> Stdlib.List.append fields [ ("max_num_results", Json.Number(Stdlib.Int.toFloat n)) ]
+        | Some n -> Stdlib.List.append fields [ ("max_num_results", Json.Integer(n)) ]
         | None -> fields
 
       let withRanking =
@@ -302,8 +302,8 @@ module BuiltInTools =
     | ComputerUse opts ->
       let fields =
         [ ("type", Json.String "computer_use_preview")
-          ("display_width", Json.Number(Stdlib.Int.toFloat opts.displayWidth))
-          ("display_height", Json.Number(Stdlib.Int.toFloat opts.displayHeight)) ]
+          ("display_width", Json.Integer(opts.displayWidth))
+          ("display_height", Json.Integer(opts.displayHeight)) ]
 
       let withEnv =
         match opts.environment with
@@ -667,17 +667,17 @@ let buildRequestJson (req: Request) : Json =
 
   let withMaxOutputTokens_ =
     match req.maxOutputTokens with
-    | Some t -> Stdlib.List.append withPreviousResponseId_ [ ("max_output_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
+    | Some t -> Stdlib.List.append withPreviousResponseId_ [ ("max_output_tokens", Json.Integer(t)) ]
     | None -> withPreviousResponseId_
 
   let withTemp_ =
     match req.temperature with
-    | Some t -> Stdlib.List.append withMaxOutputTokens_ [ ("temperature", Json.Number t) ]
+    | Some t -> Stdlib.List.append withMaxOutputTokens_ [ ("temperature", Json.Float t) ]
     | None -> withMaxOutputTokens_
 
   let withTopP_ =
     match req.topP with
-    | Some p -> Stdlib.List.append withTemp_ [ ("top_p", Json.Number p) ]
+    | Some p -> Stdlib.List.append withTemp_ [ ("top_p", Json.Float p) ]
     | None -> withTemp_
 
   let withText_ =
@@ -715,7 +715,7 @@ let buildRequestJson (req: Request) : Json =
 
   let withMaxToolCalls_ =
     match req.maxToolCalls with
-    | Some m -> Stdlib.List.append withTruncation_ [ ("max_tool_calls", Json.Number(Stdlib.Int.toFloat m)) ]
+    | Some m -> Stdlib.List.append withTruncation_ [ ("max_tool_calls", Json.Integer(m)) ]
     | None -> withTruncation_
 
   Json.Object withMaxToolCalls_
@@ -751,17 +751,27 @@ type Response =
     serviceTier: Stdlib.Option.Option<String> }
 
 /// Parse usage from JSON
-let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
+let parseUsage
+  (fields: List<(String * Json)>)
+  : Stdlib.Result.Result<Stdlib.Option.Option<Usage>, String> =
   if Stdlib.List.isEmpty fields then
-    Stdlib.Option.Option.None
+    Stdlib.Result.Result.Ok Stdlib.Option.Option.None
   else
-    Stdlib.Option.Option.Some(
-      Usage
-        { inputTokens = Stdlib.AltJson.Helpers.getInt "input_tokens" fields
-          outputTokens = Stdlib.AltJson.Helpers.getInt "output_tokens" fields
-          totalTokens = Stdlib.AltJson.Helpers.getInt "total_tokens" fields
-          inputTokensDetails = Stdlib.AltJson.Helpers.getValue "input_tokens_details" fields
-          outputTokensDetails = Stdlib.AltJson.Helpers.getValue "output_tokens_details" fields })
+    match (Stdlib.AltJson.Helpers.getIntOr "input_tokens" 0 fields,
+           Stdlib.AltJson.Helpers.getIntOr "output_tokens" 0 fields,
+           Stdlib.AltJson.Helpers.getIntOr "total_tokens" 0 fields) with
+    | (Ok input, Ok output, Ok total) ->
+      Stdlib.Result.Result.Ok(
+        Stdlib.Option.Option.Some(
+          Usage
+            { inputTokens = input
+              outputTokens = output
+              totalTokens = total
+              inputTokensDetails = Stdlib.AltJson.Helpers.getValue "input_tokens_details" fields
+              outputTokensDetails = Stdlib.AltJson.Helpers.getValue "output_tokens_details" fields }))
+    | (Error e, _, _) -> Stdlib.Result.Result.Error e
+    | (_, Error e, _) -> Stdlib.Result.Result.Error e
+    | (_, _, Error e) -> Stdlib.Result.Result.Error e
 
 /// Parse error from JSON
 let parseError (fields: List<(String * Json)>) : Stdlib.Option.Option<ResponseError> =
@@ -779,7 +789,7 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
     let id = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "id" fields) ""
     let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "response"
     let model = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "model" fields) ""
-    let createdAt = Stdlib.AltJson.Helpers.getInt "created_at" fields
+    let createdAtResult = Stdlib.AltJson.Helpers.getIntOr "created_at" 0 fields
     let statusStr = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "status" fields) "completed"
     let status = Status.fromString statusStr
 
@@ -787,14 +797,14 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
     let output = Stdlib.List.filterMap outputArray OutputItem.parseOutputItem
 
     let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
-    let usage = parseUsage usageFields
+    let usageResult = parseUsage usageFields
 
     let errorFields = Stdlib.AltJson.Helpers.getObject "error" fields
     let error = parseError errorFields
 
     let serviceTier = Stdlib.AltJson.Helpers.getString "service_tier" fields
 
-    Stdlib.Result.Result.Ok(
+    Stdlib.Result.map2 createdAtResult usageResult (fun createdAt usage ->
       Response
         { id = id
           object_ = object_

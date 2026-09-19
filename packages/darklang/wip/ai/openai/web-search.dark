@@ -310,11 +310,8 @@ let getJsonField
 
   Stdlib.Option.map found (fun pair -> Stdlib.Tuple2.second pair)
 
-/// Helper to extract an Int from a JSON Number
 let jsonToInt (json: Json) : Stdlib.Option.Option<Int> =
-  match json with
-  | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
-  | _ -> Stdlib.Option.Option.None
+  Stdlib.AltJson.toInt json
 
 /// Helper to extract a String from JSON
 let jsonToString (json: Json) : Stdlib.Option.Option<String> =

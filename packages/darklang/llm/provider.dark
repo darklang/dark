@@ -328,6 +328,8 @@ type ProviderError =
   | AuthenticationError of String
   | RateLimitError of String
   | InvalidRequestError of String
+  /// The provider answered, but not in a shape we could read
+  | InvalidResponseError of String
   | ServerError of String
   | NetworkError of String
   | ContentFilterError of String
@@ -339,6 +341,7 @@ module ProviderError =
     | AuthenticationError msg -> "Authentication error: " ++ msg
     | RateLimitError msg -> "Rate limit exceeded: " ++ msg
     | InvalidRequestError msg -> "Invalid request: " ++ msg
+    | InvalidResponseError msg -> "Invalid response: " ++ msg
     | ServerError msg -> "Server error: " ++ msg
     | NetworkError msg -> "Network error: " ++ msg
     | ContentFilterError msg -> "Content filtered: " ++ msg

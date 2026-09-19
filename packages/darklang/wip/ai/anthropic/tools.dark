@@ -308,7 +308,7 @@ let webSearchToJson (tool: WebSearchTool) : Json =
   let withMaxUses =
     match tool.max_uses with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_uses", Json.Integer(n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -406,7 +406,7 @@ let textEditorToJson (tool: TextEditorTool) : Json =
   let withMaxChars =
     match tool.max_characters with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_characters", Json.Number (Stdlib.Int.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_characters", Json.Integer(n)) ]
     | None -> baseFields
 
   Json.Object withMaxChars
@@ -511,13 +511,13 @@ let computerToJson (tool: ComputerTool) : Json =
   let baseFields =
     [ ("type", Json.String tool.``type``)
       ("name", Json.String tool.name)
-      ("display_width_px", Json.Number(Stdlib.Int.toFloat tool.display_width_px))
-      ("display_height_px", Json.Number(Stdlib.Int.toFloat tool.display_height_px)) ]
+      ("display_width_px", Json.Integer(tool.display_width_px))
+      ("display_height_px", Json.Integer(tool.display_height_px)) ]
 
   let withDisplay =
     match tool.display_number with
     | Some n ->
-      Stdlib.List.append baseFields [ ("display_number", Json.Number(Stdlib.Int.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("display_number", Json.Integer(n)) ]
     | None -> baseFields
 
   let withZoom =
@@ -770,7 +770,7 @@ let webFetchToJson (tool: WebFetchTool) : Json =
   let withMaxUses =
     match tool.max_uses with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_uses", Json.Integer(n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -797,7 +797,7 @@ let webFetchToJson (tool: WebFetchTool) : Json =
   let withMaxContent =
     match tool.max_content_tokens with
     | Some n ->
-      Stdlib.List.append withCitations [ ("max_content_tokens", Json.Number (Stdlib.Int.toFloat n)) ]
+      Stdlib.List.append withCitations [ ("max_content_tokens", Json.Integer(n)) ]
     | None -> withCitations
 
   Json.Object withMaxContent

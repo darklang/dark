@@ -800,20 +800,20 @@ let buildRequestJson (req: Request) : Json =
     if caps.requiresMaxCompletionTokens then
       match req.maxCompletionTokens with
       | Some t ->
-        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Integer(t)) ]
       | None ->
         match req.maxTokens with
         | Some t ->
-          Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
+          Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Integer(t)) ]
         | None -> withAudio_
     else
       match req.maxCompletionTokens with
       | Some t ->
-        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Integer(t)) ]
       | None ->
         match req.maxTokens with
         | Some t ->
-          Stdlib.List.append withAudio_ [ ("max_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
+          Stdlib.List.append withAudio_ [ ("max_tokens", Json.Integer(t)) ]
         | None -> withAudio_
 
   // Reasoning effort
@@ -831,7 +831,7 @@ let buildRequestJson (req: Request) : Json =
     match req.temperature with
     | Some t ->
       if caps.supportsTemperature then
-        Stdlib.List.append withReasoningEffort_ [ ("temperature", Json.Number t) ]
+        Stdlib.List.append withReasoningEffort_ [ ("temperature", Json.Float t) ]
       else
         withReasoningEffort_
     | None -> withReasoningEffort_
@@ -841,7 +841,7 @@ let buildRequestJson (req: Request) : Json =
     match req.topP with
     | Some p ->
       if caps.supportsTemperature then
-        Stdlib.List.append withTemp_ [ ("top_p", Json.Number p) ]
+        Stdlib.List.append withTemp_ [ ("top_p", Json.Float p) ]
       else
         withTemp_
     | None -> withTemp_
@@ -851,7 +851,7 @@ let buildRequestJson (req: Request) : Json =
     match req.frequencyPenalty with
     | Some p ->
       if caps.supportsTemperature then
-        Stdlib.List.append withTopP_ [ ("frequency_penalty", Json.Number p) ]
+        Stdlib.List.append withTopP_ [ ("frequency_penalty", Json.Float p) ]
       else
         withTopP_
     | None -> withTopP_
@@ -861,7 +861,7 @@ let buildRequestJson (req: Request) : Json =
     match req.presencePenalty with
     | Some p ->
       if caps.supportsTemperature then
-        Stdlib.List.append withFreqPenalty_ [ ("presence_penalty", Json.Number p) ]
+        Stdlib.List.append withFreqPenalty_ [ ("presence_penalty", Json.Float p) ]
       else
         withFreqPenalty_
     | None -> withFreqPenalty_
@@ -903,14 +903,14 @@ let buildRequestJson (req: Request) : Json =
   let withN_ =
     match req.n with
     | Some count ->
-      Stdlib.List.append withServiceTier_ [ ("n", Json.Number(Stdlib.Int.toFloat count)) ]
+      Stdlib.List.append withServiceTier_ [ ("n", Json.Integer(count)) ]
     | None -> withServiceTier_
 
   // Seed
   let withSeed_ =
     match req.seed with
     | Some s ->
-      Stdlib.List.append withN_ [ ("seed", Json.Number(Stdlib.Int.toFloat s)) ]
+      Stdlib.List.append withN_ [ ("seed", Json.Integer(s)) ]
     | None -> withN_
 
   // User
@@ -931,14 +931,14 @@ let buildRequestJson (req: Request) : Json =
   let withTopLogprobs_ =
     match req.topLogprobs with
     | Some count ->
-      Stdlib.List.append withLogprobs_ [ ("top_logprobs", Json.Number(Stdlib.Int.toFloat count)) ]
+      Stdlib.List.append withLogprobs_ [ ("top_logprobs", Json.Integer(count)) ]
     | None -> withLogprobs_
 
   // Logit bias
   let withLogitBias_ =
     match req.logitBias with
     | Some biases ->
-      let biasJson = Stdlib.List.map biases (fun (k, v) -> (k, Json.Number(Stdlib.Int.toFloat v)))
+      let biasJson = Stdlib.List.map biases (fun (k, v) -> (k, Json.Integer(v)))
       Stdlib.List.append withTopLogprobs_ [ ("logit_bias", Json.Object biasJson) ]
     | None -> withTopLogprobs_
 
@@ -1108,16 +1108,17 @@ let parseResponseMessage (messageFields: List<(String * Json)>) : Stdlib.Result.
 let parseChoice (choiceJson: Json) : Stdlib.Result.Result<Choice, String> =
   match choiceJson with
   | Object choiceFields ->
-    let index = Stdlib.AltJson.Helpers.getInt "index" choiceFields
+    let indexResult = Stdlib.AltJson.Helpers.getIntOr "index" 0 choiceFields
     let finishReason =
       Stdlib.Option.withDefault
         (Stdlib.AltJson.Helpers.getString "finish_reason" choiceFields)
         "stop"
     let messageFields = Stdlib.AltJson.Helpers.getObject "message" choiceFields
 
-    match parseResponseMessage messageFields with
-    | Error e -> Stdlib.Result.Result.Error e
-    | Ok message ->
+    match (indexResult, parseResponseMessage messageFields) with
+    | (Error e, _) -> Stdlib.Result.Result.Error e
+    | (_, Error e) -> Stdlib.Result.Result.Error e
+    | (Ok index, Ok message) ->
       // TODO: Parse logprobs if needed
       Stdlib.Result.Result.Ok(
         Choice
@@ -1128,23 +1129,32 @@ let parseChoice (choiceJson: Json) : Stdlib.Result.Result<Choice, String> =
   | _ -> Stdlib.Result.Result.Error "Choice is not a JSON object"
 
 /// Parse usage information
-let parseUsage (usageFields: List<(String * Json)>) : Usage =
-  let promptTokens = Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields
-  let completionTokens = Stdlib.AltJson.Helpers.getInt "completion_tokens" usageFields
-  let totalTokens = Stdlib.AltJson.Helpers.getInt "total_tokens" usageFields
+let parseUsage (usageFields: List<(String * Json)>) : Stdlib.Result.Result<Usage, String> =
+  let promptTokens = Stdlib.AltJson.Helpers.getIntOr "prompt_tokens" 0 usageFields
+  let completionTokens = Stdlib.AltJson.Helpers.getIntOr "completion_tokens" 0 usageFields
+  let totalTokens = Stdlib.AltJson.Helpers.getIntOr "total_tokens" 0 usageFields
 
   let completionDetails = Stdlib.AltJson.Helpers.getObject "completion_tokens_details" usageFields
-  let reasoningTokens = Stdlib.AltJson.Helpers.getInt "reasoning_tokens" completionDetails
+  let reasoningTokens =
+    Stdlib.AltJson.Helpers.getIntOr "reasoning_tokens" 0 completionDetails
 
   let promptDetails = Stdlib.AltJson.Helpers.getObject "prompt_tokens_details" usageFields
-  let cachedTokens = Stdlib.AltJson.Helpers.getInt "cached_tokens" promptDetails
+  let cachedTokens =
+    Stdlib.AltJson.Helpers.getIntOr "cached_tokens" 0 promptDetails
 
-  Usage
-    { promptTokens = promptTokens
-      completionTokens = completionTokens
-      totalTokens = totalTokens
-      reasoningTokens = reasoningTokens
-      cachedTokens = cachedTokens }
+  Stdlib.Result.map5
+    promptTokens
+    completionTokens
+    totalTokens
+    reasoningTokens
+    cachedTokens
+    (fun prompt completion total reasoning cached ->
+      Usage
+        { promptTokens = prompt
+          completionTokens = completion
+          totalTokens = total
+          reasoningTokens = reasoning
+          cachedTokens = cached })
 
 /// Parse full response
 let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
@@ -1152,7 +1162,7 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
   | Object fields ->
     let id = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "id" fields) ""
     let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "chat.completion"
-    let created = Stdlib.AltJson.Helpers.getInt "created" fields
+    let createdResult = Stdlib.AltJson.Helpers.getIntOr "created" 0 fields
     let model = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "model" fields) ""
 
     let choicesArray = Stdlib.AltJson.Helpers.getArray "choices" fields
@@ -1174,12 +1184,12 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
           | Error _ -> Stdlib.Option.Option.None)
 
       let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
-      let usage = parseUsage usageFields
+      let usageResult = parseUsage usageFields
 
       let serviceTier = Stdlib.AltJson.Helpers.getString "service_tier" fields
       let systemFingerprint = Stdlib.AltJson.Helpers.getString "system_fingerprint" fields
 
-      Stdlib.Result.Result.Ok(
+      Stdlib.Result.map2 createdResult usageResult (fun created usage ->
         Response
           { id = id
             object_ = object_

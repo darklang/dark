@@ -160,10 +160,10 @@ let jsonReport
   Stdlib.AltJson.format (
     Stdlib.AltJson.Json.Object
       [ ("verdict", Stdlib.AltJson.Json.String(verdictWord report.verdict))
-        ("checked", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.checkedCount))
-        ("failed", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.failedCount))
-        ("incomplete", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat totals.incompleteCount))
-        ("total", Stdlib.AltJson.Json.Number(Stdlib.Int.toFloat total))
+        ("checked", Stdlib.AltJson.Json.Integer(totals.checkedCount))
+        ("failed", Stdlib.AltJson.Json.Integer(totals.failedCount))
+        ("incomplete", Stdlib.AltJson.Json.Integer(totals.incompleteCount))
+        ("total", Stdlib.AltJson.Json.Integer(total))
         ("items", Stdlib.AltJson.Json.Array items) ]
   )
 

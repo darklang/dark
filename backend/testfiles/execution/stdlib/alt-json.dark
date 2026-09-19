@@ -51,23 +51,122 @@ module Bool =
 
 
 module Number =
-  // TODO:
-  // - (+/-) infinity
-  // - NaN
-  // - huge numbers (esp at Float's limits)
-  // - other notation
-  format (Json.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
-  parse "0" = parsedOk (Json.Number 0.0)
+  format (Json.Integer 0) = "0"
+  parse "0" = parsedOk (Json.Integer 0)
+  format (Json.Integer -1337) = "-1337"
+  parse "-1337" = parsedOk (Json.Integer -1337)
+  format (Json.Integer 9007199254740993) = "9007199254740993"
+  parse "9007199254740993" = parsedOk (Json.Integer 9007199254740993)
 
-  format (Json.Number 0.1) = "0.1"
-  parse "0.1" = parsedOk (Json.Number 0.1)
+  format (Json.Float 0.1) = "0.1"
+  parse "0.1" = parsedOk (Json.Float 0.1)
+  format (Json.Float 1.0) = "1"
+  parse "1.0" = parsedOk (Json.Float 1.0)
+  parse "1e0" = parsedOk (Json.Float 1.0)
+  parse "1.0000000000000001" = parsedOk (Json.Float 1.0)
 
-  format (Json.Number -1.0) = "-1"
-  parse "-1" = parsedOk (Json.Number -1.0)
 
-  format (Json.Number -1337.0) = "-1337"
-  parse "-1337" = parsedOk (Json.Number -1337.0)
 
+module IntBuilder =
+  Stdlib.AltJson.Builder.addInt [] "n" 9007199254740993 =
+    [ ("n", Json.Integer 9007199254740993) ]
+  Stdlib.AltJson.Builder.addOptionalInt [] "n" Stdlib.Option.Option.None = []
+  Stdlib.AltJson.Builder.addOptionalInt [] "n" (Stdlib.Option.Option.Some 9007199254740993) =
+    [ ("n", Json.Integer 9007199254740993) ]
+
+  Stdlib.AltJson.Builder.empty
+  |> Stdlib.AltJson.Builder.addInt "n" 42
+  |> Stdlib.AltJson.Builder.addOptionalInt "m" (Stdlib.Option.Option.Some 7)
+  |> Stdlib.AltJson.Builder.toJson
+  |> format = """{"n":42,"m":7}"""
+
+
+module ToInt =
+  let parseInt (text: String) : Stdlib.Option.Option<Int> =
+    match parse text with
+    | Ok json -> Stdlib.AltJson.toInt json
+    | Error _ -> Stdlib.Option.Option.None
+
+  Stdlib.AltJson.toInt (Json.Integer 42) = Stdlib.Option.Option.Some 42
+  Stdlib.AltJson.toInt (Json.Integer -42) = Stdlib.Option.Option.Some -42
+  Stdlib.AltJson.toInt (Json.Integer 9007199254740993) =
+    Stdlib.Option.Option.Some 9007199254740993
+  Stdlib.AltJson.toInt (Json.Float 42.0) = Stdlib.Option.Option.None
+  Stdlib.AltJson.toInt (Json.Float 1.5) = Stdlib.Option.Option.None
+  Stdlib.AltJson.toInt (Json.String "1") = Stdlib.Option.Option.None
+  parseInt "9007199254740993" = Stdlib.Option.Option.Some 9007199254740993
+  parseInt "3.7" = Stdlib.Option.Option.None
+  parseInt "1.0000000000000001" = Stdlib.Option.Option.None
+  parseInt "1e-10000" = Stdlib.Option.Option.None
+  parseInt "1e0" = Stdlib.Option.Option.None
+
+  Stdlib.AltJson.Helpers.getIntOption "a" [ ("a", Json.Integer 3) ] = Stdlib.Option.Option.Some 3
+  Stdlib.AltJson.Helpers.getIntOption "a" [ ("a", Json.Float 3.7) ] = Stdlib.Option.Option.None
+  Stdlib.AltJson.Helpers.getIntOption "b" [ ("a", Json.Integer 3) ] = Stdlib.Option.Option.None
+  Stdlib.AltJson.Helpers.getIntResult "a" [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Ok 3
+  Stdlib.AltJson.Helpers.getIntResult "a" [ ("a", Json.Float 3.7) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+  Stdlib.AltJson.Helpers.getIntResult "a" [ ("a", Json.Float 3.0) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+  Stdlib.AltJson.Helpers.getIntResult "b" [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Error "Missing JSON integer field: b"
+  Stdlib.AltJson.Helpers.getIntOptionResult "a" [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some 3)
+  Stdlib.AltJson.Helpers.getIntOptionResult "a" [ ("a", Json.Float 3.7) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+  Stdlib.AltJson.Helpers.getIntOptionResult "b" [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+  Stdlib.AltJson.Helpers.getIntOptionResult "a" [ ("a", Json.Null) ] =
+    Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+  Stdlib.AltJson.Helpers.getIntOptionResult "a" [ ("a", Json.Float 1.0) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+  Stdlib.AltJson.Helpers.getFloat "a" [ ("a", Json.Integer 3) ] =
+    Stdlib.Option.Option.Some 3.0
+  Stdlib.AltJson.Helpers.getFloat "a" [ ("a", Json.Integer 9007199254740993) ] =
+    Stdlib.Option.Option.None
+  Stdlib.AltJson.Helpers.getFloat "a" [ ("a", Json.Float 1.0) ] =
+    Stdlib.Option.Option.Some 1.0
+
+  Stdlib.AltJson.Helpers.getIntOr "a" 0 [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Ok 3
+  Stdlib.AltJson.Helpers.getIntOr "b" 0 [ ("a", Json.Integer 3) ] =
+    Stdlib.Result.Result.Ok 0
+  Stdlib.AltJson.Helpers.getIntOr "a" 7 [ ("a", Json.Null) ] =
+    Stdlib.Result.Result.Ok 7
+  Stdlib.AltJson.Helpers.getIntOr "a" 0 [ ("a", Json.Float 3.7) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+  Stdlib.AltJson.Helpers.getIntOr "a" 0 [ ("a", Json.String "3") ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: a"
+
+
+module IntegerCallers =
+  Darklang.WIP.AI.OpenAI.Chat.parseUsage
+    [ ("completion_tokens_details",
+       Json.Object [ ("reasoning_tokens", Json.Float 1.5) ]) ] =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: reasoning_tokens"
+
+  Darklang.WIP.AI.Anthropic.Chat.parseResponse
+    (Json.Object
+      [ ("usage",
+         Json.Object [ ("cache_creation_input_tokens", Json.Float 1.5) ]) ]) =
+    Stdlib.Result.Result.Error "Invalid JSON integer field: cache_creation_input_tokens"
+
+  let largeRequestMaxTokens () : Stdlib.Result.Result<Int, String> =
+    let request = Darklang.LLM.Provider.createRequest "unused"
+    let oversized = { request with maxTokens = 9007199254740992 }
+    let config =
+      Darklang.LLM.Providers.Anthropic.Config { apiKey = ""; baseUrl = "" }
+
+    match Darklang.LLM.Providers.Anthropic.buildExtendedRequest
+        config
+        oversized
+        Darklang.LLM.Provider.emptyExtensions
+    with
+    | Object fields -> Stdlib.AltJson.Helpers.getIntResult "max_tokens" fields
+    | _ -> Stdlib.Result.Result.Error "not an object"
+
+  largeRequestMaxTokens () = Stdlib.Result.Result.Ok 9007199254740992
 
 
 module String =
@@ -96,30 +195,30 @@ module Array =
   // first fibonnaci numbers
   format (
     Json.Array
-      [ Json.Number 0.0
-        Json.Number 1.0
-        Json.Number 1.0
-        Json.Number 2.0
-        Json.Number 3.0
-        Json.Number 5.0
-        Json.Number 8.0
-        Json.Number 13.0
-        Json.Number 21.0
-        Json.Number 34.0 ]
+      [ Json.Integer 0
+        Json.Integer 1
+        Json.Integer 1
+        Json.Integer 2
+        Json.Integer 3
+        Json.Integer 5
+        Json.Integer 8
+        Json.Integer 13
+        Json.Integer 21
+        Json.Integer 34 ]
   ) = "[0,1,1,2,3,5,8,13,21,34]"
 
   parse "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]" = parsedOk (
     Json.Array
-      [ Json.Number 0.0
-        Json.Number 1.0
-        Json.Number 1.0
-        Json.Number 2.0
-        Json.Number 3.0
-        Json.Number 5.0
-        Json.Number 8.0
-        Json.Number 13.0
-        Json.Number 21.0
-        Json.Number 34.0 ]
+      [ Json.Integer 0
+        Json.Integer 1
+        Json.Integer 1
+        Json.Integer 2
+        Json.Integer 3
+        Json.Integer 5
+        Json.Integer 8
+        Json.Integer 13
+        Json.Integer 21
+        Json.Integer 34 ]
   )
 
   // nested arrays
@@ -129,23 +228,23 @@ module Array =
         [4, 5, 6],
         [7, 8, 9] ]""" = parsedOk (
     Json.Array
-      [ Json.Array [ Json.Number 1.0, Json.Number 2.0, Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0, Json.Number 5.0, Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0, Json.Number 8.0, Json.Number 9.0 ] ]
+      [ Json.Array [ Json.Integer 1, Json.Integer 2, Json.Integer 3 ]
+        Json.Array [ Json.Integer 4, Json.Integer 5, Json.Integer 6 ]
+        Json.Array [ Json.Integer 7, Json.Integer 8, Json.Integer 9 ] ]
   )
 
   format (
     Json.Array
-      [ Json.Array [ Json.Number 1.0, Json.Number 2.0, Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0, Json.Number 5.0, Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0, Json.Number 8.0, Json.Number 9.0 ] ]
+      [ Json.Array [ Json.Integer 1, Json.Integer 2, Json.Integer 3 ]
+        Json.Array [ Json.Integer 4, Json.Integer 5, Json.Integer 6 ]
+        Json.Array [ Json.Integer 7, Json.Integer 8, Json.Integer 9 ] ]
   ) = "[[1,2,3],[4,5,6],[7,8,9]]"
 
 
   // mixed types
-  format (Json.Array [ Json.Null, Json.Number 1.2 ]) = "[null,1.2]"
+  format (Json.Array [ Json.Null, Json.Float 1.2 ]) = "[null,1.2]"
 
-  parse "[ null, 1.2 ]" = parsedOk (Json.Array [ Json.Null, Json.Number 1.2 ])
+  parse "[ null, 1.2 ]" = parsedOk (Json.Array [ Json.Null, Json.Float 1.2 ])
 
 
 
@@ -163,10 +262,10 @@ module Object =
 
   // dupe name
   parse """{ "n": null, "n": 1 }""" = parsedOk (
-    Json.Object [ ("n", Json.Null), ("n", Json.Number 1.0) ]
+    Json.Object [ ("n", Json.Null), ("n", Json.Integer 1) ]
   )
 
-  format (Json.Object [ ("n", Json.Null), ("n", Json.Number 1.0) ]) = """{"n":null,"n":1}"""
+  format (Json.Object [ ("n", Json.Null), ("n", Json.Integer 1) ]) = """{"n":null,"n":1}"""
 
 
   // blank name

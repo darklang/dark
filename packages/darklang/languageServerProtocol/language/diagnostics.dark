@@ -41,7 +41,7 @@ module Messages =
 
             (p.version
              |> Stdlib.Option.map (fun v ->
-               ("version", Json.Number(Stdlib.Int.toFloat v))))
+               ("version", Json.Integer(v))))
 
             Stdlib.Option.Option.Some(
               ("diagnostics",

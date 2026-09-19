@@ -1978,7 +1978,7 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withReturnCode =
     match block.return_code with
-    | Some rc -> Stdlib.List.append withEncryptedStdout [ ("return_code", Json.Number (Stdlib.Int.toFloat rc)) ]
+    | Some rc -> Stdlib.List.append withEncryptedStdout [ ("return_code", Json.Integer(rc)) ]
     | None -> withEncryptedStdout
 
   let withFileId =
@@ -1998,17 +1998,17 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withStartLine =
     match block.start_line with
-    | Some sl -> Stdlib.List.append withFileType [ ("start_line", Json.Number (Stdlib.Int.toFloat sl)) ]
+    | Some sl -> Stdlib.List.append withFileType [ ("start_line", Json.Integer(sl)) ]
     | None -> withFileType
 
   let withNumLines =
     match block.num_lines with
-    | Some nl -> Stdlib.List.append withStartLine [ ("num_lines", Json.Number (Stdlib.Int.toFloat nl)) ]
+    | Some nl -> Stdlib.List.append withStartLine [ ("num_lines", Json.Integer(nl)) ]
     | None -> withStartLine
 
   let withTotalLines =
     match block.total_lines with
-    | Some tl -> Stdlib.List.append withNumLines [ ("total_lines", Json.Number (Stdlib.Int.toFloat tl)) ]
+    | Some tl -> Stdlib.List.append withNumLines [ ("total_lines", Json.Integer(tl)) ]
     | None -> withNumLines
 
   let withIsFileUpdate =
@@ -2018,22 +2018,22 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withOldStart =
     match block.old_start with
-    | Some os -> Stdlib.List.append withIsFileUpdate [ ("old_start", Json.Number (Stdlib.Int.toFloat os)) ]
+    | Some os -> Stdlib.List.append withIsFileUpdate [ ("old_start", Json.Integer(os)) ]
     | None -> withIsFileUpdate
 
   let withOldLines =
     match block.old_lines with
-    | Some ol -> Stdlib.List.append withOldStart [ ("old_lines", Json.Number (Stdlib.Int.toFloat ol)) ]
+    | Some ol -> Stdlib.List.append withOldStart [ ("old_lines", Json.Integer(ol)) ]
     | None -> withOldStart
 
   let withNewStart =
     match block.new_start with
-    | Some ns -> Stdlib.List.append withOldLines [ ("new_start", Json.Number (Stdlib.Int.toFloat ns)) ]
+    | Some ns -> Stdlib.List.append withOldLines [ ("new_start", Json.Integer(ns)) ]
     | None -> withOldLines
 
   let withNewLines =
     match block.new_lines with
-    | Some nl -> Stdlib.List.append withNewStart [ ("new_lines", Json.Number (Stdlib.Int.toFloat nl)) ]
+    | Some nl -> Stdlib.List.append withNewStart [ ("new_lines", Json.Integer(nl)) ]
     | None -> withNewStart
 
   let withLines =

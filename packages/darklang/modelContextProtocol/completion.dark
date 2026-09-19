@@ -46,7 +46,7 @@ let completionResultToJson (result: CompletionResult) : Json =
   let fieldsWithTotal =
     match result.total with
     | Some total ->
-        fields @ [("total", Json.Number (Stdlib.Int.toFloat total))]
+        fields @ [("total", Json.Integer(total))]
     | None -> fields
 
   let fieldsWithHasMore =

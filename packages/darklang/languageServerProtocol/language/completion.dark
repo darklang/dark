@@ -20,8 +20,8 @@ module InsertTextFormat =
 
   let toJson (format: InsertTextFormat) : Json =
     match format with
-    | PlainText -> Json.Number 1.0
-    | Snippet -> Json.Number 2.0
+    | PlainText -> Json.Integer 1
+    | Snippet -> Json.Integer 2
 
 
 module InsertTextMode =
@@ -46,8 +46,8 @@ module InsertTextMode =
 
   let toJson (mode: InsertTextMode) : Json =
     match mode with
-    | AsIs -> Json.Number 1.0
-    | AdjustIndentation -> Json.Number 2.0
+    | AsIs -> Json.Integer 1
+    | AdjustIndentation -> Json.Integer 2
 
 
 module CompletionItem =
@@ -82,31 +82,31 @@ module CompletionItem =
 
     let toJson (kind: CompletionItemKind) : Json =
       match kind with
-      | Text -> Json.Number 1.0
-      | Method -> Json.Number 2.0
-      | Function -> Json.Number 3.0
-      | Constructor -> Json.Number 4.0
-      | Field -> Json.Number 5.0
-      | Variable -> Json.Number 6.0
-      | Class -> Json.Number 7.0
-      | Interface -> Json.Number 8.0
-      | Module -> Json.Number 9.0
-      | Property -> Json.Number 10.0
-      | Unit -> Json.Number 11.0
-      | Value -> Json.Number 12.0
-      | Enum -> Json.Number 13.0
-      | Keyword -> Json.Number 14.0
-      | Snippet -> Json.Number 15.0
-      | Color -> Json.Number 16.0
-      | File -> Json.Number 17.0
-      | Reference -> Json.Number 18.0
-      | Folder -> Json.Number 19.0
-      | EnumMember -> Json.Number 20.0
-      | Constant -> Json.Number 21.0
-      | Struct -> Json.Number 22.0
-      | Event -> Json.Number 23.0
-      | Operator -> Json.Number 24.0
-      | TypeParameter -> Json.Number 25.0
+      | Text -> Json.Integer 1
+      | Method -> Json.Integer 2
+      | Function -> Json.Integer 3
+      | Constructor -> Json.Integer 4
+      | Field -> Json.Integer 5
+      | Variable -> Json.Integer 6
+      | Class -> Json.Integer 7
+      | Interface -> Json.Integer 8
+      | Module -> Json.Integer 9
+      | Property -> Json.Integer 10
+      | Unit -> Json.Integer 11
+      | Value -> Json.Integer 12
+      | Enum -> Json.Integer 13
+      | Keyword -> Json.Integer 14
+      | Snippet -> Json.Integer 15
+      | Color -> Json.Integer 16
+      | File -> Json.Integer 17
+      | Reference -> Json.Integer 18
+      | Folder -> Json.Integer 19
+      | EnumMember -> Json.Integer 20
+      | Constant -> Json.Integer 21
+      | Struct -> Json.Integer 22
+      | Event -> Json.Integer 23
+      | Operator -> Json.Integer 24
+      | TypeParameter -> Json.Integer 25
 
   /// A completion item represents a text snippet that is
   /// proposed to complete text that is being typed.
@@ -487,10 +487,10 @@ module CompletionRequest =
       (json: Json)
       : Stdlib.Result.Result<CompletionTriggerKind, Unit> =
       match json with
-      | Number 1.0 -> Stdlib.Result.Result.Ok CompletionTriggerKind.Invoked
-      | Number 2.0 ->
+      | Integer 1 -> Stdlib.Result.Result.Ok CompletionTriggerKind.Invoked
+      | Integer 2 ->
         Stdlib.Result.Result.Ok CompletionTriggerKind.TriggerCharacter
-      | Number 3.0 ->
+      | Integer 3 ->
         Stdlib.Result.Result.Ok
           CompletionTriggerKind.TriggerForIncompleteCompletions
       | _ -> Stdlib.Result.Result.Error()

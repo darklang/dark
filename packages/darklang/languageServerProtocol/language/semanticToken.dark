@@ -96,7 +96,7 @@ module SemanticTokens =
       Stdlib.Option.Option.Some(
         ("data",
           t.data
-          |> Stdlib.List.map (fun d -> Json.Number(Stdlib.UInt64.toFloat d))
+          |> Stdlib.List.map (fun d -> Json.Integer(Stdlib.Int.fromUInt64 d))
           |> Json.Array)
       ) ]
 
