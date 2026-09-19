@@ -423,8 +423,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     // Apply a fn a host resolved live, and get its failure back as a value. A host loop that shows
     // the last good frame with the error under it cannot let an RTE from user code unwind the loop;
-    // this is the one place an RTE from an applied fn becomes a `Result`. Runs in a nested VM under
-    // the caller's access, as any applied lambda does.
+    // this is the one place an RTE from an applied fn becomes a `Result`.
+    //
+    // The fn is the APPROVAL ROOT of the call, as a router handed to `serve` is: the host chose it
+    // by name, and every version the name resolves to is the same choice, so a fresh version is not
+    // asked to be approved again before it may print. The caller's own access still bounds it
+    // (`constrainBy`), and the instance policy is the ceiling as everywhere. A lambda has no root
+    // and runs under the caller's policies alone.
     { name = fn "applicableTryApply" 0
       typeParams = []
       parameters =
@@ -442,10 +447,29 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | exeState, vm, _, [| DApplicable applicable; arg |] ->
           uply {
+            let root =
+              match applicable with
+              | AppNamedFn { name = FQFnName.Package hash } -> [ hash ]
+              | _ -> []
+            let asRoot =
+              match root with
+              | [] -> exeState
+              | _ ->
+                let guest =
+                  LibDB.PolicyStore.guestState
+                    exeState.accountID
+                    LibExecution.Permissions.Policy.allowAll
+                    []
+                    root
+                    exeState
+                { guest with
+                    access =
+                      guest.access
+                      |> LibExecution.Permissions.Access.constrainBy vm.activeAccess }
             match!
               Execution.executeApplicable
-                exeState
-                vm.activeAccess
+                asRoot
+                asRoot.access
                 applicable
                 (NEList.singleton arg)
             with
@@ -459,7 +483,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   [ dv ]
                 )
             | Error(rte, _) ->
-              let! rendered = Execution.runtimeErrorToString exeState rte
+              let! rendered = Execution.runtimeErrorToString asRoot rte
               let message =
                 match rendered with
                 | Ok(DString s) -> s

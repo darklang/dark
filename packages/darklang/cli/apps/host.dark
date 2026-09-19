@@ -269,6 +269,8 @@ let prepare
   (branchId: Uuid)
   (view: Model.View)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
+  Stdlib.Host.begin ()
+
   match resolveAll branchId view with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok resolved ->

@@ -1,0 +1,82 @@
+/// `live.autopush`: every save becomes a commit and a push, so a host following this branch sees
+/// the edit a pull later.
+///
+/// Off by default; `dark config set live.autopush on` turns it on for this instance. When on, every
+/// authoring command that saved something commits the whole draft under a generated message
+/// (`auto: <n> ops, <first name>`) and pushes it to the remembered relay: main with `push`, a branch
+/// with `branch push`. Nothing runs in the background; this is the tail of the command that saved.
+///
+/// Type errors are committed, on purpose. The host on the other end keeps its last good version and
+/// says why in its log (`Stdlib.Live.LastGood`), which is the same answer you get locally, and a
+/// mode that silently held back your broken save would leave the host on code you have moved past
+/// without telling you. The ordinary `dark commit` still refuses them; this is the live lane.
+///
+/// `squash` for the trail of tiny commits this leaves is a later SCM verb.
+module Darklang.Cli.Sync.Autopush
+
+val configKey = "live.autopush"
+
+let enabled () : Bool =
+  (Stdlib.LocalStore.configGet configKey) == "on"
+
+/// The generated message: how many ops, and the first name the draft binds.
+let messageFor (branchId: Uuid) : String =
+  let ops = SCM.PackageOps.draftOpCountFor branchId
+
+  let first =
+    match SCM.PackageOps.draftBindingsFor branchId with
+    | b :: _ -> $", {SCM.Conflicts.fqn b.owner b.modules b.name}"
+    | [] -> ""
+
+  $"auto: {Stdlib.Int64.toString ops} ops{first}"
+
+/// Commit the draft as it stands, checks or no checks. The same rows `SCM.PackageOps.commitDraft`
+/// writes, without its refusals.
+let commitAsIs (branchId: Uuid) (author: String) : Stdlib.Result.Result<String, String> =
+  match SCM.PackageOps.draftOpCountFor branchId with
+  | 0L -> Stdlib.Result.Result.Error "nothing to commit"
+  | _ ->
+    let opIds = SCM.PackageOps.draftOpIdsFor branchId
+    let parent = SCM.PackageOps.parentCommitFor branchId
+    let hash = SCM.Commits.create (messageFor branchId) author opIds parent
+    let stamped = SCM.PackageOps.stampDraftFor branchId hash
+
+    if stamped == 0L then
+      let _ = SCM.Commits.delete hash
+      Stdlib.Result.Result.Error "nothing was committed"
+    else
+      Stdlib.Result.Result.Ok hash
+
+/// The tail of an authoring command: when the mode is on and something is in the draft, commit it
+/// and push. Says one line about what it did; a failure to push is reported and the commit stays.
+let afterAuthoring (state: AppState) : AppState =
+  if Stdlib.Bool.not (enabled ()) then
+    state
+  else
+    let branchId = state.currentBranchId
+
+    if (SCM.PackageOps.draftOpCountFor branchId) == 0L then
+      state
+    else
+      let author =
+        match SCM.PackageOps.identity () with
+        | "" -> state.accountName
+        | id -> id
+
+      match commitAsIs branchId author with
+      | Error e ->
+        Cli.printErr $"autopush: could not commit: {e}"
+        state
+      | Ok hash ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText $"autopush: committed {Stdlib.String.first hash 8}, pushing...")
+
+        let relay = SCM.PackageOps.relay ()
+
+        if relay == "" then
+          Cli.printErr "autopush: no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
+          state
+        else if SCM.Branch.isMain branchId then
+          Cli.Sync.executePush state relay
+        else
+          Cli.Branch.executePush state (Stdlib.Uuid.toString branchId) relay

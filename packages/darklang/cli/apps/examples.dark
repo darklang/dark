@@ -5,22 +5,18 @@
 ///     `Cli.Component` adapter -- shows how a self-contained component becomes an app in a few lines.
 module Darklang.Cli.Apps.Examples
 
-// One beat: log the time + pid, sleep the interval, recurse. `remaining` is a very large step count
-// (≈ forever); the daemon is meant to be ended by `apps stop` (SIGTERM), not by running out.
-let beat (name: String) (intervalMs: Int) (remaining: Int) : Int =
-  if remaining <= 0 then
-    0
-  else
-    let pid = Stdlib.Cli.Sys.currentPid ()
-    Stdlib.printLine $"{name}: beat (pid {Stdlib.Int.toString pid})"
-    Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
-    beat name intervalMs (remaining - 1)
+// One beat: log the count and the pid. The daemon's STEP: `Apps.Runner` calls it every interval and
+// re-resolves it between calls, so editing this while the daemon runs changes the next line it logs.
+let beat (count: Int) : Int =
+  let pid = Stdlib.Cli.Sys.currentPid ()
+  Stdlib.printLine $"heartbeat: beat {Stdlib.Int.toString count} (pid {Stdlib.Int.toString pid})"
+  count + 1
 
 
-// The daemon entrypoint: claim the pidfile (recording THIS detached process's pid), then beat forever.
-// Invoked as `Darklang.Cli.Apps.Examples.heartbeat "heartbeat"` by `apps start`. The interval is read
-// from config (`apps.<name>.intervalMs`, default 5000) -- daemons take their config from cli-config.json,
-// not argv.
+// The daemon entrypoint: claim the pidfile (recording THIS detached process's pid), then run the
+// step forever. Invoked as `Darklang.Cli.Apps.Examples.heartbeat "heartbeat"` by `apps start`. The
+// interval is read from config (`apps.<name>.intervalMs`, default 5000) -- daemons take their config
+// from cli-config.json, not argv.
 let heartbeat (name: String) : Int =
   let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 5000
 
@@ -31,7 +27,13 @@ let heartbeat (name: String) : Int =
       Stdlib.printLine
         $"{name}: started (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.Int.toString intervalMs}ms)"
 
-  beat name intervalMs 1000000000
+  // The step is a NAME, and yours to point elsewhere (`apps.<name>.step`): a step under your own
+  // owner is one you can edit while the daemon runs, which is what the runner is for.
+  let step =
+    Config.get ("apps." ++ name ++ ".step")
+    |> Stdlib.Option.withDefault "Darklang.Cli.Apps.Examples.beat"
+
+  Runner.run name step 0 intervalMs
 
 
 module TextEdit =

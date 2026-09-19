@@ -1,0 +1,68 @@
+/// The runner for a daemon that follows edits.
+///
+/// A daemon written for this is a STEP, `step : 's -> 's`, held by name and called once per tick.
+/// Between ticks the runner waits through `Stdlib.Host.await`, so an edit to the step (or to
+/// anything it calls) is resolved through `Stdlib.Live.LastGood` before the next tick, and a broken
+/// version is skipped, with the reason in the log. Under the scheduler the wait is a park and the
+/// same loop runs; a daemon written as `while true` inside one fn cannot do this, and needs
+/// `dark apps restart` until the budget yield lands.
+module Darklang.Cli.Apps.Runner
+
+/// One tick, then wait for the next, or for the store to move under the step.
+let loop
+  (name: String)
+  (branchId: Uuid)
+  (lg: Stdlib.Live.LastGood)
+  (state: 's)
+  (intervalMs: Int)
+  : Int =
+  let state =
+    match Stdlib.Live.call lg state with
+    | Ok next -> next
+    | Error rte ->
+      Stdlib.printLine $"{name}: step failed, state kept: {rte}"
+      state
+
+  match Stdlib.Host.await [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer intervalMs ] with
+  | StoreChanged change when Stdlib.Live.affects change lg.entry ->
+    let refreshed = Stdlib.Live.refresh branchId change.ops lg
+    let before = Stdlib.Live.diagnostic lg
+    let after = Stdlib.Live.diagnostic refreshed
+
+    match after with
+    | Some why -> if after != before then Stdlib.printLine $"{name}: {why}" else ()
+    | None ->
+      if refreshed.hash != lg.hash then
+        Stdlib.printLine $"{name}: {Stdlib.Live.entryName lg.entry} updated"
+      else
+        ()
+
+    // The wait was cut short by the change; the next tick runs on the new version after a
+    // full interval, not at once. A change that lands during this plain wait is reported by
+    // the next `StoreChanged` wait, since the poll behind it accumulates.
+    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer intervalMs ]
+    loop name branchId refreshed state intervalMs
+  | StoreChanged _ ->
+    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer intervalMs ]
+    loop name branchId lg state intervalMs
+  | _ -> loop name branchId lg state intervalMs
+
+/// Run <param stepName> over <param init> every <param intervalMs>, forever. What a daemon
+/// entrypoint calls after claiming its pidfile.
+let run (name: String) (stepName: String) (init: 's) (intervalMs: Int) : Int =
+  match Stdlib.Live.locationOfName stepName with
+  | None ->
+    Stdlib.printLine $"{name}: {stepName} is not a package fn name"
+    1
+  | Some entry ->
+    Stdlib.Host.begin ()
+    let branchId = SCM.PackageOps.currentBranch ()
+    let lg = Stdlib.Live.refresh branchId [] (Stdlib.Live.start entry)
+
+    match lg.hash with
+    | None ->
+      Stdlib.printLine
+        $"{name}: {Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) stepName} does not resolve"
+      1
+    | Some _ -> loop name branchId lg init intervalMs
+

@@ -20,6 +20,39 @@ let daemonPort (slug: String) : Stdlib.Option.Option<Int> =
     | None -> Stdlib.Option.Option.None
     | Some tail -> Stdlib.Result.toOption (Stdlib.Int.parse (Stdlib.String.trim tail))
 
+/// The config key holding the entrypoint's hash as it was when the daemon started.
+let startedHashKey (slug: String) : String = "apps." ++ slug ++ ".startedHash"
+
+/// The hash a daemon's entrypoint resolves to now, "" when it does not.
+let entrypointHash (branchId: Uuid) (entrypoint: String) : String =
+  match Stdlib.Live.locationOfName entrypoint with
+  | None -> ""
+  | Some entry ->
+    match LanguageTools.PackageManager.Function.find branchId entry with
+    | Some hash -> LanguageTools.ProgramTypes.hashToString hash
+    | None -> ""
+
+/// Remember what version a daemon started on, so `dark apps` can say when it has moved.
+let recordStartedHash (branchId: Uuid) (app: Model.App) : Unit =
+  match app.target with
+  | Daemon entrypoint ->
+    let cfg = Config.readConfig ()
+    Config.writeConfig
+      (Stdlib.Dict.setOverridingDuplicates cfg (startedHashKey app.slug) (entrypointHash branchId entrypoint))
+  | _ -> ()
+
+/// "behind" when the entrypoint a running daemon started on is no longer the version at its name.
+/// A daemon on `Apps.Runner` follows its STEP between ticks and never needs this for the step; the
+/// entrypoint itself, and any daemon written as one long-running fn, needs `apps restart`.
+let behindSuffix (branchId: Uuid) (app: Model.App) : String =
+  match app.target with
+  | Daemon entrypoint ->
+    match Config.get (startedHashKey app.slug) with
+    | Some started when started != "" ->
+      if (entrypointHash branchId entrypoint) == started then "" else " · behind (`apps restart`)"
+    | _ -> ""
+  | _ -> ""
+
 /// The live state of a daemon, for listing: "running (pid N) :port" / "stale (pid N)" / "stopped".
 /// HTTP daemons append the port they actually bound to.
 let daemonState (slug: String) : String =
@@ -36,12 +69,15 @@ let daemonState (slug: String) : String =
   | None -> "stopped"
 
 /// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
-let row (app: Model.App) : String =
+let row (branchId: Uuid) (app: Model.App) : String =
   let tag = Model.kindTag app.target
   let extra =
     match app.target with
-    | Daemon _ -> "  " ++ Stdlib.Cli.UI.Colors.dimText ("· " ++ daemonState app.slug)
-    | Foreground _ -> ""
+    | Daemon _ ->
+      let running = Stdlib.String.startsWith (daemonState app.slug) "running"
+      let behind = if running then behindSuffix branchId app else ""
+      "  " ++ Stdlib.Cli.UI.Colors.dimText ("· " ++ (daemonState app.slug) ++ behind)
+    | _ -> ""
   $"  {app.name}  {Stdlib.Cli.UI.Colors.dimText ($"({app.slug})  [{tag}]")}  {Stdlib.Cli.UI.Colors.dimText app.description}{extra}"
 
 
@@ -84,6 +120,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
       match Stdlib.Cli.Daemon.start slug expr with
       | Ok pid ->
+        recordStartedHash state.currentBranchId app
         Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
@@ -176,7 +213,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           "No apps installed. `apps list-available` shows the catalog; `apps add <slug>` adds one.")
     else
       Stdlib.printLine "Installed apps:"
-      apps |> Stdlib.List.map (fun a -> row a) |> Stdlib.printLines
+      apps |> Stdlib.List.map (fun a -> row state.currentBranchId a) |> Stdlib.printLines
 
     state
 
@@ -186,7 +223,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     |> Stdlib.List.map (fun a ->
       let installedTag =
         if Registry.isInstalled a.slug then Stdlib.Cli.UI.Colors.success "  ✓ installed" else ""
-      (row a) ++ installedTag)
+      (row state.currentBranchId a) ++ installedTag)
     |> Stdlib.printLines
 
     Stdlib.printLine ""
@@ -233,6 +270,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
+
+  // Stop, then start: for a daemon that is `behind` (its entrypoint moved under it) and for one
+  // written as a single long-running fn, which cannot follow an edit any other way.
+  | [ "restart", slug ] ->
+    let _ = Stdlib.Cli.Daemon.stop slug
+    startDaemon state slug
 
   | [ "stop", slug ] ->
     match Stdlib.Cli.Daemon.stop slug with
@@ -310,7 +353,7 @@ let complete
   match args with
   | [] ->
     [ "list", "list-available", "add", "remove", "run", "view", "start", "spawn"
-      "stop", "status", "logs", "inspect", "enable", "disable" ]
+      "restart", "stop", "status", "logs", "inspect", "enable", "disable" ]
     |> Stdlib.List.map Cli.Completion.simple
   // Only load the catalog once a verb needs slug completions.
   | [ verb ] ->
@@ -323,7 +366,7 @@ let complete
     | "remove" -> slugs (Registry.installed state.currentBranchId)
     | "run" -> slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target)))
     | "view" -> slugs (catalog |> Stdlib.List.filter (fun a -> Model.kindTag a.target == "views"))
-    | "start" | "spawn" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
+    | "start" | "spawn" | "restart" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
     | "inspect" -> slugs catalog
     | _ -> []
   | _ -> []
@@ -360,6 +403,7 @@ let help (_state: Cli.AppState) : String =
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Daemons")
   [ helpLine "apps start <slug>" "Launch detached (alias: spawn)"
+    helpLine "apps restart <slug>" "Stop and start; for one `behind` an edit to its entrypoint"
     helpLine "apps stop <slug>" "Stop a running daemon"
     helpLine "apps status [slug]" "Running / stopped / stale (+ pid)"
     helpLine "apps logs <slug>" "Recent log lines"

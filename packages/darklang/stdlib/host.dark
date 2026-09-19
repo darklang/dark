@@ -33,9 +33,19 @@ type Event =
   | ExecDone of Uuid
 
 
+/// Say that a loop is about to start. Under the shim this starts watching the store, so an edit that
+/// lands between now and the loop's first `await` (while the entries are being resolved, say) is
+/// not missed; under the scheduler the sources run from boot and this is a no-op. Call it once,
+/// before resolving what the loop will show.
+let begin () : Unit =
+  let _ = currentWatch ()
+  ()
+
+
 // --- the shim ---
 //
-// Everything below this line is what the rebase deletes: `await` becomes `Builtin.hostAwait specs`.
+// Everything below this line is what the rebase deletes: `await` becomes `Builtin.hostAwait specs`,
+// and `begin` becomes `()`.
 
 /// How long one slice of waiting is. A key is answered within this; a store change within this plus
 /// a poll.
