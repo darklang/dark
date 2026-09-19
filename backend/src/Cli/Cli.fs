@@ -143,6 +143,24 @@ let private resolveEntryPoint () : RT.FQFnName.FQFnName =
       $"entry point lookup failed ({e.Message}); running the default CLI"
     defaultFn
 
+/// The store-change source for the scheduler's event queue: `PRAGMA data_version` on one
+/// long-lived connection of its own. The pragma answers per connection (it moves when any
+/// OTHER connection commits, this process's own writers included), so a pooled connection
+/// would answer about whichever one it happened to get. The live track's `dataVersion` leaf
+/// is the same fifteen lines in `LibDB.Sqlite`; the merge keeps one.
+let private installStoreVersionSource () : unit =
+  let connection =
+    lazy
+      (let c = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
+       c.Open()
+       c)
+  let sync = obj ()
+  Builtins.Cli.Libs.Stdin.installStoreVersionSource (fun () ->
+    lock sync (fun () ->
+      use cmd = connection.Value.CreateCommand()
+      cmd.CommandText <- "PRAGMA data_version"
+      cmd.ExecuteScalar() |> unbox<int64>))
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -184,8 +202,15 @@ let execute
         resolveEntryPoint ()
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    let! result = Exe.executeFunction state fnName [] args
-    return result
+    // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
+    // stepping whatever else gets spawned meanwhile (a script under `eval`, an `apps` daemon).
+    // `DARK_SCHEDULER=off` is the escape hatch back to a plain run while this beds in.
+    if System.Environment.GetEnvironmentVariable "DARK_SCHEDULER" = "off" then
+      let! result = Exe.executeFunction state fnName [] args
+      return result
+    else
+      installStoreVersionSource ()
+      return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
 let initSerializers () = ()
