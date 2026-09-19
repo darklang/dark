@@ -25,7 +25,9 @@ type EventSpec =
 
 /// What happened.
 type Event =
-  | Key of Stdlib.Cli.UI.Widget.KeyPress
+  /// One read of the keyboard, as the runtime reads it: a key, a paste, or a coalesced burst with
+  /// its repeat count. `Stdlib.Cli.UI.Widget.press` narrows it to a `KeyPress` for a widget.
+  | Key of Stdlib.Cli.Stdin.KeyRead.KeyRead
   | StoreChanged of Stdlib.Live.Change
   | Timer
   | ExecDone of Uuid
@@ -38,12 +40,6 @@ type Event =
 /// How long one slice of waiting is. A key is answered within this; a store change within this plus
 /// a poll.
 val sliceMs = 50
-
-let press (read: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Stdlib.Cli.UI.Widget.KeyPress =
-  Stdlib.Cli.UI.Widget.press
-    read.key
-    read.modifiers
-    (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar)
 
 /// The shim's watch: where its last look at the store left off. It lives in a slot the runtime
 /// keeps (`Builtin.liveShimWatchGet`), because `await` takes no state and a Dark value does not
@@ -78,7 +74,7 @@ let wait
   (elapsed: Int)
   : Event =
   match readSlice wantsKey with
-  | Some read -> Event.Key(press read)
+  | Some read -> Event.Key read
   | None ->
     let changed = if wantsStore then pollStore () else Stdlib.Option.Option.None
 

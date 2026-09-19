@@ -242,12 +242,19 @@ let reload (s: Session<'model, 'msg>) (change: Stdlib.Live.Change) : Session<'mo
 
 // --- the loop ---
 
+/// A read of the keyboard as a widget sees it: the key, its modifiers, what it typed.
+let press (read: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Stdlib.Cli.UI.Widget.KeyPress =
+  Stdlib.Cli.UI.Widget.press
+    read.key
+    read.modifiers
+    (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar)
+
 /// One turn: wait, then act. Split from `run` so a test can drive turns one at a time.
 let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
   match Stdlib.Host.await [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ] with
   | StoreChanged change when affected s change -> present (render (reload s change))
   | StoreChanged _ -> s
-  | Key k -> present (render (onKey s k))
+  | Key read -> present (render (onKey s (press read)))
   | _ -> s
 
 let run (s: Session<'model, 'msg>) : Session<'model, 'msg> =
