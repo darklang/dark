@@ -260,6 +260,32 @@ let private accessIsPerProcess =
   }
 
 
+let private killWakesAParkedProcess =
+  testTask "kill finishes a process parked on a builtin without waiting for it" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    // Parks on a gate nobody will ever open.
+    let! (stuck : Scheduler.Process) = spawn s state "Builtin.testGateWait 50L"
+    let! (killer : Scheduler.Process) =
+      spawn
+        s
+        state
+        $"match Stdlib.Uuid.parse \"{stuck.id}\" with | Ok id -> Stdlib.Exec.kill id | Error _ -> false"
+    // The loop runs until the stuck one is finished, which the kill is what makes happen.
+    let running = runOnThread s stuck
+    let! killed = s.Await killer
+    Expect.equal
+      (expectOk killed "the killer")
+      (RT.DBool true)
+      "kill found the process"
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+    | other -> failtest $"expected the stuck process to be cancelled, got {other}"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -270,5 +296,6 @@ let tests =
         budgetYields
         hostAwaitTimerOrKey
         readKeyDoesNotBlock
-        accessIsPerProcess ]
+        accessIsPerProcess
+        killWakesAParkedProcess ]
   )

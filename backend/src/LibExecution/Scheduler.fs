@@ -438,8 +438,10 @@ type Scheduler(quantum : int64) =
 
   // -- ps --
 
-  /// Ask a process to stop. It finishes `Failed("cancelled")` at its next turn; a parked process
-  /// gets that turn when whatever it waits for arrives, or at once if it is only parked on events.
+  /// Ask a process to stop. It finishes `Failed("cancelled")` at its next turn, which a parked
+  /// process is given at once: whatever it was waiting for is abandoned (the task's late
+  /// completion posts for a process that is no longer parked, and is dropped). A running
+  /// process finishes its slice first; one that completes within it completes.
   member this.Kill(pid : ProcessId) : bool =
     match processes.TryGetValue pid with
     | true, p ->
@@ -452,6 +454,9 @@ type Scheduler(quantum : int64) =
           for (_, timer) in sub.timers do
             timer.Dispose()
           sub.wake.TrySetCanceled() |> ignore<bool>)
+      match p.status with
+      | Parked _ -> queue.Post(HE.HostEvent.Completed pid)
+      | _ -> ()
       true
     | false, _ -> false
 
