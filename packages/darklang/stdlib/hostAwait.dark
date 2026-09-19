@@ -1,0 +1,38 @@
+module Darklang.Stdlib.Host
+
+/// What a process can wait for. `Host.await` takes a list of these and parks the calling
+/// process until the first of them happens.
+type EventSpec =
+  /// The next key press.
+  | Key
+  /// The package store changed: an op landed here, or was pulled.
+  | StoreChanged
+  /// Fires once, this many milliseconds from now.
+  | Timer of ms: Int64
+  /// A process (`Exec.list` shows their ids) finished.
+  | ExecDone of id: Uuid
+
+
+/// What a store change carried. `Unknown` until the change set is reported alongside it
+/// (`ops` and `locations`, from the live track's `scmOpsSince`); a host loop treats
+/// `Unknown` as "anything may have changed".
+type Change =
+  | Unknown
+
+
+/// What `Host.await` came back with: the first of the requested specs to happen.
+type Event =
+  | Key of Stdlib.Cli.Stdin.KeyRead.KeyRead
+  | StoreChanged of Change
+  | Timer
+  | ExecDone of id: Uuid
+
+
+/// Park until one of `specs` happens, and say which.
+///
+/// Under the scheduler the calling process gives up the thread while it waits, so other
+/// processes keep running: a TUI's host loop is `Host.await [Key; StoreChanged]` and nothing
+/// else. Outside the scheduler (a plain `execute`) it blocks the thread the same way `readKey`
+/// always has.
+let await (specs: List<EventSpec>) : Event =
+  Builtin.hostAwait specs

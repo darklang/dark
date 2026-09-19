@@ -198,6 +198,9 @@ type Scheduler(quantum : int64) =
   /// The process's result, when it has one.
   member _.Await(p : Process) : Task<RT.ExecutionResult> = p.completion.Task
 
+  /// Post an event as a source would. What a test harness calls to press a key.
+  member _.PushEvent(ev : HE.HostEvent) : unit = queue.Post ev
+
   // -- Events --
 
   /// Park `p` on the first of `specs` to happen. Returns the task the builtin hands back to the
