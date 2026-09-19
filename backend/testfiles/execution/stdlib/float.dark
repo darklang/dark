@@ -55,6 +55,12 @@ Stdlib.Float.truncate Builtin.testNan =
 Stdlib.Float.roundTowardsZero Builtin.testNegativeInfinity =
   error="Encountered out-of-range value for type of Int"
 
+Stdlib.Float.isFinite 0.0 = true
+Stdlib.Float.isFinite -3.9 = true
+Stdlib.Float.isFinite Builtin.testNan = false
+Stdlib.Float.isFinite Builtin.testInfinity = false
+Stdlib.Float.isFinite Builtin.testNegativeInfinity = false
+
 Stdlib.Float.absoluteValue Builtin.testNegativeInfinity = Builtin.testInfinity
 Stdlib.Float.absoluteValue Builtin.testNan = Builtin.testNan
 Stdlib.Float.absoluteValue -5.6 = 5.6

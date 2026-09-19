@@ -58,6 +58,22 @@ Stdlib.UInt64.sqrt 86UL = 9.273618495495704
 Stdlib.UInt64.toFloat 2UL = 2.0
 Stdlib.UInt64.toFloat 955656UL = 955656.0
 
+// fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
+Stdlib.UInt64.fromFloat 3.9 = Stdlib.Option.Option.Some 3UL
+Stdlib.UInt64.fromFloat -0.9 = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromFloat -1.0 = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloat Builtin.testNan = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloat Builtin.testInfinity = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloat Builtin.testNegativeInfinity = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloat 18446744073709551616.0 = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloatRounded 3.9 = Stdlib.Option.Option.Some 4UL
+Stdlib.UInt64.fromFloatRounded -1.0 = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloatRounded Builtin.testNan = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloatRounded Builtin.testInfinity = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloatRounded Builtin.testNegativeInfinity = Stdlib.Option.Option.None
+Stdlib.UInt64.fromFloatRounded 2.5 = Stdlib.Option.Option.Some 2UL
+Stdlib.UInt64.fromFloatRounded 3.5 = Stdlib.Option.Option.Some 4UL
+
 Stdlib.UInt64.add 10UL 9UL = 19UL
 Stdlib.UInt64.add 88UL 9UL = 97UL
 Stdlib.UInt64.add 1UL 0UL = 1UL

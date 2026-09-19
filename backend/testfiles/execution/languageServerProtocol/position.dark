@@ -1,0 +1,18 @@
+module PositionTests =
+  let acceptedPosition (line: Float) (character: Float) : Bool =
+    let json =
+      Stdlib.AltJson.Json.Object
+        [ ("line", Stdlib.AltJson.Json.Number line)
+          ("character", Stdlib.AltJson.Json.Number character) ]
+
+    match Darklang.LanguageServerProtocol.Position.fromJson json with
+    | Ok _ -> true
+    | Error _ -> false
+
+  acceptedPosition 0.0 0.0 = true
+  acceptedPosition 12.0 3.0 = true
+  acceptedPosition 1.5 0.0 = false
+  acceptedPosition 0.0 2.5 = false
+  acceptedPosition -0.5 0.0 = false
+  acceptedPosition Builtin.testNan 0.0 = false
+  acceptedPosition 0.0 Builtin.testInfinity = false

@@ -112,16 +112,18 @@ module Position =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "line") with
         | Some((_, Number l)) ->
           match Stdlib.UInt64.fromFloat l with
-          | None -> Stdlib.Result.Result.Error()
-          | Some l -> Stdlib.Result.Result.Ok l
+          | Some line when Stdlib.UInt64.toFloat line == l ->
+            Stdlib.Result.Result.Ok line
+          | _ -> Stdlib.Result.Result.Error()
         | _ -> Stdlib.Result.Result.Error()
 
       let character =
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "character") with
         | Some((_, Number c)) ->
           match Stdlib.UInt64.fromFloat c with
-          | None -> Stdlib.Result.Result.Error()
-          | Some c -> Stdlib.Result.Result.Ok c
+          | Some character when Stdlib.UInt64.toFloat character == c ->
+            Stdlib.Result.Result.Ok character
+          | _ -> Stdlib.Result.Result.Error()
         | _ -> Stdlib.Result.Result.Error()
 
       match (line, character) with

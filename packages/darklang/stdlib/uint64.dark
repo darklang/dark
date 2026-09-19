@@ -66,9 +66,24 @@ let sqrt (a: UInt64) : Float = Builtin.uint64Sqrt a
 /// Converts an <type UInt64> to a <type Float>
 let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
 
-/// Converts a <type Float> to an <type UInt64>
+/// Converts a <type Float> to an <type UInt64>, truncating toward zero like
+/// <fn Int.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
+/// doesn't fit.
 let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
-  a |> Float.round |> Stdlib.Int.toUInt64
+  if Float.isFinite a then
+    a |> Stdlib.Int.fromFloat |> Stdlib.Int.toUInt64
+  else
+    Stdlib.Option.Option.None
+
+
+/// Converts a <type Float> to an <type UInt64>, rounding to the nearest integer
+/// (ties to even). Returns {{None}} for NaN, infinity, or a result that
+/// doesn't fit.
+let fromFloatRounded (a: Float) : Stdlib.Option.Option<UInt64> =
+  if Float.isFinite a then
+    a |> Float.round |> Stdlib.Int.toUInt64
+  else
+    Stdlib.Option.Option.None
 
 
 /// Returns the sum of all the ints in the list
