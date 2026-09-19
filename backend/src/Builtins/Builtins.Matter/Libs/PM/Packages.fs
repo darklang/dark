@@ -421,6 +421,66 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Apply a fn a host resolved live, and get its failure back as a value. A host loop that shows
+    // the last good frame with the error under it cannot let an RTE from user code unwind the loop;
+    // this is the one place an RTE from an applied fn becomes a `Result`. Runs in a nested VM under
+    // the caller's access, as any applied lambda does.
+    { name = fn "applicableTryApply" 0
+      typeParams = []
+      parameters =
+        [ Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
+            "what to call"
+            [ "arg" ]
+          Param.make "arg" (TVariable "a") "" ]
+      returnType = TypeReference.result (TVariable "b") TString
+      description =
+        "Calls <param fn> with <param arg>; `Error` with the runtime error's message instead "
+        + "of raising when the call fails."
+      fn =
+        (function
+        | exeState, vm, _, [| DApplicable applicable; arg |] ->
+          uply {
+            match!
+              Execution.executeApplicable
+                exeState
+                vm.activeAccess
+                applicable
+                (NEList.singleton arg)
+            with
+            | Ok dv ->
+              return
+                DEnum(
+                  Dval.resultType (),
+                  Dval.resultType (),
+                  [ ValueType.Unknown; ValueType.Known KTString ],
+                  "Ok",
+                  [ dv ]
+                )
+            | Error(rte, _) ->
+              let! rendered = Execution.runtimeErrorToString exeState rte
+              let message =
+                match rendered with
+                | Ok(DString s) -> s
+                | Ok other -> string other
+                | Error _ -> string rte
+              return
+                DEnum(
+                  Dval.resultType (),
+                  Dval.resultType (),
+                  [ ValueType.Unknown; ValueType.Known KTString ],
+                  "Error",
+                  [ DString message ]
+                )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmSearch" 0
       typeParams = []
       parameters =

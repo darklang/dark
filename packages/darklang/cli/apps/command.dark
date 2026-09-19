@@ -91,6 +91,48 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
   state
 
+/// `apps view <slug> [<name>]` — open one of an app's live views; it follows edits until Esc.
+///
+/// The slug may also be a MODULE path (`My.Dashboard`): a module with `init`, `update` and `render`
+/// is a view without anyone declaring an app for it, which is the shape a first edit-and-watch
+/// session wants.
+let viewApp (state: Cli.AppState) (slug: String) (name: String) : Cli.AppState =
+  match Registry.findBySlug state.currentBranchId slug with
+  | None when Stdlib.String.contains slug "." ->
+    let view =
+      Model.View
+        { name = slug
+          title = slug
+          init = slug ++ ".init"
+          update = slug ++ ".update"
+          render = slug ++ ".render" }
+
+    match Host.openView state.currentBranchId view with
+    | Ok _ -> state
+    | Error e ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+      { state with exitCode = 1 }
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
+    state
+  | Some app ->
+    match Model.viewNamed app.target name with
+    | None ->
+      match app.target with
+      | Views views ->
+        let names = views |> Stdlib.List.map (fun v -> v.name) |> Stdlib.String.join ", "
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"'{slug}' has no view '{name}' (it has: {names})")
+      | _ ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' has no live views -- `apps run {slug}` or `apps start {slug}`")
+
+      state
+    | Some view ->
+      match Host.openView state.currentBranchId view with
+      | Ok _ -> state
+      | Error e ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+        { state with exitCode = 1 }
+
 /// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
 let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
   match Registry.findBySlug state.currentBranchId slug with
@@ -113,6 +155,10 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
         Stdlib.printLine "  recent logs:"
         logs |> Stdlib.List.map (fun l -> "    " ++ l) |> Stdlib.printLines
     | Foreground _ -> ()
+    | Views views ->
+      views
+      |> Stdlib.List.iter (fun v ->
+        Stdlib.printLine $"  view:      {v.name}  ({v.render})")
 
   state
 
@@ -181,6 +227,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "run", slug ] -> runApp state slug
+
+  | [ "view", slug ] -> viewApp state slug ""
+  | [ "view", slug, name ] -> viewApp state slug name
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
@@ -260,7 +309,7 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list", "list-available", "add", "remove", "run", "start", "spawn"
+    [ "list", "list-available", "add", "remove", "run", "view", "start", "spawn"
       "stop", "status", "logs", "inspect", "enable", "disable" ]
     |> Stdlib.List.map Cli.Completion.simple
   // Only load the catalog once a verb needs slug completions.
@@ -273,6 +322,7 @@ let complete
       slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Registry.isInstalled a.slug)))
     | "remove" -> slugs (Registry.installed state.currentBranchId)
     | "run" -> slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target)))
+    | "view" -> slugs (catalog |> Stdlib.List.filter (fun a -> Model.kindTag a.target == "views"))
     | "start" | "spawn" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
     | "inspect" -> slugs catalog
     | _ -> []
@@ -300,6 +350,12 @@ let help (_state: Cli.AppState) : String =
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Foreground apps")
   [ helpLine "apps run <slug>" "Run attached in your terminal" ] |> Stdlib.printLines
+
+  Stdlib.printLine ""
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Live views")
+  [ helpLine "apps view <slug> [<name>]" "Open a view; it follows edits to its code until Esc"
+    helpLine "apps view <Module.Path>" "The same for any module with init, update and render" ]
+  |> Stdlib.printLines
 
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Daemons")

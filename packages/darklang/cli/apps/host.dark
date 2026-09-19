@@ -1,0 +1,304 @@
+/// The host loop: runs a live `View` in the terminal, and follows edits to it.
+///
+/// One loop, written once against `Stdlib.Host.await`, and it does not change when the shim behind
+/// `await` is replaced by the scheduler:
+///
+///   loop session =
+///     match Host.await [Key; StoreChanged] with
+///     | StoreChanged c when Live.affects c entry -> loop (render (reload c session))
+///     | Key k -> loop (render (update session k))
+///     | _ -> loop session
+///
+/// The rules this keeps, so that stays true (docs/live.md has the reasoning):
+///
+/// - a view is `Model -> Node`, pure; the loop reads the clock, the store and stdin, the view never
+///   does;
+/// - the loop waits, it does not poll; nothing here knows how `await` waits;
+/// - the model is the only app state, and it survives a code swap in memory;
+/// - `init`, `update` and `render` are held as LOCATIONS and resolved through `Live.LastGood` on
+///   every use, so a fresh version is picked up at the next call and a broken one is skipped;
+/// - errors render. A `Failed` at-rest report or an RTE from `render` becomes a `Band` under the
+///   last good frame; the loop never dies because of user code.
+module Darklang.Cli.Apps.Host
+
+/// What a view's `update` receives.
+type Event<'msg> =
+  | Key of Stdlib.Cli.UI.Widget.KeyPress
+  /// A `Button` was pressed, or an `Input` edited: the message the tree carried.
+  | Msg of 'msg
+
+/// One running view.
+type Session<'model, 'msg> =
+  { branchId: Uuid
+    view: Model.View
+    init: Stdlib.Live.LastGood
+    update: Stdlib.Live.LastGood
+    render: Stdlib.Live.LastGood
+    model: 'model
+    /// The focused `Input` id or `Button` label, "" for none.
+    focus: String
+    /// The last tree that rendered clean. Painted again, under a band, when the newest one did not.
+    lastFrame: Stdlib.Option.Option<Stdlib.Cli.UI.Node.Node<'msg>>
+    /// Why the screen is not the newest code, when it is not.
+    band: Stdlib.Option.Option<String>
+    /// A one-frame note: what just changed.
+    toast: Stdlib.Option.Option<String>
+    terminal: Stdlib.Cli.Tui.TerminalSession.State
+    exiting: Bool }
+
+
+// --- resolving ---
+
+let entryOf (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  Stdlib.Live.locationOfName name
+
+/// The three entries, resolved as they are now. `Error` names the one that does not resolve.
+let resolveAll
+  (branchId: Uuid)
+  (view: Model.View)
+  : Stdlib.Result.Result<(Stdlib.Live.LastGood * Stdlib.Live.LastGood * Stdlib.Live.LastGood), String> =
+  match (entryOf view.init, entryOf view.update, entryOf view.render) with
+  | (Some i, Some u, Some r) ->
+    let lg (loc: LanguageTools.ProgramTypes.PackageLocation) : Stdlib.Live.LastGood =
+      Stdlib.Live.refresh branchId [] (Stdlib.Live.start loc)
+
+    let (initLg, updateLg, renderLg) = (lg i, lg u, lg r)
+
+    let problems =
+      [ initLg, updateLg, renderLg ]
+      |> Stdlib.List.filterMap (fun x ->
+        match x.hash with
+        | Some _ -> Stdlib.Option.Option.None
+        | None -> Stdlib.Live.diagnostic x)
+
+    match problems with
+    | [] -> Stdlib.Result.Result.Ok((initLg, updateLg, renderLg))
+    | first :: _ -> Stdlib.Result.Result.Error first
+  | _ ->
+    Stdlib.Result.Result.Error
+      $"a view's fns are dotted package names: {view.init}, {view.update}, {view.render}"
+
+
+// --- rendering ---
+
+/// The band's rows at this width: at most three.
+let bandRows (band: String) (width: Int) : Int =
+  Stdlib.Int.min 3 (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtWords band (Stdlib.Int.max 1 (width - 2))))
+
+/// The whole screen for a session at a size. Pure: everything it needs is on the session.
+let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
+  let frame =
+    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press"
+
+  let frame =
+    match s.toast with
+    | Some note -> Stdlib.Cli.UI.Chrome.withMessage frame note
+    | None -> frame
+
+  Stdlib.Cli.UI.Chrome.view frame size (fun region ->
+    let bandHeight =
+      match s.band with
+      | Some band -> bandRows band region.cols
+      | None -> 0
+
+    let treeRegion =
+      Stdlib.Cli.UI.Layout.Region
+        { top = region.top
+          left = region.left
+          rows = Stdlib.Int.max 0 (region.rows - bandHeight)
+          cols = region.cols }
+
+    let treeSpans =
+      match s.lastFrame with
+      | Some tree -> Stdlib.Cli.UI.Node.toSpans tree treeRegion s.focus
+      | None -> []
+
+    let bandSpans =
+      match s.band with
+      | Some band ->
+        let bandRegion =
+          Stdlib.Cli.UI.Layout.Region
+            { top = region.top + region.rows - bandHeight
+              left = region.left
+              rows = bandHeight
+              cols = region.cols }
+
+        Stdlib.Cli.UI.Node.toSpans
+          (Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error band)
+          bandRegion
+          ""
+      | None -> []
+
+    Stdlib.List.append treeSpans bandSpans)
+
+/// Run the view's `render` on the model. A clean render replaces the frame; a failed one keeps it
+/// and says why underneath. The at-rest verdict comes first: a version that failed its check is
+/// never run, and the previous one is, with the check's words in the band.
+let render (s: Session<'model, 'msg>) : Session<'model, 'msg> =
+  match Stdlib.Live.call s.render s.model with
+  | Ok tree ->
+    { s with
+        lastFrame = Stdlib.Option.Option.Some tree
+        band = Stdlib.Live.diagnostic s.render }
+  | Error rte ->
+    let why =
+      match Stdlib.Live.diagnostic s.render with
+      | Some d -> d
+      | None -> $"{s.view.render}: {rte}"
+
+    { s with band = Stdlib.Option.Option.Some why }
+
+/// Paint the current frame.
+let present (s: Session<'model, 'msg>) : Session<'model, 'msg> =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+
+  { s with
+      terminal = Stdlib.Cli.Tui.TerminalSession.presentAtSize s.terminal size (viewAtSize s size) }
+
+
+// --- updating ---
+
+/// Run the view's `update`. A failure keeps the model and shows the error; the loop goes on.
+let applyUpdate (s: Session<'model, 'msg>) (event: Event<'msg>) : Session<'model, 'msg> =
+  match Stdlib.Live.call s.update s.model with
+  | Ok partial ->
+    match Builtin.applicableTryApply partial event with
+    | Ok model -> { s with model = model; toast = Stdlib.Option.Option.None }
+    | Error rte -> { s with band = Stdlib.Option.Option.Some $"{s.view.update}: {rte}" }
+  | Error e -> { s with band = Stdlib.Option.Option.Some e }
+
+/// Move focus to the next (or previous) focusable node in the last frame.
+let moveFocus (s: Session<'model, 'msg>) (forward: Bool) : Session<'model, 'msg> =
+  let ids =
+    match s.lastFrame with
+    | Some tree -> Stdlib.Cli.UI.Node.focusable tree
+    | None -> []
+
+  match ids with
+  | [] -> { s with focus = "" }
+  | _ ->
+    let count = Stdlib.List.length ids
+    let current = Stdlib.List.findFirstIndex ids (fun id -> id == s.focus)
+
+    let next =
+      match current with
+      | None -> if forward then 0 else count - 1
+      | Some i -> Stdlib.Int.``mod`` (if forward then i + 1 else i + count - 1) count
+
+    { s with focus = Stdlib.List.getAt ids next |> Stdlib.Option.withDefault "" }
+
+/// One key: the loop's own keys first (quit, focus), then the focused node's, then the view's.
+let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Session<'model, 'msg> =
+  let ctrlC = k.modifiers.ctrl && (k.key == Stdlib.Cli.Stdin.Key.Key.C)
+
+  if ctrlC || (k.key == Stdlib.Cli.Stdin.Key.Key.Escape) then
+    { s with exiting = true }
+  else if k.key == Stdlib.Cli.Stdin.Key.Key.Tab then
+    moveFocus s (Stdlib.Bool.not k.modifiers.shift)
+  else
+    let focused =
+      match s.lastFrame with
+      | Some tree -> if s.focus == "" then Stdlib.Option.Option.None else Stdlib.Cli.UI.Node.findFocused tree s.focus
+      | None -> Stdlib.Option.Option.None
+
+    match focused with
+    | Some(OnButton msg) when k.key == Stdlib.Cli.Stdin.Key.Key.Enter -> applyUpdate s (Event.Msg msg)
+    | Some(OnInput spec) ->
+      match k.key with
+      | Backspace ->
+        let shorter = Stdlib.String.dropLast spec.value 1
+        applyUpdate s (Event.Msg(spec.edited shorter))
+      | Enter -> applyUpdate s (Event.Key k)
+      | _ ->
+        match k.char with
+        | Some c -> applyUpdate s (Event.Msg(spec.edited (spec.value ++ c)))
+        | None -> applyUpdate s (Event.Key k)
+    | _ -> applyUpdate s (Event.Key k)
+
+
+// --- following edits ---
+
+/// Does the change reach any of the view's entries?
+let affected (s: Session<'model, 'msg>) (change: Stdlib.Live.Change) : Bool =
+  (Stdlib.Live.affects change s.render.entry)
+  || (Stdlib.Live.affects change s.update.entry)
+  || (Stdlib.Live.affects change s.init.entry)
+
+/// Take the change: resolve the entries again through last-good, keep the model, say what moved.
+let reload (s: Session<'model, 'msg>) (change: Stdlib.Live.Change) : Session<'model, 'msg> =
+  let names =
+    if change.unknown then "the store" else Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
+
+  { s with
+      init = Stdlib.Live.refresh s.branchId change.ops s.init
+      update = Stdlib.Live.refresh s.branchId change.ops s.update
+      render = Stdlib.Live.refresh s.branchId change.ops s.render
+      toast = Stdlib.Option.Option.Some $"updated: {names}" }
+
+
+// --- the loop ---
+
+/// One turn: wait, then act. Split from `run` so a test can drive turns one at a time.
+let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
+  match Stdlib.Host.await [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ] with
+  | StoreChanged change when affected s change -> present (render (reload s change))
+  | StoreChanged _ -> s
+  | Key k -> present (render (onKey s k))
+  | _ -> s
+
+let run (s: Session<'model, 'msg>) : Session<'model, 'msg> =
+  if s.exiting then s else run (step s)
+
+
+// --- starting ---
+
+/// A session for <param view> at its `init`, on screen. `Error` when it cannot start: a name that
+/// does not resolve, an `init` that fails, no terminal.
+let start
+  (branchId: Uuid)
+  (view: Model.View)
+  : Stdlib.Result.Result<Session<'model, 'msg>, String> =
+  match resolveAll branchId view with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok resolved ->
+    // Destructured after the match: `Ok(a, b, c)` reads as a three-field case, not a tuple.
+    let (initLg, updateLg, renderLg) = resolved
+
+    match Stdlib.Live.call initLg () with
+    | Error e -> Stdlib.Result.Result.Error $"{view.init}: {e}"
+    | Ok model ->
+      let s =
+        Session
+          { branchId = branchId
+            view = view
+            init = initLg
+            update = updateLg
+            render = renderLg
+            model = model
+            focus = ""
+            lastFrame = Stdlib.Option.Option.None
+            band = Stdlib.Option.Option.None
+            toast = Stdlib.Option.Option.None
+            terminal = Stdlib.Cli.Tui.TerminalSession.init ()
+            exiting = false }
+
+      let s = render s
+      let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+
+      match Stdlib.Cli.Tui.TerminalSession.startAtSize size (viewAtSize s size) with
+      | Ok terminal -> Stdlib.Result.Result.Ok { s with terminal = terminal }
+      | Error message -> Stdlib.Result.Result.Error message
+
+/// Leave the screen as we found it.
+let stop (s: Session<'model, 'msg>) : Unit =
+  let _stopped = Stdlib.Cli.Tui.TerminalSession.stop s.terminal
+  ()
+
+/// `dark apps view <slug> [<name>]`: run the view until it quits.
+let openView (branchId: Uuid) (view: Model.View) : Stdlib.Result.Result<Unit, String> =
+  match start branchId view with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok session ->
+    let finished = run session
+    stop finished
+    Stdlib.Result.Result.Ok()

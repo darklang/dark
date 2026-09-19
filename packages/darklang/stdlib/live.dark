@@ -419,3 +419,11 @@ let diagnose
   (entry: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<String> =
   diagnostic (refresh branchId change.ops (start entry))
+
+
+/// Call the version <param lg> is on with <param arg>, and get a failure back as a value: a host
+/// that keeps the last good frame with the error under it cannot let user code unwind its loop.
+let call (lg: LastGood) (arg: 'a) : Stdlib.Result.Result<'b, String> =
+  match applicable lg with
+  | Ok f -> Builtin.applicableTryApply f arg
+  | Error e -> Stdlib.Result.Result.Error e
