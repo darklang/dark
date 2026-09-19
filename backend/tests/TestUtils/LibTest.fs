@@ -36,8 +36,74 @@ let values : List<BuiltInValue> =
       body = DFloat(System.Double.NegativeInfinity)
       deprecated = NotDeprecated } ]
 
+/// Awaits a test can release by hand, so a scheduler test can decide the order things finish in.
+module Gates =
+  let private gates =
+    System.Collections.Concurrent.ConcurrentDictionary<int64, TaskCompletionSource<unit>>()
+
+  let private gate (n : int64) : TaskCompletionSource<unit> =
+    gates.GetOrAdd(
+      n,
+      fun _ ->
+        TaskCompletionSource<unit>(
+          TaskCreationOptions.RunContinuationsAsynchronously
+        )
+    )
+
+  let wait (n : int64) : Task<unit> = (gate n).Task
+
+  let release (n : int64) : unit = (gate n).TrySetResult() |> ignore<bool>
+
+  let reset () : unit = gates.Clear()
+
+
+/// What ran, in what order, across processes. Test-only.
+module Trace =
+  let private entries = System.Collections.Concurrent.ConcurrentQueue<string>()
+  let record (s : string) : unit = entries.Enqueue s
+  let take () : List<string> =
+    let all = List.ofSeq entries
+    entries.Clear()
+    all
+
+
 let fns () : List<BuiltInFn> =
-  [ { name = fn "testRuntimeError" 0
+  [ { name = fn "testGateWait" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TUnit
+      description =
+        "Waits until the test releases this gate (`LibTest.Gates.release`)."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "testTrace" 0
+      typeParams = []
+      parameters = [ Param.make "entry" TString "" ]
+      returnType = TUnit
+      description = "Records an entry the test reads back with `LibTest.Trace.take`."
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          Trace.record s
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt64
