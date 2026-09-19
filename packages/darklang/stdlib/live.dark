@@ -57,20 +57,28 @@ type Watch =
 /// host would re-run everything anyway, and describing ten thousand ops to reach that answer is waste.
 val describeAtMost = 500L
 
-/// The ids at <param since> that a later poll must not report again: only worth holding while that
-/// second is still the current one, since nothing can land in a second that has passed.
-let reportedAt (since: String) : List<String> =
-  if since == SCM.PackageOps.storeNow () then SCM.PackageOps.idsInsertedAt since else []
+/// Where the log ends right now: the newest insert time, and the ids at it when that second may
+/// still be filling. A second that has passed can take nothing more, so nothing needs remembering
+/// for it. The newest insert is read BEFORE the clock, so the clock is never behind it and "not
+/// equal" means "passed".
+let frontier () : (String * List<String>) =
+  let newest = SCM.PackageOps.newestInsert ()
+  let now = SCM.PackageOps.storeNow ()
+
+  if newest == now then
+    (newest, SCM.PackageOps.idsInsertedAt newest)
+  else
+    (newest, [])
 
 /// Start watching <param branchId> from now. Nothing that landed before this call is ever reported.
 let watch (branchId: Uuid) : Watch =
-  let since = SCM.PackageOps.newestInsert ()
+  let (since, reported) = frontier ()
 
   Watch
     { branchId = branchId
       version = version ()
       since = since
-      reported = reportedAt since }
+      reported = reported }
 
 /// The name an op binds or unbinds, if it does one of those.
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : Stdlib.Option.Option<Touched> =
@@ -106,13 +114,14 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
   if now == w.version then
     (w, Stdlib.Option.Option.None)
   else
-    // The second of the last insert we reported is re-read only while it is still the current
-    // second: a reload lands thousands of ops in one second, and re-reading them on every poll for
-    // as long as the watch lives is what would make polling slow.
-    let sinceIsNow = w.since == SCM.PackageOps.storeNow ()
+    // The second of the last reported insert is re-read while it may still be filling (there are
+    // ids held for it), and dropped once a sweep of it in a later second finds nothing new: a
+    // reload lands thousands of ops in one second, and re-reading them on every poll for as long
+    // as the watch lives is what would make polling slow.
+    let sweepSince = Stdlib.Bool.not (Stdlib.List.isEmpty w.reported)
 
     let newIds =
-      SCM.PackageOps.idsLandedSince w.branchId w.since sinceIsNow
+      SCM.PackageOps.idsLandedSince w.branchId w.since sweepSince
       |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.member w.reported id))
 
     // Ids first, then the blobs for the new ones only.
@@ -121,7 +130,9 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
         (Stdlib.List.take newIds (Stdlib.Int.fromInt64 describeAtMost))
 
     if Stdlib.List.isEmpty landed then
-      ({ w with version = now }, Stdlib.Option.Option.None)
+      let sincePassed = w.since != (SCM.PackageOps.storeNow ())
+      let reported = if sincePassed then [] else w.reported
+      ({ w with version = now; reported = reported }, Stdlib.Option.Option.None)
     else
       SCM.Draft.invalidateCaches ()
 
@@ -139,14 +150,14 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
 
           Change { ops = landed; touched = touched; unknown = false }
 
-      let since = SCM.PackageOps.newestInsert ()
+      let (since, reported) = frontier ()
 
       let next =
         Watch
           { branchId = w.branchId
             version = now
             since = since
-            reported = reportedAt since }
+            reported = reported }
 
       (next, Stdlib.Option.Option.Some change)
 

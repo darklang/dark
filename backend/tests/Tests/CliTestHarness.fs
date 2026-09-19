@@ -293,6 +293,26 @@ let evalUnder (state : RT.ExecutionState) (code : string) : Task<RT.Dval> =
   }
 
 
+/// Push what the next `Host.await` in a live host loop answers with: a key, or "nothing happened,
+/// look at the store". The shim behind `await` reads these before the console, so a test drives a
+/// TUI loop one turn at a time with no terminal; the scheduler's queue takes the same call later.
+///
+/// <param key> is a `Stdlib.Cli.Stdin.Key` case name (`Tab`, `Enter`, `A`); <param char> is what it
+/// typed, "" for none.
+let pushKey (state : RT.ExecutionState) (key : string) (char : string) : Task<unit> =
+  task {
+    let! read =
+      evalUnder
+        state
+        $"Darklang.Stdlib.Cli.Stdin.KeyRead.KeyRead {{ key = Darklang.Stdlib.Cli.Stdin.Key.Key.{key}; modifiers = Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers {{ alt = false; shift = false; ctrl = false }}; keyChar = \"{char}\"; repeat = 1 }}"
+    Builtins.Cli.Libs.Stdin.LiveShim.push (Builtins.Cli.Libs.Stdin.LiveShim.Key read)
+  }
+
+/// Push a turn with no key, so the loop polls the store.
+let pushTick () : unit =
+  Builtins.Cli.Libs.Stdin.LiveShim.push Builtins.Cli.Libs.Stdin.LiveShim.Tick
+
+
 // ─── Test builders ────────────────────────────────────────────────────────
 
 /// Wrap a fresh ExecutionState in a task.

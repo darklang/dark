@@ -45,16 +45,21 @@ let press (read: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Stdlib.Cli.UI.Widget.KeyPre
     read.modifiers
     (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar)
 
-/// One look at the store, from where the last look left off. The watch lives in a slot the
-/// runtime keeps for the shim (`Builtin.liveShimWatchGet`), because `await` takes no state and a
-/// Dark value does not outlive the call that made it.
-let pollStore () : Stdlib.Option.Option<Stdlib.Live.Change> =
-  let watch =
-    match Builtin.liveShimWatchGet () with
-    | Some w -> w
-    | None -> Stdlib.Live.watch (SCM.PackageOps.currentBranch ())
+/// The shim's watch: where its last look at the store left off. It lives in a slot the runtime
+/// keeps (`Builtin.liveShimWatchGet`), because `await` takes no state and a Dark value does not
+/// outlive the call that made it. Made on the first `await`, before any waiting, so nothing that
+/// lands after a loop starts is missed.
+let currentWatch () : Stdlib.Live.Watch =
+  match Builtin.liveShimWatchGet () with
+  | Some w -> w
+  | None ->
+    let fresh = Stdlib.Live.watch (SCM.PackageOps.currentBranch ())
+    Builtin.liveShimWatchSet fresh
+    fresh
 
-  let (next, change) = Stdlib.Live.poll watch
+/// One look at the store, from where the last look left off.
+let pollStore () : Stdlib.Option.Option<Stdlib.Live.Change> =
+  let (next, change) = Stdlib.Live.poll (currentWatch ())
   Builtin.liveShimWatchSet next
   change
 
@@ -98,5 +103,11 @@ let await (specs: List<EventSpec>) : Event =
       | Timer ms -> Stdlib.Option.Option.Some ms
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.head
+
+  if wantsStore then
+    let _ = currentWatch ()
+    ()
+  else
+    ()
 
   wait wantsKey wantsStore timer 0

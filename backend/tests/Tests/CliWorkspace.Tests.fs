@@ -471,6 +471,210 @@ let private pollAndAffects =
     })
 
 
+// ─── live: the tree and the host loop ────────────────────────────────────
+
+let private plainRows (dv : RT.Dval) : List<string> =
+  match dv with
+  | RT.DList(_, rows) ->
+    rows
+    |> List.map (fun r ->
+      match r with
+      | RT.DString s -> s
+      | other -> string other)
+  | other -> failtest $"expected rows, got {other}"
+
+/// The terminal and page renderers over one fixture tree, and a table at 0, 1 and many rows.
+let private treeRendersTheSameEverywhere =
+  cliTest "a Node tree paints to rows and writes as markup" (fun target ->
+    task {
+      let state = executionState target
+      let tree =
+        "Darklang.Stdlib.Cli.UI.Node.column [ Darklang.Stdlib.Cli.UI.Node.bold \"Stats\", Darklang.Stdlib.Cli.UI.Node.table [ \"module\", \"fns\" ] [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ], Darklang.Stdlib.Cli.UI.Node.band Darklang.Stdlib.Cli.UI.Node.Severity.Error \"boom\", Darklang.Stdlib.Cli.UI.Node.row [ Darklang.Stdlib.Cli.UI.Node.text \"a\", Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ] ]"
+      let region =
+        "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 10; cols = 40 }"
+
+      let! rows =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose 40 8 (Darklang.Stdlib.Cli.UI.Node.toSpans ({tree}) ({region}) \"go\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+      Expect.equal
+        (plainRows rows)
+        [ "Stats"
+          "module  fns"
+          "------  ---"
+          "Stdlib  247"
+          "Cli     89"
+          " boom"
+          "a [ go ]"
+          "" ]
+        "the terminal frame"
+
+      let! html =
+        evalUnder state $"Darklang.Stdlib.Cli.UI.Html.renderStatic ({tree})"
+      let html =
+        match html with
+        | RT.DString s -> s
+        | other -> failtest $"expected markup, got {other}"
+      Expect.stringContains html "<th>module</th><th>fns</th>" "the table's header"
+      Expect.stringContains html "<td>Stdlib</td><td>247</td>" "a table row"
+      Expect.stringContains html "dark-band-error\">boom</div>" "the band"
+      Expect.stringContains html "<button type=\"submit\">go</button>" "the button"
+
+      let tableRows (rowsSource : string) =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose 20 5 (Darklang.Stdlib.Cli.UI.Node.toSpans (Darklang.Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] {rowsSource}) ({region}) \"\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+      let! none = tableRows "[]"
+      Expect.equal
+        (List.take 3 (plainRows none))
+        [ "k  v"; "-  -"; "" ]
+        "a table with no rows is a header and a rule"
+      let! one = tableRows "[ [ \"a\", \"1\" ] ]"
+      Expect.equal
+        (List.take 3 (plainRows one))
+        [ "k  v"; "-  -"; "a  1" ]
+        "one row"
+      let! many = tableRows "[ [ \"a\", \"1\" ], [ \"bb\", \"22\" ] ]"
+      Expect.equal
+        (List.take 4 (plainRows many))
+        [ "k   v"; "--  --"; "a   1"; "bb  22" ]
+        "widths follow the widest cell"
+    })
+
+/// Demo 1, driven a turn at a time: a key reaches the view; an edit from elsewhere is on the next
+/// frame; a broken save keeps the frame and shows the diagnostic; the fix clears it. The model
+/// (what was typed) survives every swap.
+let private viewFollowsEdits =
+  cliTest
+    "a live view repaints on an edit and keeps the last good frame across a broken one"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let run (name : string) (args : List<RT.Dval>) = callByName state name args
+
+        do! author "Tests.LiveView.init" "(): Int = 0"
+        do!
+          author
+            "Tests.LiveView.update"
+            "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
+
+        let view =
+          "Darklang.Cli.Apps.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\" }"
+        let! prepared =
+          evalUnder
+            state
+            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+        let session =
+          match prepared with
+          | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+          | other -> failtest $"the view did not start: {other}"
+
+        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+        let! sizeDv = evalUnder state size
+        let rowsOf (s : RT.Dval) =
+          task {
+            let! rows = run "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+            return plainRows rows |> List.filter (fun r -> r <> "")
+          }
+        // A turn that never returns is the loop waiting for an event nobody pushed; name it rather
+        // than hang the suite.
+        let step (s : RT.Dval) =
+          task {
+            let turn = run "Darklang.Cli.Apps.Host.step" [ s ]
+            let! finished = Task.WhenAny(turn, Task.Delay 20_000)
+            if System.Object.ReferenceEquals(finished, turn :> Task) then
+              return! turn
+            else
+              return
+                failtest
+                  "the host loop did not return within 20s: nothing it waited for happened"
+          }
+
+        let! first = rowsOf session
+        Expect.contains first "version one" "the first frame is the view's init"
+        Expect.contains first "keys: 0" "with the model at init"
+
+        // A key goes to the view's update.
+        do! pushKey state "A" "a"
+        let! session = step session
+        let! afterKey = rowsOf session
+        Expect.contains afterKey "keys: 1" "a key reached update"
+
+        // Tab focuses the button, Enter presses it: the message reaches update.
+        do! pushKey state "Tab" ""
+        let! session = step session
+        do! pushKey state "Enter" ""
+        let! session = step session
+        let! afterPress = rowsOf session
+        Expect.contains afterPress "keys: 11" "the button's message reached update"
+
+        // An edit from elsewhere: the next turn with nothing typed sees it.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+        pushTick ()
+        let! session = step session
+        let! afterEdit = rowsOf session
+        Expect.contains afterEdit "version two" "the edit is on the next frame"
+        Expect.contains afterEdit "keys: 11" "and the model survived the swap"
+        Expect.contains
+          afterEdit
+          "updated: Tests.LiveView.render"
+          "the toast names what moved"
+
+        // A broken save: the frame stays, the diagnostic is under it.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text 3 ]"
+        pushTick ()
+        let! session = step session
+        let! afterBreak = rowsOf session
+        Expect.contains afterBreak "version two" "the last good frame is still up"
+        // The band wraps at the width and the rows are padded, so look at the words together.
+        let words (rows : List<string>) =
+          rows
+          |> String.concat " "
+          |> String.split " "
+          |> List.filter ((<>) "")
+          |> String.concat " "
+        Expect.stringContains
+          (words afterBreak)
+          "newest version not applied"
+          "with the diagnostic in a band"
+
+        // The fix clears the band.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+        pushTick ()
+        let! session = step session
+        let! afterFix = rowsOf session
+        Expect.contains afterFix "version three" "the fix is on the next frame"
+        Expect.isFalse
+          ((words afterFix).Contains "not applied")
+          "and the band is gone"
+
+        // Escape leaves.
+        do! pushKey state "Escape" ""
+        let! session = step session
+        match session with
+        | RT.DRecord(_, _, _, fields) ->
+          Expect.equal
+            (Map.find "exiting" fields)
+            (Some(RT.DBool true))
+            "Escape ends the loop"
+        | other -> failtest $"expected a session, got {other}"
+      })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -486,4 +690,11 @@ let tests : List<Test> =
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
     constraintsAndConflictsReportQuiet
-    testSequenced (testList "live" [ serveFollowsEdits; pollAndAffects ]) ]
+    testSequenced (
+      testList
+        "live"
+        [ serveFollowsEdits
+          pollAndAffects
+          treeRendersTheSameEverywhere
+          viewFollowsEdits ]
+    ) ]

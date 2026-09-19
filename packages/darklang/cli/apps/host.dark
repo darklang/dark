@@ -148,12 +148,16 @@ let render (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 
     { s with band = Stdlib.Option.Option.Some why }
 
-/// Paint the current frame.
+/// Paint the current frame. A session with no terminal (a test driving `step`) paints nothing and
+/// is read through `viewAtSize` instead.
 let present (s: Session<'model, 'msg>) : Session<'model, 'msg> =
-  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+  if s.terminal.status == Stdlib.Cli.Tui.TerminalSession.Status.Stopped then
+    s
+  else
+    let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
 
-  { s with
-      terminal = Stdlib.Cli.Tui.TerminalSession.presentAtSize s.terminal size (viewAtSize s size) }
+    { s with
+        terminal = Stdlib.Cli.Tui.TerminalSession.presentAtSize s.terminal size (viewAtSize s size) }
 
 
 // --- updating ---
@@ -252,9 +256,9 @@ let run (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 
 // --- starting ---
 
-/// A session for <param view> at its `init`, on screen. `Error` when it cannot start: a name that
-/// does not resolve, an `init` that fails, no terminal.
-let start
+/// A session for <param view> at its `init`, rendered once, with no terminal yet. `Error` when a
+/// name does not resolve or `init` fails. What a test drives; `start` puts it on screen.
+let prepare
   (branchId: Uuid)
   (view: Model.View)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
@@ -267,27 +271,41 @@ let start
     match Stdlib.Live.call initLg () with
     | Error e -> Stdlib.Result.Result.Error $"{view.init}: {e}"
     | Ok model ->
-      let s =
-        Session
-          { branchId = branchId
-            view = view
-            init = initLg
-            update = updateLg
-            render = renderLg
-            model = model
-            focus = ""
-            lastFrame = Stdlib.Option.Option.None
-            band = Stdlib.Option.Option.None
-            toast = Stdlib.Option.Option.None
-            terminal = Stdlib.Cli.Tui.TerminalSession.init ()
-            exiting = false }
+      Stdlib.Result.Result.Ok(
+        render (
+          Session
+            { branchId = branchId
+              view = view
+              init = initLg
+              update = updateLg
+              render = renderLg
+              model = model
+              focus = ""
+              lastFrame = Stdlib.Option.Option.None
+              band = Stdlib.Option.Option.None
+              toast = Stdlib.Option.Option.None
+              terminal = Stdlib.Cli.Tui.TerminalSession.init ()
+              exiting = false }
+        )
+      )
 
-      let s = render s
-      let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+/// `prepare`, on screen. `Error` also when there is no terminal to take.
+let start
+  (branchId: Uuid)
+  (view: Model.View)
+  : Stdlib.Result.Result<Session<'model, 'msg>, String> =
+  match prepare branchId view with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok s ->
+    let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
 
-      match Stdlib.Cli.Tui.TerminalSession.startAtSize size (viewAtSize s size) with
-      | Ok terminal -> Stdlib.Result.Result.Ok { s with terminal = terminal }
-      | Error message -> Stdlib.Result.Result.Error message
+    match Stdlib.Cli.Tui.TerminalSession.startAtSize size (viewAtSize s size) with
+    | Ok terminal -> Stdlib.Result.Result.Ok { s with terminal = terminal }
+    | Error message -> Stdlib.Result.Result.Error message
+
+/// The frame a session shows at <param size>, as rows without styling. For tests.
+let plainRows (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : List<String> =
+  (viewAtSize s size).rows |> Stdlib.List.map (fun r -> Stdlib.String.trimEnd (Stdlib.Cli.Tui.Text.stripSgr r))
 
 /// Leave the screen as we found it.
 let stop (s: Session<'model, 'msg>) : Unit =
