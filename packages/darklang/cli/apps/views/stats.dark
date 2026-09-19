@@ -6,9 +6,9 @@
 module Darklang.Cli.Apps.Views.Stats
 
 type Model =
-  { fns: Int64
-    types: Int64
-    values: Int64
+  { ops: Int64
+    draft: Int64
+    commits: Int64
     presses: Int
     note: String }
 
@@ -16,19 +16,14 @@ type Msg =
   | Refresh
   | Noted of String
 
-let count (kind: String) : Int64 =
-  Stdlib.Sqlite.scalarIntP
-    (Stdlib.LocalStore.path ())
-    "SELECT count(*) AS n FROM locations WHERE item_type = @p0 AND unlisted_at IS NULL"
-    [ kind ]
-    "n"
-  |> Stdlib.Option.withDefault 0L
-
+/// Read through the op-log silo, never `locations` directly: that table is main-only.
 let init () : Model =
+  let branch = SCM.PackageOps.currentBranch ()
+
   Model
-    { fns = count "fn"
-      types = count "type"
-      values = count "value"
+    { ops = SCM.PackageOps.countFor branch
+      draft = SCM.PackageOps.draftOpCountFor branch
+      commits = SCM.PackageOps.commitCountOnBranch branch
       presses = 0
       note = "" }
 
@@ -40,13 +35,13 @@ let update (m: Model) (event: Host.Event<Msg>) : Model =
 
 let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
   Stdlib.Cli.UI.Node.column
-    [ Stdlib.Cli.UI.Node.bold "This store"
+    [ Stdlib.Cli.UI.Node.bold "This branch"
       Stdlib.Cli.UI.Node.text ""
       Stdlib.Cli.UI.Node.table
-        [ "kind", "live names" ]
-        [ [ "functions", Stdlib.Int64.toString m.fns ]
-          [ "types", Stdlib.Int64.toString m.types ]
-          [ "values", Stdlib.Int64.toString m.values ] ]
+        [ "what", "count" ]
+        [ [ "ops it sees", Stdlib.Int64.toString m.ops ]
+          [ "in the draft", Stdlib.Int64.toString m.draft ]
+          [ "commits", Stdlib.Int64.toString m.commits ] ]
       Stdlib.Cli.UI.Node.text ""
       Stdlib.Cli.UI.Node.row
         [ Stdlib.Cli.UI.Node.Node.Button("refresh", Msg.Refresh)

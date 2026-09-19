@@ -708,11 +708,13 @@ let hostedOpsAreNotThisStoresDraft =
 let aPullIsReportedByThePoller =
   twoStoreTest "a pull on B is reported by B's poll, by name" (fun a b ->
     task {
+      activate b
+      // Built AFTER the swap: the state's package manager answers from the store that is active
+      // when it is made.
       let! state = Tests.CliTestHarness.buildState ()
       let poll (watch : RT.Dval) =
         Tests.CliTestHarness.callByName state "Darklang.Stdlib.Live.poll" [ watch ]
 
-      activate b
       let! watch =
         Tests.CliTestHarness.evalUnder
           state

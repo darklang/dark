@@ -166,7 +166,7 @@ let present (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 let applyUpdate (s: Session<'model, 'msg>) (event: Event<'msg>) : Session<'model, 'msg> =
   match Stdlib.Live.call s.update s.model with
   | Ok partial ->
-    match Builtin.applicableTryApply partial event with
+    match Stdlib.Live.apply partial event with
     | Ok model -> { s with model = model; toast = Stdlib.Option.Option.None }
     | Error rte -> { s with band = Stdlib.Option.Option.Some $"{s.view.update}: {rte}" }
   | Error e -> { s with band = Stdlib.Option.Option.Some e }

@@ -55,18 +55,19 @@ val sliceMs = 50
 /// keeps (`Builtin.liveShimWatchGet`), because `await` takes no state and a Dark value does not
 /// outlive the call that made it. Made on the first `await`, before any waiting, so nothing that
 /// lands after a loop starts is missed.
+let remember (watch: Stdlib.Live.Watch) : Stdlib.Live.Watch =
+  Builtin.liveShimWatchSet watch
+  watch
+
 let currentWatch () : Stdlib.Live.Watch =
   match Builtin.liveShimWatchGet () with
   | Some w -> w
-  | None ->
-    let fresh = Stdlib.Live.watch (SCM.PackageOps.currentBranch ())
-    Builtin.liveShimWatchSet fresh
-    fresh
+  | None -> remember (Stdlib.Live.watch (SCM.PackageOps.currentBranch ()))
 
 /// One look at the store, from where the last look left off.
 let pollStore () : Stdlib.Option.Option<Stdlib.Live.Change> =
   let (next, change) = Stdlib.Live.poll (currentWatch ())
-  Builtin.liveShimWatchSet next
+  let _ = remember next
   change
 
 /// One slice: a key if one came within it, else nothing.

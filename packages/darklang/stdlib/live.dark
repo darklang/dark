@@ -432,9 +432,15 @@ let diagnose
   diagnostic (refresh branchId change.ops (start entry))
 
 
+/// Apply <param f> to <param arg> and get a failure back as a value. A fn a host resolved live is
+/// the approval root of the call, as a router handed to `serve` is. A fn with one more parameter
+/// comes back partially applied, for a second `apply`.
+let apply (f: 'a -> 'b) (arg: 'a) : Stdlib.Result.Result<'b, String> =
+  Builtin.applicableTryApply f arg
+
 /// Call the version <param lg> is on with <param arg>, and get a failure back as a value: a host
 /// that keeps the last good frame with the error under it cannot let user code unwind its loop.
 let call (lg: LastGood) (arg: 'a) : Stdlib.Result.Result<'b, String> =
   match applicable lg with
-  | Ok f -> Builtin.applicableTryApply f arg
+  | Ok f -> apply f arg
   | Error e -> Stdlib.Result.Result.Error e
