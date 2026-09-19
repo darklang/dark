@@ -8,6 +8,9 @@ type Args =
   { routerPath: String
     port: Int
     maxBodyBytes: Int
+    /// Follow edits: resolve the router by name per request, on the last version that passes its
+    /// checks (`Stdlib.Live`). On by default; `--no-live` pins the version resolved at start.
+    live: Bool
     error: Stdlib.Option.Option<String> }
 
 let defaultArgs (): Args =
@@ -15,6 +18,7 @@ let defaultArgs (): Args =
     { routerPath = ""
       port = 8080
       maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
+      live = true
       error = Stdlib.Option.Option.None }
 
 /// Parse a list of args left-to-right. Recognized: a single positional
@@ -34,6 +38,7 @@ let parseArgs (rest: List<String>) (acc: Args) : Args =
       { acc with
           error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
     | Ok n -> parseArgs tail { acc with maxBodyBytes = n }
+  | "--no-live" :: tail -> parseArgs tail { acc with live = false }
   | flag :: _ when Stdlib.String.startsWith flag "--" ->
     { acc with
         error = Stdlib.Option.Option.Some $"Unknown or incomplete flag: {flag}" }
@@ -48,12 +53,15 @@ let parseArgs (rest: List<String>) (acc: Args) : Args =
 
 
 let usageLines () : List<String> =
-  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N]"
+  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N] [--no-live]"
     ""
     "Arguments:"
     "  router-path        Dotted path to a router fn or value (Request -> Response)"
     "  --port N           TCP port to listen on (default: 8080)"
     "  --max-body-bytes N Reject request bodies larger than N bytes (default: 31457280, 30 MB)"
+    "  --no-live          Pin the router version resolved at start. By default the server"
+    "                     follows edits: each request runs the newest version of the router"
+    "                     that passes its checks, and a broken save keeps the previous one."
     ""
     "Examples:"
     "  serve Darklang.DemoData.HttpServerTest.router"
@@ -100,7 +108,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         // which breaks the string-eval form of serve; applicableByName sidesteps it.
         // TODO(serve-parser): fix the underlying parser (NI-literal in argument position) — pre-existing platform bug.
         // Resolve BEFORE announcing "Listening" so a bad router name reports cleanly, never a false start.
-        match Builtin.applicableByName state.currentBranchId parsed.routerPath with
+        // This resolved VALUE is the whole router only under `--no-live`; the live server holds the
+        // location and resolves per request, and uses this one for the bind-time approval root.
+        match Stdlib.Live.applicableByName state.currentBranchId parsed.routerPath with
         | Ok router ->
           // Announce only once the port is actually bound (via onListening), so a taken port never prints a
           // "Listening" that then turns out to be false. Requests are logged (Config.defaults sets
@@ -122,9 +132,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                   [ Stdlib.Cli.UI.Colors.hint $"  From the host: http://localhost:{hostStr}" ]
 
           let announce () : Unit =
+            let following =
+              if parsed.live then
+                "  Following edits: a saved change to the router, or anything it calls, is live on the next request."
+              else
+                "  Pinned (--no-live): the version resolved at start serves until restart."
+
             let head =
               [ $"Using router: {parsed.routerPath}"
                 $"Max body bytes: {maxBytesStr}"
+                following
                 ""
                 Stdlib.Cli.UI.Colors.success
                   $"Listening on http://localhost:{portStr}, and on every interface" ]
@@ -139,7 +156,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
             Stdlib.printLines (Stdlib.List.append head (Stdlib.List.append hostLines tail))
 
-          match Stdlib.HttpServer.serve config router announce with
+          let served =
+            match (parsed.live, Stdlib.Live.locationOfName parsed.routerPath) with
+            | (true, Some location) ->
+              Stdlib.HttpServer.serveLive
+                config
+                (Stdlib.Live.Router.start state.currentBranchId location)
+                Stdlib.Live.Router.step
+                router
+                announce
+            | _ -> Stdlib.HttpServer.serve config router announce
+
+          match served with
           | Ok _ -> ()
           | Error msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
           state

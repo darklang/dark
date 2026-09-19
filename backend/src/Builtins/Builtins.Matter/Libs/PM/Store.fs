@@ -223,6 +223,29 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    // The store-change signal for a process that stays up (a TUI, `serve`, a daemon). See
+    // `LibDB.Sqlite.DataVersion`: a counter that moves when a commit lands through any other
+    // connection, so a host loop can ask "anything new?" for the cost of one pragma instead of
+    // re-reading the log. Comparable only with an earlier answer from the same process.
+    { name = fn "storeVersion" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt
+      description =
+        "The store's change counter as this process sees it: moves whenever a commit lands "
+        + "through another connection. Only \"same as before\" or \"moved\" means anything."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply { return Dval.int (bigint (LibDB.Sqlite.DataVersion.current ())) }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // `PackageRead`, like every other question about the package store: `DbRead` is the scoped
+      // effect for a user table, and this names no table.
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

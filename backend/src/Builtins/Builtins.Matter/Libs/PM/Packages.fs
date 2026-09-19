@@ -378,6 +378,49 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // The by-hash twin of `applicableByName`, for a host that follows edits (`Stdlib.Live`). A name
+    // resolves to whatever is bound NOW; a host that wants to keep running the last version that passed
+    // its checks while a broken edit sits at the name needs to call by hash. Every version is still in
+    // the store, so this is a lookup, not a resurrection.
+    { name = fn "applicableByHash" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "hash"
+            TString
+            "a package fn's content hash, as `Hash` carries it" ]
+      returnType =
+        TypeReference.result
+          (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
+          TString
+      description =
+        "Resolves a package function by its content <param hash> to a callable value, "
+        + "as a Result -- Error if no function has that hash."
+      fn =
+        (function
+        | _, _, _, [| DString hash |] ->
+          uply {
+            let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
+            let err (msg : string) = Dval.resultError okKT KTString (DString msg)
+            match! pm.getFn (PT.Hash hash) with
+            | Some _ ->
+              let namedFn : ApplicableNamedFn =
+                { name = FQFnName.Package(Hash hash)
+                  typeSymbolTable = TST.empty
+                  typeArgs = []
+                  // As in `applicableByName`: whoever applies this supplies the frame access.
+                  access = None
+                  argsSoFar = [] }
+              return Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
+            | None -> return err $"No function with hash {hash}"
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmSearch" 0
       typeParams = []
       parameters =

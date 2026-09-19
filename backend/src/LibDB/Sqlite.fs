@@ -70,6 +70,42 @@ module Backup =
       copy (connStringFor source) connString
 
 
+/// "Did the store change since I last asked?", for a process that stays up.
+///
+/// `PRAGMA data_version` is a per-connection counter: it moves when a commit lands through any OTHER
+/// connection, in this process or in another one. Fumble opens a pooled connection per query, and which
+/// pooled connection a query lands on is not ours to pick, so two reads of the pragma through it would
+/// not be comparable. This module holds one connection of its own for the life of the process and asks it
+/// nothing but this. It is re-opened when a test repoints the store.
+///
+/// The number means nothing on its own: only "same as last time" or "moved" is information, and only
+/// within one process. A host loop keeps the last value and polls (`Stdlib.Live.poll`).
+module DataVersion =
+  let private gate = obj ()
+  let mutable private held : Option<string * SqliteConnection> = None
+
+  let private connection () : SqliteConnection =
+    match held with
+    | Some(cs, conn) when cs = connString -> conn
+    | stale ->
+      stale
+      |> Option.iter (fun (_, conn) ->
+        try
+          conn.Dispose()
+        with _ ->
+          ())
+      let conn = new SqliteConnection(connString)
+      conn.Open()
+      held <- Some(connString, conn)
+      conn
+
+  let current () : int64 =
+    lock gate (fun () ->
+      use cmd = (connection ()).CreateCommand()
+      cmd.CommandText <- "PRAGMA data_version"
+      cmd.ExecuteScalar() |> unbox<int64>)
+
+
 module Sql =
   // Initialize connection with PRAGMA settings that can't be set in the connection string
   let initializeConnection (props : Sql.SqlProps) : Sql.SqlProps =
