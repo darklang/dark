@@ -1,0 +1,331 @@
+/// One tree for every host. A view is `Model -> Node`, and the host decides what a node is on its
+/// own surface: `Node.toSpans` paints it into a terminal region (over `Layout`, `Table`, `Text`),
+/// `Html.render` writes it as markup. The view never knows which.
+///
+/// A node is data, not drawing. That is what makes a frame diffable, a view testable by asserting on
+/// the tree, and a render replayable later. The one exception is `Input`, which carries the message
+/// constructor its edits turn into, since a message has to carry the new text and a value cannot.
+/// A tree is built by `render` and consumed by the host in the same frame; nothing retains one.
+///
+/// Sizing is the host's. A node has a NATURAL size (`measure`) and takes what the region gives it:
+/// a `Column` stacks children by their natural rows and clips at the bottom; a `Row` lays children
+/// side by side by natural width and hands the leftover to the last that wants it; `Region` fixes a
+/// box. There is no constraint solver here, and there should not be until something needs one.
+///
+/// The structured editor's node vocabulary is designed so this could share it; it does not, yet.
+module Darklang.Stdlib.Cli.UI.Node
+
+/// What a `Styled` node does to the text under it. Semantic, not a colour: the terminal picks a
+/// colour, the page picks a class.
+type Style =
+  | Bold
+  | Dim
+  | Italic
+  | Underline
+  | Success
+  | Error
+  | Warning
+  | Info
+  | Muted
+  | Highlight
+
+/// How loud a `Band` is.
+type Severity =
+  | Info
+  | Warning
+  | Error
+
+/// A text field. `id` names it across frames (focus follows the id, not the position);
+/// `edited` turns the new text into the app's message.
+type InputSpec<'msg> =
+  { id: String
+    value: String
+    placeholder: String
+    edited: String -> 'msg }
+
+type Node<'msg> =
+  /// One line of text, clipped to the width it is given.
+  | Text of String
+  | Styled of Style * Node<'msg>
+  /// Children side by side.
+  | Row of List<Node<'msg>>
+  /// Children stacked.
+  | Column of List<Node<'msg>>
+  /// A header row, a rule, then the rows; column widths from the content.
+  | Table of columns: List<String> * rows: List<List<String>>
+  /// Children stacked, each marked as an item.
+  | ListOf of List<Node<'msg>>
+  | Input of InputSpec<'msg>
+  /// A label that sends `'msg` when pressed.
+  | Button of label: String * 'msg
+  | Link of label: String * href: String
+  /// `node` in a box of exactly this many rows and columns (clipped, or padded).
+  | Region of rows: Int * cols: Int * Node<'msg>
+  /// A full-width message in the severity's colour. This is where a diagnostic goes when the host
+  /// keeps the last good frame under it.
+  | Band of Severity * String
+  /// Rows already rendered by something older. The escape hatch for views written as lines.
+  | Rows of List<String>
+  /// Nothing. A branch of a view that has nothing to say this frame.
+  | Empty
+
+
+// --- building ---
+
+let text (s: String) : Node<'msg> = Node.Text s
+
+let column (children: List<Node<'msg>>) : Node<'msg> = Node.Column children
+
+let row (children: List<Node<'msg>>) : Node<'msg> = Node.Row children
+
+let styled (style: Style) (child: Node<'msg>) : Node<'msg> = Node.Styled(style, child)
+
+let bold (s: String) : Node<'msg> = Node.Styled(Style.Bold, Node.Text s)
+
+let dim (s: String) : Node<'msg> = Node.Styled(Style.Dim, Node.Text s)
+
+let band (severity: Severity) (message: String) : Node<'msg> = Node.Band(severity, message)
+
+let table (columns: List<String>) (rows: List<List<String>>) : Node<'msg> =
+  Node.Table(columns, rows)
+
+/// A `Column` of one `Text` per line of <param s>.
+let lines (s: String) : Node<'msg> =
+  Node.Column(Stdlib.String.split s "\n" |> Stdlib.List.map (fun l -> Node.Text l))
+
+
+// --- measuring ---
+
+/// The width of the widest cell in each column of a table, headers included.
+let tableWidths (columns: List<String>) (rows: List<List<String>>) : List<Int> =
+  columns
+  |> Stdlib.List.indexedMap (fun i header ->
+    let headerWidth = Stdlib.String.displayWidth header
+
+    rows
+    |> Stdlib.List.fold headerWidth (fun widest r ->
+      match Stdlib.List.getAt r i with
+      | Some cell -> Stdlib.Int.max widest (Stdlib.String.displayWidth cell)
+      | None -> widest))
+
+/// The size a node would take if nothing constrained it: (rows, cols).
+let measure (node: Node<'msg>) : (Int * Int) =
+  match node with
+  | Text s -> (1, Stdlib.String.displayWidth s)
+  | Styled(_, inner) -> measure inner
+  | Row children ->
+    children
+    |> Stdlib.List.fold (0, 0) (fun acc child ->
+      let (rows, cols) = acc
+      let (r, c) = measure child
+      (Stdlib.Int.max rows r, cols + c))
+  | Column children ->
+    children
+    |> Stdlib.List.fold (0, 0) (fun acc child ->
+      let (rows, cols) = acc
+      let (r, c) = measure child
+      (rows + r, Stdlib.Int.max cols c))
+  | Table(columns, rows) ->
+    let widths = tableWidths columns rows
+    let gaps = 2 * (Stdlib.Int.max 0 ((Stdlib.List.length widths) - 1))
+    let width = (Stdlib.List.fold widths 0 (fun acc w -> acc + w)) + gaps
+    // Header, rule, rows.
+    (2 + (Stdlib.List.length rows), width)
+  | ListOf children ->
+    children
+    |> Stdlib.List.fold (0, 0) (fun acc child ->
+      let (rows, cols) = acc
+      let (r, c) = measure child
+      (rows + r, Stdlib.Int.max cols (c + 2)))
+  | Input spec ->
+    let shown = if spec.value == "" then spec.placeholder else spec.value
+    (1, (Stdlib.String.displayWidth shown) + 4)
+  | Button(label, _) -> (1, (Stdlib.String.displayWidth label) + 4)
+  | Link(label, _) -> (1, Stdlib.String.displayWidth label)
+  | Region(rows, cols, _) -> (rows, cols)
+  | Band(_, message) -> (1, Stdlib.String.displayWidth message)
+  | Rows rows ->
+    (Stdlib.List.length rows,
+     rows |> Stdlib.List.fold 0 (fun w r -> Stdlib.Int.max w (Stdlib.String.displayWidth r)))
+  | Empty -> (0, 0)
+
+
+// --- focus ---
+
+/// The focusable nodes, in tree order, as their ids: an `Input` by its `id`, a `Button` by its
+/// label. Focus is an index into this list, kept by the host, and it follows the id across frames
+/// so a re-render that adds a row above does not move it.
+let focusable (node: Node<'msg>) : List<String> =
+  match node with
+  | Input spec -> [ spec.id ]
+  | Button(label, _) -> [ label ]
+  | Styled(_, inner) -> focusable inner
+  | Region(_, _, inner) -> focusable inner
+  | Row children -> children |> Stdlib.List.map focusable |> Stdlib.List.flatten
+  | Column children -> children |> Stdlib.List.map focusable |> Stdlib.List.flatten
+  | ListOf children -> children |> Stdlib.List.map focusable |> Stdlib.List.flatten
+  | _ -> []
+
+/// The `Button` message or `Input` spec under a focus id, if the tree still has it.
+type Focused<'msg> =
+  | OnButton of 'msg
+  | OnInput of InputSpec<'msg>
+
+let findFocused (node: Node<'msg>) (id: String) : Stdlib.Option.Option<Focused<'msg>> =
+  match node with
+  | Input spec -> if spec.id == id then Stdlib.Option.Option.Some(Focused.OnInput spec) else Stdlib.Option.Option.None
+  | Button(label, msg) -> if label == id then Stdlib.Option.Option.Some(Focused.OnButton msg) else Stdlib.Option.Option.None
+  | Styled(_, inner) -> findFocused inner id
+  | Region(_, _, inner) -> findFocused inner id
+  | Row children -> children |> Stdlib.List.filterMap (fun c -> findFocused c id) |> Stdlib.List.head
+  | Column children -> children |> Stdlib.List.filterMap (fun c -> findFocused c id) |> Stdlib.List.head
+  | ListOf children -> children |> Stdlib.List.filterMap (fun c -> findFocused c id) |> Stdlib.List.head
+  | _ -> Stdlib.Option.Option.None
+
+
+// --- the terminal ---
+
+/// The SGR prefix a style paints with.
+let styleCode (style: Style) : String =
+  match style with
+  | Bold -> Colors.bold
+  | Dim -> Colors.dim
+  | Italic -> Colors.italic
+  | Underline -> Colors.underline
+  | Success -> Colors.successColor
+  | Error -> Colors.errorColor
+  | Warning -> Colors.warningColor
+  | Info -> Colors.infoColor
+  | Muted -> Colors.muted
+  | Highlight -> Colors.grayBg ++ Colors.white
+
+let severityCode (severity: Severity) : String =
+  match severity with
+  | Info -> Colors.bgBlue ++ Colors.white
+  | Warning -> Colors.bgYellow ++ Colors.black
+  | Error -> Colors.bgRed ++ Colors.brightWhite
+
+/// A sub-region: `rows` rows starting `top` rows down and `left` columns in, `cols` wide, never
+/// reaching outside the parent.
+let sub (region: Layout.Region) (top: Int) (left: Int) (rows: Int) (cols: Int) : Layout.Region =
+  Layout.Region
+    { top = region.top + top
+      left = region.left + left
+      rows = Stdlib.Int.max 0 (Stdlib.Int.min rows (region.rows - top))
+      cols = Stdlib.Int.max 0 (Stdlib.Int.min cols (region.cols - left)) }
+
+/// The text rows of a table: header, rule, rows, each cell padded to its column.
+let tableRows (columns: List<String>) (rows: List<List<String>>) : List<String> =
+  let widths = tableWidths columns rows
+
+  let line (cells: List<String>) : String =
+    widths
+    |> Stdlib.List.indexedMap (fun i w ->
+      let cell = Stdlib.List.getAt cells i |> Stdlib.Option.withDefault ""
+      Stdlib.String.padEndToWidth cell w)
+    |> Stdlib.String.join "  "
+    |> Stdlib.String.trimEnd
+
+  let rule =
+    widths |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w) |> Stdlib.String.join "  "
+
+  Stdlib.List.append
+    [ Colors.boldText (line columns), Colors.dimText rule ]
+    (rows |> Stdlib.List.map line)
+
+/// Paint <param node> into <param region>. <param focus> is the focused id, "" for none; <param
+/// style> is the SGR prefix inherited from enclosing `Styled` nodes ("" at the top).
+let paint
+  (node: Node<'msg>)
+  (region: Layout.Region)
+  (focus: String)
+  (style: String)
+  : List<Layout.Span> =
+  let textAt (r: Int) (s: String) : List<Layout.Span> =
+    let shown = if style == "" then s else Colors.colorize style s
+    Layout.at region r 0 shown
+
+  if region.rows <= 0 || region.cols <= 0 then
+    []
+  else
+    match node with
+    | Empty -> []
+    | Text s -> textAt 0 s
+    | Rows rows -> rows |> Stdlib.List.indexedMap (fun i r -> textAt i r) |> Stdlib.List.flatten
+    | Styled(inner, child) -> paint child region focus (style ++ (styleCode inner))
+    | Band(severity, message) ->
+      let code = severityCode severity
+      let lines = Tui.Text.wrapAtWords message (Stdlib.Int.max 1 (region.cols - 2))
+      // At most three rows: a band is a headline, not a page.
+      Stdlib.List.take lines 3
+      |> Stdlib.List.indexedMap (fun i line ->
+        let padded = Stdlib.String.padEndToWidth (" " ++ line) region.cols
+        Layout.at region i 0 (Colors.colorize code padded))
+      |> Stdlib.List.flatten
+    | Table(columns, rows) ->
+      tableRows columns rows
+      |> Stdlib.List.indexedMap (fun i r -> textAt i r)
+      |> Stdlib.List.flatten
+    | Input spec ->
+      let shown =
+        if spec.value == "" then Colors.dimText spec.placeholder else spec.value
+      let box = if focus == spec.id then Colors.colorize (Colors.grayBg ++ Colors.white) $"[ {shown} ]" else $"[ {shown} ]"
+      Layout.at region 0 0 box
+    | Button(label, _) ->
+      let box =
+        if focus == label then
+          Colors.colorize (Colors.greenBg ++ Colors.black ++ Colors.bold) $"[ {label} ]"
+        else
+          Colors.colorize Colors.bold $"[ {label} ]"
+      Layout.at region 0 0 box
+    | Link(label, _) -> textAt 0 (Colors.underlineText label)
+    | Region(rows, cols, inner) -> paint inner (sub region 0 0 rows cols) focus style
+    | Column children ->
+      let (_top, chunks) =
+        children
+        |> Stdlib.List.fold (0, []) (fun acc child ->
+          let (top, collected) = acc
+          let (rows, _) = measure child
+
+          if top >= region.rows then
+            (top, collected)
+          else
+            let spans = paint child (sub region top 0 rows region.cols) focus style
+            (top + rows, Stdlib.List.push collected spans))
+
+      chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
+    | ListOf children ->
+      let (_top, chunks) =
+        children
+        |> Stdlib.List.fold (0, []) (fun acc child ->
+          let (top, collected) = acc
+          let (rows, _) = measure child
+
+          if top >= region.rows then
+            (top, collected)
+          else
+            let marker = Layout.at region top 0 (Colors.dimText "-")
+            let spans = paint child (sub region top 2 rows (region.cols - 2)) focus style
+            (top + rows, Stdlib.List.push collected (Stdlib.List.append marker spans)))
+
+      chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
+    | Row children ->
+      // Natural widths, one column of gap between children; the last child that overflows takes
+      // what is left and is clipped there.
+      let (_left, chunks) =
+        children
+        |> Stdlib.List.fold (0, []) (fun acc child ->
+          let (left, collected) = acc
+          let (_, cols) = measure child
+
+          if left >= region.cols then
+            (left, collected)
+          else
+            let spans = paint child (sub region 0 left region.rows cols) focus style
+            (left + cols + 1, Stdlib.List.push collected spans))
+
+      chunks |> Stdlib.List.reverse |> Stdlib.List.flatten
+
+/// Paint <param node> into <param region>. The terminal renderer.
+let toSpans (node: Node<'msg>) (region: Layout.Region) (focus: String) : List<Layout.Span> =
+  paint node region focus ""
