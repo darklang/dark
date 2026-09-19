@@ -17,7 +17,7 @@ module Darklang.Cli.Sync.Autopush
 val configKey = "live.autopush"
 
 let enabled () : Bool =
-  (Stdlib.LocalStore.configGet configKey) == "on"
+  (Config.get configKey) == (Stdlib.Option.Option.Some "on")
 
 /// The generated message: how many ops, and the first name the draft binds.
 let messageFor (branchId: Uuid) : String =
