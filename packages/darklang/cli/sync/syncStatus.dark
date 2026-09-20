@@ -82,90 +82,164 @@ let executeImport (state: AppState) (path: String) : AppState =
 /// Comparing the two heads directly is NOT equivalent: an op id is a content hash, so the same code
 /// written on two machines lands the SAME id carrying each machine's own origin_ts, and two stores holding
 /// exactly the same ops report a different max.
+/// What `dark sync status` knows, as data. Read by `Status.load`, rendered by `Status.render`:
+/// the same tree prints once for the command and repaints in a live pane (`dark apps view sync`).
+module Status =
+  type Verdict =
+    | InSync
+    | ToSend of Int64
+    | Behind
+    | BothWays of Int64
+
+  type Model =
+    { url: String
+      local: Int64
+      relay: Int64
+      verdict: Verdict
+      /// Local branches with ops the relay lacks: (name, count).
+      unpushedBranches: List<(String * Int64)>
+      /// Owners whose hosted branches this store has never pulled.
+      unpulledFrom: List<String>
+      /// A relay holding far fewer ops than this store, with nothing waiting: wiped or replaced.
+      relayLooksReplaced: Bool
+      problem: Stdlib.Option.Option<String> }
+
+  let failed (url: String) (problem: String) : Model =
+    Model
+      { url = url
+        local = 0L
+        relay = 0L
+        verdict = Verdict.InSync
+        unpushedBranches = []
+        unpulledFrom = []
+        relayLooksReplaced = false
+        problem = Stdlib.Option.Option.Some problem }
+
+  /// Ask the relay. Every read here; nothing in `render`.
+  let load (url: String) : Model =
+    if url == "" then
+      failed url "no relay -- `dark connect <url>` first, or pass a url."
+    else
+      let mine = SCM.Wire.localHead ()
+
+      match relayGet $"{url}/sync/head" with
+      | Error e -> failed url $"Status from {url} failed: {e}"
+      | Ok respBody ->
+        match SCM.Wire.headDecode respBody with
+        | Error _ -> failed url "Relay returned an unparseable head."
+        | Ok theirs ->
+          // Effective ops this relay is not known to hold. The same question `push` decides on.
+          let unpushed = SCM.Wire.unpushedCount url
+          let toSend = unpushed != 0L
+
+          // Theirs has moved since we last pulled from it. Same predicate `pull` skips on, so the two
+          // cannot disagree about whether there is anything to fetch.
+          let toReceive =
+            Stdlib.Bool.not (SCM.Wire.seenEverything (SCM.Wire.lastSeenHead url) theirs mine)
+
+          let verdict =
+            match (toSend, toReceive) with
+            | (false, false) -> Verdict.InSync
+            | (true, false) -> Verdict.ToSend unpushed
+            // No count on this side: how many ops are waiting is only knowable by asking for them,
+            // and `/sync/head` is deliberately a cheap stamp.
+            | (false, true) -> Verdict.Behind
+            | (true, true) -> Verdict.BothWays unpushed
+
+          // Branch ops travel by `branch push`, not `sync`, so they are reported apart from the
+          // verdict and never make it "out of sync". Both directions: local branches the relay
+          // lacks, and hosted branches this store has never pulled -- the handoff that otherwise
+          // needs a Slack message ("I pushed a branch; my identity is X").
+          let unpulledFrom =
+            match relayGetAuthed url "/branch/owners" with
+            | Error _ -> []
+            | Ok body ->
+              let knownIds =
+                SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
+
+              let me = SCM.PackageOps.identity ()
+
+              Stdlib.String.fromBlobWithReplacement body
+              |> Stdlib.String.splitOnNewline
+              |> Stdlib.List.filterMap (fun line ->
+                match Stdlib.String.split (Stdlib.String.trim line) " " with
+                | [ owner, bid ] ->
+                  if (owner != me) && (Stdlib.Bool.not (Stdlib.List.member knownIds bid)) then
+                    Stdlib.Option.Option.Some owner
+                  else
+                    Stdlib.Option.Option.None
+                | _ -> Stdlib.Option.Option.None)
+              |> Stdlib.List.unique
+
+          Model
+            { url = url
+              local = mine.count
+              relay = theirs.count
+              verdict = verdict
+              unpushedBranches = SCM.Wire.unpushedBranches url
+              unpulledFrom = unpulledFrom
+              // A relay holding FEWER ops than this store, with nothing waiting to send, is a relay
+              // that was wiped or replaced since the last push (main-only push never sends a
+              // branch's ops, so a small gap is normal; a large one is not). `pull` notices the new
+              // instance and re-arms the push.
+              relayLooksReplaced = (verdict == Verdict.InSync) && (theirs.count + 100L < mine.count)
+              problem = Stdlib.Option.Option.None }
+
+  type Msg = | Reload
+
+  /// The live pane's `init`: the remembered relay.
+  let init () : Model = load (SCM.PackageOps.relay ())
+
+  let update (m: Model) (event: Cli.Apps.Host.Event<Msg>) : Model =
+    match event with
+    | Msg Reload -> load m.url
+    | Key _ -> m
+
+  let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+    match m.problem with
+    | Some problem -> Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Error (Stdlib.Cli.UI.Node.text problem)
+    | None ->
+      let ok (s: String) : Stdlib.Cli.UI.Node.Node<Msg> =
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text s)
+
+      let hint (s: String) : Stdlib.Cli.UI.Node.Node<Msg> =
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Muted (Stdlib.Cli.UI.Node.text ("  " ++ s))
+
+      let verdict =
+        match m.verdict with
+        | InSync -> ok "in sync."
+        | ToSend n -> ok $"{Stdlib.Int64.toString n} op(s) to send -- `dark push {m.url}`."
+        | Behind -> ok $"behind the relay -- `dark pull {m.url}`."
+        | BothWays n ->
+          ok $"out of sync both ways ({Stdlib.Int64.toString n} op(s) to send) -- `dark sync {m.url}`."
+
+      let branchHints =
+        Stdlib.List.append
+          (m.unpushedBranches
+           |> Stdlib.List.map (fun entry ->
+             let (name, n) = entry
+             hint $"branch \"{name}\": {Stdlib.Int64.toString n} op(s) not on the relay -- `dark branch push {name}`."))
+          (m.unpulledFrom
+           |> Stdlib.List.map (fun owner ->
+             hint $"the relay holds branches from \"{owner}\" you haven't pulled -- `dark branch pull --from {owner}`."))
+
+      let replaced =
+        if m.relayLooksReplaced then
+          [ hint "the relay holds far fewer ops than this store, yet nothing is waiting to send. If it was wiped or replaced, `dark pull` will notice and re-arm the push." ]
+        else
+          []
+
+      Stdlib.Cli.UI.Node.column
+        (Stdlib.List.flatten
+          [ [ ok $"local: {Stdlib.Int64.toString m.local} ops"
+              ok $"relay: {Stdlib.Int64.toString m.relay} ops"
+              verdict ]
+            branchHints
+            replaced ])
+
 let executeStatus (state: AppState) (url: String) : AppState =
-  if url == "" then
-    Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
-  else
-    let mine = SCM.Wire.localHead ()
-
-    match relayGet $"{url}/sync/head" with
-    | Ok respBody ->
-      match SCM.Wire.headDecode respBody with
-      | Ok theirs ->
-        Cli.printOk $"local: {Stdlib.Int64.toString mine.count} ops"
-        Cli.printOk $"relay: {Stdlib.Int64.toString theirs.count} ops"
-
-        // Effective ops this relay is not known to hold. The same question `push` decides on.
-        let unpushed = SCM.Wire.unpushedCount url
-        let toSend = unpushed != 0L
-
-        // Theirs has moved since we last pulled from it. Same predicate `pull` skips on, so the two cannot
-        // disagree about whether there is anything to fetch.
-        let toReceive =
-          Stdlib.Bool.not (
-            SCM.Wire.seenEverything (SCM.Wire.lastSeenHead url) theirs mine)
-
-        // Branch ops travel by `branch push`, not `sync`, so they are reported apart from the verdict
-        // and never make it "out of sync". Both directions: local branches the relay lacks, and
-        // hosted branches this store has never pulled -- the handoff that otherwise needs a Slack
-        // message ("I pushed a branch; my identity is X").
-        let branchLines () : Unit =
-          SCM.Wire.unpushedBranches url
-          |> Stdlib.List.iter (fun entry ->
-            let (name, n) = entry
-            Cli.printHint
-              $"  branch \"{name}\": {Stdlib.Int64.toString n} op(s) not on the relay -- `dark branch push {name}`.")
-
-          match relayGetAuthed url "/branch/owners" with
-          | Error _ -> ()
-          | Ok body ->
-            let knownIds =
-              SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
-
-            let me = SCM.PackageOps.identity ()
-
-            Stdlib.String.fromBlobWithReplacement body
-            |> Stdlib.String.splitOnNewline
-            |> Stdlib.List.filterMap (fun line ->
-              match Stdlib.String.split (Stdlib.String.trim line) " " with
-              | [ owner, bid ] ->
-                if (owner != me) && (Stdlib.Bool.not (Stdlib.List.member knownIds bid)) then
-                  Stdlib.Option.Option.Some owner
-                else
-                  Stdlib.Option.Option.None
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unique
-            |> Stdlib.List.iter (fun owner ->
-              Cli.printHint
-                $"  the relay holds branches from \"{owner}\" you haven't pulled -- `dark branch pull --from {owner}`.")
-
-        match (toSend, toReceive) with
-        | (false, false) ->
-          Cli.printOk "in sync."
-          branchLines ()
-          // A relay holding FEWER ops than this store, with nothing waiting to send, is a relay that was
-          // wiped or replaced since the last push (main-only push never sends a branch's ops, so a small
-          // gap is normal; a large one is not). `pull` notices the new instance and re-arms the push.
-          if theirs.count + 100L < mine.count then
-            Cli.printHint
-              "  the relay holds far fewer ops than this store, yet nothing is waiting to send. If it was wiped or replaced, `dark pull` will notice and re-arm the push."
-          else
-            ()
-        | (true, false) ->
-          Cli.printOk $"{Stdlib.Int64.toString unpushed} op(s) to send -- `dark push {url}`."
-          branchLines ()
-        // No count on this side: how many ops are waiting is only knowable by asking for them, and
-        // `/sync/head` is deliberately a cheap stamp. The other three arms say a state, so this one does.
-        | (false, true) ->
-          Cli.printOk $"behind the relay -- `dark pull {url}`."
-          branchLines ()
-        | (true, true) ->
-          Cli.printOk
-            $"out of sync both ways ({Stdlib.Int64.toString unpushed} op(s) to send) -- `dark sync {url}`."
-          branchLines ()
-      | Error _ -> Cli.printErr "Relay returned an unparseable head."
-    | Error e -> Cli.printErr $"Status from {url} failed: {e}"
-
+  let width = (Stdlib.Cli.Tui.TerminalSession.currentSize ()).width
+  Stdlib.Cli.UI.Node.toLines (Status.render (Status.load url)) width |> Stdlib.printLines
   state
 
 /// Refuse something that could never be a relay url, saying so where it was TYPED.

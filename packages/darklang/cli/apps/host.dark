@@ -43,6 +43,8 @@ type Session<'model, 'msg> =
     band: Stdlib.Option.Option<String>
     /// A one-frame note: what just changed.
     toast: Stdlib.Option.Option<String>
+    /// The first tree row on screen, when the tree is taller than the pane.
+    scroll: Int
     terminal: Stdlib.Cli.Tui.TerminalSession.State
     exiting: Bool }
 
@@ -88,7 +90,7 @@ let bandRows (band: String) (width: Int) : Int =
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let frame =
-    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press   Ctrl-S: save the model"
+    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press   PgUp/PgDn: scroll   Ctrl-S: save"
 
   let frame =
     match s.toast with
@@ -108,9 +110,17 @@ let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.C
           rows = Stdlib.Int.max 0 (region.rows - bandHeight)
           cols = region.cols }
 
+    // The tree paints at its own height and the pane shows a window of it from `scroll`
+    // (settled by `present`, so the focused node is on screen). A tree that fits is the whole
+    // window.
     let treeSpans =
       match s.lastFrame with
-      | Some tree -> Stdlib.Cli.UI.Node.toSpans tree treeRegion s.focus
+      | Some tree ->
+        Stdlib.Cli.UI.Node.toRows tree treeRegion.cols s.focus
+        |> Stdlib.List.drop s.scroll
+        |> Stdlib.List.take treeRegion.rows
+        |> Stdlib.List.indexedMap (fun i row -> Stdlib.Cli.UI.Layout.at treeRegion i 0 row)
+        |> Stdlib.List.flatten
       | None -> []
 
     let bandSpans =
@@ -148,6 +158,34 @@ let render (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 
     { s with band = Stdlib.Option.Option.Some why }
 
+/// The rows the tree gets at this size: the body less the band.
+let treeRowsAt (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Int =
+  let region = Stdlib.Cli.UI.Chrome.bodyRegion size
+
+  let bandHeight =
+    match s.band with
+    | Some band -> bandRows band region.cols
+    | None -> 0
+
+  Stdlib.Int.max 1 (region.rows - bandHeight)
+
+/// Clamp the window to the tree, and pull it so the focused node is on screen.
+let settleScroll (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Session<'model, 'msg> =
+  match s.lastFrame with
+  | None -> { s with scroll = 0 }
+  | Some tree ->
+    let paneRows = treeRowsAt s size
+    let (total, _) = Stdlib.Cli.UI.Node.measure tree
+    let wanted = Stdlib.Int.max 0 (Stdlib.Int.min s.scroll (total - paneRows))
+
+    let scroll =
+      match Stdlib.Cli.UI.Node.rowOf tree s.focus with
+      | Some row when row < wanted -> row
+      | Some row when row >= wanted + paneRows -> row - paneRows + 1
+      | _ -> wanted
+
+    { s with scroll = scroll }
+
 /// Paint the current frame. A session with no terminal (a test driving `step`) paints nothing and
 /// is read through `viewAtSize` instead.
 let present (s: Session<'model, 'msg>) : Session<'model, 'msg> =
@@ -155,6 +193,7 @@ let present (s: Session<'model, 'msg>) : Session<'model, 'msg> =
     s
   else
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+    let s = settleScroll s size
 
     { s with
         terminal = Stdlib.Cli.Tui.TerminalSession.presentAtSize s.terminal size (viewAtSize s size) }
@@ -205,6 +244,12 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
     | Error why -> { s with toast = Stdlib.Option.Option.Some $"not saved: {why}" }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.Tab then
     moveFocus s (Stdlib.Bool.not k.modifiers.shift)
+  // Scrolling away drops the focus: the window follows the focused node, so keeping it would
+  // pull the window straight back. Tab focuses again and brings the node into view.
+  else if k.key == Stdlib.Cli.Stdin.Key.Key.PageDown then
+    { s with scroll = s.scroll + 10; focus = "" }
+  else if k.key == Stdlib.Cli.Stdin.Key.Key.PageUp then
+    { s with scroll = Stdlib.Int.max 0 (s.scroll - 10); focus = "" }
   else
     let focused =
       match s.lastFrame with
@@ -341,7 +386,22 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
   match Stdlib.Host.await [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ] with
   | StoreChanged change when affected s change -> present (render (reload s change))
   | StoreChanged _ -> s
-  | Key read -> present (render (onKey s (press read)))
+  | Key read ->
+    // A coalesced burst (a wheel, a held key) is one read with a repeat count; movement keys are
+    // applied that many times, as the CLI's loop does, capped so a flood cannot spin the loop.
+    let repeatable =
+      match read.key with
+      | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
+      | _ -> false
+
+    let times = if repeatable then Stdlib.Int.min 64 (Stdlib.Int.max 1 read.repeat) else 1
+    let k = press read
+
+    let after =
+      Stdlib.List.range 1 times
+      |> Stdlib.List.fold s (fun acc _ -> if acc.exiting then acc else onKey acc k)
+
+    present (render after)
   | _ -> s
 
 let run (s: Session<'model, 'msg>) : Session<'model, 'msg> =
@@ -389,6 +449,7 @@ let prepareWith
               lastFrame = Stdlib.Option.Option.None
               band = Stdlib.Option.Option.None
               toast = Stdlib.Option.Option.None
+              scroll = 0
               terminal = Stdlib.Cli.Tui.TerminalSession.init ()
               exiting = false }
         )

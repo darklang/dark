@@ -56,7 +56,19 @@ let available () : List<Model.App> =
                   title = "Package stats"
                   init = "Darklang.Cli.Apps.Views.Stats.init"
                   update = "Darklang.Cli.Apps.Views.Stats.update"
-                  render = "Darklang.Cli.Apps.Views.Stats.render" } ] } ]
+                  render = "Darklang.Cli.Apps.Views.Stats.render" }
+              Model.View
+                { name = "packages"
+                  title = "Package statistics"
+                  init = "Darklang.Cli.Apps.Views.PackageStats.init"
+                  update = "Darklang.Cli.Apps.Views.PackageStats.update"
+                  render = "Darklang.Cli.Apps.Views.PackageStats.render" }
+              Model.View
+                { name = "sync"
+                  title = "Sync status"
+                  init = "Darklang.Cli.Sync.Status.init"
+                  update = "Darklang.Cli.Sync.Status.update"
+                  render = "Darklang.Cli.Sync.Status.render" } ] } ]
 
 
 /// Any `App` value declared anywhere, discovered by type — so a user's own app shows up in

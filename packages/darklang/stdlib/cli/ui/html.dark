@@ -53,13 +53,20 @@ let render (node: Node.Node<'msg>) (toJson: 'msg -> String) : String =
 
     $"<div class=\"dark-vstack\">{inner}</div>"
   | Table(columns, rows) ->
+    let numeric = columns |> Stdlib.List.indexedMap (fun i _ -> Node.isNumericColumn rows i)
+    let cls (i: Int) : String =
+      if Stdlib.List.getAt numeric i == Stdlib.Option.Option.Some true then " class=\"dark-num\"" else ""
+
     let head =
-      columns |> Stdlib.List.map (fun h -> $"<th>{escape h}</th>") |> Stdlib.String.join ""
+      columns
+      |> Stdlib.List.indexedMap (fun i h -> $"<th{cls i}>{escape h}</th>")
+      |> Stdlib.String.join ""
 
     let body =
       rows
       |> Stdlib.List.map (fun r ->
-        let cells = r |> Stdlib.List.map (fun c -> $"<td>{escape c}</td>") |> Stdlib.String.join ""
+        let cells =
+          r |> Stdlib.List.indexedMap (fun i c -> $"<td{cls i}>{escape c}</td>") |> Stdlib.String.join ""
         $"<tr>{cells}</tr>")
       |> Stdlib.String.join ""
 
@@ -92,7 +99,7 @@ let page (title: String) (node: Node.Node<'msg>) (toJson: 'msg -> String) : Stri
     ++ ".dark-underline{text-decoration:underline}.dark-success{color:#1a7f37}.dark-error{color:#b91c1c}"
     ++ ".dark-warning{color:#b45309}.dark-info{color:#1d4ed8}.dark-highlight{background:#eee}"
     ++ ".dark-table{border-collapse:collapse}.dark-table th,.dark-table td{text-align:left;padding:.1rem .8rem .1rem 0}"
-    ++ ".dark-table th{border-bottom:1px solid #999}"
+    ++ ".dark-table th{border-bottom:1px solid #999}.dark-table .dark-num{text-align:right}"
     ++ ".dark-band{padding:.4rem .6rem;margin:.5rem 0;border-radius:3px}"
     ++ ".dark-band-info{background:#dbeafe}.dark-band-warning{background:#fef3c7}.dark-band-error{background:#fee2e2}"
     ++ ".dark-rows{margin:0}.dark-list{padding-left:1.2rem}"

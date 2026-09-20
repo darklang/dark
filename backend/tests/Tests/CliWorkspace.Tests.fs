@@ -503,7 +503,7 @@ let private treeRendersTheSameEverywhere =
           "module  fns"
           "------  ---"
           "Stdlib  247"
-          "Cli     89"
+          "Cli      89"
           " boom"
           "a [ go ]"
           "" ]
@@ -515,8 +515,14 @@ let private treeRendersTheSameEverywhere =
         match html with
         | RT.DString s -> s
         | other -> failtest $"expected markup, got {other}"
-      Expect.stringContains html "<th>module</th><th>fns</th>" "the table's header"
-      Expect.stringContains html "<td>Stdlib</td><td>247</td>" "a table row"
+      Expect.stringContains
+        html
+        "<th>module</th><th class=\"dark-num\">fns</th>"
+        "the table's header, numeric column marked"
+      Expect.stringContains
+        html
+        "<td>Stdlib</td><td class=\"dark-num\">247</td>"
+        "a table row"
       Expect.stringContains html "dark-band-error\">boom</div>" "the band"
       Expect.stringContains html "<button type=\"submit\">go</button>" "the button"
 
@@ -537,8 +543,8 @@ let private treeRendersTheSameEverywhere =
       let! many = tableRows "[ [ \"a\", \"1\" ], [ \"bb\", \"22\" ] ]"
       Expect.equal
         (List.take 4 (plainRows many))
-        [ "k   v"; "--  --"; "a   1"; "bb  22" ]
-        "widths follow the widest cell"
+        [ "k    v"; "--  --"; "a    1"; "bb  22" ]
+        "widths follow the widest cell; numbers right-align"
     })
 
 /// Demo 1, driven a turn at a time: a key reaches the view; an edit from elsewhere is on the next
@@ -704,7 +710,10 @@ let private modelSavesAndResumes =
         match saved with
         | RT.DEnum(_, _, _, "Ok", [ RT.DString name ]) -> name
         | other -> failtest $"the snapshot did not save: {other}"
-      Expect.stringStarts name "Tests.LiveSave.Sessions.s" "it lands under the view's Sessions module"
+      Expect.stringStarts
+        name
+        "Tests.LiveSave.Sessions.s"
+        "it lands under the view's Sessions module"
 
       let! resumed =
         evalUnder
@@ -714,9 +723,14 @@ let private modelSavesAndResumes =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
         | other -> failtest $"the view did not resume: {other}"
-      let! sizeDv = evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
-      let! rows = callByName state "Darklang.Cli.Apps.Host.plainRows" [ session; sizeDv ]
-      Expect.contains (plainRows rows) "keys: 5" "the resumed session shows the saved model, not init"
+      let! sizeDv =
+        evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
+      let! rows =
+        callByName state "Darklang.Cli.Apps.Host.plainRows" [ session; sizeDv ]
+      Expect.contains
+        (plainRows rows)
+        "keys: 5"
+        "the resumed session shows the saved model, not init"
 
       let! missing =
         evalUnder
@@ -724,7 +738,10 @@ let private modelSavesAndResumes =
           $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\")"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
-        Expect.stringContains why "no value named" "a missing snapshot is named, not a crash"
+        Expect.stringContains
+          why
+          "no value named"
+          "a missing snapshot is named, not a crash"
       | other -> failtest $"expected an error for a missing snapshot, got {other}"
     })
 

@@ -214,15 +214,29 @@ let sub (region: Layout.Region) (top: Int) (left: Int) (rows: Int) (cols: Int) :
       rows = Stdlib.Int.max 0 (Stdlib.Int.min rows (region.rows - top))
       cols = Stdlib.Int.max 0 (Stdlib.Int.min cols (region.cols - left)) }
 
-/// The text rows of a table: header, rule, rows, each cell padded to its column.
+/// Does every cell in column <param i> read as a number? Those columns right-align, the way a
+/// person lines up figures; text stays left.
+let isNumericColumn (rows: List<List<String>>) (i: Int) : Bool =
+  let cells = rows |> Stdlib.List.filterMap (fun r -> Stdlib.List.getAt r i)
+
+  (Stdlib.Bool.not (Stdlib.List.isEmpty cells))
+  && (cells |> Stdlib.List.all (fun c -> (c == "") || (Stdlib.Result.isOk (Stdlib.Int.parse c))))
+
+/// The text rows of a table: header, rule, rows, each cell padded to its column; numeric columns
+/// right-aligned.
 let tableRows (columns: List<String>) (rows: List<List<String>>) : List<String> =
   let widths = tableWidths columns rows
+  let numeric = widths |> Stdlib.List.indexedMap (fun i _ -> isNumericColumn rows i)
 
   let line (cells: List<String>) : String =
     widths
     |> Stdlib.List.indexedMap (fun i w ->
       let cell = Stdlib.List.getAt cells i |> Stdlib.Option.withDefault ""
-      Stdlib.String.padEndToWidth cell w)
+
+      if Stdlib.List.getAt numeric i == Stdlib.Option.Option.Some true then
+        Stdlib.String.padStartToWidth cell w
+      else
+        Stdlib.String.padEndToWidth cell w)
     |> Stdlib.String.join "  "
     |> Stdlib.String.trimEnd
 
@@ -329,3 +343,50 @@ let paint
 /// Paint <param node> into <param region>. The terminal renderer.
 let toSpans (node: Node<'msg>) (region: Layout.Region) (focus: String) : List<Layout.Span> =
   paint node region focus ""
+
+/// Paint <param node> as styled rows at <param width>, as tall as it measures, with <param focus>
+/// marked: what a host windows when the tree is taller than its pane.
+let toRows (node: Node<'msg>) (width: Int) (focus: String) : List<String> =
+  let (rows, _) = measure node
+  let w = Stdlib.Int.max 1 width
+  let region = Layout.Region { top = 1; left = 1; rows = rows; cols = w }
+  Canvas.compose w rows (toSpans node region focus) |> Stdlib.List.map Stdlib.String.trimEnd
+
+/// Paint <param node> as plain rows at <param width>, as tall as it measures: for printing a tree
+/// to stdout (a one-shot command) rather than into a frame.
+let toLines (node: Node<'msg>) (width: Int) : List<String> = toRows node width ""
+
+/// The row a focusable node with <param id> is painted on, so a host can scroll it into view.
+let rowOf (node: Node<'msg>) (id: String) : Stdlib.Option.Option<Int> =
+  let find (n: Node<'msg>) (top: Int) : Stdlib.Option.Option<Int> =
+    match n with
+    | Input spec -> if spec.id == id then Stdlib.Option.Option.Some top else Stdlib.Option.Option.None
+    | Button(label, _) -> if label == id then Stdlib.Option.Option.Some top else Stdlib.Option.Option.None
+    | Styled(_, inner) -> find inner top
+    | Region(_, _, inner) -> find inner top
+    | Row children -> children |> Stdlib.List.filterMap (fun c -> find c top) |> Stdlib.List.head
+    | Column children ->
+      let (_, found) =
+        children
+        |> Stdlib.List.fold (top, Stdlib.Option.Option.None) (fun acc child ->
+          let (at, found) = acc
+          match found with
+          | Some _ -> acc
+          | None ->
+            let (rows, _) = measure child
+            (at + rows, find child at))
+      found
+    | ListOf children ->
+      let (_, found) =
+        children
+        |> Stdlib.List.fold (top, Stdlib.Option.Option.None) (fun acc child ->
+          let (at, found) = acc
+          match found with
+          | Some _ -> acc
+          | None ->
+            let (rows, _) = measure child
+            (at + rows, find child at))
+      found
+    | _ -> Stdlib.Option.Option.None
+
+  find node 0
