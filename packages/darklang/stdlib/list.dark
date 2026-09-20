@@ -475,6 +475,10 @@ let getAt (list: List<'a>) (index: Int) : Option.Option<'a> =
 /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
 /// selected value in <param list>. Returns {{Nothing}} if <param list> is
 /// empty.
+///
+/// CRYPTOGRAPHIC, unlike the numeric draws in `Int64.random` and friends: the index comes
+/// straight from the system generator rather than from a seeded one. Worth knowing in both
+/// directions, since it is stronger than its neighbours and correspondingly slower.
 let randomElement (list: List<'a>) : Option.Option<'a> =
   Builtin.listRandomElement list
 
