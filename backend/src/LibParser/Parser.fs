@@ -635,12 +635,10 @@ let parseTypeParamsWith
     let mutable expectingName = true
     // A bound's own type args can end in `>>` (`'a: Convert<Int>>`), which leaves
     // one `>` pending for this list; see `expectGt`.
-    while
-      state.pendingGt = 0
-      && tok state k <> TGt
-      && tok state k <> TShr
-      && tok state k <> TEOF
-      do
+    while state.pendingGt = 0
+          && tok state k <> TGt
+          && tok state k <> TShr
+          && tok state k <> TEOF do
       match expectingName, tok state k with
       | true, TIdent name ->
         if not ((txt state k).StartsWith "'") then
@@ -2785,7 +2783,9 @@ and parseBoundTrait
         range = WT.typeReferenceRange other
         message = "A bound names a trait, not a type"
         related = []
-        hint = Some "write `'a: Show`, where `Show` is a trait; `'a: String` is not a bound" }
+        hint =
+          Some
+            "write `'a: Show`, where `Show` is a trait; `'a: String` is not a bound" }
     (None, j)
 
 and parseTypeParams
@@ -3058,7 +3058,8 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
           { code = DiagnosticCode.bound
             severity = DiagError
             range = WT.exprRange b
-            message = "Default method bodies are not supported yet; a trait lists signatures only"
+            message =
+              "Default method bodies are not supported yet; a trait lists signatures only"
             related = []
             hint = Some "remove the `= …` and implement the method in each `impl`" }
         (Some b, after)
@@ -3082,7 +3083,10 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
         description = docOf state k }
     if afterBody > k then k <- afterBody else go <- false
   if methods.Count = 0 then
-    errExpected state afterEq "at least one method signature, indented under the trait"
+    errExpected
+      state
+      afterEq
+      "at least one method signature, indented under the trait"
   let endR = if k > 0 then rng state (k - 1) else eq
   (WT.DTrait
     { range = span kwTrait endR

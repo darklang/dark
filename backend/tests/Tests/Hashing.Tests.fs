@@ -291,7 +291,10 @@ let private fnHashTests =
         let (PT.Hash asHex) = hPlain
         Expect.equal (String.length asHex) 64 "sha256 hex"
         let withEmpty = { plain with bounds = [] }
-        Expect.equal (Hashing.computeFnHash Hashing.Normal withEmpty) hPlain "[] is byte-identical to no field"
+        Expect.equal
+          (Hashing.computeFnHash Hashing.Normal withEmpty)
+          hPlain
+          "[] is byte-identical to no field"
       }
 
       test "a TraitMethod call hashes by trait hash and method name" {

@@ -32,7 +32,8 @@ let mutable private callApplicableCell
       -> RT.Applicable
       -> NEList<RT.Dval>
       -> Ply<RT.ExecutionResult> =
-  fun _ _ _ _ -> Exception.raiseInternal "callApplicable used before Execution initialised" []
+  fun _ _ _ _ ->
+    Exception.raiseInternal "callApplicable used before Execution initialised" []
 
 let createState
   (builtins : RT.Builtins)
@@ -88,7 +89,8 @@ let createState
 
     deniedRequests = ResizeArray()
 
-    callApplicable = fun st access applicable args -> callApplicableCell st access applicable args
+    callApplicable =
+      fun st access applicable args -> callApplicableCell st access applicable args
 
     accountID = None
 

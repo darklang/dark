@@ -329,7 +329,8 @@ let rec private declarationStructureIssues
       @ (impl.aliases |> List.map (fun a -> (a.name.name, a.name.range)))
      )
      |> List.map (fun i -> { i with code = ImplMethods }))
-    @ (impl.methods |> List.collect (fun fn -> declarationStructureIssues (WT.DFunction fn)))
+    @ (impl.methods
+       |> List.collect (fun fn -> declarationStructureIssues (WT.DFunction fn)))
   | WT.DModule modul -> modul.declarations |> List.collect declarationStructureIssues
   | WT.DExpr expr -> exprIssues expr
   | WT.DTypeDB typ ->

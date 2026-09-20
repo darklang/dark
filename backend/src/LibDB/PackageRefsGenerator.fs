@@ -85,7 +85,8 @@ let generate () : Ply<unit> =
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
-    let allRefKeys = Set.unionMany [ typeRefKeys; fnRefKeys; traitRefKeys; existingKeys ]
+    let allRefKeys =
+      Set.unionMany [ typeRefKeys; fnRefKeys; traitRefKeys; existingKeys ]
 
     // Query all Darklang-owned locations from DB
     let! dbRows =

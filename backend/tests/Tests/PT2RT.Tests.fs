@@ -18,7 +18,10 @@ let private plus : RT.FQFnName.FQFnName =
   RT.FQFnName.TraitMethod(RT.Hash(PackageRefs.Trait.Stdlib.Traits.add ()), "add")
 
 let private times : RT.FQFnName.FQFnName =
-  RT.FQFnName.TraitMethod(RT.Hash(PackageRefs.Trait.Stdlib.Traits.mul ()), "multiply")
+  RT.FQFnName.TraitMethod(
+    RT.Hash(PackageRefs.Trait.Stdlib.Traits.mul ()),
+    "multiply"
+  )
 module PM = TestValues.PM
 
 open TestUtils.PTShortcuts

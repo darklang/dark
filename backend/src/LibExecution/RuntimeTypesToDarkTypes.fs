@@ -356,7 +356,9 @@ module TypeReference =
 
 module ImplCandidate =
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.implCandidate ())
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.implCandidate ()
+    )
   let knownType () = KTCustomType(typeName (), [])
 
   let toDT (c : ImplCandidate) : Dval =
@@ -1715,19 +1717,26 @@ module RuntimeError =
           "MethodAmbiguous",
           [ DString method_
             ValueType.toDT self
-            DList(VT.known (FQTraitName.knownType ()), List.map FQTraitName.toDT traits) ]
+            DList(
+              VT.known (FQTraitName.knownType ()),
+              List.map FQTraitName.toDT traits
+            ) ]
         | RuntimeError.Traits.SelfTypeUnknown(trait_, method_) ->
           "SelfTypeUnknown", [ FQTraitName.toDT trait_; DString method_ ]
         | RuntimeError.Traits.NoSuchMethod(trait_, method_) ->
           "NoSuchMethod", [ FQTraitName.toDT trait_; DString method_ ]
-        | RuntimeError.Traits.TraitNotFound trait_ -> "TraitNotFound", [ FQTraitName.toDT trait_ ]
+        | RuntimeError.Traits.TraitNotFound trait_ ->
+          "TraitNotFound", [ FQTraitName.toDT trait_ ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : RuntimeError.Traits.Error =
       match d with
       | DEnum(_, _, [], "MissingImpl", [ trait_; self ]) ->
-        RuntimeError.Traits.MissingImpl(FQTraitName.fromDT trait_, ValueType.fromDT self)
+        RuntimeError.Traits.MissingImpl(
+          FQTraitName.fromDT trait_,
+          ValueType.fromDT self
+        )
       | DEnum(_, _, [], "DispatchAmbiguous", [ trait_; self; candidates ]) ->
         RuntimeError.Traits.DispatchAmbiguous(
           FQTraitName.fromDT trait_,
@@ -1741,7 +1750,10 @@ module RuntimeError =
           D.list FQTraitName.fromDT traits
         )
       | DEnum(_, _, [], "SelfTypeUnknown", [ trait_; method_ ]) ->
-        RuntimeError.Traits.SelfTypeUnknown(FQTraitName.fromDT trait_, D.string method_)
+        RuntimeError.Traits.SelfTypeUnknown(
+          FQTraitName.fromDT trait_,
+          D.string method_
+        )
       | DEnum(_, _, [], "NoSuchMethod", [ trait_; method_ ]) ->
         RuntimeError.Traits.NoSuchMethod(FQTraitName.fromDT trait_, D.string method_)
       | DEnum(_, _, [], "TraitNotFound", [ trait_ ]) ->
