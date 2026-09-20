@@ -47,6 +47,20 @@ let listIsEmpty = 19
 /// `Mul.multiply`; only reached as a trait method, since `*` never lowered to a builtin the
 /// `Int` table knew.
 let multiply = 20
+/// `Neg.negate`, one argument; `evalNegate` handles it.
+let negate = 21
+
+/// `-x` on a signed builtin numeric; anything else declines and dispatches.
+let evalNegate (a : Dval) : Dval voption =
+  match a with
+  | DInt8 x -> ValueSome(DInt8(-x))
+  | DInt16 x -> ValueSome(DInt16(-x))
+  | DInt32 x -> ValueSome(DInt32(-x))
+  | DInt64 x -> ValueSome(Dval.dint64 (-x))
+  | DInt128 x -> ValueSome(DInt128(-x))
+  | DInt x -> ValueSome(Dval.dint (DarkInt.negate x))
+  | DFloat x -> ValueSome(DFloat(-x))
+  | _ -> ValueNone
 
 /// The operator itself, given a tag from `byName` and two `Int`s.
 let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -264,45 +278,144 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // which is the cost this table exists to avoid.
   if tag = add then
     match a with
-    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x + y)) | _ -> ValueNone)
-    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x + y)) | _ -> ValueNone)
-    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x + y)) | _ -> ValueNone)
-    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x + y)) | _ -> ValueNone)
-    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x + y)) | _ -> ValueNone)
-    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x + y)) | _ -> ValueNone)
-    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x + y)) | _ -> ValueNone)
-    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x + y)) | _ -> ValueNone)
-    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x + y)) | _ -> ValueNone)
-    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x + y)) | _ -> ValueNone)
-    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x + y)) | _ -> ValueNone)
+    | DInt8 x ->
+      (match b with
+       | DInt8 y -> ValueSome(DInt8(x + y))
+       | _ -> ValueNone)
+    | DUInt8 x ->
+      (match b with
+       | DUInt8 y -> ValueSome(DUInt8(x + y))
+       | _ -> ValueNone)
+    | DInt16 x ->
+      (match b with
+       | DInt16 y -> ValueSome(DInt16(x + y))
+       | _ -> ValueNone)
+    | DUInt16 x ->
+      (match b with
+       | DUInt16 y -> ValueSome(DUInt16(x + y))
+       | _ -> ValueNone)
+    | DInt32 x ->
+      (match b with
+       | DInt32 y -> ValueSome(DInt32(x + y))
+       | _ -> ValueNone)
+    | DUInt32 x ->
+      (match b with
+       | DUInt32 y -> ValueSome(DUInt32(x + y))
+       | _ -> ValueNone)
+    | DInt64 x ->
+      (match b with
+       | DInt64 y -> ValueSome(Dval.dint64 (x + y))
+       | _ -> ValueNone)
+    | DUInt64 x ->
+      (match b with
+       | DUInt64 y -> ValueSome(DUInt64(x + y))
+       | _ -> ValueNone)
+    | DInt128 x ->
+      (match b with
+       | DInt128 y -> ValueSome(DInt128(x + y))
+       | _ -> ValueNone)
+    | DUInt128 x ->
+      (match b with
+       | DUInt128 y -> ValueSome(DUInt128(x + y))
+       | _ -> ValueNone)
+    | DFloat x ->
+      (match b with
+       | DFloat y -> ValueSome(DFloat(x + y))
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = subtract then
     match a with
-    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x - y)) | _ -> ValueNone)
-    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x - y)) | _ -> ValueNone)
-    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x - y)) | _ -> ValueNone)
-    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x - y)) | _ -> ValueNone)
-    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x - y)) | _ -> ValueNone)
-    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x - y)) | _ -> ValueNone)
-    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x - y)) | _ -> ValueNone)
-    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x - y)) | _ -> ValueNone)
-    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x - y)) | _ -> ValueNone)
-    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x - y)) | _ -> ValueNone)
-    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x - y)) | _ -> ValueNone)
+    | DInt8 x ->
+      (match b with
+       | DInt8 y -> ValueSome(DInt8(x - y))
+       | _ -> ValueNone)
+    | DUInt8 x ->
+      (match b with
+       | DUInt8 y -> ValueSome(DUInt8(x - y))
+       | _ -> ValueNone)
+    | DInt16 x ->
+      (match b with
+       | DInt16 y -> ValueSome(DInt16(x - y))
+       | _ -> ValueNone)
+    | DUInt16 x ->
+      (match b with
+       | DUInt16 y -> ValueSome(DUInt16(x - y))
+       | _ -> ValueNone)
+    | DInt32 x ->
+      (match b with
+       | DInt32 y -> ValueSome(DInt32(x - y))
+       | _ -> ValueNone)
+    | DUInt32 x ->
+      (match b with
+       | DUInt32 y -> ValueSome(DUInt32(x - y))
+       | _ -> ValueNone)
+    | DInt64 x ->
+      (match b with
+       | DInt64 y -> ValueSome(Dval.dint64 (x - y))
+       | _ -> ValueNone)
+    | DUInt64 x ->
+      (match b with
+       | DUInt64 y -> ValueSome(DUInt64(x - y))
+       | _ -> ValueNone)
+    | DInt128 x ->
+      (match b with
+       | DInt128 y -> ValueSome(DInt128(x - y))
+       | _ -> ValueNone)
+    | DUInt128 x ->
+      (match b with
+       | DUInt128 y -> ValueSome(DUInt128(x - y))
+       | _ -> ValueNone)
+    | DFloat x ->
+      (match b with
+       | DFloat y -> ValueSome(DFloat(x - y))
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif tag = multiply then
     match a with
-    | DInt8 x -> (match b with | DInt8 y -> ValueSome(DInt8(x * y)) | _ -> ValueNone)
-    | DUInt8 x -> (match b with | DUInt8 y -> ValueSome(DUInt8(x * y)) | _ -> ValueNone)
-    | DInt16 x -> (match b with | DInt16 y -> ValueSome(DInt16(x * y)) | _ -> ValueNone)
-    | DUInt16 x -> (match b with | DUInt16 y -> ValueSome(DUInt16(x * y)) | _ -> ValueNone)
-    | DInt32 x -> (match b with | DInt32 y -> ValueSome(DInt32(x * y)) | _ -> ValueNone)
-    | DUInt32 x -> (match b with | DUInt32 y -> ValueSome(DUInt32(x * y)) | _ -> ValueNone)
-    | DInt64 x -> (match b with | DInt64 y -> ValueSome(Dval.dint64 (x * y)) | _ -> ValueNone)
-    | DUInt64 x -> (match b with | DUInt64 y -> ValueSome(DUInt64(x * y)) | _ -> ValueNone)
-    | DInt128 x -> (match b with | DInt128 y -> ValueSome(DInt128(x * y)) | _ -> ValueNone)
-    | DUInt128 x -> (match b with | DUInt128 y -> ValueSome(DUInt128(x * y)) | _ -> ValueNone)
-    | DFloat x -> (match b with | DFloat y -> ValueSome(DFloat(x * y)) | _ -> ValueNone)
+    | DInt8 x ->
+      (match b with
+       | DInt8 y -> ValueSome(DInt8(x * y))
+       | _ -> ValueNone)
+    | DUInt8 x ->
+      (match b with
+       | DUInt8 y -> ValueSome(DUInt8(x * y))
+       | _ -> ValueNone)
+    | DInt16 x ->
+      (match b with
+       | DInt16 y -> ValueSome(DInt16(x * y))
+       | _ -> ValueNone)
+    | DUInt16 x ->
+      (match b with
+       | DUInt16 y -> ValueSome(DUInt16(x * y))
+       | _ -> ValueNone)
+    | DInt32 x ->
+      (match b with
+       | DInt32 y -> ValueSome(DInt32(x * y))
+       | _ -> ValueNone)
+    | DUInt32 x ->
+      (match b with
+       | DUInt32 y -> ValueSome(DUInt32(x * y))
+       | _ -> ValueNone)
+    | DInt64 x ->
+      (match b with
+       | DInt64 y -> ValueSome(Dval.dint64 (x * y))
+       | _ -> ValueNone)
+    | DUInt64 x ->
+      (match b with
+       | DUInt64 y -> ValueSome(DUInt64(x * y))
+       | _ -> ValueNone)
+    | DInt128 x ->
+      (match b with
+       | DInt128 y -> ValueSome(DInt128(x * y))
+       | _ -> ValueNone)
+    | DUInt128 x ->
+      (match b with
+       | DUInt128 y -> ValueSome(DUInt128(x * y))
+       | _ -> ValueNone)
+    | DFloat x ->
+      (match b with
+       | DFloat y -> ValueSome(DFloat(x * y))
+       | _ -> ValueNone)
     | _ -> ValueNone
   elif
     tag = lessThan
@@ -315,32 +428,57 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     let none = System.Int32.MinValue
     let ordering =
       match a with
-      | DInt8 x -> (match b with | DInt8 y -> compare x y | _ -> none)
-      | DUInt8 x -> (match b with | DUInt8 y -> compare x y | _ -> none)
-      | DInt16 x -> (match b with | DInt16 y -> compare x y | _ -> none)
-      | DUInt16 x -> (match b with | DUInt16 y -> compare x y | _ -> none)
-      | DInt32 x -> (match b with | DInt32 y -> compare x y | _ -> none)
-      | DUInt32 x -> (match b with | DUInt32 y -> compare x y | _ -> none)
-      | DInt64 x -> (match b with | DInt64 y -> compare x y | _ -> none)
-      | DUInt64 x -> (match b with | DUInt64 y -> compare x y | _ -> none)
-      | DInt128 x -> (match b with | DInt128 y -> compare x y | _ -> none)
-      | DUInt128 x -> (match b with | DUInt128 y -> compare x y | _ -> none)
+      | DInt8 x ->
+        (match b with
+         | DInt8 y -> compare x y
+         | _ -> none)
+      | DUInt8 x ->
+        (match b with
+         | DUInt8 y -> compare x y
+         | _ -> none)
+      | DInt16 x ->
+        (match b with
+         | DInt16 y -> compare x y
+         | _ -> none)
+      | DUInt16 x ->
+        (match b with
+         | DUInt16 y -> compare x y
+         | _ -> none)
+      | DInt32 x ->
+        (match b with
+         | DInt32 y -> compare x y
+         | _ -> none)
+      | DUInt32 x ->
+        (match b with
+         | DUInt32 y -> compare x y
+         | _ -> none)
+      | DInt64 x ->
+        (match b with
+         | DInt64 y -> compare x y
+         | _ -> none)
+      | DUInt64 x ->
+        (match b with
+         | DUInt64 y -> compare x y
+         | _ -> none)
+      | DInt128 x ->
+        (match b with
+         | DInt128 y -> compare x y
+         | _ -> none)
+      | DUInt128 x ->
+        (match b with
+         | DUInt128 y -> compare x y
+         | _ -> none)
       | DFloat x ->
         (match b with
          | DFloat y when not (System.Double.IsNaN x) && not (System.Double.IsNaN y) ->
            compare x y
          | _ -> none)
       | _ -> none
-    if ordering = none then
-      ValueNone
-    elif tag = lessThan then
-      ValueSome(Dval.bool (ordering < 0))
-    elif tag = lessThanOrEqualTo then
-      ValueSome(Dval.bool (ordering <= 0))
-    elif tag = greaterThan then
-      ValueSome(Dval.bool (ordering > 0))
-    else
-      ValueSome(Dval.bool (ordering >= 0))
+    if ordering = none then ValueNone
+    elif tag = lessThan then ValueSome(Dval.bool (ordering < 0))
+    elif tag = lessThanOrEqualTo then ValueSome(Dval.bool (ordering <= 0))
+    elif tag = greaterThan then ValueSome(Dval.bool (ordering > 0))
+    else ValueSome(Dval.bool (ordering >= 0))
   else
     ValueNone
 
@@ -349,7 +487,8 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
 /// when the package refs reload, since the hashes move with the stdlib. The table is
 /// published whole and never written after: readers on other threads only ever see a
 /// finished one.
-let mutable private traitTags : struct (int * Dictionary<struct (string * string), int>) =
+let mutable private traitTags
+  : struct (int * Dictionary<struct (string * string), int>) =
   struct (-1, Dictionary())
 
 let traitTag (traitHash : string) (methodName : string) : int voption =
@@ -365,10 +504,17 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
       put (PackageRefs.Trait.Stdlib.Traits.add ()) "add" add
       put (PackageRefs.Trait.Stdlib.Traits.sub ()) "subtract" subtract
       put (PackageRefs.Trait.Stdlib.Traits.mul ()) "multiply" multiply
+      put (PackageRefs.Trait.Stdlib.Traits.neg ()) "negate" negate
       put (PackageRefs.Trait.Stdlib.Traits.ord ()) "lessThan" lessThan
-      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "lessThanOrEqualTo" lessThanOrEqualTo
+      put
+        (PackageRefs.Trait.Stdlib.Traits.ord ())
+        "lessThanOrEqualTo"
+        lessThanOrEqualTo
       put (PackageRefs.Trait.Stdlib.Traits.ord ()) "greaterThan" greaterThan
-      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "greaterThanOrEqualTo" greaterThanOrEqualTo
+      put
+        (PackageRefs.Trait.Stdlib.Traits.ord ())
+        "greaterThanOrEqualTo"
+        greaterThanOrEqualTo
       traitTags <- struct (gen, fresh)
       fresh
   let mutable tag = 0

@@ -150,9 +150,9 @@ module Trait =
       names.Add(reader.GetString 0) |> ignore<bool>
     Ply names
 
-module Impl =
+module TraitImpl =
   let find = findItem "impl"
-  let get = getItem "package_impls" "hash" BS.PT.Impl.deserialize
+  let get = getItem "package_trait_impls" "hash" BS.PT.TraitImpl.deserialize
   let getLocations = getItemLocations "impl"
   let getLocationsEverNamed = getItemLocationsEverNamed "impl"
 
@@ -421,10 +421,14 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
         Task.FromResult<List<PT.LocatedItem<PT.Trait.Trait>>> []
 
     let! impls =
-      if isEntityRequested PT.Search.EntityType.Impl then
-        makeEntityQuery "impl" "package_impls" "hash" BS.PT.Impl.deserialize
+      if isEntityRequested PT.Search.EntityType.TraitImpl then
+        makeEntityQuery
+          "impl"
+          "package_trait_impls"
+          "hash"
+          BS.PT.TraitImpl.deserialize
       else
-        Task.FromResult<List<PT.LocatedItem<PT.Impl.Impl>>> []
+        Task.FromResult<List<PT.LocatedItem<PT.TraitImpl.TraitImpl>>> []
 
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then

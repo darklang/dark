@@ -214,9 +214,9 @@ type private Affected =
     item : PT.Trait.Trait *
     currentHash : Hash *
     location : PT.PackageLocation
-  | AffectedImpl of
+  | AffectedTraitImpl of
     fqn : string *
-    item : PT.Impl.Impl *
+    item : PT.TraitImpl.TraitImpl *
     currentHash : Hash *
     location : PT.PackageLocation
 
@@ -226,7 +226,7 @@ let private affectedFqn =
   | AffectedFn(fqn, _, _, _) -> fqn
   | AffectedValue(fqn, _, _, _) -> fqn
   | AffectedTrait(fqn, _, _, _) -> fqn
-  | AffectedImpl(fqn, _, _, _) -> fqn
+  | AffectedTraitImpl(fqn, _, _, _) -> fqn
 
 let private affectedCurrentHash =
   function
@@ -234,7 +234,7 @@ let private affectedCurrentHash =
   | AffectedFn(_, _, currentHash, _) -> currentHash
   | AffectedValue(_, _, currentHash, _) -> currentHash
   | AffectedTrait(_, _, currentHash, _) -> currentHash
-  | AffectedImpl(_, _, currentHash, _) -> currentHash
+  | AffectedTraitImpl(_, _, currentHash, _) -> currentHash
 
 
 /// Resolve an item's authoritative hash from its location. The caller's
@@ -292,7 +292,7 @@ let private resolveCurrentHash
         | PT.ItemKind.Fn -> PMTypes.Fn.find loc
         | PT.ItemKind.Value -> PMTypes.Value.find loc
         | PT.ItemKind.Trait -> PMTypes.Trait.find loc
-        | PT.ItemKind.Impl -> PMTypes.Impl.find loc
+        | PT.ItemKind.TraitImpl -> PMTypes.TraitImpl.find loc
       let! resolved = Ply.toTask find
       return resolved |> Option.defaultValue fallback
   }
@@ -327,10 +327,10 @@ let private fetchAffected
       match item with
       | Some t -> return Ok(AffectedTrait(fqn, t, hash, loc))
       | None -> return Error $"Trait at {hash} not found"
-    | PT.ItemKind.Impl ->
-      let! item = Ply.toTask (PMTypes.Impl.get hash)
+    | PT.ItemKind.TraitImpl ->
+      let! item = Ply.toTask (PMTypes.TraitImpl.get hash)
       match item with
-      | Some i -> return Ok(AffectedImpl(fqn, i, hash, loc))
+      | Some i -> return Ok(AffectedTraitImpl(fqn, i, hash, loc))
       | None -> return Error $"Impl at {hash} not found"
   }
 
@@ -369,7 +369,7 @@ let private stabilizationFromAffected
     | AffectedFn(fqn, f, h, loc) -> fns <- Map.add fqn (f, h, loc) fns
     | AffectedValue(fqn, v, h, loc) -> values <- Map.add fqn (v, h, loc) values
     | AffectedTrait(fqn, t, h, loc) -> traits <- Map.add fqn (t, h, loc) traits
-    | AffectedImpl(fqn, i, h, loc) -> impls <- Map.add fqn (i, h, loc) impls
+    | AffectedTraitImpl(fqn, i, h, loc) -> impls <- Map.add fqn (i, h, loc) impls
   HS.stabilize
     seedMapping
     { types = types; fns = fns; values = values; traits = traits; impls = impls }
@@ -427,12 +427,12 @@ let private applyStabilization
         [ PT.PackageOp.AddTrait transformed
           PT.PackageOp.SetName(loc, PT.PackageTrait newHash, Some currentHash) ]
       ops, mkRepoint loc currentHash PT.PackageTrait
-    | AffectedImpl(_, i, currentHash, loc) ->
+    | AffectedTraitImpl(_, i, currentHash, loc) ->
       let transformed = { AT.transformImpl s.mapping i with hash = newHash }
       let ops =
-        [ PT.PackageOp.AddImpl transformed
-          PT.PackageOp.SetName(loc, PT.PackageImpl newHash, Some currentHash) ]
-      ops, mkRepoint loc currentHash PT.PackageImpl
+        [ PT.PackageOp.AddTraitImpl transformed
+          PT.PackageOp.SetName(loc, PT.PackageTraitImpl newHash, Some currentHash) ]
+      ops, mkRepoint loc currentHash PT.PackageTraitImpl
 
 
 let private buildSeedMapping

@@ -163,7 +163,11 @@ let inTrait (part : PT.DocPart) (t : PT.Trait.Trait) : Option<string> =
   | PT.EnumCase _
   | PT.Parameter _ -> None
 
-let onTrait (part : PT.DocPart) (text : string) (t : PT.Trait.Trait) : PT.Trait.Trait =
+let onTrait
+  (part : PT.DocPart)
+  (text : string)
+  (t : PT.Trait.Trait)
+  : PT.Trait.Trait =
   match part with
   | PT.WholeItem -> { t with description = text }
   | PT.RecordField name ->
@@ -175,12 +179,16 @@ let onTrait (part : PT.DocPart) (text : string) (t : PT.Trait.Trait) : PT.Trait.
   | PT.EnumCase _
   | PT.Parameter _ -> t
 
-let inImpl (part : PT.DocPart) (i : PT.Impl.Impl) : Option<string> =
+let inImpl (part : PT.DocPart) (i : PT.TraitImpl.TraitImpl) : Option<string> =
   match part with
   | PT.WholeItem -> Some i.description
   | _ -> None
 
-let onImpl (part : PT.DocPart) (text : string) (i : PT.Impl.Impl) : PT.Impl.Impl =
+let onImpl
+  (part : PT.DocPart)
+  (text : string)
+  (i : PT.TraitImpl.TraitImpl)
+  : PT.TraitImpl.TraitImpl =
   match part with
   | PT.WholeItem -> { i with description = text }
   | _ -> i
@@ -405,9 +413,11 @@ let private declaredAt
           "package_values",
           (fun bytes -> inValue part (BS.PT.PackageValue.deserialize hash bytes))
         | PT.ItemKind.Trait ->
-          "package_traits", (fun bytes -> inTrait part (BS.PT.Trait.deserialize hash bytes))
-        | PT.ItemKind.Impl ->
-          "package_impls", (fun bytes -> inImpl part (BS.PT.Impl.deserialize hash bytes))
+          "package_traits",
+          (fun bytes -> inTrait part (BS.PT.Trait.deserialize hash bytes))
+        | PT.ItemKind.TraitImpl ->
+          "package_trait_impls",
+          (fun bytes -> inImpl part (BS.PT.TraitImpl.deserialize hash bytes))
 
       let! stored =
         bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->

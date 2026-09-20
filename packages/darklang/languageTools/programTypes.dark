@@ -514,8 +514,8 @@ module Trait =
 
 /// An impl: how one type does a trait. Its own item kind, named at
 /// `<module>[.<Type>].<Trait>`, with its method fns as ordinary fns beneath it.
-module Impl =
-  type Impl =
+module TraitImpl =
+  type TraitImpl =
     { hash: Hash
       trait_: NameResolution<FQTraitName.FQTraitName>
       /// The trait's non-self type args
@@ -537,7 +537,7 @@ type ItemKind =
   | Type
   | Value
   | Trait
-  | Impl
+  | TraitImpl
 
 /// A reference to a specific package item by content hash.
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
@@ -547,7 +547,7 @@ type Reference =
   | PackageValue of Hash
   | PackageFn of Hash
   | PackageTrait of Hash
-  | PackageImpl of Hash
+  | PackageTraitImpl of Hash
 
 module Reference =
   let hash (r: Reference) : Hash =
@@ -556,7 +556,7 @@ module Reference =
     | PackageValue h -> h
     | PackageFn h -> h
     | PackageTrait h -> h
-    | PackageImpl h -> h
+    | PackageTraitImpl h -> h
 
   let kind (r: Reference) : ItemKind =
     match r with
@@ -564,7 +564,7 @@ module Reference =
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
     | PackageTrait _ -> ItemKind.Trait
-    | PackageImpl _ -> ItemKind.Impl
+    | PackageTraitImpl _ -> ItemKind.TraitImpl
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
@@ -572,7 +572,7 @@ module Reference =
     | Value -> Reference.PackageValue h
     | Fn -> Reference.PackageFn h
     | Trait -> Reference.PackageTrait h
-    | Impl -> Reference.PackageImpl h
+    | TraitImpl -> Reference.PackageTraitImpl h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
@@ -661,7 +661,7 @@ type PackageOp =
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
   | AddTrait of Trait.Trait
-  | AddImpl of Impl.Impl
+  | AddTraitImpl of TraitImpl.TraitImpl
   /// Bind a name (location) to a piece of content (target).
   ///
   /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
@@ -719,7 +719,7 @@ module Search =
     | Fn
     | Value
     | Trait
-    | Impl
+    | TraitImpl
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -751,7 +751,7 @@ module Search =
       values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
       fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>>
       traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
-      impls : List<LocatedItem<ProgramTypes.Impl.Impl>> }
+      impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>> }
 
 
 
@@ -988,7 +988,7 @@ type Definitions =
     values: List<PackageValue.PackageValue>
     fns: List<PackageFn.PackageFn>
     traits: List<Trait.Trait>
-    impls: List<Impl.Impl>
+    impls: List<TraitImpl.TraitImpl>
     // TODO db and handlers
     exprs: List<Expr * List<String>> }
 
@@ -1007,7 +1007,7 @@ module SourceFile =
     | Function of PackageFn.PackageFn
     | Trait of Trait.Trait
     /// The impl item; its method fns are separate `Function` declarations
-    | Impl of Impl.Impl
+    | Impl of TraitImpl.TraitImpl
     // db and handlers
     | Module of Definitions // re-evaluate if this makes sense to be here
 

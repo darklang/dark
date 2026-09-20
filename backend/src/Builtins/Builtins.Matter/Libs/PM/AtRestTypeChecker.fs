@@ -25,7 +25,7 @@ type private Closure =
     values : Map<PT.Hash, PT.PackageValue.PackageValue>
     functions : Map<PT.Hash, PT.PackageFn.PackageFn>
     traits : Map<PT.Hash, PT.Trait.Trait>
-    impls : Map<PT.Hash, PT.Impl.Impl> }
+    impls : Map<PT.Hash, PT.TraitImpl.TraitImpl> }
 
 let private emptyClosure : Closure =
   { types = Map.empty
@@ -58,8 +58,8 @@ let private candidateItems
       | PT.PackageOp.AddTrait t ->
         (PT.Reference.PackageTrait t.hash :: items,
          { closure with traits = Map.add t.hash t closure.traits })
-      | PT.PackageOp.AddImpl i ->
-        (PT.Reference.PackageImpl i.hash :: items,
+      | PT.PackageOp.AddTraitImpl i ->
+        (PT.Reference.PackageTraitImpl i.hash :: items,
          { closure with impls = Map.add i.hash i closure.impls })
       | PT.PackageOp.SetName _
       | PT.PackageOp.Unbind _
@@ -108,7 +108,7 @@ let private loadDependencyClosure
           candidates.values.Keys |> Seq.map PT.Reference.PackageValue |> Set.ofSeq
           candidates.functions.Keys |> Seq.map PT.Reference.PackageFn |> Set.ofSeq
           candidates.traits.Keys |> Seq.map PT.Reference.PackageTrait |> Set.ofSeq
-          candidates.impls.Keys |> Seq.map PT.Reference.PackageImpl |> Set.ofSeq ]
+          candidates.impls.Keys |> Seq.map PT.Reference.PackageTraitImpl |> Set.ofSeq ]
     let mutable pending = candidateDependencies candidates
     let mutable closure = emptyClosure
 
@@ -166,8 +166,8 @@ let private loadDependencyClosure
                 (t |> Dependencies.extractFromTrait |> List.map referenceOfDependency)
                 @ pending
               closure <- { closure with traits = Map.add t.hash t closure.traits }
-          | PT.Reference.PackageImpl hash ->
-            let! item = pm.getImpl hash
+          | PT.Reference.PackageTraitImpl hash ->
+            let! item = pm.getTraitImpl hash
             match item with
             | None -> ()
             | Some i ->
@@ -190,10 +190,14 @@ let private addTrustedDependencyDeclarations
       environment
   let environment =
     dependencies.traits.Values
-    |> Seq.fold (fun environment t -> Checker.TypeEnvironment.addTrait t environment) environment
+    |> Seq.fold
+      (fun environment t -> Checker.TypeEnvironment.addTrait t environment)
+      environment
   let environment =
     dependencies.impls.Values
-    |> Seq.fold (fun environment i -> Checker.TypeEnvironment.addImpl i environment) environment
+    |> Seq.fold
+      (fun environment i -> Checker.TypeEnvironment.addImpl i environment)
+      environment
   dependencies.functions.Values
   |> Seq.fold
     (fun environment fn ->
@@ -246,7 +250,8 @@ let private aggregate
   (batch : Checker.BatchResult)
   : CheckReport =
   let items =
-    List.concat [ batch.types; batch.values; batch.functions; batch.traits; batch.impls ]
+    List.concat
+      [ batch.types; batch.values; batch.functions; batch.traits; batch.impls ]
     |> List.filter (fun result -> Set.contains result.item candidateRefs)
     |> List.map itemReport
 
@@ -325,7 +330,8 @@ let checkBranch (pm : PT.PackageManager) (builtins : Builtins) : Ply<CheckReport
           results.values |> List.map (fun item -> PT.PackageOp.AddValue item.entity)
           results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity)
           results.traits |> List.map (fun item -> PT.PackageOp.AddTrait item.entity)
-          results.impls |> List.map (fun item -> PT.PackageOp.AddImpl item.entity) ]
+          results.impls
+          |> List.map (fun item -> PT.PackageOp.AddTraitImpl item.entity) ]
     return! checkPackageOps pm builtins ops
   }
 
@@ -562,7 +568,8 @@ module private DarkTypes =
     | Checker.At site -> make "At" [ siteToDT site ]
     | Checker.Unresolved attempted -> make "Unresolved" [ strings attempted ]
     | Checker.TypeUnavailable name -> make "TypeUnavailable" [ PT2DT.Hash.toDT name ]
-    | Checker.TraitUnavailable name -> make "TraitUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.TraitUnavailable name ->
+      make "TraitUnavailable" [ PT2DT.Hash.toDT name ]
     | Checker.ImplMethod(trait_, method_, detail) ->
       make "ImplMethod" [ PT2DT.Hash.toDT trait_; DString method_; DString detail ]
     | Checker.FunctionUnavailable name ->
@@ -609,7 +616,8 @@ module private DarkTypes =
     | Checker.TraitNeeded(trait_, method_) ->
       make
         "TraitNeeded"
-        [ PT2DT.Hash.toDT trait_; method_ |> Option.map DString |> Dval.option KTString ]
+        [ PT2DT.Hash.toDT trait_
+          method_ |> Option.map DString |> Dval.option KTString ]
     | Checker.CheckerUnavailable detail ->
       make "CheckerUnavailable" [ DString detail ]
 

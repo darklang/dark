@@ -205,20 +205,26 @@ let private inferNegateResult
   (argType : StaticType)
   : StaticType =
   state.AddDependency(FunctionDependency fqName)
-  let concrete = normalizeAliases state (Some nodeId) Set.empty argType
-  if not (isSignedNumeric concrete) then
-    match concrete with
-    | TInferenceVariable _ ->
-      if not (containsTaintedInferenceVariable state argType) then
-        state.Block(AmbiguousType, Some nodeId, Ambiguous UnaryMinusOperand)
-    | _ ->
-      state.Error(
-        InvalidInfixOperand,
-        Some nodeId,
-        None,
-        Some concrete,
-        UnaryMinusOperandNotSignedNumeric
-      )
+  // Through the syntax `-x` is `Neg.negate x`, so the operand owes a `Neg` impl; the
+  // builtin's own table stands in only while the refs are not generated.
+  match LibExecution.NumericTraits.ofNegate () with
+  | Some(traitHash, methodName) ->
+    state.AddConstraint(Some nodeId, Hash traitHash, argType, Some methodName)
+  | None ->
+    let concrete = normalizeAliases state (Some nodeId) Set.empty argType
+    if not (isSignedNumeric concrete) then
+      match concrete with
+      | TInferenceVariable _ ->
+        if not (containsTaintedInferenceVariable state argType) then
+          state.Block(AmbiguousType, Some nodeId, Ambiguous UnaryMinusOperand)
+      | _ ->
+        state.Error(
+          InvalidInfixOperand,
+          Some nodeId,
+          None,
+          Some concrete,
+          UnaryMinusOperandNotSignedNumeric
+        )
   argType
 
 /// A trait method's signature is the trait record's field: `show: 'a -> String`
@@ -273,12 +279,18 @@ let private instantiateFunction
       state.FreshTainted nodeId
     | Some signature ->
       let vars =
-        typeVariables state nodeId typeVariableScope signature.typeParams explicitTypeArgs
+        typeVariables
+          state
+          nodeId
+          typeVariableScope
+          signature.typeParams
+          explicitTypeArgs
       for b in signature.bounds do
         match Map.tryFind b.param vars with
         | Some typ -> state.AddConstraint(nodeId, traitHash, typ, Some methodName)
         | None -> ()
-      let parameters = NEList.map (convertType state nodeId vars) signature.parameters
+      let parameters =
+        NEList.map (convertType state nodeId vars) signature.parameters
       let returnType = convertType state nodeId vars signature.returnType
       let typ = TFn(parameters, returnType)
       validateTypeClosure state nodeId typ
@@ -949,7 +961,8 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
     let bodyType = inferExpr state (addBindings state None env bindings) body
     TFn(parameters, bodyType)
-  | EInfix(nodeId, infix, lhs, rhs) -> inferInfix state env nodeId false infix lhs rhs
+  | EInfix(nodeId, infix, lhs, rhs) ->
+    inferInfix state env nodeId false infix lhs rhs
   | ERecord(nodeId, name, typeArgs, fields) ->
     inferRecordConstruction state env nodeId name typeArgs fields
   | ERecordFieldAccess(nodeId, record, fieldName) ->

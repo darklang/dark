@@ -744,10 +744,10 @@ type MethodTarget = Name
 
 /// An impl in package form: its own item at `<module>[.<Type>].<Trait>`, whose
 /// method fns are ordinary package fns beneath it.
-module PackageImpl =
+module PackageTraitImpl =
   type Name = { owner : string; modules : List<string>; name : string }
 
-  type PackageImpl =
+  type PackageTraitImpl =
     {
       name : Name
       trait_ : QualifiedTypeIdentifier
@@ -960,12 +960,12 @@ let packageImpl
   (owner : string)
   (memberPath : List<string>)
   (impl : ImplDecl)
-  : PackageImpl.PackageImpl =
+  : PackageTraitImpl.PackageTraitImpl =
   let location =
     match List.rev memberPath with
     | name :: revModules ->
       ({ owner = owner; modules = List.rev revModules; name = name }
-      : PackageImpl.Name)
+      : PackageTraitImpl.Name)
     | [] -> { owner = owner; modules = []; name = impl.trait_.typ.name }
   let declared =
     impl.methods

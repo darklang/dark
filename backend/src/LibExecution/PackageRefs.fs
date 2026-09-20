@@ -472,9 +472,9 @@ module Type =
         let method_ = p [] "Method"
         let trait_ = p [] "Trait"
 
-      module Impl =
-        let private p addl = p ("Impl" :: addl)
-        let impl = p [] "Impl"
+      module TraitImpl =
+        let private p addl = p ("TraitImpl" :: addl)
+        let traitImpl = p [] "TraitImpl"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)

@@ -169,7 +169,7 @@ let authoredDocs
            |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
       )
-    | AddImpl i ->
+    | AddTraitImpl i ->
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
       )
@@ -208,8 +208,8 @@ let currentDocs
            |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
       |> Stdlib.Option.withDefault []
-    | Impl ->
-      LanguageTools.PackageManager.Impl.get hash
+    | TraitImpl ->
+      LanguageTools.PackageManager.TraitImpl.get hash
       |> Stdlib.Option.map (fun i ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
       |> Stdlib.Option.withDefault []

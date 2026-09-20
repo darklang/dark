@@ -1588,7 +1588,7 @@ module TraitDeclaration =
 
 /// `impl[<'a: B>] Trait<Args> for Type = ...` as its own package item at
 /// `<module>[.<Type>].<Trait>`, with the block's method fns as ordinary fns
-/// beneath it. Mirrors the F# `SourceFile.items` + `WT2PT.Impl.toPT`.
+/// beneath it. Mirrors the F# `SourceFile.items` + `WT2PT.TraitImpl.toPT`.
 module ImplDeclaration =
   /// The head name of the self type, for the impl's member path
   let typeReferenceHeadName (t: WrittenTypes.TypeReference.TypeReference) : String =
@@ -1676,7 +1676,7 @@ module ImplDeclaration =
   let toPT
     (ctx: NameResolver.NRContext)
     (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
-    : (ProgramTypes.Impl.Impl * List<WrittenTypes.UnresolvedName>)
+    : (ProgramTypes.TraitImpl.TraitImpl * List<WrittenTypes.UnresolvedName>)
     =
     let (traitRef, traitUnresolved) = TraitRef.toPT ctx implDecl.trait_
     let (self, selfUnresolved) = TypeReference.toPT ctx implDecl.forType
@@ -1696,7 +1696,7 @@ module ImplDeclaration =
         ((name, fn), unresolved))
       |> Stdlib.List.unzip
 
-    (ProgramTypes.Impl.Impl
+    (ProgramTypes.TraitImpl.TraitImpl
       { hash = ProgramTypes.Hash.Hash ""
         trait_ = traitRef.trait_
         traitTypeArgs = traitRef.typeArgs
@@ -1737,7 +1737,7 @@ let traitWithOps
 let implWithOps
   (ctx: NameResolver.NRContext)
   (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
-  : (ProgramTypes.Impl.Impl *
+  : (ProgramTypes.TraitImpl.TraitImpl *
     List<ProgramTypes.PackageFn.PackageFn> *
     List<ProgramTypes.PackageOp> *
     List<WrittenTypes.UnresolvedName>)
@@ -1776,8 +1776,8 @@ let implWithOps
     ProgramTypes.PackageLocation
       { owner = ctx.owner; modules = implModules; name = implName }
   let implOps =
-    [ ProgramTypes.PackageOp.AddImpl pi
-      ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageImpl pi.hash, Stdlib.Option.Option.None) ]
+    [ ProgramTypes.PackageOp.AddTraitImpl pi
+      ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTraitImpl pi.hash, Stdlib.Option.Option.None) ]
 
   (pi, fns, Stdlib.List.append fnOps implOps, Stdlib.List.append fnUnresolved implUnresolved)
 

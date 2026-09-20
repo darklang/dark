@@ -62,7 +62,7 @@ let problems () : List<Problem> =
          AND NOT EXISTS (SELECT 1 FROM package_types t WHERE t.hash = l.item_hash)
          AND NOT EXISTS (SELECT 1 FROM package_values v WHERE v.hash = l.item_hash)
          AND NOT EXISTS (SELECT 1 FROM package_traits tr WHERE tr.hash = l.item_hash)
-         AND NOT EXISTS (SELECT 1 FROM package_impls i WHERE i.hash = l.item_hash)"
+         AND NOT EXISTS (SELECT 1 FROM package_trait_impls i WHERE i.hash = l.item_hash)"
 
   // A stamp well ahead of now means some instance's clock is wrong. Ordering still works -- the authoring
   // clock advances past anything it receives, so your later edits win -- but the stamps stop meaning

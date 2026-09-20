@@ -729,14 +729,18 @@ module ProgramTypes =
   /// and a body that calls a trait method.
   let boundedPackageFn : PackageFn.PackageFn =
     let showRef : TraitRef =
-      { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-show")); typeArgs = [] }
+      { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-show"))
+        typeArgs = [] }
     let eqRef : TraitRef =
       { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-eq"))
         typeArgs = [ TInt ] }
     let traitCall =
       EApply(
         gid (),
-        EFnName(gid (), NameResolution.ok (FQFnName.TraitMethod(Hash "trait-show", "show"))),
+        EFnName(
+          gid (),
+          NameResolution.ok (FQFnName.TraitMethod(Hash "trait-show", "show"))
+        ),
         [],
         NEList.singleton (EArg(gid (), 0))
       )
@@ -777,7 +781,8 @@ module ProgramTypes =
           bounds =
             [ { param = "a"
                 trait_ =
-                  { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-ord"))
+                  { trait_ =
+                      NameResolution.ok (FQTraitName.Package(Hash "trait-ord"))
                     typeArgs = [] } } ]
           definition = TypeDeclaration.Alias(TList(TVariable "a")) }
       description = "bounded" }
@@ -802,7 +807,8 @@ module ProgramTypes =
         NEList.singleton
           { name = "convert"
             typeParams = []
-            parameters = NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
+            parameters =
+              NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
             returnType = TVariable "b"
             permissionCeiling = Some Set.empty
             description = "the method" }
@@ -811,7 +817,7 @@ module ProgramTypes =
   let traits = [ trait_ ]
 
   /// `impl<'a: Show> Convert<Int> for List<'a>` naming one method fn.
-  let impl : Impl.Impl =
+  let impl : TraitImpl.TraitImpl =
     { hash = Hash "impl-convert-list"
       trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-convert"))
       traitTypeArgs = [ TInt ]
@@ -822,7 +828,8 @@ module ProgramTypes =
             trait_ =
               { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-show"))
                 typeArgs = [] } } ]
-      methods = [ ("convert", NameResolution.ok (FQFnName.Package(Hash "fn-convert"))) ]
+      methods =
+        [ ("convert", NameResolution.ok (FQFnName.Package(Hash "fn-convert"))) ]
       description = "an impl" }
 
   let impls = [ impl ]
@@ -859,11 +866,11 @@ module ProgramTypes =
       AddValue packageValues[0]
       AddFn packageFns[0]
       AddTrait trait_
-      AddImpl impl
+      AddTraitImpl impl
 
       SetName(loc, Reference.PackageFn hashPT, None)
       SetName(otherLoc, Reference.PackageTrait hashPT, None)
-      SetName(otherLoc, Reference.PackageImpl shortHash, Some hashPT)
+      SetName(otherLoc, Reference.PackageTraitImpl shortHash, Some hashPT)
       SetName(loc, Reference.PackageFn hashPT, Some hashPT)
       SetName(otherLoc, Reference.PackageType hashPT, Some shortHash)
       SetName(otherLoc, Reference.PackageValue shortHash, None)

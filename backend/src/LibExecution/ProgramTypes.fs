@@ -618,7 +618,8 @@ module Expr =
 /// A trait, referenced from a bound or an impl: the trait item plus any type args
 /// for its non-self params (`'a: Convert<Int>`).
 type TraitRef =
-  { trait_ : NameResolution<FQTraitName.FQTraitName>; typeArgs : List<TypeReference> }
+  { trait_ : NameResolution<FQTraitName.FQTraitName>
+    typeArgs : List<TypeReference> }
 
 /// `'a: Show` on a fn or type declaration. Lives on the binder that introduced the
 /// type param, which is also what the runtime's TypeSymbolTable is keyed on;
@@ -649,11 +650,13 @@ module TypeDeclaration =
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>
   type T =
-    { typeParams : List<string>
+    {
+      typeParams : List<string>
       /// `type Set<'a: Ord> = ...`. Stored from the start so the format does not
       /// move twice; the checker reads it (the runtime does not, for types).
       bounds : List<Bound>
-      definition : Definition }
+      definition : Definition
+    }
 
 
 
@@ -741,22 +744,25 @@ module Trait =
       description : string }
 
   type Trait =
-    { hash : FQTraitName.Package
+    {
+      hash : FQTraitName.Package
       /// The first is the self type; the rest are the trait's other params
       /// (`Convert<'a, 'b>`).
       typeParams : NEList<string>
       /// `trait Ord<'a: Eq> = ...`: supertraits, as bounds on the params.
       bounds : List<Bound>
       methods : NEList<Method>
-      description : string }
+      description : string
+    }
 
 
 /// An impl: how one type does a trait. Its own item kind, named at
 /// `<module>[.<Type>].<Trait>` (the type segment is dropped when the module is
 /// already named for the type), with its method fns as ordinary fns beneath it.
-module Impl =
-  type Impl =
-    { hash : Hash
+module TraitImpl =
+  type TraitImpl =
+    {
+      hash : Hash
       trait_ : NameResolution<FQTraitName.FQTraitName>
       /// The trait's non-self type args, when it has any
       traitTypeArgs : List<TypeReference>
@@ -768,7 +774,8 @@ module Impl =
       /// method name -> the fn that implements it, in the trait's method order. A
       /// name resolution like `EFnName`'s, so propagation can follow the fn.
       methods : List<string * NameResolution<FQFnName.FQFnName>>
-      description : string }
+      description : string
+    }
 
 
 /// What happened to a branch. A CLOSED set, so a type rather than a string. Both cases are MONOTONIC:
@@ -790,7 +797,7 @@ type PackageOp =
   | AddValue of value : PackageValue.PackageValue
   | AddFn of fn : PackageFn.PackageFn
   | AddTrait of trait_ : Trait.Trait
-  | AddImpl of impl : Impl.Impl
+  | AddTraitImpl of impl : TraitImpl.TraitImpl
 
   // Location operations - bind a name to a piece of content.
   // Content is identified by a Reference (hash + kind); the location is a
@@ -935,7 +942,7 @@ and ItemKind =
   | Type
   | Value
   | Trait
-  | Impl
+  | TraitImpl
 
   /// Convert from database string representation
   static member fromString(s : string) : ItemKind =
@@ -944,7 +951,7 @@ and ItemKind =
     | "type" -> Type
     | "value" -> Value
     | "trait" -> Trait
-    | "impl" -> Impl
+    | "impl" -> TraitImpl
     | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
 
   /// Convert to database string representation
@@ -956,7 +963,7 @@ and ItemKind =
     | Type -> "type"
     | Value -> "value"
     | Trait -> "trait"
-    | Impl -> "impl"
+    | TraitImpl -> "impl"
 
 
 /// A reference to a specific package item by content hash.
@@ -967,7 +974,7 @@ and Reference =
   | PackageValue of Hash
   | PackageFn of Hash
   | PackageTrait of Hash
-  | PackageImpl of Hash
+  | PackageTraitImpl of Hash
 
   /// Extract the ItemKind (display helper).
   member this.kind : ItemKind =
@@ -976,7 +983,7 @@ and Reference =
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
     | PackageTrait _ -> ItemKind.Trait
-    | PackageImpl _ -> ItemKind.Impl
+    | PackageTraitImpl _ -> ItemKind.TraitImpl
 
   /// Extract the content Hash.
   member this.hash : Hash =
@@ -985,7 +992,7 @@ and Reference =
     | PackageValue h
     | PackageFn h
     | PackageTrait h
-    | PackageImpl h -> h
+    | PackageTraitImpl h -> h
 
   /// Build a Reference from a hash + item kind (common SQL-boundary need).
   static member fromHashAndKind(h : Hash, k : ItemKind) : Reference =
@@ -994,7 +1001,7 @@ and Reference =
     | ItemKind.Value -> PackageValue h
     | ItemKind.Fn -> PackageFn h
     | ItemKind.Trait -> PackageTrait h
-    | ItemKind.Impl -> PackageImpl h
+    | ItemKind.TraitImpl -> PackageTraitImpl h
 
 
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
@@ -1119,7 +1126,7 @@ module Search =
     | Fn
     | Value
     | Trait
-    | Impl
+    | TraitImpl
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -1151,7 +1158,7 @@ module Search =
       values : List<LocatedItem<PackageValue.PackageValue>>
       fns : List<LocatedItem<PackageFn.PackageFn>>
       traits : List<LocatedItem<Trait.Trait>>
-      impls : List<LocatedItem<Impl.Impl>> }
+      impls : List<LocatedItem<TraitImpl.TraitImpl>> }
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -1159,11 +1166,12 @@ module Search =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
+  {
+    findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
     findValue : PackageLocation -> Ply<Option<FQValueName.Package>>
     findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
     findTrait : PackageLocation -> Ply<Option<FQTraitName.Package>>
-    findImpl : PackageLocation -> Ply<Option<Hash>>
+    findTraitImpl : PackageLocation -> Ply<Option<Hash>>
 
     search : Search.SearchQuery -> Ply<Search.SearchResults>
 
@@ -1172,22 +1180,22 @@ type PackageManager =
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
-    getImpl : Hash -> Ply<Option<Impl.Impl>>
+    getTraitImpl : Hash -> Ply<Option<TraitImpl.TraitImpl>>
 
     // Reverse lookups — returns ALL locations for a hash
     getTypeLocations : FQTypeName.Package -> Ply<List<PackageLocation>>
     getValueLocations : FQValueName.Package -> Ply<List<PackageLocation>>
     getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
     getTraitLocations : FQTraitName.Package -> Ply<List<PackageLocation>>
-    getImplLocations : Hash -> Ply<List<PackageLocation>>
+    getTraitImplLocations : Hash -> Ply<List<PackageLocation>>
 
     /// Every impl of a trait this manager holds. Not filtered for liveness; the RT
     /// conversion checks each impl's location still binds it.
-    impls : FQTraitName.Package -> Ply<List<Impl.Impl>>
+    impls : FQTraitName.Package -> Ply<List<TraitImpl.TraitImpl>>
 
     /// Every impl, of any trait, that has a method of this name. For receiver
     /// calls (`p.show`).
-    implsWithMethod : string -> Ply<List<Impl.Impl>>
+    implsWithMethod : string -> Ply<List<TraitImpl.TraitImpl>>
 
     /// The last segment of every trait name this manager can answer for. A gate
     /// in front of `findTrait`: the name resolver tries every qualified fn name as
@@ -1195,7 +1203,8 @@ type PackageManager =
     /// called that, instead of one location query per scope.
     traitNames : unit -> Ply<HashSet<string>>
 
-    init : Ply<unit> }
+    init : Ply<unit>
+  }
 
 
   static member empty =
@@ -1203,23 +1212,29 @@ type PackageManager =
       findFn = fun _ -> Ply None
       findValue = fun _ -> Ply None
       findTrait = fun _ -> Ply None
-      findImpl = fun _ -> Ply None
+      findTraitImpl = fun _ -> Ply None
 
       search =
         fun _ ->
-          Ply { submodules = []; types = []; values = []; fns = []; traits = []; impls = [] }
+          Ply
+            { submodules = []
+              types = []
+              values = []
+              fns = []
+              traits = []
+              impls = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
       getTrait = fun _ -> Ply None
-      getImpl = fun _ -> Ply None
+      getTraitImpl = fun _ -> Ply None
 
       getTypeLocations = fun _ -> Ply []
       getValueLocations = fun _ -> Ply []
       getFnLocations = fun _ -> Ply []
       getTraitLocations = fun _ -> Ply []
-      getImplLocations = fun _ -> Ply []
+      getTraitImplLocations = fun _ -> Ply []
 
       impls = fun _ -> Ply []
       implsWithMethod = fun _ -> Ply []
@@ -1261,13 +1276,19 @@ type PackageManager =
     (values : List<PackageValue.PackageValue * PackageLocation>)
     (fns : List<PackageFn.PackageFn * PackageLocation>)
     (traits : List<Trait.Trait * PackageLocation>)
-    (impls : List<Impl.Impl * PackageLocation>)
+    (impls : List<TraitImpl.TraitImpl * PackageLocation>)
     (pm : PackageManager)
     : PackageManager =
 
-    let locationToHash (items : List<'item * PackageLocation>) (hashOf : 'item -> Hash) =
+    let locationToHash
+      (items : List<'item * PackageLocation>)
+      (hashOf : 'item -> Hash)
+      =
       items |> List.map (fun (i, loc) -> loc, hashOf i) |> Map.ofList
-    let hashToLocations (items : List<'item * PackageLocation>) (hashOf : 'item -> Hash) =
+    let hashToLocations
+      (items : List<'item * PackageLocation>)
+      (hashOf : 'item -> Hash)
+      =
       items
       |> List.fold
         (fun acc (i, loc) ->
@@ -1277,30 +1298,45 @@ type PackageManager =
     let hashToItem (items : List<'item * PackageLocation>) (hashOf : 'item -> Hash) =
       items |> List.map (fun (i, _) -> hashOf i, i) |> Map.ofList
 
-    let typeLocationToHash = locationToHash types (fun (t : PackageType.PackageType) -> t.hash)
-    let typeHashToLocations = hashToLocations types (fun (t : PackageType.PackageType) -> t.hash)
-    let typeHashToType = hashToItem types (fun (t : PackageType.PackageType) -> t.hash)
+    let typeLocationToHash =
+      locationToHash types (fun (t : PackageType.PackageType) -> t.hash)
+    let typeHashToLocations =
+      hashToLocations types (fun (t : PackageType.PackageType) -> t.hash)
+    let typeHashToType =
+      hashToItem types (fun (t : PackageType.PackageType) -> t.hash)
 
-    let valueLocationToHash = locationToHash values (fun (v : PackageValue.PackageValue) -> v.hash)
-    let valueHashToLocations = hashToLocations values (fun (v : PackageValue.PackageValue) -> v.hash)
-    let valueHashToValue = hashToItem values (fun (v : PackageValue.PackageValue) -> v.hash)
+    let valueLocationToHash =
+      locationToHash values (fun (v : PackageValue.PackageValue) -> v.hash)
+    let valueHashToLocations =
+      hashToLocations values (fun (v : PackageValue.PackageValue) -> v.hash)
+    let valueHashToValue =
+      hashToItem values (fun (v : PackageValue.PackageValue) -> v.hash)
 
-    let fnLocationToHash = locationToHash fns (fun (f : PackageFn.PackageFn) -> f.hash)
-    let fnHashToLocations = hashToLocations fns (fun (f : PackageFn.PackageFn) -> f.hash)
+    let fnLocationToHash =
+      locationToHash fns (fun (f : PackageFn.PackageFn) -> f.hash)
+    let fnHashToLocations =
+      hashToLocations fns (fun (f : PackageFn.PackageFn) -> f.hash)
     let fnHashToFn = hashToItem fns (fun (f : PackageFn.PackageFn) -> f.hash)
 
     let traitLocationToHash = locationToHash traits (fun (t : Trait.Trait) -> t.hash)
-    let traitHashToLocations = hashToLocations traits (fun (t : Trait.Trait) -> t.hash)
+    let traitHashToLocations =
+      hashToLocations traits (fun (t : Trait.Trait) -> t.hash)
     let traitHashToTrait = hashToItem traits (fun (t : Trait.Trait) -> t.hash)
 
-    let implLocationToHash = locationToHash impls (fun (i : Impl.Impl) -> i.hash)
-    let implHashToLocations = hashToLocations impls (fun (i : Impl.Impl) -> i.hash)
-    let implHashToImpl = hashToItem impls (fun (i : Impl.Impl) -> i.hash)
+    let implLocationToHash =
+      locationToHash impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
+    let implHashToLocations =
+      hashToLocations impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
+    let implHashToImpl = hashToItem impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
 
-    let ownTraitNames = HashSet<string>(traits |> List.map (fun (_, loc) -> loc.name))
+    let ownTraitNames =
+      HashSet<string>(traits |> List.map (fun (_, loc) -> loc.name))
     let traitNames = PackageManager.unionTraitNames ownTraitNames pm.traitNames
 
-    let find (own : Map<PackageLocation, Hash>) (below : PackageLocation -> Ply<Option<Hash>>) =
+    let find
+      (own : Map<PackageLocation, Hash>)
+      (below : PackageLocation -> Ply<Option<Hash>>)
+      =
       fun location ->
         match Map.tryFind location own with
         | Some hash -> Ply(Some hash)
@@ -1310,7 +1346,10 @@ type PackageManager =
         match Map.tryFind hash own with
         | Some item -> Ply(Some item)
         | None -> below hash
-    let locations (own : Map<Hash, List<PackageLocation>>) (below : Hash -> Ply<List<PackageLocation>>) =
+    let locations
+      (own : Map<Hash, List<PackageLocation>>)
+      (below : Hash -> Ply<List<PackageLocation>>)
+      =
       fun hash ->
         uply {
           let local = Map.tryFind hash own |> Option.defaultValue []
@@ -1322,7 +1361,7 @@ type PackageManager =
       findValue = find valueLocationToHash pm.findValue
       findFn = find fnLocationToHash pm.findFn
       findTrait = find traitLocationToHash pm.findTrait
-      findImpl = find implLocationToHash pm.findImpl
+      findTraitImpl = find implLocationToHash pm.findTraitImpl
       traitNames = traitNames
 
       search = fun query -> pm.search query
@@ -1331,13 +1370,13 @@ type PackageManager =
       getValue = get valueHashToValue pm.getValue
       getFn = get fnHashToFn pm.getFn
       getTrait = get traitHashToTrait pm.getTrait
-      getImpl = get implHashToImpl pm.getImpl
+      getTraitImpl = get implHashToImpl pm.getTraitImpl
 
       getTypeLocations = locations typeHashToLocations pm.getTypeLocations
       getValueLocations = locations valueHashToLocations pm.getValueLocations
       getFnLocations = locations fnHashToLocations pm.getFnLocations
       getTraitLocations = locations traitHashToLocations pm.getTraitLocations
-      getImplLocations = locations implHashToLocations pm.getImplLocations
+      getTraitImplLocations = locations implHashToLocations pm.getTraitImplLocations
 
       impls =
         fun traitHash ->
@@ -1359,7 +1398,8 @@ type PackageManager =
             let own =
               impls
               |> List.map fst
-              |> List.filter (fun i -> i.methods |> List.exists (fun (m, _) -> m = methodName))
+              |> List.filter (fun i ->
+                i.methods |> List.exists (fun (m, _) -> m = methodName))
             return own @ below
           }
 

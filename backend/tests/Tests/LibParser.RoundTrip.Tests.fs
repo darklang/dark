@@ -157,7 +157,7 @@ module RoundTripExpect =
         Some $"content {canon (fun w -> Canonical.writeFn Canonical.Normal w f)}"
       | PT.PackageOp.AddTrait t ->
         Some $"content {canon (fun w -> Canonical.writeTrait Canonical.Normal w t)}"
-      | PT.PackageOp.AddImpl i ->
+      | PT.PackageOp.AddTraitImpl i ->
         Some $"content {canon (fun w -> Canonical.writeImpl Canonical.Normal w i)}"
       // `previous` (the hash this binding replaced) is what makes a rebind distinguishable from a
       // fresh one; the round trip does not care which it was.
@@ -168,7 +168,7 @@ module RoundTripExpect =
           | PT.Reference.PackageValue _ -> "value"
           | PT.Reference.PackageFn _ -> "fn"
           | PT.Reference.PackageTrait _ -> "trait"
-          | PT.Reference.PackageImpl _ -> "impl"
+          | PT.Reference.PackageTraitImpl _ -> "impl"
         let path = String.concat "." (loc.owner :: loc.modules)
         Some $"bind {kind} {path}.{loc.name}"
       | _ -> None)

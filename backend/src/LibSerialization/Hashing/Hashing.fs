@@ -305,7 +305,7 @@ module Hashing =
   let computeTraitHash (mode : HashRefMode) (t : PT.Trait.Trait) : Hash =
     hashWithWriter (fun w -> Canonical.writeTrait mode w t)
 
-  let computeImplHash (mode : HashRefMode) (i : PT.Impl.Impl) : Hash =
+  let computeImplHash (mode : HashRefMode) (i : PT.TraitImpl.TraitImpl) : Hash =
     hashWithWriter (fun w -> Canonical.writeImpl mode w i)
 
 
@@ -336,7 +336,7 @@ module Hashing =
     | PT.PackageOp.AddType t when t.hash <> Hash "" -> contentOpHash 1uy t.hash
     | PT.PackageOp.AddValue v when v.hash <> Hash "" -> contentOpHash 2uy v.hash
     | PT.PackageOp.AddTrait t when t.hash <> Hash "" -> contentOpHash 3uy t.hash
-    | PT.PackageOp.AddImpl i when i.hash <> Hash "" -> contentOpHash 4uy i.hash
+    | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" -> contentOpHash 4uy i.hash
     | _ ->
       hashWithWriter (fun w ->
         LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
@@ -436,7 +436,7 @@ module Hashing =
       Hash *
       Option<PT.PackageLocation>
     | TraitItem of PT.Trait.Trait * string * Hash * Option<PT.PackageLocation>
-    | ImplItem of PT.Impl.Impl * string * Hash * Option<PT.PackageLocation>
+    | ImplItem of PT.TraitImpl.TraitImpl * string * Hash * Option<PT.PackageLocation>
 
   let private getItemFQN (item : ItemInfo) : string =
     match item with
@@ -505,7 +505,7 @@ module Hashing =
     (values :
       Map<string, PT.PackageValue.PackageValue * Hash * Option<PT.PackageLocation>>)
     (traits : Map<string, PT.Trait.Trait * Hash * Option<PT.PackageLocation>>)
-    (impls : Map<string, PT.Impl.Impl * Hash * Option<PT.PackageLocation>>)
+    (impls : Map<string, PT.TraitImpl.TraitImpl * Hash * Option<PT.PackageLocation>>)
     (getDeps : string -> List<string>)
     : Map<string, Hash> =
 

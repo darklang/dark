@@ -112,8 +112,8 @@ let updatedItems
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Fn
     | SetName(location, PackageTrait hash, _) ->
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Trait
-    | SetName(location, PackageImpl hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Impl
+    | SetName(location, PackageTraitImpl hash, _) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.TraitImpl
     | _ -> Stdlib.Option.Option.None)
 
 

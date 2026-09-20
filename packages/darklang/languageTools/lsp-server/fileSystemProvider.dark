@@ -269,7 +269,7 @@ module WriteFile =
         | [] -> locationOf implDecl.trait_.typ.name
       LoweredDecl
         { location = location
-          kind = LanguageTools.ProgramTypes.ItemKind.Impl
+          kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
           ops = ops
           unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
@@ -296,8 +296,8 @@ module WriteFile =
       | Value -> pm.findValue (branchId, location) |> Stdlib.Option.isSome
       | Trait -> pm.findTrait (branchId, location) |> Stdlib.Option.isSome
       // The PM record carries no impl lookup; `pm` here is the persistent one anyway
-      | Impl ->
-        LanguageTools.PackageManager.Impl.find branchId location |> Stdlib.Option.isSome
+      | TraitImpl ->
+        LanguageTools.PackageManager.TraitImpl.find branchId location |> Stdlib.Option.isSome
     Stdlib.Bool.not existing
 
 

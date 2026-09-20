@@ -976,7 +976,13 @@ let private unitTests =
                     PT.TTuple(PT.TInt, PT.TList(customType missing), [])
                   ) } }
         let result =
-          CheckerApi.checkPackageBatch Checker.TypeEnvironment.empty [ alias ] [] [] [] []
+          CheckerApi.checkPackageBatch
+            Checker.TypeEnvironment.empty
+            [ alias ]
+            []
+            []
+            []
+            []
         match result.types with
         | [ item ] -> expectBlocker Checker.MissingTypeDeclaration item.verdict
         | items -> failtestf "Expected one type verdict, got %A" items
@@ -1050,7 +1056,13 @@ let private unitTests =
                       [ { name = "field"; typ = PT.TString; description = "" } ]
                   ) } }
         let result =
-          CheckerApi.checkPackageBatch Checker.TypeEnvironment.empty [ typ ] [] [] [] []
+          CheckerApi.checkPackageBatch
+            Checker.TypeEnvironment.empty
+            [ typ ]
+            []
+            []
+            []
+            []
         match result.types with
         | [ item ] -> expectDiagnostic Checker.DuplicateTypeMember item.verdict
         | items -> failtestf "Expected one type verdict, got %A" items
@@ -1244,8 +1256,10 @@ let private unitTests =
 
       test "unary minus is checked as negation" {
         // The parser lowers `-x` on a non-literal to `Builtin.negate`, whose
-        // declared `'a -> 'a` would accept anything.
-        let environment = builtinEnvironment ()
+        // declared `'a -> 'a` would accept anything; the checker asks for a `Neg`
+        // impl of the operand type instead, so unsigned and non-numeric operands
+        // are a missing impl.
+        let environment = numericEnvironment ()
         let negate =
           PT.EApply(
             40UL,
@@ -1264,10 +1278,10 @@ let private unitTests =
         |> expectDiagnostic Checker.TypeMismatch
         oneArgFn PT.TUInt8 PT.TUInt8 negate
         |> CheckerApi.checkPackageFunction environment
-        |> expectDiagnostic Checker.InvalidInfixOperand
+        |> expectDiagnostic Checker.MissingImpl
         oneArgFn PT.TString PT.TString negate
         |> CheckerApi.checkPackageFunction environment
-        |> expectDiagnostic Checker.InvalidInfixOperand
+        |> expectDiagnostic Checker.MissingImpl
       }
 
       test "builtin checkability follows the signature" {
@@ -2136,7 +2150,9 @@ let private unitTests =
                 else
                   PT.TList(customType (aliasName (index + 1)))
               let declaration : PT.TypeDeclaration.T =
-                { typeParams = []; bounds = []; definition = PT.TypeDeclaration.Alias target }
+                { typeParams = []
+                  bounds = []
+                  definition = PT.TypeDeclaration.Alias target }
               environment
               |> Checker.TypeEnvironment.addType (aliasName index) declaration)
             Checker.TypeEnvironment.empty
@@ -2205,7 +2221,9 @@ let private traitTests =
         NEList.singleton
           { name = "show"
             typeParams = []
-            parameters = NEList.singleton { name = "value"; typ = PT.TVariable "a"; description = "" }
+            parameters =
+              NEList.singleton
+                { name = "value"; typ = PT.TVariable "a"; description = "" }
             returnType = PT.TString
             permissionCeiling = None
             description = "" }
@@ -2237,7 +2255,7 @@ let private traitTests =
       bounds = [] }
 
   // `impl Show for Point`, the item `Point.Show`.
-  let implOf (hash : string) (self : PT.TypeReference) : PT.Impl.Impl =
+  let implOf (hash : string) (self : PT.TypeReference) : PT.TraitImpl.TraitImpl =
     { hash = PT.Hash hash
       trait_ = PT.NameResolution.ok (PT.FQTraitName.Package showHash)
       traitTypeArgs = []
@@ -2264,7 +2282,8 @@ let private traitTests =
     |> Checker.TypeEnvironment.addFunction describeName describeSignature
 
   let withPointImpl =
-    baseEnvironment |> Checker.TypeEnvironment.addImpl (implOf "impl-show-point" pointType)
+    baseEnvironment
+    |> Checker.TypeEnvironment.addImpl (implOf "impl-show-point" pointType)
 
   let call (name : PT.FQFnName.FQFnName) (arg : PT.Expr) : PT.Expr =
     PT.EApply(
@@ -2341,11 +2360,13 @@ let private traitTests =
           { showTrait with
               methods =
                 showTrait.methods
-                |> NEList.map (fun m -> { m with permissionCeiling = Some Set.empty }) }
+                |> NEList.map (fun m ->
+                  { m with permissionCeiling = Some Set.empty }) }
         let wideFn : PT.PackageFn.PackageFn =
           { oneArgFn pointType PT.TString (PT.EString(3UL, [ PT.StringText "p" ])) with
               hash = PT.Hash "point-show-wide"
-              permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) }
+              permissionCeiling =
+                Some(Set.singleton LibExecution.Effects.Effect.Clock) }
         let environment =
           Checker.TypeEnvironment.empty
           |> Checker.TypeEnvironment.addTrait pureShow
@@ -2353,7 +2374,8 @@ let private traitTests =
           |> Checker.TypeEnvironment.addPackageFunctionSignature wideFn
         let impl =
           { implOf "impl-wide" pointType with
-              methods = [ ("show", PT.NameResolution.ok (PT.FQFnName.Package wideFn.hash)) ] }
+              methods =
+                [ ("show", PT.NameResolution.ok (PT.FQFnName.Package wideFn.hash)) ] }
         let result = CheckerApi.checkPackageBatch environment [] [] [] [] [ impl ]
         match result.impls with
         | [ item ] -> expectDiagnostic Checker.ImplExceedsCeiling item.verdict
@@ -2361,18 +2383,25 @@ let private traitTests =
       }
 
       test "a bounded call with a visible impl checks" {
-        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        oneArgFn
+          pointType
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
         |> CheckerApi.checkPackageFunction withPointImpl
         |> expectChecked
       }
 
       test "a bounded call with no impl for the self type is MissingImpl" {
-        oneArgFn otherType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        oneArgFn
+          otherType
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
         |> CheckerApi.checkPackageFunction withPointImpl
         |> expectDiagnostic Checker.MissingImpl
       }
 
-      test "a bounded call on the caller's own undeclared type param is UnboundTypeParameter" {
+      test
+        "a bounded call on the caller's own undeclared type param is UnboundTypeParameter" {
         { oneArgFn
             (PT.TVariable "b")
             PT.TString
@@ -2396,19 +2425,31 @@ let private traitTests =
       test "two impls for one self type is AmbiguousImpl" {
         let environment =
           withPointImpl
-          |> Checker.TypeEnvironment.addImpl (implOf "impl-show-point-again" pointType)
-        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+          |> Checker.TypeEnvironment.addImpl (
+            implOf "impl-show-point-again" pointType
+          )
+        oneArgFn
+          pointType
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
         |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.AmbiguousImpl
       }
 
       test "a blanket impl covers any self type but loses to a specific one" {
-        let blanket = { implOf "impl-show-blanket" (PT.TVariable "a") with typeParams = [ "a" ] }
+        let blanket =
+          { implOf "impl-show-blanket" (PT.TVariable "a") with typeParams = [ "a" ] }
         let environment = withPointImpl |> Checker.TypeEnvironment.addImpl blanket
-        oneArgFn otherType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        oneArgFn
+          otherType
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
         |> CheckerApi.checkPackageFunction environment
         |> expectChecked
-        oneArgFn pointType PT.TString (call describeName (PT.EVariable(12UL, "value")))
+        oneArgFn
+          pointType
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
         |> CheckerApi.checkPackageFunction environment
         |> expectChecked
       }

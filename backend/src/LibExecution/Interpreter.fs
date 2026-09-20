@@ -1229,6 +1229,12 @@ let private tryFastOpDirect
             | _ -> ValueNone
           | a -> FastOps.evalNumeric tag a registers[secondReg]
         | ValueNone -> ValueNone
+      | [] ->
+        // `-x` on a signed builtin numeric
+        match FastOps.traitTag traitHash methodName with
+        | ValueSome tag when tag = FastOps.negate ->
+          FastOps.evalNegate registers[argRegs.head]
+        | _ -> ValueNone
       | _ -> ValueNone
     | _ -> ValueNone
 
@@ -1712,7 +1718,6 @@ let private completePackage
 
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
-
 /// `'a: Show` on a fn, checked when the fn is entered with every argument in
 /// hand: each bound whose type param is bound to a Known type must have an impl
 /// visible on this branch. Checked at the boundary, like the parameter types, so
@@ -1735,7 +1740,10 @@ let private checkBoundsAtEntry
         | Traits.NoImpl ->
           return
             RTE.Trait(
-              RTE.Traits.MissingImpl(FQTraitName.Package traitHash, ValueType.Known self)
+              RTE.Traits.MissingImpl(
+                FQTraitName.Package traitHash,
+                ValueType.Known self
+              )
             )
             |> raiseRTE vm.threadID
         | Traits.Ambiguous cs ->
@@ -2054,7 +2062,10 @@ type private ApplyOutcome =
 // here.
 
 /// Which of a trait method's parameters is typed with the trait's self param, if any.
-let private traitSelfArgIndex (trait_ : Trait.Trait) (methodName : string) : Option<int> =
+let private traitSelfArgIndex
+  (trait_ : Trait.Trait)
+  (methodName : string)
+  : Option<int> =
   let selfParam = trait_.typeParams.head
   trait_.methods
   |> NEList.toList
@@ -2164,8 +2175,10 @@ let private resolveTraitMethod
     | Traits.Selected c ->
       match Map.tryFind methodName c.methods with
       | Some fnHash ->
-        exeState.fns.implSelectionMemo[struct (exeState.branchId, traitHash, methodName, self)] <-
-          struct (generation, fnHash)
+        exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                               traitHash,
+                                               methodName,
+                                               self)] <- struct (generation, fnHash)
         return fnHash
       | None ->
         return
@@ -2439,6 +2452,25 @@ let private applyInstruction
         // Pick the impl, then call its fn exactly as a direct call would: the impl
         // fn is what runs, what traces record, and what carries the ceiling.
         //
+        // An operator over two values of different types says so up front, as the
+        // builtin it replaced did ("Cannot perform numeric operation on Int64 and
+        // Float"), instead of dispatching on the left operand and failing inside the
+        // impl fn's parameter check. Matching pairs of a builtin numeric type never
+        // reach here (the fast path answers them), so this costs a dispatch only.
+        let (Hash traitHashStr) = traitHash
+        (match FastOps.traitTag traitHashStr methodName with
+         | ValueSome _ when List.isEmpty applicable.argsSoFar ->
+           match newArgRegs.tail with
+           | [ secondReg ] ->
+             let left = Dval.toValueType registers[newArgRegs.head]
+             let right = Dval.toValueType registers[secondReg]
+             match left, right with
+             | ValueType.Known _, ValueType.Known _ when left <> right ->
+               RTE.NumericOperationOnIncompatibleTypes(left, right)
+               |> raiseRTE vm.threadID
+             | _ -> ()
+           | _ -> ()
+         | _ -> ())
         // A self type seen before skips the pick: the selection is remembered on
         // the package manager under the generation it was made in, and the self
         // argument's position under the trait (content-addressed, so for good).
@@ -2447,7 +2479,14 @@ let private applyInstruction
             ValueNone
           else
             let mutable selfIndex = 0
-            if not (traitSelfIndexMemo.TryGetValue(struct (traitHash, methodName), &selfIndex)) then
+            if
+              not (
+                traitSelfIndexMemo.TryGetValue(
+                  struct (traitHash, methodName),
+                  &selfIndex
+                )
+              )
+            then
               ValueNone
             else
               let soFar = List.length applicable.argsSoFar
@@ -2469,7 +2508,8 @@ let private applyInstruction
                 match Dval.toValueType dv with
                 | ValueType.Unknown -> ValueNone
                 | ValueType.Known self ->
-                  let mutable hit = Unchecked.defaultof<struct (int * FQFnName.Package)>
+                  let mutable hit =
+                    Unchecked.defaultof<struct (int * FQFnName.Package)>
                   if
                     exeState.fns.implSelectionMemo.TryGetValue(
                       struct (exeState.branchId, traitHash, methodName, self),
@@ -2502,7 +2542,8 @@ let private applyInstruction
                 match! exeState.fns.package implFn with
                 | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
                 | None ->
-                  return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+                  return
+                    RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
               }
           | ValueNone ->
             let allArgs =
@@ -2525,7 +2566,8 @@ let private applyInstruction
               match! exeState.fns.package implFn with
               | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
               | None ->
-                return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+                return
+                  RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
             }
         match Ply.trySync call with
         | ValueSome(PartiallyApplied dv)
@@ -3340,7 +3382,8 @@ let private receiverMethod
     match Dval.toValueType receiver with
     | ValueType.Unknown -> return None
     | ValueType.Known self ->
-      let! candidates = exeState.fns.implCandidatesByMethod exeState.branchId methodName
+      let! candidates =
+        exeState.fns.implCandidatesByMethod exeState.branchId methodName
       match Traits.select candidates self with
       | Traits.NoImpl -> return None
       | Traits.Selected c ->
@@ -3402,7 +3445,9 @@ let private runRareOpcode
     match inst with
     | GetRecordField(targetReg, recordReg, fieldName) ->
       let receiver = registers[recordReg]
-      match! Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName) with
+      match!
+        Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName)
+      with
       | Some applicable -> registers[targetReg] <- applicable
       | None ->
         match receiver with

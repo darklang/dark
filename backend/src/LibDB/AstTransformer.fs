@@ -76,14 +76,21 @@ let private transformFnName
       { originalName = nr.originalName
         resolved = Ok { name = PT.FQTraitName.Package traitHash; location = loc } }
     let moved =
-      transformNameResolution mapping asTrait PT.FQTraitName.Package PackageItem.traitPackageHash
+      transformNameResolution
+        mapping
+        asTrait
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
     match moved.resolved with
     | Ok { name = PT.FQTraitName.Package newHash; location = newLoc } ->
       { nr with
           resolved =
-            Ok { name = PT.FQFnName.TraitMethod(newHash, methodName); location = newLoc } }
+            Ok
+              { name = PT.FQFnName.TraitMethod(newHash, methodName)
+                location = newLoc } }
     | Error _ -> nr
-  | _ -> transformNameResolution mapping nr PT.FQFnName.Package PackageItem.fnPackageHash
+  | _ ->
+    transformNameResolution mapping nr PT.FQFnName.Package PackageItem.fnPackageHash
 
 let rec private transformTypeRef
   (mapping : HashMapping)
@@ -317,9 +324,16 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EStatement(id, first, next) ->
     PT.EStatement(id, transformExpr mapping first, transformExpr mapping next)
 
-let private transformTraitRef (mapping : HashMapping) (t : PT.TraitRef) : PT.TraitRef =
+let private transformTraitRef
+  (mapping : HashMapping)
+  (t : PT.TraitRef)
+  : PT.TraitRef =
   { trait_ =
-      transformNameResolution mapping t.trait_ PT.FQTraitName.Package PackageItem.traitPackageHash
+      transformNameResolution
+        mapping
+        t.trait_
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
     typeArgs = t.typeArgs |> List.map (transformTypeRef mapping) }
 
 let private transformBound (mapping : HashMapping) (b : PT.Bound) : PT.Bound =
@@ -384,14 +398,21 @@ let transformTrait (mapping : HashMapping) (t : PT.Trait.Trait) : PT.Trait.Trait
         |> NEList.map (fun m ->
           { m with
               parameters =
-                m.parameters |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
+                m.parameters
+                |> NEList.map (fun p ->
+                  { p with typ = transformTypeRef mapping p.typ })
               returnType = transformTypeRef mapping m.returnType }) }
 
-let transformImpl (mapping : HashMapping) (i : PT.Impl.Impl) : PT.Impl.Impl =
-  let traitRef = transformTraitRef mapping { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+let transformImpl
+  (mapping : HashMapping)
+  (i : PT.TraitImpl.TraitImpl)
+  : PT.TraitImpl.TraitImpl =
+  let traitRef =
+    transformTraitRef mapping { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
   { i with
       trait_ = traitRef.trait_
       traitTypeArgs = traitRef.typeArgs
       self = transformTypeRef mapping i.self
       bounds = i.bounds |> List.map (transformBound mapping)
-      methods = i.methods |> List.map (fun (m, nr) -> (m, transformFnName mapping nr)) }
+      methods =
+        i.methods |> List.map (fun (m, nr) -> (m, transformFnName mapping nr)) }

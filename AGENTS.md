@@ -324,7 +324,7 @@ op log directly.
 A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
 optional ceilings); an impl is a package item (`PT.Impl`: the trait, its type args,
 the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
-`AddTrait` and `AddImpl`; two tables, `package_traits` and `package_impls(trait_hash)`;
+`AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
 `FQTraitName` for references; binary format v3. The parser lowers `trait`/`impl` in
 `SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
 path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.

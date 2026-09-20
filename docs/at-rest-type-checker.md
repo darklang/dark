@@ -157,7 +157,7 @@ and the operand type owes an `Add` impl. See below.
 
 ## Traits
 
-A trait and an impl are their own package items (`PT.Trait`, `PT.Impl`). The
+A trait and an impl are their own package items (`PT.Trait`, `PT.TraitImpl`). The
 checker reads both straight off the PT (`ImplEntry.ofImpl`), the same way the
 runtime reads its dispatch candidates, and validates each item in the batch:
 `validateTrait`, and `validateImpl` for the method set (`ImplMethodSet`), each

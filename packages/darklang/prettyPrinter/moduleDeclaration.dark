@@ -7,7 +7,7 @@ module ModuleDeclaration =
       fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
       values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
       traits: List<LanguageTools.ProgramTypes.Trait.Trait>
-      impls: List<LanguageTools.ProgramTypes.Impl.Impl>
+      impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
@@ -331,7 +331,7 @@ module ModuleDeclaration =
   /// Fn` lines of that block, so `toModules` leaves them out of the fns.
   let withImplHelper
     (ms: List<Module>)
-    (i: LanguageTools.ProgramTypes.Impl.Impl)
+    (i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
     (modulePath: List<String>)
     : List<Module> =
     match modulePath with
@@ -366,9 +366,9 @@ module ModuleDeclaration =
   let withImpl
     (branchId: Uuid)
     (ms: List<Module>)
-    (i: LanguageTools.ProgramTypes.Impl.Impl)
+    (i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Impl.locations branchId i.hash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) with
     | Some location ->
       // `<module>[.<Type>].<Trait>` names the impl. Drop the type segment when it
       // is there: `impl Show for Point` inside `Shapes` re-lowers to
@@ -400,7 +400,7 @@ module ModuleDeclaration =
 
   /// The fns an impl's `let m = Fn` lines already print
   let implMethodFnHashes
-    (impls: List<LanguageTools.ProgramTypes.Impl.Impl>)
+    (impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>)
     : List<LanguageTools.ProgramTypes.Hash> =
     impls
     |> Stdlib.List.map (fun i ->

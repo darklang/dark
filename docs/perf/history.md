@@ -316,7 +316,7 @@ and the per-binding recursive CTE in `draftRepoints`.
 - Per call (`costs.dark`-style harness, selection memoised): a dispatched `10L / 2L` is 77
   bytes over the fast-path `+`; `Vec + Vec` is 121 bytes over calling the impl fn directly.
   The first dispatch for a (branch, trait, method, self) is about 3 KB: candidate list off
-  `package_impls`, selection, memo entry.
+  `package_trait_impls`, selection, memo entry.
 - Three things cost a day of allocation work on the way and are worth not re-finding: a
   tuple allocated by `match a, b` in the fast path (nested matches instead); selection
   running on every dispatched call before the memo existed; and trait-first name resolution

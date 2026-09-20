@@ -631,8 +631,8 @@ let reResolveImpl
   (owner : string)
   (modules : List<string>)
   (name : string)
-  (i : PT.Impl.Impl)
-  : Ply<PT.Impl.Impl> =
+  (i : PT.TraitImpl.TraitImpl)
+  : Ply<PT.TraitImpl.TraitImpl> =
   let contextModules = owner :: modules @ [ name ]
 
   uply {

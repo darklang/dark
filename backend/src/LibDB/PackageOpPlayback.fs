@@ -285,16 +285,17 @@ let private applyAddTrait
         mayRewriteExisting
         (Hashing.computeTraitHash Hashing.Normal t)
         (fun bytes ->
-          BS.PT.Trait.deserialize hash bytes |> Hashing.computeTraitHash Hashing.Normal)
+          BS.PT.Trait.deserialize hash bytes
+          |> Hashing.computeTraitHash Hashing.Normal)
 
     do! updateDependencies ctx hashStr (DE.extractFromTrait t)
   }
 
-/// Apply a single AddImpl op to the package_impls table.
+/// Apply a single AddTraitImpl op to the package_trait_impls table.
 let private applyAddImpl
   (ctx : Ctx)
   (mayRewriteExisting : bool)
-  (i : PT.Impl.Impl)
+  (i : PT.TraitImpl.TraitImpl)
   : Task<unit> =
   task {
     let hash =
@@ -312,16 +313,17 @@ let private applyAddImpl
       upsertContentAddressed
         ctx
         "impl"
-        "package_impls"
+        "package_trait_impls"
         hash
-        [ "pt_def", box (BS.PT.Impl.serialize hashStr i)
+        [ "pt_def", box (BS.PT.TraitImpl.serialize hashStr i)
           "trait_hash", box traitHash
           "description", box i.description ]
         []
         mayRewriteExisting
         (Hashing.computeImplHash Hashing.Normal i)
         (fun bytes ->
-          BS.PT.Impl.deserialize hash bytes |> Hashing.computeImplHash Hashing.Normal)
+          BS.PT.TraitImpl.deserialize hash bytes
+          |> Hashing.computeImplHash Hashing.Normal)
 
     do! updateDependencies ctx hashStr (DE.extractFromImpl i)
   }
@@ -942,7 +944,7 @@ let private applyOp
     | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
     | PT.PackageOp.AddFn fn -> do! applyAddFn ctx mayRewriteExisting fn
     | PT.PackageOp.AddTrait t -> do! applyAddTrait ctx mayRewriteExisting t
-    | PT.PackageOp.AddImpl i -> do! applyAddImpl ctx mayRewriteExisting i
+    | PT.PackageOp.AddTraitImpl i -> do! applyAddImpl ctx mayRewriteExisting i
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
@@ -1095,7 +1097,7 @@ let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
         | PT.PackageOp.AddTrait t when t.hash <> Hash "" ->
           let (Hash h) = t.hash
           Some(h, DE.extractFromTrait t)
-        | PT.PackageOp.AddImpl i when i.hash <> Hash "" ->
+        | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" ->
           let (Hash h) = i.hash
           Some(h, DE.extractFromImpl i)
         | _ -> None)

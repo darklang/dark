@@ -149,22 +149,22 @@ module Trait =
     Builtin.pmImplCandidates branchId traitHash
 
 
-module Impl =
+module TraitImpl =
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.Hash> =
-    Builtin.pmFindImpl branchId location
+    Builtin.pmFindTraitImpl branchId location
 
-  let get (hash: ProgramTypes.Hash) : Stdlib.Option.Option<ProgramTypes.Impl.Impl> =
-    Builtin.pmGetImpl hash
+  let get (hash: ProgramTypes.Hash) : Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
+    Builtin.pmGetTraitImpl hash
 
   /// Every name this impl is bound to on <param branchId>.
   let locations
     (branchId: Uuid)
     (hash: ProgramTypes.Hash)
     : List<ProgramTypes.PackageLocation> =
-    Builtin.pmGetLocationsByImpl branchId hash
+    Builtin.pmGetLocationsByTraitImpl branchId hash
 
 
 module Value =
@@ -275,9 +275,9 @@ let findAny
         | Some hash ->
           Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Trait))
         | None ->
-          match Impl.find branchId location with
+          match TraitImpl.find branchId location with
           | Some hash ->
-            Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Impl))
+            Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
           | None -> Stdlib.Option.Option.None
 
 

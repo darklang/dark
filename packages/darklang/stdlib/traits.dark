@@ -52,3 +52,23 @@ trait Ord<'a> =
   let lessThanOrEqualTo (a: 'a) (b: 'a) : Bool
   let greaterThan (a: 'a) (b: 'a) : Bool
   let greaterThanOrEqualTo (a: 'a) (b: 'a) : Bool
+
+
+// Written once over `Ord`, for any type with an impl: the per-type
+// `Stdlib.Int64.max` and friends stay, these are the generic ones.
+
+/// The larger of two values of any type with an `Ord` impl
+let max<'a: Ord> (a: 'a) (b: 'a) : 'a = if a > b then a else b
+
+
+/// The smaller of two values of any type with an `Ord` impl
+let min<'a: Ord> (a: 'a) (b: 'a) : 'a = if a < b then a else b
+
+
+/// <param value> held between the two limits, whichever order they are given in
+let clamp<'a: Ord> (value: 'a) (limitA: 'a) (limitB: 'a) : 'a =
+  let low = if limitA < limitB then limitA else limitB
+  let high = if limitA > limitB then limitA else limitB
+  if value < low then low
+  else if value > high then high
+  else value

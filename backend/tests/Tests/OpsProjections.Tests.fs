@@ -329,7 +329,7 @@ let registryCoversProjections =
           "package_types"
           "package_values"
           "package_traits"
-          "package_impls"
+          "package_trait_impls"
           "locations"
           "package_dependencies"
           "deprecations"

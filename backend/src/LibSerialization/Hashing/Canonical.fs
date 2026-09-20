@@ -671,7 +671,7 @@ let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
   writeBounds mode w t.bounds
 
 /// Write an Impl's hash-relevant content: which trait, at what, with which fns.
-let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.Impl.Impl) =
+let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.TraitImpl.TraitImpl) =
   w.Write(4uy) // tag: impl
   writeNameResolution (writeFQTraitName mode) w i.trait_
   Common.List.write w (writeTypeReference mode) i.traitTypeArgs

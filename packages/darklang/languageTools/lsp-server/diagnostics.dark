@@ -161,7 +161,7 @@ let traitSources
 
 let implSources
   (written: List<WrittenTypes.ImplDeclaration.ImplDeclaration>)
-  (program: List<ProgramTypes.Impl.Impl>)
+  (program: List<ProgramTypes.TraitImpl.TraitImpl>)
   : List<ItemSource> =
   match written with
   | [] -> []
@@ -209,7 +209,7 @@ let packageOpsAndSources
         program.traits
         |> Stdlib.List.map (fun t -> ProgramTypes.PackageOp.AddTrait t)
         program.impls
-        |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddImpl i)
+        |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddTraitImpl i)
         program.submodules
         |> Stdlib.List.map (fun definitions ->
           Stdlib.List.flatten
@@ -222,7 +222,7 @@ let packageOpsAndSources
               definitions.traits
               |> Stdlib.List.map (fun t -> ProgramTypes.PackageOp.AddTrait t)
               definitions.impls
-              |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddImpl i) ])
+              |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddTraitImpl i) ])
         |> Stdlib.List.flatten ]
   let sources =
     Stdlib.List.flatten

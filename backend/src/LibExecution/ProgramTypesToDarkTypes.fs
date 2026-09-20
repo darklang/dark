@@ -1208,13 +1208,17 @@ module TraitRef =
         [ "trait_",
           NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT t.trait_
           "typeArgs",
-          DList(VT.known (TypeReference.knownType ()), List.map TypeReference.toDT t.typeArgs) ]
+          DList(
+            VT.known (TypeReference.knownType ()),
+            List.map TypeReference.toDT t.typeArgs
+          ) ]
     )
 
   let fromDT (d : Dval) : PT.TraitRef =
     match d with
     | DRecord(_, _, _, fields) ->
-      { trait_ = fields |> D.field "trait_" |> NameResolution.fromDT FQTraitName.fromDT
+      { trait_ =
+          fields |> D.field "trait_" |> NameResolution.fromDT FQTraitName.fromDT
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT }
     | _ -> Exception.raiseInternal "Invalid TraitRef" []
 
@@ -1509,7 +1513,9 @@ module PackageFn =
 module Trait =
   module Method =
     let typeName () =
-      FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.Trait.method_ ())
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.ProgramTypes.Trait.method_ ()
+      )
     let knownType () = KTCustomType(typeName (), [])
 
     let toDT (m : PT.Trait.Method) : Dval =
@@ -1541,21 +1547,29 @@ module Trait =
             |> NEList.ofListUnsafe "Trait.Method.fromDT" []
           returnType = fields |> D.field "returnType" |> TypeReference.fromDT
           permissionCeiling =
-            fields |> D.field "permissionCeiling" |> C2DT.Option.fromDT Effects2DT.fromDT
+            fields
+            |> D.field "permissionCeiling"
+            |> C2DT.Option.fromDT Effects2DT.fromDT
           description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid Trait.Method" []
 
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.Trait.trait_ ())
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.Trait.trait_ ()
+    )
   let knownType () = KTCustomType(typeName (), [])
 
   let toDT (t : PT.Trait.Trait) : Dval =
     let fields =
       [ "hash", Hash.toDT t.hash
-        "typeParams", DList(VT.string, t.typeParams |> NEList.toList |> List.map DString)
+        "typeParams",
+        DList(VT.string, t.typeParams |> NEList.toList |> List.map DString)
         "bounds", Bound.listToDT t.bounds
         "methods",
-        DList(VT.known (Method.knownType ()), t.methods |> NEList.toList |> List.map Method.toDT)
+        DList(
+          VT.known (Method.knownType ()),
+          t.methods |> NEList.toList |> List.map Method.toDT
+        )
         "description", DString t.description ]
     DRecord(typeName (), typeName (), [], Map fields)
 
@@ -1564,7 +1578,10 @@ module Trait =
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
         typeParams =
-          fields |> D.field "typeParams" |> D.list D.string |> NEList.ofListUnsafe "Trait.fromDT" []
+          fields
+          |> D.field "typeParams"
+          |> D.list D.string
+          |> NEList.ofListUnsafe "Trait.fromDT" []
         bounds = fields |> D.field "bounds" |> D.list Bound.fromDT
         methods =
           fields
@@ -1575,17 +1592,23 @@ module Trait =
     | _ -> Exception.raiseInternal "Invalid Trait" []
 
 
-module Impl =
+module TraitImpl =
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.Impl.impl ())
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.TraitImpl.traitImpl ()
+    )
   let knownType () = KTCustomType(typeName (), [])
 
-  let toDT (i : PT.Impl.Impl) : Dval =
+  let toDT (i : PT.TraitImpl.TraitImpl) : Dval =
     let fields =
       [ "hash", Hash.toDT i.hash
-        "trait_", NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT i.trait_
+        "trait_",
+        NameResolution.toDT (FQTraitName.knownType ()) FQTraitName.toDT i.trait_
         "traitTypeArgs",
-        DList(VT.known (TypeReference.knownType ()), List.map TypeReference.toDT i.traitTypeArgs)
+        DList(
+          VT.known (TypeReference.knownType ()),
+          List.map TypeReference.toDT i.traitTypeArgs
+        )
         "self", TypeReference.toDT i.self
         "typeParams", DList(VT.string, List.map DString i.typeParams)
         "bounds", Bound.listToDT i.bounds
@@ -1594,23 +1617,34 @@ module Impl =
           VT.known (
             KTTuple(
               VT.string,
-              VT.known (KTCustomType(NameResolution.typeName (), [ VT.known (FQFnName.knownType ()) ])),
+              VT.known (
+                KTCustomType(
+                  NameResolution.typeName (),
+                  [ VT.known (FQFnName.knownType ()) ]
+                )
+              ),
               []
             )
           ),
           i.methods
           |> List.map (fun (m, nr) ->
-            DTuple(DString m, NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT nr, []))
+            DTuple(
+              DString m,
+              NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT nr,
+              []
+            ))
         )
         "description", DString i.description ]
     DRecord(typeName (), typeName (), [], Map fields)
 
-  let fromDT (d : Dval) : PT.Impl.Impl =
+  let fromDT (d : Dval) : PT.TraitImpl.TraitImpl =
     match d with
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
-        trait_ = fields |> D.field "trait_" |> NameResolution.fromDT FQTraitName.fromDT
-        traitTypeArgs = fields |> D.field "traitTypeArgs" |> D.list TypeReference.fromDT
+        trait_ =
+          fields |> D.field "trait_" |> NameResolution.fromDT FQTraitName.fromDT
+        traitTypeArgs =
+          fields |> D.field "traitTypeArgs" |> D.list TypeReference.fromDT
         self = fields |> D.field "self" |> TypeReference.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string
         bounds = fields |> D.field "bounds" |> D.list Bound.fromDT
@@ -1619,7 +1653,8 @@ module Impl =
           |> D.field "methods"
           |> D.list (fun d ->
             match d with
-            | DTuple(DString m, nr, []) -> (m, NameResolution.fromDT FQFnName.fromDT nr)
+            | DTuple(DString m, nr, []) ->
+              (m, NameResolution.fromDT FQFnName.fromDT nr)
             | _ -> Exception.raiseInternal "Invalid Impl method" [])
         description = fields |> D.field "description" |> D.string }
     | _ -> Exception.raiseInternal "Invalid Impl" []
@@ -1637,7 +1672,7 @@ module ItemKind =
       | PT.ItemKind.Type -> "Type", []
       | PT.ItemKind.Value -> "Value", []
       | PT.ItemKind.Trait -> "Trait", []
-      | PT.ItemKind.Impl -> "Impl", []
+      | PT.ItemKind.TraitImpl -> "TraitImpl", []
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.ItemKind =
@@ -1646,7 +1681,7 @@ module ItemKind =
     | DEnum(_, _, [], "Type", []) -> PT.ItemKind.Type
     | DEnum(_, _, [], "Value", []) -> PT.ItemKind.Value
     | DEnum(_, _, [], "Trait", []) -> PT.ItemKind.Trait
-    | DEnum(_, _, [], "Impl", []) -> PT.ItemKind.Impl
+    | DEnum(_, _, [], "TraitImpl", []) -> PT.ItemKind.TraitImpl
     | _ -> Exception.raiseInternal "Invalid ItemKind" []
 
 
@@ -1662,7 +1697,7 @@ module Reference =
       | PT.PackageValue h -> "PackageValue", [ Hash.toDT h ]
       | PT.PackageFn h -> "PackageFn", [ Hash.toDT h ]
       | PT.PackageTrait h -> "PackageTrait", [ Hash.toDT h ]
-      | PT.PackageImpl h -> "PackageImpl", [ Hash.toDT h ]
+      | PT.PackageTraitImpl h -> "PackageTraitImpl", [ Hash.toDT h ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.Reference =
@@ -1671,7 +1706,8 @@ module Reference =
     | DEnum(_, _, [], "PackageValue", [ h ]) -> PT.PackageValue(Hash.fromDT h)
     | DEnum(_, _, [], "PackageFn", [ h ]) -> PT.PackageFn(Hash.fromDT h)
     | DEnum(_, _, [], "PackageTrait", [ h ]) -> PT.PackageTrait(Hash.fromDT h)
-    | DEnum(_, _, [], "PackageImpl", [ h ]) -> PT.PackageImpl(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageTraitImpl", [ h ]) ->
+      PT.PackageTraitImpl(Hash.fromDT h)
     | _ -> Exception.raiseInternal "Invalid Reference" []
 
 
@@ -1786,7 +1822,7 @@ module Search =
         | PT.Search.EntityType.Fn -> "Fn", []
         | PT.Search.EntityType.Value -> "Value", []
         | PT.Search.EntityType.Trait -> "Trait", []
-        | PT.Search.EntityType.Impl -> "Impl", []
+        | PT.Search.EntityType.TraitImpl -> "TraitImpl", []
       DEnum(typeName (), typeName (), [], caseName, fields)
 
     let fromDT (d : Dval) : PT.Search.EntityType =
@@ -1796,7 +1832,7 @@ module Search =
       | DEnum(_, _, [], "Fn", []) -> PT.Search.EntityType.Fn
       | DEnum(_, _, [], "Value", []) -> PT.Search.EntityType.Value
       | DEnum(_, _, [], "Trait", []) -> PT.Search.EntityType.Trait
-      | DEnum(_, _, [], "Impl", []) -> PT.Search.EntityType.Impl
+      | DEnum(_, _, [], "TraitImpl", []) -> PT.Search.EntityType.TraitImpl
       | _ -> Exception.raiseInternal "Invalid EntityType" []
 
 
@@ -1886,8 +1922,8 @@ module Search =
           |> Dval.list (LocatedItem.knownType (Trait.knownType ()))
           "impls",
           sr.impls
-          |> List.map (LocatedItem.toDT (Impl.knownType ()) Impl.toDT)
-          |> Dval.list (LocatedItem.knownType (Impl.knownType ())) ]
+          |> List.map (LocatedItem.toDT (TraitImpl.knownType ()) TraitImpl.toDT)
+          |> Dval.list (LocatedItem.knownType (TraitImpl.knownType ())) ]
       DRecord(typeName (), typeName (), [], Map fields)
 
     let fromDT (d : Dval) : PT.Search.SearchResults =
@@ -1904,8 +1940,10 @@ module Search =
             |> D.list (LocatedItem.fromDT PackageValue.fromDT)
           fns =
             fields |> D.field "fns" |> D.list (LocatedItem.fromDT PackageFn.fromDT)
-          traits = fields |> D.field "traits" |> D.list (LocatedItem.fromDT Trait.fromDT)
-          impls = fields |> D.field "impls" |> D.list (LocatedItem.fromDT Impl.fromDT) }
+          traits =
+            fields |> D.field "traits" |> D.list (LocatedItem.fromDT Trait.fromDT)
+          impls =
+            fields |> D.field "impls" |> D.list (LocatedItem.fromDT TraitImpl.fromDT) }
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
@@ -2010,7 +2048,7 @@ module PackageOp =
       | PT.PackageOp.AddValue v -> "AddValue", [ PackageValue.toDT v ]
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
       | PT.PackageOp.AddTrait t -> "AddTrait", [ Trait.toDT t ]
-      | PT.PackageOp.AddImpl i -> "AddImpl", [ Impl.toDT i ]
+      | PT.PackageOp.AddTraitImpl i -> "AddTraitImpl", [ TraitImpl.toDT i ]
       | PT.PackageOp.SetName(loc, target, previous) ->
         "SetName",
         [ PackageLocation.toDT loc; Reference.toDT target; previousToDT previous ]
@@ -2045,8 +2083,10 @@ module PackageOp =
     | DEnum(_, _, [], "AddValue", [ v ]) ->
       Some(PT.PackageOp.AddValue(PackageValue.fromDT v))
     | DEnum(_, _, [], "AddFn", [ f ]) -> Some(PT.PackageOp.AddFn(PackageFn.fromDT f))
-    | DEnum(_, _, [], "AddTrait", [ t ]) -> Some(PT.PackageOp.AddTrait(Trait.fromDT t))
-    | DEnum(_, _, [], "AddImpl", [ i ]) -> Some(PT.PackageOp.AddImpl(Impl.fromDT i))
+    | DEnum(_, _, [], "AddTrait", [ t ]) ->
+      Some(PT.PackageOp.AddTrait(Trait.fromDT t))
+    | DEnum(_, _, [], "AddTraitImpl", [ i ]) ->
+      Some(PT.PackageOp.AddTraitImpl(TraitImpl.fromDT i))
     | DEnum(_, _, [], "SetName", [ loc; target; previous ]) ->
       let previous = previousFromDT previous
       Some(

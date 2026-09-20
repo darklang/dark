@@ -111,7 +111,7 @@ let private declarationsToModule
     let wtTypes = ResizeArray<WT.PackageType.PackageType>()
     let wtValues = ResizeArray<WT.PackageValue.PackageValue>()
     let wtTraits = ResizeArray<WT.PackageTrait.PackageTrait>()
-    let wtImpls = ResizeArray<WT.PackageImpl.PackageImpl>()
+    let wtImpls = ResizeArray<WT.PackageTraitImpl.PackageTraitImpl>()
     // Each trailing expr keeps its module path, so an expr inside `module M =`
     // can still resolve M's declarations by short name.
     let wtExprs = ResizeArray<List<string> * WT.Expr>()
@@ -150,7 +150,7 @@ let private declarationsToModule
     let traitLocations =
       traitList |> List.map (fun t -> WT2PT.Trait.Name.toLocation t.name)
     let implLocations =
-      implList |> List.map (fun i -> WT2PT.Impl.Name.toLocation i.name)
+      implList |> List.map (fun i -> WT2PT.TraitImpl.Name.toLocation i.name)
 
     let lowerFns pm =
       fnList
@@ -185,7 +185,7 @@ let private declarationsToModule
     let lowerImpls pm =
       implList
       |> Ply.List.mapSequentially (fun i ->
-        WT2PT.Impl.toPT
+        WT2PT.TraitImpl.toPT
           builtins
           pm
           onMissing
@@ -206,7 +206,7 @@ let private declarationsToModule
       { v with hash = PackageLocation.placeholderHash loc }
     let stampTrait (t : PT.Trait.Trait) loc =
       { t with hash = PackageLocation.placeholderHash loc }
-    let stampImpl (i : PT.Impl.Impl) loc =
+    let stampImpl (i : PT.TraitImpl.TraitImpl) loc =
       { i with hash = PackageLocation.placeholderHash loc }
 
     // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
@@ -297,7 +297,7 @@ let private declarationsToModule
             |> Map.ofList
           impls =
             List.map2
-              (fun (i : PT.Impl.Impl) loc ->
+              (fun (i : PT.TraitImpl.TraitImpl) loc ->
                 PackageLocation.toFQN loc, (i, i.hash, loc))
               impls2
               implLocations
@@ -338,7 +338,7 @@ let private declarationsToModule
         traitLocations
     let impls =
       List.map2
-        (fun (i : PT.Impl.Impl) loc ->
+        (fun (i : PT.TraitImpl.TraitImpl) loc ->
           { AstTransformer.transformImpl stabilization.mapping i with
               hash = finalHash i.hash loc })
         impls2
@@ -373,7 +373,10 @@ let private declarationsToModule
         fns
         fnLocations)
       (List.map2 (fun (t : PT.Trait.Trait) loc -> t.hash, loc) traits traitLocations)
-      (List.map2 (fun (i : PT.Impl.Impl) loc -> i.hash, loc) impls implLocations)
+      (List.map2
+        (fun (i : PT.TraitImpl.TraitImpl) loc -> i.hash, loc)
+        impls
+        implLocations)
 
     let emptyContext =
       { WT2PT.Context.currentFnName = None

@@ -277,10 +277,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       pm.getTrait
       PT2DT.Trait.toDT
 
-    findByLocationFn "pmFindImpl" "impl" PMPT.Impl.find (fun branchPM loc ->
-      branchPM.findImpl loc)
+    findByLocationFn
+      "pmFindTraitImpl"
+      "impl"
+      PMPT.TraitImpl.find
+      (fun branchPM loc -> branchPM.findTraitImpl loc)
 
-    getByHashFn "pmGetImpl" "impl" PT2DT.Impl.typeName pm.getImpl PT2DT.Impl.toDT
+    getByHashFn
+      "pmGetTraitImpl"
+      "impl"
+      PT2DT.TraitImpl.typeName
+      pm.getTraitImpl
+      PT2DT.TraitImpl.toDT
 
 
     // Every impl of a trait visible on a branch, as dispatch sees them
@@ -600,7 +608,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     v.hash)
                   pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash)
                   pairs results.traits (fun (t : PT.Trait.Trait) -> t.hash)
-                  pairs results.impls (fun (i : PT.Impl.Impl) -> i.hash) ]
+                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash) ]
               )
           }
         | _ -> incorrectArgs ()
@@ -674,11 +682,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       PMPT.Trait.getLocationsEverNamed
 
     locationsByHashFn
-      "pmGetLocationsByImpl"
+      "pmGetLocationsByTraitImpl"
       "impl"
-      PT.ItemKind.Impl
-      pm.getImplLocations
-      PMPT.Impl.getLocationsEverNamed
+      PT.ItemKind.TraitImpl
+      pm.getTraitImplLocations
+      PMPT.TraitImpl.getLocationsEverNamed
 
 
     // Bind a name back to content that ALREADY exists in the store.
@@ -741,8 +749,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | PT.ItemKind.Trait ->
                   let! t = LibDB.PackageManager.pt.getTrait hash
                   return Option.isSome t
-                | PT.ItemKind.Impl ->
-                  let! i = LibDB.PackageManager.pt.getImpl hash
+                | PT.ItemKind.TraitImpl ->
+                  let! i = LibDB.PackageManager.pt.getTraitImpl hash
                   return Option.isSome i
               }
 
@@ -889,7 +897,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     | PT.PackageOp.AddFn _
                     | PT.PackageOp.AddType _
                     | PT.PackageOp.AddTrait _
-                    | PT.PackageOp.AddImpl _ -> true
+                    | PT.PackageOp.AddTraitImpl _ -> true
                     | _ -> false)
                 if not (List.isEmpty contentOps) then
                   do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps

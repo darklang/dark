@@ -21,10 +21,10 @@ Stdlib.Int64.add 5L 3L = 8L
 5L >= 5L = true
 2y > 1y = true
 
-// Mixed numeric types are a type error (no implicit coercion): the left operand
-// picks the impl, whose fn then refuses the right one
-5L + true = error="Darklang.Stdlib.Int64.add's 2nd parameter `b` expects Int64, but got Bool (true)"
-1L + 2.0 = error="Darklang.Stdlib.Int64.add's 2nd parameter `b` expects Int64, but got Float (2.0)"
+// Mixed operand types are a type error (no implicit coercion), said before
+// dispatch so the message is the operator's, not the impl fn's
+5L + true = error="Cannot perform numeric operation on Int64 and Bool"
+1L + 2.0 = error="Cannot perform numeric operation on Int64 and Float"
 // A type with no impl of the operator's trait
 "a" - "b" = error="No impl of Darklang.Stdlib.Sub for String. Write `impl Sub for <type> = ...`, or check `dark impls`"
 

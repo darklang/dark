@@ -35,7 +35,7 @@ type PTCliScriptModule =
     /// Includes the method fns of top-level impls, at the impls' member paths
     fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
     traits: List<LanguageTools.ProgramTypes.Trait.Trait>
-    impls: List<LanguageTools.ProgramTypes.Impl.Impl>
+    impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
     submodules: List<LanguageTools.ProgramTypes.Definitions>
     exprs: List<LanguageTools.ProgramTypes.Expr> }
 
@@ -303,10 +303,10 @@ let stabilizedHash
           (ProgramTypes.Reference.PackageTrait before.hash,
             ProgramTypes.Reference.PackageTrait after.hash)
         )
-      | (AddImpl before, AddImpl after) ->
+      | (AddTraitImpl before, AddTraitImpl after) ->
         Stdlib.Option.Option.Some(
-          (ProgramTypes.Reference.PackageImpl before.hash,
-            ProgramTypes.Reference.PackageImpl after.hash)
+          (ProgramTypes.Reference.PackageTraitImpl before.hash,
+            ProgramTypes.Reference.PackageTraitImpl after.hash)
         )
       | _ -> Stdlib.Option.Option.None
 
@@ -405,7 +405,7 @@ let parseFromWT
             { newImpl with
                 hash =
                   stabilizedHash
-                    (ProgramTypes.Reference.PackageImpl originalImpl.hash)
+                    (ProgramTypes.Reference.PackageTraitImpl originalImpl.hash)
                     provisionalFirstPassOps
                     firstPassOps }))
 
@@ -477,7 +477,7 @@ let parseFromWT
                   { newI with
                       hash =
                         stabilizedHash
-                          (ProgramTypes.Reference.PackageImpl origI.hash)
+                          (ProgramTypes.Reference.PackageTraitImpl origI.hash)
                           provisionalFirstPassOps
                           firstPassOps }))
 

@@ -574,7 +574,7 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
          | Some t -> PrettyPrinter.ProgramTypes.packageTrait ctx t
          | None -> "(not stored here)")
       | "impl" ->
-        (match LanguageTools.PackageManager.Impl.get h with
+        (match LanguageTools.PackageManager.TraitImpl.get h with
          | Some i -> PrettyPrinter.ProgramTypes.packageImpl ctx i
          | None -> "(not stored here)")
       | _ ->

@@ -241,7 +241,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
       | "--impl" ->
         Stdlib.List.append
           acc
-          [ LanguageTools.ProgramTypes.Search.EntityType.Impl ]
+          [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
       | _ -> acc)
 
   ParsedArgs

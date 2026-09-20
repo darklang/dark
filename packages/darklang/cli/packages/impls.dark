@@ -54,7 +54,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           let locToString (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
             Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
           let sourceName =
-            match LanguageTools.PackageManager.Impl.locations state.currentBranchId c.source with
+            match LanguageTools.PackageManager.TraitImpl.locations state.currentBranchId c.source with
             | loc :: _ -> locToString loc
             | [] -> LanguageTools.ProgramTypes.hashToShort c.source
           let methods =

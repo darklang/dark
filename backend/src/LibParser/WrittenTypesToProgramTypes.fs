@@ -208,7 +208,12 @@ module Bound =
       return { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
     }
 
-  let listToPT pm onMissing currentModule (bs : List<WT.Bound>) : Ply<List<PT.Bound>> =
+  let listToPT
+    pm
+    onMissing
+    currentModule
+    (bs : List<WT.Bound>)
+    : Ply<List<PT.Bound>> =
     Ply.List.mapSequentially (toPT pm onMissing currentModule) bs
 
 module BinaryOperation =
@@ -998,7 +1003,8 @@ module Trait =
                       : PT.PackageFn.Parameter)
                   })
                 m.parameters
-            let! returnType = TypeReference.toPT pm onMissing currentModule m.returnType
+            let! returnType =
+              TypeReference.toPT pm onMissing currentModule m.returnType
             let permissionCeiling =
               m.effects
               |> Option.map (fun names ->
@@ -1018,14 +1024,14 @@ module Trait =
           })
       return
         { hash = PT.Hash ""
-          typeParams =
-            NEList.ofListWithDefault "a" t.typeParams
+          typeParams = NEList.ofListWithDefault "a" t.typeParams
           bounds = bounds
           methods =
             NEList.ofListWithDefault
               ({ name = "_"
                  typeParams = []
-                 parameters = NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
+                 parameters =
+                   NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
                  returnType = PT.TUnit
                  permissionCeiling = None
                  description = "" }
@@ -1035,9 +1041,9 @@ module Trait =
     }
 
 
-module Impl =
+module TraitImpl =
   module Name =
-    let toLocation (name : WT.PackageImpl.Name) : PT.PackageLocation =
+    let toLocation (name : WT.PackageTraitImpl.Name) : PT.PackageLocation =
       { owner = name.owner; modules = name.modules; name = name.name }
 
   let toPT
@@ -1045,20 +1051,28 @@ module Impl =
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
-    (i : WT.PackageImpl.PackageImpl)
-    : Ply<PT.Impl.Impl> =
+    (i : WT.PackageTraitImpl.PackageTraitImpl)
+    : Ply<PT.TraitImpl.TraitImpl> =
     uply {
       let! trait_ =
         NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
       let! traitTypeArgs =
-        Ply.List.mapSequentially (TypeReference.toPT pm onMissing currentModule) i.trait_.typeArgs
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          i.trait_.typeArgs
       let! self = TypeReference.toPT pm onMissing currentModule i.forType
       let! bounds = Bound.listToPT pm onMissing currentModule i.bounds
       let! methods =
         i.methods
         |> Ply.List.mapSequentially (fun (name, target) ->
           uply {
-            let! fn = NR.resolveFnName (BuiltinNames.fns builtins) pm onMissing currentModule target
+            let! fn =
+              NR.resolveFnName
+                (BuiltinNames.fns builtins)
+                pm
+                onMissing
+                currentModule
+                target
             return (name, fn)
           })
       return

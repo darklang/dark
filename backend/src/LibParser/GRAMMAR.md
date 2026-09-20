@@ -354,7 +354,7 @@ declaration or an alias of an existing fn:
 
 An entry that is neither (a `val`, a `let` bound to anything but a name) is
 `PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl lowers to
-its own package item (`PT.Impl`) named `<module>[.<Type>].<Trait>`, with the
+its own package item (`PT.TraitImpl`) named `<module>[.<Type>].<Trait>`, with the
 method fns declared in the block as ordinary fns beneath that name and an
 alias naming the fn it points at; the type segment is omitted when the
 enclosing module is already named for the type. Duplicate member names are

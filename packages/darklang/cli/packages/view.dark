@@ -15,7 +15,7 @@ let resolveReplacementName
     | PackageType h -> LanguageTools.PackageManager.Type.locations branchId h
     | PackageValue h -> LanguageTools.PackageManager.Value.locations branchId h
     | PackageTrait h -> LanguageTools.PackageManager.Trait.locations branchId h
-    | PackageImpl h -> LanguageTools.PackageManager.Impl.locations branchId h
+    | PackageTraitImpl h -> LanguageTools.PackageManager.TraitImpl.locations branchId h
   match Darklang.LanguageTools.PackageManager.pickLocation
           (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
           locs with
@@ -367,7 +367,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         deprecationHeaderRowsFor
           branchId
           item.entity.hash
-          LanguageTools.ProgramTypes.ItemKind.Impl
+          LanguageTools.ProgramTypes.ItemKind.TraitImpl
         sourceRows highlighted
       ]
 
@@ -586,7 +586,7 @@ let resolveHashArg
      | Type -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Type loc)
      | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value loc)
      | Trait -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Trait loc)
-     | Impl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl loc))
+     | TraitImpl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl loc))
   | None ->
     Stdlib.Result.Result.Error
       $"no live name binds hash {Stdlib.String.first hash 8} -- `dark show {Stdlib.String.first hash 8}` reads it as an op."

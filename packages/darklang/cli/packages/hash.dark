@@ -48,7 +48,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           LanguageTools.PackageManager.Trait.find branchId loc
           |> Stdlib.Option.map (fun h -> ("trait", h))
         | Impl loc ->
-          LanguageTools.PackageManager.Impl.find branchId loc
+          LanguageTools.PackageManager.TraitImpl.find branchId loc
           |> Stdlib.Option.map (fun h -> ("impl", h))
 
       match found with

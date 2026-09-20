@@ -23,7 +23,7 @@ module CliScript =
       values : List<PT.PackageValue.PackageValue>
       fns : List<PT.PackageFn.PackageFn>
       traits : List<PT.Trait.Trait>
-      impls : List<PT.Impl.Impl>
+      impls : List<PT.TraitImpl.TraitImpl>
       submodules : Definitions
       exprs : List<PT.Expr> }
 
@@ -77,8 +77,15 @@ module CliScript =
         "fns",
         DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT)
         "traits",
-        DList(VT.known (PT2DT.Trait.knownType ()), m.traits |> List.map PT2DT.Trait.toDT)
-        "impls", DList(VT.known (PT2DT.Impl.knownType ()), m.impls |> List.map PT2DT.Impl.toDT)
+        DList(
+          VT.known (PT2DT.Trait.knownType ()),
+          m.traits |> List.map PT2DT.Trait.toDT
+        )
+        "impls",
+        DList(
+          VT.known (PT2DT.TraitImpl.knownType ()),
+          m.impls |> List.map PT2DT.TraitImpl.toDT
+        )
         "submodules", m.submodules |> submoduleToDT
         "exprs", DList(VT.unknownTODO, m.exprs |> List.map PT2DT.Expr.toDT) ]
 
@@ -117,7 +124,7 @@ module CliScript =
         | _ -> []
       let impls =
         match Map.tryFind "impls" fields with
-        | Some(DList(_, is)) -> List.map PT2DT.Impl.fromDT is
+        | Some(DList(_, is)) -> List.map PT2DT.TraitImpl.fromDT is
         | _ -> []
 
       let submodules : Definitions =

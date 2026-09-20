@@ -51,9 +51,19 @@ module FQFnName =
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
+    // `-x` is stored as `Builtin.negate x`; it runs as `Neg.negate x`, like `+` runs
+    // as `Add.add`, so a user type with `impl Neg` gets its unary minus.
+    | PT.FQFnName.Builtin { name = name; version = 0 } when
+      name = PT.InfixFnName.negateBuiltinName
+      ->
+      match NumericTraits.ofNegate () with
+      | Some(traitHash, methodName) ->
+        RT.FQFnName.TraitMethod(RT.Hash traitHash, methodName)
+      | None -> RT.FQFnName.Builtin { name = name; version = 0 }
     | PT.FQFnName.Builtin s -> RT.FQFnName.Builtin(Builtin.toRT s)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(Package.toRT p)
-    | PT.FQFnName.TraitMethod(t, m) -> RT.FQFnName.TraitMethod(FQTypeName.Package.toRT t, m)
+    | PT.FQFnName.TraitMethod(t, m) ->
+      RT.FQFnName.TraitMethod(FQTypeName.Package.toRT t, m)
 
 
 module NameResolutionError =
@@ -1424,7 +1434,7 @@ module Trait =
 
 /// Dispatch candidates, read off the stored `Impl` items: no evaluation, no body.
 module ImplCandidate =
-  let ofImpl (i : PT.Impl.Impl) : Option<RT.ImplCandidate> =
+  let ofImpl (i : PT.TraitImpl.TraitImpl) : Option<RT.ImplCandidate> =
     match i.trait_.resolved with
     | Ok { name = PT.FQTraitName.Package traitHash } ->
       Some
@@ -1448,16 +1458,22 @@ module ImplCandidate =
   /// at all is not live: the store keeps every version's content, and only the
   /// bound ones are impls. (A script's own impls never reach here; the script
   /// host grafts them with `withExtraImpls`.)
-  let private live (pm : PT.PackageManager) (impl : PT.Impl.Impl) : Ply<bool> =
+  let private live
+    (pm : PT.PackageManager)
+    (impl : PT.TraitImpl.TraitImpl)
+    : Ply<bool> =
     uply {
-      match! pm.getImplLocations impl.hash with
+      match! pm.getTraitImplLocations impl.hash with
       | [] -> return false
       | locs ->
-        let! bound = Ply.List.mapSequentially pm.findImpl locs
+        let! bound = Ply.List.mapSequentially pm.findTraitImpl locs
         return bound |> List.exists (fun b -> b = Some impl.hash)
     }
 
-  let private ofImpls (pm : PT.PackageManager) (impls : List<PT.Impl.Impl>) : Ply<List<RT.ImplCandidate>> =
+  let private ofImpls
+    (pm : PT.PackageManager)
+    (impls : List<PT.TraitImpl.TraitImpl>)
+    : Ply<List<RT.ImplCandidate>> =
     uply {
       let! live = impls |> Ply.List.filterSequentially (live pm)
       // A branch overlay and the store can both offer the same item; one hash is one impl.

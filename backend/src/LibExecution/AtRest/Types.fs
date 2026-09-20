@@ -242,26 +242,30 @@ type Diagnostic =
 type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
 
 type FunctionSignature =
-  { typeParams : List<string>
+  {
+    typeParams : List<string>
     parameters : NEList<TypeReference>
     returnType : TypeReference
     /// `'a: Show`: each instantiation of the signature owes an impl for the trait
     /// at whatever the variable becomes.
-    bounds : List<Bound> }
+    bounds : List<Bound>
+  }
 
 /// One impl the checker knows of: what trait, what self type, which methods. Read
 /// off the stored `Impl` item, exactly as the runtime's `ImplCandidate` is.
 type ImplEntry =
-  { trait_ : FQTraitName.Package
+  {
+    trait_ : FQTraitName.Package
     self : TypeReference
     /// Bounds on a conditional impl (`impl<'a: Show> Show for List<'a>`), which
     /// the impl's own type params owe.
     bounds : List<Bound>
     methods : List<string>
-    source : Hash }
+    source : Hash
+  }
 
 module ImplEntry =
-  let ofImpl (i : Impl.Impl) : Option<ImplEntry> =
+  let ofImpl (i : TraitImpl.TraitImpl) : Option<ImplEntry> =
     match i.trait_.resolved with
     | Ok { name = FQTraitName.Package traitHash } ->
       Some
@@ -356,19 +360,22 @@ let rec private runtimeTypeVariables (typ : RT.TypeReference) : Set<string> =
 
 type TypeEnvironment =
   internal
-    { types : Map<FQTypeName.Package, TypeDeclaration.T>
+    {
+      types : Map<FQTypeName.Package, TypeDeclaration.T>
       functions : Map<FQFnName.FQFnName, FunctionSignature>
       unsupportedFunctions : Map<FQFnName.FQFnName, UntrustedBuiltin>
       requiresExplicitTypeArguments : Set<FQFnName.FQFnName>
       values : Map<FQValueName.FQValueName, TypeReference>
       checkedValues : Map<FQValueName.FQValueName, TypeScheme>
       /// The declared ceiling of every package fn in scope, for impl checking.
-      functionCeilings : Map<FQFnName.FQFnName, Option<Set<LibExecution.Effects.Effect>>>
+      functionCeilings :
+        Map<FQFnName.FQFnName, Option<Set<LibExecution.Effects.Effect>>>
       /// Every trait the item being checked can name.
       traits : Map<FQTraitName.Package, Trait.Trait>
       /// Every impl visible to the item being checked, by hash so the same one
       /// offered twice counts once.
-      impls : Map<Hash, ImplEntry> }
+      impls : Map<Hash, ImplEntry>
+    }
 
 module TypeEnvironment =
   let empty : TypeEnvironment =
@@ -385,13 +392,19 @@ module TypeEnvironment =
   let addTrait (t : Trait.Trait) (environment : TypeEnvironment) : TypeEnvironment =
     { environment with traits = Map.add t.hash t environment.traits }
 
-  let addImpl (impl : Impl.Impl) (environment : TypeEnvironment) : TypeEnvironment =
+  let addImpl
+    (impl : TraitImpl.TraitImpl)
+    (environment : TypeEnvironment)
+    : TypeEnvironment =
     match ImplEntry.ofImpl impl with
-    | Some entry -> { environment with impls = Map.add entry.source entry environment.impls }
+    | Some entry ->
+      { environment with impls = Map.add entry.source entry environment.impls }
     | None -> environment
 
   /// The traits registered impls refer to that the environment has no declaration for.
-  let implTraitsMissingDeclarations (environment : TypeEnvironment) : List<FQTraitName.Package> =
+  let implTraitsMissingDeclarations
+    (environment : TypeEnvironment)
+    : List<FQTraitName.Package> =
     environment.impls.Values
     |> Seq.map (fun e -> e.trait_)
     |> Seq.distinct
@@ -461,7 +474,10 @@ module TypeEnvironment =
     let environment = addFunction (FQFnName.Package fn.hash) signature environment
     { environment with
         functionCeilings =
-          Map.add (FQFnName.Package fn.hash) fn.permissionCeiling environment.functionCeilings }
+          Map.add
+            (FQFnName.Package fn.hash)
+            fn.permissionCeiling
+            environment.functionCeilings }
 
   /// Add builtin signatures without executable bodies. Invalid zero-argument
   /// builtins are returned as errors instead of throwing.

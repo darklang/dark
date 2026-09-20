@@ -195,7 +195,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       | PT.PackageOp.AddFn _
                       | PT.PackageOp.AddType _
                       | PT.PackageOp.AddTrait _
-                      | PT.PackageOp.AddImpl _ -> true
+                      | PT.PackageOp.AddTraitImpl _ -> true
                       | _ -> false)
                   if not (List.isEmpty contentOps) then
                     do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
@@ -977,7 +977,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     | PT.PackageOp.AddFn _
                     | PT.PackageOp.AddType _
                     | PT.PackageOp.AddTrait _
-                    | PT.PackageOp.AddImpl _ -> true
+                    | PT.PackageOp.AddTraitImpl _ -> true
                     | _ -> false)
                 if not (List.isEmpty contentOps) then
                   do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps

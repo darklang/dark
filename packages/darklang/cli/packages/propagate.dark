@@ -14,7 +14,7 @@ let itemKindToString (kind: LanguageTools.ProgramTypes.ItemKind) : String =
   | Type -> "type"
   | Value -> "value"
   | Trait -> "trait"
-  | Impl -> "impl"
+  | TraitImpl -> "impl"
 
 /// Parse a string to an ItemKind
 let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.ItemKind> =
@@ -23,7 +23,7 @@ let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramT
   | "type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Type
   | "value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Value
   | "trait" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Trait
-  | "impl" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Impl
+  | "impl" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.TraitImpl
   | _ -> Stdlib.Option.Option.None
 
 /// Every hash that has ever been at a location, NEWEST FIRST. Empty means the name is new here.

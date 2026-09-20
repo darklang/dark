@@ -27,7 +27,7 @@ type WTModule =
     dbs : List<WT.DB.T>
     fns : List<WT.PackageFn.PackageFn>
     traits : List<WT.PackageTrait.PackageTrait>
-    impls : List<WT.PackageImpl.PackageImpl>
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl>
     tests : List<WTTest> }
 
 let emptyWTModule =
@@ -235,13 +235,14 @@ let toPT
       m.impls
       |> Ply.List.mapSequentially (fun wtImpl ->
         uply {
-          let! ptImpl = WT2PT.Impl.toPT builtins pm onMissing currentModule wtImpl
+          let! ptImpl =
+            WT2PT.TraitImpl.toPT builtins pm onMissing currentModule wtImpl
           let hash = Hashing.computeImplHash Hashing.Normal ptImpl
           return
-            [ PT.PackageOp.AddImpl ptImpl
+            [ PT.PackageOp.AddTraitImpl ptImpl
               PT.PackageOp.SetName(
-                WT2PT.Impl.Name.toLocation wtImpl.name,
-                PT.PackageImpl hash,
+                WT2PT.TraitImpl.Name.toLocation wtImpl.name,
+                PT.PackageTraitImpl hash,
                 None
               ) ]
         })

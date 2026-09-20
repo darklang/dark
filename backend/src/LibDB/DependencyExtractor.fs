@@ -282,7 +282,10 @@ let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
 
 /// A bound `'a: Show<X>` references the trait and its type args.
 let private traitRefDeps (t : PT.TraitRef) : List<Dependency> =
-  (extractFromNameResolution t.trait_ PT.ItemKind.Trait (fun (PT.FQTraitName.Package h) -> Some h))
+  (extractFromNameResolution
+    t.trait_
+    PT.ItemKind.Trait
+    (fun (PT.FQTraitName.Package h) -> Some h))
   @ extract (t.typeArgs |> List.map TypeRef)
 
 let private boundDeps (bounds : List<PT.Bound>) : List<Dependency> =
@@ -350,7 +353,7 @@ let extractFromTrait (t : PT.Trait.Trait) : List<Dependency> =
 
 /// An impl references its trait (this edge is how a trait finds its impls), its self
 /// type, its method fns and its bounds.
-let extractFromImpl (i : PT.Impl.Impl) : List<Dependency> =
+let extractFromImpl (i : PT.TraitImpl.TraitImpl) : List<Dependency> =
   traitRefDeps { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
   @ extract [ TypeRef i.self ]
   @ (i.methods

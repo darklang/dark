@@ -204,7 +204,7 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
           @ inTypeRef m.returnType)
       let inBounds = t.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)
       Some(hash, inMethods @ inBounds)
-    | PT.PackageOp.AddImpl i ->
+    | PT.PackageOp.AddTraitImpl i ->
       let (PT.Hash hash) = i.hash
       Some(
         hash,

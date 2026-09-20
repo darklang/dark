@@ -77,7 +77,7 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_values;
       DELETE FROM package_functions;
       DELETE FROM package_traits;
-      DELETE FROM package_impls;
+      DELETE FROM package_trait_impls;
       DELETE FROM package_dependencies;
       DELETE FROM deprecations;
 
@@ -365,7 +365,7 @@ let projectionTables : List<string> =
     "package_types"
     "package_values"
     "package_traits"
-    "package_impls"
+    "package_trait_impls"
     "locations"
     "package_dependencies"
     "deprecations"

@@ -21,7 +21,7 @@ type private WTPackageModule =
     types : List<WT.PackageType.PackageType>
     values : List<WT.PackageValue.PackageValue>
     traits : List<WT.PackageTrait.PackageTrait>
-    impls : List<WT.PackageImpl.PackageImpl> }
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl> }
 /// Lower a WT package module to PackageOps (WT2PT lowering + AddX/SetName op
 /// generation).
 let private wtModuleToOps
@@ -69,7 +69,12 @@ let private wtModuleToOps
       modul.impls
       |> Ply.List.mapSequentially (fun i ->
         // Method targets resolve from the impl's own module: its member path.
-        WT2PT.Impl.toPT builtins pm onMissing (i.name.owner :: i.name.modules @ [ i.name.name ]) i)
+        WT2PT.TraitImpl.toPT
+          builtins
+          pm
+          onMissing
+          (i.name.owner :: i.name.modules @ [ i.name.name ])
+          i)
 
     // Set*Name ops carry a placeholder; the real hash replaces it in
     // LoadPackagesFromDisk.computeRealHashes.
@@ -97,9 +102,10 @@ let private wtModuleToOps
           yield PT.PackageOp.SetName(loc, PT.PackageTrait(nameBasedHash loc), None)
 
         for (wtImpl, ptImpl) in List.zip modul.impls impls do
-          yield PT.PackageOp.AddImpl ptImpl
-          let loc = WT2PT.Impl.Name.toLocation wtImpl.name
-          yield PT.PackageOp.SetName(loc, PT.PackageImpl(nameBasedHash loc), None) ]
+          yield PT.PackageOp.AddTraitImpl ptImpl
+          let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
+          yield
+            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None) ]
 
     return ops
   }
@@ -115,7 +121,7 @@ type private PkgItem =
   | PType of WT.PackageType.PackageType
   | PValue of WT.PackageValue.PackageValue
   | PTrait of WT.PackageTrait.PackageTrait
-  | PImpl of WT.PackageImpl.PackageImpl
+  | PImpl of WT.PackageTraitImpl.PackageTraitImpl
   | PErr of WT.Range * string
 
 let private noOwner (kind : string) (name : string) : string =
@@ -187,7 +193,8 @@ let private packageDecls
     |> List.choose (function
       | PErr(r, msg) -> Some(r, msg)
       | _ -> None)
-  ({ fns = fns; types = types; values = values; traits = traits; impls = impls }, errors)
+  ({ fns = fns; types = types; values = values; traits = traits; impls = impls },
+   errors)
 
 /// Parse + lower a package file: the nested module tree gives module-qualified
 /// names. Returns `Error diagnostics` on parse failure.

@@ -68,7 +68,7 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
       Some(("value", v.hash), Hashing.computeValueHash Hashing.Normal v)
     | PT.PackageOp.AddTrait t ->
       Some(("trait", t.hash), Hashing.computeTraitHash Hashing.Normal t)
-    | PT.PackageOp.AddImpl i ->
+    | PT.PackageOp.AddTraitImpl i ->
       Some(("impl", i.hash), Hashing.computeImplHash Hashing.Normal i)
     | PT.PackageOp.SetName _
     | PT.PackageOp.Unbind _

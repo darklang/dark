@@ -29,7 +29,7 @@ let applyResolution
     | "type" -> LanguageTools.ProgramTypes.Reference.PackageType h
     | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
     | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait h
-    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageImpl h
+    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl h
     | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
 
   add

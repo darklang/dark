@@ -1597,7 +1597,7 @@ let packageTrait
 /// written in the block or aliased.
 let packageImpl
   (ctx: Context)
-  (i: LanguageTools.ProgramTypes.Impl.Impl)
+  (i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
   : String =
   let typeParamPart = typeParamsWithBounds ctx i.typeParams i.bounds
   let traitPart =
@@ -1611,7 +1611,7 @@ let packageImpl
   // bare; an alias of a fn elsewhere prints in full, so `let add = add` cannot
   // happen when the target is `Stdlib.Int64.add`.
   let implPath =
-    match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Impl.locations ctx.branchId i.hash) with
+    match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.TraitImpl.locations ctx.branchId i.hash) with
     | Some l -> Stdlib.List.flatten [ [ l.owner ], l.modules, [ l.name ] ]
     | None -> []
   let methods =
@@ -1711,9 +1711,9 @@ module PackageOp =
       let methods = t.methods |> Stdlib.List.map (fun m -> m.name) |> Stdlib.String.join ", "
       $"AddTrait {name} ({methods})  [{LanguageTools.ProgramTypes.hashToShort t.hash}]"
 
-    | AddImpl i ->
+    | AddTraitImpl i ->
       let traitName = NameResolution.traitName ctx i.trait_
-      $"AddImpl {traitName} for {typeReference ctx i.self}  [{LanguageTools.ProgramTypes.hashToShort i.hash}]"
+      $"AddTraitImpl {traitName} for {typeReference ctx i.self}  [{LanguageTools.ProgramTypes.hashToShort i.hash}]"
 
     | SetName(loc, target, _) ->
       let path = PackageLocation.packageLocation loc
@@ -1723,7 +1723,7 @@ module PackageOp =
         | PackageValue _ -> "Value"
         | PackageFn _ -> "Fn"
         | PackageTrait _ -> "Trait"
-        | PackageImpl _ -> "Impl"
+        | PackageTraitImpl _ -> "Impl"
       // Name the hash it binds. "SetName Fn -> Some.Path" said which name changed but not what it now means,
       // so an Add and the SetName that named it were two lines with nothing tying them together.
       let hash = LanguageTools.ProgramTypes.Reference.hash target

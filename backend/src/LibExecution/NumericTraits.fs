@@ -38,6 +38,13 @@ let ofInfix (op : InfixFnName) : Option<string * string> =
   | ComparisonNotEquals
   | StringConcat -> None
 
+/// Unary minus on a non-literal (`-x`): `Neg.negate`, or None while the refs are
+/// not generated. The parser stores `Builtin.negate` in the PT, so this is a
+/// lowering-time swap and no hash moves.
+let ofNegate () : Option<string * string> =
+  let hash = Traits.neg ()
+  if hash = "" then None else Some(hash, "negate")
+
 /// Every operator that is a trait method, with its trait and method, under the
 /// refs as they are now.
 let private all () : List<InfixFnName * (string * string)> =
@@ -57,7 +64,8 @@ let private all () : List<InfixFnName * (string * string)> =
 /// hashes move with the stdlib; the table is published whole and never written
 /// after, so readers on other threads only ever see a finished one.
 let mutable private cache
-  : struct (int * System.Collections.Generic.Dictionary<struct (string * string), InfixFnName>) =
+  : struct (int *
+    System.Collections.Generic.Dictionary<struct (string * string), InfixFnName>) =
   struct (-1, System.Collections.Generic.Dictionary())
 
 let tryInfix (traitHash : string) (methodName : string) : Option<InfixFnName> =

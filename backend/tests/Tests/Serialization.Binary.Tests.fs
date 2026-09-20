@@ -82,7 +82,8 @@ module PT =
   let implTests =
     Roundtripping.testRoundtripMany
       "impls"
-      (fun (i : PT.Impl.Impl) -> i |> BS.PT.Impl.serialize i.hash |> BS.PT.Impl.deserialize i.hash)
+      (fun (i : PT.TraitImpl.TraitImpl) ->
+        i |> BS.PT.TraitImpl.serialize i.hash |> BS.PT.TraitImpl.deserialize i.hash)
       Values.ProgramTypes.impls
 
   /// Every `PackageOp` case, through the writer and back.
@@ -134,7 +135,8 @@ module PT =
       let blob = BS.PT.PackageFn.serialize fn.hash fn
       System.BitConverter.GetBytes(99u).CopyTo(blob, 0)
       Expect.throws
-        (fun () -> BS.PT.PackageFn.deserialize fn.hash blob |> ignore<PT.PackageFn.PackageFn>)
+        (fun () ->
+          BS.PT.PackageFn.deserialize fn.hash blob |> ignore<PT.PackageFn.PackageFn>)
         "version 99 has no reader"
     }
 
