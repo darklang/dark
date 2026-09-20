@@ -2,11 +2,24 @@ module Darklang.Cli.Packages.Impls
 
 // `impls <Trait>`: every impl of a trait bound on the current branch, as dispatch sees them.
 //
-// A trait is a record type of fn fields and an impl is a value of that type (or a fn returning
-// one), so this is `find-values` for a trait, with the answer shaped as `impl Trait for Type`.
+// Reads the same candidates the interpreter does (`Trait.impls`), so what this
+// lists is what a call can reach.
 
 let describeSelf (branchId: Uuid) (self: LanguageTools.RuntimeTypes.TypeReference) : String =
   PrettyPrinter.RuntimeTypes.typeReference branchId self
+
+let traitHashAt
+  (branchId: Uuid)
+  (currentLocation: Packages.PackageLocation)
+  (traitPath: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  match Traversal.traverse branchId currentLocation traitPath with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(Trait loc) ->
+    match LanguageTools.PackageManager.Trait.find branchId loc with
+    | Some h -> Stdlib.Result.Result.Ok h
+    | None -> Stdlib.Result.Result.Error $"Trait not found: {traitPath}"
+  | Ok _ -> Stdlib.Result.Result.Error $"{traitPath} is not a trait."
 
 /// The trait as written, then under `Stdlib.` (the operator traits are what
 /// most people ask about, and `impls Add` should just work).
@@ -14,13 +27,13 @@ let resolveTrait
   (state: Cli.AppState)
   (traitPath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
-  match FindValues.resolveTypeHash state.currentBranchId state.packageData.currentLocation traitPath with
+  match traitHashAt state.currentBranchId state.packageData.currentLocation traitPath with
   | Ok h -> Stdlib.Result.Result.Ok h
   | Error msg ->
     if Stdlib.String.startsWith traitPath "Stdlib." || Stdlib.String.startsWith traitPath "Darklang." then
       Stdlib.Result.Result.Error msg
     else
-      match FindValues.resolveTypeHash state.currentBranchId state.packageData.currentLocation $"Stdlib.{traitPath}" with
+      match traitHashAt state.currentBranchId state.packageData.currentLocation $"Stdlib.{traitPath}" with
       | Ok h -> Stdlib.Result.Result.Ok h
       | Error _ -> Stdlib.Result.Result.Error msg
 
@@ -41,12 +54,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           let locToString (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
             Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
           let sourceName =
-            match LanguageTools.PackageManager.Value.locations state.currentBranchId c.source with
+            match LanguageTools.PackageManager.Impl.locations state.currentBranchId c.source with
             | loc :: _ -> locToString loc
-            | [] ->
-              match LanguageTools.PackageManager.Function.locations state.currentBranchId c.source with
-              | loc :: _ -> locToString loc
-              | [] -> LanguageTools.ProgramTypes.hashToShort c.source
+            | [] -> LanguageTools.ProgramTypes.hashToShort c.source
           let methods =
             c.methods |> Stdlib.Dict.keys |> Stdlib.String.join ", "
           Stdlib.printLine
@@ -62,8 +72,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "Usage: impls <trait-path>"
     ""
-    "Each line is one impl, the type it is for, its methods, and where it lives."
-    "A trait is a record type of fn fields; an impl is a value of that type." ]
+    "Each line is one impl, the type it is for, its methods, and where it lives." ]
   |> Stdlib.String.join "\n"
 
 
