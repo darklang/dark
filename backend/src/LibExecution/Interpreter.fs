@@ -2490,7 +2490,14 @@ let private runSyncInstructions
   // Set only if an `Apply` below has to wait for something. A struct, so carrying it costs nothing.
   let mutable pending = ApplyDone
 
-  while running && counter < instrData.instructions.Length do
+  // The scheduler's instruction budget, counted down in a local and written back on the way out. One
+  // decrement and one compare per instruction (the BEAM's reductions); `vm.budget` is negative for a
+  // VM nobody schedules, and a negative never reaches zero. Zero stops the drain with the counter on
+  // the instruction that has not run, and `runFrame` reports it as `FrameBudget`.
+  let mutable budget = vm.budget
+
+  while running && budget <> 0L && counter < instrData.instructions.Length do
+    budget <- budget - 1L
     let inst = instrData.instructions[counter]
 
     match inst with
@@ -2808,6 +2815,7 @@ let private runSyncInstructions
 
       counter <- counter + 1
 
+  vm.budget <- budget
   struct (counter, pending)
 
 
@@ -2824,6 +2832,9 @@ type private FrameStep =
   | FrameAwaitPackage of fpCall : Ply<PackageOutcome> * fpReg : Register
   /// The counter is sitting on one of the four opcodes the caller still runs itself.
   | FrameRareOpcode
+  /// The VM's instruction budget ran out. Nothing is half-done: the counter sits on the instruction
+  /// that has not run, and the frame resumes exactly there once the scheduler refills the budget.
+  | FrameBudget
 
   member this.IsBlockEnded =
     match this with
@@ -2872,7 +2883,10 @@ let private runFrame
         currentFrame.programCounter < instrData.instructions.Length
         && vm.frameToPush.IsNone
       then
-        step <- FrameRareOpcode
+        // Budget first: a drain that stopped with the budget at zero stopped for that reason, whatever
+        // instruction it happens to be sitting on. If that instruction is a rare opcode, the next slice
+        // stops on it again with budget to spare and reports it then.
+        step <- if vm.budget = 0L then FrameBudget else FrameRareOpcode
         running <- false
 
   step
@@ -3178,6 +3192,13 @@ let private handleFrameStep
     match step with
     | FrameBlockEnded
     | FrameRareOpcode -> ()
+    // Only a scheduled VM has a budget, and a scheduled VM is stepped by `stepScheduled`, which
+    // never comes here. Loud rather than an infinite loop: the budget would stay at zero and every
+    // turn of `executeInnerTask`'s loop would report it again.
+    | FrameBudget ->
+      Exception.raiseInternal
+        "budget bail outside the scheduler"
+        [ "vm", vm.threadID ]
     | FrameAwaitBuiltin(call, reg) ->
       let! dv = Ply.toTask call
       registers[reg] <- dv
@@ -3218,6 +3239,7 @@ let private handleFrameStep
       currentFrame.programCounter <- currentFrame.programCounter + 1
 
     | FrameBlockEnded
+    | FrameBudget
     | FrameAwaitBuiltin _
     | FrameAwaitPackage _ -> ()
 
@@ -3264,6 +3286,8 @@ type private SyncOutcome =
   | SyncBailReturnCheck of
     check : System.Threading.Tasks.Task<unit> *
     checkedResult : Dval
+  /// The instruction budget ran out. Only a scheduled VM ever reports this.
+  | SyncBailBudget
 
 
 /// The interpreter loop, for as long as nothing actually awaits.
@@ -3295,6 +3319,7 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
 
     match step with
     | FrameBlockEnded -> ()
+    | FrameBudget -> bail <- ValueSome SyncBailBudget
     // Rare by construction, and running one can await, so it is handed over rather than tried. The
     // step is untouched, so `handleFrameStep` does the whole of it.
     | FrameRareOpcode -> bail <- ValueSome(SyncBailStep step)
@@ -3360,6 +3385,10 @@ let private executeInnerTask
       let frame = vm.callFrames[vm.currentFrameID]
       do! check
       returnFromFrame exeState vm frame checkedResult
+    | SyncBailBudget ->
+      Exception.raiseInternal
+        "budget bail outside the scheduler"
+        [ "vm", vm.threadID ]
 
     // See `executeSync`: one lookup per turn, not two.
     let mutable currentFrame = Unchecked.defaultof<CallFrame>
@@ -3390,6 +3419,69 @@ let private executeInnerTask
     | ValueSome dv -> return dv
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
+
+/// Why one slice of a scheduled process stopped. The scheduler's whole view of the interpreter.
+type StepOutcome =
+  /// The root frame returned. The process is finished.
+  | StepDone of Dval
+  /// The budget ran out with work left. Step again when it is this process's turn.
+  | StepBudget
+  /// Something has to be waited for. When `wait` completes, run `resume` on the stepping thread,
+  /// then step again. `wait` is a builtin's or package call's result (the ordinary case: `resume`
+  /// writes it into the frame's register), or one of the rare opcodes and the deferred return-type
+  /// check, which advance the VM themselves as they complete (`resume` is then a no-op). Either
+  /// way nothing else touches the VM until `wait` is done and `resume` has run.
+  | StepAwait of wait : System.Threading.Tasks.Task * resume : (unit -> unit)
+
+
+/// Run `vm` until it finishes, awaits, or exhausts `vm.budget`. The scheduler's step.
+///
+/// `vm.budget` is the caller's: set it before every slice. The root frame's access must already be
+/// seeded (`seedRootAccess`), which `executeUnder` does for an unscheduled run.
+let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
+  match executeSync exeState vm with
+  | SyncDone dv -> StepDone dv
+  | SyncBailBudget -> StepBudget
+  | SyncBailStep(FrameAwaitBuiltin(call, reg)) ->
+    let frame = vm.callFrames[vm.currentFrameID]
+    let running = Ply.toTask call
+    StepAwait(
+      running,
+      fun () ->
+        frame.registers[reg] <- running.Result
+        frame.programCounter <- frame.programCounter + 1
+    )
+  | SyncBailStep(FrameAwaitPackage(call, reg)) ->
+    let frame = vm.callFrames[vm.currentFrameID]
+    let running = Ply.toTask call
+    StepAwait(
+      running,
+      fun () ->
+        frame.programCounter <- frame.programCounter + 1
+        match running.Result with
+        | PartiallyApplied dv
+        | Completed dv -> frame.registers[reg] <- dv
+        | PushFrame newFrame -> pushFrame vm newFrame
+    )
+  | SyncBailStep step ->
+    // A rare opcode (the step is untouched, so `handleFrameStep` does the whole of it). It writes
+    // the VM as it completes, on whatever thread completes it; the process is parked meanwhile and
+    // the scheduler does not look at the VM until `wait` is done.
+    let frame = vm.callFrames[vm.currentFrameID]
+    let running =
+      handleFrameStep exeState vm frame frame.registers frame.instrData step
+    StepAwait(running, (fun () -> ()))
+  | SyncBailReturnCheck(check, checkedResult) ->
+    let frame = vm.callFrames[vm.currentFrameID]
+    StepAwait(check, (fun () -> returnFromFrame exeState vm frame checkedResult))
+
+
+/// Seed the root frame with the access the run starts under. `executeUnder`'s first two lines,
+/// for a scheduled process that is stepped rather than run.
+let seedRootAccess (access : Permissions.Access) (vm : VMState) : unit =
+  vm.callFrames[vm.currentFrameID].access <- access
+  vm.activeAccess <- access
+
 
 /// Run `vm` with its root frame under `access`.
 ///

@@ -1,0 +1,77 @@
+/// Where a host loop waits.
+///
+/// Every host loop (a TUI, a daemon's runner, the CLI's own read loop) is written against `await`:
+/// park until one of the things it asked for happens, get told which. Under the scheduler the
+/// calling process gives up the thread while it waits, so other processes keep running; outside
+/// one (a plain `execute`) the thread is held, polling, the way `readKey` always was. The loop
+/// knows neither.
+///
+/// Nothing outside this file reads a key with a timeout, sleeps in slices, or remembers when it
+/// last looked at the store. If a loop needs any of that, it is asking for an `EventSpec` that does
+/// not exist yet, and the place to add it is here.
+module Darklang.Stdlib.Host
+
+/// What a process can wait for. `Host.await` takes a list of these and parks the calling
+/// process until the first of them happens.
+type EventSpec =
+  /// The next key press.
+  | Key
+  /// The package store changed: an op landed here, or was pulled.
+  | StoreChanged
+  /// Fires once, this many milliseconds from now.
+  | Timer of ms: Int64
+  /// A process (`Exec.list` shows their ids) finished.
+  | ExecDone of id: Uuid
+
+
+/// What `Host.await` came back with: the first of the requested specs to happen.
+type Event =
+  /// One read of the keyboard, as the runtime reads it: a key, a paste, or a coalesced burst with
+  /// its repeat count. `Stdlib.Cli.UI.Widget.press` narrows it to a `KeyPress` for a widget.
+  | Key of Stdlib.Cli.Stdin.KeyRead.KeyRead
+  /// What landed: the ops, the names they touched, or `unknown` when it will not say
+  /// (`Stdlib.Live.poll` describes it).
+  | StoreChanged of Stdlib.Live.Change
+  | Timer
+  | ExecDone of id: Uuid
+
+
+/// The watch behind `await`: where its last look at the op log left off. The runtime posts that
+/// the store MOVED (a data-version counter, from a timer under the scheduler); which ops landed is
+/// Dark's question, answered by `Stdlib.Live.poll` from here. The watch lives in a slot the runtime
+/// keeps for this process (`Builtin.hostWatchGet`), because `await` takes no state and a Dark value
+/// does not outlive the call that made it.
+let remember (watch: Stdlib.Live.Watch) : Stdlib.Live.Watch =
+  Builtin.hostWatchSet watch
+  watch
+
+let currentWatch () : Stdlib.Live.Watch =
+  match Builtin.hostWatchGet () with
+  | Some w -> w
+  | None -> remember (Stdlib.Live.watch (SCM.PackageOps.currentBranch ()))
+
+/// What landed since the last look. `None` when the store moved for a reason that is not an op (a
+/// config write, a trace).
+let describeChange () : Stdlib.Option.Option<Stdlib.Live.Change> =
+  let (next, change) = Stdlib.Live.poll (currentWatch ())
+  let _ = remember next
+  change
+
+/// Say that a loop is about to start: the watch starts here, so an edit that lands between now
+/// and the loop's first `await` (while its entries are being resolved, say) is reported by it.
+/// Call it once, before resolving what the loop will show.
+let begin () : Unit =
+  let _ = currentWatch ()
+  ()
+
+/// Park until one of `specs` happens, and say which.
+///
+/// A store change the runtime reports is described before it is handed back; one that turns out
+/// to carry no op (the counter moves for a config write too) is not an event, and the wait goes on.
+let await (specs: List<EventSpec>) : Event =
+  match Builtin.hostAwait specs with
+  | StoreChanged _ ->
+    match describeChange () with
+    | Some change -> Event.StoreChanged change
+    | None -> await specs
+  | event -> event

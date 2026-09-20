@@ -21,6 +21,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
+module Scheduler = LibExecution.Scheduler
 module PackageRefs = LibExecution.PackageRefs
 module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
@@ -588,14 +589,25 @@ let execute
     | exprs ->
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
+      // Under the scheduler each expression is its own process, spawned from the CLI's
+      // process and awaited: it budget-yields, `ps` lists it, and a `readKey` in it parks
+      // instead of holding the thread. Without one (tests, the LSP) it runs inline as before.
+      let runOne (instr : RT.Instructions) : Ply<RT.ExecutionResult> =
+        match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
+        | Some s, Some parent ->
+          let child =
+            s.Spawn(state, (None, instr), Scheduler.EntryExpr, Some parent.id)
+          uply { return! s.Await child }
+        | _ -> uply { return! Exe.executeExpr state instr }
+
       // Awaited in order, and the first error ends the script.
       let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
         uply {
           match instrs with
           | [] -> return Ok DUnit
-          | [ last ] -> return! Exe.executeExpr state last
+          | [ last ] -> return! runOne last
           | instr :: rest ->
-            match! Exe.executeExpr state instr with
+            match! runOne instr with
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder rest
         }

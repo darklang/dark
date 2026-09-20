@@ -134,6 +134,13 @@ moves. A newly broken version is said once on stdout (`live: <entry>: newest ver
 not applied: <why>`); the wire keeps getting the last good one. `--no-live` pins the
 version resolved at start.
 
+Under the scheduler `serve` is a process that holds its thread on the listener; each
+request runs on a thread-pool thread with no scheduler current, so the per-request
+`Router.step` keeps polling for itself rather than reading the scheduler's queue. (The
+rebase plan wanted that poll replaced by "the latest change the scheduler has seen";
+requests are not processes yet, so the poll stays until the re-entry-removal step makes
+them one.)
+
 `serve --dev` adds the browser half: `GET /__live` is an event stream that holds the
 connection, compares the router's hash every half second to the one the page was served
 from, says `reload` once it moved, and ends; every HTML response carries a six-line
@@ -171,15 +178,17 @@ let rec loop model =
 
 `Stdlib.Host.await [Key; StoreChanged; Timer ms]` returns the first that fired:
 `Key of KeyRead` (the runtime's read: a key, a paste, a burst with its repeat count),
-`StoreChanged of Live.Change`, `Timer`. Under the shim it is a Dark loop over
-`Builtin.stdinReadKeyTimeout 50` (appended to `Stdin.fs` under a `// LIVE-SHIM` marker,
-reading through `stdinReadKey`'s own body; under a redirected stdin it reads only what a
-test pushed) and `Live.poll` over a watch the runtime keeps in one slot (`Store.fs`,
-same marker), since `await` takes no state. `Host.begin ()` starts the watch before a
-loop resolves its entries, so an edit during startup is not missed. It holds the OS
-thread while waiting. The loop does not know any of that, and nothing outside
-`stdlib/host.dark` mentions timers, threads or a queue, so replacing the shim is a
-deletion: `await` becomes one builtin call, `begin` becomes `()`.
+`StoreChanged of Live.Change`, `Timer`. It is `Builtin.hostAwait` (`docs/processes.md`:
+under the scheduler the calling process parks on the event queue, fed by a reader
+thread, timers and a store poll over `LibDB.Sqlite.DataVersion`; outside a scheduler the
+thread is held, polling) plus one thing the runtime cannot do: say which ops landed. The
+poll posts that the store MOVED; `await` describes it with `Live.poll` from a watch the
+runtime keeps in one slot (`Builtin.hostWatchGet/Set`, since `await` takes no state and a
+Dark value does not outlive the call that made it), and a move that carried no op (a
+config write) is absorbed and the wait goes on. `Host.begin ()` starts the watch before
+a loop resolves its entries, so an edit during startup is not missed. The shim that
+stood in for the scheduler on 2026-09-19 (a Dark loop over `stdinReadKeyTimeout`) is
+gone; the loops did not change when it went.
 
 The loop itself is `cli/apps/host.dark`. A `View` is three fns by name (`init : Unit ->
 'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), on an
@@ -203,9 +212,17 @@ The workbench re-reads its item list and the SCM picture and says what moved in 
 footer, so an edit from the LSP, an agent or a pull shows up in the detail pane while
 you look at it.
 
-Tests: `tests/CliWorkspace/live` drives the loop one turn at a time through the
-harness's `pushKey`/`pushTick` (what the next `await` answers with), which is the call
-the scheduler's queue takes over at the rebase.
+Tests: `tests/CliWorkspace/live` drives the loop one turn at a time as a process on a
+scheduler the test owns (`CliTestHarness.loopDriver`, `stepOn`): `pushKey` posts a key
+to its queue as the reader thread would, `pushTick` posts a store change as the poll
+would. The H2 guarantee the loop rests on (a parked process resumed after an edit
+finishes on the old hash; a fresh one gets the new) is `tests/scheduler`'s.
+
+The workbench's `Processes` pane (`P` from Apps) is the process table (`Stdlib.Exec.list`)
+as a tree, with the selected process's stack (`Stdlib.Exec.inspect`) beside it: live's
+first consumer of the scheduler's data. Every workbench, `dark apps view` and daemon is
+a process; a slow `render` budget-yields, and keys typed during it are read after it,
+not lost.
 
 ## Daemons
 
@@ -214,9 +231,11 @@ once per interval, waiting through `Host.await [StoreChanged; Timer]` in between
 edit that reaches the step is resolved through `LastGood` before the next tick and a
 broken version is skipped with the reason in the log. The heartbeat example is on it
 (`apps.heartbeat.step` points it at a step of your own). A daemon written as one
-long-running fn cannot follow anything: `dark apps` says `behind` when its entrypoint's
-hash moved since it started, and `dark apps restart <slug>` is the answer until the
-scheduler's budget yield lands.
+long-running fn cannot follow anything, scheduler or not: its frames call callees by
+hash, and only a name lookup (`Live`, `applicableByName`) sees a new binding, so the
+budget yield changes nothing for it. `dark apps` says `behind` when its entrypoint's
+hash moved since it started, and `dark apps restart <slug>` is the answer. (The rebase
+plan expected `behind` and `restart` to go; they stay, for this reason.)
 
 ## Prod follows a branch (demo 2)
 

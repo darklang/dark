@@ -68,6 +68,8 @@
     <Compile Include="ProgramTypesToDarkTypes.fs" />
     <!-- Expose the runtime to the outside world /-->
     <Compile Include="Execution.fs" />
+    <Compile Include="HostEvents.fs" />
+    <Compile Include="Scheduler.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

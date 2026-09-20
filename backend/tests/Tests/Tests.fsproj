@@ -31,6 +31,7 @@
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="PermissionsGate.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
+    <Compile Include="Scheduler.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="HostBoundary.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />

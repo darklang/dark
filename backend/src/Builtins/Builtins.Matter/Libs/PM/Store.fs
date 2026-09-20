@@ -31,8 +31,10 @@ let private requireBundledCaller
     |> raiseUntargetedRTE
 
 
-// LIVE-SHIM, removed by the rebase (see `liveShimWatchGet` below).
-module LiveShim =
+/// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One per process: one host
+/// loop runs per process today; a second loop in the same process would share its view of "what
+/// have I reported", which is what per-process state under the scheduler's cores step fixes.
+module HostWatch =
   let mutable watch : Option<Dval> = None
 
 
@@ -253,23 +255,20 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-    // LIVE-SHIM, removed by the rebase
-    //
-    // The one slot `Stdlib.Host.await`'s shim keeps its `Stdlib.Live.Watch` in between calls. A
-    // host loop is written against `Host.await`, which takes no state, and under the scheduler the
-    // store-change source is the runtime's own; until then the shim has to remember where its last
-    // poll stood, and a Dark value cannot outlive the call that made it. Process-wide, one watch:
-    // one host loop runs per process today. Nothing else may use this.
-    { name = fn "liveShimWatchGet" 0
+    // The one slot `Stdlib.Host.await` keeps its `Stdlib.Live.Watch` in between calls: the runtime
+    // says the store MOVED (a counter, from a timer), and Dark says which ops landed by polling
+    // from where its last look left off. `await` takes no state, and a Dark value cannot outlive
+    // the call that made it, so the watch lives here. Nothing else may use this.
+    { name = fn "hostWatchGet" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.option (TVariable "a")
-      description = "The shim's watch, if a poll has stored one."
+      description = "`Host.await`'s watch, if one has been stored."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
           uply {
-            match LiveShim.watch with
+            match HostWatch.watch with
             | Some w ->
               return
                 DEnum(
@@ -295,16 +294,16 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
-    { name = fn "liveShimWatchSet" 0
+    { name = fn "hostWatchSet" 0
       typeParams = []
       parameters = [ Param.make "watch" (TVariable "a") "" ]
       returnType = TUnit
-      description = "Store the shim's watch for the next `Host.await`."
+      description = "Store the watch for the next `Host.await`."
       fn =
         (function
         | _, _, _, [| w |] ->
           uply {
-            LiveShim.watch <- Some w
+            HostWatch.watch <- Some w
             return DUnit
           }
         | _ -> incorrectArgs ())

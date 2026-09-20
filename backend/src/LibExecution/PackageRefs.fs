@@ -260,6 +260,22 @@ module Type =
         let key = p [ "Key" ] "Key"
         let keyRead = p [ "KeyRead" ] "KeyRead"
 
+    /// The scheduler's event contract (`docs/processes.md`).
+    module Host =
+      let private p addl = p ("Host" :: addl)
+      let eventSpec = p [] "EventSpec"
+      let event = p [] "Event"
+
+    /// The process table (`dark ps`).
+    module Exec =
+      let private p addl = p ("Exec" :: addl)
+      let entry = p [] "Entry"
+      let parkedOn = p [] "ParkedOn"
+      let status = p [] "Status"
+      let summary = p [] "Summary"
+      let executionPoint = p [] "ExecutionPoint"
+      let detail = p [] "Detail"
+
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign"

@@ -2980,6 +2980,15 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
+    /// Instructions this VM may still run before the scheduler takes the thread back.
+    ///
+    /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
+    /// `FrameBudget`; `Scheduler.step` refills it before every slice. Negative means unlimited, which
+    /// is what every VM that is not a scheduled process runs with: `execute` never sees a budget bail,
+    /// and a VM a builtin borrows to apply a lambda counts against nothing (a process parked inside
+    /// `List.map` is parked as a Ply, not preempted; see `docs/processes.md`).
+    mutable budget : int64
+
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
@@ -3062,6 +3071,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      budget = -1L
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -3135,6 +3145,7 @@ type VMState =
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
+    vm.budget <- -1L
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()

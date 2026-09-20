@@ -4,9 +4,12 @@
 /// Between ticks the runner waits through `Stdlib.Host.await`, so an edit to the step (or to
 /// anything it calls) is resolved through `Stdlib.Live.LastGood` before the next tick, and a broken
 /// version is skipped, with the reason in the log. Under the scheduler the wait is a park and the
-/// same loop runs; a daemon written as `while true` inside one fn cannot do this, and needs
-/// `dark apps restart` until the budget yield lands.
+/// same loop runs.
 module Darklang.Cli.Apps.Runner
+
+/// An interval as the timer spec wants it.
+let timerMs (intervalMs: Int) : Int64 =
+  Stdlib.Int.toInt64 intervalMs |> Stdlib.Option.withDefault 5000L
 
 /// One tick, then wait for the next, or for the store to move under the step.
 let loop
@@ -23,7 +26,7 @@ let loop
       Stdlib.printLine $"{name}: step failed, state kept: {rte}"
       state
 
-  match Stdlib.Host.await [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer intervalMs ] with
+  match Stdlib.Host.await [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ] with
   | StoreChanged change when Stdlib.Live.affects change lg.entry ->
     let refreshed = Stdlib.Live.refresh branchId change.ops lg
     let before = Stdlib.Live.diagnostic lg
@@ -40,10 +43,10 @@ let loop
     // The wait was cut short by the change; the next tick runs on the new version after a
     // full interval, not at once. A change that lands during this plain wait is reported by
     // the next `StoreChanged` wait, since the poll behind it accumulates.
-    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer intervalMs ]
+    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
     loop name branchId refreshed state intervalMs
   | StoreChanged _ ->
-    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer intervalMs ]
+    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
     loop name branchId lg state intervalMs
   | _ -> loop name branchId lg state intervalMs
 
@@ -61,8 +64,10 @@ let run (name: String) (stepName: String) (init: 's) (intervalMs: Int) : Int =
 
     match lg.hash with
     | None ->
-      Stdlib.printLine
-        $"{name}: {Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) stepName} does not resolve"
+      let why =
+        Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) (stepName ++ " does not resolve")
+
+      Stdlib.printLine $"{name}: {why}"
       1
     | Some _ -> loop name branchId lg init intervalMs
 

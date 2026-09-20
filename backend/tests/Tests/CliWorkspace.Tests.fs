@@ -588,34 +588,27 @@ let private viewFollowsEdits =
             let! rows = run "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
             return plainRows rows |> List.filter (fun r -> r <> "")
           }
-        // A turn that never returns is the loop waiting for an event nobody pushed; name it rather
-        // than hang the suite.
-        let step (s : RT.Dval) =
-          task {
-            let turn = run "Darklang.Cli.Apps.Host.step" [ s ]
-            let! finished = Task.WhenAny(turn, Task.Delay 20_000)
-            if System.Object.ReferenceEquals(finished, turn :> Task) then
-              return! turn
-            else
-              return
-                failtest
-                  "the host loop did not return within 20s: nothing it waited for happened"
-          }
+        // The loop runs as a process; keys and store changes reach it through the scheduler's
+        // queue, as they do in the CLI.
+        let driver = loopDriver state
+        let pushKey = pushKey driver
+        let pushTick () = pushTick driver
+        let step (s : RT.Dval) = stepOn driver "Darklang.Cli.Apps.Host.step" [ s ]
 
         let! first = rowsOf session
         Expect.contains first "version one" "the first frame is the view's init"
         Expect.contains first "keys: 0" "with the model at init"
 
         // A key goes to the view's update.
-        do! pushKey state "A" "a"
+        do! pushKey "A" "a"
         let! session = step session
         let! afterKey = rowsOf session
         Expect.contains afterKey "keys: 1" "a key reached update"
 
         // Tab focuses the button, Enter presses it: the message reaches update.
-        do! pushKey state "Tab" ""
+        do! pushKey "Tab" ""
         let! session = step session
-        do! pushKey state "Enter" ""
+        do! pushKey "Enter" ""
         let! session = step session
         let! afterPress = rowsOf session
         Expect.contains afterPress "keys: 11" "the button's message reached update"
@@ -670,7 +663,7 @@ let private viewFollowsEdits =
           "and the band is gone"
 
         // Escape leaves.
-        do! pushKey state "Escape" ""
+        do! pushKey "Escape" ""
         let! session = step session
         match session with
         | RT.DRecord(_, _, _, fields) ->

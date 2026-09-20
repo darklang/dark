@@ -427,12 +427,13 @@ let executeApplicable2
   runLoaded exeState access vm
 
 
-let executeFunction
-  (exeState : RT.ExecutionState)
+/// The program that calls `name` with `args`: load each argument, load the function, apply.
+/// `executeFunction` runs it; `Scheduler.SpawnFunction` makes a process of it.
+let instructionsForFunctionCall
   (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<RT.ExecutionResult> =
+  : RT.Instructions =
   let resultReg, rc = 0, 1
 
   let argInstrs, argRegs, rc =
@@ -457,11 +458,18 @@ let executeFunction
   let applyInstr =
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
-  let instrs : RT.Instructions =
-    { registerCount = rc
-      instructions = argInstrs @ [ fnInstr; applyInstr ]
-      resultIn = 0 }
-  executeExpr exeState instrs
+  { registerCount = rc
+    instructions = argInstrs @ [ fnInstr; applyInstr ]
+    resultIn = 0 }
+
+
+let executeFunction
+  (exeState : RT.ExecutionState)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  executeExpr exeState (instructionsForFunctionCall name typeArgs args)
 
 
 let runtimeErrorToString

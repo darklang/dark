@@ -143,6 +143,11 @@ let private resolveEntryPoint () : RT.FQFnName.FQFnName =
       $"entry point lookup failed ({e.Message}); running the default CLI"
     defaultFn
 
+/// The store-change source for the scheduler's poll: `LibDB.Sqlite.DataVersion`, one held
+/// connection per store, since `PRAGMA data_version` answers per connection.
+let private installStoreVersionSource () : unit =
+  Builtins.Cli.Libs.Stdin.installStoreVersionSource LibDB.Sqlite.DataVersion.current
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -184,8 +189,15 @@ let execute
         resolveEntryPoint ()
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    let! result = Exe.executeFunction state fnName [] args
-    return result
+    // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
+    // stepping whatever else gets spawned meanwhile (a script under `eval`, an `apps` daemon).
+    // `DARK_SCHEDULER=off` is the escape hatch back to a plain run while this beds in.
+    if System.Environment.GetEnvironmentVariable "DARK_SCHEDULER" = "off" then
+      let! result = Exe.executeFunction state fnName [] args
+      return result
+    else
+      installStoreVersionSource ()
+      return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
 let initSerializers () = ()

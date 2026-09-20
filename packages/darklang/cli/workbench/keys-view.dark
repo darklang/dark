@@ -316,6 +316,11 @@ let handleViewKey
       if state.activeView == vTraces then
         Step.Continue (goTo state (mkDest (extViewIndex "errors") 0) false)
       else Step.Continue state
+    | Some "P" ->
+      // Apps: the processes the scheduler is running, `dark ps` as a pane. `5` comes back.
+      if state.activeView == vApps then
+        Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
+      else Step.Continue state
     | Some "r" ->
       // Home: rebase the branch under the cursor. Apps: run. Matter: rename the selected leaf.
       if state.activeView == vHome then
