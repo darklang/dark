@@ -536,7 +536,8 @@ type TraitDecl =
 /// method plus a package value of the trait's record type (or, when the impl has
 /// type params, a fn returning that record). See `SourceFile.items`.
 type ImplDecl =
-  { range : Range
+  {
+    range : Range
     typeParams : List<string * Range>
     bounds : List<TypeParamBound>
     trait_ : QualifiedTypeIdentifier
@@ -548,7 +549,8 @@ type ImplDecl =
     keywordImpl : Range
     keywordFor : Range
     symbolEquals : Range
-    description : string }
+    description : string
+  }
 
 /// A `module Name.Path` header.
 type ModuleDecl =
@@ -683,9 +685,7 @@ module TypeDeclaration =
     | Enum of NEList<EnumCase>
 
   type T =
-    { typeParams : List<string>
-      bounds : List<Bound>
-      definition : Definition }
+    { typeParams : List<string>; bounds : List<Bound>; definition : Definition }
 
 
 module PackageType =
@@ -748,7 +748,8 @@ module PackageImpl =
   type Name = { owner : string; modules : List<string>; name : string }
 
   type PackageImpl =
-    { name : Name
+    {
+      name : Name
       trait_ : QualifiedTypeIdentifier
       forType : TypeReference
       typeParams : List<string>
@@ -756,7 +757,8 @@ module PackageImpl =
       /// method name, and the fn that implements it as written: a method declared
       /// in the block (resolved from the impl's own module) or an alias target.
       methods : List<string * MethodTarget>
-      description : string }
+      description : string
+    }
 
 
 module DB =
@@ -927,7 +929,8 @@ let packageTrait
             m.parameters
             |> List.map fnParamNorm
             |> NEList.ofListWithDefault (
-              { name = "_"; typ = TUnit synthRange; description = "" } : PackageFn.Parameter
+              { name = "_"; typ = TUnit synthRange; description = "" }
+              : PackageFn.Parameter
             )
           returnType = m.returnType
           effects = m.effects |> Option.map (List.map (fun id -> id.name))
@@ -960,7 +963,9 @@ let packageImpl
   : PackageImpl.PackageImpl =
   let location =
     match List.rev memberPath with
-    | name :: revModules -> ({ owner = owner; modules = List.rev revModules; name = name } : PackageImpl.Name)
+    | name :: revModules ->
+      ({ owner = owner; modules = List.rev revModules; name = name }
+      : PackageImpl.Name)
     | [] -> { owner = owner; modules = []; name = impl.trait_.typ.name }
   let declared =
     impl.methods
@@ -972,7 +977,10 @@ let packageImpl
         match a.body with
         | EFnName(_, q) ->
           Unresolved(
-            NEList.ofListUnsafe "alias" [] ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
+            NEList.ofListUnsafe
+              "alias"
+              []
+              ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
           )
         | EVariable(_, n) -> Unresolved(NEList.singleton n)
         | _ -> Unresolved(NEList.singleton a.name.name)
@@ -984,109 +992,3 @@ let packageImpl
     bounds = impl.bounds |> List.map boundNorm
     methods = declared @ aliased
     description = impl.description }
-
-/// The name of the value that holds an impl, under `<module>.<Type>.<Trait>`.
-[<Literal>]
-let implValueName = "instance"
-
-/// `trait Show<'a> = let show (v: 'a) : String` becomes
-/// `type Show<'a> = { show: 'a -> String }`. Method effect rows and bodies are
-/// not representable on a record field; the parser has already diagnosed them.
-let desugarTrait (t : TraitDecl) : TypeDecl =
-  let fields =
-    t.methods
-    |> List.map (fun m ->
-      let paramTypes =
-        m.parameters
-        |> List.map (fun p ->
-          match p with
-          | FPUnit r -> (TUnit r, synthRange)
-          | FPNormal(_, _, typ, _, _, _, _) -> (typ, synthRange))
-      let paramTypes =
-        if List.isEmpty paramTypes then [ (TUnit synthRange, synthRange) ] else paramTypes
-      let field : RecordFieldSyntax =
-        { range = m.range
-          name = (m.name.range, m.name.name)
-          typ = TFn(m.range, paramTypes, m.returnType)
-          description = m.description
-          symbolColon = m.symbolColon }
-      (field, None))
-  { range = t.range
-    name = t.name
-    typeParams = t.typeParams
-    bounds = t.bounds
-    definition = TDRecord fields
-    keywordType = t.keywordTrait
-    symbolEquals = t.symbolEquals
-    description = t.description }
-
-/// What an impl desugars to: the module path its members live under, the method
-/// fns, and the instance (a value, or a fn returning the record when the impl has
-/// type params of its own).
-type DesugaredImpl =
-  { memberPath : List<string>
-    methods : List<FnDecl>
-    instance : Choice<ValueDecl, FnDecl> }
-
-/// `impl Show for Point = let show (p: Point) : String = ...` in module `Acme`
-/// becomes `Acme.Point.Show.show` and `val Acme.Point.Show.instance =
-/// Show<Point> { show = show }`. When the enclosing module is already named
-/// after the type (`impl Add for Int64` inside `Stdlib.Int64`), the type segment
-/// is not repeated. `impl<'a: Show> Show for List<'a>` becomes
-/// `let instance<'a: Show> () : Show<List<'a>> = Show<List<'a>> { show = show }`.
-/// An alias member (`let add = Stdlib.Int64.add`) puts that fn in the record
-/// directly; no method fn is generated for it.
-let desugarImpl (currentPath : List<string>) (impl : ImplDecl) : DesugaredImpl =
-  let typeName = typeReferenceHeadName impl.forType
-  let traitName = impl.trait_.typ.name
-  let memberPath =
-    let withType =
-      match List.tryLast currentPath with
-      | Some last when last = typeName -> currentPath
-      | _ -> currentPath @ [ typeName ]
-    withType @ [ traitName ]
-  let methods =
-    impl.methods
-    |> List.map (fun m ->
-      { m with
-          typeParams = impl.typeParams @ m.typeParams
-          bounds = impl.bounds @ m.bounds })
-  let traitTypeArgs = impl.forType :: impl.trait_.typeArgs
-  let recordTypeName : QualifiedTypeIdentifier =
-    { impl.trait_ with typeArgs = traitTypeArgs }
-  let record =
-    ERecord(
-      impl.range,
-      recordTypeName,
-      (impl.methods
-       |> List.map (fun m ->
-         (m.range, (m.name.range, m.name.name), EVariable(m.name.range, m.name.name))))
-      @ (impl.aliases
-         |> List.map (fun a -> (a.range, (a.name.range, a.name.name), a.body))),
-      impl.symbolEquals,
-      impl.symbolEquals
-    )
-  let instance =
-    if List.isEmpty impl.typeParams then
-      Choice1Of2
-        { range = impl.range
-          name = { range = impl.keywordImpl; name = implValueName }
-          body = record
-          keywordVal = impl.keywordImpl
-          symbolEquals = impl.symbolEquals
-          description = impl.description }
-    else
-      Choice2Of2
-        { range = impl.range
-          name = { range = impl.keywordImpl; name = implValueName }
-          typeParams = impl.typeParams
-          bounds = impl.bounds
-          parameters = [ FPUnit impl.keywordImpl ]
-          effects = None
-          returnType = TCustom recordTypeName
-          body = record
-          keywordLet = impl.keywordImpl
-          symbolColon = impl.keywordFor
-          symbolEquals = impl.symbolEquals
-          description = impl.description }
-  { memberPath = memberPath; methods = methods; instance = instance }

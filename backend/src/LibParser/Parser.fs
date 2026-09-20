@@ -2768,9 +2768,9 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
       else
         i))
 
-/// The trait in a bound `'a: Show<Int>`: a custom type reference. Anything else
-/// (a primitive, a type variable, a fn type) is a diagnostic, since a bound has to
-/// name a record type of fn fields.
+/// The trait in a bound `'a: Show<Int>`: a qualified name, parsed like a type
+/// reference. Anything else (a primitive, a type variable, a fn type) is a
+/// diagnostic, since a bound has to name a trait.
 and parseBoundTrait
   (state : ParserState)
   (i : int)
@@ -2783,7 +2783,7 @@ and parseBoundTrait
       { code = DiagnosticCode.bound
         severity = DiagError
         range = WT.typeReferenceRange other
-        message = "A bound names a trait (a record type of fn signatures), not a type"
+        message = "A bound names a trait, not a type"
         related = []
         hint = Some "write `'a: Show`, where `Show` is a trait; `'a: String` is not a bound" }
     (None, j)

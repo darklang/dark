@@ -157,12 +157,15 @@ and the operand type owes an `Add` impl. See below.
 
 ## Traits
 
-A trait is a record type of fn fields; an impl is a package value of that type (or
-a fn returning it, for a conditional impl) whose fields are named fns. The checker
-reads both straight off the PT (`ImplEntry.ofValue`, `ofFn`), the same way the
-runtime reads its dispatch candidates, and never evaluates an instance.
+A trait and an impl are their own package items (`PT.Trait`, `PT.Impl`). The
+checker reads both straight off the PT (`ImplEntry.ofImpl`), the same way the
+runtime reads its dispatch candidates, and validates each item in the batch:
+`validateTrait`, and `validateImpl` for the method set (`ImplMethodSet`), each
+method fn unifying with the trait's signature at the self type
+(`ImplMethodSignature`), and the impl fn's effect ceiling fitting under the
+method's (`ImplExceedsCeiling`).
 
-- A `TraitMethod` call takes its signature from the trait record's field, with the
+- A `TraitMethod` call takes its signature from the trait's method, with the
   trait's first type parameter as the self type (`traitMethodSignature`).
 - Instantiating a bounded fn signature (`bounds` on `FunctionSignature`) adds one
   constraint per bound on the instantiated variable (`State.Constraints`); an infix
@@ -181,8 +184,7 @@ runtime reads its dispatch candidates, and never evaluates an instance.
   call is loaded by `implTraitsMissingDeclarations`.
 
 Not covered: a conditional impl's own bounds at the call site (the element type of
-`Show<List<Option<Int>>>` is not checked there; the impl fn's own check covers it),
-and effect ceilings on trait methods.
+`Show<List<Option<Int>>>` is not checked there; the impl fn's own check covers it).
 
 ## Where this should live
 

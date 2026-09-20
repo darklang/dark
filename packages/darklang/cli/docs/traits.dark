@@ -10,9 +10,10 @@ them. A call picks the impl by the type of the value it is given.
   trait Show<'a> =
     let show (value: 'a) : String
 
-  A trait IS a record type of fn fields (`type Show<'a> = { show: 'a -> String }`),
-  so two traits with the same methods and shapes are the same trait, whatever
-  they are named. Do not redeclare `Add`, `Ord` and friends: they exist.
+  A trait is a package item like a type or a fn: `dark view Stdlib.Add` prints
+  it, `dark ls Stdlib` lists it under Traits. Two traits with the same methods
+  and shapes are the same trait, whatever they are named, so do not redeclare
+  `Add`, `Ord` and friends: they exist, and `impl Add for X` finds them.
 
 ## Implement
   impl Show for Point =
@@ -24,8 +25,9 @@ them. A call picks the impl by the type of the value it is given.
   impl<'a: Show> Show for List<'a> =     # conditional: needs Show for the element
     let show (xs: List<'a>) : String = ...
 
-  Members land under <Module>.<Type>.<Trait>: `Acme.Point.Show.show` is the fn,
-  `Acme.Point.Show.instance` the record. `dark impls Show` lists them.
+  The impl is named <Module>.<Type>.<Trait> (`Acme.Point.Show`) and its method
+  fns live beneath it (`Acme.Point.Show.show`). `dark impls Show` lists a trait's
+  impls; `dark ls Acme.Point` shows them under Impls.
 
 ## Call
   Show.show p            # dispatch on p's type
@@ -48,7 +50,7 @@ them. A call picks the impl by the type of the value it is given.
   traits.
 
 ## Visibility
-  An impl is a package value like any other: it is visible where its name is
+  An impl is a package item like any other: it is visible where its name is
   bound (main, or your branch). Two visible impls for one type is an
   ambiguity at the call, reported as a finding, not a language error.
 

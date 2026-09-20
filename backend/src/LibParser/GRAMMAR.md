@@ -334,9 +334,10 @@ method signatures, one per line, each a full fn signature without a body:
       let show (value: 'a) : String
 
 The trait needs at least one type parameter (the first is the self type) and
-at least one method; a method body or an effect row on a method is
-`PARSE-BOUND`. A trait desugars to a record type of fn fields, so nothing
-after the parser has a trait kind.
+at least one method; a method body is `PARSE-BOUND`. A method may carry an
+effect row (`let fetch (u: 'a) :{Http} String`), which is the ceiling every
+impl of it must fit under. A trait lowers to its own package item
+(`PT.Trait`), with the method signatures and their ceilings on it.
 
 **Impl declarations** — `impl[<'a: Bound>] Trait[<Args>] for Type =` followed
 by an indented block with one entry per method, each either a full fn
@@ -352,11 +353,12 @@ declaration or an alias of an existing fn:
       let show (xs: List<'a>) : String = "..."
 
 An entry that is neither (a `val`, a `let` bound to anything but a name) is
-`PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl desugars
-to its method fns plus an instance value (or, with type parameters of its own,
-a fn returning the record), all under `<module>[.<Type>].<Trait>`; the type
-segment is omitted when the enclosing module is already named for the type.
-Duplicate member names are `VALIDATION-IMPL-METHODS`.
+`PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl lowers to
+its own package item (`PT.Impl`) named `<module>[.<Type>].<Trait>`, with the
+method fns declared in the block as ordinary fns beneath that name and an
+alias naming the fn it points at; the type segment is omitted when the
+enclosing module is already named for the type. Duplicate member names are
+`VALIDATION-IMPL-METHODS`.
 
 ### Test classification
 

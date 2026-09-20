@@ -43,7 +43,7 @@ type Token =
   | TThen // then
   | TElse // else
   | TType // type (type definition)
-  | TTrait // trait (trait declaration: a record type of fn signatures)
+  | TTrait // trait (trait declaration: a set of method signatures)
   | TImpl // impl (an implementation of a trait for a type)
   | TCons // :: (list cons pattern)
   | TColon // : (type annotation)

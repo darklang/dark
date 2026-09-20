@@ -305,3 +305,20 @@ remains is a large FIXED per-process cost, still unexplained; that is the open q
 1.6x release (701ms vs 438ms for `status`); measure the release binary, and a true `--aot` build has
 never been measured. Where `status` scales with the store: `Constraints.pending`'s three-way join
 and the per-binding recursive CTE in `draftRepoints`.
+
+## Traits (2026-09): debug 9.29 MB -> 9.46 MB, published 9.74 MB -> 9.60 MB
+
+- The operators are trait methods now (`+` is `Stdlib.Add.add`), with `FastOps.evalNumeric`
+  in front for two operands of one builtin numeric type, so the Int path the gate measures is
+  the same table lookup it was. The debug budget rose 1.8% and the published number fell;
+  what moved is per process, not per operation: the trait-name set the resolver gates on and
+  the `PackageRefs.Trait` table, loaded once.
+- Per call (`costs.dark`-style harness, selection memoised): a dispatched `10L / 2L` is 77
+  bytes over the fast-path `+`; `Vec + Vec` is 121 bytes over calling the impl fn directly.
+  The first dispatch for a (branch, trait, method, self) is about 3 KB: candidate list off
+  `package_impls`, selection, memo entry.
+- Three things cost a day of allocation work on the way and are worth not re-finding: a
+  tuple allocated by `match a, b` in the fast path (nested matches instead); selection
+  running on every dispatched call before the memo existed; and trait-first name resolution
+  querying type locations for every qualified fn name (four misses per `Stdlib.List.map`)
+  before the resolver was gated on the set of live trait names.
