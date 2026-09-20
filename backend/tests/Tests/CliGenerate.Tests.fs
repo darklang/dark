@@ -38,7 +38,9 @@ let generateFromAJsonSample =
             state
             [ "generate"
               "Darklang.Generate.Json.fromSample"
+              "--name"
               "Order"
+              "--sample"
               file
               "--into"
               "Tests.Gen.Orders" ]
@@ -85,7 +87,9 @@ let runningAgainIsANoOp =
       let args =
         [ "generate"
           "Darklang.Generate.Json.fromSample"
+          "--name"
           "Order"
+          "--sample"
           file
           "--into"
           "Tests.Gen.Noop" ]
@@ -113,7 +117,9 @@ let aChangedSampleMovesOnlyWhatChanged =
         let args =
           [ "generate"
             "Darklang.Generate.Json.fromSample"
+            "--name"
             "Order"
+            "--sample"
             file
             "--into"
             "Tests.Gen.Changed" ]
@@ -153,7 +159,9 @@ let dryRunPrintsAndStagesNothing =
             state
             [ "generate"
               "Darklang.Generate.Json.fromSample"
+              "--name"
               "Order"
+              "--sample"
               file
               "--into"
               "Tests.Gen.Dry"
@@ -185,7 +193,9 @@ let aSavedGeneratorRerunsByName =
           state
           [ "generate"
             "Darklang.Generate.Json.fromSample"
+            "--name"
             "Order"
+            "--sample"
             file
             "--into"
             "Tests.Gen.Rerun" ]
@@ -242,7 +252,9 @@ let generateRefusesAMissingFileBeforeWritingAnything =
             state
             [ "generate"
               "Json.fromSample"
+              "--name"
               "Order"
+              "--sample"
               "/nowhere/order.json"
               "--into"
               "Tests.Gen.Missing" ]
@@ -254,6 +266,7 @@ let generateRefusesAMissingFileBeforeWritingAnything =
             state
             [ "generate"
               "Dark.mirror"
+              "--type"
               "Tests.Gen.NotAType"
               "--into"
               "Tests.Gen.Missing" ]
@@ -265,16 +278,36 @@ let generateRefusesAMissingFileBeforeWritingAnything =
             state
             [ "generate"
               "Json.fromSample"
+              "--name"
               "Order"
               "--into"
               "Tests.Gen.Missing" ]
-            "argument(s)"
+            "needs --sample <a file>"
             "wrote"
-            "the arity is checked against the fn's signature"
+            "a missing argument is named, with what it takes"
         do!
           refuses
             state
-            [ "generate"; "Json.fromSample"; "Order"; "x"; "--into"; "Orders" ]
+            [ "generate"
+              "Json.fromSample"
+              "Order"
+              "x"
+              "--into"
+              "Tests.Gen.Missing" ]
+            "by name, not by position"
+            "wrote"
+            "positional arguments are refused"
+        do!
+          refuses
+            state
+            [ "generate"
+              "Json.fromSample"
+              "--name"
+              "Order"
+              "--sample"
+              "x"
+              "--into"
+              "Orders" ]
             "needs an owner and a module"
             "stored"
             "--into is checked before any file is stored"
@@ -293,7 +326,12 @@ let generateRefusesAnEffectfulGenerator =
       do!
         refuses
           state
-          [ "generate"; "Tests.Gen.Impure.peek"; "x"; "--into"; "Tests.Gen.Impure" ]
+          [ "generate"
+            "Tests.Gen.Impure.peek"
+            "--path"
+            "x"
+            "--into"
+            "Tests.Gen.Impure" ]
           "nothing else"
           "wrote"
           "a generator that reads the host cannot run at authoring time"
@@ -316,6 +354,7 @@ let mirrorSharesTheSourcesHash =
             state
             [ "generate"
               "Dark.mirror"
+              "--type"
               "Tests.Gen.Src.Money"
               "--into"
               "Tests.Gen.Mirror" ]
@@ -351,6 +390,7 @@ let editingTheSourceRegeneratesTheMirror =
             state
             [ "generate"
               "Dark.mirror"
+              "--type"
               "Tests.Gen.Live.Money"
               "--into"
               "Tests.Gen.LiveMirror" ]
@@ -439,6 +479,7 @@ let openApiClientFromAFile =
             state
             [ "generate"
               "OpenApi.client"
+              "--spec"
               petstore
               "--into"
               "Tests.Gen.Petstore" ]
@@ -619,7 +660,9 @@ let csvFromSample =
           state
           [ "generate"
             "Csv.fromSample"
+            "--name"
             "Person"
+            "--sample"
             file
             "--into"
             "Tests.Gen.Csv" ]
@@ -666,7 +709,9 @@ let jsonSchemaTypes =
             state
             [ "generate"
               "JsonSchema.types"
+              "--name"
               "Ticket"
+              "--schema"
               file
               "--into"
               "Tests.Gen.Schema" ]
@@ -713,7 +758,9 @@ let jsonFromSamplesUnifies =
           state
           [ "generate"
             "Json.fromSamples"
+            "--name"
             "Person"
+            "--samples"
             dir
             "--into"
             "Tests.Gen.Samples" ]
@@ -751,7 +798,12 @@ let sqlSchemaTypes =
         let! out =
           runCliPlain
             state
-            [ "generate"; "Sql.schemaTypes"; file; "--into"; "Tests.Gen.Db" ]
+            [ "generate"
+              "Sql.schemaTypes"
+              "--dump"
+              file
+              "--into"
+              "Tests.Gen.Db" ]
         for expected in
           [ "+ User"
             "+ Category"
@@ -806,6 +858,7 @@ let deriveShowEqualsSetters =
             state
             [ "generate"
               "Derive.forType"
+              "--type"
               "Tests.Gen.Dv.Money"
               "--into"
               "Tests.Gen.Dv" ]
@@ -829,6 +882,7 @@ let deriveShowEqualsSetters =
             state
             [ "generate"
               "Derive.forType"
+              "--type"
               "Tests.Gen.Dv.Shape"
               "--into"
               "Tests.Gen.Dv" ]
@@ -862,6 +916,7 @@ let fixturesForType =
             state
             [ "generate"
               "Fixtures.forType"
+              "--type"
               "Tests.Gen.Fx.Order"
               "--into"
               "Tests.Gen.FxOut" ]
@@ -896,8 +951,8 @@ let mirrorModuleCopiesAModule =
             state
             [ "generate"
               "Dark.mirrorModule"
+              "--source"
               "Tests.Gen.Mm"
-              "Tests.Gen.MmCopy"
               "--into"
               "Tests.Gen.MmCopy" ]
         for expected in [ "+ Line"; "+ Order"; "+ count" ] do
@@ -938,6 +993,7 @@ let typeScriptDeclarations =
             state
             [ "generate"
               "TypeScript.toTypeScript"
+              "--source"
               "Tests.Gen.Ts"
               "--into"
               "Tests.Gen.TsOut" ]
@@ -949,6 +1005,7 @@ let typeScriptDeclarations =
             state
             [ "generate"
               "TypeScript.toTypeScript"
+              "--source"
               "Tests.Gen.Ts"
               "--into"
               "Tests.Gen.TsOut"
@@ -986,7 +1043,12 @@ let openApiServerStubs =
         let! out =
           runCliPlain
             state
-            [ "generate"; "OpenApi.server"; petstore; "--into"; "Tests.Gen.Api" ]
+            [ "generate"
+              "OpenApi.server"
+              "--spec"
+              petstore
+              "--into"
+              "Tests.Gen.Api" ]
         for expected in
           [ "+ Handlers"; "+ notImplemented"; "+ router"; "+ decodeNewPet" ] do
           Expect.stringContains out expected $"the server side lands: {out}"
@@ -1022,6 +1084,7 @@ let graphQlClient =
           state
           [ "generate"
             "GraphQL.client"
+            "--schema"
             "testfiles/generate/starwars.graphql"
             "--into"
             "Tests.Gen.Gql" ]

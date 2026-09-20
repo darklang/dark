@@ -31,6 +31,8 @@ type Options =
     refresh: Bool
     /// Where a run's files (artifacts) are written; required when it has any.
     out: Stdlib.Option.Option<String>
+    /// The generator's own arguments, `--<parameter> <value>`, in the order given.
+    named: List<(String * String)>
     positional: List<String> }
 
 
@@ -43,6 +45,7 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
         fetch = Stdlib.Option.Option.None
         refresh = false
         out = Stdlib.Option.Option.None
+        named = []
         positional = [] }
 
   // The fold carries which flag, if any, is waiting for its value.
@@ -57,6 +60,11 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
         Stdlib.Result.Result.Ok(({ opts with fetch = Stdlib.Option.Option.Some arg }, ""))
       else if waiting == "--out" then
         Stdlib.Result.Result.Ok(({ opts with out = Stdlib.Option.Option.Some arg }, ""))
+      else if Stdlib.String.startsWith waiting "--" then
+        // A generator argument: the flag named a parameter, this is its value.
+        let key = Stdlib.String.dropFirst waiting 2
+        Stdlib.Result.Result.Ok(
+          ({ opts with named = Stdlib.List.pushBack opts.named (key, arg) }, ""))
       else if (arg == "--into") || (arg == "--fetch") || (arg == "--out") then
         Stdlib.Result.Result.Ok((opts, arg))
       else if Stdlib.String.startsWith arg "--into=" then
@@ -72,7 +80,14 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
       else if arg == "--refresh" then
         Stdlib.Result.Result.Ok(({ opts with refresh = true }, ""))
       else if Stdlib.String.startsWith arg "--" then
-        Stdlib.Result.Result.Error $"unknown flag {arg}"
+        // Any other flag names one of the generator's parameters; its value follows.
+        match Stdlib.String.indexOf arg "=" with
+        | Some at ->
+          let key = Stdlib.String.slice arg 2 at
+          let value = Stdlib.String.dropFirst arg (at + 1)
+          Stdlib.Result.Result.Ok(
+            ({ opts with named = Stdlib.List.pushBack opts.named (key, value) }, ""))
+        | None -> Stdlib.Result.Result.Ok((opts, arg))
       else
         Stdlib.Result.Result.Ok(
           ({ opts with positional = Stdlib.List.pushBack opts.positional arg }, "")))
@@ -82,6 +97,7 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
     | Ok((_, "--into")) -> Stdlib.Result.Result.Error "--into needs a module path"
     | Ok((_, "--fetch")) -> Stdlib.Result.Result.Error "--fetch needs a URL"
     | Ok((_, "--out")) -> Stdlib.Result.Result.Error "--out needs a directory"
+    | Ok((_, flag)) when flag != "" -> Stdlib.Result.Result.Error $"{flag} needs a value"
     | Ok((opts, _)) -> Stdlib.Result.Result.Ok opts)
 
 
@@ -615,8 +631,41 @@ let runLibrary
       match p.typ with
       | TUnit -> false
       | _ -> (Stdlib.Option.Option.Some p.name) != fetchedParam)
-  let arity = (Stdlib.List.length typeParams) + (Stdlib.List.length valueParams)
-  let given = Stdlib.List.length args
+  // Every argument is named after the parameter it fills: `--name Order`,
+  // `--sample ./order.json`; a type parameter is `--type` when there is one, or
+  // `--<its name>` when there are several. Nothing is positional, so a missing
+  // argument can be named back, with what it takes.
+  let typeFlags =
+    match typeParams with
+    | [ _ ] -> [ "type" ]
+    | many -> many
+  let lookup (key: String) : Stdlib.Option.Option<String> =
+    opts.named
+    |> Stdlib.List.findFirst (fun (k, _) -> k == key)
+    |> Stdlib.Option.map (fun (_, v) -> v)
+  let kindOf (p: LanguageTools.ProgramTypes.PackageFn.Parameter) : String =
+    match p.typ with
+    | TBlob -> "a file"
+    | TList TBlob -> "a directory of files"
+    | TInt -> "a whole number"
+    | TString -> "text"
+    | _ -> "a value"
+  let missing =
+    Stdlib.List.append
+      (typeFlags
+       |> Stdlib.List.filter (fun t -> Stdlib.Option.isNone (lookup t))
+       |> Stdlib.List.map (fun t -> $"--{t} <a type, like Acme.Core.Money>"))
+      (valueParams
+       |> Stdlib.List.filter (fun p -> Stdlib.Option.isNone (lookup p.name))
+       |> Stdlib.List.map (fun p -> $"--{p.name} <{kindOf p}>"))
+  let expected =
+    Stdlib.List.append
+      (typeFlags |> Stdlib.List.map (fun t -> $"--{t}"))
+      (valueParams |> Stdlib.List.map (fun p -> $"--{p.name}"))
+  let unknown =
+    opts.named
+    |> Stdlib.List.map (fun (k, _) -> $"--{k}")
+    |> Stdlib.List.filter (fun k -> Stdlib.Bool.not (Stdlib.List.member expected k))
 
   match (intoProblem, opts.into) with
   | (Some problem, _) ->
@@ -624,20 +673,28 @@ let runLibrary
     { state with exitCode = 1 }
   | (None, None) -> { state with exitCode = 1 }
   | (None, Some modulePath) ->
-    if arity != given then
-      let wanted =
-        Stdlib.List.append
-          (typeParams |> Stdlib.List.map (fun t -> $"<{t}: a type>"))
-          (valueParams |> Stdlib.List.map (fun p -> $"<{p.name}>"))
-        |> Stdlib.String.join " "
+    let expectedText = Stdlib.String.join expected ", "
+    if Stdlib.Bool.not (Stdlib.List.isEmpty args) then
+      let got = Stdlib.String.join args " "
       Cli.printErr
-        ($"{fullName library} takes {Stdlib.Int.toString arity} "
-         ++ $"argument(s), {Stdlib.Int.toString given} given: "
-         ++ $"generate {fullName library} {wanted} --into {modulePath}")
+        ($"{fullName library} takes its arguments by name, not by position: "
+         ++ $"{expectedText}. Got: {got}")
+      { state with exitCode = 1 }
+    else if Stdlib.Bool.not (Stdlib.List.isEmpty unknown) then
+      let unknownText = Stdlib.String.join unknown ", "
+      Cli.printErr
+        $"{fullName library} has no parameter for {unknownText}; it takes {expectedText}"
+      { state with exitCode = 1 }
+    else if Stdlib.Bool.not (Stdlib.List.isEmpty missing) then
+      let missingText = Stdlib.String.join missing ", "
+      let usage = Stdlib.String.join missing " "
+      Cli.printErr
+        ($"{fullName library} needs {missingText}: "
+         ++ $"generate {fullName library} {usage} --into {modulePath}")
       { state with exitCode = 1 }
     else
-      let typeArgs = Stdlib.List.take args (Stdlib.List.length typeParams)
-      let valueArgs = Stdlib.List.drop args (Stdlib.List.length typeParams)
+      let typeArgs = typeFlags |> Stdlib.List.filterMap lookup
+      let valueArgs = valueParams |> Stdlib.List.filterMap (fun p -> lookup p.name)
       // A type argument has to name a type that exists, checked here rather than
       // by writing a saved fn with an unresolved name in it and watching it fail.
       let badTypeArg =
@@ -887,12 +944,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   [ "Run a generator: a fn that writes Dark, whose output is staged like typed code"
     ""
-    "Usage: generate <libraryFn> <args...> --into Owner.Module [--fetch <url>] [--out <dir>] [--dry-run]"
+    "Usage: generate <libraryFn> --<param> <value>... --into Owner.Module"
+    "                [--fetch <url>] [--out <dir>] [--dry-run]"
     "       generate <savedGenerator> [--refresh] [--print | --dry-run]"
     ""
     "The first form writes a saved generator into the module: a zero-arg fn whose"
     "body is the call you gave, with any file argument stored as a blob and named"
-    "by hash. Then it runs it. The second form re-runs a saved generator. Both"
+    "by hash. Then it runs it. Arguments are named after the library fn's"
+    "parameters (`--name`, `--sample`); a type parameter is `--type`; a missing one"
+    "is named back. The second form re-runs a saved generator. Both"
     "stage the output through the same path as `module`, so the at-rest check"
     "reports on it and `status` counts it."
     ""
@@ -917,8 +977,8 @@ let help (_state: Cli.AppState) : String =
     "`docs generate`."
     ""
     "Examples:"
-    "  generate Json.fromSample Order ./order.json --into Acme.Orders"
-    "  generate Dark.mirror Acme.Core.Money --into Acme.Test"
+    "  generate Json.fromSample --name Order --sample ./order.json --into Acme.Orders"
+    "  generate Dark.mirror --type Acme.Core.Money --into Acme.Test"
     "  generate OpenApi.client --fetch https://api.x.com/openapi.json --into Acme.X"
     "  generate Acme.X.xGenerator --refresh" ]
   |> Stdlib.String.join "\n"

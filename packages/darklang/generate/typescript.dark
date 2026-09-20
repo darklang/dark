@@ -119,13 +119,13 @@ let functionOf
   $"{doc}export declare function {name}{generics}({params_}): {tsType ctx fn.returnType};"
 
 
-/// `<path>.d.ts` for the module at <param path> (owner first): its types and fns.
-let toTypeScript (path: String) : Generate.Run =
+/// `<source>.d.ts` for the module at <param source> (owner first): its types and fns.
+let toTypeScript (source: String) : Generate.Run =
   let branchId = SCM.Branches.current ()
-  let segments = Stdlib.String.split path "."
+  let segments = Stdlib.String.split source "."
   match segments with
   | [] -> Generate.failed [ "toTypeScript needs a module path, like Acme.Core" ]
-  | [ _ ] -> Generate.failed [ $"{path} is an owner, not a module; name a module under it" ]
+  | [ _ ] -> Generate.failed [ $"{source} is an owner, not a module; name a module under it" ]
   | _ ->
     let query =
       LanguageTools.ProgramTypes.Search.SearchQuery
@@ -139,8 +139,8 @@ let toTypeScript (path: String) : Generate.Run =
     let types = results.types |> Stdlib.List.map (fun t -> declarationOf ctx t.entity)
     let fns = results.fns |> Stdlib.List.map (fun f -> functionOf ctx f.entity)
     match Stdlib.List.append types fns with
-    | [] -> Generate.failed [ $"nothing directly in {path}; is the path spelled owner first?" ]
+    | [] -> Generate.failed [ $"nothing directly in {source}; is the path spelled owner first?" ]
     | declarations ->
-      let header = $"// Generated from the Dark module {path}. Do not edit; regenerate."
+      let header = $"// Generated from the Dark module {source}. Do not edit; regenerate."
       let text = (Stdlib.String.join (Stdlib.List.push declarations header) "\n\n") ++ "\n"
-      Generate.ofArtifacts [ (path ++ ".d.ts", text) ]
+      Generate.ofArtifacts [ (source ++ ".d.ts", text) ]
