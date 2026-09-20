@@ -129,6 +129,13 @@ let private classify (sf : WT.SourceFile) : Classified =
       | WTSourceFile.Value(path, v) ->
         { acc with values = acc.values @ [ WT.packageValue replOwner path v ] }
       | WTSourceFile.Expr(_, e) -> { acc with exprs = acc.exprs @ [ e ] }
+      // The REPL's lowering has no trait/impl items yet; say so rather than dropping them.
+      | WTSourceFile.Trait _
+      | WTSourceFile.Impl _ ->
+        { acc with
+            errors =
+              acc.errors
+              @ [ "trait and impl declarations are not supported in the REPL yet" ] }
       | WTSourceFile.TypeDB _ ->
         { acc with
             errors =

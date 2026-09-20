@@ -322,6 +322,8 @@ let placeholderHashViolation (ops : List<PT.PackageOp>) : Option<string> =
     | PT.PackageOp.AddType t -> [ t.hash ]
     | PT.PackageOp.AddValue v -> [ v.hash ]
     | PT.PackageOp.AddFn f -> [ f.hash ]
+    | PT.PackageOp.AddTrait t -> [ t.hash ]
+    | PT.PackageOp.AddImpl i -> [ i.hash ]
     | PT.PackageOp.SetName(_, target, _) -> [ target.hash ]
     | _ -> []
   ops

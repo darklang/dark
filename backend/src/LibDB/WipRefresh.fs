@@ -43,6 +43,10 @@ let private compactWipOps (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
         Some(PackageLocation.toFQN loc, "fn")
       | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
         Some(PackageLocation.toFQN loc, "value")
+      | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
+        Some(PackageLocation.toFQN loc, "trait")
+      | PT.PackageOp.AddImpl _, PT.PackageOp.SetName(loc, PT.PackageImpl _, _) ->
+        Some(PackageLocation.toFQN loc, "impl")
       | _ -> None
 
     match key with
@@ -63,7 +67,9 @@ let private compactWipOps (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
       && match opsArr[j], opsArr[j + 1] with
          | PT.PackageOp.AddType _, PT.PackageOp.SetName(_, PT.PackageType _, _)
          | PT.PackageOp.AddFn _, PT.PackageOp.SetName(_, PT.PackageFn _, _)
-         | PT.PackageOp.AddValue _, PT.PackageOp.SetName(_, PT.PackageValue _, _) ->
+         | PT.PackageOp.AddValue _, PT.PackageOp.SetName(_, PT.PackageValue _, _)
+         | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(_, PT.PackageTrait _, _)
+         | PT.PackageOp.AddImpl _, PT.PackageOp.SetName(_, PT.PackageImpl _, _) ->
            true
          | _ -> false
 
@@ -116,6 +122,21 @@ let private reResolveAllItems
              PT.PackageOp.SetName(loc, (PT.PackageValue _ as target), prev)) ->
         let! reResolved = DR.reResolveValue pm loc.owner loc.modules v |> Ply.toTask
         result.Add(PT.PackageOp.AddValue reResolved)
+        result.Add(PT.PackageOp.SetName(loc, target, prev))
+        i <- i + 2
+
+      | Some(PT.PackageOp.AddTrait t,
+             PT.PackageOp.SetName(loc, (PT.PackageTrait _ as target), prev)) ->
+        let! reResolved = DR.reResolveTrait pm loc.owner loc.modules t |> Ply.toTask
+        result.Add(PT.PackageOp.AddTrait reResolved)
+        result.Add(PT.PackageOp.SetName(loc, target, prev))
+        i <- i + 2
+
+      | Some(PT.PackageOp.AddImpl impl,
+             PT.PackageOp.SetName(loc, (PT.PackageImpl _ as target), prev)) ->
+        let! reResolved =
+          DR.reResolveImpl pm loc.owner loc.modules loc.name impl |> Ply.toTask
+        result.Add(PT.PackageOp.AddImpl reResolved)
         result.Add(PT.PackageOp.SetName(loc, target, prev))
         i <- i + 2
 

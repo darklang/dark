@@ -321,13 +321,15 @@ let durableReleaseCarriesForward =
 let registryCoversProjections =
   // The COUNT is in the name on purpose: adding a projection to the registry without adding it here
   // is exactly the drift this catches.
-  test "the projection registry covers exactly the 7 regenerable projections" {
+  test "the projection registry covers exactly the 9 regenerable projections" {
     Expect.equal
       (List.sort Seed.projectionTables)
       (List.sort
         [ "package_functions"
           "package_types"
           "package_values"
+          "package_traits"
+          "package_impls"
           "locations"
           "package_dependencies"
           "deprecations"

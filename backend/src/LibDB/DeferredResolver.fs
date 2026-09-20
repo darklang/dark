@@ -148,6 +148,19 @@ let private reResolveValueName
     parseFnOrValueName
 
 
+let private reResolveTraitName
+  (contextModules : List<string>)
+  (findTrait : PT.PackageLocation -> Ply<Option<Hash>>)
+  (nr : PT.NameResolution<PT.FQTraitName.FQTraitName>)
+  : Ply<PT.NameResolution<PT.FQTraitName.FQTraitName>> =
+  reResolveNameResolution
+    contextModules
+    nr
+    findTrait
+    PT.FQTraitName.Package
+    parseTypeName
+
+
 // -- TypeReference walker --
 
 let rec private reResolveTypeRef
@@ -502,6 +515,30 @@ let private reResolveTypeDefinition
 // --------------------------------------------------------------------------
 
 /// Re-resolve all unresolved NameResolutions in a PackageType
+let private reResolveTraitRef
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (r : PT.TraitRef)
+  : Ply<PT.TraitRef> =
+  uply {
+    let! trait_ = reResolveTraitName contextModules pm.findTrait r.trait_
+    let! typeArgs =
+      Ply.List.mapSequentially (reResolveTypeRef contextModules pm) r.typeArgs
+    return { trait_ = trait_; typeArgs = typeArgs }
+  }
+
+let private reResolveBounds
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (bounds : List<PT.Bound>)
+  : Ply<List<PT.Bound>> =
+  bounds
+  |> Ply.List.mapSequentially (fun (b : PT.Bound) ->
+    uply {
+      let! trait_ = reResolveTraitRef contextModules pm b.trait_
+      return { b with trait_ = trait_ }
+    })
+
 let reResolveType
   (pm : PT.PackageManager)
   (owner : string)
@@ -513,8 +550,12 @@ let reResolveType
   uply {
     let! definition =
       reResolveTypeDefinition contextModules pm t.declaration.definition
+    let! bounds = reResolveBounds contextModules pm t.declaration.bounds
 
-    return { t with declaration = { t.declaration with definition = definition } }
+    return
+      { t with
+          declaration =
+            { t.declaration with definition = definition; bounds = bounds } }
   }
 
 
@@ -540,8 +581,82 @@ let reResolveFn
         f.parameters
 
     let! returnType = reResolveTypeRef contextModules pm f.returnType
+    let! bounds = reResolveBounds contextModules pm f.bounds
 
-    return { f with body = body; parameters = parameters; returnType = returnType }
+    return
+      { f with
+          body = body
+          parameters = parameters
+          returnType = returnType
+          bounds = bounds }
+  }
+
+
+/// Re-resolve a trait's bounds and method signatures
+let reResolveTrait
+  (pm : PT.PackageManager)
+  (owner : string)
+  (modules : List<string>)
+  (t : PT.Trait.Trait)
+  : Ply<PT.Trait.Trait> =
+  let contextModules = owner :: modules
+
+  uply {
+    let! bounds = reResolveBounds contextModules pm t.bounds
+    let! methods =
+      Ply.NEList.mapSequentially
+        (fun (m : PT.Trait.Method) ->
+          uply {
+            let! parameters =
+              Ply.NEList.mapSequentially
+                (fun (p : PT.PackageFn.Parameter) ->
+                  uply {
+                    let! typ = reResolveTypeRef contextModules pm p.typ
+                    return { p with typ = typ }
+                  })
+                m.parameters
+            let! returnType = reResolveTypeRef contextModules pm m.returnType
+            return { m with parameters = parameters; returnType = returnType }
+          })
+        t.methods
+    return { t with bounds = bounds; methods = methods }
+  }
+
+
+/// Re-resolve an impl's trait, self type, bounds and method targets. The
+/// context is the impl's own module (its member path), which is where a
+/// method declared in the block resolves from.
+let reResolveImpl
+  (pm : PT.PackageManager)
+  (owner : string)
+  (modules : List<string>)
+  (name : string)
+  (i : PT.Impl.Impl)
+  : Ply<PT.Impl.Impl> =
+  let contextModules = owner :: modules @ [ name ]
+
+  uply {
+    let! traitRef =
+      reResolveTraitRef
+        contextModules
+        pm
+        { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+    let! self = reResolveTypeRef contextModules pm i.self
+    let! bounds = reResolveBounds contextModules pm i.bounds
+    let! methods =
+      i.methods
+      |> Ply.List.mapSequentially (fun (m, nr) ->
+        uply {
+          let! nr = reResolveFnName contextModules pm.findFn nr
+          return (m, nr)
+        })
+    return
+      { i with
+          trait_ = traitRef.trait_
+          traitTypeArgs = traitRef.typeArgs
+          self = self
+          bounds = bounds
+          methods = methods }
   }
 
 
