@@ -253,3 +253,43 @@ module PermissionsGrammar =
     Darklang.LanguageTools.Permissions.Policy
       { allow = [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock, exactHttp () ]
         deny = [ Darklang.LanguageTools.Permissions.Rule.FileWrite(only "/etc") ] })
+
+  // A capability from a platform this runtime did not ship. Namespaced `owner/name`, and validated
+  // at the point of entry: an unnamespaced `serial` must not be claimable, and nothing may shadow a
+  // well-known effect. `customEffect` had a crash on exactly this path (Dark's `>=` is numeric, so
+  // comparing characters as strings raises rather than answering false) and it went unnoticed
+  // because no Dark caller existed until `permissions allow acme/serial` did.
+  (Darklang.LanguageTools.Permissions.customEffect "acme/serial") = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme/serial")
+
+  (Darklang.LanguageTools.Permissions.customEffect "acme-corp/serial-port") = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme-corp/serial-port")
+
+  (Darklang.LanguageTools.Permissions.customEffect "serial") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "Acme/Serial") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "acme/serial/extra") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "acme/") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "-acme/serial") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "acme/serial-") = Stdlib.Option.Option.None
+  (Darklang.LanguageTools.Permissions.customEffect "http") = Stdlib.Option.Option.None
+
+  // A well-known name still wins on the way in, and the custom one is reached only when nothing
+  // in the table claims it.
+  (Darklang.LanguageTools.Permissions.effectOfName "file-read") = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.Permissions.Effect.FileRead)
+
+  (Darklang.LanguageTools.Permissions.effectOfName "acme/serial") = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme/serial")
+
+  // The rule round trip the whole file is about, for a capability nobody here shipped.
+  (roundTrips (Darklang.LanguageTools.Permissions.Rule.Effect(
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme/serial"))) = true
+
+  // A ceiling row spells a custom effect quoted, because a slash is not an identifier; the parser
+  // stores it bare, and `effectOfCase` takes what the parser stored.
+  (Darklang.LanguageTools.Permissions.ceilingRow (Stdlib.Option.Option.Some [
+    Darklang.LanguageTools.Permissions.Effect.Clock,
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme/serial" ])) = "{Clock, \"acme/serial\"}"
+
+  (Darklang.LanguageTools.Permissions.effectOfCase "acme/serial") = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.Permissions.Effect.Custom "acme/serial")

@@ -17,3 +17,17 @@ module MissingFile =
      (Stdlib.Cli.File.createTemp () |> Builtin.unwrap) ++ "-does-not-exist"
    Stdlib.Cli.FileSystem.readFile missing) = Stdlib.Result.Result.Error
     Stdlib.Cli.FileSystem.FileError.NotFound
+
+
+module FileErrorToPosix =
+  // Every FileError case maps to the errno a caller matching on numbers expects. The access case
+  // is the one worth pinning: it was spelt with a case name the type does not have, which parsed,
+  // and then raised MatchUnmatched on the first EACCES instead of answering errno 13.
+  (Stdlib.Cli.File.ofFileError Stdlib.Cli.FileSystem.FileError.NotFound) =
+    Stdlib.Cli.Posix.Error { errno = 2; message = "No such file or directory" }
+
+  (Stdlib.Cli.File.ofFileError Stdlib.Cli.FileSystem.FileError.OsAccessDenied) =
+    Stdlib.Cli.Posix.Error { errno = 13; message = "Permission denied" }
+
+  (Stdlib.Cli.File.ofFileError (Stdlib.Cli.FileSystem.FileError.Other "boom")) =
+    Stdlib.Cli.Posix.Error { errno = -1; message = "boom" }
