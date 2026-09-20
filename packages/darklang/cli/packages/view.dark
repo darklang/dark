@@ -8,16 +8,14 @@ let resolveReplacementName
   (ref: LanguageTools.ProgramTypes.Reference)
   : String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
-  let hash =
-    match ref with
-    | PackageFn h -> h
-    | PackageType h -> h
-    | PackageValue h -> h
+  let hash = LanguageTools.ProgramTypes.Reference.hash ref
   let locs =
     match ref with
     | PackageFn h -> LanguageTools.PackageManager.Function.locations branchId h
     | PackageType h -> LanguageTools.PackageManager.Type.locations branchId h
     | PackageValue h -> LanguageTools.PackageManager.Value.locations branchId h
+    | PackageTrait h -> LanguageTools.PackageManager.Trait.locations branchId h
+    | PackageImpl h -> LanguageTools.PackageManager.Impl.locations branchId h
   match Darklang.LanguageTools.PackageManager.pickLocation
           (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
           locs with
@@ -56,8 +54,14 @@ let rawSource
         PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       )
     | _ ->
-      let where = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
-      Stdlib.Result.Result.Error $"nothing at {where}"
+      match (results.traits, results.impls) with
+      | (item :: _, _) ->
+        Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageTrait ctx item.entity)
+      | (_, item :: _) ->
+        Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageImpl ctx item.entity)
+      | _ ->
+        let where = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+        Stdlib.Result.Result.Error $"nothing at {where}"
 
   match location with
   | Module _ ->
@@ -66,6 +70,8 @@ let rawSource
   | Type loc -> sourceOf loc
   | Value loc -> sourceOf loc
   | Function loc -> sourceOf loc
+  | Trait loc -> sourceOf loc
+  | Impl loc -> sourceOf loc
 
 
 /// Print `rawSource`, or say why there is none.
@@ -135,7 +141,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
     // Names only. This listing prints each item's name and nothing else, so materializing every matched
     // item's full definition to read `.location.name` is work thrown away. Submodules come back already
     // reduced to the direct children of `path`.
-    let (directSubmodules, typeNames, valueNames, fnNames) =
+    let (directSubmodules, typeNames, valueNames, fnNames, traitNames, implNames) =
       Query.allDirectDescendantNames branchId path
 
     let locationStr = Packages.formatLocation location
@@ -181,8 +187,29 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           [ "" ]
         ]
 
+    let traitRows =
+      if Stdlib.List.isEmpty traitNames then
+        []
+      else
+        Stdlib.List.flatten [
+          [ Display.getSectionHeader "trait" ]
+          traitNames |> Stdlib.List.map (fun name -> $"  {name}")
+          [ "" ]
+        ]
+
+    let implRows =
+      if Stdlib.List.isEmpty implNames then
+        []
+      else
+        Stdlib.List.flatten [
+          [ Display.getSectionHeader "impl" ]
+          implNames |> Stdlib.List.map (fun name -> $"  {name}")
+          [ "" ]
+        ]
+
     // A module named for a type (`Acme.Point`, holding the impls `Point.Show`
-    // and `Point.Add`) is also that type: show the declaration under the listing.
+    // and `Point.Add`) is also that type, and an impl's module (`Acme.Point.Show`,
+    // holding its method fns) is the impl: show the declaration above the listing.
     let sameNamedTypeRows =
       match path with
       | [] -> []
@@ -191,16 +218,22 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         match Stdlib.List.last path, parent with
         | Some name, owner :: modules ->
           let results = Query.searchExactMatch branchId parent name
-          match results.types with
-          | [] -> []
-          | item :: _ ->
-            let typeName =
-              LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name }
-            let ctx =
-              { terminalContext branchId parent with
-                  preferredLocation = Stdlib.Option.Option.Some typeName }
-            let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
+          let itemName =
+            LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name }
+          let ctx =
+            { terminalContext branchId parent with
+                preferredLocation = Stdlib.Option.Option.Some itemName }
+          let printed =
+            match results.types with
+            | item :: _ -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageType ctx item.entity)
+            | [] ->
+              match results.impls with
+              | item :: _ -> Stdlib.Option.Option.Some (PrettyPrinter.ProgramTypes.packageImpl ctx item.entity)
+              | [] -> Stdlib.Option.Option.None
+          match printed with
+          | Some prettyPrinted ->
             Stdlib.List.append (sourceRows (SyntaxHighlighting.highlightCode prettyPrinted)) [ "" ]
+          | None -> []
         | _, _ -> []
 
     Stdlib.List.flatten [
@@ -210,8 +243,10 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       sameNamedTypeRows
       submoduleRows
       typeRows
+      traitRows
       valueRows
       functionRows
+      implRows
     ]
 
   | Type name ->
@@ -288,6 +323,51 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           branchId
           item.entity.hash
           LanguageTools.ProgramTypes.ItemKind.Value
+        sourceRows highlighted
+      ]
+
+
+  | Trait name ->
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Query.searchExactMatch branchId modulePath name.name
+
+    match results.traits with
+    | [] ->
+      let locationStr = Packages.formatLocation location
+      [ $"Trait '{locationStr}' not found." ]
+    | item :: _ ->
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait ctx item.entity
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.List.flatten [
+        deprecationHeaderRowsFor
+          branchId
+          item.entity.hash
+          LanguageTools.ProgramTypes.ItemKind.Trait
+        sourceRows highlighted
+      ]
+
+  | Impl name ->
+    let modulePath = Stdlib.List.append [name.owner] name.modules
+    let results = Query.searchExactMatch branchId modulePath name.name
+
+    match results.impls with
+    | [] ->
+      let locationStr = Packages.formatLocation location
+      [ $"Impl '{locationStr}' not found." ]
+    | item :: _ ->
+      let ctx =
+        { terminalContext branchId (Stdlib.List.push name.modules name.owner) with
+            preferredLocation = Stdlib.Option.Option.Some name }
+      let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx item.entity
+      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+      Stdlib.List.flatten [
+        deprecationHeaderRowsFor
+          branchId
+          item.entity.hash
+          LanguageTools.ProgramTypes.ItemKind.Impl
         sourceRows highlighted
       ]
 
@@ -504,7 +584,9 @@ let resolveHashArg
     (match kind with
      | Fn -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Function loc)
      | Type -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Type loc)
-     | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value loc))
+     | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value loc)
+     | Trait -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Trait loc)
+     | Impl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl loc))
   | None ->
     Stdlib.Result.Result.Error
       $"no live name binds hash {Stdlib.String.first hash 8} -- `dark show {Stdlib.String.first hash 8}` reads it as an op."

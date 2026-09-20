@@ -207,6 +207,8 @@ module ModuleDeclaration =
     | Type t -> TypeDeclaration.tokenize t
     | Function f -> FnDeclaration.tokenize f
     | Value v -> ValueDeclaration.tokenize v
+    | Trait t -> TraitDeclaration.tokenize t
+    | Impl i -> ImplDeclaration.tokenize i
     | SubModule sm -> ModuleDeclaration.tokenize sm
     | Expr e -> Expr.tokenize e
 
@@ -380,6 +382,64 @@ module ValueDeclaration =
       [ makeToken v.symbolEquals TokenType.Symbol ]
       // 1
       Expr.tokenize v.body ]
+    |> Stdlib.List.flatten
+
+
+module TypeParamBound =
+  // `'a: Show<Int>`
+  let tokenize (b: WrittenTypes.TypeParamBound) : List<SemanticToken> =
+    [ [ makeToken b.symbolColon TokenType.Symbol ]
+      QualifiedTypeIdentifier.tokenize b.trait_ ]
+    |> Stdlib.List.flatten
+
+
+module TraitDeclaration =
+  // `let show (v: 'a) : String`
+  let tokenizeMethod
+    (m: WrittenTypes.TraitDeclaration.Method)
+    : List<SemanticToken> =
+    [ [ makeToken m.keywordLet TokenType.Keyword ]
+      FnIdentifier.tokenize m.name
+      (m.typeParams |> Stdlib.List.map (fun (r, _) -> makeToken r TokenType.TypeParameter))
+      (m.bounds |> Stdlib.List.map TypeParamBound.tokenize |> Stdlib.List.flatten)
+      (m.parameters
+       |> Stdlib.List.map (fun p -> FnDeclaration.Parameter.tokenize p)
+       |> Stdlib.List.flatten)
+      [ makeToken m.symbolColon TokenType.Symbol ]
+      TypeReference.tokenize m.returnType ]
+    |> Stdlib.List.flatten
+
+  // `trait Show<'a> = ...`
+  let tokenize
+    (t: WrittenTypes.TraitDeclaration.TraitDeclaration)
+    : List<SemanticToken> =
+    [ [ makeToken t.keywordTrait TokenType.Keyword ]
+      TypeIdentifier.tokenize t.name
+      (t.typeParams |> Stdlib.List.map (fun (r, _) -> makeToken r TokenType.TypeParameter))
+      (t.bounds |> Stdlib.List.map TypeParamBound.tokenize |> Stdlib.List.flatten)
+      [ makeToken t.symbolEquals TokenType.Symbol ]
+      (t.methods |> Stdlib.List.map tokenizeMethod |> Stdlib.List.flatten) ]
+    |> Stdlib.List.flatten
+
+
+module ImplDeclaration =
+  // `impl<'a: Show> Show for List<'a> = ...`
+  let tokenize
+    (i: WrittenTypes.ImplDeclaration.ImplDeclaration)
+    : List<SemanticToken> =
+    [ [ makeToken i.keywordImpl TokenType.Keyword ]
+      (i.typeParams |> Stdlib.List.map (fun (r, _) -> makeToken r TokenType.TypeParameter))
+      (i.bounds |> Stdlib.List.map TypeParamBound.tokenize |> Stdlib.List.flatten)
+      QualifiedTypeIdentifier.tokenize i.trait_
+      [ makeToken i.keywordFor TokenType.Keyword ]
+      TypeReference.tokenize i.forType
+      [ makeToken i.symbolEquals TokenType.Symbol ]
+      (i.members
+       |> Stdlib.List.map (fun m ->
+         match m with
+         | Method f -> FnDeclaration.tokenize f
+         | Alias a -> ValueDeclaration.tokenize a)
+       |> Stdlib.List.flatten) ]
     |> Stdlib.List.flatten
 
 
@@ -1031,6 +1091,8 @@ module ParsedFile =
           | Type t -> TypeDeclaration.tokenize t
           | Function fn -> FnDeclaration.tokenize fn
           | Value v -> ValueDeclaration.tokenize v
+          | Trait t -> TraitDeclaration.tokenize t
+          | Impl i -> ImplDeclaration.tokenize i
           | Module m -> ModuleDeclaration.tokenize m)
         |> Stdlib.List.flatten
 

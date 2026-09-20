@@ -170,6 +170,25 @@ module FQTypeName =
       FQTypeName.Package.fullForReference ctx p
 
 
+module FQTraitName =
+  module Package =
+    let atDefinition
+      (ctx: Context)
+      (hash: LanguageTools.ProgramTypes.FQTraitName.Package)
+      : String =
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Trait.locations ctx.branchId hash) with
+      | Some l -> l.name
+      | None -> shortHash hash
+
+    let fullForReference
+      (ctx: Context)
+      (hash: LanguageTools.ProgramTypes.FQTraitName.Package)
+      : String =
+      match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Trait.locations ctx.branchId hash) with
+      | Some l -> packageNameWithContext ctx l.owner l.modules l.name
+      | None -> shortHash hash
+
+
 module FQValueName =
   module Builtin =
     let fullForReference
@@ -275,6 +294,19 @@ module NameResolution =
   let typeName
     (ctx: Context)
     (nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+    : String =
+    match nr.resolved with
+    | Ok r ->
+      match r.name with
+      | Package hash ->
+        match r.location with
+        | Some loc -> packageNameWithContext ctx loc.owner loc.modules loc.name
+        | None -> Darklang.LanguageTools.ProgramTypes.hashToString hash
+    | Error _ -> NameResolutionError.source nr.originalName
+
+  let traitName
+    (ctx: Context)
+    (nr: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTraitName.FQTraitName>)
     : String =
     match nr.resolved with
     | Ok r ->
@@ -1355,7 +1387,7 @@ let typeParamsWithBounds
         bounds
         |> Stdlib.List.filter (fun b -> b.param == typeParam)
         |> Stdlib.List.map (fun b ->
-          let name = NameResolution.typeName ctx b.trait_.trait_
+          let name = NameResolution.traitName ctx b.trait_.trait_
           match b.trait_.typeArgs with
           | [] -> name
           | args ->
@@ -1538,6 +1570,68 @@ let packageFn
   $"{docComment}{headerPart}\n{PrettyPrinter.indent bodyPart}"
 
 
+/// `trait Show<'a> =` then one method signature per line.
+let packageTrait
+  (ctx: Context)
+  (t: LanguageTools.ProgramTypes.Trait.Trait)
+  : String =
+  let namePart = FQTraitName.Package.atDefinition ctx t.hash
+  let typeParamPart = typeParamsWithBounds ctx t.typeParams t.bounds
+  let methods =
+    t.methods
+    |> Stdlib.List.map (fun m ->
+      let params =
+        m.parameters
+        |> Stdlib.List.map (fun p -> $"({p.name}: {typeReference ctx p.typ})")
+        |> Stdlib.String.join " "
+      let ownTypeParams = typeParamsWithBounds ctx m.typeParams []
+      let doc = formatDocComment m.description
+      $"{doc}let {m.name}{ownTypeParams} {params} :{LanguageTools.Permissions.ceilingRow m.permissionCeiling} {typeReference ctx m.returnType}")
+    |> Stdlib.String.join "\n"
+  let docComment = formatDocComment t.description
+  $"{docComment}trait {namePart}{typeParamPart} =\n{PrettyPrinter.indent methods}"
+
+
+/// `impl<'a: Show> Show<Args> for List<'a> =` then `let m = Fn` per method: an impl
+/// prints as aliases of the fns it names, which round-trips whether the fns were
+/// written in the block or aliased.
+let packageImpl
+  (ctx: Context)
+  (i: LanguageTools.ProgramTypes.Impl.Impl)
+  : String =
+  let typeParamPart = typeParamsWithBounds ctx i.typeParams i.bounds
+  let traitPart =
+    let name = NameResolution.traitName ctx i.trait_
+    match i.traitTypeArgs with
+    | [] -> name
+    | args ->
+      let argsPart = args |> Stdlib.List.map (fun a -> typeReference ctx a) |> Stdlib.String.join ", "
+      $"{name}<{argsPart}>"
+  // A method declared in the block lives beneath the impl's own path and prints
+  // bare; an alias of a fn elsewhere prints in full, so `let add = add` cannot
+  // happen when the target is `Stdlib.Int64.add`.
+  let implPath =
+    match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.Impl.locations ctx.branchId i.hash) with
+    | Some l -> Stdlib.List.flatten [ [ l.owner ], l.modules, [ l.name ] ]
+    | None -> []
+  let methods =
+    i.methods
+    |> Stdlib.List.map (fun (name, fn) ->
+      let target =
+        match fn.resolved with
+        | Ok r ->
+          (match r.location with
+           | Some loc ->
+             if (Stdlib.List.append [ loc.owner ] loc.modules) == implPath then loc.name
+             else NameResolution.fnName { ctx with currentModule = [] } fn
+           | None -> NameResolution.fnName ctx fn)
+        | Error _ -> NameResolution.fnName ctx fn
+      $"let {name} = {target}")
+    |> Stdlib.String.join "\n"
+  let docComment = formatDocComment i.description
+  $"{docComment}impl{typeParamPart} {traitPart} for {typeReference ctx i.self} =\n{PrettyPrinter.indent methods}"
+
+
 module BuiltinFn =
   let signature (branchId: Uuid) (f: LanguageTools.BuiltinFunction) : String =
     // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
@@ -1612,6 +1706,15 @@ module PackageOp =
       // actually is — content added here, name bound to it there — rather than a list of unrelated lines.
       $"AddValue {name} = {source}  [{LanguageTools.ProgramTypes.hashToShort value.hash}]"
 
+    | AddTrait t ->
+      let name = FQTraitName.Package.atDefinition ctx t.hash
+      let methods = t.methods |> Stdlib.List.map (fun m -> m.name) |> Stdlib.String.join ", "
+      $"AddTrait {name} ({methods})  [{LanguageTools.ProgramTypes.hashToShort t.hash}]"
+
+    | AddImpl i ->
+      let traitName = NameResolution.traitName ctx i.trait_
+      $"AddImpl {traitName} for {typeReference ctx i.self}  [{LanguageTools.ProgramTypes.hashToShort i.hash}]"
+
     | SetName(loc, target, _) ->
       let path = PackageLocation.packageLocation loc
       let kind =
@@ -1619,6 +1722,8 @@ module PackageOp =
         | PackageType _ -> "Type"
         | PackageValue _ -> "Value"
         | PackageFn _ -> "Fn"
+        | PackageTrait _ -> "Trait"
+        | PackageImpl _ -> "Impl"
       // Name the hash it binds. "SetName Fn -> Some.Path" said which name changed but not what it now means,
       // so an Add and the SetName that named it were two lines with nothing tying them together.
       let hash = LanguageTools.ProgramTypes.Reference.hash target

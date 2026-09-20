@@ -327,6 +327,10 @@ module Type =
       let moduleDeclaration = p [ "ModuleDeclaration" ] "ModuleDeclaration"
       let moduleDeclarationDeclaration = p [ "ModuleDeclaration" ] "Declaration"
       let typeDeclaration = p [ "TypeDeclaration" ] "TypeDeclaration"
+      let traitDeclaration = p [ "TraitDeclaration" ] "TraitDeclaration"
+      let traitMethod = p [ "TraitDeclaration" ] "Method"
+      let implDeclaration = p [ "ImplDeclaration" ] "ImplDeclaration"
+      let implMember = p [ "ImplDeclaration" ] "Member"
       let typeDeclDefinition = p [ "TypeDeclaration" ] "Definition"
       let typeDeclRecordField = p [ "TypeDeclaration" ] "RecordField"
       let typeDeclEnumField = p [ "TypeDeclaration" ] "EnumField"
@@ -564,7 +568,8 @@ module Trait =
       let pow = p [] "Pow"
       let neg = p [] "Neg"
       let ord = p [] "Ord"
-      let all () = [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
+      let all () =
+        [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
 
 
 module Fn =

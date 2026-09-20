@@ -193,7 +193,11 @@ let resolveTypeName
 
 
 
-/// A trait name, resolved like a type name (`namesToTry` from the current module).
+/// A trait name, resolved like a type name (`namesToTry` from the current module),
+/// and then, for a bare name, as a stdlib trait: `impl Add for Point` in any module
+/// means `Stdlib.Add` unless something closer is called Add. The operator traits are
+/// the ones people write impls for, and `Stdlib.Add` in every user script would be
+/// noise. (The Dark resolver, `TraitName.resolve`, has the same rule.)
 let resolveTraitName
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
@@ -205,16 +209,28 @@ let resolveTraitName
   | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
   | WT.Unresolved given ->
     let parseTypeName name = parseTypeNameString name |> Result.map (fun n -> (n, 0))
-    resolveGenericName
-      None
-      onMissing
-      currentModule
-      given
-      parseTypeName
-      packageManager.findTrait
-      PT.FQTraitName.FQTraitName.Package
-      (fun _ -> Exception.raiseInternal warning [])
-      (fun _ -> Exception.raiseInternal warning [])
+    let resolve onMissing given =
+      resolveGenericName
+        None
+        onMissing
+        currentModule
+        given
+        parseTypeName
+        packageManager.findTrait
+        PT.FQTraitName.FQTraitName.Package
+        (fun _ -> Exception.raiseInternal warning [])
+        (fun _ -> Exception.raiseInternal warning [])
+    uply {
+      match given with
+      | { head = bare; tail = [] } ->
+        match! resolve OnMissing.Allow given with
+        | { resolved = Error NRE.NotFound } ->
+          let! viaStdlib = resolve onMissing (NEList.ofList "Stdlib" [ bare ])
+          // Keep the name as written, so an error names what the author typed
+          return { viaStdlib with originalName = [ bare ] }
+        | direct -> return direct
+      | _ -> return! resolve onMissing given
+    }
 
 
 let resolveValueName
@@ -267,22 +283,28 @@ let private resolveTraitMethod
         return None
       else
 
-      let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
-      let! traitNR =
-        resolveTraitName packageManager OnMissing.Allow currentModule (WT.Unresolved traitGiven)
-      match traitNR.resolved with
-      | Error _ -> return None
-      | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
-        match! packageManager.getTrait traitHash with
-        | Some t when t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName) ->
-          return
-            Some
-              { originalName = NEList.toList given
-                resolved =
-                  Ok
-                    { name = PT.FQFnName.TraitMethod(traitHash, methodName)
-                      location = loc } }
-        | _ -> return None
+        let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
+        let! traitNR =
+          resolveTraitName
+            packageManager
+            OnMissing.Allow
+            currentModule
+            (WT.Unresolved traitGiven)
+        match traitNR.resolved with
+        | Error _ -> return None
+        | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
+          match! packageManager.getTrait traitHash with
+          | Some t when
+            t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName)
+            ->
+            return
+              Some
+                { originalName = NEList.toList given
+                  resolved =
+                    Ok
+                      { name = PT.FQFnName.TraitMethod(traitHash, methodName)
+                        location = loc } }
+          | _ -> return None
   }
 
 

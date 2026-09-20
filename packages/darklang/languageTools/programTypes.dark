@@ -769,6 +769,7 @@ module PackageManager =
     { findType: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTypeName.Package>
       findValue: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQValueName.Package>
       findFn: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQFnName.Package>
+      findTrait: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTraitName.Package>
 
       getType:
         FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
@@ -776,6 +777,7 @@ module PackageManager =
         FQValueName.Package
           -> Stdlib.Option.Option<PackageValue.PackageValue>
       getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+      getTrait: FQTraitName.Package -> Stdlib.Option.Option<Trait.Trait>
 
       search: (BranchID * Search.SearchQuery) -> Search.SearchResults }
 
@@ -821,6 +823,9 @@ module PackageManager =
             | Some f -> Stdlib.Option.Option.Some f.entity
             | None -> pm.getFn id
 
+        findTrait = pm.findTrait
+        getTrait = pm.getTrait
+
         search = pm.search }
 
 
@@ -848,6 +853,20 @@ module PackageManager =
       |> Stdlib.List.filterMap (fun op ->
         match op with
         | AddFn f -> Stdlib.Option.Option.Some((f.hash, f))
+        | _ -> Stdlib.Option.Option.None)
+
+    let traitsByID =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddTrait t -> Stdlib.Option.Option.Some((t.hash, t))
+        | _ -> Stdlib.Option.Option.None)
+
+    let traitLocationMap =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | SetName (loc, PackageTrait hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let typeLocationMap =
@@ -939,6 +958,28 @@ module PackageManager =
               Stdlib.Option.Option.Some f
             | None -> basePM.getFn id
 
+        findTrait =
+          fun (branchId, location) ->
+            match traitLocationMap
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (loc, _) = tuple
+                    loc == location) with
+            | Some tuple ->
+              let (_, id) = tuple
+              Stdlib.Option.Option.Some id
+            | None -> basePM.findTrait (branchId, location)
+
+        getTrait =
+          fun id ->
+            match traitsByID
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (tid, _) = tuple
+                    tid == id) with
+            | Some tuple ->
+              let (_, t) = tuple
+              Stdlib.Option.Option.Some t
+            | None -> basePM.getTrait id
+
         search = basePM.search }
 
 
@@ -946,6 +987,8 @@ type Definitions =
   { types: List<PackageType.PackageType>
     values: List<PackageValue.PackageValue>
     fns: List<PackageFn.PackageFn>
+    traits: List<Trait.Trait>
+    impls: List<Impl.Impl>
     // TODO db and handlers
     exprs: List<Expr * List<String>> }
 
@@ -962,6 +1005,9 @@ module SourceFile =
     | Type of PackageType.PackageType
     | Value of PackageValue.PackageValue
     | Function of PackageFn.PackageFn
+    | Trait of Trait.Trait
+    /// The impl item; its method fns are separate `Function` declarations
+    | Impl of Impl.Impl
     // db and handlers
     | Module of Definitions // re-evaluate if this makes sense to be here
 

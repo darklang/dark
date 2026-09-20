@@ -153,7 +153,8 @@ let pt : PT.PackageManager =
   let findValueCached = withCache (fun location -> PMPT.Value.find location)
   let findFnCached = withCache (fun location -> PMPT.Fn.find location)
 
-  let findTraitCached = Caching.withNegativeCache (fun location -> PMPT.Trait.find location)
+  let findTraitCached =
+    Caching.withNegativeCache (fun location -> PMPT.Trait.find location)
   let findImplCached = withCache (fun location -> PMPT.Impl.find location)
 
   // Not `withCache`: its key would be unit, which a dictionary cannot hold. Same
@@ -428,7 +429,8 @@ let createInMemoryOver
   let traitIdToLocs = invert traitLocMap
   let implIdToLocs = invert implLocMap
 
-  let ownTraitNames = HashSet<string>(traitLocMap |> Map.toSeq |> Seq.map (fun (l, _) -> l.name))
+  let ownTraitNames =
+    HashSet<string>(traitLocMap |> Map.toSeq |> Seq.map (fun (l, _) -> l.name))
   let ownImpls = implMap |> Map.toList |> List.map snd
 
   { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
@@ -439,7 +441,8 @@ let createInMemoryOver
     traitNames =
       match below with
       | None -> fun () -> Ply ownTraitNames
-      | Some below -> PT.PackageManager.unionTraitNames ownTraitNames below.traitNames
+      | Some below ->
+        PT.PackageManager.unionTraitNames ownTraitNames below.traitNames
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
@@ -470,7 +473,11 @@ let createInMemoryOver
         )
     implsWithMethod =
       fun methodName ->
-        Ply(ownImpls |> List.filter (fun i -> i.methods |> List.exists (fun (m, _) -> m = methodName)))
+        Ply(
+          ownImpls
+          |> List.filter (fun i ->
+            i.methods |> List.exists (fun (m, _) -> m = methodName))
+        )
 
     search =
       fun query ->
@@ -587,14 +594,21 @@ let createInMemoryOver
                   None)
               |> List.distinct
 
+          // Honour the kind filter the way the SQL search does, or `search x --fn` on a
+          // branch lists the branch's types next to main's fns.
+          let wanted kind (items : List<PT.LocatedItem<'item>>) =
+            if query.entityTypes.IsEmpty || List.contains kind query.entityTypes then
+              items |> List.filter (fun i -> itemMatches i.location)
+            else
+              []
+
           return
             { PT.Search.SearchResults.submodules = submodules
-              types = typesWithLocs |> List.filter (fun i -> itemMatches i.location)
-              values =
-                valuesWithLocs |> List.filter (fun i -> itemMatches i.location)
-              fns = fnsWithLocs |> List.filter (fun i -> itemMatches i.location)
-              traits = traitsWithLocs |> List.filter (fun i -> itemMatches i.location)
-              impls = implsWithLocs |> List.filter (fun i -> itemMatches i.location) }
+              types = wanted PT.Search.EntityType.Type typesWithLocs
+              values = wanted PT.Search.EntityType.Value valuesWithLocs
+              fns = wanted PT.Search.EntityType.Fn fnsWithLocs
+              traits = wanted PT.Search.EntityType.Trait traitsWithLocs
+              impls = wanted PT.Search.EntityType.Impl implsWithLocs }
         }
 
     init = uply { return () } }
@@ -616,13 +630,16 @@ let combine
     findTrait = overlayFirst overlay.findTrait fallback.findTrait
     findImpl = overlayFirst overlay.findImpl fallback.findImpl
     traitNames =
-      let mutable last : Option<HashSet<string> * HashSet<string> * HashSet<string>> = None
+      let mutable last : Option<HashSet<string> * HashSet<string> * HashSet<string>> =
+        None
       fun () ->
         uply {
           let! o = overlay.traitNames ()
           let! f = fallback.traitNames ()
           match last with
-          | Some(o', f', u) when obj.ReferenceEquals(o, o') && obj.ReferenceEquals(f, f') ->
+          | Some(o', f', u) when
+            obj.ReferenceEquals(o, o') && obj.ReferenceEquals(f, f')
+            ->
             return u
           | _ ->
             let u = HashSet<string>(f)
@@ -641,7 +658,8 @@ let combine
     getValueLocations =
       concatLocs overlay.getValueLocations fallback.getValueLocations
     getFnLocations = concatLocs overlay.getFnLocations fallback.getFnLocations
-    getTraitLocations = concatLocs overlay.getTraitLocations fallback.getTraitLocations
+    getTraitLocations =
+      concatLocs overlay.getTraitLocations fallback.getTraitLocations
     getImplLocations = concatLocs overlay.getImplLocations fallback.getImplLocations
 
     impls =
@@ -678,7 +696,8 @@ let combine
               values =
                 dedup (List.append overlayResults.values fallbackResults.values)
               fns = dedup (List.append overlayResults.fns fallbackResults.fns)
-              traits = dedup (List.append overlayResults.traits fallbackResults.traits)
+              traits =
+                dedup (List.append overlayResults.traits fallbackResults.traits)
               impls = dedup (List.append overlayResults.impls fallbackResults.impls) }
         }
 
@@ -854,9 +873,10 @@ let rt : RT.PackageManager =
     // names. Cached per (branch, trait) and dropped with the other caches on every fold.
     implCandidates =
       let cached =
-        Caching.withCache (fun (branchId : PT.BranchId, traitHash : RT.FQTraitName.Package) ->
-          PT2RT.ImplCandidate.ofPackageManager (ptForBranch branchId) traitHash
-          |> Ply.map Some)
+        Caching.withCache
+          (fun (branchId : PT.BranchId, traitHash : RT.FQTraitName.Package) ->
+            PT2RT.ImplCandidate.ofPackageManager (ptForBranch branchId) traitHash
+            |> Ply.map Some)
       fun branchId traitHash ->
         uply {
           match! cached (branchId, traitHash) with
@@ -866,7 +886,9 @@ let rt : RT.PackageManager =
     implCandidatesByMethod =
       let cached =
         Caching.withCache (fun (branchId : PT.BranchId, methodName : string) ->
-          PT2RT.ImplCandidate.ofPackageManagerByMethod (ptForBranch branchId) methodName
+          PT2RT.ImplCandidate.ofPackageManagerByMethod
+            (ptForBranch branchId)
+            methodName
           |> Ply.map Some)
       fun branchId methodName ->
         uply {

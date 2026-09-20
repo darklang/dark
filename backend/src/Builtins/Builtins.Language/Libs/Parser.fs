@@ -1024,6 +1024,53 @@ module WrittenTypesToDarkTypes =
           "symbolEquals", rangeToDT f.symbolEquals ]
     )
 
+  let private traitMethodToDT (m : WT.TraitMethodDecl) : Dval =
+    let t = tn WTRefs.traitMethod
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT m.range
+          "name", identifierToDT WTRefs.fnIdentifier m.name
+          "typeParams", rangedNamesToDT m.typeParams
+          "bounds", boundsToDT m.bounds
+          "parameters",
+          DList(
+            VT.customType (tn WTRefs.fnParameter) [],
+            List.map fnParamToDT m.parameters
+          )
+          "effects",
+          m.effects
+          |> Option.map (List.map (fun id -> id.name, id.range) >> rangedNamesToDT)
+          |> Dval.option (KTList(rangedNamesVT ()))
+          "returnType", typeReferenceToDT m.returnType
+          "description", DString m.description
+          "keywordLet", rangeToDT m.keywordLet
+          "symbolColon", rangeToDT m.symbolColon ]
+    )
+
+  let private traitDeclToDT (tr : WT.TraitDecl) : Dval =
+    let t = tn WTRefs.traitDeclaration
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT tr.range
+          "name", identifierToDT WTRefs.typeIdentifier tr.name
+          "typeParams", rangedNamesToDT tr.typeParams
+          "bounds", boundsToDT tr.bounds
+          "methods",
+          DList(
+            VT.customType (tn WTRefs.traitMethod) [],
+            List.map traitMethodToDT tr.methods
+          )
+          "description", DString tr.description
+          "keywordTrait", rangeToDT tr.keywordTrait
+          "symbolEquals", rangeToDT tr.symbolEquals ]
+    )
+
   let private valueDeclToDT (v : WT.ValueDecl) : Dval =
     let t = tn WTRefs.valueDeclaration
     DRecord(
@@ -1037,6 +1084,32 @@ module WrittenTypesToDarkTypes =
           "description", DString v.description
           "keywordVal", rangeToDT v.keywordVal
           "symbolEquals", rangeToDT v.symbolEquals ]
+    )
+
+  let private implDeclToDT (impl : WT.ImplDecl) : Dval =
+    let t = tn WTRefs.implDeclaration
+    let memberT = tn WTRefs.implMember
+    let members =
+      (impl.methods
+       |> List.map (fun m -> DEnum(memberT, memberT, [], "Method", [ fnDeclToDT m ])))
+      @ (impl.aliases
+         |> List.map (fun a ->
+           DEnum(memberT, memberT, [], "Alias", [ valueDeclToDT a ])))
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT impl.range
+          "typeParams", rangedNamesToDT impl.typeParams
+          "bounds", boundsToDT impl.bounds
+          "trait_", qualifiedTypeIdentifierToDT impl.trait_
+          "forType", typeReferenceToDT impl.forType
+          "members", DList(VT.customType memberT [], members)
+          "description", DString impl.description
+          "keywordImpl", rangeToDT impl.keywordImpl
+          "keywordFor", rangeToDT impl.keywordFor
+          "symbolEquals", rangeToDT impl.symbolEquals ]
     )
 
   let private recordFieldToDT (f : WT.RecordFieldSyntax) : Dval =
@@ -1160,38 +1233,6 @@ module WrittenTypesToDarkTypes =
           "keywordModule", rangeToDT m.keywordModule ]
     )
 
-  /// An impl desugared into a `module Type.Trait = <fns> <val instance>` block,
-  /// so the Dark side sees ordinary declarations at the path the F# lowering uses.
-  /// `path` is the enclosing module, threaded down so the "don't repeat the type
-  /// segment" rule gives the same member path the F# lowering computes.
-  and private implAsModule (path : List<string>) (impl : WT.ImplDecl) : WT.ModuleDecl =
-    let d = WT.desugarImpl path impl
-    // `desugarImpl` returns the absolute member path; the sub-module is named
-    // relative to where the impl sits.
-    let relative = List.skip (List.length path) d.memberPath
-    let decls =
-      (d.methods |> List.map WT.DFunction)
-      @ [ match d.instance with
-          | Choice1Of2 v -> WT.DValue v
-          | Choice2Of2 fn -> WT.DFunction fn ]
-    // One nested module per segment: the Dark lowering takes a sub-module's name
-    // as a single path segment, so `Point.Show` must be `Point` holding `Show`.
-    let innermost : WT.ModuleDecl =
-      { range = impl.range
-        name = (impl.keywordImpl, List.last relative |> Option.defaultValue "")
-        declarations = decls
-        keywordModule = impl.keywordImpl }
-    relative
-    |> List.rev
-    |> List.tail
-    |> List.fold
-      (fun (inner : WT.ModuleDecl) segment ->
-        { range = impl.range
-          name = (impl.keywordImpl, segment)
-          declarations = [ WT.DModule inner ]
-          keywordModule = impl.keywordImpl })
-      innermost
-
   /// One WT declaration becomes zero or more module-declaration Dvals.
   ///
   /// `collect` rather than `map` because a test assertion carries two expressions and the Dark type holds one
@@ -1203,21 +1244,18 @@ module WrittenTypesToDarkTypes =
   /// an assignment until post-parse validation. So a typo of that shape in an ordinary file reaches
   /// here. Whole-document callers (the LSP, the highlighter) hit both; the authoring editor does not,
   /// because it strips the module line first.
-  and private moduleItemsToDT (path : List<string>) (d : WT.Declaration) : List<Dval> =
+  and private moduleItemsToDT
+    (path : List<string>)
+    (d : WT.Declaration)
+    : List<Dval> =
     let t = tn WTRefs.moduleDeclarationDeclaration
     let expr (e : WT.Expr) = DEnum(t, t, [], "Expr", [ exprToDT e ])
     match d with
     | WT.DFunction f -> [ DEnum(t, t, [], "Function", [ fnDeclToDT f ]) ]
     | WT.DValue v -> [ DEnum(t, t, [], "Value", [ valueDeclToDT v ]) ]
     | WT.DType td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
-    // Traits and impls have no Dark-side case yet: they cross as what they desugar
-    // to (a type; fns and a value). The Dark lowering then agrees with the F# one
-    // by construction. Cost: the highlighter colours `trait` as a type. The
-    // impl's members are placed under a sub-module named for the type and trait,
-    // the same path `SourceFile.items` uses.
-    | WT.DTrait tr -> [ DEnum(t, t, [], "Type", [ typeDeclToDT (WT.desugarTrait tr) ]) ]
-    | WT.DImpl impl ->
-      [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT path (implAsModule path impl) ]) ]
+    | WT.DTrait tr -> [ DEnum(t, t, [], "Trait", [ traitDeclToDT tr ]) ]
+    | WT.DImpl impl -> [ DEnum(t, t, [], "Impl", [ implDeclToDT impl ]) ]
     | WT.DModule m -> [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT path m ]) ]
     | WT.DExpr e -> [ expr e ]
     // `[<DB>] type X = ...` is a type as far as anything reading this cares; the attribute sits outside the
@@ -1242,8 +1280,8 @@ module WrittenTypesToDarkTypes =
     | WT.DValue v -> Some(DEnum(t, t, [], "Value", [ valueDeclToDT v ]))
     | WT.DModule m -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT [] m ]))
     | WT.DType td -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT td ]))
-    | WT.DTrait tr -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT (WT.desugarTrait tr) ]))
-    | WT.DImpl impl -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT [] (implAsModule [] impl) ]))
+    | WT.DTrait tr -> Some(DEnum(t, t, [], "Trait", [ traitDeclToDT tr ]))
+    | WT.DImpl impl -> Some(DEnum(t, t, [], "Impl", [ implDeclToDT impl ]))
     | WT.DExpr _
     | WT.DTypeDB _
     | WT.DTest _ -> None

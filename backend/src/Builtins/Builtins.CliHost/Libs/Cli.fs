@@ -147,8 +147,10 @@ let private declarationsToModule
       typeList |> List.map (fun t -> WT2PT.PackageType.Name.toLocation t.name)
     let valueLocations =
       valueList |> List.map (fun v -> WT2PT.PackageValue.Name.toLocation v.name)
-    let traitLocations = traitList |> List.map (fun t -> WT2PT.Trait.Name.toLocation t.name)
-    let implLocations = implList |> List.map (fun i -> WT2PT.Impl.Name.toLocation i.name)
+    let traitLocations =
+      traitList |> List.map (fun t -> WT2PT.Trait.Name.toLocation t.name)
+    let implLocations =
+      implList |> List.map (fun i -> WT2PT.Impl.Name.toLocation i.name)
 
     let lowerFns pm =
       fnList
@@ -183,7 +185,12 @@ let private declarationsToModule
     let lowerImpls pm =
       implList
       |> Ply.List.mapSequentially (fun i ->
-        WT2PT.Impl.toPT builtins pm onMissing (i.name.owner :: i.name.modules @ [ i.name.name ]) i)
+        WT2PT.Impl.toPT
+          builtins
+          pm
+          onMissing
+          (i.name.owner :: i.name.modules @ [ i.name.name ])
+          i)
 
     // WT2PT leaves each declaration with an empty `Hash ""`, and the graft below
     // keys declarations by hash, so each needs a distinct one before it can be
@@ -197,8 +204,10 @@ let private declarationsToModule
       { t with hash = PackageLocation.placeholderHash loc }
     let stampValue (v : PT.PackageValue.PackageValue) loc =
       { v with hash = PackageLocation.placeholderHash loc }
-    let stampTrait (t : PT.Trait.Trait) loc = { t with hash = PackageLocation.placeholderHash loc }
-    let stampImpl (i : PT.Impl.Impl) loc = { i with hash = PackageLocation.placeholderHash loc }
+    let stampTrait (t : PT.Trait.Trait) loc =
+      { t with hash = PackageLocation.placeholderHash loc }
+    let stampImpl (i : PT.Impl.Impl) loc =
+      { i with hash = PackageLocation.placeholderHash loc }
 
     // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
     //
@@ -222,7 +231,8 @@ let private declarationsToModule
       lowerValues pm0 |> Ply.map (fun vs -> List.map2 stampValue vs valueLocations)
     let! traits1 =
       lowerTraits pm0 |> Ply.map (fun ts -> List.map2 stampTrait ts traitLocations)
-    let! impls1 = lowerImpls pm0 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
+    let! impls1 =
+      lowerImpls pm0 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
 
     // Graft the script's own declarations into the pm, keyed by location.
     let pm1 =
@@ -243,7 +253,8 @@ let private declarationsToModule
       lowerValues pm1 |> Ply.map (fun vs -> List.map2 stampValue vs valueLocations)
     let! traits2 =
       lowerTraits pm1 |> Ply.map (fun ts -> List.map2 stampTrait ts traitLocations)
-    let! impls2 = lowerImpls pm1 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
+    let! impls2 =
+      lowerImpls pm1 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
 
     // References are resolved now, so hash for real. That keeps script
     // declarations content-addressed: one structurally identical to a package
@@ -279,13 +290,15 @@ let private declarationsToModule
             |> Map.ofList
           traits =
             List.map2
-              (fun (t : PT.Trait.Trait) loc -> PackageLocation.toFQN loc, (t, t.hash, loc))
+              (fun (t : PT.Trait.Trait) loc ->
+                PackageLocation.toFQN loc, (t, t.hash, loc))
               traits2
               traitLocations
             |> Map.ofList
           impls =
             List.map2
-              (fun (i : PT.Impl.Impl) loc -> PackageLocation.toFQN loc, (i, i.hash, loc))
+              (fun (i : PT.Impl.Impl) loc ->
+                PackageLocation.toFQN loc, (i, i.hash, loc))
               impls2
               implLocations
             |> Map.ofList }
@@ -319,13 +332,15 @@ let private declarationsToModule
     let traits =
       List.map2
         (fun (t : PT.Trait.Trait) loc ->
-          { AstTransformer.transformTrait stabilization.mapping t with hash = finalHash t.hash loc })
+          { AstTransformer.transformTrait stabilization.mapping t with
+              hash = finalHash t.hash loc })
         traits2
         traitLocations
     let impls =
       List.map2
         (fun (i : PT.Impl.Impl) loc ->
-          { AstTransformer.transformImpl stabilization.mapping i with hash = finalHash i.hash loc })
+          { AstTransformer.transformImpl stabilization.mapping i with
+              hash = finalHash i.hash loc })
         impls2
         implLocations
 
@@ -396,7 +411,54 @@ let parseCliScript
     | Error diagnostics -> return Error diagnostics
     | Ok validated ->
       let! m = declarationsToModule state owner scriptName validated
-      return Ok m
+      // An `impl` whose trait or method fn did not resolve would otherwise vanish:
+      // dispatch only sees resolved candidates, and the first sign would be "no
+      // impl for Point" at the call. Name it here, at the declaration.
+      let implDecls =
+        validated
+        |> Validation.ValidatedSourceFile.toWrittenTypes
+        |> WTSourceFile.items
+        |> List.choose (function
+          | WTSourceFile.Impl(_, impl) -> Some impl
+          | _ -> None)
+      let unresolved =
+        List.zip implDecls m.impls
+        |> List.collect (fun (decl, impl) ->
+          let traitProblem =
+            match impl.trait_.resolved with
+            | Error _ ->
+              let written = String.concat "." impl.trait_.originalName
+              [ ({ code = "RESOLVE-TRAIT"
+                   severity = P.DiagError
+                   range = decl.trait_.range
+                   message = $"Trait `{written}` couldn't be found"
+                   related = []
+                   hint =
+                     Some
+                       "name the trait in full, e.g. `Stdlib.Add`, or declare it above" }
+                : P.Diagnostic) ]
+            | Ok _ -> []
+          let methodProblems =
+            impl.methods
+            |> List.choose (fun (m, nr) ->
+              match nr.resolved with
+              | Error _ ->
+                let written = String.concat "." nr.originalName
+                Some(
+                  { code = "RESOLVE-IMPL-METHOD"
+                    severity = P.DiagError
+                    range = decl.range
+                    message =
+                      $"Method `{m}` names `{written}`, which couldn't be found"
+                    related = []
+                    hint = None }
+                  : P.Diagnostic
+                )
+              | Ok _ -> None)
+          traitProblem @ methodProblems)
+      match unresolved with
+      | [] -> return Ok m
+      | diagnostics -> return Error diagnostics
   }
 
 /// Parse a single expression (the `eval` path): the script lowering with no
@@ -566,6 +628,8 @@ let childState
       tracing = tracing
       program = program
       types = { package = pm.getType }
+      // The script's own traits are grafted onto `pm` too; dispatch reads them here.
+      traits = { trait_ = pm.getTrait }
       values = { parentState.values with package = pm.getValue }
       fns =
         { parentState.fns with
@@ -645,7 +709,11 @@ let execute
 
     let pm =
       pmRT
-      |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns) (branchTraits @ traits)
+      |> PackageManager.withExtras
+        (branchTypes @ types)
+        values
+        (branchFns @ fns)
+        (branchTraits @ traits)
       |> PackageManager.withExtraImpls scriptImpls
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource

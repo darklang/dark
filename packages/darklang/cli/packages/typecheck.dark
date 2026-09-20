@@ -56,6 +56,8 @@ let locationsFor
   | PackageType hash -> LanguageTools.PackageManager.Type.locations branchId hash
   | PackageValue hash -> LanguageTools.PackageManager.Value.locations branchId hash
   | PackageFn hash -> LanguageTools.PackageManager.Function.locations branchId hash
+  | PackageTrait hash -> LanguageTools.PackageManager.Trait.locations branchId hash
+  | PackageImpl hash -> LanguageTools.PackageManager.Impl.locations branchId hash
 
 let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
   let kind =
@@ -63,6 +65,8 @@ let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
     | PackageType _ -> "type"
     | PackageValue _ -> "value"
     | PackageFn _ -> "function"
+    | PackageTrait _ -> "trait"
+    | PackageImpl _ -> "impl"
   let hash =
     LanguageTools.ProgramTypes.hashToShort (
       LanguageTools.ProgramTypes.Reference.hash reference)

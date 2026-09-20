@@ -6,6 +6,8 @@ module ModuleDeclaration =
       types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
       fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
       values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      traits: List<LanguageTools.ProgramTypes.Trait.Trait>
+      impls: List<LanguageTools.ProgramTypes.Impl.Impl>
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
@@ -23,6 +25,8 @@ module ModuleDeclaration =
             types = []
             fns = []
             values = []
+            traits = []
+            impls = []
             exprs = []
             submodules = [] }
 
@@ -50,6 +54,8 @@ module ModuleDeclaration =
               types = [ t ]
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = [] }
 
@@ -62,6 +68,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = withTypeHelper [] t submoduleNames }
 
@@ -99,6 +107,8 @@ module ModuleDeclaration =
             types = [ t ]
             fns = []
             values = []
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
 
@@ -125,6 +135,8 @@ module ModuleDeclaration =
               types = []
               fns = [ f ]
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = [] }
 
@@ -137,6 +149,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = withFnHelper [] f submoduleNames }
 
@@ -174,6 +188,8 @@ module ModuleDeclaration =
             types = []
             fns = [ f ]
             values = []
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
 
@@ -199,6 +215,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = [ v ]
+              traits = []
+              impls = []
               exprs = []
               submodules = [] }
 
@@ -211,6 +229,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = withValueHelper [] v submoduleNames }
 
@@ -248,8 +268,151 @@ module ModuleDeclaration =
             types = []
             fns = []
             values = [ v ]
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
+
+  let withTraitHelper
+    (ms: List<Module>)
+    (t: LanguageTools.ProgramTypes.Trait.Trait)
+    (modulePath: List<String>)
+    : List<Module> =
+    match modulePath with
+    | [] -> ModuleDeclaration.intoRootless ms "trait has no modules" (fun m -> { m with traits = Stdlib.List.append m.traits [ t ] })
+
+    | firstModuleNamePart :: submoduleNames ->
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+      let target =
+        match foundModuleMaybe with
+        | found :: _ -> found
+        | [] ->
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              traits = []
+              impls = []
+              exprs = []
+              submodules = [] }
+
+      let updated =
+        match submoduleNames with
+        | [] -> { target with traits = Stdlib.List.append target.traits [ t ] }
+        | submoduleNames ->
+          { target with submodules = withTraitHelper target.submodules t submoduleNames }
+
+      Stdlib.List.append otherModules [ updated ]
+
+  let withTrait
+    (branchId: Uuid)
+    (ms: List<Module>)
+    (t: LanguageTools.ProgramTypes.Trait.Trait)
+    : List<Module> =
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Trait.locations branchId t.hash) with
+    | Some location -> withTraitHelper ms t location.modules
+    | None ->
+      [ Module
+          { name = "trait with unknown location"
+            types = []
+            fns = []
+            values = []
+            traits = [ t ]
+            impls = []
+            exprs = []
+            submodules = [] } ]
+
+  /// An impl is named at `<module>[.<Type>].<Trait>`; printed at its location it
+  /// would sit inside a module named for the trait, so it prints one level up, where
+  /// the `impl ... for Type` header carries the type. Its method fns are the `let m =
+  /// Fn` lines of that block, so `toModules` leaves them out of the fns.
+  let withImplHelper
+    (ms: List<Module>)
+    (i: LanguageTools.ProgramTypes.Impl.Impl)
+    (modulePath: List<String>)
+    : List<Module> =
+    match modulePath with
+    | [] -> ModuleDeclaration.intoRootless ms "impl has no modules" (fun m -> { m with impls = Stdlib.List.append m.impls [ i ] })
+
+    | firstModuleNamePart :: submoduleNames ->
+      let (foundModuleMaybe, otherModules) =
+        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+      let target =
+        match foundModuleMaybe with
+        | found :: _ -> found
+        | [] ->
+          Module
+            { name = firstModuleNamePart
+              types = []
+              fns = []
+              values = []
+              traits = []
+              impls = []
+              exprs = []
+              submodules = [] }
+
+      let updated =
+        match submoduleNames with
+        | [] -> { target with impls = Stdlib.List.append target.impls [ i ] }
+        | submoduleNames ->
+          { target with submodules = withImplHelper target.submodules i submoduleNames }
+
+      Stdlib.List.append otherModules [ updated ]
+
+  let withImpl
+    (branchId: Uuid)
+    (ms: List<Module>)
+    (i: LanguageTools.ProgramTypes.Impl.Impl)
+    : List<Module> =
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Impl.locations branchId i.hash) with
+    | Some location ->
+      // `<module>[.<Type>].<Trait>` names the impl. Drop the type segment when it
+      // is there: `impl Show for Point` inside `Shapes` re-lowers to
+      // `Shapes.Point.Show` either way, so this always round-trips.
+      let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+      let selfHead =
+        PrettyPrinter.ProgramTypes.typeReference ctx i.self
+        |> Stdlib.String.split "<"
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault ""
+        |> Stdlib.String.split "."
+        |> Stdlib.List.last
+        |> Stdlib.Option.withDefault ""
+      let path =
+        match Stdlib.List.reverse location.modules with
+        | last :: rest when last == selfHead -> Stdlib.List.reverse rest
+        | _ -> location.modules
+      withImplHelper ms i path
+    | None ->
+      [ Module
+          { name = "impl with unknown location"
+            types = []
+            fns = []
+            values = []
+            traits = []
+            impls = [ i ]
+            exprs = []
+            submodules = [] } ]
+
+  /// The fns an impl's `let m = Fn` lines already print
+  let implMethodFnHashes
+    (impls: List<LanguageTools.ProgramTypes.Impl.Impl>)
+    : List<LanguageTools.ProgramTypes.Hash> =
+    impls
+    |> Stdlib.List.map (fun i ->
+      i.methods
+      |> Stdlib.List.filterMap (fun (_, fn) ->
+        match fn.resolved with
+        | Ok resolved ->
+          (match resolved.name with
+           | Package h -> Stdlib.Option.Option.Some h
+           | _ -> Stdlib.Option.Option.None)
+        | Error _ -> Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten
 
 
   let withExpr
@@ -273,6 +436,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = [ (expr, []) ]
               submodules = [] }
 
@@ -285,6 +450,8 @@ module ModuleDeclaration =
               types = []
               fns = []
               values = []
+              traits = []
+              impls = []
               exprs = []
               submodules = withExpr [] (expr, submoduleNames) }
 
@@ -316,18 +483,31 @@ module ModuleDeclaration =
       Stdlib.List.fold p.types empty (fun modules t ->
         ModuleDeclaration.withType branchId modules t)
 
+    // An impl's method fns print as its `let m = Fn` lines, not as fns of their own
+    let implMethods = ModuleDeclaration.implMethodFnHashes p.impls
+    let ownFns =
+      p.fns |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.``member`` implMethods f.hash))
+
     let modulesWithTypesAndFns =
-      Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
+      Stdlib.List.fold ownFns modulesAfterTypes (fun modules f ->
         ModuleDeclaration.withFn branchId modules f)
 
     let modulesWithTypesAndFnsAndValues =
       Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
         ModuleDeclaration.withValue branchId modules v)
 
+    let modulesWithTraits =
+      Stdlib.List.fold p.traits modulesWithTypesAndFnsAndValues (fun modules t ->
+        ModuleDeclaration.withTrait branchId modules t)
+
+    let modulesWithImpls =
+      Stdlib.List.fold p.impls modulesWithTraits (fun modules i ->
+        ModuleDeclaration.withImpl branchId modules i)
+
     let modulesWithTypesAndFnsAndValuesAndExprs =
       Stdlib.List.fold
         p.exprs
-        modulesWithTypesAndFnsAndValues
+        modulesWithImpls
         (fun modules e ->
           // Same rule as the declarations above: the owner is not a module. An expr's path arrives
           // from the parser owner-first, so drop that segment before nesting it.
@@ -376,6 +556,24 @@ let moduleDeclaration
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
+  let traitsPart =
+    match m.traits with
+    | [] -> Stdlib.Option.Option.None
+    | traits ->
+      traits
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageTrait ctx t)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let implsPart =
+    match m.impls with
+    | [] -> Stdlib.Option.Option.None
+    | impls ->
+      impls
+      |> Stdlib.List.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
   let exprsPart =
     match m.exprs with
     | [] -> Stdlib.Option.Option.None
@@ -396,7 +594,7 @@ let moduleDeclaration
       |> Stdlib.Option.Option.Some
 
   let parts =
-    [ typesPart, fnsPart, valuesPart, exprsPart, submodulesPart ]
+    [ typesPart, traitsPart, fnsPart, valuesPart, implsPart, exprsPart, submodulesPart ]
     |> Stdlib.List.filterMap (fun s -> s)
 
   match parts with

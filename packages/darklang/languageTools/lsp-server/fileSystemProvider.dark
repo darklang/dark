@@ -100,6 +100,8 @@ module ReadFile =
               { types = results.types |> Stdlib.List.map (fun found -> found.entity)
                 fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
                 values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                traits = results.traits |> Stdlib.List.map (fun found -> found.entity)
+                impls = results.impls |> Stdlib.List.map (fun found -> found.entity)
                 exprs = [] }
 
           // The owner is not a module, so a package's items fan out into several top-level
@@ -125,6 +127,8 @@ module WriteFile =
     | Type t -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Type t
     | Function f -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Function f
     | Value v -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Value v
+    | Trait t -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Trait t
+    | Impl i -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Impl i
     | Module m -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.SubModule m
 
 
@@ -243,6 +247,31 @@ module WriteFile =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
               LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
+    | Trait traitDecl ->
+      let (packageTrait, ops, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx traitDecl
+      LoweredDecl
+        { location = locationOf traitDecl.name.name
+          kind = LanguageTools.ProgramTypes.ItemKind.Trait
+          ops = ops
+          unresolvedNames = unresolvedNames }
+    // The impl's ops carry its method fns too; `isNewLocation` asks about the impl
+    | Impl implDecl ->
+      let (packageImpl, _fns, ops, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.implWithOps ctx implDecl
+      let memberPath =
+        LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath modules implDecl
+      let location =
+        match Stdlib.List.reverse memberPath with
+        | name :: revModules ->
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = owner; modules = Stdlib.List.reverse revModules; name = name }
+        | [] -> locationOf implDecl.trait_.typ.name
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.Impl
+          ops = ops
+          unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _
     | Expr _ ->
@@ -265,6 +294,10 @@ module WriteFile =
       | Type -> pm.findType (branchId, location) |> Stdlib.Option.isSome
       | Fn -> pm.findFn (branchId, location) |> Stdlib.Option.isSome
       | Value -> pm.findValue (branchId, location) |> Stdlib.Option.isSome
+      | Trait -> pm.findTrait (branchId, location) |> Stdlib.Option.isSome
+      // The PM record carries no impl lookup; `pm` here is the persistent one anyway
+      | Impl ->
+        LanguageTools.PackageManager.Impl.find branchId location |> Stdlib.Option.isSome
     Stdlib.Bool.not existing
 
 
@@ -428,6 +461,8 @@ module WriteFile =
                   { types = results.types |> Stdlib.List.map (fun found -> found.entity)
                     fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
                     values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                    traits = results.traits |> Stdlib.List.map (fun found -> found.entity)
+                    impls = results.impls |> Stdlib.List.map (fun found -> found.entity)
                     exprs = [] }
 
               // As above: every top-level module, not just the first.

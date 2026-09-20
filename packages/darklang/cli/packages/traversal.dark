@@ -54,6 +54,8 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
   | Type t -> Stdlib.List.append [t.owner] t.modules
   | Value v -> Stdlib.List.append [v.owner] v.modules
   | Function f -> Stdlib.List.append [f.owner] f.modules
+  | Trait t -> Stdlib.List.append [t.owner] t.modules
+  | Impl i -> Stdlib.List.append [i.owner] i.modules
 
 
 let applySegment
@@ -82,6 +84,12 @@ let applySegment
       let parentModules = Stdlib.List.append [name.owner] name.modules
       Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
     | Function name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Trait name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Impl name ->
       let parentModules = Stdlib.List.append [name.owner] name.modules
       Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
 
@@ -118,12 +126,18 @@ let resolveEntity
         match entityResults.values with
         | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
         | [] ->
-          // The path, not just "Not found": that same sentence otherwise covers a
-          // typo, an unauthored name, and a path resolved from somewhere unexpected.
-          let looked =
-            Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+          match entityResults.traits with
+          | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Trait item.location)
+          | [] ->
+            match entityResults.impls with
+            | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Impl item.location)
+            | [] ->
+              // The path, not just "Not found": that same sentence otherwise covers a
+              // typo, an unauthored name, and a path resolved from somewhere unexpected.
+              let looked =
+                Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
 
-          Stdlib.Result.Result.Error $"Not found: {looked}"
+              Stdlib.Result.Result.Error $"Not found: {looked}"
 
 
 let applyPath
@@ -183,7 +197,7 @@ let getAvailableItems
   let currentPath = getCurrentModulePath location
   // Names only: completion shows a name and an icon, and materializing each item's full definition to
   // read `.location.name` was the single worst hitch while typing (115 ms at the store root).
-  let (submoduleNames, typeNames, valueNames, fnNames) =
+  let (submoduleNames, typeNames, valueNames, fnNames, traitNames, implNames) =
     Query.allDirectDescendantNames branchId currentPath
 
   let moduleItems =
@@ -202,7 +216,16 @@ let getAvailableItems
     valueNames
     |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Value name)
 
-  let flatItems = Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems]
+  let traitItems =
+    traitNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Trait name)
+
+  let implItems =
+    implNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Impl name)
+
+  let flatItems =
+    Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems, traitItems, implItems]
   let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
 
   // Primary results: filter by prefix if we have search text

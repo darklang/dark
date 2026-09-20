@@ -279,6 +279,14 @@ let detailLines (state: State) : List<String> =
           match results.types with
           | i :: _ -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
           | [] -> ("(not found)", [])
+        | "trait" ->
+          match results.traits with
+          | i :: _ -> (PrettyPrinter.ProgramTypes.packageTrait ctx i.entity, [])
+          | [] -> ("(not found)", [])
+        | "impl" ->
+          match results.impls with
+          | i :: _ -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
+          | [] -> ("(not found)", [])
         | _ ->
           match results.values with
           | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
@@ -403,12 +411,19 @@ let itemMeta (state: State) : String =
       let hashOpt =
         if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
         else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
         else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
       let short =
         match hashOpt with
         | Some h -> LanguageTools.ProgramTypes.hashToShort h
         | None -> "?"
-      let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
+      let kindLabel =
+        if item.kind == "fn" then "fn"
+        else if item.kind == "type" then "type"
+        else if item.kind == "trait" then "trait"
+        else if item.kind == "impl" then "impl"
+        else "value"
       // Real deprecation status (same read path as the tree badge).
       let deprecation =
         match hashOpt with

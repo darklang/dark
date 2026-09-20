@@ -16,6 +16,8 @@ let sfDeclToModuleDecl
     LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Function fn
   | Value value ->
     LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Value value
+  | Trait t -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Trait t
+  | Impl i -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Impl i
   | Module modul ->
     LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
 
@@ -43,6 +45,11 @@ let declarationName
   | Type typ -> Stdlib.Option.Option.Some typ.name.name
   | Function fn -> Stdlib.Option.Option.Some fn.name.name
   | Value value -> Stdlib.Option.Option.Some value.name.name
+  | Trait t -> Stdlib.Option.Option.Some t.name.name
+  // An impl's location is `<Type>.<Trait>` beneath the module it is written in
+  | Impl i ->
+    Stdlib.Option.Option.Some
+      ($"{LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.typeReferenceHeadName i.forType}.{i.trait_.typ.name}")
   | SubModule modul ->
     Stdlib.Option.Option.Some (Stdlib.Tuple2.second modul.name)
   | Expr _ -> Stdlib.Option.Option.None
@@ -103,6 +110,10 @@ let updatedItems
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Value
     | SetName(location, PackageFn hash, _) ->
       updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Fn
+    | SetName(location, PackageTrait hash, _) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Trait
+    | SetName(location, PackageImpl hash, _) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Impl
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -253,12 +264,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               // `declarationName` returns an Option, so unwrap with filterMap before comparing:
               // `List.member` against a list of Options silently never matches, which would report
               // every declaration as missing.
+              // An impl's declaration name is `<Type>.<Trait>`; its SetName carries the
+              // trait as the location's name, so compare on the last segment.
               let missing =
                 declarations
                 |> Stdlib.List.filterMap (fun d ->
                   declarationName (Stdlib.Tuple2.second d))
                 |> Stdlib.List.filter (fun n ->
-                  Stdlib.Bool.not (Stdlib.List.member definedNames n))
+                  let leaf =
+                    Stdlib.String.split n "." |> Stdlib.List.last |> Stdlib.Option.withDefault n
+                  Stdlib.Bool.not (Stdlib.List.member definedNames leaf))
 
               if Stdlib.List.isEmpty missing then
                 ()

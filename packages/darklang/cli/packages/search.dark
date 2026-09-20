@@ -206,6 +206,8 @@ val argSpec =
         [ ("--type", [])
           ("--fn", [ "--function" ])
           ("--val", [ "--value" ])
+          ("--trait", [])
+          ("--impl", [])
           ("--batch", [])
           ("--exact", [])
           ("--shallow", [])
@@ -232,6 +234,14 @@ let parseArgs (args: List<String>) : ParsedArgs =
         Stdlib.List.append
           acc
           [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+      | "--trait" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+      | "--impl" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.Impl ]
       | _ -> acc)
 
   ParsedArgs
@@ -247,7 +257,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
 
 
 val usage =
-  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -282,6 +292,25 @@ let jsonOutput
           ("kind", Stdlib.AltJson.Json.String "value")
           ("signature", Stdlib.AltJson.Json.String "") ])
 
+  let traitRows =
+    results.traits
+    |> Stdlib.List.map (fun item ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "trait")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
+  let implRows =
+    results.impls
+    |> Stdlib.List.map (fun item ->
+      let ctx = contextFor branchId item
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "impl")
+          ("signature",
+           Stdlib.AltJson.Json.String(
+             $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}")) ])
+
   let moduleRows =
     results.submodules
     |> Stdlib.List.map (fun modulePath ->
@@ -295,7 +324,7 @@ let jsonOutput
       [ ("query", Stdlib.AltJson.Json.String queryText)
         ("results",
          Stdlib.AltJson.Json.Array(
-           Stdlib.List.flatten [ fnRows, typeRows, valueRows, moduleRows ]
+           Stdlib.List.flatten [ fnRows, typeRows, valueRows, traitRows, implRows, moduleRows ]
          )) ]
   )
 
@@ -369,6 +398,8 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           (Stdlib.List.length results.types)
           + (Stdlib.List.length results.values)
           + (Stdlib.List.length results.fns)
+          + (Stdlib.List.length results.traits)
+          + (Stdlib.List.length results.impls)
           + submodulesCount
 
         if parsed.asJson then
@@ -401,7 +432,9 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             [ ($"{Stdlib.Int.toString moduleRank}4", "module")
               ($"{Stdlib.Int.toString (bestItemRank queryText results.types)}1", "type")
               ($"{Stdlib.Int.toString (bestItemRank queryText results.values)}2", "value")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.fns)}3", "function") ]
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.fns)}3", "function")
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.traits)}0", "trait")
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.impls)}5", "impl") ]
 
           let order =
             sectionKeys
@@ -432,6 +465,17 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 let ctx = contextFor state.currentBranchId item
                 let defn = Signatures.formatType ctx (fullPathOf item) item.entity
                 withOptionalDoc parsed.withDocs $"{defn}{mark}" item.entity.description)
+            | "trait" ->
+              renderSection "trait" queryText resultCap results.traits (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
+            | "impl" ->
+              renderSection "impl" queryText resultCap results.impls (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                let ctx = contextFor state.currentBranchId item
+                let header =
+                  $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}"
+                withOptionalDoc parsed.withDocs $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText header}{mark}" item.entity.description)
             | "module" ->
               if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
                 Stdlib.printLine (Display.getSectionHeader "module")
@@ -543,7 +587,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--batch", "--type", "--fn", "--val", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
+      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

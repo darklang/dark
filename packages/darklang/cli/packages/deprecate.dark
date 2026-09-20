@@ -71,6 +71,14 @@ let resolveTarget
         Stdlib.Option.Option.Some
           (LanguageTools.ProgramTypes.Reference.PackageValue h)
       | None -> Stdlib.Option.Option.None
+    | Trait ->
+      match LanguageTools.PackageManager.Trait.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTrait h)
+      | None -> Stdlib.Option.Option.None
+    | Impl ->
+      match LanguageTools.PackageManager.Impl.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageImpl h)
+      | None -> Stdlib.Option.Option.None
   | Error _ -> Stdlib.Option.Option.None
 
 

@@ -270,7 +270,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     findByLocationFn "pmFindTrait" "trait" PMPT.Trait.find (fun branchPM loc ->
       branchPM.findTrait loc)
 
-    getByHashFn "pmGetTrait" "trait" PT2DT.Trait.typeName pm.getTrait PT2DT.Trait.toDT
+    getByHashFn
+      "pmGetTrait"
+      "trait"
+      PT2DT.Trait.typeName
+      pm.getTrait
+      PT2DT.Trait.toDT
 
     findByLocationFn "pmFindImpl" "impl" PMPT.Impl.find (fun branchPM loc ->
       branchPM.findImpl loc)
@@ -282,7 +287,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "pmImplCandidates" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid "The branch whose bindings decide what is visible"
+        [ Param.make
+            "branchId"
+            TUuid
+            "The branch whose bindings decide what is visible"
           Param.make
             "traitHash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
@@ -297,7 +305,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let (PT.Hash h) = PT2DT.Hash.fromDT traitHash
             let! candidates =
-              exeState.fns.implCandidates (LibExecution.Branching.BranchId.Id branchId) (LibExecution.RuntimeTypes.Hash h)
+              exeState.fns.implCandidates
+                (LibExecution.Branching.BranchId.Id branchId)
+                (LibExecution.RuntimeTypes.Hash h)
             return
               DList(
                 VT.known (RT2DT.ImplCandidate.knownType ()),
@@ -495,11 +505,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             (TCustomType(NR.ok (PT2DT.Search.SearchQuery.typeName ()), []))
             "" ]
       returnType =
-        TTuple(TList TString, TList TString, [ TList TString; TList TString ])
+        TTuple(
+          TList TString,
+          TList TString,
+          [ TList TString; TList TString; TList TString; TList TString ]
+        )
       description =
-        "Search, returning only names: (direct submodules, types, values, fns). "
-        + "Submodules are already reduced to the direct children of the query's "
-        + "module and sorted."
+        "Search, returning only names: (direct submodules, types, values, fns, "
+        + "traits, impls). Submodules are already reduced to the direct children of "
+        + "the query's module and sorted."
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
@@ -518,7 +532,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               DTuple(
                 toDList submodules,
                 toDList (names results.types),
-                [ toDList (names results.values); toDList (names results.fns) ]
+                [ toDList (names results.values)
+                  toDList (names results.fns)
+                  toDList (names results.traits)
+                  toDList (names results.impls) ]
               )
           }
         | _ -> incorrectArgs ()
@@ -539,11 +556,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType =
         let nameAndHash =
           TList(TTuple(TString, TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), []))
-        TTuple(TList TString, nameAndHash, [ nameAndHash; nameAndHash ])
+        TTuple(
+          TList TString,
+          nameAndHash,
+          [ nameAndHash; nameAndHash; nameAndHash; nameAndHash ]
+        )
       description =
-        "Search, returning (direct submodules, types, values, fns) as (name, "
-        + "hash) pairs. Like pmSearchNames but keeps each item's hash, which "
-        + "listings need for deprecation marks."
+        "Search, returning (direct submodules, types, values, fns, traits, impls) "
+        + "as (name, hash) pairs. Like pmSearchNames but keeps each item's hash, "
+        + "which listings need for deprecation marks."
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
@@ -577,7 +598,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 pairs results.types (fun (t : PT.PackageType.PackageType) -> t.hash),
                 [ pairs results.values (fun (v : PT.PackageValue.PackageValue) ->
                     v.hash)
-                  pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash) ]
+                  pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash)
+                  pairs results.traits (fun (t : PT.Trait.Trait) -> t.hash)
+                  pairs results.impls (fun (i : PT.Impl.Impl) -> i.hash) ]
               )
           }
         | _ -> incorrectArgs ()

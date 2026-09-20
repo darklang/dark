@@ -60,6 +60,10 @@ let addedHashes (ops: List<LanguageTools.ProgramTypes.PackageOp>) : List<String>
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString v.hash)
     | AddFn f ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString f.hash)
+    | AddTrait t ->
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
+    | AddImpl i ->
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString i.hash)
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -88,6 +92,8 @@ let surgicallyUndoable
   | AddType _ -> true
   | AddValue _ -> true
   | AddFn _ -> true
+  | AddTrait _ -> true
+  | AddImpl _ -> true
   | SetName(_, target, _) ->
     Stdlib.List.``member`` added (referenceHash target)
   | Decision(_, _, _, Override _) -> true

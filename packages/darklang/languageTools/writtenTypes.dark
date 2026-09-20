@@ -452,6 +452,8 @@ module ModuleDeclaration =
     | Type of TypeDeclaration.TypeDeclaration
     | Function of FnDeclaration.FnDeclaration
     | Value of ValueDeclaration.ValueDeclaration
+    | Trait of TraitDeclaration.TraitDeclaration
+    | Impl of ImplDeclaration.ImplDeclaration
     | SubModule of ModuleDeclaration.ModuleDeclaration
     // TODO: handle http handler and db
     | Expr of Expr
@@ -569,11 +571,59 @@ module FnDeclaration =
       symbolEquals: Range }
 
 
+/// `trait Show<'a> = <method signatures>`
+module TraitDeclaration =
+  type Method =
+    { range: Range
+      name: FnIdentifier
+      typeParams: List<(Range * String)>
+      bounds: List<TypeParamBound>
+      parameters: List<FnDeclaration.Parameter>
+      effects: Option<List<(Range * String)>>
+      returnType: TypeReference.TypeReference
+      description: String
+      keywordLet: Range
+      symbolColon: Range }
+
+  type TraitDeclaration =
+    { range: Range
+      name: TypeIdentifier
+      typeParams: List<(Range * String)>
+      bounds: List<TypeParamBound>
+      methods: List<Method>
+      description: String
+      keywordTrait: Range
+      symbolEquals: Range }
+
+
+/// `impl[<'a: B>] Trait<Args> for Type = <method fns or aliases>`
+module ImplDeclaration =
+  type Member =
+    /// A full fn declaration in the block
+    | Method of FnDeclaration.FnDeclaration
+    /// `let name = Existing.fn`: the method is a fn that already exists
+    | Alias of ValueDeclaration.ValueDeclaration
+
+  type ImplDeclaration =
+    { range: Range
+      typeParams: List<(Range * String)>
+      bounds: List<TypeParamBound>
+      trait_: QualifiedTypeIdentifier
+      forType: TypeReference.TypeReference
+      members: List<Member>
+      description: String
+      keywordImpl: Range
+      keywordFor: Range
+      symbolEquals: Range }
+
+
 module SourceFile =
   type SourceFileDeclaration =
     | Type of TypeDeclaration.TypeDeclaration
     | Function of FnDeclaration.FnDeclaration
     | Value of ValueDeclaration.ValueDeclaration
+    | Trait of TraitDeclaration.TraitDeclaration
+    | Impl of ImplDeclaration.ImplDeclaration
     | Module of ModuleDeclaration.ModuleDeclaration
 
   type SourceFile =

@@ -311,20 +311,43 @@ module TypeReference =
         unresolvedNames)
 
 
+module TraitRef =
+  /// `Show<Int>` naming a trait: the trait resolves like a type name would, from
+  /// the current module, but against the trait bindings.
+  let toPT
+    (ctx: NameResolver.NRContext)
+    (i: WrittenTypes.QualifiedTypeIdentifier)
+    : (ProgramTypes.TraitRef * List<WrittenTypes.UnresolvedName>)
+    =
+    let (typeArgs, typeArgsUnresolvedNames) =
+      i.typeArgs |> Stdlib.List.map (fun t -> TypeReference.toPT ctx t) |> Stdlib.List.unzip
+    let nameToResolve =
+      Stdlib.List.append
+        (Stdlib.List.map i.modules (fun (m, _) -> m.name))
+        [ i.typ.name ]
+    let traitName =
+      NameResolver.TraitName.resolve
+        ctx
+        (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+    let unresolvedNames =
+      match traitName.resolved with
+      | Error e ->
+        Stdlib.List.flatten
+          [ typeArgsUnresolvedNames |> Stdlib.List.flatten
+            [ (i.range, traitName.originalName, e) ] ]
+      | _ -> typeArgsUnresolvedNames |> Stdlib.List.flatten
+    (ProgramTypes.TraitRef { trait_ = traitName; typeArgs = typeArgs }, unresolvedNames)
+
+
 module Bound =
-  /// `'a: Show<Int>`: the trait resolves like any custom type reference
+  /// `'a: Show<Int>`
   let toPT
     (ctx: NameResolver.NRContext)
     (b: WrittenTypes.TypeParamBound)
     : (ProgramTypes.Bound * List<WrittenTypes.UnresolvedName>)
     =
-    let (typeName, typeArgs, unresolvedNames) =
-      Identifiers.QualifiedType.toPT ctx b.trait_
-
-    (ProgramTypes.Bound
-      { param = b.param
-        trait_ = ProgramTypes.TraitRef { trait_ = typeName; typeArgs = typeArgs } },
-      unresolvedNames)
+    let (traitRef, unresolvedNames) = TraitRef.toPT ctx b.trait_
+    (ProgramTypes.Bound { param = b.param; trait_ = traitRef }, unresolvedNames)
 
   let listToPT
     (ctx: NameResolver.NRContext)
@@ -1201,6 +1224,8 @@ module ModuleDeclaration =
         { types = []
           values = []
           fns = []
+          traits = []
+          impls = []
           exprs = [] }
 
     submodules
@@ -1209,6 +1234,8 @@ module ModuleDeclaration =
         { types = acc.types |> Stdlib.List.append m.types
           values = acc.values |> Stdlib.List.append m.values
           fns = acc.fns |> Stdlib.List.append m.fns
+          traits = acc.traits |> Stdlib.List.append m.traits
+          impls = acc.impls |> Stdlib.List.append m.impls
           exprs = acc.exprs |> Stdlib.List.append m.exprs })
 
 
@@ -1499,6 +1526,261 @@ module FunctionDeclaration =
         body = body },
       unresolvedNames)
 
+
+
+/// `trait Show<'a> = let show (v: 'a) : String` as its own package item. Mirrors
+/// the F# `WT2PT.Trait.toPT`: methods carry signatures only.
+module TraitDeclaration =
+  module Method =
+    let toPT
+      (ctx: NameResolver.NRContext)
+      (m: WrittenTypes.TraitDeclaration.Method)
+      : (ProgramTypes.Trait.Method * List<WrittenTypes.UnresolvedName>)
+      =
+      let (params, prUnresolved) =
+        m.parameters
+        |> Stdlib.List.map (fun p ->
+          FunctionDeclaration.Parameter.toPackageFnParamPT ctx p)
+        |> Stdlib.List.unzip
+
+      let (rtyp, rtUnresolved) = TypeReference.toPT ctx m.returnType
+
+      let unresolvedNames =
+        Stdlib.List.flatten [ prUnresolved |> Stdlib.List.flatten, rtUnresolved ]
+
+      (ProgramTypes.Trait.Method
+        { name = m.name.name
+          typeParams = m.typeParams |> Stdlib.List.map (fun (_, n) -> n)
+          parameters = params
+          returnType = rtyp
+          permissionCeiling =
+            m.effects
+            |> Stdlib.Option.map (fun names ->
+              names
+              |> Stdlib.List.filterMap (fun (_range, case) ->
+                LanguageTools.Permissions.effectOfCase case))
+          description = m.description },
+        unresolvedNames)
+
+  let toPT
+    (ctx: NameResolver.NRContext)
+    (t: WrittenTypes.TraitDeclaration.TraitDeclaration)
+    : (ProgramTypes.Trait.Trait * List<WrittenTypes.UnresolvedName>)
+    =
+    let (bounds, boundUnresolved) = Bound.listToPT ctx t.bounds
+
+    let (methods, methodUnresolved) =
+      t.methods |> Stdlib.List.map (fun m -> Method.toPT ctx m) |> Stdlib.List.unzip
+
+    let typeParams =
+      match t.typeParams with
+      | [] -> [ "a" ]
+      | ps -> ps |> Stdlib.List.map (fun (_, n) -> n)
+
+    (ProgramTypes.Trait.Trait
+      { hash = ProgramTypes.Hash.Hash ""
+        typeParams = typeParams
+        bounds = bounds
+        methods = methods
+        description = t.description },
+      Stdlib.List.flatten [ boundUnresolved, methodUnresolved |> Stdlib.List.flatten ])
+
+
+/// `impl[<'a: B>] Trait<Args> for Type = ...` as its own package item at
+/// `<module>[.<Type>].<Trait>`, with the block's method fns as ordinary fns
+/// beneath it. Mirrors the F# `SourceFile.items` + `WT2PT.Impl.toPT`.
+module ImplDeclaration =
+  /// The head name of the self type, for the impl's member path
+  let typeReferenceHeadName (t: WrittenTypes.TypeReference.TypeReference) : String =
+    match t with
+    | QualifiedName qti -> qti.typ.name
+    | Builtin b ->
+      match b with
+      | TUnit _ -> "Unit"
+      | TBool _ -> "Bool"
+      | TInt _ -> "Int"
+      | TInt8 _ -> "Int8"
+      | TUInt8 _ -> "UInt8"
+      | TInt16 _ -> "Int16"
+      | TUInt16 _ -> "UInt16"
+      | TInt32 _ -> "Int32"
+      | TUInt32 _ -> "UInt32"
+      | TInt64 _ -> "Int64"
+      | TUInt64 _ -> "UInt64"
+      | TInt128 _ -> "Int128"
+      | TUInt128 _ -> "UInt128"
+      | TFloat _ -> "Float"
+      | TChar _ -> "Char"
+      | TString _ -> "String"
+      | TDateTime _ -> "DateTime"
+      | TUuid _ -> "Uuid"
+      | TBlob _ -> "Blob"
+      | TStream(_, _, _, _, _) -> "Stream"
+      | TList(_, _, _, _, _) -> "List"
+      | TDict(_, _, _, _, _, _, _) -> "Dict"
+      | TTuple(_, _, _, _, _, _, _) -> "Tuple"
+      | TFn(_, _, _) -> "Fn"
+      | TDB(_, _, _, _, _) -> "DB"
+      | TVariable(_, _, (_, name)) -> name
+
+  /// The impl's own module path: `<module>[.<Type>].<Trait>`, the type segment
+  /// dropped when the module is already named for the type.
+  let memberPath
+    (currentModule: List<String>)
+    (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
+    : List<String> =
+    let typeName = typeReferenceHeadName implDecl.forType
+    let withType =
+      match Stdlib.List.last currentModule with
+      | Some last when last == typeName -> currentModule
+      | _ -> Stdlib.List.append currentModule [ typeName ]
+    Stdlib.List.append withType [ implDecl.trait_.typ.name ]
+
+  /// The method fns declared in the block, with the impl's type params and
+  /// bounds prepended (a conditional impl's methods are generic over them).
+  let methodFns
+    (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
+    : List<WrittenTypes.FnDeclaration.FnDeclaration> =
+    implDecl.members
+    |> Stdlib.List.filterMap (fun m ->
+      match m with
+      | Method f ->
+        Stdlib.Option.Option.Some
+          { f with
+              typeParams = Stdlib.List.append implDecl.typeParams f.typeParams
+              bounds = Stdlib.List.append implDecl.bounds f.bounds }
+      | Alias _ -> Stdlib.Option.Option.None)
+
+  /// Each member as (method name, the fn name to resolve): a method declared in
+  /// the block resolves from the impl's own module; an alias names its target.
+  let methodTargets
+    (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
+    : List<(String * List<String>)> =
+    implDecl.members
+    |> Stdlib.List.map (fun m ->
+      match m with
+      | Method f -> (f.name.name, [ f.name.name ])
+      | Alias a ->
+        let target =
+          match a.body with
+          | EFnName(_, q) ->
+            Stdlib.List.append
+              (q.modules |> Stdlib.List.map (fun (m, _) -> m.name))
+              [ q.fn.name ]
+          | EVariable(_, n) -> [ n ]
+          | _ -> [ a.name.name ]
+        (a.name.name, target))
+
+  /// Lower the impl item itself. <param ctx> is the impl's OWN module (its member
+  /// path), which is where declared methods resolve from.
+  let toPT
+    (ctx: NameResolver.NRContext)
+    (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
+    : (ProgramTypes.Impl.Impl * List<WrittenTypes.UnresolvedName>)
+    =
+    let (traitRef, traitUnresolved) = TraitRef.toPT ctx implDecl.trait_
+    let (self, selfUnresolved) = TypeReference.toPT ctx implDecl.forType
+    let (bounds, boundUnresolved) = Bound.listToPT ctx implDecl.bounds
+
+    let (methods, methodUnresolved) =
+      methodTargets implDecl
+      |> Stdlib.List.map (fun (name, target) ->
+        let fn =
+          NameResolver.FnName.resolve
+            ctx
+            (WrittenTypes.Name.Unresolved(implDecl.range, target))
+        let unresolved =
+          match fn.resolved with
+          | Error e -> [ (implDecl.range, fn.originalName, e) ]
+          | Ok _ -> []
+        ((name, fn), unresolved))
+      |> Stdlib.List.unzip
+
+    (ProgramTypes.Impl.Impl
+      { hash = ProgramTypes.Hash.Hash ""
+        trait_ = traitRef.trait_
+        traitTypeArgs = traitRef.typeArgs
+        self = self
+        typeParams = implDecl.typeParams |> Stdlib.List.map (fun (_, n) -> n)
+        bounds = bounds
+        methods = methods
+        description = implDecl.description },
+      Stdlib.List.flatten
+        [ traitUnresolved
+          selfUnresolved
+          boundUnresolved
+          methodUnresolved |> Stdlib.List.flatten ])
+
+
+/// A trait declaration's item, ops and unresolved names, at the context's module
+let traitWithOps
+  (ctx: NameResolver.NRContext)
+  (t: WrittenTypes.TraitDeclaration.TraitDeclaration)
+  : (ProgramTypes.Trait.Trait *
+    List<ProgramTypes.PackageOp> *
+    List<WrittenTypes.UnresolvedName>)
+  =
+  let traitName = t.name.name
+  let (pt, unresolvedNames) = TraitDeclaration.toPT ctx t
+  let pt = { pt with hash = locationPlaceholderHash ctx.owner ctx.currentModule traitName }
+  let location =
+    ProgramTypes.PackageLocation
+      { owner = ctx.owner; modules = ctx.currentModule; name = traitName }
+  let ops =
+    [ ProgramTypes.PackageOp.AddTrait pt
+      ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageTrait pt.hash, Stdlib.Option.Option.None) ]
+  (pt, ops, unresolvedNames)
+
+
+/// An impl declaration's item, its method fns, their ops and unresolved names.
+/// The fns come first in the ops so the impl's method targets can bind to them.
+let implWithOps
+  (ctx: NameResolver.NRContext)
+  (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
+  : (ProgramTypes.Impl.Impl *
+    List<ProgramTypes.PackageFn.PackageFn> *
+    List<ProgramTypes.PackageOp> *
+    List<WrittenTypes.UnresolvedName>)
+  =
+  let memberPath = ImplDeclaration.memberPath ctx.currentModule implDecl
+  let implCtx = { ctx with currentModule = memberPath }
+
+  let fnResults =
+    ImplDeclaration.methodFns implDecl
+    |> Stdlib.List.map (fun f ->
+      let fnName = f.name.name
+      let (pf, unresolvedNames) = FunctionDeclaration.toPackageFnPT implCtx f
+      let pf = { pf with hash = locationPlaceholderHash ctx.owner memberPath fnName }
+      let location =
+        ProgramTypes.PackageLocation
+          { owner = ctx.owner; modules = memberPath; name = fnName }
+      let ops =
+        [ ProgramTypes.PackageOp.AddFn pf
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
+      (pf, ops, unresolvedNames))
+
+  let fns = fnResults |> Stdlib.List.map (fun (f, _, _) -> f)
+  let fnOps = fnResults |> Stdlib.List.map (fun (_, ops, _) -> ops) |> Stdlib.List.flatten
+  let fnUnresolved =
+    fnResults |> Stdlib.List.map (fun (_, _, u) -> u) |> Stdlib.List.flatten
+
+  let (pi, implUnresolved) = ImplDeclaration.toPT implCtx implDecl
+
+  let (implModules, implName) =
+    match Stdlib.List.reverse memberPath with
+    | name :: revModules -> (Stdlib.List.reverse revModules, name)
+    | [] -> ([], implDecl.trait_.typ.name)
+
+  let pi = { pi with hash = locationPlaceholderHash ctx.owner implModules implName }
+  let location =
+    ProgramTypes.PackageLocation
+      { owner = ctx.owner; modules = implModules; name = implName }
+  let implOps =
+    [ ProgramTypes.PackageOp.AddImpl pi
+      ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageImpl pi.hash, Stdlib.Option.Option.None) ]
+
+  (pi, fns, Stdlib.List.append fnOps implOps, Stdlib.List.append fnUnresolved implUnresolved)
+
 // Process a module declaration and generate both the Definitions and PackageOps
 let moduleDeclarationWithOpsHelper
   (ctx: NameResolver.NRContext)
@@ -1597,6 +1879,34 @@ let moduleDeclarationWithOpsHelper
   let fnUnresolvedNames =
     fnResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
 
+  // Process traits
+  let traitResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Trait t -> Stdlib.Option.Option.Some(traitWithOps ctx t)
+      | _ -> Stdlib.Option.Option.None)
+
+  let traits = traitResults |> Stdlib.List.map (fun (t, _, _) -> t)
+  let traitOps = traitResults |> Stdlib.List.map (fun (_, ops, _) -> ops)
+  let traitUnresolvedNames =
+    traitResults |> Stdlib.List.map (fun (_, _, unresolved) -> unresolved)
+
+  // Process impls: the item plus its method fns, which live beneath it
+  let implResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Impl i -> Stdlib.Option.Option.Some(implWithOps ctx i)
+      | _ -> Stdlib.Option.Option.None)
+
+  let impls = implResults |> Stdlib.List.map (fun (i, _, _, _) -> i)
+  let implFns =
+    implResults |> Stdlib.List.map (fun (_, fns, _, _) -> fns) |> Stdlib.List.flatten
+  let implOps = implResults |> Stdlib.List.map (fun (_, _, ops, _) -> ops)
+  let implUnresolvedNames =
+    implResults |> Stdlib.List.map (fun (_, _, _, unresolved) -> unresolved)
+
   // Process expressions
   let (exprs, exprUnresolvedNames) =
     m.declarations
@@ -1642,7 +1952,12 @@ let moduleDeclarationWithOpsHelper
   // Combine everything
   let allTypes = Stdlib.List.append types combinedSubmoduleDefs.types
   let allValues = Stdlib.List.append values combinedSubmoduleDefs.values
-  let allFns = Stdlib.List.append fns combinedSubmoduleDefs.fns
+  // Impl method fns last, so the written fns (direct, then nested) still line up
+  // positionally with the lowered ones for the LSP's source mapping
+  let allFns =
+    Stdlib.List.flatten [ fns, combinedSubmoduleDefs.fns, implFns ]
+  let allTraits = Stdlib.List.append traits combinedSubmoduleDefs.traits
+  let allImpls = Stdlib.List.append impls combinedSubmoduleDefs.impls
   let allExprs = Stdlib.List.append exprs combinedSubmoduleDefs.exprs
 
   let allOps =
@@ -1650,6 +1965,8 @@ let moduleDeclarationWithOpsHelper
       [ typeOps |> Stdlib.List.flatten
         valueOps |> Stdlib.List.flatten
         fnOps |> Stdlib.List.flatten
+        traitOps |> Stdlib.List.flatten
+        implOps |> Stdlib.List.flatten
         submoduleOps |> Stdlib.List.flatten ]
 
   let allUnresolvedNames =
@@ -1657,6 +1974,8 @@ let moduleDeclarationWithOpsHelper
       [ typeUnresolvedNames |> Stdlib.List.flatten
         valueUnresolvedNames |> Stdlib.List.flatten
         fnUnresolvedNames |> Stdlib.List.flatten
+        traitUnresolvedNames |> Stdlib.List.flatten
+        implUnresolvedNames |> Stdlib.List.flatten
         exprUnresolvedNames |> Stdlib.List.flatten
         submoduleUnresolvedNames |> Stdlib.List.flatten ]
 
@@ -1665,6 +1984,8 @@ let moduleDeclarationWithOpsHelper
       { types = allTypes
         values = allValues
         fns = allFns
+        traits = allTraits
+        impls = allImpls
         exprs = allExprs }
 
   (defs, allOps, allUnresolvedNames)
@@ -1731,6 +2052,16 @@ let declarationsToPT
         ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn f.hash, Stdlib.Option.Option.None) ]
 
     (ProgramTypes.SourceFile.Declaration.Function f, ops, unresolvedNames)
+
+  | Trait t ->
+    let (t, ops, unresolvedNames) = traitWithOps ctx t
+    (ProgramTypes.SourceFile.Declaration.Trait t, ops, unresolvedNames)
+
+  // A top-level impl's method fns become a module at its member path; the impl
+  // item is the declaration
+  | Impl i ->
+    let (i, _fns, ops, unresolvedNames) = implWithOps ctx i
+    (ProgramTypes.SourceFile.Declaration.Impl i, ops, unresolvedNames)
 
   | Module m ->
     let (_, moduleName) = m.name

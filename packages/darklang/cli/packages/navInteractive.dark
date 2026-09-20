@@ -136,6 +136,8 @@ let modulePathOf (location: PackageLocation) : List<String> =
   | Type t -> Stdlib.List.append [t.owner] t.modules
   | Value v -> Stdlib.List.append [v.owner] v.modules
   | Function f -> Stdlib.List.append [f.owner] f.modules
+  | Trait t -> Stdlib.List.append [t.owner] t.modules
+  | Impl i -> Stdlib.List.append [i.owner] i.modules
 
 let buildNavItemsFromResults
   (results: LanguageTools.ProgramTypes.Search.SearchResults)
@@ -163,7 +165,17 @@ let buildNavItemsFromResults
     |> Stdlib.List.map (fun fn ->
       NavItem { name = fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
 
-  Stdlib.List.flatten [ submodules, types, values, functions ]
+  let traits =
+    results.traits
+    |> Stdlib.List.map (fun t ->
+      NavItem { name = t.location.name; entityType = EntityType.Trait; location = PackageLocation.Trait t.location })
+
+  let impls =
+    results.impls
+    |> Stdlib.List.map (fun i ->
+      NavItem { name = i.location.name; entityType = EntityType.Impl; location = PackageLocation.Impl i.location })
+
+  Stdlib.List.flatten [ submodules, types, traits, values, functions, impls ]
 
 
 // Create interactive navigation state for a location

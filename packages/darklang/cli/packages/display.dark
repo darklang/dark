@@ -8,6 +8,8 @@ let getIcon (entityType: EntityType) : String =
   | Function -> Glyphs.fn
   | Type -> Glyphs.type_
   | Value -> Glyphs.value
+  | Trait -> Glyphs.trait_
+  | Impl -> Glyphs.impl_
 
 
 /// Section header with icon for an entity type.

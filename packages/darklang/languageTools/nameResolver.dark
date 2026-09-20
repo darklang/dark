@@ -230,6 +230,52 @@ module TypeName =
 
 
 
+module TraitName =
+  let tryResolve
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (branchId: ProgramTypes.BranchID)
+    (name: GenericName)
+    : Stdlib.Result.Result<(ProgramTypes.FQTraitName.FQTraitName *
+      Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
+    match name.modules with
+    | [] -> Stdlib.Result.Result.Error()
+    | owner :: modules ->
+      let location =
+        ProgramTypes.PackageLocation
+          { owner = owner
+            modules = modules
+            name = name.name }
+
+      match pm.findTrait (branchId, location) with
+      | Some hash ->
+        Stdlib.Result.Result.Ok
+          (((ProgramTypes.FQTraitName.FQTraitName.Package hash),
+            Stdlib.Option.Option.Some location))
+      | None -> Stdlib.Result.Result.Error()
+
+  /// Like a type name, then, for a bare name, as a stdlib trait: `impl Add for
+  /// Point` anywhere means `Stdlib.Add` unless something closer is called Add.
+  /// Same rule as the F# `resolveTraitName`.
+  let resolve
+    (ctx: NRContext)
+    (name: WrittenTypes.Name)
+    : ProgramTypes.NameResolution<ProgramTypes.FQTraitName.FQTraitName> =
+    match name with
+    | Unresolved(range, [ bare ]) ->
+      let direct = resolveGenericName ctx name TraitName.tryResolve
+      match direct.resolved with
+      | Error NotFound ->
+        let viaStdlib =
+          resolveGenericName
+            ctx
+            (WrittenTypes.Name.Unresolved(range, [ "Stdlib", bare ]))
+            TraitName.tryResolve
+        { viaStdlib with originalName = [ bare ] }
+      | _ -> direct
+    | _ -> resolveGenericName ctx name TraitName.tryResolve
+
+
+
 module ValueName =
   let builtinThingExists (name: String) : Bool =
     (Builtin.getAllBuiltinValues ())
@@ -317,8 +363,8 @@ module FnName =
         | None -> Stdlib.Result.Result.Error()
 
 
-  /// `Show.show`: the path's last module segment names a record type with a fn
-  /// field `show`; then the name is a trait method, dispatched at runtime.
+  /// `Show.show`: the path's last module segment names a trait with a method
+  /// `show`; then the name is a trait method, dispatched at runtime.
   /// Mirrors `resolveTraitMethod` in LibParser's NameResolver.fs.
   let tryResolveTraitMethod
     (ctx: NRContext)
@@ -332,7 +378,7 @@ module FnName =
         Stdlib.Option.Option.None
       else
         let traitNR =
-          TypeName.resolve
+          TraitName.resolve
             { ctx with onMissing = OnMissing.Allow }
             (WrittenTypes.Name.Unresolved(
               LanguageTools.Parser.Range
@@ -344,30 +390,21 @@ module FnName =
         | Ok resolved ->
           match resolved.name with
           | Package traitHash ->
-            match ctx.pm.getType traitHash with
-            | Some typ ->
-              match typ.declaration.definition with
-              | Record fields ->
-                let isMethod =
-                  fields
-                  |> Stdlib.List.findFirst (fun f ->
-                    f.name == methodName
-                    && (match f.typ with
-                        | TFn(_, _) -> true
-                        | _ -> false))
-                  |> Stdlib.Option.isSome
-                if isMethod then
-                  Stdlib.Option.Option.Some(
-                    ProgramTypes.NameResolution
-                      { originalName = given
-                        resolved =
-                          Stdlib.Result.Result.Ok(
-                            ProgramTypes.ResolvedName
-                              { name = ProgramTypes.FQFnName.FQFnName.TraitMethod(traitHash, methodName)
-                                location = resolved.location }) })
-                else
-                  Stdlib.Option.Option.None
-              | _ -> Stdlib.Option.Option.None
+            match ctx.pm.getTrait traitHash with
+            | Some t ->
+              let isMethod =
+                t.methods |> Stdlib.List.findFirst (fun m -> m.name == methodName) |> Stdlib.Option.isSome
+              if isMethod then
+                Stdlib.Option.Option.Some(
+                  ProgramTypes.NameResolution
+                    { originalName = given
+                      resolved =
+                        Stdlib.Result.Result.Ok(
+                          ProgramTypes.ResolvedName
+                            { name = ProgramTypes.FQFnName.FQFnName.TraitMethod(traitHash, methodName)
+                              location = resolved.location }) })
+              else
+                Stdlib.Option.Option.None
             | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 

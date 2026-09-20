@@ -211,16 +211,20 @@ let displayTree
       | Type t -> Stdlib.List.append [t.owner] t.modules
       | Value v -> Stdlib.List.append [v.owner] v.modules
       | Function f -> Stdlib.List.append [f.owner] f.modules
+      | Trait t -> Stdlib.List.append [t.owner] t.modules
+      | Impl i -> Stdlib.List.append [i.owner] i.modules
 
     // Names and hashes only. This runs once per module *per level* of the walk, so materializing every
     // item's full definition to read its name compounded: `tree Darklang.Stdlib` was 547 ms.
-    let (submoduleNames, rawTypes, rawValues, rawFns) =
+    let (submoduleNames, rawTypes, rawValues, rawFns, rawTraits, rawImpls) =
       Query.allDirectDescendantNamesAndHashes branchId modulePath
 
     // Entity names paired with their hash, so we can mark deprecated rows.
     let fnEntries = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
     let typeEntries = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
     let valueEntries = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
+    let traitEntries = Query.filterDeprecatedPairs rawTraits depSets includeDeprecated
+    let implEntries = Query.filterDeprecatedPairs rawImpls depSets includeDeprecated
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
@@ -241,11 +245,21 @@ let displayTree
         fnEntries
         |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Function, hash))
         |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let traitEntities =
+        traitEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Trait, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let implEntities =
+        implEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Impl, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
 
       moduleEntities
       |> Stdlib.List.append typeEntities
+      |> Stdlib.List.append traitEntities
       |> Stdlib.List.append valueEntities
       |> Stdlib.List.append functionEntities
+      |> Stdlib.List.append implEntities
 
     // Display entities with appropriate icons
     let entitiesCount = Stdlib.List.length allEntities
