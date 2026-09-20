@@ -351,8 +351,10 @@ interpreter answers two operands of one builtin numeric type without dispatch
 (`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
 not what runs.
 
-**An impl is a candidate only while a name binds it on the branch asked**
-(`ImplCandidate` liveness). Dispatch is memoised on the package manager
+**An impl is a candidate only while a name binds it on the branch asked and it is not
+deprecated** (`ImplCandidate` liveness, then `Queries.getDeprecatedTraitImplHashes` in the
+store's candidate provider). Two live implementations of one trait for one type are the
+`ambiguous-implementation` finding in `dark constraints`; deprecating one is how it resolves. Dispatch is memoised on the package manager
 (`implSelectionMemo`, keyed by branch, trait, method and self type) under
 `LibDB.Caching.generation`, which every `invalidateAll` bumps; a side-loaded manager
 (`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state

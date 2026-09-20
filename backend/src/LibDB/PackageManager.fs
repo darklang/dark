@@ -872,12 +872,26 @@ let rt : RT.PackageManager =
 
     // Branch-scoped: the candidates are whatever the branch's PT pm can see and still
     // names. Cached per (branch, trait) and dropped with the other caches on every fold.
+    // A deprecated implementation is not a candidate: deprecating one of two rivals is
+    // how the ambiguity finding says to pick a winner. Same cache lifetime as the
+    // candidates (a `Deprecate` op folds, which drops every cache).
     implCandidates =
       let cached =
         Caching.withCache
           (fun (branchId : PT.BranchId, traitHash : RT.FQTraitName.Package) ->
-            PT2RT.ImplCandidate.ofPackageManager (ptForBranch branchId) traitHash
-            |> Ply.map Some)
+            uply {
+              let! cs =
+                PT2RT.ImplCandidate.ofPackageManager
+                  (ptForBranch branchId)
+                  traitHash
+              let! deprecated = Queries.getDeprecatedTraitImplHashes ()
+              return
+                Some(
+                  cs
+                  |> List.filter (fun c ->
+                    let (RT.Hash h) = c.source in not (Set.contains h deprecated))
+                )
+            })
       fun branchId traitHash ->
         uply {
           match! cached (branchId, traitHash) with
@@ -887,10 +901,19 @@ let rt : RT.PackageManager =
     implCandidatesByMethod =
       let cached =
         Caching.withCache (fun (branchId : PT.BranchId, methodName : string) ->
-          PT2RT.ImplCandidate.ofPackageManagerByMethod
-            (ptForBranch branchId)
-            methodName
-          |> Ply.map Some)
+          uply {
+            let! cs =
+              PT2RT.ImplCandidate.ofPackageManagerByMethod
+                (ptForBranch branchId)
+                methodName
+            let! deprecated = Queries.getDeprecatedTraitImplHashes ()
+            return
+              Some(
+                cs
+                |> List.filter (fun c ->
+                  let (RT.Hash h) = c.source in not (Set.contains h deprecated))
+              )
+          })
       fun branchId methodName ->
         uply {
           match! cached (branchId, methodName) with

@@ -340,7 +340,7 @@ let nameRefToStringWith
 let siteToString (site: Site) : String =
   match site with
   | LambdaReturnValue -> "the lambda's return value"
-  | ImplMethodSignatureSite -> "the impl's method fn against the trait's signature"
+  | ImplMethodSignatureSite -> "the implementation's method fn against the trait's signature"
   | FunctionReturnValue -> "the function's return value"
   | ValueBody -> "the value's body"
   | Expression -> "this expression"
@@ -440,7 +440,7 @@ let contextToStringWith
     match code with
     | ImplMethodSet ->
       match detail with
-      | "missing" -> $"The impl does not provide `{method}`, which {traitName} declares"
+      | "missing" -> $"The implementation does not provide `{method}`, which {traitName} declares"
       | _ -> $"`{method}` is not a method of {traitName}"
     | ImplMethodSignature ->
       $"The fn given for `{method}` does not have {traitName}.{method}'s signature at this type ({detail})"
@@ -535,15 +535,15 @@ let contextToStringWith
     match code with
     | MissingImpl ->
       match method with
-      | Some m -> $"No impl of {traitName} for this type, which `{traitName}.{m}` needs"
-      | None -> $"No impl of {traitName} for this type, which the bound `{traitName}` needs"
+      | Some m -> $"No implementation of {traitName} for this type, which `{traitName}.{m}` needs"
+      | None -> $"No implementation of {traitName} for this type, which the bound `{traitName}` needs"
     | UnboundTypeParameter ->
       $"This type parameter is used as a {traitName} but the function does not declare `: {traitName}` on it"
     | AmbiguousImpl ->
       match method with
-      | Some m -> $"More than one impl offers `{m}` for this type; name the trait, as `{traitName}.{m} value`"
-      | None -> $"More than one impl of {traitName} for this type is visible; see `dark constraints`"
-    | _ -> $"Needs an impl of {traitName}"
+      | Some m -> $"More than one implementation offers `{m}` for this type; name the trait, as `{traitName}.{m} value`"
+      | None -> $"More than one implementation of {traitName} for this type is visible; `dark impls {traitName}` lists them"
+    | _ -> $"Needs an implementation of {traitName}"
 
 
 let contextToString (code: IssueCode) (context: Context) : String =

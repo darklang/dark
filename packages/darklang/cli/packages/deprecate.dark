@@ -363,7 +363,7 @@ let undeprecateHelp (_state: Cli.AppState) : String =
 let help (_state: Cli.AppState) : String =
   [ "Mark a function, type, or value as deprecated."
     ""
-    "Usage: deprecate <fn|type|value> <name-or-hash> --kind <k> [options]"
+    "Usage: deprecate <fn|type|value|trait|impl> <name-or-hash> --kind <k> [options]"
     ""
     "Kinds:"
     "  superseded-by   new item exists -- use that instead (requires --replacement)"

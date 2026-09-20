@@ -37,6 +37,8 @@ module Registry =
       ("val", "Create a new value", [ "let" ], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
+      ("trait", "Create a new trait", [], Packages.TraitCommand.execute, Packages.TraitCommand.help, Packages.TraitCommand.complete)
+      ("impl", "Implement a trait for a type", [], Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
       ("module", "Define multiple package declarations", [], Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
       ("edit", "Change an item without retyping it", [], Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
       ("rename", "Give an item a different name (its content and callers are untouched)", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
@@ -59,7 +61,7 @@ module Registry =
       ("log", "History: commits on main, a branch's ops on a branch", [], Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
       ("resolve", "Settle one conflicted name on a branch", [], Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
       ("propagate", "Choose what follows what when a dependency changes", [], Cli.PropagateCmd.execute, Cli.PropagateCmd.help, Cli.PropagateCmd.complete)
-      ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides", [], Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides, ambiguous implementations", [], Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value back on the shelf", [ "restore" ], Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
       ("push", "Push your ops to the relay", [], Cli.Sync.executePushCmd, Cli.Sync.help, Cli.Sync.complete)
@@ -70,7 +72,7 @@ module Registry =
       ("identity", "Name this instance (an id is minted automatically otherwise)", [], Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
-      ("impls", "List the impls of a trait on this branch", [], Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
+      ("impls", "List the implementations of a trait on this branch", [], Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
       ("docs", "Browse in-CLI documentation", [ "doc", "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
@@ -198,7 +200,7 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "module", "edit", "rename", "hash", "db", "deprecate", "delete", "undeprecate" ])
+    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "db", "deprecate", "delete", "undeprecate" ])
       ("Changes",
        [ "status", "commit", "commits", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])

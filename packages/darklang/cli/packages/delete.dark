@@ -96,7 +96,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         let inferred =
           [ LanguageTools.ProgramTypes.ItemKind.Fn
             LanguageTools.ProgramTypes.ItemKind.Type
-            LanguageTools.ProgramTypes.ItemKind.Value ]
+            LanguageTools.ProgramTypes.ItemKind.Value
+            LanguageTools.ProgramTypes.ItemKind.Trait
+            LanguageTools.ProgramTypes.ItemKind.TraitImpl ]
           |> Stdlib.List.filterMap (fun k ->
             Deprecate.resolveTarget branchId state.packageData.currentLocation k itemTypeStr
             |> Stdlib.Option.map (fun _ -> k))
@@ -110,8 +112,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | None ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error
-          $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value> <name-or-hash>`.")
-      Stdlib.printLine "Usage: delete [fn|type|value] <name-or-hash> [options]"
+          $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl> <name-or-hash>`.")
+      Stdlib.printLine "Usage: delete [fn|type|value|trait|impl] <name-or-hash> [options]"
       state
     | Some itemKind ->
       match targetOpt with
@@ -150,7 +152,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   [ "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)."
     ""
-    "Usage: delete <fn|type|value> <name-or-hash> [options]"
+    "Usage: delete <fn|type|value|trait|impl> <name-or-hash> [options]"
     ""
     "Refuses without --ignore-dependents when the target has live dependents."
     ""

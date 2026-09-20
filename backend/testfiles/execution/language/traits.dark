@@ -58,10 +58,10 @@ module Shapes =
   (Shapes.Point { x = 1; y = 2 }).x = 1
 
   // No impl: at the method call for a direct call
-  Shapes.Show.show 3.5 = error "No impl of Shapes.Show for Float. Write `impl Show for <type> = ...`, or check `dark impls`"
+  Shapes.Show.show 3.5 = error "No implementation of Shapes.Show for Float. Write `impl Show for <type> = ...`, or see `dark impls Show`"
 
   // No impl: at the CALL of a bounded fn, before its body runs
-  Shapes.neverCalls 3.5 = error "No impl of Shapes.Show for Float. Write `impl Show for <type> = ...`, or check `dark impls`"
+  Shapes.neverCalls 3.5 = error "No implementation of Shapes.Show for Float. Write `impl Show for <type> = ...`, or see `dark impls Show`"
   Shapes.neverCalls 5 = "never"
 
 
@@ -80,7 +80,7 @@ module Multi =
   Multi.sum 1 2 3 = 6
   Multi.sum 1.5 2.5 3.0 = 7.0
   Multi.sum (Multi.Vec { dx = 1; dy = 1 }) (Multi.Vec { dx = 2; dy = 2 }) (Multi.Vec { dx = 3; dy = 3 }) = Multi.Vec { dx = 6; dy = 6 }
-  Multi.sum "a" "b" "c" = error "No impl of Darklang.Stdlib.Add for String. Write `impl Add for <type> = ...`, or check `dark impls`"
+  Multi.sum "a" "b" "c" = error "No implementation of Darklang.Stdlib.Add for String. Write `impl Add for <type> = ...`, or see `dark impls Add`"
 
   // Worth knowing: a trait declared here with the same shape as `Stdlib.Add`
   // IS `Stdlib.Add` (content addressing), so `impl Add for Int` next to it

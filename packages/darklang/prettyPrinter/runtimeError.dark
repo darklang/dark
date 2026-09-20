@@ -516,19 +516,23 @@ module RuntimeError =
     | Trait err ->
       match err with
       | MissingImpl(trait_, self) ->
-        [ ES.String "No impl of "
+        [ ES.String "No implementation of "
           ES.TraitName trait_
           ES.String " for "
           ES.ValueType self
           ES.String ". Write `impl "
           ES.ShortTraitName trait_
-          ES.String " for <type> = ...`, or check `dark impls`" ]
+          ES.String " for <type> = ...`, or see `dark impls "
+          ES.ShortTraitName trait_
+          ES.String "`" ]
       | DispatchAmbiguous(trait_, self, candidates) ->
-        [ ES.String "More than one impl of "
+        [ ES.String "More than one implementation of "
           ES.TraitName trait_
           ES.String " for "
           ES.ValueType self
-          ES.String $" is visible ({Stdlib.Int.toString (Stdlib.List.length candidates)} candidates). See `dark constraints`" ]
+          ES.String $" is visible ({Stdlib.Int.toString (Stdlib.List.length candidates)}). `dark impls "
+          ES.ShortTraitName trait_
+          ES.String "` lists them; `dark constraints` has the finding" ]
       | MethodAmbiguous(method_, self, traits) ->
         [ ES.String $"`.{method_}` on a "
           ES.ValueType self

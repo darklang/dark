@@ -14,17 +14,19 @@ let content () : String =
 
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
-  Each binary operator is a trait method: `+` is `Stdlib.Add.add`, then Sub,
-  Mul, Div, Mod, Pow. The left operand picks the impl, so both operands must be
-  the same type: `1 + 2`, `1.0 + 2.0`, and `1y * 2y` all work; `1L + 2.0` is a
-  parameter error from `Stdlib.Int64.add`; `"a" + "b"` is a missing impl.
-  A type of your own joins with `impl Add for Vec = ...` (`docs traits`).
+  Each operator is a trait method: `+` is `Stdlib.Add.add`, then Sub, Mul,
+  Div, Mod, Pow, and `-x` is `Neg.negate`. Both operands must be the same
+  type: `1 + 2`, `1.0 + 2.0` and `1y * 2y` all work; `1L + 2.0` is "Cannot
+  perform numeric operation on Int64 and Float"; `"a" + "b"` is a missing
+  implementation of Add. A type of your own joins with
+  `impl Add for Vec = ...` (`docs traits`).
   `/` is integer division on ints, float division on floats.
   `%` works on all numeric types (the modulus must be > 0).
   `**` (power) works on all integer types and Float (not Int128/UInt128,
-  which have no Pow impl), and nests right: `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints and Float (not unsigned types); it is the
-  `negate` builtin, not the `Neg` trait, for now.
+  which have no Pow implementation), and nests right: `2 ** 3 ** 2` is
+  `2 ** (3 ** 2)`.
+  Unary `-x` negates signed ints and Float; an unsigned type has no Neg
+  implementation, and `-x` on one says so.
   Integer overflow (+ - * / ** and unary -) raises a runtime error.
   Float arithmetic follows IEEE (overflow -> infinity).
 

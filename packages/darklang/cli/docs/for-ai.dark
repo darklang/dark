@@ -236,15 +236,16 @@ Rules:
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
-- Numeric operators (+ - * / % ** < > <= >=) are the traits Add, Sub, Mul, Div,
-  Mod, Pow and Ord in Stdlib; every numeric type implements them and operands
+- Numeric operators (+ - * / % ** unary - < > <= >=) are the traits Add, Sub,
+  Mul, Div, Mod, Pow, Neg and Ord in Stdlib; every numeric type implements them and operands
   must match (`1 + 2`, `1.0 + 2.0`). `/` is integer division on ints; float
   division on floats. `**` is power. A bare `1` is an arbitrary-precision `Int`
   and never overflows. A type of your own takes `+` with `impl Add for T = ...`.
 - Traits: `trait Show<'a> = let show (v: 'a) : String`, then
   `impl Show for Point = let show (p: Point) : String = ...`, called as
   `Show.show p` or `p.show`; a bound is `let f<'a: Show> (v: 'a) = ...`.
-  `docs traits` has the rest, `dark impls Show` lists the impls.
+  Author one with `dark trait` / `dark impl` (or in a `dark module` block).
+  `docs traits` has the rest, `dark impls Show` lists the implementations.
 - Bitwise operators (& | ^ << >> and unary ~) work on every integer type, not
   Float; both operands (the shift count included) must be the same type.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or

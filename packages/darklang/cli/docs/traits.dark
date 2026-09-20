@@ -25,9 +25,19 @@ them. A call picks the impl by the type of the value it is given.
   impl<'a: Show> Show for List<'a> =     # conditional: needs Show for the element
     let show (xs: List<'a>) : String = ...
 
-  The impl is named <Module>.<Type>.<Trait> (`Acme.Point.Show`) and its method
-  fns live beneath it (`Acme.Point.Show.show`). `dark impls Show` lists a trait's
-  impls; `dark ls Acme.Point` shows them under Impls.
+  The implementation is named <Module>.<Type>.<Trait> (`Acme.Point.Show`) and
+  its method fns live beneath it (`Acme.Point.Show.show`). `dark impls Show`
+  lists a trait's implementations; `dark ls Acme.Point` shows them under
+  Implementations.
+
+## Author from the shell
+  dark trait /Acme.Show 'let show (v: '"'"'a) : String'
+  dark impl /Acme 'Show for Point = let show (p: Point) : String = ...'
+  dark module Acme - <<EOF ... EOF            # several at once, with the type
+
+  Like `dark fn` and `dark type`: the path says where, the text is the
+  declaration without its keyword. An impl's path is the module it is written
+  in; the item lands at <Module>.<Type>.<Trait>.
 
 ## Call
   Show.show p            # dispatch on p's type
@@ -46,17 +56,19 @@ them. A call picks the impl by the type of the value it is given.
   `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; `-x`
   is Neg; the comparisons are `Stdlib.Ord`. Every builtin numeric type implements
   them, so `Vec + Vec` only needs `impl Add for Vec`, and `Stdlib.max`, `min` and
-  `clamp` work on anything with an `Ord`. `"a" + "b"` is a missing impl,
+  `clamp` work on anything with an `Ord`. `"a" + "b"` is a missing implementation,
   not a numeric-type error. `==`, `!=`, `++` and the bitwise operators are not
   traits.
 
 ## Visibility
-  An impl is a package item like any other: it is visible where its name is
-  bound (main, or your branch). Two visible impls for one type is an
-  ambiguity at the call, reported as a finding, not a language error.
+  An implementation is a package item like any other: it is visible where its
+  name is bound (main, or your branch). Two visible implementations of one
+  trait for one type is an ambiguity: the call says so, and `dark constraints`
+  keeps it as a finding until you deprecate one (a deprecated implementation is
+  not dispatched to) or `ack` it.
 
 ## Errors
-  No impl of Acme.Show for Float         # write `impl Show for Float = ...`
-  More than one impl of ... is visible   # `dark constraints` names them
+  No implementation of Acme.Show for Float   # write `impl Show for Float = ...`
+  More than one implementation of ...        # `dark impls Show` lists them
   Cannot tell the type ... dispatches on # the self argument's type is unknown;
                                          # give an explicit type arg or a bound"""

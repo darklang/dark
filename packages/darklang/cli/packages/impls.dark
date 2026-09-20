@@ -1,6 +1,7 @@
 module Darklang.Cli.Packages.Impls
 
-// `impls <Trait>`: every impl of a trait bound on the current branch, as dispatch sees them.
+// `impls <Trait>`: every implementation of a trait bound on the current branch, as
+// dispatch sees them.
 //
 // Reads the same candidates the interpreter does (`Trait.impls`), so what this
 // lists is what a call can reach.
@@ -47,7 +48,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok traitHash ->
       let candidates = LanguageTools.PackageManager.Trait.impls state.currentBranchId traitHash
       if Stdlib.List.isEmpty candidates then
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No impls of {traitPath} on this branch")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No implementations of {traitPath} on this branch")
       else
         candidates
         |> Stdlib.List.iter (fun c ->
@@ -68,11 +69,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (_state: Cli.AppState) : String =
-  [ "List the impls of a trait that are bound on the current branch."
+  [ "List the implementations of a trait that are bound on the current branch."
     ""
     "Usage: impls <trait-path>"
     ""
-    "Each line is one impl, the type it is for, its methods, and where it lives." ]
+    "Each line is one implementation, the type it is for, its methods, and where it lives." ]
   |> Stdlib.String.join "\n"
 
 

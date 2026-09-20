@@ -1,0 +1,177 @@
+module Darklang.Cli.Packages.ImplCommand
+
+// `impl <module> <Trait for Type = members>`: author one implementation, the way
+// `fn` authors one function. The location is the MODULE the impl is written in
+// (an impl has no name of its own); the item lands at <module>[.<Type>].<Trait>,
+// with its method fns beneath it, exactly as `impl ... for ...` inside a `dark
+// module` block would.
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (help state)
+    state
+
+  | modulePath :: definitionParts ->
+    let inlineDefinition = Packages.definitionFromArgs definitionParts
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      [
+        (Stdlib.Cli.UI.Colors.error "Error: Implementation required")
+        ""
+        "Pass it inline, a file that holds it, or `-` to read from stdin:"
+        "  impl <module> <Trait for Type = members>"
+        "  impl <module> <source-file>"
+        "  impl <module> -    (read from stdin)"
+        ""
+        "Examples:"
+        "  impl . \"Show for Point = let show (p: Point) : String = $\\\"({p.x}, {p.y})\\\"\""
+        "  impl /Acme \"Add for Vec = let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x; y = a.y + b.y }\""
+        ""
+        "  # Several methods via stdin (run from shell, not the REPL):"
+        "  ./scripts/run-cli impl /Acme - <<'EOF'"
+        "  impl Shape for Circle ="
+        "    let area (c: Circle) : Float = 3.14159 * c.r * c.r"
+        "    let name (c: Circle) : String = \"circle\""
+        "  EOF"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      createImplInline
+        state.packageData.currentLocation
+        modulePath
+        inlineDefinition
+        state
+
+
+let createImplInline
+  (currentLocation: Packages.PackageLocation)
+  (modulePath: String)
+  (definition: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  // Resolve a synthetic item path below the requested module, so the module
+  // path follows the same rules as `fn`, `type` and `module`. `.` means here.
+  let locationInput =
+    if modulePath == "." then "__impl__" else modulePath ++ ".__impl__"
+
+  match Location.parseRelativeTo currentLocation locationInput with
+  | Ok baseLocation ->
+    let trimmedDefinition = Stdlib.String.trim definition
+    let fullSource =
+      if
+        Stdlib.String.startsWith trimmedDefinition "impl "
+        || Stdlib.String.startsWith trimmedDefinition "impl<"
+        || Stdlib.String.startsWith trimmedDefinition "///"
+      then
+        definition
+      else
+        $"impl {definition}"
+
+    match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+    | Some(SourceFile sourceFile) ->
+      // The parser may recover a tree after errors; do not save it.
+      let hasParseError =
+        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+      let parsed =
+        if hasParseError then
+          Stdlib.Option.Option.None
+        else
+          match sourceFile.declarations with
+          | [ Impl i ] -> Stdlib.Option.Option.Some i
+          | _ -> Stdlib.Option.Option.None
+
+      match parsed with
+      | Some implDecl ->
+        // The item's own location: the member path's last segment is the trait.
+        let memberPath =
+          LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath
+            baseLocation.modules
+            implDecl
+        let location =
+          match Stdlib.List.reverse memberPath with
+          | name :: revModules ->
+            LanguageTools.ProgramTypes.PackageLocation
+              { owner = baseLocation.owner
+                modules = Stdlib.List.reverse revModules
+                name = name }
+          | [] ->
+            LanguageTools.ProgramTypes.PackageLocation
+              { owner = baseLocation.owner
+                modules = baseLocation.modules
+                name = implDecl.trait_.typ.name }
+
+        let failState = { state with exitCode = 1 }
+
+        Packages.saveAuthored
+          state
+          location
+          LanguageTools.ProgramTypes.ItemKind.TraitImpl
+          "implementation"
+          failState
+          (fun ctx ->
+            // Lower from the MODULE the impl is written in; `implWithOps` builds
+            // the member path and lowers the method fns beneath it.
+            let moduleCtx = { ctx with currentModule = baseLocation.modules }
+            let (packageImpl, _fns, ops, unresolvedNames) =
+              LanguageTools.WrittenTypesToProgramTypes.implWithOps moduleCtx implDecl
+            (ops, packageImpl.hash, unresolvedNames))
+
+      | None ->
+        if hasParseError then
+          { state with exitCode = 1 }
+        else
+          [
+            (Stdlib.Cli.UI.Colors.error "Expected exactly one impl declaration")
+            ""
+            "Example:"
+            "  impl . \"Show for Point = let show (p: Point) : String = ...\""
+            ""
+          ] |> Stdlib.printLines
+          { state with exitCode = 1 }
+    | None ->
+      [
+        (Stdlib.Cli.UI.Colors.error "Failed to parse the implementation")
+        ""
+        "Example:"
+        "  impl . \"Show for Point = let show (p: Point) : String = ...\""
+        ""
+      ] |> Stdlib.printLines
+      { state with exitCode = 1 }
+  | Error msg ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid module: {msg}")
+    { state with exitCode = 1 }
+
+
+let help (_state: Cli.AppState) : String =
+  [
+    "Create or update an implementation of a trait for a type"
+    ""
+    "Usage: impl <module> <Trait for Type = members>"
+    "       impl <module> <source-file>"
+    "       impl <module> -"
+    ""
+    "The module is where the impl is written (`.` for the current one); the item"
+    "lands at <module>.<Type>.<Trait>, with its method fns beneath it. A member is"
+    "a method fn, or `let m = Some.existing.fn` to name a fn that already exists."
+    "Bare trait names resolve to the stdlib traits, so `impl . \"Add for Vec = ...\"`"
+    "gives Vec a `+`. `impls <trait>` lists what exists; see `docs traits`."
+    ""
+    "Examples:"
+    "  impl . \"Show for Point = let show (p: Point) : String = $\\\"({p.x}, {p.y})\\\"\""
+    "  impl /Acme \"Add for Vec = let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x; y = a.y + b.y }\""
+    "  impl . \"Show for Int64 = let show = Stdlib.Int64.toString\""
+    ""
+    "  # Several methods via stdin (run from shell, not the REPL):"
+    "  ./scripts/run-cli impl /Acme - <<'EOF'"
+    "  impl Shape for Circle ="
+    "    let area (c: Circle) : Float = 3.14159 * c.r * c.r"
+    "    let name (c: Circle) : String = \"circle\""
+    "  EOF"
+    ""
+  ] |> Stdlib.String.join "\n"
+
+
+let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []

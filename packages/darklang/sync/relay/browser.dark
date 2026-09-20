@@ -406,7 +406,7 @@ let kindLabel (k: String) : String =
   | "fn" -> "function"
   | "type" -> "type"
   | "trait" -> "trait"
-  | "impl" -> "impl"
+  | "impl" -> "implementation"
   | _ -> "value"
 
 
@@ -518,7 +518,7 @@ let moduleHandlerFn (req: HttpRequest) : HttpResponse =
        ++ (section "trait" "Traits")
        ++ (section "fn" "Functions")
        ++ (section "value" "Values")
-       ++ (section "impl" "Impls"))
+       ++ (section "impl" "Implementations"))
 
 
 /// One item: its source, what it needs, and who needs it.

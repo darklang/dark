@@ -57,7 +57,19 @@ let referenceAt
         Stdlib.Option.Option.Some(
           LanguageTools.ProgramTypes.Reference.PackageValue i.entity.hash
         )
-      | [] -> Stdlib.Option.Option.None
+      | [] ->
+        match results.traits with
+        | i :: _ ->
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.Reference.PackageTrait i.entity.hash
+          )
+        | [] ->
+          match results.impls with
+          | i :: _ ->
+            Stdlib.Option.Option.Some(
+              LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash
+            )
+          | [] -> Stdlib.Option.Option.None
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =

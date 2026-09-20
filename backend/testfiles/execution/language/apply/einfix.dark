@@ -26,7 +26,7 @@ Stdlib.Int64.add 5L 3L = 8L
 5L + true = error="Cannot perform numeric operation on Int64 and Bool"
 1L + 2.0 = error="Cannot perform numeric operation on Int64 and Float"
 // A type with no impl of the operator's trait
-"a" - "b" = error="No impl of Darklang.Stdlib.Sub for String. Write `impl Sub for <type> = ...`, or check `dark impls`"
+"a" - "b" = error="No implementation of Darklang.Stdlib.Sub for String. Write `impl Sub for <type> = ...`, or see `dark impls Sub`"
 
 // Integer +,-,* overflow wraps around (two's complement)
 127y + 1y = -128y
@@ -50,7 +50,7 @@ Stdlib.Int64.add 5L 3L = 8L
 2y ** 3y = 8y
 3uy ** 3uy = 27uy
 2l ** 10l = 1024l
-2Q ** 3Q = error="No impl of Darklang.Stdlib.Pow for Int128. Write `impl Pow for <type> = ...`, or check `dark impls`"
+2Q ** 3Q = error="No implementation of Darklang.Stdlib.Pow for Int128. Write `impl Pow for <type> = ...`, or see `dark impls Pow`"
 // unary `-` works on every signed integer type and Float
 -(Stdlib.Int8.add 2y 3y) = -5y
 -(Stdlib.Float.add 1.0 1.5) = -2.5
