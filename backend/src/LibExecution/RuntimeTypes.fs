@@ -12,7 +12,8 @@ open Prelude
 // state. We can't `open System.Collections.Generic` because it shadows
 // F#'s native `list` with `System.Collections.Generic.List`.
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-type ConcurrentDictionary<'k, 'v> = System.Collections.Concurrent.ConcurrentDictionary<'k, 'v>
+type ConcurrentDictionary<'k, 'v> =
+  System.Collections.Concurrent.ConcurrentDictionary<'k, 'v>
 type HashSet<'a> = System.Collections.Generic.HashSet<'a>
 type Stack<'a> = System.Collections.Generic.Stack<'a>
 
@@ -103,11 +104,11 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-    /// A trait method: the trait's record type and the field name. Applying one
-    /// resolves the impl at call time, in this order: explicit type args, the
-    /// caller's TypeSymbolTable binding for the self param, the self argument's
-    /// ValueType head. The impl is a package value of type `Trait<T>` whose field
-    /// holds a named fn; that fn is what actually runs (and what traces record).
+    /// A trait method: the trait and the method name. Applying one resolves the
+    /// impl at call time, in this order: explicit type args, the self argument's
+    /// ValueType head, the caller's TypeSymbolTable binding for the self param.
+    /// The impl (`TraitImpl`) names a fn per method; that fn is what actually runs
+    /// (and what traces record).
     | TraitMethod of trait_ : FQTraitName.Package * method_ : string
 
   let assertBuiltinFnName (name : string) : unit =
@@ -449,7 +450,8 @@ type TypeReference =
 
 /// A trait named from a bound; mirrors `PT.TraitRef`.
 type TraitRef =
-  { trait_ : NameResolution<FQTraitName.FQTraitName>; typeArgs : List<TypeReference> }
+  { trait_ : NameResolution<FQTraitName.FQTraitName>
+    typeArgs : List<TypeReference> }
 
 /// `'a: Show` on a fn; mirrors `PT.Bound`. The interpreter checks these at fn entry,
 /// once the type param is bound to a Known type, by looking the impl up.
@@ -2418,7 +2420,8 @@ type PackageManager =
     /// content-addressed lookups above: which impls exist is a question about
     /// NAMES (what is bound where), and a trait method call dispatches against
     /// what the caller's branch can see.
-    implCandidates : Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
+    implCandidates :
+      Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
 
     /// Every visible impl, of any trait, that has a method of this name. For
     /// receiver calls: `p.show` where `p` has no field `show`.
@@ -2429,10 +2432,8 @@ type PackageManager =
     /// skips selection. Per package manager, never shared between two: a script's
     /// side-loaded impls must not answer for another script.
     implSelectionMemo :
-      ConcurrentDictionary<
-        struct (Branching.BranchId * Hash * string * KnownType),
-        struct (int * FQFnName.Package)
-       >
+      ConcurrentDictionary<struct (Branching.BranchId * Hash * string * KnownType), struct (int *
+      FQFnName.Package)>
     /// Moves whenever what a name binds may have changed (every fold, for the
     /// store-backed manager), which is when a remembered selection is stale.
     implGeneration : unit -> int
@@ -2480,7 +2481,8 @@ type PackageManager =
               uply {
                 let! stored = pm.implCandidatesByMethod branchId methodName
                 let extra =
-                  candidates |> List.filter (fun c -> Map.containsKey methodName c.methods)
+                  candidates
+                  |> List.filter (fun c -> Map.containsKey methodName c.methods)
                 return extra @ stored |> List.distinctBy (fun c -> c.source)
               } }
 
@@ -3469,7 +3471,12 @@ and ExecutionState =
     /// machinery lives (it comes after the interpreter in compile order). The
     /// interpreter itself uses it for one thing: a receiver call `p.show` on a
     /// one-argument method, which is a full call rather than a partial application.
-    callApplicable : ExecutionState -> Permissions.Access -> Applicable -> NEList<Dval> -> Ply<ExecutionResult>
+    callApplicable :
+      ExecutionState
+        -> Permissions.Access
+        -> Applicable
+        -> NEList<Dval>
+        -> Ply<ExecutionResult>
 
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;
@@ -3538,14 +3545,13 @@ and Functions =
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
-    implCandidates : Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
+    implCandidates :
+      Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
     implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
     /// `PackageManager.implSelectionMemo` and `implGeneration`.
     implSelectionMemo :
-      ConcurrentDictionary<
-        struct (Branching.BranchId * Hash * string * KnownType),
-        struct (int * FQFnName.Package)
-       >
+      ConcurrentDictionary<struct (Branching.BranchId * Hash * string * KnownType), struct (int *
+      FQFnName.Package)>
     implGeneration : unit -> int
   }
 

@@ -1863,12 +1863,16 @@ let private internalUnitTests =
 
 
 /// `trait` / `impl` declarations and `'a: Show` bounds. The parser keeps them as
-/// their own declarations; `SourceFile.items` desugars them (tested here too, since
-/// the desugaring is what every lowering consumes).
+/// their own declarations; `SourceFile.items` yields them as items with the impl's
+/// method fns beneath its member path (tested here too, since that is what every
+/// lowering consumes).
 let private traitTests =
   let parseDecls (src : string) : List<WT.Declaration> =
     let r = P.parse src
-    Expect.equal (r.diagnostics |> List.map (fun d -> d.message)) [] $"no diagnostics for: {src}"
+    Expect.equal
+      (r.diagnostics |> List.map (fun d -> d.message))
+      []
+      $"no diagnostics for: {src}"
     match r.parsed with
     | Some(WT.SourceFile { declarations = decls }) -> decls
     | other -> failtest $"parse: {other}"
@@ -1879,18 +1883,26 @@ let private traitTests =
         | [ WT.DTrait t ] ->
           Expect.equal t.name.name "Show" "trait name"
           Expect.equal (t.typeParams |> List.map fst) [ "a" ] "self param"
-          Expect.equal (t.methods |> List.map (fun m -> m.name.name)) [ "show" ] "methods"
+          Expect.equal
+            (t.methods |> List.map (fun m -> m.name.name))
+            [ "show" ]
+            "methods"
           Expect.isNone t.methods.Head.body "no body"
         | other -> failtest $"trait: {other}")
 
-      testCase "parses a trait with three signatures and a following declaration" (fun _ ->
-        let src =
-          "trait Num<'a> =\n  let add (a: 'a) (b: 'a) : 'a\n  let zero () : 'a\n  let neg (a: 'a) : 'a\nlet after (x: Int) : Int = x"
-        match parseDecls src with
-        | [ WT.DTrait t; WT.DFunction f ] ->
-          Expect.equal (t.methods |> List.map (fun m -> m.name.name)) [ "add"; "zero"; "neg" ] "methods"
-          Expect.equal f.name.name "after" "the dedented let ends the trait"
-        | other -> failtest $"trait+fn: {other}")
+      testCase
+        "parses a trait with three signatures and a following declaration"
+        (fun _ ->
+          let src =
+            "trait Num<'a> =\n  let add (a: 'a) (b: 'a) : 'a\n  let zero () : 'a\n  let neg (a: 'a) : 'a\nlet after (x: Int) : Int = x"
+          match parseDecls src with
+          | [ WT.DTrait t; WT.DFunction f ] ->
+            Expect.equal
+              (t.methods |> List.map (fun m -> m.name.name))
+              [ "add"; "zero"; "neg" ]
+              "methods"
+            Expect.equal f.name.name "after" "the dedented let ends the trait"
+          | other -> failtest $"trait+fn: {other}")
 
       testCase "parses an impl with bounds and a conditional impl" (fun _ ->
         let src =
@@ -1901,12 +1913,20 @@ let private traitTests =
           Expect.equal (WT.typeReferenceHeadName plain.forType) "Point" "for type"
           Expect.isEmpty plain.bounds "no bounds"
           Expect.equal (cond.typeParams |> List.map fst) [ "a" ] "impl type param"
-          Expect.equal (cond.bounds |> List.map (fun b -> b.param, b.trait_.typ.name)) [ "a", "Show" ] "impl bound"
-          Expect.equal (WT.typeReferenceHeadName cond.forType) "List" "head of List<'a>"
+          Expect.equal
+            (cond.bounds |> List.map (fun b -> b.param, b.trait_.typ.name))
+            [ "a", "Show" ]
+            "impl bound"
+          Expect.equal
+            (WT.typeReferenceHeadName cond.forType)
+            "List"
+            "head of List<'a>"
         | other -> failtest $"impls: {other}")
 
       testCase "parses bounds with + on fns and types" (fun _ ->
-        match parseDecls "let f<'a: Show + Eq, 'b: Ord> (x: 'a) (y: 'b) : String = \"\"" with
+        match
+          parseDecls "let f<'a: Show + Eq, 'b: Ord> (x: 'a) (y: 'b) : String = \"\""
+        with
         | [ WT.DFunction f ] ->
           Expect.equal (f.typeParams |> List.map fst) [ "a"; "b" ] "type params"
           Expect.equal
@@ -1916,100 +1936,176 @@ let private traitTests =
         | other -> failtest $"bounded fn: {other}"
         match parseDecls "type Set<'a: Ord> = List<'a>" with
         | [ WT.DType t ] ->
-          Expect.equal (t.bounds |> List.map (fun b -> b.param, b.trait_.typ.name)) [ "a", "Ord" ] "type bound"
+          Expect.equal
+            (t.bounds |> List.map (fun b -> b.param, b.trait_.typ.name))
+            [ "a", "Ord" ]
+            "type bound"
         | other -> failtest $"bounded type: {other}")
 
       testCase "bound trait may carry type args" (fun _ ->
         match parseDecls "let f<'a: Convert<Int>> (x: 'a) : Int = 1" with
         | [ WT.DFunction f ] ->
-          Expect.equal (List.length f.bounds.Head.trait_.typeArgs) 1 "one type arg on the bound"
+          Expect.equal
+            (List.length f.bounds.Head.trait_.typeArgs)
+            1
+            "one type arg on the bound"
         | other -> failtest $"bounded fn: {other}")
 
       testCase "a trait is its own item, with one method per signature" (fun _ ->
-        let decls = parseDecls "trait Show<'a> =\n  let show (value: 'a) : String\n  let describe (value: 'a) (verbose: Bool) : String"
-        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
+        let decls =
+          parseDecls
+            "trait Show<'a> =\n  let show (value: 'a) : String\n  let describe (value: 'a) (verbose: Bool) : String"
+        match
+          SourceFile.items
+            { range = WT.synthRange; declarations = decls; exprsToEval = [] }
+        with
         | [ SourceFile.Trait([], t) ] ->
           Expect.equal t.name.name "Show" "trait name"
           let packaged = WT.packageTrait "Tests" [] t
-          Expect.equal (packaged.methods |> List.map (fun m -> m.name)) [ "show"; "describe" ] "one method per signature"
+          Expect.equal
+            (packaged.methods |> List.map (fun m -> m.name))
+            [ "show"; "describe" ]
+            "one method per signature"
           Expect.equal (NEList.length packaged.methods[1].parameters) 2 "two params"
         | other -> failtest $"items: {other}")
 
-      testCase "an impl is its own item at Type.Trait, with its method fns beneath it" (fun _ ->
-        let decls =
-          parseDecls "module Acme\nimpl Show for Point =\n  let show (p: Point) : String = \"p\""
-        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
-        | [ SourceFile.Fn(fnPath, fn); SourceFile.Impl(implPath, impl) ] ->
-          Expect.equal fnPath [ "Acme"; "Point"; "Show" ] "method path"
-          Expect.equal fn.name.name "show" "method name"
-          Expect.equal implPath [ "Acme"; "Point"; "Show" ] "impl path"
-          let packaged = WT.packageImpl "Acme" [ "Point"; "Show" ] impl
-          Expect.equal packaged.name.modules [ "Point" ] "impl modules"
-          Expect.equal packaged.name.name "Show" "impl name"
-          Expect.equal (packaged.methods |> List.map fst) [ "show" ] "the method"
-          Expect.equal packaged.trait_.typ.name "Show" "the trait"
-        | other -> failtest $"items: {other}")
+      testCase
+        "an impl is its own item at Type.Trait, with its method fns beneath it"
+        (fun _ ->
+          let decls =
+            parseDecls
+              "module Acme\nimpl Show for Point =\n  let show (p: Point) : String = \"p\""
+          match
+            SourceFile.items
+              { range = WT.synthRange; declarations = decls; exprsToEval = [] }
+          with
+          | [ SourceFile.Fn(fnPath, fn); SourceFile.Impl(implPath, impl) ] ->
+            Expect.equal fnPath [ "Acme"; "Point"; "Show" ] "method path"
+            Expect.equal fn.name.name "show" "method name"
+            Expect.equal implPath [ "Acme"; "Point"; "Show" ] "impl path"
+            let packaged = WT.packageImpl "Acme" [ "Point"; "Show" ] impl
+            Expect.equal packaged.name.modules [ "Point" ] "impl modules"
+            Expect.equal packaged.name.name "Show" "impl name"
+            Expect.equal (packaged.methods |> List.map fst) [ "show" ] "the method"
+            Expect.equal packaged.trait_.typ.name "Show" "the trait"
+          | other -> failtest $"items: {other}")
 
-      testCase "does not repeat the type segment when the module is named for the type" (fun _ ->
-        let decls =
-          parseDecls "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add (a: Int64) (b: Int64) : Int64 = a"
-        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
-        | [ SourceFile.Fn(fnPath, _); SourceFile.Impl(implPath, _) ] ->
-          Expect.equal fnPath [ "Darklang"; "Stdlib"; "Int64"; "Add" ] "method path"
-          Expect.equal implPath [ "Darklang"; "Stdlib"; "Int64"; "Add" ] "impl path"
-        | other -> failtest $"items: {other}")
+      testCase
+        "does not repeat the type segment when the module is named for the type"
+        (fun _ ->
+          let decls =
+            parseDecls
+              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add (a: Int64) (b: Int64) : Int64 = a"
+          match
+            SourceFile.items
+              { range = WT.synthRange; declarations = decls; exprsToEval = [] }
+          with
+          | [ SourceFile.Fn(fnPath, _); SourceFile.Impl(implPath, _) ] ->
+            Expect.equal
+              fnPath
+              [ "Darklang"; "Stdlib"; "Int64"; "Add" ]
+              "method path"
+            Expect.equal
+              implPath
+              [ "Darklang"; "Stdlib"; "Int64"; "Add" ]
+              "impl path"
+          | other -> failtest $"items: {other}")
 
-      testCase "an alias member names an existing fn and generates no method fn" (fun _ ->
-        let decls =
-          parseDecls "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add = Stdlib.Int64.add"
-        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
-        | [ SourceFile.Impl(implPath, impl) ] ->
-          Expect.equal implPath [ "Darklang"; "Stdlib"; "Int64"; "Add" ] "impl path"
-          let packaged = WT.packageImpl "Darklang" [ "Stdlib"; "Int64"; "Add" ] impl
-          match packaged.methods with
-          | [ ("add", WT.Unresolved target) ] ->
-            Expect.equal (NEList.toList target) [ "Stdlib"; "Int64"; "add" ] "the alias target"
-          | other -> failtest $"methods: {other}"
-        | other -> failtest $"items: {other}")
+      testCase
+        "an alias member names an existing fn and generates no method fn"
+        (fun _ ->
+          let decls =
+            parseDecls
+              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add = Stdlib.Int64.add"
+          match
+            SourceFile.items
+              { range = WT.synthRange; declarations = decls; exprsToEval = [] }
+          with
+          | [ SourceFile.Impl(implPath, impl) ] ->
+            Expect.equal
+              implPath
+              [ "Darklang"; "Stdlib"; "Int64"; "Add" ]
+              "impl path"
+            let packaged =
+              WT.packageImpl "Darklang" [ "Stdlib"; "Int64"; "Add" ] impl
+            match packaged.methods with
+            | [ ("add", WT.Unresolved target) ] ->
+              Expect.equal
+                (NEList.toList target)
+                [ "Stdlib"; "Int64"; "add" ]
+                "the alias target"
+            | other -> failtest $"methods: {other}"
+          | other -> failtest $"items: {other}")
 
       testCase "an alias member must be a name" (fun _ ->
         let r = P.parse "impl Show for Point =\n  let show = fun p -> \"p\""
         Expect.isNonEmpty r.diagnostics "a lambda is not an alias")
 
-      testCase "a conditional impl keeps its own type params and bounds on the item and its methods" (fun _ ->
-        let decls =
-          parseDecls "impl<'a: Show> Show for List<'a> =\n  let show (xs: List<'a>) : String = \"xs\""
-        match SourceFile.items { range = WT.synthRange; declarations = decls; exprsToEval = [] } with
-        | [ SourceFile.Fn(_, fn); SourceFile.Impl(_, impl) ] ->
-          Expect.equal (fn.typeParams |> List.map fst) [ "a" ] "the method fn is generic over the impl's param"
-          Expect.equal (fn.bounds |> List.map (fun b -> b.param)) [ "a" ] "and carries its bound"
-          let packaged = WT.packageImpl "Tests" [ "List"; "Show" ] impl
-          Expect.equal packaged.typeParams [ "a" ] "impl type params"
-          Expect.equal (packaged.bounds |> List.map (fun b -> b.param)) [ "a" ] "impl bounds"
-        | other -> failtest $"items: {other}")
+      testCase
+        "a conditional impl keeps its own type params and bounds on the item and its methods"
+        (fun _ ->
+          let decls =
+            parseDecls
+              "impl<'a: Show> Show for List<'a> =\n  let show (xs: List<'a>) : String = \"xs\""
+          match
+            SourceFile.items
+              { range = WT.synthRange; declarations = decls; exprsToEval = [] }
+          with
+          | [ SourceFile.Fn(_, fn); SourceFile.Impl(_, impl) ] ->
+            Expect.equal
+              (fn.typeParams |> List.map fst)
+              [ "a" ]
+              "the method fn is generic over the impl's param"
+            Expect.equal
+              (fn.bounds |> List.map (fun b -> b.param))
+              [ "a" ]
+              "and carries its bound"
+            let packaged = WT.packageImpl "Tests" [ "List"; "Show" ] impl
+            Expect.equal packaged.typeParams [ "a" ] "impl type params"
+            Expect.equal
+              (packaged.bounds |> List.map (fun b -> b.param))
+              [ "a" ]
+              "impl bounds"
+          | other -> failtest $"items: {other}")
 
-      testCase "diagnoses a bound that is not a trait, a default body, and method type params" (fun _ ->
-        let msgs (src : string) = (P.parse src).diagnostics |> List.map (fun d -> d.code)
-        Expect.equal (msgs "let f<'a: String> (x: 'a) : 'a = x") [ P.DiagnosticCode.bound ] "'a: String"
-        Expect.equal
-          (msgs "trait Show<'a> =\n  let show (v: 'a) : String = \"default\"")
-          [ P.DiagnosticCode.bound ]
-          "default body"
-        Expect.equal
-          (msgs "trait Fun<'f> =\n  let map<'b> (v: 'f) : 'b")
-          [ P.DiagnosticCode.bound ]
-          "method type params"
-        Expect.equal (msgs "trait Show =\n  let show (v: Int) : String") [ P.DiagnosticCode.bound ] "trait without a type param")
+      testCase
+        "diagnoses a bound that is not a trait, a default body, and method type params"
+        (fun _ ->
+          let msgs (src : string) =
+            (P.parse src).diagnostics |> List.map (fun d -> d.code)
+          Expect.equal
+            (msgs "let f<'a: String> (x: 'a) : 'a = x")
+            [ P.DiagnosticCode.bound ]
+            "'a: String"
+          Expect.equal
+            (msgs "trait Show<'a> =\n  let show (v: 'a) : String = \"default\"")
+            [ P.DiagnosticCode.bound ]
+            "default body"
+          Expect.equal
+            (msgs "trait Fun<'f> =\n  let map<'b> (v: 'f) : 'b")
+            [ P.DiagnosticCode.bound ]
+            "method type params"
+          Expect.equal
+            (msgs "trait Show =\n  let show (v: Int) : String")
+            [ P.DiagnosticCode.bound ]
+            "trait without a type param")
 
-      testCase "an impl body must hold fns, and recovery continues after it" (fun _ ->
-        let r = P.parse "impl Show for Point =\n  val x = 1\nlet after (x: Int) : Int = x"
-        Expect.isNonEmpty r.diagnostics "diagnosed"
-        match r.parsed with
-        | Some(WT.SourceFile { declarations = decls }) ->
-          Expect.isTrue
-            (decls |> List.exists (function WT.DFunction f -> f.name.name = "after" | _ -> false))
-            "the fn after the broken impl survives"
-        | other -> failtest $"parse: {other}") ]
+      testCase
+        "an impl body must hold fns, and recovery continues after it"
+        (fun _ ->
+          let r =
+            P.parse
+              "impl Show for Point =\n  val x = 1\nlet after (x: Int) : Int = x"
+          Expect.isNonEmpty r.diagnostics "diagnosed"
+          match r.parsed with
+          | Some(WT.SourceFile { declarations = decls }) ->
+            Expect.isTrue
+              (decls
+               |> List.exists (function
+                 | WT.DFunction f -> f.name.name = "after"
+                 | _ -> false))
+              "the fn after the broken impl survives"
+          | other -> failtest $"parse: {other}") ]
 
 let tests =
   testList

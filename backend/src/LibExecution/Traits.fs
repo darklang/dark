@@ -1,7 +1,7 @@
 /// Trait dispatch: picking the impl for a self type.
 ///
-/// An impl is a package value of the trait's record type (or a fn returning one),
-/// and the store indexes those into `ImplCandidate`s. This module is the pure half
+/// An impl is its own package item (`PT.TraitImpl`), and the store reads the ones
+/// for a trait into `ImplCandidate`s. This module is the pure half
 /// of dispatch: given the candidates for a trait and the self value's type, which
 /// candidate applies. The interpreter does the rest (finding the self type, loading
 /// the method's fn).
@@ -120,8 +120,7 @@ let rec private argsAgree (t : TypeReference) (vt : ValueType) : bool =
   | TCustomType({ resolved = Ok(FQTypeName.Package h) }, targs),
     ValueType.Known(KTCustomType(FQTypeName.Package h', vargs)) ->
     h = h'
-    && (List.length targs = List.length vargs
-        && List.forall2 argsAgree targs vargs
+    && (List.length targs = List.length vargs && List.forall2 argsAgree targs vargs
         || List.isEmpty targs)
   | _, ValueType.Known kt ->
     match headOfTypeReference t with
@@ -138,11 +137,11 @@ type Selection =
 let select (candidates : List<ImplCandidate>) (self : KnownType) : Selection =
   let head = headOfKnownType self
   let specific =
-    candidates
-    |> List.filter (fun c -> headOfTypeReference c.self = Some head)
+    candidates |> List.filter (fun c -> headOfTypeReference c.self = Some head)
   let matching =
     match specific with
-    | [] -> candidates |> List.filter (fun c -> headOfTypeReference c.self = Some Head.Any)
+    | [] ->
+      candidates |> List.filter (fun c -> headOfTypeReference c.self = Some Head.Any)
     | _ -> specific
   match matching with
   | [] -> NoImpl
@@ -150,7 +149,9 @@ let select (candidates : List<ImplCandidate>) (self : KnownType) : Selection =
   | several ->
     // Same head more than once: let the type arguments decide (`Option<Int>` vs
     // `Option<String>`). Still several is a real ambiguity, reported as such.
-    match several |> List.filter (fun c -> argsAgree c.self (ValueType.Known self)) with
+    match
+      several |> List.filter (fun c -> argsAgree c.self (ValueType.Known self))
+    with
     | [ one ] -> Selected one
     | [] -> NoImpl
     | still -> Ambiguous still

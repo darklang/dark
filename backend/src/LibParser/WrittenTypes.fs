@@ -519,9 +519,8 @@ type TraitMethodDecl =
     symbolColon : Range
     description : string }
 
-/// `trait Name<'a> = <methods>`. Sugar for a record type whose fields are fn
-/// types; `SourceFile.items` performs the desugaring, so nothing downstream of
-/// the parser sees a trait as its own kind.
+/// `trait Name<'a> = <methods>`: a set of method signatures over one open type.
+/// Lowers to its own package item, `PT.Trait` (`packageTrait`, `WT2PT.Trait`).
 type TraitDecl =
   { range : Range
     name : Identifier
@@ -532,9 +531,10 @@ type TraitDecl =
     symbolEquals : Range
     description : string }
 
-/// `impl[<'a: B>] Trait<Args> for Type = <fns>`. Sugar for one package fn per
-/// method plus a package value of the trait's record type (or, when the impl has
-/// type params, a fn returning that record). See `SourceFile.items`.
+/// `impl[<'a: B>] Trait<Args> for Type = <fns>`: how one type does a trait.
+/// Lowers to its own package item, `PT.TraitImpl`, named `<module>[.<Type>].<Trait>`,
+/// with the block's method fns as ordinary fns beneath it and an alias member naming
+/// the fn it points at (`packageImpl`, `SourceFile.items`).
 type ImplDecl =
   {
     range : Range
@@ -862,13 +862,12 @@ let packageValue
     body = v.body }
 
 
-// --- traits and impls: desugaring to types, fns and values ---
+// --- traits and impls: the package forms ---
 //
-// A trait is a record type whose fields are fn types; an impl is one package fn per
-// method plus a package value of the trait's record type, found at runtime by
-// type. Nothing downstream of the parser has a trait or impl kind: these two
-// functions turn the declarations into ordinary ones, and `SourceFile.items` calls
-// them. The pretty printer recognises the shapes and prints `trait` / `impl` back.
+// A trait lowers to a `PackageTrait` (its own item); an impl to a `PackageTraitImpl`
+// at `<module>[.<Type>].<Trait>` plus one ordinary package fn per method declared in
+// the block. `SourceFile.items` yields them as items, and the two lowerings turn the
+// package forms into `PT.Trait` and `PT.TraitImpl`.
 
 /// The name a type reference dispatches on: the head of `List<'a>` is "List", of
 /// `Acme.Point` is "Point", of `Int64` is "Int64". Used to place an impl's members

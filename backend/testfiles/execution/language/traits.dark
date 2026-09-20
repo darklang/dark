@@ -29,8 +29,7 @@ module Shapes =
   // The impl's method is an ordinary fn under <Type>.<Trait>
   Shapes.Point.Show.show (Shapes.Point { x = 1; y = 2 }) = "(1, 2)"
 
-  // The impl itself is an item, not a value: there is no `Shapes.Point.Show.instance`
-  // to hold (first-class representation).
+  // The impl is its own item, named `Shapes.Point.Show`; its methods are the fns beneath it
 
   // Dispatch by the argument's type
   Shapes.Show.show (Shapes.Point { x = 5; y = 6 }) = "(5, 6)"
@@ -46,7 +45,7 @@ module Shapes =
   Shapes.Show.show [ [ true ], [] ] = "[[yes], []]"
   Shapes.display [ Shapes.Point { x = 1; y = 2 } ] = "value: [(1, 2)]"
 
-  // First-class and piped
+  // As a function value, and piped
   ([ 1, 2 ] |> Stdlib.List.map Shapes.Show.show) = [ "1", "2" ]
   ((Shapes.Point { x = 7; y = 8 }) |> Shapes.Show.show) = "(7, 8)"
 
@@ -93,8 +92,8 @@ module Multi =
 
 module Ambiguity =
   // Two traits with the same method name. Their SHAPES differ (Describe has a
-  // second method): a trait is its record type, and two identically shaped
-  // traits are one trait under content addressing, however they are named.
+  // second method): a trait is content-addressed, so two identically shaped
+  // traits are one trait, however they are named.
   trait Describe<'a> =
     let describe (v: 'a) : String
     let short (v: 'a) : String
