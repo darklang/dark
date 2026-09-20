@@ -322,3 +322,7 @@ and the per-binding recursive CTE in `draftRepoints`.
   running on every dispatched call before the memo existed; and trait-first name resolution
   querying type locations for every qualified fn name (four misses per `Stdlib.List.map`)
   before the resolver was gated on the set of live trait names.
+- Measurement trap, so the next person does not chase it: the published gate reads 9.6 MB
+  against a CLI built by `scripts/build/build-release-cli-exes.sh` (what CI measures) and
+  9.9 to 10.0 MB against the one `scripts/dev/build --optimize --test` leaves behind. Same
+  tree, same seed; the two build paths do not produce the same binary. Measure the first.
