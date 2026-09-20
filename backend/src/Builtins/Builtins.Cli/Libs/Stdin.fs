@@ -422,8 +422,11 @@ let private eventToDval (ev : HE.HostEvent) : Dval =
   | HE.HostEvent.StoreChanged change -> case "StoreChanged" [ change ]
   | HE.HostEvent.Timer _ -> case "Timer" []
   | HE.HostEvent.ExecDone(id, _) -> case "ExecDone" [ DUuid id ]
-  | HE.HostEvent.Completed _ ->
-    Exception.raiseInternal "a Completed event reached a Dark subscriber" []
+  | HE.HostEvent.Completed _
+  | HE.HostEvent.Wake ->
+    Exception.raiseInternal
+      "an internal event reached a Dark subscriber"
+      [ "event", ev ]
 
 
 /// Wait for the first of `specs` without a scheduler: the thread is held, polling, exactly

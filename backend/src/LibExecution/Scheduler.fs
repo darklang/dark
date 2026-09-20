@@ -181,6 +181,10 @@ type Scheduler(quantum : int64) =
     lock sync (fun () ->
       processes[p.id] <- p
       runnable.Enqueue p)
+    // The loop blocks on the queue when nothing is runnable; a spawn from another thread (a
+    // test, an F# host) has to wake it. From the scheduler thread it is a harmless no-op.
+    if Thread.CurrentThread.ManagedThreadId <> thread then
+      queue.Post HE.HostEvent.Wake
     p
 
   /// Spawn a call to a named function: the program `Execution.executeFunction` builds, as a process.
@@ -215,7 +219,6 @@ type Scheduler(quantum : int64) =
       TaskCompletionSource<HE.HostEvent>(
         TaskCreationOptions.RunContinuationsAsynchronously
       )
-    p.parkHint <- ValueSome(OnEvent specs)
     lock sync (fun () ->
       let wantsKey = List.contains HE.EventSpec.Key specs
       let wantsStore = List.contains HE.EventSpec.StoreChanged specs
@@ -225,6 +228,10 @@ type Scheduler(quantum : int64) =
         p.storeGenSeen <- storeGen
         wake.SetResult(HE.HostEvent.StoreChanged latestChange)
       else
+        // Only when it will actually park: a wake delivered above completes the builtin
+        // synchronously and the process never parks, so a hint set then would describe the
+        // next, unrelated park.
+        p.parkHint <- ValueSome(OnEvent specs)
         let sub = { proc = p; specs = specs; wake = wake; timers = [] }
         subscriptions.Add sub
         for spec in specs do
@@ -284,6 +291,7 @@ type Scheduler(quantum : int64) =
         for sub in waiting do
           sub.proc.storeGenSeen <- storeGen
           this.Satisfy(sub, ev))
+    | HE.HostEvent.Wake -> ()
     | HE.HostEvent.ExecDone(pid, _) ->
       lock sync (fun () ->
         let waiting =

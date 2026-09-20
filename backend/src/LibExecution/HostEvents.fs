@@ -48,6 +48,9 @@ type HostEvent =
   /// A process finished with this value. For Dark subscribers (`ExecDone id`); F# callers await the
   /// process directly.
   | ExecDone of ProcessId * RT.Dval
+  /// Nothing to route: a process became runnable from outside the loop (a spawn from another
+  /// thread), and the loop, blocked on the queue with nothing runnable, has to look again.
+  | Wake
 
 
 /// A source of one kind of event, installed by the host that has it.
@@ -80,6 +83,10 @@ type Queue() =
   // hold `TreatControlCAsInput` while nothing is listening.
   let keyRequests = new SemaphoreSlim(0)
   let mutable readerStarted = 0
+  // At most one read in flight. A `[Key; Timer]` wait satisfied by the timer leaves its read
+  // outstanding; the next `Key` subscription reuses it rather than queueing a second, so the
+  // thread never holds more than one key's worth of the console.
+  let mutable readInFlight = 0
 
   let mutable pollStarted = 0
   let mutable pollTimer : Timer = null
@@ -111,6 +118,7 @@ type Queue() =
                     // The console went away (stdin closed under us). Stop reading; the
                     // subscriber stays parked, as it would have blocked before.
                     None
+                Volatile.Write(&readInFlight, 0)
                 match key with
                 | Some k -> this.Post(HostEvent.Key k)
                 | None -> ()),
@@ -118,7 +126,8 @@ type Queue() =
             Name = "dark-stdin-reader"
           )
         thread.Start()
-      keyRequests.Release() |> ignore<int>
+      if Interlocked.CompareExchange(&readInFlight, 1, 0) = 0 then
+        keyRequests.Release() |> ignore<int>
 
   /// Start polling the store's data version every `intervalMs`, posting `StoreChanged` when it
   /// moves. Idempotent. No-op without a version source.

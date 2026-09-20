@@ -8,7 +8,10 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
+open TestUtils.PTShortcuts
+
 module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RTE = RT.RuntimeError
 module Scheduler = LibExecution.Scheduler
@@ -100,12 +103,15 @@ Builtin.testTrace "b2"
       (Trace.take ())
       [ "a1"; "b1" ]
       $"both parked after their first half (a: {a.status}, b: {b.status})"
+    // One gate at a time: two releases back to back post their `Completed`s in whichever order
+    // the pool runs them, and the loop stops when `a` finishes. The order that is fixed is the
+    // order the queue sees, so the test feeds it one event at a time.
     Gates.release 2L
+    let! bResult = s.Await b
+    expectOk bResult "process b" |> ignore<RT.Dval>
     Gates.release 1L
     let! result = running
     expectOk result "process a" |> ignore<RT.Dval>
-    let! bResult = s.Await b
-    expectOk bResult "process b" |> ignore<RT.Dval>
     Expect.equal
       (Trace.take ())
       [ "b2"; "a2" ]
@@ -286,6 +292,84 @@ let private killWakesAParkedProcess =
   }
 
 
+/// Live's H2 as a scheduler rule: a running process keeps the hashes it resolved, an entry
+/// resolved after the edit gets the new ones. The rebase relies on it. The "edit" is a
+/// package manager whose location points at a different hash; the two fns are both known to
+/// both managers, as two versions of one item are in the store.
+let private editDoesNotReachAParkedProcess =
+  testTask
+    "a parked process finishes on the old hash; a fresh one on the same entry gets the new" {
+    Gates.reset ()
+    let location : PT.PackageLocation =
+      { owner = "Tests"; modules = [ "Scheduler" ]; name = "entry" }
+    let fnOf (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
+      { hash = PT.Hash hash
+        typeParams = []
+        parameters =
+          NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
+        returnType = PT.TString
+        body = body
+        description = ""
+        permissionCeiling = None }
+    // The old version waits on a gate before answering; the new one answers at once.
+    let oldFn =
+      fnOf
+        "0000000000000000000000000000000000000000000000000000000000000001"
+        (eLet
+          (lpUnit ())
+          (eApply (eBuiltinFn "testGateWait" 0) [] [ eInt64 70L ])
+          (eStr [ PT.StringText "old" ]))
+    let newFn =
+      fnOf
+        "0000000000000000000000000000000000000000000000000000000000000002"
+        (eStr [ PT.StringText "new" ])
+    let pmWith (current : PT.PackageFn.PackageFn) : PT.PackageManager =
+      // Both versions are gettable by hash; only the name moves.
+      TestValues.pm
+      |> PT.PackageManager.withExtras
+        []
+        []
+        [ oldFn, { location with name = "entry-old" }
+          newFn, { location with name = "entry-new" }
+          current, location ]
+    let callEntry (pm : PT.PackageManager) : Task<RT.Instructions> =
+      task {
+        let! hash = pm.findFn location |> Ply.toTask
+        match hash with
+        | None -> return failtest "the entry did not resolve"
+        | Some(PT.Hash hash) ->
+          let expr = eApply (ePackageFn hash) [] [ eUnit () ]
+          return PT2RT.Expr.toRT Map.empty 0 None expr
+      }
+
+    let! before = executionStateFor (pmWith oldFn) false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! oldInstrs = callEntry (pmWith oldFn)
+    let parked = s.Spawn(before, (None, oldInstrs), Scheduler.EntryExpr, None)
+    let running = runOnThread s parked
+
+    // The edit lands while `parked` waits: the name now points at the new version.
+    let! after = executionStateFor (pmWith newFn) false Map.empty
+    let! newInstrs = callEntry (pmWith newFn)
+    let fresh = s.Spawn(after, (None, newInstrs), Scheduler.EntryExpr, None)
+    let! freshResult = s.Await fresh
+    Expect.equal
+      (expectOk freshResult "the fresh process")
+      (RT.DString "new")
+      "new code"
+    match parked.status with
+    | Scheduler.Parked _ -> ()
+    | other -> failtest $"the first process should still be parked, was {other}"
+
+    Gates.release 70L
+    let! parkedResult = running
+    Expect.equal
+      (expectOk parkedResult "the parked process")
+      (RT.DString "old")
+      "old code"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -297,5 +381,6 @@ let tests =
         hostAwaitTimerOrKey
         readKeyDoesNotBlock
         accessIsPerProcess
-        killWakesAParkedProcess ]
+        killWakesAParkedProcess
+        editDoesNotReachAParkedProcess ]
   )

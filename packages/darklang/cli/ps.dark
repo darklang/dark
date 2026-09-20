@@ -137,5 +137,5 @@ let help (_state: AppState) : String =
     "`show` adds the call stack; `kill` asks one to stop at its next turn."
     ""
     "A process is a wrapped VM the scheduler steps; the CLI's own run is one, and so is"
-    "each expression an `eval` runs. See `docs processes`." ]
+    "each expression an `eval` runs. See docs/processes.md in the repo." ]
   |> Stdlib.String.join "\n"
