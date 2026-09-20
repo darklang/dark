@@ -321,29 +321,43 @@ op log directly.
 
 ## Traits
 
-A trait is a record type of fn fields; an impl is a package value of that type. Nothing
-downstream of the parser has a trait kind: `trait`/`impl` desugar in `SourceFile.items`
-(F#) and `implAsModule` (the Dark-side converter), and both must agree on the member
-path `<module>[.<Type>].<Trait>.{method, instance}`. Dispatch reads candidates off the PT
-(`PT2RT.ImplCandidate`), selection is `Traits.fs`, the checker's side is `AtRest/Types.fs`
-`ImplEntry`. The operators are the stdlib traits (`stdlib/traits.dark`); `+` lowers to
-`Stdlib.Add.add` through `NumericTraits.fs`, whose hashes come from `PackageRefs`, so a
-new operator trait needs a ref and a regenerated `package-ref-hashes.txt`.
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
+optional ceilings); an impl is a package item (`PT.Impl`: the trait, its type args,
+the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
+`AddTrait` and `AddImpl`; two tables, `package_traits` and `package_impls(trait_hash)`;
+`FQTraitName` for references; binary format v3. The parser lowers `trait`/`impl` in
+`SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
+path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
+Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
+selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeChecker`
+(`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
+stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
+`NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
+needs a ref and a regenerated `package-ref-hashes.txt`.
 
-**Two traits with the same shape are one trait.** Content addressing: `trait Add<'a> =
-let add (a: 'a) (b: 'a) : 'a` anywhere IS `Stdlib.Add`, and an `impl Add for Int` next to it
-makes every `1 + 2` on that branch ambiguous. Name a method differently, or use the stdlib
-trait.
+**Every switch over item kinds has five arms now.** Types, values, fns, traits, impls.
+A new listing, codec, or CLI command that handles three of them silently drops the
+other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
+the LSP all had to learn them, and the names-only search builtins return six lists.
 
-**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let add =
-Stdlib.Int64.add` generates no fn; the instance names the existing one. The interpreter
-answers two operands of one builtin numeric type without dispatch (`FastOps.evalNumeric`),
-so those aliases are what the checker and `dark impls` see, not what runs.
+**A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
+means `Stdlib.Add` unless something closer is called Add (both resolvers,
+`resolveTraitName` and `TraitName.resolve`). Two same-shaped traits still hash the
+same; a trait and a same-shaped record do not.
 
-**Dispatch is memoised on the package manager** (`implSelectionMemo`, keyed by branch, trait,
-method and self type) under `LibDB.Caching.generation`, which every `invalidateAll` bumps. A
-new way to change what a name binds that does not go through `invalidateAll` leaves a stale
-selection; a side-loaded package manager (`withExtraImpls`, `withExtras`) gets its own memo.
+**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let
+add = Stdlib.Int64.add` generates no fn; the impl names the existing one. The
+interpreter answers two operands of one builtin numeric type without dispatch
+(`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
+not what runs.
+
+**An impl is a candidate only while a name binds it on the branch asked**
+(`ImplCandidate` liveness). Dispatch is memoised on the package manager
+(`implSelectionMemo`, keyed by branch, trait, method and self type) under
+`LibDB.Caching.generation`, which every `invalidateAll` bumps; a side-loaded manager
+(`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
+must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
+package manager" at dispatch.
 
 ## Gotchas
 
