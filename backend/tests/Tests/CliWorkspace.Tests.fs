@@ -270,6 +270,8 @@ module Execution = LibExecution.Execution
 open TestUtils.TestUtils
 open System.Threading
 open Prelude
+open Fumble
+open LibDB.Sqlite
 
 let private getText (port : int) : Task<int * string> =
   task {
@@ -740,6 +742,77 @@ let private modelSavesAndResumes =
     })
 
 
+/// The window a live host must never observe: an op is in the log but not yet folded into
+/// `locations`. Authoring inserts, folds, then marks applied in three steps; a poll that lands
+/// between the first and the last used to take the op, resolve the name to the previous hash,
+/// and never look again. Now the op is reported only once it is applied.
+let private pollIgnoresAnOpUntilItIsApplied =
+  cliTest
+    "a poll between an op's insert and its fold reports nothing; the poll after reports it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do! author "Tests.LiveFold.leaf" "(): Int = 1"
+
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        let! quiet = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch =
+          match quiet with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+          | other -> failtest $"a fresh watch reported something: {other}"
+
+        // Phase 1 of a save, by hand: the op rows land, unapplied. This is what a poll mid-fold sees.
+        // A fresh body per run: the log is content-addressed and the store outlives the run.
+        let body = System.Random.Shared.Next(1_000, 1_000_000_000)
+        let! ops =
+          parsePackageOps $"module Tests.LiveFold\n\nlet leaf () : Int = {body}"
+        let statements =
+          ops
+          |> List.map (fun op ->
+            let opId = LibDB.Inserts.computeOpHash op
+            let blob =
+              LibSerialization.Binary.Serialization.PT.PackageOp.serialize opId op
+            ("INSERT INTO package_ops (id, op_blob, applied, origin_ts) VALUES (@id, @op_blob, 0, @ts)",
+             [ [ "id", Sql.uuid opId
+                 "op_blob", Sql.bytes blob
+                 "ts", Sql.string (LibDB.Inserts.nextOriginTs ()) ] ]))
+        statements |> Sql.executeTransactionSync |> ignore<List<int>>
+
+        let! midFold = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch =
+          match midFold with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+          | other -> failtest $"an op that is not folded yet was reported: {other}"
+
+        // The fold, then the applied mark, as `insertAndApplyOps` does them.
+        do! LibDB.PackageOpPlayback.applyOpsFrom "op" ops
+        ops
+        |> List.map (fun op ->
+          ("UPDATE package_ops SET applied = 1 WHERE id = @id",
+           [ [ "id", Sql.uuid (LibDB.Inserts.computeOpHash op) ] ]))
+        |> Sql.executeTransactionSync
+        |> ignore<List<int>>
+
+        let! afterFold = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match afterFold with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other -> failtest $"the folded op was not reported: {other}"
+        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        match names with
+        | RT.DList(_, items) ->
+          Expect.contains
+            (items |> List.map string)
+            (string (RT.DString "Tests.LiveFold.leaf"))
+            "the op is reported once it is folded, and the name resolves to it"
+        | other -> failtest $"touchedNames returned {other}"
+      })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -762,5 +835,6 @@ let tests : List<Test> =
           pollAndAffects
           treeRendersTheSameEverywhere
           viewFollowsEdits
-          modelSavesAndResumes ]
+          modelSavesAndResumes
+          pollIgnoresAnOpUntilItIsApplied ]
     ) ]

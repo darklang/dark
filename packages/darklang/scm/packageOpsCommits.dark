@@ -168,6 +168,13 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
 /// moves forward on this store. What it cannot do is tell a new op from an old one handed back by a
 /// draft rewrite (`WipRefresh` deletes and re-inserts main's draft, with a fresh insert time and the
 /// same id); that is rare, and the caller treats a flood as "everything changed".
+///
+/// APPLIED ops only. An op is inserted before it is folded into `locations` and marked applied after
+/// (authoring: two transactions; a pull: one), so between the two a reader sees the op in the log while
+/// the name still resolves to the previous hash. A host that took the op then would check the old
+/// version, keep it, and never look again: the fold's own commit moves the store's counter, but the
+/// next poll would find no op it had not already reported. Reporting an op only once it is applied
+/// means a host that looks mid-fold sees nothing new, and the poll after the fold sees the op.
 let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<String> =
   let sinceParam = if SCM.Branch.isMain branchId then "@p0" else "@p2"
   let comparison = if andAtSince then ">=" else ">"
@@ -176,7 +183,7 @@ let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<St
     (localDb ())
     ("SELECT id FROM package_ops WHERE "
      ++ visibleWhere branchId
-     ++ $" AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
+     ++ $" AND applied = 1 AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
     (Stdlib.List.append (visibleParams branchId) [ since ])
     (fun row -> Stdlib.Sqlite.textField row "id")
 
@@ -222,12 +229,13 @@ let summariesByIds (ids: List<String>) : List<OpSummary> =
     |> Stdlib.List.filterMap (fun id -> found |> Stdlib.List.findFirst (fun s -> s.id == id))
 
 
-/// When the newest op in the log landed here (`created_at`), or "" for an empty log. Where a watcher
-/// starts from.
+/// When the newest APPLIED op in the log landed here (`created_at`), or "" for an empty log. Where a
+/// watcher starts from. Applied only, as `idsLandedSince`: an op inserted and not yet folded must not
+/// advance a watcher past itself.
 let newestInsert () : String =
   Stdlib.Sqlite.queryOneP
     (localDb ())
-    "SELECT COALESCE(max(created_at), '') AS newest FROM package_ops"
+    "SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE applied = 1"
     []
   |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "newest")
   |> Stdlib.Option.withDefault ""
@@ -238,7 +246,7 @@ let newestInsert () : String =
 let idsInsertedAt (at: String) : List<String> =
   Stdlib.Sqlite.rowsP
     (localDb ())
-    "SELECT id FROM package_ops WHERE created_at = @p0"
+    "SELECT id FROM package_ops WHERE created_at = @p0 AND applied = 1"
     [ at ]
     (fun row -> Stdlib.Sqlite.textField row "id")
 
