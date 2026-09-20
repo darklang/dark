@@ -184,8 +184,12 @@ method's (`ImplExceedsCeiling`).
   the operator traits always (`addVisibleImpls`). A trait needed only by a receiver
   call is loaded by `implTraitsMissingDeclarations`.
 
-Not covered: a conditional impl's own bounds at the call site (the element type of
-`Show<List<Option<Int>>>` is not checked there; the impl fn's own check covers it).
+- A conditional impl owes its own bounds at the type it matched: discharging
+  `Show List<Option<Int>>` against `impl<'a: Show> Show for List<'a>` unifies the
+  impl's self with the concrete type and owes `Show Option<Int>`, round by round
+  until the type is exhausted (`dischargeConstraints`).
+- `==` records no constraint: `Eq` has a structural fallback, so every type is
+  comparable; the operand types still have to unify.
 
 ## Where this should live
 
