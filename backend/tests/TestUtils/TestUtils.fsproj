@@ -7,18 +7,12 @@
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Language/Builtins.Language.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Time/Builtins.Time.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Random/Builtins.Random.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../src/Platforms/Platforms.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Matter/Builtins.Matter.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PackageSurface.fs" />
     <Compile Include="PTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />

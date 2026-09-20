@@ -7,8 +7,19 @@ module LibExecution.Effects
 
 open Prelude
 
-/// A deliberately small initial vocabulary. Add a case only when callers need
-/// to distinguish it for typechecking, preview, replay, or scheduling.
+/// The well-known vocabulary, plus `Custom` for anything a platform outside this repo needs to
+/// name.
+///
+/// The well-known cases are the ones the runtime itself understands: the host boundary builds a
+/// scoped `Request` for them, the policy grammar has resource-shaped rules for several, and the
+/// permission check knows what each one means. Add one only when callers need to distinguish it for
+/// typechecking, preview, replay, or scheduling.
+///
+/// `Custom` exists because the goal is that a LIBRARY can bring capabilities, and a capability
+/// vocabulary only its authors may extend is not one. Before this the choices open to a platform
+/// with a genuinely new capability -- a serial port, a vendor SDK -- were to mislabel itself as an
+/// existing effect or to declare `Native`, which announces "granting this hands over the machine"
+/// and is the opposite of advertising something narrow.
 [<RequireQualifiedAccess>]
 type Effect =
   | Http
@@ -28,6 +39,19 @@ type Effect =
   | PackageWrite
   | TraceRead
   | TraceWrite
+
+  /// Reading and writing the HOST's own permission state: the instance policy, package approvals,
+  /// function pins, and which platforms this instance has switched on.
+  ///
+  /// Ambient and unscoped, exactly like `PackageRead` and `TraceRead`: the policy store is a
+  /// host-owned whole with no per-resource handle to name, so a rule grants it or does not.
+  ///
+  /// These exist so that reading your own policy is not the same grant as handing over the
+  /// machine. Every builtin here used to declare `Native`, which meant `dark permissions` and
+  /// anything touching an approval looked, to the effect system, exactly like `Sqlite.query`.
+  | PolicyRead
+  | PolicyWrite
+
   /// The effect for a builtin nobody can scope: it can reach anything on the
   /// host, and no rule could honestly say otherwise. `Sqlite.query` is the
   /// canonical case: it is given one database path, but the SQL it runs can
@@ -40,6 +64,14 @@ type Effect =
   /// have nothing to scope. There is deliberately no scoped form: a policy
   /// grants it whole, with `allow native`, or not at all.
   | Native
+
+  /// An effect named by a platform this runtime did not ship, as `owner/name`.
+  ///
+  /// Namespaced, and enforced by `custom`: two vendors must not be able to collide on `serial`,
+  /// and a custom effect must never be mistakable for a well-known one. Whole-or-nothing at the
+  /// policy layer for the same reason `Native` is -- the runtime cannot build a scoped request for
+  /// a resource it knows nothing about, so it will not pretend to confine one.
+  | Custom of string
 
 let name (effect : Effect) : string =
   match effect with
@@ -60,9 +92,13 @@ let name (effect : Effect) : string =
   | Effect.PackageWrite -> "package-write"
   | Effect.TraceRead -> "trace-read"
   | Effect.TraceWrite -> "trace-write"
+  | Effect.PolicyRead -> "policy-read"
+  | Effect.PolicyWrite -> "policy-write"
   | Effect.Native -> "native"
+  | Effect.Custom name -> name
 
-/// Every effect, in declaration order.
+/// Every WELL-KNOWN effect, in declaration order. Custom effects are not enumerable: they exist
+/// because a platform declared one, so the platform set is what knows them.
 let all : List<Effect> =
   [ Effect.Http
     Effect.HttpServer
@@ -81,16 +117,55 @@ let all : List<Effect> =
     Effect.PackageWrite
     Effect.TraceRead
     Effect.TraceWrite
+    Effect.PolicyRead
+    Effect.PolicyWrite
     Effect.Native ]
 
+/// The shape a custom effect name must have: `owner/name`, both segments lowercase alphanumeric
+/// with dashes. The slash is what makes a collision with a well-known name impossible, since none
+/// of those contain one.
+let private customNamePattern =
+  System.Text.RegularExpressions.Regex(
+    @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?/[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+    System.Text.RegularExpressions.RegexOptions.Compiled
+  )
+
+/// Build a custom effect, or `None` if the name is not `owner/name`.
+///
+/// The only way to make one, deliberately: an unvalidated `Custom "http"` would shadow a
+/// well-known effect in every comparison and every policy rule, and nothing downstream would
+/// notice.
+let custom (name : string) : Option<Effect> =
+  if customNamePattern.IsMatch name then Some(Effect.Custom name) else None
+
+/// Resolve a name to an effect: a well-known one, or a validated custom one.
 let fromName (wanted : string) : Option<Effect> =
-  all |> List.tryFind (fun effect -> name effect = wanted)
+  match all |> List.tryFind (fun effect -> name effect = wanted) with
+  | Some wellKnown -> Some wellKnown
+  | None -> custom wanted
 
 /// A scoped effect names a resource (a path, a URL, a table, an executable),
 /// so its exact request can only be built by the builtin body — or, for the
 /// OS-facing ones, by the checked host boundary from the `Operation`. An
 /// ambient effect has no resource and is checked once, from the builtin's
 /// declared effects, before the body runs.
+/// Effects the interpreter does not check when every frame in the call chain is bundled
+/// first-party code. A pulled package calling the same builtin is checked like anyone else.
+///
+/// `Native` is here because no rule can scope it, so a policy grants it whole or not at all,
+/// which would put `dark status` behind `permissions allow native` on a stock install: the SCM
+/// reads its own store through raw SQLite. `PolicyRead` is here for the narrower version of the
+/// same reason: the workbench and `dark permissions` show what this instance's policy says, and
+/// the CLI reading its own policy is not something a person should have to grant. The writes
+/// are deliberately absent. `PolicyWrite` stays checked, and `hostOnly` refuses guest code before
+/// the effect is even consulted.
+///
+/// Before `Policy` moved off `Native` this was one effect and the waiver was implicit in it. The
+/// move made bundled code strictly more restricted than it had been, and the workbench listing
+/// stopped rendering under a stock policy, which is how this set came to be written down.
+let trustedForBundledCallers : Set<Effect> =
+  Set.ofList [ Effect.Native; Effect.PolicyRead ]
+
 let isScoped (effect : Effect) : bool =
   match effect with
   | Effect.Http
@@ -110,4 +185,9 @@ let isScoped (effect : Effect) : bool =
   | Effect.PackageWrite
   | Effect.TraceRead
   | Effect.TraceWrite
-  | Effect.Native -> false
+  | Effect.PolicyRead
+  | Effect.PolicyWrite
+  | Effect.Native
+  // A runtime that has never heard of this effect cannot build a request naming the resource it
+  // is about, so it grants the whole thing or nothing. Same honesty as `Native`.
+  | Effect.Custom _ -> false

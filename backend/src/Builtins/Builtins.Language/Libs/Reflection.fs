@@ -70,6 +70,26 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    // Beside `getKernelHash` because it is the same kind of fact: which build am I. It reads an
+    // embedded resource in `LibConfig`, so there is no environment involved. Putting it in
+    // `Libs/Environment.fs` would place it in the `Posix` platform and make `dark version` -- which
+    // calls this and nothing else from there -- ask for env, files, processes and raw descriptors
+    // to read a compile-time constant.
+    { name = fn "getBuildHash" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the git hash of the current CLI build"
+      fn =
+        (function
+        | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildHash }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

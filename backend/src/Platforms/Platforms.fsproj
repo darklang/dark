@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Sets.fs" />
+  </ItemGroup>
+  <!-- This is the ONE assembly that references every platform, and the only reason it exists.
+       An executable that wants a subset references those platforms directly and composes its own
+       set (see `Wasm/Repl.fs`), so linking this is a choice, not a tax. -->
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Time/Builtins.Time.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Random/Builtins.Random.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Language/Builtins.Language.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Store/Builtins.Store.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Admin/Builtins.Admin.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Data/Builtins.Data.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

@@ -25,8 +25,7 @@ open TestUtils.TestUtils
 /// `buildState` runs per test and `builtinsToUse` combines and revalidates about a
 /// thousand builtins every time it is called. Nothing here varies between tests: they all
 /// drive the same store through `LibDB.PackageManager.pt`, which is itself a singleton.
-let private cliBuiltins : Lazy<RT.Builtins> =
-  lazy (Builtins.CliHost.Libs.Cli.builtinsToUse ())
+let private cliBuiltins : Lazy<RT.Builtins> = lazy ((Platforms.Sets.cli ()).builtins)
 
 let buildState () : Task<RT.ExecutionState> =
   task {
@@ -100,7 +99,11 @@ let buildState () : Task<RT.ExecutionState> =
           (Exe.createState builtins pmRT Exe.noTracing sendException notify program) with
           canManagePolicies = true
           canUsePrivateNetworkHttp = true
-          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
+          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h
+          // What the CLI records, so the platform verbs see the same set the builtins came
+          // from: `platforms deactivate` checks what still requires the platform, and
+          // `dark platforms` lists what is here, against this and nothing else.
+          platforms = (Platforms.Sets.cli ()).platforms }
   }
 
 /// What a CLI test drives.

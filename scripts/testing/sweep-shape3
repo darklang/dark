@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Shape 3 of the four-shape CLI sweep in AGENTS.md: every command with VALID arguments, on main
+# and on a branch.
+#
+# Shapes 1, 2 and 4 (bare, --help, a bogus argument) are automated in `CliSurface.Tests`, driven
+# off the command registry so a new command is swept the day it is registered. Shape 3 cannot be:
+# "valid arguments" differs per command and no registry knows them. So this is a hand-curated
+# SAMPLE, not an exhaustive sweep, and its job is to be run after a change that could plausibly
+# break execution rather than to be a gate.
+#
+# It is deliberately biased toward commands that read the package store, evaluate Dark, or move
+# between branches, because those are what a change to the runtime, the builtin set or the SCM
+# actually touches.
+#
+#   scripts/testing/sweep-shape3
+#
+# Exits nonzero if any command printed something that reads like a failure. The patterns are the
+# ones AGENTS.md names, minus the bare words `Exception` and `Unhandled`: `search` legitimately
+# prints a type called `ExecutionError.Unhandled`, and `typecheck`'s entire job is to print
+# `incomplete:` reports, so matching those makes the sweep cry wolf and get ignored.
+set -uo pipefail
+cd "$(dirname "$0")/../.." || exit 1
+
+BAD='Encountered a Runtime Error|expects .* but got|No matching case found|couldn.t be found'
+fails=0
+
+run() {
+  local desc="$1"; shift
+  local out
+  out=$(timeout 120 ./scripts/run-cli "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+  if echo "$out" | grep -qE "$BAD"; then
+    echo "FAIL  $desc"
+    echo "$out" | grep -E "$BAD" | head -3 | sed 's/^/        /'
+    fails=$((fails + 1))
+  else
+    echo "ok    $desc"
+  fi
+}
+
+echo "--- reading the package store ---"
+run "ls"                    ls
+run "ls a module"           ls Darklang.Stdlib
+run "tree"                  tree Darklang.Stdlib
+run "view a fn"             view Darklang.Stdlib.List.map
+run "search"                search map
+run "hash"                  hash Darklang.Stdlib.List.map
+run "deps"                  deps Darklang.Stdlib.List.map
+run "find-values"           find-values Int64
+run "builtins"              builtins
+run "typecheck"             typecheck
+run "docs"                  docs for-ai
+
+echo "--- evaluating Dark ---"
+run "eval arithmetic"       eval "1L + 2L"
+run "eval a stdlib call"    eval "Stdlib.List.length [1L; 2L; 3L]"
+run "eval a package value"  eval "Stdlib.Bool.toString true"
+
+echo "--- SCM on main ---"
+for c in status commits branches log constraints conflicts traces whoami; do
+  run "$c" "$c"
+done
+
+echo "--- SCM on a branch ---"
+run "branch create"         branch create sweep-shape3 --yes
+run "switch to it"          switch sweep-shape3
+run "status"                status
+run "log"                   log
+run "diff"                  diff
+run "ls"                    ls Darklang.Stdlib
+run "eval"                  eval "1L + 1L"
+run "switch back"           switch main
+run "archive it"            branch archive sweep-shape3 --yes
+
+echo
+if [[ $fails -eq 0 ]]; then
+  echo "shape 3: all clear"
+else
+  echo "shape 3: $fails command(s) printed something that reads like a failure"
+fi
+exit $fails

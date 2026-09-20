@@ -53,7 +53,7 @@ let sqrt (a: UInt128) : Float = Builtin.uint128Sqrt a
 
 
 /// Converts a <type UInt128> to a <type Float>
-let toFloat (a: UInt128) : Float = Builtin.uint128ToFloat a
+let toFloat (a: UInt128) : Float = Builtin.convert<Float> a
 
 
 /// Returns the sum of all the ints in the list
@@ -109,19 +109,19 @@ let parse
 
 
 /// Converts a <type UInt8> to an <type UInt128>.
-let fromUInt8 (i: UInt8) : UInt128 = Builtin.uint128FromUInt8 i
+let fromUInt8 (i: UInt8) : UInt128 = Builtin.convert<UInt128> i
 
 
 /// Converts a <type UInt16> to an <type UInt128>.
-let fromUInt16 (i: UInt16) : UInt128 = Builtin.uint128FromUInt16 i
+let fromUInt16 (i: UInt16) : UInt128 = Builtin.convert<UInt128> i
 
 
 /// Converts a <type UInt32> to an <type UInt128>.
-let fromUInt32 (i: UInt32) : UInt128 = Builtin.uint128FromUInt32 i
+let fromUInt32 (i: UInt32) : UInt128 = Builtin.convert<UInt128> i
 
 
 /// Converts a <type UInt64> to an <type UInt128>.
-let fromUInt64 (i: UInt64) : UInt128 = Builtin.uint128FromUInt64 i
+let fromUInt64 (i: UInt64) : UInt128 = Builtin.convert<UInt128> i
 
 
 /// Bitwise AND on two <type UInt128> values

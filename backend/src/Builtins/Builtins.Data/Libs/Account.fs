@@ -1,7 +1,7 @@
 /// Builtin functions for account lookup. Companion to
 /// `LibCloud.Account` (which holds the F#-side getters that aren't
 /// builtin-shaped).
-module Builtins.Matter.Libs.Account
+module Builtins.Data.Libs.Account
 
 open Prelude
 open LibExecution.RuntimeTypes

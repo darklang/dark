@@ -2,7 +2,7 @@
 ///
 /// Loads candidate dependencies, invokes the storage-independent checker, and
 /// converts its report to structured Dark values without persisting anything.
-module Builtins.Matter.Libs.PM.AtRestTypeChecker
+module Builtins.Store.Libs.AtRestTypeChecker
 
 open Prelude
 open LibExecution.RuntimeTypes

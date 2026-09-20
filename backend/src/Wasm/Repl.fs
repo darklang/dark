@@ -40,14 +40,36 @@ let mutable private stateOpt : RT.ExecutionState option = None
 /// Session variables from bare `let` entries, in binding order.
 let mutable private sessionVars : List<string * RT.Dval> = []
 
-let private builtins : RT.Builtins =
-  LibExecution.Builtin.combine
-    [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins ()
-      Output.builtins ()
-      // live getter: lookups see snapshot + REPL-declared items
-      PmLookup.builtins (fun () -> pm) ]
+/// The browser's own platform: writing to the page, and a package lookup backed by the loaded
+/// snapshot plus whatever the REPL has declared this session.
+///
+/// It exists as a `Platform` rather than a loose `Builtins` because that is what lets this file
+/// compose a set without linking `Platforms` — which references every platform we ship, including
+/// the ones (`Host`, `Data`, `Store`) whose SQLite and LibCloud dependencies the browser cannot
+/// link at all. That constraint is the reason the split is worth having: the smaller executable is
+/// a shorter list, not a fork.
+let private replPlatform : LibExecution.Platform.Platform =
+  { name = "WasmRepl"
+    version = 0
+    description = "Browser output, and package lookup over the loaded snapshot."
+    builtins =
+      LibExecution.Builtin.combine
+        [ Output.builtins ()
+          // live getter: lookups see snapshot + REPL-declared items
+          PmLookup.builtins (fun () -> pm) ]
+        []
+    requires = [ "Core" ]
+    dynamicEffects = Set.empty
+    requiresStore = false }
+
+let private platformSet : LibExecution.Platform.PlatformSet =
+  LibExecution.Platform.PlatformSet.make
+    [ Builtins.Pure.Builtin.platform
+      Builtins.Http.Client.Builtin.platform
+      replPlatform ]
     []
+
+let private builtins : RT.Builtins = platformSet.builtins
 
 let private buildState () : RT.ExecutionState =
   let pmRT = PT2RT.PackageManager.toRT builtins.values pm

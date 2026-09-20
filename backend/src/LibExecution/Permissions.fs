@@ -59,7 +59,14 @@ type Request =
   /// per-resource scoping, so these are ambient effects like `Stdout`.
   | Package of access : AccessKind
   | Trace of access : AccessKind
+  /// The host's own permission state, ambient like `Package` and `Trace` for the same reason:
+  /// there is no per-resource handle to name inside it.
+  | Policy of access : AccessKind
   | Native of operation : string
+  /// A capability this runtime did not ship, named `owner/name` by the platform that
+  /// declared it. Ambient and whole-or-nothing for the same reason `Native` is: we cannot
+  /// build a request naming a resource we know nothing about.
+  | Custom of effect : string
 
 module Request =
   /// One shell-safe token for an actionable `permissions allow` command.
@@ -89,7 +96,10 @@ module Request =
     | Request.Package AccessKind.Write -> Effect.Effect.PackageWrite
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
+    | Request.Policy AccessKind.Read -> Effect.Effect.PolicyRead
+    | Request.Policy AccessKind.Write -> Effect.Effect.PolicyWrite
     | Request.Native _ -> Effect.Effect.Native
+    | Request.Custom effect -> Effect.Effect.Custom effect
 
   /// Return the narrow `permissions allow <rule>` text that covers this
   /// request, or `None` when the effect has no scoped rule (such as Native).
@@ -117,12 +127,31 @@ module Request =
     | Request.Stdout -> Some "stdout"
     | Request.Clock -> Some "clock"
     | Request.Random -> Some "random"
-    | Request.Process(executable, _) -> Some $"process {quoteRuleToken executable}"
+    // The ARGUMENTS, not just the program, and this is the case where that matters most. A rule
+    // naming an executable and nothing else scopes its arguments to `All`, which is the right
+    // default when a person writes one by hand and the wrong suggestion to hand them here: it is
+    // not narrow, and this function promises narrow.
+    //
+    // `cliExecute` is why. It does not run the command it is given, it runs `$SHELL -c <command>`,
+    // so the request names the shell and carries the whole command line in its arguments.
+    // Suggesting `process '/bin/bash'` would offer somebody a grant that reads as "may run bash"
+    // and means "may run anything", at the exact moment they are deciding whether to trust it.
+    | Request.Process(executable, args) ->
+      let rendered =
+        (executable :: args) |> List.map quoteRuleToken |> String.concat " "
+      Some $"process {rendered}"
     | Request.Package AccessKind.Read -> Some "package-read"
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
+    | Request.Policy AccessKind.Read -> Some "policy-read"
+    | Request.Policy AccessKind.Write -> Some "policy-write"
     | Request.Native _ -> None
+    // Unlike `Native`, which is keyed per builtin and grantable only as a whole, a custom
+    // effect IS the unit a platform advertises, so its own name is the rule.
+    | Request.Custom effect -> Some effect
+    // The unscoped spelling, and only that. A narrower rule would not cover this request, so
+    // suggesting one would send somebody round a loop where the fix they were handed does not fix it.
 
   let httpServer (port : int) : Result<Request, string> =
     if port >= 0 && port <= 65535 then
@@ -198,6 +227,15 @@ module Request =
 
   let trace (access : AccessKind) : Request = Request.Trace access
 
+  let policy (access : AccessKind) : Request = Request.Policy access
+
+  /// A request for a platform-declared capability. Takes the effect, not a raw string, so
+  /// the `owner/name` validation in `Effects.custom` is the only way in.
+  let custom (effect : Effect.Effect) : Result<Request, string> =
+    match effect with
+    | Effect.Effect.Custom name -> Ok(Request.Custom name)
+    | other -> Error $"Not a custom effect: {Effect.name other}"
+
   let native (operation : string) : Result<Request, string> =
     if System.String.IsNullOrWhiteSpace operation then
       Error "Native operation cannot be empty"
@@ -207,6 +245,8 @@ module Request =
   /// The request an ambient effect stands for, checked at the interpreter
   /// gate before a builtin body runs. `Native` is keyed by the builtin's name.
   /// Scoped effects name a resource and never reach the gate.
+  /// Ask for the whole of an effect, for a caller whose resource this runtime cannot see.
+
   let ofAmbientEffect (effect : Effect.Effect) (builtinName : string) : Request =
     match effect with
     | Effect.Effect.Stdout -> Request.Stdout
@@ -217,7 +257,10 @@ module Request =
     | Effect.Effect.PackageWrite -> Request.Package AccessKind.Write
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
+    | Effect.Effect.PolicyRead -> Request.Policy AccessKind.Read
+    | Effect.Effect.PolicyWrite -> Request.Policy AccessKind.Write
     | Effect.Effect.Native -> Request.Native builtinName
+    | Effect.Effect.Custom name -> Request.Custom name
     | scoped ->
       Exception.raiseInternal
         "scoped effect reached the ambient gate"

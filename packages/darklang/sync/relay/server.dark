@@ -362,7 +362,8 @@ val handlers =
     post "/branch/push" Darklang.Matter.Relay.branchPushHandlerFn
     get "/branch/pull" Darklang.Matter.Relay.branchPullHandlerFn
     get "/branch/list" Darklang.Matter.Relay.branchListHandlerFn
-    get "/branch/owners" Darklang.Matter.Relay.branchOwnersHandlerFn ]
+    get "/branch/owners" Darklang.Matter.Relay.branchOwnersHandlerFn
+  ]
 
 /// One server, two audiences.
 ///

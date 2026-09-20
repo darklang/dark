@@ -131,7 +131,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
+    <ProjectReference Include="../Platforms/Platforms.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />
