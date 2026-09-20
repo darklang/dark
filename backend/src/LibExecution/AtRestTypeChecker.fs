@@ -103,7 +103,7 @@ let private headOfImplSelf (self : TypeReference) : Option<string> =
 /// blanket ones.
 let private implsFor
   (state : State)
-  (trait_ : FQTypeName.Package)
+  (trait_ : FQTraitName.Package)
   (head : string)
   : List<ImplEntry> =
   let ofTrait =
@@ -132,7 +132,7 @@ let private dischargeConstraints (state : State) : unit =
         |> List.exists (fun b ->
           b.param = name
           && (match b.trait_.trait_.resolved with
-              | Ok { name = FQTypeName.Package t } -> t = trait_
+              | Ok { name = FQTraitName.Package t } -> t = trait_
               | _ -> false))
       if not declared then
         state.Error(UnboundTypeParameter, nodeId, None, Some typ, TraitNeeded(trait_, method_))
@@ -169,19 +169,22 @@ let private receiverMethodType
     match candidates with
     | [] -> None
     | [ entry ] ->
-      match Map.tryFind entry.trait_ state.Environment.types with
-      | Some { typeParams = selfParam :: rest; definition = TypeDeclaration.Record fields } ->
-        fields
+      match Map.tryFind entry.trait_ state.Environment.traits with
+      | Some trait_ ->
+        trait_.methods
         |> NEList.toList
-        |> List.tryPick (fun f ->
-          match f.typ with
-          | TypeReference.TFn(parameters, returnType) when f.name = methodName ->
+        |> List.tryPick (fun m ->
+          if m.name = methodName then
             let vars =
-              (selfParam, receiverType)
-              :: (rest |> List.map (fun p -> p, state.Fresh(Some nodeId)))
+              (trait_.typeParams.head, receiverType)
+              :: ((trait_.typeParams.tail @ m.typeParams)
+                  |> List.map (fun p -> p, state.Fresh(Some nodeId)))
               |> Map.ofList
-            let paramTypes = parameters |> NEList.toList |> List.map (convertType state (Some nodeId) vars)
-            let returnType = convertType state (Some nodeId) vars returnType
+            let paramTypes =
+              m.parameters
+              |> NEList.toList
+              |> List.map (fun p -> convertType state (Some nodeId) vars p.typ)
+            let returnType = convertType state (Some nodeId) vars m.returnType
             match paramTypes with
             | self :: remaining ->
               unify state (Some nodeId) RecordFieldAccess self receiverType
@@ -189,8 +192,9 @@ let private receiverMethodType
               | [] -> Some returnType
               | r :: rs -> Some(TFn(NEList.ofList r rs, returnType))
             | [] -> None
-          | _ -> None)
-      | _ -> None
+          else
+            None)
+      | None -> None
     | several ->
       state.Error(
         AmbiguousImpl,
@@ -352,48 +356,36 @@ let private checkInferredPackageValue
     finish state (Some(Expr.toID value.body)) scheme)
 
 /// Impls are not referenced from call sites, so a dependency walk cannot find
-/// them; ask the store for every item that references each type in the closure
-/// (a trait's impls all do) and register the ones that are impls. A type that is
-/// not a trait yields nothing, so this costs one cached query per type.
+/// them; ask the store for every trait in the closure and register its live impls.
 let addVisibleImpls
   (pm : PT.PackageManager)
-  (types : seq<PT.FQTypeName.Package>)
+  (traits : seq<PT.FQTraitName.Package>)
   (environment : TypeEnvironment)
   : Ply<TypeEnvironment> =
   uply {
     let mutable environment = environment
     // `+` needs `Add`'s impls visible and no item names `Add`, so the operator
     // traits are always in the set.
-    let types =
-      Seq.append (LibExecution.NumericTraits.traitHashes ()) types |> Seq.distinct
-    for typeHash in types do
-      let! (values, fns) = pm.implItems typeHash
+    let traits =
+      Seq.append (LibExecution.NumericTraits.traitHashes ()) traits |> Seq.distinct
+    for traitHash in traits do
+      let! impls = pm.impls traitHash
       // Only what a name still binds counts, same as dispatch.
-      let! liveValues =
-        values
-        |> Ply.List.filterSequentially (fun v ->
+      let! live =
+        impls
+        |> Ply.List.filterSequentially (fun i ->
           uply {
-            let! locs = pm.getValueLocations v.hash
-            let! bound = Ply.List.mapSequentially pm.findValue locs
-            return bound |> List.exists (fun b -> b = Some v.hash)
+            let! locs = pm.getImplLocations i.hash
+            let! bound = Ply.List.mapSequentially pm.findImpl locs
+            return bound |> List.exists (fun b -> b = Some i.hash)
           })
-      let! liveFns =
-        fns
-        |> Ply.List.filterSequentially (fun f ->
-          uply {
-            let! locs = pm.getFnLocations f.hash
-            let! bound = Ply.List.mapSequentially pm.findFn locs
-            return bound |> List.exists (fun b -> b = Some f.hash)
-          })
-      for v in liveValues do
-        environment <- TypeEnvironment.addImplIfValue v environment
-      for f in liveFns do
-        environment <- TypeEnvironment.addImplIfFn f environment
+      for i in live do
+        environment <- TypeEnvironment.addImpl i environment
     // A receiver call (`p.show`) reaches a trait the item never names, so the
-    // trait's declaration has to be present for every impl registered.
+    // trait itself has to be present for every impl registered.
     for traitHash in TypeEnvironment.implTraitsMissingDeclarations environment do
-      match! pm.getType traitHash with
-      | Some typ -> environment <- TypeEnvironment.addPackageType typ environment
+      match! pm.getTrait traitHash with
+      | Some t -> environment <- TypeEnvironment.addTrait t environment
       | None -> ()
     return environment
   }
@@ -421,7 +413,7 @@ let checkPackageFunction
     state.DeclaredBounds <- fn.bounds
     for b in fn.bounds do
       match b.trait_.trait_.resolved with
-      | Ok { name = FQTypeName.Package traitHash } -> state.AddDependency(TypeDependency traitHash)
+      | Ok { name = FQTraitName.Package traitHash } -> state.AddDependency(TraitDependency traitHash)
       | _ -> ()
     let parameters =
       fn.parameters
@@ -515,24 +507,121 @@ let private validateTypeDeclaration
         case.fields |> List.iter (fun field -> validateReference field.typ))
     finish state None (monomorphic TUnit))
 
+/// A trait's shape is right when every method's types resolve and no two methods
+/// share a name.
+let private validateTrait (environment : TypeEnvironment) (trait_ : Trait.Trait) : Verdict =
+  guardingStack None (fun () ->
+    let state = State environment
+    let typeParams = NEList.toList trait_.typeParams
+    for name in duplicateNames typeParams do
+      state.Error(DuplicateTypeParameter, None, None, None, Duplicate(name, InTypeDeclaration))
+    for name in trait_.methods |> NEList.toList |> List.map _.name |> duplicateNames do
+      state.Error(DuplicateTypeMember, None, None, None, Duplicate(name, InTypeDeclaration))
+    for m in NEList.toList trait_.methods do
+      let rigidVars =
+        typeParams @ m.typeParams
+        |> List.map (fun name -> name, TRigidVariable name)
+        |> Map.ofList
+      for p in NEList.toList m.parameters do
+        validateTypeClosure state None (convertType state None rigidVars p.typ)
+      validateTypeClosure state None (convertType state None rigidVars m.returnType)
+    finish state None (monomorphic TUnit))
+
+/// An impl is right when its trait is known, it has exactly the trait's methods,
+/// each method fn has the trait method's signature at the impl's self type, and no
+/// method fn may do more than the trait's method allows.
+let private validateImpl (environment : TypeEnvironment) (impl : Impl.Impl) : Verdict =
+  guardingStack None (fun () ->
+    let state = State environment
+    match impl.trait_.resolved with
+    | Error _ -> state.Block(UnresolvedTypeName, None, Identifier "trait")
+    | Ok { name = FQTraitName.Package traitHash } ->
+      state.AddDependency(TraitDependency traitHash)
+      match Map.tryFind traitHash environment.traits with
+      | None -> state.Block(MissingTypeDeclaration, None, TraitUnavailable traitHash)
+      | Some trait_ ->
+        let declared = trait_.methods |> NEList.toList |> List.map _.name |> Set.ofList
+        let provided = impl.methods |> List.map fst |> Set.ofList
+        for missing in Set.difference declared provided do
+          state.Error(ImplMethodSet, None, None, None, ImplMethod(traitHash, missing, "missing"))
+        for extra in Set.difference provided declared do
+          state.Error(ImplMethodSet, None, None, None, ImplMethod(traitHash, extra, "not a method of the trait"))
+        // The trait's params at this impl: self, then the trait's other args.
+        let rigidVars =
+          impl.typeParams |> List.map (fun name -> name, TRigidVariable name) |> Map.ofList
+        let traitVars =
+          let self = convertType state None rigidVars impl.self
+          let others =
+            List.zip
+              (List.truncate (List.length trait_.typeParams.tail) trait_.typeParams.tail)
+              (impl.traitTypeArgs |> List.truncate (List.length trait_.typeParams.tail))
+            |> List.map (fun (p, t) -> p, convertType state None rigidVars t)
+          Map.ofList ((trait_.typeParams.head, self) :: others)
+        for (name, fnNr) in impl.methods do
+          let fnName =
+            match fnNr.resolved with
+            | Ok { name = n } -> Some n
+            | Error _ -> None
+          match
+            trait_.methods |> NEList.toList |> List.tryFind (fun m -> m.name = name),
+            fnName |> Option.bind (fun n -> Map.tryFind n environment.functions)
+          with
+          | Some m, Some signature ->
+            // The trait method's own type params are fresh per method.
+            let vars =
+              m.typeParams
+              |> List.fold (fun vars p -> Map.add p (state.Fresh None) vars) traitVars
+            let expectedParams = m.parameters |> NEList.map (fun p -> convertType state None vars p.typ)
+            let expectedReturn = convertType state None vars m.returnType
+            let fnVars =
+              signature.typeParams |> List.fold (fun vars p -> Map.add p (state.Fresh None) vars) Map.empty
+            let actualParams = signature.parameters |> NEList.map (convertType state None fnVars)
+            let actualReturn = convertType state None fnVars signature.returnType
+            if NEList.length expectedParams <> NEList.length actualParams then
+              state.Error(
+                ImplMethodSignature,
+                None,
+                Some(TFn(expectedParams, expectedReturn)),
+                Some(TFn(actualParams, actualReturn)),
+                ImplMethod(traitHash, name, "arity")
+              )
+            else
+              unify state None ImplMethodSignatureSite (TFn(expectedParams, expectedReturn)) (TFn(actualParams, actualReturn))
+            // The ceiling: an impl fn may do no more than the trait method allows.
+            match
+              m.permissionCeiling,
+              fnName |> Option.bind (fun n -> Map.tryFind n environment.functionCeilings)
+            with
+            | Some allowed, Some(Some actual) when not (Set.isSubset actual allowed) ->
+              state.Error(ImplExceedsCeiling, None, None, None, ImplMethod(traitHash, name, "ceiling"))
+            | Some _, Some None ->
+              state.Error(ImplExceedsCeiling, None, None, None, ImplMethod(traitHash, name, "no ceiling declared"))
+            | _ -> ()
+          | Some _, None ->
+            match fnName with
+            | Some n -> state.Block(MissingFunctionSignature, None, FunctionUnavailable n)
+            | None -> state.Block(UnresolvedFunctionName, None, Identifier name)
+          | None, _ -> ()
+    finish state None (monomorphic TUnit))
+
 let private addBatchDeclarations
   (baseEnvironment : TypeEnvironment)
   (types : List<PackageType.PackageType>)
-  (values : List<PackageValue.PackageValue>)
   (functions : List<PackageFn.PackageFn>)
+  (traits : List<Trait.Trait>)
+  (impls : List<Impl.Impl>)
   : TypeEnvironment =
   let withTypes =
     types
     |> List.fold
       (fun environment typ -> TypeEnvironment.addPackageType typ environment)
       baseEnvironment
-  // An impl's instance value is an impl the batch's own callers can rely on,
-  // before the value itself has been checked (its type is fixed by its shape).
+  let withTraits =
+    traits |> List.fold (fun environment t -> TypeEnvironment.addTrait t environment) withTypes
+  // An impl is one the batch's own callers can rely on before it has been checked
+  // (what it is for is fixed by its declaration).
   let withImpls =
-    values
-    |> List.fold
-      (fun environment value -> TypeEnvironment.addImplIfValue value environment)
-      withTypes
+    impls |> List.fold (fun environment i -> TypeEnvironment.addImpl i environment) withTraits
   functions
   |> List.fold
     (fun environment fn ->
@@ -606,13 +695,20 @@ let checkPackageBatch
   (types : List<PackageType.PackageType>)
   (values : List<PackageValue.PackageValue>)
   (functions : List<PackageFn.PackageFn>)
+  (traits : List<Trait.Trait>)
+  (impls : List<Impl.Impl>)
   : BatchResult =
-  let declaredEnvironment = addBatchDeclarations baseEnvironment types values functions
+  let declaredEnvironment =
+    addBatchDeclarations baseEnvironment types functions traits impls
   let typeResults =
     types
     |> List.map (fun typ ->
       { item = Reference.PackageType typ.hash
         verdict = validateTypeDeclaration declaredEnvironment typ })
+  let traitResults =
+    traits
+    |> List.map (fun t ->
+      { item = Reference.PackageTrait t.hash; verdict = validateTrait declaredEnvironment t })
   let environment, valueResults =
     checkValuesInDependencyOrder declaredEnvironment values
   let functionResults =
@@ -620,7 +716,12 @@ let checkPackageBatch
     |> List.map (fun fn ->
       { item = Reference.PackageFn fn.hash
         verdict = checkPackageFunction environment fn })
+  let implResults =
+    impls
+    |> List.map (fun i -> { item = Reference.PackageImpl i.hash; verdict = validateImpl environment i })
   { environment = environment
     types = typeResults
     values = valueResults
-    functions = functionResults }
+    functions = functionResults
+    traits = traitResults
+    impls = implResults }

@@ -60,6 +60,12 @@ type IssueCode =
   | UnboundTypeParameter
   /// More than one impl fits
   | AmbiguousImpl
+  /// An impl leaves out a trait method, or names one the trait lacks
+  | ImplMethodSet
+  /// An impl's method fn does not have the trait method's signature at the self type
+  | ImplMethodSignature
+  /// An impl's method fn may do more than the trait's method allows
+  | ImplExceedsCeiling
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -82,6 +88,8 @@ type NameRef =
 /// Where in the item the checker was working when it found something.
 type Site =
   | LambdaReturnValue
+  /// An impl's method fn against the trait method's signature at the self type
+  | ImplMethodSignatureSite
   | FunctionReturnValue
   | ValueBody
   | Expression
@@ -143,6 +151,9 @@ type Context =
   | At of Site
   | Unresolved of List<String>
   | TypeUnavailable of LanguageTools.ProgramTypes.Hash
+  | TraitUnavailable of LanguageTools.ProgramTypes.Hash
+  /// The trait method an impl gets wrong, and what is wrong with it
+  | ImplMethod of LanguageTools.ProgramTypes.Hash * String * String
   | FunctionUnavailable of NameRef
   | ValueUnavailable of NameRef
   | Identifier of String
@@ -284,6 +295,9 @@ let issueCodeToString (code: IssueCode) : String =
   | MissingImpl -> "MissingImpl"
   | UnboundTypeParameter -> "UnboundTypeParameter"
   | AmbiguousImpl -> "AmbiguousImpl"
+  | ImplMethodSet -> "ImplMethodSet"
+  | ImplMethodSignature -> "ImplMethodSignature"
+  | ImplExceedsCeiling -> "ImplExceedsCeiling"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
   | UnresolvedValueName -> "UnresolvedValueName"
@@ -326,6 +340,7 @@ let nameRefToStringWith
 let siteToString (site: Site) : String =
   match site with
   | LambdaReturnValue -> "the lambda's return value"
+  | ImplMethodSignatureSite -> "the impl's method fn against the trait's signature"
   | FunctionReturnValue -> "the function's return value"
   | ValueBody -> "the value's body"
   | Expression -> "this expression"
@@ -416,6 +431,22 @@ let contextToStringWith
     | [] -> "The name is unresolved"
     | parts -> $"'{Stdlib.String.join parts "."}' is unresolved"
   | TypeUnavailable hash -> $"{typeName hash} is not available to the checker"
+  | TraitUnavailable hash -> $"the trait {typeName hash} is not available to the checker"
+  | ImplMethod(traitHash, method, detail) ->
+    let traitName =
+      match customTypeName traitHash with
+      | Some name -> name
+      | None -> $"#{Stdlib.String.slice (LanguageTools.ProgramTypes.hashToString traitHash) 0 12}"
+    match code with
+    | ImplMethodSet ->
+      match detail with
+      | "missing" -> $"The impl does not provide `{method}`, which {traitName} declares"
+      | _ -> $"`{method}` is not a method of {traitName}"
+    | ImplMethodSignature ->
+      $"The fn given for `{method}` does not have {traitName}.{method}'s signature at this type ({detail})"
+    | ImplExceedsCeiling ->
+      $"The fn given for `{method}` may do more than {traitName}.{method} allows ({detail})"
+    | _ -> $"`{method}` of {traitName}: {detail}"
   | FunctionUnavailable fn ->
     $"The signature for {name fn} is not available to the checker"
   | ValueUnavailable value ->

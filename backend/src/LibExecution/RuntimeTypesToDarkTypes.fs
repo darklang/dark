@@ -65,6 +65,34 @@ module FQTypeName =
     | _ -> Exception.raiseInternal "Invalid FQTypeName" []
 
 
+module FQTraitName =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.FQTraitName.fqTraitName ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  module Package =
+    let toDT (Hash h : FQTraitName.Package) : Dval =
+      DEnum(hashTypeName (), hashTypeName (), [], "Hash", [ DString h ])
+
+    let fromDT (d : Dval) : FQTraitName.Package =
+      match d with
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
+      | _ -> Exception.raiseInternal "Invalid FQTraitName.Package" []
+
+  let toDT (u : FQTraitName.FQTraitName) : Dval =
+    let (caseName, fields) =
+      match u with
+      | FQTraitName.Package u -> "Package", [ Package.toDT u ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : FQTraitName.FQTraitName =
+    match d with
+    | DEnum(_, _, [], "Package", [ u ]) -> FQTraitName.Package(Package.fromDT u)
+    | _ -> Exception.raiseInternal "Invalid FQTraitName" []
+
+
 module FQValueName =
   let typeName () =
     FQTypeName.fqPackage (
@@ -149,7 +177,7 @@ module FQFnName =
       | FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQFnName.Package u -> "Package", [ Package.toDT u ]
       | FQFnName.TraitMethod(t, m) ->
-        "TraitMethod", [ FQTypeName.Package.toDT t; DString m ]
+        "TraitMethod", [ FQTraitName.Package.toDT t; DString m ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : FQFnName.FQFnName =
@@ -157,7 +185,7 @@ module FQFnName =
     | DEnum(_, _, [], "Builtin", [ u ]) -> FQFnName.Builtin(Builtin.fromDT u)
     | DEnum(_, _, [], "Package", [ u ]) -> FQFnName.Package(Package.fromDT u)
     | DEnum(_, _, [], "TraitMethod", [ t; DString m ]) ->
-      FQFnName.TraitMethod(FQTypeName.Package.fromDT t, m)
+      FQFnName.TraitMethod(FQTraitName.Package.fromDT t, m)
     | _ -> Exception.raiseInternal "Invalid FQFnName" []
 
 
@@ -342,7 +370,7 @@ module ImplCandidate =
       typeName (),
       [],
       Map
-        [ "trait_", FQTypeName.Package.toDT c.trait_
+        [ "trait_", FQTraitName.Package.toDT c.trait_
           "self", TypeReference.toDT c.self
           "methods", methods
           "source", Hash.toDT c.source ]
@@ -1677,31 +1705,32 @@ module RuntimeError =
       let (caseName, fields) =
         match e with
         | RuntimeError.Traits.MissingImpl(trait_, self) ->
-          "MissingImpl", [ FQTypeName.toDT trait_; ValueType.toDT self ]
+          "MissingImpl", [ FQTraitName.toDT trait_; ValueType.toDT self ]
         | RuntimeError.Traits.DispatchAmbiguous(trait_, self, candidates) ->
           "DispatchAmbiguous",
-          [ FQTypeName.toDT trait_
+          [ FQTraitName.toDT trait_
             ValueType.toDT self
             DList(VT.known (Hash.knownType ()), List.map Hash.toDT candidates) ]
         | RuntimeError.Traits.MethodAmbiguous(method_, self, traits) ->
           "MethodAmbiguous",
           [ DString method_
             ValueType.toDT self
-            DList(VT.known (FQTypeName.knownType ()), List.map FQTypeName.toDT traits) ]
+            DList(VT.known (FQTraitName.knownType ()), List.map FQTraitName.toDT traits) ]
         | RuntimeError.Traits.SelfTypeUnknown(trait_, method_) ->
-          "SelfTypeUnknown", [ FQTypeName.toDT trait_; DString method_ ]
+          "SelfTypeUnknown", [ FQTraitName.toDT trait_; DString method_ ]
         | RuntimeError.Traits.NoSuchMethod(trait_, method_) ->
-          "NoSuchMethod", [ FQTypeName.toDT trait_; DString method_ ]
+          "NoSuchMethod", [ FQTraitName.toDT trait_; DString method_ ]
+        | RuntimeError.Traits.TraitNotFound trait_ -> "TraitNotFound", [ FQTraitName.toDT trait_ ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : RuntimeError.Traits.Error =
       match d with
       | DEnum(_, _, [], "MissingImpl", [ trait_; self ]) ->
-        RuntimeError.Traits.MissingImpl(FQTypeName.fromDT trait_, ValueType.fromDT self)
+        RuntimeError.Traits.MissingImpl(FQTraitName.fromDT trait_, ValueType.fromDT self)
       | DEnum(_, _, [], "DispatchAmbiguous", [ trait_; self; candidates ]) ->
         RuntimeError.Traits.DispatchAmbiguous(
-          FQTypeName.fromDT trait_,
+          FQTraitName.fromDT trait_,
           ValueType.fromDT self,
           D.list Hash.fromDT candidates
         )
@@ -1709,12 +1738,14 @@ module RuntimeError =
         RuntimeError.Traits.MethodAmbiguous(
           D.string method_,
           ValueType.fromDT self,
-          D.list FQTypeName.fromDT traits
+          D.list FQTraitName.fromDT traits
         )
       | DEnum(_, _, [], "SelfTypeUnknown", [ trait_; method_ ]) ->
-        RuntimeError.Traits.SelfTypeUnknown(FQTypeName.fromDT trait_, D.string method_)
+        RuntimeError.Traits.SelfTypeUnknown(FQTraitName.fromDT trait_, D.string method_)
       | DEnum(_, _, [], "NoSuchMethod", [ trait_; method_ ]) ->
-        RuntimeError.Traits.NoSuchMethod(FQTypeName.fromDT trait_, D.string method_)
+        RuntimeError.Traits.NoSuchMethod(FQTraitName.fromDT trait_, D.string method_)
+      | DEnum(_, _, [], "TraitNotFound", [ trait_ ]) ->
+        RuntimeError.Traits.TraitNotFound(FQTraitName.fromDT trait_)
       | _ -> Exception.raiseInternal "Invalid Traits.Error" []
 
   module CLIs =

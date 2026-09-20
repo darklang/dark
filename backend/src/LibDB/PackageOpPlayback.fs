@@ -259,6 +259,73 @@ let private applyAddValue
     do! updateDependencies ctx hashStr refs
   }
 
+/// Apply a single AddTrait op to the package_traits table.
+let private applyAddTrait
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (t : PT.Trait.Trait)
+  : Task<unit> =
+  task {
+    let hash =
+      match t.hash with
+      | Hash "" -> Hashing.computeTraitHash Hashing.Normal t
+      | h -> h
+    let t = { t with hash = hash }
+    let (Hash hashStr) = hash
+
+    do!
+      upsertContentAddressed
+        ctx
+        "trait"
+        "package_traits"
+        hash
+        [ "pt_def", box (BS.PT.Trait.serialize hashStr t)
+          "description", box t.description ]
+        []
+        mayRewriteExisting
+        (Hashing.computeTraitHash Hashing.Normal t)
+        (fun bytes ->
+          BS.PT.Trait.deserialize hash bytes |> Hashing.computeTraitHash Hashing.Normal)
+
+    do! updateDependencies ctx hashStr (DE.extractFromTrait t)
+  }
+
+/// Apply a single AddImpl op to the package_impls table.
+let private applyAddImpl
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (i : PT.Impl.Impl)
+  : Task<unit> =
+  task {
+    let hash =
+      match i.hash with
+      | Hash "" -> Hashing.computeImplHash Hashing.Normal i
+      | h -> h
+    let i = { i with hash = hash }
+    let (Hash hashStr) = hash
+    let traitHash =
+      match i.trait_.resolved with
+      | Ok { name = PT.FQTraitName.Package(Hash t) } -> t
+      | Error _ -> ""
+
+    do!
+      upsertContentAddressed
+        ctx
+        "impl"
+        "package_impls"
+        hash
+        [ "pt_def", box (BS.PT.Impl.serialize hashStr i)
+          "trait_hash", box traitHash
+          "description", box i.description ]
+        []
+        mayRewriteExisting
+        (Hashing.computeImplHash Hashing.Normal i)
+        (fun bytes ->
+          BS.PT.Impl.deserialize hash bytes |> Hashing.computeImplHash Hashing.Normal)
+
+    do! updateDependencies ctx hashStr (DE.extractFromImpl i)
+  }
+
 /// Apply a single AddFn op to the package_functions table.
 let private applyAddFn
   (ctx : Ctx)
@@ -874,6 +941,8 @@ let private applyOp
     | PT.PackageOp.AddType typ -> do! applyAddType ctx mayRewriteExisting typ
     | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
     | PT.PackageOp.AddFn fn -> do! applyAddFn ctx mayRewriteExisting fn
+    | PT.PackageOp.AddTrait t -> do! applyAddTrait ctx mayRewriteExisting t
+    | PT.PackageOp.AddImpl i -> do! applyAddImpl ctx mayRewriteExisting i
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
@@ -1023,6 +1092,12 @@ let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
         | PT.PackageOp.AddValue v when v.hash <> Hash "" ->
           let (Hash h) = v.hash
           Some(h, DE.extractFromValue v)
+        | PT.PackageOp.AddTrait t when t.hash <> Hash "" ->
+          let (Hash h) = t.hash
+          Some(h, DE.extractFromTrait t)
+        | PT.PackageOp.AddImpl i when i.hash <> Hash "" ->
+          let (Hash h) = i.hash
+          Some(h, DE.extractFromImpl i)
         | _ -> None)
 
     if not (List.isEmpty adds) then

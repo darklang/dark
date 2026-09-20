@@ -66,6 +66,16 @@ module FQTypeName =
     FQTypeName.Package h
 
 
+module FQTraitName =
+  let write (w : BinaryWriter) (n : FQTraitName.FQTraitName) : unit =
+    match n with
+    | FQTraitName.Package h -> Hash.write w h
+
+  let read (r : BinaryReader) : FQTraitName.FQTraitName =
+    let h = Hash.read r
+    FQTraitName.Package h
+
+
 module FQFnName =
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) : unit =
     match n with

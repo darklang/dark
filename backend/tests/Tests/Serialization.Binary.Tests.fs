@@ -72,6 +72,19 @@ module PT =
         |> BS.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
+  let traitTests =
+    Roundtripping.testRoundtripMany
+      "traits"
+      (fun (t : PT.Trait.Trait) ->
+        t |> BS.PT.Trait.serialize t.hash |> BS.PT.Trait.deserialize t.hash)
+      Values.ProgramTypes.traits
+
+  let implTests =
+    Roundtripping.testRoundtripMany
+      "impls"
+      (fun (i : PT.Impl.Impl) -> i |> BS.PT.Impl.serialize i.hash |> BS.PT.Impl.deserialize i.hash)
+      Values.ProgramTypes.impls
+
   /// Every `PackageOp` case, through the writer and back.
   ///
   /// The op format is what two machines must agree on byte for byte. Storing an op and reading it
@@ -366,6 +379,8 @@ let tests =
           PT.packageTypeTests
           PT.packageValTests
           PT.packageFnTests
+          PT.traitTests
+          PT.implTests
           PT.toplevelTests
           PT.packageOpTests
           PT.legacyRecoveryHoleTagRejected

@@ -362,13 +362,13 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
       let fresh = Dictionary<struct (string * string), int>()
       let put (hash : string) (methodName : string) (tag : int) =
         if hash <> "" then fresh[struct (hash, methodName)] <- tag
-      put (PackageRefs.Type.Stdlib.Traits.add ()) "add" add
-      put (PackageRefs.Type.Stdlib.Traits.sub ()) "subtract" subtract
-      put (PackageRefs.Type.Stdlib.Traits.mul ()) "multiply" multiply
-      put (PackageRefs.Type.Stdlib.Traits.ord ()) "lessThan" lessThan
-      put (PackageRefs.Type.Stdlib.Traits.ord ()) "lessThanOrEqualTo" lessThanOrEqualTo
-      put (PackageRefs.Type.Stdlib.Traits.ord ()) "greaterThan" greaterThan
-      put (PackageRefs.Type.Stdlib.Traits.ord ()) "greaterThanOrEqualTo" greaterThanOrEqualTo
+      put (PackageRefs.Trait.Stdlib.Traits.add ()) "add" add
+      put (PackageRefs.Trait.Stdlib.Traits.sub ()) "subtract" subtract
+      put (PackageRefs.Trait.Stdlib.Traits.mul ()) "multiply" multiply
+      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "lessThan" lessThan
+      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "lessThanOrEqualTo" lessThanOrEqualTo
+      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "greaterThan" greaterThan
+      put (PackageRefs.Trait.Stdlib.Traits.ord ()) "greaterThanOrEqualTo" greaterThanOrEqualTo
       traitTags <- struct (gen, fresh)
       fresh
   let mutable tag = 0

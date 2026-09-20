@@ -193,6 +193,30 @@ let resolveTypeName
 
 
 
+/// A trait name, resolved like a type name (`namesToTry` from the current module).
+let resolveTraitName
+  (packageManager : PT.PackageManager)
+  (onMissing : OnMissing)
+  (currentModule : List<string>)
+  (name : WT.Name)
+  : Ply<PT.NameResolution<PT.FQTraitName.FQTraitName>> =
+  let warning = "Builtin traits don't exist"
+  match name with
+  | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
+  | WT.Unresolved given ->
+    let parseTypeName name = parseTypeNameString name |> Result.map (fun n -> (n, 0))
+    resolveGenericName
+      None
+      onMissing
+      currentModule
+      given
+      parseTypeName
+      packageManager.findTrait
+      PT.FQTraitName.FQTraitName.Package
+      (fun _ -> Exception.raiseInternal warning [])
+      (fun _ -> Exception.raiseInternal warning [])
+
+
 let resolveValueName
   (builtins : Set<RT.FQValueName.Builtin>)
   (packageManager : PT.PackageManager)
@@ -221,11 +245,10 @@ let resolveValueName
       (fun (n, v) -> { RT.FQValueName.Builtin.name = n; version = v })
 
 
-/// `Show.show`: the module path's last segment names a record type whose field
-/// `show` is a fn type. Then the name is a trait method, dispatched at runtime.
-/// The record type resolves exactly like a type reference would (`namesToTry`
-/// from the current module), so `Stdlib.Show.show`, `Show.show` inside stdlib,
-/// and a user's own `Acme.Show.show` all work.
+/// `Show.show`: the module path names a trait with a method `show`. Then the name is
+/// a trait method, dispatched at runtime. The trait resolves exactly like a type
+/// reference would (`namesToTry` from the current module), so `Stdlib.Show.show`,
+/// `Show.show` inside stdlib, and a user's own `Acme.Show.show` all work.
 let private resolveTraitMethod
   (packageManager : PT.PackageManager)
   (currentModule : List<string>)
@@ -237,39 +260,28 @@ let private resolveTraitMethod
     | None -> return None
     | Some traitName when not (System.Char.IsUpper traitName[0]) -> return None
     | Some traitName ->
-      // One cached set answers "is anything called that?" before the per-scope
+      // One cached set answers "is any trait called that?" before the per-scope
       // location lookups, which for `Stdlib.List.map` would all be misses.
-      let! typeNames = packageManager.typeNames ()
-      if not (typeNames.Contains traitName) then
+      let! traitNames = packageManager.traitNames ()
+      if not (traitNames.Contains traitName) then
         return None
       else
 
       let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
       let! traitNR =
-        resolveTypeName packageManager OnMissing.Allow currentModule (WT.Unresolved traitGiven)
+        resolveTraitName packageManager OnMissing.Allow currentModule (WT.Unresolved traitGiven)
       match traitNR.resolved with
       | Error _ -> return None
-      | Ok { name = PT.FQTypeName.Package traitHash; location = loc } ->
-        match! packageManager.getType traitHash with
-        | Some { declaration = { definition = PT.TypeDeclaration.Record fields } } ->
-          let isMethod =
-            fields
-            |> NEList.toList
-            |> List.exists (fun f ->
-              f.name = methodName
-              && (match f.typ with
-                  | PT.TFn _ -> true
-                  | _ -> false))
-          if isMethod then
-            return
-              Some
-                { originalName = NEList.toList given
-                  resolved =
-                    Ok
-                      { name = PT.FQFnName.TraitMethod(traitHash, methodName)
-                        location = loc } }
-          else
-            return None
+      | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
+        match! packageManager.getTrait traitHash with
+        | Some t when t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName) ->
+          return
+            Some
+              { originalName = NEList.toList given
+                resolved =
+                  Ok
+                    { name = PT.FQFnName.TraitMethod(traitHash, methodName)
+                      location = loc } }
         | _ -> return None
   }
 

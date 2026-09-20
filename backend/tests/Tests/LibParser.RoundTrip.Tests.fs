@@ -155,6 +155,10 @@ module RoundTripExpect =
         Some $"content {canon (fun w -> Canonical.writeValue Canonical.Normal w v)}"
       | PT.PackageOp.AddFn f ->
         Some $"content {canon (fun w -> Canonical.writeFn Canonical.Normal w f)}"
+      | PT.PackageOp.AddTrait t ->
+        Some $"content {canon (fun w -> Canonical.writeTrait Canonical.Normal w t)}"
+      | PT.PackageOp.AddImpl i ->
+        Some $"content {canon (fun w -> Canonical.writeImpl Canonical.Normal w i)}"
       // `previous` (the hash this binding replaced) is what makes a rebind distinguishable from a
       // fresh one; the round trip does not care which it was.
       | PT.PackageOp.SetName(loc, target, _previous) ->
@@ -163,6 +167,8 @@ module RoundTripExpect =
           | PT.Reference.PackageType _ -> "type"
           | PT.Reference.PackageValue _ -> "value"
           | PT.Reference.PackageFn _ -> "fn"
+          | PT.Reference.PackageTrait _ -> "trait"
+          | PT.Reference.PackageImpl _ -> "impl"
         let path = String.concat "." (loc.owner :: loc.modules)
         Some $"bind {kind} {path}.{loc.name}"
       | _ -> None)
@@ -294,7 +300,7 @@ let t
       if allowUnresolved then
         pmPT
       else
-        pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
+        pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns [] []
 
     // Parsing and printing are separate steps, not one `roundOnceAt width src`, because
     // the width sweep below prints one tree several times and has no reason to re-parse

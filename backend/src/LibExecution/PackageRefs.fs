@@ -197,18 +197,6 @@ module Type =
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
 
-    /// The traits the arithmetic and comparison operators lower to
-    /// (`NumericTraits.fs`, `FastOps.traitTag`).
-    module Traits =
-      let add = p [] "Add"
-      let sub = p [] "Sub"
-      let mul = p [] "Mul"
-      let div = p [] "Div"
-      let mod' = p [] "Mod"
-      let pow = p [] "Pow"
-      let neg = p [] "Neg"
-      let ord = p [] "Ord"
-      let all () = [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
 
     let sqliteValue = p [ "Sqlite" ] "Value"
 
@@ -354,6 +342,10 @@ module Type =
         let package = p [] "Package"
         let fqTypeName = p [] "FQTypeName"
 
+      module FQTraitName =
+        let private p addl = p ("FQTraitName" :: addl)
+        let fqTraitName = p [] "FQTraitName"
+
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
         let builtin = p [] "Builtin"
@@ -429,6 +421,10 @@ module Type =
         let package = p [] "Package"
         let fqTypeName = p [] "FQTypeName"
 
+      module FQTraitName =
+        let private p addl = p ("FQTraitName" :: addl)
+        let fqTraitName = p [] "FQTraitName"
+
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
         let builtin = p [] "Builtin"
@@ -466,6 +462,15 @@ module Type =
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
         let packageType = p [] "PackageType"
+
+      module Trait =
+        let private p addl = p ("Trait" :: addl)
+        let method_ = p [] "Method"
+        let trait_ = p [] "Trait"
+
+      module Impl =
+        let private p addl = p ("Impl" :: addl)
+        let impl = p [] "Impl"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
@@ -531,6 +536,35 @@ module Type =
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
+
+
+/// Traits are their own item kind, so their refs are their own table.
+module Trait =
+  let mutable _lookup : Map<string list * string, string> = Map []
+
+  let private p modules name : (unit -> string) =
+    _lookup <- _lookup |> Map.add (modules, name) ""
+    makeRef
+      "trait"
+      (fun h -> _lookup <- _lookup |> Map.add (modules, name) h)
+      modules
+      name
+
+  module Stdlib =
+    let private p addl = p ("Stdlib" :: addl)
+
+    /// The traits the arithmetic and comparison operators lower to
+    /// (`NumericTraits.fs`, `FastOps.traitTag`).
+    module Traits =
+      let add = p [] "Add"
+      let sub = p [] "Sub"
+      let mul = p [] "Mul"
+      let div = p [] "Div"
+      let mod' = p [] "Mod"
+      let pow = p [] "Pow"
+      let neg = p [] "Neg"
+      let ord = p [] "Ord"
+      let all () = [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
 
 
 module Fn =

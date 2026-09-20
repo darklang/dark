@@ -163,6 +163,35 @@ let typeName
   | Package p -> FQTypeName.package branchId p
 
 
+/// A trait's full name, by the name its hash is bound to on the branch.
+let traitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    resolvePackageHash
+      LanguageTools.PackageManager.PickContext.empty
+      (LanguageTools.PackageManager.Trait.locations branchId (ptHash hash))
+      hash
+
+/// Just the trait's own name.
+let shortTraitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Trait.locations branchId (ptHash hash)
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        LanguageTools.PackageManager.PickContext.empty
+        locations
+    with
+    | Some l -> l.name
+    | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
+
+
 /// Just the type's own name, without the module path that leads to it.
 ///
 /// For error messages, where the surrounding sentence already says what kind of thing is being talked

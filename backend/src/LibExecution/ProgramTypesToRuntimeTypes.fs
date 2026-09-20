@@ -20,6 +20,13 @@ module FQTypeName =
     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(Package.toRT p)
 
 
+module FQTraitName =
+  let toRT (t : PT.FQTraitName.FQTraitName) : RT.FQTraitName.FQTraitName =
+    match t with
+    | PT.FQTraitName.Package h -> RT.FQTraitName.Package(Hash.toRT h)
+
+
+
 module FQValueName =
   module Builtin =
     let toRT (c : PT.FQValueName.Builtin) : RT.FQValueName.Builtin =
@@ -1185,7 +1192,7 @@ module Expr =
 
 module TraitRef =
   let toRT (t : PT.TraitRef) : RT.TraitRef =
-    { trait_ = NameResolution.toRT FQTypeName.toRT t.trait_
+    { trait_ = NameResolution.toRT FQTraitName.toRT t.trait_
       typeArgs = List.map TypeReference.toRT t.typeArgs }
 
 module Bound =
@@ -1399,95 +1406,72 @@ module PackageFn =
       bounds = List.map Bound.toRT f.bounds }
 
 
-/// Reading impls off stored items. The desugaring writes an impl as a record
-/// literal of named fns, so both the instance value and a conditional impl's
-/// provider fn carry everything dispatch needs in their PT body: no evaluation.
+module Trait =
+  module Method =
+    let toRT (m : PT.Trait.Method) : RT.Trait.Method =
+      { name = m.name
+        typeParams = m.typeParams
+        parameters = m.parameters |> NEList.map PackageFn.Parameter.toRT
+        returnType = TypeReference.toRT m.returnType
+        permissionCeiling = m.permissionCeiling }
+
+  let toRT (t : PT.Trait.Trait) : RT.Trait.Trait =
+    { hash = Hash.toRT t.hash
+      typeParams = t.typeParams
+      bounds = List.map Bound.toRT t.bounds
+      methods = t.methods |> NEList.map Method.toRT }
+
+
+/// Dispatch candidates, read off the stored `Impl` items: no evaluation, no body.
 module ImplCandidate =
-  /// `Trait<Self, ...> { m1 = Owner.X.T.m1; m2 = ... }`, or None when the body is
-  /// anything else (a hand-built record with a lambda field is not dispatchable).
-  let private ofRecordBody (source : PT.Hash) (body : PT.Expr) : Option<RT.ImplCandidate> =
-    match body with
-    | PT.ERecord(_, { resolved = Ok { name = PT.FQTypeName.Package traitHash } }, self :: _, fields) ->
-      let methods =
-        fields
-        |> List.choose (fun (name, e) ->
-          match e with
-          | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }) ->
-            Some(name, Hash.toRT h)
-          | _ -> None)
-      if List.length methods = List.length fields && not (List.isEmpty fields) then
-        Some
-          { trait_ = Hash.toRT traitHash
-            self = TypeReference.toRT self
-            methods = Map.ofList methods
-            source = Hash.toRT source }
-      else
-        None
-    | _ -> None
-
-  let ofValue (v : PT.PackageValue.PackageValue) : Option<RT.ImplCandidate> =
-    ofRecordBody v.hash v.body
-
-  /// A conditional impl: `instance<'a: Show> () : Show<List<'a>> = Show<List<'a>> { ... }`.
-  /// The return type names the trait; the body names the fns. Bounds on the provider
-  /// are not checked at dispatch: the method fns carry the same bounds and check
-  /// them at entry.
-  let ofFn (f : PT.PackageFn.PackageFn) : Option<RT.ImplCandidate> =
-    match f.returnType with
-    | PT.TCustomType({ resolved = Ok { name = PT.FQTypeName.Package _ } }, _ :: _) ->
-      ofRecordBody f.hash f.body
-    | _ -> None
+  let ofImpl (i : PT.Impl.Impl) : Option<RT.ImplCandidate> =
+    match i.trait_.resolved with
+    | Ok { name = PT.FQTraitName.Package traitHash } ->
+      Some
+        { trait_ = Hash.toRT traitHash
+          self = TypeReference.toRT i.self
+          methods =
+            i.methods
+            |> List.choose (fun (m, nr) ->
+              match nr.resolved with
+              | Ok { name = PT.FQFnName.Package h } -> Some(m, Hash.toRT h)
+              | _ -> None)
+            |> Map.ofList
+          source = Hash.toRT i.hash }
+    | Error _ -> None
 
   /// Every impl of a trait the package manager can see and still names.
   ///
   /// Liveness is "some location this hash is known by still binds it": a branch
-  /// that edits an impl rebinds the location to the new hash, so the old instance
+  /// that edits an impl rebinds the location to the new hash, so the old impl
   /// stops being a candidate there while main keeps it. A hash with no location
   /// at all is not live: the store keeps every version's content, and only the
   /// bound ones are impls. (A script's own impls never reach here; the script
   /// host grafts them with `withExtraImpls`.)
-  let private ofItems
-    (pm : PT.PackageManager)
-    (values : List<PT.PackageValue.PackageValue>)
-    (fns : List<PT.PackageFn.PackageFn>)
-    : Ply<List<RT.ImplCandidate>> =
+  let private live (pm : PT.PackageManager) (impl : PT.Impl.Impl) : Ply<bool> =
     uply {
-      let live
-        (locations : PT.Hash -> Ply<List<PT.PackageLocation>>)
-        (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
-        (hash : PT.Hash)
-        : Ply<bool> =
-        uply {
-          match! locations hash with
-          | [] -> return false
-          | locs ->
-            let! bound = Ply.List.mapSequentially find locs
-            return bound |> List.exists (fun b -> b = Some hash)
-        }
-      let! fromValues =
-        values
-        |> List.choose (fun v -> ofValue v |> Option.map (fun c -> (v.hash, c)))
-        |> Ply.List.filterSequentially (fun (hash, _) ->
-          live pm.getValueLocations pm.findValue hash)
-      let! fromFns =
-        fns
-        |> List.choose (fun f -> ofFn f |> Option.map (fun c -> (f.hash, c)))
-        |> Ply.List.filterSequentially (fun (hash, _) -> live pm.getFnLocations pm.findFn hash)
+      match! pm.getImplLocations impl.hash with
+      | [] -> return false
+      | locs ->
+        let! bound = Ply.List.mapSequentially pm.findImpl locs
+        return bound |> List.exists (fun b -> b = Some impl.hash)
+    }
+
+  let private ofImpls (pm : PT.PackageManager) (impls : List<PT.Impl.Impl>) : Ply<List<RT.ImplCandidate>> =
+    uply {
+      let! live = impls |> Ply.List.filterSequentially (live pm)
       // A branch overlay and the store can both offer the same item; one hash is one impl.
-      return (fromValues @ fromFns) |> List.map snd |> List.distinctBy (fun c -> c.source)
+      return live |> List.choose ofImpl |> List.distinctBy (fun c -> c.source)
     }
 
   let ofPackageManager
     (pm : PT.PackageManager)
-    (traitHash : RT.FQTypeName.Package)
+    (traitHash : RT.FQTraitName.Package)
     : Ply<List<RT.ImplCandidate>> =
     uply {
       let (RT.Hash h) = traitHash
-      let! (values, fns) = pm.implItems (PT.Hash h)
-      let! all = ofItems pm values fns
-      // `implItems` may offer more than this trait's items (an in-memory pm offers
-      // everything); keep only records of THIS trait's type.
-      return all |> List.filter (fun c -> c.trait_ = traitHash)
+      let! impls = pm.impls (PT.Hash h)
+      return! ofImpls pm impls
     }
 
   let ofPackageManagerByMethod
@@ -1495,9 +1479,8 @@ module ImplCandidate =
     (methodName : string)
     : Ply<List<RT.ImplCandidate>> =
     uply {
-      let! (values, fns) = pm.implItemsByMethod methodName
-      let! all = ofItems pm values fns
-      return all |> List.filter (fun c -> Map.containsKey methodName c.methods)
+      let! impls = pm.implsWithMethod methodName
+      return! ofImpls pm impls
     }
 
 
@@ -1514,6 +1497,7 @@ module PackageManager =
           pm.getValue (toPT id)
           |> Ply.map (Option.map (PackageValue.toRT builtinValues))
       getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
+      getTrait = fun id -> pm.getTrait (toPT id) |> Ply.map (Option.map Trait.toRT)
 
       // PT PackageManager has no blob channel — it's purely location-
       // based name resolution. Transient wrappers return None; the

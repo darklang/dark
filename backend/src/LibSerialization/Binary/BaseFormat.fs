@@ -9,8 +9,10 @@ open System
 /// cannot be rebuilt from text.
 /// v2 (traits, 2026-09): `bounds` on PackageFn and TypeDeclaration, `FQFnName.TraitMethod`
 /// tag 2. Readers dispatch on the blob version; v1 blobs read with `bounds = []`.
+/// v3 (first-class traits, 2026-09): `Trait` and `Impl` items, `AddTrait`/`AddImpl` op tags
+/// 15 and 16, `Reference` tags 3 and 4. Nothing existing changed layout; a v2 blob reads as is.
 [<Literal>]
-let CurrentVersion = 2u
+let CurrentVersion = 3u
 
 /// The oldest version this binary still reads.
 [<Literal>]

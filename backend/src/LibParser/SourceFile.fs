@@ -8,6 +8,10 @@ type Item =
   | Fn of List<string> * WT.FnDecl
   | Type of List<string> * WT.TypeDecl
   | Value of List<string> * WT.ValueDecl
+  | Trait of List<string> * WT.TraitDecl
+  /// The impl at its member path (`<module>[.<Type>].<Trait>`); its method fns come
+  /// out as `Fn` items at that same path, with the impl's type params and bounds.
+  | Impl of List<string> * WT.ImplDecl
   | Expr of List<string> * WT.Expr
   | TypeDB of List<string> * WT.TypeDecl
   | Test of List<string> * WT.Test
@@ -20,13 +24,18 @@ let rec private collectItems
   |> List.collect (fun d ->
     match d with
     | WT.DModule m -> collectItems (path @ WT.moduleNameParts m) m.declarations
-    | WT.DTrait t -> [ Type(path, WT.desugarTrait t) ]
+    | WT.DTrait t -> [ Trait(path, t) ]
     | WT.DImpl impl ->
-      let d = WT.desugarImpl path impl
-      (d.methods |> List.map (fun fn -> Fn(d.memberPath, fn)))
-      @ [ match d.instance with
-          | Choice1Of2 v -> Value(d.memberPath, v)
-          | Choice2Of2 fn -> Fn(d.memberPath, fn) ]
+      let memberPath = WT.implMemberPath path impl
+      (impl.methods
+       |> List.map (fun m ->
+         Fn(
+           memberPath,
+           { m with
+               typeParams = impl.typeParams @ m.typeParams
+               bounds = impl.bounds @ m.bounds }
+         )))
+      @ [ Impl(memberPath, impl) ]
     | WT.DFunction fn -> [ Fn(path, fn) ]
     | WT.DType t -> [ Type(path, t) ]
     | WT.DValue v -> [ Value(path, v) ]

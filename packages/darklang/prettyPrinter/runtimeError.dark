@@ -35,6 +35,8 @@ module RuntimeError =
     // -- Types
     | TypeName of FQTypeName
     | ShortTypeName of FQTypeName
+    | TraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
+    | ShortTraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
     | TypeReference of TypeReference
     | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
     | ValueType of ValueType
@@ -103,6 +105,8 @@ module RuntimeError =
           | TypeName t -> typeName branchId t
           | ValueName v -> valueName branchId v
           | ShortTypeName t -> shortTypeName branchId t
+          | TraitName t -> traitName branchId t
+          | ShortTraitName t -> shortTraitName branchId t
           | TypeReference t -> typeReference branchId t
           | TypeOfValue dv -> Dval.valueTypeName branchId dv
           | ValueType vt -> valueType branchId vt
@@ -513,15 +517,15 @@ module RuntimeError =
       match err with
       | MissingImpl(trait_, self) ->
         [ ES.String "No impl of "
-          ES.TypeName trait_
+          ES.TraitName trait_
           ES.String " for "
           ES.ValueType self
           ES.String ". Write `impl "
-          ES.ShortTypeName trait_
+          ES.ShortTraitName trait_
           ES.String " for <type> = ...`, or check `dark impls`" ]
       | DispatchAmbiguous(trait_, self, candidates) ->
         [ ES.String "More than one impl of "
-          ES.TypeName trait_
+          ES.TraitName trait_
           ES.String " for "
           ES.ValueType self
           ES.String $" is visible ({Stdlib.Int.toString (Stdlib.List.length candidates)} candidates). See `dark constraints`" ]
@@ -533,13 +537,17 @@ module RuntimeError =
           ES.String $" traits have a method named {method_}. Call it as `Trait.{method_} value`" ]
       | SelfTypeUnknown(trait_, method_) ->
         [ ES.String "Cannot tell which type to dispatch "
-          ES.ShortTypeName trait_
+          ES.ShortTraitName trait_
           ES.String $".{method_} on. Pass the type explicitly: `"
-          ES.ShortTypeName trait_
+          ES.ShortTraitName trait_
           ES.String $".{method_}<Type> ...`" ]
       | NoSuchMethod(trait_, method_) ->
-        [ ES.TypeName trait_
+        [ ES.TraitName trait_
           ES.String $" has no method named {method_}" ]
+      | TraitNotFound trait_ ->
+        [ ES.String "Trait "
+          ES.TraitName trait_
+          ES.String " is not in the package manager" ]
 
     | CLI err ->
       match err with

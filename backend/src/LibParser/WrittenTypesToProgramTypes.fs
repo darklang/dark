@@ -200,7 +200,7 @@ module Bound =
     : Ply<PT.Bound> =
     uply {
       let! resolved =
-        NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName b.trait_)
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName b.trait_)
       let! typeArgs =
         Ply.List.mapSequentially
           (TypeReference.toPT pm onMissing currentModule)
@@ -970,6 +970,108 @@ module PackageType =
       return
         { hash = Hash ""; description = pt.description; declaration = declaration }
     }
+
+module Trait =
+  module Name =
+    let toLocation (name : WT.PackageTrait.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (t : WT.PackageTrait.PackageTrait)
+    : Ply<PT.Trait.Trait> =
+    uply {
+      let! bounds = Bound.listToPT pm onMissing currentModule t.bounds
+      let! methods =
+        t.methods
+        |> Ply.List.mapSequentially (fun m ->
+          uply {
+            let! parameters =
+              Ply.NEList.mapSequentially
+                (fun (p : WT.PackageFn.Parameter) ->
+                  uply {
+                    let! typ = TypeReference.toPT pm onMissing currentModule p.typ
+                    return
+                      ({ name = p.name; typ = typ; description = p.description }
+                      : PT.PackageFn.Parameter)
+                  })
+                m.parameters
+            let! returnType = TypeReference.toPT pm onMissing currentModule m.returnType
+            let permissionCeiling =
+              m.effects
+              |> Option.map (fun names ->
+                names
+                |> List.choose (fun name ->
+                  LibExecution.Effects.all
+                  |> List.tryFind (fun effect -> $"%A{effect}" = name))
+                |> Set.ofList)
+            return
+              ({ name = m.name
+                 typeParams = m.typeParams
+                 parameters = parameters
+                 returnType = returnType
+                 permissionCeiling = permissionCeiling
+                 description = m.description }
+              : PT.Trait.Method)
+          })
+      return
+        { hash = PT.Hash ""
+          typeParams =
+            NEList.ofListWithDefault "a" t.typeParams
+          bounds = bounds
+          methods =
+            NEList.ofListWithDefault
+              ({ name = "_"
+                 typeParams = []
+                 parameters = NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
+                 returnType = PT.TUnit
+                 permissionCeiling = None
+                 description = "" }
+              : PT.Trait.Method)
+              methods
+          description = t.description }
+    }
+
+
+module Impl =
+  module Name =
+    let toLocation (name : WT.PackageImpl.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (i : WT.PackageImpl.PackageImpl)
+    : Ply<PT.Impl.Impl> =
+    uply {
+      let! trait_ =
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
+      let! traitTypeArgs =
+        Ply.List.mapSequentially (TypeReference.toPT pm onMissing currentModule) i.trait_.typeArgs
+      let! self = TypeReference.toPT pm onMissing currentModule i.forType
+      let! bounds = Bound.listToPT pm onMissing currentModule i.bounds
+      let! methods =
+        i.methods
+        |> Ply.List.mapSequentially (fun (name, target) ->
+          uply {
+            let! fn = NR.resolveFnName (BuiltinNames.fns builtins) pm onMissing currentModule target
+            return (name, fn)
+          })
+      return
+        { hash = PT.Hash ""
+          trait_ = trait_
+          traitTypeArgs = traitTypeArgs
+          self = self
+          typeParams = i.typeParams
+          bounds = bounds
+          methods = methods
+          description = i.description }
+    }
+
 
 module PackageValue =
   module Name =

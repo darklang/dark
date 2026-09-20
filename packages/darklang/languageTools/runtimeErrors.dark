@@ -144,19 +144,21 @@ module Jsons =
 
 module Traits =
   type Error =
-    /// No value of type `Trait<self>` is visible on this branch
-    | MissingImpl of trait_: FQTypeName.FQTypeName * self: ValueType
-    /// More than one impl value for `Trait<self>` is visible
+    /// No impl of the trait for the self type is visible on this branch
+    | MissingImpl of trait_: FQTraitName.FQTraitName * self: ValueType
+    /// More than one impl of the trait for the self type is visible
     | DispatchAmbiguous of
-      trait_: FQTypeName.FQTypeName *
+      trait_: FQTraitName.FQTraitName *
       self: ValueType *
       candidates: List<Hash>
     /// `x.m` where `x` has no field `m` and several traits have a method `m` for its type
-    | MethodAmbiguous of method_: String * self: ValueType * traits: List<FQTypeName.FQTypeName>
+    | MethodAmbiguous of method_: String * self: ValueType * traits: List<FQTraitName.FQTraitName>
     /// The self type could not be determined at the call
-    | SelfTypeUnknown of trait_: FQTypeName.FQTypeName * method_: String
-    /// The trait's record type has no fn field of that name
-    | NoSuchMethod of trait_: FQTypeName.FQTypeName * method_: String
+    | SelfTypeUnknown of trait_: FQTraitName.FQTraitName * method_: String
+    /// The trait has no method of that name
+    | NoSuchMethod of trait_: FQTraitName.FQTraitName * method_: String
+    /// The trait itself is not in the package manager
+    | TraitNotFound of trait_: FQTraitName.FQTraitName
 
 module CLIs =
   type Error =

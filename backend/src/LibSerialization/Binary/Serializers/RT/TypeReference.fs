@@ -108,11 +108,11 @@ let rec read (r : BinaryReader) : TypeReference =
 
 module TraitRef =
   let write (w : BinaryWriter) (t : TraitRef) : unit =
-    NameResolution.write FQTypeName.write w t.trait_
+    NameResolution.write FQTraitName.write w t.trait_
     List.write w write t.typeArgs
 
   let read (r : BinaryReader) : TraitRef =
-    let trait_ = NameResolution.read FQTypeName.read r
+    let trait_ = NameResolution.read FQTraitName.read r
     let typeArgs = List.read r read
     { trait_ = trait_; typeArgs = typeArgs }
 

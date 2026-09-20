@@ -194,6 +194,26 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
     | PT.PackageOp.AddType t ->
       let (PT.Hash hash) = t.hash
       Some(hash, inTypeDeclaration t.declaration)
+    | PT.PackageOp.AddTrait t ->
+      let (PT.Hash hash) = t.hash
+      let inMethods =
+        t.methods
+        |> NEList.toList
+        |> List.collect (fun (m : PT.Trait.Method) ->
+          (m.parameters |> NEList.toList |> List.collect (fun p -> inTypeRef p.typ))
+          @ inTypeRef m.returnType)
+      let inBounds = t.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)
+      Some(hash, inMethods @ inBounds)
+    | PT.PackageOp.AddImpl i ->
+      let (PT.Hash hash) = i.hash
+      Some(
+        hash,
+        fromNR i.trait_
+        @ inTypeRef i.self
+        @ (i.traitTypeArgs |> List.collect inTypeRef)
+        @ (i.methods |> List.collect (fun (_, nr) -> fromNR nr))
+        @ (i.bounds |> List.collect (fun b -> fromNR b.trait_.trait_))
+      )
     | PT.PackageOp.SetName _
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _

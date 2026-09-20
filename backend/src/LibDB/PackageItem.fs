@@ -23,3 +23,7 @@ let valuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
   match value with
   | PT.FQValueName.Package hash -> Some hash
   | PT.FQValueName.Builtin _ -> None
+
+let traitPackageHash (t : PT.FQTraitName.FQTraitName) : Option<Hash> =
+  match t with
+  | PT.FQTraitName.Package h -> Some h

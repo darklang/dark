@@ -1,5 +1,5 @@
-// Traits: a trait is a record type of fn fields; an impl is a package value of
-// that type (plus one fn per method) found at runtime by the self type; bounds
+// Traits: a trait and an impl are package items of their own kinds; an impl's
+// method fns are ordinary fns under it, found at runtime by the self type; bounds
 // (`'a: Show`) are checked when a fn is entered.
 
 module Shapes =
@@ -29,8 +29,8 @@ module Shapes =
   // The impl's method is an ordinary fn under <Type>.<Trait>
   Shapes.Point.Show.show (Shapes.Point { x = 1; y = 2 }) = "(1, 2)"
 
-  // The instance is an ordinary value of the trait's record type
-  (Shapes.Point.Show.instance).show (Shapes.Point { x = 3; y = 4 }) = "(3, 4)"
+  // The impl itself is an item, not a value: there is no `Shapes.Point.Show.instance`
+  // to hold (first-class representation).
 
   // Dispatch by the argument's type
   Shapes.Show.show (Shapes.Point { x = 5; y = 6 }) = "(5, 6)"

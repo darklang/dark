@@ -1728,21 +1728,21 @@ let private checkBoundsAtEntry
   |> Ply.List.iterSequentially (fun b ->
     uply {
       match b.trait_.trait_.resolved, TST.tryFind b.param tst with
-      | Ok(FQTypeName.Package traitHash), ValueSome(ValueType.Known self) ->
+      | Ok(FQTraitName.Package traitHash), ValueSome(ValueType.Known self) ->
         let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
         match Traits.select candidates self with
         | Traits.Selected _ -> return ()
         | Traits.NoImpl ->
           return
             RTE.Trait(
-              RTE.Traits.MissingImpl(FQTypeName.Package traitHash, ValueType.Known self)
+              RTE.Traits.MissingImpl(FQTraitName.Package traitHash, ValueType.Known self)
             )
             |> raiseRTE vm.threadID
         | Traits.Ambiguous cs ->
           return
             RTE.Trait(
               RTE.Traits.DispatchAmbiguous(
-                FQTypeName.Package traitHash,
+                FQTraitName.Package traitHash,
                 ValueType.Known self,
                 cs |> List.map (fun c -> c.source)
               )
@@ -2054,28 +2054,20 @@ type private ApplyOutcome =
 // here.
 
 /// Which of a trait method's parameters is typed with the trait's self param, if any.
-let private traitSelfArgIndex
-  (decl : TypeDeclaration.T)
-  (methodName : string)
-  : Option<int> =
-  match decl.typeParams, decl.definition with
-  | selfParam :: _, TypeDeclaration.Record fields ->
-    fields
-    |> NEList.toList
-    |> List.tryPick (fun f ->
-      if f.name = methodName then
-        match f.typ with
-        | TFn(args, _) ->
-          args
-          |> NEList.toList
-          |> List.tryFindIndex (fun a ->
-            match a with
-            | TVariable v -> v = selfParam
-            | _ -> false)
-        | _ -> None
-      else
-        None)
-  | _ -> None
+let private traitSelfArgIndex (trait_ : Trait.Trait) (methodName : string) : Option<int> =
+  let selfParam = trait_.typeParams.head
+  trait_.methods
+  |> NEList.toList
+  |> List.tryPick (fun m ->
+    if m.name = methodName then
+      m.parameters
+      |> NEList.toList
+      |> List.tryFindIndex (fun p ->
+        match p.typ with
+        | TVariable v -> v = selfParam
+        | _ -> false)
+    else
+      None)
 
 /// Which argument of a trait method is the self one, by (trait, method). A trait
 /// is its content hash, so this never goes stale; filled by `resolveTraitMethod`,
@@ -2098,12 +2090,12 @@ let private resolveTraitMethod
   (args : List<Dval>)
   : Ply<FQFnName.Package> =
   uply {
-    let traitName = FQTypeName.Package traitHash
-    let! decl = exeState.types.package traitHash
+    let traitName = FQTraitName.Package traitHash
+    let! decl = exeState.traits.trait_ traitHash
     let decl =
       match decl with
-      | Some t -> t.declaration
-      | None -> RTE.TypeNotFound traitName |> raiseRTE vm.threadID
+      | Some t -> t
+      | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE vm.threadID
 
     // 1. explicit type args
     let! explicitSelf =
@@ -2148,7 +2140,7 @@ let private resolveTraitMethod
                 caller.bounds
                 |> List.tryPick (fun b ->
                   match b.trait_.trait_.resolved with
-                  | Ok(FQTypeName.Package t) when t = traitHash ->
+                  | Ok(FQTraitName.Package t) when t = traitHash ->
                     match TST.tryFind b.param tst with
                     | ValueSome(ValueType.Known kt) -> Some kt
                     | _ -> None
@@ -3393,7 +3385,7 @@ let private receiverMethod
             RTE.Traits.MethodAmbiguous(
               methodName,
               ValueType.Known self,
-              cs |> List.map (fun c -> FQTypeName.Package c.trait_)
+              cs |> List.map (fun c -> FQTraitName.Package c.trait_)
             )
           )
           |> raiseRTE vm.threadID

@@ -6,6 +6,11 @@ module FQTypeName =
   type Package = Hash
   type FQTypeName = Package of Package
 
+/// A trait, by content hash. A trait is its own item kind (`Trait.Trait`).
+module FQTraitName =
+  type Package = Hash
+  type FQTraitName = Package of Package
+
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
@@ -21,9 +26,9 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-    /// A trait method: the trait's record type and the field name (`Show.show`).
-    /// Names a dispatch, not a body; the impl is found from the self type.
-    | TraitMethod of trait_: FQTypeName.Package * method_: String
+    /// A trait method: the trait and the method name (`Show.show`). Names a
+    /// dispatch, not a body; the impl is found from the self type.
+    | TraitMethod of trait_: FQTraitName.Package * method_: String
 
 
 type PackageLocation =
@@ -401,10 +406,9 @@ type LocatedItem<'entity> =
     location: PackageLocation }
 
 
-/// A trait named from a bound: the record type that IS the trait (`type Show<'a> =
-/// { show: 'a -> String }`) plus type args for any non-self params.
+/// A trait named from a bound or an impl, plus type args for any non-self params.
 type TraitRef =
-  { trait_: NameResolution<FQTypeName.FQTypeName>
+  { trait_: NameResolution<FQTraitName.FQTraitName>
     typeArgs: List<TypeReference> }
 
 /// `'a: Show` on a fn or type declaration
@@ -486,12 +490,54 @@ module PackageFn =
       bounds: List<Bound> }
 
 
+/// A trait: a set of fn signatures over one open type. Its own item kind.
+module Trait =
+  /// One method's signature; no body (the impls have those). The ceiling is the
+  /// most an impl of the method may do.
+  type Method =
+    { name: String
+      typeParams: List<String>
+      parameters: List<PackageFn.Parameter>
+      returnType: TypeReference
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+      description: String }
 
-/// The kind of package item (function, type, or value)
+  type Trait =
+    { hash: FQTraitName.Package
+      /// The first is the self type
+      typeParams: List<String>
+      /// Supertraits, as bounds on the params
+      bounds: List<Bound>
+      methods: List<Method>
+      description: String }
+
+
+/// An impl: how one type does a trait. Its own item kind, named at
+/// `<module>[.<Type>].<Trait>`, with its method fns as ordinary fns beneath it.
+module Impl =
+  type Impl =
+    { hash: Hash
+      trait_: NameResolution<FQTraitName.FQTraitName>
+      /// The trait's non-self type args
+      traitTypeArgs: List<TypeReference>
+      /// What the impl is for: `Point`, `Int64`, `List<'a>`
+      self: TypeReference
+      /// `impl<'a: Show> Show for List<'a>`: the impl's own params and bounds
+      typeParams: List<String>
+      bounds: List<Bound>
+      /// method name and the fn that implements it, in the trait's order
+      methods: List<String * NameResolution<FQFnName.FQFnName>>
+      description: String }
+
+
+
+/// The kind of package item (function, type, value, trait, or impl)
 type ItemKind =
   | Fn
   | Type
   | Value
+  | Trait
+  | Impl
 
 /// A reference to a specific package item by content hash.
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
@@ -500,6 +546,8 @@ type Reference =
   | PackageType of Hash
   | PackageValue of Hash
   | PackageFn of Hash
+  | PackageTrait of Hash
+  | PackageImpl of Hash
 
 module Reference =
   let hash (r: Reference) : Hash =
@@ -507,18 +555,24 @@ module Reference =
     | PackageType h -> h
     | PackageValue h -> h
     | PackageFn h -> h
+    | PackageTrait h -> h
+    | PackageImpl h -> h
 
   let kind (r: Reference) : ItemKind =
     match r with
     | PackageType _ -> ItemKind.Type
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
+    | PackageTrait _ -> ItemKind.Trait
+    | PackageImpl _ -> ItemKind.Impl
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
     | Type -> Reference.PackageType h
     | Value -> Reference.PackageValue h
     | Fn -> Reference.PackageFn h
+    | Trait -> Reference.PackageTrait h
+    | Impl -> Reference.PackageImpl h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
@@ -606,6 +660,8 @@ type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
+  | AddTrait of Trait.Trait
+  | AddImpl of Impl.Impl
   /// Bind a name (location) to a piece of content (target).
   ///
   /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
@@ -662,6 +718,8 @@ module Search =
     | Module
     | Fn
     | Value
+    | Trait
+    | Impl
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -691,7 +749,9 @@ module Search =
     { submodules: List<List<String>> // [ [ "List"], ["String", "List"] ]
       types : List<LocatedItem<ProgramTypes.PackageType.PackageType>>
       values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
-      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>> }
+      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>>
+      traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
+      impls : List<LocatedItem<ProgramTypes.Impl.Impl>> }
 
 
 

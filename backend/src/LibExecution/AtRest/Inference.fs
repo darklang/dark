@@ -226,33 +226,29 @@ let private inferNegateResult
 let private traitMethodSignature
   (state : State)
   (nodeId : Option<id>)
-  (traitHash : FQTypeName.Package)
+  (traitHash : FQTraitName.Package)
   (methodName : string)
   : Option<FunctionSignature> =
-  match Map.tryFind traitHash state.Environment.types with
+  match Map.tryFind traitHash state.Environment.traits with
   | None ->
-    state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable traitHash)
+    state.Block(MissingTypeDeclaration, nodeId, TraitUnavailable traitHash)
     None
-  | Some declaration ->
-    match declaration.definition with
-    | TypeDeclaration.Record fields ->
-      fields
-      |> NEList.toList
-      |> List.tryPick (fun f ->
-        match f.typ with
-        | TypeReference.TFn(parameters, returnType) when f.name = methodName ->
-          Some
-            { typeParams = declaration.typeParams
-              parameters = parameters
-              returnType = returnType
-              bounds =
-                match declaration.typeParams with
-                | selfParam :: _ ->
-                  [ { param = selfParam
-                      trait_ = { trait_ = NameResolution.ok (FQTypeName.Package traitHash); typeArgs = [] } } ]
-                | [] -> [] }
-        | _ -> None)
-    | _ -> None
+  | Some trait_ ->
+    trait_.methods
+    |> NEList.toList
+    |> List.tryPick (fun m ->
+      if m.name = methodName then
+        Some
+          { typeParams = NEList.toList trait_.typeParams @ m.typeParams
+            parameters = m.parameters |> NEList.map (fun p -> p.typ)
+            returnType = m.returnType
+            bounds =
+              [ { param = trait_.typeParams.head
+                  trait_ =
+                    { trait_ = NameResolution.ok (FQTraitName.Package traitHash)
+                      typeArgs = [] } } ] }
+      else
+        None)
 
 let private instantiateFunction
   (state : State)
@@ -266,7 +262,7 @@ let private instantiateFunction
     state.Block(UnresolvedFunctionName, nodeId, Unresolved name.originalName)
     state.FreshTainted nodeId
   | Some(FQFnName.TraitMethod(traitHash, methodName)) ->
-    state.AddDependency(TypeDependency traitHash)
+    state.AddDependency(TraitDependency traitHash)
     match traitMethodSignature state nodeId traitHash methodName with
     | None ->
       state.Block(
@@ -330,8 +326,8 @@ let private instantiateFunction
         // A bounded fn's instantiation owes each bound at what the variable becomes.
         for b in signature.bounds do
           match b.trait_.trait_.resolved, Map.tryFind b.param vars with
-          | Ok { name = FQTypeName.Package traitHash }, Some typ ->
-            state.AddDependency(TypeDependency traitHash)
+          | Ok { name = FQTraitName.Package traitHash }, Some typ ->
+            state.AddDependency(TraitDependency traitHash)
             state.AddConstraint(nodeId, traitHash, typ, None)
           | _ -> ()
         let parameters =

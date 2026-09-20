@@ -31,6 +31,24 @@ CREATE TABLE IF NOT EXISTS package_functions (
   description TEXT NOT NULL DEFAULT ''         -- plain-text doc comment for SQL package search
 );
 
+-- Traits and impls: their own item kinds, folded from AddTrait / AddImpl. `trait_hash` on an
+-- impl is the dispatch index: every impl of a trait is one indexed read.
+CREATE TABLE IF NOT EXISTS package_traits (
+  hash TEXT PRIMARY KEY,
+  pt_def BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  description TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS package_impls (
+  hash TEXT PRIMARY KEY,
+  trait_hash TEXT NOT NULL,
+  pt_def BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  description TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_package_impls_trait ON package_impls(trait_hash);
+
 -- Content-addressed bytes (Blob refs). Dedup comes for free via PK
 -- uniqueness; orphans reclaimed by `LibDB.RuntimeTypes.Blob.sweepOrphans`.
 CREATE TABLE IF NOT EXISTS package_blobs (

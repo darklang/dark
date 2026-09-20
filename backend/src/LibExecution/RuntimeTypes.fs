@@ -54,6 +54,16 @@ module FQTypeName =
 
   let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
+/// A trait, by content hash; mirrors `PT.FQTraitName`.
+module FQTraitName =
+  type Package = Hash
+
+  type FQTraitName = Package of Package
+
+  let package (h : string) : Package = Hash h
+  let fqPackage (h : string) : FQTraitName = Package(Hash h)
+
+
 
 /// A Fully-Qualified Value Name
 ///
@@ -98,7 +108,7 @@ module FQFnName =
     /// caller's TypeSymbolTable binding for the self param, the self argument's
     /// ValueType head. The impl is a package value of type `Trait<T>` whose field
     /// holds a named fn; that fn is what actually runs (and what traces record).
-    | TraitMethod of trait_ : FQTypeName.Package * method_ : string
+    | TraitMethod of trait_ : FQTraitName.Package * method_ : string
 
   let assertBuiltinFnName (name : string) : unit =
     assertRe $"Fn name must match" builtinNamePattern name
@@ -439,7 +449,7 @@ type TypeReference =
 
 /// A trait named from a bound; mirrors `PT.TraitRef`.
 type TraitRef =
-  { trait_ : NameResolution<FQTypeName.FQTypeName>; typeArgs : List<TypeReference> }
+  { trait_ : NameResolution<FQTraitName.FQTraitName>; typeArgs : List<TypeReference> }
 
 /// `'a: Show` on a fn; mirrors `PT.Bound`. The interpreter checks these at fn entry,
 /// once the type param is bound to a Known type, by looking the impl up.
@@ -1655,11 +1665,11 @@ module RuntimeError =
     type Error =
       /// No value of type `Trait<self>` is visible on this branch. Raised at fn
       /// entry for a bound, or at the method call when the bound was not declared.
-      | MissingImpl of trait_ : FQTypeName.FQTypeName * self : ValueType
+      | MissingImpl of trait_ : FQTraitName.FQTraitName * self : ValueType
       /// More than one impl value for `Trait<self>` is visible; resolve with
       /// `dark constraints` (deprecate one, or pin).
       | DispatchAmbiguous of
-        trait_ : FQTypeName.FQTypeName *
+        trait_ : FQTraitName.FQTraitName *
         self : ValueType *
         candidates : List<Hash>
       /// `x.m` where `x` has no field `m` and more than one visible trait has a
@@ -1667,14 +1677,16 @@ module RuntimeError =
       | MethodAmbiguous of
         method_ : string *
         self : ValueType *
-        traits : List<FQTypeName.FQTypeName>
+        traits : List<FQTraitName.FQTraitName>
       /// The self type could not be determined: no explicit type args, no binding
       /// in the caller's type table, and the self argument's type is Unknown (or
       /// the method has no self-typed argument).
-      | SelfTypeUnknown of trait_ : FQTypeName.FQTypeName * method_ : string
-      /// The trait's record type has no field of that name, or the field is not a
-      /// fn type. Only reachable through a hand-built `TraitMethod`.
-      | NoSuchMethod of trait_ : FQTypeName.FQTypeName * method_ : string
+      | SelfTypeUnknown of trait_ : FQTraitName.FQTraitName * method_ : string
+      /// The trait has no method of that name. Only reachable through a hand-built
+      /// `TraitMethod`.
+      | NoSuchMethod of trait_ : FQTraitName.FQTraitName * method_ : string
+      /// The trait itself is not in the package manager.
+      | TraitNotFound of trait_ : FQTraitName.FQTraitName
 
   module CLIs =
     type Error =
@@ -2335,22 +2347,36 @@ module PackageFn =
     }
 
 
+/// A trait as the runtime needs it: which argument of each method is the self
+/// one, and the method's shape for receiver calls. Mirrors `PT.Trait.Trait`.
+module Trait =
+  type Method =
+    { name : string
+      typeParams : List<string>
+      parameters : NEList<PackageFn.Parameter>
+      returnType : TypeReference
+      permissionCeiling : Option<Set<Effects.Effect>> }
+
+  type Trait =
+    { hash : Hash
+      typeParams : NEList<string>
+      bounds : List<Bound>
+      methods : NEList<Method> }
+
+
 /// One impl of a trait, as dispatch sees it: the type it is for and the fn behind
-/// each method. Built from the stored items (a value `Show<Point> { show =
-/// Point.Show.show }`, or a fn `instance<'a: Show> () : Show<List<'a>>` whose body
-/// is such a record), so dispatch never loads or runs the instance; it goes
-/// straight to the method's fn. A record whose fields are not named fns is not a
-/// candidate, which is what keeps this a lookup rather than an evaluation.
+/// each method. Read straight off the stored `Impl` item, so dispatch never loads
+/// anything but the method's fn.
 type ImplCandidate =
   {
-    /// The trait's record type
-    trait_ : FQTypeName.Package
+    /// The trait
+    trait_ : FQTraitName.Package
     /// What the impl is for: `Point`, `List<'a>`, `Int64`. Matched by head against
     /// the self value's type at dispatch.
     self : TypeReference
     /// method name -> the fn that implements it
     methods : Map<string, FQFnName.Package>
-    /// The instance value (or provider fn) the candidate came from, for messages
+    /// The impl item the candidate is, for messages
     source : Hash
   }
 
@@ -2367,6 +2393,7 @@ type PackageManager =
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
 
     /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
     /// for missing hashes.
@@ -2391,7 +2418,7 @@ type PackageManager =
     /// content-addressed lookups above: which impls exist is a question about
     /// NAMES (what is bound where), and a trait method call dispatches against
     /// what the caller's branch can see.
-    implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
+    implCandidates : Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
 
     /// Every visible impl, of any trait, that has a method of this name. For
     /// receiver calls: `p.show` where `p` has no field `show`.
@@ -2417,6 +2444,7 @@ type PackageManager =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getValue = (fun _ -> Ply None)
+      getTrait = (fun _ -> Ply None)
       getBlob = (fun _ -> Ply None)
       persistBlob = (fun _ _ -> uply { return () })
       isHarmful = (fun _ -> false)
@@ -2462,6 +2490,7 @@ type PackageManager =
     (types : List<PackageType.PackageType>)
     (values : List<PackageValue.PackageValue>)
     (fns : List<PackageFn.PackageFn>)
+    (traits : List<Trait.Trait>)
     (pm : PackageManager)
     : PackageManager =
     // These are the items a script defines itself, so for a script this is the lookup for every call
@@ -2478,6 +2507,7 @@ type PackageManager =
     let typeMap = optionMap types _.hash
     let valueMap = optionMap values _.hash
     let fnMap = optionMap fns _.hash
+    let traitMap = optionMap traits _.hash
 
     { getType =
         fun id ->
@@ -2491,6 +2521,10 @@ type PackageManager =
         fun id ->
           let mutable hit = Unchecked.defaultof<Option<PackageFn.PackageFn>>
           if fnMap.TryGetValue(id, &hit) then Ply hit else pm.getFn id
+      getTrait =
+        fun id ->
+          let mutable hit = Unchecked.defaultof<Option<Trait.Trait>>
+          if traitMap.TryGetValue(id, &hit) then Ply hit else pm.getTrait id
       getBlob = pm.getBlob
       persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
@@ -3398,6 +3432,7 @@ and ExecutionState =
     builtins : Builtins
 
     types : Types
+    traits : Traits
     fns : Functions
     values : Values
 
@@ -3480,6 +3515,10 @@ and ExecutionState =
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
+/// Trait lookup by hash. Its one field is named unlike `Types.package` so that a
+/// `{ package = … }` record literal keeps inferring `Types`.
+and Traits = { trait_ : FQTraitName.Package -> Ply<Option<Trait.Trait>> }
+
 and Values =
   { builtIn : Dictionary<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
@@ -3499,7 +3538,7 @@ and Functions =
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
-    implCandidates : Branching.BranchId -> FQTypeName.Package -> Ply<List<ImplCandidate>>
+    implCandidates : Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
     implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
     /// `PackageManager.implSelectionMemo` and `implGeneration`.
     implSelectionMemo :

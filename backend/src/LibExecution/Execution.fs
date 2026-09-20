@@ -54,6 +54,7 @@ let createState
 
     builtins = builtins
     types = { package = pm.getType }
+    traits = { trait_ = pm.getTrait }
     values = { builtIn = builtins.values; package = pm.getValue }
     blobs = { get = pm.getBlob; persist = pm.persistBlob }
     fns =

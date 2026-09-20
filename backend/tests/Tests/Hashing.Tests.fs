@@ -278,7 +278,7 @@ let private fnHashTests =
         let bound : PT.Bound =
           { param = "a"
             trait_ =
-              { trait_ = PT.NameResolution.ok (PT.FQTypeName.Package traitHash)
+              { trait_ = PT.NameResolution.ok (PT.FQTraitName.Package traitHash)
                 typeArgs = [] } }
         let plain = makeFn (eInt64 42)
         let bounded = { plain with bounds = [ bound ] }
@@ -467,11 +467,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -542,11 +546,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -598,11 +606,15 @@ let private sccBatchTests =
             types1
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types2
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -654,11 +666,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -697,12 +713,16 @@ let private sccBatchTests =
             types
             fns
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
             fns
+            Map.empty
+            Map.empty
             Map.empty
             getDeps
 

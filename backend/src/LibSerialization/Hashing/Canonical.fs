@@ -125,6 +125,25 @@ let writeFQTypeName
       PTC.FQTypeName.Package.write w (resolveHash mode loc p)
 
 
+/// Write FQTraitName, resolving deps and checking SCC substitution. Its own tag space:
+/// a trait is not a type, so a trait hash and a type hash never substitute for each other.
+let writeFQTraitName
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
+  (name : PT.FQTraitName.FQTraitName)
+  =
+  match name with
+  | PT.FQTraitName.Package p ->
+    match isSccRef mode loc p with
+    | Some fqn ->
+      w.Write(1uy) // SCC name-ref tag
+      Common.String.write w fqn
+    | None ->
+      w.Write(0uy)
+      PTC.FQTraitName.Package.write w (resolveHash mode loc p)
+
+
 /// Write FQFnName, resolving deps and checking SCC substitution
 let writeFQFnName
   (mode : HashRefMode)
@@ -145,9 +164,8 @@ let writeFQFnName
       w.Write(1uy)
       PTC.FQFnName.Package.write w (resolveHash mode loc p)
   | PT.FQFnName.TraitMethod(t, m) ->
-    // The trait is a type: same substitution rules as a TCustomType reference.
     w.Write(3uy)
-    writeFQTypeName mode w loc (PT.FQTypeName.Package t)
+    writeFQTraitName mode w loc (PT.FQTraitName.Package t)
     Common.String.write w m
 
 
@@ -568,7 +586,7 @@ let writeBounds (mode : HashRefMode) (w : BinaryWriter) (bounds : List<PT.Bound>
       w
       (fun w (b : PT.Bound) ->
         Common.String.write w b.param
-        writeNameResolution (writeFQTypeName mode) w b.trait_.trait_
+        writeNameResolution (writeFQTraitName mode) w b.trait_.trait_
         Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
       bounds
 
@@ -630,3 +648,39 @@ let writeValue
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
+
+/// Write a Trait's hash-relevant content: its params, supertraits and method
+/// signatures (ceilings included, descriptions not). Its own tag, so a trait and a
+/// record type of the same shape never share a hash.
+let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
+  w.Write(3uy) // tag: trait
+  Common.NEList.write Common.String.write w t.typeParams
+  Common.NEList.write
+    (fun w (m : PT.Trait.Method) ->
+      Common.String.write w m.name
+      Common.List.write w Common.String.write m.typeParams
+      Common.NEList.write (writeParameter mode) w m.parameters
+      writeTypeReference mode w m.returnType
+      match m.permissionCeiling with
+      | None -> w.Write(0uy)
+      | Some effects ->
+        w.Write(1uy)
+        LibSerialization.Binary.Serializers.Effects.write w effects)
+    w
+    t.methods
+  writeBounds mode w t.bounds
+
+/// Write an Impl's hash-relevant content: which trait, at what, with which fns.
+let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.Impl.Impl) =
+  w.Write(4uy) // tag: impl
+  writeNameResolution (writeFQTraitName mode) w i.trait_
+  Common.List.write w (writeTypeReference mode) i.traitTypeArgs
+  writeTypeReference mode w i.self
+  Common.List.write w Common.String.write i.typeParams
+  Common.List.write
+    w
+    (fun w (m : string, nr : PT.NameResolution<PT.FQFnName.FQFnName>) ->
+      Common.String.write w m
+      writeNameResolution (writeFQFnName mode) w nr)
+    i.methods
+  writeBounds mode w i.bounds

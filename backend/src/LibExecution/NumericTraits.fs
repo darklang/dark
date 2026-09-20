@@ -10,7 +10,7 @@ module LibExecution.NumericTraits
 open Prelude
 open ProgramTypes
 
-module Traits = PackageRefs.Type.Stdlib.Traits
+module Traits = PackageRefs.Trait.Stdlib.Traits
 
 /// The trait and method an operator is, when it is one. Bitwise operators, `++`,
 /// `==` and `!=` stay on their builtins: bitwise is integer-only by nature, and

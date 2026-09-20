@@ -122,13 +122,49 @@ module Type =
 
 
 module Trait =
-  /// The impls of a trait (a record type of fn fields) bound on <param branchId>:
-  /// what `Trait.method x` can dispatch to.
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.FQTraitName.Package> =
+    Builtin.pmFindTrait branchId location
+
+  let get
+    (hash: ProgramTypes.FQTraitName.Package)
+    : Stdlib.Option.Option<ProgramTypes.Trait.Trait> =
+    Builtin.pmGetTrait hash
+
+  /// Every name this trait is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.FQTraitName.Package)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByTrait branchId hash
+
+  /// The impls of a trait bound on <param branchId>: what `Trait.method x` can
+  /// dispatch to.
   let impls
     (branchId: Uuid)
-    (traitHash: ProgramTypes.FQTypeName.Package)
+    (traitHash: ProgramTypes.FQTraitName.Package)
     : List<RuntimeTypes.ImplCandidate> =
     Builtin.pmImplCandidates branchId traitHash
+
+
+module Impl =
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.Hash> =
+    Builtin.pmFindImpl branchId location
+
+  let get (hash: ProgramTypes.Hash) : Stdlib.Option.Option<ProgramTypes.Impl.Impl> =
+    Builtin.pmGetImpl hash
+
+  /// Every name this impl is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByImpl branchId hash
 
 
 module Value =
@@ -256,7 +292,9 @@ module Search =
       { submodules = searchResults.submodules
         types = searchResults.types
         values = searchResults.values
-        fns = searchResults.fns }
+        fns = searchResults.fns
+        traits = searchResults.traits
+        impls = searchResults.impls }
 
 
   /// Search returning only names: (direct submodules, types, values, fns).

@@ -151,6 +151,40 @@ let onType
   | _ -> t
 
 
+/// A trait's whole-item doc, or a method's (the method is named like a record field).
+let inTrait (part : PT.DocPart) (t : PT.Trait.Trait) : Option<string> =
+  match part with
+  | PT.WholeItem -> Some t.description
+  | PT.RecordField name ->
+    t.methods
+    |> NEList.toList
+    |> List.tryFind (fun (m : PT.Trait.Method) -> m.name = name)
+    |> Option.map (fun m -> m.description)
+  | PT.EnumCase _
+  | PT.Parameter _ -> None
+
+let onTrait (part : PT.DocPart) (text : string) (t : PT.Trait.Trait) : PT.Trait.Trait =
+  match part with
+  | PT.WholeItem -> { t with description = text }
+  | PT.RecordField name ->
+    { t with
+        methods =
+          t.methods
+          |> NEList.map (fun (m : PT.Trait.Method) ->
+            if m.name = name then { m with description = text } else m) }
+  | PT.EnumCase _
+  | PT.Parameter _ -> t
+
+let inImpl (part : PT.DocPart) (i : PT.Impl.Impl) : Option<string> =
+  match part with
+  | PT.WholeItem -> Some i.description
+  | _ -> None
+
+let onImpl (part : PT.DocPart) (text : string) (i : PT.Impl.Impl) : PT.Impl.Impl =
+  match part with
+  | PT.WholeItem -> { i with description = text }
+  | _ -> i
+
 let inValue (part : PT.DocPart) (v : PT.PackageValue.PackageValue) : Option<string> =
   match part with
   | PT.WholeItem -> Some v.description
@@ -370,6 +404,10 @@ let private declaredAt
         | PT.ItemKind.Value ->
           "package_values",
           (fun bytes -> inValue part (BS.PT.PackageValue.deserialize hash bytes))
+        | PT.ItemKind.Trait ->
+          "package_traits", (fun bytes -> inTrait part (BS.PT.Trait.deserialize hash bytes))
+        | PT.ItemKind.Impl ->
+          "package_impls", (fun bytes -> inImpl part (BS.PT.Impl.deserialize hash bytes))
 
       let! stored =
         bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->

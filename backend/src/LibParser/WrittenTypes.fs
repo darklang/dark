@@ -718,6 +718,47 @@ module PackageFn =
     }
 
 
+/// A trait in package form: its own item, like a type.
+module PackageTrait =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type Method =
+    { name : string
+      typeParams : List<string>
+      bounds : List<Bound>
+      parameters : NEList<PackageFn.Parameter>
+      returnType : TypeReference
+      effects : Option<List<string>>
+      description : string }
+
+  type PackageTrait =
+    { name : Name
+      typeParams : List<string>
+      bounds : List<Bound>
+      methods : List<Method>
+      description : string }
+
+
+/// A resolvable name, as the impl's method targets are written.
+type MethodTarget = Name
+
+/// An impl in package form: its own item at `<module>[.<Type>].<Trait>`, whose
+/// method fns are ordinary package fns beneath it.
+module PackageImpl =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type PackageImpl =
+    { name : Name
+      trait_ : QualifiedTypeIdentifier
+      forType : TypeReference
+      typeParams : List<string>
+      bounds : List<Bound>
+      /// method name, and the fn that implements it as written: a method declared
+      /// in the block (resolved from the impl's own module) or an alias target.
+      methods : List<string * MethodTarget>
+      description : string }
+
+
 module DB =
   type T = { name : string; version : int; typ : TypeReference }
 
@@ -857,6 +898,92 @@ let typeReferenceHeadName (t : TypeReference) : string =
   | TFn _ -> "Fn"
   | TVariable(_, _, (_, name)) -> name
   | TCustom qti -> qti.typ.name
+
+/// The impl's own module path: `<module>[.<Type>].<Trait>`, the type segment
+/// dropped when the module is already named for the type.
+let implMemberPath (currentPath : List<string>) (impl : ImplDecl) : List<string> =
+  let typeName = typeReferenceHeadName impl.forType
+  let withType =
+    match List.tryLast currentPath with
+    | Some last when last = typeName -> currentPath
+    | _ -> currentPath @ [ typeName ]
+  withType @ [ impl.trait_.typ.name ]
+
+let packageTrait
+  (owner : string)
+  (modules : List<string>)
+  (t : TraitDecl)
+  : PackageTrait.PackageTrait =
+  { name = { owner = owner; modules = modules; name = t.name.name }
+    typeParams = t.typeParams |> List.map fst
+    bounds = t.bounds |> List.map boundNorm
+    methods =
+      t.methods
+      |> List.map (fun m ->
+        { name = m.name.name
+          typeParams = m.typeParams |> List.map fst
+          bounds = m.bounds |> List.map boundNorm
+          parameters =
+            m.parameters
+            |> List.map fnParamNorm
+            |> NEList.ofListWithDefault (
+              { name = "_"; typ = TUnit synthRange; description = "" } : PackageFn.Parameter
+            )
+          returnType = m.returnType
+          effects = m.effects |> Option.map (List.map (fun id -> id.name))
+          description = m.description })
+    description = t.description }
+
+/// The method fns an impl declares, as package fns under the impl's own path, with
+/// the impl's type params and bounds prepended (a conditional impl's methods are
+/// generic over the impl's params).
+let implMethodFns
+  (owner : string)
+  (memberPath : List<string>)
+  (impl : ImplDecl)
+  : List<PackageFn.PackageFn> =
+  impl.methods
+  |> List.map (fun m ->
+    packageFn
+      owner
+      memberPath
+      { m with
+          typeParams = impl.typeParams @ m.typeParams
+          bounds = impl.bounds @ m.bounds })
+
+/// The impl item itself. Its location is the member path: the module the method
+/// fns live in IS the impl's name.
+let packageImpl
+  (owner : string)
+  (memberPath : List<string>)
+  (impl : ImplDecl)
+  : PackageImpl.PackageImpl =
+  let location =
+    match List.rev memberPath with
+    | name :: revModules -> ({ owner = owner; modules = List.rev revModules; name = name } : PackageImpl.Name)
+    | [] -> { owner = owner; modules = []; name = impl.trait_.typ.name }
+  let declared =
+    impl.methods
+    |> List.map (fun m -> (m.name.name, Unresolved(NEList.singleton m.name.name)))
+  let aliased =
+    impl.aliases
+    |> List.map (fun a ->
+      let target =
+        match a.body with
+        | EFnName(_, q) ->
+          Unresolved(
+            NEList.ofListUnsafe "alias" [] ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
+          )
+        | EVariable(_, n) -> Unresolved(NEList.singleton n)
+        | _ -> Unresolved(NEList.singleton a.name.name)
+      (a.name.name, target))
+  { name = location
+    trait_ = impl.trait_
+    forType = impl.forType
+    typeParams = impl.typeParams |> List.map fst
+    bounds = impl.bounds |> List.map boundNorm
+    methods = declared @ aliased
+    description = impl.description }
 
 /// The name of the value that holds an impl, under `<module>.<Type>.<Trait>`.
 [<Literal>]

@@ -266,6 +266,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // traits and impls
+    findByLocationFn "pmFindTrait" "trait" PMPT.Trait.find (fun branchPM loc ->
+      branchPM.findTrait loc)
+
+    getByHashFn "pmGetTrait" "trait" PT2DT.Trait.typeName pm.getTrait PT2DT.Trait.toDT
+
+    findByLocationFn "pmFindImpl" "impl" PMPT.Impl.find (fun branchPM loc ->
+      branchPM.findImpl loc)
+
+    getByHashFn "pmGetImpl" "impl" PT2DT.Impl.typeName pm.getImpl PT2DT.Impl.toDT
+
+
     // Every impl of a trait visible on a branch, as dispatch sees them
     { name = fn "pmImplCandidates" 0
       typeParams = []
@@ -274,11 +286,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "traitHash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "The trait's record type" ]
+            "The trait" ]
       returnType = TList(TCustomType(NR.ok (RT2DT.ImplCandidate.typeName ()), []))
       description =
-        "Returns the impls of a trait (a record type of fn fields) that are bound on "
-        + "the given branch: what `Trait.method x` can dispatch to."
+        "Returns the impls of a trait that are bound on the given branch: what "
+        + "`Trait.method x` can dispatch to."
       fn =
         (function
         | exeState, _, _, [| DUuid branchId; traitHash |] ->
@@ -631,6 +643,20 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       pm.getFnLocations
       PMPT.Fn.getLocationsEverNamed
 
+    locationsByHashFn
+      "pmGetLocationsByTrait"
+      "trait"
+      PT.ItemKind.Trait
+      pm.getTraitLocations
+      PMPT.Trait.getLocationsEverNamed
+
+    locationsByHashFn
+      "pmGetLocationsByImpl"
+      "impl"
+      PT.ItemKind.Impl
+      pm.getImplLocations
+      PMPT.Impl.getLocationsEverNamed
+
 
     // Bind a name back to content that ALREADY exists in the store.
     //
@@ -689,6 +715,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | PT.ItemKind.Value ->
                   let! v = LibDB.PackageManager.pt.getValue hash
                   return Option.isSome v
+                | PT.ItemKind.Trait ->
+                  let! t = LibDB.PackageManager.pt.getTrait hash
+                  return Option.isSome t
+                | PT.ItemKind.Impl ->
+                  let! i = LibDB.PackageManager.pt.getImpl hash
+                  return Option.isSome i
               }
 
             if not exists then
@@ -696,11 +728,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 DString "no item with that hash in the store"
                 |> Dval.resultError KTUnit KTString
             else
-              let reference =
-                match kind with
-                | PT.ItemKind.Type -> PT.Reference.PackageType hash
-                | PT.ItemKind.Fn -> PT.Reference.PackageFn hash
-                | PT.ItemKind.Value -> PT.Reference.PackageValue hash
+              let reference = PT.Reference.fromHashAndKind (hash, kind)
 
               // The decision id makes the op distinct from the SetName that originally created this
               // binding. It's provenance, never a lookup key -- the fold ignores it.
