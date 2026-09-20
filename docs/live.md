@@ -5,13 +5,14 @@ had when it started, unless something tells it the store changed and it resolves
 entry names again. This is that something, and the rules a host follows once it has
 heard.
 
-Status, 2026-09-19: both demos run in the container. The signal, what changed, affects,
+Status, 2026-09-20: both demos run in the container, and the leftovers below are in. The signal, what changed, affects,
 last-good, a `serve` that follows edits, the `Node` tree with its terminal and page
 renderers, `Host.await` over a shim, the host loop behind `dark apps view`, the
-workbench on the same loop, a daemon runner, and `live.autopush` are in. Not in:
-`:save`/`--resume` of a view's model as a `val`, the port of the older row-based views
-to `Node`, the SSE browser refresh, and autopush from the workbench and the LSP (only
-the CLI's `fn`/`type`/`val`/`module` saves push themselves).
+workbench on the same loop, a daemon runner, and `live.autopush` are in. Since then:
+Ctrl-S saves a view's model as a `val` and `--resume` starts from it; `package-stats`
+and `sync status` are trees; the TUI windows a tall tree and right-aligns numbers;
+autopush runs from the workbench's and the LSP's saves too; `serve --dev` reloads an
+open page.
 
 ---
 
@@ -133,6 +134,12 @@ moves. A newly broken version is said once on stdout (`live: <entry>: newest ver
 not applied: <why>`); the wire keeps getting the last good one. `--no-live` pins the
 version resolved at start.
 
+`serve --dev` adds the browser half: `GET /__live` is an event stream that holds the
+connection, compares the router's hash every half second to the one the page was served
+from, says `reload` once it moved, and ends; every HTML response carries a six-line
+script that listens and reloads. Not for production: one comparison per open tab per
+half second, and a script in every page.
+
 Test: `tests/CliWorkspace/live/serve follows edits and keeps the last good version`.
 
 ## The `Node` tree
@@ -181,7 +188,11 @@ One turn: a store change that reaches the view's entries (`Live.affects`) re-res
 them through `LastGood` and re-renders, with a toast naming what moved; a key goes to
 the focused `Input` or `Button`, else to `update`. `render` failing at rest or at run
 keeps the last frame with the reason in a `Band` under it. The model is the only app
-state and survives every swap in memory. `Live.call` (over `Builtin.applicableTryApply`)
+state and survives every swap in memory; Ctrl-S snapshots it as a `val` under the render
+fn's module (`<Module>.Sessions.s<stamp>`, through the REPL's capture, the one path that
+knows which values have a literal form) and `dark apps view ... --resume <val>` starts
+from it. A tree taller than the pane is windowed: PageUp/PageDown move the window and
+drop the focus, Tab pulls the focused node into view. `Live.call` (over `Builtin.applicableTryApply`)
 is how an RTE from user code becomes a value, and it runs the fn as the approval root
 of its call, as `serve` does the router: a fresh version of a view is not asked to be
 approved again before it may print.

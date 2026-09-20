@@ -11,6 +11,8 @@ type Args =
     /// Follow edits: resolve the router by name per request, on the last version that passes its
     /// checks (`Stdlib.Live`). On by default; `--no-live` pins the version resolved at start.
     live: Bool
+    /// `--dev`: an open browser page reloads when the router it came from moves.
+    dev: Bool
     error: Stdlib.Option.Option<String> }
 
 let defaultArgs (): Args =
@@ -19,6 +21,7 @@ let defaultArgs (): Args =
       port = 8080
       maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
       live = true
+      dev = false
       error = Stdlib.Option.Option.None }
 
 /// Parse a list of args left-to-right. Recognized: a single positional
@@ -39,6 +42,7 @@ let parseArgs (rest: List<String>) (acc: Args) : Args =
           error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
     | Ok n -> parseArgs tail { acc with maxBodyBytes = n }
   | "--no-live" :: tail -> parseArgs tail { acc with live = false }
+  | "--dev" :: tail -> parseArgs tail { acc with dev = true }
   | flag :: _ when Stdlib.String.startsWith flag "--" ->
     { acc with
         error = Stdlib.Option.Option.Some $"Unknown or incomplete flag: {flag}" }
@@ -53,7 +57,7 @@ let parseArgs (rest: List<String>) (acc: Args) : Args =
 
 
 let usageLines () : List<String> =
-  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N] [--no-live]"
+  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N] [--no-live] [--dev]"
     ""
     "Arguments:"
     "  router-path        Dotted path to a router fn or value (Request -> Response)"
@@ -62,6 +66,8 @@ let usageLines () : List<String> =
     "  --no-live          Pin the router version resolved at start. By default the server"
     "                     follows edits: each request runs the newest version of the router"
     "                     that passes its checks, and a broken save keeps the previous one."
+    "  --dev              An open browser page reloads itself when the router moves"
+    "                     (an event stream at /__live; HTML responses carry the listener)."
     ""
     "Examples:"
     "  serve Darklang.DemoData.HttpServerTest.router"
@@ -133,7 +139,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
           let announce () : Unit =
             let following =
-              if parsed.live then
+              if parsed.live && parsed.dev then
+                "  Following edits (--dev): the next request runs the newest version, and an open page reloads itself."
+              else if parsed.live then
                 "  Following edits: a saved change to the router, or anything it calls, is live on the next request."
               else
                 "  Pinned (--no-live): the version resolved at start serves until restart."
@@ -164,6 +172,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 (Stdlib.Live.Router.start state.currentBranchId location)
                 Stdlib.Live.Router.step
                 router
+                parsed.dev
                 announce
             | _ -> Stdlib.HttpServer.serve config router announce
 

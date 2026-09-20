@@ -224,6 +224,9 @@ type private LiveRouting =
     /// The guest state built for the router hash last handed out. Rebuilt when the hash moves, since
     /// the router is the approval root and the root is a hash.
     mutable guest : Option<Hash * ExecutionState>
+    /// `serve --dev`: an open page reloads when the router it came from moves. `GET /__live` is an
+    /// event stream that says so, and every HTML response carries the six-line script that listens.
+    dev : bool
   }
 
 type private Routing =
@@ -346,6 +349,72 @@ let private perRequestStateFor
   { exeState with tracing = tracer.executionTracing }
 
 
+// ───────── serve --dev: the page reloads when the router moves ─────────
+
+let private liveScript =
+  "<script>(function(){var s=new EventSource('/__live');s.onmessage=function(){location.reload()};s.onerror=function(){s.close();setTimeout(function(){location.reload()},1500)}})()</script>"
+
+/// The router hash a live routing currently hands out, if any.
+let private currentRouterHash
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
+  : Task<Option<Hash>> =
+  task {
+    match! resolveRouting serverState invokerAccess routing with
+    | Ok(_, handler) -> return List.tryHead (rootOf handler)
+    | Error _ -> return None
+  }
+
+/// `GET /__live`: hold the connection, look at the router every half second, say `reload` once its
+/// hash is not the one this page was served from, and end. The page reconnects after reloading.
+/// A change nobody's page cares about costs one comparison per open tab per half second.
+let private serveLiveEvents
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
+  (ctx : HttpListenerContext)
+  : Task<unit> =
+  task {
+    ctx.Response.StatusCode <- 200
+    ctx.Response.ContentType <- "text/event-stream"
+    ctx.Response.Headers.Add("Cache-Control", "no-cache")
+    ctx.Response.SendChunked <- true
+    let write (line : string) =
+      task {
+        let bytes = UTF8.toBytes line
+        do! ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length)
+        do! ctx.Response.OutputStream.FlushAsync()
+      }
+    let! startedOn = currentRouterHash serverState invokerAccess routing
+    do! write ": live\n\n"
+    let mutable waiting = true
+    let mutable ticks = 0
+    while waiting do
+      do! Task.Delay 500
+      ticks <- ticks + 1
+      let! now = currentRouterHash serverState invokerAccess routing
+      if now <> startedOn then
+        do! write "data: reload\n\n"
+        waiting <- false
+      elif ticks % 30 = 0 then
+        // A comment every 15 s keeps proxies from closing an idle stream.
+        do! write ": still here\n\n"
+  }
+
+/// The listening script, appended to an HTML body under `--dev`. Only HTML: a JSON or image
+/// response must reach the client untouched.
+let private withLiveScript
+  (headers : List<string * string>)
+  (body : byte[])
+  : byte[] =
+  let isHtml =
+    headers
+    |> List.exists (fun (k, v) ->
+      String.equalsCaseInsensitive k "Content-Type" && v.Contains "text/html")
+  if isHtml then Array.append body (UTF8.toBytes liveScript) else body
+
+
 /// Process a single request: parse → dispatch → write response. Errors
 /// surface as 500s; full detail goes to `logRequest` rather than the wire.
 let private handleRequest
@@ -362,96 +431,107 @@ let private handleRequest
     let started = if logRequests then Some System.DateTime.UtcNow else None
     // Ephemeral blobs carry their bytes inline (lifetime is GC), so there's no
     // shared blob store for concurrent requests to race over.
+    let dev =
+      match routing with
+      | Live live -> live.dev
+      | Fixed _ -> false
     try
       try
-        let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
-        match bodyResult with
-        | Error() ->
-          ctx.Response.StatusCode <- 413
-          let msg = UTF8.toBytes "413 Payload Too Large"
-          ctx.Response.ContentLength64 <- int64 msg.Length
-          do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
-        | Ok reqBody ->
-          let reqHeaders = extractHeaders ctx.Request
-          // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
-          // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
-          // absolute form is rebuilt around it.
-          let rawUrl =
-            match ctx.Request.RawUrl with
-            | null -> ctx.Request.Url.ToString()
-            | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
-          let url =
-            if canonicalizeFromForwardedProto then
-              canonicalizeUrlFromForwardedProto rawUrl reqHeaders
-            else
-              rawUrl
+        if dev && ctx.Request.Url.AbsolutePath = "/__live" then
+          do! serveLiveEvents exeState invokerAccess routing ctx
+        else
 
-          let requestDval = Http.Request.fromRequest url reqHeaders reqBody
+          let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
+          match bodyResult with
+          | Error() ->
+            ctx.Response.StatusCode <- 413
+            let msg = UTF8.toBytes "413 Payload Too Large"
+            ctx.Response.ContentLength64 <- int64 msg.Length
+            do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
+          | Ok reqBody ->
+            let reqHeaders = extractHeaders ctx.Request
+            // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
+            // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
+            // absolute form is rebuilt around it.
+            let rawUrl =
+              match ctx.Request.RawUrl with
+              | null -> ctx.Request.Url.ToString()
+              | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
+            let url =
+              if canonicalizeFromForwardedProto then
+                canonicalizeUrlFromForwardedProto rawUrl reqHeaders
+              else
+                rawUrl
 
-          // Per-request tracer — same shape as `eval`/`run` so HTTP traces
-          // appear alongside CLI traces with no consumer-side changes.
-          let traceID = AT.TraceID.create ()
-          let traceDesc =
-            try
-              $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
-            with _ ->
-              "(http request)"
-          let tracer =
-            Tracing.createCliTracer traceID traceDesc "request" requestDval
+            let requestDval = Http.Request.fromRequest url reqHeaders reqBody
 
-          // Resolved per request, not per server: this is what makes an edit show up on the next
-          // request. For a fixed router it is a match on a constant.
-          let! resolved = resolveRouting exeState invokerAccess routing
-          let handlerState =
-            match resolved with
-            | Ok(handlerState, _) -> handlerState
-            | Error _ -> exeState
+            // Per-request tracer — same shape as `eval`/`run` so HTTP traces
+            // appear alongside CLI traces with no consumer-side changes.
+            let traceID = AT.TraceID.create ()
+            let traceDesc =
+              try
+                $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
+              with _ ->
+                "(http request)"
+            let tracer =
+              Tracing.createCliTracer traceID traceDesc "request" requestDval
 
-          let! result =
-            match resolved with
-            | Ok(handlerState, handler) ->
-              executeHandler
-                (perRequestStateFor handlerState tracer)
-                handler
-                requestDval
-            | Error msg ->
-              // No usable version: say so, keep listening. The diagnostic is on stdout already
-              // (Dark prints it when the verdict changes), so the wire gets a plain 503.
-              Telemetry.event "httpserver.unroutable" [ "reason", msg ]
-              Task.FromResult(DString $"Service Unavailable: {msg}")
-          let perRequestState = perRequestStateFor handlerState tracer
-          let! response = Http.Response.toHttpResponse perRequestState result
-          do! tracer.storeTraceResults perRequestState |> Ply.toTask
+            // Resolved per request, not per server: this is what makes an edit show up on the next
+            // request. For a fixed router it is a match on a constant.
+            let! resolved = resolveRouting exeState invokerAccess routing
+            let handlerState =
+              match resolved with
+              | Ok(handlerState, _) -> handlerState
+              | Error _ -> exeState
 
-          let respHeaders =
-            maybeInjectStandardHeaders injectStandardHeaders response.headers
+            let! result =
+              match resolved with
+              | Ok(handlerState, handler) ->
+                executeHandler
+                  (perRequestStateFor handlerState tracer)
+                  handler
+                  requestDval
+              | Error msg ->
+                // No usable version: say so, keep listening. The diagnostic is on stdout already
+                // (Dark prints it when the verdict changes), so the wire gets a plain 503.
+                Telemetry.event "httpserver.unroutable" [ "reason", msg ]
+                Task.FromResult(DString $"Service Unavailable: {msg}")
+            let perRequestState = perRequestStateFor handlerState tracer
+            let! response = Http.Response.toHttpResponse perRequestState result
+            do! tracer.storeTraceResults perRequestState |> Ply.toTask
 
-          ctx.Response.StatusCode <- response.statusCode
-          for (key, value) in respHeaders do
-            ctx.Response.Headers.Add(key, value)
+            let respHeaders =
+              maybeInjectStandardHeaders injectStandardHeaders response.headers
 
-          // Only when the client asked (`maybeCompress` has the ratios and floor).
-          // Never on a body the handler already encoded (double-wrap), and always
-          // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
-          let alreadyEncoded =
-            respHeaders
-            |> List.exists (fun (k, _) ->
-              String.equalsCaseInsensitive k "Content-Encoding")
+            ctx.Response.StatusCode <- response.statusCode
+            for (key, value) in respHeaders do
+              ctx.Response.Headers.Add(key, value)
 
-          let body, encoding =
-            if alreadyEncoded then
-              response.body, None
-            else
-              maybeCompress ctx.Request response.body
+            // Only when the client asked (`maybeCompress` has the ratios and floor).
+            // Never on a body the handler already encoded (double-wrap), and always
+            // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
+            let alreadyEncoded =
+              respHeaders
+              |> List.exists (fun (k, _) ->
+                String.equalsCaseInsensitive k "Content-Encoding")
 
-          match encoding with
-          | Some enc ->
-            ctx.Response.Headers.Add("Content-Encoding", enc)
-            ctx.Response.Headers.Add("Vary", "Accept-Encoding")
-          | None -> ()
+            let body =
+              if dev && not alreadyEncoded then
+                withLiveScript respHeaders response.body
+              else
+                response.body
 
-          ctx.Response.ContentLength64 <- int64 body.Length
-          do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
+            let body, encoding =
+              if alreadyEncoded then body, None else maybeCompress ctx.Request body
+
+            match encoding with
+            | Some enc ->
+              ctx.Response.Headers.Add("Content-Encoding", enc)
+              ctx.Response.Headers.Add("Vary", "Accept-Encoding")
+            | None -> ()
+
+            ctx.Response.ContentLength64 <- int64 body.Length
+            do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
       with _ex ->
         // Don't leak ex.Message — can carry stack hints / sensitive
         // strings. Detail goes to `logRequest` (which sees the 500
@@ -584,6 +664,7 @@ let runListenerLive
   (port : int64)
   (init : Dval)
   (step : Applicable)
+  (dev : bool)
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
@@ -595,7 +676,7 @@ let runListenerLive
     exeState.access
     listener
     port
-    (Live { step = step; state = init; guest = None })
+    (Live { step = step; state = init; guest = None; dev = dev })
     maxBodyBytes
     injectStandardHeaders
     canonicalizeFromForwardedProto
@@ -819,7 +900,11 @@ let fns () : List<BuiltInFn> =
             "first"
             handlerType
             "The handler as resolved at start, for the bind-time approval root"
-            [ "request" ] ]
+            [ "request" ]
+          Param.make
+            "dev"
+            TBool
+            "If true, serve `/__live` as an event stream and add a reload script to HTML responses, so an open page follows edits" ]
         @ commonParams
       returnType = TypeReference.result TUnit TString
       description =
@@ -834,6 +919,7 @@ let fns () : List<BuiltInFn> =
              init
              DApplicable step
              DApplicable first
+             DBool dev
              DInt maxBodyBytesArg
              DBool injectStandardHeaders
              DBool canonicalizeFromForwardedProto
@@ -843,7 +929,7 @@ let fns () : List<BuiltInFn> =
             exeState
             vm
             portArg
-            (Live { step = step; state = init; guest = None })
+            (Live { step = step; state = init; guest = None; dev = dev })
             first
             maxBodyBytesArg
             injectStandardHeaders

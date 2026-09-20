@@ -252,11 +252,15 @@ let serve
 /// runs <param step> over a state it keeps between requests, and <param step> answers with the handler
 /// to use this time. <param first> is the handler as resolved at start, for the bind-time approval root
 /// and the "does this name exist" check. `Stdlib.Live.Router` is the step a router-by-name wants.
+///
+/// <param dev>: an open page reloads when the router it came from moves (`GET /__live` is an
+/// event stream; HTML responses carry the script that listens). For a dev site, not production.
 let serveLive
   (config: Config.Config)
   (init: 's)
   (step: 's -> ('s * Stdlib.Result.Result<Http.Request -> Http.Response, String>))
   (first: Http.Request -> Http.Response)
+  (dev: Bool)
   (onListening: Unit -> Unit)
   : Stdlib.Result.Result<Unit, String> =
   Builtin.httpServerServeLive
@@ -264,6 +268,7 @@ let serveLive
     init
     step
     first
+    dev
     config.maxBodyBytes
     config.injectStandardHeaders
     config.canonicalizeFromForwardedProto
