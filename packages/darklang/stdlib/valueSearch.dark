@@ -41,6 +41,12 @@ let buildPathFromLocation
 /// Find all values that match a specific custom type
 /// Uses indexed type lookup for efficiency
 /// Optionally filters by namespace prefix
+/// The stored value at <param hash>, evaluated. `None` when the store does not hold it.
+let evaluate
+  (hash: LanguageTools.ProgramTypes.FQValueName.Package)
+  : Stdlib.Option.Option<'a> =
+  Builtin.pmEvaluateValue hash
+
 let findByType
   (branchId: Uuid)
   (targetNamespace: String)
@@ -71,7 +77,7 @@ let findByType
 
       if isValueInNamespace namespaceParts valuePath then
         // Evaluate the value
-        match Builtin.pmEvaluateValue valueHash with
+        match evaluate valueHash with
         | Some evaluatedValue ->
           let fullPath = buildPathFromLocation location.owner location.modules location.name
 

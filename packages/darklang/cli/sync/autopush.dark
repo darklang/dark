@@ -47,16 +47,25 @@ let commitAsIs (branchId: Uuid) (author: String) : Stdlib.Result.Result<String, 
     else
       Stdlib.Result.Result.Ok hash
 
-/// The tail of an authoring command: when the mode is on and something is in the draft, commit it
-/// and push. Says one line about what it did; a failure to push is reported and the commit stays.
-let afterAuthoring (state: AppState) : AppState =
+/// What one autopush did, for whoever saved: the CLI prints it, the workbench shows it in its
+/// footer, the LSP logs it. Nothing here writes to stdout except through `push`, which is captured.
+type Outcome =
+  /// The mode is off, or the draft is empty: nothing to say.
+  | Nothing
+  | Pushed of commit: String
+  | Failed of String
+
+/// Commit the draft and push it. The push verbs print their story; it is captured and folded into
+/// the outcome, since two of the three callers own a screen (the workbench) or a protocol channel
+/// (the LSP) where a stray line is corruption.
+let pushDraft (state: AppState) : Outcome =
   if Stdlib.Bool.not (enabled ()) then
-    state
+    Outcome.Nothing
   else
     let branchId = state.currentBranchId
 
     if (SCM.PackageOps.draftOpCountFor branchId) == 0L then
-      state
+      Outcome.Nothing
     else
       let author =
         match SCM.PackageOps.identity () with
@@ -64,19 +73,53 @@ let afterAuthoring (state: AppState) : AppState =
         | id -> id
 
       match commitAsIs branchId author with
-      | Error e ->
-        Cli.printErr $"autopush: could not commit: {e}"
-        state
+      | Error e -> Outcome.Failed $"could not commit: {e}"
       | Ok hash ->
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText $"autopush: committed {Stdlib.String.first hash 8}, pushing...")
-
         let relay = SCM.PackageOps.relay ()
 
         if relay == "" then
-          Cli.printErr "autopush: no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
-          state
-        else if SCM.Branch.isMain branchId then
-          Cli.Sync.executePush state relay
+          Outcome.Failed
+            $"committed {Stdlib.String.first hash 8} but there is no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
         else
-          Cli.Branch.executePush state (Stdlib.Uuid.toString branchId) relay
+          let (pushed, story) =
+            Cli.Workbench.captureOutputAnd (fun () ->
+              if SCM.Branch.isMain branchId then
+                Cli.Sync.executePush state relay
+              else
+                Cli.Branch.executePush state (Stdlib.Uuid.toString branchId) relay)
+
+          if Stdlib.String.contains story "Pushed" then
+            Outcome.Pushed hash
+          else
+            let last =
+              story
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.map (fun l -> Stdlib.String.trim (Stdlib.Cli.Tui.Text.stripSgr l))
+              |> Stdlib.List.filter (fun l -> l != "")
+              |> Stdlib.List.last
+              |> Stdlib.Option.withDefault "the push did not go through"
+
+            Outcome.Failed $"committed {Stdlib.String.first hash 8}; {last}"
+
+/// `pushDraft` for a caller with only a branch and no CLI state: the workbench and the LSP.
+let pushDraftOn (branchId: Uuid) : Outcome =
+  pushDraft { Cli.initState () with currentBranchId = branchId }
+
+/// One line for a footer or a log, "" for nothing.
+let describe (outcome: Outcome) : String =
+  match outcome with
+  | Nothing -> ""
+  | Pushed hash -> $"autopush: committed {Stdlib.String.first hash 8} and pushed"
+  | Failed why -> $"autopush: {why}"
+
+/// The tail of an authoring command: when the mode is on and something is in the draft, commit it
+/// and push. Says one line about what it did; a failure to push is reported and the commit stays.
+let afterAuthoring (state: AppState) : AppState =
+  let outcome = pushDraft state
+
+  match outcome with
+  | Nothing -> ()
+  | Pushed _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText (describe outcome))
+  | Failed _ -> Cli.printErr (describe outcome)
+
+  state

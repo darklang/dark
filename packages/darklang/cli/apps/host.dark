@@ -88,7 +88,7 @@ let bandRows (band: String) (width: Int) : Int =
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let frame =
-    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press"
+    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press   Ctrl-S: save the model"
 
   let frame =
     match s.toast with
@@ -195,8 +195,14 @@ let moveFocus (s: Session<'model, 'msg>) (forward: Bool) : Session<'model, 'msg>
 let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Session<'model, 'msg> =
   let ctrlC = k.modifiers.ctrl && (k.key == Stdlib.Cli.Stdin.Key.Key.C)
 
+  let ctrlS = k.modifiers.ctrl && (k.key == Stdlib.Cli.Stdin.Key.Key.S)
+
   if ctrlC || (k.key == Stdlib.Cli.Stdin.Key.Key.Escape) then
     { s with exiting = true }
+  else if ctrlS then
+    match snapshot s.branchId s.view s.model with
+    | Ok name -> { s with toast = Stdlib.Option.Option.Some $"saved: {name} (resume with --resume {name})" }
+    | Error why -> { s with toast = Stdlib.Option.Option.Some $"not saved: {why}" }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.Tab then
     moveFocus s (Stdlib.Bool.not k.modifiers.shift)
   else
@@ -240,6 +246,87 @@ let reload (s: Session<'model, 'msg>) (change: Stdlib.Live.Change) : Session<'mo
       toast = Stdlib.Option.Option.Some $"updated: {names}" }
 
 
+// --- saving and resuming the model ---
+
+/// Where a session's snapshot goes: `<the render fn's module>.Sessions.<stamp>`.
+let sessionLocation (view: Model.View) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  entryOf view.render
+  |> Stdlib.Option.map (fun entry ->
+    let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
+
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = entry.owner
+        modules = Stdlib.List.append entry.modules [ "Sessions" ]
+        name = "s" ++ stamp })
+
+/// Snapshot the model as a `val` in the store, so a later `--resume <name>` starts from it, on
+/// another machine after a sync if you like. A value that cannot be stored (a stream, a lambda)
+/// says why. This is the first half of session branches; after record/replay `:save` becomes a
+/// fork of the view's execution and this goes.
+let snapshot (branchId: Uuid) (view: Model.View) (model: 'model) : Stdlib.Result.Result<String, String> =
+  match sessionLocation view with
+  | None -> Stdlib.Result.Result.Error "the view's render is not a package fn name"
+  | Some location ->
+    // Through the REPL's capture, which turns a runtime value back into source: the ONE path that
+    // knows which values have a literal form.
+    match Repl.readCaptured (Repl.captureValue branchId model) with
+      | None -> Stdlib.Result.Result.Error "the model has no stored form (a stream, a lambda, an ephemeral blob inside it)"
+      | Some source ->
+        let name = Stdlib.Live.entryName location
+        let fullSource = $"val {location.name} = {source}"
+
+        match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+        | Some(SourceFile sourceFile) ->
+          let found =
+            sourceFile.declarations
+            |> Stdlib.List.findFirst (fun d ->
+              match d with
+              | Value _ -> true
+              | _ -> false)
+
+          match found with
+          | Some(Value writtenValue) ->
+            let ctx =
+              LanguageTools.NameResolver.NRContext
+                { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+                  pm = LanguageTools.PackageManager.pm ()
+                  branchId = branchId
+                  owner = location.owner
+                  currentModule = location.modules }
+
+            let (packageValue, unresolved) =
+              LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT ctx writtenValue
+
+            if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then
+              Stdlib.Result.Result.Error "the snapshot names types that do not resolve"
+            else
+              let ops =
+                [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
+                  LanguageTools.ProgramTypes.PackageOp.SetName(
+                    location,
+                    LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash,
+                    Stdlib.Option.Option.None
+                  ) ]
+
+              match SCM.PackageOps.addAuthored branchId ops with
+              | Ok _ -> Stdlib.Result.Result.Ok name
+              | Error e -> Stdlib.Result.Result.Error e
+          | _ -> Stdlib.Result.Result.Error "the snapshot did not parse as a value"
+        | _ -> Stdlib.Result.Result.Error "the snapshot did not parse"
+
+/// The model stored under <param name>, for `--resume`.
+let resumeFrom (branchId: Uuid) (name: String) : Stdlib.Result.Result<'model, String> =
+  match Stdlib.Live.locationOfName name with
+  | None -> Stdlib.Result.Result.Error $"{name} is not a package value name"
+  | Some location ->
+    match LanguageTools.PackageManager.Value.find branchId location with
+    | None -> Stdlib.Result.Result.Error $"no value named {name}"
+    | Some hash ->
+      match Stdlib.ValueSearch.evaluate hash with
+      | Some model -> Stdlib.Result.Result.Ok model
+      | None -> Stdlib.Result.Result.Error $"{name} could not be evaluated"
+
+
 // --- the loop ---
 
 /// A read of the keyboard as a widget sees it: the key, its modifiers, what it typed.
@@ -265,9 +352,10 @@ let run (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 
 /// A session for <param view> at its `init`, rendered once, with no terminal yet. `Error` when a
 /// name does not resolve or `init` fails. What a test drives; `start` puts it on screen.
-let prepare
+let prepareWith
   (branchId: Uuid)
   (view: Model.View)
+  (resume: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
   Stdlib.Host.begin ()
 
@@ -277,8 +365,16 @@ let prepare
     // Destructured after the match: `Ok(a, b, c)` reads as a three-field case, not a tuple.
     let (initLg, updateLg, renderLg) = resolved
 
-    match Stdlib.Live.call initLg () with
-    | Error e -> Stdlib.Result.Result.Error $"{view.init}: {e}"
+    let starting =
+      match resume with
+      | Some name -> resumeFrom branchId name
+      | None ->
+        match Stdlib.Live.call initLg () with
+        | Ok model -> Stdlib.Result.Result.Ok model
+        | Error e -> Stdlib.Result.Result.Error $"{view.init}: {e}"
+
+    match starting with
+    | Error e -> Stdlib.Result.Result.Error e
     | Ok model ->
       Stdlib.Result.Result.Ok(
         render (
@@ -298,12 +394,20 @@ let prepare
         )
       )
 
-/// `prepare`, on screen. `Error` also when there is no terminal to take.
-let start
+/// A session at the view's `init`, rendered once, with no terminal yet.
+let prepare
   (branchId: Uuid)
   (view: Model.View)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
-  match prepare branchId view with
+  prepareWith branchId view Stdlib.Option.Option.None
+
+/// `prepareWith`, on screen. `Error` also when there is no terminal to take.
+let start
+  (branchId: Uuid)
+  (view: Model.View)
+  (resume: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<Session<'model, 'msg>, String> =
+  match prepareWith branchId view resume with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok s ->
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
@@ -321,9 +425,13 @@ let stop (s: Session<'model, 'msg>) : Unit =
   let _stopped = Stdlib.Cli.Tui.TerminalSession.stop s.terminal
   ()
 
-/// `dark apps view <slug> [<name>]`: run the view until it quits.
-let openView (branchId: Uuid) (view: Model.View) : Stdlib.Result.Result<Unit, String> =
-  match start branchId view with
+/// `dark apps view <slug> [<name>] [--resume <val>]`: run the view until it quits.
+let openView
+  (branchId: Uuid)
+  (view: Model.View)
+  (resume: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<Unit, String> =
+  match start branchId view resume with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok session ->
     let finished = run session

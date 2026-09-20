@@ -675,6 +675,60 @@ let private viewFollowsEdits =
       })
 
 
+/// H5's second half: a model saved as a `val` comes back through `--resume`, and keeps the model
+/// the view had rather than its init.
+let private modelSavesAndResumes =
+  cliTest "a view's model saves as a val and resumes from it" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LiveSave.init" "(): Int = 0"
+      do!
+        author
+          "Tests.LiveSave.update"
+          "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+      do!
+        author
+          "Tests.LiveSave.render"
+          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m)"
+
+      let view =
+        "Darklang.Cli.Apps.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\" }"
+
+      let! saved =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.snapshot Darklang.SCM.Branch.mainBranchId ({view}) 5"
+      let name =
+        match saved with
+        | RT.DEnum(_, _, _, "Ok", [ RT.DString name ]) -> name
+        | other -> failtest $"the snapshot did not save: {other}"
+      Expect.stringStarts name "Tests.LiveSave.Sessions.s" "it lands under the view's Sessions module"
+
+      let! resumed =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\")"
+      let session =
+        match resumed with
+        | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+        | other -> failtest $"the view did not resume: {other}"
+      let! sizeDv = evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
+      let! rows = callByName state "Darklang.Cli.Apps.Host.plainRows" [ session; sizeDv ]
+      Expect.contains (plainRows rows) "keys: 5" "the resumed session shows the saved model, not init"
+
+      let! missing =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\")"
+      match missing with
+      | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
+        Expect.stringContains why "no value named" "a missing snapshot is named, not a crash"
+      | other -> failtest $"expected an error for a missing snapshot, got {other}"
+    })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -696,5 +750,6 @@ let tests : List<Test> =
         [ serveFollowsEdits
           pollAndAffects
           treeRendersTheSameEverywhere
-          viewFollowsEdits ]
+          viewFollowsEdits
+          modelSavesAndResumes ]
     ) ]

@@ -133,7 +133,12 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 /// The slug may also be a MODULE path (`My.Dashboard`): a module with `init`, `update` and `render`
 /// is a view without anyone declaring an app for it, which is the shape a first edit-and-watch
 /// session wants.
-let viewApp (state: Cli.AppState) (slug: String) (name: String) : Cli.AppState =
+let viewApp
+  (state: Cli.AppState)
+  (slug: String)
+  (name: String)
+  (resume: Stdlib.Option.Option<String>)
+  : Cli.AppState =
   match Registry.findBySlug state.currentBranchId slug with
   | None when Stdlib.String.contains slug "." ->
     let view =
@@ -144,7 +149,7 @@ let viewApp (state: Cli.AppState) (slug: String) (name: String) : Cli.AppState =
           update = slug ++ ".update"
           render = slug ++ ".render" }
 
-    match Host.openView state.currentBranchId view with
+    match Host.openView state.currentBranchId view resume with
     | Ok _ -> state
     | Error e ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -164,7 +169,7 @@ let viewApp (state: Cli.AppState) (slug: String) (name: String) : Cli.AppState =
 
       state
     | Some view ->
-      match Host.openView state.currentBranchId view with
+      match Host.openView state.currentBranchId view resume with
       | Ok _ -> state
       | Error e ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -265,8 +270,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "run", slug ] -> runApp state slug
 
-  | [ "view", slug ] -> viewApp state slug ""
-  | [ "view", slug, name ] -> viewApp state slug name
+  | [ "view", slug ] -> viewApp state slug "" Stdlib.Option.Option.None
+  | [ "view", slug, "--resume", saved ] -> viewApp state slug "" (Stdlib.Option.Option.Some saved)
+  | [ "view", slug, name ] -> viewApp state slug name Stdlib.Option.Option.None
+  | [ "view", slug, name, "--resume", saved ] -> viewApp state slug name (Stdlib.Option.Option.Some saved)
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
@@ -397,7 +404,8 @@ let help (_state: Cli.AppState) : String =
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Live views")
   [ helpLine "apps view <slug> [<name>]" "Open a view; it follows edits to its code until Esc"
-    helpLine "apps view <Module.Path>" "The same for any module with init, update and render" ]
+    helpLine "apps view <Module.Path>" "The same for any module with init, update and render"
+    helpLine "  ... --resume <val>" "Start from a model saved with Ctrl-S (a `val` under .Sessions)" ]
   |> Stdlib.printLines
 
   Stdlib.printLine ""
