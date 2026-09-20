@@ -43,9 +43,10 @@ them. A call picks the impl by the type of the value it is given.
   `MissingImpl`, `AmbiguousImpl`, `UnboundTypeParameter`.
 
 ## The operators are traits
-  `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; the
-  comparisons are `Stdlib.Ord`. Every builtin numeric type implements them, so
-  `Vec + Vec` only needs `impl Add for Vec`. `"a" + "b"` is a missing impl,
+  `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; `-x`
+  is Neg; the comparisons are `Stdlib.Ord`. Every builtin numeric type implements
+  them, so `Vec + Vec` only needs `impl Add for Vec`, and `Stdlib.max`, `min` and
+  `clamp` work on anything with an `Ord`. `"a" + "b"` is a missing impl,
   not a numeric-type error. `==`, `!=`, `++` and the bitwise operators are not
   traits.
 

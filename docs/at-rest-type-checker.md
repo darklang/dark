@@ -145,15 +145,16 @@ their type variables. Two kinds of signature must not be trusted:
 - The polymorphic operator builtins (`add`, `lessThan`, `equals`, `negate`, ...)
   declare independent `'a`/`'b` parameters because the type language has no numeric
   constraint, but raise at runtime on anything but values of the same numeric type.
-  A by-name call (`Builtin.add a b`, or `-x`, which the parser lowers to `negate`)
-  is checked with the operator's numeric table rather than the declared signature;
-  used as a value or partially applied there is no signature to give them, and the
-  use is `Incomplete`.
+  A by-name call (`Builtin.add a b`) is checked with the operator's numeric table
+  rather than the declared signature; used as a value or partially applied there is
+  no signature to give them, and the use is `Incomplete`.
 
 Infix syntax itself no longer lowers to those builtins. `a + b` is
 `Stdlib.Add.add a b` (`NumericTraits.ofInfix`; likewise `- * / % **` and the four
-comparisons), and the checker treats it as a trait method call: the operands unify,
-and the operand type owes an `Add` impl. See below.
+comparisons), and `-x`, which the parser stores as `Builtin.negate x`, runs as
+`Stdlib.Neg.negate x` (`NumericTraits.ofNegate`). The checker treats each as a trait
+method call: the operands unify, and the operand type owes an `Add` (or `Neg`) impl.
+See below.
 
 ## Traits
 
