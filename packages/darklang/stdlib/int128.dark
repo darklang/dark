@@ -218,3 +218,15 @@ impl Ord for Int128 =
   let lessThanOrEqualTo = Stdlib.Int128.lessThanOrEqualTo
   let greaterThan = Stdlib.Int128.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
+
+
+impl ToString for Int128 =
+  let toString = Stdlib.Int128.toString
+
+
+impl Zero for Int128 =
+  let zero () : Int128 = 0Q
+
+
+impl One for Int128 =
+  let one () : Int128 = 1Q

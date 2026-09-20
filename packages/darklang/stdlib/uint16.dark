@@ -222,3 +222,15 @@ impl Ord for UInt16 =
   let lessThanOrEqualTo = Stdlib.UInt16.lessThanOrEqualTo
   let greaterThan = Stdlib.UInt16.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt16.greaterThanOrEqualTo
+
+
+impl ToString for UInt16 =
+  let toString = Stdlib.UInt16.toString
+
+
+impl Zero for UInt16 =
+  let zero () : UInt16 = 0us
+
+
+impl One for UInt16 =
+  let one () : UInt16 = 1us

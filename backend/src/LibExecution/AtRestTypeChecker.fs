@@ -115,55 +115,109 @@ let private implsFor
   | [] -> ofTrait |> List.filter (fun e -> headOfImplSelf e.self = None)
   | specific -> specific
 
+/// The type variables a type reference mentions, in order of appearance
+let rec private tvarsOf (t : TypeReference) : List<string> =
+  match t with
+  | TypeReference.TVariable v -> [ v ]
+  | TypeReference.TList inner
+  | TypeReference.TStream inner
+  | TypeReference.TDB inner -> tvarsOf inner
+  | TypeReference.TDict(k, v) -> tvarsOf k @ tvarsOf v
+  | TypeReference.TTuple(a, b, rest) -> List.collect tvarsOf (a :: b :: rest)
+  | TypeReference.TCustomType(_, args) -> List.collect tvarsOf args
+  | TypeReference.TFn(args, ret) ->
+    List.collect tvarsOf (NEList.toList args) @ tvarsOf ret
+  | _ -> []
+
 /// Discharge every bound the item accumulated, now that its substitutions are
 /// known. A concrete type needs a visible impl; the item's own rigid type param
 /// needs a declared bound; an inference variable is a blocker, not an error.
-let private dischargeConstraints (state : State) : unit =
-  for nodeId, trait_, typ, method_ in List.rev state.Constraints do
-    let typ = applySubstitutions state typ
-    let typ = normalizeAliases state nodeId Set.empty typ
-    match typ with
-    | TInferenceVariable _ ->
-      if not (containsTaintedInferenceVariable state typ) then
-        state.Block(AmbiguousType, nodeId, Ambiguous ConstrainedType)
-    | TRigidVariable name ->
-      let declared =
-        state.DeclaredBounds
-        |> List.exists (fun b ->
-          b.param = name
-          && (match b.trait_.trait_.resolved with
-              | Ok { name = FQTraitName.Package t } -> t = trait_
-              | _ -> false))
-      if not declared then
+let rec private dischargeConstraints (state : State) : unit =
+  // A worklist: discharging a constraint against a conditional impl
+  // (`impl<'a: Show> Show for List<'a>` for `Show List<Option<Int>>`) owes the
+  // impl's own bounds at the matched type (`Show Option<Int>`), which are added
+  // here and discharged in turn. Bounded by rounds: each round strips one type
+  // constructor, so the chain ends with the type.
+  let mutable pending = List.rev state.Constraints
+  let mutable rounds = 0
+  state.Constraints <- []
+  while not (List.isEmpty pending) && rounds < 16 do
+    rounds <- rounds + 1
+    let batch = pending
+    pending <- []
+    for nodeId, trait_, typ, method_ in batch do
+      dischargeOne state nodeId trait_ typ method_
+      pending <- pending @ List.rev state.Constraints
+      state.Constraints <- []
+
+/// One owed bound, at the type it was owed for.
+and private dischargeOne
+  (state : State)
+  (nodeId : Option<id>)
+  (trait_ : FQTraitName.Package)
+  (typ : StaticType)
+  (method_ : Option<string>)
+  : unit =
+  let typ = applySubstitutions state typ
+  let typ = normalizeAliases state nodeId Set.empty typ
+  match typ with
+  | TInferenceVariable _ ->
+    if not (containsTaintedInferenceVariable state typ) then
+      state.Block(AmbiguousType, nodeId, Ambiguous ConstrainedType)
+  | TRigidVariable name ->
+    let declared =
+      state.DeclaredBounds
+      |> List.exists (fun b ->
+        b.param = name
+        && (match b.trait_.trait_.resolved with
+            | Ok { name = FQTraitName.Package t } -> t = trait_
+            | _ -> false))
+    if not declared then
+      state.Error(
+        UnboundTypeParameter,
+        nodeId,
+        None,
+        Some typ,
+        TraitNeeded(trait_, method_)
+      )
+  | concrete ->
+    match headOfStatic concrete with
+    | None -> ()
+    | Some head ->
+      match implsFor state trait_ head with
+      | [] ->
         state.Error(
-          UnboundTypeParameter,
+          MissingImpl,
           nodeId,
           None,
-          Some typ,
+          Some concrete,
           TraitNeeded(trait_, method_)
         )
-    | concrete ->
-      match headOfStatic concrete with
-      | None -> ()
-      | Some head ->
-        match implsFor state trait_ head with
-        | [] ->
-          state.Error(
-            MissingImpl,
-            nodeId,
-            None,
-            Some concrete,
-            TraitNeeded(trait_, method_)
-          )
-        | [ _ ] -> ()
-        | _ ->
-          state.Error(
-            AmbiguousImpl,
-            nodeId,
-            None,
-            Some concrete,
-            TraitNeeded(trait_, method_)
-          )
+      | [ entry ] ->
+        // A conditional impl owes its own bounds at the type it matched: bind
+        // its params by unifying its self type with the concrete one, then owe
+        // each bound at the param's type.
+        if not (List.isEmpty entry.bounds) then
+          let vars =
+            tvarsOf entry.self
+            |> List.distinct
+            |> List.map (fun v -> v, state.Fresh nodeId)
+            |> Map.ofList
+          let implSelf = convertType state nodeId vars entry.self
+          unify state nodeId ImplMethodSignatureSite implSelf concrete
+          for b in entry.bounds do
+            match b.trait_.trait_.resolved, Map.tryFind b.param vars with
+            | Ok { name = FQTraitName.Package boundTrait }, Some paramType ->
+              state.AddConstraint(nodeId, boundTrait, paramType, None)
+            | _ -> ()
+      | _ ->
+        state.Error(
+          AmbiguousImpl,
+          nodeId,
+          None,
+          Some concrete,
+          TraitNeeded(trait_, method_)
+        )
 
 /// `x.m` where `x` has no field `m`: the one visible impl, of any trait, with a
 /// method `m` for `x`'s head types the access as that method with `x` consumed.

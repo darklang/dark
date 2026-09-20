@@ -333,7 +333,12 @@ selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeC
 (`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
 stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
 `NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
-needs a ref and a regenerated `package-ref-hashes.txt`.
+needs a ref and a regenerated `package-ref-hashes.txt`. `==` is `Eq.equals` with a
+structural fallback (`Interpreter.structuralEquals`; the selection memo holds `Hash ""`
+for "no implementation"), answered without dispatch for anything but a record or an
+enum; `!=` lowers to `boolNot (Eq.equals a b)`. `Zero.zero`/`One.one` dispatch from an
+explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
+type args first.
 
 **Every switch over item kinds has five arms now.** Types, values, fns, traits, impls.
 A new listing, codec, or CLI command that handles three of them silently drops the

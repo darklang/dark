@@ -2454,6 +2454,35 @@ let private traitTests =
         |> expectChecked
       }
 
+      test "a conditional impl owes its own bounds at the call site" {
+        // `impl<'a: Show> Show for List<'a>`: `describe [point]` is fine, and
+        // `describe [other]` is a MissingImpl for OTHER, found through the list.
+        let listImpl =
+          { implOf "impl-show-list" (PT.TList(PT.TVariable "a")) with
+              typeParams = [ "a" ]
+              bounds = [ { param = "a"; trait_ = showRef } ] }
+        let environment = withPointImpl |> Checker.TypeEnvironment.addImpl listImpl
+        oneArgFn
+          (PT.TList pointType)
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+        oneArgFn
+          (PT.TList otherType)
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.MissingImpl
+        // Two levels deep, the same way
+        oneArgFn
+          (PT.TList(PT.TList otherType))
+          PT.TString
+          (call describeName (PT.EVariable(12UL, "value")))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.MissingImpl
+      }
+
       test "a bound on an unresolved inference variable is a ConstrainedType blocker" {
         PT.ELambda(
           13UL,

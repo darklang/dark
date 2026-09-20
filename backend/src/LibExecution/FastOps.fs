@@ -505,6 +505,7 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
       put (PackageRefs.Trait.Stdlib.Traits.sub ()) "subtract" subtract
       put (PackageRefs.Trait.Stdlib.Traits.mul ()) "multiply" multiply
       put (PackageRefs.Trait.Stdlib.Traits.neg ()) "negate" negate
+      put (PackageRefs.Trait.Stdlib.Traits.eq ()) "equals" equals
       put (PackageRefs.Trait.Stdlib.Traits.ord ()) "lessThan" lessThan
       put
         (PackageRefs.Trait.Stdlib.Traits.ord ())
@@ -523,6 +524,13 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
   else
     ValueNone
 
+
+/// `Eq.equals`: the one trait method with a structural fallback, and the one the
+/// interpreter answers without dispatch for anything but a record or an enum.
+let isEquals (traitHash : string) (methodName : string) : bool =
+  match traitTag traitHash methodName with
+  | ValueSome tag -> tag = equals
+  | ValueNone -> false
 
 /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
 /// record and this is a single probe of a table with ten entries in it.

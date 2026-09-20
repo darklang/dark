@@ -257,3 +257,15 @@ impl Ord for Int32 =
   let lessThanOrEqualTo = Stdlib.Int32.lessThanOrEqualTo
   let greaterThan = Stdlib.Int32.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
+
+
+impl ToString for Int32 =
+  let toString = Stdlib.Int32.toString
+
+
+impl Zero for Int32 =
+  let zero () : Int32 = 0l
+
+
+impl One for Int32 =
+  let one () : Int32 = 1l

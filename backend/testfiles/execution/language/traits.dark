@@ -115,3 +115,63 @@ module Ambiguity =
 
   // A receiver call cannot pick between two traits with the same method name
   (1).describe = error "`.describe` on a Int is ambiguous: 2 traits have a method named describe. Call it as `Trait.describe value`"
+
+
+module Equality =
+  // `==` is `Eq.equals`. A type with an impl says what equal means; everything
+  // else, builtin types included, compares structurally as before.
+  type User = { id: Int64; name: String }
+  type Plain = { n: Int64 }
+
+  impl Stdlib.Eq for User =
+    let equals (a: User) (b: User) : Bool = a.id == b.id
+
+  Equality.User { id = 1L; name = "a" } == Equality.User { id = 1L; name = "b" } = true
+  Equality.User { id = 1L; name = "a" } != Equality.User { id = 2L; name = "a" } = true
+  Equality.User { id = 1L; name = "a" } != Equality.User { id = 1L; name = "b" } = false
+  Equality.Plain { n = 1L } == Equality.Plain { n = 1L } = true
+  Equality.Plain { n = 1L } != Equality.Plain { n = 2L } = true
+  1 == 1 = true
+  1 != 1 = false
+  "a" == "a" = true
+  [ 1, 2 ] == [ 1, 2 ] = true
+  Stdlib.Option.Option.Some 1 == Stdlib.Option.Option.Some 1 = true
+  1 == "a" = error "Cannot perform equality check on Int and String"
+  // Inside a container the walk is structural: the element's impl is not consulted.
+  [ Equality.User { id = 1L; name = "a" } ] == [ Equality.User { id = 1L; name = "b" } ] = false
+
+
+module Identities =
+  // `Zero`/`One` dispatch from an explicit type arg or a caller's bound: there is
+  // no argument to read the type from.
+  Stdlib.Zero.zero<Int64> () = 0L
+  Stdlib.One.one<Float> () = 1.0
+  Stdlib.Zero.zero () = error "Cannot tell which type to dispatch Zero.zero on. Pass the type explicitly: `Zero.zero<Type> ...`"
+
+  let zeroOf<'a: Stdlib.Zero + Stdlib.Add> (x: 'a) : 'a = Stdlib.Zero.zero () + x
+  Identities.zeroOf 5L = 5L
+  Identities.zeroOf 2.5 = 2.5
+
+  // `sum` and `product` take a seed, so `[]` never has to ask
+  Stdlib.sum 0L [ 1L, 2L, 3L ] = 6L
+  Stdlib.sum 0.0 [] = 0.0
+  Stdlib.product 1 [ 2, 3, 4 ] = 24
+  Stdlib.sum (Multi.Vec { dx = 0; dy = 0 }) [ Multi.Vec { dx = 1; dy = 2 }, Multi.Vec { dx = 3; dy = 4 } ] = Multi.Vec { dx = 4; dy = 6 }
+
+
+module Rendering =
+  // `ToString` is the trait behind every builtin type's `toString`
+  type Point = { x: Int64; y: Int64 }
+
+  impl Stdlib.ToString for Point =
+    let toString (p: Point) : String = $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
+
+  (Rendering.Point { x = 1L; y = 2L }).toString = "(1, 2)"
+  Stdlib.toString (Rendering.Point { x = 1L; y = 2L }) = "(1, 2)"
+  Stdlib.toString 42L = "42"
+  Stdlib.toString true = "true"
+  Stdlib.toString 2.5 = "2.5"
+  (7).toString = "7"
+  Stdlib.max 3L 9L = 9L
+  Stdlib.min "a" "b" = error "No implementation of Darklang.Stdlib.Ord for String. Write `impl Ord for <type> = ...`, or see `dark impls Ord`"
+  Stdlib.clamp 15 20 10 = 15

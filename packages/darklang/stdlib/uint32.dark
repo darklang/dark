@@ -221,3 +221,15 @@ impl Ord for UInt32 =
   let lessThanOrEqualTo = Stdlib.UInt32.lessThanOrEqualTo
   let greaterThan = Stdlib.UInt32.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo
+
+
+impl ToString for UInt32 =
+  let toString = Stdlib.UInt32.toString
+
+
+impl Zero for UInt32 =
+  let zero () : UInt32 = 0ul
+
+
+impl One for UInt32 =
+  let one () : UInt32 = 1ul

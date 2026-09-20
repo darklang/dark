@@ -46,6 +46,34 @@ trait Neg<'a> =
   let negate (a: 'a) : 'a
 
 
+/// The additive identity, `Zero.zero<Int64> ()`. Dispatched from an explicit
+/// type arg or the caller's bound, since there is no argument to read the type
+/// from; `Stdlib.sum` takes a seed instead so an empty list never has to ask.
+trait Zero<'a> =
+  let zero () : 'a
+
+
+/// The multiplicative identity, `One.one<Int64> ()`
+trait One<'a> =
+  let one () : 'a
+
+
+/// A value rendered as text for a person: `p.toString`, or `ToString.toString p`.
+/// Every builtin type implements it with the `toString` fn it already had;
+/// `Stdlib.toRepr` stays the structural debug form.
+trait ToString<'a> =
+  let toString (v: 'a) : String
+
+
+/// `a == b` (and `a != b`, which is its negation). Every value compares
+/// structurally unless its type implements this: a record or enum that says
+/// what equal means (compare ids, ignore a cache field) gets its own `==`.
+/// The builtin types are never overridden, and `List.sort` and dict keys stay
+/// structural whatever you implement.
+trait Eq<'a> =
+  let equals (a: 'a) (b: 'a) : Bool
+
+
 /// `<`, `<=`, `>`, `>=`
 trait Ord<'a> =
   let lessThan (a: 'a) (b: 'a) : Bool
@@ -72,3 +100,19 @@ let clamp<'a: Ord> (value: 'a) (limitA: 'a) (limitB: 'a) : 'a =
   if value < low then low
   else if value > high then high
   else value
+
+
+/// <param xs> added up from <param seed>, for any type with an `Add`:
+/// `Stdlib.sum 0L [ 1L, 2L ]` is `3L`, `Stdlib.sum 0L []` is `0L`. The seed
+/// is what `[]` sums to, which is why it is an argument and not `Zero.zero`.
+let sum<'a: Add> (seed: 'a) (xs: List<'a>) : 'a =
+  Stdlib.List.fold xs seed (fun acc x -> acc + x)
+
+
+/// <param xs> multiplied together from <param seed>, for any type with a `Mul`
+let product<'a: Mul> (seed: 'a) (xs: List<'a>) : 'a =
+  Stdlib.List.fold xs seed (fun acc x -> acc * x)
+
+
+/// <param v> as text, for any type with a `ToString`
+let toString<'a: ToString> (v: 'a) : String = ToString.toString v

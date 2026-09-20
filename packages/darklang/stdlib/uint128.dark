@@ -181,3 +181,15 @@ impl Ord for UInt128 =
   let lessThanOrEqualTo = Stdlib.UInt128.lessThanOrEqualTo
   let greaterThan = Stdlib.UInt128.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt128.greaterThanOrEqualTo
+
+
+impl ToString for UInt128 =
+  let toString = Stdlib.UInt128.toString
+
+
+impl Zero for UInt128 =
+  let zero () : UInt128 = 0Z
+
+
+impl One for UInt128 =
+  let one () : UInt128 = 1Z

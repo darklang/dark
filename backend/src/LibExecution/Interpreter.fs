@@ -1192,6 +1192,18 @@ let private tryFastOpOn
     | _ -> ValueNone
 
 
+/// The hash the selection memo holds for "no implementation, use the structural
+/// fallback": only `Eq.equals` ever stores it.
+let private structuralEqualsSentinel : FQFnName.Package = Hash ""
+
+/// `Eq.equals` for a type with no implementation, and for every builtin type: what
+/// the `equals` builtin does, incompatible types included.
+let private structuralEquals (threadID : ThreadID) (a : Dval) (b : Dval) : Dval =
+  let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
+  match ValueType.merge vtA vtB with
+  | Error _ -> RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE threadID
+  | Ok _ -> DBool(Dval.equals a b)
+
 /// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
 ///
 /// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
@@ -1218,6 +1230,13 @@ let private tryFastOpDirect
     // takes the same table the builtin used to; the rest take `evalNumeric`.
     | FQFnName.TraitMethod(Hash traitHash, methodName) ->
       match argRegs.tail with
+      | [ secondReg ] when FastOps.isEquals traitHash methodName ->
+        // A builtin type's equality is not overridable; only a record or an enum
+        // can carry an `Eq` implementation, so everything else is answered here.
+        match registers[argRegs.head] with
+        | DRecord _
+        | DEnum _ -> ValueNone
+        | a -> ValueSome(structuralEquals threadID a registers[secondReg])
       | [ secondReg ] ->
         match FastOps.traitTag traitHash methodName with
         | ValueSome tag ->
@@ -2099,6 +2118,7 @@ let private resolveTraitMethod
   (typeArgs : List<TypeReference>)
   (tst : TypeSymbolTable)
   (args : List<Dval>)
+  (structuralFallback : bool)
   : Ply<FQFnName.Package> =
   uply {
     let traitName = FQTraitName.Package traitHash
@@ -2184,6 +2204,14 @@ let private resolveTraitMethod
         return
           RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
           |> raiseRTE vm.threadID
+    | Traits.NoImpl when structuralFallback ->
+      // `==` on a type with no `Eq`: structural, and remembered as such.
+      exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                             traitHash,
+                                             methodName,
+                                             self)] <-
+        struct (generation, structuralEqualsSentinel)
+      return structuralEqualsSentinel
     | Traits.NoImpl ->
       return
         RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))
@@ -2458,8 +2486,9 @@ let private applyInstruction
         // impl fn's parameter check. Matching pairs of a builtin numeric type never
         // reach here (the fast path answers them), so this costs a dispatch only.
         let (Hash traitHashStr) = traitHash
+        let isEquals = FastOps.isEquals traitHashStr methodName
         (match FastOps.traitTag traitHashStr methodName with
-         | ValueSome _ when List.isEmpty applicable.argsSoFar ->
+         | ValueSome _ when List.isEmpty applicable.argsSoFar && not isEquals ->
            match newArgRegs.tail with
            | [ secondReg ] ->
              let left = Dval.toValueType registers[newArgRegs.head]
@@ -2527,12 +2556,43 @@ let private applyInstruction
           vm.stats.traitDispatchCount <- vm.stats.traitDispatchCount + 1L
           if remembered.IsNone then
             vm.stats.traitDispatchMissCount <- vm.stats.traitDispatchMissCount + 1L
+        // `==` with no implementation for the type: structural, no call.
+        let structural () : Ply<PackageOutcome> =
+          match applicable.argsSoFar, newArgRegs.tail with
+          | [], [ secondReg ] ->
+            Ply(
+              Completed(
+                structuralEquals
+                  vm.threadID
+                  registers[newArgRegs.head]
+                  registers[secondReg]
+              )
+            )
+          | [ a ], [] ->
+            Ply(Completed(structuralEquals vm.threadID a registers[newArgRegs.head]))
+          | _ ->
+            // `Eq.equals` partially applied to nothing, or over-applied: let the
+            // ordinary arity errors speak.
+            Ply(
+              Completed(
+                structuralEquals
+                  vm.threadID
+                  registers[newArgRegs.head]
+                  registers[newArgRegs.head]
+              )
+            )
         let call : Ply<PackageOutcome> =
           match remembered with
+          | ValueSome implFn when isEquals && implFn = structuralEqualsSentinel ->
+            structural ()
           | ValueSome implFn ->
             let implCtx =
               { ctx with
-                  applicable = { applicable with name = FQFnName.Package implFn } }
+                  // The type args named the TRAIT's params (the self type first); the impl fn
+                  // has its own, inferred from the arguments.
+                  typeArgs = []
+                  applicable =
+                    { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
             match Ply.trySync (exeState.fns.package implFn) with
             | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
             | ValueSome None ->
@@ -2560,14 +2620,24 @@ let private applyInstruction
                   typeArgs
                   tst
                   allArgs
-              let implCtx =
-                { ctx with
-                    applicable = { applicable with name = FQFnName.Package implFn } }
-              match! exeState.fns.package implFn with
-              | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-              | None ->
-                return
-                  RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+                  isEquals
+              if isEquals && implFn = structuralEqualsSentinel then
+                return! structural ()
+              else
+                let implCtx =
+                  { ctx with
+                      // The type args named the TRAIT's params (the self type first); the
+                      // impl fn has its own, inferred from the arguments.
+                      typeArgs = []
+                      applicable =
+                        { applicable with
+                            name = FQFnName.Package implFn
+                            typeArgs = [] } }
+                match! exeState.fns.package implFn with
+                | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
+                | None ->
+                  return
+                    RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
             }
         match Ply.trySync call with
         | ValueSome(PartiallyApplied dv)

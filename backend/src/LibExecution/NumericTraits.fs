@@ -12,9 +12,10 @@ open ProgramTypes
 
 module Traits = PackageRefs.Trait.Stdlib.Traits
 
-/// The trait and method an operator is, when it is one. Bitwise operators, `++`,
-/// `==` and `!=` stay on their builtins: bitwise is integer-only by nature, and
-/// equality is structural over every type.
+/// The trait and method an operator is, when it is one. Bitwise operators and `++`
+/// stay on their builtins: bitwise is integer-only by nature. `==` is `Eq.equals`,
+/// with a structural fallback for a type that has no implementation (so every
+/// value stays comparable, and the builtin types are never overridden).
 let ofInfix (op : InfixFnName) : Option<string * string> =
   let some (hash : string) (methodName : string) =
     if hash = "" then None else Some(hash, methodName)
@@ -29,13 +30,14 @@ let ofInfix (op : InfixFnName) : Option<string * string> =
   | ComparisonLessThanOrEqual -> some (Traits.ord ()) "lessThanOrEqualTo"
   | ComparisonGreaterThan -> some (Traits.ord ()) "greaterThan"
   | ComparisonGreaterThanOrEqual -> some (Traits.ord ()) "greaterThanOrEqualTo"
+  // `==` is `Eq.equals`; `!=` is `not (Eq.equals a b)`, lowered as two calls.
+  | ComparisonEquals -> some (Traits.eq ()) "equals"
+  | ComparisonNotEquals -> None
   | BitwiseAnd
   | BitwiseOr
   | BitwiseXor
   | ShiftLeft
   | ShiftRight
-  | ComparisonEquals
-  | ComparisonNotEquals
   | StringConcat -> None
 
 /// Unary minus on a non-literal (`-x`): `Neg.negate`, or None while the refs are
@@ -57,8 +59,15 @@ let private all () : List<InfixFnName * (string * string)> =
     ComparisonLessThan
     ComparisonLessThanOrEqual
     ComparisonGreaterThan
-    ComparisonGreaterThanOrEqual ]
+    ComparisonGreaterThanOrEqual
+    ComparisonEquals ]
   |> List.choose (fun op -> ofInfix op |> Option.map (fun t -> (op, t)))
+
+/// `Eq.equals`, when the refs are generated: the one trait method with a structural
+/// fallback, and the one the interpreter answers without dispatch for anything but a
+/// record or an enum (a builtin type's equality is not overridable, as in JS).
+let isEquals (traitHash : string) (methodName : string) : bool =
+  methodName = "equals" && traitHash <> "" && traitHash = Traits.eq ()
 
 /// The operator a trait method is, when it is one. Generation-checked because the
 /// hashes move with the stdlib; the table is published whole and never written

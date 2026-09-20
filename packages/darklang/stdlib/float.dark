@@ -197,3 +197,15 @@ impl Ord for Float =
   let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
   let greaterThan = Stdlib.Float.greaterThan
   let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
+
+
+impl ToString for Float =
+  let toString = Stdlib.Float.toString
+
+
+impl Zero for Float =
+  let zero () : Float = 0.0
+
+
+impl One for Float =
+  let one () : Float = 1.0

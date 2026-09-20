@@ -91,3 +91,7 @@ let fromCodepoint (codepoint: Int) : Stdlib.Option.Option<Char> =
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
 let toCodepoint (c: Char) : Stdlib.Option.Option<Int> = Builtin.charToCodepoint c
+
+
+impl ToString for Char =
+  let toString = Stdlib.Char.toString

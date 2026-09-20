@@ -257,3 +257,15 @@ impl Ord for Int8 =
   let lessThanOrEqualTo = Stdlib.Int8.lessThanOrEqualTo
   let greaterThan = Stdlib.Int8.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
+
+
+impl ToString for Int8 =
+  let toString = Stdlib.Int8.toString
+
+
+impl Zero for Int8 =
+  let zero () : Int8 = 0y
+
+
+impl One for Int8 =
+  let one () : Int8 = 1y

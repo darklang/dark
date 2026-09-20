@@ -241,3 +241,15 @@ impl Ord for Int64 =
   let lessThanOrEqualTo = Stdlib.Int64.lessThanOrEqualTo
   let greaterThan = Stdlib.Int64.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo
+
+
+impl ToString for Int64 =
+  let toString = Stdlib.Int64.toString
+
+
+impl Zero for Int64 =
+  let zero () : Int64 = 0L
+
+
+impl One for Int64 =
+  let one () : Int64 = 1L

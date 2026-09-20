@@ -246,3 +246,15 @@ impl Ord for Int =
   let lessThanOrEqualTo = Stdlib.Int.lessThanOrEqualTo
   let greaterThan = Stdlib.Int.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo
+
+
+impl ToString for Int =
+  let toString = Stdlib.Int.toString
+
+
+impl Zero for Int =
+  let zero () : Int = 0
+
+
+impl One for Int =
+  let one () : Int = 1

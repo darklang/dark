@@ -220,3 +220,15 @@ impl Ord for UInt8 =
   let lessThanOrEqualTo = Stdlib.UInt8.lessThanOrEqualTo
   let greaterThan = Stdlib.UInt8.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt8.greaterThanOrEqualTo
+
+
+impl ToString for UInt8 =
+  let toString = Stdlib.UInt8.toString
+
+
+impl Zero for UInt8 =
+  let zero () : UInt8 = 0uy
+
+
+impl One for UInt8 =
+  let one () : UInt8 = 1uy

@@ -568,8 +568,9 @@ module Trait =
       let pow = p [] "Pow"
       let neg = p [] "Neg"
       let ord = p [] "Ord"
+      let eq = p [] "Eq"
       let all () =
-        [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord () ]
+        [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord (); eq () ]
 
 
 module Fn =

@@ -5,7 +5,8 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
-  `==` and `!=` are structural, on every type. `< > <= >=` are the `Stdlib.Ord`
+  `==` is `Stdlib.Eq.equals` (`!=` its negation): structural on every type
+  unless the type implements `Eq` (`docs traits`). `< > <= >=` are the `Stdlib.Ord`
   trait: every numeric type implements it, and so can yours (`docs traits`).
 
 ## Boolean

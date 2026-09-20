@@ -57,8 +57,23 @@ them. A call picks the impl by the type of the value it is given.
   is Neg; the comparisons are `Stdlib.Ord`. Every builtin numeric type implements
   them, so `Vec + Vec` only needs `impl Add for Vec`, and `Stdlib.max`, `min` and
   `clamp` work on anything with an `Ord`. `"a" + "b"` is a missing implementation,
-  not a numeric-type error. `==`, `!=`, `++` and the bitwise operators are not
-  traits.
+  not a numeric-type error. `++` and the bitwise operators are not traits.
+
+## Equality, rendering, identities
+  `a == b` is `Stdlib.Eq.equals a b` (`!=` is its negation). Every value
+  compares structurally unless its type implements `Eq`, so nothing changes
+  until you write `impl Eq for User = let equals (a: User) (b: User) : Bool =
+  a.id == b.id`; then `==` on two Users is yours. Builtin types are never
+  overridden, and `List.sort` and dict keys stay structural. Inside a list or
+  a record the walk is structural too: `[u1] == [u2]` does not consult `Eq`.
+
+  `ToString` is the trait behind every builtin type's `toString`: `(42L).toString`,
+  `p.toString` once `impl ToString for Point` exists, `Stdlib.toString v` for
+  any type with one. `Stdlib.toRepr` stays the structural debug form.
+
+  `Zero` and `One` are the identities: `Zero.zero<Int64> ()`, or from a bound
+  inside a generic fn. `Stdlib.sum seed xs` and `Stdlib.product seed xs` take
+  the seed as an argument so `[]` never has to ask which type it is.
 
 ## Visibility
   An implementation is a package item like any other: it is visible where its

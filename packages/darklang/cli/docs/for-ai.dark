@@ -245,6 +245,9 @@ Rules:
   `impl Show for Point = let show (p: Point) : String = ...`, called as
   `Show.show p` or `p.show`; a bound is `let f<'a: Show> (v: 'a) = ...`.
   Author one with `dark trait` / `dark impl` (or in a `dark module` block).
+  Stdlib traits: Add Sub Mul Div Mod Pow Neg Ord (the operators), Eq (`==`,
+  structural unless implemented), ToString (`x.toString`), Zero, One.
+  `Stdlib.sum seed xs`, `max`, `min`, `clamp` are written once over them.
   `docs traits` has the rest, `dark impls Show` lists the implementations.
 - Bitwise operators (& | ^ << >> and unary ~) work on every integer type, not
   Float; both operands (the shift count included) must be the same type.

@@ -259,3 +259,15 @@ impl Ord for Int16 =
   let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
   let greaterThan = Stdlib.Int16.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
+
+
+impl ToString for Int16 =
+  let toString = Stdlib.Int16.toString
+
+
+impl Zero for Int16 =
+  let zero () : Int16 = 0s
+
+
+impl One for Int16 =
+  let one () : Int16 = 1s
